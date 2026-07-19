@@ -17,7 +17,12 @@ import ai.rapids.cudf.Cuda;
 import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.trino.operator.exchange.LocalExchangeMemoryManager;
+import io.trino.operator.gpu.GpuOperation;
+import io.trino.operator.gpu.memory.AllocatedMemory;
+import io.trino.operator.gpu.memory.GpuTaskMemoryContext;
+import io.trino.plugin.base.gpu.ClosingRef;
 import io.trino.spi.gpu.GpuPage;
+import io.trino.spi.gpu.MemoryAmount;
 import io.trino.spi.gpu.borrow.Move;
 import io.trino.spi.gpu.borrow.Own;
 
@@ -32,34 +37,48 @@ final class GpuHashPartitioningExchanger
     private final List<GpuLocalExchangeBuffer> buffers;
     private final LocalExchangeMemoryManager memoryManager;
     private final int[] keyChannels;
+    private final GpuTaskMemoryContext taskMemoryContext;
 
     GpuHashPartitioningExchanger(
             List<GpuLocalExchangeBuffer> buffers,
             LocalExchangeMemoryManager memoryManager,
-            int[] keyChannels)
+            int[] keyChannels,
+            GpuOperation.Context context)
     {
         this.buffers = ImmutableList.copyOf(buffers);
         checkArgument(!this.buffers.isEmpty(), "buffers is empty");
         this.memoryManager = requireNonNull(memoryManager, "memoryManager is null");
         this.keyChannels = keyChannels.clone();
+        this.taskMemoryContext = context.taskMemoryContext();
     }
 
     @Override
-    public void accept(@Move GpuPage page)
+    public void accept(@Move AllocatedMemory memory, @Move GpuPage page)
     {
-        try (page) {
+        try (ClosingRef<AllocatedMemory> allocation = ClosingRef.own(taskMemoryContext.allocate(getClass().getSimpleName(), MemoryAmount.ZERO));
+                memory;
+                page) {
             if (page.positionCount() == 0) {
                 // No rows to partition; zero-row partitions are dropped by the loop below anyway.
                 // Skipping here avoids the cuDF contiguousSplit call and its cross-thread sync.
                 return;
             }
-            @Own GpuPage[] partitions = GpuPartitioner.partition(page, keyChannels, buffers.size());
+
+            int partitionCount = buffers.size();
+
+            allocation.borrow().transferFrom(memory);
+            if (partitionCount > 1) {
+                // Peak during partition: hashPartition output (~input) and contiguousSplit output (~input) coexist with the input
+                allocation.borrow().update(allocation.borrow().amount().add(MemoryAmount.gpuDevice(2 * page.retainedDeviceMemoryBytes())));
+            }
+
+            @Own GpuPage[] partitions = GpuPartitioner.partition(page, keyChannels, partitionCount);
             try {
                 // Cross-thread handoff to readers; cudaStreamSynchronize drains this thread's PTDS
                 // completely so all GPU writes are committed to device memory before another thread's
                 // PTDS reads from the page. Mirrors GpuPassthroughExchanger.accept.
                 Cuda.DEFAULT_STREAM.sync();
-                for (int partitionIndex = 0; partitionIndex < buffers.size(); partitionIndex++) {
+                for (int partitionIndex = 0; partitionIndex < partitionCount; partitionIndex++) {
                     GpuPage partition = partitions[partitionIndex];
                     if (partition.positionCount() == 0) {
                         // Mirrors host PartitioningExchanger: zero-row partitions don't reach a buffer.
@@ -67,9 +86,17 @@ final class GpuHashPartitioningExchanger
                         partitions[partitionIndex] = null;
                         continue;
                     }
-                    GpuLocalExchangeBuffer buffer = buffers.get(partitionIndex);
-                    partitions[partitionIndex] = null;
-                    buffer.add(partition, partition.retainedDeviceMemoryBytes());
+                    try (ClosingRef<AllocatedMemory> partitionMemory = ClosingRef.own(taskMemoryContext.allocate(getClass().getSimpleName(), MemoryAmount.ZERO))) {
+                        // The pre-partition reservation may underestimate total partition memory,
+                        // so transfer as much as available and reconcile to the actual retained amount.
+                        MemoryAmount toTransfer = MemoryAmount.min(allocation.borrow().amount(), partition.retainedMemory());
+                        partitionMemory.borrow().transferFrom(allocation.borrow(), toTransfer);
+                        partitionMemory.borrow().update(partition.retainedMemory());
+
+                        GpuLocalExchangeBuffer buffer = buffers.get(partitionIndex);
+                        partitions[partitionIndex] = null;
+                        buffer.add(partitionMemory.take(), partition, partition.retainedDeviceMemoryBytes());
+                    }
                 }
             }
             finally {

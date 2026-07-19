@@ -16,7 +16,11 @@ package io.trino.operator.gpu.exchange;
 import ai.rapids.cudf.ColumnVector;
 import ai.rapids.cudf.HostColumnVector;
 import io.trino.operator.exchange.LocalExchangeMemoryManager;
+import io.trino.operator.gpu.GpuOperation;
 import io.trino.operator.gpu.GpuTestUtils;
+import io.trino.operator.gpu.TestingGpuOperationContext;
+import io.trino.operator.gpu.exchange.GpuLocalExchangeBuffer.BufferedPage;
+import io.trino.operator.gpu.memory.AllocatedMemory;
 import io.trino.spi.gpu.Column;
 import io.trino.spi.gpu.Column.DeviceMemory;
 import io.trino.spi.gpu.GpuPage;
@@ -41,16 +45,19 @@ public class TestGpuHashPartitioningExchanger
         List<GpuLocalExchangeBuffer> buffers = IntStream.range(0, partitions)
                 .mapToObj(_ -> new GpuLocalExchangeBuffer(memory, _ -> {}))
                 .toList();
-        GpuExchanger exchanger = new GpuHashPartitioningExchanger(buffers, memory, new int[] {0});
+        TestingGpuOperationContext context = new TestingGpuOperationContext();
+        GpuExchanger exchanger = new GpuHashPartitioningExchanger(buffers, memory, new int[] {0}, context);
 
-        exchanger.accept(GpuTestUtils.deviceIntColumn(new int[] {1, 2, 3, 4, 5, 6, 7, 8}));
+        consume(context, exchanger, GpuTestUtils.deviceIntColumn(new int[] {1, 2, 3, 4, 5, 6, 7, 8}));
 
         int total = 0;
         for (GpuLocalExchangeBuffer buffer : buffers) {
-            try (GpuPage page = buffer.removePage()) {
-                if (page != null) {
-                    total += page.positionCount();
-                }
+            BufferedPage buffered = buffer.removePage();
+            if (buffered == null) {
+                continue;
+            }
+            try (AllocatedMemory _ = buffered.memory(); GpuPage page = buffered.page()) {
+                total += page.positionCount();
             }
         }
         assertThat(total).isEqualTo(8);
@@ -65,21 +72,22 @@ public class TestGpuHashPartitioningExchanger
         List<GpuLocalExchangeBuffer> buffers = IntStream.range(0, partitions)
                 .mapToObj(_ -> new GpuLocalExchangeBuffer(memory, _ -> {}))
                 .toList();
-        GpuExchanger exchanger = new GpuHashPartitioningExchanger(buffers, memory, new int[] {0});
+        TestingGpuOperationContext context = new TestingGpuOperationContext();
+        GpuExchanger exchanger = new GpuHashPartitioningExchanger(buffers, memory, new int[] {0}, context);
 
         // Three consume() calls — value column carries key*100 so we can verify pairing post-partition.
-        exchanger.accept(deviceTwoIntColumns(new int[] {1, 2}, new int[] {100, 200}));
-        exchanger.accept(deviceTwoIntColumns(new int[] {3, 4, 5}, new int[] {300, 400, 500}));
-        exchanger.accept(deviceTwoIntColumns(new int[] {6, 7, 8, 9}, new int[] {600, 700, 800, 900}));
+        consume(context, exchanger, deviceTwoIntColumns(new int[] {1, 2}, new int[] {100, 200}));
+        consume(context, exchanger, deviceTwoIntColumns(new int[] {3, 4, 5}, new int[] {300, 400, 500}));
+        consume(context, exchanger, deviceTwoIntColumns(new int[] {6, 7, 8, 9}, new int[] {600, 700, 800, 900}));
 
         Set<Integer> observedKeys = new HashSet<>();
         for (GpuLocalExchangeBuffer buffer : buffers) {
             while (true) {
-                GpuPage page = buffer.removePage();
-                if (page == null) {
+                BufferedPage buffered = buffer.removePage();
+                if (buffered == null) {
                     break;
                 }
-                try (page) {
+                try (AllocatedMemory _ = buffered.memory(); GpuPage page = buffered.page()) {
                     List<Integer> keys = collectIntValues(page, 0);
                     List<Integer> values = collectIntValues(page, 1);
                     for (int i = 0; i < keys.size(); i++) {
@@ -102,20 +110,23 @@ public class TestGpuHashPartitioningExchanger
         List<GpuLocalExchangeBuffer> buffers = IntStream.range(0, partitions)
                 .mapToObj(_ -> new GpuLocalExchangeBuffer(memory, _ -> {}))
                 .toList();
-        GpuExchanger exchanger = new GpuHashPartitioningExchanger(buffers, memory, new int[] {0});
+        TestingGpuOperationContext context = new TestingGpuOperationContext();
+        GpuExchanger exchanger = new GpuHashPartitioningExchanger(buffers, memory, new int[] {0}, context);
 
         // A single row hashes to exactly one partition; the other three should remain empty rather
         // than receive a zero-row page (matches host PartitioningExchanger).
-        exchanger.accept(GpuTestUtils.deviceIntColumn(new int[] {42}));
+        consume(context, exchanger, GpuTestUtils.deviceIntColumn(new int[] {42}));
 
         int populatedBuffers = 0;
         for (GpuLocalExchangeBuffer buffer : buffers) {
-            try (GpuPage page = buffer.removePage()) {
-                if (page != null) {
-                    populatedBuffers++;
-                    assertThat(page.positionCount()).isEqualTo(1);
-                    assertThat(collectIntValues(page, 0)).containsExactly(42);
-                }
+            BufferedPage buffered = buffer.removePage();
+            if (buffered == null) {
+                continue;
+            }
+            try (AllocatedMemory _ = buffered.memory(); GpuPage page = buffered.page()) {
+                populatedBuffers++;
+                assertThat(page.positionCount()).isEqualTo(1);
+                assertThat(collectIntValues(page, 0)).containsExactly(42);
             }
         }
         assertThat(populatedBuffers).isEqualTo(1);
@@ -130,23 +141,24 @@ public class TestGpuHashPartitioningExchanger
         List<GpuLocalExchangeBuffer> buffers = IntStream.range(0, partitions)
                 .mapToObj(_ -> new GpuLocalExchangeBuffer(memory, _ -> {}))
                 .toList();
-        GpuExchanger exchanger = new GpuHashPartitioningExchanger(buffers, memory, new int[] {0});
+        TestingGpuOperationContext context = new TestingGpuOperationContext();
+        GpuExchanger exchanger = new GpuHashPartitioningExchanger(buffers, memory, new int[] {0}, context);
 
         // Same key repeated across two consume() calls. cuDF MURMUR3 is deterministic, so the second
         // page's rows for key=7 must land in the same buffer as the first page's row for key=7.
-        exchanger.accept(GpuTestUtils.deviceIntColumn(new int[] {7, 7, 7}));
-        exchanger.accept(GpuTestUtils.deviceIntColumn(new int[] {7, 7}));
+        consume(context, exchanger, GpuTestUtils.deviceIntColumn(new int[] {7, 7, 7}));
+        consume(context, exchanger, GpuTestUtils.deviceIntColumn(new int[] {7, 7}));
 
         int bufferWithKey = -1;
         int totalRowsForKey = 0;
         for (int partitionIndex = 0; partitionIndex < partitions; partitionIndex++) {
             int rowsInThisPartition = 0;
             while (true) {
-                GpuPage page = buffers.get(partitionIndex).removePage();
-                if (page == null) {
+                BufferedPage buffered = buffers.get(partitionIndex).removePage();
+                if (buffered == null) {
                     break;
                 }
-                try (page) {
+                try (AllocatedMemory _ = buffered.memory(); GpuPage page = buffered.page()) {
                     rowsInThisPartition += page.positionCount();
                     assertThat(collectIntValues(page, 0)).allMatch(value -> value == 7);
                 }
@@ -185,5 +197,11 @@ public class TestGpuHashPartitioningExchanger
             }
         }
         return out;
+    }
+
+    private static void consume(GpuOperation.Context context, GpuExchanger exchanger, GpuPage page)
+    {
+        AllocatedMemory allocated = context.taskMemoryContext().allocate(TestGpuHashPartitioningExchanger.class.getSimpleName(), page.retainedMemory());
+        exchanger.accept(allocated, page);
     }
 }

@@ -16,7 +16,9 @@ package io.trino.operator.gpu.exchange;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.trino.metadata.Split;
 import io.trino.operator.gpu.GpuSourceOperation;
+import io.trino.operator.gpu.exchange.GpuLocalExchangeBuffer.BufferedPage;
 import io.trino.operator.gpu.memory.AllocatedMemory;
+import io.trino.plugin.base.gpu.ClosingRef;
 import io.trino.spi.Page;
 import io.trino.spi.gpu.GpuPage;
 import io.trino.spi.gpu.borrow.Move;
@@ -41,9 +43,13 @@ final class GpuLocalExchangeReader
     @Override
     public @Move Result execute()
     {
-        @Own GpuPage page = buffer.removePage();
-        if (page != null) {
-            return new Data(AllocatedMemory.untracked(), page);
+        @Own BufferedPage buffered = buffer.removePage();
+        if (buffered != null) {
+            try (ClosingRef<AllocatedMemory> bufferedAllocation = ClosingRef.own(buffered.memory());
+                    ClosingRef<GpuPage> bufferedPage = ClosingRef.own(buffered.page())) {
+                bufferedAllocation.borrow().retag(getClass().getSimpleName());
+                return new Data(bufferedAllocation.take(), bufferedPage.take());
+            }
         }
         if (buffer.isFinished()) {
             return new Finished();

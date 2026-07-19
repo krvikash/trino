@@ -14,6 +14,7 @@
 package io.trino.operator.gpu.exchange;
 
 import io.trino.operator.gpu.GpuOperation;
+import io.trino.operator.gpu.TestingGpuOperationContext;
 import io.trino.operator.gpu.exchange.GpuLocalExchange.GpuLocalExchangeSink;
 import io.trino.operator.gpu.exchange.GpuLocalExchange.GpuLocalExchangeSinkFactory;
 import io.trino.operator.gpu.memory.AllocatedMemory;
@@ -41,7 +42,7 @@ public class TestGpuLocalExchangeWriter
         GpuLocalExchange exchange = new GpuLocalExchange(SINGLE_DISTRIBUTION, 1, new int[0], MAX_BUFFER_BYTES);
         GpuLocalExchangeSinkFactory factory = exchange.createSinkFactory();
         factory.noMoreSinkFactories();
-        GpuLocalExchangeSink sink = factory.createSink();
+        GpuLocalExchangeSink sink = factory.createSink(new TestingGpuOperationContext());
         factory.close();
         return sink;
     }

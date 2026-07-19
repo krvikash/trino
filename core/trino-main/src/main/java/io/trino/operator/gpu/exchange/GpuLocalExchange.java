@@ -19,7 +19,10 @@ import com.google.common.util.concurrent.SettableFuture;
 import com.google.errorprone.annotations.ThreadSafe;
 import com.google.errorprone.annotations.concurrent.GuardedBy;
 import io.trino.operator.exchange.LocalExchangeMemoryManager;
+import io.trino.operator.gpu.GpuOperation;
 import io.trino.operator.gpu.GpuSourceOperation;
+import io.trino.operator.gpu.memory.AllocatedMemory;
+import io.trino.plugin.base.gpu.UncheckedCloser;
 import io.trino.spi.gpu.GpuPage;
 import io.trino.spi.gpu.borrow.Move;
 import io.trino.sql.planner.PartitioningHandle;
@@ -29,7 +32,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Consumer;
-import java.util.function.Supplier;
+import java.util.function.Function;
 import java.util.stream.IntStream;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -48,7 +51,7 @@ import static java.util.Objects.requireNonNull;
 @ThreadSafe
 public class GpuLocalExchange
 {
-    private final Supplier<GpuExchanger> exchangerSupplier;
+    private final Function<GpuOperation.Context, GpuExchanger> exchangerSupplier;
     private final List<GpuLocalExchangeBuffer> buffers;
 
     // Writes guarded by `this`; volatile so the early-out in checkAllSourcesFinished avoids
@@ -82,7 +85,7 @@ public class GpuLocalExchange
             buffers = IntStream.range(0, 1)
                     .mapToObj(_ -> new GpuLocalExchangeBuffer(memoryManager, _ -> checkAllSourcesFinished()))
                     .collect(toImmutableList());
-            exchangerSupplier = () -> new GpuPassthroughExchanger(buffers.get(0), memoryManager);
+            exchangerSupplier = _ -> new GpuPassthroughExchanger(buffers.get(0), memoryManager);
         }
         else if (partitioning.equals(FIXED_HASH_DISTRIBUTION)) {
             int bufferCount = defaultConcurrency;
@@ -91,7 +94,7 @@ public class GpuLocalExchange
             buffers = IntStream.range(0, bufferCount)
                     .mapToObj(_ -> new GpuLocalExchangeBuffer(memoryManager, _ -> checkAllSourcesFinished()))
                     .collect(toImmutableList());
-            exchangerSupplier = () -> new GpuHashPartitioningExchanger(buffers, memoryManager, keyChannels);
+            exchangerSupplier = context -> new GpuHashPartitioningExchanger(buffers, memoryManager, keyChannels, context);
         }
         else if (partitioning.equals(FIXED_ARBITRARY_DISTRIBUTION)) {
             checkArgument(partitionKeyChannels.length == 0, "Round-robin exchange must not have partition channels");
@@ -100,7 +103,7 @@ public class GpuLocalExchange
             buffers = IntStream.range(0, bufferCount)
                     .mapToObj(_ -> new GpuLocalExchangeBuffer(memoryManager, _ -> checkAllSourcesFinished()))
                     .collect(toImmutableList());
-            exchangerSupplier = () -> new GpuRoundRobinExchanger(buffers, memoryManager);
+            exchangerSupplier = _ -> new GpuRoundRobinExchanger(buffers, memoryManager);
         }
         else {
             throw new IllegalArgumentException("Unsupported partitioning for GpuLocalExchange: " + partitioning);
@@ -165,7 +168,7 @@ public class GpuLocalExchange
         checkAllSinksComplete();
     }
 
-    private GpuLocalExchangeSink createSink(GpuLocalExchangeSinkFactory factory)
+    private GpuLocalExchangeSink createSink(GpuLocalExchangeSinkFactory factory, GpuOperation.Context context)
     {
         assertNotHoldsLock(this);
 
@@ -178,7 +181,7 @@ public class GpuLocalExchange
 
             // Exchanger may be stateful (hash partitioner caches per-call buffers), so each sink
             // gets its own.
-            GpuExchanger exchanger = exchangerSupplier.get();
+            GpuExchanger exchanger = exchangerSupplier.apply(context);
             GpuLocalExchangeSink sink = new GpuLocalExchangeSink(exchanger, this::sinkFinished);
             sinks.add(sink);
             return sink;
@@ -249,9 +252,9 @@ public class GpuLocalExchange
             this.exchange = requireNonNull(exchange, "exchange is null");
         }
 
-        public GpuLocalExchangeSink createSink()
+        public GpuLocalExchangeSink createSink(GpuOperation.Context context)
         {
-            return exchange.createSink(this);
+            return exchange.createSink(this, context);
         }
 
         public GpuLocalExchangeSinkFactory duplicate()
@@ -299,12 +302,15 @@ public class GpuLocalExchange
             return exchanger;
         }
 
-        public void addPage(@Move GpuPage page)
+        public void addPage(@Move AllocatedMemory memory, @Move GpuPage page)
         {
             requireNonNull(page, "page is null");
 
             if (isFinished().isDone()) {
-                page.close();
+                try (var closer = UncheckedCloser.create()) {
+                    closer.register(memory);
+                    closer.register(page);
+                }
                 return;
             }
 
@@ -312,7 +318,7 @@ public class GpuLocalExchange
             // may flip finished before exchanger.consume completes. The underlying
             // GpuLocalExchangeBuffer.addPage drops the page in that case (without charging
             // memory), so the race is benign — no rows are silently buffered after finish.
-            exchanger.accept(page);
+            exchanger.accept(memory, page);
         }
 
         public ListenableFuture<Void> waitForWriting()

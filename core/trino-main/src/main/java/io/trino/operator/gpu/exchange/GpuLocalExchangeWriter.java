@@ -62,7 +62,7 @@ public final class GpuLocalExchangeWriter
         @Override
         public GpuOperation create(Context context, GpuOperation source)
         {
-            return new GpuLocalExchangeWriter(source, sinkFactory.createSink());
+            return new GpuLocalExchangeWriter(source, sinkFactory.createSink(context));
         }
 
         @Override
@@ -107,9 +107,7 @@ public final class GpuLocalExchangeWriter
         @Own Result sourceResult = source.execute();
         return switch (sourceResult) {
             case Data(AllocatedMemory memory, GpuPage page) -> {
-                try (memory) {
-                    exchanger.accept(page);
-                }
+                exchanger.accept(memory, page);
                 yield new Yielded();
             }
             case Blocked blocked -> blocked;

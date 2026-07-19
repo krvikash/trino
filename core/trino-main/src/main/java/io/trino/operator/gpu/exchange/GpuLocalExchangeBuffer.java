@@ -18,6 +18,7 @@ import com.google.common.util.concurrent.SettableFuture;
 import com.google.errorprone.annotations.ThreadSafe;
 import com.google.errorprone.annotations.concurrent.GuardedBy;
 import io.trino.operator.exchange.LocalExchangeMemoryManager;
+import io.trino.operator.gpu.memory.AllocatedMemory;
 import io.trino.plugin.base.gpu.ClosingRef;
 import io.trino.plugin.base.gpu.UncheckedCloser;
 import io.trino.spi.gpu.GpuPage;
@@ -47,6 +48,15 @@ public final class GpuLocalExchangeBuffer
 {
     private static final ListenableFuture<Void> NOT_BLOCKED = immediateVoidFuture();
 
+    public record BufferedPage(@Own AllocatedMemory memory, @Own GpuPage page)
+    {
+        public BufferedPage
+        {
+            requireNonNull(memory, "memory is null");
+            requireNonNull(page, "page is null");
+        }
+    }
+
     private final LocalExchangeMemoryManager memoryManager;
     private final Consumer<GpuLocalExchangeBuffer> onFinish;
 
@@ -68,16 +78,18 @@ public final class GpuLocalExchangeBuffer
     }
 
     /**
-     * Takes ownership of {@code page} and enqueues it; {@code bytes} is the device-byte cost
-     * charged against the memory manager.
-     * If finishing, the page is closed and not charged.
+     * Takes ownership of {@code memory} and {@code page} and enqueues them; {@code bytes} is the
+     * device-byte cost charged against the memory manager.
+     * If finishing, both are closed and not charged.
      */
-    public void add(@Move GpuPage page, long bytes)
+    public void add(@Move AllocatedMemory memory, @Move GpuPage page, long bytes)
     {
         assertNotHoldsLock();
 
         SettableFuture<Void> notEmptyFuture = null;
-        try (ClosingRef<GpuPage> owned = ClosingRef.own(page)) {
+        try (ClosingRef<AllocatedMemory> allocated = ClosingRef.own(memory);
+                ClosingRef<GpuPage> owned = ClosingRef.own(page)) {
+            allocated.borrow().retag(getClass().getSimpleName());
             // Charge before publishing; otherwise a concurrent removePage can poll the page and
             // release its bytes before this producer has accounted for them, briefly leaving the
             // memory manager's counter below zero.
@@ -88,7 +100,7 @@ public final class GpuLocalExchangeBuffer
                 if (!finishing) {
                     bufferedPages.incrementAndGet();
                     // cannot fail
-                    buffer.add(new QueuedPage(owned.take(), bytes));
+                    buffer.add(new QueuedPage(allocated.take(), owned.take(), bytes));
                     added = true;
                 }
                 if (this.notEmptyFuture != null) {
@@ -112,9 +124,10 @@ public final class GpuLocalExchangeBuffer
     }
 
     /**
-     * Moves ownership of the next page out of the buffer, or returns null if empty.
+     * Moves ownership of the next page and its memory tracking out of the buffer,
+     * or returns null if empty.
      */
-    public @Move GpuPage removePage()
+    public @Move BufferedPage removePage()
     {
         assertNotHoldsLock();
 
@@ -132,7 +145,7 @@ public final class GpuLocalExchangeBuffer
 
         checkFinished();
 
-        return entry.page();
+        return new BufferedPage(entry.memory(), entry.page());
     }
 
     public ListenableFuture<Void> waitForReading()
@@ -186,7 +199,7 @@ public final class GpuLocalExchangeBuffer
     }
 
     /**
-     * Closes any queued pages and marks the buffer finished. Idempotent.
+     * Closes any queued pages and their memory tracking, and marks the buffer finished. Idempotent.
      */
     @Override
     public void close()
@@ -195,14 +208,14 @@ public final class GpuLocalExchangeBuffer
 
         int remainingPagesCount = 0;
         long remainingPagesBytes = 0;
-        List<GpuPage> pagesToClose = new ArrayList<>();
+        List<QueuedPage> pagesToClose = new ArrayList<>();
         SettableFuture<Void> notEmptyFuture;
         synchronized (this) {
             finishing = true;
             for (QueuedPage entry : buffer) {
                 remainingPagesCount++;
                 remainingPagesBytes += entry.bytes();
-                pagesToClose.add(entry.page());
+                pagesToClose.add(entry);
             }
             buffer.clear();
             bufferedPages.addAndGet(-remainingPagesCount);
@@ -214,8 +227,9 @@ public final class GpuLocalExchangeBuffer
         // failure), and always release the bytes back to the shared memory manager — otherwise
         // sibling buffers see backpressure that never lifts.
         try (var closer = UncheckedCloser.create()) {
-            for (GpuPage page : pagesToClose) {
-                closer.register(page);
+            for (QueuedPage queuedPage : pagesToClose) {
+                closer.register(queuedPage.memory());
+                closer.register(queuedPage.page());
             }
         }
         finally {
@@ -248,5 +262,5 @@ public final class GpuLocalExchangeBuffer
         assert !Thread.holdsLock(this) : "Cannot execute this method while holding the lock";
     }
 
-    private record QueuedPage(@Own GpuPage page, long bytes) {}
+    private record QueuedPage(@Own AllocatedMemory memory, @Own GpuPage page, long bytes) {}
 }

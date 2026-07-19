@@ -14,7 +14,11 @@
 package io.trino.operator.gpu.exchange;
 
 import io.trino.operator.exchange.LocalExchangeMemoryManager;
+import io.trino.operator.gpu.GpuOperation;
 import io.trino.operator.gpu.GpuTestUtils;
+import io.trino.operator.gpu.TestingGpuOperationContext;
+import io.trino.operator.gpu.exchange.GpuLocalExchangeBuffer.BufferedPage;
+import io.trino.operator.gpu.memory.AllocatedMemory;
 import io.trino.spi.gpu.GpuPage;
 import org.junit.jupiter.api.Test;
 
@@ -28,12 +32,21 @@ public class TestGpuPassthroughExchanger
         GpuTestUtils.maybeSetGpuMemoryPoolForTests();
         LocalExchangeMemoryManager memory = new LocalExchangeMemoryManager(1 << 20);
         GpuLocalExchangeBuffer buffer = new GpuLocalExchangeBuffer(memory, _ -> {});
+        TestingGpuOperationContext context = new TestingGpuOperationContext();
         GpuExchanger exchanger = new GpuPassthroughExchanger(buffer, memory);
 
-        exchanger.accept(GpuTestUtils.deviceIntColumn(new int[] {1, 2, 3}));
+        consume(context, exchanger, GpuTestUtils.deviceIntColumn(new int[] {1, 2, 3}));
 
-        try (GpuPage page = buffer.removePage()) {
+        BufferedPage buffered = buffer.removePage();
+        assertThat(buffered).isNotNull();
+        try (AllocatedMemory _ = buffered.memory(); GpuPage page = buffered.page()) {
             assertThat(page.positionCount()).isEqualTo(3);
         }
+    }
+
+    private static void consume(GpuOperation.Context context, GpuExchanger exchanger, GpuPage page)
+    {
+        AllocatedMemory allocated = context.taskMemoryContext().allocate(TestGpuPassthroughExchanger.class.getSimpleName(), page.retainedMemory());
+        exchanger.accept(allocated, page);
     }
 }

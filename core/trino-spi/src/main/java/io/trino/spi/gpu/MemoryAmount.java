@@ -43,6 +43,17 @@ public record MemoryAmount(long heapBytes, long gpuDeviceBytes, long offHeapByte
         checkNonNegative(offHeapBytes, "offHeapBytes");
     }
 
+    /**
+     * Returns the component-wise minimum of two memory amounts.
+     */
+    public static MemoryAmount min(MemoryAmount first, MemoryAmount second)
+    {
+        return new MemoryAmount(
+                Math.min(first.heapBytes(), second.heapBytes()),
+                Math.min(first.gpuDeviceBytes(), second.gpuDeviceBytes()),
+                Math.min(first.offHeapBytes(), second.offHeapBytes()));
+    }
+
     public MemoryAmount add(MemoryAmount other)
     {
         return new MemoryAmount(

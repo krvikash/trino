@@ -14,6 +14,9 @@
 package io.trino.operator.gpu.exchange;
 
 import io.trino.operator.exchange.LocalExchangeMemoryManager;
+import io.trino.operator.gpu.TestingGpuOperationContext;
+import io.trino.operator.gpu.exchange.GpuLocalExchangeBuffer.BufferedPage;
+import io.trino.operator.gpu.memory.AllocatedMemory;
 import io.trino.spi.gpu.Column;
 import io.trino.spi.gpu.GpuPage;
 import org.junit.jupiter.api.Test;
@@ -29,12 +32,13 @@ public class TestGpuLocalExchangeBuffer
     {
         LocalExchangeMemoryManager memory = new LocalExchangeMemoryManager(1_000);
         try (GpuLocalExchangeBuffer buffer = new GpuLocalExchangeBuffer(memory, _ -> {})) {
-            buffer.add(emptyGpuPage(), 200);
+            addPage(buffer, emptyGpuPage(), 200);
             assertThat(memory.getBufferedBytes()).isEqualTo(200);
 
-            try (GpuPage page = buffer.removePage()) {
-                assertThat(page).isNotNull();
-            }
+            BufferedPage buffered = buffer.removePage();
+            assertThat(buffered).isNotNull();
+            buffered.memory().close();
+            buffered.page().close();
             assertThat(memory.getBufferedBytes()).isEqualTo(0);
         }
     }
@@ -57,7 +61,7 @@ public class TestGpuLocalExchangeBuffer
         LocalExchangeMemoryManager memory = new LocalExchangeMemoryManager(1_000);
         try (GpuLocalExchangeBuffer buffer = new GpuLocalExchangeBuffer(memory, _ -> {})) {
             buffer.finish();
-            buffer.add(emptyGpuPage(), 200);
+            addPage(buffer, emptyGpuPage(), 200);
             assertThat(memory.getBufferedBytes()).isZero();
         }
     }
@@ -68,10 +72,12 @@ public class TestGpuLocalExchangeBuffer
         AtomicInteger calls = new AtomicInteger();
         LocalExchangeMemoryManager memory = new LocalExchangeMemoryManager(1_000);
         try (GpuLocalExchangeBuffer buffer = new GpuLocalExchangeBuffer(memory, _ -> calls.incrementAndGet())) {
-            buffer.add(emptyGpuPage(), 50);
+            addPage(buffer, emptyGpuPage(), 50);
             buffer.finish();
             // drain
-            buffer.removePage().close();
+            BufferedPage buffered = buffer.removePage();
+            buffered.memory().close();
+            buffered.page().close();
             assertThat(calls.get()).isGreaterThanOrEqualTo(1);
         }
     }
@@ -79,5 +85,12 @@ public class TestGpuLocalExchangeBuffer
     private static GpuPage emptyGpuPage()
     {
         return new GpuPage(0, new Column[0]);
+    }
+
+    private static void addPage(GpuLocalExchangeBuffer buffer, GpuPage page, long bytes)
+    {
+        TestingGpuOperationContext context = new TestingGpuOperationContext();
+        AllocatedMemory allocated = context.taskMemoryContext().allocate(TestGpuLocalExchangeBuffer.class.getSimpleName(), page.retainedMemory());
+        buffer.add(allocated, page, bytes);
     }
 }

@@ -15,9 +15,13 @@ package io.trino.operator.gpu.exchange;
 
 import ai.rapids.cudf.ColumnVector;
 import ai.rapids.cudf.HostColumnVector;
+import io.trino.operator.gpu.GpuOperation;
 import io.trino.operator.gpu.GpuTestUtils;
+import io.trino.operator.gpu.TestingGpuOperationContext;
 import io.trino.operator.gpu.exchange.GpuLocalExchange.GpuLocalExchangeSink;
 import io.trino.operator.gpu.exchange.GpuLocalExchange.GpuLocalExchangeSinkFactory;
+import io.trino.operator.gpu.exchange.GpuLocalExchangeBuffer.BufferedPage;
+import io.trino.operator.gpu.memory.AllocatedMemory;
 import io.trino.spi.gpu.Column;
 import io.trino.spi.gpu.Column.DeviceMemory;
 import io.trino.spi.gpu.GpuPage;
@@ -76,10 +80,11 @@ public class TestGpuLocalExchange
     {
         GpuTestUtils.maybeSetGpuMemoryPoolForTests();
         GpuLocalExchange exchange = new GpuLocalExchange(SINGLE_DISTRIBUTION, 1, new int[0], 1L << 20);
+        TestingGpuOperationContext context = new TestingGpuOperationContext();
         GpuLocalExchangeSinkFactory factory = exchange.createSinkFactory();
-        GpuLocalExchangeSink sink = factory.createSink();
-        sink.addPage(GpuTestUtils.deviceIntColumn(new int[] {1, 2, 3}));
-        sink.addPage(GpuTestUtils.deviceIntColumn(new int[] {4, 5}));
+        GpuLocalExchangeSink sink = factory.createSink(context);
+        addPage(context, sink, GpuTestUtils.deviceIntColumn(new int[] {1, 2, 3}));
+        addPage(context, sink, GpuTestUtils.deviceIntColumn(new int[] {4, 5}));
         sink.finish();
         factory.close();
 
@@ -94,10 +99,11 @@ public class TestGpuLocalExchange
         GpuTestUtils.maybeSetGpuMemoryPoolForTests();
         int partitions = 4;
         GpuLocalExchange exchange = new GpuLocalExchange(FIXED_HASH_DISTRIBUTION, partitions, new int[] {0}, 1L << 20);
+        TestingGpuOperationContext context = new TestingGpuOperationContext();
         GpuLocalExchangeSinkFactory factory = exchange.createSinkFactory();
-        GpuLocalExchangeSink sink = factory.createSink();
-        sink.addPage(deviceTwoIntColumns(new int[] {1, 2, 3, 4}, new int[] {100, 200, 300, 400}));
-        sink.addPage(deviceTwoIntColumns(new int[] {5, 6, 7, 1}, new int[] {500, 600, 700, 100}));
+        GpuLocalExchangeSink sink = factory.createSink(context);
+        addPage(context, sink, deviceTwoIntColumns(new int[] {1, 2, 3, 4}, new int[] {100, 200, 300, 400}));
+        addPage(context, sink, deviceTwoIntColumns(new int[] {5, 6, 7, 1}, new int[] {500, 600, 700, 100}));
         sink.finish();
         factory.close();
 
@@ -108,11 +114,11 @@ public class TestGpuLocalExchange
         for (int partitionIndex = 0; partitionIndex < partitions; partitionIndex++) {
             GpuLocalExchangeBuffer buffer = exchange.getNextSource();
             while (true) {
-                GpuPage page = buffer.removePage();
-                if (page == null) {
+                BufferedPage buffered = buffer.removePage();
+                if (buffered == null) {
                     break;
                 }
-                try (page) {
+                try (AllocatedMemory _ = buffered.memory(); GpuPage page = buffered.page()) {
                     List<Integer> keys = collectIntValues(page, 0);
                     List<Integer> values = collectIntValues(page, 1);
                     totalRows += keys.size();
@@ -140,19 +146,20 @@ public class TestGpuLocalExchange
         GpuTestUtils.maybeSetGpuMemoryPoolForTests();
         int partitions = 4;
         GpuLocalExchange exchange = new GpuLocalExchange(FIXED_HASH_DISTRIBUTION, partitions, new int[] {0}, 1L << 20);
+        TestingGpuOperationContext context = new TestingGpuOperationContext();
 
         // Two sibling sink factories (analogous to two parallel sink drivers in production) each
         // create one sink and write disjoint key ranges into the shared exchange. Both close before
         // the sources drain.
         GpuLocalExchangeSinkFactory factoryA = exchange.createSinkFactory();
-        GpuLocalExchangeSink sinkA = factoryA.createSink();
-        sinkA.addPage(GpuTestUtils.deviceIntColumn(new int[] {10, 11, 12, 13}));
+        GpuLocalExchangeSink sinkA = factoryA.createSink(context);
+        addPage(context, sinkA, GpuTestUtils.deviceIntColumn(new int[] {10, 11, 12, 13}));
         sinkA.finish();
         factoryA.close();
 
         GpuLocalExchangeSinkFactory factoryB = exchange.createSinkFactory();
-        GpuLocalExchangeSink sinkB = factoryB.createSink();
-        sinkB.addPage(GpuTestUtils.deviceIntColumn(new int[] {20, 21, 22, 23}));
+        GpuLocalExchangeSink sinkB = factoryB.createSink(context);
+        addPage(context, sinkB, GpuTestUtils.deviceIntColumn(new int[] {20, 21, 22, 23}));
         sinkB.finish();
         factoryB.close();
 
@@ -168,11 +175,12 @@ public class TestGpuLocalExchange
     {
         GpuTestUtils.maybeSetGpuMemoryPoolForTests();
         GpuLocalExchange exchange = new GpuLocalExchange(SINGLE_DISTRIBUTION, 1, new int[0], 1L << 20);
+        TestingGpuOperationContext context = new TestingGpuOperationContext();
         GpuLocalExchangeSinkFactory factory = exchange.createSinkFactory();
-        GpuLocalExchangeSink sink = factory.createSink();
+        GpuLocalExchangeSink sink = factory.createSink(context);
         GpuLocalExchangeBuffer buffer = exchange.getNextSource();
 
-        sink.addPage(GpuTestUtils.deviceIntColumn(new int[] {1}));
+        addPage(context, sink, GpuTestUtils.deviceIntColumn(new int[] {1}));
         assertThat(buffer.isFinished()).isFalse();
         sink.finish();
         // Sink finish alone is not enough: the factory has to close, then noMoreSinkFactories.
@@ -180,8 +188,9 @@ public class TestGpuLocalExchange
         factory.close();
         factory.noMoreSinkFactories();
         // Now buffer should be marked finishing — but it still has the queued page until drained.
-        try (GpuPage page = buffer.removePage()) {
-            assertThat(page).isNotNull();
+        BufferedPage buffered = buffer.removePage();
+        assertThat(buffered).isNotNull();
+        try (AllocatedMemory _ = buffered.memory(); GpuPage page = buffered.page()) {
             assertThat(page.positionCount()).isEqualTo(1);
         }
         assertThat(buffer.isFinished()).isTrue();
@@ -201,11 +210,11 @@ public class TestGpuLocalExchange
     {
         List<Integer> out = new ArrayList<>();
         while (true) {
-            GpuPage page = buffer.removePage();
-            if (page == null) {
+            BufferedPage buffered = buffer.removePage();
+            if (buffered == null) {
                 return out;
             }
-            try (page) {
+            try (AllocatedMemory _ = buffered.memory(); GpuPage page = buffered.page()) {
                 out.addAll(collectIntValues(page, columnIndex));
             }
         }
@@ -222,5 +231,11 @@ public class TestGpuLocalExchange
             }
         }
         return out;
+    }
+
+    private static void addPage(GpuOperation.Context context, GpuLocalExchangeSink sink, GpuPage page)
+    {
+        AllocatedMemory allocated = context.taskMemoryContext().allocate(TestGpuLocalExchange.class.getSimpleName(), page.retainedMemory());
+        sink.addPage(allocated, page);
     }
 }

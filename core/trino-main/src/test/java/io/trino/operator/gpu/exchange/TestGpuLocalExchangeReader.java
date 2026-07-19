@@ -15,6 +15,8 @@ package io.trino.operator.gpu.exchange;
 
 import io.trino.operator.exchange.LocalExchangeMemoryManager;
 import io.trino.operator.gpu.GpuOperation;
+import io.trino.operator.gpu.TestingGpuOperationContext;
+import io.trino.operator.gpu.memory.AllocatedMemory;
 import io.trino.spi.gpu.Column;
 import io.trino.spi.gpu.GpuPage;
 import org.junit.jupiter.api.Test;
@@ -43,7 +45,7 @@ public class TestGpuLocalExchangeReader
         GpuLocalExchangeBuffer buffer = new GpuLocalExchangeBuffer(memory, _ -> {});
         GpuLocalExchangeReader reader = new GpuLocalExchangeReader(buffer);
 
-        buffer.add(new GpuPage(0, new Column[0]), 64);
+        addPage(buffer, new GpuPage(0, new Column[0]), 64);
         GpuOperation.Result data = reader.execute();
         assertThat(data).isInstanceOf(GpuOperation.Data.class);
         GpuOperation.Data dataResult = (GpuOperation.Data) data;
@@ -62,7 +64,7 @@ public class TestGpuLocalExchangeReader
         GpuLocalExchangeBuffer buffer = new GpuLocalExchangeBuffer(memory, _ -> onFinishCalls.incrementAndGet());
         GpuLocalExchangeReader reader = new GpuLocalExchangeReader(buffer);
 
-        buffer.add(new GpuPage(0, new Column[0]), 256);
+        addPage(buffer, new GpuPage(0, new Column[0]), 256);
         assertThat(memory.getBufferedBytes()).isEqualTo(256);
 
         reader.close();
@@ -70,5 +72,12 @@ public class TestGpuLocalExchangeReader
         assertThat(buffer.isFinished()).isTrue();
         assertThat(memory.getBufferedBytes()).isZero();
         assertThat(onFinishCalls.get()).isGreaterThanOrEqualTo(1);
+    }
+
+    private static void addPage(GpuLocalExchangeBuffer buffer, GpuPage page, long bytes)
+    {
+        TestingGpuOperationContext context = new TestingGpuOperationContext();
+        AllocatedMemory allocated = context.taskMemoryContext().allocate(TestGpuLocalExchangeReader.class.getSimpleName(), page.retainedMemory());
+        buffer.add(allocated, page, bytes);
     }
 }
