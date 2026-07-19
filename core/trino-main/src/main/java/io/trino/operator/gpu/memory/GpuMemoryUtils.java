@@ -15,6 +15,8 @@ package io.trino.operator.gpu.memory;
 
 import ai.rapids.cudf.DType;
 import ai.rapids.cudf.Table;
+import io.trino.spi.gpu.GpuPage;
+import io.trino.spi.gpu.borrow.Borrow;
 
 import static java.lang.Math.ceilDiv;
 
@@ -77,5 +79,12 @@ public final class GpuMemoryUtils
             return 4L * (positionCount + 1) + nullMaskBytes;
         }
         return (long) sizeInBytes * positionCount + nullMaskBytes;
+    }
+
+    public static long getFilterGpuDeviceMemoryUsage(@Borrow GpuPage input, int retainedPositionCount)
+    {
+        long estimatedOutputDeviceBytes = (long) (input.retainedDeviceMemoryBytes() * ((double) retainedPositionCount / input.positionCount()));
+        long gatherMapBytes = (long) input.positionCount() * Integer.BYTES;
+        return estimatedOutputDeviceBytes + gatherMapBytes;
     }
 }

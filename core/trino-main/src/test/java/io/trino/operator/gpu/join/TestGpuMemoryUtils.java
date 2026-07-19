@@ -20,6 +20,7 @@ import ai.rapids.cudf.Scalar;
 import ai.rapids.cudf.Table;
 import io.trino.spi.Page;
 import io.trino.spi.block.Block;
+import io.trino.spi.gpu.Column;
 import io.trino.spi.gpu.GpuPage;
 import io.trino.spi.gpu.GpuTypeConversion;
 import io.trino.spi.type.Type;
@@ -33,16 +34,19 @@ import org.junit.jupiter.params.provider.FieldSource;
 import java.util.List;
 import java.util.Optional;
 
+import static ai.rapids.cudf.DType.INT32;
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.trino.operator.gpu.GpuTestUtils.TESTED_GPU_TYPES;
 import static io.trino.operator.gpu.GpuTestUtils.copyToDevice;
 import static io.trino.operator.gpu.GpuTestUtils.createBlock;
 import static io.trino.operator.gpu.GpuTestUtils.maybeSetGpuMemoryPoolForTests;
+import static io.trino.operator.gpu.memory.GpuMemoryUtils.getFilterGpuDeviceMemoryUsage;
 import static io.trino.operator.gpu.memory.GpuMemoryUtils.getHashJoinAdditionalGpuDeviceMemoryUsage;
 import static io.trino.operator.gpu.memory.GpuMemoryUtils.getNullColumnMemoryUsage;
 import static io.trino.plugin.base.gpu.GpuUtils.toTable;
 import static io.trino.spi.gpu.GpuTypeConversion.toGpuMapping;
 import static io.trino.spi.type.BigintType.BIGINT;
+import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.sql.gen.TestColumnarFilters.NullsProvider.NO_NULLS;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -125,6 +129,33 @@ class TestGpuMemoryUtils
                     long actual = vector.getDeviceMemorySize();
                     assertThat(estimated)
                             .isEqualTo(actual);
+                }
+            }
+        }
+    }
+
+    @ParameterizedTest
+    @FieldSource("io.trino.operator.gpu.GpuTestUtils#TESTED_GPU_TYPES")
+    void testGetFilterGpuDeviceMemoryUsage(Type type)
+    {
+        for (int positionCount : List.of(1024, 10_000, 1_234_567)) {
+            Block tableBlock = createBlock(type, positionCount, NO_NULLS);
+            Block maskBlock = createBlock(BOOLEAN, positionCount, NO_NULLS);
+
+            GpuTypeConversion.ToColumn toColumn = GpuTypeConversion.toGpuMapping(BOOLEAN).orElseThrow().toColumn();
+
+            try (GpuPage page = getOnlyElement(copyToDevice(List.of(new Page(tableBlock)), List.of(type)));
+                    Table table = toTable(page);
+                    ColumnVector mask = toColumn.copyToDevice(new Column.Blocks(List.of(maskBlock)));
+                    Scalar sum = mask.sum(INT32)) {
+                int retained = sum.getInt();
+
+                Rmm.resetScopedMaximumBytesAllocated(0);
+                try (Table _ = table.filter(mask)) {
+                    long actual = Rmm.getScopedMaximumBytesAllocated();
+                    long estimated = getFilterGpuDeviceMemoryUsage(page, retained);
+                    assertThat(estimated)
+                            .isLessThanOrEqualTo((long) (actual * 1.05));
                 }
             }
         }

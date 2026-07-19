@@ -21,10 +21,13 @@ import ai.rapids.cudf.Table;
 import io.trino.operator.gpu.GpuDynamicFilterProvider.CompiledDynamicFilter;
 import io.trino.operator.gpu.expression.CompiledExpression;
 import io.trino.operator.gpu.memory.AllocatedMemory;
+import io.trino.operator.gpu.memory.GpuTaskMemoryContext;
 import io.trino.plugin.base.gpu.ClosingOnce;
+import io.trino.plugin.base.gpu.ClosingRef;
 import io.trino.plugin.base.gpu.UncheckedCloser;
 import io.trino.spi.gpu.Column.DeviceMemory;
 import io.trino.spi.gpu.GpuPage;
+import io.trino.spi.gpu.MemoryAmount;
 import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
 import io.trino.spi.gpu.borrow.Own;
@@ -36,6 +39,7 @@ import java.util.OptionalDouble;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Verify.verify;
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static io.trino.operator.gpu.memory.GpuMemoryUtils.getFilterGpuDeviceMemoryUsage;
 import static io.trino.plugin.base.gpu.GpuUtils.toGpuPage;
 import static io.trino.plugin.base.gpu.GpuUtils.toTable;
 import static java.util.Objects.requireNonNull;
@@ -83,6 +87,7 @@ public class GpuFilter
         }
     }
 
+    private final GpuTaskMemoryContext taskMemoryContext;
     private final GpuOperation source;
     private final Optional<CompiledExpression> staticFilter;
     private final Optional<GpuDynamicFilterProvider> dynamicFilter;
@@ -95,7 +100,7 @@ public class GpuFilter
             Optional<GpuDynamicFilterProvider> dynamicFilter,
             OptionalDouble passThroughThreshold)
     {
-        requireNonNull(context, "context is null");
+        this.taskMemoryContext = context.taskMemoryContext();
         this.source = requireNonNull(source, "source is null");
         this.staticFilter = requireNonNull(staticFilter, "staticFilter is null");
         this.dynamicFilter = requireNonNull(dynamicFilter, "dynamicFilter is null");
@@ -110,50 +115,49 @@ public class GpuFilter
             case Blocked blocked -> blocked;
             case Finished finished -> finished;
             case Yielded yielded -> yielded;
-            case Data(AllocatedMemory memory, GpuPage page) -> {
-                try (memory; page) {
-                    yield processPage(page);
-                }
-            }
+            case Data(AllocatedMemory memory, GpuPage page) -> processPage(memory, page);
         };
     }
 
-    private Result processPage(@Borrow GpuPage page)
+    private Result processPage(@Move AllocatedMemory memory, @Move GpuPage page)
     {
-        if (dynamicFilter.isPresent()) {
-            return dynamicFilter.get().useCurrentFilter(currentDynamicFilter -> applyFilters(currentDynamicFilter, page));
+        try (ClosingRef<AllocatedMemory> allocation = ClosingRef.own(taskMemoryContext.allocate(getClass().getSimpleName(), MemoryAmount.ZERO));
+                ClosingRef<GpuPage> inputPage = ClosingRef.own(page);
+                memory) {
+            allocation.borrow().transferFrom(memory);
+
+            if (dynamicFilter.isPresent()) {
+                return dynamicFilter.get().useCurrentFilter(currentDynamicFilter -> applyFilters(allocation, inputPage, currentDynamicFilter));
+            }
+            return applyFilters(allocation, inputPage, new CompiledDynamicFilter.All());
         }
-        return applyFilters(new CompiledDynamicFilter.All(), page);
     }
 
-    private Result applyFilters(CompiledDynamicFilter currentDynamicFilter, @Borrow GpuPage page)
+    private Result applyFilters(ClosingRef<AllocatedMemory> allocation, ClosingRef<GpuPage> inputPage, CompiledDynamicFilter currentDynamicFilter)
     {
+        @Borrow GpuPage page = inputPage.borrow();
         return switch (currentDynamicFilter) {
             case CompiledDynamicFilter.All() -> {
                 if (staticFilter.isEmpty()) {
-                    yield new Data(AllocatedMemory.untracked(), page.shallowCopy());
+                    yield toData(allocation, inputPage);
                 }
-                try (ColumnVector mask = computeMask(page, staticFilter.get())) {
-                    yield applyMask(page, mask, OptionalDouble.empty())
-                            .<Result>map(maskedPage -> new Data(AllocatedMemory.untracked(), maskedPage))
-                            .orElseGet(Yielded::new);
+                allocation.borrow().update(allocation.borrow().amount().add(getMaskMemoryAmount(page.positionCount())));
+                try (ClosingOnce<ColumnVector> mask = ClosingOnce.own(computeMask(page, staticFilter.get()))) {
+                    yield applyMask(allocation, inputPage, mask, OptionalDouble.empty());
                 }
             }
             case CompiledDynamicFilter.None() -> new Finished();
             case CompiledDynamicFilter.Expression(CompiledExpression expression) -> {
+                allocation.borrow().update(allocation.borrow().amount().add(getMaskMemoryAmount(page.positionCount())));
                 try (ClosingOnce<ColumnVector> dynamicFilterMask = ClosingOnce.own(computeMask(page, expression))) {
                     if (staticFilter.isEmpty()) {
-                        yield applyMask(page, dynamicFilterMask.borrow(), passThroughThreshold)
-                                .<Result>map(maskedPage -> new Data(AllocatedMemory.untracked(), maskedPage))
-                                .orElseGet(Yielded::new);
+                        yield applyMask(allocation, inputPage, dynamicFilterMask, passThroughThreshold);
                     }
                     try (ClosingOnce<ColumnVector> staticFilterMask = ClosingOnce.own(computeMask(page, staticFilter.get()))) {
-                        try (ColumnVector mask = dynamicFilterMask.borrow().binaryOp(BinaryOp.NULL_LOGICAL_AND, staticFilterMask.borrow(), DType.BOOL8)) {
+                        try (ClosingOnce<ColumnVector> mask = ClosingOnce.own(dynamicFilterMask.borrow().binaryOp(BinaryOp.NULL_LOGICAL_AND, staticFilterMask.borrow(), DType.BOOL8))) {
                             dynamicFilterMask.close();
                             staticFilterMask.close();
-                            yield applyMask(page, mask, OptionalDouble.empty())
-                                    .<Result>map(maskedPage -> new Data(AllocatedMemory.untracked(), maskedPage))
-                                    .orElseGet(Yielded::new);
+                            yield applyMask(allocation, inputPage, mask, OptionalDouble.empty());
                         }
                     }
                 }
@@ -179,25 +183,47 @@ public class GpuFilter
                 .map(DeviceMemory::columnVector)
                 .collect(toImmutableList());
 
+        // TODO: Add memory tracking to expression evaluation: https://starburstdata.atlassian.net/browse/ENG-20209
         return filter.expression().evaluate(input.positionCount(), inputs);
     }
 
-    private static @Move Optional<@Own GpuPage> applyMask(@Borrow GpuPage input, @Borrow ColumnVector mask, OptionalDouble passThroughThresholdRatio)
+    private static Result applyMask(ClosingRef<AllocatedMemory> allocation, ClosingRef<GpuPage> inputPage, ClosingOnce<ColumnVector> mask, OptionalDouble passThroughThresholdRatio)
     {
-        try (Scalar sum = mask.sum(DType.INT32)) {
+        @Borrow GpuPage input = inputPage.borrow();
+        try (Scalar sum = mask.borrow().sum(DType.INT32)) {
             int retained = sum.isValid() ? sum.getInt() : 0;
             if (retained == 0) {
-                return Optional.empty();
+                return new Yielded();
             }
             if (retained == input.positionCount() || (passThroughThresholdRatio.isPresent() && retained >= input.positionCount() * passThroughThresholdRatio.getAsDouble())) {
-                return Optional.of(input.shallowCopy());
+                mask.close();
+                return toData(allocation, inputPage);
             }
 
+            allocation.borrow().update(allocation.borrow().amount().add(MemoryAmount.gpuDevice(getFilterGpuDeviceMemoryUsage(input, retained))));
+
+            @Own GpuPage outputPage;
             try (Table table = toTable(input);
-                    Table filtered = table.filter(mask)) {
+                    Table filtered = table.filter(mask.borrow())) {
                 verify(filtered.getRowCount() == retained, "Row count after filter does not match mask's retained: %s != %s", filtered.getRowCount(), retained);
-                return Optional.of(toGpuPage(filtered));
+                mask.close();
+                outputPage = toGpuPage(filtered);
+            }
+            try (ClosingRef<GpuPage> output = ClosingRef.own(outputPage)) {
+                inputPage.close();
+                return toData(allocation, output);
             }
         }
+    }
+
+    private static Data toData(ClosingRef<AllocatedMemory> allocation, ClosingRef<GpuPage> inputPage)
+    {
+        allocation.borrow().update(inputPage.borrow().retainedMemory());
+        return new Data(allocation.take(), inputPage.take());
+    }
+
+    private static MemoryAmount getMaskMemoryAmount(int positionCount)
+    {
+        return MemoryAmount.gpuDevice((long) positionCount * DType.BOOL8.getSizeInBytes());
     }
 }
