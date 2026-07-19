@@ -15,7 +15,7 @@ package io.trino.operator.gpu.exchange;
 
 import com.google.common.util.concurrent.ListenableFuture;
 import io.trino.spi.gpu.GpuPage;
-import io.trino.spi.gpu.borrow.Borrow;
+import io.trino.spi.gpu.borrow.Move;
 
 import static com.google.common.util.concurrent.Futures.immediateVoidFuture;
 
@@ -29,7 +29,10 @@ public interface GpuExchanger
     GpuExchanger FINISHED = new GpuExchanger()
     {
         @Override
-        public void accept(@Borrow GpuPage page) {}
+        public void accept(@Move GpuPage page)
+        {
+            page.close();
+        }
 
         @Override
         public ListenableFuture<Void> waitForWriting()
@@ -38,7 +41,7 @@ public interface GpuExchanger
         }
     };
 
-    void accept(@Borrow GpuPage page);
+    void accept(@Move GpuPage page);
 
     /**
      * Future completing when downstream buffers have headroom for more bytes.

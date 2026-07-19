@@ -30,9 +30,7 @@ public class TestGpuPassthroughExchanger
         GpuLocalExchangeBuffer buffer = new GpuLocalExchangeBuffer(memory, _ -> {});
         GpuExchanger exchanger = new GpuPassthroughExchanger(buffer, memory);
 
-        try (GpuPage input = GpuTestUtils.deviceIntColumn(new int[] {1, 2, 3})) {
-            exchanger.accept(input);
-        }
+        exchanger.accept(GpuTestUtils.deviceIntColumn(new int[] {1, 2, 3}));
 
         try (GpuPage page = buffer.removePage()) {
             assertThat(page.positionCount()).isEqualTo(3);

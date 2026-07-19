@@ -16,8 +16,9 @@ package io.trino.operator.gpu.exchange;
 import ai.rapids.cudf.Cuda;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.trino.operator.exchange.LocalExchangeMemoryManager;
+import io.trino.plugin.base.gpu.ClosingRef;
 import io.trino.spi.gpu.GpuPage;
-import io.trino.spi.gpu.borrow.Borrow;
+import io.trino.spi.gpu.borrow.Move;
 
 import static java.util.Objects.requireNonNull;
 
@@ -34,13 +35,15 @@ final class GpuPassthroughExchanger
     }
 
     @Override
-    public void accept(@Borrow GpuPage page)
+    public void accept(@Move GpuPage page)
     {
-        // Cross-thread handoff to readers; cudaStreamSynchronize drains this thread's PTDS
-        // completely so all GPU writes are committed to device memory before another thread's
-        // PTDS reads from the page.
-        Cuda.DEFAULT_STREAM.sync();
-        buffer.add(page, page.retainedDeviceMemoryBytes());
+        try (ClosingRef<GpuPage> ownedPage = ClosingRef.own(page)) {
+            // Cross-thread handoff to readers; cudaStreamSynchronize drains this thread's PTDS
+            // completely so all GPU writes are committed to device memory before another thread's
+            // PTDS reads from the page.
+            Cuda.DEFAULT_STREAM.sync();
+            buffer.add(ownedPage.take(), page.retainedDeviceMemoryBytes());
+        }
     }
 
     @Override

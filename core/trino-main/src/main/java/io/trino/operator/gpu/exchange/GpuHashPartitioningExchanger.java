@@ -18,7 +18,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.trino.operator.exchange.LocalExchangeMemoryManager;
 import io.trino.spi.gpu.GpuPage;
-import io.trino.spi.gpu.borrow.Borrow;
+import io.trino.spi.gpu.borrow.Move;
 import io.trino.spi.gpu.borrow.Own;
 
 import java.util.List;
@@ -45,32 +45,38 @@ final class GpuHashPartitioningExchanger
     }
 
     @Override
-    public void accept(@Borrow GpuPage page)
+    public void accept(@Move GpuPage page)
     {
-        if (page.positionCount() == 0) {
-            // No rows to partition; zero-row partitions are dropped by the loop below anyway.
-            // Skipping here avoids the cuDF contiguousSplit call and its cross-thread sync.
-            return;
-        }
-        @Own GpuPage[] partitions = GpuPartitioner.partition(page, keyChannels, buffers.size());
-        try {
-            // Cross-thread handoff to readers; cudaStreamSynchronize drains this thread's PTDS
-            // completely so all GPU writes are committed to device memory before another thread's
-            // PTDS reads from the page. Mirrors GpuPassthroughExchanger.accept.
-            Cuda.DEFAULT_STREAM.sync();
-            for (int partitionIndex = 0; partitionIndex < buffers.size(); partitionIndex++) {
-                @Borrow GpuPage partition = partitions[partitionIndex];
-                if (partition.positionCount() == 0) {
-                    // Mirrors host PartitioningExchanger: zero-row partitions don't reach a buffer.
-                    continue;
-                }
-                buffers.get(partitionIndex).add(partition, partition.retainedDeviceMemoryBytes());
+        try (page) {
+            if (page.positionCount() == 0) {
+                // No rows to partition; zero-row partitions are dropped by the loop below anyway.
+                // Skipping here avoids the cuDF contiguousSplit call and its cross-thread sync.
+                return;
             }
-        }
-        finally {
-            for (GpuPage partition : partitions) {
-                if (partition != null) {
-                    partition.close();
+            @Own GpuPage[] partitions = GpuPartitioner.partition(page, keyChannels, buffers.size());
+            try {
+                // Cross-thread handoff to readers; cudaStreamSynchronize drains this thread's PTDS
+                // completely so all GPU writes are committed to device memory before another thread's
+                // PTDS reads from the page. Mirrors GpuPassthroughExchanger.accept.
+                Cuda.DEFAULT_STREAM.sync();
+                for (int partitionIndex = 0; partitionIndex < buffers.size(); partitionIndex++) {
+                    GpuPage partition = partitions[partitionIndex];
+                    if (partition.positionCount() == 0) {
+                        // Mirrors host PartitioningExchanger: zero-row partitions don't reach a buffer.
+                        partition.close();
+                        partitions[partitionIndex] = null;
+                        continue;
+                    }
+                    GpuLocalExchangeBuffer buffer = buffers.get(partitionIndex);
+                    partitions[partitionIndex] = null;
+                    buffer.add(partition, partition.retainedDeviceMemoryBytes());
+                }
+            }
+            finally {
+                for (GpuPage partition : partitions) {
+                    if (partition != null) {
+                        partition.close();
+                    }
                 }
             }
         }

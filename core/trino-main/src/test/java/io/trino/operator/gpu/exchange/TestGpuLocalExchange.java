@@ -78,11 +78,8 @@ public class TestGpuLocalExchange
         GpuLocalExchange exchange = new GpuLocalExchange(SINGLE_DISTRIBUTION, 1, new int[0], 1L << 20);
         GpuLocalExchangeSinkFactory factory = exchange.createSinkFactory();
         GpuLocalExchangeSink sink = factory.createSink();
-        try (GpuPage p1 = GpuTestUtils.deviceIntColumn(new int[] {1, 2, 3});
-                GpuPage p2 = GpuTestUtils.deviceIntColumn(new int[] {4, 5})) {
-            sink.addPage(p1);
-            sink.addPage(p2);
-        }
+        sink.addPage(GpuTestUtils.deviceIntColumn(new int[] {1, 2, 3}));
+        sink.addPage(GpuTestUtils.deviceIntColumn(new int[] {4, 5}));
         sink.finish();
         factory.close();
 
@@ -99,11 +96,8 @@ public class TestGpuLocalExchange
         GpuLocalExchange exchange = new GpuLocalExchange(FIXED_HASH_DISTRIBUTION, partitions, new int[] {0}, 1L << 20);
         GpuLocalExchangeSinkFactory factory = exchange.createSinkFactory();
         GpuLocalExchangeSink sink = factory.createSink();
-        try (GpuPage p1 = deviceTwoIntColumns(new int[] {1, 2, 3, 4}, new int[] {100, 200, 300, 400});
-                GpuPage p2 = deviceTwoIntColumns(new int[] {5, 6, 7, 1}, new int[] {500, 600, 700, 100})) {
-            sink.addPage(p1);
-            sink.addPage(p2);
-        }
+        sink.addPage(deviceTwoIntColumns(new int[] {1, 2, 3, 4}, new int[] {100, 200, 300, 400}));
+        sink.addPage(deviceTwoIntColumns(new int[] {5, 6, 7, 1}, new int[] {500, 600, 700, 100}));
         sink.finish();
         factory.close();
 
@@ -152,17 +146,13 @@ public class TestGpuLocalExchange
         // the sources drain.
         GpuLocalExchangeSinkFactory factoryA = exchange.createSinkFactory();
         GpuLocalExchangeSink sinkA = factoryA.createSink();
-        try (GpuPage pageA = GpuTestUtils.deviceIntColumn(new int[] {10, 11, 12, 13})) {
-            sinkA.addPage(pageA);
-        }
+        sinkA.addPage(GpuTestUtils.deviceIntColumn(new int[] {10, 11, 12, 13}));
         sinkA.finish();
         factoryA.close();
 
         GpuLocalExchangeSinkFactory factoryB = exchange.createSinkFactory();
         GpuLocalExchangeSink sinkB = factoryB.createSink();
-        try (GpuPage pageB = GpuTestUtils.deviceIntColumn(new int[] {20, 21, 22, 23})) {
-            sinkB.addPage(pageB);
-        }
+        sinkB.addPage(GpuTestUtils.deviceIntColumn(new int[] {20, 21, 22, 23}));
         sinkB.finish();
         factoryB.close();
 
@@ -182,9 +172,7 @@ public class TestGpuLocalExchange
         GpuLocalExchangeSink sink = factory.createSink();
         GpuLocalExchangeBuffer buffer = exchange.getNextSource();
 
-        try (GpuPage page = GpuTestUtils.deviceIntColumn(new int[] {1})) {
-            sink.addPage(page);
-        }
+        sink.addPage(GpuTestUtils.deviceIntColumn(new int[] {1}));
         assertThat(buffer.isFinished()).isFalse();
         sink.finish();
         // Sink finish alone is not enough: the factory has to close, then noMoreSinkFactories.

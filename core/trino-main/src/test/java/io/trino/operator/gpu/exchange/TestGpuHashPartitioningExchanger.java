@@ -43,9 +43,7 @@ public class TestGpuHashPartitioningExchanger
                 .toList();
         GpuExchanger exchanger = new GpuHashPartitioningExchanger(buffers, memory, new int[] {0});
 
-        try (GpuPage input = GpuTestUtils.deviceIntColumn(new int[] {1, 2, 3, 4, 5, 6, 7, 8})) {
-            exchanger.accept(input);
-        }
+        exchanger.accept(GpuTestUtils.deviceIntColumn(new int[] {1, 2, 3, 4, 5, 6, 7, 8}));
 
         int total = 0;
         for (GpuLocalExchangeBuffer buffer : buffers) {
@@ -70,13 +68,9 @@ public class TestGpuHashPartitioningExchanger
         GpuExchanger exchanger = new GpuHashPartitioningExchanger(buffers, memory, new int[] {0});
 
         // Three consume() calls — value column carries key*100 so we can verify pairing post-partition.
-        try (GpuPage in1 = deviceTwoIntColumns(new int[] {1, 2}, new int[] {100, 200});
-                GpuPage in2 = deviceTwoIntColumns(new int[] {3, 4, 5}, new int[] {300, 400, 500});
-                GpuPage in3 = deviceTwoIntColumns(new int[] {6, 7, 8, 9}, new int[] {600, 700, 800, 900})) {
-            exchanger.accept(in1);
-            exchanger.accept(in2);
-            exchanger.accept(in3);
-        }
+        exchanger.accept(deviceTwoIntColumns(new int[] {1, 2}, new int[] {100, 200}));
+        exchanger.accept(deviceTwoIntColumns(new int[] {3, 4, 5}, new int[] {300, 400, 500}));
+        exchanger.accept(deviceTwoIntColumns(new int[] {6, 7, 8, 9}, new int[] {600, 700, 800, 900}));
 
         Set<Integer> observedKeys = new HashSet<>();
         for (GpuLocalExchangeBuffer buffer : buffers) {
@@ -112,9 +106,7 @@ public class TestGpuHashPartitioningExchanger
 
         // A single row hashes to exactly one partition; the other three should remain empty rather
         // than receive a zero-row page (matches host PartitioningExchanger).
-        try (GpuPage input = GpuTestUtils.deviceIntColumn(new int[] {42})) {
-            exchanger.accept(input);
-        }
+        exchanger.accept(GpuTestUtils.deviceIntColumn(new int[] {42}));
 
         int populatedBuffers = 0;
         for (GpuLocalExchangeBuffer buffer : buffers) {
@@ -142,11 +134,8 @@ public class TestGpuHashPartitioningExchanger
 
         // Same key repeated across two consume() calls. cuDF MURMUR3 is deterministic, so the second
         // page's rows for key=7 must land in the same buffer as the first page's row for key=7.
-        try (GpuPage in1 = GpuTestUtils.deviceIntColumn(new int[] {7, 7, 7});
-                GpuPage in2 = GpuTestUtils.deviceIntColumn(new int[] {7, 7})) {
-            exchanger.accept(in1);
-            exchanger.accept(in2);
-        }
+        exchanger.accept(GpuTestUtils.deviceIntColumn(new int[] {7, 7, 7}));
+        exchanger.accept(GpuTestUtils.deviceIntColumn(new int[] {7, 7}));
 
         int bufferWithKey = -1;
         int totalRowsForKey = 0;

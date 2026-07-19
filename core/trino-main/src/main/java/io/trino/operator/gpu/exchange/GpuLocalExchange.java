@@ -21,7 +21,7 @@ import com.google.errorprone.annotations.concurrent.GuardedBy;
 import io.trino.operator.exchange.LocalExchangeMemoryManager;
 import io.trino.operator.gpu.GpuSourceOperation;
 import io.trino.spi.gpu.GpuPage;
-import io.trino.spi.gpu.borrow.Borrow;
+import io.trino.spi.gpu.borrow.Move;
 import io.trino.sql.planner.PartitioningHandle;
 
 import java.io.Closeable;
@@ -299,11 +299,12 @@ public class GpuLocalExchange
             return exchanger;
         }
 
-        public void addPage(@Borrow GpuPage page)
+        public void addPage(@Move GpuPage page)
         {
             requireNonNull(page, "page is null");
 
             if (isFinished().isDone()) {
+                page.close();
                 return;
             }
 

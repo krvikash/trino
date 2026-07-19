@@ -20,7 +20,6 @@ import com.google.errorprone.annotations.concurrent.GuardedBy;
 import io.trino.operator.exchange.LocalExchangeMemoryManager;
 import io.trino.plugin.base.gpu.ClosingRef;
 import io.trino.spi.gpu.GpuPage;
-import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
 import io.trino.spi.gpu.borrow.Own;
 import jakarta.annotation.Nullable;
@@ -68,16 +67,16 @@ public final class GpuLocalExchangeBuffer
     }
 
     /**
-     * Retains a reference to {@code page} for the buffer; {@code bytes} is the device-byte cost
-     * charged against the memory manager. The caller keeps ownership of {@code page}.
-     * If finishing, the retained reference is closed and not charged.
+     * Takes ownership of {@code page} and enqueues it; {@code bytes} is the device-byte cost
+     * charged against the memory manager.
+     * If finishing, the page is closed and not charged.
      */
-    public void add(@Borrow GpuPage page, long bytes)
+    public void add(@Move GpuPage page, long bytes)
     {
         assertNotHoldsLock();
 
         SettableFuture<Void> notEmptyFuture = null;
-        try (ClosingRef<GpuPage> owned = ClosingRef.own(page.shallowCopy())) {
+        try (ClosingRef<GpuPage> owned = ClosingRef.own(page)) {
             // Charge before publishing; otherwise a concurrent removePage can poll the page and
             // release its bytes before this producer has accounted for them, briefly leaving the
             // memory manager's counter below zero.

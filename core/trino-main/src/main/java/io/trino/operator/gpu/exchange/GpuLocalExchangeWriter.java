@@ -107,7 +107,7 @@ public final class GpuLocalExchangeWriter
         @Own Result sourceResult = source.execute();
         return switch (sourceResult) {
             case Data(AllocatedMemory memory, GpuPage page) -> {
-                try (memory; page) {
+                try (memory) {
                     exchanger.accept(page);
                 }
                 yield new Yielded();
