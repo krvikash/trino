@@ -46,7 +46,9 @@ public class TestGpuLocalExchangeReader
         buffer.add(new GpuPage(0, new Column[0]), 64);
         GpuOperation.Result data = reader.execute();
         assertThat(data).isInstanceOf(GpuOperation.Data.class);
-        ((GpuOperation.Data) data).page().close();
+        GpuOperation.Data dataResult = (GpuOperation.Data) data;
+        dataResult.page().close();
+        dataResult.memory().close();
 
         buffer.finish();
         assertThat(reader.execute()).isInstanceOf(GpuOperation.Finished.class);
