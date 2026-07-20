@@ -18,6 +18,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.airlift.node.NodeInfo;
 import io.trino.connector.CatalogHandle;
+import io.trino.execution.scheduler.StableHostAddressProvider;
 import io.trino.metadata.Split;
 import io.trino.spi.HostAddress;
 import io.trino.spi.cache.CacheManager;
@@ -37,6 +38,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.Iterators.cycle;
 import static com.google.common.util.concurrent.Futures.immediateFuture;
@@ -55,7 +57,7 @@ public class CacheSplitSource
 {
     private final ConnectorSplitManager splitManager;
     private final SplitSource delegate;
-    private final ConsistentHashingAddressProvider addressProvider;
+    private final StableHostAddressProvider addressProvider;
     private final String canonicalSignature;
     private final Map<HostAddress, Queue<Split>> splitQueuePerWorker = new ConcurrentHashMap<>();
     private final int minSplitBatchSize;
@@ -66,7 +68,7 @@ public class CacheSplitSource
             PlanSignature signature,
             ConnectorSplitManager splitManager,
             SplitSource delegate,
-            ConsistentHashingAddressProvider addressProvider,
+            StableHostAddressProvider addressProvider,
             NodeInfo nodeInfo,
             boolean schedulerIncludeCoordinator,
             int minSplitBatchSize,
@@ -75,7 +77,6 @@ public class CacheSplitSource
         this.splitManager = requireNonNull(splitManager, "splitManager is null");
         this.delegate = requireNonNull(delegate, "delegate is null");
         this.addressProvider = requireNonNull(addressProvider, "addressProvider is null");
-        addressProvider.refreshHashRingIfNeeded();
         this.canonicalSignature = canonicalizePlanSignature(signature).toString();
         this.minSplitBatchSize = minSplitBatchSize;
         this.executor = requireNonNull(executor, "executor is null");
@@ -86,7 +87,7 @@ public class CacheSplitSource
             PlanSignature signature,
             ConnectorSplitManager splitManager,
             SplitSource delegate,
-            ConsistentHashingAddressProvider addressProvider,
+            StableHostAddressProvider addressProvider,
             int minSplitBatchSize)
     {
         this.splitManager = requireNonNull(splitManager, "splitManager is null");
@@ -125,23 +126,28 @@ public class CacheSplitSource
                 currentSize++;
             }
             else {
-                Optional<HostAddress> preferredAddress;
+                List<HostAddress> preferredAddresses;
                 if (!split.isRemotelyAccessible()) {
+                    checkArgument(!split.getAddresses().isEmpty(), "Split is not remotely accessible but has no addresses: %s", split);
                     // Choose first address from connector provided worker addresses, so that split is
                     // scheduled deterministically on the worker node. This is such that we reuse the cached splits
                     // on the worker nodes.
-                    preferredAddress = Optional.of(split.getAddresses().getFirst());
+                    preferredAddresses = ImmutableList.of(split.getAddresses().getFirst());
                 }
                 else {
-                    // Get the preferred address for the split using consistent hashing
-                    preferredAddress = addressProvider.getPreferredAddress(canonicalSignature + splitId);
+                    // The scheduler routes splits with an affinity key by that key, so the enforced-address
+                    // check in HttpRemoteTask must accept every host the scheduler may pick;
+                    // otherwise place by signature and split id.
+                    String placementKey = split.getConnectorSplit().getAffinityKey()
+                            .orElseGet(() -> canonicalSignature + splitId.orElseThrow());
+                    preferredAddresses = addressProvider.getHosts(placementKey);
                 }
-                if (preferredAddress.isPresent()) {
+                if (!preferredAddresses.isEmpty()) {
                     Split splitWithPreferredAddress = new Split(
                             split.getCatalogHandle(),
                             split.getConnectorSplit(),
                             splitId,
-                            Optional.of(ImmutableList.of(preferredAddress.get())),
+                            Optional.of(preferredAddresses),
                             split.isSplitAddressEnforced());
                     batchBuilder.add(splitWithPreferredAddress);
                     currentSize++;

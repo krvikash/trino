@@ -22,10 +22,10 @@ import io.airlift.node.NodeInfo;
 import io.airlift.units.DataSize;
 import io.opentelemetry.api.trace.Span;
 import io.trino.Session;
-import io.trino.cache.ConsistentHashingAddressProvider;
 import io.trino.execution.QueryManagerConfig;
 import io.trino.execution.scheduler.ExchangeSplitSource;
 import io.trino.execution.scheduler.NodeSchedulerConfig;
+import io.trino.execution.scheduler.StableHostAddressProvider;
 import io.trino.metadata.TableHandle;
 import io.trino.plugin.base.expression.ConnectorExpressions;
 import io.trino.server.DynamicFilterService;
@@ -116,7 +116,7 @@ public class SplitSourceFactory
 
     private final SplitManager splitManager;
     private final DynamicFilterService dynamicFilterService;
-    private final ConsistentHashingAddressProvider addressProvider;
+    private final StableHostAddressProvider addressProvider;
     private final NodeInfo nodeInfo;
     private final boolean schedulerIncludeCoordinator;
     private final int minScheduleSplitBatchSize;
@@ -126,7 +126,7 @@ public class SplitSourceFactory
     public SplitSourceFactory(
             SplitManager splitManager,
             DynamicFilterService dynamicFilterService,
-            ConsistentHashingAddressProvider addressProvider,
+            StableHostAddressProvider addressProvider,
             NodeInfo nodeInfo,
             NodeSchedulerConfig nodeSchedulerConfig,
             QueryManagerConfig queryManagerConfig,

@@ -14,14 +14,8 @@
 package io.trino.cache;
 
 import com.google.inject.Binder;
-import com.google.inject.Provides;
 import com.google.inject.Scopes;
-import com.google.inject.Singleton;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
-import io.trino.connector.DefaultNodeManager;
-import io.trino.execution.scheduler.NodeSchedulerConfig;
-import io.trino.node.InternalNode;
-import io.trino.node.InternalNodeManager;
 import io.trino.server.ServerConfig;
 
 import static io.airlift.configuration.ConfigBinder.configBinder;
@@ -44,19 +38,6 @@ public class CacheManagerModule
         ServerConfig serverConfig = buildConfigObject(ServerConfig.class);
         if (serverConfig.isCoordinator()) {
             binder.bind(CacheController.class).in(Scopes.SINGLETON);
-
-            install(new AbstractConfigurationAwareModule()
-            {
-                @Override
-                protected void setup(Binder binder) {}
-
-                @Provides
-                @Singleton
-                public ConsistentHashingAddressProvider getConsistentHashingAddressProvider(InternalNode currentNode, InternalNodeManager nodeManager, NodeSchedulerConfig nodeSchedulerConfig)
-                {
-                    return new ConsistentHashingAddressProvider(new DefaultNodeManager(currentNode, nodeManager, nodeSchedulerConfig.isIncludeCoordinator()));
-                }
-            });
         }
     }
 }
