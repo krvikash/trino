@@ -16,7 +16,6 @@ package io.trino.tests.product.warp;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.inject.Inject;
 import io.airlift.log.Logger;
-import io.trino.plugin.hive.HiveTableProperties;
 import io.trino.plugin.iceberg.IcebergTableProperties;
 import io.trino.plugin.warp.tools.util.StringUtils;
 import io.trino.tempto.AfterMethodWithContext;
@@ -60,6 +59,8 @@ public class TestSynthetic
     private static final Logger logger = Logger.get(TestSynthetic.class);
 
     private static final String CATALOG_NAME = "warp";
+    private static final String PARTITIONED_BY_HIVE_TABLE_PROPERTY = "partitioned_by";
+    private static final String EXTERNAL_LOCATION_HIVE_TABLE_PROPERTY = "external_location";
     private static final String DELTA_TYPE_PREFIX = "dl_";
     private static final String ICEBERG_TYPE_PREFIX = "iceberg_";
 
@@ -285,7 +286,7 @@ public class TestSynthetic
                 "";
         String partitionedByStr = (testFormat.partition_by() == null || testFormat.partition_by().isEmpty()) ? "" :
                 "%s=ARRAY[%s]".formatted(
-                        tableType.equals(TableType.warp_iceberg) ? IcebergTableProperties.PARTITIONING_PROPERTY : HiveTableProperties.PARTITIONED_BY_PROPERTY,
+                        tableType.equals(TableType.warp_iceberg) ? IcebergTableProperties.PARTITIONING_PROPERTY : PARTITIONED_BY_HIVE_TABLE_PROPERTY,
                         testFormat.partition_by()
                         .stream()
                         .map(s -> "'" + s + "'")
@@ -300,7 +301,7 @@ public class TestSynthetic
                         testFormat.bucket_count());
 
         String location = "%s='s3://warp-speed-us-east1-systemtests/%s/%s'".formatted(
-                tableType.equals(TableType.warp) ? HiveTableProperties.EXTERNAL_LOCATION_PROPERTY : IcebergTableProperties.LOCATION_PROPERTY,
+                tableType.equals(TableType.warp) ? EXTERNAL_LOCATION_HIVE_TABLE_PROPERTY : IcebergTableProperties.LOCATION_PROPERTY,
                 schemaName,
                 tableName);
 
