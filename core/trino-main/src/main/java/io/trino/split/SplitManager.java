@@ -15,7 +15,6 @@ package io.trino.split;
 
 import com.google.inject.Inject;
 import io.airlift.concurrent.BoundedExecutor;
-import io.airlift.node.NodeInfo;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.Tracer;
 import io.opentelemetry.context.Context;
@@ -145,21 +144,13 @@ public class SplitManager
             PlanSignature signature,
             TableHandle tableHandle,
             SplitSource delegate,
-            StableHostAddressProvider addressProvider,
-            NodeInfo nodeInfo,
-            boolean schedulerIncludeCoordinator,
-            int minScheduleSplitBatchSize)
+            StableHostAddressProvider addressProvider)
     {
         return new CacheSplitSource(
                 signature,
                 getConnectorSplitManager(tableHandle),
                 delegate,
-                addressProvider,
-                nodeInfo,
-                schedulerIncludeCoordinator,
-                minScheduleSplitBatchSize,
-                // Use the same executor as the one used by BufferingSplitSource
-                executor);
+                addressProvider);
     }
 
     private Span splitSourceSpan(Span parentSpan, CatalogHandle catalogHandle)

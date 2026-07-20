@@ -18,13 +18,10 @@ import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
 import io.airlift.json.JsonCodec;
 import io.airlift.log.Logger;
-import io.airlift.node.NodeInfo;
 import io.airlift.units.DataSize;
 import io.opentelemetry.api.trace.Span;
 import io.trino.Session;
-import io.trino.execution.QueryManagerConfig;
 import io.trino.execution.scheduler.ExchangeSplitSource;
-import io.trino.execution.scheduler.NodeSchedulerConfig;
 import io.trino.execution.scheduler.StableHostAddressProvider;
 import io.trino.metadata.TableHandle;
 import io.trino.plugin.base.expression.ConnectorExpressions;
@@ -117,9 +114,6 @@ public class SplitSourceFactory
     private final SplitManager splitManager;
     private final DynamicFilterService dynamicFilterService;
     private final StableHostAddressProvider addressProvider;
-    private final NodeInfo nodeInfo;
-    private final boolean schedulerIncludeCoordinator;
-    private final int minScheduleSplitBatchSize;
     private final JsonCodec<Expression> serializer;
 
     @Inject
@@ -127,17 +121,11 @@ public class SplitSourceFactory
             SplitManager splitManager,
             DynamicFilterService dynamicFilterService,
             StableHostAddressProvider addressProvider,
-            NodeInfo nodeInfo,
-            NodeSchedulerConfig nodeSchedulerConfig,
-            QueryManagerConfig queryManagerConfig,
             JsonCodec<Expression> serializer)
     {
         this.splitManager = requireNonNull(splitManager, "splitManager is null");
         this.dynamicFilterService = requireNonNull(dynamicFilterService, "dynamicFilterService is null");
         this.addressProvider = requireNonNull(addressProvider, "addressProvider is null");
-        this.nodeInfo = requireNonNull(nodeInfo, "nodeInfo is null");
-        this.schedulerIncludeCoordinator = requireNonNull(nodeSchedulerConfig, "nodeSchedulerConfig is null").isIncludeCoordinator();
-        this.minScheduleSplitBatchSize = requireNonNull(queryManagerConfig, "queryManagerConfig is null").getMinScheduleSplitBatchSize();
         this.serializer = requireNonNull(serializer, "serializer is null");
     }
 
@@ -410,10 +398,7 @@ public class SplitSourceFactory
                                 signature,
                                 originalTableScan,
                                 splitSource,
-                                addressProvider,
-                                nodeInfo,
-                                schedulerIncludeCoordinator,
-                                minScheduleSplitBatchSize));
+                                addressProvider));
             }
 
             SplitSource splitSource = createSplitSource(

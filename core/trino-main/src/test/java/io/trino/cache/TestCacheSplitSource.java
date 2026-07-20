@@ -74,8 +74,7 @@ public class TestCacheSplitSource
                 SIGNATURE,
                 splitManager(splitId),
                 new TestingSplitSource(ImmutableList.of(affinitySplit, plainSplit)),
-                addressProvider,
-                1);
+                addressProvider);
 
         List<Split> assigned = splitSource.getNextBatch(10).get().getSplits();
 
