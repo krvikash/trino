@@ -73,5 +73,6 @@ public class ChunkFetcher
             chunkFuture.cancel(true);
             chunkFuture = null;
         }
+        executor.shutdownNow();
     }
 }
