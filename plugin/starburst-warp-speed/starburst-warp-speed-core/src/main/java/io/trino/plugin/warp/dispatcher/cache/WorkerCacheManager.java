@@ -38,7 +38,6 @@ import io.trino.plugin.warp.storage.engine.nativeimpl.NativeStorageStateHandler;
 import io.trino.plugin.warp.storage.write.WarmupCacheData;
 import io.trino.plugin.warp.storage.write.WarpCachePageSink;
 import io.trino.plugin.warp.tools.CatalogNameProvider;
-import io.trino.spi.NodeManager;
 import io.trino.spi.cache.CacheColumnId;
 import io.trino.spi.cache.CacheManager;
 import io.trino.spi.cache.CacheSplitId;
@@ -127,13 +126,6 @@ public class WorkerCacheManager
     public SplitCache getSplitCache(PlanSignature signature)
     {
         return new WarpSplitCache(signature);
-    }
-
-    @SuppressWarnings("deprecation")
-    @Override
-    public PreferredAddressProvider getPreferredAddressProvider(PlanSignature signature, NodeManager nodeManager)
-    {
-        return new WarpPreferredAddressProvider(nodeManager);
     }
 
     @Override

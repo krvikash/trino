@@ -23,7 +23,6 @@ import io.trino.plugin.warp.gen.stats.WarmupExportServiceStats;
 import io.trino.plugin.warp.gen.stats.WarmupImportServiceStats;
 import io.trino.plugin.warp.gen.stats.WorkerTaskExecutorServiceStats;
 import io.trino.plugin.warp.metrics.MetricsManager;
-import io.trino.spi.NodeManager;
 import io.trino.spi.cache.CacheManager;
 import io.trino.spi.cache.PlanSignature;
 
@@ -47,13 +46,6 @@ public class CoordinatorCacheManager
     public SplitCache getSplitCache(PlanSignature signature)
     {
         throw new UnsupportedOperationException("getSplitCache should read only in worker");
-    }
-
-    @SuppressWarnings("deprecation")
-    @Override
-    public PreferredAddressProvider getPreferredAddressProvider(PlanSignature signature, NodeManager nodeManager)
-    {
-        return new WarpPreferredAddressProvider(nodeManager);
     }
 
     @Override

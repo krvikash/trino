@@ -13,8 +13,6 @@
  */
 package io.trino.spi.cache;
 
-import io.trino.spi.HostAddress;
-import io.trino.spi.NodeManager;
 import io.trino.spi.connector.ConnectorPageSink;
 import io.trino.spi.connector.ConnectorPageSource;
 import io.trino.spi.predicate.TupleDomain;
@@ -30,12 +28,6 @@ public interface CacheManager
      *         therefore {@link SplitCache} is used to load or store data per split.
      */
     SplitCache getSplitCache(PlanSignature signature);
-
-    @Deprecated
-    default PreferredAddressProvider getPreferredAddressProvider(PlanSignature signature, NodeManager nodeManager)
-    {
-        throw new UnsupportedOperationException();
-    }
 
     /**
      * Triggers a memory revoke. {@link CacheManager} should revoke
@@ -73,11 +65,5 @@ public interface CacheManager
          *         already cached.
          */
         Optional<ConnectorPageSink> storePages(CacheSplitId splitId, TupleDomain<CacheColumnId> predicate, TupleDomain<CacheColumnId> unenforcedPredicate);
-    }
-
-    @Deprecated
-    interface PreferredAddressProvider
-    {
-        HostAddress getPreferredAddress(CacheSplitId splitId);
     }
 }
