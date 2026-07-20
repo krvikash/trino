@@ -29,9 +29,6 @@ import io.trino.plugin.warp.dispatcher.SimplifiedColumns;
 import io.trino.plugin.warp.dispatcher.model.RegularColumn;
 import io.trino.plugin.warp.proxiedconnector.iceberg.IcebergProxiedConnectorTransformer;
 import io.trino.plugin.warp.proxiedconnector.proxiedconnector.ProxyConnectorTransformerBaseTest;
-import io.trino.plugin.warp.storage.splits.ConnectorSplitNodeDistributor;
-import io.trino.plugin.warp.util.NodeUtils;
-import io.trino.spi.Node;
 import io.trino.spi.SplitWeight;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorSplit;
@@ -51,9 +48,7 @@ import java.util.UUID;
 
 import static io.trino.type.InternalTypeManager.TESTING_TYPE_MANAGER;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 public class IcebergProxiedConnectorTransformerTest
         extends ProxyConnectorTransformerBaseTest
@@ -225,7 +220,6 @@ public class IcebergProxiedConnectorTransformerTest
     @Test
     public void testSnapshotKeyUniqueness()
     {
-        ConnectorSplitNodeDistributor splitDistributor = mock(ConnectorSplitNodeDistributor.class);
         IcebergTableHandle icebergTableHandle = new IcebergTableHandle(
                 SCHEMA_NAME,
                 TABLE_NAME,
@@ -294,12 +288,9 @@ public class IcebergProxiedConnectorTransformerTest
                 ImmutableList.of(),
                 false,
                 Set.of());
-        Node node1 = NodeUtils.node(0, true);
-        when(splitDistributor.getNode(anyString())).thenReturn(node1);
-
         ConnectorSession session = mock(ConnectorSession.class);
 
-        DispatcherSplit dispatcherSplit = this.icebergProxiedConnectorTransformer.createDispatcherSplit(icebergSplit, dispatcherTableHandle, splitDistributor, session);
+        DispatcherSplit dispatcherSplit = this.icebergProxiedConnectorTransformer.createDispatcherSplit(icebergSplit, dispatcherTableHandle, session);
 
         assertThat(dispatcherSplit.getSchemaName()).isEqualTo(SCHEMA_NAME);
         assertThat(dispatcherSplit.getTableName()).isEqualTo(TABLE_NAME);
@@ -319,13 +310,13 @@ public class IcebergProxiedConnectorTransformerTest
                 false,
                 Set.of());
 
-        DispatcherSplit dispatcherSplitAnotherSnapshot = this.icebergProxiedConnectorTransformer.createDispatcherSplit(icebergSplit, dispatcherTableHandleAnotherSnapshot, splitDistributor, session);
+        DispatcherSplit dispatcherSplitAnotherSnapshot = this.icebergProxiedConnectorTransformer.createDispatcherSplit(icebergSplit, dispatcherTableHandleAnotherSnapshot, session);
         assertThat(dispatcherSplitAnotherSnapshot.getDeletedFilesHash()).isEqualTo(dispatcherSplit.getDeletedFilesHash());
 
         ProxiedConnectorConfig newConfig = new ProxiedConnectorConfig();
         newConfig.setEnableIcebergSnapshotIdUniqueness(true);
         IcebergProxiedConnectorTransformer icebergProxiedConnectorTransformerUnique = new IcebergProxiedConnectorTransformer(newConfig, TESTING_TYPE_MANAGER);
-        dispatcherSplitAnotherSnapshot = icebergProxiedConnectorTransformerUnique.createDispatcherSplit(icebergSplit, dispatcherTableHandleAnotherSnapshot, splitDistributor, session);
+        dispatcherSplitAnotherSnapshot = icebergProxiedConnectorTransformerUnique.createDispatcherSplit(icebergSplit, dispatcherTableHandleAnotherSnapshot, session);
         assertThat(dispatcherSplitAnotherSnapshot.getDeletedFilesHash()).isNotEqualTo(dispatcherSplit.getDeletedFilesHash());
     }
 

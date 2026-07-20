@@ -14,7 +14,6 @@
 package io.trino.plugin.warp.dispatcher;
 
 import io.airlift.log.Logger;
-import io.trino.plugin.warp.storage.splits.ConnectorSplitNodeDistributor;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorSplit;
 import io.trino.spi.connector.ConnectorSplitSource;
@@ -37,22 +36,18 @@ public class DispatcherSplitSource
     private final ConnectorSplitSource proxiedConnectorSplitSource;
     private final ConnectorSession session;
     private final DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer;
-    private final ConnectorSplitNodeDistributor connectorSplitNodeDistributor;
     private final DispatcherTableHandle dispatcherTableHandle;
 
     public DispatcherSplitSource(
             ConnectorSplitSource proxiedConnectorSplitSource,
             DispatcherTableHandle dispatcherTableHandle,
             ConnectorSession session,
-            DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer,
-            ConnectorSplitNodeDistributor connectorSplitNodeDistributor)
+            DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer)
     {
         this.proxiedConnectorSplitSource = requireNonNull(proxiedConnectorSplitSource);
         this.dispatcherTableHandle = requireNonNull(dispatcherTableHandle);
         this.session = requireNonNull(session);
         this.dispatcherProxiedConnectorTransformer = requireNonNull(dispatcherProxiedConnectorTransformer);
-        this.connectorSplitNodeDistributor = requireNonNull(connectorSplitNodeDistributor);
-        this.connectorSplitNodeDistributor.updateNodeBucketsIfNeeded();
     }
 
     @Override
@@ -73,7 +68,6 @@ public class DispatcherSplitSource
                     .map(connectorSplit -> dispatcherProxiedConnectorTransformer.createDispatcherSplit(
                             connectorSplit,
                             dispatcherTableHandle,
-                            connectorSplitNodeDistributor,
                             session))
                     .filter(Objects::nonNull)
                     .collect(Collectors.toList());

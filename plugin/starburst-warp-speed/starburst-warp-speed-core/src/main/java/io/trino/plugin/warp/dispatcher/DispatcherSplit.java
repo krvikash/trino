@@ -16,13 +16,12 @@ package io.trino.plugin.warp.dispatcher;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.trino.spi.HostAddress;
 import io.trino.spi.SplitWeight;
 import io.trino.spi.connector.ConnectorSplit;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
 import static java.util.Objects.requireNonNull;
 
@@ -36,7 +35,6 @@ public class DispatcherSplit
     private final long length;
     private final long fileModifiedTime;
 
-    private final List<HostAddress> addresses;
     private final List<PartitionKey> partitionKeys;
     private final String deletedFilesHash;
     private final ConnectorSplit proxyConnectorSplit;
@@ -53,28 +51,12 @@ public class DispatcherSplit
             @JsonProperty("deletedFilesHash") String deletedFilesHash,
             @JsonProperty("proxyConnectorSplit") ConnectorSplit proxyConnectorSplit)
     {
-        this(schemaName, tableName, path, start, length, fileModifiedTime, Collections.emptyList(), partitionKeys, deletedFilesHash, proxyConnectorSplit);
-    }
-
-    public DispatcherSplit(
-            String schemaName,
-            String tableName,
-            String path,
-            long start,
-            long length,
-            long fileModifiedTime,
-            List<HostAddress> addresses,
-            List<PartitionKey> partitionKeys,
-            String deletedFilesHash,
-            ConnectorSplit proxyConnectorSplit)
-    {
         this.schemaName = requireNonNull(schemaName);
         this.tableName = requireNonNull(tableName);
         this.path = requireNonNull(path);
         this.start = start;
         this.length = length;
         this.fileModifiedTime = fileModifiedTime;
-        this.addresses = requireNonNull(addresses);
         this.partitionKeys = requireNonNull(partitionKeys);
         this.deletedFilesHash = requireNonNull(deletedFilesHash);
         this.proxyConnectorSplit = requireNonNull(proxyConnectorSplit);
@@ -134,12 +116,12 @@ public class DispatcherSplit
         return proxyConnectorSplit;
     }
 
-    // do not serialize addresses as they are not needed on workers
+    // routes splits for the same file range to the same worker; not needed on workers
     @Override
     @JsonIgnore
-    public List<HostAddress> getAddresses()
+    public Optional<String> getAffinityKey()
     {
-        return addresses;
+        return Optional.of(path + ":" + start + ":" + length);
     }
 
     @Override
@@ -169,7 +151,6 @@ public class DispatcherSplit
                 Objects.equals(schemaName, that.schemaName) &&
                 Objects.equals(tableName, that.tableName) &&
                 Objects.equals(path, that.path) &&
-                Objects.equals(addresses, that.addresses) &&
                 Objects.equals(partitionKeys, that.partitionKeys) &&
                 Objects.equals(deletedFilesHash, that.deletedFilesHash) &&
                 Objects.equals(proxyConnectorSplit, that.proxyConnectorSplit);
@@ -178,7 +159,7 @@ public class DispatcherSplit
     @Override
     public int hashCode()
     {
-        return Objects.hash(schemaName, tableName, path, start, length, fileModifiedTime, addresses, partitionKeys, deletedFilesHash, proxyConnectorSplit);
+        return Objects.hash(schemaName, tableName, path, start, length, fileModifiedTime, partitionKeys, deletedFilesHash, proxyConnectorSplit);
     }
 
     @Override
@@ -191,7 +172,6 @@ public class DispatcherSplit
                 ", start=" + start +
                 ", length=" + length +
                 ", fileModifiedTime=" + fileModifiedTime +
-                ", addresses=" + addresses +
                 ", partitionKeys=" + partitionKeys +
                 ", deletedFilesHash='" + deletedFilesHash + '\'' +
                 ", proxyConnectorSplit=" + proxyConnectorSplit +

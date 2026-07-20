@@ -114,7 +114,6 @@ public class HiveProxiedConnectorTransformerTest
                 hiveSplit.getStart(),
                 hiveSplit.getLength(),
                 hiveSplit.getFileModifiedTime(),
-                List.of(node.getHostAndPort()),
                 partitionKeys,
                 "",
                 hiveSplit);

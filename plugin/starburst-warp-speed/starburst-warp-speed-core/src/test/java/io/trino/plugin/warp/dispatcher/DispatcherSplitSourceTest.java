@@ -13,13 +13,7 @@
  */
 package io.trino.plugin.warp.dispatcher;
 
-import com.google.common.collect.MoreCollectors;
-import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.connector.TestingConnectorProxiedConnectorTransformer;
-import io.trino.plugin.warp.node.CoordinatorNodeManager;
-import io.trino.plugin.warp.storage.splits.ConnectorSplitConsistentHashNodeDistributor;
-import io.trino.plugin.warp.util.NodeUtils;
-import io.trino.spi.Node;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorSplit;
 import io.trino.spi.connector.ConnectorSplitSource;
@@ -27,14 +21,9 @@ import io.trino.spi.connector.DynamicFilterSnapshot;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -48,16 +37,12 @@ public class DispatcherSplitSourceTest
 {
     final int maxSize = 100;
     private List<ConnectorSplit> connectorSplits;
-    private CoordinatorNodeManager coordinatorNodeManager;
-    private List<Node> workers;
     private DispatcherSplitSource dispatcherSplitSource;
 
-    @SuppressWarnings("MockNotUsedInProduction")
     @BeforeEach
     public void before()
     {
         ConnectorSplitSource connectorSplitSource = mock(ConnectorSplitSource.class);
-        GlobalConfig globalConfig = new GlobalConfig();
 
         connectorSplits = IntStream.range(0, 10)
                 .mapToObj(i -> new DispatcherSplit(
@@ -68,21 +53,17 @@ public class DispatcherSplitSourceTest
                         1,
                         2L,
                         List.of(),
-                        List.of(),
                         "",
                         mock(ConnectorSplit.class)))
                 .collect(Collectors.toList());
         CompletableFuture<List<ConnectorSplit>> connectorSplitBatchCompletableFuture = CompletableFuture.completedFuture(connectorSplits);
         when(connectorSplitSource.getNextBatch(eq(maxSize), eq(DynamicFilterSnapshot.EMPTY))).thenReturn(connectorSplitBatchCompletableFuture);
 
-        coordinatorNodeManager = mock(CoordinatorNodeManager.class);
-        mockNodeManager(1, 2, 3);
         dispatcherSplitSource = new DispatcherSplitSource(
                 connectorSplitSource,
                 mock(DispatcherTableHandle.class),
                 mock(ConnectorSession.class),
-                new TestingConnectorProxiedConnectorTransformer(),
-                new ConnectorSplitConsistentHashNodeDistributor(globalConfig, coordinatorNodeManager));
+                new TestingConnectorProxiedConnectorTransformer());
     }
 
     @Test
@@ -95,16 +76,11 @@ public class DispatcherSplitSourceTest
 
         assertThat(connectorSplits.size()).isEqualTo(connectorSplitsResult1.size());
 
-        Set<String> workerHostAddress = workers.stream()
-                .map(Node::getHost)
-                .collect(Collectors.toSet());
-
         for (int i = 0; i < connectorSplits.size(); i++) {
             DispatcherSplit hiveSplit = (DispatcherSplit) connectorSplits.get(i);
             DispatcherSplit connectorSplitResult = (DispatcherSplit) connectorSplitsResult1.get(i);
             assertThat(hiveSplit.getPath()).isEqualTo(connectorSplitResult.getPath());
-            assertThat(connectorSplitResult.getAddresses()).hasSize(1);
-            assertThat(workerHostAddress.contains(connectorSplitResult.getAddresses().stream().collect(MoreCollectors.onlyElement()).getHostText())).isTrue();
+            assertThat(connectorSplitResult.getAffinityKey()).contains(hiveSplit.getPath() + ":" + hiveSplit.getStart() + ":" + hiveSplit.getLength());
         }
     }
 
@@ -114,14 +90,5 @@ public class DispatcherSplitSourceTest
         assertAllMethodsOverridden(
                 ConnectorSplitSource.class,
                 DispatcherSplitSource.class);
-    }
-
-    private void mockNodeManager(Integer... indexes)
-    {
-        Map<Integer, Node> workersMap = Arrays.stream(indexes)
-                .collect(Collectors.toMap(Function.identity(), i -> NodeUtils.node(i, false)));
-
-        workers = new ArrayList<>(workersMap.values());
-        when(coordinatorNodeManager.getWorkerNodes()).thenReturn(workers);
     }
 }

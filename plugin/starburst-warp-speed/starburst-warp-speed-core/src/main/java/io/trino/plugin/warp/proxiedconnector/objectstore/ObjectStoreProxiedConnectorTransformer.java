@@ -25,7 +25,6 @@ import io.trino.plugin.warp.proxiedconnector.deltalake.DeltaLakeProxiedConnector
 import io.trino.plugin.warp.proxiedconnector.hive.HiveProxiedConnectorTransformer;
 import io.trino.plugin.warp.proxiedconnector.hudi.HudiProxiedConnectorTransformer;
 import io.trino.plugin.warp.proxiedconnector.iceberg.IcebergProxiedConnectorTransformer;
-import io.trino.plugin.warp.storage.splits.ConnectorSplitNodeDistributor;
 import io.trino.spi.Node;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorBucketNodeMap;
@@ -108,14 +107,12 @@ public class ObjectStoreProxiedConnectorTransformer
     public DispatcherSplit createDispatcherSplit(
             ConnectorSplit proxyConnectorSplit,
             DispatcherTableHandle dispatcherTableHandle,
-            ConnectorSplitNodeDistributor connectorSplitNodeDistributor,
             ConnectorSession session)
     {
         return transformerMap.get(getTransformerKey(proxyConnectorSplit))
                 .createDispatcherSplit(
                         proxyConnectorSplit,
                         dispatcherTableHandle,
-                        connectorSplitNodeDistributor,
                         session);
     }
 

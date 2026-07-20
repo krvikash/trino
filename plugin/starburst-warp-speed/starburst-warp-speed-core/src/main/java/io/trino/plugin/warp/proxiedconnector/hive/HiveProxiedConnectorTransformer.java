@@ -27,8 +27,6 @@ import io.trino.plugin.warp.dispatcher.DispatcherSplit;
 import io.trino.plugin.warp.dispatcher.DispatcherTableHandle;
 import io.trino.plugin.warp.dispatcher.PartitionKey;
 import io.trino.plugin.warp.dispatcher.model.RegularColumn;
-import io.trino.plugin.warp.storage.splits.ConnectorSplitNodeDistributor;
-import io.trino.spi.HostAddress;
 import io.trino.spi.Node;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorBucketNodeMap;
@@ -178,14 +176,9 @@ public class HiveProxiedConnectorTransformer
     public DispatcherSplit createDispatcherSplit(
             ConnectorSplit proxyConnectorSplit,
             DispatcherTableHandle dispatcherTableHandle,
-            ConnectorSplitNodeDistributor connectorSplitNodeDistributor,
             ConnectorSession session)
     {
         HiveSplit hiveSplit = (HiveSplit) proxyConnectorSplit;
-
-        List<HostAddress> hostAddresses = getHostAddressForSplit(
-                getSplitKey(hiveSplit.getPath(), hiveSplit.getStart(), hiveSplit.getLength()),
-                connectorSplitNodeDistributor);
 
         List<PartitionKey> partitionKeys = new ArrayList<>();
         for (HivePartitionKey hivePartitionKey : hiveSplit.getPartitionKeys()) {
@@ -199,7 +192,6 @@ public class HiveProxiedConnectorTransformer
                 hiveSplit.getStart(),
                 hiveSplit.getLength(),
                 hiveSplit.getFileModifiedTime(),
-                hostAddresses,
                 partitionKeys,
                 "",
                 hiveSplit);

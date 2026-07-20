@@ -41,7 +41,6 @@ public class WarpSessionPropertiesTest
                 WarpSessionProperties.IMPORT_EXPORT_S3_PATH,
                 WarpSessionProperties.UNSUPPORTED_FUNCTIONS,
                 WarpSessionProperties.UNSUPPORTED_NATIVE_FUNCTIONS,
-                WarpSessionProperties.SPLIT_TO_WORKER,
                 WarpSessionProperties.ENABLE_DICTIONARY);
         WarpSessionProperties warpSessionProperties = new WarpSessionProperties(new SharedConfig(), new GlobalConfig());
         List<PropertyMetadata<?>> sessionProperties = warpSessionProperties.getSessionProperties();

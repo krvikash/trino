@@ -21,7 +21,6 @@ import io.trino.plugin.warp.dispatcher.DispatcherTableHandle;
 import io.trino.plugin.warp.dispatcher.model.RegularColumn;
 import io.trino.plugin.warp.dispatcher.model.RowGroupData;
 import io.trino.plugin.warp.dispatcher.query.classifier.WarpCacheColumnHandle;
-import io.trino.plugin.warp.storage.splits.ConnectorSplitNodeDistributor;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorSplit;
@@ -43,7 +42,7 @@ public class DispatcherCacheTransformer
     public DispatcherCacheTransformer() {}
 
     @Override
-    public DispatcherSplit createDispatcherSplit(ConnectorSplit proxyConnectorSplit, DispatcherTableHandle dispatcherTableHandle, ConnectorSplitNodeDistributor connectorSplitNodeDistributor, ConnectorSession session)
+    public DispatcherSplit createDispatcherSplit(ConnectorSplit proxyConnectorSplit, DispatcherTableHandle dispatcherTableHandle, ConnectorSession session)
     {
         throw new UnsupportedOperationException();
     }

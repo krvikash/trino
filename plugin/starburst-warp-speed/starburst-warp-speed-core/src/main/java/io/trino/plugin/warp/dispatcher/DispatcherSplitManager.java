@@ -14,11 +14,7 @@
 package io.trino.plugin.warp.dispatcher;
 
 import com.google.inject.Inject;
-import io.trino.plugin.warp.WarpSessionProperties;
 import io.trino.plugin.warp.annotation.ForWarp;
-import io.trino.plugin.warp.storage.splits.ConnectorSplitNodeDistributor;
-import io.trino.plugin.warp.storage.splits.ConnectorSplitSessionNodeDistributor;
-import io.trino.spi.NodeManager;
 import io.trino.spi.cache.CacheSplitId;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorSession;
@@ -39,20 +35,14 @@ public class DispatcherSplitManager
 {
     private final ConnectorSplitManager proxyConnectorSplitManager;
     private final DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer;
-    private final ConnectorSplitNodeDistributor connectorSplitNodeDistributor;
-    private final NodeManager nodeManager;
 
     @Inject
     DispatcherSplitManager(
             @ForWarp ConnectorSplitManager proxyConnectorSplitManager,
-            DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer,
-            ConnectorSplitNodeDistributor connectorSplitNodeDistributor,
-            NodeManager nodeManager)
+            DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer)
     {
         this.proxyConnectorSplitManager = requireNonNull(proxyConnectorSplitManager);
         this.dispatcherProxiedConnectorTransformer = requireNonNull(dispatcherProxiedConnectorTransformer);
-        this.connectorSplitNodeDistributor = requireNonNull(connectorSplitNodeDistributor);
-        this.nodeManager = requireNonNull(nodeManager);
     }
 
     @Override
@@ -63,15 +53,6 @@ public class DispatcherSplitManager
             Set<ColumnHandle> dynamicFilterColumns,
             Constraint constraint)
     {
-        ConnectorSplitNodeDistributor splitNodeDistributor;
-        String nodeDistributorSessionKey = WarpSessionProperties.getNodeByBySession(session);
-        if (nodeDistributorSessionKey != null) {
-            splitNodeDistributor = new ConnectorSplitSessionNodeDistributor(nodeManager, nodeDistributorSessionKey);
-        }
-        else {
-            splitNodeDistributor = connectorSplitNodeDistributor;
-        }
-
         DispatcherTableHandle dispatcherTableHandle = (DispatcherTableHandle) table;
 
         return new DispatcherSplitSource(
@@ -83,8 +64,7 @@ public class DispatcherSplitManager
                         constraint),
                 dispatcherTableHandle,
                 session,
-                dispatcherProxiedConnectorTransformer,
-                splitNodeDistributor);
+                dispatcherProxiedConnectorTransformer);
     }
 
     @Override

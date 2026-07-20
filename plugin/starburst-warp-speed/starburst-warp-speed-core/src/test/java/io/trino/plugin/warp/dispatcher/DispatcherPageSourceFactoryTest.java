@@ -61,7 +61,6 @@ import io.trino.plugin.warp.storage.write.WarmupElementStats;
 import io.trino.plugin.warp.tools.CatalogNameProvider;
 import io.trino.plugin.warp.tools.util.Pair;
 import io.trino.plugin.warp.tools.util.WarpReadWriteLock;
-import io.trino.spi.HostAddress;
 import io.trino.spi.NodeManager;
 import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.connector.ColumnHandle;
@@ -131,7 +130,6 @@ public class DispatcherPageSourceFactoryTest
                 0L,
                 1L,
                 2L,
-                List.of(HostAddress.fromParts("1", 8080), HostAddress.fromParts("2", 8080)),
                 List.of(),
                 "",
                 mock(ConnectorSplit.class));

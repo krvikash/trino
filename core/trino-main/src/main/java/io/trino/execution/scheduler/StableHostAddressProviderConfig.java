@@ -19,7 +19,9 @@ import jakarta.validation.constraints.Min;
 
 public class StableHostAddressProviderConfig
 {
-    private int preferredHostsCount = 2;
+    // Upstream defaults to 2; warp-speed warms each split's data on its affinity host, so a
+    // single preferred host keeps warm data on exactly one worker instead of duplicating it.
+    private int preferredHostsCount = 1;
 
     @Min(1)
     public int getPreferredHostsCount()

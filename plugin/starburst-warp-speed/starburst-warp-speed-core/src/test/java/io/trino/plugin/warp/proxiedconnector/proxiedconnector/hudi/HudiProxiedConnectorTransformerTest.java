@@ -101,7 +101,6 @@ public class HudiProxiedConnectorTransformerTest
                 hudiSplit.start(),
                 hudiSplit.length(),
                 hudiSplit.fileModifiedTime(),
-                List.of(node.getHostAndPort()),
                 partitionKeys,
                 "",
                 hudiSplit);

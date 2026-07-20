@@ -48,7 +48,6 @@ public final class WarpSessionProperties
     public static final String IMPORT_EXPORT_S3_PATH = "import_export_s3_path";
     public static final String IMPORT_EXPORT_RELATIVE_S3_PATH = "import_export";
     public static final String PREDICATE_SIMPLIFY_THRESHOLD = "simplify_predicate_threshold";
-    public static final String SPLIT_TO_WORKER = "split_to_worker";
     public static final String ENABLE_IMPORT_EXPORT = "enable_import_export";
     public static final String ENABLE_DICTIONARY = "enable_dictionary";
     public static final String ENABLE_MATCH_COLLECT = "enable_match_collect";
@@ -129,11 +128,6 @@ public final class WarpSessionProperties
                 stringProperty(
                         IMPORT_EXPORT_S3_PATH,
                         "export and import warmup files",
-                        null,
-                        true),
-                stringProperty(
-                        SPLIT_TO_WORKER,
-                        "pass splits to a specific worker number (for example 0, 1, 2), to a random worker in case of -1, or pass nodeIdentifier for a specific node",
                         null,
                         true),
                 booleanProperty(
@@ -303,14 +297,6 @@ public final class WarpSessionProperties
             return (int) obj;
         }
         return globalConfig.getPredicateSimplifyThreshold();
-    }
-
-    public static String getNodeByBySession(ConnectorSession session)
-    {
-        if (session == null) {
-            return null;
-        }
-        return getProperty(session, SPLIT_TO_WORKER, String.class);
     }
 
     private static <T> T getProperty(ConnectorSession session, String name, Class<T> type)

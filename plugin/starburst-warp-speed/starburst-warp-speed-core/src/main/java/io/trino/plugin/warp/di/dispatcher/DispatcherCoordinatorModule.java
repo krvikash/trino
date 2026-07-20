@@ -24,8 +24,6 @@ import io.trino.plugin.warp.dispatcher.WarpConnectorContext;
 import io.trino.plugin.warp.expression.rewrite.ExpressionService;
 import io.trino.plugin.warp.expression.rewrite.coordinator.connectortowarp.SupportedFunctions;
 import io.trino.plugin.warp.expression.rewrite.coordinator.warptonative.NativeExpressionRulesHandler;
-import io.trino.plugin.warp.storage.splits.ConnectorSplitConsistentHashNodeDistributor;
-import io.trino.plugin.warp.storage.splits.ConnectorSplitNodeDistributor;
 
 import java.util.Map;
 
@@ -53,7 +51,6 @@ public class DispatcherCoordinatorModule
             binder.bind(DispatcherMetadataFactory.class);
             binder.bind(DispatcherCacheMetadata.class);
             binder.bind(ExpressionService.class);
-            binder.bind(ConnectorSplitNodeDistributor.class).to(ConnectorSplitConsistentHashNodeDistributor.class);
             binder.bind(SupportedFunctions.class);
             binder.bind(NativeExpressionRulesHandler.class);
             binder.bind(DispatcherSplitManager.class);

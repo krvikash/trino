@@ -97,7 +97,6 @@ public class DeltaLakeProxiedConnectorTransformerTest
                 deltaLakeSplit.start(),
                 deltaLakeSplit.length(),
                 deltaLakeSplit.fileModifiedTime(),
-                List.of(node.getHostAndPort()),
                 partitionKeys,
                 "",
                 deltaLakeSplit);

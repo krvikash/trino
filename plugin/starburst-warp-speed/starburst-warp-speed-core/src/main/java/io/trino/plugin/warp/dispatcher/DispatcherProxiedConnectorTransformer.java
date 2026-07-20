@@ -13,17 +13,13 @@
  */
 package io.trino.plugin.warp.dispatcher;
 
-import io.trino.plugin.warp.WarpErrorCode;
 import io.trino.plugin.warp.dispatcher.model.RegularColumn;
 import io.trino.plugin.warp.dispatcher.model.RowGroupData;
 import io.trino.plugin.warp.dispatcher.passthrough.DispatcherProxiedConnectorColumnTransformer;
-import io.trino.plugin.warp.storage.splits.ConnectorSplitNodeDistributor;
 import io.trino.plugin.warp.tools.util.Pair;
 import io.trino.plugin.warp.util.DomainUtils;
 import io.trino.plugin.warp.util.SimplifyResult;
-import io.trino.spi.HostAddress;
 import io.trino.spi.Node;
-import io.trino.spi.TrinoException;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.Connector;
 import io.trino.spi.connector.ConnectorBucketNodeMap;
@@ -42,7 +38,6 @@ import io.trino.spi.transaction.IsolationLevel;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -57,23 +52,6 @@ public interface DispatcherProxiedConnectorTransformer
     default boolean isValidForTableStatistics(ConnectorTableHandle connectorTableHandle)
     {
         return true;
-    }
-
-    default List<HostAddress> getHostAddressForSplit(
-            String splitKey,
-            ConnectorSplitNodeDistributor connectorSplitNodeDistributor)
-    {
-        connectorSplitNodeDistributor.updateNodeBucketsIfNeeded();
-        Node node = connectorSplitNodeDistributor.getNode(splitKey);
-        if (Objects.isNull(node)) {
-            throw new TrinoException(WarpErrorCode.WARP_CLUSTER_NOT_READY, "no worker nodes available");
-        }
-        return Collections.singletonList(node.getHostAndPort());
-    }
-
-    default String getSplitKey(String path, long start, long length)
-    {
-        return format("%s-%d-%d", path, start, length);
     }
 
     default Set<String> calculateColumnsNotFitForDictionary(Map<ColumnHandle, ColumnStatistics> columnStatistics, int dictionaryMaxSize)
@@ -97,7 +75,6 @@ public interface DispatcherProxiedConnectorTransformer
     DispatcherSplit createDispatcherSplit(
             ConnectorSplit proxyConnectorSplit,
             DispatcherTableHandle dispatcherTableHandle,
-            ConnectorSplitNodeDistributor connectorSplitNodeDistributor,
             ConnectorSession session);
 
     ConnectorTableHandle createProxyTableHandleForWarming(DispatcherTableHandle dispatcherTableHandle);

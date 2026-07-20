@@ -130,7 +130,6 @@ public class WarmupTestDataUtil
                 0L,
                 2L,
                 List.of(),
-                List.of(),
                 "",
                 mock(ConnectorSplit.class));
         RowGroupKey rowGroupKey = new RowGroupKey(

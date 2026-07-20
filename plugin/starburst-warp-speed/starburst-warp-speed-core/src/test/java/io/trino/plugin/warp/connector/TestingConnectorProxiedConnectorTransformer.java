@@ -20,8 +20,6 @@ import io.trino.plugin.warp.dispatcher.DispatcherSplit;
 import io.trino.plugin.warp.dispatcher.DispatcherTableHandle;
 import io.trino.plugin.warp.dispatcher.model.RegularColumn;
 import io.trino.plugin.warp.dispatcher.model.RowGroupData;
-import io.trino.plugin.warp.storage.splits.ConnectorSplitNodeDistributor;
-import io.trino.spi.HostAddress;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorSplit;
@@ -31,8 +29,6 @@ import io.trino.spi.type.Type;
 
 import java.util.List;
 import java.util.Optional;
-
-import static io.trino.plugin.warp.dispatcher.warmup.WarmUtils.isEmptyCollection;
 
 @Singleton
 public class TestingConnectorProxiedConnectorTransformer
@@ -51,17 +47,9 @@ public class TestingConnectorProxiedConnectorTransformer
     public DispatcherSplit createDispatcherSplit(
             ConnectorSplit proxyConnectorSplit,
             DispatcherTableHandle dispatcherTableHandle,
-            ConnectorSplitNodeDistributor connectorSplitNodeDistributor,
             ConnectorSession session)
     {
         DispatcherSplit dispatcherSplit = (DispatcherSplit) proxyConnectorSplit;
-
-        List<HostAddress> splitAddresses = dispatcherSplit.getAddresses();
-        if (isEmptyCollection(splitAddresses)) {
-            splitAddresses = getHostAddressForSplit(
-                    getSplitKey(dispatcherSplit.getPath(), dispatcherSplit.getStart(), dispatcherSplit.getLength()),
-                    connectorSplitNodeDistributor);
-        }
 
         return new DispatcherSplit(
                 dispatcherSplit.getSchemaName(),
@@ -70,7 +58,6 @@ public class TestingConnectorProxiedConnectorTransformer
                 dispatcherSplit.getStart(),
                 dispatcherSplit.getLength(),
                 dispatcherSplit.getFileModifiedTime(),
-                splitAddresses,
                 List.of(),
                 "",
                 dispatcherSplit);

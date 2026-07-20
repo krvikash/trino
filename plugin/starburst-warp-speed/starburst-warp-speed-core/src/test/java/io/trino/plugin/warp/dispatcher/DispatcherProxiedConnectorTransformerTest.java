@@ -18,10 +18,7 @@ import io.trino.plugin.warp.connector.TestingConnectorColumnHandle;
 import io.trino.plugin.warp.connector.TestingConnectorProxiedConnectorTransformer;
 import io.trino.plugin.warp.connector.TestingConnectorTableHandle;
 import io.trino.plugin.warp.dispatcher.model.RegularColumn;
-import io.trino.plugin.warp.storage.splits.ConnectorSplitNodeDistributor;
 import io.trino.plugin.warp.tools.util.Pair;
-import io.trino.plugin.warp.util.NodeUtils;
-import io.trino.spi.Node;
 import io.trino.spi.connector.Connector;
 import io.trino.spi.connector.ConnectorMetadata;
 import io.trino.spi.connector.ConnectorSession;
@@ -47,20 +44,6 @@ import static org.mockito.Mockito.when;
 
 public class DispatcherProxiedConnectorTransformerTest
 {
-    @Test
-    public void testGetHostAddressForSplit()
-    {
-        Node node = NodeUtils.node(1, true);
-
-        ConnectorSplitNodeDistributor connectorSplitNodeDistributor = mock(ConnectorSplitNodeDistributor.class);
-        when(connectorSplitNodeDistributor.getNode(any(String.class)))
-                .thenReturn(node);
-
-        DispatcherProxiedConnectorTransformer transformer = new TestingConnectorProxiedConnectorTransformer();
-        assertThat(transformer.getHostAddressForSplit("splitKey", connectorSplitNodeDistributor))
-                .isEqualTo(List.of(node.getHostAndPort()));
-    }
-
     @Test
     public void testCreateProxiedMetadata()
     {

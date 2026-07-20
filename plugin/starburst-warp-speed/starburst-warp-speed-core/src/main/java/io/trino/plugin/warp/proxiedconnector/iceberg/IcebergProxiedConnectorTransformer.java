@@ -30,9 +30,7 @@ import io.trino.plugin.warp.dispatcher.DispatcherSplit;
 import io.trino.plugin.warp.dispatcher.DispatcherTableHandle;
 import io.trino.plugin.warp.dispatcher.PartitionKey;
 import io.trino.plugin.warp.dispatcher.model.RegularColumn;
-import io.trino.plugin.warp.storage.splits.ConnectorSplitNodeDistributor;
 import io.trino.plugin.warp.tools.util.Pair;
-import io.trino.spi.HostAddress;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorSplit;
@@ -251,14 +249,9 @@ public class IcebergProxiedConnectorTransformer
     public DispatcherSplit createDispatcherSplit(
             ConnectorSplit proxyConnectorSplit,
             DispatcherTableHandle dispatcherTableHandle,
-            ConnectorSplitNodeDistributor connectorSplitNodeDistributor,
             ConnectorSession session)
     {
         IcebergSplit icebergSplit = (IcebergSplit) proxyConnectorSplit;
-
-        List<HostAddress> hostAddresses = getHostAddressForSplit(
-                getSplitKey(icebergSplit.path(), icebergSplit.start(), icebergSplit.length()),
-                connectorSplitNodeDistributor);
 
         List<PartitionKey> partitionKeyMap = getPartitionKeysMap(
                 icebergSplit,
@@ -275,7 +268,6 @@ public class IcebergProxiedConnectorTransformer
                 icebergSplit.start(),
                 icebergSplit.length(),
                 Objects.hash(icebergSplit.fileSize(), icebergSplit.fileRecordCount()), // iceberg split doesn't have modification time. using these 2 parameters as additional uniqueness parameters
-                hostAddresses,
                 partitionKeyMap,
                 deletedFilesHash,
                 proxyConnectorSplit);

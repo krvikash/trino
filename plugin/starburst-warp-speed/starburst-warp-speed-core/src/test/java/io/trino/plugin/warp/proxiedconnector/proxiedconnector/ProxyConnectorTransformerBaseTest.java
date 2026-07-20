@@ -16,38 +16,24 @@ package io.trino.plugin.warp.proxiedconnector.proxiedconnector;
 import io.trino.plugin.warp.dispatcher.DispatcherProxiedConnectorTransformer;
 import io.trino.plugin.warp.dispatcher.DispatcherSplit;
 import io.trino.plugin.warp.dispatcher.DispatcherTableHandle;
-import io.trino.plugin.warp.storage.splits.ConnectorSplitNodeDistributor;
-import io.trino.plugin.warp.util.NodeUtils;
-import io.trino.spi.Node;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorSplit;
 import io.trino.spi.connector.ConnectorTableHandle;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 public abstract class ProxyConnectorTransformerBaseTest
 {
-    protected final Node node = NodeUtils.node(1, true);
-
     protected void testCreateDispatcherSplit(
             DispatcherProxiedConnectorTransformer transformer,
             ConnectorSplit connectorSplit,
             DispatcherTableHandle dispatcherTableHandle,
             DispatcherSplit expectedDispatcherSplit)
     {
-        Node node = NodeUtils.node(1, true);
-
-        ConnectorSplitNodeDistributor connectorSplitNodeDistributor = mock(ConnectorSplitNodeDistributor.class);
-        when(connectorSplitNodeDistributor.getNode(any(String.class)))
-                .thenReturn(node);
-
         DispatcherSplit dispatcherSplit = transformer.createDispatcherSplit(
                 connectorSplit,
                 dispatcherTableHandle,
-                connectorSplitNodeDistributor,
                 mock(ConnectorSession.class));
 
         assertThat(dispatcherSplit).isEqualTo(expectedDispatcherSplit);

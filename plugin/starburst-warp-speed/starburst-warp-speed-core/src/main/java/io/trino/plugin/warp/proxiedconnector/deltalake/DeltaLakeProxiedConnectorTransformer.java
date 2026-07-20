@@ -26,8 +26,6 @@ import io.trino.plugin.warp.dispatcher.DispatcherSplit;
 import io.trino.plugin.warp.dispatcher.DispatcherTableHandle;
 import io.trino.plugin.warp.dispatcher.PartitionKey;
 import io.trino.plugin.warp.dispatcher.model.RegularColumn;
-import io.trino.plugin.warp.storage.splits.ConnectorSplitNodeDistributor;
-import io.trino.spi.HostAddress;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorSplit;
@@ -121,14 +119,9 @@ public class DeltaLakeProxiedConnectorTransformer
     public DispatcherSplit createDispatcherSplit(
             ConnectorSplit proxyConnectorSplit,
             DispatcherTableHandle dispatcherTableHandle,
-            ConnectorSplitNodeDistributor connectorSplitNodeDistributor,
             ConnectorSession session)
     {
         DeltaLakeSplit deltaLakeSplit = (DeltaLakeSplit) proxyConnectorSplit;
-
-        List<HostAddress> hostAddresses = getHostAddressForSplit(
-                getSplitKey(deltaLakeSplit.path(), deltaLakeSplit.start(), deltaLakeSplit.length()),
-                connectorSplitNodeDistributor);
 
         List<PartitionKey> partitionKeys = new ArrayList<>();
         for (Map.Entry<String, Optional<String>> entry : deltaLakeSplit.partitionKeys().entrySet()) {
@@ -145,7 +138,6 @@ public class DeltaLakeProxiedConnectorTransformer
                 deltaLakeSplit.start(),
                 deltaLakeSplit.length(),
                 deltaLakeSplit.fileModifiedTime(),
-                hostAddresses,
                 partitionKeys,
                 deletedFileHash,
                 proxyConnectorSplit);

@@ -32,7 +32,6 @@ import io.trino.plugin.warp.dispatcher.model.RegularColumn;
 import io.trino.plugin.warp.proxiedconnector.hive.HiveProxiedConnectorTransformer;
 import io.trino.plugin.warp.proxiedconnector.objectstore.ObjectStoreProxiedConnectorTransformer;
 import io.trino.plugin.warp.proxiedconnector.proxiedconnector.ProxyConnectorTransformerBaseTest;
-import io.trino.plugin.warp.storage.splits.ConnectorSplitNodeDistributor;
 import io.trino.spi.HostAddress;
 import io.trino.spi.SplitWeight;
 import io.trino.spi.connector.Connector;
@@ -113,7 +112,6 @@ public class ObjectStoreProxiedConnectorTransformerTest
                 hiveSplit.getStart(),
                 hiveSplit.getLength(),
                 hiveSplit.getFileModifiedTime(),
-                List.of(node.getHostAndPort()),
                 partitionKeys,
                 "",
                 hiveSplit);
@@ -252,9 +250,7 @@ public class ObjectStoreProxiedConnectorTransformerTest
                 DispatcherProxiedConnectorTransformer.class,
                 ObjectStoreProxiedConnectorTransformer.class,
                 Set.of(
-                        DispatcherProxiedConnectorTransformer.class.getMethod("getHostAddressForSplit", String.class, ConnectorSplitNodeDistributor.class),
                         DispatcherProxiedConnectorTransformer.class.getMethod("getSimplifiedColumns", ConnectorTableHandle.class, TupleDomain.class, int.class),
-                        DispatcherProxiedConnectorTransformer.class.getMethod("getSplitKey", String.class, long.class, long.class),
                         DispatcherProxiedConnectorTransformer.class.getMethod("createProxiedMetadata", Connector.class, ConnectorSession.class)));
     }
 }

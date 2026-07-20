@@ -14,6 +14,7 @@
 package io.trino.plugin.warp.config;
 
 import io.airlift.configuration.Config;
+import io.airlift.configuration.DefunctConfig;
 import io.airlift.units.DataSize;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -25,6 +26,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 @SuppressWarnings("unused")
+@DefunctConfig("warp-speed.config.consistent-split-buckets-per-worker")
 public class GlobalConfig
 {
     public static final String CONFIG_IS_SINGLE = "warp-speed.config.is-single";
@@ -35,7 +37,6 @@ public class GlobalConfig
     private boolean isSingle;
     private Set<String> unsupportedFunctions = Collections.emptySet();
     private long clusterUpTime;
-    private int consistentSplitBucketsPerWorker = 2048;
     private int exportDelayInSeconds;
     private String localStorePath = "/opt/data/INDEX-CACHE";
     private int predicateSimplifyThreshold = 1_000_000;
@@ -214,17 +215,6 @@ public class GlobalConfig
     public void setClusterUpTime(long clusterUpTime)
     {
         this.clusterUpTime = clusterUpTime;
-    }
-
-    public int getConsistentSplitBucketsPerWorker()
-    {
-        return consistentSplitBucketsPerWorker;
-    }
-
-    @Config("warp-speed.config.consistent-split-buckets-per-worker")
-    public void setConsistentSplitBucketsPerWorker(int consistentSplitBucketsPerWorker)
-    {
-        this.consistentSplitBucketsPerWorker = consistentSplitBucketsPerWorker;
     }
 
     @Min(0)
@@ -461,7 +451,6 @@ public class GlobalConfig
                 ", clusterUpTime=" + clusterUpTime +
                 ", enableDefaultWarming=" + enableDefaultWarming +
                 ", createIndexInDefaultWarming=" + createIndexInDefaultWarming +
-                ", consistentSplitBucketsPerWorker=" + consistentSplitBucketsPerWorker +
                 ", exportDelayInSeconds=" + exportDelayInSeconds +
                 ", localStorePath='" + localStorePath + '\'' +
                 ", maxCollectColumnsSkipDefaultWarming=" + maxCollectColumnsSkipDefaultWarming +
