@@ -166,7 +166,7 @@ public class Processor
     {
         isShallow.set(true);
         FileTracker fileTracker = FileTrackerFactory.createFileTracker(options, rootPath);
-        SampleFilesCrawler sampleFilesCrawler = new SampleFilesCrawler(fileSystem, rootPath, options, executor, fileTracker);
+        SampleFilesCrawler sampleFilesCrawler = new SampleFilesCrawler(fileSystem, rootPath, options, executor, fileTracker, errors);
         var _ = FluentFuture.from(sampleFilesCrawler.startBuildSampleFilesListAsync())
                 .transformAsync(this::startShallowTableLookup, executor)
                 .transform(this::buildShallowTableToPartitionsMap, executor)
@@ -179,7 +179,7 @@ public class Processor
     public void startRootProcessing()
     {
         FileTracker fileTracker = FileTrackerFactory.createFileTracker(options, rootPath);
-        SampleFilesCrawler sampleFilesCrawler = new SampleFilesCrawler(fileSystem, rootPath, options, executor, fileTracker);
+        SampleFilesCrawler sampleFilesCrawler = new SampleFilesCrawler(fileSystem, rootPath, options, executor, fileTracker, errors);
         FluentFuture<List<ProcessorFormatGuess>> continuation = FluentFuture.from(Futures.submitAsync(sampleFilesCrawler::startBuildSampleFilesListAsync, executor))
                 .transformAsync(this::startProcessSampleFiles, executor);
         continueProcessing(continuation);
@@ -189,7 +189,7 @@ public class Processor
     public void startSubPathProcessing(Location fromPath, TableFormat format, Map<String, String> options)
     {
         FileTracker fileTracker = FileTrackerFactory.createFileTracker(this.options, rootPath);
-        SampleFilesCrawler sampleFilesCrawler = new SampleFilesCrawler(fileSystem, fromPath, this.options, executor, fileTracker);
+        SampleFilesCrawler sampleFilesCrawler = new SampleFilesCrawler(fileSystem, fromPath, this.options, executor, fileTracker, errors);
         DiscoveredFormat discoveredFormat = new DiscoveredFormat(format, options);
         FluentFuture<List<ProcessorFormatGuess>> continuation = FluentFuture.from(Futures.submitAsync(sampleFilesCrawler::startBuildSampleFilesListAsync, executor))
                 .transformAsync(paths -> startProcessSubPathFiles(discoveredFormat, paths), executor);

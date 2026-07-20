@@ -12,13 +12,16 @@ package io.starburst.schema.discovery.processor.filetracker;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import io.starburst.schema.discovery.Util;
+import io.starburst.schema.discovery.internal.Errors;
 import io.starburst.schema.discovery.options.GeneralOptions;
 import io.starburst.schema.discovery.options.OptionsMap;
 import io.starburst.schema.discovery.processor.Processor.ProcessorPath;
 import io.starburst.schema.discovery.processor.SampleFilesCrawler;
 import io.trino.filesystem.Location;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
@@ -39,7 +42,7 @@ public class SampleFilesCrawlerTest
         OptionsMap optionsMap = new OptionsMap(ImmutableMap.of(GeneralOptions.SAMPLE_FILES_PER_TABLE_MODULO, "1", GeneralOptions.MAX_SAMPLE_FILES_PER_TABLE, "1", GeneralOptions.DISCOVERY_MODE, "recursive_directories"));
         RecordingFileTrackerDecorator recordingTracker = new RecordingFileTrackerDecorator(new RecursiveDirectoriesFileTracker(recursiveDirectory, new GeneralOptions(optionsMap)));
 
-        SampleFilesCrawler sampleFilesCrawler = new SampleFilesCrawler(Util.fileSystem(), recursiveDirectory, optionsMap, directExecutor(), recordingTracker);
+        SampleFilesCrawler sampleFilesCrawler = new SampleFilesCrawler(Util.fileSystem(), recursiveDirectory, optionsMap, directExecutor(), recordingTracker, new Errors());
         List<ProcessorPath> processorPaths = sampleFilesCrawler.startBuildSampleFilesListAsync().get(5, TimeUnit.SECONDS);
         Set<Location> sampleFilePaths = processorPaths.stream().map(ProcessorPath::path).collect(toImmutableSet());
         assertThat(sampleFilePaths).hasSize(2); // samples should be 1 per table as specified in options
@@ -89,7 +92,7 @@ public class SampleFilesCrawlerTest
         OptionsMap optionsMap = new OptionsMap(ImmutableMap.of(GeneralOptions.SAMPLE_FILES_PER_TABLE_MODULO, "1", GeneralOptions.MAX_SAMPLE_FILES_PER_TABLE, "1"));
         RecordingFileTrackerDecorator recordingTracker = new RecordingFileTrackerDecorator(new PartitionedDiscoveryFileTracker(nestedPartitionedDirectory, new GeneralOptions(optionsMap)));
 
-        SampleFilesCrawler sampleFilesCrawler = new SampleFilesCrawler(Util.fileSystem(), nestedPartitionedDirectory, optionsMap, directExecutor(), recordingTracker);
+        SampleFilesCrawler sampleFilesCrawler = new SampleFilesCrawler(Util.fileSystem(), nestedPartitionedDirectory, optionsMap, directExecutor(), recordingTracker, new Errors());
         List<ProcessorPath> processorPaths = sampleFilesCrawler.startBuildSampleFilesListAsync().get(5, TimeUnit.SECONDS);
         Set<Location> sampleFilePaths = processorPaths.stream().map(ProcessorPath::path).collect(toImmutableSet());
         assertThat(sampleFilePaths).hasSize(2); // both nested partitions should be discovered
@@ -103,6 +106,24 @@ public class SampleFilesCrawlerTest
                 nestedPartitionedDirectory.appendSuffix("/ds=2012-12-29/hour=15/000000_0")));
     }
 
+    @Test
+    public void testRecursiveModeWithNoTopLevelDirectoriesRecordsGlobalError(@TempDir Path tempDir)
+            throws Exception
+    {
+        Location root = Location.of("local://" + tempDir.toAbsolutePath());
+        OptionsMap optionsMap = new OptionsMap(ImmutableMap.of(GeneralOptions.DISCOVERY_MODE, "recursive_directories"));
+        Errors errors = new Errors();
+        SampleFilesCrawler sampleFilesCrawler = new SampleFilesCrawler(
+                Util.fileSystem(), root, optionsMap, directExecutor(), new RecursiveDirectoriesFileTracker(root, new GeneralOptions(optionsMap)), errors);
+        List<ProcessorPath> processorPaths = sampleFilesCrawler.startBuildSampleFilesListAsync().get(5, TimeUnit.SECONDS);
+        assertThat(processorPaths).isEmpty();
+        // this error has no meaningful table path to attach to (there are no subdirectories at all), so it must
+        // be recorded as a schema-level error rather than a table error - assert against build(), which only
+        // exposes schema-level errors, so this fails if the crawler mistakenly attaches it to a table path instead
+        assertThat(errors.build()).anySatisfy(error -> assertThat(error).contains("no top-level subdirectories"));
+        assertThat(errors.buildAll()).anySatisfy(error -> assertThat(error).contains("no top-level subdirectories"));
+    }
+
     private static Result scanDirectoryWithMaxFilesConstraint(int maxSampleFiles, int sampleSize)
             throws InterruptedException, ExecutionException, TimeoutException
     {
@@ -110,7 +131,7 @@ public class SampleFilesCrawlerTest
         OptionsMap optionsMap = new OptionsMap(ImmutableMap.of(GeneralOptions.SAMPLE_FILES_PER_TABLE_MODULO, "1", GeneralOptions.MAX_SAMPLE_FILES_PER_TABLE, String.valueOf(maxSampleFiles)));
         RecordingFileTrackerDecorator recordingTracker = new RecordingFileTrackerDecorator(new PartitionedDiscoveryFileTracker(partitionedDirectory, new GeneralOptions(optionsMap)));
 
-        SampleFilesCrawler sampleFilesCrawler = new SampleFilesCrawler(Util.fileSystem(), partitionedDirectory, optionsMap, directExecutor(), recordingTracker);
+        SampleFilesCrawler sampleFilesCrawler = new SampleFilesCrawler(Util.fileSystem(), partitionedDirectory, optionsMap, directExecutor(), recordingTracker, new Errors());
         List<ProcessorPath> processorPaths = sampleFilesCrawler.startBuildSampleFilesListAsync().get(5, TimeUnit.SECONDS);
         Set<Location> sampleFilePaths = processorPaths.stream().map(ProcessorPath::path).collect(toImmutableSet());
         assertThat(sampleFilePaths).hasSize(sampleSize); // samples should be maxSampleFiles per table(partition) as specified in parameter

@@ -25,6 +25,7 @@ import java.util.stream.Stream;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
+import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static io.starburst.schema.discovery.models.SlashEndedPath.ensureEndsWithSlash;
 
 public class Errors
@@ -53,6 +54,18 @@ public class Errors
         log.warn("Schema discovery table error at [%s]: %s", withinTablePath.path(), message);
     }
 
+    /**
+     * Records a schema-level error that cannot be associated with any particular table path
+     * (e.g. a condition affecting the whole discovery root).
+     */
+    @FormatMethod
+    public void addError(@FormatString String error, Object... args)
+    {
+        String message = String.format(error, args);
+        errors.add(message);
+        log.warn("Schema discovery error: %s", message);
+    }
+
     public List<String> build()
     {
         return ImmutableList.copyOf(errors);
@@ -60,12 +73,17 @@ public class Errors
 
     /**
      * Returns all collected errors (both schema-level and per-table), suitable for surfacing
-     * in the {@code errors} column of the schema discovery system table.
+     * in the {@code errors} column of the schema discovery system table. A schema-level error
+     * is dropped if the same message already appears as a table error, so that the located
+     * (path-prefixed) copy takes precedence over the bare one.
      */
     public List<String> buildAll()
     {
+        Set<String> tableErrorMessages = tablePathToTableErrors.values().stream()
+                .flatMap(Set::stream)
+                .collect(toImmutableSet());
         return Stream.concat(
-                        errors.stream(),
+                        errors.stream().filter(error -> !tableErrorMessages.contains(error)),
                         tablePathToTableErrors.entrySet().stream()
                                 .sorted(FILES_BEFORE_PARENTS_COMPARATOR)
                                 .flatMap(entry -> entry.getValue().stream()

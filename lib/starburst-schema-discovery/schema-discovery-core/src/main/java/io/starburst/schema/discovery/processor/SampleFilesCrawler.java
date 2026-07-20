@@ -17,6 +17,7 @@ import com.google.common.util.concurrent.ListenableFuture;
 import io.airlift.log.Logger;
 import io.starburst.schema.discovery.formats.lakehouse.LakehouseFormat;
 import io.starburst.schema.discovery.formats.lakehouse.LakehouseUtil;
+import io.starburst.schema.discovery.internal.Errors;
 import io.starburst.schema.discovery.io.DiscoveryTrinoFileSystem;
 import io.starburst.schema.discovery.options.DiscoveryMode;
 import io.starburst.schema.discovery.options.GeneralOptions;
@@ -59,8 +60,9 @@ public class SampleFilesCrawler
     private final Executor executor;
     private final Location root;
     private final DiscoveryMode discoveryMode;
+    private final Errors errors;
 
-    public SampleFilesCrawler(DiscoveryTrinoFileSystem fileSystem, Location root, OptionsMap options, Executor executor, FileTracker fileTracker)
+    public SampleFilesCrawler(DiscoveryTrinoFileSystem fileSystem, Location root, OptionsMap options, Executor executor, FileTracker fileTracker, Errors errors)
     {
         this.fileSystem = requireNonNull(fileSystem, "fileSystem is null");
         this.root = requireNonNull(root, "root is null");
@@ -69,6 +71,7 @@ public class SampleFilesCrawler
         this.filter = new DiscoveryFilter(options);
         GeneralOptions generalOptions = new GeneralOptions(options);
         this.discoveryMode = generalOptions.discoveryMode();
+        this.errors = requireNonNull(errors, "errors is null");
     }
 
     public ListenableFuture<List<ProcessorPath>> startBuildSampleFilesListAsync()
@@ -94,7 +97,7 @@ public class SampleFilesCrawler
 
         Set<Location> topLevelDirectories = fileSystem.listDirectories(root);
         if (topLevelDirectories.isEmpty()) {
-            log.warn("Schema discovery found no top-level subdirectories under [%s] in RECURSIVE_DIRECTORIES mode — " +
+            errors.addError("Schema discovery found no top-level subdirectories under [%s] in RECURSIVE_DIRECTORIES mode — " +
                     "files directly under the root are not sampled in this mode; no tables will be discovered", root);
         }
 
