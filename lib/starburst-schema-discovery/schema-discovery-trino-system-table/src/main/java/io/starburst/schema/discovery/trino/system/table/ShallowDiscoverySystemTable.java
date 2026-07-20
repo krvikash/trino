@@ -100,6 +100,9 @@ public final class ShallowDiscoverySystemTable
             throw new TrinoException(INVALID_PROCEDURE_ARGUMENT, "Invalid URI: " + uriStr, e);
         }
         catch (ExecutionException e) {
+            if (e.getCause() instanceof TrinoException trinoException) {
+                throw trinoException;
+            }
             String rootErrorMessage = Throwables.getRootCause(e).getMessage();
             String finalMessage = e.getMessage().equals(rootErrorMessage) ? rootErrorMessage : "%s, reason: %s".formatted(e.getMessage(), rootErrorMessage);
             throw new TrinoException(PROCEDURE_CALL_FAILED, "Failure for URI: %s caused by: %s".formatted(uriStr, finalMessage), e);
