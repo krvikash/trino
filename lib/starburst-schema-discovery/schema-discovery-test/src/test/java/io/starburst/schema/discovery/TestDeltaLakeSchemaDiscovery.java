@@ -90,11 +90,16 @@ public class TestDeltaLakeSchemaDiscovery
                 .succeedsWithin(Duration.ofSeconds(5))
                 .matches(discovered -> discovered.rootPath().path().endsWith("deltalake/")
                         && discovered.tables().size() == 3)
-                // Per-table errors are now surfaced in discoveredSchema.errors() via buildAll()
+                // Per-table errors are now surfaced in discoveredSchema.errors() via buildAll(), in a deterministic
+                // order: table formats within a "Mismatched" message are sorted by name (not by which table happens
+                // to be table1/table2, which depends on HashMap iteration), and Errors sorts its output so that
+                // this list doesn't depend on hash-based iteration order either
                 .satisfies(discovered -> {
-                    assertThat(discovered.errors()).hasSize(2);
-                    assertThat(discovered.errors()).anySatisfy(error -> assertThat(error).startsWith("Mismatched table formats, found: [DELTA_LAKE] and [JSON]"));
-                    assertThat(discovered.errors()).anySatisfy(error -> assertThat(error).startsWith("Mismatched table formats, found: [DELTA_LAKE] and [PARQUET]"));
+                    String root = discovered.rootPath().path();
+                    assertThat(discovered.errors()).containsExactly(
+                            "Table [__tmp_path_dir] at [%stable1/__tmp_path_dir] is invalid - no valid columns were found".formatted(root),
+                            "Mismatched table formats, found: [DELTA_LAKE] and [JSON], at: [%stable1/]".formatted(root),
+                            "Mismatched table formats, found: [DELTA_LAKE] and [PARQUET], at: [%stable3]".formatted(root));
                 })
                 .extracting(DiscoveredSchema::tables)
                 .matches(tables -> tables.stream().anyMatch(table -> !table.valid() && table.path().path().endsWith("deltalake/table1/") && table.format() == TableFormat.ERROR) &&

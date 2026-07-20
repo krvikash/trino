@@ -22,8 +22,6 @@ public class TestErrors
         errors.addError("duplicated message");
         errors.addTableError("/some/path", "duplicated message");
 
-        // the table-located copy wins; the bare global copy is dropped
-        // (addTableError normalizes the path to end with a slash)
         assertThat(errors.buildAll()).containsExactly("[/some/path/] duplicated message");
     }
 

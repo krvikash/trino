@@ -520,7 +520,7 @@ public class Processor
             throw new RuntimeException("Internal error - mismatched schema names: [%s] and [%s], at: [%s]".formatted(table1.tableName().schemaName(), table2.tableName().schemaName(), tablePath));
         }
         if (table1.format() != TableFormat.ERROR && table2.format() != TableFormat.ERROR && !table1.format().equals(table2.format())) {
-            errors.addTableError(tablePath, "Mismatched table formats, found: [%s] and [%s], at: [%s]".formatted(table1.format(), table2.format(), tablePath));
+            recordMismatchedTableFormatsError(tablePath, table1, table2);
             return DiscoveredTable.emptyWithPathAndErrors(ensureEndsWithSlash(tablePath), errors.buildForPathAndChildren(tablePath));
         }
 
@@ -548,6 +548,14 @@ public class Processor
                 validatedUnionedPartitions.partitions(),
                 table1.buckets(),
                 errors.buildForPathAndChildren(tablePath));
+    }
+
+    private void recordMismatchedTableFormatsError(String tablePath, DiscoveredTable table1, DiscoveredTable table2)
+    {
+        List<String> sortedFormats = Stream.of(table1.format().name(), table2.format().name())
+                .sorted()
+                .collect(toImmutableList());
+        errors.addTableError(tablePath, "Mismatched table formats, found: [%s] and [%s], at: [%s]", sortedFormats.getFirst(), sortedFormats.getLast(), tablePath);
     }
 
     private InferredPartitionProjection mergeProjectionType(InferredPartitionProjection partitionProjection1, InferredPartitionProjection partitionProjection2)

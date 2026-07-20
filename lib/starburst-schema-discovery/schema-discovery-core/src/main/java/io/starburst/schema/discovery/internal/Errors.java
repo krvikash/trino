@@ -34,7 +34,11 @@ public class Errors
 
     private final Set<String> errors = Sets.newConcurrentHashSet();
     private final Map<String, Set<String>> tablePathToTableErrors = new ConcurrentHashMap<>();
-    private static final Comparator<Map.Entry<String, Set<String>>> FILES_BEFORE_PARENTS_COMPARATOR = Comparator.<Map.Entry<String, Set<String>>>comparingInt(o -> o.getKey().length()).reversed();
+    // files (longer paths) before their parent directories, then alphabetically by path to break ties deterministically
+    // (both sets backing this class are unordered, so without this tiebreak the output order depends on hash iteration)
+    private static final Comparator<Map.Entry<String, Set<String>>> FILES_BEFORE_PARENTS_COMPARATOR = Comparator
+            .<Map.Entry<String, Set<String>>>comparingInt(o -> o.getKey().length()).reversed()
+            .thenComparing(Map.Entry::getKey);
 
     @FormatMethod
     public void addTableError(String withinTablePath, @FormatString String error, Object... args)
@@ -83,10 +87,11 @@ public class Errors
                 .flatMap(Set::stream)
                 .collect(toImmutableSet());
         return Stream.concat(
-                        errors.stream().filter(error -> !tableErrorMessages.contains(error)),
+                        errors.stream().filter(error -> !tableErrorMessages.contains(error)).sorted(),
                         tablePathToTableErrors.entrySet().stream()
                                 .sorted(FILES_BEFORE_PARENTS_COMPARATOR)
                                 .flatMap(entry -> entry.getValue().stream()
+                                        .sorted()
                                         .map(message -> prefixWithPath(entry.getKey(), message))))
                 .distinct()
                 .collect(toImmutableList());
@@ -99,6 +104,7 @@ public class Errors
                 .filter(e -> e.getKey().startsWith(slashEndedBasePath))
                 .sorted(FILES_BEFORE_PARENTS_COMPARATOR)
                 .flatMap(entry -> entry.getValue().stream()
+                        .sorted()
                         .map(message -> prefixWithPath(entry.getKey(), message)))
                 .distinct()
                 .collect(toImmutableList());
