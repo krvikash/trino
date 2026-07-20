@@ -55,11 +55,11 @@ public class ChunkFetcher
 
         if (chunkFuture == null || chunkFuture.isDone()) {
             Chunk chunk = chunks.next();
-            // The fetched byte[] holds the uncompressed Arrow stream, so its size is approximated by the chunk's uncompressed size.
-            inFlightChunkBytes = chunk.uncompressedByteSize();
+            // The fetched byte[] holds the still-compressed chunk, so its size is approximated by the chunk's compressed size.
+            inFlightChunkBytes = chunk.compressedByteSize();
             chunkFuture = CompletableFuture.supplyAsync(() -> {
                 long start = System.nanoTime();
-                byte[] data = chunk.getInputStream(streamProvider);
+                byte[] data = chunk.getChunkData(streamProvider);
                 readTimeNanos += System.nanoTime() - start;
                 return data;
             }, executor);

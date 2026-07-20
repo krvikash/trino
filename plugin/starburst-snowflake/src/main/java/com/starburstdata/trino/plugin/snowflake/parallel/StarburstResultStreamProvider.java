@@ -15,25 +15,21 @@ import io.trino.spi.TrinoException;
 import net.snowflake.client.core.ExecTimeTelemetryData;
 import net.snowflake.client.jdbc.RestRequest;
 import net.snowflake.client.jdbc.SnowflakeSQLException;
-import org.apache.http.Header;
-import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.impl.client.CloseableHttpClient;
 
-import java.io.Closeable;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.net.URISyntaxException;
 import java.util.Map;
-import java.util.zip.GZIPInputStream;
 
 import static io.trino.plugin.jdbc.JdbcErrorCode.JDBC_ERROR;
 import static java.util.Objects.requireNonNull;
 import static java.util.Objects.requireNonNullElse;
-import static net.snowflake.client.core.Constants.MB;
 import static net.snowflake.client.jdbc.DefaultResultStreamProvider.detectGzipAndGetStream;
 
 /**
@@ -41,7 +37,6 @@ import static net.snowflake.client.jdbc.DefaultResultStreamProvider.detectGzipAn
  */
 public class StarburstResultStreamProvider
 {
-    private static final int STREAM_BUFFER_SIZE = MB;
     private static final int NETWORK_TIMEOUT_IN_MILLI = 0;
     private static final int AUTH_TIMEOUT_IN_SECONDS = 0;
     private static final int SOCKET_TIMEOUT_IN_MILLI = 0;
@@ -55,7 +50,7 @@ public class StarburstResultStreamProvider
         this.maxChunkRetries = requireNonNull(snowflakeConfig, "snowflakeConfig is null").getMaxChunkRetries();
     }
 
-    public byte[] getInputStream(Chunk chunk)
+    public byte[] getChunkData(Chunk chunk)
     {
         HttpResponse response;
         try {
@@ -68,24 +63,24 @@ public class StarburstResultStreamProvider
                     e);
         }
 
-        InputStream inputStream;
-        final HttpEntity entity = response.getEntity();
-        try {
-            // read the chunk data
-            inputStream = detectContentEncodingAndGetInputStream(response, entity.getContent());
-        }
-        catch (Exception ex) {
-            throw new TrinoException(
-                    JDBC_ERROR,
-                    "Failed to detect encoding and get the data stream: %s".formatted(response));
-        }
-
-        try (Closeable ignored = inputStream) {
+        // Return the raw, still-compressed chunk bytes. Decompression is deferred to decode time (see decompress)
+        // so the prefetched buffer holds the compressed size rather than the larger uncompressed Arrow stream.
+        try (InputStream inputStream = response.getEntity().getContent()) {
             return inputStream.readAllBytes();
         }
         catch (IOException e) {
             throw new UncheckedIOException(e);
         }
+    }
+
+    /**
+     * Wraps raw chunk bytes in a decompressing stream. Snowflake result chunk files are gzip-compressed;
+     * {@code detectGzipAndGetStream} passes through bytes that are not gzip-compressed (e.g. inline chunks).
+     */
+    public static InputStream decompress(byte[] chunkData)
+            throws IOException
+    {
+        return detectGzipAndGetStream(new ByteArrayInputStream(chunkData));
     }
 
     private HttpResponse getResultChunk(Chunk chunk)
@@ -128,19 +123,5 @@ public class StarburstResultStreamProvider
                     "Error encountered when downloading a result chunk: HTTP status=%s".formatted((response != null) ? response.getStatusLine().getStatusCode() : "null response"));
         }
         return response;
-    }
-
-    private InputStream detectContentEncodingAndGetInputStream(HttpResponse response, InputStream is)
-            throws IOException
-    {
-        Header encoding = response.getFirstHeader("Content-Encoding");
-        if (encoding != null) {
-            if ("gzip".equalsIgnoreCase(encoding.getValue())) {
-                // specify buffer size for GZIPInputStream
-                return new GZIPInputStream(is, STREAM_BUFFER_SIZE);
-            }
-            throw new TrinoException(JDBC_ERROR, "Exception: unexpected compression got %s".formatted(encoding.getValue()));
-        }
-        return detectGzipAndGetStream(is);
     }
 }

@@ -34,12 +34,11 @@ import net.snowflake.client.jdbc.internal.apache.arrow.vector.FieldVector;
 import net.snowflake.client.jdbc.internal.apache.arrow.vector.ValueVector;
 import net.snowflake.client.jdbc.internal.apache.arrow.vector.VectorSchemaRoot;
 import net.snowflake.client.jdbc.internal.apache.arrow.vector.ipc.ArrowStreamReader;
-import net.snowflake.client.jdbc.internal.apache.arrow.vector.util.ByteArrayReadableSeekableByteChannel;
 import net.snowflake.client.jdbc.internal.apache.arrow.vector.util.TransferPair;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.UncheckedIOException;
-import java.nio.channels.SeekableByteChannel;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -381,7 +380,10 @@ public class SnowflakeArrowPageSource
     private CloseableArrowBatch decodeArrowInputStream(byte[] data)
             throws IOException
     {
-        try (ArrowStreamReader reader = new ArrowStreamReader(wrap(data), bufferAllocator); VectorSchemaRoot vectorSchemaRoot = reader.getVectorSchemaRoot()) {
+        // Decompress lazily and stream straight into Arrow, so the uncompressed chunk is never materialized as a single byte[].
+        try (InputStream input = StarburstResultStreamProvider.decompress(data);
+                ArrowStreamReader reader = new ArrowStreamReader(input, bufferAllocator);
+                VectorSchemaRoot vectorSchemaRoot = reader.getVectorSchemaRoot()) {
             ImmutableList.Builder<List<ValueVector>> batchBuilder = ImmutableList.builder();
             while (reader.loadNextBatch()) {
                 ImmutableList.Builder<ValueVector> vectorBuilder = ImmutableList.builderWithExpectedSize(vectorSchemaRoot.getFieldVectors().size());
@@ -397,11 +399,6 @@ public class SnowflakeArrowPageSource
             }
             return new CloseableArrowBatch(batchBuilder.build());
         }
-    }
-
-    private SeekableByteChannel wrap(byte[] data)
-    {
-        return new ByteArrayReadableSeekableByteChannel(data);
     }
 
     @SuppressWarnings("UnusedVariable") // error-prone false positive

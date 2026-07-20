@@ -38,16 +38,16 @@ class TestChunkFetcher
 
             // fetchNextChunk() sets the in-flight size synchronously, before the async fetch completes.
             fetcher.fetchNextChunk().join();
-            assertThat(fetcher.getRetainedSizeInBytes()).isEqualTo(first.uncompressedByteSize());
+            assertThat(fetcher.getRetainedSizeInBytes()).isEqualTo(first.compressedByteSize());
 
             // Advancing to the next chunk (only happens once the previous fetch is done) updates the
             // accounted size to the newly in-flight chunk.
             fetcher.fetchNextChunk();
-            assertThat(fetcher.getRetainedSizeInBytes()).isEqualTo(second.uncompressedByteSize());
+            assertThat(fetcher.getRetainedSizeInBytes()).isEqualTo(second.compressedByteSize());
         }
 
         // The two chunks have distinct payload sizes, so the accounting is not coincidentally equal.
-        assertThat(first.uncompressedByteSize()).isNotEqualTo(second.uncompressedByteSize());
+        assertThat(first.compressedByteSize()).isNotEqualTo(second.compressedByteSize());
     }
 
     @Test

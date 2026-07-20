@@ -71,7 +71,7 @@ public record Chunk(
     }
 
     @JsonIgnore
-    public byte[] getInputStream(StarburstResultStreamProvider streamProvider)
+    public byte[] getChunkData(StarburstResultStreamProvider streamProvider)
     {
         if (fileUrl.isPresent()) {
             try {
@@ -80,7 +80,7 @@ public record Chunk(
             catch (IOException e) {
                 throw new UncheckedIOException("Could not reset Snowflake OCSP cache", e);
             }
-            return streamProvider.getInputStream(this);
+            return streamProvider.getChunkData(this);
         }
         return decodeInlineData();
     }
