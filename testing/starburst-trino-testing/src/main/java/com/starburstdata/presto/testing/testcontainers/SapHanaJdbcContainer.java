@@ -10,13 +10,14 @@
 package com.starburstdata.presto.testing.testcontainers;
 
 import org.testcontainers.containers.JdbcDatabaseContainer;
+import org.testcontainers.utility.DockerImageName;
 
 public class SapHanaJdbcContainer
         extends JdbcDatabaseContainer<SapHanaJdbcContainer>
 {
     public SapHanaJdbcContainer()
     {
-        super(SapHanaDockerInitializer.SAP_HANA_DOCKER_IMAGE);
+        super(DockerImageName.parse(SapHanaDockerInitializer.SAP_HANA_DOCKER_IMAGE));
         withStartupTimeoutSeconds(720);
     }
 
