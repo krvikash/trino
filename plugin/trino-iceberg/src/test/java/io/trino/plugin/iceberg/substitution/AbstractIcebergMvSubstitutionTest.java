@@ -202,7 +202,7 @@ public abstract class AbstractIcebergMvSubstitutionTest
                 });
     }
 
-    private MaterializedResultWithPlan assertNotSubstituted(Session session, String query, String baseTableName)
+    protected MaterializedResultWithPlan assertNotSubstituted(Session session, String query, String baseTableName)
     {
         MaterializedResultWithPlan result = getDistributedQueryRunner().executeWithPlan(session, query);
         List<CatalogSchemaTableName> scannedTableNames = getScannedTableNames(result);
@@ -375,8 +375,7 @@ public abstract class AbstractIcebergMvSubstitutionTest
         String tableName = "customers_with_sub_fields_" + randomNameSuffix();
         CatalogSchemaTableName mvName = mvName("mv_sub_field_");
         try {
-            assertUpdate("CREATE TABLE " + tableName + " (id BIGINT, info " + subFieldColumnType() + ")");
-            assertUpdate("INSERT INTO " + tableName + " VALUES " + subFieldInsertValues(), 3);
+            createNestedTypeTable(tableName);
 
             createSubstitutionMv(mvName, "SELECT id, info FROM " + tableName);
 
@@ -393,6 +392,12 @@ public abstract class AbstractIcebergMvSubstitutionTest
             assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvName);
             assertUpdate("DROP TABLE IF EXISTS " + tableName);
         }
+    }
+
+    protected void createNestedTypeTable(String tableName)
+    {
+        assertUpdate("CREATE TABLE " + tableName + " (id BIGINT, info " + subFieldColumnType() + ")");
+        assertUpdate("INSERT INTO " + tableName + " VALUES " + subFieldInsertValues(), 3);
     }
 
     @Test

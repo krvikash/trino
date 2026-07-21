@@ -13,14 +13,12 @@
  */
 package io.trino.plugin.cassandra.substitution;
 
-import io.trino.Session;
 import io.trino.plugin.cassandra.CassandraPlugin;
 import io.trino.plugin.cassandra.CassandraServer;
 import io.trino.plugin.iceberg.TestingIcebergPlugin;
 import io.trino.plugin.iceberg.substitution.AbstractIcebergMvSubstitutionTest;
 import io.trino.plugin.tpch.TpchPlugin;
 import io.trino.spi.connector.CatalogSchemaName;
-import io.trino.spi.connector.CatalogSchemaTableName;
 import io.trino.testing.DistributedQueryRunner;
 import io.trino.testing.QueryRunner;
 import org.junit.jupiter.api.Disabled;
@@ -33,7 +31,6 @@ import java.util.Map;
 import static io.trino.plugin.base.util.Closables.closeAllSuppress;
 import static io.trino.plugin.cassandra.CassandraTestingUtils.createKeyspace;
 import static io.trino.plugin.iceberg.IcebergQueryRunner.ICEBERG_CATALOG;
-import static io.trino.testing.TestingNames.randomNameSuffix;
 import static io.trino.testing.TestingSession.testSessionBuilder;
 import static org.junit.jupiter.api.parallel.ExecutionMode.SAME_THREAD;
 
@@ -102,36 +99,19 @@ public class TestIcebergMvOnCassandraSourceSubstitution
         return new CatalogSchemaName(ICEBERG_CATALOG, KEYSPACE);
     }
 
-    @Test
-    public void testMapSubFieldProjectionOverMv()
+    @Override
+    protected void createNestedTypeTable(String tableName)
     {
-        // Cassandra cannot create a map/row column through Trino DDL, so the table is created
-        // via raw CQL. Trino reads a Cassandra map<text,text> as a JSON string (VARCHAR); the MV
-        // captures that whole column and json_extract_scalar runs above the substituted scan.
-        String tableName = "customers_with_map_" + randomNameSuffix();
-        CatalogSchemaTableName mvName = new CatalogSchemaTableName(ICEBERG_CATALOG, KEYSPACE, "mv_map_sub_field_" + randomNameSuffix());
-        try {
-            server.getSession().execute("CREATE TABLE %s.%s (id bigint PRIMARY KEY, info map<text, text>)".formatted(KEYSPACE, tableName));
-            server.getSession().execute("INSERT INTO %s.%s (id, info) VALUES (1, {'name': 'Alice', 'age': '30'})".formatted(KEYSPACE, tableName));
-            server.getSession().execute("INSERT INTO %s.%s (id, info) VALUES (2, {'name': 'Bob', 'age': '25'})".formatted(KEYSPACE, tableName));
-            server.getSession().execute("INSERT INTO %s.%s (id, info) VALUES (3, {'name': 'Carol', 'age': '40'})".formatted(KEYSPACE, tableName));
+        server.getSession().execute("CREATE TABLE %s.%s (id bigint PRIMARY KEY, info map<text, text>)".formatted(KEYSPACE, tableName));
+        server.getSession().execute("INSERT INTO %s.%s (id, info) VALUES (1, {'name': 'Alice', 'age': '30', 'gender' : 'W'})".formatted(KEYSPACE, tableName));
+        server.getSession().execute("INSERT INTO %s.%s (id, info) VALUES (2, {'name': 'Bob', 'age': '25', 'gender' : 'M'})".formatted(KEYSPACE, tableName));
+        server.getSession().execute("INSERT INTO %s.%s (id, info) VALUES (3, {'name': 'Carol', 'age': '40', 'gender' : 'W'})".formatted(KEYSPACE, tableName));
+    }
 
-            assertUpdate("CREATE MATERIALIZED VIEW %s WITH (substitution_enabled = true) AS SELECT id, info FROM %s".formatted(mvName, tableName));
-            assertUpdate("REFRESH MATERIALIZED VIEW %s".formatted(mvName), 3);
-
-            Session session = sessionWithSubstitution();
-            String nameQuery = "SELECT json_extract_scalar(info, '$.name') FROM " + tableName;
-            assertSubstituted(session, nameQuery, tableName, mvName);
-            assertSameResults(session, nameQuery);
-
-            String ageQuery = "SELECT json_extract_scalar(info, '$.age') FROM " + tableName;
-            assertSubstituted(session, ageQuery, tableName, mvName);
-            assertSameResults(session, ageQuery);
-        }
-        finally {
-            assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvName);
-            server.getSession().execute("DROP TABLE IF EXISTS %s.%s".formatted(KEYSPACE, tableName));
-        }
+    @Override
+    protected String subFieldExpression(String column, String field)
+    {
+        return "json_extract_scalar(%s, '$.%s')".formatted(column, field);
     }
 
     @Test
@@ -143,9 +123,4 @@ public class TestIcebergMvOnCassandraSourceSubstitution
     @Disabled("Cassandra does not support time travel")
     @Override
     public void testForVersionAsOfNotSubstituted() {}
-
-    @Test
-    @Disabled("Cassandra cannot create a ROW/map column through Trino DDL; covered by testMapSubFieldProjectionOverMv")
-    @Override
-    public void testScanWithSubFieldProjectionOverMv() {}
 }
