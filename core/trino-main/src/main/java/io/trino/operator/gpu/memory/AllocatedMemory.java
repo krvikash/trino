@@ -88,6 +88,11 @@ public final class AllocatedMemory
 
     public void transferFrom(@Borrow AllocatedMemory other)
     {
+        transferFrom(other, other.amount);
+    }
+
+    public void transferFrom(@Borrow AllocatedMemory other, MemoryAmount amountToTransfer)
+    {
         checkState(!closed, "Already closed");
         checkArgument(this != other, "Cannot transfer from self");
         checkState(this != UNTRACKED, "Cannot update untracked allocation");
@@ -95,21 +100,22 @@ public final class AllocatedMemory
             return;
         }
         checkArgument(this.memoryContext == other.memoryContext, "Cannot transfer between memory contexts: %s != %s", this.memoryContext, other.memoryContext);
-        other.transferTags(allocationTag);
-        amount = amount.add(other.amount);
-        other.amount = MemoryAmount.ZERO;
+        other.transferTags(allocationTag, amountToTransfer);
+        MemoryAmount newOtherAmount = other.amount.subtract(amountToTransfer);
+        amount = amount.add(amountToTransfer);
+        other.amount = newOtherAmount;
     }
 
     public void retag(String newAllocationTag)
     {
-        transferTags(newAllocationTag);
+        transferTags(newAllocationTag, amount);
         if (this == UNTRACKED) {
             return;
         }
         this.allocationTag = newAllocationTag;
     }
 
-    private void transferTags(String newAllocationTag)
+    private void transferTags(String newAllocationTag, MemoryAmount amountToTransfer)
     {
         requireNonNull(newAllocationTag, "newAllocationTag is null");
         checkState(!closed, "Already closed");
@@ -118,9 +124,9 @@ public final class AllocatedMemory
         }
 
         // Must not fail
-        transferTags(memoryContext.taskUserMemory(), allocationTag, newAllocationTag, amount.heapBytes());
-        transferTags(memoryContext.taskGpuDeviceMemory(), allocationTag, newAllocationTag, amount.gpuDeviceBytes());
-        transferTags(memoryContext.taskOffHeapMemory(), allocationTag, newAllocationTag, amount.offHeapBytes());
+        transferTags(memoryContext.taskUserMemory(), allocationTag, newAllocationTag, amountToTransfer.heapBytes());
+        transferTags(memoryContext.taskGpuDeviceMemory(), allocationTag, newAllocationTag, amountToTransfer.gpuDeviceBytes());
+        transferTags(memoryContext.taskOffHeapMemory(), allocationTag, newAllocationTag, amountToTransfer.offHeapBytes());
     }
 
     public MemoryAmount amount()

@@ -15,6 +15,7 @@ package io.trino.spi.gpu;
 
 import static io.trino.spi.gpu.Preconditions.checkNonNegative;
 import static java.lang.Math.addExact;
+import static java.lang.Math.subtractExact;
 
 public record MemoryAmount(long heapBytes, long gpuDeviceBytes, long offHeapBytes)
 {
@@ -48,5 +49,13 @@ public record MemoryAmount(long heapBytes, long gpuDeviceBytes, long offHeapByte
                 addExact(this.heapBytes(), other.heapBytes()),
                 addExact(this.gpuDeviceBytes(), other.gpuDeviceBytes()),
                 addExact(this.offHeapBytes(), other.offHeapBytes()));
+    }
+
+    public MemoryAmount subtract(MemoryAmount other)
+    {
+        return new MemoryAmount(
+                subtractExact(this.heapBytes(), other.heapBytes()),
+                subtractExact(this.gpuDeviceBytes(), other.gpuDeviceBytes()),
+                subtractExact(this.offHeapBytes(), other.offHeapBytes()));
     }
 }

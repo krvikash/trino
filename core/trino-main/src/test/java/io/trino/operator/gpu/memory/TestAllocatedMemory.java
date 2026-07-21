@@ -215,6 +215,23 @@ class TestAllocatedMemory
         }
     }
 
+    @Test
+    void testPartialTransferFrom()
+    {
+        try (AllocatedMemory target = AllocatedMemory.allocate(context, "foo", MemoryAmount.ZERO)) {
+            try (AllocatedMemory source = AllocatedMemory.allocate(context, "bar", new MemoryAmount(100, 200, 300))) {
+                target.transferFrom(source, new MemoryAmount(10, 20, 30));
+                assertThat(target.amount()).isEqualTo(new MemoryAmount(10, 20, 30));
+                assertThat(source.amount()).isEqualTo(new MemoryAmount(90, 180, 270));
+                assertAllocations(Map.of(
+                        "foo", new MemoryAmount(10, 20, 30),
+                        "bar", new MemoryAmount(90, 180, 270)));
+            }
+            // Closing source does not change anything
+            assertAllocations(Map.of("foo", new MemoryAmount(10, 20, 30)));
+        }
+    }
+
     private void assertAllocations(Map<String, MemoryAmount> allTaggedAllocations)
     {
         long expectedHeap = allTaggedAllocations.values().stream().map(MemoryAmount::heapBytes).reduce(Long::sum).orElse(0L);
