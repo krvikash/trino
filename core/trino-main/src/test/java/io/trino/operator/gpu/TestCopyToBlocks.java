@@ -59,7 +59,7 @@ class TestCopyToBlocks
         }
 
         GpuOperation.Context context = new TestingGpuOperationContext();
-        try (GpuOperation sourceOperation = singlePageSource(gpuPage);
+        try (GpuOperation sourceOperation = singlePageSource(context, gpuPage);
                 CopyToBlocks operation = new CopyToBlocks(context, sourceOperation, ImmutableList.of(INTEGER))) {
             List<Page> output = drainToPages(() -> {}, operation);
             assertSameDataInOrder(
@@ -71,7 +71,7 @@ class TestCopyToBlocks
         }
     }
 
-    private static GpuOperation singlePageSource(GpuPage page)
+    private static GpuOperation singlePageSource(GpuOperation.Context context, GpuPage page)
     {
         requireNonNull(page, "page is null");
         return new GpuOperation()
@@ -86,7 +86,8 @@ class TestCopyToBlocks
                 }
                 GpuPage next = pending;
                 pending = null;
-                return new Data(AllocatedMemory.untracked(), next);
+                AllocatedMemory allocated = context.taskMemoryContext().allocate(getClass().getSimpleName(), page.retainedMemory());
+                return new Data(allocated, next);
             }
 
             @Override
