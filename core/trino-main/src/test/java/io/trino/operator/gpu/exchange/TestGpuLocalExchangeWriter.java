@@ -37,12 +37,12 @@ public class TestGpuLocalExchangeWriter
      * Creates a real {@link GpuLocalExchangeSink} using a real {@link GpuLocalExchange}.
      * The sink is fully owned by the caller; no reader is needed for writer tests.
      */
-    private static GpuLocalExchangeSink newRealSink()
+    private static GpuLocalExchangeSink newRealSink(GpuOperation.Context context)
     {
         GpuLocalExchange exchange = new GpuLocalExchange(SINGLE_DISTRIBUTION, 1, new int[0], MAX_BUFFER_BYTES);
         GpuLocalExchangeSinkFactory factory = exchange.createSinkFactory();
         factory.noMoreSinkFactories();
-        GpuLocalExchangeSink sink = factory.createSink(new TestingGpuOperationContext());
+        GpuLocalExchangeSink sink = factory.createSink(context);
         factory.close();
         return sink;
     }
@@ -50,9 +50,10 @@ public class TestGpuLocalExchangeWriter
     @Test
     public void deliversDataToExchangerAndReportsYielded()
     {
-        GpuLocalExchangeSink sink = newRealSink();
+        TestingGpuOperationContext context = new TestingGpuOperationContext();
+        GpuLocalExchangeSink sink = newRealSink(context);
         FakeSource source = new FakeSource();
-        source.results.add(new GpuOperation.Data(AllocatedMemory.untracked(), new GpuPage(0, new Column[0])));
+        source.results.add(emptyGpuPage(context));
         GpuLocalExchangeWriter writer = new GpuLocalExchangeWriter(source, sink);
 
         GpuOperation.Result result = writer.execute();
@@ -64,7 +65,7 @@ public class TestGpuLocalExchangeWriter
     @Test
     public void propagatesUpstreamFinishedAndCallsSinkFinish()
     {
-        GpuLocalExchangeSink sink = newRealSink();
+        GpuLocalExchangeSink sink = newRealSink(new TestingGpuOperationContext());
         FakeSource source = new FakeSource();
         source.results.add(new GpuOperation.Finished());
         GpuLocalExchangeWriter writer = new GpuLocalExchangeWriter(source, sink);
@@ -77,7 +78,7 @@ public class TestGpuLocalExchangeWriter
     @Test
     public void propagatesExceptionFromSource()
     {
-        GpuLocalExchangeSink sink = newRealSink();
+        GpuLocalExchangeSink sink = newRealSink(new TestingGpuOperationContext());
         GpuLocalExchangeWriter writer = new GpuLocalExchangeWriter(new ThrowingSource(), sink);
 
         assertThatThrownBy(writer::execute)
@@ -98,6 +99,13 @@ public class TestGpuLocalExchangeWriter
 
         // The finished sink's exchanger is NOT_BLOCKED, so execute() is not blocked.
         assertThat(writer.execute()).isInstanceOf(GpuOperation.Finished.class);
+    }
+
+    private static GpuOperation.Data emptyGpuPage(GpuOperation.Context context)
+    {
+        GpuPage page = new GpuPage(0, new Column[0]);
+        AllocatedMemory allocated = context.taskMemoryContext().allocate(TestGpuLocalExchangeWriter.class.getSimpleName(), page.retainedMemory());
+        return new GpuOperation.Data(allocated, page);
     }
 
     private static class FakeSource
