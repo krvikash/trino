@@ -1292,7 +1292,14 @@ public final class MetadataManager
         CatalogMetadata catalogMetadata = getRequiredCatalogMetadata(session, viewName.catalogName());
         CatalogHandle catalogHandle = catalogMetadata.getCatalogHandle();
         ConnectorMetadata metadata = catalogMetadata.getMetadata(session);
-        return asVoid(toListenableFuture(metadata.refreshMaterializedView(session.toConnectorSession(catalogHandle), viewName.asSchemaTableName())));
+        ListenableFuture<?> refreshFuture = toListenableFuture(metadata.refreshMaterializedView(session.toConnectorSession(catalogHandle), viewName.asSchemaTableName()));
+        return Futures.transform(
+                refreshFuture,
+                _ -> {
+                    materializationService.get().finishRefreshMaterializedView(session, viewName);
+                    return null;
+                },
+                directExecutor());
     }
 
     @Override
@@ -1307,11 +1314,6 @@ public final class MetadataManager
         ConnectorMetadata metadata = catalogMetadata.getMetadataFor(session, catalogHandle);
         ConnectorSession connectorSession = session.toConnectorSession(catalogHandle);
         return metadata.getMaterializedViewIncrementalRefresh(connectorSession, materializedViewName.asSchemaTableName());
-    }
-
-    private static <T> ListenableFuture<Void> asVoid(ListenableFuture<T> future)
-    {
-        return Futures.transform(future, _ -> null, directExecutor());
     }
 
     @Override
