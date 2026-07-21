@@ -174,11 +174,11 @@ class TestAllocatedMemory
     }
 
     @Test
-    void testTransferTags()
+    void testRetag()
     {
         try (AllocatedMemory allocationOne = AllocatedMemory.allocate(context, "foo", new MemoryAmount(1, 2, 3));
                 AllocatedMemory allocationTwo = AllocatedMemory.allocate(context, "foo", new MemoryAmount(11, 22, 33))) {
-            allocationTwo.transferTags("bar");
+            allocationTwo.retag("bar");
             assertAllocations(Map.of(
                     "foo", new MemoryAmount(1, 2, 3),
                     "bar", new MemoryAmount(11, 22, 33)));

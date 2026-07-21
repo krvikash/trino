@@ -100,7 +100,16 @@ public final class AllocatedMemory
         other.amount = MemoryAmount.ZERO;
     }
 
-    public void transferTags(String newAllocationTag)
+    public void retag(String newAllocationTag)
+    {
+        transferTags(newAllocationTag);
+        if (this == UNTRACKED) {
+            return;
+        }
+        this.allocationTag = newAllocationTag;
+    }
+
+    private void transferTags(String newAllocationTag)
     {
         requireNonNull(newAllocationTag, "newAllocationTag is null");
         checkState(!closed, "Already closed");
@@ -112,8 +121,6 @@ public final class AllocatedMemory
         transferTags(memoryContext.taskUserMemory(), allocationTag, newAllocationTag, amount.heapBytes());
         transferTags(memoryContext.taskGpuDeviceMemory(), allocationTag, newAllocationTag, amount.gpuDeviceBytes());
         transferTags(memoryContext.taskOffHeapMemory(), allocationTag, newAllocationTag, amount.offHeapBytes());
-
-        this.allocationTag = newAllocationTag;
     }
 
     public MemoryAmount amount()
