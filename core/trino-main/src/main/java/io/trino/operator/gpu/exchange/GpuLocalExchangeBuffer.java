@@ -19,6 +19,7 @@ import com.google.errorprone.annotations.ThreadSafe;
 import com.google.errorprone.annotations.concurrent.GuardedBy;
 import io.trino.operator.exchange.LocalExchangeMemoryManager;
 import io.trino.plugin.base.gpu.ClosingRef;
+import io.trino.plugin.base.gpu.UncheckedCloser;
 import io.trino.spi.gpu.GpuPage;
 import io.trino.spi.gpu.borrow.Move;
 import io.trino.spi.gpu.borrow.Own;
@@ -212,35 +213,20 @@ public final class GpuLocalExchangeBuffer
         // Close every queued page even if one of them throws (e.g. a native cuDF column-close
         // failure), and always release the bytes back to the shared memory manager — otherwise
         // sibling buffers see backpressure that never lifts.
-        RuntimeException closeError = null;
-        try {
+        try (var closer = UncheckedCloser.create()) {
             for (GpuPage page : pagesToClose) {
-                try {
-                    page.close();
-                }
-                catch (RuntimeException e) {
-                    if (closeError == null) {
-                        closeError = e;
-                    }
-                    else {
-                        closeError.addSuppressed(e);
-                    }
-                }
+                closer.register(page);
             }
         }
         finally {
             memoryManager.updateMemoryUsage(-remainingPagesBytes);
-        }
 
-        if (notEmptyFuture != null) {
-            notEmptyFuture.set(null);
-        }
+            if (notEmptyFuture != null) {
+                notEmptyFuture.set(null);
+            }
 
-        checkState(isFinished(), "Expected buffer to be finished");
-        checkFinished();
-
-        if (closeError != null) {
-            throw closeError;
+            checkState(isFinished(), "Expected buffer to be finished");
+            checkFinished();
         }
     }
 
