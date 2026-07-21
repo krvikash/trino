@@ -20,6 +20,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.trino.operator.GroupIdOperator;
 import io.trino.operator.gpu.memory.AllocatedMemory;
+import io.trino.plugin.base.gpu.UncheckedCloser;
 import io.trino.spi.gpu.Column;
 import io.trino.spi.gpu.Column.DeviceMemory;
 import io.trino.spi.gpu.GpuPage;
@@ -159,10 +160,12 @@ public class GpuGroupId
     @Override
     public void close()
     {
-        if (currentPage != null) {
-            currentPage.close();
-            currentPage = null;
+        try (var closer = UncheckedCloser.create()) {
+            if (currentPage != null) {
+                closer.register(currentPage);
+                currentPage = null;
+            }
+            closer.register(source);
         }
-        source.close();
     }
 }
