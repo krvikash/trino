@@ -50,7 +50,10 @@ import java.util.stream.Stream;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.Comparators.isInStrictOrder;
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static com.google.common.io.MoreFiles.deleteRecursively;
+import static com.google.common.io.RecursiveDeleteOption.ALLOW_INSECURE;
 import static io.starburst.server.troubleshooting.configdump.ConnectorSensitiveProperties.SENSITIVE_PROPERTIES_PER_CONNECTOR;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Comparator.naturalOrder;
 import static java.util.stream.Collectors.joining;
 
@@ -308,13 +311,59 @@ public class TestConnectorSensitiveProperties
             properties.load(inputStream);
         }
         String trinoVersion = properties.getProperty("project.version");
-        Path rootDir = findRepositoryRoot();
-        Path pluginDir = rootDir.resolve("core/trino-server/target/trino-server-" + trinoVersion + "-hardlinks/plugin");
-        checkState(Files.exists(pluginDir),
+        Path serverTarget = findRepositoryRoot().resolve("core/trino-server/target");
+        Path archive = serverTarget.resolve("trino-server-" + trinoVersion + ".tar.gz");
+        checkState(Files.isRegularFile(archive),
+                "The server archive does not exist: %s. " +
+                        "Before running this test the project has to be built so that the final .tar.gz, produced by the \"provisio:provision\" Maven goal, is available.",
+                archive.toAbsolutePath());
+        Path explodedDir = serverTarget.resolve("trino-server-" + trinoVersion + "-hardlinks");
+        // Written only after tar succeeds, so a partially extracted tree is never reused, and an
+        // archive rebuilt without "clean" is newer than the marker and forces a re-extraction.
+        Path marker = explodedDir.resolve(".extracted");
+        if (!Files.isRegularFile(marker) || Files.getLastModifiedTime(marker).compareTo(Files.getLastModifiedTime(archive)) < 0) {
+            // provisio streams straight to the .tar.gz, so it no longer writes the exploded tree.
+            // Unpack it here: the plugins are loaded through real classloaders, so they have to
+            // exist on disk, and the archive hardlinks every plugin copy of a jar back to lib/,
+            // which only survives extracting the whole archive.
+            extractServerArchive(archive, explodedDir, marker);
+        }
+        Path pluginDir = explodedDir.resolve("plugin");
+        checkState(Files.isDirectory(pluginDir),
                 "The \"plugin\" directory does not exist: %s. " +
                         "Before running this test the project has to be built so that the final .tar.gz, produced by the \"provisio:provision\" Maven goal, is available.",
                 pluginDir.toAbsolutePath());
         return pluginDir;
+    }
+
+    private static void extractServerArchive(Path archive, Path targetDir, Path marker)
+            throws IOException
+    {
+        if (Files.isDirectory(targetDir)) {
+            // tar overwrites what the archive still contains, but leaves behind plugins dropped
+            // since the previous build, so the tree has to go before it is unpacked again.
+            deleteRecursively(targetDir, ALLOW_INSECURE);
+        }
+        Files.createDirectories(targetDir);
+        // tar re-creates the archive's hardlinks; --strip-components drops its top level
+        // trino-server-<version>/ directory so the layout matches what provisio used to write.
+        Process process = new ProcessBuilder("tar", "-xzf", archive.toString(), "-C", targetDir.toString(), "--strip-components=1")
+                .redirectErrorStream(true)
+                .start();
+        String output;
+        try (InputStream inputStream = process.getInputStream()) {
+            output = new String(inputStream.readAllBytes(), UTF_8);
+        }
+        int exitCode;
+        try {
+            exitCode = process.waitFor();
+        }
+        catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException("Interrupted while extracting " + archive, e);
+        }
+        checkState(exitCode == 0, "Failed to extract %s (exit code %s):%n%s", archive, exitCode, output);
+        Files.createFile(marker);
     }
 
     private static String buildPropertyDefinitions(Set<String> connectors, Map<String, Set<String>> expectedPropertiesPerConnector)
