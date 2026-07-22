@@ -264,6 +264,7 @@ public class SnowflakeClient
                         new RewriteVariable(this::quoted))
                 .add(new RewriteVarcharConstant())
                 .add(new RewriteExactNumericConstant())
+                .add(new RewriteApproximateNumericConstant())
                 .add(new RewriteAnd())
                 .add(new RewriteOr())
                 // End of addStandardRules copy.
