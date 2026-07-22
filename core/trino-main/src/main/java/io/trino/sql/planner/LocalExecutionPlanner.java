@@ -136,6 +136,7 @@ import io.trino.operator.function.RegularTableFunctionPartition.PassThroughColum
 import io.trino.operator.function.TableFunctionOperator.TableFunctionOperatorFactory;
 import io.trino.operator.gpu.GpuConfig;
 import io.trino.operator.gpu.GpuDynamicFilterProvider;
+import io.trino.operator.gpu.GpuExecutionSemaphore;
 import io.trino.operator.gpu.GpuFilter;
 import io.trino.operator.gpu.GpuGroupId;
 import io.trino.operator.gpu.GpuNodeSetup;
@@ -495,6 +496,7 @@ public class LocalExecutionPlanner
     private final ExpressionCompiler expressionCompiler;
     private final boolean nodeGpuExecutionEnabled;
     private final DataSize gpuAggregationCompactionThreshold;
+    private final GpuExecutionSemaphore gpuSemaphore;
     private final PageFunctionCompiler pageFunctionCompiler;
     private final JoinFilterFunctionCompiler joinFilterFunctionCompiler;
     private final DataSize maxIndexMemorySize;
@@ -554,6 +556,7 @@ public class LocalExecutionPlanner
             PageFunctionCompiler pageFunctionCompiler,
             GpuNodeSetup gpuNodeSetup,
             GpuConfig gpuConfig,
+            GpuExecutionSemaphore gpuSemaphore,
             JoinFilterFunctionCompiler joinFilterFunctionCompiler,
             IndexJoinLookupStats indexJoinLookupStats,
             CacheStats cacheStats,
@@ -592,6 +595,7 @@ public class LocalExecutionPlanner
         this.expressionCompiler = requireNonNull(expressionCompiler, "expressionCompiler is null");
         this.nodeGpuExecutionEnabled = gpuNodeSetup.isNodeGpuExecutionEnabled();
         this.gpuAggregationCompactionThreshold = gpuConfig.getAggregationCompactionThreshold();
+        this.gpuSemaphore = requireNonNull(gpuSemaphore, "gpuSemaphore is null");
         this.pageFunctionCompiler = requireNonNull(pageFunctionCompiler, "pageFunctionCompiler is null");
         this.joinFilterFunctionCompiler = requireNonNull(joinFilterFunctionCompiler, "joinFilterFunctionCompiler is null");
         this.indexJoinLookupStats = requireNonNull(indexJoinLookupStats, "indexJoinLookupStats is null");
@@ -2435,7 +2439,8 @@ public class LocalExecutionPlanner
                                     tableCredentials,
                                     columns,
                                     dynamicFilter,
-                                    sourceOutputTypes);
+                                    sourceOutputTypes,
+                                    gpuSemaphore);
 
                             sourceGpuOperation = Optional.of(new PhysicalOperation(gpuOperator, sourceLayout));
                         }
@@ -2681,7 +2686,8 @@ public class LocalExecutionPlanner
                                 tableCredentials,
                                 columns.build(),
                                 DynamicFilter.EMPTY,
-                                columnTypes.build());
+                                columnTypes.build(),
+                                gpuSemaphore);
                         return new PhysicalOperation(operatorFactory, makeLayout(node));
                     }
                     context.markAsGpuIneligible(node.getId(), gpuPageSourceSupport.reason().orElseThrow());
@@ -4504,7 +4510,8 @@ public class LocalExecutionPlanner
                     context.getNextOperatorId(),
                     node.getId(),
                     exchange.readerSourceFactory(),
-                    outputTypes);
+                    outputTypes,
+                    gpuSemaphore);
 
             return Optional.of(new PhysicalOperation(sourceFactory, makeLayout(node)));
         }
@@ -5069,7 +5076,8 @@ public class LocalExecutionPlanner
                         nodeId,
                         source.getTypes(),
                         ImmutableList.copyOf(gpuOperations),
-                        finalOutputTypes),
+                        finalOutputTypes,
+                        gpuSemaphore),
                 outputLayout,
                 source);
     }

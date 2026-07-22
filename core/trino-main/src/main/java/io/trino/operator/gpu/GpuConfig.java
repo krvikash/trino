@@ -75,6 +75,8 @@ public class GpuConfig
 
     private DataSize aggregationCompactionThreshold = DataSize.of(4, GIGABYTE);
 
+    private int taskConcurrency = 4;
+
     private Optional<Integer> maxConcurrentReads = Optional.empty();
 
     private Duration deviceStatsSamplingInterval = new Duration(5, TimeUnit.SECONDS);
@@ -202,6 +204,21 @@ public class GpuConfig
     public GpuConfig setAggregationCompactionThreshold(DataSize aggregationCompactionThreshold)
     {
         this.aggregationCompactionThreshold = aggregationCompactionThreshold;
+        return this;
+    }
+
+    @Min(1)
+    public int getTaskConcurrency()
+    {
+        return taskConcurrency;
+    }
+
+    @Config("gpu.task-concurrency")
+    @ConfigDescription("Maximum number of drivers allowed to run GPU work concurrently")
+    @ConfigHidden // TODO (https://starburstdata.atlassian.net/browse/ENG-9839) officialize config toggles
+    public GpuConfig setTaskConcurrency(int taskConcurrency)
+    {
+        this.taskConcurrency = taskConcurrency;
         return this;
     }
 

@@ -107,6 +107,7 @@ import io.trino.operator.gpu.ForGpuDeviceStats;
 import io.trino.operator.gpu.GpuConfig;
 import io.trino.operator.gpu.GpuConfigurer;
 import io.trino.operator.gpu.GpuDeviceStats;
+import io.trino.operator.gpu.GpuExecutionSemaphore;
 import io.trino.operator.gpu.GpuNodeSetup;
 import io.trino.operator.index.IndexJoinLookupStats;
 import io.trino.operator.index.IndexManager;
@@ -333,6 +334,7 @@ public class ServerMainModule
             binder.bind(GpuConfig.class).toInstance(new GpuConfig());
             binder.bind(GpuNodeSetup.class).toInstance(new GpuNodeSetup.Disabled());
         }
+        binder.bind(GpuExecutionSemaphore.class).in(Scopes.SINGLETON);
         binder.bind(ColumnarFilterCompiler.class).in(Scopes.SINGLETON);
         newExporter(binder).export(ColumnarFilterCompiler.class).withGeneratedName();
         NodeSchedulerConfig nodeSchedulerConfig = buildConfigObject(NodeSchedulerConfig.class);

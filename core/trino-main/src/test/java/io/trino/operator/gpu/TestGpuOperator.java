@@ -88,7 +88,8 @@ class TestGpuOperator
                 operations.stream()
                         .map(WorkMock::singletonFactory)
                         .toList(),
-                List.of(BIGINT))
+                List.of(BIGINT),
+                new GpuExecutionSemaphore(new GpuConfig()))
                 .createOperator(driverContext)) {
             for (WorkMock operation : operations) {
                 assertThat(operation.closed).isFalse();
@@ -116,7 +117,8 @@ class TestGpuOperator
                 operations.stream()
                         .map(WorkMock::singletonFactory)
                         .toList(),
-                List.of(BIGINT))
+                List.of(BIGINT),
+                new GpuExecutionSemaphore(new GpuConfig()))
                 .createOperator(driverContext)) {
             verify(operator.needsInput());
             Page input = new Page(createBlock(BIGINT, 10, NO_NULLS));

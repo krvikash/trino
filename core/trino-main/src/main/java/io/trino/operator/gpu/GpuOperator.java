@@ -28,6 +28,8 @@ import io.trino.operator.OperatorContext;
 import io.trino.operator.OperatorFactory;
 import io.trino.operator.SourceOperator;
 import io.trino.operator.SourceOperatorFactory;
+import io.trino.operator.gpu.GpuExecutionSemaphore.Denied;
+import io.trino.operator.gpu.GpuExecutionSemaphore.Granted;
 import io.trino.operator.gpu.GpuOperation.Blocked;
 import io.trino.operator.gpu.GpuOperation.Data;
 import io.trino.operator.gpu.GpuOperation.Finished;
@@ -91,6 +93,7 @@ public abstract class GpuOperator
         protected final Function<GpuOperation.Context, GpuOperatorSource> sourceFactory;
         protected final List<GpuOperation.Factory> operations;
         protected final List<Type> outputTypes;
+        protected final GpuExecutionSemaphore gpuSemaphore;
 
         protected boolean closed;
 
@@ -100,7 +103,8 @@ public abstract class GpuOperator
                 List<PlanNodeId> fusedPlanNodeIds,
                 Function<GpuOperation.Context, GpuOperatorSource> sourceFactory,
                 List<GpuOperation.Factory> operations,
-                List<Type> outputTypes)
+                List<Type> outputTypes,
+                GpuExecutionSemaphore gpuSemaphore)
         {
             this.operatorId = operatorId;
             this.planNodeId = requireNonNull(planNodeId, "planNodeId is null");
@@ -108,6 +112,7 @@ public abstract class GpuOperator
             this.sourceFactory = requireNonNull(sourceFactory, "sourceFactory is null");
             this.operations = ImmutableList.copyOf(requireNonNull(operations, "operations is null"));
             this.outputTypes = ImmutableList.copyOf(requireNonNull(outputTypes, "outputTypes is null"));
+            this.gpuSemaphore = requireNonNull(gpuSemaphore, "gpuSemaphore is null");
         }
 
         public abstract BaseFactory withAdditionalOperations(List<PlanNodeId> additionalFusedPlanNodeIds, List<GpuOperation.Factory> additionalOperations, List<Type> newOutputTypes);
@@ -146,7 +151,8 @@ public abstract class GpuOperator
                 Optional<ConnectorTableCredentials> tableCredentials,
                 List<ColumnHandle> columns,
                 DynamicFilter dynamicFilter,
-                List<Type> columnTypes)
+                List<Type> columnTypes,
+                GpuExecutionSemaphore gpuSemaphore)
         {
             this(operatorId,
                     planNodeId,
@@ -164,7 +170,8 @@ public abstract class GpuOperator
                         return new GpuOperatorSource(tableScan, tableScan);
                     },
                     ImmutableList.of(),
-                    columnTypes);
+                    columnTypes,
+                    gpuSemaphore);
         }
 
         private SourceFactory(
@@ -173,9 +180,10 @@ public abstract class GpuOperator
                 List<PlanNodeId> fusedPlanNodeIds,
                 Function<GpuOperation.Context, GpuOperatorSource> sourceFactory,
                 List<GpuOperation.Factory> operations,
-                List<Type> outputTypes)
+                List<Type> outputTypes,
+                GpuExecutionSemaphore gpuSemaphore)
         {
-            super(operatorId, planNodeId, fusedPlanNodeIds, sourceFactory, operations, outputTypes);
+            super(operatorId, planNodeId, fusedPlanNodeIds, sourceFactory, operations, outputTypes, gpuSemaphore);
         }
 
         @Override
@@ -193,7 +201,7 @@ public abstract class GpuOperator
                     .addAll(fusedPlanNodeIds)
                     .addAll(additionalFusedPlanNodeIds)
                     .build();
-            return new SourceFactory(operatorId, planNodeId, newFusedPlanNodeIds, sourceFactory, newOperations, newOutputTypes);
+            return new SourceFactory(operatorId, planNodeId, newFusedPlanNodeIds, sourceFactory, newOperations, newOutputTypes, gpuSemaphore);
         }
 
         @Override
@@ -218,14 +226,14 @@ public abstract class GpuOperator
             }
             head = new CopyToBlocks(context, head, outputTypes);
             operatorContext.setLatestMetrics(initialMetrics());
-            return new GpuSourceOperator(planNodeId, operatorContext, head, source, refillSignal);
+            return new GpuSourceOperator(planNodeId, operatorContext, head, source, refillSignal, gpuSemaphore);
         }
     }
 
     public static class Factory
             extends BaseFactory
     {
-        public Factory(int operatorId, PlanNodeId planNodeId, List<Type> inputTypes, List<GpuOperation.Factory> operations, List<Type> outputTypes)
+        public Factory(int operatorId, PlanNodeId planNodeId, List<Type> inputTypes, List<GpuOperation.Factory> operations, List<Type> outputTypes, GpuExecutionSemaphore gpuSemaphore)
         {
             this(operatorId,
                     planNodeId,
@@ -245,10 +253,11 @@ public abstract class GpuOperator
                         return new GpuOperatorSource(sourceOperation, copyToDevice);
                     },
                     operations,
-                    outputTypes);
+                    outputTypes,
+                    gpuSemaphore);
         }
 
-        public Factory(int operatorId, PlanNodeId planNodeId, GpuSourceOperation.Factory sourceFactory, List<Type> outputTypes)
+        public Factory(int operatorId, PlanNodeId planNodeId, GpuSourceOperation.Factory sourceFactory, List<Type> outputTypes, GpuExecutionSemaphore gpuSemaphore)
         {
             this(operatorId,
                     planNodeId,
@@ -258,7 +267,8 @@ public abstract class GpuOperator
                         return new GpuOperatorSource(source, source);
                     },
                     ImmutableList.of(),
-                    outputTypes);
+                    outputTypes,
+                    gpuSemaphore);
         }
 
         private Factory(
@@ -267,9 +277,10 @@ public abstract class GpuOperator
                 List<PlanNodeId> fusedPlanNodeIds,
                 Function<GpuOperation.Context, GpuOperatorSource> sourceFactory,
                 List<GpuOperation.Factory> operations,
-                List<Type> outputTypes)
+                List<Type> outputTypes,
+                GpuExecutionSemaphore gpuSemaphore)
         {
-            super(operatorId, planNodeId, fusedPlanNodeIds, sourceFactory, operations, outputTypes);
+            super(operatorId, planNodeId, fusedPlanNodeIds, sourceFactory, operations, outputTypes, gpuSemaphore);
         }
 
         @Override
@@ -287,7 +298,7 @@ public abstract class GpuOperator
                     .addAll(fusedPlanNodeIds)
                     .addAll(additionalFusedPlanNodeIds)
                     .build();
-            return new Factory(operatorId, planNodeId, newFusedPlanNodeIds, sourceFactory, newOperations, newOutputTypes);
+            return new Factory(operatorId, planNodeId, newFusedPlanNodeIds, sourceFactory, newOperations, newOutputTypes, gpuSemaphore);
         }
 
         @Override
@@ -306,7 +317,7 @@ public abstract class GpuOperator
             }
             head = new CopyToBlocks(context, head, outputTypes);
             operatorContext.setLatestMetrics(initialMetrics());
-            return new GpuIntermediateOperator(operatorContext, head, source, refillSignal);
+            return new GpuIntermediateOperator(operatorContext, head, source, refillSignal, gpuSemaphore);
         }
 
         @Override
@@ -320,7 +331,8 @@ public abstract class GpuOperator
                     operations.stream()
                             .map(GpuOperation.Factory::duplicate)
                             .collect(toImmutableList()),
-                    outputTypes);
+                    outputTypes,
+                    gpuSemaphore);
         }
     }
 
@@ -335,6 +347,7 @@ public abstract class GpuOperator
 
     private final OperatorContext operatorContext;
     private final @Own GpuOperation topOperation;
+    private final GpuExecutionSemaphore semaphore;
     private final RefillSignal refillSignal;
 
     private boolean finished;
@@ -344,11 +357,13 @@ public abstract class GpuOperator
     private GpuOperator(
             OperatorContext operatorContext,
             @Move GpuOperation topOperation,
-            RefillSignal refillSignal)
+            RefillSignal refillSignal,
+            GpuExecutionSemaphore semaphore)
     {
         this.operatorContext = requireNonNull(operatorContext, "operatorContext is null");
         this.topOperation = requireNonNull(topOperation, "topOperation is null");
         this.refillSignal = requireNonNull(refillSignal, "refillSignal is null");
+        this.semaphore = requireNonNull(semaphore, "semaphore is null");
     }
 
     @Override
@@ -389,65 +404,79 @@ public abstract class GpuOperator
             return ready.get();
         }
 
-        refillSignal.clear();
-        List<@Borrow PullCircuitBreaker> pending = new ArrayList<>(); // stack
-        @Own GpuOperation.Result topGpuOperationResult;
-        GpuOomHandler.setContext(operatorContext.getDriverContext().getTaskId().queryId());
+        switch (semaphore.tryAcquire()) {
+            case Granted _ -> {
+                // Permit acquired; released in the finally block after the GPU execution loop below
+            }
+            case Denied(ListenableFuture<Void> wakeup) -> {
+                blocked = wakeup;
+                return null;
+            }
+        }
         try {
-            while (true) {
-                topGpuOperationResult = topOperation.execute();
-                if (!(topGpuOperationResult instanceof Yielded()) || !refillSignal.isSet()) {
-                    break;
-                }
-                verify(pending.isEmpty(), "pending not empty: %s", pending);
-                pending.addLast(refillSignal.clear());
-                while (!pending.isEmpty()) {
-                    PullCircuitBreaker next = pending.removeLast();
-                    // Intentionally calling next.source.execute() directly, so the call stack stays flat: every operation is pulled directly from getOutput
-                    GpuOperation.Result refilled = next.source.execute();
-                    next.set(refilled);
-                    if (refillSignal.isSet()) {
-                        if (refilled instanceof Yielded()) {
-                            pending.addLast(next);
+            @Own GpuOperation.Result topGpuOperationResult;
+            refillSignal.clear();
+            List<@Borrow PullCircuitBreaker> pending = new ArrayList<>(); // stack
+            GpuOomHandler.setContext(operatorContext.getDriverContext().getTaskId().queryId());
+            try {
+                while (true) {
+                    topGpuOperationResult = topOperation.execute();
+                    if (!(topGpuOperationResult instanceof Yielded()) || !refillSignal.isSet()) {
+                        break;
+                    }
+                    verify(pending.isEmpty(), "pending not empty: %s", pending);
+                    pending.addLast(refillSignal.clear());
+                    while (!pending.isEmpty()) {
+                        PullCircuitBreaker next = pending.removeLast();
+                        // Intentionally calling next.source.execute() directly, so the call stack stays flat: every operation is pulled directly from getOutput
+                        GpuOperation.Result refilled = next.source.execute();
+                        next.set(refilled);
+                        if (refillSignal.isSet()) {
+                            if (refilled instanceof Yielded()) {
+                                pending.addLast(next);
+                            }
+                            pending.addLast(refillSignal.clear());
                         }
-                        pending.addLast(refillSignal.clear());
                     }
                 }
             }
-        }
-        catch (OutOfMemoryError e) {
-            Optional<GpuOomHandler.FailureSnapshot> snapshot = GpuOomHandler.getLastFailureSnapshot();
-            if (snapshot.isPresent()) {
-                throw new TrinoException(GENERIC_INTERNAL_ERROR, snapshot.get().toErrorMessage(), e);
+            catch (OutOfMemoryError e) {
+                Optional<GpuOomHandler.FailureSnapshot> snapshot = GpuOomHandler.getLastFailureSnapshot();
+                if (snapshot.isPresent()) {
+                    throw new TrinoException(GENERIC_INTERNAL_ERROR, snapshot.get().toErrorMessage(), e);
+                }
+                throw e;
             }
-            throw e;
+            finally {
+                GpuOomHandler.clearContext();
+            }
+            Page operatorResult = switch (topGpuOperationResult) {
+                case Data(AllocatedMemory memory, GpuPage gpuPage) -> {
+                    try (memory; gpuPage) {
+                        gpuPageToPages.add(gpuPage);
+                    }
+                    yield gpuPageToPages.poll().orElse(null);
+                }
+                case Blocked(ListenableFuture<Void> future) -> {
+                    blocked = future;
+                    yield null;
+                }
+                case Yielded() -> null;
+                case Finished() -> {
+                    finished = true;
+                    yield null;
+                }
+            };
+            // Next time this operator is called, it may be scheduled on a different Driver thread, unless
+            // experimental.thread-per-driver-scheduler-enabled is set.
+            // Therefore, returuning/yielding constitutes an implicit cross-thread communication boundary
+            // for internal state stored within operations or in GpuPageToPages buffers.
+            Cuda.DEFAULT_STREAM.sync();
+            return operatorResult;
         }
         finally {
-            GpuOomHandler.clearContext();
+            semaphore.release();
         }
-        Page operatorResult = switch (topGpuOperationResult) {
-            case Data(AllocatedMemory memory, GpuPage gpuPage) -> {
-                try (memory; gpuPage) {
-                    gpuPageToPages.add(gpuPage);
-                }
-                yield gpuPageToPages.poll().orElse(null);
-            }
-            case Blocked(ListenableFuture<Void> future) -> {
-                blocked = future;
-                yield null;
-            }
-            case Yielded() -> null;
-            case Finished() -> {
-                finished = true;
-                yield null;
-            }
-        };
-        // Next time this operator is called, it may be scheduled on a different Driver thread, unless
-        // experimental.thread-per-driver-scheduler-enabled is set.
-        // Therefore, returuning/yielding constitutes an implicit cross-thread communication boundary
-        // for internal state stored within operations or in GpuPageToPages buffers.
-        Cuda.DEFAULT_STREAM.sync();
-        return operatorResult;
     }
 
     @Override
@@ -476,9 +505,9 @@ public abstract class GpuOperator
         private final GpuSourceOperation sourceOperation;
         private boolean splitSet;
 
-        private GpuSourceOperator(PlanNodeId planNodeId, OperatorContext operatorContext, GpuOperation topOperation, GpuSourceOperation sourceOperation, RefillSignal refillSignal)
+        private GpuSourceOperator(PlanNodeId planNodeId, OperatorContext operatorContext, GpuOperation topOperation, GpuSourceOperation sourceOperation, RefillSignal refillSignal, GpuExecutionSemaphore semaphore)
         {
-            super(operatorContext, topOperation, refillSignal);
+            super(operatorContext, topOperation, refillSignal, semaphore);
             this.planNodeId = requireNonNull(planNodeId, "planNodeId is null");
             this.sourceOperation = requireNonNull(sourceOperation, "sourceOperation is null");
         }
@@ -509,9 +538,9 @@ public abstract class GpuOperator
     {
         private final GpuSourceOperation sourceOperation;
 
-        private GpuIntermediateOperator(OperatorContext operatorContext, @Move GpuOperation topOperation, @Borrow GpuSourceOperation sourceOperation, RefillSignal refillSignal)
+        private GpuIntermediateOperator(OperatorContext operatorContext, @Move GpuOperation topOperation, @Borrow GpuSourceOperation sourceOperation, RefillSignal refillSignal, GpuExecutionSemaphore semaphore)
         {
-            super(operatorContext, topOperation, refillSignal);
+            super(operatorContext, topOperation, refillSignal, semaphore);
             this.sourceOperation = requireNonNull(sourceOperation, "sourceOperation is null");
         }
 
