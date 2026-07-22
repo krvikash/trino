@@ -17,6 +17,7 @@ import io.starburst.ai.model.ConnectionInfo.AwsBedrockConnectionInfo;
 import io.starburst.ai.model.ConnectionInfo.OAuth2Config;
 import io.starburst.ai.model.ConnectionInfo.OAuth2GrantType;
 import io.starburst.ai.model.ConnectionInfo.OpenAiConnectionInfo;
+import io.starburst.ai.model.ConnectionInfo.VertexAiConnectionInfo;
 import org.junit.jupiter.api.Test;
 
 import java.util.Optional;
@@ -79,6 +80,35 @@ public class TestModelSecretsResolver
                         "SENSITIVE_VALUE", "secret"))));
         OpenAiConnectionInfo resolvedConnectionInfo = ModelSecretsResolver.resolveOpenAiSecrets(openAiConnectionInfo, secretsResolver);
         assertThat(resolvedConnectionInfo.apiKey()).contains("MYAAPIKEY");
+        assertThat(resolvedConnectionInfo.additionalHeaders()).containsExactlyEntriesOf(ImmutableMap.of(
+                "Authorization", ImmutableList.of("bearer token123", "Basic cGFzc3dvcmQ="),
+                "Custom-Header", ImmutableList.of("CustomValue"),
+                "Mixed-Sensitivity", ImmutableList.of("NotSensitive", "secret")));
+    }
+
+    @Test
+    void testVertexAiSecretResolution()
+    {
+        VertexAiConnectionInfo vertexAiConnectionInfo = new VertexAiConnectionInfo(
+                Optional.of("${TESTING:SERVICE_ACCOUNT_KEY}"),
+                Optional.of("my-project"),
+                "us-central1",
+                ImmutableMap.of(
+                        "Authorization", ImmutableList.of("${TESTING:AUTHORIZATION_TOKEN}", "${TESTING:BASIC}"),
+                        "Custom-Header", ImmutableList.of("CustomValue"),
+                        "Mixed-Sensitivity", ImmutableList.of("NotSensitive", "${TESTING:SENSITIVE_VALUE}")));
+
+        SecretsResolver secretsResolver = new SecretsResolver(
+                ImmutableMap.of("testing", new TestingSecretsProvider(ImmutableMap.of(
+                        "SERVICE_ACCOUNT_KEY", "{\"type\":\"service_account\"}",
+                        "AUTHORIZATION_TOKEN", "bearer token123",
+                        "BASIC", "Basic cGFzc3dvcmQ=",
+                        "SENSITIVE_VALUE", "secret"))));
+
+        VertexAiConnectionInfo resolvedConnectionInfo = ModelSecretsResolver.resolveVertexAiSecrets(vertexAiConnectionInfo, secretsResolver);
+        assertThat(resolvedConnectionInfo.serviceAccountKey()).contains("{\"type\":\"service_account\"}");
+        assertThat(resolvedConnectionInfo.projectId()).contains("my-project");
+        assertThat(resolvedConnectionInfo.location()).isEqualTo("us-central1");
         assertThat(resolvedConnectionInfo.additionalHeaders()).containsExactlyEntriesOf(ImmutableMap.of(
                 "Authorization", ImmutableList.of("bearer token123", "Basic cGFzc3dvcmQ="),
                 "Custom-Header", ImmutableList.of("CustomValue"),

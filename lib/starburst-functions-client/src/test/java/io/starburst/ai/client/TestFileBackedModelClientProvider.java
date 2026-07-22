@@ -11,7 +11,9 @@ package io.starburst.ai.client;
 
 import com.google.common.collect.ImmutableSet;
 import dev.failsafe.RetryPolicy;
+import io.starburst.ai.model.ConnectionInfo.VertexAiConnectionInfo;
 import io.starburst.ai.model.LanguageModelConnectionSpec;
+import io.starburst.ai.model.ModelConnectionSpecs;
 import org.junit.jupiter.api.Test;
 
 import java.io.File;
@@ -142,5 +144,41 @@ public class TestFileBackedModelClientProvider
             reloadingExecutor.shutdownNow();
             llmExecutor.shutdownNow();
         }
+    }
+
+    private static final String VERTEX_AI_MODELS_CONFIG =
+            """
+            {
+                "models": [
+                    {
+                        "id": "test-vertex",
+                        "modelName": "gemini-1.5-pro",
+                        "kind": "GENERATE",
+                        "maxTokens": 4096,
+                        "temperature": 0.1,
+                        "connectionInfo": {
+                            "provider": "VERTEX_AI",
+                            "serviceAccountKey": "${TESTING:SERVICE_ACCOUNT_KEY}",
+                            "projectId": "my-project",
+                            "location": "us-central1"
+                        }
+                    }
+                ]
+            }
+            """;
+
+    @Test
+    public void testVertexAiJsonDiscriminator()
+            throws IOException
+    {
+        File modelSpecsFile = createModelConnectionSpecsFile(VERTEX_AI_MODELS_CONFIG);
+        ModelConnectionSpecs specs = new FileBackedModelConnectionSpecsLoader(
+                new AiFileStorageConfig().setModelConnectionSpecsFile(modelSpecsFile.getPath()))
+                .load();
+        LanguageModelConnectionSpec spec = specs.getLanguageModelConnectionSpecById("test-vertex").orElseThrow();
+        assertThat(spec.connectionInfo()).isInstanceOf(VertexAiConnectionInfo.class);
+        VertexAiConnectionInfo connectionInfo = (VertexAiConnectionInfo) spec.connectionInfo();
+        assertThat(connectionInfo.projectId()).contains("my-project");
+        assertThat(connectionInfo.location()).isEqualTo("us-central1");
     }
 }

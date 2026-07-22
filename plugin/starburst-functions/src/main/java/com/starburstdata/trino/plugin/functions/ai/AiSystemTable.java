@@ -31,6 +31,7 @@ import java.util.Optional;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.starburst.ai.model.ConnectionInfo.AwsBedrockConnectionInfo;
 import static io.starburst.ai.model.ConnectionInfo.OpenAiConnectionInfo;
+import static io.starburst.ai.model.ConnectionInfo.VertexAiConnectionInfo;
 import static io.trino.spi.connector.SystemTable.Distribution.SINGLE_COORDINATOR;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static java.util.Objects.requireNonNull;
@@ -79,6 +80,7 @@ public abstract class AiSystemTable<T extends ModelConnectionSpec>
         return switch (spec.connectionInfo()) {
             case OpenAiConnectionInfo openAiConnectionInfo -> openAiConnectionInfo.endpoint().orElse(null);
             case AwsBedrockConnectionInfo _ -> null;
+            case VertexAiConnectionInfo _ -> throw new UnsupportedOperationException("Vertex AI not yet supported");
         };
     }
 
@@ -101,6 +103,7 @@ public abstract class AiSystemTable<T extends ModelConnectionSpec>
         return switch (connectionInfo) {
             case OpenAiConnectionInfo _ -> "OPENAI";
             case AwsBedrockConnectionInfo _ -> "AWS_BEDROCK";
+            case VertexAiConnectionInfo _ -> throw new UnsupportedOperationException("Vertex AI not yet supported");
         };
     }
 }

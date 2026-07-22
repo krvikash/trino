@@ -13,4 +13,5 @@ public enum AiProvider
 {
     AWS_BEDROCK,
     OPENAI,
+    VERTEX_AI,
 }

@@ -22,6 +22,7 @@ import java.util.regex.Pattern;
 
 import static io.starburst.ai.model.ConnectionInfo.AwsBedrockConnectionInfo;
 import static io.starburst.ai.model.ConnectionInfo.OpenAiConnectionInfo;
+import static io.starburst.ai.model.ConnectionInfo.VertexAiConnectionInfo;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 import static java.util.Objects.requireNonNullElse;
@@ -33,9 +34,12 @@ import static java.util.Objects.requireNonNullElse;
 @JsonSubTypes({
         @JsonSubTypes.Type(value = OpenAiConnectionInfo.class, name = "OPENAI"),
         @JsonSubTypes.Type(value = AwsBedrockConnectionInfo.class, name = "AWS_BEDROCK"),
+        @JsonSubTypes.Type(value = VertexAiConnectionInfo.class, name = "VERTEX_AI"),
 })
 public sealed interface ConnectionInfo
-        permits OpenAiConnectionInfo, AwsBedrockConnectionInfo
+        permits AwsBedrockConnectionInfo,
+                OpenAiConnectionInfo,
+                VertexAiConnectionInfo
 {
     enum OAuth2GrantType
     {
@@ -162,6 +166,22 @@ public sealed interface ConnectionInfo
             requireNonNull(iamRole, "iamRole is null");
             requireNonNull(externalId, "externalId is null");
             requireNonNull(endpoint, "endpoint is null");
+            additionalHeaders = requireNonNullElse(additionalHeaders, Map.of());
+        }
+    }
+
+    record VertexAiConnectionInfo(
+            Optional<String> serviceAccountKey,
+            Optional<String> projectId,
+            String location,
+            Map<String, List<String>> additionalHeaders)
+            implements ConnectionInfo
+    {
+        public VertexAiConnectionInfo
+        {
+            requireNonNull(serviceAccountKey, "serviceAccountKey is null");
+            requireNonNull(projectId, "projectId is null");
+            requireNonNull(location, "location is null");
             additionalHeaders = requireNonNullElse(additionalHeaders, Map.of());
         }
     }

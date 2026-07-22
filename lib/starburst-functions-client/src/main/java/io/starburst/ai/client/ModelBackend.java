@@ -13,4 +13,5 @@ public enum ModelBackend
 {
     OPENAI,
     AWS_BEDROCK,
+    VERTEX_AI,
 }

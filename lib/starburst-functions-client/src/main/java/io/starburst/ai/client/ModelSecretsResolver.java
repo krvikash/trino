@@ -23,6 +23,7 @@ import java.util.Optional;
 import static io.starburst.ai.model.ConnectionInfo.AwsBedrockConnectionInfo;
 import static io.starburst.ai.model.ConnectionInfo.OAuth2Config.validateTokenUrl;
 import static io.starburst.ai.model.ConnectionInfo.OpenAiConnectionInfo;
+import static io.starburst.ai.model.ConnectionInfo.VertexAiConnectionInfo;
 
 public final class ModelSecretsResolver
 {
@@ -35,6 +36,7 @@ public final class ModelSecretsResolver
         return switch (connectionInfo) {
             case AwsBedrockConnectionInfo awsBedrockConnectionInfo -> resolveBedrockSecrets(awsBedrockConnectionInfo, secretsResolver);
             case OpenAiConnectionInfo openAiConnectionInfo -> resolveOpenAiSecrets(openAiConnectionInfo, secretsResolver);
+            case VertexAiConnectionInfo vertexAiConnectionInfo -> resolveVertexAiSecrets(vertexAiConnectionInfo, secretsResolver);
         };
     }
 
@@ -79,6 +81,19 @@ public final class ModelSecretsResolver
                         Optional.of(DUMMY_API_KEY),
                         resolveSecretHeaderValues(connectionInfo.additionalHeaders(), secretsResolver),
                         Optional.empty()));
+    }
+
+    public static VertexAiConnectionInfo resolveVertexAiSecrets(VertexAiConnectionInfo connectionInfo, SecretsResolver secretsResolver)
+    {
+        if (connectionInfo.additionalHeaders().isEmpty() && connectionInfo.serviceAccountKey().isEmpty()) {
+            return connectionInfo;
+        }
+        Optional<String> serviceAccountKey = connectionInfo.serviceAccountKey().map(key -> resolveOne(secretsResolver, "serviceAccountKey", key));
+        return new VertexAiConnectionInfo(
+                serviceAccountKey,
+                connectionInfo.projectId(),
+                connectionInfo.location(),
+                resolveSecretHeaderValues(connectionInfo.additionalHeaders(), secretsResolver));
     }
 
     public static ResolvedOAuth2Config resolveOAuth2Secrets(OAuth2Config config, SecretsResolver secretsResolver)

@@ -45,6 +45,7 @@ import static io.starburst.ai.client.ModelSecretsResolver.resolveConnectionInfo;
 import static io.starburst.ai.client.ModelSecretsResolver.resolveOAuth2Secrets;
 import static io.starburst.ai.model.ConnectionInfo.AwsBedrockConnectionInfo;
 import static io.starburst.ai.model.ConnectionInfo.OpenAiConnectionInfo;
+import static io.starburst.ai.model.ConnectionInfo.VertexAiConnectionInfo;
 import static io.trino.spi.StandardErrorCode.NOT_FOUND;
 import static java.util.Objects.requireNonNull;
 
@@ -340,6 +341,7 @@ public class ReloadingModelClientProvider
             return switch (modelConnectionSpec.connectionInfo()) {
                 case OpenAiConnectionInfo openAiConnectionInfo -> openAiClientFactory.createLanguageModelClient(modelConnectionSpec, openAiConnectionInfo, promptDao, tokenUsageListener);
                 case AwsBedrockConnectionInfo awsBedrockConnectionInfo -> awsBedrockClientFactory.createLanguageModelClient(modelConnectionSpec, awsBedrockConnectionInfo, promptDao, tokenUsageListener);
+                case VertexAiConnectionInfo _ -> throw new UnsupportedOperationException("Vertex AI not yet supported");
             };
         }
 
@@ -348,6 +350,7 @@ public class ReloadingModelClientProvider
             return switch (modelConnectionSpec.connectionInfo()) {
                 case OpenAiConnectionInfo openAiConnectionInfo -> openAiClientFactory.createEmbeddingClient(modelConnectionSpec, openAiConnectionInfo);
                 case AwsBedrockConnectionInfo awsBedrockConnectionInfo -> awsBedrockClientFactory.createEmbeddingClient(modelConnectionSpec, awsBedrockConnectionInfo);
+                case VertexAiConnectionInfo _ -> throw new UnsupportedOperationException("Vertex AI not yet supported");
             };
         }
     }
