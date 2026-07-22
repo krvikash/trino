@@ -9,14 +9,23 @@
  */
 package io.starburst.ai.client.vertexai;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Ascii;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.genai.Client;
 import com.google.genai.types.Content;
+import com.google.genai.types.FunctionCall;
+import com.google.genai.types.FunctionDeclaration;
 import com.google.genai.types.GenerateContentConfig;
 import com.google.genai.types.GenerateContentResponse;
 import com.google.genai.types.GenerateContentResponseUsageMetadata;
 import com.google.genai.types.Part;
+import com.google.genai.types.Schema;
+import com.google.genai.types.Tool;
+import io.airlift.json.ObjectMapperProvider;
 import io.starburst.ai.client.AbstractLanguageModelClient;
 import io.starburst.ai.client.LlmMessage;
 import io.starburst.ai.client.ModelBackend;
@@ -30,6 +39,7 @@ import io.starburst.ai.client.ToolUseResponse;
 import io.trino.spi.TrinoException;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.Executor;
 import java.util.function.Consumer;
@@ -43,6 +53,8 @@ import static java.util.Objects.requireNonNull;
 public class VertexAiLanguageModelClient
         extends AbstractLanguageModelClient
 {
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapperProvider().get();
+
     private final String modelName;
     private final Optional<Integer> maxTokens;
     private final Optional<Float> temperature;
@@ -90,19 +102,36 @@ public class VertexAiLanguageModelClient
     @Override
     protected ToolUseResponse generateCompletionWithTools(List<String> systemPrompts, List<LlmMessage> messages, List<ToolDefinition<?>> tools, TokenUsageContext context)
     {
-        // Tool-calling is implemented in Stage 4.
-        throw new UnsupportedOperationException("Vertex AI tool-calling is not yet implemented");
+        GenerateContentConfig config = buildConfig(systemPrompts, maxTokens, temperature, topP, toTools(tools));
+        try {
+            GenerateContentResponse response = client.models.generateContent(modelName, toContents(messages), config);
+            response.usageMetadata().ifPresent(usage -> reportTokenUsage(context, toTokenUsage(usage, modelName)));
+            return parseToolResponse(response);
+        }
+        catch (TrinoException e) {
+            throw e;
+        }
+        catch (RuntimeException e) {
+            throw new TrinoException(AI_CLIENT_ERROR, "Failed to execute Vertex AI tool-calling request for model %s".formatted(modelName), e);
+        }
     }
 
     @Override
     protected ToolUseResponse generateCompletionWithTools(List<String> systemPrompts, List<LlmMessage> messages, List<ToolDefinition<?>> tools, Consumer<String> output, Supplier<Boolean> isCancelled, TokenUsageContext context)
     {
-        // Tool-calling is implemented in Stage 4.
-        throw new UnsupportedOperationException("Vertex AI tool-calling is not yet implemented");
+        ToolUseResponse response = generateCompletionWithTools(systemPrompts, messages, tools, context);
+        output.accept(response.textResponse());
+        return response;
     }
 
     @VisibleForTesting
     static GenerateContentConfig buildConfig(List<String> systemPrompts, Optional<Integer> maxTokens, Optional<Float> temperature, Optional<Float> topP)
+    {
+        return buildConfig(systemPrompts, maxTokens, temperature, topP, ImmutableList.of());
+    }
+
+    @VisibleForTesting
+    static GenerateContentConfig buildConfig(List<String> systemPrompts, Optional<Integer> maxTokens, Optional<Float> temperature, Optional<Float> topP, List<Tool> tools)
     {
         GenerateContentConfig.Builder builder = GenerateContentConfig.builder();
         maxTokens.ifPresent(builder::maxOutputTokens);
@@ -114,7 +143,87 @@ public class VertexAiLanguageModelClient
                     .collect(toImmutableList());
             builder.systemInstruction(Content.builder().parts(parts).build());
         }
+        if (!tools.isEmpty()) {
+            builder.tools(tools);
+        }
         return builder.build();
+    }
+
+    @VisibleForTesting
+    static List<Tool> toTools(List<ToolDefinition<?>> tools)
+    {
+        if (tools.isEmpty()) {
+            return ImmutableList.of();
+        }
+        List<FunctionDeclaration> declarations = tools.stream()
+                .map(VertexAiLanguageModelClient::toFunctionDeclaration)
+                .collect(toImmutableList());
+        return ImmutableList.of(Tool.builder().functionDeclarations(declarations).build());
+    }
+
+    private static FunctionDeclaration toFunctionDeclaration(ToolDefinition<?> tool)
+    {
+        return FunctionDeclaration.builder()
+                .name(tool.getName())
+                .description(tool.getDescription())
+                .parameters(toSchema(tool.getInputSchema()))
+                .build();
+    }
+
+    @VisibleForTesting
+    static Schema toSchema(JsonNode node)
+    {
+        Schema.Builder builder = Schema.builder();
+        if (node.has("type")) {
+            builder.type(Ascii.toUpperCase(node.get("type").asText()));
+        }
+        if (node.has("description")) {
+            builder.description(node.get("description").asText());
+        }
+        if (node.has("enum")) {
+            ImmutableList.Builder<String> values = ImmutableList.builder();
+            node.get("enum").forEach(value -> values.add(value.asText()));
+            builder.enum_(values.build());
+        }
+        if (node.has("properties")) {
+            ImmutableMap.Builder<String, Schema> properties = ImmutableMap.builder();
+            node.get("properties").fields().forEachRemaining(entry -> properties.put(entry.getKey(), toSchema(entry.getValue())));
+            builder.properties(properties.buildOrThrow());
+        }
+        if (node.has("required")) {
+            ImmutableList.Builder<String> required = ImmutableList.builder();
+            node.get("required").forEach(value -> required.add(value.asText()));
+            builder.required(required.build());
+        }
+        if (node.has("items")) {
+            builder.items(toSchema(node.get("items")));
+        }
+        return builder.build();
+    }
+
+    @VisibleForTesting
+    static ToolUseResponse parseToolResponse(GenerateContentResponse response)
+    {
+        StringBuilder textResponse = new StringBuilder();
+        for (Part part : Optional.ofNullable(response.parts()).orElse(ImmutableList.of())) {
+            part.text().ifPresent(textResponse::append);
+        }
+        List<ToolUseResponse.ToolCall> toolCalls = Optional.ofNullable(response.functionCalls()).orElse(ImmutableList.of()).stream()
+                .map(VertexAiLanguageModelClient::toToolCall)
+                .collect(toImmutableList());
+        return new ToolUseResponse(textResponse.toString(), toolCalls);
+    }
+
+    @VisibleForTesting
+    static ToolUseResponse.ToolCall toToolCall(FunctionCall functionCall)
+    {
+        String name = functionCall.name()
+                .orElseThrow(() -> new TrinoException(AI_CLIENT_ERROR, "Vertex AI function call is missing a name"));
+        Map<String, Object> args = functionCall.args().orElse(ImmutableMap.of());
+        return new ToolUseResponse.ToolCall(
+                functionCall.id().orElse(name),
+                name,
+                OBJECT_MAPPER.valueToTree(args));
     }
 
     @VisibleForTesting

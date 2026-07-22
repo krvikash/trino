@@ -9,37 +9,40 @@
  */
 package io.starburst.ai.client.vertexai;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.io.Resources;
-import com.google.genai.Client;
 import com.google.genai.types.Content;
+import com.google.genai.types.FunctionCall;
+import com.google.genai.types.FunctionDeclaration;
 import com.google.genai.types.GenerateContentConfig;
 import com.google.genai.types.GenerateContentResponseUsageMetadata;
-import io.airlift.configuration.secrets.SecretsResolver;
-import io.starburst.ai.client.AiClientConfig;
+import com.google.genai.types.Schema;
+import com.google.genai.types.Tool;
+import io.starburst.ai.client.InternalToolDefinition;
+import io.starburst.ai.client.JsonSchemaParameterType;
 import io.starburst.ai.client.LlmMessage;
 import io.starburst.ai.client.ModelBackend;
 import io.starburst.ai.client.ModelType;
-import io.starburst.ai.client.StaticPromptDao;
 import io.starburst.ai.client.TokenUsage;
-import io.starburst.ai.client.TokenUsageContext;
-import io.starburst.ai.client.TokenUsageListener;
+import io.starburst.ai.client.ToolDefinition;
+import io.starburst.ai.client.ToolParameter;
+import io.starburst.ai.client.ToolResult;
+import io.starburst.ai.client.ToolUseResponse;
+import io.trino.spi.TrinoException;
 import org.junit.jupiter.api.Test;
 
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Optional;
 
-import static com.google.common.io.Resources.getResource;
-import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 import static io.starburst.ai.client.MessageRole.ASSISTANT;
 import static io.starburst.ai.client.MessageRole.USER;
 import static io.starburst.ai.client.vertexai.VertexAiLanguageModelClient.buildConfig;
 import static io.starburst.ai.client.vertexai.VertexAiLanguageModelClient.toContents;
+import static io.starburst.ai.client.vertexai.VertexAiLanguageModelClient.toSchema;
 import static io.starburst.ai.client.vertexai.VertexAiLanguageModelClient.toTokenUsage;
-import static io.starburst.ai.model.ConnectionInfo.VertexAiConnectionInfo;
+import static io.starburst.ai.client.vertexai.VertexAiLanguageModelClient.toToolCall;
+import static io.starburst.ai.client.vertexai.VertexAiLanguageModelClient.toTools;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -130,40 +133,174 @@ public class TestVertexAiLanguageModelClient
     }
 
     @Test
-    void testGenerateCompletionWithToolsThrows()
-            throws IOException
+    void testToSchemaMapsObjectSchema()
     {
-        VertexAiLanguageModelClient client = createClient();
+        ToolDefinition<String> tool = new FixtureTool();
 
-        assertThatThrownBy(() -> client.generateCompletionWithTools(ImmutableList.of(), ImmutableList.of(), ImmutableList.of(), TokenUsageContext.EMPTY))
-                .isInstanceOf(UnsupportedOperationException.class)
-                .hasMessage("Vertex AI tool-calling is not yet implemented");
+        Schema schema = toSchema(tool.getInputSchema());
 
-        assertThatThrownBy(() -> client.generateCompletionWithTools(ImmutableList.of(), ImmutableList.of(), ImmutableList.of(), _ -> {}, () -> false, TokenUsageContext.EMPTY))
-                .isInstanceOf(UnsupportedOperationException.class)
-                .hasMessage("Vertex AI tool-calling is not yet implemented");
+        assertThat(schema.type().orElseThrow().toString()).isEqualTo("OBJECT");
+        assertThat(schema.properties().orElseThrow()).containsKeys("operation", "value");
+        assertThat(schema.required().orElseThrow()).containsExactly("operation");
+
+        Schema operation = schema.properties().orElseThrow().get("operation");
+        assertThat(operation.type().orElseThrow().toString()).isEqualTo("STRING");
+        assertThat(operation.description()).contains("the operation to run");
+        assertThat(operation.enum_().orElseThrow()).containsExactly("add", "subtract");
+
+        Schema value = schema.properties().orElseThrow().get("value");
+        assertThat(value.type().orElseThrow().toString()).isEqualTo("INTEGER");
     }
 
-    private static VertexAiLanguageModelClient createClient()
-            throws IOException
+    @Test
+    void testToSchemaMapsNestedArrayAndObjectSchemas()
     {
-        String serviceAccountKey = Resources.toString(getResource("vertex-ai-service-account.json"), StandardCharsets.UTF_8);
-        VertexAiConnectionInfo connectionInfo = new VertexAiConnectionInfo(
-                Optional.of(serviceAccountKey),
-                Optional.of("my-project"),
-                "us-central1",
-                ImmutableMap.of());
-        VertexAiClientFactory factory = new VertexAiClientFactory(new SecretsResolver(ImmutableMap.of()), new AiClientConfig(), directExecutor());
-        Client vertexClient = factory.createClient(connectionInfo);
-        return new VertexAiLanguageModelClient(
-                "gemini-1.5-pro",
-                Optional.empty(),
-                Optional.empty(),
-                Optional.empty(),
-                new StaticPromptDao(),
-                directExecutor(),
-                1,
-                vertexClient,
-                TokenUsageListener.NOOP);
+        ToolDefinition<String> tool = new NestedFixtureTool();
+
+        Schema schema = toSchema(tool.getInputSchema());
+        Schema usersSchema = schema.properties().orElseThrow().get("users");
+
+        assertThat(usersSchema.type().orElseThrow().toString()).isEqualTo("ARRAY");
+        Schema userItemSchema = usersSchema.items().orElseThrow();
+        assertThat(userItemSchema.type().orElseThrow().toString()).isEqualTo("OBJECT");
+        assertThat(userItemSchema.properties().orElseThrow()).containsKeys("name", "age");
+        assertThat(userItemSchema.required().orElseThrow()).containsExactly("name");
+    }
+
+    @Test
+    void testToToolsBuildsFunctionDeclarations()
+    {
+        List<Tool> tools = toTools(ImmutableList.of(new FixtureTool()));
+
+        assertThat(tools).hasSize(1);
+        List<FunctionDeclaration> declarations = tools.get(0).functionDeclarations().orElseThrow();
+        assertThat(declarations).hasSize(1);
+        FunctionDeclaration declaration = declarations.get(0);
+        assertThat(declaration.name()).contains("fixture");
+        assertThat(declaration.description()).contains("a fixture tool");
+        assertThat(declaration.parameters().orElseThrow().type().orElseThrow().toString()).isEqualTo("OBJECT");
+    }
+
+    @Test
+    void testToToolsBuildsMultipleFunctionDeclarations()
+    {
+        List<Tool> tools = toTools(ImmutableList.of(new FixtureTool(), new NestedFixtureTool()));
+
+        assertThat(tools).hasSize(1);
+        List<FunctionDeclaration> declarations = tools.get(0).functionDeclarations().orElseThrow();
+        assertThat(declarations).hasSize(2);
+        assertThat(declarations.stream().map(FunctionDeclaration::name)).containsExactlyInAnyOrder(Optional.of("fixture"), Optional.of("create_users"));
+    }
+
+    @Test
+    void testToToolsEmptyReturnsEmptyList()
+    {
+        assertThat(toTools(ImmutableList.of())).isEmpty();
+    }
+
+    @Test
+    void testBuildConfigSetsToolsWhenPresent()
+    {
+        List<Tool> tools = toTools(ImmutableList.of(new FixtureTool()));
+
+        GenerateContentConfig config = buildConfig(ImmutableList.of(), Optional.empty(), Optional.empty(), Optional.empty(), tools);
+
+        assertThat(config.tools().orElseThrow()).isEqualTo(tools);
+    }
+
+    @Test
+    void testToToolCallMapsNameAndArgs()
+    {
+        FunctionCall functionCall = FunctionCall.builder()
+                .id("call-1")
+                .name("fixture")
+                .args(ImmutableMap.of("operation", "add", "value", 7))
+                .build();
+
+        ToolUseResponse.ToolCall toolCall = toToolCall(functionCall);
+
+        assertThat(toolCall.id()).isEqualTo("call-1");
+        assertThat(toolCall.name()).isEqualTo("fixture");
+        assertThat(toolCall.input().get("operation").asText()).isEqualTo("add");
+        assertThat(toolCall.input().get("value").asInt()).isEqualTo(7);
+    }
+
+    @Test
+    void testToToolCallFallsBackToNameWhenIdAbsent()
+    {
+        FunctionCall functionCall = FunctionCall.builder()
+                .name("fixture")
+                .build();
+
+        ToolUseResponse.ToolCall toolCall = toToolCall(functionCall);
+
+        assertThat(toolCall.id()).isEqualTo("fixture");
+        assertThat(toolCall.name()).isEqualTo("fixture");
+        assertThat(toolCall.input().isObject()).isTrue();
+        assertThat(toolCall.input()).isEmpty();
+    }
+
+    @Test
+    void testToToolCallThrowsWhenNameAbsent()
+    {
+        FunctionCall functionCall = FunctionCall.builder().build();
+
+        assertThatThrownBy(() -> toToolCall(functionCall))
+                .isInstanceOf(TrinoException.class)
+                .hasMessageContaining("missing a name");
+    }
+
+    private static class FixtureTool
+            extends InternalToolDefinition<String>
+    {
+        FixtureTool()
+        {
+            super("fixture",
+                    "a fixture tool",
+                    ImmutableList.of(
+                            new ToolParameter("operation", JsonSchemaParameterType.STRING, "the operation to run", ImmutableList.of("add", "subtract"), true),
+                            new ToolParameter("value", JsonSchemaParameterType.INTEGER, "the operand", ImmutableList.of(), false)));
+        }
+
+        @Override
+        protected ToolResult<String> executeInternal(JsonNode input)
+        {
+            return ToolResult.success("ok");
+        }
+    }
+
+    private static class NestedFixtureTool
+            extends InternalToolDefinition<String>
+    {
+        NestedFixtureTool()
+        {
+            super("create_users",
+                    "creates multiple users",
+                    ImmutableList.of(
+                            new ToolParameter(
+                                    "users",
+                                    JsonSchemaParameterType.ARRAY,
+                                    "list of users",
+                                    ImmutableList.of(),
+                                    true,
+                                    ImmutableList.of(),
+                                    Optional.of(
+                                            new ToolParameter(
+                                                    "user",
+                                                    JsonSchemaParameterType.OBJECT,
+                                                    "a single user",
+                                                    ImmutableList.of(),
+                                                    false,
+                                                    ImmutableList.of(
+                                                            new ToolParameter("name", JsonSchemaParameterType.STRING, "user name", true),
+                                                            new ToolParameter("age", JsonSchemaParameterType.INTEGER, "user age", false)),
+                                                    Optional.empty())))));
+        }
+
+        @Override
+        protected ToolResult<String> executeInternal(JsonNode input)
+        {
+            return ToolResult.success("ok");
+        }
     }
 }
