@@ -285,7 +285,7 @@ public final class TestingUtils
         AwsBedrockClientFactory bedrockClientFactory = new AwsBedrockClientFactory(awsEmbeddingCodecFactories, secretsResolver, aiClientConfig, llmExecutor);
         OAuth2TokenCache oauth2TokenCache = createTestOAuth2TokenCache(aiClientConfig);
         OpenAiClientFactory openAiClientFactory = new OpenAiClientFactory(secretsResolver, aiClientConfig, llmExecutor, new ObjectMapperProvider().get(), oauth2TokenCache);
-        VertexAiClientFactory vertexAiClientFactory = new VertexAiClientFactory(secretsResolver);
+        VertexAiClientFactory vertexAiClientFactory = new VertexAiClientFactory(secretsResolver, aiClientConfig, llmExecutor);
         return new ReloadingModelClientProvider(
                 promptDao,
                 modelSpecsLoader,

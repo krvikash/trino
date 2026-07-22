@@ -16,7 +16,9 @@ import com.google.common.collect.ImmutableList;
 import com.google.genai.Client;
 import com.google.inject.Inject;
 import io.airlift.configuration.secrets.SecretsResolver;
+import io.starburst.ai.client.AiClientConfig;
 import io.starburst.ai.client.EmbeddingModelClient;
+import io.starburst.ai.client.ForAiClient;
 import io.starburst.ai.client.LanguageModelClient;
 import io.starburst.ai.client.ModelClientFactory;
 import io.starburst.ai.client.PromptDao;
@@ -28,6 +30,7 @@ import io.trino.spi.TrinoException;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.Optional;
+import java.util.concurrent.Executor;
 
 import static io.starburst.ai.client.AiClientErrorCode.INVALID_MODEL_CONFIGURATION;
 import static io.starburst.ai.client.ModelSecretsResolver.resolveVertexAiSecrets;
@@ -41,11 +44,15 @@ public class VertexAiClientFactory
     private static final String CLOUD_PLATFORM_SCOPE = "https://www.googleapis.com/auth/cloud-platform";
 
     private final SecretsResolver secretsResolver;
+    private final Executor executor;
+    private final int batchParallelism;
 
     @Inject
-    public VertexAiClientFactory(SecretsResolver secretsResolver)
+    public VertexAiClientFactory(SecretsResolver secretsResolver, AiClientConfig config, @ForAiClient Executor executor)
     {
         this.secretsResolver = requireNonNull(secretsResolver, "secretsResolver is null");
+        this.executor = requireNonNull(executor, "executor is null");
+        batchParallelism = config.getBatchParallelism();
     }
 
     @Override
@@ -53,9 +60,16 @@ public class VertexAiClientFactory
     {
         requireNonNull(spec, "spec is null");
         requireNonNull(connectionInfo, "connectionInfo is null");
-        // Credential resolution and client construction land here (createClient); the generating
-        // LanguageModelClient (VertexAiLanguageModelClient) is implemented in stage 3.
-        throw new UnsupportedOperationException("Vertex AI language model generation is not yet implemented");
+        return new VertexAiLanguageModelClient(
+                spec.modelName(),
+                spec.maxTokens(),
+                spec.temperature(),
+                spec.topP(),
+                promptDao,
+                executor,
+                batchParallelism,
+                createClient(connectionInfo),
+                tokenUsageListener);
     }
 
     @Override

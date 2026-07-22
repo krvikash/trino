@@ -13,6 +13,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.io.Resources;
 import com.google.genai.Client;
 import io.airlift.configuration.secrets.SecretsResolver;
+import io.starburst.ai.client.AiClientConfig;
 import io.trino.spi.TrinoException;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -22,6 +23,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Optional;
 
 import static com.google.common.io.Resources.getResource;
+import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 import static io.starburst.ai.model.ConnectionInfo.VertexAiConnectionInfo;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -33,7 +35,7 @@ public class TestVertexAiClientFactory
     @BeforeAll
     static void setUp()
     {
-        factory = new VertexAiClientFactory(new SecretsResolver(ImmutableMap.of()));
+        factory = new VertexAiClientFactory(new SecretsResolver(ImmutableMap.of()), new AiClientConfig(), directExecutor());
     }
 
     @Test
