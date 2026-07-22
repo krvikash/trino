@@ -23,21 +23,12 @@ import io.trino.spi.gpu.borrow.Move;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
-import static io.trino.memory.context.AggregatedMemoryContext.newSimpleAggregatedMemoryContext;
 import static java.util.Objects.requireNonNull;
 
 public final class AllocatedMemory
         implements MemoryAllocation,
                    RuntimeCloseable
 {
-    private static final AllocatedMemory UNTRACKED = new AllocatedMemory(
-            new GpuTaskMemoryContext(
-                    newSimpleAggregatedMemoryContext(),
-                    newSimpleAggregatedMemoryContext(),
-                    newSimpleAggregatedMemoryContext()),
-            "untracked",
-            MemoryAmount.ZERO);
-
     static @Move AllocatedMemory allocate(GpuTaskMemoryContext memoryContext, String allocationTag, MemoryAmount amount)
     {
         requireNonNull(memoryContext, "memoryContext is null");
@@ -48,12 +39,6 @@ public final class AllocatedMemory
             allocation.borrow().update(amount);
             return allocation.take();
         }
-    }
-
-    @Deprecated(forRemoval = true)
-    public static AllocatedMemory untracked()
-    {
-        return UNTRACKED;
     }
 
     private final GpuTaskMemoryContext memoryContext;
@@ -74,7 +59,6 @@ public final class AllocatedMemory
     {
         requireNonNull(newAmount, "newAmount is null");
         checkState(!closed, "Already closed");
-        checkState(this != UNTRACKED, "Cannot update untracked allocation");
 
         updateBytes(memoryContext.taskUserMemory(), allocationTag, newAmount.heapBytes() - amount.heapBytes());
         amount = new MemoryAmount(newAmount.heapBytes(), amount.gpuDeviceBytes(), amount.offHeapBytes());
@@ -95,10 +79,6 @@ public final class AllocatedMemory
     {
         checkState(!closed, "Already closed");
         checkArgument(this != other, "Cannot transfer from self");
-        checkState(this != UNTRACKED, "Cannot update untracked allocation");
-        if (other == UNTRACKED) {
-            return;
-        }
         checkArgument(this.memoryContext == other.memoryContext, "Cannot transfer between memory contexts: %s != %s", this.memoryContext, other.memoryContext);
         other.transferTags(allocationTag, amountToTransfer);
         MemoryAmount newOtherAmount = other.amount.subtract(amountToTransfer);
@@ -109,9 +89,6 @@ public final class AllocatedMemory
     public void retag(String newAllocationTag)
     {
         transferTags(newAllocationTag, amount);
-        if (this == UNTRACKED) {
-            return;
-        }
         this.allocationTag = newAllocationTag;
     }
 
@@ -119,9 +96,6 @@ public final class AllocatedMemory
     {
         requireNonNull(newAllocationTag, "newAllocationTag is null");
         checkState(!closed, "Already closed");
-        if (this == UNTRACKED) {
-            return;
-        }
 
         // Must not fail
         transferTags(memoryContext.taskUserMemory(), allocationTag, newAllocationTag, amountToTransfer.heapBytes());
@@ -137,9 +111,6 @@ public final class AllocatedMemory
     @Override
     public void close()
     {
-        if (this == UNTRACKED) {
-            return;
-        }
         if (closed) {
             return;
         }
