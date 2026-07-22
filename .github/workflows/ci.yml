@@ -169,7 +169,7 @@ jobs:
         run: |
           BINFMT_IMAGE=843985043183.dkr.ecr.us-east-1.amazonaws.com/docker-hub/tonistiigi/binfmt:latest
           .github/bin/retry docker pull "${BINFMT_IMAGE}"
-          docker run --rm --privileged "${BINFMT_IMAGE}" --install arm64,ppc64le
+          docker run --rm --privileged "${BINFMT_IMAGE}" --install arm64
       - name: Build and Test Docker Image
         run: core/docker/build.sh -l
       - name: Cancel merge queue workflow
