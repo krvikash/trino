@@ -268,6 +268,9 @@ public class SnowflakeClient
                 .add(new RewriteAnd())
                 .add(new RewriteOr())
                 // End of addStandardRules copy.
+                // Absolute values of integer types may overflow in Trino, but not in Snowflake, which uses DECIMAL(38, 0) for every int type under the hood.
+                // To avoid this, we only support non-integer types for absolute value pushdowns.
+                .withTypeClass("non_integer_numeric_type", ImmutableSet.of("real", "double", "decimal"))
                 .map("$equal(left, right)").to("left = right")
                 .map("$not_equal(left, right)").to("left <> right")
                 .map("$identical(left, right)").to("left IS NOT DISTINCT FROM right")
@@ -284,6 +287,7 @@ public class SnowflakeClient
                 .map("$not($is_null(value))").to("value IS NOT NULL")
                 .map("$not(value: boolean)").to("NOT value")
                 .map("$is_null(value)").to("value IS NULL")
+                .map("abs(value: non_integer_numeric_type)").to("ABS(value)")
                 .when(experimentalPushdownEnabled).map("$like(subject: varchar, pattern: varchar)").to("subject LIKE pattern")
                 .when(experimentalPushdownEnabled).map("lower(value: varchar)").to("lower(value)")
                 .when(experimentalPushdownEnabled).map("upper(value: varchar)").to("upper(value)")

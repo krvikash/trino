@@ -1731,6 +1731,55 @@ public class TestParallelSnowflakeConnectorTest
         }
     }
 
+    @Test
+    public void testAbsPushdown()
+    {
+        try (TestTable table = new TestTable(
+                onRemoteDatabase(),
+                getSession().getSchema().orElseThrow() + ".abs_pushdown",
+                "(id INTEGER, a_decimal DECIMAL(38, 0), a_bigint BIGINT)",
+                ImmutableList.of(
+                        // signed minimum
+                        "0, -99999999999999999999999999999999999999, -9223372036854775808",
+                        // zero
+                        "1, 0, 0",
+                        // signed maximum
+                        "2, 99999999999999999999999999999999999999, 9223372036854775807",
+                        // null
+                        "3, NULL, NULL",
+                        // typical negative
+                        "4, -12345, -42"))) {
+            assertThat(query("SELECT id FROM " + table.getName() +
+                    " WHERE ABS(a_decimal) = DECIMAL '99999999999999999999999999999999999999'"))
+                    .isFullyPushedDown()
+                    .hasCorrectResultsRegardlessOfPushdown()
+                    .matches("VALUES CAST(0 AS DECIMAL(38, 0)), CAST(2 AS DECIMAL(38, 0))");
+            assertThat(query("SELECT id FROM " + table.getName() + " WHERE ABS(a_decimal) = 0"))
+                    .isFullyPushedDown()
+                    .hasCorrectResultsRegardlessOfPushdown()
+                    .matches("VALUES CAST(1 AS DECIMAL(38, 0))");
+            assertThat(query("SELECT id FROM " + table.getName() + " WHERE ABS(a_decimal) IS NULL"))
+                    .isFullyPushedDown()
+                    .hasCorrectResultsRegardlessOfPushdown()
+                    .matches("VALUES CAST(3 AS DECIMAL(38, 0))");
+            assertThat(query("SELECT id FROM " + table.getName() + " WHERE ABS(a_bigint) = DECIMAL '9223372036854775808'"))
+                    .isFullyPushedDown()
+                    .hasCorrectResultsRegardlessOfPushdown()
+                    .matches("VALUES CAST(0 AS DECIMAL(38, 0))");
+            assertThat(query("SELECT id FROM " + table.getName() + " WHERE ABS(a_bigint) = 42"))
+                    .isFullyPushedDown()
+                    .hasCorrectResultsRegardlessOfPushdown()
+                    .matches("VALUES CAST(4 AS DECIMAL(38, 0))");
+
+            // Explicit CAST to a Trino integer type is not pushed down to preserve error message
+            assertThat(query("SELECT ABS(CAST(a_bigint AS BIGINT)) FROM " + table.getName() + " WHERE id > 0"))
+                    .isNotFullyPushedDown(ProjectNode.class);
+            assertQueryFails(
+                    "SELECT ABS(CAST(a_bigint AS BIGINT)) FROM " + table.getName() + " WHERE id = 0",
+                    "(?s).*Value -9223372036854775808 is out of range for abs\\(bigint\\).*");
+        }
+    }
+
     private Session experimentalPushdownEnabled()
     {
         return Session.builder(getSession())
