@@ -69,18 +69,19 @@ import io.unitycatalog.client.ApiException;
 import io.unitycatalog.client.api.SchemasApi;
 import io.unitycatalog.client.api.TablesApi;
 import io.unitycatalog.client.api.TemporaryCredentialsApi;
+import io.unitycatalog.client.delta.api.DeltaTemporaryCredentialsApi;
+import io.unitycatalog.client.delta.model.DeltaCredentialOperation;
+import io.unitycatalog.client.delta.model.DeltaCredentialsResponse;
 import io.unitycatalog.client.model.ColumnInfo;
 import io.unitycatalog.client.model.ColumnTypeName;
 import io.unitycatalog.client.model.CreateSchema;
 import io.unitycatalog.client.model.CreateTable;
 import io.unitycatalog.client.model.DataSourceFormat;
 import io.unitycatalog.client.model.GenerateTemporaryPathCredential;
-import io.unitycatalog.client.model.GenerateTemporaryTableCredential;
 import io.unitycatalog.client.model.ListSchemasResponse;
 import io.unitycatalog.client.model.ListTablesResponse;
 import io.unitycatalog.client.model.PathOperation;
 import io.unitycatalog.client.model.SchemaInfo;
-import io.unitycatalog.client.model.TableOperation;
 import io.unitycatalog.client.model.TemporaryCredentials;
 
 import java.io.IOException;
@@ -158,7 +159,9 @@ public class UnityHiveMetastore
     private static final String DELTA_PATH_PROPERTY = "path";
     private static final String DELTA_TABLE_PROVIDER_PROPERTY = "spark.sql.sources.provider";
     private static final String DELTA_TABLE_PROVIDER_VALUE = "DELTA";
-    private static final String USER_AGENT = "starburst-unity-hive-metastore";
+    private static final String USER_AGENT = "Starburst-Delta-Lake-Connector/%s UnityCatalog-Java-Client/%s".formatted(
+            requireNonNullElse(UnityHiveMetastore.class.getPackage().getImplementationVersion(), "unknown"),
+            requireNonNullElse(ApiClient.class.getPackage().getImplementationVersion(), "unknown"));
     // Unity Catalog server caps table list size at 50, so we paginate results ourselves
     private static final int LIST_PAGE_SIZE = 50;
     private static final Map<io.unitycatalog.client.model.TableType, TableType> SUPPORTED_TABLE_TYPES_MAPPING = ImmutableMap.of(
@@ -179,6 +182,7 @@ public class UnityHiveMetastore
     private final SchemasApi schemasApi;
     private final TablesApi tablesApi;
     private final String catalogName;
+    private final DeltaTemporaryCredentialsApi deltaTemporaryCredentialsApi;
     private final TemporaryCredentialsApi temporaryCredentialsApi;
     private final UnityTokenProvider tokenProvider;
     private final URI stagedCommitsUri;
@@ -225,6 +229,7 @@ public class UnityHiveMetastore
         schemasApi = new SchemasApi(apiClient);
         tablesApi = new TablesApi(apiClient);
         this.catalogName = catalogName;
+        this.deltaTemporaryCredentialsApi = vendedCredentialsEnabled ? new DeltaTemporaryCredentialsApi(apiClient) : null;
         this.temporaryCredentialsApi = vendedCredentialsEnabled ? new TemporaryCredentialsApi(apiClient) : null;
         this.supportedUnityTableFormats = ImmutableSet.copyOf(supportedUnityTableFormats);
         this.tokenProvider = requireNonNull(tokenProvider, "tokenProvider is null");
@@ -1240,10 +1245,10 @@ public class UnityHiveMetastore
     }
 
     @Override
-    public TemporaryCredentials getTemporaryTableCredentials(String tableId, TableOperation operation)
+    public DeltaCredentialsResponse getTemporaryTableCredentials(SchemaTableName schemaTableName, DeltaCredentialOperation operation)
     {
         try {
-            return temporaryCredentialsApi.generateTemporaryTableCredentials(new GenerateTemporaryTableCredential().tableId(tableId).operation(operation));
+            return deltaTemporaryCredentialsApi.getTableCredentials(operation, catalogName, schemaTableName.getSchemaName(), schemaTableName.getTableName());
         }
         catch (ApiException e) {
             throw new TrinoException(HIVE_METASTORE_ERROR, e);

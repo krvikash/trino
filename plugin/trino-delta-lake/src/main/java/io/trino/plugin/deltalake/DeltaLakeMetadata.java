@@ -919,7 +919,7 @@ public class DeltaLakeMetadata
         }
         catch (TrinoException e) {
             if (e.getErrorCode().equals(DELTA_LAKE_INVALID_SCHEMA.toErrorCode())) {
-                return new CorruptedDeltaLakeTableHandle(tableName, table.catalogManaged(), table.managed(), table.tableId(), tableLocation, e);
+                return new CorruptedDeltaLakeTableHandle(tableName, table.catalogManaged(), table.managed(), tableLocation, e);
             }
             throw e;
         }

@@ -25,7 +25,6 @@ public record CorruptedDeltaLakeTableHandle(
         SchemaTableName schemaTableName,
         boolean catalogManaged,
         boolean managed,
-        Optional<String> tableId,
         String location,
         TrinoException originalException)
         implements LocatedTableHandle
@@ -33,7 +32,6 @@ public record CorruptedDeltaLakeTableHandle(
     public CorruptedDeltaLakeTableHandle
     {
         requireNonNull(schemaTableName, "schemaTableName is null");
-        requireNonNull(tableId, "tableId is null");
         requireNonNull(location, "location is null");
         requireNonNull(originalException, "originalException is null");
     }
@@ -47,6 +45,6 @@ public record CorruptedDeltaLakeTableHandle(
     @Override
     public VendedCredentialsHandle toCredentialsHandle()
     {
-        return new VendedCredentialsHandle(catalogManaged, managed, tableId, location);
+        return new VendedCredentialsHandle(catalogManaged, managed, Optional.of(schemaTableName), location);
     }
 }

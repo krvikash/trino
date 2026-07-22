@@ -16,8 +16,10 @@ package io.trino.plugin.hive.metastore.unity;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.Tracer;
 import io.trino.metastore.tracing.TracingHiveMetastore;
+import io.trino.spi.connector.SchemaTableName;
+import io.unitycatalog.client.delta.model.DeltaCredentialOperation;
+import io.unitycatalog.client.delta.model.DeltaCredentialsResponse;
 import io.unitycatalog.client.model.PathOperation;
-import io.unitycatalog.client.model.TableOperation;
 import io.unitycatalog.client.model.TemporaryCredentials;
 
 import java.util.Optional;
@@ -56,11 +58,11 @@ public class TracingUnityHiveMetastore
     }
 
     @Override
-    public TemporaryCredentials getTemporaryTableCredentials(String tableId, TableOperation operation)
+    public DeltaCredentialsResponse getTemporaryTableCredentials(SchemaTableName schemaTableName, DeltaCredentialOperation operation)
     {
         Span span = tracer.spanBuilder("UnityHiveMetastore.getTemporaryTableCredentials")
                 .startSpan();
-        return withTracing(span, () -> delegate.getTemporaryTableCredentials(tableId, operation));
+        return withTracing(span, () -> delegate.getTemporaryTableCredentials(schemaTableName, operation));
     }
 
     @Override

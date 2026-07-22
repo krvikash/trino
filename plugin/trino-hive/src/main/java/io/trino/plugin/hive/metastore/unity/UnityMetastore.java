@@ -14,8 +14,10 @@
 package io.trino.plugin.hive.metastore.unity;
 
 import io.trino.metastore.HiveMetastore;
+import io.trino.spi.connector.SchemaTableName;
+import io.unitycatalog.client.delta.model.DeltaCredentialOperation;
+import io.unitycatalog.client.delta.model.DeltaCredentialsResponse;
 import io.unitycatalog.client.model.PathOperation;
-import io.unitycatalog.client.model.TableOperation;
 import io.unitycatalog.client.model.TemporaryCredentials;
 
 import java.util.Optional;
@@ -27,7 +29,7 @@ public interface UnityMetastore
 
     void commitStagedCommits(CommitRequest commitStagedRequest);
 
-    TemporaryCredentials getTemporaryTableCredentials(String tableId, TableOperation operation);
+    DeltaCredentialsResponse getTemporaryTableCredentials(SchemaTableName schemaTableName, DeltaCredentialOperation operation);
 
     TemporaryCredentials getTemporaryPathCredentials(String tableLocation, PathOperation operation);
 }

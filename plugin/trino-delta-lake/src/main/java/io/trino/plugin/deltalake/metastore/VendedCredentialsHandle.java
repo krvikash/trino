@@ -13,6 +13,8 @@
  */
 package io.trino.plugin.deltalake.metastore;
 
+import io.trino.spi.connector.SchemaTableName;
+
 import java.util.Optional;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -21,16 +23,19 @@ import static java.util.Objects.requireNonNull;
 public record VendedCredentialsHandle(
         boolean catalogManaged,
         boolean managed,
-        Optional<String> tableId,
+        Optional<SchemaTableName> schemaTableName,
         String tableLocation)
 {
     public VendedCredentialsHandle
     {
-        requireNonNull(tableId, "tableId is null");
+        requireNonNull(schemaTableName, "schemaTableName is null");
         requireNonNull(tableLocation, "tableLocation is null");
 
         if (catalogManaged) {
             checkArgument(managed, "Table must be managed by the catalog");
+        }
+        if (managed) {
+            checkArgument(schemaTableName.isPresent(), "schemaTableName must be present for managed tables");
         }
     }
 
@@ -41,6 +46,10 @@ public record VendedCredentialsHandle(
 
     public static VendedCredentialsHandle of(DeltaMetastoreTable table)
     {
-        return new VendedCredentialsHandle(table.catalogManaged(), table.managed(), table.tableId(), table.location());
+        return new VendedCredentialsHandle(
+                table.catalogManaged(),
+                table.managed(),
+                Optional.of(table.schemaTableName()),
+                table.location());
     }
 }
