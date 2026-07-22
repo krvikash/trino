@@ -80,7 +80,7 @@ public abstract class AiSystemTable<T extends ModelConnectionSpec>
         return switch (spec.connectionInfo()) {
             case OpenAiConnectionInfo openAiConnectionInfo -> openAiConnectionInfo.endpoint().orElse(null);
             case AwsBedrockConnectionInfo _ -> null;
-            case VertexAiConnectionInfo _ -> throw new UnsupportedOperationException("Vertex AI not yet supported");
+            case VertexAiConnectionInfo _ -> null;
         };
     }
 
@@ -103,7 +103,7 @@ public abstract class AiSystemTable<T extends ModelConnectionSpec>
         return switch (connectionInfo) {
             case OpenAiConnectionInfo _ -> "OPENAI";
             case AwsBedrockConnectionInfo _ -> "AWS_BEDROCK";
-            case VertexAiConnectionInfo _ -> throw new UnsupportedOperationException("Vertex AI not yet supported");
+            case VertexAiConnectionInfo _ -> "VERTEX_AI";
         };
     }
 }

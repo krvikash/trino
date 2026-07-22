@@ -21,6 +21,7 @@ import io.starburst.ai.client.bedrock.AwsBedrockClientFactory;
 import io.starburst.ai.client.openai.OpenAiClientFactory;
 import io.starburst.ai.client.openai.oauth.OAuth2TokenCache;
 import io.starburst.ai.client.openai.oauth.ResolvedOAuth2Config;
+import io.starburst.ai.client.vertexai.VertexAiClientFactory;
 import io.starburst.ai.model.ConnectionInfo;
 import io.starburst.ai.model.EmbeddingModelConnectionSpec;
 import io.starburst.ai.model.LanguageModelConnectionSpec;
@@ -59,6 +60,7 @@ public class ReloadingModelClientProvider
     private final ModelConnectionSpecsLoader modelSpecsLoader;
     private final AwsBedrockClientFactory awsBedrockClientFactory;
     private final OpenAiClientFactory openAiClientFactory;
+    private final VertexAiClientFactory vertexAiClientFactory;
     private final OAuth2TokenCache oauth2TokenCache;
     private final TokenUsageListener tokenUsageListener;
 
@@ -94,6 +96,7 @@ public class ReloadingModelClientProvider
             ModelConnectionSpecsLoader modelSpecsLoader,
             AwsBedrockClientFactory awsBedrockClientFactory,
             OpenAiClientFactory openAiClientFactory,
+            VertexAiClientFactory vertexAiClientFactory,
             OAuth2TokenCache oauth2TokenCache,
             AiClientConfig config,
             SecretsResolver secretsResolver,
@@ -104,6 +107,7 @@ public class ReloadingModelClientProvider
         this.modelSpecsLoader = requireNonNull(modelSpecsLoader, "modelSpecsLoader is null");
         this.awsBedrockClientFactory = requireNonNull(awsBedrockClientFactory, "awsBedrockClientFactory is null");
         this.openAiClientFactory = requireNonNull(openAiClientFactory, "openAiClientFactory is null");
+        this.vertexAiClientFactory = requireNonNull(vertexAiClientFactory, "vertexAiClientFactory is null");
         this.oauth2TokenCache = requireNonNull(oauth2TokenCache, "oauth2TokenCache is null");
         this.tokenUsageListener = requireNonNull(tokenUsageListener, "tokenUsageListener is null");
         this.clientTtlMillis = config.getClientCacheTtl().toMillis();
@@ -341,7 +345,7 @@ public class ReloadingModelClientProvider
             return switch (modelConnectionSpec.connectionInfo()) {
                 case OpenAiConnectionInfo openAiConnectionInfo -> openAiClientFactory.createLanguageModelClient(modelConnectionSpec, openAiConnectionInfo, promptDao, tokenUsageListener);
                 case AwsBedrockConnectionInfo awsBedrockConnectionInfo -> awsBedrockClientFactory.createLanguageModelClient(modelConnectionSpec, awsBedrockConnectionInfo, promptDao, tokenUsageListener);
-                case VertexAiConnectionInfo _ -> throw new UnsupportedOperationException("Vertex AI not yet supported");
+                case VertexAiConnectionInfo vertexAiConnectionInfo -> vertexAiClientFactory.createLanguageModelClient(modelConnectionSpec, vertexAiConnectionInfo, promptDao, tokenUsageListener);
             };
         }
 

@@ -89,6 +89,17 @@ public class TestAiSystemTables
                                 "provider": "AWS_BEDROCK",
                                 "region": "us-east-1"
                             }
+                        },
+                        {
+                            "id": "language3",
+                            "modelName": "gemini-1.5-flash",
+                            "kind": "GENERATE",
+                            "connectionInfo": {
+                                "provider": "VERTEX_AI",
+                                "serviceAccountKey": "{\\"type\\":\\"service_account\\"}",
+                                "projectId": "my-project",
+                                "location": "us-central1"
+                            }
                         }
                     ]
                 }
@@ -123,6 +134,12 @@ public class TestAiSystemTables
                  'Mask prompt', 'Mask system prompt', 'Translate prompt', 'Translate system prompt'),
                 (
                  'language2', 'AWS_BEDROCK', 'meta.llama3-8b-instruct-v1:0', NULL, NULL, NULL, NULL, NULL,
+                 NULL, NULL, NULL,
+                 NULL, NULL, NULL,
+                 NULL, NULL, NULL, NULL
+                ),
+                (
+                 'language3', 'VERTEX_AI', 'gemini-1.5-flash', NULL, NULL, NULL, NULL, NULL,
                  NULL, NULL, NULL,
                  NULL, NULL, NULL,
                  NULL, NULL, NULL, NULL

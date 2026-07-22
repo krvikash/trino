@@ -21,6 +21,7 @@ import io.starburst.ai.client.openai.OpenAiClientFactory;
 import io.starburst.ai.client.openai.oauth.ForAiOAuth2;
 import io.starburst.ai.client.openai.oauth.OAuth2TokenCache;
 import io.starburst.ai.client.openai.oauth.OAuth2TokenFetcher;
+import io.starburst.ai.client.vertexai.VertexAiClientFactory;
 import io.trino.spi.connector.ai.ModelConnectionSpecsLoader;
 
 import java.util.concurrent.Executor;
@@ -55,6 +56,7 @@ public class AiClientModule
         binder.install(new AwsBedrockEmbeddingCodecsModule());
         binder.bind(AwsBedrockClientFactory.class).in(Scopes.SINGLETON);
         binder.bind(OpenAiClientFactory.class).in(Scopes.SINGLETON);
+        binder.bind(VertexAiClientFactory.class).in(Scopes.SINGLETON);
         httpClientBinder(binder).bindHttpClient("oauth2", ForAiOAuth2.class);
         binder.bind(OAuth2TokenFetcher.class).in(Scopes.SINGLETON);
         binder.bind(OAuth2TokenCache.class).in(Scopes.SINGLETON);

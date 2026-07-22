@@ -22,6 +22,7 @@ import io.starburst.ai.client.bedrock.TitanTextV2Codec;
 import io.starburst.ai.client.openai.OpenAiClientFactory;
 import io.starburst.ai.client.openai.oauth.OAuth2TokenCache;
 import io.starburst.ai.client.openai.oauth.OAuth2TokenFetcher;
+import io.starburst.ai.client.vertexai.VertexAiClientFactory;
 
 import java.io.File;
 import java.io.IOException;
@@ -284,11 +285,13 @@ public final class TestingUtils
         AwsBedrockClientFactory bedrockClientFactory = new AwsBedrockClientFactory(awsEmbeddingCodecFactories, secretsResolver, aiClientConfig, llmExecutor);
         OAuth2TokenCache oauth2TokenCache = createTestOAuth2TokenCache(aiClientConfig);
         OpenAiClientFactory openAiClientFactory = new OpenAiClientFactory(secretsResolver, aiClientConfig, llmExecutor, new ObjectMapperProvider().get(), oauth2TokenCache);
+        VertexAiClientFactory vertexAiClientFactory = new VertexAiClientFactory(secretsResolver);
         return new ReloadingModelClientProvider(
                 promptDao,
                 modelSpecsLoader,
                 bedrockClientFactory,
                 openAiClientFactory,
+                vertexAiClientFactory,
                 oauth2TokenCache,
                 new AiClientConfig()
                         .setClientCacheRefreshEnabled(clientCacheRefreshEnabled),
