@@ -13,9 +13,13 @@ import com.google.auth.oauth2.GoogleCredentials;
 import com.google.auth.oauth2.ServiceAccountCredentials;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.genai.Client;
+import com.google.genai.types.HttpOptions;
+import com.google.genai.types.HttpRetryOptions;
 import com.google.inject.Inject;
 import io.airlift.configuration.secrets.SecretsResolver;
+import io.airlift.units.Duration;
 import io.starburst.ai.client.AiClientConfig;
 import io.starburst.ai.client.EmbeddingModelClient;
 import io.starburst.ai.client.ForAiClient;
@@ -29,12 +33,15 @@ import io.trino.spi.TrinoException;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.Executor;
 
 import static io.starburst.ai.client.AiClientErrorCode.INVALID_MODEL_CONFIGURATION;
 import static io.starburst.ai.client.ModelSecretsResolver.resolveVertexAiSecrets;
 import static io.starburst.ai.model.ConnectionInfo.VertexAiConnectionInfo;
+import static java.lang.Math.toIntExact;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
 
@@ -46,6 +53,8 @@ public class VertexAiClientFactory
     private final SecretsResolver secretsResolver;
     private final Executor executor;
     private final int batchParallelism;
+    private final Duration apiTimeout;
+    private final int maxRetries;
 
     @Inject
     public VertexAiClientFactory(SecretsResolver secretsResolver, AiClientConfig config, @ForAiClient Executor executor)
@@ -53,6 +62,14 @@ public class VertexAiClientFactory
         this.secretsResolver = requireNonNull(secretsResolver, "secretsResolver is null");
         this.executor = requireNonNull(executor, "executor is null");
         batchParallelism = config.getBatchParallelism();
+        apiTimeout = config.getVertexAiTimeout();
+        maxRetries = config.getVertexAiMaxRetries();
+    }
+
+    @VisibleForTesting
+    HttpOptions httpOptions()
+    {
+        return buildHttpOptions(apiTimeout, maxRetries);
     }
 
     @Override
@@ -102,6 +119,36 @@ public class VertexAiClientFactory
                 .project(projectId)
                 .location(resolved.location())
                 .credentials(credentials)
+                .httpOptions(buildHttpOptions(apiTimeout, maxRetries, flattenHeaders(resolved.additionalHeaders())))
                 .build();
+    }
+
+    @VisibleForTesting
+    static HttpOptions buildHttpOptions(Duration apiTimeout, int maxRetries)
+    {
+        return buildHttpOptions(apiTimeout, maxRetries, Map.of());
+    }
+
+    @VisibleForTesting
+    static HttpOptions buildHttpOptions(Duration apiTimeout, int maxRetries, Map<String, String> headers)
+    {
+        HttpOptions.Builder builder = HttpOptions.builder()
+                .timeout(toIntExact(apiTimeout.toMillis()))
+                .retryOptions(HttpRetryOptions.builder()
+                        // google-genai's `attempts` counts the initial call as attempt 1, so total attempts = retries + 1
+                        .attempts(maxRetries + 1));
+        if (!headers.isEmpty()) {
+            builder.headers(headers);
+        }
+        return builder.build();
+    }
+
+    // google-genai's HttpOptions only supports single-valued headers, so multi-valued additionalHeaders are joined
+    @VisibleForTesting
+    static Map<String, String> flattenHeaders(Map<String, List<String>> headers)
+    {
+        ImmutableMap.Builder<String, String> flattened = ImmutableMap.builder();
+        headers.forEach((name, values) -> flattened.put(name, String.join(", ", values)));
+        return flattened.buildOrThrow();
     }
 }

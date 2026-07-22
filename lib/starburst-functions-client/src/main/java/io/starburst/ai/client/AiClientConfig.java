@@ -32,6 +32,8 @@ public class AiClientConfig
     private int bedrockMaxRetries = 10;
     private int openAiMaxRetries = 2; // Default retries for OpenAI SDK
     private Duration openAiTimeout = new Duration(3, TimeUnit.MINUTES);
+    private Duration vertexAiTimeout = new Duration(3, TimeUnit.MINUTES);
+    private int vertexAiMaxRetries = 2;
     private Duration oauth2RefreshSkew = new Duration(60, TimeUnit.SECONDS);
     private Duration oauthTokenCacheDuration = new Duration(30, TimeUnit.MINUTES);
     private int oauth2MaxCachedTokens = 1000;
@@ -171,6 +173,33 @@ public class AiClientConfig
     public AiClientConfig setOpenAiTimeout(Duration openAiTimeout)
     {
         this.openAiTimeout = openAiTimeout;
+        return this;
+    }
+
+    public Duration getVertexAiTimeout()
+    {
+        return vertexAiTimeout;
+    }
+
+    @Config("ai.client.vertex-ai-timeout")
+    @ConfigDescription("Max duration of a single request to Vertex AI (including retries)")
+    public AiClientConfig setVertexAiTimeout(Duration vertexAiTimeout)
+    {
+        this.vertexAiTimeout = vertexAiTimeout;
+        return this;
+    }
+
+    @Min(0)
+    public int getVertexAiMaxRetries()
+    {
+        return vertexAiMaxRetries;
+    }
+
+    @Config("ai.client.vertex-ai-max-retries")
+    @ConfigDescription("Maximum number of retries for Vertex AI client requests")
+    public AiClientConfig setVertexAiMaxRetries(int vertexAiMaxRetries)
+    {
+        this.vertexAiMaxRetries = vertexAiMaxRetries;
         return this;
     }
 

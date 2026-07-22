@@ -39,6 +39,8 @@ public class TestAiClientConfig
                 .setBedrockMaxRetries(10)
                 .setOpenAiTimeout(new Duration(3, TimeUnit.MINUTES))
                 .setOpenAiMaxRetries(2)
+                .setVertexAiTimeout(new Duration(3, TimeUnit.MINUTES))
+                .setVertexAiMaxRetries(2)
                 .setOauth2RefreshSkew(new Duration(60, TimeUnit.SECONDS))
                 .setOauthTokenCacheDuration(new Duration(30, TimeUnit.MINUTES))
                 .setOauth2MaxCachedTokens(1000));
@@ -58,6 +60,8 @@ public class TestAiClientConfig
                 .put("ai.client.bedrock-max-retries", "15")
                 .put("ai.client.openai-timeout", "4m")
                 .put("ai.client.openai-max-retries", "5")
+                .put("ai.client.vertex-ai-timeout", "6m")
+                .put("ai.client.vertex-ai-max-retries", "7")
                 .put("ai.client.oauth.refresh-skew", "2m")
                 .put("ai.client.oauth.token-cache-duration", "12m")
                 .put("ai.client.oauth.max-cached-tokens", "500")
@@ -73,6 +77,8 @@ public class TestAiClientConfig
                 .setBedrockMaxRetries(15)
                 .setOpenAiMaxRetries(5)
                 .setOpenAiTimeout(new Duration(4, TimeUnit.MINUTES))
+                .setVertexAiTimeout(new Duration(6, TimeUnit.MINUTES))
+                .setVertexAiMaxRetries(7)
                 .setOauth2RefreshSkew(new Duration(2, TimeUnit.MINUTES))
                 .setOauthTokenCacheDuration(new Duration(12, TimeUnit.MINUTES))
                 .setOauth2MaxCachedTokens(500);
