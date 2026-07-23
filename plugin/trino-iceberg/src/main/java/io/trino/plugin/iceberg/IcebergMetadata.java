@@ -4122,8 +4122,6 @@ public class IcebergMetadata
             return;
         }
 
-        Schema schema = SchemaParser.fromJson(table.getTableSchemaJson());
-
         UpdateSnapshot rowDelta = switch (operationMode) {
             case MERGE_ON_READ -> new MergeOnRead(transaction.newRowDelta());
             case COPY_ON_WRITE -> new CopyOnWrite(transaction.newOverwrite());
@@ -4144,6 +4142,7 @@ public class IcebergMetadata
 
         int formatVersion = table.getFormatVersion();
         Map<Integer, SortOrder> sortOrders = icebergTable.sortOrders();
+        Map<Integer, PartitionSpec> partitionSpecs = icebergTable.specs();
         CommitTaskDomainCollector domainCollector = new CommitTaskDomainCollector(icebergTable, typeManager);
         ImmutableList.Builder<String> referencedDataFiles = ImmutableList.builder();
         List<DeletionVectorInfo> deletionVectorInfos = new ArrayList<>();
@@ -4152,7 +4151,7 @@ public class IcebergMetadata
         // Commit tasks are deserialized and converted one at a time to bound coordinator memory for writes producing many files
         for (Slice fragment : fragments) {
             CommitTaskData task = commitTaskCodec.fromJson(fragment.getInput());
-            PartitionSpec partitionSpec = PartitionSpecParser.fromJson(schema, task.partitionSpecJson());
+            PartitionSpec partitionSpec = verifyNotNull(partitionSpecs.get(task.partitionSpecId()), "No partition spec found for id %s", task.partitionSpecId());
             domainCollector.add(task, partitionSpec);
             switch (task.content()) {
                 case DATA -> {

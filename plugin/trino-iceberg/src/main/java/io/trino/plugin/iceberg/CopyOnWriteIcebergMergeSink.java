@@ -33,7 +33,6 @@ import org.apache.iceberg.MetadataColumns;
 import org.apache.iceberg.Metrics;
 import org.apache.iceberg.MetricsConfig;
 import org.apache.iceberg.PartitionSpec;
-import org.apache.iceberg.PartitionSpecParser;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.SortOrder;
 import org.apache.iceberg.io.LocationProvider;
@@ -158,7 +157,7 @@ public class CopyOnWriteIcebergMergeSink
             if (!writtenRecords) {
                 writer.rollback();
                 // Let the caller know that no data was left, and to remove the existing data file
-                return Optional.of(wrappedBuffer(jsonCodec.toJsonBytes(emptyCommitTaskData(dataFilePath.toString(), PartitionSpecParser.toJson(partitionSpec), Optional.of(deletion.partitionDataJson())))));
+                return Optional.of(wrappedBuffer(jsonCodec.toJsonBytes(emptyCommitTaskData(dataFilePath.toString(), partitionSpec.specId(), Optional.of(deletion.partitionDataJson())))));
             }
             writer.commit();
         }
@@ -179,7 +178,7 @@ public class CopyOnWriteIcebergMergeSink
                 fileFormat,
                 writer.getWrittenBytes(),
                 new MetricsWrapper(writer.getFileMetrics().metrics()),
-                PartitionSpecParser.toJson(partitionSpec),
+                partitionSpec.specId(),
                 Optional.of(deletion.partitionDataJson()),
                 FileContent.DATA,
                 Optional.of(dataFilePath.toString()),
@@ -190,14 +189,14 @@ public class CopyOnWriteIcebergMergeSink
         return Optional.of(wrappedBuffer(jsonCodec.toJsonBytes(task)));
     }
 
-    private static CommitTaskData emptyCommitTaskData(String dataFilePath, String partitionSpecJson, Optional<String> partitionDataJson)
+    private static CommitTaskData emptyCommitTaskData(String dataFilePath, int partitionSpecId, Optional<String> partitionDataJson)
     {
         return new CommitTaskData(
                 "",
                 IcebergFileFormat.PARQUET,
                 0,
                 new MetricsWrapper(new Metrics()),
-                partitionSpecJson,
+                partitionSpecId,
                 partitionDataJson,
                 FileContent.DATA,
                 Optional.of(dataFilePath),
