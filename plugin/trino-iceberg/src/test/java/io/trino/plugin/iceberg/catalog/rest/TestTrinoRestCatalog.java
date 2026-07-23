@@ -139,7 +139,8 @@ public class TestTrinoRestCatalog
                 EvictableCacheBuilder.newBuilder().expireAfterWrite(1000, MILLISECONDS).shareNothingWhenDisabled().build(),
                 EvictableCacheBuilder.newBuilder().expireAfterWrite(1000, MILLISECONDS).shareNothingWhenDisabled().build(),
                 true,
-                directExecutor());
+                directExecutor(),
+                false);
     }
 
     @Test
