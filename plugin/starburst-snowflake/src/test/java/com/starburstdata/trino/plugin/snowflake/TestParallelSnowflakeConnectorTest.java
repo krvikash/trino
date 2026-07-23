@@ -1542,7 +1542,7 @@ public class TestParallelSnowflakeConnectorTest
                 ))) {
             assertThat(query(session, "SELECT * FROM " + table.getName() + " WHERE a_varchar LIKE NULL")).returnsEmptyResult();
             assertThat(query(session, "SELECT * FROM " + table.getName() + " WHERE a_varchar LIKE a_varchar")).isFullyPushedDown();
-            assertThat(query(session, "SELECT * FROM " + table.getName() + " WHERE a_varchar LIKE UPPER(a_varchar)")).isNotFullyPushedDown(FilterNode.class);
+            assertThat(query(session, "SELECT * FROM " + table.getName() + " WHERE a_varchar LIKE UPPER(a_varchar)")).isFullyPushedDown();
 
             assertThat(query(session, "SELECT * FROM " + table.getName() + " WHERE a_varchar LIKE 'hello'"))
                     .isFullyPushedDown()
@@ -1593,12 +1593,11 @@ public class TestParallelSnowflakeConnectorTest
                         "8, 'he\\nlo'",  // SQL "he\nlo" => Snowflake "he\nlo" (len 5, 'h' 'e' <new line> 'l' 'o')
                         "9, 'he\\\\1lo'" // SQL "he\\1lo" => Snowflake "he\1lo" (len 6, 'h' 'e' '\' '1', 'l', 'o')
                 ))) {
-            // These should be pushed down once UPPER/LOWER are pushed down as well
             assertThat(query(session, "SELECT * FROM " + table.getName() + " WHERE UPPER(a_varchar) LIKE 'HE%LO'"))
-                    .isNotFullyPushedDown(FilterNode.class)
+                    .isFullyPushedDown()
                     .result().rowCount().isEqualTo(8);
             assertThat(query(session, "SELECT * FROM " + table.getName() + " WHERE LOWER(a_varchar) LIKE 'hello'"))
-                    .isNotFullyPushedDown(FilterNode.class)
+                    .isFullyPushedDown()
                     .result().rowCount().isEqualTo(3);
         }
     }
