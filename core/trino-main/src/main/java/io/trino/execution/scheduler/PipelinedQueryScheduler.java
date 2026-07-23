@@ -18,7 +18,6 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableMultimap;
 import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Sets;
 import com.google.common.primitives.Ints;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
@@ -99,6 +98,7 @@ import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
@@ -120,7 +120,6 @@ import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static com.google.common.collect.Iterables.getFirst;
 import static com.google.common.collect.Iterables.getLast;
 import static com.google.common.collect.Iterables.getOnlyElement;
-import static com.google.common.collect.Sets.newConcurrentHashSet;
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 import static io.airlift.concurrent.MoreFutures.tryGetFutureValue;
 import static io.airlift.concurrent.MoreFutures.whenAnyComplete;
@@ -1359,7 +1358,7 @@ public class PipelinedQueryScheduler
             checkArgument(!stages.isEmpty(), "stages is empty");
             Set<StageId> stageIds = stages.stream()
                     .map(StageExecution::getStageId)
-                    .collect(toCollection(Sets::newConcurrentHashSet));
+                    .collect(toCollection(ConcurrentHashMap::newKeySet));
             SettableFuture<Void> future = SettableFuture.create();
 
             for (StageExecution stageExecution : stages) {
@@ -1408,7 +1407,7 @@ public class PipelinedQueryScheduler
                 }
             }
 
-            Set<StageId> finishedStages = newConcurrentHashSet();
+            Set<StageId> finishedStages = ConcurrentHashMap.newKeySet();
             for (StageExecution stageExecution : stageExecutions.values()) {
                 stageExecution.addStateChangeListener(state -> {
                     if (stateMachine.getState().isDone()) {

@@ -10,7 +10,6 @@
 package io.starburst.schema.discovery.internal;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Sets;
 import com.google.errorprone.annotations.FormatMethod;
 import com.google.errorprone.annotations.FormatString;
 import io.airlift.log.Logger;
@@ -32,7 +31,7 @@ public class Errors
 {
     private static final Logger log = Logger.get(Errors.class);
 
-    private final Set<String> errors = Sets.newConcurrentHashSet();
+    private final Set<String> errors = ConcurrentHashMap.newKeySet();
     private final Map<String, Set<String>> tablePathToTableErrors = new ConcurrentHashMap<>();
     // files (longer paths) before their parent directories, then alphabetically by path to break ties deterministically
     // (both sets backing this class are unordered, so without this tiebreak the output order depends on hash iteration)
@@ -44,7 +43,7 @@ public class Errors
     public void addTableError(String withinTablePath, @FormatString String error, Object... args)
     {
         String message = String.format(error, args);
-        tablePathToTableErrors.computeIfAbsent(ensureEndsWithSlash(withinTablePath).toString(), _ -> Sets.newConcurrentHashSet())
+        tablePathToTableErrors.computeIfAbsent(ensureEndsWithSlash(withinTablePath).toString(), _ -> ConcurrentHashMap.newKeySet())
                 .add(message);
         log.warn("Schema discovery table error at [%s]: %s", withinTablePath, message);
     }
@@ -53,7 +52,7 @@ public class Errors
     public void addTableError(TablePath withinTablePath, @FormatString String error, Object... args)
     {
         String message = String.format(error, args);
-        tablePathToTableErrors.computeIfAbsent(ensureEndsWithSlash(withinTablePath.path()).toString(), _ -> Sets.newConcurrentHashSet())
+        tablePathToTableErrors.computeIfAbsent(ensureEndsWithSlash(withinTablePath.path()).toString(), _ -> ConcurrentHashMap.newKeySet())
                 .add(message);
         log.warn("Schema discovery table error at [%s]: %s", withinTablePath.path(), message);
     }

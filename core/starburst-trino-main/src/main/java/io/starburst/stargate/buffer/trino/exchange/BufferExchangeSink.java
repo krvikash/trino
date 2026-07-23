@@ -14,7 +14,6 @@ import com.google.common.base.Ticker;
 import com.google.common.collect.ImmutableListMultimap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.ListMultimap;
-import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.errorprone.annotations.ThreadSafe;
 import com.google.errorprone.annotations.concurrent.GuardedBy;
@@ -555,8 +554,8 @@ public class BufferExchangeSink
 
         public void add(Integer partition, Long bufferNodeId)
         {
-            bufferNodeToPartitions.computeIfAbsent(bufferNodeId, _ -> Sets.newConcurrentHashSet()).add(partition);
-            partitionToBufferNodes.computeIfAbsent(partition, _ -> Sets.newConcurrentHashSet()).add(bufferNodeId);
+            bufferNodeToPartitions.computeIfAbsent(bufferNodeId, _ -> ConcurrentHashMap.newKeySet()).add(partition);
+            partitionToBufferNodes.computeIfAbsent(partition, _ -> ConcurrentHashMap.newKeySet()).add(bufferNodeId);
         }
 
         @Override

@@ -16,7 +16,6 @@ package io.trino.plugin.redshift;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Sets;
 import io.airlift.log.Logger;
 import io.airlift.units.Duration;
 import io.trino.Session;
@@ -50,6 +49,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -1294,7 +1294,7 @@ public class TestRedshiftConnectorTest
         private RemoteDatabaseEventMonitor()
         {
             jdbi = Jdbi.create(JDBC_URL, JDBC_USER, JDBC_PASSWORD);
-            tracingEvents = Sets.newConcurrentHashSet();
+            tracingEvents = ConcurrentHashMap.newKeySet();
         }
 
         public void startTracingDatabaseEvent(RemoteLogTracingEvent event)
