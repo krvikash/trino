@@ -421,6 +421,13 @@
 
         <dependency>
             <groupId>io.trino</groupId>
+            <artifactId>trino-hive</artifactId>
+            <type>test-jar</type>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>io.trino</groupId>
             <artifactId>trino-iceberg</artifactId>
             <scope>test</scope>
         </dependency>
@@ -530,6 +537,7 @@
                         <ignoredResourcePattern>LICENSE-EPL-1.0.txt</ignoredResourcePattern>
                         <ignoredResourcePattern>about.html</ignoredResourcePattern>
                         <ignoredResourcePattern>mime.types</ignoredResourcePattern>
+                        <ignoredResourcePattern>ozone-filesystem-hadoop3-1.4.0.jar</ignoredResourcePattern>
                         <!-- net.snowflake:snowflake-jdbc and org.conscrypt:conscrypt-openjdk-uber: file duplicate -->
                         <ignoredResourcePattern>org/conscrypt/conscrypt.properties</ignoredResourcePattern>
                         <ignoredResourcePattern>iceberg-build.properties</ignoredResourcePattern>
