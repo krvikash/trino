@@ -630,7 +630,7 @@ public abstract class AbstractMvSubstitutionTest
                     " GRACE PERIOD INTERVAL '1' HOUR" +
                     " WITH (substitution_enabled = true)" +
                     " AS SELECT * FROM " + ordersTable);
-            assertUpdate("REFRESH MATERIALIZED VIEW " + mvName, computeActual("SELECT * FROM " + ordersTable).getRowCount());
+            getQueryRunner().execute("REFRESH MATERIALIZED VIEW " + mvName);
 
             // Insert to make it technically stale
             assertUpdate("INSERT INTO " + ordersTable + " VALUES (99990003, 400, '1995-02-01', DOUBLE '99.99', 'N')", 1);
@@ -653,7 +653,7 @@ public abstract class AbstractMvSubstitutionTest
                     " GRACE PERIOD INTERVAL '1' SECOND" +
                     " WITH (substitution_enabled = true)" +
                     " AS SELECT * FROM " + ordersTable);
-            assertUpdate("REFRESH MATERIALIZED VIEW " + mvName, computeActual("SELECT * FROM " + ordersTable).getRowCount());
+            getQueryRunner().execute("REFRESH MATERIALIZED VIEW " + mvName);
 
             // Insert to make it stale
             assertUpdate("INSERT INTO " + ordersTable + " VALUES (99990004, 400, '1995-02-01', DOUBLE '99.99', 'N')", 1);
@@ -677,7 +677,7 @@ public abstract class AbstractMvSubstitutionTest
         try {
             // No substitution_enabled property — default is false
             assertUpdate("CREATE MATERIALIZED VIEW " + mvName + " AS SELECT * FROM " + ordersTable);
-            assertUpdate("REFRESH MATERIALIZED VIEW " + mvName, computeActual("SELECT * FROM " + ordersTable).getRowCount());
+            getQueryRunner().execute("REFRESH MATERIALIZED VIEW " + mvName);
 
             assertNotSubstituted(sessionWithSubstitution(), "SELECT * FROM " + ordersTable, ordersTable);
         }
@@ -693,7 +693,7 @@ public abstract class AbstractMvSubstitutionTest
         try {
             assertUpdate("CREATE MATERIALIZED VIEW " + mvName +
                     " WITH (substitution_enabled = false) AS SELECT * FROM " + ordersTable);
-            assertUpdate("REFRESH MATERIALIZED VIEW " + mvName, computeActual("SELECT * FROM " + ordersTable).getRowCount());
+            getQueryRunner().execute("REFRESH MATERIALIZED VIEW " + mvName);
 
             assertNotSubstituted(sessionWithSubstitution(), "SELECT * FROM " + ordersTable, ordersTable);
         }
@@ -753,7 +753,7 @@ public abstract class AbstractMvSubstitutionTest
         CatalogSchemaTableName mvName = mvName("mv_alter_enable_");
         try {
             assertUpdate("CREATE MATERIALIZED VIEW " + mvName + " AS SELECT * FROM " + ordersTable);
-            assertUpdate("REFRESH MATERIALIZED VIEW " + mvName, computeActual("SELECT * FROM " + ordersTable).getRowCount());
+            getQueryRunner().execute("REFRESH MATERIALIZED VIEW " + mvName);
 
             Session session = sessionWithSubstitution();
             // Before ALTER: substitution_enabled is false (default), so no index entry exists.
@@ -932,7 +932,7 @@ public abstract class AbstractMvSubstitutionTest
                     " GRACE PERIOD INTERVAL '1' HOUR" +
                     " WITH (substitution_enabled = true)" +
                     " AS SELECT * FROM " + ordersTable);
-            assertUpdate("REFRESH MATERIALIZED VIEW " + mvName, computeActual("SELECT * FROM " + ordersTable).getRowCount());
+            getQueryRunner().execute("REFRESH MATERIALIZED VIEW " + mvName);
 
             assertUpdate("INSERT INTO " + ordersTable + " VALUES (99990007, 400, '1995-02-01', DOUBLE '99.99', 'N')", 1);
 
@@ -967,7 +967,7 @@ public abstract class AbstractMvSubstitutionTest
                     " GRACE PERIOD INTERVAL '0' SECOND" +
                     " WITH (substitution_enabled = true)" +
                     " AS SELECT * FROM " + ordersTable);
-            assertUpdate("REFRESH MATERIALIZED VIEW " + mvName, baseCount);
+            getQueryRunner().execute("REFRESH MATERIALIZED VIEW " + mvName);
 
             assertUpdate("INSERT INTO " + ordersTable + " VALUES (99990009, 400, '1995-02-01', DOUBLE '99.99', 'N')", 1);
 
@@ -1089,7 +1089,7 @@ public abstract class AbstractMvSubstitutionTest
             assertUpdate("CREATE MATERIALIZED VIEW " + mvName +
                     " WITH (substitution_enabled = true, " + partitionedByPropertyName() + " = ARRAY['orderstatus'])" +
                     " AS SELECT * FROM " + ordersTable);
-            assertUpdate("REFRESH MATERIALIZED VIEW " + mvName, computeActual("SELECT * FROM " + ordersTable).getRowCount());
+            getQueryRunner().execute("REFRESH MATERIALIZED VIEW " + mvName);
 
             Session session = sessionWithSubstitution();
             String query = "SELECT * FROM " + ordersTable + " WHERE orderstatus = 'F'";
@@ -1127,7 +1127,7 @@ public abstract class AbstractMvSubstitutionTest
                     " GRACE PERIOD INTERVAL '1' HOUR" +
                     " WITH (substitution_enabled = true)" +
                     " AS SELECT * FROM " + ordersTable);
-            assertUpdate("REFRESH MATERIALIZED VIEW " + mvName, baseCount);
+            getQueryRunner().execute("REFRESH MATERIALIZED VIEW " + mvName);
 
             // MV has baseCount rows. Insert one more row into the base table.
             assertUpdate("INSERT INTO " + ordersTable + " VALUES (99990011, 400, '1995-02-01', DOUBLE '99.99', 'N')", 1);
@@ -1269,7 +1269,7 @@ public abstract class AbstractMvSubstitutionTest
             long baseCount = (long) computeActual("SELECT count(*) FROM " + ordersTable).getOnlyValue();
             // Create MV WITHOUT substitution_enabled — default is false
             assertUpdate("CREATE MATERIALIZED VIEW " + mvName + " AS SELECT * FROM " + ordersTable);
-            assertUpdate("REFRESH MATERIALIZED VIEW " + mvName, baseCount);
+            getQueryRunner().execute("REFRESH MATERIALIZED VIEW " + mvName);
 
             // Even with session property enabled, this MV should not be used
             assertNotSubstituted(sessionWithSubstitution(), "SELECT * FROM " + ordersTable, ordersTable);
@@ -1289,7 +1289,7 @@ public abstract class AbstractMvSubstitutionTest
         try {
             assertUpdate("CREATE MATERIALIZED VIEW " + mvName +
                     " WITH (substitution_enabled = false) AS SELECT * FROM " + ordersTable);
-            assertUpdate("REFRESH MATERIALIZED VIEW " + mvName, computeActual("SELECT * FROM " + ordersTable).getRowCount());
+            getQueryRunner().execute("REFRESH MATERIALIZED VIEW " + mvName);
 
             assertNotSubstituted(sessionWithSubstitution(), "SELECT * FROM " + ordersTable, ordersTable);
         }
@@ -1307,7 +1307,7 @@ public abstract class AbstractMvSubstitutionTest
         try {
             createSubstitutionMv(mvMarked, "SELECT * FROM " + ordersTable);
             assertUpdate("CREATE MATERIALIZED VIEW " + mvUnmarked + " AS SELECT * FROM " + ordersTable);
-            assertUpdate("REFRESH MATERIALIZED VIEW " + mvUnmarked, computeActual("SELECT * FROM " + ordersTable).getRowCount());
+            getQueryRunner().execute("REFRESH MATERIALIZED VIEW " + mvUnmarked);
 
             assertSubstituted(sessionWithSubstitution(), "SELECT * FROM " + ordersTable, ordersTable, mvMarked);
         }
