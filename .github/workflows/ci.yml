@@ -498,7 +498,7 @@ jobs:
               --bind=off --logs-dir logs/ --timeout 80m
           else
             export MAVEN_OPTS="${MAVEN_INSTALL_OPTS}"
-            $MAVEN test ${MAVEN_TEST} -pl 'plugin/starburst-synapse' ${{ matrix.profile != '' && format('-P {0}', matrix.profile) || '' }} \
+            $MAVEN test ${MAVEN_TEST} -e -pl 'plugin/starburst-synapse' ${{ matrix.profile != '' && format('-P {0}', matrix.profile) || '' }} \
               -Dtest.synapse.jdbc.endpoint="${SYNAPSE_ENDPOINT}" \
               -Dtest.synapse.jdbc.user="${SYNAPSE_USER}" \
               -Dtest.synapse.jdbc.password="${SYNAPSE_PASSWORD}" \
