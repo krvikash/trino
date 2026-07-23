@@ -1255,6 +1255,18 @@ public class DispatcherMetadata
     }
 
     @Override
+    public Optional<ConnectorTableExecuteHandle> getTableHandleForMaterializedViewExecute(ConnectorSession session, ConnectorAccessControl accessControl, ConnectorTableHandle tableHandle, String procedureName, Map<String, Object> executeProperties, RetryMode retryMode)
+    {
+        return proxiedConnectorMetadata.getTableHandleForMaterializedViewExecute(
+                session,
+                accessControl,
+                ((DispatcherTableHandle) tableHandle).getProxyConnectorTableHandle(),
+                procedureName,
+                executeProperties,
+                retryMode);
+    }
+
+    @Override
     public Set<ColumnHandle> getColumnHandlesForTableExecute(ConnectorSession session, ConnectorTableHandle tableHandle, ConnectorTableExecuteHandle connectorTableExecuteHandle)
     {
         return proxiedConnectorMetadata.getColumnHandlesForTableExecute(

@@ -323,6 +323,15 @@ public class ObjectStoreMetadata
     }
 
     @Override
+    public Optional<ConnectorTableExecuteHandle> getTableHandleForMaterializedViewExecute(ConnectorSession session, ConnectorAccessControl accessControl, ConnectorTableHandle tableHandle, String procedureName, Map<String, Object> executeProperties, RetryMode retryMode)
+    {
+        if (!tableHandle.getClass().equals(IcebergTableHandle.class)) {
+            throw new TrinoException(NOT_SUPPORTED, "Executing materialized view procedure with a storage table that is not an Iceberg table is not supported");
+        }
+        return icebergMetadata.getTableHandleForMaterializedViewExecute(unwrap(ICEBERG, session), accessControl, tableHandle, procedureName, executeProperties, retryMode);
+    }
+
+    @Override
     public Set<ColumnHandle> getColumnHandlesForTableExecute(ConnectorSession session, ConnectorTableHandle tableHandle, ConnectorTableExecuteHandle connectorTableExecuteHandle)
     {
         TableType tableType = tableType(tableHandle);

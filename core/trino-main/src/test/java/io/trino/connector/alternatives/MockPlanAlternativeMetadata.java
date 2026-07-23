@@ -156,6 +156,12 @@ public class MockPlanAlternativeMetadata
     }
 
     @Override
+    public Optional<ConnectorTableExecuteHandle> getTableHandleForMaterializedViewExecute(ConnectorSession session, ConnectorAccessControl accessControl, ConnectorTableHandle tableHandle, String procedureName, Map<String, Object> executeProperties, RetryMode retryMode)
+    {
+        return delegate.getTableHandleForMaterializedViewExecute(session, accessControl, getDelegate(tableHandle), procedureName, executeProperties, retryMode);
+    }
+
+    @Override
     public Set<ColumnHandle> getColumnHandlesForTableExecute(ConnectorSession connectorSession, ConnectorTableHandle tableHandle, ConnectorTableExecuteHandle connectorTableExecuteHandle)
     {
         return delegate.getColumnHandlesForTableExecute(connectorSession, getDelegate(tableHandle), connectorTableExecuteHandle);
