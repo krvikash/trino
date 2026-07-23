@@ -13,7 +13,6 @@
  */
 package io.trino.server;
 
-import com.google.common.base.StandardSystemProperty;
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Injector;
 import com.google.inject.Key;
@@ -30,6 +29,7 @@ import io.airlift.jmx.JmxModule;
 import io.airlift.json.JsonModule;
 import io.airlift.log.LogJmxModule;
 import io.airlift.log.Logger;
+import io.airlift.log.TerminalColors;
 import io.airlift.node.NodeModule;
 import io.airlift.openmetrics.JmxOpenMetricsModule;
 import io.airlift.tracing.TracingModule;
@@ -63,7 +63,6 @@ import io.trino.server.security.ServerSecurityModule;
 import io.trino.server.security.oauth2.OAuth2Client;
 import io.trino.server.starburst.GalaxyEnabledConfig;
 import io.trino.server.starburst.accesscontrol.PassthroughStarburstAnalyzerHelperModule;
-import io.trino.spi.NodeVersion;
 import io.trino.tracing.TracingScopesModule;
 import io.trino.transaction.TransactionManagerModule;
 import io.trino.util.EmbedVersion;
@@ -76,7 +75,11 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 
+import static com.google.common.base.StandardSystemProperty.JAVA_VERSION;
 import static io.airlift.configuration.ConditionalModule.conditionalModule;
+import static io.airlift.log.TerminalColors.Color.CYAN;
+import static io.airlift.log.TerminalColors.Color.PURPLE;
+import static io.airlift.log.TerminalColors.Color.YELLOW;
 import static io.trino.server.TrinoSystemRequirements.verifySystemRequirements;
 import static java.lang.String.format;
 import static java.nio.file.LinkOption.NOFOLLOW_LINKS;
@@ -98,7 +101,7 @@ public class Server
         verifySystemRequirements();
 
         Logger log = Logger.get(Server.class);
-        log.info("Java version: %s", StandardSystemProperty.JAVA_VERSION.value());
+        displayBanner(log, trinoVersion);
 
         ImmutableList.Builder<Module> modules = ImmutableList.builder();
         modules.add(
@@ -139,13 +142,9 @@ public class Server
         try {
             Injector injector = app.initialize();
 
-            log.info("Trino version: %s", injector.getInstance(NodeVersion.class).version());
             log.info("Zstandard native compression: %s", formatEnabled(ZstdNativeCompressor.isEnabled()));
             log.info("Lz4 native compression: %s", formatEnabled(Lz4NativeCompressor.isEnabled()));
             log.info("Snappy native compression: %s", formatEnabled(SnappyNativeCompressor.isEnabled()));
-
-            logLocation(log, "Working directory", Path.of("."));
-            logLocation(log, "Etc directory", Path.of("etc"));
 
             injector.getInstance(PluginInstaller.class).loadPlugins();
             // Caches can be requested for initial catalogs so we need to wire these first
@@ -224,24 +223,32 @@ public class Server
         // do nothing;
     }
 
-    private static void logLocation(Logger log, String name, Path path)
+    private static String resolveLocation(Path path)
     {
         if (!Files.exists(path, NOFOLLOW_LINKS)) {
-            log.info("%s: [does not exist]", name);
-            return;
+            return "[does not exist]";
         }
         try {
-            path = path.toAbsolutePath().toRealPath();
+            return path.toAbsolutePath().toRealPath().toString();
         }
         catch (IOException e) {
-            log.info("%s: [not accessible]", name);
-            return;
+            return "[not accessible]";
         }
-        log.info("%s: %s", name, path);
     }
 
     private static String formatEnabled(boolean flag)
     {
         return flag ? "enabled" : "disabled";
+    }
+
+    private static void displayBanner(Logger log, String trinoVersion)
+    {
+        TerminalColors colors = new TerminalColors(true);
+        String banner = "\n"
+                + "             " + colors.colored("Trino version:     ", CYAN) + colors.colored(trinoVersion, YELLOW) + "\n"
+                + colors.colored("   (\\(\\", PURPLE) + "      " + colors.colored("Java version:      ", CYAN) + colors.colored(JAVA_VERSION.value(), YELLOW) + "\n"
+                + colors.colored("   ( -.-)", PURPLE) + "    " + colors.colored("Working directory: ", CYAN) + colors.colored(resolveLocation(Path.of(".")), YELLOW) + "\n"
+                + colors.colored("  o_(\")(\")", PURPLE) + "   " + colors.colored("Etc directory:     ", CYAN) + colors.colored(resolveLocation(Path.of("etc")), YELLOW) + "\n";
+        log.info("%s", banner);
     }
 }
