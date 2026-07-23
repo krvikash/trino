@@ -106,7 +106,7 @@ public class SynapseServer
         executeIgnoringErrors(query, /* ignoredErrorCode= */ null);
     }
 
-    private void executeAsOwner(String query, Integer ignoredErrorCode)
+    public void executeAsOwner(String query, Integer ignoredErrorCode)
     {
         executeIgnoringErrors(query, ignoredErrorCode, /* asUser= */ false);
     }

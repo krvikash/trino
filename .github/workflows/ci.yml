@@ -487,6 +487,7 @@ jobs:
           SYNAPSE_USER: ${{ vars.SYNAPSE_USER }}
           SYNAPSE_PASSWORD: ${{ secrets.SYNAPSE_PASSWORD }}
           SYNAPSE_DATABASE: ${{ needs.synapse-prepare.outputs.sql-pool-name }}
+          SYNAPSE_AZURE_STORAGE_TPCH_TABLES_ROOT: ${{ vars.SYNAPSE_AZURE_STORAGE_TPCH_TABLES_ROOT }}
         if: |
           env.SYNAPSE_ENDPOINT != '' && env.SYNAPSE_USER != '' && env.SYNAPSE_PASSWORD != ''
         run: |
@@ -502,7 +503,8 @@ jobs:
               -Dtest.synapse.jdbc.endpoint="${SYNAPSE_ENDPOINT}" \
               -Dtest.synapse.jdbc.user="${SYNAPSE_USER}" \
               -Dtest.synapse.jdbc.password="${SYNAPSE_PASSWORD}" \
-              -Dtest.synapse.jdbc.sqlpool="${SYNAPSE_DATABASE}"
+              -Dtest.synapse.jdbc.sqlpool="${SYNAPSE_DATABASE}" \
+              -Dtest.synapse.azure.storage.tpch.tables.root="${SYNAPSE_AZURE_STORAGE_TPCH_TABLES_ROOT}"
           fi
       - name: Sanitize artifact name
         if: always()
