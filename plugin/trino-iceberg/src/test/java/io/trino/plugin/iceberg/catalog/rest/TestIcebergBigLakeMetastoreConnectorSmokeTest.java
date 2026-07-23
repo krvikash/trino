@@ -374,7 +374,7 @@ final class TestIcebergBigLakeMetastoreConnectorSmokeTest
     public void testVariantType()
     {
         assertThatThrownBy(super::testVariantType)
-                .hasMessageContaining("Failed to commit the transaction")
+                .hasMessageContaining("Failed to create transaction")
                 .hasStackTraceContaining("Request contains an invalid argument");
     }
 
