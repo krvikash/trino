@@ -26,6 +26,7 @@ import io.trino.testing.AbstractTestQueryFramework;
 import io.trino.testing.MaterializedResult;
 import io.trino.testing.QueryRunner.MaterializedResultWithPlan;
 import io.trino.testing.sql.TestTable;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
@@ -91,6 +92,13 @@ public abstract class AbstractIcebergMvSubstitutionTest
                 "extendedprice, " +
                 "CAST(shipdate AS VARCHAR) AS shipdate " +
                 "FROM tpch.tiny.lineitem where orderkey between 20000 and 20010", 32);
+    }
+
+    @AfterAll
+    public void tearDown()
+    {
+        assertUpdate("DROP TABLE IF EXISTS " + ordersTable);
+        assertUpdate("DROP TABLE IF EXISTS " + lineitemTable);
     }
 
     protected Session sessionWithSubstitution()
