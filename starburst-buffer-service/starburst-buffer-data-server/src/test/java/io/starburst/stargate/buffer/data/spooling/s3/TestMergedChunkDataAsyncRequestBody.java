@@ -13,7 +13,6 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.ImmutableSortedMap;
-import com.google.common.collect.Ordering;
 import com.google.common.io.LittleEndianDataInputStream;
 import io.starburst.stargate.buffer.data.client.DataPage;
 import io.starburst.stargate.buffer.data.client.spooling.SpooledChunk;
@@ -342,7 +341,7 @@ public class TestMergedChunkDataAsyncRequestBody
         final int consumerCallLimit = 2;
         // Use sorted maps to ensure that verifier has dataToWrite (chunk key) and spooledChunkMap (long key) in the same order.
         // This is needed because the ordering with HashMaps will not be the same when the key types are different.
-        ImmutableMap.Builder<Long, SpooledChunk> sortedSpooledChunkMap = new ImmutableSortedMap.Builder<>(Ordering.natural());
+        ImmutableMap.Builder<Long, SpooledChunk> sortedSpooledChunkMap = new ImmutableSortedMap.Builder<>(Comparator.naturalOrder());
         AtomicReference<Map<Long, SpooledChunk>> spooledChunkMap = new AtomicReference();
         Map<Chunk, Set<List<DataPage>>> dataToWrite = createChunkToSliceMap(List.of(chunk0NumSlices, chunk1NumSlices));
         AsyncRequestBody testBody = fromChunks(
@@ -377,7 +376,7 @@ public class TestMergedChunkDataAsyncRequestBody
         final int consumerCallLimit = 2;
         // Use sorted maps to ensure that verifier has dataToWrite (chunk key) and spooledChunkMap (long key) in the same order.
         // This is needed because the ordering with HashMaps will not be the same when the key types are different.
-        ImmutableMap.Builder<Long, SpooledChunk> sortedSpooledChunkMap = new ImmutableSortedMap.Builder<>(Ordering.natural());
+        ImmutableMap.Builder<Long, SpooledChunk> sortedSpooledChunkMap = new ImmutableSortedMap.Builder<>(Comparator.naturalOrder());
         AtomicReference<Map<Long, SpooledChunk>> spooledChunkMap = new AtomicReference();
         Map<Chunk, Set<List<DataPage>>> dataToWrite = createChunkToSliceMap(List.of(chunk0NumSlices, chunk1NumSlices));
         AsyncRequestBody testBody = fromChunks(

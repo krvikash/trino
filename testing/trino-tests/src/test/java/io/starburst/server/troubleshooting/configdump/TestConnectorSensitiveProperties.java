@@ -11,7 +11,6 @@ package io.starburst.server.troubleshooting.configdump;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
 import io.airlift.configuration.Config;
 import io.airlift.configuration.ConfigSecuritySensitive;
@@ -49,8 +48,10 @@ import java.util.jar.JarInputStream;
 import java.util.stream.Stream;
 
 import static com.google.common.base.Preconditions.checkState;
+import static com.google.common.collect.Comparators.isInStrictOrder;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.starburst.server.troubleshooting.configdump.ConnectorSensitiveProperties.SENSITIVE_PROPERTIES_PER_CONNECTOR;
+import static java.util.Comparator.naturalOrder;
 import static java.util.stream.Collectors.joining;
 
 @ExtendWith(SoftAssertionsExtension.class)
@@ -74,7 +75,7 @@ public class TestConnectorSensitiveProperties
         }
 
         SENSITIVE_PROPERTIES_PER_CONNECTOR.forEach((connector, properties) -> {
-            if (!Ordering.natural().isStrictlyOrdered(properties)) {
+            if (!isInStrictOrder(properties, naturalOrder())) {
                 throw new IllegalStateException(
                         "The sensitive properties for the %s connector are not sorted. Consider sorting them with:\n%s".formatted(
                                 connector, buildPropertyDefinitions(ImmutableSet.of(connector), Map.of(connector, properties))));

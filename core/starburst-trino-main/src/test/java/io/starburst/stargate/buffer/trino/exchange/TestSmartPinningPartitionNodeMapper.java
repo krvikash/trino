@@ -40,8 +40,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.IntStream;
 import java.util.stream.LongStream;
 
+import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
-import static com.google.common.collect.Ordering.natural;
 import static io.airlift.concurrent.MoreFutures.getFutureValue;
 import static io.airlift.units.Duration.succinctNanos;
 import static io.starburst.stargate.buffer.BufferNodeState.ACTIVE;
@@ -208,7 +208,7 @@ public class TestSmartPinningPartitionNodeMapper
             assertThat(nodes).as("nodes for " + partition).matches(nodesCollection -> {
                 Set<Long> nodesSet = ImmutableSet.copyOf(nodesCollection);
                 return nodesSet.containsAll(undrainedAssignedNodes) || Sets.intersection(nodesSet, undrainedAssignedNodes).size() == 7;
-            }, "nodes=%s, undrainedAssignedNodes=%s".formatted(natural().sortedCopy(nodes), natural().sortedCopy(undrainedAssignedNodes)));
+            }, "nodes=%s, undrainedAssignedNodes=%s".formatted(nodes.stream().sorted().collect(toImmutableList()), undrainedAssignedNodes.stream().sorted().collect(toImmutableList())));
         });
 
         // add some new nodes

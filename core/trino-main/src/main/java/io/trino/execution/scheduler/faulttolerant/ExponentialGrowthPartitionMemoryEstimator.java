@@ -14,7 +14,6 @@
 package io.trino.execution.scheduler.faulttolerant;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.Ordering;
 import com.google.inject.Inject;
 import io.airlift.log.Logger;
 import io.airlift.stats.TDigest;
@@ -41,6 +40,8 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import static com.google.common.collect.Comparators.max;
+import static com.google.common.collect.Comparators.min;
 import static io.airlift.concurrent.Threads.daemonThreadsNamed;
 import static io.airlift.units.DataSize.Unit.PETABYTE;
 import static io.trino.SystemSessionProperties.getFaultTolerantExecutionAbsoluteMinimumTaskMemory;
@@ -190,7 +191,7 @@ public class ExponentialGrowthPartitionMemoryEstimator
         DataSize previousMemory = previousMemoryRequirements.getRequiredMemory();
 
         // start with the maximum of previously used memory and actual usage
-        DataSize newMemory = Ordering.natural().max(peakMemoryUsage, previousMemory);
+        DataSize newMemory = max(peakMemoryUsage, previousMemory);
         if (shouldIncreaseMemoryRequirement(errorCode)) {
             if (remainingAttempts == 1) {
                 // on last attempt try as much memory as possible
@@ -203,7 +204,7 @@ public class ExponentialGrowthPartitionMemoryEstimator
         }
 
         // if we are still below current estimate for new partition let's bump further
-        newMemory = Ordering.natural().max(newMemory, getEstimatedMemoryUsage());
+        newMemory = max(newMemory, getEstimatedMemoryUsage());
 
         newMemory = capMemoryToMaxNodeSize(newMemory);
         return new MemoryRequirements(newMemory);
@@ -215,7 +216,7 @@ public class ExponentialGrowthPartitionMemoryEstimator
         if (currentMaxNodePoolSize.isEmpty()) {
             return memory;
         }
-        return Ordering.natural().min(memory, currentMaxNodePoolSize.get());
+        return min(memory, currentMaxNodePoolSize.get());
     }
 
     @Override
