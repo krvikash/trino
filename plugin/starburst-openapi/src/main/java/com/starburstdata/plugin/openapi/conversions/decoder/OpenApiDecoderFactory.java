@@ -25,6 +25,14 @@ public class OpenApiDecoderFactory
         this.columnWriterFactory = columnWriterFactory;
     }
 
+    /**
+     * Stably converts a {@link SchemaIr} into an {@link OpenApiDecoder}.
+     * <p>
+     * If the response is expected to be a JSON array,
+     * this factory returns a decoder to turn each JSON value into a new row.
+     * If the JSON values converted to rows are expected to be JSON objects with known keys,
+     * then this factory returns a decoder to turn each key/value pair into a column.
+     */
     public OpenApiDecoder createFrom(SchemaIr schemaIr)
     {
         final SchemaIr rowIr;

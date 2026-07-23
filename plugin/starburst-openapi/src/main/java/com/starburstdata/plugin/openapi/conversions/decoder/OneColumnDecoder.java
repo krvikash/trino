@@ -24,9 +24,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.Iterators.singletonIterator;
 import static java.util.Objects.requireNonNull;
 
-/**
- * An OpenApiDecoder that decodes values into one column.
- */
 public class OneColumnDecoder
         implements OpenApiDecoder
 {
@@ -35,6 +32,10 @@ public class OneColumnDecoder
     private final List<OpenApiColumnHandle> columnHandles;
     private final RowSplitter rowSplitter;
 
+    /**
+     * @param columnWriter How to convert JSON values into the value used by a row's column
+     * @param rowSplitter How to split a root JSON value into zero or more JSON values to be converted to rows.
+     */
     public OneColumnDecoder(ColumnWriter columnWriter, RowSplitter rowSplitter)
     {
         this.columnWriter = requireNonNull(columnWriter, "columnWriter is null");

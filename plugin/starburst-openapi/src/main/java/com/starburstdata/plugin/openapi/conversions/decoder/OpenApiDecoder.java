@@ -21,5 +21,10 @@ public interface OpenApiDecoder
 {
     List<OpenApiColumnHandle> getColumnHandles();
 
+    /**
+     * @param root The root {@link JsonNode} of the API response.
+     * @param columnHandles A selection of column handles from {@link #getColumnHandles()}
+     *         that represents the order of columns in the SourcePages.
+     */
     Iterator<SourcePage> decodeFromRoot(JsonNode root, List<ColumnHandle> columnHandles);
 }

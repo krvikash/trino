@@ -37,6 +37,12 @@ public record OpenApiParameterHandle(
         return typeEncoder.getType();
     }
 
+    /**
+     * Represents a unique combination of parameter
+     * <a href="https://spec.openapis.org/oas/v3.0.4.html#parameter-locations">location</a>,
+     * <a href="https://spec.openapis.org/oas/v3.0.4.html#style-values">style</a>,
+     * and <a href="https://spec.openapis.org/oas/v3.0.4.html#fixed-fields-for-use-with-schema">explode value</a>.
+     */
     public enum ParameterStyle
     {
         SIMPLE_PATH,

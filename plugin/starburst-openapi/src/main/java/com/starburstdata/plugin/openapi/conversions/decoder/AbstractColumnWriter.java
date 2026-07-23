@@ -11,6 +11,7 @@ package com.starburstdata.plugin.openapi.conversions.decoder;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.JsonNodeType;
+import com.fasterxml.jackson.databind.node.NullNode;
 import io.trino.spi.TrinoException;
 import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.type.Type;
@@ -52,5 +53,8 @@ public abstract class AbstractColumnWriter
         writeToBuilderUnchecked(blockBuilder, node);
     }
 
+    /**
+     * Write the given {@link JsonNode} which is guaranteed to not be a {@link NullNode} and of the expected node type.
+     */
     protected abstract void writeToBuilderUnchecked(BlockBuilder blockBuilder, JsonNode node);
 }

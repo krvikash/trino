@@ -39,6 +39,11 @@ public class MultiColumnDecoder
     private final List<OpenApiColumnHandle> columnHandles;
     private final RowSplitter rowSplitter;
 
+    /**
+     * @param keyToColumnWriter Keys expected in the JSON objects from {@code rowSplitter}
+     *         mapped to how their values should be converted to columns.
+     * @param rowSplitter How to split a root JSON value into zero or more JSON values to be converted to rows.
+     */
     public MultiColumnDecoder(
             Map<String, ColumnWriter> keyToColumnWriter,
             RowSplitter rowSplitter)
@@ -70,6 +75,11 @@ public class MultiColumnDecoder
         return columnHandles;
     }
 
+    /**
+     * Converts one or more JSON objects into rows with multiple columns.
+     * <p>
+     * If a key/value is expected but missing, the column value is written as a null.
+     */
     @Override
     public Iterator<SourcePage> decodeFromRoot(
             JsonNode root,

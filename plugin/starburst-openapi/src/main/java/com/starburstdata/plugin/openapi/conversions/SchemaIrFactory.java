@@ -54,6 +54,11 @@ import static java.util.Collections.emptyMap;
 import static java.util.Locale.ENGLISH;
 import static java.util.Objects.requireNonNull;
 
+/**
+ * Once initialized converts
+ * <a href="https://spec.openapis.org/oas/v3.0.4.html#schema-object">OpenAPI Schema Objects</a>
+ * to {@link SchemaIr} instances.
+ */
 public class SchemaIrFactory
 {
     private final CastPolicy castPolicy;

@@ -38,6 +38,9 @@ public class RowColumnWriter
     private final List<String> keys;
     private final List<ColumnWriter> columnWriters;
 
+    /**
+     * @param keyToColumnWriter JSON object keys mapped to how the value should be converted as a nested column.
+     */
     public RowColumnWriter(Map<String, ColumnWriter> keyToColumnWriter)
     {
         requireNonNull(keyToColumnWriter, "keyToColumnWriter is null");
@@ -80,6 +83,10 @@ public class RowColumnWriter
         return type;
     }
 
+    /**
+     * Converts JSON objects to {@link RowType} values.
+     * <p>If an expected key/value pair isn't present a null value is appended.
+     */
     @Override
     public void writeToBuilder(
             BlockBuilder blockBuilder,

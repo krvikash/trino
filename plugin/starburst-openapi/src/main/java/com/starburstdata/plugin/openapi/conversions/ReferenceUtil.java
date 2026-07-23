@@ -21,6 +21,10 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static java.lang.String.format;
 import static java.lang.String.join;
 
+/**
+ * A utility class with methods for dealing with
+ * <a href="https://spec.openapis.org/oas/v3.0.4.html#reference-object">reference objects</a>.
+ */
 public final class ReferenceUtil
 {
     private ReferenceUtil() {}

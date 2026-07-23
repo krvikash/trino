@@ -17,6 +17,9 @@ import java.util.Iterator;
 
 import static com.google.common.collect.Iterators.singletonIterator;
 
+/**
+ * @param isRootArray Whether the root JSON value is expected to be an array whose values should convert to rows.
+ */
 public record RowSplitter(boolean isRootArray)
 {
     public static final RowSplitter ARRAY_SPLITTER = new RowSplitter(true);

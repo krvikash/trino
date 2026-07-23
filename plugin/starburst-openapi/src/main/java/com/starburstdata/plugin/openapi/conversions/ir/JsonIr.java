@@ -9,5 +9,8 @@
  */
 package com.starburstdata.plugin.openapi.conversions.ir;
 
+/**
+ * Represents any JSON value without a specific type.
+ */
 public record JsonIr()
         implements SchemaIr {}

@@ -19,6 +19,9 @@ import java.util.Iterator;
 
 import static java.util.Objects.requireNonNull;
 
+/**
+ * Re-usable code to write rows into a {@link PageBuilder} until it is full or the source is exhausted, then flushed.
+ */
 public abstract class PageByRowIterator
         extends AbstractIterator<SourcePage>
 {
@@ -49,5 +52,8 @@ public abstract class PageByRowIterator
         return SourcePage.create(page);
     }
 
+    /**
+     * Write the given {@link JsonNode} as a row into the {@link PageBuilder} this class was initialized with.
+     */
     abstract void writeToPageBuilder(JsonNode row, PageBuilder pageBuilder);
 }
