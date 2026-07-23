@@ -118,7 +118,7 @@ public class SynapseServer
 
     private void executeIgnoringErrors(String query, Integer ignoredErrorCode, boolean asUser)
     {
-        try (Connection conn = dataSource.getConnection();
+        try (Connection conn = getConnection();
                 Statement statement = conn.createStatement()) {
             if (asUser) {
                 executeAsUser(statement);
@@ -136,7 +136,7 @@ public class SynapseServer
     public <T> T executeQuery(String query, Function<ResultSet, T> resultConsumer)
     {
         LOG.debug("Executing query %s", query);
-        try (Connection conn = dataSource.getConnection();
+        try (Connection conn = getConnection();
                 Statement statement = conn.createStatement()) {
             executeAsUser(statement);
             try (ResultSet resultSet = statement.executeQuery(query)) {
@@ -148,10 +148,26 @@ public class SynapseServer
         }
     }
 
+    private Connection getConnection()
+            throws SQLException
+    {
+        Connection conn = dataSource.getConnection();
+        try {
+            try (Statement statement = conn.createStatement()) {
+                // Revert any potential leftover EXECUTE AS USER context from a previous use of this pooled connection
+                statement.execute("REVERT");
+            }
+        }
+        catch (SQLException | RuntimeException e) {
+            conn.close();
+            throw e;
+        }
+        return conn;
+    }
+
     private void executeAsUser(Statement statement)
             throws SQLException
     {
-        statement.execute("REVERT");
         statement.execute(format("EXECUTE AS USER = '%s'", TEST_USER));
     }
 
