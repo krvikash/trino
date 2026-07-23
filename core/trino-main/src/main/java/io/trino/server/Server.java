@@ -103,40 +103,39 @@ public class Server
         Logger log = Logger.get(Server.class);
         displayBanner(log, trinoVersion);
 
-        ImmutableList.Builder<Module> modules = ImmutableList.builder();
-        modules.add(
-                new NodeModule(),
-                new HttpServerModule(),
-                new JsonModule(),
-                new JaxrsModule(),
-                new MBeanModule(),
-                new PrefixObjectNameGeneratorModule("io.trino"),
-                new JmxModule(),
-                new JmxOpenMetricsModule(),
-                new LogJmxModule(),
-                new TracingModule("trino", trinoVersion),
-                new TracingScopesModule(),
-                new ServerSecurityModule(),
-                new AccessControlModule(),
-                new EventListenerModule(),
-                new ExchangeManagerModule(),
-                new SubqueryCacheManagerModule(),
-                new CacheManagerModule(),
-                new AiModelConnectionSpecsLoaderModule(),
-                new InternalCoordinatorLocatorModule(),
-                new InternalHttpClientModule(),
-                new CatalogManagerModule(),
-                new TransactionManagerModule(),
-                new StarburstDataframeModule(),
-                new NodeManagerModule(trinoVersion),
-                new ServerMainModule(trinoVersion),
-                new NodeStateManagerModule(),
-                conditionalModule(GalaxyEnabledConfig.class, config -> !config.isUseSharedPermissionsCache(), new PassthroughStarburstAnalyzerHelperModule()),
-                new WarningCollectorModule());
+        List<Module> modules = ImmutableList.<Module>builder()
+                .add(new AccessControlModule())
+                .add(new AiModelConnectionSpecsLoaderModule())
+                .add(new CacheManagerModule())
+                .add(new CatalogManagerModule())
+                .add(new EventListenerModule())
+                .add(new ExchangeManagerModule())
+                .add(new HttpServerModule())
+                .add(new InternalCoordinatorLocatorModule())
+                .add(new InternalHttpClientModule())
+                .add(new JaxrsModule())
+                .add(new JmxModule())
+                .add(new JmxOpenMetricsModule())
+                .add(new JsonModule())
+                .add(new LogJmxModule())
+                .add(new MBeanModule())
+                .add(new NodeManagerModule(trinoVersion))
+                .add(new NodeModule())
+                .add(new NodeStateManagerModule())
+                .add(conditionalModule(GalaxyEnabledConfig.class, config -> !config.isUseSharedPermissionsCache(), new PassthroughStarburstAnalyzerHelperModule()))
+                .add(new PrefixObjectNameGeneratorModule("io.trino"))
+                .add(new ServerMainModule(trinoVersion))
+                .add(new ServerSecurityModule())
+                .add(new StarburstDataframeModule())
+                .add(new SubqueryCacheManagerModule())
+                .add(new TracingModule("trino", trinoVersion))
+                .add(new TracingScopesModule())
+                .add(new TransactionManagerModule())
+                .add(new WarningCollectorModule())
+                .addAll(getAdditionalModules())
+                .build();
 
-        modules.addAll(getAdditionalModules());
-
-        Bootstrap app = new Bootstrap("io.trino.bootstrap.engine", modules.build())
+        Bootstrap app = new Bootstrap("io.trino.bootstrap.engine", modules)
                 .loadSecretsPlugins();
 
         try {
