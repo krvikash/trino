@@ -29,6 +29,7 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.io.Writer;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
@@ -365,12 +366,13 @@ public final class TestingUtils
     public static File createModelConnectionSpecsFile(String content)
     {
         try {
-            File tempFile = File.createTempFile("model_connection_specs_", ".json");
-            tempFile.deleteOnExit();
-            try (Writer writer = Files.newBufferedWriter(tempFile.toPath())) {
+            Path tempFile = Files.createTempFile("model_connection_specs_", ".json");
+            File file = tempFile.toFile();
+            file.deleteOnExit();
+            try (Writer writer = Files.newBufferedWriter(tempFile)) {
                 writer.write(content);
             }
-            return tempFile;
+            return file;
         }
         catch (IOException e) {
             throw new UncheckedIOException(e);

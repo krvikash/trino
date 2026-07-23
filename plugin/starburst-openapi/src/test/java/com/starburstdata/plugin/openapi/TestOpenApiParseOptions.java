@@ -69,10 +69,7 @@ public class TestOpenApiParseOptions
                 .toString(Resources.getResource("exfiltration.json"), UTF_8)
                 .replace("http://replaceme.com", baseUri.toString());
         java.nio.file.Path descriptionDirectory = Files.createTempDirectory("files");
-        File descriptionFile = File.createTempFile(
-                "exfiltration",
-                ".json",
-                descriptionDirectory.toFile());
+        File descriptionFile = Files.createTempFile(descriptionDirectory, "exfiltration", ".json").toFile();
         Files.writeString(descriptionFile.toPath(), exfiltrationDescription);
         exfiltrationDescriptionLocation = descriptionFile.getPath();
         Files.writeString(

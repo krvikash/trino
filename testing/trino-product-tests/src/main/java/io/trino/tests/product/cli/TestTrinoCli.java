@@ -43,6 +43,7 @@ import static io.trino.tests.product.TestGroups.PROFILE_SPECIFIC_TESTS;
 import static io.trino.tests.product.utils.QueryExecutors.onTrino;
 import static java.lang.String.format;
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.nio.file.Files.createTempFile;
 import static java.nio.file.Files.writeString;
 import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.joining;
@@ -447,7 +448,7 @@ public class TestTrinoCli
                 .map(matcher::trimLeadingFrom)
                 .collect(joining("\n"));
 
-        File tempFile = File.createTempFile(".trino_config", "");
+        File tempFile = createTempFile(".trino_config", "").toFile();
         tempFile.deleteOnExit();
         writeString(tempFile.toPath(), fileContent);
 

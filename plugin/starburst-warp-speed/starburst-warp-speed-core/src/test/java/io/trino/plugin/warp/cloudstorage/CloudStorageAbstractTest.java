@@ -37,7 +37,7 @@ public abstract class CloudStorageAbstractTest
     protected File createTempFile(String fileName, int size)
             throws IOException
     {
-        File tempFile = File.createTempFile(fileName, ".temp");
+        File tempFile = Files.createTempFile(fileName, ".temp").toFile();
         Writer writer = Files.newBufferedWriter(tempFile.toPath(), StandardCharsets.UTF_8);
         int count = size / tempFile.getName().length();
 

@@ -121,7 +121,7 @@ public class TestTrinoLdapCli
     public void shouldRunQueryFromFileWithLdap()
             throws IOException
     {
-        File temporayFile = File.createTempFile("test-sql", null);
+        File temporayFile = Files.createTempFile("test-sql", null).toFile();
         temporayFile.deleteOnExit();
         Files.writeString(temporayFile.toPath(), SELECT_FROM_NATION + "\n");
 
