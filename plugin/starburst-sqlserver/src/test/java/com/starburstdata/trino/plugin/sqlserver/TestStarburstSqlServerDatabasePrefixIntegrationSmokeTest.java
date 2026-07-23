@@ -9,7 +9,6 @@
  */
 package com.starburstdata.trino.plugin.sqlserver;
 
-import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -469,7 +468,7 @@ public class TestStarburstSqlServerDatabasePrefixIntegrationSmokeTest
 
     private String databaseSchemaTableName(String databaseName, String schemaName, String tableName)
     {
-        return format("\"%s\".%s", Joiner.on(DATABASE_SEPARATOR).join(databaseName, schemaName), tableName);
+        return format("\"%s\".%s", String.join(DATABASE_SEPARATOR, databaseName, schemaName), tableName);
     }
 
     private static String getSqlServerDatabaseName(String databaseSchemaName)

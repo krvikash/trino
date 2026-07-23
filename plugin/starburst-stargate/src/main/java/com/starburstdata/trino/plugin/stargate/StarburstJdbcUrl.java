@@ -9,7 +9,6 @@
  */
 package com.starburstdata.trino.plugin.stargate;
 
-import com.google.common.base.Joiner;
 import io.trino.jdbc.TrinoDriverUri;
 import jakarta.validation.Constraint;
 import jakarta.validation.ConstraintValidator;
@@ -20,12 +19,15 @@ import java.lang.annotation.Documented;
 import java.lang.annotation.Retention;
 import java.lang.annotation.Target;
 import java.sql.SQLException;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.stream.Stream;
 
 import static java.lang.annotation.ElementType.METHOD;
 import static java.lang.annotation.ElementType.TYPE_USE;
 import static java.lang.annotation.RetentionPolicy.RUNTIME;
+import static java.util.stream.Collectors.joining;
 
 @Target({METHOD, TYPE_USE})
 @Retention(RUNTIME)
@@ -77,8 +79,9 @@ public @interface StarburstJdbcUrl
                 if (catalog == Presence.PRESENT) {
                     defaultMessage += "/catalog_name";
                 }
-                context.buildConstraintViolationWithTemplate(Joiner.on(": ").skipNulls()
-                                .join(defaultMessage, e.getMessage()))
+                context.buildConstraintViolationWithTemplate(Stream.of(defaultMessage, e.getMessage())
+                                .filter(Objects::nonNull)
+                                .collect(joining(": ")))
                         .addPropertyNode("isValid")
                         .addConstraintViolation();
                 return false;

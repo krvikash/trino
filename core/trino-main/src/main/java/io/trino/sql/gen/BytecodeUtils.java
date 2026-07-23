@@ -47,8 +47,10 @@ import java.lang.invoke.MethodType;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.stream.Stream;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
@@ -68,6 +70,7 @@ import static io.trino.spi.function.InvocationConvention.InvocationReturnConvent
 import static io.trino.spi.function.InvocationConvention.InvocationReturnConvention.NULLABLE_RETURN;
 import static io.trino.sql.gen.Bootstrap.BOOTSTRAP_METHOD;
 import static java.lang.String.format;
+import static java.util.stream.Collectors.joining;
 
 public final class BytecodeUtils
 {
@@ -131,7 +134,7 @@ public final class BytecodeUtils
             popComment = format("pop(%s)", Joiner.on(", ").join(stackArgsToPop));
         }
 
-        return new IfStatement("if wasNull then %s", Joiner.on(", ").skipNulls().join(clearComment, popComment, loadDefaultComment, "goto " + label.getLabel()))
+        return new IfStatement("if wasNull then %s", Stream.of(clearComment, popComment, loadDefaultComment, "goto " + label.getLabel()).filter(Objects::nonNull).collect(joining(", ")))
                 .condition(nullCheck)
                 .ifTrue(isNull);
     }

@@ -9,7 +9,6 @@
  */
 package com.starburstdata.trino.plugin.snowflake;
 
-import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.trino.testing.AbstractTestQueryFramework;
@@ -341,6 +340,6 @@ public class TestParallelSnowflakeDatabasePrefixIntegrationSmokeTest
 
     private String databaseSchemaTableName(String databaseName, String schemaName, String tableName)
     {
-        return format("\"%s\".%s", Joiner.on(DATABASE_SEPARATOR).join(databaseName, schemaName), tableName);
+        return format("\"%s\".%s", String.join(DATABASE_SEPARATOR, databaseName, schemaName), tableName);
     }
 }
