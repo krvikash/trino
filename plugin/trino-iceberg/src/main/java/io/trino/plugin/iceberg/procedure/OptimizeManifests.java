@@ -30,6 +30,7 @@ import org.apache.iceberg.ManifestFile;
 import org.apache.iceberg.ManifestFiles;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.RewriteManifests;
+import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.StructLike;
 import org.apache.iceberg.io.CloseableIterable;
 import org.apache.iceberg.metrics.CommitMetricsResult;
@@ -51,6 +52,7 @@ import java.util.Set;
 import java.util.concurrent.ExecutorService;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static io.trino.plugin.iceberg.IcebergMaterializedViewSummary.carryForwardMaterializedViewDependencies;
 import static io.trino.plugin.iceberg.IcebergUtil.loadDataManifestsFromSnapshot;
 import static java.lang.Math.toIntExact;
 import static org.apache.iceberg.IcebergManifestUtils.liveEntries;
@@ -66,7 +68,8 @@ public final class OptimizeManifests
     public static Map<String, Long> optimizeManifests(BaseTable table, ExecutorService icebergScanExecutor)
     {
         // org.apache.iceberg.BaseRewriteManifests currently rewrites only data manifests
-        List<ManifestFile> manifests = loadDataManifestsFromSnapshot(table, table.currentSnapshot());
+        Snapshot snapshot = table.currentSnapshot();
+        List<ManifestFile> manifests = loadDataManifestsFromSnapshot(table, snapshot);
         if (manifests.isEmpty()) {
             return ImmutableMap.of();
         }
@@ -107,8 +110,9 @@ public final class OptimizeManifests
                     }
                     return clusteredPartitionValues.get(value);
                 })
-                .scanManifestsWith(icebergScanExecutor)
-                .commit();
+                .scanManifestsWith(icebergScanExecutor);
+        carryForwardMaterializedViewDependencies(snapshot, rewriteManifests);
+        rewriteManifests.commit();
 
         CommitReport report = reporter.commitReport();
         if (report == null) {
