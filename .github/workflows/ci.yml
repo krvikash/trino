@@ -742,6 +742,9 @@ jobs:
       OPEN_AI_API_KEY: ${{ secrets.OPEN_AI_API_KEY }}
       BEDROCK_ACCESS_KEY_ID: ${{ vars.BEDROCK_ACCESS_KEY_ID }}
       BEDROCK_SECRET_ACCESS_KEY: ${{ secrets.BEDROCK_SECRET_ACCESS_KEY }}
+      VERTEX_SERVICE_ACCOUNT_KEY: ${{ secrets.VERTEX_SERVICE_ACCOUNT_KEY }}
+      VERTEX_PROJECT_ID: ${{ vars.VERTEX_PROJECT_ID }}
+      VERTEX_LOCATION: ${{ vars.VERTEX_LOCATION }}
     # Live AI tests bill real provider APIs, so we do not run them on every merge to master.
     # They run on the weekly schedule, on a manual workflow_dispatch on master, or on demand via the 'ai' PR label.
     if: |
@@ -771,7 +774,7 @@ jobs:
       - name: Validate Environment Variables
         run: |
           missing_vars=()
-          for var in GEMINI_API_KEY AZURE_OPEN_AI_LANGUAGE_ENDPOINT AZURE_OPEN_AI_EMBED_ENDPOINT AZURE_OPEN_AI_API_KEY OPEN_AI_API_KEY BEDROCK_ACCESS_KEY_ID BEDROCK_SECRET_ACCESS_KEY; do
+          for var in GEMINI_API_KEY AZURE_OPEN_AI_LANGUAGE_ENDPOINT AZURE_OPEN_AI_EMBED_ENDPOINT AZURE_OPEN_AI_API_KEY OPEN_AI_API_KEY BEDROCK_ACCESS_KEY_ID BEDROCK_SECRET_ACCESS_KEY VERTEX_SERVICE_ACCOUNT_KEY VERTEX_PROJECT_ID VERTEX_LOCATION; do
             if [[ -z "${!var}" ]]; then
               missing_vars+=("$var")
             fi

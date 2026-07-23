@@ -18,6 +18,7 @@ public class VendorTestModels
     public static final String EMBED_MODEL_ID = "embed_model";
     private static final String AZURE_OPEN_AI_LANGUAGE_ENDPOINT = requireEnv("AZURE_OPEN_AI_LANGUAGE_ENDPOINT");
     private static final String AZURE_OPEN_AI_EMBED_ENDPOINT = requireEnv("AZURE_OPEN_AI_EMBED_ENDPOINT");
+    private static final String VERTEX_LOCATION = requireEnv("VERTEX_LOCATION");
 
     public static final String AZURE_OPEN_AI_MODEL_PROVIDERS =
             """
@@ -100,6 +101,25 @@ public class VendorTestModels
                 }
               ]
             }""".formatted(LANGUAGE_MODEL_ID, LANGUAGE_MODEL_ID_NON_STREAMING, EMBED_MODEL_ID);
+
+    public static final String VERTEX_MODEL_PROVIDERS =
+            """
+            {
+              "models": [
+                 {
+                    "id": "vertex_gemini",
+                    "modelName": "gemini-2.5-flash",
+                    "kind": "GENERATE",
+                    "maxTokens": 8192,
+                    "temperature": 0.0,
+                    "connectionInfo": {
+                        "provider": "VERTEX_AI",
+                        "serviceAccountKey": "${ENV:VERTEX_SERVICE_ACCOUNT_KEY}",
+                        "location": "%s"
+                    }
+                }
+              ]
+            }""".formatted(VERTEX_LOCATION);
 
     private VendorTestModels() {}
 }
