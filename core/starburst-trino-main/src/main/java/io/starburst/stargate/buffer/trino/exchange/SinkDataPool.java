@@ -13,7 +13,6 @@ import com.google.common.base.Ticker;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableListMultimap;
 import com.google.common.collect.ListMultimap;
-import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
@@ -342,7 +341,7 @@ public class SinkDataPool
 
                     Deque<Slice> dataQueue = dataQueues.get(partition);
                     // reinsert slices into queue
-                    for (Slice slice : Lists.reverse(data)) {
+                    for (Slice slice : data.reversed()) {
                         dataQueue.addFirst(slice);
                     }
                 }

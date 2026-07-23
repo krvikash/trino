@@ -53,7 +53,6 @@ import java.util.function.Supplier;
 import static com.google.common.base.MoreObjects.toStringHelper;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
-import static com.google.common.collect.Lists.reverse;
 import static io.airlift.slice.SizeOf.instanceSize;
 import static io.airlift.slice.SizeOf.sizeOf;
 import static io.trino.spi.subquery.cache.PlanSignature.canonicalizePlanSignature;
@@ -300,7 +299,7 @@ public class MemoryCacheManager
     private void getColumnChannels(SplitKey key, int channelIndex, boolean onlyLoaded, Long2ObjectMap<List<Channel>> channels)
     {
         // fetch MAX_CACHED_CHANNELS_PER_COLUMN latest cached channels
-        reverse(splitCache.get(key)).stream()
+        splitCache.get(key).reversed().stream()
                 .limit(MAX_CACHED_CHANNELS_PER_COLUMN)
                 .forEach(channel -> {
                     if (onlyLoaded && !channel.isLoaded()) {
@@ -857,7 +856,7 @@ public class MemoryCacheManager
             // therefore we can search for a given channel by reversing the elements list.
             // Ideally, we could keep pointer to a Channel entry in a LinkedListMultimap, but the API
             // doesn't expose that.
-            for (Iterator<Channel> iterator = reverse(map.get(channel.getKey())).iterator(); iterator.hasNext(); ) {
+            for (Iterator<Channel> iterator = map.get(channel.getKey()).reversed().iterator(); iterator.hasNext(); ) {
                 if (iterator.next() == channel) {
                     iterator.remove();
                     removed = true;
