@@ -16,25 +16,22 @@ package io.trino.server.starburst.security;
 import com.google.common.collect.ImmutableMap;
 import io.airlift.http.client.jetty.JettyHttpClient;
 import io.airlift.log.Logger;
-import io.airlift.testing.TempFile;
 import io.starburst.stargate.accesscontrol.client.HttpTrinoSecurityClient;
 import io.starburst.stargate.accesscontrol.client.TrinoSecurityApi;
 import io.starburst.stargate.accesscontrol.client.testing.TestingAccountClient;
 import io.starburst.stargate.accesscontrol.client.testing.TestingPortalClient;
 import io.trino.plugin.base.util.AutoCloseableCloser;
 import io.trino.server.starburst.GalaxyCockroachContainer;
-import org.testcontainers.containers.BindMode;
 import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.images.builder.Transferable;
 
 import java.io.File;
-import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Files;
 import java.util.Map;
 import java.util.Optional;
 
 import static com.google.common.base.Throwables.throwIfUnchecked;
-import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.trino.plugin.base.util.Closables.closeAllSuppress;
 import static io.trino.server.starburst.GalaxyImageConstants.STARGATE_DOCKER_REPO;
 import static io.trino.server.starburst.GalaxyImageConstants.STARGATE_IMAGE_TAG;
@@ -43,6 +40,7 @@ import static io.trino.testing.containers.PemUtils.getHostNameFromPem;
 import static java.lang.String.format;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.time.Duration.ofMinutes;
+import static java.util.stream.Collectors.joining;
 import static org.testcontainers.containers.wait.strategy.Wait.forLogMessage;
 
 public class DockerTestingAccountFactory
@@ -187,13 +185,12 @@ public class DockerTestingAccountFactory
     }
 
     private void writePropertiesFile(GenericContainer<?> portalServer, String containerPath, Map<String, String> properties)
-            throws IOException
     {
-        TempFile tempFile = closer.register(new TempFile());
-        Files.write(
-                tempFile.path(),
-                properties.entrySet().stream().map(entry -> entry.getKey() + "=" + entry.getValue()).collect(toImmutableList()),
-                UTF_8);
-        portalServer.withFileSystemBind(tempFile.path().toAbsolutePath().toString(), containerPath, BindMode.READ_ONLY);
+        String content = properties.entrySet().stream()
+                .map(entry -> entry.getKey() + "=" + entry.getValue())
+                .collect(joining("\n"));
+        // Copy with an explicit mode rather than binding a host temp file: the images run as a
+        // non-root user, and io.airlift.testing.TempFile creates owner-only files.
+        portalServer.withCopyToContainer(Transferable.of(content, 0644), containerPath);
     }
 }
