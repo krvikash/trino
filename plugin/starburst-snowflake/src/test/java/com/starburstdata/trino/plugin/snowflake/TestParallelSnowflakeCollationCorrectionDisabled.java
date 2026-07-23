@@ -141,4 +141,21 @@ public class TestParallelSnowflakeCollationCorrectionDisabled
                     ".*Incompatible collations.*");
         }
     }
+
+    @Test
+    public void testCollationCorrectionDisabledSubstrPushdown()
+    {
+        String schema = getSession().getSchema().orElseThrow();
+        Session experimentalPushdownEnabled = Session.builder(getSession())
+                .setCatalogSessionProperty("snowflake", "experimental_pushdown_enabled", "true")
+                .build();
+        try (TestTable table = new TestTable(
+                snowflakeExecutor,
+                schema + ".substr_no_correction",
+                "(a VARCHAR COLLATE 'en-ci')",
+                ImmutableList.of("('hello')", "('HELLO')"))) {
+            assertThat(query(experimentalPushdownEnabled, "SELECT * FROM " + table.getName() + " WHERE SUBSTR(a, 1, 3) = 'hel'"))
+                    .result().rowCount().isEqualTo(2);
+        }
+    }
 }

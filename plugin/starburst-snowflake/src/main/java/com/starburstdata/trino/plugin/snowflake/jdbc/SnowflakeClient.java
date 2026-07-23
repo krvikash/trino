@@ -284,6 +284,7 @@ public class SnowflakeClient
                 .add(new RewriteCoalesce())
                 .add(new RewriteWideningCast())
                 .add(new RewriteIn())
+                .add(new RewriteSubstring())
                 .map("$not($is_null(value))").to("value IS NOT NULL")
                 .map("$not(value: boolean)").to("NOT value")
                 .map("$is_null(value)").to("value IS NULL")

@@ -1780,6 +1780,114 @@ public class TestParallelSnowflakeConnectorTest
         }
     }
 
+    @Test
+    public void testSubstrPushdown()
+    {
+        Session session = experimentalPushdownEnabled();
+        try (TestTable table = new TestTable(
+                onRemoteDatabase(),
+                session.getSchema().orElseThrow() + ".substr_pushdown",
+                "(a_varchar VARCHAR(40))",
+                ImmutableList.of(
+                        "'hello world'",
+                        "NULL",
+                        "'café'",
+                        "'日'",
+                        "'😀'",
+                        "'áb'"))) {
+            assertThat(query(session, "SELECT * FROM " + table.getName() + " WHERE SUBSTR(a_varchar, 1, 5) = 'hello'"))
+                    .isFullyPushedDown()
+                    .hasCorrectResultsRegardlessOfPushdown()
+                    .result().rowCount().isEqualTo(1);
+            assertThat(query(session, "SELECT * FROM " + table.getName() + " WHERE SUBSTRING(a_varchar, 7) = 'world'"))
+                    .isFullyPushedDown()
+                    .hasCorrectResultsRegardlessOfPushdown()
+                    .result().rowCount().isEqualTo(1);
+            assertThat(query(session, "SELECT * FROM " + table.getName() + " WHERE SUBSTRING(a_varchar, 1, 0) = ''"))
+                    .isFullyPushedDown()
+                    .hasCorrectResultsRegardlessOfPushdown()
+                    .result().rowCount().isEqualTo(5);
+            assertThat(query(session, "SELECT * FROM " + table.getName() + " WHERE SUBSTRING(a_varchar, 100, 5) = ''"))
+                    .isFullyPushedDown()
+                    .hasCorrectResultsRegardlessOfPushdown()
+                    .result().rowCount().isEqualTo(5);
+            assertThat(query(session, "SELECT * FROM " + table.getName() + " WHERE SUBSTRING(a_varchar, 1, 5) IS NULL"))
+                    .isFullyPushedDown()
+                    .hasCorrectResultsRegardlessOfPushdown()
+                    .result().rowCount().isEqualTo(1);
+            assertThat(query(session, "SELECT * FROM " + table.getName() + " WHERE SUBSTRING(a_varchar, 1, 1) = 'c'"))
+                    .isFullyPushedDown()
+                    .hasCorrectResultsRegardlessOfPushdown()
+                    .result().rowCount().isEqualTo(1);
+            assertThat(query(session, "SELECT * FROM " + table.getName() + " WHERE SUBSTRING(a_varchar, 1, 1) = U&'\\65E5'"))
+                    .isFullyPushedDown()
+                    .hasCorrectResultsRegardlessOfPushdown()
+                    .result().rowCount().isEqualTo(1);
+            assertThat(query(session, "SELECT * FROM " + table.getName() + " WHERE SUBSTRING(a_varchar, 1, 1) = U&'\\+01F600'"))
+                    .isFullyPushedDown()
+                    .hasCorrectResultsRegardlessOfPushdown()
+                    .result().rowCount().isEqualTo(1);
+            assertThat(query(session, "SELECT * FROM " + table.getName() + " WHERE SUBSTRING(a_varchar, 1, 1) = U&'\\00E1'"))
+                    .isFullyPushedDown()
+                    .hasCorrectResultsRegardlessOfPushdown()
+                    .result().rowCount().isEqualTo(1);
+        }
+    }
+
+    @Test
+    public void testSubstrCollatedPushdown()
+    {
+        Session session = experimentalPushdownEnabled();
+        try (TestTable table = new TestTable(
+                onRemoteDatabase(),
+                session.getSchema().orElseThrow() + ".substr_collated_pushdown",
+                "(a VARCHAR(10) COLLATE 'en-ci')",
+                ImmutableList.of("'hello'", "'HELLO'", "'HeLLo'"))) {
+            assertThat(query(session, "SELECT * FROM " + table.getName() + " WHERE SUBSTR(a, 1, 3) = 'hel'"))
+                    .isFullyPushedDown()
+                    .hasCorrectResultsRegardlessOfPushdown()
+                    .result().rowCount().isEqualTo(1);
+        }
+    }
+
+    /**
+     * Cases where {@code RewriteSubstring} does not pushdown: {@code start <= 0}, {@code length < 0}, and non-constant column-valued arguments.
+     */
+    @Test
+    public void testSubstrNotPushedDown()
+    {
+        Session session = experimentalPushdownEnabled();
+        try (TestTable table = new TestTable(
+                onRemoteDatabase(),
+                session.getSchema().orElseThrow() + ".substr_not_pushed",
+                "(a_varchar VARCHAR(20), start_col INTEGER, length_col INTEGER)",
+                ImmutableList.of(
+                        "'hello', 1, 3",
+                        "'hello', 2, 2",
+                        "'hello', 6, 5"))) {
+            assertThat(query(session, "SELECT * FROM " + table.getName() + " WHERE SUBSTRING(a_varchar, 0) = ''"))
+                    .isNotFullyPushedDown(FilterNode.class)
+                    .hasCorrectResultsRegardlessOfPushdown()
+                    .result().rowCount().isEqualTo(3);
+            assertThat(query(session, "SELECT * FROM " + table.getName() + " WHERE SUBSTRING(a_varchar, -10, 3) = ''"))
+                    .isNotFullyPushedDown(FilterNode.class)
+                    .hasCorrectResultsRegardlessOfPushdown()
+                    .result().rowCount().isEqualTo(3);
+            assertThat(query(session, "SELECT * FROM " + table.getName() + " WHERE SUBSTRING(a_varchar, 1, -5) = ''"))
+                    .isNotFullyPushedDown(FilterNode.class)
+                    .hasCorrectResultsRegardlessOfPushdown()
+                    .result().rowCount().isEqualTo(3);
+            assertThat(query(session, "SELECT * FROM " + table.getName() + " WHERE SUBSTRING(a_varchar, CAST(start_col AS BIGINT), CAST(length_col AS BIGINT)) = 'hel'"))
+                    .isNotFullyPushedDown(FilterNode.class)
+                    .hasCorrectResultsRegardlessOfPushdown()
+                    .result().rowCount().isEqualTo(1);
+            assertThat(query(session, "SELECT * FROM " + table.getName() + " WHERE SUBSTRING(a_varchar, CAST(start_col AS BIGINT)) = 'hello'"))
+                    .isNotFullyPushedDown(FilterNode.class)
+                    .hasCorrectResultsRegardlessOfPushdown()
+                    .result().rowCount().isEqualTo(1);
+        }
+    }
+
     private Session experimentalPushdownEnabled()
     {
         return Session.builder(getSession())
