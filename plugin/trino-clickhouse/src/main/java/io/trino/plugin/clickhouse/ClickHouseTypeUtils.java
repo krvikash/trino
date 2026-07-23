@@ -14,7 +14,6 @@
 package io.trino.plugin.clickhouse;
 
 import com.clickhouse.data.value.UnsignedLong;
-import com.google.common.net.InetAddresses;
 import io.airlift.slice.Slice;
 import io.trino.spi.TrinoException;
 import io.trino.spi.block.BlockBuilder;
@@ -160,7 +159,7 @@ final class ClickHouseTypeUtils
     private static Slice castFromVarcharToIpAddress(String ipAddress)
     {
         // copied from IpAddressOperators.castFromVarcharToIpAddress
-        byte[] address = InetAddresses.forString(ipAddress).getAddress();
+        byte[] address = InetAddress.ofLiteral(ipAddress).getAddress();
 
         byte[] bytes;
         if (address.length == 4) {

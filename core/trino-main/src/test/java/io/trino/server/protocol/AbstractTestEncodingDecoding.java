@@ -14,7 +14,6 @@
 package io.trino.server.protocol;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.net.InetAddresses;
 import io.airlift.slice.Slice;
 import io.airlift.slice.Slices;
 import io.trino.Session;
@@ -48,6 +47,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.net.InetAddress;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -1159,7 +1159,7 @@ public abstract class AbstractTestEncodingDecoding
     {
         byte[] address;
         try {
-            address = InetAddresses.forString(value).getAddress();
+            address = InetAddress.ofLiteral(value).getAddress();
         }
         catch (IllegalArgumentException e) {
             throw new IllegalArgumentException("Cannot cast value to IPADDRESS: " + value);
