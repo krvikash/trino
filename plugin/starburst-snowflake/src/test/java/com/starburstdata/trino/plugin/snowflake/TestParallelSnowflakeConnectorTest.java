@@ -1888,6 +1888,92 @@ public class TestParallelSnowflakeConnectorTest
         }
     }
 
+    @Test
+    public void testTrimPushdown()
+    {
+        Session session = experimentalPushdownEnabled();
+        try (TestTable table = new TestTable(
+                onRemoteDatabase(),
+                session.getSchema().orElseThrow() + ".trim_pushdown",
+                "(a VARCHAR(40))",
+                ImmutableList.of(
+                        "'hello'",
+                        "'  hello  '",
+                        "'  hello'",
+                        "'hello  '",
+                        "'\\u3000hello\\u3000'",
+                        "'\\u00A0hello\\u00A0'",
+                        "'xxhelloxx'",
+                        "'😀hello😀'",
+                        "NULL"))) {
+            assertThat(query(session, "SELECT * FROM " + table.getName() + " WHERE TRIM(a) = 'hello'"))
+                    .isFullyPushedDown()
+                    .hasCorrectResultsRegardlessOfPushdown()
+                    .result().rowCount().isEqualTo(5);
+            assertThat(query(session, "SELECT * FROM " + table.getName() + " WHERE TRIM(BOTH FROM a) = 'hello'"))
+                    .isFullyPushedDown()
+                    .hasCorrectResultsRegardlessOfPushdown()
+                    .result().rowCount().isEqualTo(5);
+            assertThat(query(session, "SELECT * FROM " + table.getName() + " WHERE TRIM(a) = a"))
+                    .isFullyPushedDown()
+                    .hasCorrectResultsRegardlessOfPushdown()
+                    .result().rowCount().isEqualTo(4);
+            assertThat(query(session, "SELECT * FROM " + table.getName() + " WHERE LTRIM(a) = 'hello'"))
+                    .isFullyPushedDown()
+                    .hasCorrectResultsRegardlessOfPushdown()
+                    .result().rowCount().isEqualTo(2);
+            assertThat(query(session, "SELECT * FROM " + table.getName() + " WHERE RTRIM(a) = 'hello'"))
+                    .isFullyPushedDown()
+                    .hasCorrectResultsRegardlessOfPushdown()
+                    .result().rowCount().isEqualTo(2);
+            assertThat(query(session, "SELECT * FROM " + table.getName() + " WHERE TRIM(a, 'x') = 'hello'"))
+                    .isFullyPushedDown()
+                    .hasCorrectResultsRegardlessOfPushdown()
+                    .result().rowCount().isEqualTo(2);
+            assertThat(query(session, "SELECT * FROM " + table.getName() + " WHERE TRIM(LEADING 'x' FROM a) = 'helloxx'"))
+                    .isFullyPushedDown()
+                    .hasCorrectResultsRegardlessOfPushdown()
+                    .result().rowCount().isEqualTo(1);
+            assertThat(query(session, "SELECT * FROM " + table.getName() + " WHERE TRIM(TRAILING 'x' FROM a) = 'xxhello'"))
+                    .isFullyPushedDown()
+                    .hasCorrectResultsRegardlessOfPushdown()
+                    .result().rowCount().isEqualTo(1);
+            assertThat(query(session, "SELECT * FROM " + table.getName() + " WHERE TRIM(a, U&'\\+01F600') = 'hello'"))
+                    .isFullyPushedDown()
+                    .hasCorrectResultsRegardlessOfPushdown()
+                    .result().rowCount().isEqualTo(2);
+            assertThat(query(session, "SELECT * FROM " + table.getName() + " WHERE TRIM(a) IS NULL"))
+                    .isFullyPushedDown()
+                    .hasCorrectResultsRegardlessOfPushdown()
+                    .result().rowCount().isEqualTo(1);
+        }
+    }
+
+    @Test
+    public void testTrimCollatedPushdown()
+    {
+        Session session = experimentalPushdownEnabled();
+        try (TestTable table = new TestTable(
+                onRemoteDatabase(),
+                session.getSchema().orElseThrow() + ".trim_collated_pushdown",
+                "(a VARCHAR(20) COLLATE 'en-ci')",
+                ImmutableList.of(
+                        "'  abc  '",
+                        "'  ABC  '",
+                        "'aXa'",
+                        "'AXA'",
+                        "'xyz'"))) {
+            assertThat(query(session, "SELECT * FROM " + table.getName() + " WHERE TRIM(a) = 'abc'"))
+                    .isFullyPushedDown()
+                    .hasCorrectResultsRegardlessOfPushdown()
+                    .result().rowCount().isEqualTo(1);
+            assertThat(query(session, "SELECT * FROM " + table.getName() + " WHERE TRIM(a, 'a') = 'X'"))
+                    .isFullyPushedDown()
+                    .hasCorrectResultsRegardlessOfPushdown()
+                    .result().rowCount().isEqualTo(1);
+        }
+    }
+
     private Session experimentalPushdownEnabled()
     {
         return Session.builder(getSession())

@@ -11,6 +11,7 @@ package com.starburstdata.trino.plugin.snowflake;
 
 import com.google.common.collect.ImmutableList;
 import io.trino.Session;
+import io.trino.sql.planner.plan.FilterNode;
 import io.trino.testing.AbstractTestQueryFramework;
 import io.trino.testing.QueryRunner;
 import io.trino.testing.sql.SqlExecutor;
@@ -156,6 +157,23 @@ public class TestParallelSnowflakeCollationCorrectionDisabled
                 ImmutableList.of("('hello')", "('HELLO')"))) {
             assertThat(query(experimentalPushdownEnabled, "SELECT * FROM " + table.getName() + " WHERE SUBSTR(a, 1, 3) = 'hel'"))
                     .result().rowCount().isEqualTo(2);
+        }
+    }
+
+    @Test
+    public void testCollationCorrectionDisabledTrimPushdown()
+    {
+        Session experimentalPushdownEnabled = Session.builder(getSession())
+                .setCatalogSessionProperty("snowflake", "experimental_pushdown_enabled", "true")
+                .build();
+        try (TestTable table = new TestTable(
+                snowflakeExecutor,
+                getSession().getSchema().orElseThrow() + ".trim_no_correction",
+                "(a VARCHAR COLLATE 'en-ci')",
+                ImmutableList.of("('  hello  ')", "('  HELLO  ')"))) {
+            assertThat(query(experimentalPushdownEnabled, "SELECT * FROM " + table.getName() + " WHERE TRIM(a) = 'hello'"))
+                    .isNotFullyPushedDown(FilterNode.class)
+                    .result().rowCount().isEqualTo(1);
         }
     }
 }
