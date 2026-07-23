@@ -78,7 +78,7 @@ public final class PageCapacityEstimator
             maxAverageBytesPerPosition = OptionalDouble.of(
                     maxAverageBytesPerPosition.isEmpty()
                             ? avg
-                            : max(maxAverageBytesPerPosition.getAsDouble(), avg));
+                            : max(maxAverageBytesPerPosition.orElseThrow(), avg));
         }
         capacity = computeNextCapacity(positionCount);
     }
@@ -88,12 +88,12 @@ public final class PageCapacityEstimator
         if (maxAverageBytesPerPosition.isEmpty()) {
             return capacity;
         }
-        if (maxAverageBytesPerPosition.getAsDouble() == 0) {
+        if (maxAverageBytesPerPosition.orElseThrow() == 0) {
             return maxEntries;
         }
         int nextCapacity = (int) min(
                 maxEntries,
-                min((double) BATCH_GROWTH_FACTOR * observedPositions, maxPageSizeInBytes / maxAverageBytesPerPosition.getAsDouble()));
+                min((double) BATCH_GROWTH_FACTOR * observedPositions, maxPageSizeInBytes / maxAverageBytesPerPosition.orElseThrow()));
         return max(1, nextCapacity);
     }
 }

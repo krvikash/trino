@@ -172,8 +172,8 @@ public class QueryClassifier
     {
         OptionalInt totalRecordsOpt = classifyArgs.getWarmedWarmupTypes().getColumnTotalRecords(regularColumn);
         if (totalRecordsOpt.isPresent()) {
-            checkArgument(totalRecordsOpt.getAsInt() == totalRecords || totalRecords == INVALID_TOTAL_RECORDS, "different total records for required WE %s", queryContext);
-            totalRecords = totalRecordsOpt.getAsInt();
+            checkArgument(totalRecordsOpt.orElseThrow() == totalRecords || totalRecords == INVALID_TOTAL_RECORDS, "different total records for required WE %s", queryContext);
+            totalRecords = totalRecordsOpt.orElseThrow();
         }
         return totalRecords;
     }

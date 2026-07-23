@@ -157,7 +157,7 @@ public class KdbMetadata
     public Optional<LimitApplicationResult<ConnectorTableHandle>> applyLimit(ConnectorSession session, ConnectorTableHandle handle, long limit)
     {
         KdbTableHandle table = (KdbTableHandle) handle;
-        if (table.limit().isPresent() && table.limit().getAsLong() <= limit) {
+        if (table.limit().isPresent() && table.limit().orElseThrow() <= limit) {
             return Optional.empty();
         }
         return Optional.of(new LimitApplicationResult<>(table.withLimit(limit), true, false));

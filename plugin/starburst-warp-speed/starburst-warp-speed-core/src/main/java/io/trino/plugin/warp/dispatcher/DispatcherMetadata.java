@@ -1213,7 +1213,7 @@ public class DispatcherMetadata
                     session,
                     Optional.of(unified),
                     unified.getProxyConnectorTableHandle())
-                    .limit(Long.max(firstTable.getLimit().getAsLong(), secondTable.getLimit().getAsLong()))
+                    .limit(Long.max(firstTable.getLimit().orElseThrow(), secondTable.getLimit().orElseThrow()))
                     .build();
         }
 

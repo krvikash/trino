@@ -178,7 +178,7 @@ public class TestIcebergMvOnSasSourceSubstitution
         try (SasTpchLoader loader = new SasTpchLoader(getDistributedQueryRunner().getCoordinator(), schemaDir, table.getSchemaTableName().getTableName())) {
             ResultWithQueryId<Integer> result = loader.execute(sql);
             if (expectedUpdateCount.isPresent()) {
-                assertThat(result.getResult()).isEqualTo(expectedUpdateCount.getAsInt());
+                assertThat(result.getResult()).isEqualTo(expectedUpdateCount.orElseThrow());
             }
         }
     }

@@ -681,7 +681,7 @@ public class MemoryMetadata
     {
         MemoryTableHandle table = (MemoryTableHandle) handle;
 
-        if (table.limit().isPresent() && table.limit().getAsLong() <= limit) {
+        if (table.limit().isPresent() && table.limit().orElseThrow() <= limit) {
             return Optional.empty();
         }
 
@@ -693,7 +693,7 @@ public class MemoryMetadata
     {
         MemoryTableHandle table = (MemoryTableHandle) handle;
 
-        if ((table.sampleRatio().isPresent() && table.sampleRatio().getAsDouble() == sampleRatio) || sampleType != SYSTEM || table.limit().isPresent()) {
+        if ((table.sampleRatio().isPresent() && table.sampleRatio().orElseThrow() == sampleRatio) || sampleType != SYSTEM || table.limit().isPresent()) {
             return Optional.empty();
         }
 

@@ -305,7 +305,7 @@ public class RateLimitingTestServer
             OptionalDouble rateLimit = addDataPagesThrottlingCalculator.getRateLimit(clientId, inProgressAddDataPagesRequests.get());
             if (rateLimit.isPresent()) {
                 ImmutableMap<String, String> headers = ImmutableMap.of(
-                        RATE_LIMIT_HEADER.toString(), Double.toString(rateLimit.getAsDouble()),
+                        RATE_LIMIT_HEADER.toString(), Double.toString(rateLimit.orElseThrow()),
                         AVERAGE_PROCESS_TIME_IN_MILLIS_HEADER.toString(), Long.toString(addDataPagesThrottlingCalculator.getAverageProcessTimeInMillis()));
                 return headers;
             }

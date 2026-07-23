@@ -61,8 +61,8 @@ class CrcLongBlockAppenderTest
                 LocalTime.of(23, 59, 59, 999_999_000),
                 LocalTime.of(6, 30, 45, 987_654_321),
                 LocalTime.of(18, 15, 30, 500_000_000));
-        long expectedTimeMax = timeValuesList.stream().mapToLong(LocalTime::toNanoOfDay).max().getAsLong();
-        long expectedTimeMin = timeValuesList.stream().mapToLong(LocalTime::toNanoOfDay).min().getAsLong();
+        long expectedTimeMax = timeValuesList.stream().mapToLong(LocalTime::toNanoOfDay).max().orElseThrow();
+        long expectedTimeMin = timeValuesList.stream().mapToLong(LocalTime::toNanoOfDay).min().orElseThrow();
         BlockBuilder timeBlockBuilder = createTimeBlockBuilder(timeType, timeValuesList);
         Block timeBlockWithoutNull = timeBlockBuilder.build();
         timeBlockBuilder.appendNull();
@@ -82,8 +82,8 @@ class CrcLongBlockAppenderTest
                 new BigDecimal("67.89"),
                 new BigDecimal("1.23"),
                 new BigDecimal("-123456.78"));
-        long expectedShortDecimalMax = shortDecimalValues.stream().mapToLong(value -> Decimals.encodeShortScaledValue(value, shortDecimalType.getScale())).max().getAsLong();
-        long expectedShortDecimalMin = shortDecimalValues.stream().mapToLong(value -> Decimals.encodeShortScaledValue(value, shortDecimalType.getScale())).min().getAsLong();
+        long expectedShortDecimalMax = shortDecimalValues.stream().mapToLong(value -> Decimals.encodeShortScaledValue(value, shortDecimalType.getScale())).max().orElseThrow();
+        long expectedShortDecimalMin = shortDecimalValues.stream().mapToLong(value -> Decimals.encodeShortScaledValue(value, shortDecimalType.getScale())).min().orElseThrow();
         BlockBuilder shortDecimalBlockBuilder = createShortDecimalBlockBuilder(shortDecimalType, shortDecimalValues);
         Block shortDecimalWithoutNull = shortDecimalBlockBuilder.build();
         shortDecimalBlockBuilder.appendNull();

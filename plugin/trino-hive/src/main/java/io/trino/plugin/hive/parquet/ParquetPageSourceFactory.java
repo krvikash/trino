@@ -351,7 +351,7 @@ public class ParquetPageSourceFactory
             FileFormatDataSourceStats stats)
             throws IOException
     {
-        if (estimatedFileSize.isEmpty() || estimatedFileSize.getAsLong() > options.getSmallFileThreshold().toBytes()) {
+        if (estimatedFileSize.isEmpty() || estimatedFileSize.orElseThrow() > options.getSmallFileThreshold().toBytes()) {
             return new TrinoParquetDataSource(inputFile, options, stats);
         }
         return new MemoryParquetDataSource(inputFile, memoryContext, stats);

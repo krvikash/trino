@@ -78,8 +78,8 @@ public class CheckpointFieldReader
             return OptionalInt.empty();
         }
 
-        IntArrayBlock valueBlock = (IntArrayBlock) row.getUnderlyingFieldBlock(index.getAsInt());
-        int position = row.getUnderlyingFieldPosition(index.getAsInt());
+        IntArrayBlock valueBlock = (IntArrayBlock) row.getUnderlyingFieldBlock(index.orElseThrow());
+        int position = row.getUnderlyingFieldPosition(index.orElseThrow());
         if (valueBlock.isNull(position)) {
             return OptionalInt.empty();
         }
@@ -120,8 +120,8 @@ public class CheckpointFieldReader
         if (index.isEmpty()) {
             return Optional.empty();
         }
-        ArrayBlock valueBlock = (ArrayBlock) row.getUnderlyingFieldBlock(index.getAsInt());
-        int position = row.getUnderlyingFieldPosition(index.getAsInt());
+        ArrayBlock valueBlock = (ArrayBlock) row.getUnderlyingFieldBlock(index.orElseThrow());
+        int position = row.getUnderlyingFieldPosition(index.orElseThrow());
         if (valueBlock.isNull(position)) {
             return Optional.empty();
         }
@@ -144,8 +144,8 @@ public class CheckpointFieldReader
         if (index.isEmpty()) {
             return null;
         }
-        RowBlock valueBlock = (RowBlock) row.getUnderlyingFieldBlock(index.getAsInt());
-        int position = row.getUnderlyingFieldPosition(index.getAsInt());
+        RowBlock valueBlock = (RowBlock) row.getUnderlyingFieldBlock(index.orElseThrow());
+        int position = row.getUnderlyingFieldPosition(index.orElseThrow());
         if (valueBlock.isNull(position)) {
             return null;
         }

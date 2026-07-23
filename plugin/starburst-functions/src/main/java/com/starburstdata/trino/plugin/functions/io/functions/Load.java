@@ -403,7 +403,7 @@ public class Load
             requireNonNull(escape, "escape is null");
 
             if (skipHeader.isPresent()) {
-                checkFunctionArgument(skipHeader.getAsInt() >= 0, "%s must be >= 0", SKIP_HEADER_ARGUMENT_NAME);
+                checkFunctionArgument(skipHeader.orElseThrow() >= 0, "%s must be >= 0", SKIP_HEADER_ARGUMENT_NAME);
                 checkFunctionArgument(Set.of(TEXTFILE, CSV).contains(format), "Cannot specify header for storage format: %s", format);
             }
             if (fieldSeparator.isPresent()) {

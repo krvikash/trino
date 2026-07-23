@@ -363,7 +363,7 @@ public final class DynamicFilters
                     .add("input", input)
                     .add("operator", operator)
                     .add("nullAllowed", nullAllowed)
-                    .add("timeout", preferredTimeout.isPresent() ? preferredTimeout.getAsLong() : null)
+                    .add("timeout", preferredTimeout.isPresent() ? preferredTimeout.orElseThrow() : null)
                     .toString();
         }
 

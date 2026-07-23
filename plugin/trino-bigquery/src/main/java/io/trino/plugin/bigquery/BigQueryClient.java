@@ -615,7 +615,7 @@ public class BigQueryClient
             query = query + " WHERE " + filter.get();
         }
         if (limit.isPresent()) {
-            query = query + " LIMIT " + limit.getAsLong();
+            query = query + " LIMIT " + limit.orElseThrow();
         }
         return query;
     }

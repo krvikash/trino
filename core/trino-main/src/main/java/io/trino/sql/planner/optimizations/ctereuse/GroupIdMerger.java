@@ -252,7 +252,7 @@ public class GroupIdMerger
 
             OptionalLong enforcedLimit = branch.traversalContext().enforcedLimit();
             if (enforcedLimit.isPresent()) {
-                enforcedLimit = OptionalLong.of(enforcedLimit.getAsLong() * groupingSets.size());
+                enforcedLimit = OptionalLong.of(enforcedLimit.orElseThrow() * groupingSets.size());
             }
 
             TraversalContext newContext = new TraversalContext(

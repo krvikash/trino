@@ -705,9 +705,9 @@ public class OpenSearchClient
             sourceBuilder.size(0);
         }
         else {
-            if (limit.isPresent() && limit.getAsLong() < scrollSize) {
+            if (limit.isPresent() && limit.orElseThrow() < scrollSize) {
                 // Safe to cast it to int because scrollSize is int.
-                sourceBuilder.size(toIntExact(limit.getAsLong()));
+                sourceBuilder.size(toIntExact(limit.orElseThrow()));
             }
             else {
                 sourceBuilder.size(scrollSize);
@@ -838,7 +838,7 @@ public class OpenSearchClient
 
         int batchSize = searchAfterBatchSize;
         if (limit.isPresent()) {
-            long remaining = limit.getAsLong() - totalRecordCount;
+            long remaining = limit.orElseThrow() - totalRecordCount;
             batchSize = (int) Math.max(1, Math.min(searchAfterBatchSize, remaining));
         }
         sourceBuilder.size(batchSize);

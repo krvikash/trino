@@ -195,7 +195,7 @@ public class GpuFilter
             if (retained == 0) {
                 return new Yielded();
             }
-            if (retained == input.positionCount() || (passThroughThresholdRatio.isPresent() && retained >= input.positionCount() * passThroughThresholdRatio.getAsDouble())) {
+            if (retained == input.positionCount() || (passThroughThresholdRatio.isPresent() && retained >= input.positionCount() * passThroughThresholdRatio.orElseThrow())) {
                 mask.close();
                 return toData(allocation, inputPage);
             }

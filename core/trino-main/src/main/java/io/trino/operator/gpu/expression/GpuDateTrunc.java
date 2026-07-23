@@ -56,7 +56,7 @@ public final class GpuDateTrunc
                 // cuDF dateTimeFloor produces incorrect results for large-magnitude negative timestamps.
                 // Cast to INT64 for arithmetic (pmod doesn't accept timestamp LHS), compute
                 // floor(x, p) = x - pmod(x, p), then cast back to the original timestamp type.
-                try (Scalar periodScalar = Scalar.fromLong(period.getAsLong());
+                try (Scalar periodScalar = Scalar.fromLong(period.orElseThrow());
                         ClosingOnce<ColumnVector> floorMod = ClosingOnce.own(asInt64.borrow().pmod(periodScalar));
                         ColumnVector floored = asInt64.borrow().sub(floorMod.borrow())) {
                     floorMod.close();

@@ -93,7 +93,7 @@ public class AggregateQueryPageSource
         // set pageSize to search.max_buckets https://docs.opensearch.org/docs/latest/install-and-configure/configuring-opensearch/search-settings/ or the limit if it is smaller
         this.pageSize = table.limit().isEmpty()
                 ? OptionalInt.empty()
-                : OptionalInt.of((int) Math.min(Math.min(table.limit().getAsLong(), Integer.MAX_VALUE), client.getMaxAggregationBuckets()));
+                : OptionalInt.of((int) Math.min(Math.min(table.limit().orElseThrow(), Integer.MAX_VALUE), client.getMaxAggregationBuckets()));
 
         this.baseAggregations = buildAggregationQuery(table.aggregationInfo().get(), pageSize);
     }
@@ -116,7 +116,7 @@ public class AggregateQueryPageSource
         // One of the following situation may stop the fetching
         // 1. afterKey is empty, that means no more result can be fetched
         // 2. fetchedSize >= the potential limit constraint
-        return (fetched && after.isEmpty()) || (table.limit().isPresent() && fetchedSize >= table.limit().getAsLong());
+        return (fetched && after.isEmpty()) || (table.limit().isPresent() && fetchedSize >= table.limit().orElseThrow());
     }
 
     @Override

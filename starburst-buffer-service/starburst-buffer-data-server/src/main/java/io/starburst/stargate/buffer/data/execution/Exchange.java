@@ -349,7 +349,7 @@ public class Exchange
     @GuardedBy("this")
     private ChunkList nextChunkList(long pagingId)
     {
-        checkArgument(nextPagingId.isEmpty() || nextPagingId.getAsLong() == pagingId, "Expected pagingId %s but got %s", nextPagingId, pagingId);
+        checkArgument(nextPagingId.isEmpty() || nextPagingId.orElseThrow() == pagingId, "Expected pagingId %s but got %s", nextPagingId, pagingId);
         int chunkListSize = Math.min(chunkListMaxSize, pendingChunkList.size());
         List<ChunkHandle> chunks = ImmutableList.copyOf(pendingChunkList.subList(0, chunkListSize));
         pendingChunkList = pendingChunkList.subList(chunkListSize, pendingChunkList.size());
@@ -522,11 +522,11 @@ public class Exchange
         }
 
         // if this is not a request for the next chunk list, return not found
-        if (pagingId != nextPagingId.getAsLong()) {
+        if (pagingId != nextPagingId.orElseThrow()) {
             // unknown pagingId
             return Optional.of(immediateFailedFuture(new DataServerException(
                     USER_ERROR,
-                    "pagingId %d does not equal nextPagingId %d".formatted(pagingId, nextPagingId.getAsLong()))));
+                    "pagingId %d does not equal nextPagingId %d".formatted(pagingId, nextPagingId.orElseThrow()))));
         }
 
         // This is either the first request for the next chunk list, or a repeated request during an ongoing long-poll

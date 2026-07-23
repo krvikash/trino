@@ -270,7 +270,7 @@ public final class GpuAggregationCompiler
                 .flatMap(dType -> {
                     if (arguments.isEmpty()) {
                         if (maskChannel.isPresent()) {
-                            int mask = maskChannel.getAsInt();
+                            int mask = maskChannel.orElseThrow();
                             return Optional.of(AggregateCompilation.single(
                                     outputType,
                                     maskExpression(mask, mask),
@@ -285,7 +285,7 @@ public final class GpuAggregationCompiler
                             .filter(column -> isConvertible(column.type()))
                             .map(column -> {
                                 GpuExpression input = maskChannel.isPresent()
-                                        ? maskExpression(maskChannel.getAsInt(), column.channel())
+                                        ? maskExpression(maskChannel.orElseThrow(), column.channel())
                                         : new GetColumn(column.channel());
                                 return AggregateCompilation.single(outputType, input, channel -> new GpuCountNonNull(channel, outputType, dType));
                             });
@@ -309,7 +309,7 @@ public final class GpuAggregationCompiler
         return switch (argumentType) {
             case BigintType _ -> toDType(argumentType).map(dType -> {
                 GpuExpression input = maskChannel.isPresent()
-                        ? maskExpression(maskChannel.getAsInt(), column.get().channel())
+                        ? maskExpression(maskChannel.orElseThrow(), column.get().channel())
                         : new GetColumn(column.get().channel());
                 return AggregateCompilation.single(outputType, input, channel -> new GpuSum(channel, outputType, dType));
             });
@@ -320,7 +320,7 @@ public final class GpuAggregationCompiler
 
                 GpuExpression input = new GetColumn(column.get().channel());
                 if (maskChannel.isPresent()) {
-                    input = new Mask(new GetColumn(maskChannel.getAsInt()), input);
+                    input = new Mask(new GetColumn(maskChannel.orElseThrow()), input);
                 }
                 // sum(REAL) and sum(DOUBLE) both use DOUBLE as accumulator type
                 if (step.isInputRaw() && argumentType == REAL) {
@@ -468,7 +468,7 @@ public final class GpuAggregationCompiler
                     }
                     return toDType(returnType).map(dType -> {
                         GpuExpression input = maskChannel.isPresent()
-                                ? maskExpression(maskChannel.getAsInt(), column.channel())
+                                ? maskExpression(maskChannel.orElseThrow(), column.channel())
                                 : new GetColumn(column.channel());
                         return AggregateCompilation.single(returnType, input, channel -> factory.create(channel, returnType, dType));
                     });
@@ -485,7 +485,7 @@ public final class GpuAggregationCompiler
                 .flatMap(column -> toDType(returnType)
                         .map(dType -> {
                             GpuExpression input = maskChannel.isPresent()
-                                    ? maskExpression(maskChannel.getAsInt(), column.channel())
+                                    ? maskExpression(maskChannel.orElseThrow(), column.channel())
                                     : new GetColumn(column.channel());
                             return AggregateCompilation.single(returnType, input, channel -> new GpuAnyValue(channel, returnType, dType));
                         }));

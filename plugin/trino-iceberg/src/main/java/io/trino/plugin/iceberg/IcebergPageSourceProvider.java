@@ -1206,7 +1206,7 @@ public class IcebergPageSourceProvider
                 else if (!fileColumnsByIcebergId.containsKey(column.getBaseColumnIdentity().getId())) {
                     if (column.isRowIdColumn() && fileFirstRowId.isPresent()) {
                         appendRowNumberColumn = true;
-                        transforms.transform(new RowIdTransform(fileFirstRowId.getAsLong(), -1));
+                        transforms.transform(new RowIdTransform(fileFirstRowId.orElseThrow(), -1));
                     }
                     else if (column.isLastUpdatedSequenceNumberColumn()) {
                         transforms.constantValue(writeNativeValue(column.getType(), dataSequenceNumber.orElseThrow(() ->
@@ -1235,7 +1235,7 @@ public class IcebergPageSourceProvider
 
                     if (column.isRowIdColumn() && fileFirstRowId.isPresent()) {
                         appendRowNumberColumn = true;
-                        transforms.transform(new RowIdTransform(fileFirstRowId.getAsLong(), ordinal));
+                        transforms.transform(new RowIdTransform(fileFirstRowId.orElseThrow(), ordinal));
                     }
                     else if (column.isLastUpdatedSequenceNumberColumn()) {
                         transforms.transform(new DataSequenceNumberTransform(dataSequenceNumber.orElseThrow(() ->
@@ -1563,7 +1563,7 @@ public class IcebergPageSourceProvider
                 else if (!parquetIdToFieldName.containsKey(column.getBaseColumn().getId())) {
                     if (column.isRowIdColumn() && fileFirstRowId.isPresent()) {
                         appendRowNumberColumn = true;
-                        transforms.transform(new RowIdTransform(fileFirstRowId.getAsLong(), -1));
+                        transforms.transform(new RowIdTransform(fileFirstRowId.orElseThrow(), -1));
                     }
                     else if (column.isLastUpdatedSequenceNumberColumn()) {
                         transforms.constantValue(writeNativeValue(column.getType(), dataSequenceNumber.orElseThrow(() ->
@@ -1599,7 +1599,7 @@ public class IcebergPageSourceProvider
                     }
                     if (column.isRowIdColumn() && fileFirstRowId.isPresent()) {
                         appendRowNumberColumn = true;
-                        transforms.transform(new RowIdTransform(fileFirstRowId.getAsLong(), ordinal));
+                        transforms.transform(new RowIdTransform(fileFirstRowId.orElseThrow(), ordinal));
                     }
                     else if (column.isLastUpdatedSequenceNumberColumn()) {
                         transforms.transform(new DataSequenceNumberTransform(dataSequenceNumber.orElseThrow(() ->
@@ -1849,7 +1849,7 @@ public class IcebergPageSourceProvider
                 else if (!fileColumnsByIcebergId.containsKey(column.getBaseColumn().getId())) {
                     if (column.isRowIdColumn() && fileFirstRowId.isPresent()) {
                         appendRowNumberColumn = true;
-                        transforms.transform(new RowIdTransform(fileFirstRowId.getAsLong(), -1));
+                        transforms.transform(new RowIdTransform(fileFirstRowId.orElseThrow(), -1));
                     }
                     else if (column.isLastUpdatedSequenceNumberColumn()) {
                         transforms.constantValue(writeNativeValue(column.getType(), dataSequenceNumber.orElseThrow(() ->
@@ -1874,7 +1874,7 @@ public class IcebergPageSourceProvider
 
                     if (column.isRowIdColumn() && fileFirstRowId.isPresent()) {
                         appendRowNumberColumn = true;
-                        transforms.transform(new RowIdTransform(fileFirstRowId.getAsLong(), ordinal));
+                        transforms.transform(new RowIdTransform(fileFirstRowId.orElseThrow(), ordinal));
                     }
                     else if (column.isLastUpdatedSequenceNumberColumn()) {
                         transforms.transform(new DataSequenceNumberTransform(dataSequenceNumber.orElseThrow(() ->
@@ -2425,7 +2425,7 @@ public class IcebergPageSourceProvider
                 sourceRowIdBlock = storedSourceRowId;
             }
             else if (fileFirstRowId.isPresent()) {
-                long firstRowId = fileFirstRowId.getAsLong();
+                long firstRowId = fileFirstRowId.orElseThrow();
                 long[] rowIds = new long[positionCount];
                 for (int i = 0; i < positionCount; i++) {
                     if (storedSourceRowId != null && !storedSourceRowId.isNull(i)) {

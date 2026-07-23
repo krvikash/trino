@@ -2500,7 +2500,7 @@ class QueryPlanner
                     new LimitNode(
                             idAllocator.getNextId(),
                             subPlan.getRoot(),
-                            analysis.getLimit(limit.get()).getAsLong(),
+                            analysis.getLimit(limit.get()).orElseThrow(),
                             tiesResolvingScheme,
                             false,
                             ImmutableList.of()));

@@ -497,7 +497,7 @@ public class HivePageSourceProvider
             return false;
         }
         Optional<HiveBucketFilter> hiveBucketFilter = getHiveBucketFilter(hiveTable, predicate);
-        return hiveBucketFilter.map(filter -> !filter.bucketsToKeep().contains(hiveSplit.getTableBucketNumber().getAsInt())).orElse(false);
+        return hiveBucketFilter.map(filter -> !filter.bucketsToKeep().contains(hiveSplit.getTableBucketNumber().orElseThrow())).orElse(false);
     }
 
     private static boolean shouldSkipSplit(List<ColumnMapping> columnMappings, TupleDomain<ColumnHandle> predicate)
@@ -649,7 +649,7 @@ public class HivePageSourceProvider
         public int getIndex()
         {
             checkState(kind == ColumnMappingKind.REGULAR || kind == ColumnMappingKind.INTERIM || isRowIdColumnHandle(hiveColumnHandle));
-            return index.getAsInt();
+            return index.orElseThrow();
         }
 
         public Optional<HiveType> getBaseTypeCoercionFrom()
@@ -818,7 +818,7 @@ public class HivePageSourceProvider
                     conversion.bucketingVersion(),
                     conversion.tableBucketCount(),
                     conversion.partitionBucketCount(),
-                    bucketNumber.getAsInt());
+                    bucketNumber.orElseThrow());
         });
     }
 

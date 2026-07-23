@@ -165,7 +165,7 @@ final class GpuGlobalAggregation
     {
         int positionCount = toIntExact(input.getRowCount());
         if (aggregate.inputChannel().isPresent()) {
-            @Borrow ColumnVector inputColumn = input.getColumn(aggregate.inputChannel().getAsInt());
+            @Borrow ColumnVector inputColumn = input.getColumn(aggregate.inputChannel().orElseThrow());
             return inputRaw
                     ? aggregate.reduce(inputColumn, positionCount)
                     : aggregate.mergeReduce(inputColumn, positionCount);

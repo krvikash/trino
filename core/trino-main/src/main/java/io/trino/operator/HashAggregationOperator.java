@@ -382,8 +382,8 @@ public class HashAggregationOperator
                     .map(PartialAggregationController::getPartialAggregationMode)
                     .orElse(PartialAggregationController.AggregationMode.AGGREGATION);
 
-            if (aggregationMode == PartialAggregationController.AggregationMode.HLL && cardinalityEstimator.overallCardinality().isPresent() && cardinalityEstimator.overallCardinality().getAsDouble() > 0) {
-                if (cardinalityEstimator.overallCardinality().getAsDouble() < getAdaptiveLocalPartialAggregationUniqueRowsRatioThreshold(operatorContext.getSession())) {
+            if (aggregationMode == PartialAggregationController.AggregationMode.HLL && cardinalityEstimator.overallCardinality().isPresent() && cardinalityEstimator.overallCardinality().orElseThrow() > 0) {
+                if (cardinalityEstimator.overallCardinality().orElseThrow() < getAdaptiveLocalPartialAggregationUniqueRowsRatioThreshold(operatorContext.getSession())) {
                     aggregationMode = PartialAggregationController.AggregationMode.AGGREGATION;
                 }
             }

@@ -103,7 +103,7 @@ public class SearchAfterQueryPageSource
         @Override
         protected SearchHit computeNext()
         {
-            if (limit.isPresent() && totalRecordCount == limit.getAsLong()) {
+            if (limit.isPresent() && totalRecordCount == limit.orElseThrow()) {
                 return endOfData();
             }
 

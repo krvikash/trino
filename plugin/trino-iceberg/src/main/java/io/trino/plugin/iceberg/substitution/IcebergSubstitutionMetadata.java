@@ -76,7 +76,7 @@ public class IcebergSubstitutionMetadata
         return Optional.of(new ConnectorStorageTableId(
                 handle.getSchemaName(),
                 handle.getTableName(),
-                Long.toString(snapshotId.getAsLong())));
+                Long.toString(snapshotId.orElseThrow())));
     }
 
     @Override

@@ -36,7 +36,7 @@ public final class KdbQueryBuilder
             // Columns can be empty for aggregation queries like SELECT COUNT(*)
             String baseQuery = "select from %s".formatted(fullTableName);
             if (limit.isPresent()) {
-                return "%d sublist %s".formatted(limit.getAsLong(), baseQuery);
+                return "%d sublist %s".formatted(limit.orElseThrow(), baseQuery);
             }
             return baseQuery;
         }
@@ -48,7 +48,7 @@ public final class KdbQueryBuilder
                 .map(KdbColumnHandle::columnName)
                 .collect(Collectors.joining("`"));
         String colList = columns.size() == 1 ? "enlist[`" + cols + "]" : "`" + cols;
-        String limitParam = limit.isPresent() ? "; %d".formatted(limit.getAsLong()) : "";
+        String limitParam = limit.isPresent() ? "; %d".formatted(limit.orElseThrow()) : "";
         return "?[%s; (); 0b; %s!%s%s]".formatted(fullTableName, colList, colList, limitParam);
     }
 }

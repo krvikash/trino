@@ -53,8 +53,8 @@ class CrcIntBlockAppenderTest
                 LocalDate.of(2023, 7, 19),
                 LocalDate.of(2023, 7, 20),
                 LocalDate.of(2020, 7, 20));
-        int expectedMax = dateValues.stream().mapToInt(x -> (int) x.toEpochDay()).max().getAsInt();
-        int expectedMin = dateValues.stream().mapToInt(x -> (int) x.toEpochDay()).min().getAsInt();
+        int expectedMax = dateValues.stream().mapToInt(x -> (int) x.toEpochDay()).max().orElseThrow();
+        int expectedMin = dateValues.stream().mapToInt(x -> (int) x.toEpochDay()).min().orElseThrow();
         BlockBuilder dateBlockBuilder = createDateBlockBuilder(DateType.DATE, dateValues);
         Block dateBlockWithoutNull = dateBlockBuilder.build();
         dateBlockBuilder.appendNull();

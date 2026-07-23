@@ -35,7 +35,7 @@ public class IcebergAlternativeChooser
             for (int i = 1; i < alternatives.size(); i++) {
                 IcebergTableHandle tableHandle = (IcebergTableHandle) alternatives.get(i);
                 if (tableHandle.getSortOrderId().isPresent()
-                        && tableHandle.getSortOrderId().getAsInt() == splitSortOrderId) {
+                        && tableHandle.getSortOrderId().orElseThrow() == splitSortOrderId) {
                     return new Choice(i);
                 }
             }

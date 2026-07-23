@@ -644,7 +644,7 @@ public class AggregationMerger
                 .map(aggregateCall -> {
                     Block maskSelector = maskFieldIndex.isEmpty()
                             ? rebaseBlock(aggregateCall.maskSelector(), newInputRowType, mapping, nameAllocator).orElseThrow()
-                            : createSingleFieldSelector(newInputRowType, maskFieldIndex.getAsInt(), Optional.of("^maskSelector"), true, nameAllocator);
+                            : createSingleFieldSelector(newInputRowType, maskFieldIndex.orElseThrow(), Optional.of("^maskSelector"), true, nameAllocator);
 
                     return new AggregateCall(
                             aggregateCall.result().name(),

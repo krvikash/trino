@@ -109,7 +109,7 @@ final class GpuGroupByAggregation
             GpuAggregateFunction aggregate = aggregates.get(i);
             // For aggregates with input channel, use that column; for COUNT(*), use first group-by column
             int aggInputColumn = aggregate.inputChannel().isPresent()
-                    ? aggregate.inputChannel().getAsInt()
+                    ? aggregate.inputChannel().orElseThrow()
                     : 0;  // COUNT(*) doesn't use column values, any column works
             aggregations[i] = (inputRaw ? aggregate.groupByAggregation() : aggregate.mergeAggregation())
                     .onColumn(aggInputColumn);

@@ -867,7 +867,7 @@ public class IcebergMetadata
 
     private static void validateTableForTrino(BaseTable table, OptionalLong tableSnapshotId)
     {
-        Snapshot snapshot = tableSnapshotId.isPresent() ? table.snapshot(tableSnapshotId.getAsLong()) : table.currentSnapshot();
+        Snapshot snapshot = tableSnapshotId.isPresent() ? table.snapshot(tableSnapshotId.orElseThrow()) : table.currentSnapshot();
         if (snapshot == null) {
             // empty table, nothing to validate
             return;
@@ -1121,7 +1121,7 @@ public class IcebergMetadata
 
             Supplier<Map<StructLikeWrapperWithFieldIdToIndex, PartitionSpec>> lazyUniquePartitions = Suppliers.memoize(() -> {
                 TableScan tableScan = icebergTable.newScan()
-                        .useSnapshot(table.getSnapshotId().getAsLong())
+                        .useSnapshot(table.getSnapshotId().orElseThrow())
                         .filter(toIcebergExpression(enforcedPredicate))
                         .planWith(icebergPlanningExecutor);
 
@@ -1328,7 +1328,7 @@ public class IcebergMetadata
         if (isQueryPartitionFilterRequiredForTable(session, table) && table.getEnforcedPredicate().isAll() && !table.getForAnalyze().orElseThrow()) {
             Schema schema = SchemaParser.fromJson(table.getTableSchemaJson());
             Optional<PartitionSpec> partitionSpec = table.getSpecId().isPresent() ?
-                    Optional.of(PartitionSpecParser.fromJson(schema, table.getPartitionSpecJsons().get(table.getSpecId().getAsInt()))) :
+                    Optional.of(PartitionSpecParser.fromJson(schema, table.getPartitionSpecJsons().get(table.getSpecId().orElseThrow()))) :
                     Optional.empty();
             if (partitionSpec.isEmpty() || partitionSpec.get().isUnpartitioned()) {
                 return;
@@ -2069,8 +2069,8 @@ public class IcebergMetadata
         IcebergTableHandle tableHandle = (IcebergTableHandle) connectorTableHandle;
         checkArgument(tableHandle.getTableType() == DATA, "Cannot execute table procedure %s on non-DATA table: %s", procedureName, tableHandle.getTableType());
         Table icebergTable = catalog.loadTable(session, tableHandle.getSchemaTableName());
-        if (tableHandle.getSnapshotId().isPresent() && (tableHandle.getSnapshotId().getAsLong() != icebergTable.currentSnapshot().snapshotId())) {
-            throw new TrinoException(NOT_SUPPORTED, "Cannot execute table procedure %s on old snapshot %s".formatted(procedureName, tableHandle.getSnapshotId().getAsLong()));
+        if (tableHandle.getSnapshotId().isPresent() && (tableHandle.getSnapshotId().orElseThrow() != icebergTable.currentSnapshot().snapshotId())) {
+            throw new TrinoException(NOT_SUPPORTED, "Cannot execute table procedure %s on old snapshot %s".formatted(procedureName, tableHandle.getSnapshotId().orElseThrow()));
         }
 
         IcebergTableProcedureId procedureId;
@@ -2610,7 +2610,7 @@ public class IcebergMetadata
         newFiles.forEach(rewriteFiles::addFile);
 
         // Table.snapshot method returns null if there is no matching snapshot
-        Snapshot snapshot = requireNonNull(icebergTable.snapshot(optimizeHandle.snapshotId().getAsLong()), "snapshot is null");
+        Snapshot snapshot = requireNonNull(icebergTable.snapshot(optimizeHandle.snapshotId().orElseThrow()), "snapshot is null");
         // Set dataSequenceNumber to avoid contention between OPTIMIZE and concurrent writing of equality deletes
         rewriteFiles.dataSequenceNumber(snapshot.sequenceNumber());
         rewriteFiles.validateFromSnapshot(snapshot.snapshotId());
@@ -2698,7 +2698,7 @@ public class IcebergMetadata
         newFiles.forEach(rewriteFiles::addFile);
 
         // Table.snapshot method returns null if there is no matching snapshot
-        Snapshot snapshot = requireNonNull(icebergTable.snapshot(generateEmbeddingsHandle.snapshotId().getAsLong()), "snapshot is null");
+        Snapshot snapshot = requireNonNull(icebergTable.snapshot(generateEmbeddingsHandle.snapshotId().orElseThrow()), "snapshot is null");
         rewriteFiles.validateFromSnapshot(snapshot.snapshotId());
         rewriteFiles.scanManifestsWith(icebergScanExecutor);
         commitUpdate(rewriteFiles, session, "generate_embeddings");
@@ -3044,7 +3044,7 @@ public class IcebergMetadata
     {
         IcebergTableHandle icebergTableHandle = (IcebergTableHandle) tableHandle;
         List<String> partitionFields = icebergTableHandle.getSpecId().isPresent() ?
-                PartitionSpecParser.fromJson(SchemaParser.fromJson(icebergTableHandle.getTableSchemaJson()), icebergTableHandle.getPartitionSpecJsons().get(icebergTableHandle.getSpecId().getAsInt()))
+                PartitionSpecParser.fromJson(SchemaParser.fromJson(icebergTableHandle.getTableSchemaJson()), icebergTableHandle.getPartitionSpecJsons().get(icebergTableHandle.getSpecId().orElseThrow()))
                 .fields().stream()
                 .map(field -> field.name() + ": " + field.transform())
                 .collect(toImmutableList()) : ImmutableList.of();
@@ -3052,7 +3052,7 @@ public class IcebergMetadata
         Map<String, String> summary = ImmutableMap.of();
         if (icebergTableHandle.getSnapshotId().isPresent()) {
             Table table = catalog.loadTable(session, icebergTableHandle.getSchemaTableName());
-            summary = table.snapshot(icebergTableHandle.getSnapshotId().getAsLong()).summary();
+            summary = table.snapshot(icebergTableHandle.getSnapshotId().orElseThrow()).summary();
         }
         Optional<String> totalRecords = Optional.ofNullable(summary.get(TOTAL_RECORDS_PROP));
         Optional<String> deletedRecords = Optional.ofNullable(summary.get(DELETED_RECORDS_PROP));
@@ -3385,7 +3385,7 @@ public class IcebergMetadata
 
         long snapshotId;
         if (explicitSnapshotId.isPresent()) {
-            snapshotId = explicitSnapshotId.getAsLong();
+            snapshotId = explicitSnapshotId.orElseThrow();
         }
         else if (fromBranch.isPresent()) {
             snapshotId = checkBranch(icebergTable, fromBranch.get()).snapshotId();
@@ -4126,7 +4126,7 @@ public class IcebergMetadata
 
     private static void validateNotModifyingOldSnapshot(IcebergTableHandle table, Table icebergTable)
     {
-        if (table.getSnapshotId().isPresent() && (table.getSnapshotId().getAsLong() != icebergTable.currentSnapshot().snapshotId())) {
+        if (table.getSnapshotId().isPresent() && (table.getSnapshotId().orElseThrow() != icebergTable.currentSnapshot().snapshotId())) {
             throw new TrinoException(NOT_SUPPORTED, "Modifying old snapshot is not supported in Iceberg");
         }
     }
@@ -4155,7 +4155,7 @@ public class IcebergMetadata
         branch.ifPresent(rowDelta::toBranch);
         OptionalLong baseSnapshotId = table.getSnapshotId();
         if (baseSnapshotId.isPresent()) {
-            rowDelta.validateFromSnapshot(icebergTable.snapshot(baseSnapshotId.getAsLong()).snapshotId());
+            rowDelta.validateFromSnapshot(icebergTable.snapshot(baseSnapshotId.orElseThrow()).snapshotId());
         }
         IsolationLevel isolationLevel = IsolationLevel.fromName(icebergTable.properties().getOrDefault(DELETE_ISOLATION_LEVEL, DELETE_ISOLATION_LEVEL_DEFAULT));
         if (isolationLevel == IsolationLevel.SERIALIZABLE) {
@@ -4463,7 +4463,7 @@ public class IcebergMetadata
     {
         IcebergTableHandle table = (IcebergTableHandle) handle;
 
-        if (table.getLimit().isPresent() && table.getLimit().getAsLong() <= limit) {
+        if (table.getLimit().isPresent() && table.getLimit().orElseThrow() <= limit) {
             return Optional.empty();
         }
         if (!table.getUnenforcedPredicate().isAll()) {
@@ -4637,7 +4637,7 @@ public class IcebergMetadata
             return specs.keySet();
         }
 
-        Snapshot snapshot = icebergTable.snapshot(snapshotId.getAsLong());
+        Snapshot snapshot = icebergTable.snapshot(snapshotId.orElseThrow());
         if (snapshot.manifestListLocation() == null || snapshot.manifestListLocation().isEmpty()) {
             // Snapshot does not expose a client-accessible manifest list (e.g. for server-side scan planning).
             // Return all known specs, as per-spec enforcement will happen during planning.
@@ -4840,7 +4840,7 @@ public class IcebergMetadata
         // we can do this only if we're not extracting and returning to the engine any compensating filters for the unified table handles
         // the compensating filters are applied later by the engine, which would mean that we pulled filter above limit
         if (firstCompensationFilter.isAll() && secondCompensationFilter.isAll() && firstTable.getLimit().isPresent() && secondTable.getLimit().isPresent()) {
-            Optional<LimitApplicationResult<ConnectorTableHandle>> limitResult = applyLimit(session, unified, Long.max(firstTable.getLimit().getAsLong(), secondTable.getLimit().getAsLong()));
+            Optional<LimitApplicationResult<ConnectorTableHandle>> limitResult = applyLimit(session, unified, Long.max(firstTable.getLimit().orElseThrow(), secondTable.getLimit().orElseThrow()));
             if (limitResult.isPresent()) {
                 unified = (IcebergTableHandle) limitResult.get().getHandle();
             }
@@ -5138,7 +5138,7 @@ public class IcebergMetadata
                     }
                     return "%s=%s".formatted(
                             icebergHandle.getSchemaTableName(),
-                            icebergHandle.getSnapshotId().isPresent() ? Long.toString(icebergHandle.getSnapshotId().getAsLong()) : "");
+                            icebergHandle.getSnapshotId().isPresent() ? Long.toString(icebergHandle.getSnapshotId().orElseThrow()) : "");
                 })
                 .forEach(tableDependencies::add);
         if (hasForeignSourceTables) {
@@ -5388,7 +5388,7 @@ public class IcebergMetadata
                 case FirstChangeSnapshot(Snapshot snapshot) -> {
                     hasStaleIcebergTables = true;
                     firstTableChange = firstTableChange.isPresent() ?
-                            OptionalLong.of(Math.min(firstTableChange.getAsLong(), snapshot.timestampMillis())) :
+                            OptionalLong.of(Math.min(firstTableChange.orElseThrow(), snapshot.timestampMillis())) :
                             OptionalLong.empty();
                 }
                 case UnknownTableChange(), GoneOrCorruptedTableChange() -> {
@@ -5398,7 +5398,7 @@ public class IcebergMetadata
             }
         }
 
-        Optional<Instant> lastKnownFreshTime = firstTableChange.isPresent() ? Optional.of(Instant.ofEpochMilli(firstTableChange.getAsLong())) : refreshTime;
+        Optional<Instant> lastKnownFreshTime = firstTableChange.isPresent() ? Optional.of(Instant.ofEpochMilli(firstTableChange.orElseThrow())) : refreshTime;
         if (hasStaleIcebergTables) {
             return new MaterializedViewFreshness(STALE, lastKnownFreshTime);
         }
@@ -5471,10 +5471,10 @@ public class IcebergMetadata
                     .orElse(new UnknownTableChange());
         }
 
-        if (snapshotAtRefresh.getAsLong() == currentSnapshot.snapshotId()) {
+        if (snapshotAtRefresh.orElseThrow() == currentSnapshot.snapshotId()) {
             return new NoTableChange();
         }
-        return firstSnapshotAfter(icebergTable, snapshotAtRefresh.getAsLong())
+        return firstSnapshotAfter(icebergTable, snapshotAtRefresh.orElseThrow())
                 .<TableChangeInfo>map(FirstChangeSnapshot::new)
                 .orElse(new UnknownTableChange());
     }
@@ -5600,7 +5600,7 @@ public class IcebergMetadata
         // The check is cheap: loadTable is served from the metadata cache and the manifest list is a
         // small file memoized on the snapshot.
         Table icebergTable = catalog.loadTable(session, table.getSchemaTableName());
-        Snapshot snapshot = icebergTable.snapshot(table.getSnapshotId().getAsLong());
+        Snapshot snapshot = icebergTable.snapshot(table.getSnapshotId().orElseThrow());
         if (snapshot == null) {
             return false;
         }

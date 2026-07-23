@@ -3027,39 +3027,39 @@ public class TestDeltaLakeBasic
         assertUpdate("INSERT INTO " + tableName + " VALUES (1, 'x'), (2, 'x')", 2);
         CommitInfoEntry secondCommitInfoEntry = loadCommitInfoEntry(version++, tableLocation);
         assertThat(secondCommitInfoEntry.inCommitTimestamp()).isPresent();
-        assertThat(secondCommitInfoEntry.inCommitTimestamp().getAsLong()).isGreaterThan(firstCommitInfoEntry.inCommitTimestamp().getAsLong());
+        assertThat(secondCommitInfoEntry.inCommitTimestamp().orElseThrow()).isGreaterThan(firstCommitInfoEntry.inCommitTimestamp().orElseThrow());
 
         // update
         assertUpdate("UPDATE " + tableName + " SET v = 'y' WHERE x = 1", 1);
         assertThat(query("SELECT v FROM " + tableName + " WHERE x = 1")).matches("VALUES CAST('y' AS varchar)");
         CommitInfoEntry thirdCommitInfoEntry = loadCommitInfoEntry(version++, tableLocation);
         assertThat(thirdCommitInfoEntry.inCommitTimestamp()).isPresent();
-        assertThat(thirdCommitInfoEntry.inCommitTimestamp().getAsLong()).isGreaterThan(secondCommitInfoEntry.inCommitTimestamp().getAsLong());
+        assertThat(thirdCommitInfoEntry.inCommitTimestamp().orElseThrow()).isGreaterThan(secondCommitInfoEntry.inCommitTimestamp().orElseThrow());
 
         // delete
         assertUpdate("DELETE FROM " + tableName + " WHERE x = 2", 1);
         assertThat(query("SELECT v FROM " + tableName)).matches("VALUES CAST('y' AS varchar)");
         CommitInfoEntry fourthCommitInfoEntry = loadCommitInfoEntry(version++, tableLocation);
         assertThat(fourthCommitInfoEntry.inCommitTimestamp()).isPresent();
-        assertThat(fourthCommitInfoEntry.inCommitTimestamp().getAsLong()).isGreaterThan(thirdCommitInfoEntry.inCommitTimestamp().getAsLong());
+        assertThat(fourthCommitInfoEntry.inCommitTimestamp().orElseThrow()).isGreaterThan(thirdCommitInfoEntry.inCommitTimestamp().orElseThrow());
 
         // add column
         assertUpdate("ALTER TABLE " + tableName + " ADD COLUMN new_col int");
         CommitInfoEntry fifthCommitInfoEntry = loadCommitInfoEntry(version++, tableLocation);
         assertThat(fifthCommitInfoEntry.inCommitTimestamp()).isPresent();
-        assertThat(fifthCommitInfoEntry.inCommitTimestamp().getAsLong()).isGreaterThan(fourthCommitInfoEntry.inCommitTimestamp().getAsLong());
+        assertThat(fifthCommitInfoEntry.inCommitTimestamp().orElseThrow()).isGreaterThan(fourthCommitInfoEntry.inCommitTimestamp().orElseThrow());
 
         // drop column
         assertUpdate("ALTER TABLE " + tableName + " DROP COLUMN new_col");
         CommitInfoEntry sixthCommitInfoEntry = loadCommitInfoEntry(version++, tableLocation);
         assertThat(sixthCommitInfoEntry.inCommitTimestamp()).isPresent();
-        assertThat(sixthCommitInfoEntry.inCommitTimestamp().getAsLong()).isGreaterThan(fifthCommitInfoEntry.inCommitTimestamp().getAsLong());
+        assertThat(sixthCommitInfoEntry.inCommitTimestamp().orElseThrow()).isGreaterThan(fifthCommitInfoEntry.inCommitTimestamp().orElseThrow());
 
         // rename column
         assertUpdate("ALTER TABLE " + tableName + " RENAME COLUMN v TO v_renamed");
         CommitInfoEntry seventhCommitInfoEntry = loadCommitInfoEntry(version++, tableLocation);
         assertThat(seventhCommitInfoEntry.inCommitTimestamp()).isPresent();
-        assertThat(seventhCommitInfoEntry.inCommitTimestamp().getAsLong()).isGreaterThan(sixthCommitInfoEntry.inCommitTimestamp().getAsLong());
+        assertThat(seventhCommitInfoEntry.inCommitTimestamp().orElseThrow()).isGreaterThan(sixthCommitInfoEntry.inCommitTimestamp().orElseThrow());
 
         return version;
     }

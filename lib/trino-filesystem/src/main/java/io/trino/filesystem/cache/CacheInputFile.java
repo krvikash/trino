@@ -89,7 +89,7 @@ public final class CacheInputFile
                 length = OptionalLong.of(delegate.length());
             }
         }
-        return length.getAsLong();
+        return length.orElseThrow();
     }
 
     private Optional<CacheKey> cacheKey()

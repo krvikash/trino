@@ -1079,7 +1079,7 @@ public class DeltaLakeMetadata
             throw new TrinoException(DELTA_LAKE_INVALID_SCHEMA, format("Delta table %s has no commits", tableName));
         }
         latestCheckpoints.put(tableName, lastCheckpoint);
-        return commit.getAsLong();
+        return commit.orElseThrow();
     }
 
     private DeltaLakeTableDescriptor loadDescriptorFromTransactionLog(
@@ -2208,11 +2208,11 @@ public class DeltaLakeMetadata
             else {
                 Optional<DeltaLakeTableCredentials> tableCredentials = getTableCredentials(session, VendedCredentialsHandle.empty(location));
                 TrinoFileSystem fileSystem = fileSystemFactory.create(session, tableCredentials);
-                commitVersion = getMandatoryCurrentVersion(fileSystem, handle.location(), handle.readVersion().getAsLong()) + 1;
-                if (commitVersion != handle.readVersion().getAsLong() + 1) {
+                commitVersion = getMandatoryCurrentVersion(fileSystem, handle.location(), handle.readVersion().orElseThrow()) + 1;
+                if (commitVersion != handle.readVersion().orElseThrow() + 1) {
                     throw new TransactionConflictException(format(
                             "Conflicting concurrent writes found. Expected transaction log version: %s, actual version: %s",
-                            handle.readVersion().getAsLong(),
+                            handle.readVersion().orElseThrow(),
                             commitVersion - 1));
                 }
                 transactionLogWriter = transactionLogWriterFactory.createFileSystemWriter(session, location, tableCredentials);
@@ -2251,9 +2251,9 @@ public class DeltaLakeMetadata
             Optional<DeltaLakeTableCredentials> tableCredentials = getTableCredentials(session, handle.toCredentialsHandle());
             if (handle.replace() && handle.readVersion().isPresent()) {
                 long lastKnownBackfilledVersion = isCatalogManagedTable(handle.protocolEntry())
-                        ? getMandatoryCurrentVersion(fileSystemFactory.create(session, tableCredentials), handle.location(), handle.readVersion().getAsLong())
+                        ? getMandatoryCurrentVersion(fileSystemFactory.create(session, tableCredentials), handle.location(), handle.readVersion().orElseThrow())
                         : commitVersion;
-                writeCheckpointIfNeeded(session, schemaTableName, handle.location(), tableCredentials, handle.readVersion().getAsLong(), handle.checkpointInterval(), lastKnownBackfilledVersion, handle.existingColumns(), Optional.of(handle.inputColumns()));
+                writeCheckpointIfNeeded(session, schemaTableName, handle.location(), tableCredentials, handle.readVersion().orElseThrow(), handle.checkpointInterval(), lastKnownBackfilledVersion, handle.existingColumns(), Optional.of(handle.inputColumns()));
             }
 
             if (isCollectExtendedStatisticsColumnStatisticsOnWrite(session) && !computedStatistics.isEmpty()) {
@@ -4079,7 +4079,7 @@ public class DeltaLakeMetadata
                 inCommitTimestamp = getNextInCommitTimestamp(Optional.of(true), handle.getReadVersion(), fileSystemFactory.create(session, tableCredentials), handle.getLocation());
                 checkState(inCommitTimestamp.isPresent(), "Fail to get next in-commit timestamp for table %s", handle.getSchemaTableName());
                 configuration.put(DELTA_IN_COMMIT_TIMESTAMP_ENABLED_VERSION_PROPERTY, String.valueOf(handle.getReadVersion() + 1));
-                configuration.put(DELTA_IN_COMMIT_TIMESTAMP_ENABLED_TIMESTAMP_PROPERTY, String.valueOf(inCommitTimestamp.getAsLong()));
+                configuration.put(DELTA_IN_COMMIT_TIMESTAMP_ENABLED_TIMESTAMP_PROPERTY, String.valueOf(inCommitTimestamp.orElseThrow()));
             }
             configuration.put(DELTA_IN_COMMIT_TIMESTAMP_ENABLED_PROPERTY, String.valueOf(inCommitTimestampEnabled));
         }

@@ -428,12 +428,12 @@ class InMemoryGlueCache
         // this does not use EvictableCache because we want to inject values directly into the cache,
         // and we want a lock per key, instead of striped locks
         CacheBuilder<? super K, ? super V> cacheBuilder = CacheBuilder.newBuilder()
-                .expireAfterWrite(ofMillis(expiresAfterWriteMillis.getAsLong()))
+                .expireAfterWrite(ofMillis(expiresAfterWriteMillis.orElseThrow()))
                 .maximumSize(maximumSize)
                 .recordStats();
 
-        if (refreshMillis.isPresent() && (expiresAfterWriteMillis.getAsLong() > refreshMillis.getAsLong())) {
-            cacheBuilder.refreshAfterWrite(ofMillis(refreshMillis.getAsLong()));
+        if (refreshMillis.isPresent() && (expiresAfterWriteMillis.orElseThrow() > refreshMillis.orElseThrow())) {
+            cacheBuilder.refreshAfterWrite(ofMillis(refreshMillis.orElseThrow()));
             cacheLoader = asyncReloading(cacheLoader, refreshExecutor);
         }
 

@@ -88,7 +88,7 @@ public abstract class AbstractMvSubstitutionTest
 
     protected void createSubstitutionMv(CatalogSchemaTableName mvName, String sql, OptionalLong gracePeriodSeconds)
     {
-        String gracePeriod = gracePeriodSeconds.isPresent() ? " GRACE PERIOD INTERVAL '%s' SECOND".formatted(gracePeriodSeconds.getAsLong()) : "";
+        String gracePeriod = gracePeriodSeconds.isPresent() ? " GRACE PERIOD INTERVAL '%s' SECOND".formatted(gracePeriodSeconds.orElseThrow()) : "";
         assertUpdate("CREATE MATERIALIZED VIEW %s%s WITH (substitution_enabled = true) AS %s".formatted(mvName, gracePeriod, sql));
         getQueryRunner().execute("REFRESH MATERIALIZED VIEW %s".formatted(mvName));
     }

@@ -71,7 +71,7 @@ public final class IcebergDeleteFilesMemoryEstimator
         if (tableHandle.getSnapshotId().isEmpty()) {
             return 0;
         }
-        Snapshot snapshot = table.snapshot(tableHandle.getSnapshotId().getAsLong());
+        Snapshot snapshot = table.snapshot(tableHandle.getSnapshotId().orElseThrow());
         if (snapshot == null) {
             return 0;
         }

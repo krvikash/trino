@@ -277,7 +277,7 @@ public final class TextMultilineReader
     {
         if (inputEnd.isPresent()) {
             long currentPosition = getCurrentPosition();
-            return currentPosition > inputEnd.getAsLong();
+            return currentPosition > inputEnd.orElseThrow();
         }
         return false;
     }

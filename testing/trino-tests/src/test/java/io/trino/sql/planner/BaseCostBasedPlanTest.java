@@ -379,11 +379,11 @@ public abstract class BaseCostBasedPlanTest
                     .map(descriptor -> (descriptor.getInput() instanceof Reference reference ? reference.name() : descriptor.getInput().toString()) + "::" + descriptor.getOperator())
                     .collect(joining(", "));
             String inputs = filters.getDynamicConjuncts().stream()
-                    .filter(descriptor -> descriptor.getPreferredTimeout().isPresent() && descriptor.getPreferredTimeout().getAsLong() == 0)
+                    .filter(descriptor -> descriptor.getPreferredTimeout().isPresent() && descriptor.getPreferredTimeout().orElseThrow() == 0)
                     .map(descriptor -> (descriptor.getInput() instanceof Reference reference ? reference.name() : descriptor.getInput().toString()) + "::" + descriptor.getOperator())
                     .collect(joining(", "));
             String awaitInputs = filters.getDynamicConjuncts().stream()
-                    .filter(descriptor -> descriptor.getPreferredTimeout().isPresent() && descriptor.getPreferredTimeout().getAsLong() > 0)
+                    .filter(descriptor -> descriptor.getPreferredTimeout().isPresent() && descriptor.getPreferredTimeout().orElseThrow() > 0)
                     .map(descriptor -> (descriptor.getInput() instanceof Reference reference ? reference.name() : descriptor.getInput().toString()) + "::" + descriptor.getOperator())
                     .collect(joining(", "));
 

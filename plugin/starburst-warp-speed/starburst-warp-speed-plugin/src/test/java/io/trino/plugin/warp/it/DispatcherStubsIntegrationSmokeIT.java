@@ -348,12 +348,12 @@ public abstract class DispatcherStubsIntegrationSmokeIT
                     .orElseThrow()
                     .getTotalSplits())
                     .as("different result for total splits ")
-                    .isEqualTo(expectedSplits.getAsInt());
+                    .isEqualTo(expectedSplits.orElseThrow());
         }
         if (expectedRows.isPresent()) {
             assertThat(resultWithQueryId.result().getRowCount())
                     .as("different result for row count ")
-                    .isEqualTo(expectedRows.getAsInt());
+                    .isEqualTo(expectedRows.orElseThrow());
         }
         Map<String, Long> customMetrics = getCustomMetrics(resultWithQueryId.queryId(), (DistributedQueryRunner) getQueryRunner());
         for (Map.Entry<String, Long> expectedStat : expectedJmxCounters.entrySet()) {

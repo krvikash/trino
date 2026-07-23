@@ -3519,7 +3519,7 @@ public class HiveMetadata
 
         return Optional.of(new HivePartitioningHandle(
                 leftHandle.getBucketingVersion(),
-                commonBucketCount.getAsInt(),
+                commonBucketCount.orElseThrow(),
                 leftHandle.getHiveTypes(),
                 false));
     }

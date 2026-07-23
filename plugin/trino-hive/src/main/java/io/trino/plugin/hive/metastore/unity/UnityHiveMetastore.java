@@ -217,7 +217,7 @@ public class UnityHiveMetastore
             setupProxy(
                     httpClientBuilder,
                     proxyHost.get(),
-                    proxyPort.getAsInt(),
+                    proxyPort.orElseThrow(),
                     proxyUsername,
                     proxyPassword,
                     nonProxyHosts.get());

@@ -814,10 +814,10 @@ public abstract class BaseJdbcClient
 
         if (tableHandle.getLimit().isPresent()) {
             if (tableHandle.getSortOrder().isPresent()) {
-                preparedQuery = preparedQuery.transformQuery(applyTopN(tableHandle.getSortOrder().get(), tableHandle.getLimit().getAsLong()));
+                preparedQuery = preparedQuery.transformQuery(applyTopN(tableHandle.getSortOrder().get(), tableHandle.getLimit().orElseThrow()));
             }
             else {
-                preparedQuery = preparedQuery.transformQuery(applyLimit(tableHandle.getLimit().getAsLong()));
+                preparedQuery = preparedQuery.transformQuery(applyLimit(tableHandle.getLimit().orElseThrow()));
             }
         }
 

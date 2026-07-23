@@ -325,7 +325,7 @@ public class DynamicFilterService
                         DynamicFilters.Descriptor::getPreferredTimeout,
                         (timeout1, timeout2) -> {
                             if (timeout1.isPresent() && timeout2.isPresent()) {
-                                return OptionalLong.of(Long.max(timeout1.getAsLong(), timeout2.getAsLong()));
+                                return OptionalLong.of(Long.max(timeout1.orElseThrow(), timeout2.orElseThrow()));
                             }
                             else if (timeout1.isPresent()) {
                                 return timeout1;
@@ -412,7 +412,7 @@ public class DynamicFilterService
                         OptionalLong preferredTimeout = dynamicFilterTimeouts.get(lazyDynamicFilterFuture.getKey());
                         if (preferredTimeout != null) {
                             if (preferredTimeout.isPresent()) {
-                                longestPreferredTimeout = Long.max(preferredTimeout.getAsLong(), longestPreferredTimeout);
+                                longestPreferredTimeout = Long.max(preferredTimeout.orElseThrow(), longestPreferredTimeout);
                             }
                             else {
                                 unestimatedDynamicFilter = true;
