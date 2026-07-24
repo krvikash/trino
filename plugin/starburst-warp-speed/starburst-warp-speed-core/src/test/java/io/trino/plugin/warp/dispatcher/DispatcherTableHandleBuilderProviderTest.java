@@ -65,5 +65,7 @@ public class DispatcherTableHandleBuilderProviderTest
         DispatcherTableHandle clonedHandle = builderProvider.builder(handle, 100).build();
 
         assertThat(clonedHandle).isEqualTo(handle);
+        // equals excludes metrics; assert it explicitly
+        assertThat(clonedHandle.getMetrics()).isEqualTo(handle.getMetrics());
     }
 }
