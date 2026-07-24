@@ -478,7 +478,7 @@ public class RemoveDanglingDeleteFiles
 
             void addDanglingDeleteFile(DeleteFile deleteFile)
             {
-                danglingDeleteFiles.add(deleteFile);
+                danglingDeleteFiles.add(deleteFile.copyWithoutStats());
             }
 
             void addDataFilePathWithDV(String path)
@@ -488,7 +488,7 @@ public class RemoveDanglingDeleteFiles
 
             void trackPositionDeleteForDataFile(String referencedDataFilePath, DeleteFile deleteFile)
             {
-                dataFilePathsWithPositionDeletes.computeIfAbsent(referencedDataFilePath, _ -> ConcurrentHashMap.newKeySet()).add(deleteFile);
+                dataFilePathsWithPositionDeletes.computeIfAbsent(referencedDataFilePath, _ -> ConcurrentHashMap.newKeySet()).add(deleteFile.copyWithoutStats());
             }
 
             DeleteFilesMetadata build()
