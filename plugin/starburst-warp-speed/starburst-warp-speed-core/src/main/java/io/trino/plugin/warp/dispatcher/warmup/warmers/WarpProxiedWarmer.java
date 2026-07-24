@@ -171,7 +171,7 @@ public class WarpProxiedWarmer
                         true);
                 try {
                     int fileOffset = firstOffset;
-                    ConnectorSplit nonFilterSplit = dispatcherProxiedConnectorTransformer.createProxiedConnectorNonFilteredSplit(dispatcherSplit.getProxyConnectorSplit());
+                    ConnectorSplit nonFilterSplit = dispatcherProxiedConnectorTransformer.createProxiedConnectorNonFilteredSplit(dispatcherSplit.proxyConnectorSplit());
                     ConnectorTableHandle nonFilterTableHandle = dispatcherProxiedConnectorTransformer.createProxyTableHandleForWarming(dispatcherTableHandle);
 
                     for (Pair<WarmupElementWriteMetadata, ColumnHandle> pair : warmupElementsWriteMetadata) {

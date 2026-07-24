@@ -193,13 +193,13 @@ public class WorkerWarmingService
     {
         try {
             RowGroupKey rowGroupKey = rowGroupDataService.createRowGroupKey(
-                    dispatcherSplit.getSchemaName(),
-                    dispatcherSplit.getTableName(),
-                    dispatcherSplit.getPath(),
-                    dispatcherSplit.getStart(),
-                    dispatcherSplit.getLength(),
-                    dispatcherSplit.getFileModifiedTime(),
-                    dispatcherSplit.getDeletedFilesHash());
+                    dispatcherSplit.schemaName(),
+                    dispatcherSplit.tableName(),
+                    dispatcherSplit.path(),
+                    dispatcherSplit.start(),
+                    dispatcherSplit.length(),
+                    dispatcherSplit.fileModifiedTime(),
+                    dispatcherSplit.deletedFilesHash());
             WorkerSubmittableTask prioritizeTask = warmExecutionTaskFactory.createExecutionTask(
                     connectorPageSourceProvider,
                     transactionHandle,
@@ -557,8 +557,8 @@ public class WorkerWarmingService
             DispatcherSplit dispatcherSplit,
             Map<RegularColumn, ColumnHandle> warpColumnToColumnHandle)
     {
-        Map<RegularColumn, String> partitionKeysMap = dispatcherSplit.getPartitionKeys().stream().collect(Collectors.toMap(PartitionKey::regularColumn, PartitionKey::partitionValue));
-        List<WarmupRule> schemaAndTableRules = getWarmupRules(new SchemaTableName(dispatcherSplit.getSchemaName(), dispatcherSplit.getTableName()));
+        Map<RegularColumn, String> partitionKeysMap = dispatcherSplit.partitionKeys().stream().collect(Collectors.toMap(PartitionKey::regularColumn, PartitionKey::partitionValue));
+        List<WarmupRule> schemaAndTableRules = getWarmupRules(new SchemaTableName(dispatcherSplit.schemaName(), dispatcherSplit.tableName()));
         Map<WarpColumn, Map<WarmUpType, WarmupProperties>> matchingRules = new HashMap<>();
         Map<String, ColumnHandle> columnNameToColumnHandle = warpColumnToColumnHandle.entrySet().stream().collect(Collectors.toMap(x -> x.getKey().getName(), Map.Entry::getValue));
 

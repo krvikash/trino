@@ -292,11 +292,11 @@ public class IcebergProxiedConnectorTransformerTest
 
         DispatcherSplit dispatcherSplit = this.icebergProxiedConnectorTransformer.createDispatcherSplit(icebergSplit, dispatcherTableHandle, session);
 
-        assertThat(dispatcherSplit.getSchemaName()).isEqualTo(SCHEMA_NAME);
-        assertThat(dispatcherSplit.getTableName()).isEqualTo(TABLE_NAME);
-        assertThat(dispatcherSplit.getStart()).isEqualTo(START);
-        assertThat(dispatcherSplit.getLength()).isEqualTo(LENGTH);
-        assertThat(dispatcherSplit.getProxyConnectorSplit()).isEqualTo(icebergSplit);
+        assertThat(dispatcherSplit.schemaName()).isEqualTo(SCHEMA_NAME);
+        assertThat(dispatcherSplit.tableName()).isEqualTo(TABLE_NAME);
+        assertThat(dispatcherSplit.start()).isEqualTo(START);
+        assertThat(dispatcherSplit.length()).isEqualTo(LENGTH);
+        assertThat(dispatcherSplit.proxyConnectorSplit()).isEqualTo(icebergSplit);
 
         DispatcherTableHandle dispatcherTableHandleAnotherSnapshot = new DispatcherTableHandle(
                 SCHEMA_NAME,
@@ -311,13 +311,13 @@ public class IcebergProxiedConnectorTransformerTest
                 Set.of());
 
         DispatcherSplit dispatcherSplitAnotherSnapshot = this.icebergProxiedConnectorTransformer.createDispatcherSplit(icebergSplit, dispatcherTableHandleAnotherSnapshot, session);
-        assertThat(dispatcherSplitAnotherSnapshot.getDeletedFilesHash()).isEqualTo(dispatcherSplit.getDeletedFilesHash());
+        assertThat(dispatcherSplitAnotherSnapshot.deletedFilesHash()).isEqualTo(dispatcherSplit.deletedFilesHash());
 
         ProxiedConnectorConfig newConfig = new ProxiedConnectorConfig();
         newConfig.setEnableIcebergSnapshotIdUniqueness(true);
         IcebergProxiedConnectorTransformer icebergProxiedConnectorTransformerUnique = new IcebergProxiedConnectorTransformer(newConfig, TESTING_TYPE_MANAGER);
         dispatcherSplitAnotherSnapshot = icebergProxiedConnectorTransformerUnique.createDispatcherSplit(icebergSplit, dispatcherTableHandleAnotherSnapshot, session);
-        assertThat(dispatcherSplitAnotherSnapshot.getDeletedFilesHash()).isNotEqualTo(dispatcherSplit.getDeletedFilesHash());
+        assertThat(dispatcherSplitAnotherSnapshot.deletedFilesHash()).isNotEqualTo(dispatcherSplit.deletedFilesHash());
     }
 
     @Override

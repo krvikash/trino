@@ -52,12 +52,12 @@ public class TestingConnectorProxiedConnectorTransformer
         DispatcherSplit dispatcherSplit = (DispatcherSplit) proxyConnectorSplit;
 
         return new DispatcherSplit(
-                dispatcherSplit.getSchemaName(),
-                dispatcherSplit.getTableName(),
-                dispatcherSplit.getPath(),
-                dispatcherSplit.getStart(),
-                dispatcherSplit.getLength(),
-                dispatcherSplit.getFileModifiedTime(),
+                dispatcherSplit.schemaName(),
+                dispatcherSplit.tableName(),
+                dispatcherSplit.path(),
+                dispatcherSplit.start(),
+                dispatcherSplit.length(),
+                dispatcherSplit.fileModifiedTime(),
                 List.of(),
                 "",
                 dispatcherSplit);

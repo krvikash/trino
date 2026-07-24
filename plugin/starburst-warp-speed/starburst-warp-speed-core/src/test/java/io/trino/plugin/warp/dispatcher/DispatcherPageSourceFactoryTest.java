@@ -140,16 +140,16 @@ public class DispatcherPageSourceFactoryTest
         proxiedTransactionHandle = mock(TestingConnectorTransactionHandle.class);
 
         TestingConnectorTableHandle proxyTableHandle = new TestingConnectorTableHandle(
-                dispatcherSplit.getSchemaName(),
-                dispatcherSplit.getTableName(),
+                dispatcherSplit.schemaName(),
+                dispatcherSplit.tableName(),
                 List.of(),
                 List.of(),
                 TupleDomain.all(),
                 TupleDomain.all(),
                 Optional.empty());
         dispatcherTableHandle = new DispatcherTableHandle(
-                dispatcherSplit.getSchemaName(),
-                dispatcherSplit.getTableName(),
+                dispatcherSplit.schemaName(),
+                dispatcherSplit.tableName(),
                 OptionalLong.of(0),
                 TupleDomain.all(),
                 new SimplifiedColumns(Set.of()),
@@ -261,7 +261,7 @@ public class DispatcherPageSourceFactoryTest
         verify(connectorPageSourceProvider, times(1))
                 .createPageSource(eq(proxiedTransactionHandle),
                         eq(connectorSession),
-                        eq(dispatcherSplit.getProxyConnectorSplit()),
+                        eq(dispatcherSplit.proxyConnectorSplit()),
                         eq(dispatcherTableHandle.getProxyConnectorTableHandle()),
                         eq(Optional.empty()),
                         anyList(),
@@ -370,7 +370,7 @@ public class DispatcherPageSourceFactoryTest
         verify(connectorPageSourceProvider, times(1))
                 .createPageSource(any(ConnectorTransactionHandle.class),
                         any(ConnectorSession.class),
-                        eq(dispatcherSplit.getProxyConnectorSplit()),
+                        eq(dispatcherSplit.proxyConnectorSplit()),
                         eq(dispatcherTableHandle.getProxyConnectorTableHandle()),
                         eq(Optional.empty()),
                         anyList(),
@@ -385,7 +385,7 @@ public class DispatcherPageSourceFactoryTest
         verify(connectorPageSourceProvider, times(1))
                 .createPageSource(eq(proxiedTransactionHandle),
                         eq(connectorSession),
-                        eq(dispatcherSplit.getProxyConnectorSplit()),
+                        eq(dispatcherSplit.proxyConnectorSplit()),
                         eq(dispatcherTableHandle.getProxyConnectorTableHandle()),
                         eq(Optional.empty()),
                         anyList(),
@@ -410,7 +410,7 @@ public class DispatcherPageSourceFactoryTest
         verify(connectorPageSourceProvider, times(1))
                 .createPageSource(any(ConnectorTransactionHandle.class),
                         any(ConnectorSession.class),
-                        eq(dispatcherSplit.getProxyConnectorSplit()),
+                        eq(dispatcherSplit.proxyConnectorSplit()),
                         eq(dispatcherTableHandle.getProxyConnectorTableHandle()),
                         eq(Optional.empty()),
                         anyList(),
@@ -425,7 +425,7 @@ public class DispatcherPageSourceFactoryTest
         verify(connectorPageSourceProvider, times(1))
                 .createPageSource(eq(proxiedTransactionHandle),
                         eq(connectorSession),
-                        eq(dispatcherSplit.getProxyConnectorSplit()),
+                        eq(dispatcherSplit.proxyConnectorSplit()),
                         eq(dispatcherTableHandle.getProxyConnectorTableHandle()),
                         eq(Optional.empty()),
                         anyList(),
@@ -441,13 +441,13 @@ public class DispatcherPageSourceFactoryTest
         List<ColumnHandle> columnHandleList = mockColumns(List.of(Pair.of("c1", VarcharType.VARCHAR)));
 
         RowGroupKey rowGroupKey = createRowGroupKey(
-                dispatcherSplit.getSchemaName(),
-                dispatcherSplit.getTableName(),
-                dispatcherSplit.getPath(),
-                dispatcherSplit.getStart(),
-                dispatcherSplit.getLength(),
-                dispatcherSplit.getFileModifiedTime(),
-                dispatcherSplit.getDeletedFilesHash());
+                dispatcherSplit.schemaName(),
+                dispatcherSplit.tableName(),
+                dispatcherSplit.path(),
+                dispatcherSplit.start(),
+                dispatcherSplit.length(),
+                dispatcherSplit.fileModifiedTime(),
+                dispatcherSplit.deletedFilesHash());
 
         List<ColumnHandle> warmedColumnHandleList = mockColumns(List.of(Pair.of("c1", VarcharType.VARCHAR)));
         RowGroupData rowGroupDataToWarm = generateRowGroupData(rowGroupKey, warmedColumnHandleList);
@@ -503,13 +503,13 @@ public class DispatcherPageSourceFactoryTest
         List<ColumnHandle> existingColumnHandleList = mockColumns(List.of(Pair.of("c1", VarcharType.VARCHAR)));
 
         RowGroupKey rowGroupKey = createRowGroupKey(
-                dispatcherSplit.getSchemaName(),
-                dispatcherSplit.getTableName(),
-                dispatcherSplit.getPath(),
-                dispatcherSplit.getStart(),
-                dispatcherSplit.getLength(),
-                dispatcherSplit.getFileModifiedTime(),
-                dispatcherSplit.getDeletedFilesHash());
+                dispatcherSplit.schemaName(),
+                dispatcherSplit.tableName(),
+                dispatcherSplit.path(),
+                dispatcherSplit.start(),
+                dispatcherSplit.length(),
+                dispatcherSplit.fileModifiedTime(),
+                dispatcherSplit.deletedFilesHash());
 
         RowGroupData rowGroupDataToWarm = generateRowGroupData(rowGroupKey, existingColumnHandleList);
         when(rowGroupDataDao.get(rowGroupKey)).thenReturn(rowGroupDataToWarm);
@@ -540,13 +540,13 @@ public class DispatcherPageSourceFactoryTest
         List<ColumnHandle> partitionColumnHandleList = mockColumns(List.of(Pair.of("c1", IntegerType.INTEGER)));
 
         RowGroupKey rowGroupKey = createRowGroupKey(
-                dispatcherSplit.getSchemaName(),
-                dispatcherSplit.getTableName(),
-                dispatcherSplit.getPath(),
-                dispatcherSplit.getStart(),
-                dispatcherSplit.getLength(),
-                dispatcherSplit.getFileModifiedTime(),
-                dispatcherSplit.getDeletedFilesHash());
+                dispatcherSplit.schemaName(),
+                dispatcherSplit.tableName(),
+                dispatcherSplit.path(),
+                dispatcherSplit.start(),
+                dispatcherSplit.length(),
+                dispatcherSplit.fileModifiedTime(),
+                dispatcherSplit.deletedFilesHash());
 
         RowGroupData rowGroupDataToWarm = generateRowGroupData(rowGroupKey, partitionColumnHandleList);
         rowGroupDataToWarm = RowGroupData.builder(rowGroupDataToWarm).partitionKeys(Map.of(new RegularColumn("c1"), "3")).build();
@@ -582,13 +582,13 @@ public class DispatcherPageSourceFactoryTest
     {
         List<ColumnHandle> partitionColumnHandleList = mockColumns(List.of(Pair.of("c1", IntegerType.INTEGER)));
         RowGroupKey rowGroupKey = createRowGroupKey(
-                dispatcherSplit.getSchemaName(),
-                dispatcherSplit.getTableName(),
-                dispatcherSplit.getPath(),
-                dispatcherSplit.getStart(),
-                dispatcherSplit.getLength(),
-                dispatcherSplit.getFileModifiedTime(),
-                dispatcherSplit.getDeletedFilesHash());
+                dispatcherSplit.schemaName(),
+                dispatcherSplit.tableName(),
+                dispatcherSplit.path(),
+                dispatcherSplit.start(),
+                dispatcherSplit.length(),
+                dispatcherSplit.fileModifiedTime(),
+                dispatcherSplit.deletedFilesHash());
 
         RowGroupData rowGroupDataToWarm = generateRowGroupData(rowGroupKey, partitionColumnHandleList);
         rowGroupDataToWarm = RowGroupData.builder(rowGroupDataToWarm).partitionKeys(Map.of(new RegularColumn("c1"), "\\N")).build();
@@ -618,13 +618,13 @@ public class DispatcherPageSourceFactoryTest
         List<ColumnHandle> regularColumnList = mockColumns(List.of(Pair.of("c2", IntegerType.INTEGER)));
 
         RowGroupKey rowGroupKey = createRowGroupKey(
-                dispatcherSplit.getSchemaName(),
-                dispatcherSplit.getTableName(),
-                dispatcherSplit.getPath(),
-                dispatcherSplit.getStart(),
-                dispatcherSplit.getLength(),
-                dispatcherSplit.getFileModifiedTime(),
-                dispatcherSplit.getDeletedFilesHash());
+                dispatcherSplit.schemaName(),
+                dispatcherSplit.tableName(),
+                dispatcherSplit.path(),
+                dispatcherSplit.start(),
+                dispatcherSplit.length(),
+                dispatcherSplit.fileModifiedTime(),
+                dispatcherSplit.deletedFilesHash());
 
         RowGroupData rowGroupDataToWarm = generateRowGroupData(rowGroupKey, regularColumnList);
         rowGroupDataToWarm = RowGroupData.builder(rowGroupDataToWarm).partitionKeys(Map.of(new RegularColumn("c1"), "\\N")).build();

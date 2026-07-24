@@ -70,6 +70,6 @@ public class DispatcherSplitManager
     @Override
     public Optional<CacheSplitId> getCacheSplitId(ConnectorSplit split)
     {
-        return proxyConnectorSplitManager.getCacheSplitId(((DispatcherSplit) split).getProxyConnectorSplit());
+        return proxyConnectorSplitManager.getCacheSplitId(((DispatcherSplit) split).proxyConnectorSplit());
     }
 }

@@ -149,7 +149,7 @@ public class WarpDispatcherPageSourceFactory
             return connectorPageSourceProvider.createPageSource(
                     transactionHandle,
                     session,
-                    dispatcherSplit.getProxyConnectorSplit(),
+                    dispatcherSplit.proxyConnectorSplit(),
                     dispatcherTableHandle.getProxyConnectorTableHandle(),
                     tableCredentials,
                     columns,
@@ -200,13 +200,13 @@ public class WarpDispatcherPageSourceFactory
         DispatcherPageSourceStats dispatcherPageSourceStats = (DispatcherPageSourceStats) customStatsContext.getStat(DispatcherPageSourceStats.createKey());
 
         RowGroupKey rowGroupKey = rowGroupDataService.createRowGroupKey(
-                dispatcherSplit.getSchemaName(),
-                dispatcherSplit.getTableName(),
-                dispatcherSplit.getPath(),
-                dispatcherSplit.getStart(),
-                dispatcherSplit.getLength(),
-                dispatcherSplit.getFileModifiedTime(),
-                dispatcherSplit.getDeletedFilesHash());
+                dispatcherSplit.schemaName(),
+                dispatcherSplit.tableName(),
+                dispatcherSplit.path(),
+                dispatcherSplit.start(),
+                dispatcherSplit.length(),
+                dispatcherSplit.fileModifiedTime(),
+                dispatcherSplit.deletedFilesHash());
 
         RowGroupData rowGroupData = rowGroupDataService.getIfPresent(rowGroupKey);
 
@@ -404,11 +404,11 @@ public class WarpDispatcherPageSourceFactory
         ConnectorSplit proxiedSplit;
         if (PageSourceDecision.PROXY.equals(pageSourceDecision)) {
             connectorTableHandle = dispatcherTableHandle.getProxyConnectorTableHandle();
-            proxiedSplit = dispatcherSplit.getProxyConnectorSplit();
+            proxiedSplit = dispatcherSplit.proxyConnectorSplit();
         }
         else {
             connectorTableHandle = dispatcherProxiedConnectorTransformer.createProxiedConnectorTableHandleForMixedQuery(dispatcherTableHandle);
-            proxiedSplit = dispatcherProxiedConnectorTransformer.createProxiedConnectorNonFilteredSplit(dispatcherSplit.getProxyConnectorSplit());
+            proxiedSplit = dispatcherProxiedConnectorTransformer.createProxiedConnectorNonFilteredSplit(dispatcherSplit.proxyConnectorSplit());
         }
         return proxiedConnectorPageSourceProvider.createPageSource(
                 transactionHandle,
@@ -477,7 +477,7 @@ public class WarpDispatcherPageSourceFactory
                         queryContext.getRemainingCollectColumns().stream().map(dispatcherProxiedConnectorTransformer::getColumnType),
                         queryContext.getNativeQueryCollectDataList().stream().map(QueryColumn::getType))
                 .collect(toImmutableList());
-        long deletedRowsCount = dispatcherProxiedConnectorTransformer.getDeletedRowsCount(dispatcherSplit.getProxyConnectorSplit());
+        long deletedRowsCount = dispatcherProxiedConnectorTransformer.getDeletedRowsCount(dispatcherSplit.proxyConnectorSplit());
         return new DispatcherPageSource(
                 proxiedConnectorPageSourceProvider,
                 queryClassifier,

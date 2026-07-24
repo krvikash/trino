@@ -147,13 +147,13 @@ public class DispatcherPageSourceProviderTest
                 mockNodeManager(),
                 new CatalogNameProvider("catalog-name")));
         rowGroupKey = rowGroupDataService.createRowGroupKey(
-                dispatcherSplit.getSchemaName(),
-                dispatcherSplit.getTableName(),
-                dispatcherSplit.getPath(),
-                dispatcherSplit.getStart(),
-                dispatcherSplit.getLength(),
-                dispatcherSplit.getFileModifiedTime(),
-                dispatcherSplit.getDeletedFilesHash());
+                dispatcherSplit.schemaName(),
+                dispatcherSplit.tableName(),
+                dispatcherSplit.path(),
+                dispatcherSplit.start(),
+                dispatcherSplit.length(),
+                dispatcherSplit.fileModifiedTime(),
+                dispatcherSplit.deletedFilesHash());
 
         proxiedPageSourceProvider = mock(ConnectorPageSourceProvider.class);
         connectorPageSourceProviderFactory = mock(ConnectorPageSourceProviderFactory.class);
@@ -431,7 +431,7 @@ public class DispatcherPageSourceProviderTest
         when(proxiedPageSourceProvider.createPageSource(
                 eq(connectorTransactionHandle),
                 eq(connectorSession),
-                eq(dispatcherSplit.getProxyConnectorSplit()),
+                eq(dispatcherSplit.proxyConnectorSplit()),
                 eq(dispatcherTableHandle.getProxyConnectorTableHandle()),
                 eq(Optional.empty()),
                 anyList(),
@@ -473,7 +473,7 @@ public class DispatcherPageSourceProviderTest
         when(proxiedPageSourceProvider.createPageSource(
                 eq(connectorTransactionHandle),
                 eq(connectorSession),
-                eq(dispatcherSplit.getProxyConnectorSplit()),
+                eq(dispatcherSplit.proxyConnectorSplit()),
                 eq(dispatcherTableHandle.getProxyConnectorTableHandle()),
                 eq(Optional.empty()),
                 anyList(),

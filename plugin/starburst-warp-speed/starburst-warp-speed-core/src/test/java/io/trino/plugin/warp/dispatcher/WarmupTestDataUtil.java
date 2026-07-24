@@ -133,13 +133,13 @@ public class WarmupTestDataUtil
                 "",
                 mock(ConnectorSplit.class));
         RowGroupKey rowGroupKey = new RowGroupKey(
-                dispatcherSplit.getSchemaName(),
-                dispatcherSplit.getTableName(),
-                dispatcherSplit.getPath(),
-                dispatcherSplit.getStart(),
-                dispatcherSplit.getLength(),
-                dispatcherSplit.getFileModifiedTime(),
-                dispatcherSplit.getDeletedFilesHash(),
+                dispatcherSplit.schemaName(),
+                dispatcherSplit.tableName(),
+                dispatcherSplit.path(),
+                dispatcherSplit.start(),
+                dispatcherSplit.length(),
+                dispatcherSplit.fileModifiedTime(),
+                dispatcherSplit.deletedFilesHash(),
                 "");
         return Pair.of(dispatcherSplit, rowGroupKey);
     }

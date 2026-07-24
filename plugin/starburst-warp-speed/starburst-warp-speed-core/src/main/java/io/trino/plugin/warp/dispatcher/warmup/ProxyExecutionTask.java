@@ -258,7 +258,7 @@ public class ProxyExecutionTask
 
     private Map<WarpColumn, String> getPartitionKeys(DispatcherSplit dispatcherSplit)
     {
-        return dispatcherSplit.getPartitionKeys().stream().collect(Collectors.toMap(PartitionKey::regularColumn, PartitionKey::partitionValue));
+        return dispatcherSplit.partitionKeys().stream().collect(Collectors.toMap(PartitionKey::regularColumn, PartitionKey::partitionValue));
     }
 
     @Override

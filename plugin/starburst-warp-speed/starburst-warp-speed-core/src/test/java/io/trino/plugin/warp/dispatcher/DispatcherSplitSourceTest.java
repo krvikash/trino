@@ -79,8 +79,8 @@ public class DispatcherSplitSourceTest
         for (int i = 0; i < connectorSplits.size(); i++) {
             DispatcherSplit hiveSplit = (DispatcherSplit) connectorSplits.get(i);
             DispatcherSplit connectorSplitResult = (DispatcherSplit) connectorSplitsResult1.get(i);
-            assertThat(hiveSplit.getPath()).isEqualTo(connectorSplitResult.getPath());
-            assertThat(connectorSplitResult.getAffinityKey()).contains(hiveSplit.getPath() + ":" + hiveSplit.getStart() + ":" + hiveSplit.getLength());
+            assertThat(hiveSplit.path()).isEqualTo(connectorSplitResult.path());
+            assertThat(connectorSplitResult.getAffinityKey()).contains(hiveSplit.path() + ":" + hiveSplit.start() + ":" + hiveSplit.length());
         }
     }
 

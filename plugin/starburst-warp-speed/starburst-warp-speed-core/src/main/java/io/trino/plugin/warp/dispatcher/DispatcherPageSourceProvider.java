@@ -128,7 +128,7 @@ public class DispatcherPageSourceProvider
     {
         ConnectorPageSourceProvider connectorPageSourceProvider = connectorPageSourceProviderFactory.createPageSourceProvider();
         DispatcherTableHandle dispatcherTableHandle = (DispatcherTableHandle) table;
-        ConnectorSplit connectorSplit = ((DispatcherSplit) split).getProxyConnectorSplit();
+        ConnectorSplit connectorSplit = ((DispatcherSplit) split).proxyConnectorSplit();
         ConnectorTableHandle connectorTableHandle = dispatcherTableHandle.getProxyConnectorTableHandle();
         TupleDomain<ColumnHandle> unenforcedPredicate = connectorPageSourceProvider.getUnenforcedPredicate(session, connectorSplit, connectorTableHandle, dynamicFilter);
         if (unenforcedPredicate.isNone()) {
@@ -157,7 +157,7 @@ public class DispatcherPageSourceProvider
         return connectorPageSourceProviderFactory.createPageSourceProvider()
                 .prunePredicate(
                         session,
-                        ((DispatcherSplit) split).getProxyConnectorSplit(),
+                        ((DispatcherSplit) split).proxyConnectorSplit(),
                         ((DispatcherTableHandle) table).getProxyConnectorTableHandle(),
                         predicate);
     }

@@ -13,112 +13,40 @@
  */
 package io.trino.plugin.warp.dispatcher;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.collect.ImmutableList;
 import io.trino.spi.SplitWeight;
 import io.trino.spi.connector.ConnectorSplit;
 
 import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
 
 import static java.util.Objects.requireNonNull;
 
-public class DispatcherSplit
+public record DispatcherSplit(
+        @JsonProperty("schemaName") String schemaName,
+        @JsonProperty("tableName") String tableName,
+        @JsonProperty("path") String path,
+        @JsonProperty("start") long start,
+        @JsonProperty("length") long length,
+        @JsonProperty("fileModifiedTime") long fileModifiedTime,
+        @JsonProperty("partitionKeys") List<PartitionKey> partitionKeys,
+        @JsonProperty("deletedFilesHash") String deletedFilesHash,
+        @JsonProperty("proxyConnectorSplit") ConnectorSplit proxyConnectorSplit)
         implements ConnectorSplit
 {
-    private final String schemaName;
-    private final String tableName;
-    private final String path;
-    private final long start;
-    private final long length;
-    private final long fileModifiedTime;
-
-    private final List<PartitionKey> partitionKeys;
-    private final String deletedFilesHash;
-    private final ConnectorSplit proxyConnectorSplit;
-
-    @JsonCreator
-    public DispatcherSplit(
-            @JsonProperty("schemaName") String schemaName,
-            @JsonProperty("tableName") String tableName,
-            @JsonProperty("path") String path,
-            @JsonProperty("start") long start,
-            @JsonProperty("length") long length,
-            @JsonProperty("fileModifiedTime") long fileModifiedTime,
-            @JsonProperty("partitionKeys") List<PartitionKey> partitionKeys,
-            @JsonProperty("deletedFilesHash") String deletedFilesHash,
-            @JsonProperty("proxyConnectorSplit") ConnectorSplit proxyConnectorSplit)
+    public DispatcherSplit
     {
-        this.schemaName = requireNonNull(schemaName);
-        this.tableName = requireNonNull(tableName);
-        this.path = requireNonNull(path);
-        this.start = start;
-        this.length = length;
-        this.fileModifiedTime = fileModifiedTime;
-        this.partitionKeys = requireNonNull(partitionKeys);
-        this.deletedFilesHash = requireNonNull(deletedFilesHash);
-        this.proxyConnectorSplit = requireNonNull(proxyConnectorSplit);
+        requireNonNull(schemaName, "schemaName is null");
+        requireNonNull(tableName, "tableName is null");
+        requireNonNull(path, "path is null");
+        partitionKeys = ImmutableList.copyOf(requireNonNull(partitionKeys, "partitionKeys is null"));
+        requireNonNull(deletedFilesHash, "deletedFilesHash is null");
+        requireNonNull(proxyConnectorSplit, "proxyConnectorSplit is null");
     }
 
-    @JsonProperty("schemaName")
-    public String getSchemaName()
-    {
-        return schemaName;
-    }
-
-    @JsonProperty("tableName")
-    public String getTableName()
-    {
-        return tableName;
-    }
-
-    @JsonProperty("path")
-    public String getPath()
-    {
-        return path;
-    }
-
-    @JsonProperty("start")
-    public long getStart()
-    {
-        return start;
-    }
-
-    @JsonProperty("length")
-    public long getLength()
-    {
-        return length;
-    }
-
-    @JsonProperty("fileModifiedTime")
-    public long getFileModifiedTime()
-    {
-        return fileModifiedTime;
-    }
-
-    @JsonProperty("partitionKeys")
-    public List<PartitionKey> getPartitionKeys()
-    {
-        return partitionKeys;
-    }
-
-    @JsonProperty("deletedFilesHash")
-    public String getDeletedFilesHash()
-    {
-        return deletedFilesHash;
-    }
-
-    @JsonProperty("proxyConnectorSplit")
-    public ConnectorSplit getProxyConnectorSplit()
-    {
-        return proxyConnectorSplit;
-    }
-
-    // routes splits for the same file range to the same worker; not needed on workers
+    // routes splits for the same file range to the same worker
     @Override
-    @JsonIgnore
     public Optional<String> getAffinityKey()
     {
         return Optional.of(path + ":" + start + ":" + length);
@@ -134,47 +62,5 @@ public class DispatcherSplit
     public long getRetainedSizeInBytes()
     {
         return proxyConnectorSplit.getRetainedSizeInBytes();
-    }
-
-    @Override
-    public boolean equals(Object o)
-    {
-        if (this == o) {
-            return true;
-        }
-        if (o == null || getClass() != o.getClass()) {
-            return false;
-        }
-        DispatcherSplit that = (DispatcherSplit) o;
-        return start == that.start && length == that.length &&
-                fileModifiedTime == that.fileModifiedTime &&
-                Objects.equals(schemaName, that.schemaName) &&
-                Objects.equals(tableName, that.tableName) &&
-                Objects.equals(path, that.path) &&
-                Objects.equals(partitionKeys, that.partitionKeys) &&
-                Objects.equals(deletedFilesHash, that.deletedFilesHash) &&
-                Objects.equals(proxyConnectorSplit, that.proxyConnectorSplit);
-    }
-
-    @Override
-    public int hashCode()
-    {
-        return Objects.hash(schemaName, tableName, path, start, length, fileModifiedTime, partitionKeys, deletedFilesHash, proxyConnectorSplit);
-    }
-
-    @Override
-    public String toString()
-    {
-        return "DispatcherSplit{" +
-                "schemaName='" + schemaName + '\'' +
-                ", tableName='" + tableName + '\'' +
-                ", path='" + path + '\'' +
-                ", start=" + start +
-                ", length=" + length +
-                ", fileModifiedTime=" + fileModifiedTime +
-                ", partitionKeys=" + partitionKeys +
-                ", deletedFilesHash='" + deletedFilesHash + '\'' +
-                ", proxyConnectorSplit=" + proxyConnectorSplit +
-                '}';
     }
 }
