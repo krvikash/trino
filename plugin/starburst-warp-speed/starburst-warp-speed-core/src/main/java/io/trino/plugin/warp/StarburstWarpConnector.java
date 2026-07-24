@@ -23,7 +23,7 @@ import io.trino.spi.connector.ConnectorIndexProvider;
 import io.trino.spi.connector.ConnectorMetadata;
 import io.trino.spi.connector.ConnectorNodePartitioningProvider;
 import io.trino.spi.connector.ConnectorPageSinkProvider;
-import io.trino.spi.connector.ConnectorPageSourceProvider;
+import io.trino.spi.connector.ConnectorPageSourceProviderFactory;
 import io.trino.spi.connector.ConnectorRecordSetProvider;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorSplitManager;
@@ -84,9 +84,9 @@ public class StarburstWarpConnector
     }
 
     @Override
-    public ConnectorPageSourceProvider getPageSourceProvider()
+    public ConnectorPageSourceProviderFactory getPageSourceProviderFactory()
     {
-        return warpConnector.getPageSourceProvider();
+        return warpConnector.getPageSourceProviderFactory();
     }
 
     @Override

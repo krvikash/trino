@@ -28,7 +28,7 @@ import io.trino.spi.cache.ConnectorCacheMetadata;
 import io.trino.spi.connector.Connector;
 import io.trino.spi.connector.ConnectorMetadata;
 import io.trino.spi.connector.ConnectorNodePartitioningProvider;
-import io.trino.spi.connector.ConnectorPageSourceProvider;
+import io.trino.spi.connector.ConnectorPageSourceProviderFactory;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorSplitManager;
 import io.trino.spi.connector.ConnectorTransactionHandle;
@@ -78,9 +78,9 @@ public class SingleDispatcherConnector
     }
 
     @Override
-    public ConnectorPageSourceProvider getPageSourceProvider()
+    public ConnectorPageSourceProviderFactory getPageSourceProviderFactory()
     {
-        return workerDispatcherConnector.getPageSourceProvider();
+        return workerDispatcherConnector.getPageSourceProviderFactory();
     }
 
     @Override

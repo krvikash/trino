@@ -13,19 +13,14 @@
  */
 package io.trino.plugin.warp.dispatcher;
 
-import com.google.inject.Inject;
-import com.google.inject.Singleton;
 import io.airlift.log.Logger;
-import io.trino.plugin.warp.annotation.ForWarp;
 import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
 import io.trino.plugin.warp.juffer.StorageEngineTxService;
 import io.trino.plugin.warp.metrics.CustomStatsContext;
 import io.trino.plugin.warp.metrics.MetricsManager;
-import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorPageSource;
 import io.trino.spi.connector.ConnectorPageSourceProvider;
-import io.trino.spi.connector.ConnectorPageSourceProviderFactory;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorSplit;
 import io.trino.spi.connector.ConnectorTableCredentials;
@@ -39,31 +34,29 @@ import java.util.Optional;
 
 import static java.util.Objects.requireNonNull;
 
-@Singleton
 public class DispatcherPageSourceProvider
         implements ConnectorPageSourceProvider
 {
     private static final Logger logger = Logger.get(DispatcherPageSourceProvider.class);
 
-    private final ConnectorPageSourceProviderFactory connectorPageSourceProviderFactory;
+    private final ConnectorPageSourceProvider connectorPageSourceProvider;
     private final WarpDispatcherPageSourceFactory pageSourceFactory;
     private final StorageEngineTxService txService;
     private final MetricsManager metricsManager;
     private final String catalogName;
 
-    @Inject
     public DispatcherPageSourceProvider(
-            @ForWarp ConnectorPageSourceProviderFactory connectorPageSourceProviderFactory,
+            ConnectorPageSourceProvider connectorPageSourceProvider,
             WarpDispatcherPageSourceFactory pageSourceFactory,
             StorageEngineTxService txService,
             MetricsManager metricsManager,
-            CatalogName catalogName)
+            String catalogName)
     {
-        this.connectorPageSourceProviderFactory = requireNonNull(connectorPageSourceProviderFactory);
+        this.connectorPageSourceProvider = requireNonNull(connectorPageSourceProvider);
         this.pageSourceFactory = requireNonNull(pageSourceFactory);
         this.txService = requireNonNull(txService);
         this.metricsManager = requireNonNull(metricsManager);
-        this.catalogName = requireNonNull(catalogName).toString();
+        this.catalogName = requireNonNull(catalogName);
     }
 
     @Override
@@ -88,7 +81,7 @@ public class DispatcherPageSourceProvider
             }
 
             if (!(split instanceof DispatcherSplit) && !(table instanceof DispatcherTableHandle)) {
-                return connectorPageSourceProviderFactory.createPageSourceProvider().createPageSource(
+                return connectorPageSourceProvider.createPageSource(
                         transactionHandle,
                         session,
                         split,
@@ -104,7 +97,7 @@ public class DispatcherPageSourceProvider
             customStatsContext.getOrRegister(new DispatcherPageSourceStats());
 
             return new DispatcherWrapperPageSource(
-                    connectorPageSourceProviderFactory.createPageSourceProvider(),
+                    connectorPageSourceProvider,
                     pageSourceFactory,
                     txService,
                     customStatsContext,
@@ -126,7 +119,6 @@ public class DispatcherPageSourceProvider
             ConnectorTableHandle table,
             TupleDomain<ColumnHandle> dynamicFilter)
     {
-        ConnectorPageSourceProvider connectorPageSourceProvider = connectorPageSourceProviderFactory.createPageSourceProvider();
         DispatcherTableHandle dispatcherTableHandle = (DispatcherTableHandle) table;
         ConnectorSplit connectorSplit = ((DispatcherSplit) split).proxyConnectorSplit();
         ConnectorTableHandle connectorTableHandle = dispatcherTableHandle.getProxyConnectorTableHandle();
@@ -154,11 +146,16 @@ public class DispatcherPageSourceProvider
             ConnectorTableHandle table,
             TupleDomain<ColumnHandle> predicate)
     {
-        return connectorPageSourceProviderFactory.createPageSourceProvider()
-                .prunePredicate(
-                        session,
-                        ((DispatcherSplit) split).proxyConnectorSplit(),
-                        ((DispatcherTableHandle) table).getProxyConnectorTableHandle(),
-                        predicate);
+        return connectorPageSourceProvider.prunePredicate(
+                session,
+                ((DispatcherSplit) split).proxyConnectorSplit(),
+                ((DispatcherTableHandle) table).getProxyConnectorTableHandle(),
+                predicate);
+    }
+
+    @Override
+    public long getMemoryUsage()
+    {
+        return connectorPageSourceProvider.getMemoryUsage();
     }
 }

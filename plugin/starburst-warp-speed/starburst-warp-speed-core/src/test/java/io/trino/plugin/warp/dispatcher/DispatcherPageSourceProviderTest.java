@@ -52,7 +52,6 @@ import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorPageSource;
 import io.trino.spi.connector.ConnectorPageSourceProvider;
-import io.trino.spi.connector.ConnectorPageSourceProviderFactory;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorSplit;
 import io.trino.spi.connector.ConnectorTransactionHandle;
@@ -107,7 +106,6 @@ public class DispatcherPageSourceProviderTest
 
     private DispatcherPageSourceProvider dispatcherPageSourceProvider;
     private ConnectorPageSourceProvider proxiedPageSourceProvider;
-    private ConnectorPageSourceProviderFactory connectorPageSourceProviderFactory;
     private DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer;
     private QueryClassifier queryClassifier;
     private final SchemaTableName schemaTableName = new SchemaTableName("s", "t");
@@ -156,8 +154,6 @@ public class DispatcherPageSourceProviderTest
                 dispatcherSplit.deletedFilesHash());
 
         proxiedPageSourceProvider = mock(ConnectorPageSourceProvider.class);
-        connectorPageSourceProviderFactory = mock(ConnectorPageSourceProviderFactory.class);
-        when(connectorPageSourceProviderFactory.createPageSourceProvider()).thenReturn(proxiedPageSourceProvider);
 
         queryClassifier = mock(QueryClassifier.class);
 
@@ -525,11 +521,11 @@ public class DispatcherPageSourceProviderTest
                 new ShapingLoggerFactory(new CatalogName("catalog-name"), new SharedConfig()));
 
         return new DispatcherPageSourceProvider(
-                connectorPageSourceProviderFactory,
+                proxiedPageSourceProvider,
                 pageSourceFactory,
                 txService,
                 metricsManager,
-                new CatalogName("warp"));
+                "warp");
     }
 
     protected void mockQueryClassifier(boolean isProxyOnly, boolean isWarpOnly, boolean isPrefilledOnly)

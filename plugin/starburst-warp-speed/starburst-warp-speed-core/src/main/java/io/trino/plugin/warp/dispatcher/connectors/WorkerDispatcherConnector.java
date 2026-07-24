@@ -19,13 +19,13 @@ import io.airlift.bootstrap.LifeCycleManager;
 import io.trino.plugin.warp.WarpSessionProperties;
 import io.trino.plugin.warp.annotation.ForWarp;
 import io.trino.plugin.warp.config.GlobalConfig;
-import io.trino.plugin.warp.dispatcher.DispatcherPageSourceProvider;
+import io.trino.plugin.warp.dispatcher.DispatcherPageSourceProviderFactory;
 import io.trino.plugin.warp.dispatcher.WorkerNodePartitioningProvider;
 import io.trino.plugin.warp.storage.capacity.WorkerCapacityManager;
 import io.trino.plugin.warp.storage.engine.nativeimpl.NativeStorageStateHandler;
 import io.trino.spi.connector.Connector;
 import io.trino.spi.connector.ConnectorNodePartitioningProvider;
-import io.trino.spi.connector.ConnectorPageSourceProvider;
+import io.trino.spi.connector.ConnectorPageSourceProviderFactory;
 
 import static java.util.Objects.requireNonNull;
 
@@ -33,7 +33,7 @@ import static java.util.Objects.requireNonNull;
 public class WorkerDispatcherConnector
         extends DispatcherConnectorBase
 {
-    private final DispatcherPageSourceProvider dispatcherPageSourceProvider;
+    private final DispatcherPageSourceProviderFactory dispatcherPageSourceProviderFactory;
     private final WorkerCapacityManager workerCapacityManager;
 
     @Inject
@@ -41,21 +41,21 @@ public class WorkerDispatcherConnector
             @ForWarp Connector proxiedConnector,
             GlobalConfig globalConfig,
             WarpSessionProperties warpSessionProperties,
-            DispatcherPageSourceProvider dispatcherPageSourceProvider,
+            DispatcherPageSourceProviderFactory dispatcherPageSourceProviderFactory,
             LifeCycleManager lifeCycleManager,
             ConnectorTaskExecutor connectorTaskExecutor,
             NativeStorageStateHandler nativeStorageStateHandler,
             WorkerCapacityManager workerCapacityManager)
     {
         super(proxiedConnector, globalConfig, warpSessionProperties, lifeCycleManager, connectorTaskExecutor, nativeStorageStateHandler);
-        this.dispatcherPageSourceProvider = requireNonNull(dispatcherPageSourceProvider);
+        this.dispatcherPageSourceProviderFactory = requireNonNull(dispatcherPageSourceProviderFactory);
         this.workerCapacityManager = workerCapacityManager;
     }
 
     @Override
-    public ConnectorPageSourceProvider getPageSourceProvider()
+    public ConnectorPageSourceProviderFactory getPageSourceProviderFactory()
     {
-        return dispatcherPageSourceProvider;
+        return dispatcherPageSourceProviderFactory;
     }
 
     @Override
