@@ -23,6 +23,7 @@ import io.trino.testing.AbstractTestQueryFramework;
 import io.trino.testing.DistributedQueryRunner;
 import io.trino.testing.QueryRunner;
 import io.trino.testing.sql.TestTable;
+import org.apache.iceberg.AppendFiles;
 import org.apache.iceberg.BaseTable;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.DataFiles;
@@ -32,9 +33,11 @@ import org.apache.iceberg.FileMetadata;
 import org.apache.iceberg.ManifestFile;
 import org.apache.iceberg.ManifestFiles;
 import org.apache.iceberg.ManifestWriter;
+import org.apache.iceberg.Metrics;
 import org.apache.iceberg.MetricsConfig;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.RewriteManifests;
+import org.apache.iceberg.RowDelta;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.data.GenericRecord;
@@ -50,13 +53,18 @@ import org.apache.iceberg.io.OutputFile;
 import org.apache.iceberg.io.OutputFileFactory;
 import org.apache.iceberg.parquet.Parquet;
 import org.apache.iceberg.types.Types;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Gatherers;
+import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.trino.plugin.iceberg.IcebergTestUtils.FILE_IO_FACTORY;
@@ -71,6 +79,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 final class TestIcebergRemoveDanglingDeleteFilesProcedure
         extends AbstractTestQueryFramework
 {
+    private static final int LARGE_DELETE_FILE_COUNT = 500_000;
+    private static final int DELETE_MANIFEST_COUNT = 200;
+    private static final int DELETE_FILE_STATS_COLUMNS = 15;
+    private static final int DATA_FILE_COUNT = 200_000;
+    private static final int DATA_MANIFEST_COUNT = 200;
+    private static final int DATA_FILE_STATS_COLUMNS = 50;
+
     private HiveMetastore metastore;
     private TrinoFileSystemFactory fileSystemFactory;
 
@@ -573,6 +588,147 @@ final class TestIcebergRemoveDanglingDeleteFilesProcedure
         }
     }
 
+    /**
+     * Large scale test to reproduce high memory usage of remove dangling deletes.
+     * Includes both retained deletes (referencing real data files) and dangling deletes (referencing
+     * nonexistent files) to exercise both the minSequenceNumberByReferencedPath map population path
+     * and the dangling detection path.
+     * Disabled because the test takes 1-2 minutes to run, but kept around for reproducing future memory issues.
+     */
+    @Test
+    @Disabled
+    void testLargeNumberOfDanglingDeleteFiles()
+    {
+        try (TestTable table = newTrinoTable("test_many_dangling_deletes", "(id bigint)")) {
+            BaseTable icebergTable = loadTable(table.getName());
+            addDataFilesWithStats(icebergTable, DATA_FILE_COUNT, DATA_MANIFEST_COUNT);
+            icebergTable = loadTable(table.getName());
+            addRetainedFileReferencedPositionDeletes(icebergTable, LARGE_DELETE_FILE_COUNT, DELETE_MANIFEST_COUNT, DATA_FILE_COUNT);
+            addDanglingFileReferencedPositionDeletes(icebergTable, LARGE_DELETE_FILE_COUNT, DELETE_MANIFEST_COUNT);
+
+            assertThat(dataFileCount(table.getName())).isEqualTo(DATA_FILE_COUNT);
+            assertThat(positionDeleteFileCount(table.getName())).isEqualTo(LARGE_DELETE_FILE_COUNT * 2);
+
+            assertUpdate(
+                    "ALTER TABLE " + table.getName() + " EXECUTE remove_dangling_delete_files",
+                    """
+                    VALUES
+                    ('removed_delete_files_count', %s),
+                    ('dangling_equality_delete_files_count', 0),
+                    ('dangling_position_delete_files_count', %s),
+                    ('dangling_dv_files_count', 0),
+                    ('data_files_without_sequence_numbers', 0),
+                    ('unexpected_delete_files_count', 0)""".formatted(LARGE_DELETE_FILE_COUNT, LARGE_DELETE_FILE_COUNT));
+
+            assertThat(positionDeleteFileCount(table.getName())).isEqualTo(LARGE_DELETE_FILE_COUNT);
+            assertThat(dataFileCount(table.getName())).isEqualTo(DATA_FILE_COUNT);
+        }
+    }
+
+    /**
+     * Generates manifestCount iceberg commits with totalCount delete files spread across the commits.
+     * The delete files reference non-existent files on local disk.
+     * Only use function for metadata purposes.
+     */
+    private static void addDanglingFileReferencedPositionDeletes(BaseTable icebergTable, int totalCount, int manifestCount)
+    {
+        Metrics metrics = wideFileStats(DELETE_FILE_STATS_COLUMNS);
+        Stream<DeleteFile> deletes = IntStream.range(0, totalCount)
+                .mapToObj(index -> FileMetadata.deleteFileBuilder(PartitionSpec.unpartitioned())
+                        .ofPositionDeletes()
+                        .withPath("local:///dangling_delete_" + index + ".parquet")
+                        .withFormat(FileFormat.PARQUET)
+                        .withFileSizeInBytes(100)
+                        .withRecordCount(1)
+                        .withMetrics(metrics)
+                        .withReferencedDataFile("local:///nonexistent_data_" + index + ".parquet")
+                        .build());
+
+        deletes.gather(Gatherers.windowFixed(totalCount / manifestCount)).forEach(batch -> {
+            RowDelta rowDelta = icebergTable.newRowDelta();
+            batch.forEach(rowDelta::addDeletes);
+            rowDelta.commit();
+        });
+    }
+
+    /**
+     * Generates manifestCount iceberg commits with totalCount position delete files, each referencing
+     * one of the real data files added by addDataFilesWithStats (cycling via index % dataFileCount).
+     * Only use function for metadata purposes.
+     */
+    private static void addRetainedFileReferencedPositionDeletes(BaseTable icebergTable, int totalCount, int manifestCount, int dataFileCount)
+    {
+        Metrics metrics = wideFileStats(DELETE_FILE_STATS_COLUMNS);
+        Stream<DeleteFile> deletes = IntStream.range(0, totalCount)
+                .mapToObj(index -> FileMetadata.deleteFileBuilder(PartitionSpec.unpartitioned())
+                        .ofPositionDeletes()
+                        .withPath("local:///retained_delete_" + index + ".parquet")
+                        .withFormat(FileFormat.PARQUET)
+                        .withFileSizeInBytes(100)
+                        .withRecordCount(1)
+                        .withMetrics(metrics)
+                        .withReferencedDataFile("local:///stats_data_" + (index % dataFileCount) + ".parquet")
+                        .build());
+
+        deletes.gather(Gatherers.windowFixed(totalCount / manifestCount)).forEach(batch -> {
+            RowDelta rowDelta = icebergTable.newRowDelta();
+            batch.forEach(rowDelta::addDeletes);
+            rowDelta.commit();
+        });
+    }
+
+    /**
+     * Generates manifestCount iceberg commits with totalCount data files spread across the commits.
+     * The data files reference non-existent parquet files on local disk.
+     * Only use function for metadata purposes.
+     */
+    private static void addDataFilesWithStats(BaseTable icebergTable, int totalCount, int manifestCount)
+    {
+        Metrics metrics = wideFileStats(DATA_FILE_STATS_COLUMNS);
+        Stream<DataFile> files = IntStream.range(0, totalCount)
+                .mapToObj(index -> DataFiles.builder(PartitionSpec.unpartitioned())
+                        .withPath("local:///stats_data_" + index + ".parquet")
+                        .withFormat(FileFormat.PARQUET)
+                        .withFileSizeInBytes(100)
+                        .withRecordCount(1)
+                        .withMetrics(metrics)
+                        .build());
+
+        files.gather(Gatherers.windowFixed(totalCount / manifestCount)).forEach(batch -> {
+            AppendFiles append = icebergTable.newAppend();
+            batch.forEach(append::appendFile);
+            append.commit();
+        });
+    }
+
+    /**
+     * Generate fake wide per-column iceberg stats. Per file stats can retain significant memory.
+     * Stats values are not important to this test, only that they exist and consume memory.
+     */
+    private static Metrics wideFileStats(int columns)
+    {
+        ImmutableMap.Builder<Integer, Long> columnSizes = ImmutableMap.builder();
+        ImmutableMap.Builder<Integer, Long> valueCounts = ImmutableMap.builder();
+        ImmutableMap.Builder<Integer, Long> nullValueCounts = ImmutableMap.builder();
+        ImmutableMap.Builder<Integer, ByteBuffer> lowerBounds = ImmutableMap.builder();
+        ImmutableMap.Builder<Integer, ByteBuffer> upperBounds = ImmutableMap.builder();
+        for (int field = 1; field <= columns; field++) {
+            columnSizes.put(field, 128L);
+            valueCounts.put(field, 1L);
+            nullValueCounts.put(field, 0L);
+            lowerBounds.put(field, ByteBuffer.wrap(new byte[16]));
+            upperBounds.put(field, ByteBuffer.wrap(new byte[16]));
+        }
+        return new Metrics(
+                1L,
+                columnSizes.buildOrThrow(),
+                valueCounts.buildOrThrow(),
+                nullValueCounts.buildOrThrow(),
+                ImmutableMap.of(),
+                lowerBounds.buildOrThrow(),
+                upperBounds.buildOrThrow());
+    }
+
     @Test
     void testCorruptPartitionDataTypeMismatch()
             throws Exception
@@ -782,6 +938,11 @@ final class TestIcebergRemoveDanglingDeleteFilesProcedure
     private long positionDeleteFileCount(String tableName)
     {
         return (long) computeActual("SELECT count(*) FROM \"" + tableName + "$files\" WHERE content = " + POSITION_DELETES.id()).getOnlyValue();
+    }
+
+    private long dataFileCount(String tableName)
+    {
+        return (long) computeActual("SELECT count(*) FROM \"" + tableName + "$files\" WHERE content = 0").getOnlyValue();
     }
 
     private BaseTable loadTable(String tableName)
