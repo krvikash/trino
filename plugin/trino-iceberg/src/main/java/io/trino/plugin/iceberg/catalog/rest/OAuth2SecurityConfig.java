@@ -30,6 +30,8 @@ public class OAuth2SecurityConfig
     private URI serverUri;
     private boolean tokenRefreshEnabled = OAuth2Properties.TOKEN_REFRESH_ENABLED_DEFAULT;
     private boolean tokenExchangeEnabled = OAuth2Properties.TOKEN_EXCHANGE_ENABLED_DEFAULT;
+    // the flag for now is only available in internal iceberg fork - to be changed after merge of https://github.com/apache/iceberg/pull/17148
+    private boolean skipInheritedAuthHeaderInTokenRequest = OAuth2Properties.SKIP_INHERITED_AUTH_HEADER_IN_TOKEN_REQUEST_DEFAULT;
 
     public Optional<String> getCredential()
     {
@@ -108,6 +110,19 @@ public class OAuth2SecurityConfig
     public OAuth2SecurityConfig setTokenExchangeEnabled(boolean tokenExchangeEnabled)
     {
         this.tokenExchangeEnabled = tokenExchangeEnabled;
+        return this;
+    }
+
+    public boolean isSkipInheritedAuthHeaderInTokenRequest()
+    {
+        return skipInheritedAuthHeaderInTokenRequest;
+    }
+
+    @Config("iceberg.rest-catalog.oauth2.skip-inherited-auth-header-in-token-request")
+    @ConfigDescription("When enabled, the Authorization header inherited from the parent session is not forwarded when fetching a new token via the client credentials flow")
+    public OAuth2SecurityConfig setSkipInheritedAuthHeaderInTokenRequest(boolean skipInheritedAuthHeaderInTokenRequest)
+    {
+        this.skipInheritedAuthHeaderInTokenRequest = skipInheritedAuthHeaderInTokenRequest;
         return this;
     }
 

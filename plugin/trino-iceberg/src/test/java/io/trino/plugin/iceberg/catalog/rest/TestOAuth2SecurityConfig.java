@@ -36,7 +36,8 @@ public class TestOAuth2SecurityConfig
                 .setScope(null)
                 .setServerUri(null)
                 .setTokenRefreshEnabled(OAuth2Properties.TOKEN_REFRESH_ENABLED_DEFAULT)
-                .setTokenExchangeEnabled(OAuth2Properties.TOKEN_EXCHANGE_ENABLED_DEFAULT));
+                .setTokenExchangeEnabled(OAuth2Properties.TOKEN_EXCHANGE_ENABLED_DEFAULT)
+                .setSkipInheritedAuthHeaderInTokenRequest(OAuth2Properties.SKIP_INHERITED_AUTH_HEADER_IN_TOKEN_REQUEST_DEFAULT));
     }
 
     @Test
@@ -49,6 +50,7 @@ public class TestOAuth2SecurityConfig
                 .put("iceberg.rest-catalog.oauth2.server-uri", "http://localhost:8080/realms/iceberg/protocol/openid-connect/token")
                 .put("iceberg.rest-catalog.oauth2.token-refresh-enabled", "false")
                 .put("iceberg.rest-catalog.oauth2.token-exchange-enabled", "false")
+                .put("iceberg.rest-catalog.oauth2.skip-inherited-auth-header-in-token-request", "true")
                 .buildOrThrow();
 
         OAuth2SecurityConfig expected = new OAuth2SecurityConfig()
@@ -57,7 +59,8 @@ public class TestOAuth2SecurityConfig
                 .setScope("scope")
                 .setServerUri(URI.create("http://localhost:8080/realms/iceberg/protocol/openid-connect/token"))
                 .setTokenRefreshEnabled(false)
-                .setTokenExchangeEnabled(false);
+                .setTokenExchangeEnabled(false)
+                .setSkipInheritedAuthHeaderInTokenRequest(true);
         assertThat(expected.credentialOrTokenPresent()).isTrue();
         assertFullMapping(properties, expected);
     }
