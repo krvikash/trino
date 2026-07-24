@@ -104,6 +104,7 @@ public class BigQueryConnectorModule
             binder.bind(BigQueryTableProperties.class).in(Scopes.SINGLETON);
             binder.bind(BigQuerySubstitutionMetadata.class).in(Scopes.SINGLETON);
             binder.bind(ViewMaterializationCache.class).in(Scopes.SINGLETON);
+            binder.bind(BigQuerySchemaProperties.class).in(Scopes.SINGLETON);
             configBinder(binder).bindConfig(BigQueryConfig.class);
             configBinder(binder).bindConfig(BigQueryRpcConfig.class);
             newOptionalBinder(binder, BigQueryArrowBufferAllocator.class);
