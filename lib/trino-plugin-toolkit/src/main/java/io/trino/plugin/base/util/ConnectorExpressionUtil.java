@@ -13,6 +13,7 @@
  */
 package io.trino.plugin.base.util;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import io.trino.plugin.base.expression.ConnectorExpressions;
@@ -44,7 +45,9 @@ public final class ConnectorExpressionUtil
 {
     private ConnectorExpressionUtil() {}
 
-    public record ExpressionAndAssignments(ConnectorExpression expression, Map<String, ColumnHandle> assignments)
+    public record ExpressionAndAssignments(
+            @JsonProperty("expression") ConnectorExpression expression,
+            @JsonProperty("assignments") Map<String, ColumnHandle> assignments)
     {
         public static final ExpressionAndAssignments TRUE = new ExpressionAndAssignments(Constant.TRUE, emptyMap());
         public static final ExpressionAndAssignments FALSE = new ExpressionAndAssignments(Constant.FALSE, emptyMap());

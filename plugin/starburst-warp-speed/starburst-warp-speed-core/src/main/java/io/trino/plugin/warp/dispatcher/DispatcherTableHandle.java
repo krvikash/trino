@@ -14,7 +14,6 @@
 package io.trino.plugin.warp.dispatcher;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.trino.plugin.base.util.ConnectorExpressionUtil.ExpressionAndAssignments;
 import io.trino.plugin.warp.expression.rewrite.WarpExpression;
@@ -49,18 +48,17 @@ public class DispatcherTableHandle
     // used for re-constructing warpExpression
     private final Optional<ExpressionAndAssignments> originalExpression;
 
-    @JsonCreator
     public DispatcherTableHandle(
-            @JsonProperty("schemaName") String schemaName,
-            @JsonProperty("tableName") String tableName,
-            @JsonProperty("limit") OptionalLong limit,
-            @JsonProperty("fullPredicate") TupleDomain<ColumnHandle> fullPredicate,
-            @JsonProperty("simplifiedColumns") SimplifiedColumns simplifiedColumns,
-            @JsonProperty("proxyConnectorTableHandle") ConnectorTableHandle proxyConnectorTableHandle,
-            @JsonProperty("warpExpression") Optional<WarpExpression> warpExpression,
-            @JsonProperty("customStats") List<CustomStat> customStats,
-            @JsonProperty("subsumedPredicates") boolean subsumedPredicates,
-            @JsonProperty("columnsNotFitForDictionary") Set<String> columnsNotFitForDictionary)
+            String schemaName,
+            String tableName,
+            OptionalLong limit,
+            TupleDomain<ColumnHandle> fullPredicate,
+            SimplifiedColumns simplifiedColumns,
+            ConnectorTableHandle proxyConnectorTableHandle,
+            Optional<WarpExpression> warpExpression,
+            List<CustomStat> customStats,
+            boolean subsumedPredicates,
+            Set<String> columnsNotFitForDictionary)
     {
         this(schemaName,
                 tableName,
@@ -72,21 +70,22 @@ public class DispatcherTableHandle
                 customStats,
                 subsumedPredicates,
                 columnsNotFitForDictionary,
-                Optional.empty()); // constraintOriginalExpressions is not serialized (not needed in workers)
+                Optional.empty());
     }
 
+    @JsonCreator
     public DispatcherTableHandle(
-            String schemaName,
-            String tableName,
-            OptionalLong limit,
-            TupleDomain<ColumnHandle> fullPredicate,
-            SimplifiedColumns simplifiedColumns,
-            ConnectorTableHandle proxyConnectorTableHandle,
-            Optional<WarpExpression> warpExpression,
-            List<CustomStat> customStats,
-            boolean subsumedPredicates,
-            Set<String> columnsNotFitForDictionary,
-            Optional<ExpressionAndAssignments> originalExpression)
+            @JsonProperty("schemaName") String schemaName,
+            @JsonProperty("tableName") String tableName,
+            @JsonProperty("limit") OptionalLong limit,
+            @JsonProperty("fullPredicate") TupleDomain<ColumnHandle> fullPredicate,
+            @JsonProperty("simplifiedColumns") SimplifiedColumns simplifiedColumns,
+            @JsonProperty("proxyConnectorTableHandle") ConnectorTableHandle proxyConnectorTableHandle,
+            @JsonProperty("warpExpression") Optional<WarpExpression> warpExpression,
+            @JsonProperty("customStats") List<CustomStat> customStats,
+            @JsonProperty("subsumedPredicates") boolean subsumedPredicates,
+            @JsonProperty("columnsNotFitForDictionary") Set<String> columnsNotFitForDictionary,
+            @JsonProperty("originalExpression") Optional<ExpressionAndAssignments> originalExpression)
     {
         this.schemaTableName = new SchemaTableName(requireNonNull(schemaName), requireNonNull(tableName));
         this.limit = limit;
@@ -170,7 +169,7 @@ public class DispatcherTableHandle
         return columnsNotFitForDictionary.isEmpty() || !columnsNotFitForDictionary.contains(columnName);
     }
 
-    @JsonIgnore
+    @JsonProperty
     public Optional<ExpressionAndAssignments> getOriginalExpression()
     {
         return originalExpression;
