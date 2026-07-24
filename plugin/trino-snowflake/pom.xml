@@ -133,6 +133,32 @@
 
         <dependency>
             <groupId>io.trino</groupId>
+            <artifactId>trino-geospatial</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>io.trino</groupId>
+            <artifactId>trino-hive</artifactId>
+            <type>test-jar</type>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>io.trino</groupId>
+            <artifactId>trino-iceberg</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>io.trino</groupId>
+            <artifactId>trino-iceberg</artifactId>
+            <type>test-jar</type>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>io.trino</groupId>
             <artifactId>trino-main</artifactId>
             <scope>test</scope>
         </dependency>
@@ -201,7 +227,10 @@
                     <artifactId>duplicate-finder-maven-plugin</artifactId>
                     <configuration>
                         <ignoredResourcePatterns>
+                            <ignoredResourcePattern>ozone-filesystem-hadoop3-1.4.0.jar</ignoredResourcePattern>
                             <ignoredResourcePattern>mime.types</ignoredResourcePattern>
+                            <ignoredResourcePattern>iceberg-build.properties</ignoredResourcePattern>
+                            <ignoredResourcePattern>org/conscrypt/conscrypt.properties</ignoredResourcePattern>
                         </ignoredResourcePatterns>
                         <ignoredDependencies>
                             <dependency>
@@ -230,6 +259,7 @@
                             <excludes>
                                 <exclude>**/TestSnowflakeConnectorTest.java</exclude>
                                 <exclude>**/TestSnowflakeTypeMapping.java</exclude>
+                                <exclude>**/TestIcebergMvOnSnowflakeSourceSubstitution.java</exclude>
                             </excludes>
                         </configuration>
                     </plugin>
@@ -252,6 +282,7 @@
                             <includes>
                                 <include>**/TestSnowflakeConnectorTest.java</include>
                                 <include>**/TestSnowflakeTypeMapping.java</include>
+                                <include>**/TestIcebergMvOnSnowflakeSourceSubstitution.java</include>
                             </includes>
                         </configuration>
                     </plugin>
