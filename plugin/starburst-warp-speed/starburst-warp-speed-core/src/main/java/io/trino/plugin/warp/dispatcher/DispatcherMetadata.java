@@ -16,6 +16,7 @@ package io.trino.plugin.warp.dispatcher;
 import com.google.common.collect.Sets;
 import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
+import io.trino.plugin.base.metrics.LongCount;
 import io.trino.plugin.base.util.ConnectorExpressionUtil.ExpressionAndAssignments;
 import io.trino.plugin.warp.WarpSessionProperties;
 import io.trino.plugin.warp.config.GlobalConfig;
@@ -91,6 +92,7 @@ import io.trino.spi.function.FunctionMetadata;
 import io.trino.spi.function.LanguageFunction;
 import io.trino.spi.function.SchemaFunctionName;
 import io.trino.spi.function.table.ConnectorTableFunctionHandle;
+import io.trino.spi.metrics.Metric;
 import io.trino.spi.metrics.Metrics;
 import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.security.GrantInfo;
@@ -115,6 +117,7 @@ import java.util.Set;
 import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 
+import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static io.trino.plugin.base.util.ConnectorExpressionUtil.or;
 import static io.trino.plugin.warp.dispatcher.DispatcherPageSourceFactory.createFixedStatKey;
 import static io.trino.spi.expression.Constant.TRUE;
@@ -1039,12 +1042,12 @@ public class DispatcherMetadata
             Optional<WarpExpression> warpExpression,
             Map<String, Long> customStatsMap)
     {
-        List<CustomStat> customStats = mergeCustomStats(table.getCustomStats(), customStatsMap);
+        Metrics metrics = mergeMetrics(table.getMetrics(), customStatsMap);
         TupleDomain<ColumnHandle> fullPredicate = table.getFullPredicate().intersect(newRemainingFilter);
 
         DispatcherTableHandleBuilderProvider.Builder builder = createTableHandleBuilder(session, Optional.of(table), proxiedConnectorTableHandle, table.getSchemaTableName())
                 .warpExpression(warpExpression)
-                .customStats(customStats)
+                .metrics(metrics)
                 .fullPredicate(fullPredicate);
         if (table.getWarpExpression().isEmpty()) {
             // Currently, WarpExpression is set only once
@@ -1077,22 +1080,13 @@ public class DispatcherMetadata
         return proxiedConnectorMetadata.getTableCredentials(session, tableFunctionHandle);
     }
 
-    private static List<CustomStat> mergeCustomStats(List<CustomStat> first, List<CustomStat> second)
+    private static Metrics mergeMetrics(Metrics metrics, Map<String, Long> planningCounters)
     {
-        Map<String, Long> customStatsMap = second.stream()
-                .collect(Collectors.toMap(CustomStat::statName, CustomStat::statValue, (a, _) -> a, HashMap::new));
-        return mergeCustomStats(first, customStatsMap);
-    }
-
-    private static List<CustomStat> mergeCustomStats(List<CustomStat> customStats, Map<String, Long> customStatsMap)
-    {
-        Map<String, Long> allStatsMap = customStats.stream()
-                .collect(Collectors.toMap(CustomStat::statName, CustomStat::statValue, (a, _) -> a, HashMap::new));
-        customStatsMap.forEach((key, value) -> allStatsMap.merge(createFixedStatKey(DispatcherPageSourceStats.createKey(), key), value, Long::sum));
-
-        return allStatsMap.entrySet().stream()
-                .map(entry -> new CustomStat(entry.getKey(), entry.getValue()))
-                .toList();
+        Map<String, Metric<?>> counters = planningCounters.entrySet().stream()
+                .collect(toImmutableMap(
+                        entry -> createFixedStatKey(DispatcherPageSourceStats.createKey(), entry.getKey()),
+                        entry -> new LongCount(entry.getValue())));
+        return metrics.mergeWith(new Metrics(counters));
     }
 
     @Override
@@ -1197,7 +1191,7 @@ public class DispatcherMetadata
                 unionExpression.assignments(),
                 new HashMap<>()); // stats will be collected from the individual tables
 
-        List<CustomStat> unifiedCustomStats = mergeCustomStats(firstTable.getCustomStats(), secondTable.getCustomStats());
+        Metrics unifiedMetrics = firstTable.getMetrics().mergeWith(secondTable.getMetrics());
         DispatcherTableHandle unified = new DispatcherTableHandle(
                 firstTable.getSchemaName(),
                 firstTable.getTableName(),
@@ -1206,7 +1200,7 @@ public class DispatcherMetadata
                 new SimplifiedColumns(Sets.union(firstTable.getSimplifiedColumns().simplifiedColumns(), secondTable.getSimplifiedColumns().simplifiedColumns())),
                 unifiedProxyResult.get().unifiedHandle(),
                 unionWarpExpression,
-                unifiedCustomStats,
+                unifiedMetrics,
                 false,
                 Sets.union(firstTable.getColumnsNotFitForDictionary(), secondTable.getColumnsNotFitForDictionary()),
                 Optional.of(unionExpression));

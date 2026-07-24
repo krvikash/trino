@@ -25,10 +25,10 @@ import io.trino.spi.connector.substitution.ConnectorIdVersion;
 import io.trino.spi.connector.substitution.ConnectorStorageTableId;
 import io.trino.spi.connector.substitution.ConnectorSubstitutionMetadata;
 import io.trino.spi.connector.substitution.ConnectorTableId;
+import io.trino.spi.metrics.Metrics;
 import io.trino.spi.predicate.TupleDomain;
 import org.junit.jupiter.api.Test;
 
-import java.util.List;
 import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.Set;
@@ -67,7 +67,7 @@ public class TestDispatcherSubstitutionMetadata
                 new SimplifiedColumns(Set.of(new RegularColumn("col1"))),
                 PROXY_TABLE_HANDLE,
                 Optional.empty(),
-                List.of(),
+                Metrics.EMPTY,
                 false,
                 Set.of());
     }

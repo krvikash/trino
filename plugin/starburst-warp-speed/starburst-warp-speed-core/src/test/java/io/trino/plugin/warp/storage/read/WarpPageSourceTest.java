@@ -46,7 +46,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
-import java.util.Collections;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -66,7 +65,7 @@ public class WarpPageSourceTest
         when(storageEngineConstants.getChunkSizeShift()).thenReturn(16);
         when(storageEngineConstants.getMaxChunksInRange()).thenReturn(8);
         MetricsManager metricsManager = TestingTxService.createMetricsManager();
-        this.customStatsContext = new CustomStatsContext(metricsManager, Collections.emptyList());
+        this.customStatsContext = new CustomStatsContext(metricsManager);
         customStatsContext.getOrRegister(new DispatcherPageSourceStats());
         customStatsContext.getOrRegister(new DictionaryStats());
         shapingLoggerFactory = new ShapingLoggerFactory(new CatalogName("catalog-name"), new SharedConfig());

@@ -18,7 +18,6 @@ import io.trino.plugin.warp.tools.CatalogNameProvider;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.util.Collections;
 import java.util.concurrent.atomic.LongAdder;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -32,7 +31,7 @@ public class CustomStatsContextTest
     public void before()
     {
         metricsManager = new MetricsManager(new MetricsRegistry(new CatalogNameProvider("catalog-name"), new MetricsConfig()));
-        customStatsContext = new CustomStatsContext(metricsManager, Collections.emptyList());
+        customStatsContext = new CustomStatsContext(metricsManager);
     }
 
     @Test
@@ -61,7 +60,7 @@ public class CustomStatsContextTest
         customStatsContext.copyStatsToGlobalMetricsManager();
         assertThat(((WarpTestStats) metricsManager.get(jmxKey)).getCounter()).isEqualTo(((WarpTestStats) customStatsContext.getStat(jmxKey)).getCounter());
 
-        CustomStatsContext customStatsContext2 = new CustomStatsContext(metricsManager, Collections.emptyList());
+        CustomStatsContext customStatsContext2 = new CustomStatsContext(metricsManager);
         WarpTestStats testStatsContext2 = new WarpTestStats(jmxKey);
         customStatsContext2.getOrRegister(testStatsContext2);
         testStatsContext2.incCounter();

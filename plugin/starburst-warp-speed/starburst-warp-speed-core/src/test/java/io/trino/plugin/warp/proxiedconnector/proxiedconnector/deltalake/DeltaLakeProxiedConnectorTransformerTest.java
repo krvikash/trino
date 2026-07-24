@@ -26,11 +26,11 @@ import io.trino.plugin.warp.dispatcher.model.RegularColumn;
 import io.trino.plugin.warp.proxiedconnector.deltalake.DeltaLakeProxiedConnectorTransformer;
 import io.trino.plugin.warp.proxiedconnector.proxiedconnector.ProxyConnectorTransformerBaseTest;
 import io.trino.spi.SplitWeight;
+import io.trino.spi.metrics.Metrics;
 import io.trino.spi.predicate.TupleDomain;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -69,7 +69,7 @@ public class DeltaLakeProxiedConnectorTransformerTest
                 new SimplifiedColumns(Set.of(new RegularColumn("col1"))),
                 getDeltaLakeTableHandle(),
                 Optional.empty(),
-                Collections.emptyList(),
+                Metrics.EMPTY,
                 false,
                 Set.of());
 
@@ -114,7 +114,7 @@ public class DeltaLakeProxiedConnectorTransformerTest
                 new SimplifiedColumns(Set.of(new RegularColumn("col1"))),
                 tableHandle,
                 Optional.empty(),
-                Collections.emptyList(),
+                Metrics.EMPTY,
                 false,
                 Set.of());
 
@@ -149,7 +149,7 @@ public class DeltaLakeProxiedConnectorTransformerTest
                 new SimplifiedColumns(Set.of(new RegularColumn("col1"))),
                 getDeltaLakeTableHandle(),
                 Optional.empty(),
-                Collections.emptyList(),
+                Metrics.EMPTY,
                 false,
                 Set.of());
 

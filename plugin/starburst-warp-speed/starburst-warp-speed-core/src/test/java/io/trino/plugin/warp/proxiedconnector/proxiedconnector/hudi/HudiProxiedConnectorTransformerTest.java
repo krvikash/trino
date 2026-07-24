@@ -38,6 +38,7 @@ import io.trino.spi.connector.ConnectorNodePartitioningProvider;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.ConnectorTransactionHandle;
+import io.trino.spi.metrics.Metrics;
 import io.trino.spi.predicate.Domain;
 import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.type.IntegerType;
@@ -47,7 +48,6 @@ import org.junit.jupiter.api.Test;
 
 import java.net.URI;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.OptionalLong;
@@ -86,7 +86,7 @@ public class HudiProxiedConnectorTransformerTest
                 new SimplifiedColumns(Set.of(new RegularColumn("col1"))),
                 mock(HiveTableHandle.class),
                 Optional.empty(),
-                Collections.emptyList(),
+                Metrics.EMPTY,
                 false,
                 Set.of());
 
@@ -135,7 +135,7 @@ public class HudiProxiedConnectorTransformerTest
                 new SimplifiedColumns(Set.of(new RegularColumn("col1"))),
                 hudiTableHandle,
                 Optional.empty(),
-                Collections.emptyList(),
+                Metrics.EMPTY,
                 false,
                 Set.of());
 
@@ -180,7 +180,7 @@ public class HudiProxiedConnectorTransformerTest
                 new SimplifiedColumns(Set.of(new RegularColumn("col1"))),
                 hudiTableHandle,
                 Optional.empty(),
-                Collections.emptyList(),
+                Metrics.EMPTY,
                 false,
                 Set.of());
 

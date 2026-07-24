@@ -20,9 +20,9 @@ import io.trino.plugin.warp.expression.rewrite.WarpExpression;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.SchemaTableName;
+import io.trino.spi.metrics.Metrics;
 import io.trino.spi.predicate.TupleDomain;
 
-import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalLong;
@@ -41,7 +41,7 @@ public class DispatcherTableHandle
     private final SimplifiedColumns simplifiedColumns;
     private final ConnectorTableHandle proxyConnectorTableHandle;
     private final Optional<WarpExpression> warpExpression;
-    private final List<CustomStat> customStats;
+    private final Metrics metrics;
     private final boolean subsumedPredicates;
     private final Set<String> columnsNotFitForDictionary;
 
@@ -56,7 +56,7 @@ public class DispatcherTableHandle
             SimplifiedColumns simplifiedColumns,
             ConnectorTableHandle proxyConnectorTableHandle,
             Optional<WarpExpression> warpExpression,
-            List<CustomStat> customStats,
+            Metrics metrics,
             boolean subsumedPredicates,
             Set<String> columnsNotFitForDictionary)
     {
@@ -67,7 +67,7 @@ public class DispatcherTableHandle
                 simplifiedColumns,
                 proxyConnectorTableHandle,
                 warpExpression,
-                customStats,
+                metrics,
                 subsumedPredicates,
                 columnsNotFitForDictionary,
                 Optional.empty());
@@ -82,7 +82,7 @@ public class DispatcherTableHandle
             @JsonProperty("simplifiedColumns") SimplifiedColumns simplifiedColumns,
             @JsonProperty("proxyConnectorTableHandle") ConnectorTableHandle proxyConnectorTableHandle,
             @JsonProperty("warpExpression") Optional<WarpExpression> warpExpression,
-            @JsonProperty("customStats") List<CustomStat> customStats,
+            @JsonProperty("metrics") Metrics metrics,
             @JsonProperty("subsumedPredicates") boolean subsumedPredicates,
             @JsonProperty("columnsNotFitForDictionary") Set<String> columnsNotFitForDictionary,
             @JsonProperty("originalExpression") Optional<ExpressionAndAssignments> originalExpression)
@@ -93,7 +93,7 @@ public class DispatcherTableHandle
         this.simplifiedColumns = requireNonNull(simplifiedColumns);
         this.proxyConnectorTableHandle = requireNonNull(proxyConnectorTableHandle);
         this.warpExpression = requireNonNull(warpExpression);
-        this.customStats = customStats;
+        this.metrics = requireNonNull(metrics);
         this.subsumedPredicates = subsumedPredicates;
         this.columnsNotFitForDictionary = columnsNotFitForDictionary;
         this.originalExpression = requireNonNull(originalExpression);
@@ -112,9 +112,9 @@ public class DispatcherTableHandle
     }
 
     @JsonProperty
-    public List<CustomStat> getCustomStats()
+    public Metrics getMetrics()
     {
-        return customStats;
+        return metrics;
     }
 
     @JsonProperty

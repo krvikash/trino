@@ -94,7 +94,7 @@ public class DispatcherPageSourceProvider
 
             DispatcherTableHandle dispatcherTableHandle = (DispatcherTableHandle) table;
 
-            CustomStatsContext customStatsContext = new CustomStatsContext(metricsManager, dispatcherTableHandle.getCustomStats());
+            CustomStatsContext customStatsContext = new CustomStatsContext(metricsManager);
             customStatsContext.getOrRegister(new DispatcherPageSourceStats());
 
             return new DispatcherWrapperPageSource(

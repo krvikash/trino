@@ -52,6 +52,7 @@ import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorSplit;
 import io.trino.spi.connector.SchemaTableName;
+import io.trino.spi.metrics.Metrics;
 import io.trino.spi.predicate.Domain;
 import io.trino.spi.predicate.Range;
 import io.trino.spi.predicate.TupleDomain;
@@ -216,7 +217,7 @@ public class WarmupTestDataUtil
                 new SimplifiedColumns(Set.of()),
                 testingConnectorTableHandle,
                 Optional.empty(),
-                Collections.emptyList(),
+                Metrics.EMPTY,
                 false,
                 Set.of());
     }

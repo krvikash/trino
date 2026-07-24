@@ -13,15 +13,17 @@
  */
 package io.trino.plugin.warp.dispatcher;
 
+import com.google.common.collect.ImmutableMap;
+import io.trino.plugin.base.metrics.LongCount;
 import io.trino.plugin.warp.dispatcher.model.RegularColumn;
 import io.trino.plugin.warp.expression.WarpCall;
 import io.trino.plugin.warp.expression.rewrite.WarpExpression;
 import io.trino.spi.connector.ConnectorTableHandle;
+import io.trino.spi.metrics.Metrics;
 import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.type.IntegerType;
 import org.junit.jupiter.api.Test;
 
-import java.util.List;
 import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.Set;
@@ -55,7 +57,7 @@ public class DispatcherTableHandleBuilderProviderTest
                 simplifiedColumns,
                 mock(ConnectorTableHandle.class),
                 Optional.of(new WarpExpression(new WarpCall("func", emptyList(), IntegerType.INTEGER), emptyList())),
-                List.of(new CustomStat("stat", 1)),
+                new Metrics(ImmutableMap.of("stat", new LongCount(1))),
                 true,
                 Set.of());
 

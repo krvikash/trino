@@ -128,7 +128,7 @@ public class WarpCachePageSourceFactory
             TupleDomain<CacheColumnId> predicate,
             TupleDomain<CacheColumnId> unenforcedPredicate)
     {
-        CustomStatsContext customStatsContext = new CustomStatsContext(metricsManager, List.of());
+        CustomStatsContext customStatsContext = new CustomStatsContext(metricsManager);
         initializeCustomStats(customStatsContext);
         DispatcherPageSourceStats dispatcherPageSourceStats = (DispatcherPageSourceStats) customStatsContext.getStat(DispatcherPageSourceStats.createKey());
 

@@ -85,7 +85,7 @@ public class DispatcherSplitSource
     @Override
     public Metrics getMetrics()
     {
-        return proxiedConnectorSplitSource.getMetrics();
+        return proxiedConnectorSplitSource.getMetrics().mergeWith(dispatcherTableHandle.getMetrics());
     }
 
     @Override

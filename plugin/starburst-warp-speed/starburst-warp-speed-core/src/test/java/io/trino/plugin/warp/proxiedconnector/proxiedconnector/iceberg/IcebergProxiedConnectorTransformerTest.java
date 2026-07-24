@@ -33,6 +33,7 @@ import io.trino.spi.SplitWeight;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorSplit;
 import io.trino.spi.connector.ConnectorTableHandle;
+import io.trino.spi.metrics.Metrics;
 import io.trino.spi.predicate.TupleDomain;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.PartitionSpecParser;
@@ -102,7 +103,7 @@ public class IcebergProxiedConnectorTransformerTest
                 new SimplifiedColumns(Set.of(new RegularColumn("col1"))),
                 icebergTableHandle,
                 Optional.empty(),
-                Collections.emptyList(),
+                Metrics.EMPTY,
                 false,
                 Set.of());
 
@@ -179,7 +180,7 @@ public class IcebergProxiedConnectorTransformerTest
                 new SimplifiedColumns(Set.of(new RegularColumn("col1"))),
                 icebergTableHandle,
                 Optional.empty(),
-                Collections.emptyList(),
+                Metrics.EMPTY,
                 false,
                 Set.of());
 
@@ -285,7 +286,7 @@ public class IcebergProxiedConnectorTransformerTest
                 mock(SimplifiedColumns.class),
                 icebergTableHandle,
                 Optional.empty(),
-                ImmutableList.of(),
+                Metrics.EMPTY,
                 false,
                 Set.of());
         ConnectorSession session = mock(ConnectorSession.class);
@@ -306,7 +307,7 @@ public class IcebergProxiedConnectorTransformerTest
                 mock(SimplifiedColumns.class),
                 icebergTableHandle,
                 Optional.empty(),
-                ImmutableList.of(),
+                Metrics.EMPTY,
                 false,
                 Set.of());
 

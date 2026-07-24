@@ -72,6 +72,7 @@ import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.connector.DynamicFilter;
 import io.trino.spi.connector.EmptyPageSource;
+import io.trino.spi.metrics.Metrics;
 import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.type.IntegerType;
 import io.trino.spi.type.VarcharType;
@@ -155,11 +156,11 @@ public class DispatcherPageSourceFactoryTest
                 new SimplifiedColumns(Set.of()),
                 proxyTableHandle,
                 Optional.empty(),
-                Collections.emptyList(),
+                Metrics.EMPTY,
                 false,
                 Set.of());
 
-        this.customStatsContext = new CustomStatsContext(mock(MetricsManager.class), dispatcherTableHandle.getCustomStats());
+        this.customStatsContext = new CustomStatsContext(mock(MetricsManager.class));
 
         dynamicFilter = mock(DynamicFilter.class);
         when(dynamicFilter.getCurrentPredicate()).thenReturn(TupleDomain.all());

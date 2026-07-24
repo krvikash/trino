@@ -21,10 +21,9 @@ import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.expression.ConnectorExpression;
+import io.trino.spi.metrics.Metrics;
 import io.trino.spi.predicate.TupleDomain;
 
-import java.util.Collections;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalLong;
@@ -51,7 +50,7 @@ public class DispatcherTableHandleBuilderProvider
                 .tableName(dispatcherTableHandle.getTableName())
                 .fullPredicate(dispatcherTableHandle.getFullPredicate())
                 .warpExpression(dispatcherTableHandle.getWarpExpression())
-                .customStats(dispatcherTableHandle.getCustomStats())
+                .metrics(dispatcherTableHandle.getMetrics())
                 .subsumedPredicates(dispatcherTableHandle.isSubsumedPredicates())
                 .columnsNotFitForDictionary(dispatcherTableHandle.getColumnsNotFitForDictionary());
         dispatcherTableHandle.getOriginalExpression().ifPresent(builder::originalExpression);
@@ -80,7 +79,7 @@ public class DispatcherTableHandleBuilderProvider
         protected TupleDomain<ColumnHandle> fullPredicate = TupleDomain.all();
         protected Optional<WarpExpression> warpExpression = Optional.empty();
         protected boolean subsumedPredicates;
-        private List<CustomStat> customStats = Collections.emptyList();
+        private Metrics metrics = Metrics.EMPTY;
         private Set<String> columnsNotFitForDictionary = Set.of();
         private Optional<ExpressionAndAssignments> originalExpression = Optional.of(ExpressionAndAssignments.TRUE);
 
@@ -126,9 +125,9 @@ public class DispatcherTableHandleBuilderProvider
             return this;
         }
 
-        public Builder customStats(List<CustomStat> customStats)
+        public Builder metrics(Metrics metrics)
         {
-            this.customStats = customStats;
+            this.metrics = metrics;
             return this;
         }
 
@@ -166,7 +165,7 @@ public class DispatcherTableHandleBuilderProvider
                     transformer.getSimplifiedColumns(proxiedConnectorTableHandle, fullPredicate, predicateThreshold),
                     proxiedConnectorTableHandle,
                     warpExpression,
-                    customStats,
+                    metrics,
                     subsumedPredicates,
                     columnsNotFitForDictionary,
                     originalExpression);

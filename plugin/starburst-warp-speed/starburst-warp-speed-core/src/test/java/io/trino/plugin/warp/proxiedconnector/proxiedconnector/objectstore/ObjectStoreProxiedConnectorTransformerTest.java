@@ -38,6 +38,7 @@ import io.trino.spi.connector.Connector;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.SchemaTableName;
+import io.trino.spi.metrics.Metrics;
 import io.trino.spi.predicate.Domain;
 import io.trino.spi.predicate.TupleDomain;
 import org.junit.jupiter.api.Test;
@@ -97,7 +98,7 @@ public class ObjectStoreProxiedConnectorTransformerTest
                 new SimplifiedColumns(Set.of(new RegularColumn("col1"))),
                 mock(HiveTableHandle.class),
                 Optional.empty(),
-                Collections.emptyList(),
+                Metrics.EMPTY,
                 false,
                 Set.of());
 
@@ -153,7 +154,7 @@ public class ObjectStoreProxiedConnectorTransformerTest
                 new SimplifiedColumns(Set.of(new RegularColumn("col1"))),
                 hiveTableHandle,
                 Optional.empty(),
-                Collections.emptyList(),
+                Metrics.EMPTY,
                 false,
                 Set.of());
 
@@ -213,7 +214,7 @@ public class ObjectStoreProxiedConnectorTransformerTest
                 new SimplifiedColumns(Set.of(new RegularColumn("col1"))),
                 hiveTableHandle,
                 Optional.empty(),
-                Collections.emptyList(),
+                Metrics.EMPTY,
                 false,
                 Set.of());
 

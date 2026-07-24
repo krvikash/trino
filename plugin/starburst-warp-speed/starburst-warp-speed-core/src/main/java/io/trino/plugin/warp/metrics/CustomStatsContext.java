@@ -13,10 +13,7 @@
  */
 package io.trino.plugin.warp.metrics;
 
-import io.trino.plugin.warp.dispatcher.CustomStat;
-
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 public class CustomStatsContext
@@ -25,10 +22,9 @@ public class CustomStatsContext
     private final Map<String, Long> fixedStats = new HashMap<>();
     private final MetricsManager metricsManager;
 
-    public CustomStatsContext(MetricsManager metricsManager, List<CustomStat> customStats)
+    public CustomStatsContext(MetricsManager metricsManager)
     {
         this.metricsManager = metricsManager;
-        customStats.forEach(customStat -> fixedStats.put(customStat.statName(), customStat.statValue()));
     }
 
     public WarpStatsBase getStat(String statKey)
