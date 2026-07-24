@@ -185,6 +185,26 @@
 
         <dependency>
             <groupId>io.trino</groupId>
+            <artifactId>trino-hive</artifactId>
+            <type>test-jar</type>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>io.trino</groupId>
+            <artifactId>trino-iceberg</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>io.trino</groupId>
+            <artifactId>trino-iceberg</artifactId>
+            <type>test-jar</type>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>io.trino</groupId>
             <artifactId>trino-jmx</artifactId>
             <scope>test</scope>
         </dependency>
@@ -306,6 +326,30 @@
                             <header>${starburst-license.header-file}</header>
                         </licenseSet>
                     </licenseSets>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.basepom.maven</groupId>
+                <artifactId>duplicate-finder-maven-plugin</artifactId>
+                <configuration>
+                    <!-- append so the module's inherited ignores (e.g. the ojdbc split) are kept -->
+                    <ignoredResourcePatterns combine.children="append">
+                        <ignoredResourcePattern>ozone-filesystem-hadoop3-1.4.0.jar</ignoredResourcePattern>
+                        <ignoredResourcePattern>iceberg-build.properties</ignoredResourcePattern>
+                        <!-- net.snowflake:snowflake-jdbc, software.amazon.awssdk:sdk-core -->
+                        <ignoredResourcePattern>mime.types</ignoredResourcePattern>
+                        <!-- net.snowflake:snowflake-jdbc, org.conscrypt:conscrypt-openjdk-uber -->
+                        <ignoredResourcePattern>org/conscrypt/conscrypt.properties</ignoredResourcePattern>
+                        <!-- ojdbc17 bundles ojdbc11 (same classes/resources, different JDK build) -->
+                        <ignoredResourcePattern>oracle/.*</ignoredResourcePattern>
+                        <ignoredResourcePattern>nativelib/.*</ignoredResourcePattern>
+                    </ignoredResourcePatterns>
+                    <ignoredClassPatterns combine.children="append">
+                        <!-- net.snowflake:snowflake-jdbc, org.conscrypt:conscrypt-openjdk-uber -->
+                        <ignoredClassPattern>org.conscrypt.*</ignoredClassPattern>
+                        <!-- ojdbc17 bundles ojdbc11 (same classes, different JDK build) -->
+                        <ignoredClassPattern>oracle..*</ignoredClassPattern>
+                    </ignoredClassPatterns>
                 </configuration>
             </plugin>
         </plugins>
