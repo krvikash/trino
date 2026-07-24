@@ -305,6 +305,19 @@
 
         <dependency>
             <groupId>io.trino</groupId>
+            <artifactId>trino-iceberg</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>io.trino</groupId>
+            <artifactId>trino-iceberg</artifactId>
+            <type>test-jar</type>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>io.trino</groupId>
             <artifactId>trino-jmx</artifactId>
             <scope>test</scope>
         </dependency>
@@ -475,6 +488,7 @@
                         <artifactId>maven-surefire-plugin</artifactId>
                         <configuration>
                             <excludes>
+                                <exclude>**/TestIcebergMvOnStarburstSnowflakeSourceSubstitution.java</exclude>
                                 <exclude>**/TestParallelSnowflakeConnectionPoolingConnectorSmokeTest.java</exclude>
                                 <exclude>**/TestParallelSnowflakeConnectorTest.java</exclude>
                                 <exclude>**/TestParallelSnowflakeKeyPairWithPassphraseAuthenticationConnectorSmokeTest.java</exclude>
@@ -531,6 +545,7 @@
                         <artifactId>maven-surefire-plugin</artifactId>
                         <configuration>
                             <includes>
+                                <include>**/TestIcebergMvOnStarburstSnowflakeSourceSubstitution.java</include>
                                 <include>**/TestParallelSnowflakeConnectorTest.java</include>
                                 <include>**/TestParallelSnowflakeQueryCommentFormat.java</include>
                                 <include>**/TestParallelSnowflakeTypeMapping.java</include>
