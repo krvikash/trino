@@ -116,13 +116,6 @@ public class DispatcherTableHandle
         return schemaTableName.getTableName();
     }
 
-    @JsonIgnore
-    public static Optional<String> getNullPartitionValue()
-    {
-        // from HivePartitionKey
-        return Optional.of(PARTITION_NULL_VALUE_STR);
-    }
-
     @JsonProperty
     public List<CustomStat> getCustomStats()
     {
