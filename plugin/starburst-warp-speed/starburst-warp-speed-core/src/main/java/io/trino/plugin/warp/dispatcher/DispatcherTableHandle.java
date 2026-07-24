@@ -49,8 +49,6 @@ public class DispatcherTableHandle
     // used for re-constructing warpExpression
     private final Optional<ExpressionAndAssignments> originalExpression;
 
-    private final FilteringStats filteringStats;
-
     @JsonCreator
     public DispatcherTableHandle(
             @JsonProperty("schemaName") String schemaName,
@@ -100,8 +98,6 @@ public class DispatcherTableHandle
         this.subsumedPredicates = subsumedPredicates;
         this.columnsNotFitForDictionary = columnsNotFitForDictionary;
         this.originalExpression = requireNonNull(originalExpression);
-
-        this.filteringStats = new FilteringStats();
     }
 
     @JsonProperty
@@ -178,12 +174,6 @@ public class DispatcherTableHandle
     public Optional<ExpressionAndAssignments> getOriginalExpression()
     {
         return originalExpression;
-    }
-
-    @JsonIgnore
-    public FilteringStats getFilteringStats()
-    {
-        return filteringStats;
     }
 
     @Override

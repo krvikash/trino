@@ -44,6 +44,7 @@ public class DispatcherPageSourceProvider
     private final StorageEngineTxService txService;
     private final MetricsManager metricsManager;
     private final String catalogName;
+    private final FilteringStats filteringStats = new FilteringStats();
 
     public DispatcherPageSourceProvider(
             ConnectorPageSourceProvider connectorPageSourceProvider,
@@ -108,6 +109,7 @@ public class DispatcherPageSourceProvider
                     tableCredentials,
                     columns,
                     dynamicFilter,
+                    filteringStats,
                     catalogName);
         }
     }

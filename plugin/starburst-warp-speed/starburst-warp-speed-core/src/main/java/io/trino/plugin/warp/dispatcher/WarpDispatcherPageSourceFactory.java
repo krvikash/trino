@@ -121,6 +121,7 @@ public class WarpDispatcherPageSourceFactory
             Optional<ConnectorTableCredentials> tableCredentials,
             List<ColumnHandle> columns,
             DynamicFilter dynamicFilter,
+            FilteringStats scanFilteringStats,
             CustomStatsContext customStatsContext)
     {
         initializeCustomStats(customStatsContext);
@@ -165,6 +166,7 @@ public class WarpDispatcherPageSourceFactory
                 tableCredentials,
                 columns,
                 dynamicFilter,
+                scanFilteringStats,
                 customStatsContext);
 
         workerWarmingService.warm(
@@ -190,6 +192,7 @@ public class WarpDispatcherPageSourceFactory
             Optional<ConnectorTableCredentials> tableCredentials,
             List<ColumnHandle> columns,
             DynamicFilter dynamicFilter,
+            FilteringStats scanFilteringStats,
             CustomStatsContext customStatsContext)
     {
         // nice tweak to make load a bit faster in POCs and tests (from the old varada days)
@@ -210,7 +213,7 @@ public class WarpDispatcherPageSourceFactory
 
         RowGroupData rowGroupData = rowGroupDataService.getIfPresent(rowGroupKey);
 
-        Optional<FilteringStats> filteringStats = globalConfig.getEnableFSCacheMode() ? Optional.of(dispatcherTableHandle.getFilteringStats()) : Optional.empty();
+        Optional<FilteringStats> filteringStats = globalConfig.getEnableFSCacheMode() ? Optional.of(scanFilteringStats) : Optional.empty();
         PageSourceDecision pageSourceDecision = getBasicPageSourceDecision(
                 rowGroupData,
                 dispatcherTableHandle,

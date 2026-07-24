@@ -56,6 +56,7 @@ public class DispatcherWrapperPageSource
     private final List<ColumnHandle> columns;
     private final CustomStatsContext customStatsContext;
     private final DynamicFilter dynamicFilter;
+    private final FilteringStats filteringStats;
     private final String catalogName;
 
     private ConnectorPageSource connectorPageSource;
@@ -74,6 +75,7 @@ public class DispatcherWrapperPageSource
             Optional<ConnectorTableCredentials> tableCredentials,
             List<ColumnHandle> columns,
             DynamicFilter dynamicFilter,
+            FilteringStats filteringStats,
             String catalogName)
     {
         this.connectorPageSourceProvider = pageSourceProvider;
@@ -87,6 +89,7 @@ public class DispatcherWrapperPageSource
         this.tableCredentials = tableCredentials;
         this.columns = columns;
         this.dynamicFilter = dynamicFilter;
+        this.filteringStats = filteringStats;
         this.catalogName = catalogName;
     }
 
@@ -103,6 +106,7 @@ public class DispatcherWrapperPageSource
                 tableCredentials,
                 columns,
                 dynamicFilter,
+                filteringStats,
                 customStatsContext);
     }
 
