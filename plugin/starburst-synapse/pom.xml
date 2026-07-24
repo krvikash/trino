@@ -182,6 +182,26 @@
 
         <dependency>
             <groupId>io.trino</groupId>
+            <artifactId>trino-hive</artifactId>
+            <type>test-jar</type>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>io.trino</groupId>
+            <artifactId>trino-iceberg</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>io.trino</groupId>
+            <artifactId>trino-iceberg</artifactId>
+            <type>test-jar</type>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>io.trino</groupId>
             <artifactId>trino-jmx</artifactId>
             <scope>test</scope>
         </dependency>
@@ -277,6 +297,28 @@
                 </plugin>
             </plugins>
         </pluginManagement>
+        <plugins>
+            <plugin>
+                <groupId>org.basepom.maven</groupId>
+                <artifactId>duplicate-finder-maven-plugin</artifactId>
+                <configuration>
+                    <ignoredResourcePatterns combine.children="append">
+                        <ignoredResourcePattern>ozone-filesystem-hadoop3-1.4.0.jar</ignoredResourcePattern>
+                        <ignoredResourcePattern>iceberg-build.properties</ignoredResourcePattern>
+                        <!-- net.snowflake:snowflake-jdbc, software.amazon.awssdk:sdk-core -->
+                        <ignoredResourcePattern>mime.types</ignoredResourcePattern>
+                        <!-- net.snowflake:snowflake-jdbc, org.conscrypt:conscrypt-openjdk-uber -->
+                        <ignoredResourcePattern>org/conscrypt/conscrypt.properties</ignoredResourcePattern>
+                        <!-- trino-iceberg and trino-hive both bundle aircompressor native libs -->
+                        <ignoredResourcePattern>aircompressor/.*</ignoredResourcePattern>
+                    </ignoredResourcePatterns>
+                    <ignoredClassPatterns combine.children="append">
+                        <!-- net.snowflake:snowflake-jdbc, org.conscrypt:conscrypt-openjdk-uber -->
+                        <ignoredClassPattern>org.conscrypt..*</ignoredClassPattern>
+                    </ignoredClassPatterns>
+                </configuration>
+            </plugin>
+        </plugins>
     </build>
 
     <profiles>
@@ -292,6 +334,7 @@
                         <artifactId>maven-surefire-plugin</artifactId>
                         <configuration>
                             <excludes>
+                                <exclude>**/TestIcebergMvOnSynapseSourceSubstitution.java</exclude>
                                 <exclude>**/TestSynapseQueryFailureRecoveryTest.java</exclude>
                                 <exclude>**/TestSynapseTaskFailureRecoveryTest.java</exclude>
                                 <exclude>**/TestSynapseConnectorTest.java</exclude>
@@ -312,6 +355,7 @@
                         <configuration>
                             <threadCount>6</threadCount>
                             <includes>
+                                <include>**/TestIcebergMvOnSynapseSourceSubstitution.java</include>
                                 <include>**/TestSynapseConnectorTest.java</include>
                             </includes>
                         </configuration>
