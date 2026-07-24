@@ -13,10 +13,9 @@
  */
 package io.trino.plugin.iceberg.delete;
 
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Sets;
+import com.google.errorprone.annotations.ThreadSafe;
 import com.google.inject.Inject;
 import io.airlift.log.Logger;
 import io.trino.plugin.iceberg.ForIcebergSplitManager;
@@ -36,10 +35,8 @@ import org.apache.iceberg.util.StructLikeWrapper;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
-import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Callable;
@@ -100,21 +97,17 @@ public class RemoveDanglingDeleteFiles
 
         // Mark file-scoped position deletes as dangling if their referenced data file is covered by an active DV
         // (per spec: position deletes do not apply when a deletion vector exists for the same data file)
-        ImmutableSet.Builder<DeleteFile> additionalDanglingPositionDeleteFilesBuilder = ImmutableSet.builder();
         for (String dataFilePathWithDV : deleteFilesMetadata.dataFilePathsWithDV()) {
             Set<DeleteFile> positionDeletes = deleteFilesMetadata.dataFilePathsWithPositionDeletes().get(dataFilePathWithDV);
             if (positionDeletes != null) {
                 for (DeleteFile positionDelete : positionDeletes) {
-                    additionalDanglingPositionDeleteFilesBuilder.add(positionDelete);
+                    deleteFilesMetadata.addDanglingDeleteFile(positionDelete);
                     metrics.danglingPositionDeleteFilesCount.incrementAndGet();
                 }
             }
         }
-        Set<DeleteFile> danglingDeleteFiles = Sets.union(
-                deleteFilesMetadata.danglingDeleteFiles(),
-                additionalDanglingPositionDeleteFilesBuilder.build());
 
-        return new DanglingDeleteFilesResult(metrics, danglingDeleteFiles);
+        return new DanglingDeleteFilesResult(metrics, deleteFilesMetadata.danglingDeleteFiles());
     }
 
     private Set<String> collectDeleteFileReferencedDataFilePaths(BaseTable icebergTable, Snapshot currentSnapshot)
@@ -214,35 +207,37 @@ public class RemoveDanglingDeleteFiles
             DataFilesMinSequenceNumberMetadata dataFilesMinSequenceNumberMetadata,
             DanglingDeleteFilesRemoveMetrics metrics)
     {
+        DeleteFilesMetadata metadata = new DeleteFilesMetadata();
         try {
-            return processWithAdditionalThreads(
+            processWithAdditionalThreads(
                     currentSnapshot.deleteManifests(icebergTable.io()).stream()
-                            .<Callable<DeleteFilesMetadata>>map(manifest ->
-                                    () -> processDeleteManifestFile(icebergTable, manifest, dataFilesMinSequenceNumberMetadata, metrics))
+                            .<Callable<Void>>map(manifest ->
+                                    () -> {
+                                        processDeleteManifestFile(icebergTable, manifest, dataFilesMinSequenceNumberMetadata, metadata, metrics);
+                                        return null;
+                                    })
                             .collect(toImmutableList()),
-                    icebergScanExecutor)
-                    .stream()
-                    .reduce(DeleteFilesMetadata::merge)
-                    .orElseGet(() -> DeleteFilesMetadata.builder().build());
+                    icebergScanExecutor);
         }
         catch (ExecutionException e) {
             throw new TrinoException(ICEBERG_FILESYSTEM_ERROR, "Failed to process data manifests for table: " + icebergTable.name(), e);
         }
+        return metadata;
     }
 
-    private static DeleteFilesMetadata processDeleteManifestFile(
+    private static void processDeleteManifestFile(
             BaseTable icebergTable,
             ManifestFile manifest,
             DataFilesMinSequenceNumberMetadata dataFilesMinSequenceNumberMetadata,
+            DeleteFilesMetadata metadata,
             DanglingDeleteFilesRemoveMetrics metrics)
     {
-        DeleteFilesMetadata.Builder builder = DeleteFilesMetadata.builder();
         try (ManifestReader<? extends ContentFile<?>> manifestReader = readerForManifest(manifest, icebergTable);
                 CloseableIterator<? extends ContentFile<?>> readerIterator = manifestReader.iterator()) {
             while (readerIterator.hasNext()) {
                 ContentFile<?> contentFile = readerIterator.next();
                 if (contentFile instanceof DeleteFile deleteFile) {
-                    processDeleteFile(icebergTable, deleteFile, dataFilesMinSequenceNumberMetadata, builder, metrics);
+                    processDeleteFile(icebergTable, deleteFile, dataFilesMinSequenceNumberMetadata, metadata, metrics);
                 }
             }
         }
@@ -252,35 +247,34 @@ public class RemoveDanglingDeleteFiles
         catch (NotFoundException e) {
             throw new TrinoException(ICEBERG_INVALID_METADATA, "Manifest file does not exist: " + manifest.path(), e);
         }
-        return builder.build();
     }
 
     private static void processDeleteFile(
             BaseTable icebergTable,
             DeleteFile deleteFile,
             DataFilesMinSequenceNumberMetadata dataFilesMinSequenceNumberMetadata,
-            DeleteFilesMetadata.Builder builder,
+            DeleteFilesMetadata metadata,
             DanglingDeleteFilesRemoveMetrics metrics)
     {
         if (deleteFile.content() == FileContent.POSITION_DELETES) {
             if (ContentFileUtil.isDV(deleteFile)) {
                 if (isDanglingDeletionVectorDelete(deleteFile, dataFilesMinSequenceNumberMetadata)) {
                     metrics.danglingDvFilesCount.incrementAndGet();
-                    builder.addDanglingDeleteFile(deleteFile);
+                    metadata.addDanglingDeleteFile(deleteFile);
                 }
                 else {
-                    builder.addDataFilePathWithDV(deleteFile.referencedDataFile());
+                    metadata.addDataFilePathWithDV(deleteFile.referencedDataFile());
                 }
             }
-            else if (isDanglingPositionDelete(icebergTable, deleteFile, dataFilesMinSequenceNumberMetadata, builder)) {
+            else if (isDanglingPositionDelete(icebergTable, deleteFile, dataFilesMinSequenceNumberMetadata, metadata)) {
                 metrics.danglingPositionDeleteFilesCount.incrementAndGet();
-                builder.addDanglingDeleteFile(deleteFile);
+                metadata.addDanglingDeleteFile(deleteFile);
             }
         }
         else if (deleteFile.content() == FileContent.EQUALITY_DELETES) {
             if (isDanglingEqualityDelete(icebergTable, deleteFile, dataFilesMinSequenceNumberMetadata)) {
                 metrics.danglingEqualityDeleteFilesCount.incrementAndGet();
-                builder.addDanglingDeleteFile(deleteFile);
+                metadata.addDanglingDeleteFile(deleteFile);
             }
         }
         else {
@@ -311,7 +305,7 @@ public class RemoveDanglingDeleteFiles
             BaseTable icebergTable,
             DeleteFile deleteFile,
             DataFilesMinSequenceNumberMetadata dataFilesMinSequenceNumberMetadata,
-            DeleteFilesMetadata.Builder builder)
+            DeleteFilesMetadata metadata)
     {
         // Single file-scoped position delete (either via the explicit referenced_data_file pointer
         // or when the delete file's _file column metric's lower/upper bounds are equal)
@@ -320,7 +314,7 @@ public class RemoveDanglingDeleteFiles
             Long minDataFileSequenceNumber = dataFilesMinSequenceNumberMetadata.minSequenceNumberByReferencedPath().get(referencedDataFilePath);
             boolean dangling = minDataFileSequenceNumber == null || !(minDataFileSequenceNumber <= deleteFile.dataSequenceNumber());
             if (!dangling) {
-                builder.trackPositionDeleteForDataFile(referencedDataFilePath, deleteFile);
+                metadata.trackPositionDeleteForDataFile(referencedDataFilePath, deleteFile);
             }
             return dangling;
         }
@@ -424,80 +418,44 @@ public class RemoveDanglingDeleteFiles
         }
     }
 
-    private record DeleteFilesMetadata(
-            Set<DeleteFile> danglingDeleteFiles,
-            List<String> dataFilePathsWithDV,
-            Map<String, Set<DeleteFile>> dataFilePathsWithPositionDeletes)
+    /**
+     * Concurrent threadsafe accumulator populated directly by delete-manifest-scan threads.
+     */
+    @ThreadSafe
+    private static final class DeleteFilesMetadata
     {
-        private DeleteFilesMetadata
+        private final Set<DeleteFile> danglingDeleteFiles = ConcurrentHashMap.newKeySet();
+        private final Set<String> dataFilePathsWithDV = ConcurrentHashMap.newKeySet();
+        private final Map<String, Set<DeleteFile>> dataFilePathsWithPositionDeletes = new ConcurrentHashMap<>();
+
+        void addDanglingDeleteFile(DeleteFile deleteFile)
         {
-            danglingDeleteFiles = ImmutableSet.copyOf(danglingDeleteFiles);
-            dataFilePathsWithDV = ImmutableList.copyOf(dataFilePathsWithDV);
-            dataFilePathsWithPositionDeletes = ImmutableMap.copyOf(dataFilePathsWithPositionDeletes);
+            danglingDeleteFiles.add(deleteFile.copyWithoutStats());
         }
 
-        private DeleteFilesMetadata merge(DeleteFilesMetadata other)
+        void addDataFilePathWithDV(String path)
         {
-            return new DeleteFilesMetadata(
-                    mergeSets(this.danglingDeleteFiles, other.danglingDeleteFiles()),
-                    ImmutableList.<String>builder()
-                            .addAll(this.dataFilePathsWithDV)
-                            .addAll(other.dataFilePathsWithDV())
-                            .build(),
-                    Stream.concat(
-                                    this.dataFilePathsWithPositionDeletes.entrySet().stream(),
-                                    other.dataFilePathsWithPositionDeletes().entrySet().stream())
-                            .collect(toImmutableMap(Map.Entry::getKey, Map.Entry::getValue, DeleteFilesMetadata::mergeSets)));
+            dataFilePathsWithDV.add(path);
         }
 
-        private static Set<DeleteFile> mergeSets(Set<DeleteFile> one, Set<DeleteFile> two)
+        void trackPositionDeleteForDataFile(String referencedDataFilePath, DeleteFile deleteFile)
         {
-            return ImmutableSet.<DeleteFile>builder()
-                    .addAll(one)
-                    .addAll(two)
-                    .build();
+            dataFilePathsWithPositionDeletes.computeIfAbsent(referencedDataFilePath, _ -> ConcurrentHashMap.newKeySet()).add(deleteFile.copyWithoutStats());
         }
 
-        private static Builder builder()
+        Set<DeleteFile> danglingDeleteFiles()
         {
-            return new Builder();
+            return Collections.unmodifiableSet(danglingDeleteFiles);
         }
 
-        private static class Builder
+        Set<String> dataFilePathsWithDV()
         {
-            private final Set<DeleteFile> danglingDeleteFiles;
-            private final List<String> dataFilePathsWithDV;
-            private final Map<String, Set<DeleteFile>> dataFilePathsWithPositionDeletes;
+            return Collections.unmodifiableSet(dataFilePathsWithDV);
+        }
 
-            private Builder()
-            {
-                this.danglingDeleteFiles = new HashSet<>();
-                this.dataFilePathsWithDV = new ArrayList<>();
-                this.dataFilePathsWithPositionDeletes = new HashMap<>();
-            }
-
-            void addDanglingDeleteFile(DeleteFile deleteFile)
-            {
-                danglingDeleteFiles.add(deleteFile.copyWithoutStats());
-            }
-
-            void addDataFilePathWithDV(String path)
-            {
-                dataFilePathsWithDV.add(path);
-            }
-
-            void trackPositionDeleteForDataFile(String referencedDataFilePath, DeleteFile deleteFile)
-            {
-                dataFilePathsWithPositionDeletes.computeIfAbsent(referencedDataFilePath, _ -> ConcurrentHashMap.newKeySet()).add(deleteFile.copyWithoutStats());
-            }
-
-            DeleteFilesMetadata build()
-            {
-                return new DeleteFilesMetadata(
-                        danglingDeleteFiles,
-                        dataFilePathsWithDV,
-                        dataFilePathsWithPositionDeletes);
-            }
+        Map<String, Set<DeleteFile>> dataFilePathsWithPositionDeletes()
+        {
+            return Collections.unmodifiableMap(dataFilePathsWithPositionDeletes);
         }
     }
 
