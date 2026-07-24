@@ -87,6 +87,7 @@ public class S3SpoolingStorage
     private final String path;
     private final S3AsyncClient s3AsyncClient;
     private final CompatibilityMode compatibilityMode;
+    private final ChecksumAlgorithm checksumAlgorithm;
 
     // GCS specific
     private final Optional<Storage> gcsClient;
@@ -106,6 +107,7 @@ public class S3SpoolingStorage
             MergedFileNameGenerator mergedFileNameGenerator,
             DataServerStats dataServerStats,
             CompatibilityMode compatibilityMode,
+            S3ClientConfig s3ClientConfig,
             GcsClientConfig gcsClientConfig)
             throws IOException
     {
@@ -117,6 +119,7 @@ public class S3SpoolingStorage
         this.bucketName = s3UriInfo.bucket();
         this.path = s3UriInfo.path();
         this.compatibilityMode = requireNonNull(compatibilityMode, "compatibilityMode is null");
+        this.checksumAlgorithm = requireNonNull(s3ClientConfig, "s3ClientConfig is null").getChecksumAlgorithm();
 
         if (compatibilityMode == GCP) {
             Optional<String> gcsJsonKey = gcsClientConfig.getGcsJsonKey();
@@ -174,7 +177,7 @@ public class S3SpoolingStorage
                 .key(getKey(fileName));
         if (compatibilityMode == AWS) {
             // S3 compatibility on GCS does not support change in checksum algorithms
-            requestBuilder.checksumAlgorithm(ChecksumAlgorithm.CRC32_C);
+            requestBuilder.checksumAlgorithm(checksumAlgorithm);
         }
 
         return requestBuilder.build();

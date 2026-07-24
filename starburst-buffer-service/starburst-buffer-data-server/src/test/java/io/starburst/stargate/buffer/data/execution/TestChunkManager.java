@@ -109,11 +109,12 @@ public class TestChunkManager
                 MergedFileNameGenerator mergedFileNameGenerator,
                 DataServerStats dataServerStats,
                 CompatibilityMode compatibilityMode,
+                S3ClientConfig s3ClientConfig,
                 GcsClientConfig gcsClientConfig,
                 Set<String> failureExchanges)
                 throws IOException
         {
-            super(bufferNodeId, spoolingDirectoryConfig, s3AsyncClient, mergedFileNameGenerator, dataServerStats, compatibilityMode, gcsClientConfig);
+            super(bufferNodeId, spoolingDirectoryConfig, s3AsyncClient, mergedFileNameGenerator, dataServerStats, compatibilityMode, s3ClientConfig, gcsClientConfig);
             this.failureExchanges = failureExchanges;
         }
 
@@ -610,17 +611,19 @@ public class TestChunkManager
                         .setSpoolingRatioLowWatermark(0.6),
                 new ChunkManagerConfig(),
                 new DataServerStats());
+        S3ClientConfig s3ClientConfig = new S3ClientConfig()
+                .setS3AwsAccessKey(MinioStorage.ACCESS_KEY)
+                .setS3AwsSecretKey(MinioStorage.SECRET_KEY)
+                .setRegion("us-east-1")
+                .setS3Endpoint("http://" + minioStorage.getMinio().getMinioApiEndpoint());
         SpoolingStorage failureInjectingSpoolingStorage = new FailureInjectingS3SpoolingStorage(
                 new BufferNodeId(0L),
                 new SpoolingDirectoryConfig().setSpoolingDirectory("s3://" + minioStorage.getBucketName()),
-                S3Utils.createS3Client(new S3ClientConfig()
-                        .setS3AwsAccessKey(MinioStorage.ACCESS_KEY)
-                        .setS3AwsSecretKey(MinioStorage.SECRET_KEY)
-                        .setRegion("us-east-1")
-                        .setS3Endpoint("http://" + minioStorage.getMinio().getMinioApiEndpoint())),
+                S3Utils.createS3Client(s3ClientConfig),
                 new MergedFileNameGenerator(),
                 new DataServerStats(),
                 S3SpoolingStorage.CompatibilityMode.AWS,
+                s3ClientConfig,
                 new GcsClientConfig(),
                 Set.of(EXCHANGE_0));
         ChunkManager chunkManager = createChunkManager(
@@ -688,17 +691,19 @@ public class TestChunkManager
                         .setSpoolingRatioLowWatermark(0.6),
                 new ChunkManagerConfig(),
                 new DataServerStats());
+        S3ClientConfig s3ClientConfig = new S3ClientConfig()
+                .setS3AwsAccessKey(MinioStorage.ACCESS_KEY)
+                .setS3AwsSecretKey(MinioStorage.SECRET_KEY)
+                .setRegion("us-east-1")
+                .setS3Endpoint("http://" + minioStorage.getMinio().getMinioApiEndpoint());
         SpoolingStorage failureInjectingSpoolingStorage = new FailureInjectingS3SpoolingStorage(
                 new BufferNodeId(0L),
                 new SpoolingDirectoryConfig().setSpoolingDirectory("s3://" + minioStorage.getBucketName()),
-                S3Utils.createS3Client(new S3ClientConfig()
-                        .setS3AwsAccessKey(MinioStorage.ACCESS_KEY)
-                        .setS3AwsSecretKey(MinioStorage.SECRET_KEY)
-                        .setRegion("us-east-1")
-                        .setS3Endpoint("http://" + minioStorage.getMinio().getMinioApiEndpoint())),
+                S3Utils.createS3Client(s3ClientConfig),
                 new MergedFileNameGenerator(),
                 new DataServerStats(),
                 S3SpoolingStorage.CompatibilityMode.AWS,
+                s3ClientConfig,
                 new GcsClientConfig(),
                 Set.of(EXCHANGE_0, EXCHANGE_1));
         ChunkManager chunkManager = createChunkManager(

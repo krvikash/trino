@@ -10,11 +10,13 @@
 package io.starburst.stargate.buffer.data.spooling.s3;
 
 import io.airlift.configuration.Config;
+import io.airlift.configuration.ConfigDescription;
 import io.airlift.configuration.ConfigSecuritySensitive;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import software.amazon.awssdk.core.retry.RetryMode;
 import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.s3.model.ChecksumAlgorithm;
 
 import java.util.Optional;
 
@@ -28,6 +30,7 @@ public class S3ClientConfig
     private Optional<String> s3Endpoint = Optional.empty();
     private RetryMode retryMode = RetryMode.ADAPTIVE;
     private int maxErrorRetries = 10;
+    private ChecksumAlgorithm checksumAlgorithm = ChecksumAlgorithm.CRC32_C;
 
     public String getS3AwsAccessKey()
     {
@@ -104,6 +107,20 @@ public class S3ClientConfig
     public S3ClientConfig setMaxErrorRetries(int maxErrorRetries)
     {
         this.maxErrorRetries = maxErrorRetries;
+        return this;
+    }
+
+    @NotNull
+    public ChecksumAlgorithm getChecksumAlgorithm()
+    {
+        return checksumAlgorithm;
+    }
+
+    @Config("spooling.s3.checksum-algorithm")
+    @ConfigDescription("Checksum algorithm used when uploading spooled objects")
+    public S3ClientConfig setChecksumAlgorithm(ChecksumAlgorithm checksumAlgorithm)
+    {
+        this.checksumAlgorithm = checksumAlgorithm;
         return this;
     }
 }

@@ -61,17 +61,19 @@ public final class SpoolTestHelper
     public static SpoolingStorage createS3SpoolingStorage(MinioStorage minioStorage, String path)
     {
         try {
+            S3ClientConfig s3ClientConfig = new S3ClientConfig()
+                    .setS3AwsAccessKey(MinioStorage.ACCESS_KEY)
+                    .setS3AwsSecretKey(MinioStorage.SECRET_KEY)
+                    .setRegion("us-east-1")
+                    .setS3Endpoint("http://" + minioStorage.getMinio().getMinioApiEndpoint());
             return new S3SpoolingStorage(
                     new BufferNodeId(0L),
                     new SpoolingDirectoryConfig().setSpoolingDirectory("s3://" + minioStorage.getBucketName() + (path.isEmpty() ? "" : "/" + path)),
-                    S3Utils.createS3Client(new S3ClientConfig()
-                            .setS3AwsAccessKey(MinioStorage.ACCESS_KEY)
-                            .setS3AwsSecretKey(MinioStorage.SECRET_KEY)
-                            .setRegion("us-east-1")
-                            .setS3Endpoint("http://" + minioStorage.getMinio().getMinioApiEndpoint())),
+                    S3Utils.createS3Client(s3ClientConfig),
                     new MergedFileNameGenerator(),
                     new DataServerStats(),
                     S3SpoolingStorage.CompatibilityMode.AWS,
+                    s3ClientConfig,
                     new GcsClientConfig());
         }
         catch (IOException e) {

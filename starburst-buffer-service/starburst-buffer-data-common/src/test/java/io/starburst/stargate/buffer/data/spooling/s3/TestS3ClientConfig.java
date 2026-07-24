@@ -12,6 +12,7 @@ package io.starburst.stargate.buffer.data.spooling.s3;
 import com.google.common.collect.ImmutableMap;
 import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.core.retry.RetryMode;
+import software.amazon.awssdk.services.s3.model.ChecksumAlgorithm;
 
 import java.util.Map;
 
@@ -30,7 +31,8 @@ public class TestS3ClientConfig
                 .setRegion(null)
                 .setS3Endpoint(null)
                 .setRetryMode(RetryMode.ADAPTIVE)
-                .setMaxErrorRetries(10));
+                .setMaxErrorRetries(10)
+                .setChecksumAlgorithm(ChecksumAlgorithm.CRC32_C));
     }
 
     @Test
@@ -43,6 +45,7 @@ public class TestS3ClientConfig
                 .put("spooling.s3.endpoint", "endpoint")
                 .put("spooling.s3.retry-mode", "STANDARD")
                 .put("spooling.s3.max-error-retries", "8")
+                .put("spooling.s3.checksum-algorithm", "SHA256")
                 .buildOrThrow();
 
         S3ClientConfig expected = new S3ClientConfig()
@@ -51,7 +54,8 @@ public class TestS3ClientConfig
                 .setRegion("us-east-1")
                 .setS3Endpoint("endpoint")
                 .setRetryMode(RetryMode.STANDARD)
-                .setMaxErrorRetries(8);
+                .setMaxErrorRetries(8)
+                .setChecksumAlgorithm(ChecksumAlgorithm.SHA256);
 
         assertFullMapping(properties, expected);
     }
