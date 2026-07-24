@@ -13,7 +13,6 @@
  */
 package io.trino.plugin.iceberg.delete;
 
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.errorprone.annotations.ThreadSafe;
 import com.google.inject.Inject;
@@ -36,7 +35,6 @@ import org.apache.iceberg.util.StructLikeWrapper;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Callable;
@@ -44,10 +42,9 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.stream.Stream;
+import java.util.concurrent.atomic.LongAccumulator;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
-import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static io.trino.plugin.base.util.ExecutorUtil.processWithAdditionalThreads;
 import static io.trino.plugin.iceberg.IcebergErrorCode.ICEBERG_FILESYSTEM_ERROR;
@@ -158,29 +155,31 @@ public class RemoveDanglingDeleteFiles
             Set<String> referencedDataFilePaths,
             DanglingDeleteFilesRemoveMetrics metrics)
     {
+        DataFilesMinSequenceNumberMetadata metadata = new DataFilesMinSequenceNumberMetadata();
         try {
-            return processWithAdditionalThreads(
+            processWithAdditionalThreads(
                     currentSnapshot.dataManifests(icebergTable.io()).stream()
-                            .<Callable<DataFilesMinSequenceNumberMetadata>>map(manifest ->
-                                    () -> processDataManifestFile(icebergTable, manifest, referencedDataFilePaths, metrics))
+                            .<Callable<Void>>map(manifest ->
+                                    () -> {
+                                        processDataManifestFile(icebergTable, manifest, referencedDataFilePaths, metadata, metrics);
+                                        return null;
+                                    })
                             .collect(toImmutableList()),
-                    icebergScanExecutor)
-                    .stream()
-                    .reduce(DataFilesMinSequenceNumberMetadata::merge)
-                    .orElseGet(() -> DataFilesMinSequenceNumberMetadata.builder().build());
+                    icebergScanExecutor);
         }
         catch (ExecutionException e) {
             throw new TrinoException(ICEBERG_FILESYSTEM_ERROR, "Failed to process data manifests for table: " + icebergTable.name(), e);
         }
+        return metadata;
     }
 
-    private static DataFilesMinSequenceNumberMetadata processDataManifestFile(
+    private static void processDataManifestFile(
             BaseTable icebergTable,
             ManifestFile manifest,
             Set<String> referencedDataFilePaths,
+            DataFilesMinSequenceNumberMetadata metadata,
             DanglingDeleteFilesRemoveMetrics metrics)
     {
-        DataFilesMinSequenceNumberMetadata.Builder builder = DataFilesMinSequenceNumberMetadata.builder();
         try (ManifestReader<? extends ContentFile<?>> manifestReader = readerForManifest(manifest, icebergTable);
                 CloseableIterator<? extends ContentFile<?>> readerIterator = manifestReader.iterator()) {
             while (readerIterator.hasNext()) {
@@ -189,7 +188,7 @@ public class RemoveDanglingDeleteFiles
                 if (contentFile.dataSequenceNumber() == null) {
                     metrics.dataFilesWithoutSequenceNumbers.incrementAndGet();
                 }
-                builder.addDataFile(contentFile, icebergTable, referencedDataFilePaths);
+                metadata.addDataFile(contentFile, icebergTable, referencedDataFilePaths);
             }
         }
         catch (IOException | UncheckedIOException e) {
@@ -198,7 +197,6 @@ public class RemoveDanglingDeleteFiles
         catch (NotFoundException e) {
             throw new TrinoException(ICEBERG_INVALID_METADATA, "Manifest file does not exist: " + manifest.path(), e);
         }
-        return builder.build();
     }
 
     private DeleteFilesMetadata processDeleteManifests(
@@ -349,72 +347,45 @@ public class RemoveDanglingDeleteFiles
         return minPartitionSequenceNumber == null || !(minPartitionSequenceNumber < deleteFile.dataSequenceNumber());
     }
 
-    private record DataFilesMinSequenceNumberMetadata(
-            long globalMinSequenceNumber,
-            Map<PartitionKey, Long> minSequenceNumberByPartition,
-            Map<String, Long> minSequenceNumberByReferencedPath)
+    /**
+     * Concurrent threadsafe accumulator populated directly by manifest-scan threads.
+     */
+    @ThreadSafe
+    private static final class DataFilesMinSequenceNumberMetadata
     {
-        private DataFilesMinSequenceNumberMetadata
-        {
-            minSequenceNumberByPartition = ImmutableMap.copyOf(minSequenceNumberByPartition);
-            minSequenceNumberByReferencedPath = ImmutableMap.copyOf(minSequenceNumberByReferencedPath);
-        }
+        private final Map<PartitionKey, Long> minSequenceNumberByPartition = new ConcurrentHashMap<>();
+        private final Map<String, Long> minSequenceNumberByReferencedPath = new ConcurrentHashMap<>();
+        private final LongAccumulator globalMinSequenceNumber = new LongAccumulator(Math::min, Long.MAX_VALUE);
 
-        private DataFilesMinSequenceNumberMetadata merge(DataFilesMinSequenceNumberMetadata other)
+        void addDataFile(ContentFile<?> contentFile, BaseTable icebergTable, Set<String> referencedDataFilePaths)
         {
-            return new DataFilesMinSequenceNumberMetadata(
-                    Math.min(this.globalMinSequenceNumber, other.globalMinSequenceNumber()),
-                    Stream.concat(
-                                    this.minSequenceNumberByPartition.entrySet().stream(),
-                                    other.minSequenceNumberByPartition().entrySet().stream())
-                            .collect(toImmutableMap(Map.Entry::getKey, Map.Entry::getValue, Math::min)),
-                    Stream.concat(
-                                    this.minSequenceNumberByReferencedPath.entrySet().stream(),
-                                    other.minSequenceNumberByReferencedPath().entrySet().stream())
-                            .collect(toImmutableMap(Map.Entry::getKey, Map.Entry::getValue, Math::min)));
-        }
+            long dataSequenceNumber = requireNonNullElse(contentFile.dataSequenceNumber(), 0L);
+            globalMinSequenceNumber.accumulate(dataSequenceNumber);
 
-        private static Builder builder()
-        {
-            return new Builder();
-        }
-
-        private static class Builder
-        {
-            private final Map<PartitionKey, Long> minSequenceNumberByPartition;
-            private final Map<String, Long> minSequenceNumberByPath;
-            private long globalMinSequenceNumber;
-
-            private Builder()
-            {
-                this.minSequenceNumberByPartition = new HashMap<>();
-                this.minSequenceNumberByPath = new HashMap<>();
-                this.globalMinSequenceNumber = Long.MAX_VALUE;
+            if (referencedDataFilePaths.contains(contentFile.location())) {
+                minSequenceNumberByReferencedPath.merge(contentFile.location(), dataSequenceNumber, Math::min);
             }
 
-            void addDataFile(ContentFile<?> contentFile, BaseTable icebergTable, Set<String> referencedDataFilePaths)
-            {
-                long dataSequenceNumber = requireNonNullElse(contentFile.dataSequenceNumber(), 0L);
-                globalMinSequenceNumber = Math.min(globalMinSequenceNumber, dataSequenceNumber);
-
-                if (referencedDataFilePaths.contains(contentFile.location())) {
-                    minSequenceNumberByPath.merge(contentFile.location(), dataSequenceNumber, Math::min);
-                }
-
-                PartitionSpec spec = icebergTable.specs().get(contentFile.specId());
-                if (!spec.isUnpartitioned()) {
-                    PartitionKey key = new PartitionKey(contentFile.specId(), StructLikeWrapper.forType(spec.partitionType()).set(contentFile.partition()));
-                    minSequenceNumberByPartition.merge(key, dataSequenceNumber, Math::min);
-                }
+            PartitionSpec spec = icebergTable.specs().get(contentFile.specId());
+            if (!spec.isUnpartitioned()) {
+                PartitionKey key = new PartitionKey(contentFile.specId(), StructLikeWrapper.forType(spec.partitionType()).set(contentFile.partition()));
+                minSequenceNumberByPartition.merge(key, dataSequenceNumber, Math::min);
             }
+        }
 
-            DataFilesMinSequenceNumberMetadata build()
-            {
-                return new DataFilesMinSequenceNumberMetadata(
-                        globalMinSequenceNumber,
-                        minSequenceNumberByPartition,
-                        minSequenceNumberByPath);
-            }
+        long globalMinSequenceNumber()
+        {
+            return globalMinSequenceNumber.get();
+        }
+
+        Map<PartitionKey, Long> minSequenceNumberByPartition()
+        {
+            return minSequenceNumberByPartition;
+        }
+
+        Map<String, Long> minSequenceNumberByReferencedPath()
+        {
+            return minSequenceNumberByReferencedPath;
         }
     }
 
