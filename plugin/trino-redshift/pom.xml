@@ -229,7 +229,27 @@
 
         <dependency>
             <groupId>io.trino</groupId>
+            <artifactId>trino-hive</artifactId>
+            <type>test-jar</type>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>io.trino</groupId>
             <artifactId>trino-iceberg</artifactId>
+            <scope>test</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>net.snowflake</groupId>
+                    <artifactId>snowflake-jdbc</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
+        <dependency>
+            <groupId>io.trino</groupId>
+            <artifactId>trino-iceberg</artifactId>
+            <type>test-jar</type>
             <scope>test</scope>
             <exclusions>
                 <exclusion>
@@ -333,6 +353,7 @@
                     <artifactId>duplicate-finder-maven-plugin</artifactId>
                     <configuration>
                         <ignoredResourcePatterns>
+                            <ignoredResourcePattern>ozone-filesystem-hadoop3-1.4.0.jar</ignoredResourcePattern>
                             <ignoredResourcePattern>iceberg-build.properties</ignoredResourcePattern>
                         </ignoredResourcePatterns>
                     </configuration>
@@ -354,6 +375,7 @@
                         <artifactId>maven-surefire-plugin</artifactId>
                         <configuration>
                             <excludes>
+                                <exclude>**/TestIcebergMvOnRedshiftSourceSubstitution.java</exclude>
                                 <exclude>**/TestRedshiftAutomaticJoinPushdown.java</exclude>
                                 <exclude>**/TestRedshiftCastPushdown.java</exclude>
                                 <exclude>**/TestRedshiftConnectorTest.java</exclude>
@@ -384,6 +406,7 @@
                         <artifactId>maven-surefire-plugin</artifactId>
                         <configuration>
                             <includes>
+                                <include>**/TestIcebergMvOnRedshiftSourceSubstitution.java</include>
                                 <include>**/TestRedshiftAutomaticJoinPushdown.java</include>
                                 <include>**/TestRedshiftConnectorTest.java</include>
                                 <!-- Don't run smoke test because connector test should be enough -->
