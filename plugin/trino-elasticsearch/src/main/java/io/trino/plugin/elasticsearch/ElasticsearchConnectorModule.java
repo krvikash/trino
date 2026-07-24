@@ -18,6 +18,7 @@ import com.google.inject.Scopes;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
 import io.trino.plugin.elasticsearch.client.ElasticsearchClient;
 import io.trino.plugin.elasticsearch.ptf.RawQuery;
+import io.trino.plugin.elasticsearch.substitution.ElasticsearchSubstitutionMetadata;
 import io.trino.spi.function.table.ConnectorTableFunction;
 
 import static com.google.inject.multibindings.Multibinder.newSetBinder;
@@ -33,6 +34,7 @@ public class ElasticsearchConnectorModule
     {
         binder.bind(ElasticsearchConnector.class).in(Scopes.SINGLETON);
         binder.bind(ElasticsearchMetadata.class).in(Scopes.SINGLETON);
+        binder.bind(ElasticsearchSubstitutionMetadata.class).in(Scopes.SINGLETON);
         binder.bind(ElasticsearchSplitManager.class).in(Scopes.SINGLETON);
         binder.bind(ElasticsearchPageSourceProvider.class).in(Scopes.SINGLETON);
         binder.bind(ElasticsearchClient.class).in(Scopes.SINGLETON);
