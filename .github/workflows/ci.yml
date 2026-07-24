@@ -86,7 +86,7 @@ jobs:
           - { java-version: 27-ea, cache: 'restore', cleanup-node: true }
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v7.0.0
+      - uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0 # checkout all commits, as the build result depends on `git describe` equivalent
           ref: |
@@ -132,7 +132,7 @@ jobs:
     runs-on: [self-hosted, gha-fleet-ec2-4cpu-16gb-amd64, latest]
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v7.0.0
+      - uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0 # checkout all commits, as the build result depends on `git describe` equivalent
           ref: |
@@ -185,7 +185,7 @@ jobs:
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
-      - uses: actions/checkout@v7.0.0
+      - uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0 # checkout all commits to be able to determine merge base
       - name: Block illegal commits
@@ -218,7 +218,7 @@ jobs:
       fail-fast: ${{ github.event_name == 'merge_group' }}
       matrix: ${{ fromJson(needs.check-commits-dispatcher.outputs.matrix) }}
     steps:
-      - uses: actions/checkout@v7.0.0
+      - uses: actions/checkout@v7.0.1
         if: matrix.commit != ''
         with:
           fetch-depth: 0 # checkout all commits to be able to determine merge base
@@ -245,7 +245,7 @@ jobs:
     runs-on: [self-hosted, gha-fleet-ec2-4cpu-16gb-amd64, latest]
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v7.0.0
+      - uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0 # checkout all commits to be able to determine merge base for GIB
           ref: |
@@ -290,7 +290,7 @@ jobs:
       REPORT_TEST_SESSION_NAME: modules
       REPORT_SERVICE_NAME: jdbc-compatibility
     steps:
-      - uses: actions/checkout@v7.0.0
+      - uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0 # checkout tags so version in Manifest is set properly
           ref: |
@@ -608,7 +608,7 @@ jobs:
       REPORT_TEST_SESSION_NAME: modules
       REPORT_SERVICE_NAME: other-modules
     steps:
-      - uses: actions/checkout@v7.0.0
+      - uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0 # checkout all commits to be able to determine merge base for GIB
           ref: |
@@ -835,7 +835,7 @@ jobs:
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
-      - uses: actions/checkout@v7.0.0
+      - uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0 # checkout all commits to be able to determine merge base for GIB
           ref: |
@@ -905,7 +905,7 @@ jobs:
       REPORT_TEST_SESSION_NAME: test-matrix
       REPORT_SERVICE_NAME: ${{ matrix.modules }}
     steps:
-      - uses: actions/checkout@v7.0.0
+      - uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0 # checkout all commits to be able to determine merge base for GIB
           ref: |
@@ -1534,7 +1534,7 @@ jobs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
       product-tests-changed: ${{ steps.filter.outputs.product-tests }}
     steps:
-      - uses: actions/checkout@v7.0.0
+      - uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0 # checkout all commits to be able to determine merge base for GIB
           ref: |
@@ -1879,7 +1879,7 @@ jobs:
       matrix-junit: ${{ steps.set-junit-matrix.outputs.matrix-junit }}
       product-tests-changed: ${{ steps.filter.outputs.product-tests }}
     steps:
-      - uses: actions/checkout@v7.0.0
+      - uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0 # checkout all commits to be able to determine merge base for GIB
           ref: |
@@ -1969,7 +1969,7 @@ jobs:
       REPORT_TEST_SESSION_NAME: pt
       REPORT_SERVICE_NAME: ${{ matrix.suite }}-${{ matrix.config }}
     steps:
-      - uses: actions/checkout@v7.0.0
+      - uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0 # checkout all commits, as the build result depends on `git describe` equivalent
           ref: |
@@ -2125,7 +2125,7 @@ jobs:
     timeout-minutes: 130
     needs: build-pt-junit
     steps:
-      - uses: actions/checkout@v7.0.0
+      - uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0 # checkout all commits, as the build result depends on `git describe` equivalent
           ref: |
