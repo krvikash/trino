@@ -198,9 +198,10 @@ public class BufferAllocator
         int warmBufferSize = buffTypeSizes[JbufType.JBUF_TYPE_NULL.ordinal()] +
                 buffTypeSizes[JbufType.JBUF_TYPE_CHUNKS.ordinal()] +
                 storageEngineConstants.getPageSize() * 4; /* some page for skiplist and spare */
-        int dataWarmBufferSize = warmBufferSize + warmupRecordBufferSizes[maxRecLenForWarmupRecordBuffer] + extRecBuffSize + dataTempBufferSize;
+        // record buffers are needed only for boolean elements, which have record length 1
+        int booleanWarmBufferSize = warmBufferSize + warmupRecordBufferSizes[1] + dataTempBufferSize;
         int basicWarmBufferSize = warmBufferSize + calculateCrcBufferSize(RecTypeCode.REC_TYPE_DECIMAL_LONG, maxRecLenForDataFixed) + indexTempBufferSize;
-        this.warmBufferSize = Math.max(dataWarmBufferSize, basicWarmBufferSize);
+        this.warmBufferSize = Math.max(booleanWarmBufferSize, basicWarmBufferSize);
     }
 
     @Override
