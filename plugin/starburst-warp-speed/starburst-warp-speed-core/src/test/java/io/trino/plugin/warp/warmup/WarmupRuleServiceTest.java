@@ -15,15 +15,13 @@ package io.trino.plugin.warp.warmup;
 
 import com.google.common.collect.ImmutableList;
 import io.trino.plugin.warp.WarpErrorCode;
-import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.config.WarmupDemoterConfig;
 import io.trino.plugin.warp.di.DefaultFakeConnectorSessionProvider;
 import io.trino.plugin.warp.dispatcher.DispatcherProxiedConnectorTransformer;
 import io.trino.plugin.warp.dispatcher.model.RegularColumn;
 import io.trino.plugin.warp.dispatcher.model.WarpColumn;
+import io.trino.plugin.warp.dispatcher.model.WildcardColumn;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
-import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
-import io.trino.plugin.warp.storage.engine.StubsStorageEngineConstants;
 import io.trino.plugin.warp.tools.util.Pair;
 import io.trino.plugin.warp.warmup.model.PartitionValueWarmupPredicateRule;
 import io.trino.plugin.warp.warmup.model.WarmupPredicateRule;
@@ -64,7 +62,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
 public class WarmupRuleServiceTest
@@ -75,15 +72,11 @@ public class WarmupRuleServiceTest
     private Map<String, ColumnHandle> columnMap;
     private ConnectorTableHandle tableHandle;
     private ConnectorMetadata connectorMetadata;
-    private StorageEngineConstants storageEngineConstants;
-    private GlobalConfig globalConfig;
 
     @BeforeEach
     public void before()
     {
         columnMap = new HashMap<>();
-
-        storageEngineConstants = spy(new StubsStorageEngineConstants(1000));
         DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer = mock(DispatcherProxiedConnectorTransformer.class);
         connectorMetadata = mock(ConnectorMetadata.class);
         ConnectorTransactionHandle connectorTransactionHandle = mock(ConnectorTransactionHandle.class);
@@ -93,14 +86,11 @@ public class WarmupRuleServiceTest
         tableHandle = mock(ConnectorTableHandle.class);
         when(connectorMetadata.getTableHandle(any(ConnectorSession.class), any(SchemaTableName.class), eq(Optional.empty()), eq(Optional.empty()))).thenAnswer(_ -> tableHandle);
         when(connectorMetadata.getColumnHandles(any(ConnectorSession.class), eq(tableHandle))).thenAnswer(_ -> columnMap);
-        globalConfig = new GlobalConfig();
         warmupRuleService = new WarmupRuleService(
                 proxiedConnector,
-                storageEngineConstants,
                 new WarmupDemoterConfig(),
                 dispatcherProxiedConnectorTransformer,
-                new DefaultFakeConnectorSessionProvider(Collections.emptyList()),
-                globalConfig);
+                new DefaultFakeConnectorSessionProvider(Collections.emptyList()));
     }
 
     @Test
@@ -121,17 +111,6 @@ public class WarmupRuleServiceTest
         assertThat(warmupRuleService.save(List.of(createRule(WarmUpType.WARM_UP_TYPE_LUCENE))).appliedRules())
                 .hasSize(1);
         assertThat(warmupRuleService.replaceAll(List.of()).appliedRules()).isEmpty();
-    }
-
-    @Test
-    public void testRejectIndexRulesWhenDataOnlyFlagIsOn()
-    {
-        globalConfig.setDataOnlyWarming(true);
-        createColumn(VarcharType.createVarcharType(10));
-        WarmupRule warmupRule = createRule(WarmUpType.WARM_UP_TYPE_LUCENE);
-        WarmupRuleResult warmupRuleResult = warmupRuleService.save(List.of(warmupRule));
-        assertThat(warmupRuleResult.appliedRules()).isEmpty();
-        assertThat(warmupRuleResult.rejectedRules()).isNotEmpty();
     }
 
     @Test
@@ -159,11 +138,11 @@ public class WarmupRuleServiceTest
 
         // update existing rule
         WarmupRule updatedWarmupRule1 = WarmupRule.builder(warmupRule1)
-                .warmUpType(WarmUpType.WARM_UP_TYPE_DATA)
+                .warmUpType(WarmUpType.WARM_UP_TYPE_BASIC)
                 .build();
         warmupRuleResult = warmupRuleService.save(List.of(updatedWarmupRule1));
         assertThat(warmupRuleResult.appliedRules().size()).isEqualTo(1);
-        assertThat(warmupRuleResult.appliedRules().getFirst().getWarmUpType()).isEqualTo(WarmUpType.WARM_UP_TYPE_DATA);
+        assertThat(warmupRuleResult.appliedRules().getFirst().getWarmUpType()).isEqualTo(WarmUpType.WARM_UP_TYPE_BASIC);
 
         // now try to save a new rule with non-existing id
         WarmupRule warmupRule3 = WarmupRule.builder(warmupRule1)
@@ -255,7 +234,7 @@ public class WarmupRuleServiceTest
         Type baseType = VarcharType.createVarcharType(10);
         Map<Type, String> unsupportedTypeToMessage = Map.of(new ArrayType(RowType.rowType(RowType.field(baseType))), "doesn't support column type array");
 
-        WarmupRule warmupRule = createRule(WarmUpType.WARM_UP_TYPE_DATA);
+        WarmupRule warmupRule = createRule(WarmUpType.WARM_UP_TYPE_BASIC);
 
         for (Map.Entry<Type, String> typeToMessage : unsupportedTypeToMessage.entrySet()) {
             createColumn(typeToMessage.getKey());
@@ -289,6 +268,28 @@ public class WarmupRuleServiceTest
     }
 
     @Test
+    public void testDataWarmupTypeRejected()
+    {
+        createColumn(VarcharType.createVarcharType(10));
+        assertRuleRejected(createRule(WarmUpType.WARM_UP_TYPE_DATA), "Warmup type WARM_UP_TYPE_DATA is not supported");
+    }
+
+    @Test
+    public void testDataWarmupTypeRejectedForWildcardColumn()
+    {
+        createColumn(VarcharType.createVarcharType(10));
+        assertRuleRejected(createRule(WarmUpType.WARM_UP_TYPE_DATA, new WildcardColumn(), Set.of()), "Warmup type WARM_UP_TYPE_DATA is not supported");
+    }
+
+    @Test
+    public void testDataWarmupTypeRejectedBelowDefaultPriority()
+    {
+        createColumn(VarcharType.createVarcharType(10));
+        WarmupRule warmupRule = WarmupRule.builder(createRule(WarmUpType.WARM_UP_TYPE_DATA)).priority(-10).build();
+        assertRuleRejected(warmupRule, "Warmup type WARM_UP_TYPE_DATA is not supported");
+    }
+
+    @Test
     public void testUnknownColumn()
     {
         WarmupRule warmupRule = createRule(
@@ -298,20 +299,10 @@ public class WarmupRuleServiceTest
     }
 
     @Test
-    public void testLongCharShouldFail()
-    {
-        when(storageEngineConstants.getMaxRecLen()).thenReturn(8);
-        createColumn(CharType.createCharType(255));
-        WarmupRule warmupRule = createRule(WarmUpType.WARM_UP_TYPE_DATA, Collections.emptySet());
-        assertRuleRejected(warmupRule, "Can't warm long Char columns");
-    }
-
-    @Test
     public void testCharRule()
     {
-        when(storageEngineConstants.getMaxRecLen()).thenReturn(8);
         createColumn(CharType.createCharType(7));
-        WarmupRule warmupRule = createRule(WarmUpType.WARM_UP_TYPE_DATA, Collections.emptySet());
+        WarmupRule warmupRule = createRule(WarmUpType.WARM_UP_TYPE_BASIC, Collections.emptySet());
         assertRuleApplied(warmupRule);
     }
 

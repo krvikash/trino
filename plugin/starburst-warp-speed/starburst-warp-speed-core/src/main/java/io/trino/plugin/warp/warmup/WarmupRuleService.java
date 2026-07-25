@@ -20,13 +20,11 @@ import com.google.inject.Singleton;
 import io.airlift.log.Logger;
 import io.trino.plugin.warp.WarpErrorCode;
 import io.trino.plugin.warp.annotation.ForWarp;
-import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.config.WarmupDemoterConfig;
 import io.trino.plugin.warp.di.FakeConnectorSessionProvider;
 import io.trino.plugin.warp.dispatcher.DispatcherProxiedConnectorTransformer;
 import io.trino.plugin.warp.dispatcher.model.WildcardColumn;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
-import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.tools.util.Pair;
 import io.trino.plugin.warp.type.TypeUtils;
 import io.trino.plugin.warp.warmup.model.WarmupPredicateRule;
@@ -41,8 +39,6 @@ import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.connector.SchemaTableName;
-import io.trino.spi.type.ArrayType;
-import io.trino.spi.type.CharType;
 import io.trino.spi.type.RowType;
 import io.trino.spi.type.RowType.Field;
 import io.trino.spi.type.Type;
@@ -77,11 +73,9 @@ public class WarmupRuleService
     private static final AtomicInteger idGen = new AtomicInteger(1);
 
     private final Connector proxiedConnector;
-    private final StorageEngineConstants storageEngineConstants;
     private final WarmupDemoterConfig warmupDemoterConfig;
     private final DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer;
     private final FakeConnectorSessionProvider fakeConnectorSessionProvider;
-    private final GlobalConfig globalConfig;
 
     private ImmutableMap<Integer, WarmupRule> cache;
     protected final ReadWriteLock readWriteLock;
@@ -89,18 +83,14 @@ public class WarmupRuleService
     @Inject
     public WarmupRuleService(
             @ForWarp Connector proxiedConnector,
-            StorageEngineConstants storageEngineConstants,
             WarmupDemoterConfig warmupDemoterConfig,
             DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer,
-            FakeConnectorSessionProvider fakeConnectorSessionProvider,
-            GlobalConfig globalConfig)
+            FakeConnectorSessionProvider fakeConnectorSessionProvider)
     {
         this.proxiedConnector = requireNonNull(proxiedConnector);
-        this.storageEngineConstants = requireNonNull(storageEngineConstants);
         this.warmupDemoterConfig = requireNonNull(warmupDemoterConfig);
         this.dispatcherProxiedConnectorTransformer = requireNonNull(dispatcherProxiedConnectorTransformer);
         this.fakeConnectorSessionProvider = requireNonNull(fakeConnectorSessionProvider);
-        this.globalConfig = requireNonNull(globalConfig);
 
         ImmutableMap.Builder<Integer, WarmupRule> builder = ImmutableMap.builder();
         cache = builder.buildOrThrow();
@@ -277,13 +267,20 @@ public class WarmupRuleService
             Optional<Type> optionalType)
     {
         Set<String> errors = new HashSet<>();
+        if (WarmUpType.WARM_UP_TYPE_DATA.equals(warmupRule.getWarmUpType())) {
+            errors.add(String.format(
+                    Locale.US,
+                    "%d: Warmup type %s is not supported",
+                    WarpErrorCode.WARP_WARMUP_RULE_WARMUP_TYPE_DOESNT_SUPPORT_COL_TYPE.getCode(),
+                    warmupRule.getWarmUpType()));
+            rejectedRules.put(warmupRule, errors);
+            return false;
+        }
         if (!(warmupRule.getWarpColumn() instanceof WildcardColumn)) {
             optionalType.ifPresentOrElse(type -> {
                 if (warmupRule.getPriority() >= warmupDemoterConfig.getDefaultRulePriority()) {
                     validateTypeIsSupported(errors, warmupRule, type);
-                    validateMaxCharLength(errors, warmupRule, type);
                 }
-                validateDataOnly(errors, warmupRule);
             }, () -> errors.add("WarmUpType is null"));
             if (!errors.isEmpty()) {
                 rejectedRules.put(warmupRule, errors);
@@ -301,15 +298,8 @@ public class WarmupRuleService
                 fail = true;
             }
         }
-        else if (TypeUtils.isRowType(type) || TypeUtils.isMapType(type) ||
-                (!WarmUpType.WARM_UP_TYPE_DATA.equals(warmupRule.getWarmUpType()) && (TypeUtils.isArrayType(type) || TypeUtils.isJsonType(type)))) {
+        else if (TypeUtils.isRowType(type) || TypeUtils.isMapType(type) || TypeUtils.isArrayType(type) || TypeUtils.isJsonType(type)) {
             fail = true;
-        }
-        else if (WarmUpType.WARM_UP_TYPE_DATA.equals(warmupRule.getWarmUpType()) && TypeUtils.isArrayType(type)) {
-            ArrayType arrayType = (ArrayType) type;
-            if (TypeUtils.isRowType(arrayType.getElementType())) {
-                fail = true;
-            }
         }
 
         if (fail) {
@@ -320,30 +310,6 @@ public class WarmupRuleService
                     warmupRule.getWarmUpType(),
                     type);
             errors.add(error);
-        }
-    }
-
-    private void validateMaxCharLength(Set<String> errors, WarmupRule warmupRule, Type type)
-    {
-        if (warmupRule.getWarmUpType() == WarmUpType.WARM_UP_TYPE_DATA &&
-                TypeUtils.isCharType(type) && ((CharType) type).getLength() > storageEngineConstants.getMaxRecLen()) {
-            String error = String.format(
-                    Locale.US,
-                    "%d: Can't warm long Char columns. maximum of %d is allowed",
-                    WarpErrorCode.WARP_WARMUP_RULE_ILLEGAL_CHAR_LENGTH.getCode(),
-                    storageEngineConstants.getMaxRecLen());
-            errors.add(error);
-        }
-    }
-
-    private void validateDataOnly(Set<String> errors, WarmupRule warmupRule)
-    {
-        if (globalConfig.isDataOnlyWarming() && !warmupRule.getWarmUpType().equals(WarmUpType.WARM_UP_TYPE_DATA)) {
-            errors.add(String.format(
-                    Locale.US,
-                    "%d: creation of %s warmUpType is not supported with Local Data Storage connector",
-                    WarpErrorCode.WARP_INDEX_WARMUP_RULE_IS_NOT_ALLOWED.getCode(),
-                    warmupRule.getWarmUpType()));
         }
     }
 

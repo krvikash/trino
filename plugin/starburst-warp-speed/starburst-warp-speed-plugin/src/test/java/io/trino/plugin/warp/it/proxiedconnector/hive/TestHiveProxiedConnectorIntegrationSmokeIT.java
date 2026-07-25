@@ -151,12 +151,12 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
         createWarmupRules(
                 DEFAULT_SCHEMA,
                 "t",
-                Map.of(C1, Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_DATA, DEFAULT_PRIORITY, DEFAULT_TTL))),
+                Map.of(C1, Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_BASIC, DEFAULT_PRIORITY, DEFAULT_TTL))),
                 predicates);
         createWarmupRules(
                 DEFAULT_SCHEMA,
                 "t",
-                Map.of(C1, Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_DATA, DEFAULT_PRIORITY, DEFAULT_TTL))),
+                Map.of(C1, Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_BASIC, DEFAULT_PRIORITY, DEFAULT_TTL))),
                 predicates2);
         assertThat(getWarmupRules().size()).isEqualTo(2);
     }
@@ -174,7 +174,7 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
     }
 
     @Test
-    public void testWarmupApi()
+    public void testWarmupRuleRestLifecycle()
             throws IOException
     {
         List<WarmupColRuleData> result = getWarmupRules();
@@ -191,18 +191,18 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
                 ImmutableSet.of(new PartitionValueWarmupPredicateRule(C2, "2"),
                         new DateSlidingWindowWarmupPredicateRule(C2, 30, "DATE_FORMAT", "")));
 
-        WarmupColRuleData warmupColRuleDataData = new WarmupColRuleData(
+        WarmupColRuleData warmupColRuleDataBasic = new WarmupColRuleData(
                 0,
                 DEFAULT_SCHEMA,
                 "t",
                 new RegularColumnData(C2),
-                WarmUpType.WARM_UP_TYPE_DATA,
+                WarmUpType.WARM_UP_TYPE_BASIC,
                 0,
                 Duration.ofSeconds(0),
                 ImmutableSet.of(new PartitionValueWarmupPredicateRule(C2, "2"),
                         new DateSlidingWindowWarmupPredicateRule(C2, 30, "DATE_FORMAT", "")));
 
-        executeRestCommand(WarmupRuleService.WARMUP_PATH, WarmupTask.TASK_NAME_SET, List.of(warmupColRuleDataLucene, warmupColRuleDataData), HttpMethod.POST, HttpURLConnection.HTTP_OK);
+        executeRestCommand(WarmupRuleService.WARMUP_PATH, WarmupTask.TASK_NAME_SET, List.of(warmupColRuleDataLucene, warmupColRuleDataBasic), HttpMethod.POST, HttpURLConnection.HTTP_OK);
 
         result = jsonMapper.readerFor(new TypeReference<List<WarmupColRuleData>>() {})
                 .readValue(executeRestCommand(WarmupRuleService.WARMUP_PATH, WarmupRuleService.TASK_NAME_GET, null, HttpMethod.GET, HttpURLConnection.HTTP_OK));

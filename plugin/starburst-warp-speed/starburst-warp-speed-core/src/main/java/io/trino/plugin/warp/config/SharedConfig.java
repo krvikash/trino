@@ -14,18 +14,18 @@
 package io.trino.plugin.warp.config;
 
 import io.airlift.configuration.Config;
+import io.airlift.configuration.DefunctConfig;
 
 import java.time.Duration;
 import java.util.Objects;
 
+@DefunctConfig("warp-speed.enable.fs-cache-mode")
 public class SharedConfig
 {
     public static final String CONFIG_IS_SINGLE = "warp-speed.config.is-single";
     public static final String FAILURE_GENERATOR_ENABLED = "warp-speed.config.failure-generator-enabled";
 
     private boolean isSingle;
-
-    private boolean enableFSCacheMode;
     private boolean enableMatchCollect = true;
     private boolean enableMappedMatchCollect = true;
     private boolean enableVarcharMappedMatchCollect = true;
@@ -46,17 +46,6 @@ public class SharedConfig
     public void setIsSingle(boolean isSingle)
     {
         this.isSingle = isSingle;
-    }
-
-    public boolean getEnableFSCacheMode()
-    {
-        return enableFSCacheMode;
-    }
-
-    @Config("warp-speed.enable.fs-cache-mode")
-    public void setEnableFSCacheMode(boolean enableFSCacheMode)
-    {
-        this.enableFSCacheMode = enableFSCacheMode;
     }
 
     public boolean getEnableMatchCollect()

@@ -188,7 +188,7 @@ public class TestHivePassThroughProxiedConnectorIntegrationSmokeIT
             throws IOException
     {
         computeActual("INSERT INTO t VALUES (1, 'shlomi')");
-        createWarmupRules(DEFAULT_SCHEMA, "t", Map.of(C1, Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_DATA, DEFAULT_PRIORITY, DEFAULT_TTL))));
+        createWarmupRules(DEFAULT_SCHEMA, "t", Map.of(C1, Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_BASIC, DEFAULT_PRIORITY, DEFAULT_TTL))));
 
         validateWarmupIsIgnored("select int1 from t");
 
@@ -220,7 +220,7 @@ public class TestHivePassThroughProxiedConnectorIntegrationSmokeIT
         createWarmupRules(DEFAULT_SCHEMA,
                 "t",
                 Map.of(C2,
-                        Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_DATA, DEFAULT_PRIORITY, DEFAULT_TTL),
+                        Set.of(new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_BASIC, DEFAULT_PRIORITY, DEFAULT_TTL),
                                 new WarmupPropertiesData(WarmUpType.WARM_UP_TYPE_LUCENE, DEFAULT_PRIORITY, DEFAULT_TTL))));
 
         validateWarmupIsIgnored("select * from t");

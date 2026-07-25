@@ -212,7 +212,7 @@ public class WarpDispatcherPageSourceFactory
 
         RowGroupData rowGroupData = rowGroupDataService.getIfPresent(rowGroupKey);
 
-        Optional<FilteringStats> filteringStats = globalConfig.getEnableFSCacheMode() ? Optional.of(scanFilteringStats) : Optional.empty();
+        Optional<FilteringStats> filteringStats = Optional.of(scanFilteringStats);
         PageSourceDecision pageSourceDecision = getBasicPageSourceDecision(
                 rowGroupData,
                 dispatcherTableHandle,

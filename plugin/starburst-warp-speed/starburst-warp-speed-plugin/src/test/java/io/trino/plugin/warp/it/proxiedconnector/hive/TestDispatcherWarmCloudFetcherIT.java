@@ -132,7 +132,7 @@ public class TestDispatcherWarmCloudFetcherIT
 
         assertThat(getWarmupRules()).isEmpty();
 
-        createWarmRulesFileForCloudFetcher(WarmUpType.WARM_UP_TYPE_DATA);
+        createWarmRulesFileForCloudFetcher(WarmUpType.WARM_UP_TYPE_BASIC);
 
         // The cloud fetcher applies rules asynchronously: a periodic background fetch may hold the
         // fetcher lock and cause the explicit run-fetcher to be skipped, and its change-detection may
@@ -159,7 +159,7 @@ public class TestDispatcherWarmCloudFetcherIT
                             warmupColRuleData.getTtl(),
                             warmupColRuleData.getPredicates()))
                     .toList())
-                    .isEqualTo(getRules(WarmUpType.WARM_UP_TYPE_DATA)));
+                    .isEqualTo(getRules(WarmUpType.WARM_UP_TYPE_BASIC)));
         });
 
         createWarmRulesFileForCloudFetcher(WarmUpType.WARM_UP_TYPE_LUCENE);

@@ -151,17 +151,6 @@ public class TestDispatcherRestIT
                 ImmutableSet.of(new PartitionValueWarmupPredicateRule("col2", "2"),
                         new DateSlidingWindowWarmupPredicateRule("col2", 30, "XXX", "")));
 
-        WarmupColRuleData warmupColRuleDataData = new WarmupColRuleData(
-                0,
-                "s1",
-                "t1",
-                new RegularColumnData("col2"),
-                WarmUpType.WARM_UP_TYPE_DATA,
-                5,
-                Duration.ofMillis(10),
-                ImmutableSet.of(new PartitionValueWarmupPredicateRule("col2", "2"),
-                        new DateSlidingWindowWarmupPredicateRule("col2", 30, "XXX", "")));
-
         WarmupColRuleData basicWarmupColRuleDataData = new WarmupColRuleData(
                 0,
                 "s1",
@@ -172,11 +161,11 @@ public class TestDispatcherRestIT
                 Duration.ofMillis(10),
                 ImmutableSet.of(new DateRangeSlidingWindowWarmupPredicateRule("col2", 30, 15, "")));
 
-        executeRestCommand(WarmupRuleService.WARMUP_PATH, WarmupTask.TASK_NAME_SET, List.of(warmupColRuleDataLucene, warmupColRuleDataData, basicWarmupColRuleDataData), HttpMethod.POST, HttpURLConnection.HTTP_OK);
+        executeRestCommand(WarmupRuleService.WARMUP_PATH, WarmupTask.TASK_NAME_SET, List.of(warmupColRuleDataLucene, basicWarmupColRuleDataData), HttpMethod.POST, HttpURLConnection.HTTP_OK);
 
         warmupColRuleDataListResult = getWarmupRules();
 
-        assertThat(warmupColRuleDataListResult).hasSize(3);
+        assertThat(warmupColRuleDataListResult).hasSize(2);
 
         WarmupColRuleData luceneWarmupColRuleDataResult = warmupColRuleDataListResult.stream().filter(warmupColRuleData -> warmupColRuleData.getWarmUpType() == WarmUpType.WARM_UP_TYPE_LUCENE).findFirst().orElseThrow();
         assertThat(luceneWarmupColRuleDataResult.getId()).isGreaterThan(0);
@@ -184,13 +173,6 @@ public class TestDispatcherRestIT
         assertThat(luceneWarmupColRuleDataResult.getSchema()).isEqualTo(warmupColRuleDataLucene.getSchema());
         assertThat(luceneWarmupColRuleDataResult.getTable()).isEqualTo(warmupColRuleDataLucene.getTable());
         assertThat(luceneWarmupColRuleDataResult.getPredicates()).isEqualTo(warmupColRuleDataLucene.getPredicates());
-
-        WarmupColRuleData dataWarmupColRuleDataResult = warmupColRuleDataListResult.stream().filter(warmupColRuleData -> warmupColRuleData.getWarmUpType() == WarmUpType.WARM_UP_TYPE_DATA).findFirst().orElseThrow();
-        assertThat(dataWarmupColRuleDataResult.getId()).isGreaterThan(0);
-        assertThat(dataWarmupColRuleDataResult.getColumn()).isEqualTo(warmupColRuleDataData.getColumn());
-        assertThat(dataWarmupColRuleDataResult.getSchema()).isEqualTo(warmupColRuleDataData.getSchema());
-        assertThat(dataWarmupColRuleDataResult.getTable()).isEqualTo(warmupColRuleDataData.getTable());
-        assertThat(dataWarmupColRuleDataResult.getPredicates()).isEqualTo(warmupColRuleDataData.getPredicates());
 
         WarmupColRuleData basicWarmupColRuleDataResult = warmupColRuleDataListResult.stream().filter(warmupColRuleData -> warmupColRuleData.getWarmUpType() == WarmUpType.WARM_UP_TYPE_BASIC).findFirst().orElseThrow();
         assertThat(basicWarmupColRuleDataResult.getId()).isGreaterThan(0);
@@ -520,7 +502,7 @@ public class TestDispatcherRestIT
                 "s3",
                 "t1",
                 new RegularColumnData("col1"),
-                WarmUpType.WARM_UP_TYPE_DATA,
+                WarmUpType.WARM_UP_TYPE_BASIC,
                 10,
                 Duration.ofMinutes(10),
                 ImmutableSet.of());
@@ -528,7 +510,7 @@ public class TestDispatcherRestIT
         List<WarmupColRuleData> result = getWarmupRules();
         assertThat(result.size()).isEqualTo(1);
         assertThat(result.getFirst().getPriority()).isEqualTo(10);
-        assertThat(result.getFirst().getWarmUpType()).isEqualTo(WarmUpType.WARM_UP_TYPE_DATA);
+        assertThat(result.getFirst().getWarmUpType()).isEqualTo(WarmUpType.WARM_UP_TYPE_BASIC);
 
         WarmupColRuleData updateWarmupColRuleData = new WarmupColRuleData(
                 result.getFirst().getId(),
@@ -574,7 +556,7 @@ public class TestDispatcherRestIT
                 "s3",
                 "t1",
                 new RegularColumnData("col1"),
-                WarmUpType.WARM_UP_TYPE_DATA,
+                WarmUpType.WARM_UP_TYPE_BASIC,
                 10,
                 Duration.ofMinutes(10),
                 ImmutableSet.of());

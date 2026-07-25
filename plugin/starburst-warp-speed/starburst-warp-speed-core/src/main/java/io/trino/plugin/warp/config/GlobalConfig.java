@@ -26,7 +26,13 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 @SuppressWarnings("unused")
-@DefunctConfig("warp-speed.config.consistent-split-buckets-per-worker")
+@DefunctConfig({
+        "warp-speed.config.consistent-split-buckets-per-worker",
+        "warp-speed.enable.fs-cache-mode",
+        "warp-speed.config.warm-data-varchar-max-length",
+        "warp-speed.max-collect-columns-skip-default-warming",
+        "warp-speed.data-only-warming",
+})
 public class GlobalConfig
 {
     public static final String CONFIG_IS_SINGLE = "warp-speed.config.is-single";
@@ -48,12 +54,9 @@ public class GlobalConfig
     private long preAllocMemorySize;
     private boolean enableDefaultWarming = true;
     private boolean createIndexInDefaultWarming;
-    private boolean dataOnlyWarming;
-    private int maxCollectColumnsSkipDefaultWarming = 128;
     private int maxWarmRetries = 2;
     private int warmRetryBackoffFactorInMillis = 1000;
     private int maxWarmupIterationsPerQuery = 2000;
-    private int warmDataVarcharMaxLength = 2048;
 
     private int shapingLoggerThreshold = 1000;
     private Duration shapingLoggerDuration = Duration.ofSeconds(60);
@@ -63,8 +66,6 @@ public class GlobalConfig
     private boolean debugWarming;
     private boolean debugNoPredicateBuffer;
     private boolean debugFailureGenerator;
-
-    private boolean enableFSCacheMode = true;
     private boolean enableImportExport;
     private boolean enableExportAppendOnCloud = true;
     private boolean enableOrPushdown = true;
@@ -81,17 +82,6 @@ public class GlobalConfig
     public void setIsSingle(boolean isSingle)
     {
         this.isSingle = isSingle;
-    }
-
-    public boolean getEnableFSCacheMode()
-    {
-        return enableFSCacheMode;
-    }
-
-    @Config("warp-speed.enable.fs-cache-mode")
-    public void setEnableFSCacheMode(boolean enableFSCacheMode)
-    {
-        this.enableFSCacheMode = enableFSCacheMode;
     }
 
     public boolean getEnableImportExport()
@@ -193,19 +183,6 @@ public class GlobalConfig
         this.createIndexInDefaultWarming = createIndexInDefaultWarming;
     }
 
-    @Min(1000)
-    @Max(7000)
-    public int getWarmDataVarcharMaxLength()
-    {
-        return warmDataVarcharMaxLength;
-    }
-
-    @Config("warp-speed.config.warm-data-varchar-max-length")
-    public void setWarmDataVarcharMaxLength(int warmDataVarcharMaxLength)
-    {
-        this.warmDataVarcharMaxLength = warmDataVarcharMaxLength;
-    }
-
     public long getClusterUpTime()
     {
         return clusterUpTime;
@@ -250,17 +227,6 @@ public class GlobalConfig
     public void setLocalStorePath(String localStorePath)
     {
         this.localStorePath = localStorePath;
-    }
-
-    public int getMaxCollectColumnsSkipDefaultWarming()
-    {
-        return maxCollectColumnsSkipDefaultWarming;
-    }
-
-    @Config("warp-speed.max-collect-columns-skip-default-warming")
-    public void setMaxCollectColumnsSkipDefaultWarming(int maxCollectColumnsSkipDefaultWarming)
-    {
-        this.maxCollectColumnsSkipDefaultWarming = maxCollectColumnsSkipDefaultWarming;
     }
 
     public long getReservationUsageForSingleTxInBytes()
@@ -408,17 +374,6 @@ public class GlobalConfig
         this.shapingLoggerNumberOfSamples = shapingLoggerNumberOfSamples;
     }
 
-    public boolean isDataOnlyWarming()
-    {
-        return dataOnlyWarming;
-    }
-
-    @Config("warp-speed.data-only-warming")
-    public void setDataOnlyWarming(boolean dataOnlyWarming)
-    {
-        this.dataOnlyWarming = dataOnlyWarming;
-    }
-
     @Config("warp-speed.config-empty-page-iterations")
     public void setEmptyPageIterations(long emptyPageIterations)
     {
@@ -453,7 +408,6 @@ public class GlobalConfig
                 ", createIndexInDefaultWarming=" + createIndexInDefaultWarming +
                 ", exportDelayInSeconds=" + exportDelayInSeconds +
                 ", localStorePath='" + localStorePath + '\'' +
-                ", maxCollectColumnsSkipDefaultWarming=" + maxCollectColumnsSkipDefaultWarming +
                 ", predicateSimplifyThreshold=" + predicateSimplifyThreshold +
                 ", reservationUsageForSingleTxInBytes=" + reservationUsageForSingleTxInBytes +
                 ", maxWarmRetries=" + maxWarmRetries +
@@ -468,7 +422,6 @@ public class GlobalConfig
                 ", shapingLoggerThreshold=" + shapingLoggerThreshold +
                 ", shapingLoggerDuration=" + shapingLoggerDuration +
                 ", shapingLoggerNumberOfSamplings=" + shapingLoggerNumberOfSamples +
-                ", dataOnlyWarming=" + dataOnlyWarming +
                 ", debugWarming=" + debugWarming +
                 ", debugWarmingSingleThreaded=" + debugWarmingSingleThreaded +
                 ", debugNoPredicateBuffer=" + debugNoPredicateBuffer +
