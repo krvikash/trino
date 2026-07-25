@@ -13,7 +13,6 @@
  */
 package io.trino.plugin.warp.storage.write.appenders;
 
-import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
 import io.trino.plugin.warp.dispatcher.warmup.transform.BlockTransformerFactory;
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
@@ -26,7 +25,6 @@ import io.trino.plugin.warp.type.TypeUtils;
 import io.trino.spi.type.ArrayType;
 import io.trino.spi.type.BigintType;
 import io.trino.spi.type.BooleanType;
-import io.trino.spi.type.DateType;
 import io.trino.spi.type.DecimalType;
 import io.trino.spi.type.DoubleType;
 import io.trino.spi.type.IntegerType;
@@ -48,18 +46,15 @@ import static io.trino.plugin.warp.gen.constants.RecTypeCode.REC_TYPE_ARRAY_INT;
 import static io.trino.plugin.warp.gen.constants.RecTypeCode.REC_TYPE_BIGINT;
 import static io.trino.plugin.warp.gen.constants.RecTypeCode.REC_TYPE_BOOLEAN;
 import static io.trino.plugin.warp.gen.constants.RecTypeCode.REC_TYPE_CHAR;
-import static io.trino.plugin.warp.gen.constants.RecTypeCode.REC_TYPE_DATE;
 import static io.trino.plugin.warp.gen.constants.RecTypeCode.REC_TYPE_DECIMAL_LONG;
 import static io.trino.plugin.warp.gen.constants.RecTypeCode.REC_TYPE_DECIMAL_SHORT;
 import static io.trino.plugin.warp.gen.constants.RecTypeCode.REC_TYPE_DOUBLE;
-import static io.trino.plugin.warp.gen.constants.RecTypeCode.REC_TYPE_INTEGER;
 import static io.trino.plugin.warp.gen.constants.RecTypeCode.REC_TYPE_REAL;
 import static io.trino.plugin.warp.gen.constants.RecTypeCode.REC_TYPE_SMALLINT;
 import static io.trino.plugin.warp.gen.constants.RecTypeCode.REC_TYPE_TIME;
 import static io.trino.plugin.warp.gen.constants.RecTypeCode.REC_TYPE_TINYINT;
 import static io.trino.plugin.warp.gen.constants.RecTypeCode.REC_TYPE_VARCHAR;
 import static io.trino.plugin.warp.gen.constants.WarmUpType.WARM_UP_TYPE_BASIC;
-import static io.trino.plugin.warp.gen.constants.WarmUpType.WARM_UP_TYPE_DATA;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -74,41 +69,27 @@ class BlockAppenderFactoryTest
     {
         storageEngineConstants = new StubsStorageEngineConstants();
         BlockTransformerFactory blockTransformerFactory = new BlockTransformerFactory();
-        blockAppenderFactory = new BlockAppenderFactory(storageEngineConstants, mock(BufferAllocator.class), new GlobalConfig(), blockTransformerFactory);
+        blockAppenderFactory = new BlockAppenderFactory(storageEngineConstants, mock(BufferAllocator.class), blockTransformerFactory);
     }
 
     static Stream<Arguments> params()
     {
         return Stream.of(
-                Arguments.of(REC_TYPE_DATE, DateType.DATE, WARM_UP_TYPE_DATA, IntBlockAppender.class),
-                Arguments.of(REC_TYPE_INTEGER, IntegerType.INTEGER, WARM_UP_TYPE_DATA, IntBlockAppender.class),
                 Arguments.of(REC_TYPE_BOOLEAN, BooleanType.BOOLEAN, WARM_UP_TYPE_BASIC, BooleanBlockAppender.class),
                 Arguments.of(REC_TYPE_TINYINT, TinyintType.TINYINT, WARM_UP_TYPE_BASIC, CrcTinyIntBlockAppender.class),
-                Arguments.of(REC_TYPE_TINYINT, TinyintType.TINYINT, WARM_UP_TYPE_DATA, TinyIntBlockAppender.class),
                 Arguments.of(REC_TYPE_SMALLINT, SmallintType.SMALLINT, WARM_UP_TYPE_BASIC, CrcSmallIntBlockAppender.class),
-                Arguments.of(REC_TYPE_SMALLINT, SmallintType.SMALLINT, WARM_UP_TYPE_DATA, SmallIntBlockAppender.class),
                 Arguments.of(REC_TYPE_BIGINT, BigintType.BIGINT, WARM_UP_TYPE_BASIC, CrcLongBlockAppender.class),
-                Arguments.of(REC_TYPE_BIGINT, BigintType.BIGINT, WARM_UP_TYPE_DATA, LongBlockAppender.class),
                 Arguments.of(REC_TYPE_REAL, RealType.REAL, WARM_UP_TYPE_BASIC, CrcRealBlockAppender.class),
-                Arguments.of(REC_TYPE_REAL, RealType.REAL, WARM_UP_TYPE_DATA, RealBlockAppender.class),
                 Arguments.of(REC_TYPE_DECIMAL_SHORT, DecimalType.createDecimalType(2), WARM_UP_TYPE_BASIC, CrcLongBlockAppender.class),
-                Arguments.of(REC_TYPE_DECIMAL_SHORT, DecimalType.createDecimalType(2), WARM_UP_TYPE_DATA, LongBlockAppender.class),
                 Arguments.of(REC_TYPE_DECIMAL_LONG, DecimalType.createDecimalType(20), WARM_UP_TYPE_BASIC, CrcLongDecimalBlockAppender.class),
-                Arguments.of(REC_TYPE_DECIMAL_LONG, DecimalType.createDecimalType(20), WARM_UP_TYPE_DATA, LongDecimalBlockAppender.class),
-                Arguments.of(REC_TYPE_DOUBLE, DoubleType.DOUBLE, WARM_UP_TYPE_DATA, DoubleBlockAppender.class),
                 Arguments.of(REC_TYPE_DOUBLE, DoubleType.DOUBLE, WARM_UP_TYPE_BASIC, CrcDoubleBlockAppender.class),
-                Arguments.of(REC_TYPE_TIME, TimeType.createTimeType(3), WARM_UP_TYPE_DATA, LongBlockAppender.class),
                 Arguments.of(REC_TYPE_TIME, TimeType.createTimeType(3), WARM_UP_TYPE_BASIC, CrcLongBlockAppender.class),
                 Arguments.of(REC_TYPE_VARCHAR, VarcharType.VARCHAR, WARM_UP_TYPE_BASIC, CrcStringBlockAppender.class),
-                Arguments.of(REC_TYPE_VARCHAR, VarcharType.VARCHAR, WARM_UP_TYPE_DATA, VariableLengthStringBlockAppender.class),
                 Arguments.of(REC_TYPE_VARCHAR, VarcharType.createVarcharType(5), WARM_UP_TYPE_BASIC, CrcStringBlockAppender.class),
-                Arguments.of(REC_TYPE_VARCHAR, VarcharType.createVarcharType(5), WARM_UP_TYPE_DATA, VariableLengthStringBlockAppender.class),
                 Arguments.of(REC_TYPE_CHAR, VarcharType.createVarcharType(5), WARM_UP_TYPE_BASIC, CrcStringBlockAppender.class),
-                Arguments.of(REC_TYPE_CHAR, VarcharType.createVarcharType(5), WARM_UP_TYPE_DATA, FixedLengthStringBlockAppender.class),
                 Arguments.of(REC_TYPE_VARCHAR, VarcharType.createVarcharType(5), WarmUpType.WARM_UP_TYPE_LUCENE, LuceneBlockAppender.class),
                 Arguments.of(REC_TYPE_VARCHAR, VarcharType.VARCHAR, WarmUpType.WARM_UP_TYPE_LUCENE, LuceneBlockAppender.class),
                 Arguments.of(REC_TYPE_CHAR, VarcharType.createVarcharType(5), WarmUpType.WARM_UP_TYPE_LUCENE, LuceneBlockAppender.class),
-                Arguments.of(REC_TYPE_ARRAY_INT, new ArrayType(IntegerType.INTEGER), WARM_UP_TYPE_DATA, ArrayBlockAppender.class),
                 Arguments.of(REC_TYPE_ARRAY_INT, new ArrayType(IntegerType.INTEGER), WARM_UP_TYPE_BASIC, CrcArrayBlockAppender.class));
     }
 

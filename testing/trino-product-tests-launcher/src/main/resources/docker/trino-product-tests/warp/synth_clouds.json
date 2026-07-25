@@ -48,9 +48,9 @@
         ],
         "expected_counters": {
           "warp_match_columns": 0,
-          "warp_collect_columns": 2,
+          "warp_collect_columns": 0,
           "external_match_columns": 1,
-          "external_collect_columns": 0
+          "external_collect_columns": 2
         }
       }
     ]

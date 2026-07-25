@@ -497,59 +497,46 @@ public class WorkerWarmingService
             warpColumns.addAll(columnNameToColumnType.keySet());
         }
 
-        if (!globalConfig.isDataOnlyWarming()) {
-            warpColumns.forEach(warpColumn -> {
-                Set<WarmupProperties> properties = new HashSet<>();
-                PredicateContextData predicateContextData = queryContext.getPredicateContextData();
-                Type type = columnNameToColumnType.get(warpColumn);
-                if (TypeUtils.isWarmLuceneSupported(type) &&
-                        predicateContextData.isLuceneColumn(warpColumn)) {
-                    properties.add(defaultRules.get(WarmUpType.WARM_UP_TYPE_LUCENE));
-                }
-                else if (warpColumn instanceof TransformedColumn transformedColumn) {
-                    // we already validated that TransformedColumn isWarmBasicSupported at Coordinator.
-                    WarmupProperties warmingProperty = new WarmupProperties(
-                            WarmUpType.WARM_UP_TYPE_BASIC,
-                            warmupDemoterConfig.getDefaultRulePriority(),
-                            warmupDemoterConfig.getDefaultRuleTtlInSeconds(),
-                            transformedColumn.getTransformFunction());
-                    properties.add(warmingProperty);
-                }
-                else {
-                    if (isWarmBasicSupported(type)) {
-                        List<PredicateContext> remainingPredicatesByColumn = queryContext.getPredicateContextData().getRemainingPredicatesByColumn((RegularColumn) warpColumn);
-                        if (remainingPredicatesByColumn.isEmpty()) {
-                            // in case of default warming + default index, we will warm default column with basic
-                            properties.add(defaultRules.get(WarmUpType.WARM_UP_TYPE_BASIC));
-                        }
-                        else {
-                            for (PredicateContext remainingPredicates : remainingPredicatesByColumn) {
-                                WarmupProperties defaultWarmingProperty = new WarmupProperties(
-                                        WarmUpType.WARM_UP_TYPE_BASIC,
-                                        warmupDemoterConfig.getDefaultRulePriority(),
-                                        warmupDemoterConfig.getDefaultRuleTtlInSeconds(),
-                                        remainingPredicates.getTransformedColumn());
-                                properties.add(defaultWarmingProperty);
-                            }
+        warpColumns.forEach(warpColumn -> {
+            Set<WarmupProperties> properties = new HashSet<>();
+            PredicateContextData predicateContextData = queryContext.getPredicateContextData();
+            Type type = columnNameToColumnType.get(warpColumn);
+            if (TypeUtils.isWarmLuceneSupported(type) &&
+                    predicateContextData.isLuceneColumn(warpColumn)) {
+                properties.add(defaultRules.get(WarmUpType.WARM_UP_TYPE_LUCENE));
+            }
+            else if (warpColumn instanceof TransformedColumn transformedColumn) {
+                // we already validated that TransformedColumn isWarmBasicSupported at Coordinator.
+                WarmupProperties warmingProperty = new WarmupProperties(
+                        WarmUpType.WARM_UP_TYPE_BASIC,
+                        warmupDemoterConfig.getDefaultRulePriority(),
+                        warmupDemoterConfig.getDefaultRuleTtlInSeconds(),
+                        transformedColumn.getTransformFunction());
+                properties.add(warmingProperty);
+            }
+            else {
+                if (isWarmBasicSupported(type)) {
+                    List<PredicateContext> remainingPredicatesByColumn = queryContext.getPredicateContextData().getRemainingPredicatesByColumn((RegularColumn) warpColumn);
+                    if (remainingPredicatesByColumn.isEmpty()) {
+                        // in case of default warming + default index, we will warm default column with basic
+                        properties.add(defaultRules.get(WarmUpType.WARM_UP_TYPE_BASIC));
+                    }
+                    else {
+                        for (PredicateContext remainingPredicates : remainingPredicatesByColumn) {
+                            WarmupProperties defaultWarmingProperty = new WarmupProperties(
+                                    WarmUpType.WARM_UP_TYPE_BASIC,
+                                    warmupDemoterConfig.getDefaultRulePriority(),
+                                    warmupDemoterConfig.getDefaultRuleTtlInSeconds(),
+                                    remainingPredicates.getTransformedColumn());
+                            properties.add(defaultWarmingProperty);
                         }
                     }
                 }
-                if (!properties.isEmpty()) {
-                    result.put(warpColumn, properties);
-                }
-            });
-        }
-
-        if (!globalConfig.getEnableFSCacheMode()) {
-            queryContext.getRemainingCollectColumns()
-                    .stream()
-                    .filter(column -> TypeUtils.isWarmDataSupported(columnNameToColumnType.get(dispatcherProxiedConnectorTransformer.getWarpRegularColumn(column))))
-                    .forEach(column -> {
-                        RegularColumn warpColumn = dispatcherProxiedConnectorTransformer.getWarpRegularColumn(column);
-                        Set<WarmupProperties> properties = result.computeIfAbsent(warpColumn, _ -> new HashSet<>());
-                        properties.add(defaultRules.get(WarmUpType.WARM_UP_TYPE_DATA));
-                    });
-        }
+            }
+            if (!properties.isEmpty()) {
+                result.put(warpColumn, properties);
+            }
+        });
         return result;
     }
 
@@ -649,12 +636,6 @@ public class WorkerWarmingService
     private void initDefaultRules()
     {
         defaultRules = ImmutableMap.<WarmUpType, WarmupProperties>builder()
-                .put(WarmUpType.WARM_UP_TYPE_DATA,
-                        new WarmupProperties(
-                                WarmUpType.WARM_UP_TYPE_DATA,
-                                warmupDemoterConfig.getDefaultRulePriority(),
-                                warmupDemoterConfig.getDefaultRuleTtlInSeconds(),
-                                TransformFunction.NONE))
                 .put(WarmUpType.WARM_UP_TYPE_BASIC,
                         new WarmupProperties(
                                 WarmUpType.WARM_UP_TYPE_BASIC,
@@ -673,14 +654,8 @@ public class WorkerWarmingService
     private void initWarmUpTypeValidators()
     {
         warmupTypeValidators = Map.of(
-                WarmUpType.WARM_UP_TYPE_DATA, this::isWarmDataSupported,
                 WarmUpType.WARM_UP_TYPE_BASIC, TypeUtils::isWarmBasicSupported,
                 WarmUpType.WARM_UP_TYPE_LUCENE, TypeUtils::isWarmLuceneSupported);
-    }
-
-    public boolean isWarmDataSupported(Type type)
-    {
-        return !globalConfig.getEnableFSCacheMode() && TypeUtils.isWarmDataSupported(type);
     }
 
     WarmData updateWarmData(RowGroupData rowGroupData, WarmData warmData)

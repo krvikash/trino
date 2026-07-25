@@ -143,9 +143,7 @@ public class WarmupElementsCreator
                         recTypeCode = recordData.recTypeCode();
                     }
 
-                    if (warmUpType != WarmUpType.WARM_UP_TYPE_DATA) {
-                        recTypeLength = TypeUtils.getIndexTypeLength(recTypeCode, recTypeLength, storageEngineConstants.getFixedLengthStringLimit());
-                    }
+                    recTypeLength = TypeUtils.getIndexTypeLength(recTypeCode, recTypeLength, storageEngineConstants.getFixedLengthStringLimit());
                     if (recTypeLength < 0) {
                         shapingLogger.error(
                                 "recTypeLength is negative. recTypeLength=%d, warmUpType=%s, transformFunction=%s, recordData=%s, recTypeCode=%s, fixedLengthStringLimit=%d",
@@ -158,9 +156,7 @@ public class WarmupElementsCreator
                         continue;
                     }
 
-                    int warmUpContextSize = (warmUpType == WarmUpType.WARM_UP_TYPE_DATA) ?
-                            bufferAllocator.getWarmupDataTxSize(recTypeCode, recTypeLength) :
-                            bufferAllocator.getWarmupIndexTxSize();
+                    int warmUpContextSize = bufferAllocator.getWarmupIndexTxSize();
                     warmUpElements.add(WarmUpElement.builder()
                             .creationTime(System.currentTimeMillis())
                             .warmUpType(warmUpType)

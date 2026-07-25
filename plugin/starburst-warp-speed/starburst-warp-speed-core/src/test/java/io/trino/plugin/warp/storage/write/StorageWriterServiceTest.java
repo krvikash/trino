@@ -16,7 +16,6 @@ package io.trino.plugin.warp.storage.write;
 import io.trino.plugin.warp.TestingTxService;
 import io.trino.plugin.warp.WarmColumnDataTestUtil;
 import io.trino.plugin.warp.config.DictionaryConfig;
-import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.config.NativeConfig;
 import io.trino.plugin.warp.config.SharedConfig;
 import io.trino.plugin.warp.dictionary.DictionaryCacheService;
@@ -37,17 +36,11 @@ import io.trino.plugin.warp.storage.lucene.LuceneIndexer;
 import io.trino.plugin.warp.storage.memory.WorkerMemoryManager;
 import io.trino.plugin.warp.storage.write.appenders.BlockAppenderFactory;
 import io.trino.spi.Page;
-import io.trino.spi.block.ArrayBlockBuilder;
 import io.trino.spi.block.Block;
-import io.trino.spi.block.BlockBuilder;
-import io.trino.spi.block.IntArrayBlockBuilder;
 import io.trino.spi.block.LongArrayBlockBuilder;
 import io.trino.spi.block.VariableWidthBlockBuilder;
 import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.connector.SourcePage;
-import io.trino.spi.type.ArrayType;
-import io.trino.spi.type.IntegerType;
-import io.trino.spi.type.RealType;
 import io.trino.spi.type.VarcharType;
 import org.apache.commons.io.FileUtils;
 import org.apache.lucene.store.AlreadyClosedException;
@@ -60,14 +53,10 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.Buffer;
 import java.nio.ByteBuffer;
-import java.nio.IntBuffer;
-import java.nio.LongBuffer;
 import java.util.stream.IntStream;
 
 import static io.trino.plugin.warp.dispatcher.WarmupTestDataUtil.mockBufferAllocator;
 import static io.trino.plugin.warp.dispatcher.warmup.warmers.StorageWarmerService.INVALID_FILE_COOKIE_FD;
-import static io.trino.spi.type.BigintType.BIGINT;
-import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.spi.type.VarcharType.createUnboundedVarcharType;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -85,13 +74,6 @@ public class StorageWriterServiceTest
     private DictionaryCacheService dictionaryCacheService;
     private StorageWriterService storageWriterService;
     private BufferAllocator bufferAllocator;
-
-    public static Page buildIntPage(int... values)
-    {
-        IntArrayBlockBuilder block = new IntArrayBlockBuilder(null, values.length);
-        IntStream.range(0, values.length).forEach(i -> block.writeInt(values[i]));
-        return new Page(block.build());
-    }
 
     public static Page buildLongPage(long... values)
     {
@@ -128,7 +110,6 @@ public class StorageWriterServiceTest
 
     private void initiate(StorageEngine storageEngineToSpy, StubsStorageEngineConstants storageEngineConstants)
     {
-        GlobalConfig globalConfig = new GlobalConfig();
         StorageEngine storageEngine = spy(storageEngineToSpy);
         MetricsManager metricsManager = TestingTxService.createMetricsManager();
 
@@ -143,7 +124,7 @@ public class StorageWriterServiceTest
         this.bufferAllocator = mockBufferAllocator(storageEngine, storageEngineConstants, nativeConfig, metricsManager);
         dictionaryCacheService = mock(DictionaryCacheService.class);
         BlockTransformerFactory blockTransformerFactory = new BlockTransformerFactory();
-        BlockAppenderFactory blockAppenderFactory = new BlockAppenderFactory(storageEngineConstants, bufferAllocator, globalConfig, blockTransformerFactory);
+        BlockAppenderFactory blockAppenderFactory = new BlockAppenderFactory(storageEngineConstants, bufferAllocator, blockTransformerFactory);
 
         CatalogName catalogName = new CatalogName("f");
         WarmupElementStatsService warmupElementStatsService = new WarmupElementStatsService(new ShapingLoggerFactory(catalogName, new SharedConfig()));
@@ -160,217 +141,6 @@ public class StorageWriterServiceTest
                 workerMemoryManager,
                 nativeConfig,
                 new ShapingLoggerFactory(catalogName, new SharedConfig()));
-    }
-
-    @Test
-    public void writeInt()
-    {
-        when(dictionaryCacheService.calculateDictionaryStateForWrite(any(), any(), any())).thenReturn(DictionaryState.DICTIONARY_NOT_EXIST);
-        WarmupElementWriteMetadata warmupElementWriteMetadata = WarmColumnDataTestUtil.createWarmUpElementWithDictionary(WarmColumnDataTestUtil.generateRecordData("col1", IntegerType.INTEGER), WarmUpType.WARM_UP_TYPE_DATA);
-        int[] values = {1, 2, 3};
-        Page page = buildIntPage(values);
-        WriteOpenResult writeOpenResult = runTest(page, warmupElementWriteMetadata);
-        WriteJuffersWarmUpElement dataRecordJuffer = writeOpenResult.storageWriterContext().getWriteJuffersWarmUpElement();
-        IntBuffer actualRecBuffer = (IntBuffer) dataRecordJuffer.getRecordBuffer();
-
-        assertPositionResults(dataRecordJuffer, values.length, SHOULD_BE_NULL);
-        assertThat(actualRecBuffer.position()).isEqualTo(values.length);
-        actualRecBuffer.position(0);
-        int[] writtenValues = new int[values.length];
-        actualRecBuffer.get(writtenValues, 0, values.length);
-        assertThat(values).isEqualTo(writtenValues);
-        assertThat(writeOpenResult.dictionaryInfo().dictionaryState()).isEqualTo(DictionaryState.DICTIONARY_NOT_EXIST);
-    }
-
-    @Test
-    public void writeReal()
-    {
-        when(dictionaryCacheService.calculateDictionaryStateForWrite(any(), any(), any())).thenReturn(DictionaryState.DICTIONARY_NOT_EXIST);
-        WarmupElementWriteMetadata warmupElementWriteMetadata = WarmColumnDataTestUtil.createWarmUpElementWithDictionary(WarmColumnDataTestUtil.generateRecordData("col1", RealType.REAL), WarmUpType.WARM_UP_TYPE_DATA);
-        int[] values = {1, 2, 3};
-        Page page = buildIntPage(values);
-        WriteOpenResult writeOpenResult = runTest(page, warmupElementWriteMetadata);
-        WriteJuffersWarmUpElement dataRecordJuffer = writeOpenResult.storageWriterContext().getWriteJuffersWarmUpElement();
-
-        assertPositionResults(dataRecordJuffer, values.length, SHOULD_BE_NULL);
-
-        IntBuffer actualRecBuffer = (IntBuffer) dataRecordJuffer.getRecordBuffer();
-        assertThat(actualRecBuffer.position()).isEqualTo(values.length);
-        actualRecBuffer.position(0);
-        int[] writtenValues = new int[values.length];
-        actualRecBuffer.get(writtenValues, 0, values.length);
-        assertThat(values).isEqualTo(writtenValues);
-    }
-
-    @Test
-    public void writeLong()
-    {
-        when(dictionaryCacheService.calculateDictionaryStateForWrite(any(), any(), any())).thenReturn(DictionaryState.DICTIONARY_NOT_EXIST);
-        WarmupElementWriteMetadata warmupElementWriteMetadata = WarmColumnDataTestUtil.createWarmUpElementWithDictionary(WarmColumnDataTestUtil.generateRecordData("col1", BIGINT), WarmUpType.WARM_UP_TYPE_DATA);
-
-        long[] values = {1, 2, 3};
-        Page page = buildLongPage(values);
-        WriteOpenResult writeOpenResult = runTest(page, warmupElementWriteMetadata);
-        WriteJuffersWarmUpElement dataRecordJuffer = writeOpenResult.storageWriterContext().getWriteJuffersWarmUpElement();
-
-        assertPositionResults(dataRecordJuffer, values.length, SHOULD_BE_NULL);
-
-        LongBuffer actualRecBuffer = (LongBuffer) dataRecordJuffer.getRecordBuffer();
-        assertThat(actualRecBuffer.position()).isEqualTo(values.length);
-        actualRecBuffer.position(0);
-        long[] writtenValues = new long[values.length];
-        actualRecBuffer.get(writtenValues, 0, values.length);
-        assertThat(values).isEqualTo(writtenValues);
-    }
-
-    @Test
-    public void writeArrayTypeArrayOfInteger()
-    {
-        when(dictionaryCacheService.calculateDictionaryStateForWrite(any(), any(), any())).thenReturn(DictionaryState.DICTIONARY_NOT_EXIST);
-        ArrayType arrayIntType = new ArrayType(IntegerType.INTEGER);
-        WarmupElementWriteMetadata warmupElementWriteMetadata = WarmColumnDataTestUtil.createWarmUpElementWithDictionary(WarmColumnDataTestUtil.generateRecordData("col1", arrayIntType), WarmUpType.WARM_UP_TYPE_DATA);
-        int[] values = {1, 2, 3};
-        Page page = buildArrayType_IntPage(values);
-        WriteOpenResult writeOpenResult = runTest(page, warmupElementWriteMetadata);
-        WriteJuffersWarmUpElement dataRecordJuffer = writeOpenResult.storageWriterContext().getWriteJuffersWarmUpElement();
-
-        assertPositionResults(dataRecordJuffer, 1, 1);
-    }
-
-    @Test
-    public void writeArrayTypeArrayOfBigInt()
-    {
-        when(dictionaryCacheService.calculateDictionaryStateForWrite(any(), any(), any())).thenReturn(DictionaryState.DICTIONARY_NOT_EXIST);
-        ArrayType arrayBigIntType = new ArrayType(BIGINT);
-        WarmupElementWriteMetadata warmupElementWriteMetadata = WarmColumnDataTestUtil.createWarmUpElementWithDictionary(WarmColumnDataTestUtil.generateRecordData("col1", arrayBigIntType), WarmUpType.WARM_UP_TYPE_DATA);
-
-        long[][] values = new long[][] {
-                new long[] {Long.MAX_VALUE, 7, Long.MIN_VALUE},
-                new long[] {1, 2, 3},
-        };
-
-        Page page = buildArrayType_BigIntPage(values);
-        WriteOpenResult writeOpenResult = runTest(page, warmupElementWriteMetadata);
-        WriteJuffersWarmUpElement dataRecordJuffer = writeOpenResult.storageWriterContext().getWriteJuffersWarmUpElement();
-        assertPositionResults(dataRecordJuffer, 2, 1);
-    }
-
-    @Test
-    public void writeVarcharArray_EmptyArray()
-    {
-        when(dictionaryCacheService.calculateDictionaryStateForWrite(any(), any(), any())).thenReturn(DictionaryState.DICTIONARY_NOT_EXIST);
-        ArrayType varcharArrayType = new ArrayType(VARCHAR);
-        WarmupElementWriteMetadata warmupElementWriteMetadata = WarmColumnDataTestUtil.createWarmUpElementWithDictionary(WarmColumnDataTestUtil.generateRecordData(
-                        "col1",
-                        varcharArrayType),
-                WarmUpType.WARM_UP_TYPE_DATA);
-        String[][] values = new String[][] {
-        };
-
-        Page page = buildArrayType_VarcharPage(values);
-        WriteOpenResult writeOpenResult = runTest(page, warmupElementWriteMetadata);
-        WriteJuffersWarmUpElement dataRecordJuffer = writeOpenResult.storageWriterContext().getWriteJuffersWarmUpElement();
-        assertPositionResults(dataRecordJuffer, values.length, 0);
-    }
-
-    @Test
-    public void writeVarcharArray()
-    {
-        when(dictionaryCacheService.calculateDictionaryStateForWrite(any(), any(), any())).thenReturn(DictionaryState.DICTIONARY_NOT_EXIST);
-        ArrayType varcharArrayType = new ArrayType(VARCHAR);
-        WarmupElementWriteMetadata warmupElementWriteMetadata = WarmColumnDataTestUtil.createWarmUpElementWithDictionary(WarmColumnDataTestUtil.generateRecordData("col1", varcharArrayType), WarmUpType.WARM_UP_TYPE_DATA);
-
-        String[][] values = new String[][] {
-                new String[] {"1", "22", "33"},
-                new String[] {"333", "4444"},
-                new String[] {"5"},
-        };
-
-        Page page = buildArrayType_VarcharPage(values);
-        WriteOpenResult writeOpenResult = runTest(page, warmupElementWriteMetadata);
-        WriteJuffersWarmUpElement dataRecordJuffer = writeOpenResult.storageWriterContext().getWriteJuffersWarmUpElement();
-        assertPositionResults(dataRecordJuffer, values.length, 1);
-
-        ByteBuffer recordBuffer = (ByteBuffer) dataRecordJuffer.getRecordBuffer();
-        assertThat(recordBuffer.getInt(1)).isEqualTo(values[0].length);
-    }
-
-    @Test
-    public void writeVarcharArrayTest_TestNullBuffer()
-    {
-        when(dictionaryCacheService.calculateDictionaryStateForWrite(any(), any(), any())).thenReturn(DictionaryState.DICTIONARY_NOT_EXIST);
-        ArrayType varcharArrayType = new ArrayType(VARCHAR);
-        WarmupElementWriteMetadata warmupElementWriteMetadata = WarmColumnDataTestUtil.createWarmUpElementWithDictionary(WarmColumnDataTestUtil.generateRecordData("col1", varcharArrayType), WarmUpType.WARM_UP_TYPE_DATA);
-
-        String[][] values = new String[][] {
-                new String[] {null},
-        };
-
-        Page page = buildArrayType_VarcharPage(values);
-        WriteOpenResult writeOpenResult = runTest(page, warmupElementWriteMetadata);
-        WriteJuffersWarmUpElement dataRecordJuffer = writeOpenResult.storageWriterContext().getWriteJuffersWarmUpElement();
-        assertPositionResults(dataRecordJuffer, 1, 1);
-        ByteBuffer recordBuffer = (ByteBuffer) dataRecordJuffer.getRecordBuffer();
-        assertThat(recordBuffer.getInt(1)).isEqualTo(values[0].length);
-    }
-
-    @Test
-    public void writeVarcharArrayTest_TestNullAtEndOfRow()
-    {
-        when(dictionaryCacheService.calculateDictionaryStateForWrite(any(), any(), any())).thenReturn(DictionaryState.DICTIONARY_NOT_EXIST);
-        ArrayType varcharArrayType = new ArrayType(VarcharType.VARCHAR);
-        WarmupElementWriteMetadata warmupElementWriteMetadata = WarmColumnDataTestUtil.createWarmUpElementWithDictionary(WarmColumnDataTestUtil.generateRecordData("col1", varcharArrayType), WarmUpType.WARM_UP_TYPE_DATA);
-
-        String[][] values = new String[][] {
-                new String[] {"a", null},
-        };
-
-        Page page = buildArrayType_VarcharPage(values);
-        WriteOpenResult writeOpenResult = runTest(page, warmupElementWriteMetadata);
-        WriteJuffersWarmUpElement dataRecordJuffer = writeOpenResult.storageWriterContext().getWriteJuffersWarmUpElement();
-        assertPositionResults(dataRecordJuffer, 1, 1);
-        ByteBuffer recordBuffer = (ByteBuffer) dataRecordJuffer.getRecordBuffer();
-        assertThat(recordBuffer.getInt(1)).isEqualTo(values[0].length);
-    }
-
-    @Test
-    public void writeVarchar_varcharIsSmallerThanVarcharAsCharLimit()
-    {
-        when(dictionaryCacheService.calculateDictionaryStateForWrite(any(), any(), any())).thenReturn(DictionaryState.DICTIONARY_NOT_EXIST);
-        final int typeLength = 5;
-        WarmupElementWriteMetadata warmupElementWriteMetadata = WarmColumnDataTestUtil.createWarmUpElementWithDictionary(WarmColumnDataTestUtil.generateRecordData(
-                        "col1",
-                        VarcharType.createVarcharType(typeLength)),
-                WarmUpType.WARM_UP_TYPE_DATA);
-
-        String[] values = {"a", "A"};
-        Page page = buildVarcharPage(values);
-        WriteOpenResult writeOpenResult = runTest(page, warmupElementWriteMetadata);
-        WriteJuffersWarmUpElement dataRecordJuffer = writeOpenResult.storageWriterContext().getWriteJuffersWarmUpElement();
-
-        ByteBuffer actualRecBuffer = (ByteBuffer) dataRecordJuffer.getRecordBuffer();
-
-        assertPositionResults(dataRecordJuffer, values.length, SHOULD_BE_NULL);
-        assertThat(actualRecBuffer.position()).isEqualTo(typeLength * values.length);
-    }
-
-    @Test
-    public void writeVarchar()
-    {
-        when(dictionaryCacheService.calculateDictionaryStateForWrite(any(), any(), any())).thenReturn(DictionaryState.DICTIONARY_NOT_EXIST);
-        WarmupElementWriteMetadata warmupElementWriteMetadata = WarmColumnDataTestUtil.createWarmUpElementWithDictionary(WarmColumnDataTestUtil.generateRecordData(
-                        "col1",
-                        VarcharType.createVarcharType(9)),
-                WarmUpType.WARM_UP_TYPE_DATA);
-        String[] values = {"a", "A"};
-        Page page = buildVarcharPage(values);
-        WriteOpenResult writeOpenResult = runTest(page, warmupElementWriteMetadata);
-        WriteJuffersWarmUpElement dataRecordJuffer = writeOpenResult.storageWriterContext().getWriteJuffersWarmUpElement();
-
-        ByteBuffer actualRecBuffer = (ByteBuffer) dataRecordJuffer.getRecordBuffer();
-
-        assertPositionResults(dataRecordJuffer, values.length, 1);
-        assertThat(actualRecBuffer.position()).isEqualTo(2 * values.length);
     }
 
     @Test
@@ -465,27 +235,6 @@ public class StorageWriterServiceTest
                 true);
     }
 
-    private Page buildArrayType_VarcharPage(String[][] values)
-    {
-        ArrayBlockBuilder blockBuilder = new ArrayBlockBuilder(VARCHAR, null, 100);
-        for (String[] stringArray : values) {
-            BlockBuilder elementBlockBuilder = VARCHAR.createBlockBuilder(null, stringArray.length);
-            for (String v : stringArray) {
-                if (v == null) {
-                    elementBlockBuilder.appendNull();
-                }
-                else {
-                    VARCHAR.writeString(elementBlockBuilder, v);
-                }
-            }
-            ArrayType arrayType = new ArrayType(VARCHAR);
-            arrayType.writeObject(blockBuilder, elementBlockBuilder.build());
-        }
-        Block block = blockBuilder.build();
-
-        return new Page(block);
-    }
-
     public void assertPositionResults(WriteJuffersWarmUpElement dataRecordJuffer, int expectedNullPosition, int expectedMdPosition)
     {
         assertBuffer(dataRecordJuffer.getNullJuffer(), expectedNullPosition);
@@ -501,43 +250,5 @@ public class StorageWriterServiceTest
             Buffer buffer = juffer.getWrappedBuffer();
             assertThat(buffer.position()).isEqualTo(expectedPosition);
         }
-    }
-
-    private Page buildArrayType_BigIntPage(long[][] values)
-    {
-        BlockBuilder blockBuilder = new ArrayBlockBuilder(BIGINT, null, values.length, values.length);
-        writeBigIntValues(blockBuilder, values);
-        Block block = blockBuilder.build();
-        return new Page(block);
-    }
-
-    private void writeBigIntValues(BlockBuilder blockBuilder, long[][] values)
-    {
-        for (long[] longArray : values) {
-            BlockBuilder elementBlockBuilder = BIGINT.createBlockBuilder(null, longArray.length);
-            for (long v : longArray) {
-                BIGINT.writeLong(elementBlockBuilder, v);
-            }
-            ArrayType arrayType = new ArrayType(BIGINT);
-            arrayType.writeObject(blockBuilder, elementBlockBuilder.build());
-        }
-    }
-
-    private Page buildArrayType_IntPage(int... values)
-    {
-        BlockBuilder blockBuilder = new ArrayBlockBuilder(IntegerType.INTEGER, null, values.length, values.length);
-        writeIntValues(blockBuilder, values);
-        Block block = blockBuilder.build();
-        return new Page(block);
-    }
-
-    private void writeIntValues(BlockBuilder blockBuilder, int... values)
-    {
-        BlockBuilder elementBlockBuilder = IntegerType.INTEGER.createBlockBuilder(null, values.length);
-        for (int v : values) {
-            IntegerType.INTEGER.writeLong(elementBlockBuilder, v);
-        }
-        ArrayType arrayType = new ArrayType(IntegerType.INTEGER);
-        arrayType.writeObject(blockBuilder, elementBlockBuilder.build());
     }
 }

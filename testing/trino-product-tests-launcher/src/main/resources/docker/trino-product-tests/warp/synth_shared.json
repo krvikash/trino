@@ -33,7 +33,6 @@
         "colNameId": "single_short",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -41,7 +40,6 @@
         "colNameId": "single_int",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -49,7 +47,6 @@
         "colNameId": "single_long",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -57,7 +54,6 @@
         "colNameId": "single_long_dec",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       }
@@ -68,7 +64,10 @@
         "query": "select count(single_short), count(single_int), count(single_long), count(single_long_dec) from single_chunks_table where (single_short=-28525 or single_short=-19117) and (single_int=-1147252207 or single_int=-1893809485) and (single_long=-8169362783863696309 or single_long=-9142099609788909568) and (single_long_dec=4283625318878608300000000000.1234567891 or single_long=3757825518217793400000000000.1234567891)",
         "query_id": "single_chunks_table_11",
         "expected_result": [
-          65536, 65536, 65536, 65536
+          65536,
+          65536,
+          65536,
+          65536
         ],
         "expected_counters": {
           "warp_match_columns": 12,

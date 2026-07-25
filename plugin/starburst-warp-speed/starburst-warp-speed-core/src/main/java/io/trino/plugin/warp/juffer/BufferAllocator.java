@@ -89,8 +89,6 @@ public class BufferAllocator
     private int[] collectVarlenRecordBufferSizes;
     private int[] fixedCollectTxSizes;
     private int[] varlenCollectTxSizes;
-    private int[] fixedWarmupDataTxSizes;
-    private int[] varlenWarmupDataTxSizes;
     private int warmupIndexTxSize;
 
     @Inject
@@ -195,14 +193,6 @@ public class BufferAllocator
             varlenCollectTxSizes[len] = storageEngine.getVarlenCollectTxSize(len);
         }
 
-        this.fixedWarmupDataTxSizes = new int[maxRecLenForDataFixed + 1]; // largest case is long decimal
-        for (int len = 1; len <= maxRecLenForDataFixed; len++) {
-            fixedWarmupDataTxSizes[len] = storageEngine.getFixedWarmupDataTxSize(len);
-        }
-        this.varlenWarmupDataTxSizes = new int[maxRecLenForDataVarlen + 1];
-        for (int len = 1; len <= maxRecLenForDataVarlen; len++) {
-            varlenWarmupDataTxSizes[len] = storageEngine.getVarlenWarmupDataTxSize(len);
-        }
         warmupIndexTxSize = Math.max((int) storageEngine.getWarmupBasicTxSize(), (int) storageEngine.getWarmupLuceneTxSize());
 
         int warmBufferSize = buffTypeSizes[JbufType.JBUF_TYPE_NULL.ordinal()] +
@@ -436,7 +426,7 @@ public class BufferAllocator
         RecTypeCode recTypeCode = warmUpElement.getRecTypeCode();
         int recTypeLength = warmUpElement.getRecTypeLength();
 
-        boolean isRecBufferNeeded = isRecordBufferNeeded(warmUpElement.getWarmUpType(), recTypeCode);
+        boolean isRecBufferNeeded = isRecordBufferNeeded(recTypeCode);
         return new WarmUpElementAllocationParams(
                 recTypeCode,
                 recTypeLength,
@@ -502,14 +492,6 @@ public class BufferAllocator
         return fixedCollectTxSizes[Math.min(recTypeLength, maxRecLenForDataFixed)];
     }
 
-    public int getWarmupDataTxSize(RecTypeCode recTypeCode, int recTypeLength)
-    {
-        if (TypeUtils.isVarlenStr(recTypeCode)) {
-            return varlenWarmupDataTxSizes[Math.min(recTypeLength, maxRecLenForDataVarlen)];
-        }
-        return fixedWarmupDataTxSizes[Math.min(recTypeLength, maxRecLenForDataFixed)];
-    }
-
     public int getWarmupIndexTxSize()
     {
         return warmupIndexTxSize;
@@ -552,9 +534,9 @@ public class BufferAllocator
         return WarmUpType.WARM_UP_TYPE_LUCENE.equals(columnWarmUpType);
     }
 
-    private boolean isRecordBufferNeeded(WarmUpType columnWarmUpType, RecTypeCode recTypeCode)
+    private boolean isRecordBufferNeeded(RecTypeCode recTypeCode)
     {
-        return WarmUpType.WARM_UP_TYPE_DATA.equals(columnWarmUpType) || (recTypeCode == RecTypeCode.REC_TYPE_BOOLEAN);
+        return recTypeCode == RecTypeCode.REC_TYPE_BOOLEAN;
     }
 
     private boolean isCrcBufferNeeded(WarmUpType columnWarmUpType, RecTypeCode recTypeCode)

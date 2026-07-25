@@ -20,7 +20,6 @@
         "colNameId": "varchar_1",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_LUCENE"
         ]
       },
@@ -28,7 +27,6 @@
         "colNameId": "char_2",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_LUCENE"
         ]
       }
@@ -43,9 +41,9 @@
         ],
         "expected_counters": {
           "warp_match_columns": 1,
-          "warp_collect_columns": 1,
+          "warp_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 1
         }
       },
       {
@@ -74,9 +72,9 @@
         ],
         "expected_counters": {
           "warp_match_columns": 1,
-          "warp_collect_columns": 1,
+          "warp_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 1
         }
       },
       {
@@ -87,9 +85,9 @@
         ],
         "expected_counters": {
           "warp_match_columns": 1,
-          "warp_collect_columns": 1,
+          "warp_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 1
         }
       },
       {
@@ -100,9 +98,9 @@
         ],
         "expected_counters": {
           "warp_match_columns": 0,
-          "warp_collect_columns": 1,
+          "warp_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 1
         }
       },
       {
@@ -113,9 +111,9 @@
         ],
         "expected_counters": {
           "warp_match_columns": 0,
-          "warp_collect_columns": 1,
+          "warp_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 1
         }
       },
       {
@@ -126,9 +124,9 @@
         ],
         "expected_counters": {
           "warp_match_columns": 0,
-          "warp_collect_columns": 1,
+          "warp_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 1
         }
       },
       {
@@ -325,17 +323,9 @@
     ],
     "warmup_rules": [
       {
-        "colNameId": "d_date",
-        "predicates": [],
-        "warmUpTypes": [
-          "WARM_UP_TYPE_DATA"
-        ]
-      },
-      {
         "colNameId": "c_description100",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_LUCENE"
         ]
       },
@@ -343,7 +333,6 @@
         "colNameId": "c_description60",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_LUCENE"
         ]
       }
@@ -357,10 +346,10 @@
         ],
         "expected_counters": {
           "warp_match_columns": 2,
-          "warp_collect_columns": 3,
+          "warp_collect_columns": 0,
           "warp_prefilled_collect_columns": 1,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 3
         }
       },
       {
@@ -371,10 +360,10 @@
         ],
         "expected_counters": {
           "warp_match_columns": 2,
-          "warp_collect_columns": 3,
+          "warp_collect_columns": 0,
           "warp_prefilled_collect_columns": 1,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 3
         }
       },
       {
@@ -385,10 +374,10 @@
         ],
         "expected_counters": {
           "warp_match_columns": 2,
-          "warp_collect_columns": 3,
+          "warp_collect_columns": 0,
           "warp_prefilled_collect_columns": 1,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 3
         }
       },
       {
@@ -399,10 +388,10 @@
         ],
         "expected_counters": {
           "warp_match_columns": 2,
-          "warp_collect_columns": 3,
+          "warp_collect_columns": 0,
           "warp_prefilled_collect_columns": 1,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 3
         }
       },
       {
@@ -413,10 +402,10 @@
         ],
         "expected_counters": {
           "warp_match_columns": 2,
-          "warp_collect_columns": 3,
+          "warp_collect_columns": 0,
           "warp_prefilled_collect_columns": 1,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 3
         }
       },
       {
@@ -427,10 +416,10 @@
         ],
         "expected_counters": {
           "warp_match_columns": 4,
-          "warp_collect_columns": 3,
+          "warp_collect_columns": 0,
           "warp_prefilled_collect_columns": 1,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 3
         }
       },
       {
@@ -441,10 +430,10 @@
         ],
         "expected_counters": {
           "warp_match_columns": 2,
-          "warp_collect_columns": 1,
+          "warp_collect_columns": 0,
           "warp_prefilled_collect_columns": 1,
           "external_match_columns": 0,
-          "external_collect_columns": 0,
+          "external_collect_columns": 1,
           "non_trivial_alternative_chosen": 2
         }
       }
@@ -787,7 +776,6 @@
         "colNameId": "city",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_LUCENE"
         ]
       },
@@ -795,7 +783,6 @@
         "colNameId": "connect_js_ts",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -803,7 +790,6 @@
         "colNameId": "region",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -811,7 +797,6 @@
         "colNameId": "caching",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_LUCENE"
         ]
       },
@@ -819,7 +804,6 @@
         "colNameId": "url",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_LUCENE"
         ]
       },
@@ -827,7 +811,6 @@
         "colNameId": "page_url",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_LUCENE"
         ]
       },
@@ -835,7 +818,6 @@
         "colNameId": "browser_family",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_LUCENE"
         ]
       },
@@ -843,7 +825,6 @@
         "colNameId": "country_code",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_LUCENE"
         ]
       }
@@ -857,9 +838,9 @@
         ],
         "expected_counters": {
           "warp_match_columns": 1,
-          "warp_collect_columns": 1,
+          "warp_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 1
         }
       },
       {
@@ -870,9 +851,9 @@
         ],
         "expected_counters": {
           "warp_match_columns": 1,
-          "warp_collect_columns": 1,
+          "warp_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 1
         }
       },
       {
@@ -887,9 +868,9 @@
         ],
         "expected_counters": {
           "warp_match_columns": 1,
-          "warp_collect_columns": 1,
+          "warp_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 1
         }
       },
       {
@@ -900,9 +881,9 @@
         ],
         "expected_counters": {
           "warp_match_columns": 1,
-          "warp_collect_columns": 1,
+          "warp_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 1
         }
       },
       {
@@ -913,9 +894,9 @@
         ],
         "expected_counters": {
           "warp_match_columns": 1,
-          "warp_collect_columns": 1,
+          "warp_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 1
         }
       },
       {
@@ -926,9 +907,9 @@
         ],
         "expected_counters": {
           "warp_match_columns": 1,
-          "warp_collect_columns": 1,
+          "warp_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 1
         }
       },
       {
@@ -939,9 +920,9 @@
         ],
         "expected_counters": {
           "warp_match_columns": 1,
-          "warp_collect_columns": 1,
+          "warp_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 1
         }
       },
       {
@@ -952,9 +933,9 @@
         ],
         "expected_counters": {
           "warp_match_columns": 1,
-          "warp_collect_columns": 1,
+          "warp_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 1
         }
       },
       {
@@ -965,10 +946,10 @@
         ],
         "expected_counters": {
           "warp_match_columns": 2,
-          "warp_collect_columns": 1,
+          "warp_collect_columns": 0,
           "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 1
         }
       },
       {
@@ -979,9 +960,9 @@
         ],
         "expected_counters": {
           "warp_match_columns": 2,
-          "warp_collect_columns": 2,
+          "warp_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 2
         }
       },
       {
@@ -992,9 +973,9 @@
         ],
         "expected_counters": {
           "warp_match_columns": 1,
-          "warp_collect_columns": 1,
+          "warp_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 1
         }
       },
       {
@@ -1005,9 +986,9 @@
         ],
         "expected_counters": {
           "warp_match_columns": 1,
-          "warp_collect_columns": 1,
+          "warp_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 1
         }
       },
       {
@@ -1018,9 +999,9 @@
         ],
         "expected_counters": {
           "warp_match_columns": 1,
-          "warp_collect_columns": 1,
+          "warp_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 1
         }
       },
       {
@@ -1031,9 +1012,9 @@
         ],
         "expected_counters": {
           "warp_match_columns": 2,
-          "warp_collect_columns": 8,
+          "warp_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 73
+          "external_collect_columns": 81
         }
       },
       {
@@ -1044,9 +1025,9 @@
         ],
         "expected_counters": {
           "warp_match_columns": 1,
-          "warp_collect_columns": 1,
+          "warp_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 1
         }
       },
       {
@@ -1057,9 +1038,9 @@
         ],
         "expected_counters": {
           "warp_match_columns": 1,
-          "warp_collect_columns": 1,
+          "warp_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 1
         }
       },
       {
@@ -1070,9 +1051,9 @@
         ],
         "expected_counters": {
           "warp_match_columns": 1,
-          "warp_collect_columns": 1,
+          "warp_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 1
         }
       },
       {
@@ -1083,10 +1064,10 @@
         ],
         "expected_counters": {
           "warp_match_columns": 2,
-          "warp_collect_columns": 1,
+          "warp_collect_columns": 0,
           "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 1
         }
       },
       {
@@ -1125,9 +1106,9 @@
         ],
         "expected_counters": {
           "warp_match_columns": 1,
-          "warp_collect_columns": 1,
+          "warp_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 1
         }
       },
       {
@@ -1138,9 +1119,9 @@
         ],
         "expected_counters": {
           "warp_match_columns": 3,
-          "warp_collect_columns": 3,
+          "warp_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 3
         }
       },
       {
@@ -1151,9 +1132,9 @@
         ],
         "expected_counters": {
           "warp_match_columns": 3,
-          "warp_collect_columns": 3,
+          "warp_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 3
         }
       },
       {
@@ -1164,9 +1145,9 @@
         ],
         "expected_counters": {
           "warp_match_columns": 0,
-          "warp_collect_columns": 2,
+          "warp_collect_columns": 0,
           "external_match_columns": 2,
-          "external_collect_columns": 0
+          "external_collect_columns": 2
         }
       },
       {
@@ -1177,9 +1158,9 @@
         ],
         "expected_counters": {
           "warp_match_columns": 1,
-          "warp_collect_columns": 2,
+          "warp_collect_columns": 0,
           "external_match_columns": 1,
-          "external_collect_columns": 0
+          "external_collect_columns": 2
         }
       },
       {
@@ -1234,9 +1215,9 @@
         ],
         "expected_counters": {
           "warp_match_columns": 1,
-          "warp_collect_columns": 1,
+          "warp_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 1
         }
       }
     ]
@@ -1257,7 +1238,6 @@
         "colNameId": "varspecial",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_LUCENE"
         ]
       }
@@ -1272,7 +1252,7 @@
         "expected_counters": {
           "warp_match_columns": 0,
           "warp_collect_columns": 0,
-          "empty_collect_columns" : 1,
+          "empty_collect_columns": 1,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -1285,9 +1265,9 @@
         ],
         "expected_counters": {
           "warp_match_columns": 1,
-          "warp_collect_columns": 1,
+          "warp_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 1
         }
       },
       {
@@ -1298,9 +1278,9 @@
         ],
         "expected_counters": {
           "warp_match_columns": 1,
-          "warp_collect_columns": 1,
+          "warp_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 1
         }
       },
       {
@@ -1311,9 +1291,9 @@
         ],
         "expected_counters": {
           "warp_match_columns": 1,
-          "warp_collect_columns": 1,
+          "warp_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 1
         }
       },
       {
@@ -1324,9 +1304,9 @@
         ],
         "expected_counters": {
           "warp_match_columns": 1,
-          "warp_collect_columns": 1,
+          "warp_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 1
         }
       },
       {
@@ -1337,9 +1317,9 @@
         ],
         "expected_counters": {
           "warp_match_columns": 1,
-          "warp_collect_columns": 1,
+          "warp_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 1
         }
       }
     ]
@@ -1357,7 +1337,6 @@
         "colNameId": "some_varchar",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_LUCENE"
         ]
       }
@@ -1375,7 +1354,7 @@
         "expected_counters": {
           "warp_match_columns": 0,
           "warp_collect_columns": 0,
-          "empty_collect_columns" : 4,
+          "empty_collect_columns": 4,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -1394,9 +1373,9 @@
         ],
         "expected_counters": {
           "warp_match_columns": 2,
-          "warp_collect_columns": 4,
+          "warp_collect_columns": 0,
           "external_match_columns": 2,
-          "external_collect_columns": 0
+          "external_collect_columns": 4
         }
       },
       {
@@ -1413,10 +1392,10 @@
         ],
         "expected_counters": {
           "warp_match_columns": 2,
-          "warp_collect_columns": 2,
+          "warp_collect_columns": 0,
           "warp_prefilled_collect_columns": 0,
           "external_match_columns": 2,
-          "external_collect_columns": 0
+          "external_collect_columns": 2
         }
       }
     ],
@@ -1439,7 +1418,6 @@
         "colNameId": "some_varchar",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_LUCENE"
         ]
       },
@@ -1447,7 +1425,6 @@
         "colNameId": "some_int",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       }
@@ -1459,28 +1436,30 @@
         "query_id": "wide_lucene_with_int_01",
         "expected_result": [
           [
-            34, 34
+            34,
+            34
           ]
         ],
         "expected_counters": {
           "warp_match_columns": 0,
-          "warp_collect_columns": 2,
+          "warp_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 2
         }
-      },{
+      },
+      {
         "query": "select count(some_int) from wide_lucene_with_int",
         "query_id": "wide_lucene_with_int_02",
         "expected_result": [
           [
-             34
+            34
           ]
         ],
         "expected_counters": {
           "warp_match_columns": 0,
-          "warp_collect_columns": 1,
+          "warp_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 1
         }
       }
     ]
@@ -1488,7 +1467,7 @@
   {
     "name": "wide_lucene_100k",
     "skip": true,
-    "comment": "skipped for SIC-2528 should expect failure since we reduced maximal lucene file size by half and SIC-2529 should expect failure since we reduced maximal lucene file size by half", 
+    "comment": "WARM_UP_TYPE_DATA warmup is no longer supported",
     "description": "skipped in PT, test takes too much time",
     "skip_type": [
       "warp_iceberg",
@@ -1501,7 +1480,6 @@
       }
     ],
     "data_format": "ORC",
-    "comment": "Temporary removing WARM_UP_TYPE_DATA from the warmup",
     "warmup_rules": [
       {
         "colNameId": "a",
@@ -1523,7 +1501,7 @@
         "expected_counters": {
           "warp_match_columns": 0,
           "warp_collect_columns": 0,
-          "empty_collect_columns" : 29,
+          "empty_collect_columns": 29,
           "external_match_columns": 0,
           "external_collect_columns": 0
         }
@@ -1617,9 +1595,9 @@
         ],
         "expected_counters": {
           "warp_match_columns": 0,
-          "warp_collect_columns": 1,
+          "warp_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 1
         }
       },
       {
@@ -1632,9 +1610,9 @@
         ],
         "expected_counters": {
           "warp_match_columns": 2,
-          "warp_collect_columns": 2,
+          "warp_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 2
         }
       },
       {
@@ -1647,9 +1625,9 @@
         ],
         "expected_counters": {
           "warp_match_columns": 3,
-          "warp_collect_columns": 3,
+          "warp_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 3
         }
       },
       {
@@ -1662,9 +1640,9 @@
         ],
         "expected_counters": {
           "warp_match_columns": 3,
-          "warp_collect_columns": 3,
+          "warp_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 3
         }
       },
       {
@@ -1677,9 +1655,9 @@
         ],
         "expected_counters": {
           "warp_match_columns": 10,
-          "warp_collect_columns": 10,
+          "warp_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 10
         }
       },
       {
@@ -1708,9 +1686,9 @@
         ],
         "expected_counters": {
           "warp_match_columns": 1,
-          "warp_collect_columns": 1,
+          "warp_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 1
         }
       }
     ]
@@ -1772,9 +1750,9 @@
         ],
         "expected_counters": {
           "warp_match_columns": 0,
-          "warp_collect_columns": 1,
+          "warp_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 1
         }
       },
       {
@@ -1787,9 +1765,9 @@
         ],
         "expected_counters": {
           "warp_match_columns": 2,
-          "warp_collect_columns": 2,
+          "warp_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 2
         }
       },
       {
@@ -1802,9 +1780,9 @@
         ],
         "expected_counters": {
           "warp_match_columns": 3,
-          "warp_collect_columns": 3,
+          "warp_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 3
         }
       },
       {
@@ -1817,9 +1795,9 @@
         ],
         "expected_counters": {
           "warp_match_columns": 3,
-          "warp_collect_columns": 3,
+          "warp_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 3
         }
       },
       {
@@ -1832,9 +1810,9 @@
         ],
         "expected_counters": {
           "warp_match_columns": 10,
-          "warp_collect_columns": 10,
+          "warp_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 10
         }
       },
       {
@@ -1847,9 +1825,9 @@
         ],
         "expected_counters": {
           "warp_match_columns": 1,
-          "warp_collect_columns": 1,
+          "warp_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 1
         }
       },
       {
@@ -1877,9 +1855,9 @@
         ],
         "expected_counters": {
           "warp_match_columns": 0,
-          "warp_collect_columns": 1,
+          "warp_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 1
         }
       }
     ]

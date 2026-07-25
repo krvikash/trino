@@ -13,10 +13,25 @@
  */
 package io.trino.plugin.warp.storage.write.appenders;
 
+import io.trino.plugin.warp.storage.write.WarmupElementStats;
+import io.trino.spi.block.Block;
+import io.trino.spi.block.ShortArrayBlock;
+import io.trino.spi.type.SmallintType;
+import io.trino.spi.type.Type;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+
+import java.nio.ShortBuffer;
+import java.util.Optional;
+import java.util.stream.Stream;
+
+import static org.junit.jupiter.params.provider.Arguments.arguments;
+import static org.mockito.Mockito.when;
 
 class CrcSmallIntBlockAppenderTest
-        extends SmallIntBlockAppenderTest
+        extends BlockAppenderTest
 {
     @Override
     @BeforeEach
@@ -25,4 +40,30 @@ class CrcSmallIntBlockAppenderTest
         super.beforeEach();
         blockAppender = new CrcSmallIntBlockAppender(writeJuffersWarmUpElement);
     }
+
+    static Stream<Arguments> params()
+    {
+        Type blockType = SmallintType.SMALLINT;
+        return Stream.of(
+                arguments(new ShortArrayBlock(3, Optional.empty(), new short[] {1, 2, 3}),
+                        blockType,
+                        new WarmupElementStats(0, (short) 1, (short) 3)),
+                arguments(new ShortArrayBlock(4, Optional.of(new boolean[] {false, false, false, true}), new short[] {1, -50, 30, 333}),
+                        blockType,
+                        new WarmupElementStats(1, (short) -50, (short) 30)));
+    }
+
+    @Override
+    @ParameterizedTest
+    @MethodSource("params")
+    public void writeWithoutDictionary(Block block, Type blockType, WarmupElementStats expectedResult)
+    {
+        when(writeJuffersWarmUpElement.getRecordBuffer()).thenReturn(ShortBuffer.allocate(100));
+        runTest(block, blockType, expectedResult, Optional.empty());
+    }
+
+    @Override
+    @ParameterizedTest
+    @MethodSource("params")
+    public void writeWithDictionary(Block block, Type blockType, WarmupElementStats expectedResult) {}
 }

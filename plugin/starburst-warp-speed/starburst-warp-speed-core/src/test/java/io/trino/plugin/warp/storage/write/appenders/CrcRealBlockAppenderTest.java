@@ -13,11 +13,30 @@
  */
 package io.trino.plugin.warp.storage.write.appenders;
 
+import io.trino.plugin.warp.storage.write.WarmupElementStats;
+import io.trino.spi.block.Block;
+import io.trino.spi.block.BlockBuilder;
+import io.trino.spi.type.RealType;
+import io.trino.spi.type.Type;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+
+import java.nio.IntBuffer;
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Stream;
+
+import static org.junit.jupiter.params.provider.Arguments.arguments;
+import static org.mockito.Mockito.when;
 
 class CrcRealBlockAppenderTest
-        extends RealBlockAppenderTest
+        extends BlockAppenderTest
 {
+    private static final RealType realType = RealType.REAL;
+
     @Override
     @BeforeEach
     public void beforeEach()
@@ -25,4 +44,36 @@ class CrcRealBlockAppenderTest
         super.beforeEach();
         blockAppender = new CrcRealBlockAppender(writeJuffersWarmUpElement);
     }
+
+    static Stream<Arguments> params()
+    {
+        BlockBuilder blockBuilder = realType.createBlockBuilder(null, 5);
+        List<Float> values = List.of(1.1f, 10.3e0f, -10.3e0f, 5.5f);
+        for (Float val : values) {
+            realType.writeLong(blockBuilder, Float.floatToIntBits(val));
+        }
+        float expectedMaxValue = values.stream().max(Float::compareTo).orElse(null);
+        float expectedMinValue = values.stream().min(Float::compareTo).orElse(null);
+        Block blockWithoutNull = blockBuilder.build();
+        blockBuilder.appendNull();
+        Block blockWithNull = blockBuilder.build();
+        return Stream.of(
+                arguments(blockWithoutNull, realType, new WarmupElementStats(0, expectedMinValue, expectedMaxValue)),
+                arguments(blockWithNull, realType, new WarmupElementStats(1, expectedMinValue, expectedMaxValue)));
+    }
+
+    @Override
+    @ParameterizedTest
+    @MethodSource("params")
+    public void writeWithoutDictionary(Block block, Type blockType, WarmupElementStats expectedResult)
+    {
+        when(writeJuffersWarmUpElement.getRecordBuffer()).thenReturn(IntBuffer.allocate(100));
+        runTest(block, blockType, expectedResult, Optional.empty());
+    }
+
+    @Disabled
+    @Override
+    @ParameterizedTest
+    @MethodSource("params")
+    public void writeWithDictionary(Block block, Type blockType, WarmupElementStats expectedResult) {}
 }

@@ -36,7 +36,6 @@ import java.util.List;
 import java.util.Map;
 
 import static io.trino.plugin.warp.gen.constants.WarmUpType.WARM_UP_TYPE_BASIC;
-import static io.trino.plugin.warp.gen.constants.WarmUpType.WARM_UP_TYPE_DATA;
 import static io.trino.plugin.warp.gen.constants.WarmUpType.WARM_UP_TYPE_LUCENE;
 import static io.trino.tests.product.utils.QueryAssertions.assertEventually;
 import static io.trino.tests.product.warp.utils.JMXCachingManager.getDiffFromInitial;
@@ -59,7 +58,7 @@ public class DemoterUtils
     private static final double DEMOTE_CLEAN_UP_USAGE = 0;
     public static final JsonMapper jsonMapper = new JsonMapperProvider().get();
 
-    private static final List<WarmUpType> allWarmUpTypes = List.of(WARM_UP_TYPE_DATA, WARM_UP_TYPE_BASIC, WARM_UP_TYPE_LUCENE);
+    private static final List<WarmUpType> allWarmUpTypes = List.of(WARM_UP_TYPE_BASIC, WARM_UP_TYPE_LUCENE);
 
     public void demote(int port, String schema, String table, TestFormat test)
     {

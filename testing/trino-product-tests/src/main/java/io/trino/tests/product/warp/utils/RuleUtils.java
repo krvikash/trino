@@ -97,7 +97,6 @@ public class RuleUtils
         if (columnType.equals("map") || columnType.equals("row")) {
             return columnWarmupTypes;
         }
-        columnWarmupTypes.add(WarmUpType.WARM_UP_TYPE_DATA);
         if (columnType.equals("array")) {
             return columnWarmupTypes;
         }

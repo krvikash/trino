@@ -28,7 +28,6 @@
         "colNameId": "char_5",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -36,18 +35,12 @@
         "colNameId": "tiny_1234",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       }
     ],
     "warm_query": "select * from partition_test",
     "data": "resources/synthetic/partition_test.jsonl",
-    "expected_dictionary_counters": {
-      "dictionary_failed_elements_count": 0,
-      "dictionary_rejected_elements_count": 0,
-      "write_dictionaries_count": 1
-    },
     "queries_data": [
       {
         "query": "select count(*) from partition_test",
@@ -71,10 +64,10 @@
         "query_id": "partition_test_2",
         "expected_counters": {
           "warp_match_columns": 1,
-          "warp_collect_columns": 1,
+          "warp_collect_columns": 0,
           "empty_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 1
         }
       }
     ]
@@ -113,7 +106,6 @@
         "colNameId": "char_5",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -121,7 +113,6 @@
         "colNameId": "tiny_11",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -129,18 +120,12 @@
         "colNameId": "int_20",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       }
     ],
     "warm_query": "select * from partition_test_two_levels",
     "data": "resources/synthetic/partition_test_two_levels.jsonl",
-    "expected_dictionary_counters": {
-      "dictionary_failed_elements_count": 0,
-      "dictionary_rejected_elements_count": 0,
-      "write_dictionaries_count": 2
-    },
     "queries_data": [
       {
         "query": "select count(*) from partition_test_two_levels",
@@ -158,15 +143,16 @@
       },
       {
         "query": "select count(distinct char_5) from partition_test_two_levels where tiny_11=8",
-        "expected_result":[687],
+        "expected_result": [
+          687
+        ],
         "query_id": "partition_test_two_levels_2",
         "expected_counters": {
           "warp_match_columns": 0,
-          "warp_collect_columns": 1,
+          "warp_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 1
         }
-
       }
     ]
   },
@@ -200,7 +186,6 @@
         "colNameId": "char_5",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -208,17 +193,11 @@
         "colNameId": "tiny_1234",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       }
     ],
     "warm_query": "select * from partition_folders",
-    "expected_dictionary_counters": {
-      "dictionary_failed_elements_count": 0,
-      "dictionary_rejected_elements_count": 0,
-      "write_dictionaries_count": 1
-    },
     "queries_data": [
       {
         "query": "select count(*) from partition_folders",
@@ -288,7 +267,6 @@
         "colNameId": "char_5",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -296,18 +274,12 @@
         "colNameId": "m_date",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       }
     ],
     "warm_query": "select * from integer_date_partition",
     "data": "resources/synthetic/integer_date_partition.jsonl",
-    "expected_dictionary_counters": {
-      "dictionary_failed_elements_count": 0,
-      "dictionary_rejected_elements_count": 0,
-      "write_dictionaries_count": 2
-    },
     "overriding": {
       "warp_iceberg": {
         "queries_data": [
@@ -315,10 +287,10 @@
             "query_id": "integer_date_partition_2",
             "expected_counters": {
               "warp_match_columns": 14,
-              "warp_collect_columns": 13,
+              "warp_collect_columns": 0,
               "warp_prefilled_collect_columns": 1,
               "external_match_columns": 0,
-              "external_collect_columns": 0
+              "external_collect_columns": 13
             }
           }
         ]
@@ -327,12 +299,12 @@
         "queries_data": [
           {
             "query_id": "integer_date_partition_2",
-             "expected_counters": {
+            "expected_counters": {
               "warp_match_columns": 14,
-              "warp_collect_columns": 13,
+              "warp_collect_columns": 0,
               "warp_prefilled_collect_columns": 1,
               "external_match_columns": 0,
-              "external_collect_columns": 0
+              "external_collect_columns": 13
             }
           }
         ]
@@ -347,9 +319,9 @@
         "query_id": "integer_date_partition_1",
         "expected_counters": {
           "warp_match_columns": 0,
-          "warp_collect_columns": 1,
+          "warp_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 1
         }
       },
       {
@@ -360,10 +332,10 @@
         "query_id": "integer_date_partition_2",
         "expected_counters": {
           "warp_match_columns": 53,
-          "warp_collect_columns": 52,
+          "warp_collect_columns": 0,
           "warp_prefilled_collect_columns": 1,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 52
         }
       },
       {
@@ -374,9 +346,9 @@
         "query_id": "integer_date_partition_3",
         "expected_counters": {
           "warp_match_columns": 0,
-          "warp_collect_columns": 1,
+          "warp_collect_columns": 0,
           "external_match_columns": 1,
-          "external_collect_columns": 0
+          "external_collect_columns": 1
         }
       }
     ]
@@ -432,9 +404,9 @@
         "query_id": "custom_partitions_test_1",
         "expected_counters": {
           "warp_match_columns": 0,
-          "warp_collect_columns": 1,
+          "warp_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 1
         }
       },
       {
@@ -506,7 +478,6 @@
         "colNameId": "account_id",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -514,7 +485,6 @@
         "colNameId": "site_id",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -529,7 +499,6 @@
         "colNameId": "targeting_type",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -537,7 +506,6 @@
         "colNameId": "language_id",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -545,7 +513,6 @@
         "colNameId": "is_translated",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -560,7 +527,6 @@
         "colNameId": "peer_category_list_string",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_LUCENE"
         ]
       },
@@ -568,7 +534,6 @@
         "colNameId": "requests",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -576,7 +541,6 @@
         "colNameId": "partition_date",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       }
@@ -594,10 +558,10 @@
             "query_id": "date_partition_orc_file_4",
             "expected_counters": {
               "warp_match_columns": 24,
-              "warp_collect_columns": 145,
+              "warp_collect_columns": 0,
               "warp_prefilled_collect_columns": 0,
               "external_match_columns": 0,
-              "external_collect_columns": 23
+              "external_collect_columns": 168
             }
           }
         ]
@@ -612,9 +576,9 @@
         "query_id": "date_partition_orc_file_1",
         "expected_counters": {
           "warp_match_columns": 0,
-          "warp_collect_columns": 6,
+          "warp_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 6
         }
       },
       {
@@ -659,10 +623,10 @@
         "query_id": "date_partition_orc_file_4",
         "expected_counters": {
           "warp_match_columns": 1,
-          "warp_collect_columns": 6,
+          "warp_collect_columns": 0,
           "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 1
+          "external_collect_columns": 7
         }
       }
     ]
@@ -708,7 +672,6 @@
         "colNameId": "int_1",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -716,7 +679,6 @@
         "colNameId": "bigint_2",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -724,7 +686,6 @@
         "colNameId": "smallint_3",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -732,7 +693,6 @@
         "colNameId": "tinyint_4",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -740,7 +700,6 @@
         "colNameId": "char_5",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -748,7 +707,6 @@
         "colNameId": "ts",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_LUCENE"
         ]
       }
@@ -757,10 +715,6 @@
     "partition_by": [
       "ts"
     ],
-    "expected_dictionary_counters": {
-      "dictionary_rejected_elements_count": 0,
-      "write_dictionaries_count": 4
-    },
     "queries_data": [
       {
         "query": "select count(*) from partition_date",
@@ -1084,7 +1038,6 @@
         "colNameId": "pid",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -1107,23 +1060,8 @@
         "colNameId": "is_active",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC",
           "WARM_UP_TYPE_LUCENE"
-        ]
-      },
-      {
-        "colNameId": "is_decommissioned",
-        "predicates": [],
-        "warmUpTypes": [
-          "WARM_UP_TYPE_DATA"
-        ]
-      },
-      {
-        "colNameId": "sha1",
-        "predicates": [],
-        "warmUpTypes": [
-          "WARM_UP_TYPE_DATA"
         ]
       },
       {
@@ -1135,13 +1073,6 @@
         ]
       },
       {
-        "colNameId": "md5",
-        "predicates": [],
-        "warmUpTypes": [
-          "WARM_UP_TYPE_DATA"
-        ]
-      },
-      {
         "colNameId": "image_sha1_hash",
         "predicates": [],
         "warmUpTypes": [
@@ -1150,59 +1081,9 @@
         ]
       },
       {
-        "colNameId": "verb",
-        "predicates": [],
-        "warmUpTypes": [
-          "WARM_UP_TYPE_DATA"
-        ]
-      },
-      {
-        "colNameId": "source",
-        "predicates": [],
-        "warmUpTypes": [
-          "WARM_UP_TYPE_DATA"
-        ]
-      },
-      {
-        "colNameId": "uri",
-        "predicates": [],
-        "warmUpTypes": [
-          "WARM_UP_TYPE_DATA"
-        ]
-      },
-      {
-        "colNameId": "registry_id",
-        "predicates": [],
-        "warmUpTypes": [
-          "WARM_UP_TYPE_DATA"
-        ]
-      },
-      {
-        "colNameId": "registry_path",
-        "predicates": [],
-        "warmUpTypes": [
-          "WARM_UP_TYPE_DATA"
-        ]
-      },
-      {
-        "colNameId": "task_path",
-        "predicates": [],
-        "warmUpTypes": [
-          "WARM_UP_TYPE_DATA"
-        ]
-      },
-      {
-        "colNameId": "task_name",
-        "predicates": [],
-        "warmUpTypes": [
-          "WARM_UP_TYPE_DATA"
-        ]
-      },
-      {
         "colNameId": "query_results",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC",
           "WARM_UP_TYPE_LUCENE"
         ]
@@ -1211,7 +1092,6 @@
         "colNameId": "query_name",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC",
           "WARM_UP_TYPE_LUCENE"
         ]
@@ -1224,48 +1104,6 @@
         ]
       },
       {
-        "colNameId": "d_port",
-        "predicates": [],
-        "warmUpTypes": [
-          "WARM_UP_TYPE_DATA"
-        ]
-      },
-      {
-        "colNameId": "s_addr",
-        "predicates": [],
-        "warmUpTypes": [
-          "WARM_UP_TYPE_DATA"
-        ]
-      },
-      {
-        "colNameId": "d_addr",
-        "predicates": [],
-        "warmUpTypes": [
-          "WARM_UP_TYPE_DATA"
-        ]
-      },
-      {
-        "colNameId": "direction",
-        "predicates": [],
-        "warmUpTypes": [
-          "WARM_UP_TYPE_DATA"
-        ]
-      },
-      {
-        "colNameId": "file_name",
-        "predicates": [],
-        "warmUpTypes": [
-          "WARM_UP_TYPE_DATA"
-        ]
-      },
-      {
-        "colNameId": "is_spawner",
-        "predicates": [],
-        "warmUpTypes": [
-          "WARM_UP_TYPE_DATA"
-        ]
-      },
-      {
         "colNameId": "parent_is_spawner",
         "predicates": [],
         "warmUpTypes": [
@@ -1274,17 +1112,9 @@
         ]
       },
       {
-        "colNameId": "parent_process_unique_key",
-        "predicates": [],
-        "warmUpTypes": [
-          "WARM_UP_TYPE_DATA"
-        ]
-      },
-      {
         "colNameId": "image_path",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC",
           "WARM_UP_TYPE_LUCENE"
         ]
@@ -1293,7 +1123,6 @@
         "colNameId": "command_line",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC",
           "WARM_UP_TYPE_LUCENE"
         ]
@@ -1307,17 +1136,9 @@
         ]
       },
       {
-        "colNameId": "process_status",
-        "predicates": [],
-        "warmUpTypes": [
-          "WARM_UP_TYPE_DATA"
-        ]
-      },
-      {
         "colNameId": "dummy1",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC",
           "WARM_UP_TYPE_LUCENE"
         ]
@@ -1339,24 +1160,9 @@
         ]
       },
       {
-        "colNameId": "dummy4",
-        "predicates": [],
-        "warmUpTypes": [
-          "WARM_UP_TYPE_DATA"
-        ]
-      },
-      {
-        "colNameId": "dummy5",
-        "predicates": [],
-        "warmUpTypes": [
-          "WARM_UP_TYPE_DATA"
-        ]
-      },
-      {
         "colNameId": "agent_timestamp",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -1364,16 +1170,8 @@
         "colNameId": "process_unique_key",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC",
           "WARM_UP_TYPE_LUCENE"
-        ]
-      },
-      {
-        "colNameId": "process_user_name",
-        "predicates": [],
-        "warmUpTypes": [
-          "WARM_UP_TYPE_DATA"
         ]
       },
       {
@@ -1387,7 +1185,6 @@
         "colNameId": "parent_process_name",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC",
           "WARM_UP_TYPE_LUCENE"
         ]
@@ -1400,17 +1197,9 @@
         ]
       },
       {
-        "colNameId": "group_id",
-        "predicates": [],
-        "warmUpTypes": [
-          "WARM_UP_TYPE_DATA"
-        ]
-      },
-      {
         "colNameId": "process_name",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC",
           "WARM_UP_TYPE_LUCENE"
         ]
@@ -1419,7 +1208,6 @@
         "colNameId": "agent",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC",
           "WARM_UP_TYPE_LUCENE"
         ]
@@ -1428,23 +1216,8 @@
         "colNameId": "agent_oid",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC",
           "WARM_UP_TYPE_LUCENE"
-        ]
-      },
-      {
-        "colNameId": "agent_version",
-        "predicates": [],
-        "warmUpTypes": [
-          "WARM_UP_TYPE_DATA"
-        ]
-      },
-      {
-        "colNameId": "computer_name",
-        "predicates": [],
-        "warmUpTypes": [
-          "WARM_UP_TYPE_DATA"
         ]
       },
       {
@@ -1459,7 +1232,6 @@
         "colNameId": "machine_type",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC",
           "WARM_UP_TYPE_LUCENE"
         ]
@@ -1468,7 +1240,6 @@
         "colNameId": "os_family",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC",
           "WARM_UP_TYPE_LUCENE"
         ]
@@ -1484,7 +1255,6 @@
         "colNameId": "last_logged_in_user",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -1493,20 +1263,6 @@
         "predicates": [],
         "warmUpTypes": [
           "WARM_UP_TYPE_BASIC"
-        ]
-      },
-      {
-        "colNameId": "uuid",
-        "predicates": [],
-        "warmUpTypes": [
-          "WARM_UP_TYPE_DATA"
-        ]
-      },
-      {
-        "colNameId": "site_id",
-        "predicates": [],
-        "warmUpTypes": [
-          "WARM_UP_TYPE_DATA"
         ]
       },
       {
@@ -1525,17 +1281,9 @@
         ]
       },
       {
-        "colNameId": "group_uid",
-        "predicates": [],
-        "warmUpTypes": [
-          "WARM_UP_TYPE_DATA"
-        ]
-      },
-      {
         "colNameId": "double_field",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -1544,20 +1292,6 @@
         "predicates": [],
         "warmUpTypes": [
           "WARM_UP_TYPE_BASIC"
-        ]
-      },
-      {
-        "colNameId": "tinyint_field",
-        "predicates": [],
-        "warmUpTypes": [
-          "WARM_UP_TYPE_DATA"
-        ]
-      },
-      {
-        "colNameId": "smallint_field",
-        "predicates": [],
-        "warmUpTypes": [
-          "WARM_UP_TYPE_DATA"
         ]
       },
       {
@@ -1581,19 +1315,8 @@
           "WARM_UP_TYPE_BASIC",
           "WARM_UP_TYPE_LUCENE"
         ]
-      },
-      {
-        "colNameId": "ts",
-        "predicates": [],
-        "warmUpTypes": [
-          "WARM_UP_TYPE_DATA"
-        ]
       }
     ],
-    "expected_dictionary_counters": {
-      "dictionary_rejected_elements_count": 0,
-      "write_dictionaries_count": 43
-    },
     "comment_type_skip": "all counters are zero for: phoenix_table_min_max_q01, phoenix_table_min_max_q02, phoenix_table_min_max_q03, phoenix_table_min_max_q04",
     "skip_type": [
       "warp_iceberg",
@@ -1601,19 +1324,15 @@
     ],
     "overriding": {
       "warp_iceberg": {
-        "expected_dictionary_counters": {
-          "dictionary_rejected_elements_count": 0,
-          "write_dictionaries_count": 45
-        },
         "queries_data": [
           {
             "query_id": "phoenix_table_8",
             "expected_counters": {
               "warp_match_columns": 40,
-              "warp_collect_columns": 56,
+              "warp_collect_columns": 0,
               "warp_prefilled_collect_columns": 32,
               "external_match_columns": 48,
-              "external_collect_columns": 8
+              "external_collect_columns": 64
             }
           },
           {
@@ -1687,10 +1406,10 @@
         "query_id": "phoenix_table_2",
         "expected_counters": {
           "warp_match_columns": 18,
-          "warp_collect_columns": 27,
+          "warp_collect_columns": 0,
           "warp_prefilled_collect_columns": 27,
           "external_match_columns": 36,
-          "external_collect_columns": 9
+          "external_collect_columns": 36
         }
       },
       {
@@ -1704,10 +1423,10 @@
         "query_id": "phoenix_table_3",
         "expected_counters": {
           "warp_match_columns": 9,
-          "warp_collect_columns": 18,
+          "warp_collect_columns": 0,
           "warp_prefilled_collect_columns": 18,
           "external_match_columns": 27,
-          "external_collect_columns": 9
+          "external_collect_columns": 27
         }
       },
       {
@@ -1721,10 +1440,10 @@
         "query_id": "phoenix_table_4",
         "expected_counters": {
           "warp_match_columns": 3,
-          "warp_collect_columns": 4,
+          "warp_collect_columns": 0,
           "warp_prefilled_collect_columns": 2,
           "external_match_columns": 2,
-          "external_collect_columns": 2
+          "external_collect_columns": 6
         }
       },
       {
@@ -1735,10 +1454,10 @@
         "query_id": "phoenix_table_5",
         "expected_counters": {
           "warp_match_columns": 4,
-          "warp_collect_columns": 4,
+          "warp_collect_columns": 0,
           "warp_prefilled_collect_columns": 2,
           "external_match_columns": 2,
-          "external_collect_columns": 0
+          "external_collect_columns": 4
         }
       },
       {
@@ -1756,10 +1475,10 @@
         "query_id": "phoenix_table_6",
         "expected_counters": {
           "warp_match_columns": 4,
-          "warp_collect_columns": 2,
+          "warp_collect_columns": 0,
           "warp_prefilled_collect_columns": 2,
           "external_match_columns": 1,
-          "external_collect_columns": 1
+          "external_collect_columns": 3
         }
       },
       {
@@ -1770,10 +1489,10 @@
         "query_id": "phoenix_table_7",
         "expected_counters": {
           "warp_match_columns": 3,
-          "warp_collect_columns": 3,
+          "warp_collect_columns": 0,
           "warp_prefilled_collect_columns": 1,
           "external_match_columns": 2,
-          "external_collect_columns": 2
+          "external_collect_columns": 5
         }
       },
       {
@@ -1784,10 +1503,10 @@
         "query_id": "phoenix_table_8",
         "expected_counters": {
           "warp_match_columns": 51,
-          "warp_collect_columns": 52,
+          "warp_collect_columns": 0,
           "warp_prefilled_collect_columns": 40,
           "external_match_columns": 48,
-          "external_collect_columns": 8
+          "external_collect_columns": 60
         }
       },
       {
@@ -1798,10 +1517,10 @@
         "query_id": "phoenix_table_9",
         "expected_counters": {
           "warp_match_columns": 36,
-          "warp_collect_columns": 45,
+          "warp_collect_columns": 0,
           "warp_prefilled_collect_columns": 45,
           "external_match_columns": 45,
-          "external_collect_columns": 0
+          "external_collect_columns": 45
         }
       },
       {
@@ -1812,10 +1531,10 @@
         "query_id": "phoenix_table_10",
         "expected_counters": {
           "warp_match_columns": 63,
-          "warp_collect_columns": 63,
+          "warp_collect_columns": 0,
           "warp_prefilled_collect_columns": 72,
           "external_match_columns": 63,
-          "external_collect_columns": 0
+          "external_collect_columns": 63
         }
       },
       {
@@ -1827,9 +1546,9 @@
         "expected_counters": {
           "filtered_by_predicate": 1,
           "warp_match_columns": 1,
-          "warp_collect_columns": 1,
+          "warp_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 1
         }
       },
       {
@@ -1841,9 +1560,9 @@
         "expected_counters": {
           "filtered_by_predicate": 1,
           "warp_match_columns": 1,
-          "warp_collect_columns": 1,
+          "warp_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 1
         }
       },
       {
@@ -1855,9 +1574,9 @@
         "expected_counters": {
           "filtered_by_predicate": 1,
           "warp_match_columns": 1,
-          "warp_collect_columns": 1,
+          "warp_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 1
         }
       },
       {
@@ -1869,9 +1588,9 @@
         "expected_counters": {
           "filtered_by_predicate": 1,
           "warp_match_columns": 1,
-          "warp_collect_columns": 1,
+          "warp_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 1
         }
       }
     ]
@@ -2182,9 +1901,9 @@
         "query_id": "phoenix_1716_rules_1",
         "expected_counters": {
           "warp_match_columns": 0,
-          "warp_collect_columns": 713,
+          "warp_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 713
         }
       },
       {
@@ -2198,10 +1917,10 @@
         "query_id": "phoenix_1716_rules_2",
         "expected_counters": {
           "warp_match_columns": 3565,
-          "warp_collect_columns": 2139,
+          "warp_collect_columns": 0,
           "warp_prefilled_collect_columns": 2852,
           "external_match_columns": 713,
-          "external_collect_columns": 0
+          "external_collect_columns": 2139
         }
       }
     ]
@@ -2310,7 +2029,7 @@
         ]
       }
     },
-    "queries_data":[
+    "queries_data": [
       {
         "query": "select count(*) from long_part",
         "expected_result": [
@@ -2348,10 +2067,10 @@
         ],
         "expected_counters": {
           "warp_match_columns": 1,
-          "warp_collect_columns": 9,
+          "warp_collect_columns": 0,
           "warp_prefilled_collect_columns": 7,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 9
         }
       },
       {
@@ -2377,16 +2096,16 @@
         ],
         "expected_counters": {
           "warp_match_columns": 1,
-          "warp_collect_columns": 9,
+          "warp_collect_columns": 0,
           "warp_prefilled_collect_columns": 7,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 9
         }
       }
     ]
   },
   {
-    "name" : "partition_null_values",
+    "name": "partition_null_values",
     "partition_by": [
       "cs_sold_date_sk"
     ],
@@ -2626,7 +2345,7 @@
         ]
       }
     ],
-    "queries_data":[
+    "queries_data": [
       {
         "query": "select count(*) from partition_null_values",
         "expected_result": [
@@ -2649,10 +2368,10 @@
         "query_id": "partition_null_values_2",
         "expected_counters": {
           "warp_match_columns": 0,
-          "warp_collect_columns": 1,
+          "warp_collect_columns": 0,
           "empty_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 1
         }
       },
       {
@@ -2663,10 +2382,10 @@
         "query_id": "partition_null_values_3",
         "expected_counters": {
           "warp_match_columns": 0,
-          "warp_collect_columns": 1,
+          "warp_collect_columns": 0,
           "empty_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 1
         }
       },
       {
@@ -2677,11 +2396,11 @@
         "query_id": "partition_null_values_4",
         "expected_counters": {
           "warp_match_columns": 1,
-          "warp_collect_columns": 1,
+          "warp_collect_columns": 0,
           "warp_prefilled_collect_columns": 0,
           "empty_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 1
         }
       },
       {
@@ -2692,11 +2411,11 @@
         "query_id": "partition_null_values_5",
         "expected_counters": {
           "warp_match_columns": 2,
-          "warp_collect_columns": 2,
+          "warp_collect_columns": 0,
           "warp_prefilled_collect_columns": 1,
           "empty_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 2
         }
       }
     ]
@@ -2724,7 +2443,6 @@
         "colNameId": "int_1",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -2732,7 +2450,6 @@
         "colNameId": "ts_1",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       }
@@ -2847,7 +2564,6 @@
         "colNameId": "int_1",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -2855,7 +2571,6 @@
         "colNameId": "dec_1",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       }
@@ -2910,7 +2625,6 @@
         "colNameId": "dec_1",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -2918,7 +2632,6 @@
         "colNameId": "ts_1",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       }
@@ -2970,7 +2683,8 @@
           {
             "query_id": "decimal_timestamp_partition_3",
             "expected_result": [
-              "1236.50", "2000-01-04 22:00:00.000"
+              "1236.50",
+              "2000-01-04 22:00:00.000"
             ]
           }
         ]
@@ -2980,7 +2694,7 @@
       {
         "query": "select min(dec_1) from decimal_timestamp_partition where dec_1<=1235.5",
         "expected_result": [
-          1234.50
+          1234.5
         ],
         "query_id": "decimal_timestamp_partition_1",
         "expected_counters": {
@@ -3008,7 +2722,8 @@
       {
         "query": "select max(dec_1), MAX(CAST(ts_1 as timestamp)) from decimal_timestamp_partition where ts_1>=CAST('2000-01-01 00:00:00.000' as timestamp) AND dec_1<=1236.5",
         "expected_result": [
-          "1236.50", "2000-01-05 00:00:00.000"
+          "1236.50",
+          "2000-01-05 00:00:00.000"
         ],
         "query_id": "decimal_timestamp_partition_3",
         "expected_counters": {

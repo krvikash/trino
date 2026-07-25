@@ -18,7 +18,6 @@ import com.google.inject.Singleton;
 import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
 import io.airlift.slice.Slices;
-import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.dispatcher.model.TransformedColumn;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElementState;
@@ -51,19 +50,16 @@ public class BlockAppenderFactory
     private static final Logger logger = Logger.get(BlockAppenderFactory.class);
     private final StorageEngineConstants storageEngineConstants;
     private final BufferAllocator bufferAllocator;
-    private final int warmDataVarcharMaxLength;
     private final BlockTransformerFactory blockTransformerFactory;
 
     @Inject
     public BlockAppenderFactory(
             StorageEngineConstants storageEngineConstants,
             BufferAllocator bufferAllocator,
-            GlobalConfig globalConfig,
             BlockTransformerFactory blockTransformerFactory)
     {
         this.storageEngineConstants = requireNonNull(storageEngineConstants);
         this.bufferAllocator = requireNonNull(bufferAllocator);
-        this.warmDataVarcharMaxLength = requireNonNull(globalConfig).getWarmDataVarcharMaxLength();
         this.blockTransformerFactory = requireNonNull(blockTransformerFactory);
     }
 
@@ -74,7 +70,6 @@ public class BlockAppenderFactory
             Optional<LuceneIndexer> luceneIndexerOpt)
     {
         BlockAppender blockAppender = switch (warmUpElement.getWarmUpType()) {
-            case WARM_UP_TYPE_DATA -> createDataAppender(warmUpElement.getRecTypeCode(), juffersWE, warmUpElement, type);
             case WARM_UP_TYPE_BASIC -> createBasicAppender(
                     warmUpElement,
                     type,
@@ -173,29 +168,6 @@ public class BlockAppenderFactory
                 CrcStringBlockAppender stringBlockAppender =
                         new CrcStringBlockAppender(juffersWE, storageEngineConstants, bufferAllocator, filterType, false);
                 yield new CrcArrayBlockAppender(blockTransformerFactory, juffersWE, stringBlockAppender, filterType);
-            }
-            default -> throw new RuntimeException("unknown rec type code " + recTypeCode);
-        };
-    }
-
-    private BlockAppender createDataAppender(RecTypeCode recTypeCode, WriteJuffersWarmUpElement juffersWE, WarmUpElement warmUpElement, Type type)
-    {
-        int weRecTypeLength = warmUpElement.getRecTypeLength();
-        return switch (recTypeCode) {
-            case REC_TYPE_BOOLEAN -> new BooleanBlockAppender(juffersWE);
-            case REC_TYPE_TIMESTAMP, REC_TYPE_TIMESTAMP_WITH_TZ, REC_TYPE_TIME, REC_TYPE_BIGINT, REC_TYPE_DECIMAL_SHORT -> new LongBlockAppender(juffersWE);
-            case REC_TYPE_INTEGER, REC_TYPE_DATE -> new IntBlockAppender(juffersWE);
-            case REC_TYPE_REAL -> new RealBlockAppender(juffersWE);
-            case REC_TYPE_SMALLINT -> new SmallIntBlockAppender(juffersWE);
-            case REC_TYPE_TINYINT -> new TinyIntBlockAppender(juffersWE);
-            case REC_TYPE_DOUBLE -> new DoubleBlockAppender(juffersWE);
-            case REC_TYPE_DECIMAL_LONG -> new LongDecimalBlockAppender(juffersWE);
-            case REC_TYPE_CHAR -> new FixedLengthStringBlockAppender(juffersWE, storageEngineConstants, weRecTypeLength, type);
-            case REC_TYPE_VARCHAR -> new VariableLengthStringBlockAppender(juffersWE, storageEngineConstants, weRecTypeLength, type, warmDataVarcharMaxLength);
-            case REC_TYPE_ARRAY_INT, REC_TYPE_ARRAY_BIGINT, REC_TYPE_ARRAY_VARCHAR, REC_TYPE_ARRAY_CHAR, REC_TYPE_ARRAY_BOOLEAN, REC_TYPE_ARRAY_TIMESTAMP, REC_TYPE_ARRAY_DOUBLE -> {
-                VariableLengthStringBlockAppender varcharBlockAppender =
-                        new VariableLengthStringBlockAppender(juffersWE, storageEngineConstants, weRecTypeLength, type, warmDataVarcharMaxLength);
-                yield new ArrayBlockAppender(blockTransformerFactory, juffersWE, varcharBlockAppender, type);
             }
             default -> throw new RuntimeException("unknown rec type code " + recTypeCode);
         };

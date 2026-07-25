@@ -21,7 +21,6 @@
         "colNameId": "col1_val_0_1",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -29,7 +28,6 @@
         "colNameId": "col2_val_0_2",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -37,7 +35,6 @@
         "colNameId": "col3_val_0_2",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       }
@@ -154,7 +151,6 @@
         "colNameId": "Id",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -162,7 +158,6 @@
         "colNameId": "Model",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_LUCENE"
         ]
       },
@@ -170,7 +165,6 @@
         "colNameId": "Year",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -178,22 +172,13 @@
         "colNameId": "ScreenSize",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_LUCENE"
-        ]
-      },
-      {
-        "colNameId": "RAM",
-        "predicates": [],
-        "warmUpTypes": [
-          "WARM_UP_TYPE_DATA"
         ]
       },
       {
         "colNameId": "HDD",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_LUCENE"
         ]
       },
@@ -201,7 +186,6 @@
         "colNameId": "W",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -209,7 +193,6 @@
         "colNameId": "D",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -217,7 +200,6 @@
         "colNameId": "H",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -225,7 +207,6 @@
         "colNameId": "Weight",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       }
@@ -337,9 +318,9 @@
         ],
         "bench_expected_counters": {
           "warp_match_columns": 1,
-          "warp_collect_columns": 2,
+          "warp_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 2
         }
       },
       {
@@ -350,9 +331,9 @@
         ],
         "bench_expected_counters": {
           "warp_match_columns": 1,
-          "warp_collect_columns": 1,
+          "warp_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 1
         }
       },
       {
@@ -574,9 +555,9 @@
         ],
         "bench_expected_counters": {
           "warp_match_columns": 2,
-          "warp_collect_columns": 2,
+          "warp_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0,
+          "external_collect_columns": 2,
           "non_trivial_alternative_chosen": 0
         }
       },
@@ -619,9 +600,10 @@
       {
         "query": "select count(ram), count(screensize) from mac_paramsj where ram = '7GB'",
         "query_id": "mac_paramsj_39",
-          "expected_result": [
-              0, 0
-          ]
+        "expected_result": [
+          0,
+          0
+        ]
       },
       {
         "query": "select id from mac_paramsj order by id limit 5",
@@ -642,11 +624,6 @@
         ]
       }
     ],
-    "expected_dictionary_counters": {
-      "dictionary_failed_elements_count": 0,
-      "dictionary_rejected_elements_count": 0,
-      "write_dictionaries_count": 6
-    },
     "view_properties": {
       "view_name": "view_mac_paramsj",
       "create_view_query": "select hdd, model from mac_paramsj",
@@ -737,7 +714,6 @@
         "colNameId": "Id",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -745,7 +721,6 @@
         "colNameId": "Model",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC",
           "WARM_UP_TYPE_LUCENE"
         ]
@@ -754,7 +729,6 @@
         "colNameId": "Year",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -762,7 +736,6 @@
         "colNameId": "ScreenSize",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_LUCENE"
         ]
       },
@@ -770,7 +743,6 @@
         "colNameId": "RAM",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -778,7 +750,6 @@
         "colNameId": "HDD",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_LUCENE"
         ]
       },
@@ -786,7 +757,6 @@
         "colNameId": "W",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -794,7 +764,6 @@
         "colNameId": "D",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -802,7 +771,6 @@
         "colNameId": "H",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -810,7 +778,6 @@
         "colNameId": "Weight",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       }
@@ -890,7 +857,6 @@
         "colNameId": "int_1",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -898,7 +864,6 @@
         "colNameId": "bigint_2",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -906,7 +871,6 @@
         "colNameId": "smallint_3",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -914,7 +878,6 @@
         "colNameId": "tinyint_4",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -922,7 +885,6 @@
         "colNameId": "char_5",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       }
@@ -1186,7 +1148,6 @@
         "colNameId": "bigint_1",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -1194,7 +1155,6 @@
         "colNameId": "double_2",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -1202,7 +1162,6 @@
         "colNameId": "real_3",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       }
@@ -1210,11 +1169,6 @@
     "pt_enable": true,
     "warm_query": "select * from empty_result",
     "data": "resources/synthetic/empty_result.jsonl",
-    "expected_dictionary_counters": {
-      "dictionary_failed_elements_count": 0,
-      "dictionary_rejected_elements_count": 0,
-      "write_dictionaries_count": 1
-    },
     "queries_data": [
       {
         "query": "select count(*) from empty_result",
@@ -1296,7 +1250,6 @@
         "colNameId": "compressed6",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -1304,18 +1257,12 @@
         "colNameId": "compressed100",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_LUCENE"
         ]
       }
     ],
     "warm_query": "select * from compression",
     "data": "resources/synthetic/compression.jsonl",
-    "expected_dictionary_counters": {
-      "dictionary_failed_elements_count": 0,
-      "dictionary_rejected_elements_count": 0,
-      "write_dictionaries_count": 2
-    },
     "queries_data": [
       {
         "query": "select count(*) from compression",
@@ -1351,7 +1298,6 @@
         "colNameId": "int_1",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -1359,7 +1305,6 @@
         "colNameId": "bigint_2",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -1367,7 +1312,6 @@
         "colNameId": "smallint_3",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -1375,7 +1319,6 @@
         "colNameId": "tinyint_4",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       }
@@ -1386,18 +1329,12 @@
       "warp_iceberg": {
         "skip": true
       },
-      "warp_delta_lake":
-      {
+      "warp_delta_lake": {
         "skip": true
       }
     },
     "warm_query": "select * from similar_num",
     "data": "resources/synthetic/similar_num.jsonl",
-    "expected_dictionary_counters": {
-      "dictionary_failed_elements_count": 0,
-      "dictionary_rejected_elements_count": 0,
-      "write_dictionaries_count": 2
-    },
     "queries_data": [
       {
         "query": "select count(*) from similar_num",
@@ -1610,7 +1547,6 @@
         "colNameId": "varchar_1",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_LUCENE",
           "WARM_UP_TYPE_BASIC"
         ]
@@ -1619,7 +1555,6 @@
         "colNameId": "char_2",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_LUCENE",
           "WARM_UP_TYPE_BASIC"
         ]
@@ -1627,11 +1562,6 @@
     ],
     "warm_query": "select * from similar_char_null",
     "data": "resources/synthetic/similar_char_null.jsonl",
-    "expected_dictionary_counters": {
-      "dictionary_failed_elements_count": 0,
-      "dictionary_rejected_elements_count": 0,
-      "write_dictionaries_count": 2
-    },
     "queries_data": [
       {
         "query": "select count(*) from similar_char_null",
@@ -1729,7 +1659,6 @@
         "colNameId": "varchar_1",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_LUCENE",
           "WARM_UP_TYPE_BASIC"
         ]
@@ -1737,11 +1666,6 @@
     ],
     "warm_query": "select * from similarv_one_other",
     "data": "resources/synthetic/similarv_one_other.jsonl",
-    "expected_dictionary_counters": {
-      "dictionary_failed_elements_count": 0,
-      "dictionary_rejected_elements_count": 0,
-      "write_dictionaries_count": 1
-    },
     "queries_data": [
       {
         "query": "select count(*) from similarv_one_other",
@@ -1791,7 +1715,6 @@
         "colNameId": "char_1",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_LUCENE",
           "WARM_UP_TYPE_BASIC"
         ]
@@ -1799,11 +1722,6 @@
     ],
     "warm_query": "select * from similarc_one_other",
     "data": "resources/synthetic/similarc_one_other.jsonl",
-    "expected_dictionary_counters": {
-      "dictionary_failed_elements_count": 0,
-      "dictionary_rejected_elements_count": 0,
-      "write_dictionaries_count": 1
-    },
     "queries_data": [
       {
         "query": "select count(*) from similarc_one_other",
@@ -1860,7 +1778,6 @@
         "colNameId": "char_1",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_LUCENE",
           "WARM_UP_TYPE_BASIC"
         ]
@@ -1868,11 +1785,6 @@
     ],
     "warm_query": "select * from similarc_two_other",
     "data": "resources/synthetic/similarc_two_other.jsonl",
-    "expected_dictionary_counters": {
-      "dictionary_failed_elements_count": 0,
-      "dictionary_rejected_elements_count": 0,
-      "write_dictionaries_count": 1
-    },
     "queries_data": [
       {
         "query": "select count(*) from similarc_two_other",
@@ -1923,18 +1835,12 @@
         "colNameId": "col1",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       }
     ],
     "warm_query": "select * from integer_tuples",
     "data": "resources/synthetic/integer_tuples.jsonl",
-    "expected_dictionary_counters": {
-      "dictionary_failed_elements_count": 0,
-      "dictionary_rejected_elements_count": 0,
-      "write_dictionaries_count": 1
-    },
     "queries_data": [
       {
         "query": "select count(*) from integer_tuples",
@@ -2037,7 +1943,6 @@
         "colNameId": "int_1",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -2045,7 +1950,6 @@
         "colNameId": "bigint_1",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -2053,7 +1957,6 @@
         "colNameId": "double_1",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -2061,7 +1964,6 @@
         "colNameId": "decimal_1",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -2069,7 +1971,6 @@
         "colNameId": "long_dec",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -2077,7 +1978,6 @@
         "colNameId": "char_50",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -2085,7 +1985,6 @@
         "colNameId": "varchar_200",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC",
           "WARM_UP_TYPE_LUCENE"
         ]
@@ -2100,20 +1999,20 @@
             "query_id": "tuples_40keys_32",
             "expected_counters": {
               "warp_match_columns": 0,
-              "warp_collect_columns": 4,
+              "warp_collect_columns": 0,
               "warp_prefilled_collect_columns": 0,
               "external_match_columns": 2,
-              "external_collect_columns": 0
+              "external_collect_columns": 4
             }
           },
           {
             "query_id": "tuples_40keys_33",
             "expected_counters": {
               "warp_match_columns": 0,
-              "warp_collect_columns": 4,
+              "warp_collect_columns": 0,
               "warp_prefilled_collect_columns": 0,
               "external_match_columns": 2,
-              "external_collect_columns": 0
+              "external_collect_columns": 4
             }
           }
         ]
@@ -2124,29 +2023,24 @@
             "query_id": "tuples_40keys_32",
             "expected_counters": {
               "warp_match_columns": 0,
-              "warp_collect_columns": 4,
+              "warp_collect_columns": 0,
               "warp_prefilled_collect_columns": 0,
               "external_match_columns": 2,
-              "external_collect_columns": 0
+              "external_collect_columns": 4
             }
           },
           {
             "query_id": "tuples_40keys_33",
             "expected_counters": {
               "warp_match_columns": 0,
-              "warp_collect_columns": 4,
+              "warp_collect_columns": 0,
               "warp_prefilled_collect_columns": 0,
               "external_match_columns": 2,
-              "external_collect_columns": 0
+              "external_collect_columns": 4
             }
           }
         ]
       }
-    },
-    "expected_dictionary_counters": {
-      "dictionary_failed_elements_count": 0,
-      "dictionary_rejected_elements_count": 0,
-      "write_dictionaries_count": 5
     },
     "queries_data": [
       {
@@ -2171,9 +2065,9 @@
         "query_id": "tuples_40keys_2",
         "expected_counters": {
           "warp_match_columns": 0,
-          "warp_collect_columns": 1,
+          "warp_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 1
         }
       },
       {
@@ -2184,9 +2078,9 @@
         "query_id": "tuples_40keys_3",
         "expected_counters": {
           "warp_match_columns": 0,
-          "warp_collect_columns": 1,
+          "warp_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 1
         }
       },
       {
@@ -2197,9 +2091,9 @@
         "query_id": "tuples_40keys_4",
         "expected_counters": {
           "warp_match_columns": 0,
-          "warp_collect_columns": 1,
+          "warp_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 1
         }
       },
       {
@@ -2210,9 +2104,9 @@
         "query_id": "tuples_40keys_5",
         "expected_counters": {
           "warp_match_columns": 0,
-          "warp_collect_columns": 1,
+          "warp_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 1
         }
       },
       {
@@ -2223,9 +2117,9 @@
         "query_id": "tuples_40keys_6",
         "expected_counters": {
           "warp_match_columns": 0,
-          "warp_collect_columns": 1,
+          "warp_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 1
         }
       },
       {
@@ -2264,10 +2158,10 @@
         "query_id": "tuples_40keys_9",
         "expected_counters": {
           "warp_match_columns": 1,
-          "warp_collect_columns": 2,
+          "warp_collect_columns": 0,
           "warp_prefilled_collect_columns": 1,
           "external_match_columns": 2,
-          "external_collect_columns": 0
+          "external_collect_columns": 2
         }
       },
       {
@@ -2278,9 +2172,9 @@
         "query_id": "tuples_40keys_10",
         "expected_counters": {
           "warp_match_columns": 0,
-          "warp_collect_columns": 1,
+          "warp_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 1
         }
       },
       {
@@ -2291,9 +2185,9 @@
         "query_id": "tuples_40keys_11",
         "expected_counters": {
           "warp_match_columns": 0,
-          "warp_collect_columns": 1,
+          "warp_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 1
         }
       },
       {
@@ -2304,9 +2198,9 @@
         "query_id": "tuples_40keys_12",
         "expected_counters": {
           "warp_match_columns": 0,
-          "warp_collect_columns": 1,
+          "warp_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 1
         }
       },
       {
@@ -2318,9 +2212,9 @@
         "query_id": "tuples_40keys_13",
         "expected_counters": {
           "warp_match_columns": 1,
-          "warp_collect_columns": 1,
+          "warp_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 1
         }
       },
       {
@@ -2331,10 +2225,10 @@
         "query_id": "tuples_40keys_14",
         "expected_counters": {
           "warp_match_columns": 1,
-          "warp_collect_columns": 2,
+          "warp_collect_columns": 0,
           "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 2
         }
       },
       {
@@ -2346,9 +2240,9 @@
         "query_id": "tuples_40keys_15",
         "expected_counters": {
           "warp_match_columns": 3,
-          "warp_collect_columns": 4,
+          "warp_collect_columns": 0,
           "external_match_columns": 1,
-          "external_collect_columns": 0
+          "external_collect_columns": 4
         }
       },
       {
@@ -2359,10 +2253,10 @@
         "query_id": "tuples_40keys_16",
         "expected_counters": {
           "warp_match_columns": 1,
-          "warp_collect_columns": 1,
+          "warp_collect_columns": 0,
           "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 1
         }
       },
       {
@@ -2374,10 +2268,10 @@
         "query_id": "tuples_40keys_17",
         "expected_counters": {
           "warp_match_columns": 2,
-          "warp_collect_columns": 2,
+          "warp_collect_columns": 0,
           "warp_prefilled_collect_columns": 1,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 2
         }
       },
       {
@@ -2388,10 +2282,10 @@
         "query_id": "tuples_40keys_18",
         "expected_counters": {
           "warp_match_columns": 3,
-          "warp_collect_columns": 1,
+          "warp_collect_columns": 0,
           "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 1
         }
       },
       {
@@ -2450,10 +2344,10 @@
         "query_id": "tuples_40keys_22",
         "expected_counters": {
           "warp_match_columns": 1,
-          "warp_collect_columns": 1,
+          "warp_collect_columns": 0,
           "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 1
         }
       },
       {
@@ -2478,9 +2372,9 @@
         "query_id": "tuples_40keys_24",
         "expected_counters": {
           "warp_match_columns": 0,
-          "warp_collect_columns": 3,
+          "warp_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 3
         }
       },
       {
@@ -2491,9 +2385,9 @@
         "query_id": "tuples_40keys_25",
         "expected_counters": {
           "warp_match_columns": 0,
-          "warp_collect_columns": 3,
+          "warp_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 3
         }
       },
       {
@@ -2518,10 +2412,10 @@
         "query_id": "tuples_40keys_27",
         "expected_counters": {
           "warp_match_columns": 0,
-          "warp_collect_columns": 1,
+          "warp_collect_columns": 0,
           "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 1
         }
       },
       {
@@ -2532,10 +2426,10 @@
         "query_id": "tuples_40keys_28",
         "expected_counters": {
           "warp_match_columns": 1,
-          "warp_collect_columns": 2,
+          "warp_collect_columns": 0,
           "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 2
         }
       },
       {
@@ -2546,10 +2440,10 @@
         "query_id": "tuples_40keys_29",
         "expected_counters": {
           "warp_match_columns": 0,
-          "warp_collect_columns": 2,
+          "warp_collect_columns": 0,
           "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 2
         }
       },
       {
@@ -2560,10 +2454,10 @@
         "query_id": "tuples_40keys_30",
         "expected_counters": {
           "warp_match_columns": 0,
-          "warp_collect_columns": 1,
+          "warp_collect_columns": 0,
           "warp_prefilled_collect_columns": 0,
           "external_match_columns": 1,
-          "external_collect_columns": 0
+          "external_collect_columns": 1
         }
       },
       {
@@ -2574,10 +2468,10 @@
         "query_id": "tuples_40keys_31",
         "expected_counters": {
           "warp_match_columns": 0,
-          "warp_collect_columns": 1,
+          "warp_collect_columns": 0,
           "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 1
         }
       },
       {
@@ -2588,10 +2482,10 @@
         "query_id": "tuples_40keys_32",
         "expected_counters": {
           "warp_match_columns": 0,
-          "warp_collect_columns": 1,
+          "warp_collect_columns": 0,
           "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 1
         }
       },
       {
@@ -2602,10 +2496,10 @@
         "query_id": "tuples_40keys_33",
         "expected_counters": {
           "warp_match_columns": 0,
-          "warp_collect_columns": 2,
+          "warp_collect_columns": 0,
           "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 2
         }
       },
       {
@@ -2616,10 +2510,10 @@
         "query_id": "tuples_40keys_34",
         "expected_counters": {
           "warp_match_columns": 1,
-          "warp_collect_columns": 1,
+          "warp_collect_columns": 0,
           "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 1
         }
       },
       {
@@ -2630,10 +2524,10 @@
         "query_id": "tuples_40keys_35",
         "expected_counters": {
           "warp_match_columns": 0,
-          "warp_collect_columns": 1,
+          "warp_collect_columns": 0,
           "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 1
         }
       },
       {
@@ -2644,10 +2538,10 @@
         "query_id": "tuples_40keys_36",
         "expected_counters": {
           "warp_match_columns": 1,
-          "warp_collect_columns": 1,
+          "warp_collect_columns": 0,
           "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 1
         }
       },
       {
@@ -2658,10 +2552,10 @@
         "query_id": "tuples_40keys_37",
         "expected_counters": {
           "warp_match_columns": 1,
-          "warp_collect_columns": 1,
+          "warp_collect_columns": 0,
           "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 1
         }
       },
       {
@@ -2672,10 +2566,10 @@
         "query_id": "tuples_40keys_38",
         "expected_counters": {
           "warp_match_columns": 0,
-          "warp_collect_columns": 1,
+          "warp_collect_columns": 0,
           "warp_prefilled_collect_columns": 0,
           "external_match_columns": 1,
-          "external_collect_columns": 0
+          "external_collect_columns": 1
         }
       },
       {
@@ -2686,10 +2580,10 @@
         "query_id": "tuples_40keys_39",
         "expected_counters": {
           "warp_match_columns": 1,
-          "warp_collect_columns": 1,
+          "warp_collect_columns": 0,
           "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 1
         }
       },
       {
@@ -2700,10 +2594,10 @@
         "query_id": "tuples_40keys_40",
         "expected_counters": {
           "warp_match_columns": 0,
-          "warp_collect_columns": 1,
+          "warp_collect_columns": 0,
           "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 1
         }
       },
       {
@@ -2714,9 +2608,9 @@
         "query_id": "tuples_40keys_41",
         "expected_counters": {
           "warp_match_columns": 0,
-          "warp_collect_columns": 2,
+          "warp_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 2
         }
       },
       {
@@ -2755,10 +2649,10 @@
         "query_id": "tuples_40keys_44",
         "expected_counters": {
           "warp_match_columns": 0,
-          "warp_collect_columns": 1,
+          "warp_collect_columns": 0,
           "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 1
         }
       },
       {
@@ -2769,10 +2663,10 @@
         "query_id": "tuples_40keys_45",
         "expected_counters": {
           "warp_match_columns": 2,
-          "warp_collect_columns": 2,
+          "warp_collect_columns": 0,
           "warp_prefilled_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 2
         }
       },
       {
@@ -2811,10 +2705,10 @@
         "query_id": "tuples_40keys_48",
         "expected_counters": {
           "warp_match_columns": 0,
-          "warp_collect_columns": 1,
+          "warp_collect_columns": 0,
           "warp_prefilled_collect_columns": 0,
           "external_match_columns": 1,
-          "external_collect_columns": 0
+          "external_collect_columns": 1
         }
       },
       {
@@ -2825,10 +2719,10 @@
         "query_id": "tuples_40keys_49",
         "expected_counters": {
           "warp_match_columns": 1,
-          "warp_collect_columns": 3,
+          "warp_collect_columns": 0,
           "warp_prefilled_collect_columns": 0,
           "external_match_columns": 1,
-          "external_collect_columns": 0
+          "external_collect_columns": 3
         }
       }
     ],
@@ -2844,9 +2738,9 @@
           ],
           "expected_counters": {
             "warp_match_columns": 2,
-            "warp_collect_columns": 1,
+            "warp_collect_columns": 0,
             "external_match_columns": 0,
-            "external_collect_columns": 0
+            "external_collect_columns": 1
           }
         },
         {
@@ -2857,9 +2751,9 @@
           ],
           "expected_counters": {
             "warp_match_columns": 4,
-            "warp_collect_columns": 4,
+            "warp_collect_columns": 0,
             "external_match_columns": 0,
-            "external_collect_columns": 0
+            "external_collect_columns": 4
           }
         },
         {
@@ -2870,9 +2764,9 @@
           ],
           "expected_counters": {
             "warp_match_columns": 2,
-            "warp_collect_columns": 4,
+            "warp_collect_columns": 0,
             "external_match_columns": 2,
-            "external_collect_columns": 0
+            "external_collect_columns": 4
           }
         }
       ]
@@ -3044,22 +2938,7 @@
         ]
       }
     ],
-    "warmup_rules": [
-      {
-        "colNameId": "ss_item_sk",
-        "predicates": [],
-        "warmUpTypes": [
-          "WARM_UP_TYPE_DATA"
-        ]
-      },
-      {
-        "colNameId": "d_year",
-        "predicates": [],
-        "warmUpTypes": [
-          "WARM_UP_TYPE_DATA"
-        ]
-      }
-    ],
+    "warmup_rules": [],
     "warm_query": "select count(ss_item_sk), count(d_year) from caching_table",
     "queries_data": [
       {
@@ -3105,15 +2984,7 @@
         "type": "integer"
       }
     ],
-    "warmup_rules": [
-      {
-        "colNameId": "col_1",
-        "predicates": [],
-        "warmUpTypes": [
-          "WARM_UP_TYPE_DATA"
-        ]
-      }
-    ],
+    "warmup_rules": [],
     "warm_query": "select col_1 from limit_mix",
     "queries_data": [
       {
@@ -3131,12 +3002,7 @@
         ]
       }
     ],
-    "data": "resources/synthetic/limit_mix.jsonl",
-    "expected_dictionary_counters": {
-      "dictionary_failed_elements_count": 0,
-      "dictionary_rejected_elements_count": 0,
-      "write_dictionaries_count": 1
-    }
+    "data": "resources/synthetic/limit_mix.jsonl"
   },
   {
     "name": "single_chunk_null_133k",
@@ -3153,17 +3019,12 @@
         "colNameId": "str5",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       }
     ],
     "warm_query": "select count(str5) from single_chunk_null_133k",
     "data": "resources/synthetic/single_chunk_null_133k.jsonl",
-    "expected_dictionary_counters": {
-      "dictionary_rejected_elements_count": 0,
-      "write_dictionaries_count": 1
-    },
     "queries_data": [
       {
         "query": "select count(*) from single_chunk_null_133k",
@@ -3245,17 +3106,12 @@
         "colNameId": "str6",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       }
     ],
     "warm_query": "select count(str6) from single_chunk_xynull_133k",
     "data": "resources/synthetic/single_chunk_xynull_133k.jsonl",
-    "expected_dictionary_counters": {
-      "dictionary_rejected_elements_count": 0,
-      "write_dictionaries_count": 1
-    },
     "queries_data": [
       {
         "query": "select count(*) from single_chunk_xynull_133k",
@@ -3323,7 +3179,6 @@
         "colNameId": "col_single",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -3331,7 +3186,6 @@
         "colNameId": "col_diff",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -3339,7 +3193,6 @@
         "colNameId": "col_zero_100",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -3347,7 +3200,6 @@
         "colNameId": "col_bool",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       }
@@ -3523,7 +3375,6 @@
         "colNameId": "col_1",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -3531,7 +3382,6 @@
         "colNameId": "col_2",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -3539,7 +3389,6 @@
         "colNameId": "col_3",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -3547,7 +3396,6 @@
         "colNameId": "col_4",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -3555,7 +3403,6 @@
         "colNameId": "col_5",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -3563,7 +3410,6 @@
         "colNameId": "col_6",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -3571,7 +3417,6 @@
         "colNameId": "col_7",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -3579,7 +3424,6 @@
         "colNameId": "col_8",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -3587,7 +3431,6 @@
         "colNameId": "col_9",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -3595,7 +3438,6 @@
         "colNameId": "col_10",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -3603,7 +3445,6 @@
         "colNameId": "col_11",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -3611,7 +3452,6 @@
         "colNameId": "col_12",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -3619,7 +3459,6 @@
         "colNameId": "col_13",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -3627,7 +3466,6 @@
         "colNameId": "col_14",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -3635,7 +3473,6 @@
         "colNameId": "col_15",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -3643,7 +3480,6 @@
         "colNameId": "col_16",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -3651,7 +3487,6 @@
         "colNameId": "col_17",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -3659,7 +3494,6 @@
         "colNameId": "col_18",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -3667,7 +3501,6 @@
         "colNameId": "col_19",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -3675,7 +3508,6 @@
         "colNameId": "col_20",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -3683,7 +3515,6 @@
         "colNameId": "col_21",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -3691,7 +3522,6 @@
         "colNameId": "col_22",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -3699,7 +3529,6 @@
         "colNameId": "col_23",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -3707,7 +3536,6 @@
         "colNameId": "col_24",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -3715,7 +3543,6 @@
         "colNameId": "col_25",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -3723,7 +3550,6 @@
         "colNameId": "col_26",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -3731,7 +3557,6 @@
         "colNameId": "col_27",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -3739,7 +3564,6 @@
         "colNameId": "col_28",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -3747,7 +3571,6 @@
         "colNameId": "col_29",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -3755,7 +3578,6 @@
         "colNameId": "col_30",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       }
@@ -3809,40 +3631,40 @@
             "query_id": "collect_optim_4",
             "expected_counters": {
               "warp_match_columns": 1,
-              "warp_collect_columns": 1,
+              "warp_collect_columns": 0,
               "warp_prefilled_collect_columns": 0,
               "external_match_columns": 0,
-              "external_collect_columns": 0
+              "external_collect_columns": 1
             }
           },
           {
             "query_id": "collect_optim_6",
             "expected_counters": {
               "warp_match_columns": 1,
-              "warp_collect_columns": 1,
+              "warp_collect_columns": 0,
               "warp_prefilled_collect_columns": 0,
               "external_match_columns": 0,
-              "external_collect_columns": 0
+              "external_collect_columns": 1
             }
           },
           {
             "query_id": "collect_optim_7",
             "expected_counters": {
               "warp_match_columns": 1,
-              "warp_collect_columns": 1,
+              "warp_collect_columns": 0,
               "warp_prefilled_collect_columns": 0,
               "external_match_columns": 0,
-              "external_collect_columns": 0
+              "external_collect_columns": 1
             }
           },
           {
             "query_id": "collect_optim_8",
             "expected_counters": {
               "warp_match_columns": 1,
-              "warp_collect_columns": 1,
+              "warp_collect_columns": 0,
               "warp_prefilled_collect_columns": 0,
               "external_match_columns": 0,
-              "external_collect_columns": 0
+              "external_collect_columns": 1
             }
           }
         ]
@@ -3853,40 +3675,40 @@
             "query_id": "collect_optim_4",
             "expected_counters": {
               "warp_match_columns": 1,
-              "warp_collect_columns": 1,
+              "warp_collect_columns": 0,
               "warp_prefilled_collect_columns": 0,
               "external_match_columns": 0,
-              "external_collect_columns": 0
+              "external_collect_columns": 1
             }
           },
           {
             "query_id": "collect_optim_6",
             "expected_counters": {
               "warp_match_columns": 1,
-              "warp_collect_columns": 1,
+              "warp_collect_columns": 0,
               "warp_prefilled_collect_columns": 0,
               "external_match_columns": 0,
-              "external_collect_columns": 0
+              "external_collect_columns": 1
             }
           },
           {
             "query_id": "collect_optim_7",
             "expected_counters": {
               "warp_match_columns": 1,
-              "warp_collect_columns": 1,
+              "warp_collect_columns": 0,
               "warp_prefilled_collect_columns": 0,
               "external_match_columns": 0,
-              "external_collect_columns": 0
+              "external_collect_columns": 1
             }
           },
           {
             "query_id": "collect_optim_8",
             "expected_counters": {
               "warp_match_columns": 1,
-              "warp_collect_columns": 1,
+              "warp_collect_columns": 0,
               "warp_prefilled_collect_columns": 0,
               "external_match_columns": 0,
-              "external_collect_columns": 0
+              "external_collect_columns": 1
             }
           }
         ]
@@ -4130,61 +3952,17 @@
     ],
     "warmup_rules": [
       {
-        "colNameId": "varchar_20_one_val",
-        "predicates": [],
-        "warmUpTypes": [
-          "WARM_UP_TYPE_DATA"
-        ]
-      },
-      {
         "colNameId": "varchar_20_one_arr",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_LUCENE"
-        ]
-      },
-      {
-        "colNameId": "varchar_7_one_val",
-        "predicates": [],
-        "warmUpTypes": [
-          "WARM_UP_TYPE_DATA"
         ]
       },
       {
         "colNameId": "varchar_7_one_arr",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_LUCENE"
-        ]
-      },
-      {
-        "colNameId": "int_one_val",
-        "predicates": [],
-        "warmUpTypes": [
-          "WARM_UP_TYPE_DATA"
-        ]
-      },
-      {
-        "colNameId": "int_one_arr",
-        "predicates": [],
-        "warmUpTypes": [
-          "WARM_UP_TYPE_DATA"
-        ]
-      },
-      {
-        "colNameId": "bigint_one_val",
-        "predicates": [],
-        "warmUpTypes": [
-          "WARM_UP_TYPE_DATA"
-        ]
-      },
-      {
-        "colNameId": "bigint_one_arr",
-        "predicates": [],
-        "warmUpTypes": [
-          "WARM_UP_TYPE_DATA"
         ]
       }
     ],
@@ -4413,103 +4191,17 @@
     ],
     "warmup_rules": [
       {
-        "colNameId": "char_1_one_val",
-        "predicates": [],
-        "warmUpTypes": [
-          "WARM_UP_TYPE_DATA"
-        ]
-      },
-      {
-        "colNameId": "char_1_one_arr",
-        "predicates": [],
-        "warmUpTypes": [
-          "WARM_UP_TYPE_DATA"
-        ]
-      },
-      {
-        "colNameId": "char_8_one_val",
-        "predicates": [],
-        "warmUpTypes": [
-          "WARM_UP_TYPE_DATA"
-        ]
-      },
-      {
         "colNameId": "char_8_one_arr",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_LUCENE"
-        ]
-      },
-      {
-        "colNameId": "char_20_one_val",
-        "predicates": [],
-        "warmUpTypes": [
-          "WARM_UP_TYPE_DATA"
         ]
       },
       {
         "colNameId": "char_20_one_arr",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_LUCENE"
-        ]
-      },
-      {
-        "colNameId": "date_one_val",
-        "predicates": [],
-        "warmUpTypes": [
-          "WARM_UP_TYPE_DATA"
-        ]
-      },
-      {
-        "colNameId": "date_one_arr",
-        "predicates": [],
-        "warmUpTypes": [
-          "WARM_UP_TYPE_DATA"
-        ]
-      },
-      {
-        "colNameId": "timestamp_one_val",
-        "predicates": [],
-        "warmUpTypes": [
-          "WARM_UP_TYPE_DATA"
-        ]
-      },
-      {
-        "colNameId": "timestamp_one_arr",
-        "predicates": [],
-        "warmUpTypes": [
-          "WARM_UP_TYPE_DATA"
-        ]
-      },
-      {
-        "colNameId": "double_one_val",
-        "predicates": [],
-        "warmUpTypes": [
-          "WARM_UP_TYPE_DATA"
-        ]
-      },
-      {
-        "colNameId": "double_one_arr",
-        "predicates": [],
-        "warmUpTypes": [
-          "WARM_UP_TYPE_DATA"
-        ]
-      },
-      {
-        "colNameId": "bool_one_val",
-        "predicates": [],
-        "warmUpTypes": [
-          "WARM_UP_TYPE_DATA"
-        ]
-      },
-      {
-        "colNameId": "bool_one_arr",
-        "predicates": [],
-        "warmUpTypes": [
-          "WARM_UP_TYPE_DATA"
         ]
       }
     ],
@@ -4662,13 +4354,6 @@
       }
     ],
     "warmup_rules": [
-      {
-        "colNameId": "varchar_col",
-        "predicates": [],
-        "warmUpTypes": [
-          "WARM_UP_TYPE_DATA"
-        ]
-      },
       {
         "colNameId": "varchar_col",
         "predicates": [],
@@ -5942,10 +5627,10 @@
         ],
         "expected_counters": {
           "warp_match_columns": 331,
-          "warp_collect_columns": 9930,
+          "warp_collect_columns": 0,
           "warp_prefilled_collect_columns": 2797,
           "external_match_columns": 0,
-          "external_collect_columns": 45529
+          "external_collect_columns": 55459
         }
       },
       {
@@ -6132,10 +5817,10 @@
         ],
         "expected_counters": {
           "warp_match_columns": 0,
-          "warp_collect_columns": 9930,
+          "warp_collect_columns": 0,
           "warp_prefilled_collect_columns": 2797,
           "external_match_columns": 0,
-          "external_collect_columns": 45529
+          "external_collect_columns": 55459
         }
       }
     ]
@@ -6237,48 +5922,50 @@
           },
           {
             "query_id": "wide_varchar_chunks_2",
-            "expected_result": [0],
+            "expected_result": [
+              0
+            ],
             "expected_counters": {
               "warp_match_columns": 0,
-              "warp_collect_columns": 2,
+              "warp_collect_columns": 0,
               "external_match_columns": 0,
-              "external_collect_columns": 0
+              "external_collect_columns": 2
             }
           },
           {
             "query_id": "wide_varchar_chunks_3",
             "expected_counters": {
               "warp_match_columns": 0,
-              "warp_collect_columns": 2,
+              "warp_collect_columns": 0,
               "external_match_columns": 2,
-              "external_collect_columns": 0
+              "external_collect_columns": 2
             }
           },
           {
             "query_id": "wide_varchar_chunks_4",
             "expected_counters": {
               "warp_match_columns": 0,
-              "warp_collect_columns": 2,
+              "warp_collect_columns": 0,
               "external_match_columns": 2,
-              "external_collect_columns": 0
+              "external_collect_columns": 2
             }
           },
           {
             "query_id": "wide_varchar_chunks_5",
             "expected_counters": {
               "warp_match_columns": 2,
-              "warp_collect_columns": 2,
+              "warp_collect_columns": 0,
               "external_match_columns": 0,
-              "external_collect_columns": 0
+              "external_collect_columns": 2
             }
           },
           {
             "query_id": "wide_varchar_chunks_6",
             "expected_counters": {
               "warp_match_columns": 2,
-              "warp_collect_columns": 2,
+              "warp_collect_columns": 0,
               "external_match_columns": 0,
-              "external_collect_columns": 0
+              "external_collect_columns": 2
             }
           },
           {
@@ -6288,9 +5975,9 @@
             ],
             "expected_counters": {
               "warp_match_columns": 0,
-              "warp_collect_columns": 2,
+              "warp_collect_columns": 0,
               "external_match_columns": 2,
-              "external_collect_columns": 0
+              "external_collect_columns": 2
             }
           }
         ]
@@ -6311,45 +5998,45 @@
             "query_id": "wide_varchar_chunks_2",
             "expected_counters": {
               "warp_match_columns": 0,
-              "warp_collect_columns": 3,
+              "warp_collect_columns": 0,
               "external_match_columns": 0,
-              "external_collect_columns": 2
+              "external_collect_columns": 5
             }
           },
           {
             "query_id": "wide_varchar_chunks_3",
             "expected_counters": {
               "warp_match_columns": 0,
-              "warp_collect_columns": 3,
+              "warp_collect_columns": 0,
               "external_match_columns": 5,
-              "external_collect_columns": 2
+              "external_collect_columns": 5
             }
           },
           {
             "query_id": "wide_varchar_chunks_4",
             "expected_counters": {
               "warp_match_columns": 0,
-              "warp_collect_columns": 3,
+              "warp_collect_columns": 0,
               "external_match_columns": 5,
-              "external_collect_columns": 2
+              "external_collect_columns": 5
             }
           },
           {
             "query_id": "wide_varchar_chunks_5",
             "expected_counters": {
               "warp_match_columns": 3,
-              "warp_collect_columns": 1,
+              "warp_collect_columns": 0,
               "external_match_columns": 0,
-              "external_collect_columns": 2
+              "external_collect_columns": 3
             }
           },
           {
             "query_id": "wide_varchar_chunks_6",
             "expected_counters": {
               "warp_match_columns": 5,
-              "warp_collect_columns": 3,
+              "warp_collect_columns": 0,
               "external_match_columns": 0,
-              "external_collect_columns": 2
+              "external_collect_columns": 5
             }
           },
           {
@@ -6359,9 +6046,9 @@
             ],
             "expected_counters": {
               "warp_match_columns": 0,
-              "warp_collect_columns": 3,
+              "warp_collect_columns": 0,
               "external_match_columns": 5,
-              "external_collect_columns": 2
+              "external_collect_columns": 5
             }
           }
         ]
@@ -6598,7 +6285,6 @@
         "predicates": [],
         "warmUpTypes": [
           "WARM_UP_TYPE_BASIC",
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_LUCENE"
         ]
       },
@@ -6606,23 +6292,14 @@
         "colNameId": "col_2",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_BASIC",
-          "WARM_UP_TYPE_DATA"
+          "WARM_UP_TYPE_BASIC"
         ]
       },
       {
         "colNameId": "col_3",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_BASIC",
-          "WARM_UP_TYPE_DATA"
-        ]
-      },
-      {
-        "colNameId": "col_4",
-        "predicates": [],
-        "warmUpTypes": [
-          "WARM_UP_TYPE_DATA"
+          "WARM_UP_TYPE_BASIC"
         ]
       }
     ],
@@ -6657,36 +6334,30 @@
     "comment_skip_type": "issue with warming on DL - under investigation",
     "overriding": {
       "warp_iceberg": {
-        "expected_dictionary_counters": {
-          "write_dictionaries_count": 7
-        },
         "queries_data": [
           {
             "query_id": "storesales_with_null_dates_9",
             "expected_counters": {
               "warp_match_columns": 2,
-              "warp_collect_columns": 2,
+              "warp_collect_columns": 0,
               "warp_prefilled_collect_columns": 1,
               "external_match_columns": 0,
-              "external_collect_columns": 0
+              "external_collect_columns": 2
             }
           }
         ]
       },
       "warp_delta_lake": {
         "skip": true,
-        "expected_dictionary_counters": {
-          "write_dictionaries_count": 7
-        },
         "queries_data": [
           {
             "query_id": "storesales_with_null_dates_9",
             "expected_counters": {
               "warp_match_columns": 2,
-              "warp_collect_columns": 2,
+              "warp_collect_columns": 0,
               "warp_prefilled_collect_columns": 1,
               "external_match_columns": 0,
-              "external_collect_columns": 0
+              "external_collect_columns": 2
             }
           }
         ]
@@ -6850,16 +6521,12 @@
         ]
       }
     ],
-    "expected_dictionary_counters": {
-      "write_dictionaries_count": 6
-    },
     "warmup_rules": [
       {
         "colNameId": "d_date",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_BASIC",
-          "WARM_UP_TYPE_DATA"
+          "WARM_UP_TYPE_BASIC"
         ]
       },
       {
@@ -6867,8 +6534,7 @@
         "predicates": [],
         "warmUpTypes": [
           "WARM_UP_TYPE_BASIC",
-          "WARM_UP_TYPE_LUCENE",
-          "WARM_UP_TYPE_DATA"
+          "WARM_UP_TYPE_LUCENE"
         ]
       },
       {
@@ -6876,7 +6542,6 @@
         "predicates": [],
         "warmUpTypes": [
           "WARM_UP_TYPE_BASIC",
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_LUCENE"
         ]
       },
@@ -6884,7 +6549,6 @@
         "colNameId": "ss_sold_date_sk",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -6892,7 +6556,6 @@
         "colNameId": "ss_ticket_number",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -6900,7 +6563,6 @@
         "colNameId": "t_am_pm",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -6908,7 +6570,6 @@
         "colNameId": "ss_customer_sk",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -6916,7 +6577,6 @@
         "colNameId": "ss_list_price",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -6924,7 +6584,6 @@
         "colNameId": "ss_quantity",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       }
@@ -7062,8 +6721,7 @@
         "colNameId": "col_varchar",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_BASIC",
-          "WARM_UP_TYPE_DATA"
+          "WARM_UP_TYPE_BASIC"
         ]
       }
     ],
@@ -7090,72 +6748,72 @@
             "query_id": "seagate_with_nulls_1",
             "expected_counters": {
               "warp_match_columns": 0,
-              "warp_collect_columns": 1,
+              "warp_collect_columns": 0,
               "external_match_columns": 0,
-              "external_collect_columns": 0
+              "external_collect_columns": 1
             }
           },
           {
             "query_id": "seagate_with_nulls_2",
             "expected_counters": {
               "warp_match_columns": 0,
-              "warp_collect_columns": 1,
+              "warp_collect_columns": 0,
               "external_match_columns": 0,
-              "external_collect_columns": 0
+              "external_collect_columns": 1
             }
           },
           {
             "query_id": "seagate_with_nulls_3",
             "expected_counters": {
               "warp_match_columns": 1,
-              "warp_collect_columns": 3,
+              "warp_collect_columns": 0,
               "external_match_columns": 0,
-              "external_collect_columns": 0
+              "external_collect_columns": 3
             }
           },
           {
             "query_id": "seagate_with_nulls_4",
             "expected_counters": {
               "warp_match_columns": 0,
-              "warp_collect_columns": 2,
+              "warp_collect_columns": 0,
               "external_match_columns": 0,
-              "external_collect_columns": 0
+              "external_collect_columns": 2
             }
           },
           {
             "query_id": "seagate_with_nulls_5",
             "expected_counters": {
               "warp_match_columns": 0,
-              "warp_collect_columns": 2,
+              "warp_collect_columns": 0,
               "external_match_columns": 0,
-              "external_collect_columns": 0
+              "external_collect_columns": 2
             }
           },
           {
             "query_id": "seagate_with_nulls_6",
             "expected_counters": {
               "warp_match_columns": 0,
-              "warp_collect_columns": 2,
+              "warp_collect_columns": 0,
               "external_match_columns": 0,
-              "external_collect_columns": 0
+              "external_collect_columns": 2
             }
           },
           {
             "query_id": "seagate_with_nulls_7",
             "expected_counters": {
               "warp_match_columns": 0,
-              "warp_collect_columns": 2,
+              "warp_collect_columns": 0,
               "external_match_columns": 0,
-              "external_collect_columns": 0
+              "external_collect_columns": 2
             }
           },
           {
             "query_id": "seagate_with_nulls_9",
             "expected_counters": {
               "warp_match_columns": 1,
-              "warp_collect_columns": 2,
+              "warp_collect_columns": 0,
               "external_match_columns": 0,
-              "external_collect_columns": 0
+              "external_collect_columns": 2
             }
           }
         ]
@@ -7241,31 +6899,27 @@
         "colNameId": "time_key",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_BASIC",
-          "WARM_UP_TYPE_DATA"
+          "WARM_UP_TYPE_BASIC"
         ]
       },
       {
         "colNameId": "radius",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_BASIC",
-          "WARM_UP_TYPE_DATA"
+          "WARM_UP_TYPE_BASIC"
         ]
       },
       {
         "colNameId": "edw_etl_load_date",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_BASIC",
-          "WARM_UP_TYPE_DATA"
+          "WARM_UP_TYPE_BASIC"
         ]
       },
       {
         "colNameId": "name_1",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC",
           "WARM_UP_TYPE_LUCENE"
         ]
@@ -7274,7 +6928,6 @@
         "colNameId": "fcd_edw_insert_date",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -7282,7 +6935,6 @@
         "colNameId": "pd_product_key",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -7290,7 +6942,6 @@
         "colNameId": "pd_product_part_num",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -7298,7 +6949,6 @@
         "colNameId": "pd_product_type",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -7306,7 +6956,6 @@
         "colNameId": "pd_reconfig_flag",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -7314,7 +6963,6 @@
         "colNameId": "wld_max_x_coord_on_wafer",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -7322,7 +6970,6 @@
         "colNameId": "wld_max_y_coord_on_wafer",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -7330,7 +6977,6 @@
         "colNameId": "part_load_time",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -7338,7 +6984,6 @@
         "colNameId": "pd_prod_lifecycle_status_chg_date",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       }
@@ -7499,7 +7144,7 @@
         "skip_caching": true,
         "expected_result": [
           2147481578,
-          -3.509758682189295E15,
+          -3509758682189295.0,
           "Zoe Youngx"
         ]
       },
@@ -9078,8 +8723,8 @@
         "query_id": "nan_single_1",
         "expected_result": [
           "FLY_flyer_9",
-            2.40904820500737E8,
-            2.40904820500737E8
+          240904820.500737,
+          240904820.500737
         ]
       },
       {
@@ -9222,7 +8867,6 @@
         "colNameId": "geo_point",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -9230,7 +8874,6 @@
         "colNameId": "geo_multipoint",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -9238,7 +8881,6 @@
         "colNameId": "geo_linestring",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -9246,7 +8888,6 @@
         "colNameId": "geo_multilinestring",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -9254,7 +8895,6 @@
         "colNameId": "geo_polygon",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -9262,7 +8902,6 @@
         "colNameId": "geo_multipolygon",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -9270,7 +8909,6 @@
         "colNameId": "geo_x",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       },
@@ -9278,7 +8916,6 @@
         "colNameId": "geo_y",
         "predicates": [],
         "warmUpTypes": [
-          "WARM_UP_TYPE_DATA",
           "WARM_UP_TYPE_BASIC"
         ]
       }
@@ -9588,20 +9225,20 @@
             "query_id": "enable_dict_false_2",
             "expected_counters": {
               "warp_match_columns": 8,
-              "warp_collect_columns": 7,
+              "warp_collect_columns": 0,
               "warp_prefilled_collect_columns": 5,
               "external_match_columns": 0,
-              "external_collect_columns": 0
+              "external_collect_columns": 7
             }
           },
           {
             "query_id": "enable_dict_false_3",
             "expected_counters": {
               "warp_match_columns": 8,
-              "warp_collect_columns": 11,
+              "warp_collect_columns": 0,
               "warp_prefilled_collect_columns": 1,
               "external_match_columns": 0,
-              "external_collect_columns": 0
+              "external_collect_columns": 11
             }
           }
         ]
@@ -9612,110 +9249,362 @@
             "query_id": "enable_dict_false_2",
             "expected_counters": {
               "warp_match_columns": 8,
-              "warp_collect_columns": 7,
+              "warp_collect_columns": 0,
               "warp_prefilled_collect_columns": 5,
               "external_match_columns": 0,
-              "external_collect_columns": 0
+              "external_collect_columns": 7
             }
           },
           {
             "query_id": "enable_dict_false_3",
             "expected_counters": {
               "warp_match_columns": 8,
-              "warp_collect_columns": 11,
+              "warp_collect_columns": 0,
               "warp_prefilled_collect_columns": 1,
               "external_match_columns": 0,
-              "external_collect_columns": 0
+              "external_collect_columns": 11
             }
           }
         ]
       }
     },
     "structure": [
-      {"name": "month", "type": "date"},
-      {"name": "account_id", "type": "varchar"},
-      {"name": "faccount", "type": "varchar"},
-      {"name": "apps_flyer_account_id", "type": "varchar"},
-      {"name": "account_name", "type": "varchar"},
-      {"name": "certainty_type", "type": "varchar"},
-      {"name": "max_billing_end_date", "type": "timestamp"},
-      {"name": "mrr", "type": "double"},
-      {"name": "mrr_month", "type": "varchar"},
-      {"name": "previous_month_mrr", "type": "double"},
-      {"name": "previous_quarter_mrr", "type": "double"},
-      {"name": "previous_year_december_mrr", "type": "double"},
-      {"name": "last_eoq_mrr", "type": "double"},
-      {"name": "qtd_type", "type": "varchar"},
-      {"name": "mom_type", "type": "varchar"},
-      {"name": "ytd_type", "type": "varchar"},
-      {"name": "previous_year_mrr", "type": "double"},
-      {"name": "yoy_type", "type": "varchar"},
-      {"name": "mom_delta", "type": "double"},
-      {"name": "qtd_delta", "type": "double"},
-      {"name": "yoy_delta", "type": "double"},
-      {"name": "ytd_delta", "type": "double"},
-      {"name": "reason_for_churn", "type": "varchar"},
-      {"name": "churned_lost_status", "type": "varchar"},
-      {"name": "customer_success_manager_name", "type": "varchar"},
-      {"name": "master_account", "type": "varchar"},
-      {"name": "max_paid_asset_billing_end_date", "type": "date"},
-      {"name": "is_retention_effort", "type": "boolean"},
-      {"name": "is_future_churn", "type": "boolean"},
-      {"name": "this_year_june_mrr", "type": "double"},
-      {"name": "h2_type", "type": "varchar"},
-      {"name": "h2_delta", "type": "double"},
-      {"name": "h1_or_h2_mrr", "type": "double"},
-      {"name": "h1_or_h2_type", "type": "varchar"},
-      {"name": "h1_or_h2_delta", "type": "double"},
-      {"name": "acc_region", "type": "varchar"},
-      {"name": "acc_sub_region", "type": "varchar"},
-      {"name": "acc_consolidated_biz_unit_region", "type": "varchar"},
-      {"name": "acc_biz_unit_region", "type": "varchar"},
-      {"name": "acc_shipping_country", "type": "varchar"},
-      {"name": "acc_billing_country", "type": "varchar"},
-      {"name": "acc_tier", "type": "varchar"},
-      {"name": "acc_activation_date", "type": "timestamp"},
-      {"name": "acc_industry", "type": "varchar"},
-      {"name": "churn_competitor_chosen", "type": "varchar"},
-      {"name": "churn_start_date", "type": "timestamp"},
-      {"name": "reason_for_churn_from_account", "type": "varchar"},
-      {"name": "account_segmentation", "type": "varchar"},
-      {"name": "churn_notes", "type": "varchar"},
-      {"name": "gm_notes", "type": "varchar"},
-      {"name": "product_sub_domain", "type": "varchar"},
-      {"name": "level_of_service", "type": "varchar"},
-      {"name": "acc_csm_name", "type": "varchar"},
-      {"name": "acc_team_leader_name", "type": "varchar"},
-      {"name": "growth_manager_name", "type": "varchar"},
-      {"name": "csm_email", "type": "varchar"},
-      {"name": "user_csm_secondary_email", "type": "varchar"},
-      {"name": "user_solution_architect_email", "type": "varchar"},
-      {"name": "user_cem_email", "type": "varchar"},
-      {"name": "account_sales_email", "type": "varchar"},
-      {"name": "growth_manager_email", "type": "varchar"},
-      {"name": "regional_csm_email", "type": "varchar"},
-      {"name": "secondary_regional_csm_email", "type": "varchar"},
-      {"name": "acc_csm_name_during_snapshot_month", "type": "varchar"},
-      {"name": "acc_team_leader_name_during_snapshot_month", "type": "varchar"},
-      {"name": "last_year_acc_tier", "type": "varchar"},
-      {"name": "exclude_churn_reason", "type": "varchar"},
-      {"name": "first_arr_month", "type": "date"},
-      {"name": "last_csm_name", "type": "varchar"},
-      {"name": "last_csm_email", "type": "varchar"},
-      {"name": "last_team_leader_name", "type": "varchar"},
-      {"name": "cumulative_yearly_mom_delta_mom_type_churn", "type": "double"},
-      {"name": "cumulative_yearly_mom_delta_mom_type_and_ytd_type_churn", "type": "double"},
-      {"name": "cumulative_yearly_mom_delta_mom_type_and_ytd_type_not_churn", "type": "double"},
-      {"name": "cumulative_yearly_mom_delta_mom_type_and_ytd_type_not_downgrade", "type": "double"},
-      {"name": "downgrade_month", "type": "date"},
-      {"name": "churn_month", "type": "date"},
-      {"name": "downgrade_month_for_h1_h2", "type": "date"},
-      {"name": "churn_month_for_h1_h2", "type": "date"},
-      {"name": "reason_for_downgrade", "type": "varchar"},
-      {"name": "downgrade_opp_id", "type": "varchar"},
-      {"name": "downgrade_opp_name", "type": "varchar"},
-      {"name": "downgrade_opp_close_date", "type": "timestamp"},
-      {"name": "arr_today", "type": "double"}
+      {
+        "name": "month",
+        "type": "date"
+      },
+      {
+        "name": "account_id",
+        "type": "varchar"
+      },
+      {
+        "name": "faccount",
+        "type": "varchar"
+      },
+      {
+        "name": "apps_flyer_account_id",
+        "type": "varchar"
+      },
+      {
+        "name": "account_name",
+        "type": "varchar"
+      },
+      {
+        "name": "certainty_type",
+        "type": "varchar"
+      },
+      {
+        "name": "max_billing_end_date",
+        "type": "timestamp"
+      },
+      {
+        "name": "mrr",
+        "type": "double"
+      },
+      {
+        "name": "mrr_month",
+        "type": "varchar"
+      },
+      {
+        "name": "previous_month_mrr",
+        "type": "double"
+      },
+      {
+        "name": "previous_quarter_mrr",
+        "type": "double"
+      },
+      {
+        "name": "previous_year_december_mrr",
+        "type": "double"
+      },
+      {
+        "name": "last_eoq_mrr",
+        "type": "double"
+      },
+      {
+        "name": "qtd_type",
+        "type": "varchar"
+      },
+      {
+        "name": "mom_type",
+        "type": "varchar"
+      },
+      {
+        "name": "ytd_type",
+        "type": "varchar"
+      },
+      {
+        "name": "previous_year_mrr",
+        "type": "double"
+      },
+      {
+        "name": "yoy_type",
+        "type": "varchar"
+      },
+      {
+        "name": "mom_delta",
+        "type": "double"
+      },
+      {
+        "name": "qtd_delta",
+        "type": "double"
+      },
+      {
+        "name": "yoy_delta",
+        "type": "double"
+      },
+      {
+        "name": "ytd_delta",
+        "type": "double"
+      },
+      {
+        "name": "reason_for_churn",
+        "type": "varchar"
+      },
+      {
+        "name": "churned_lost_status",
+        "type": "varchar"
+      },
+      {
+        "name": "customer_success_manager_name",
+        "type": "varchar"
+      },
+      {
+        "name": "master_account",
+        "type": "varchar"
+      },
+      {
+        "name": "max_paid_asset_billing_end_date",
+        "type": "date"
+      },
+      {
+        "name": "is_retention_effort",
+        "type": "boolean"
+      },
+      {
+        "name": "is_future_churn",
+        "type": "boolean"
+      },
+      {
+        "name": "this_year_june_mrr",
+        "type": "double"
+      },
+      {
+        "name": "h2_type",
+        "type": "varchar"
+      },
+      {
+        "name": "h2_delta",
+        "type": "double"
+      },
+      {
+        "name": "h1_or_h2_mrr",
+        "type": "double"
+      },
+      {
+        "name": "h1_or_h2_type",
+        "type": "varchar"
+      },
+      {
+        "name": "h1_or_h2_delta",
+        "type": "double"
+      },
+      {
+        "name": "acc_region",
+        "type": "varchar"
+      },
+      {
+        "name": "acc_sub_region",
+        "type": "varchar"
+      },
+      {
+        "name": "acc_consolidated_biz_unit_region",
+        "type": "varchar"
+      },
+      {
+        "name": "acc_biz_unit_region",
+        "type": "varchar"
+      },
+      {
+        "name": "acc_shipping_country",
+        "type": "varchar"
+      },
+      {
+        "name": "acc_billing_country",
+        "type": "varchar"
+      },
+      {
+        "name": "acc_tier",
+        "type": "varchar"
+      },
+      {
+        "name": "acc_activation_date",
+        "type": "timestamp"
+      },
+      {
+        "name": "acc_industry",
+        "type": "varchar"
+      },
+      {
+        "name": "churn_competitor_chosen",
+        "type": "varchar"
+      },
+      {
+        "name": "churn_start_date",
+        "type": "timestamp"
+      },
+      {
+        "name": "reason_for_churn_from_account",
+        "type": "varchar"
+      },
+      {
+        "name": "account_segmentation",
+        "type": "varchar"
+      },
+      {
+        "name": "churn_notes",
+        "type": "varchar"
+      },
+      {
+        "name": "gm_notes",
+        "type": "varchar"
+      },
+      {
+        "name": "product_sub_domain",
+        "type": "varchar"
+      },
+      {
+        "name": "level_of_service",
+        "type": "varchar"
+      },
+      {
+        "name": "acc_csm_name",
+        "type": "varchar"
+      },
+      {
+        "name": "acc_team_leader_name",
+        "type": "varchar"
+      },
+      {
+        "name": "growth_manager_name",
+        "type": "varchar"
+      },
+      {
+        "name": "csm_email",
+        "type": "varchar"
+      },
+      {
+        "name": "user_csm_secondary_email",
+        "type": "varchar"
+      },
+      {
+        "name": "user_solution_architect_email",
+        "type": "varchar"
+      },
+      {
+        "name": "user_cem_email",
+        "type": "varchar"
+      },
+      {
+        "name": "account_sales_email",
+        "type": "varchar"
+      },
+      {
+        "name": "growth_manager_email",
+        "type": "varchar"
+      },
+      {
+        "name": "regional_csm_email",
+        "type": "varchar"
+      },
+      {
+        "name": "secondary_regional_csm_email",
+        "type": "varchar"
+      },
+      {
+        "name": "acc_csm_name_during_snapshot_month",
+        "type": "varchar"
+      },
+      {
+        "name": "acc_team_leader_name_during_snapshot_month",
+        "type": "varchar"
+      },
+      {
+        "name": "last_year_acc_tier",
+        "type": "varchar"
+      },
+      {
+        "name": "exclude_churn_reason",
+        "type": "varchar"
+      },
+      {
+        "name": "first_arr_month",
+        "type": "date"
+      },
+      {
+        "name": "last_csm_name",
+        "type": "varchar"
+      },
+      {
+        "name": "last_csm_email",
+        "type": "varchar"
+      },
+      {
+        "name": "last_team_leader_name",
+        "type": "varchar"
+      },
+      {
+        "name": "cumulative_yearly_mom_delta_mom_type_churn",
+        "type": "double"
+      },
+      {
+        "name": "cumulative_yearly_mom_delta_mom_type_and_ytd_type_churn",
+        "type": "double"
+      },
+      {
+        "name": "cumulative_yearly_mom_delta_mom_type_and_ytd_type_not_churn",
+        "type": "double"
+      },
+      {
+        "name": "cumulative_yearly_mom_delta_mom_type_and_ytd_type_not_downgrade",
+        "type": "double"
+      },
+      {
+        "name": "downgrade_month",
+        "type": "date"
+      },
+      {
+        "name": "churn_month",
+        "type": "date"
+      },
+      {
+        "name": "downgrade_month_for_h1_h2",
+        "type": "date"
+      },
+      {
+        "name": "churn_month_for_h1_h2",
+        "type": "date"
+      },
+      {
+        "name": "reason_for_downgrade",
+        "type": "varchar"
+      },
+      {
+        "name": "downgrade_opp_id",
+        "type": "varchar"
+      },
+      {
+        "name": "downgrade_opp_name",
+        "type": "varchar"
+      },
+      {
+        "name": "downgrade_opp_close_date",
+        "type": "timestamp"
+      },
+      {
+        "name": "arr_today",
+        "type": "double"
+      }
     ],
     "session_properties": {
       "enable_dictionary": false
@@ -9725,60 +9614,183 @@
       {
         "query": "select churn_competitor_chosen, count(*) from enable_dict_false where churn_competitor_chosen is not null group by 1 order by 1",
         "expected_result": [
-          ["Adjust", 511],
-          ["Airbridge", 13],
-          ["Appmetrica", 24],
-          ["AppsFlyer - PPU", 24],
-          ["Appsflyer", 25],
-          ["Branch", 194],
-          ["Firebase", 49],
-          ["Kochava", 49],
-          ["Mytracker", 24],
-          ["No Current Provider", 162],
-          ["No Current Provider;Unknown", 24],
-          ["Other",297],
-          ["Reyun", 25],
-          ["Singular", 49],
-          ["Tenjin", 13],
-          ["Unknown", 759]
+          [
+            "Adjust",
+            511
           ],
+          [
+            "Airbridge",
+            13
+          ],
+          [
+            "Appmetrica",
+            24
+          ],
+          [
+            "AppsFlyer - PPU",
+            24
+          ],
+          [
+            "Appsflyer",
+            25
+          ],
+          [
+            "Branch",
+            194
+          ],
+          [
+            "Firebase",
+            49
+          ],
+          [
+            "Kochava",
+            49
+          ],
+          [
+            "Mytracker",
+            24
+          ],
+          [
+            "No Current Provider",
+            162
+          ],
+          [
+            "No Current Provider;Unknown",
+            24
+          ],
+          [
+            "Other",
+            297
+          ],
+          [
+            "Reyun",
+            25
+          ],
+          [
+            "Singular",
+            49
+          ],
+          [
+            "Tenjin",
+            13
+          ],
+          [
+            "Unknown",
+            759
+          ]
+        ],
         "query_id": "enable_dict_false_1"
       },
       {
         "query": "select churn_competitor_chosen, count(*) from enable_dict_false where month = cast('2023-01-01' as date) and acc_region<>'EMEA'  group by 1 order by 1",
         "expected_result": [
-          ["Adjust", 8],
-          ["Airbridge", 1],
-          ["AppsFlyer - PPU", 1],
-          ["Branch", 2],
-          ["Kochava", 1],
-          ["No Current Provider", 3],
-          ["Other",4],
-          ["Singular", 1],
-          ["Unknown", 10],
-          [null, 4295]
+          [
+            "Adjust",
+            8
           ],
+          [
+            "Airbridge",
+            1
+          ],
+          [
+            "AppsFlyer - PPU",
+            1
+          ],
+          [
+            "Branch",
+            2
+          ],
+          [
+            "Kochava",
+            1
+          ],
+          [
+            "No Current Provider",
+            3
+          ],
+          [
+            "Other",
+            4
+          ],
+          [
+            "Singular",
+            1
+          ],
+          [
+            "Unknown",
+            10
+          ],
+          [
+            null,
+            4295
+          ]
+        ],
         "query_id": "enable_dict_false_2"
       },
       {
         "query": "select churn_competitor_chosen, count(*) from enable_dict_false where month <> cast('2023-01-01' as date) and acc_region<>'EMEA' group by 1 order by 1",
         "expected_result": [
-          ["Adjust", 405],
-          ["Airbridge", 12],
-          ["AppsFlyer - PPU", 23],
-          ["Appsflyer", 13],
-          ["Branch", 155],
-          ["Firebase", 49],
-          ["Kochava", 48],
-          ["No Current Provider", 140],
-          ["No Current Provider;Unknown", 24],
-          ["Other", 231],
-          ["Reyun", 25],
-          ["Singular", 35],
-          ["Tenjin", 13],
-          ["Unknown", 529],
-          [null, 263060]
+          [
+            "Adjust",
+            405
           ],
+          [
+            "Airbridge",
+            12
+          ],
+          [
+            "AppsFlyer - PPU",
+            23
+          ],
+          [
+            "Appsflyer",
+            13
+          ],
+          [
+            "Branch",
+            155
+          ],
+          [
+            "Firebase",
+            49
+          ],
+          [
+            "Kochava",
+            48
+          ],
+          [
+            "No Current Provider",
+            140
+          ],
+          [
+            "No Current Provider;Unknown",
+            24
+          ],
+          [
+            "Other",
+            231
+          ],
+          [
+            "Reyun",
+            25
+          ],
+          [
+            "Singular",
+            35
+          ],
+          [
+            "Tenjin",
+            13
+          ],
+          [
+            "Unknown",
+            529
+          ],
+          [
+            null,
+            263060
+          ]
+        ],
         "query_id": "enable_dict_false_3"
       }
     ]
@@ -9790,7 +9802,9 @@
       {
         "name": "genre_id",
         "type": "array",
-        "args": ["bigint"]
+        "args": [
+          "bigint"
+        ]
       }
     ],
     "comment_skip_type": "no table",
@@ -9807,11 +9821,19 @@
       {
         "query": "select element_at(genre_id, 1) from int_array_with_nulls order by cardinality(genre_id)",
         "expected_result": [
-          [null],
-          [null],
-          [null],
-          [null]
+          [
+            null
           ],
+          [
+            null
+          ],
+          [
+            null
+          ],
+          [
+            null
+          ]
+        ],
         "query_id": "int_array_with_nulls_1"
       }
     ]
@@ -9834,10 +9856,10 @@
         "query_id": "single_chunk_22783_rollback_1",
         "expected_counters": {
           "warp_match_columns": 0,
-          "warp_collect_columns": 1,
+          "warp_collect_columns": 0,
           "empty_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 1
         }
       }
     ],
@@ -9878,29 +9900,7 @@
         "type": "integer"
       }
     ],
-    "warmup_rules": [
-      {
-        "colNameId": "varchar_1",
-        "predicates": [],
-        "warmUpTypes": [
-          "WARM_UP_TYPE_DATA"
-        ]
-      },
-      {
-        "colNameId": "varchar_2",
-        "predicates": [],
-        "warmUpTypes": [
-          "WARM_UP_TYPE_DATA"
-        ]
-      },
-      {
-        "colNameId": "int_4",
-        "predicates": [],
-        "warmUpTypes": [
-          "WARM_UP_TYPE_DATA"
-        ]
-      }
-    ],
+    "warmup_rules": [],
     "overriding": {
       "warp_iceberg": {
         "queries_data": [
@@ -9908,19 +9908,7 @@
             "query_id": "lazy_collect_varchar_1_1",
             "expected_counters": {
               "warp_match_columns": 0,
-              "warp_collect_columns": 5,
-              "empty_collect_columns": 0,
-              "lazy_collect_total_blocks": 19,
-              "lazy_collect_loaded_blocks": 19,
-              "external_match_columns": 0,
-              "external_collect_columns": 0
-            }
-          },
-          {
-            "query_id": "lazy_collect_varchar_1_2",
-            "expected_counters": {
-              "warp_match_columns": 0,
-              "warp_collect_columns": 5,
+              "warp_collect_columns": 0,
               "empty_collect_columns": 0,
               "lazy_collect_total_blocks": 19,
               "lazy_collect_loaded_blocks": 19,
@@ -9929,39 +9917,51 @@
             }
           },
           {
+            "query_id": "lazy_collect_varchar_1_2",
+            "expected_counters": {
+              "warp_match_columns": 0,
+              "warp_collect_columns": 0,
+              "empty_collect_columns": 0,
+              "lazy_collect_total_blocks": 19,
+              "lazy_collect_loaded_blocks": 19,
+              "external_match_columns": 0,
+              "external_collect_columns": 10
+            }
+          },
+          {
             "query_id": "lazy_collect_varchar_1_3",
             "expected_counters": {
               "warp_match_columns": 0,
-              "warp_collect_columns": 10,
+              "warp_collect_columns": 0,
               "empty_collect_columns": 0,
               "lazy_collect_total_blocks": 38,
               "lazy_collect_loaded_blocks": 24,
               "external_match_columns": 5,
-              "external_collect_columns": 0
+              "external_collect_columns": 10
             }
           },
           {
             "query_id": "lazy_collect_varchar_1_4",
             "expected_counters": {
               "warp_match_columns": 0,
-              "warp_collect_columns": 10,
+              "warp_collect_columns": 0,
               "empty_collect_columns": 0,
               "lazy_collect_total_blocks": 38,
               "lazy_collect_loaded_blocks": 37,
               "external_match_columns": 5,
-              "external_collect_columns": 0
+              "external_collect_columns": 10
             }
           },
           {
             "query_id": "lazy_collect_varchar_1_5",
             "expected_counters": {
               "warp_match_columns": 0,
-              "warp_collect_columns": 10,
+              "warp_collect_columns": 0,
               "empty_collect_columns": 0,
               "lazy_collect_total_blocks": 38,
               "lazy_collect_loaded_blocks": 19,
               "external_match_columns": 5,
-              "external_collect_columns": 0
+              "external_collect_columns": 10
             }
           }
         ]
@@ -9972,19 +9972,7 @@
             "query_id": "lazy_collect_varchar_1_1",
             "expected_counters": {
               "warp_match_columns": 0,
-              "warp_collect_columns": 6,
-              "empty_collect_columns": 0,
-              "lazy_collect_total_blocks": 17,
-              "lazy_collect_loaded_blocks": 17,
-              "external_match_columns": 0,
-              "external_collect_columns": 0
-            }
-          },
-          {
-            "query_id": "lazy_collect_varchar_1_2",
-            "expected_counters": {
-              "warp_match_columns": 0,
-              "warp_collect_columns": 6,
+              "warp_collect_columns": 0,
               "empty_collect_columns": 0,
               "lazy_collect_total_blocks": 17,
               "lazy_collect_loaded_blocks": 17,
@@ -9993,50 +9981,57 @@
             }
           },
           {
+            "query_id": "lazy_collect_varchar_1_2",
+            "expected_counters": {
+              "warp_match_columns": 0,
+              "warp_collect_columns": 0,
+              "empty_collect_columns": 0,
+              "lazy_collect_total_blocks": 17,
+              "lazy_collect_loaded_blocks": 17,
+              "external_match_columns": 0,
+              "external_collect_columns": 12
+            }
+          },
+          {
             "query_id": "lazy_collect_varchar_1_3",
             "expected_counters": {
               "warp_match_columns": 0,
-              "warp_collect_columns": 12,
+              "warp_collect_columns": 0,
               "empty_collect_columns": 0,
               "lazy_collect_total_blocks": 34,
               "lazy_collect_loaded_blocks": 22,
               "external_match_columns": 6,
-              "external_collect_columns": 0
+              "external_collect_columns": 12
             }
           },
           {
             "query_id": "lazy_collect_varchar_1_4",
             "expected_counters": {
               "warp_match_columns": 0,
-              "warp_collect_columns": 12,
+              "warp_collect_columns": 0,
               "empty_collect_columns": 0,
               "lazy_collect_total_blocks": 34,
               "lazy_collect_loaded_blocks": 34,
               "external_match_columns": 6,
-              "external_collect_columns": 0
+              "external_collect_columns": 12
             }
           },
           {
             "query_id": "lazy_collect_varchar_1_5",
             "expected_counters": {
               "warp_match_columns": 0,
-              "warp_collect_columns": 12,
+              "warp_collect_columns": 0,
               "empty_collect_columns": 0,
               "lazy_collect_total_blocks": 34,
               "lazy_collect_loaded_blocks": 17,
               "external_match_columns": 6,
-              "external_collect_columns": 0
+              "external_collect_columns": 12
             }
           }
         ]
       }
     },
     "warm_query": "select count(varchar_2), count(varchar_1), count(int_4) from lazy_collect_200k_int",
-    "expected_dictionary_counters": {
-      "dictionary_failed_elements_count": 0,
-      "dictionary_rejected_elements_count": 0,
-      "write_dictionaries_count": 0
-    },
     "queries_data": [
       {
         "query": "select count(varchar_2) from lazy_collect_200k_int",
@@ -10046,23 +10041,7 @@
         "query_id": "lazy_collect_varchar_1_1",
         "expected_counters": {
           "warp_match_columns": 0,
-          "warp_collect_columns": 1,
-          "empty_collect_columns": 0,
-          "lazy_collect_total_blocks": 19,
-          "lazy_collect_loaded_blocks": 19,
-          "external_match_columns": 0,
-          "external_collect_columns": 0
-        }
-      },
-      {
-        "query": "select count(varchar_2),count(varchar_3) from lazy_collect_200k_int",
-        "expected_result": [
-          199790,200000
-        ],
-        "query_id": "lazy_collect_varchar_1_2",
-        "expected_counters": {
-          "warp_match_columns": 0,
-          "warp_collect_columns": 1,
+          "warp_collect_columns": 0,
           "empty_collect_columns": 0,
           "lazy_collect_total_blocks": 19,
           "lazy_collect_loaded_blocks": 19,
@@ -10071,51 +10050,71 @@
         }
       },
       {
+        "query": "select count(varchar_2),count(varchar_3) from lazy_collect_200k_int",
+        "expected_result": [
+          199790,
+          200000
+        ],
+        "query_id": "lazy_collect_varchar_1_2",
+        "expected_counters": {
+          "warp_match_columns": 0,
+          "warp_collect_columns": 0,
+          "empty_collect_columns": 0,
+          "lazy_collect_total_blocks": 19,
+          "lazy_collect_loaded_blocks": 19,
+          "external_match_columns": 0,
+          "external_collect_columns": 2
+        }
+      },
+      {
         "query": "select count(varchar_2),count(int_4) from lazy_collect_200k_int where int_4=4",
         "expected_result": [
-          112,112
+          112,
+          112
         ],
         "query_id": "lazy_collect_varchar_1_3",
         "expected_counters": {
           "warp_match_columns": 0,
-          "warp_collect_columns": 2,
+          "warp_collect_columns": 0,
           "empty_collect_columns": 0,
           "lazy_collect_total_blocks": 38,
           "lazy_collect_loaded_blocks": 24,
           "external_match_columns": 1,
-          "external_collect_columns": 0
+          "external_collect_columns": 2
         }
       },
       {
         "query": "select count(varchar_2),count(int_4) from lazy_collect_200k_int where int_4>0",
         "expected_result": [
-          99944,100056
+          99944,
+          100056
         ],
         "query_id": "lazy_collect_varchar_1_4",
         "expected_counters": {
           "warp_match_columns": 0,
-          "warp_collect_columns": 2,
+          "warp_collect_columns": 0,
           "empty_collect_columns": 0,
           "lazy_collect_total_blocks": 38,
           "lazy_collect_loaded_blocks": 37,
           "external_match_columns": 1,
-          "external_collect_columns": 0
+          "external_collect_columns": 2
         }
       },
       {
         "query": "select count(varchar_2),count(int_4) from lazy_collect_200k_int where int_4=5",
         "expected_result": [
-          0,0
+          0,
+          0
         ],
         "query_id": "lazy_collect_varchar_1_5",
         "expected_counters": {
           "warp_match_columns": 0,
-          "warp_collect_columns": 2,
+          "warp_collect_columns": 0,
           "empty_collect_columns": 0,
           "lazy_collect_total_blocks": 38,
           "lazy_collect_loaded_blocks": 19,
           "external_match_columns": 1,
-          "external_collect_columns": 0
+          "external_collect_columns": 2
         }
       }
     ]
@@ -10142,18 +10141,13 @@
         ]
       }
     ],
-    "warmup_rules": [
-      {
-        "colNameId": "char_8_one_val",
-        "predicates": [],
-        "warmUpTypes": [
-          "WARM_UP_TYPE_DATA"
-        ]
-      }],
+    "warmup_rules": [],
     "queries_data": [
       {
         "query": "select count(*) from arr_collect_more_first_null",
-        "expected_result": [30],
+        "expected_result": [
+          30
+        ],
         "expected_counters": {
           "warp_match_columns": 0,
           "warp_collect_columns": 0,
@@ -10182,18 +10176,13 @@
         ]
       }
     ],
-    "warmup_rules": [
-      {
-        "colNameId": "char_8_one_val",
-        "predicates": [],
-        "warmUpTypes": [
-          "WARM_UP_TYPE_DATA"
-        ]
-      }],
+    "warmup_rules": [],
     "queries_data": [
       {
         "query": "select count(*) from arr_collect_more_null_pure",
-        "expected_result": [30],
+        "expected_result": [
+          30
+        ],
         "expected_counters": {
           "warp_match_columns": 0,
           "warp_collect_columns": 0,
@@ -10204,24 +10193,28 @@
       },
       {
         "query": "select count(char_8_one_val) from arr_collect_more_null_pure",
-        "expected_result": [11],
+        "expected_result": [
+          11
+        ],
         "expected_counters": {
           "warp_match_columns": 0,
-          "warp_collect_columns": 1,
+          "warp_collect_columns": 0,
           "empty_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 1
         }
       },
       {
         "query": "select count(char_8_one_val) from arr_collect_more_null_pure where char_8_one_val[2]='Hdskskhf'",
-        "expected_result": [11],
+        "expected_result": [
+          11
+        ],
         "expected_counters": {
           "warp_match_columns": 0,
-          "warp_collect_columns": 1,
+          "warp_collect_columns": 0,
           "empty_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 1
         }
       }
     ],
@@ -10244,18 +10237,13 @@
         ]
       }
     ],
-    "warmup_rules": [
-      {
-        "colNameId": "char_8_one_val",
-        "predicates": [],
-        "warmUpTypes": [
-          "WARM_UP_TYPE_DATA"
-        ]
-      }],
+    "warmup_rules": [],
     "queries_data": [
       {
         "query": "select count(*) from arr_collect_more_varchar",
-        "expected_result": [30],
+        "expected_result": [
+          30
+        ],
         "expected_counters": {
           "warp_match_columns": 0,
           "warp_collect_columns": 0,
@@ -10271,21 +10259,23 @@
         ],
         "expected_counters": {
           "warp_match_columns": 0,
-          "warp_collect_columns": 1,
+          "warp_collect_columns": 0,
           "empty_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 1
         }
       },
       {
         "query": "select count(char_8_one_val) from arr_collect_more_varchar where char_8_one_val[2]='yyy'",
-        "expected_result": [19],
+        "expected_result": [
+          19
+        ],
         "expected_counters": {
           "warp_match_columns": 0,
-          "warp_collect_columns": 1,
+          "warp_collect_columns": 0,
           "empty_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 1
         }
       }
     ],
@@ -10315,31 +10305,19 @@
         "type": "integer"
       }
     ],
-    "warmup_rules": [
-      {
-        "colNameId": "char_8_one_val",
-        "predicates": [],
-        "warmUpTypes": [
-          "WARM_UP_TYPE_DATA"
-        ]
-      },
-      {
-        "colNameId": "int_col",
-        "predicates": [],
-        "warmUpTypes": [
-          "WARM_UP_TYPE_DATA"
-        ]
-      }],
+    "warmup_rules": [],
     "queries_data": [
       {
         "query": "select count(char_8_one_val) from arr_collect_200k where char_8_one_val[2]='Hdskskhf' and int_col < 10",
-        "expected_result": [21871],
+        "expected_result": [
+          21871
+        ],
         "expected_counters": {
           "warp_match_columns": 0,
-          "warp_collect_columns": 2,
+          "warp_collect_columns": 0,
           "empty_collect_columns": 0,
           "external_match_columns": 1,
-          "external_collect_columns": 0
+          "external_collect_columns": 2
         }
       },
       {
@@ -10349,10 +10327,10 @@
         ],
         "expected_counters": {
           "warp_match_columns": 0,
-          "warp_collect_columns": 1,
+          "warp_collect_columns": 0,
           "empty_collect_columns": 0,
           "external_match_columns": 0,
-          "external_collect_columns": 0
+          "external_collect_columns": 1
         }
       }
     ],
@@ -10382,15 +10360,7 @@
     "session_properties": {
       "enable_dictionary": false
     },
-    "warmup_rules": [
-      {
-        "colNameId": "varchar_column",
-        "predicates": [],
-        "warmUpTypes": [
-          "WARM_UP_TYPE_DATA"
-        ]
-      }
-    ],
+    "warmup_rules": [],
     "warm_query": "select * from empty_and_null_varchar",
     "queries_data": [
       {
@@ -10403,4 +10373,3 @@
     ]
   }
 ]
-
