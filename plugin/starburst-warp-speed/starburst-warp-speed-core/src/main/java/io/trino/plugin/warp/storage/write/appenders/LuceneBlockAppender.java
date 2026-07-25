@@ -38,7 +38,7 @@ public class LuceneBlockAppender
     }
 
     @Override
-    public AppendResult appendWithoutDictionary(
+    public AppendResult appendValues(
             int jufferPos,
             BlockPosHolder blockPos,
             WarmUpElement warmUpElement,

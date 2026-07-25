@@ -67,7 +67,7 @@ class CrcFixedStringBlockAppenderTest
     @Override
     @ParameterizedTest
     @MethodSource("params")
-    public void writeWithoutDictionary(Block block, Type blockType, WarmupElementStats expectedResult)
+    public void write(Block block, Type blockType, WarmupElementStats expectedResult)
     {
         when(writeJuffersWarmUpElement.getRecordBuffer()).thenReturn(ByteBuffer.allocate(100000));
         runTest(block, blockType, expectedResult);

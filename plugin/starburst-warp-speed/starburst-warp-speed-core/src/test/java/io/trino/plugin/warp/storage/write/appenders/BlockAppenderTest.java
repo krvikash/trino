@@ -93,7 +93,7 @@ public abstract class BlockAppenderTest
 
     @ParameterizedTest
     @MethodSource("params")
-    abstract void writeWithoutDictionary(Block block, Type blockType, WarmupElementStats expectedResult);
+    abstract void write(Block block, Type blockType, WarmupElementStats expectedResult);
 
     RecTypeCode getRecTypeCode(Type blockType)
     {

@@ -43,12 +43,12 @@ public abstract class BlockAppender
             WarmUpElement warmUpElement,
             WarmupElementStatsBuilder warmupElementStatsBuilder)
     {
-        AppendResult result = appendWithoutDictionary(jufferPos, blockPos, warmUpElement, warmupElementStatsBuilder);
+        AppendResult result = appendValues(jufferPos, blockPos, warmUpElement, warmupElementStatsBuilder);
         warmupElementStatsBuilder.incNullCount(result.nullsCount());
         return result;
     }
 
-    abstract AppendResult appendWithoutDictionary(
+    abstract AppendResult appendValues(
             int jufferPos,
             BlockPosHolder blockPos,
             WarmUpElement warmUpElement,

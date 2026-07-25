@@ -72,17 +72,17 @@ public class MatchPrepareAfterCollectClassifierTest
     public void testExceededLimitRootIsOr()
     {
         final int maxMatchColumns = 3;
-        QueryMatchData data = generateQueryMatchData(WarmUpType.WARM_UP_TYPE_BASIC);
+        QueryMatchData basicMatchData = generateQueryMatchData(WarmUpType.WARM_UP_TYPE_BASIC);
         QueryMatchData basicWithCollectLowestPriority = generateQueryMatchData(WarmUpType.WARM_UP_TYPE_BASIC, true);
         QueryMatchData onlyMatch = generateQueryMatchData(WarmUpType.WARM_UP_TYPE_BASIC);
         QueryMatchData lucene = generateQueryMatchData(WarmUpType.WARM_UP_TYPE_LUCENE);
-        List<NativeQueryCollectData> collectColumns = createCollectColumnsForMatchCollect(ORDINARY, data, basicWithCollectLowestPriority);
+        List<NativeQueryCollectData> collectColumns = createCollectColumnsForMatchCollect(ORDINARY, basicMatchData, basicWithCollectLowestPriority);
         ImmutableMap<Integer, ColumnHandle> collectColumnsByBlockIndex = ImmutableMap.of(
-                0, new TestingColumnHandle(data.getWarpColumn().getName()),
+                0, new TestingColumnHandle(basicMatchData.getWarpColumn().getName()),
                 1, new TestingColumnHandle(basicWithCollectLowestPriority.getWarpColumn().getName()));
         LogicalMatchData matchData = new LogicalMatchData(
                 LogicalMatchData.Operator.OR,
-                List.of(basicWithCollectLowestPriority, onlyMatch, data, lucene));
+                List.of(basicWithCollectLowestPriority, onlyMatch, basicMatchData, lucene));
 
         matchPrepareAfterCollectClassifier = new MatchPrepareAfterCollectClassifier(matchCollectIdService, maxMatchColumns);
         DispatcherTableHandle dispatcherTableHandle = mock(DispatcherTableHandle.class);
@@ -103,7 +103,7 @@ public class MatchPrepareAfterCollectClassifierTest
                 .nativeQueryCollectDataList(collectColumns)
                 .remainingCollectColumnByBlockIndex(Map.of())
                 .build();
-        assertThat(MatchCollectUtils.canBeMatchForMatchCollect(data, queryContext.getNativeQueryCollectDataList())).isTrue();
+        assertThat(MatchCollectUtils.canBeMatchForMatchCollect(basicMatchData, queryContext.getNativeQueryCollectDataList())).isTrue();
         assertThat(MatchCollectUtils.canBeMatchForMatchCollect(basicWithCollectLowestPriority, queryContext.getNativeQueryCollectDataList())).isTrue();
 
         QueryContext result = matchPrepareAfterCollectClassifier.classify(classifyArgs, queryContext);
@@ -115,17 +115,17 @@ public class MatchPrepareAfterCollectClassifierTest
     {
         final int maxMatchColumns = 3;
 
-        QueryMatchData data = generateQueryMatchData(WarmUpType.WARM_UP_TYPE_BASIC);
+        QueryMatchData basicMatchData = generateQueryMatchData(WarmUpType.WARM_UP_TYPE_BASIC);
         QueryMatchData basicWithCollectLowestPriority = generateQueryMatchData(WarmUpType.WARM_UP_TYPE_BASIC, true);
         QueryMatchData onlyMatch = generateQueryMatchData(WarmUpType.WARM_UP_TYPE_BASIC);
 
-        List<NativeQueryCollectData> collectColumns = createCollectColumnsForMatchCollect(ORDINARY, data, basicWithCollectLowestPriority);
+        List<NativeQueryCollectData> collectColumns = createCollectColumnsForMatchCollect(ORDINARY, basicMatchData, basicWithCollectLowestPriority);
         ImmutableMap<Integer, ColumnHandle> collectColumnsByBlockIndex = ImmutableMap.of(
-                0, new TestingColumnHandle(data.getWarpColumn().getName()),
+                0, new TestingColumnHandle(basicMatchData.getWarpColumn().getName()),
                 1, new TestingColumnHandle(basicWithCollectLowestPriority.getWarpColumn().getName()));
         LogicalMatchData matchData = new LogicalMatchData(
                 LogicalMatchData.Operator.AND,
-                List.of(basicWithCollectLowestPriority, onlyMatch, data));
+                List.of(basicWithCollectLowestPriority, onlyMatch, basicMatchData));
 
         matchPrepareAfterCollectClassifier = new MatchPrepareAfterCollectClassifier(matchCollectIdService, maxMatchColumns);
         DispatcherTableHandle dispatcherTableHandle = mock(DispatcherTableHandle.class);
@@ -146,11 +146,11 @@ public class MatchPrepareAfterCollectClassifierTest
                 .nativeQueryCollectDataList(collectColumns)
                 .remainingCollectColumnByBlockIndex(Map.of())
                 .build();
-        assertThat(MatchCollectUtils.canBeMatchForMatchCollect(data, queryContext.getNativeQueryCollectDataList())).isTrue();
+        assertThat(MatchCollectUtils.canBeMatchForMatchCollect(basicMatchData, queryContext.getNativeQueryCollectDataList())).isTrue();
         assertThat(MatchCollectUtils.canBeMatchForMatchCollect(basicWithCollectLowestPriority, queryContext.getNativeQueryCollectDataList())).isTrue();
 
         QueryContext result = matchPrepareAfterCollectClassifier.classify(classifyArgs, queryContext);
-        LogicalMatchData expectedMatchData = new LogicalMatchData(LogicalMatchData.Operator.AND, List.of(onlyMatch, basicWithCollectLowestPriority, data));
+        LogicalMatchData expectedMatchData = new LogicalMatchData(LogicalMatchData.Operator.AND, List.of(onlyMatch, basicWithCollectLowestPriority, basicMatchData));
         assertThat(result.getMatchData()).isEqualTo(Optional.of(expectedMatchData));
         assertThat(result.getRemainingCollectColumns()).isEmpty();
         assertThat(result.isCanBeTight()).isFalse();
@@ -248,7 +248,7 @@ public class MatchPrepareAfterCollectClassifierTest
         DispatcherTableHandle dispatcherTableHandle = mock(DispatcherTableHandle.class);
         QueryMatchData basicColumn = generateQueryMatchData(WarmUpType.WARM_UP_TYPE_BASIC);
         QueryMatchData luceneColumn = generateQueryMatchData(WarmUpType.WARM_UP_TYPE_LUCENE);
-        QueryMatchData dataColumn = generateQueryMatchData(WarmUpType.WARM_UP_TYPE_BASIC);
+        QueryMatchData otherBasicColumn = generateQueryMatchData(WarmUpType.WARM_UP_TYPE_BASIC);
         WarmedWarmupTypes.Builder warmedWarmupTypes = new WarmedWarmupTypes.Builder();
         ClassifyArgs classifyArgs = new ClassifyArgs(
                 dispatcherTableHandle,
@@ -262,11 +262,11 @@ public class MatchPrepareAfterCollectClassifierTest
                 false,
                 false);
         LogicalMatchData matchData = new LogicalMatchData(LogicalMatchData.Operator.AND, List.of(
-                new LogicalMatchData(LogicalMatchData.Operator.OR, List.of(dataColumn, basicColumn)),
+                new LogicalMatchData(LogicalMatchData.Operator.OR, List.of(otherBasicColumn, basicColumn)),
                 luceneColumn));
         LogicalMatchData expectedMatchData = new LogicalMatchData(LogicalMatchData.Operator.AND, List.of(
                 luceneColumn,
-                new LogicalMatchData(LogicalMatchData.Operator.OR, List.of(dataColumn, basicColumn))));
+                new LogicalMatchData(LogicalMatchData.Operator.OR, List.of(otherBasicColumn, basicColumn))));
 
         QueryContext queryContext = baseContext.asBuilder().matchData(Optional.of(matchData)).build();
         QueryContext classify = matchPrepareAfterCollectClassifier.classify(classifyArgs, queryContext);
@@ -283,7 +283,7 @@ public class MatchPrepareAfterCollectClassifierTest
         QueryMatchData basicMatchCollectColumn = generateQueryMatchData(WarmUpType.WARM_UP_TYPE_BASIC, true);
         QueryMatchData basicColumn = generateQueryMatchData(WarmUpType.WARM_UP_TYPE_BASIC);
         QueryMatchData luceneColumn = generateQueryMatchData(WarmUpType.WARM_UP_TYPE_LUCENE);
-        QueryMatchData dataColumn = generateQueryMatchData(WarmUpType.WARM_UP_TYPE_BASIC);
+        QueryMatchData otherBasicColumn = generateQueryMatchData(WarmUpType.WARM_UP_TYPE_BASIC);
         WarmedWarmupTypes.Builder warmedWarmupTypes = new WarmedWarmupTypes.Builder();
         ClassifyArgs classifyArgs = new ClassifyArgs(
                 dispatcherTableHandle,
@@ -297,7 +297,7 @@ public class MatchPrepareAfterCollectClassifierTest
                 false,
                 false);
         LogicalMatchData matchData = new LogicalMatchData(LogicalMatchData.Operator.AND, List.of(
-                new LogicalMatchData(LogicalMatchData.Operator.OR, List.of(dataColumn, basicMatchCollectColumn)),
+                new LogicalMatchData(LogicalMatchData.Operator.OR, List.of(otherBasicColumn, basicMatchCollectColumn)),
                 new LogicalMatchData(LogicalMatchData.Operator.OR, List.of(luceneColumn, basicColumn))));
         QueryContext queryContext = baseContext.asBuilder().matchData(Optional.of(matchData)).build();
         QueryContext classify = matchPrepareAfterCollectClassifier.classify(classifyArgs, queryContext);
@@ -314,7 +314,7 @@ public class MatchPrepareAfterCollectClassifierTest
         QueryMatchData basicMatchCollectColumn = generateQueryMatchData(WarmUpType.WARM_UP_TYPE_BASIC, true);
         QueryMatchData basicColumn = generateQueryMatchData(WarmUpType.WARM_UP_TYPE_BASIC);
         QueryMatchData luceneColumn = generateQueryMatchData(WarmUpType.WARM_UP_TYPE_LUCENE);
-        QueryMatchData dataColumn = generateQueryMatchData(WarmUpType.WARM_UP_TYPE_BASIC);
+        QueryMatchData otherBasicColumn = generateQueryMatchData(WarmUpType.WARM_UP_TYPE_BASIC);
         WarmedWarmupTypes.Builder warmedWarmupTypes = new WarmedWarmupTypes.Builder();
         ClassifyArgs classifyArgs = new ClassifyArgs(
                 dispatcherTableHandle,
@@ -328,7 +328,7 @@ public class MatchPrepareAfterCollectClassifierTest
                 false,
                 false);
         LogicalMatchData matchData = new LogicalMatchData(LogicalMatchData.Operator.OR, List.of(
-                new LogicalMatchData(LogicalMatchData.Operator.AND, List.of(dataColumn, basicMatchCollectColumn)),
+                new LogicalMatchData(LogicalMatchData.Operator.AND, List.of(otherBasicColumn, basicMatchCollectColumn)),
                 new LogicalMatchData(LogicalMatchData.Operator.AND, List.of(luceneColumn, basicColumn))));
         QueryContext queryContext = baseContext.asBuilder().matchData(Optional.of(matchData)).build();
         QueryContext classify = matchPrepareAfterCollectClassifier.classify(classifyArgs, queryContext);

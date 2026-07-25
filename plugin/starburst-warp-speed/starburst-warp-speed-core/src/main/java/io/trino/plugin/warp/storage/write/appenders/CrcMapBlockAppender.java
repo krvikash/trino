@@ -32,7 +32,7 @@ public class CrcMapBlockAppender
     }
 
     @Override
-    AppendResult appendWithoutDictionary(
+    AppendResult appendValues(
             int jufferPos,
             BlockPosHolder blockPos,
             WarmUpElement warmUpElement,

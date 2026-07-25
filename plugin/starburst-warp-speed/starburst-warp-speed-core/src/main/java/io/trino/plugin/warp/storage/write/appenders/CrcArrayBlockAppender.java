@@ -16,7 +16,6 @@ package io.trino.plugin.warp.storage.write.appenders;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
 import io.trino.plugin.warp.dispatcher.warmup.transform.BlockTransformer;
 import io.trino.plugin.warp.dispatcher.warmup.transform.BlockTransformerFactory;
-import io.trino.plugin.warp.gen.constants.WarmUpType;
 import io.trino.plugin.warp.juffer.BlockPosHolder;
 import io.trino.plugin.warp.storage.juffers.WriteJuffersWarmUpElement;
 import io.trino.plugin.warp.storage.write.WarmupElementStatsBuilder;
@@ -46,15 +45,15 @@ public class CrcArrayBlockAppender
     }
 
     @Override
-    public AppendResult appendWithoutDictionary(
+    public AppendResult appendValues(
             int jufferPos,
             BlockPosHolder blockPos,
             WarmUpElement warmUpElement,
             WarmupElementStatsBuilder warmupElementStatsBuilder)
     {
-        Optional<BlockTransformer> blockTransformer = blockTransformerFactory.getBlockTransformer(WarmUpType.WARM_UP_TYPE_DATA, warmUpElement.getRecTypeCode());
+        Optional<BlockTransformer> blockTransformer = blockTransformerFactory.getBlockTransformer(warmUpElement.getRecTypeCode());
         checkArgument(blockTransformer.isPresent());
         BlockPosHolder blockAsVarchar = blockTransformer.get().transformBlock(blockPos, filterType);
-        return stringBlockAppender.appendWithoutDictionary(jufferPos, blockAsVarchar, warmUpElement, warmupElementStatsBuilder);
+        return stringBlockAppender.appendValues(jufferPos, blockAsVarchar, warmUpElement, warmupElementStatsBuilder);
     }
 }

@@ -16,7 +16,6 @@ package io.trino.plugin.warp.dispatcher.warmup.transform;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
-import io.trino.plugin.warp.gen.constants.WarmUpType;
 
 import java.util.Map;
 import java.util.Optional;
@@ -24,29 +23,25 @@ import java.util.Optional;
 @Singleton
 public class BlockTransformerFactory
 {
-    private final Map<BlockTransformerKey, BlockTransformer> typeBlockTransformerMap;
+    private final Map<RecTypeCode, BlockTransformer> typeBlockTransformerMap;
 
     @Inject
     public BlockTransformerFactory()
     {
         ArrayBlockToVarcharBlockTransformer arrayBlockToVarcharBlockTransformer = new ArrayBlockToVarcharBlockTransformer();
         this.typeBlockTransformerMap = Map.of(
-                new BlockTransformerKey(WarmUpType.WARM_UP_TYPE_DATA, RecTypeCode.REC_TYPE_ARRAY_INT), arrayBlockToVarcharBlockTransformer,
-                new BlockTransformerKey(WarmUpType.WARM_UP_TYPE_DATA, RecTypeCode.REC_TYPE_ARRAY_BIGINT), arrayBlockToVarcharBlockTransformer,
-                new BlockTransformerKey(WarmUpType.WARM_UP_TYPE_DATA, RecTypeCode.REC_TYPE_ARRAY_VARCHAR), arrayBlockToVarcharBlockTransformer,
-                new BlockTransformerKey(WarmUpType.WARM_UP_TYPE_DATA, RecTypeCode.REC_TYPE_ARRAY_CHAR), arrayBlockToVarcharBlockTransformer,
-                new BlockTransformerKey(WarmUpType.WARM_UP_TYPE_DATA, RecTypeCode.REC_TYPE_ARRAY_BOOLEAN), arrayBlockToVarcharBlockTransformer,
-                new BlockTransformerKey(WarmUpType.WARM_UP_TYPE_DATA, RecTypeCode.REC_TYPE_ARRAY_TIMESTAMP), arrayBlockToVarcharBlockTransformer,
-                new BlockTransformerKey(WarmUpType.WARM_UP_TYPE_DATA, RecTypeCode.REC_TYPE_ARRAY_DATE), arrayBlockToVarcharBlockTransformer,
-                new BlockTransformerKey(WarmUpType.WARM_UP_TYPE_DATA, RecTypeCode.REC_TYPE_ARRAY_DOUBLE), arrayBlockToVarcharBlockTransformer);
+                RecTypeCode.REC_TYPE_ARRAY_INT, arrayBlockToVarcharBlockTransformer,
+                RecTypeCode.REC_TYPE_ARRAY_BIGINT, arrayBlockToVarcharBlockTransformer,
+                RecTypeCode.REC_TYPE_ARRAY_VARCHAR, arrayBlockToVarcharBlockTransformer,
+                RecTypeCode.REC_TYPE_ARRAY_CHAR, arrayBlockToVarcharBlockTransformer,
+                RecTypeCode.REC_TYPE_ARRAY_BOOLEAN, arrayBlockToVarcharBlockTransformer,
+                RecTypeCode.REC_TYPE_ARRAY_TIMESTAMP, arrayBlockToVarcharBlockTransformer,
+                RecTypeCode.REC_TYPE_ARRAY_DATE, arrayBlockToVarcharBlockTransformer,
+                RecTypeCode.REC_TYPE_ARRAY_DOUBLE, arrayBlockToVarcharBlockTransformer);
     }
 
-    public Optional<BlockTransformer> getBlockTransformer(WarmUpType sourceWarmupType, RecTypeCode recTypeCode)
+    public Optional<BlockTransformer> getBlockTransformer(RecTypeCode recTypeCode)
     {
-        BlockTransformerKey key = new BlockTransformerKey(sourceWarmupType, recTypeCode);
-        BlockTransformer blockTransformer = typeBlockTransformerMap.get(key);
-        return Optional.ofNullable(blockTransformer);
+        return Optional.ofNullable(typeBlockTransformerMap.get(recTypeCode));
     }
-
-    private record BlockTransformerKey(WarmUpType sourceWarmupType, RecTypeCode recTypeCode) {}
 }
