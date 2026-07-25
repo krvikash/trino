@@ -28,7 +28,6 @@ import io.trino.plugin.warp.extension.execution.debugtools.RowGroupTask;
 import io.trino.plugin.warp.extension.execution.debugtools.WarmupDemoterData;
 import io.trino.plugin.warp.extension.execution.debugtools.WarmupDemoterTask;
 import io.trino.plugin.warp.extension.execution.debugtools.WorkerWarmupDemoterTask;
-import io.trino.plugin.warp.extension.execution.debugtools.dictionary.DictionaryTask;
 import io.trino.plugin.warp.extension.execution.warmup.WarmupTask;
 import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
 import io.trino.plugin.warp.gen.stats.WarmingServiceStats;
@@ -200,13 +199,6 @@ public abstract class DispatcherStubsIntegrationSmokeIT
             restDemoteConfigToDefaults(target);
 
 //            validateEmptyUsage();
-            String dictionariesReset = executeRestCommand(
-                    DictionaryTask.DICTIONARY_PATH,
-                    DictionaryTask.DICTIONARY_RESET_MEMORY_TASK_NAME,
-                    null,
-                    HttpMethod.POST,
-                    HttpURLConnection.HTTP_OK);
-            logger.debug("reset %s existing dictionaries after demoting all", dictionariesReset);
             logger.debug("demote all finish");
         }
         catch (IOException e) {
@@ -506,28 +498,6 @@ public abstract class DispatcherStubsIntegrationSmokeIT
             expectedWarmedFailed.ifPresent(integer -> assertThat(actualWarmFailed)
                     .describedAs("expectedWarmedFailed is not as expected. %s", query)
                     .isEqualTo(integer.longValue()));
-        });
-    }
-
-    protected void validateDictionaryStats(Session jmxSession, long expectedMaxException, long expectedDictionaryWriteCount, long expectedReadDictionaryCount)
-    {
-        runWithRetries(() -> {
-            MaterializedResult dictionaryStats = computeActual(jmxSession, "select sum(dictionary_max_exception_count), sum(write_dictionaries_count), sum(dictionary_read_elements_count), sum(dictionary_active_size) from \"*dictionary*\"");
-            long actualDictionaryMaxExceptionCount = (long) (Long) dictionaryStats.getMaterializedRows().getFirst().getField(0);
-            long actualDictionaryWriteCount = (long) (Long) dictionaryStats.getMaterializedRows().getFirst().getField(1);
-            long actualReadDictionaryCount = (long) dictionaryStats.getMaterializedRows().getFirst().getField(2);
-            logger.info(
-                    "actualDictionaryMaxExceptionCount=%d, expectedMaxException=%d, actualDictionaryWriteCount=%d, ,expectedWarmupElements=%d, actualReadDictionaryCount=%s, expectedReadDictionaryCount=%s",
-                    actualDictionaryMaxExceptionCount,
-                    expectedMaxException,
-                    actualDictionaryWriteCount,
-                    expectedDictionaryWriteCount,
-                    actualReadDictionaryCount,
-                    expectedReadDictionaryCount);
-            assertThat(actualDictionaryMaxExceptionCount).isEqualTo(expectedMaxException);
-            assertThat(actualDictionaryWriteCount).isEqualTo(expectedDictionaryWriteCount);
-            assertThat(actualReadDictionaryCount).isEqualTo(expectedReadDictionaryCount);
-            assertThat((long) dictionaryStats.getMaterializedRows().getFirst().getField(3)).isEqualTo(0);
         });
     }
 

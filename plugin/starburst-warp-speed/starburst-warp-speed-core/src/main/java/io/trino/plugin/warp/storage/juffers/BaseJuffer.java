@@ -54,13 +54,8 @@ public abstract class BaseJuffer
         return byteBuf;
     }
 
-    protected Buffer createWrapperBuffer(ByteBuffer buf, RecTypeCode recTypeCode, int recTypeLength, boolean forWrite, boolean useDictionary)
+    protected Buffer createWrapperBuffer(ByteBuffer buf, RecTypeCode recTypeCode, int recTypeLength, boolean forWrite)
     {
-        if (useDictionary) {
-            ShortBuffer shortBuffer = buf.asShortBuffer();
-            shortBuffer.position(0);
-            return shortBuffer;
-        }
         if (!TypeUtils.isStr(recTypeCode)) {
             // long decimal is treated as long buffer in read flow and as byte buffer in write flow
             if ((recTypeLength == Long.BYTES) || (!forWrite && (recTypeCode == RecTypeCode.REC_TYPE_DECIMAL_LONG))) {

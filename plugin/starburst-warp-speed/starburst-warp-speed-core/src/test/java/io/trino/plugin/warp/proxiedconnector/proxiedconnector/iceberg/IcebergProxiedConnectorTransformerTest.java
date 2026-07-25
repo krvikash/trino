@@ -104,8 +104,7 @@ public class IcebergProxiedConnectorTransformerTest
                 icebergTableHandle,
                 Optional.empty(),
                 Metrics.EMPTY,
-                false,
-                Set.of());
+                false);
 
         IcebergTableHandle expectedTableHandleForWarming = new IcebergTableHandle(
                 icebergTableHandle.getSchemaName(),
@@ -181,8 +180,7 @@ public class IcebergProxiedConnectorTransformerTest
                 icebergTableHandle,
                 Optional.empty(),
                 Metrics.EMPTY,
-                false,
-                Set.of());
+                false);
 
         IcebergTableHandle expectedTableHandleMixedQuery = new IcebergTableHandle(
                 icebergTableHandle.getSchemaName(),
@@ -287,8 +285,7 @@ public class IcebergProxiedConnectorTransformerTest
                 icebergTableHandle,
                 Optional.empty(),
                 Metrics.EMPTY,
-                false,
-                Set.of());
+                false);
         ConnectorSession session = mock(ConnectorSession.class);
 
         DispatcherSplit dispatcherSplit = this.icebergProxiedConnectorTransformer.createDispatcherSplit(icebergSplit, dispatcherTableHandle, session);
@@ -308,8 +305,7 @@ public class IcebergProxiedConnectorTransformerTest
                 icebergTableHandle,
                 Optional.empty(),
                 Metrics.EMPTY,
-                false,
-                Set.of());
+                false);
 
         DispatcherSplit dispatcherSplitAnotherSnapshot = this.icebergProxiedConnectorTransformer.createDispatcherSplit(icebergSplit, dispatcherTableHandleAnotherSnapshot, session);
         assertThat(dispatcherSplitAnotherSnapshot.deletedFilesHash()).isEqualTo(dispatcherSplit.deletedFilesHash());

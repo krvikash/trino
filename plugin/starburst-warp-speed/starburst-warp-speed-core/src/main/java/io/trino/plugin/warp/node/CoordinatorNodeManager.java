@@ -20,7 +20,6 @@ import io.airlift.log.Logger;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.di.WarpInitializedServiceRegistry;
 import io.trino.plugin.warp.gen.stats.CachePredicatesStats;
-import io.trino.plugin.warp.gen.stats.DictionaryStats;
 import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
 import io.trino.plugin.warp.gen.stats.WarmingServiceStats;
 import io.trino.plugin.warp.gen.stats.WarmupDemoterStats;
@@ -76,7 +75,6 @@ public class CoordinatorNodeManager
         metricsManager.registerMetric(WarmupImportServiceStats.create());
         metricsManager.registerMetric(WarmupExportServiceStats.create());
         metricsManager.registerMetric(WorkerTaskExecutorServiceStats.create());
-        metricsManager.registerMetric(DictionaryStats.create());
         metricsManager.registerMetric(CachePredicatesStats.create());
 
         coordinatorInitialized = true;

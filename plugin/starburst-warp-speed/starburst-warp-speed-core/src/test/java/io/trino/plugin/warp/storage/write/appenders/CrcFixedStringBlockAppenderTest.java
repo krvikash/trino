@@ -14,9 +14,6 @@
 package io.trino.plugin.warp.storage.write.appenders;
 
 import io.airlift.slice.Slice;
-import io.trino.plugin.warp.dictionary.DictionaryException;
-import io.trino.plugin.warp.dispatcher.model.DictionaryState;
-import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.storage.engine.StubsStorageEngineConstants;
 import io.trino.plugin.warp.storage.write.WarmupElementStats;
 import io.trino.spi.block.Block;
@@ -29,13 +26,9 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import java.nio.ByteBuffer;
-import java.nio.ShortBuffer;
 import java.util.List;
-import java.util.Optional;
 import java.util.stream.Stream;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 import static org.mockito.Mockito.when;
 
@@ -77,22 +70,6 @@ class CrcFixedStringBlockAppenderTest
     public void writeWithoutDictionary(Block block, Type blockType, WarmupElementStats expectedResult)
     {
         when(writeJuffersWarmUpElement.getRecordBuffer()).thenReturn(ByteBuffer.allocate(100000));
-        runTest(block, blockType, expectedResult, Optional.empty());
-    }
-
-    @Override
-    @ParameterizedTest
-    @MethodSource("params")
-    public void writeWithDictionary(Block block, Type blockType, WarmupElementStats expectedResult)
-    {
-        RecTypeCode recTypeCode = getRecTypeCode(blockType);
-        if (recTypeCode.isSupportedDictionary()) {
-            assertThatThrownBy(() -> {
-                when(writeJuffersWarmUpElement.getRecordBuffer()).thenReturn(ShortBuffer.allocate(100));
-                runTest(block, blockType, expectedResult, getWriteDictionary(recTypeCode));
-            }).isInstanceOf(DictionaryException.class)
-                    .satisfies(e -> assertThat(((DictionaryException) e).getDictionaryState())
-                            .isEqualTo(DictionaryState.DICTIONARY_REJECTED));
-        }
+        runTest(block, blockType, expectedResult);
     }
 }

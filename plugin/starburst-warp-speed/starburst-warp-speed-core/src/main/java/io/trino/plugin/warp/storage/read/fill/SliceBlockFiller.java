@@ -16,8 +16,6 @@ package io.trino.plugin.warp.storage.read.fill;
 import io.airlift.slice.Slice;
 import io.airlift.slice.Slices;
 import io.trino.plugin.warp.config.NativeConfig;
-import io.trino.plugin.warp.dictionary.DictionaryCacheService;
-import io.trino.plugin.warp.dictionary.ReadDictionary;
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.storage.juffers.ReadJuffersWarmUpElement;
@@ -36,18 +34,15 @@ import java.util.Optional;
 public abstract class SliceBlockFiller
         extends BlockFiller<Slice>
 {
-    private final DictionaryCacheService dictionaryCacheService;
     protected final NativeConfig nativeConfig;
     protected final int queryStringNullValueSize;
 
     public SliceBlockFiller(
-            DictionaryCacheService dictionaryCacheService,
             Type spiBuilderType,
             StorageEngineConstants storageEngineConstants,
             NativeConfig nativeConfig)
     {
         super(spiBuilderType, BlockFillerType.SLICE);
-        this.dictionaryCacheService = dictionaryCacheService;
         this.nativeConfig = nativeConfig;
         this.queryStringNullValueSize = storageEngineConstants.getQueryStringNullValueSize();
     }
@@ -183,94 +178,6 @@ public abstract class SliceBlockFiller
             Slice outputSlice,
             int[] offsets)
             throws IOException;
-
-    @Override
-    public Block fillRawBlockWithDictionary(
-            ReadJuffersWarmUpElement juffersWE,
-            int rowsToFill,
-            RecTypeCode recTypeCode,
-            int recTypeLength,
-            boolean collectNulls,
-            ReadDictionary readDictionary)
-    {
-        ShortBuffer buff = (ShortBuffer) juffersWE.getRecordBuffer();
-        int[] ids = new int[rowsToFill];
-        Block resultBlock;
-
-        Block dictionaryAsBlock = readDictionary.getPreBlockDictionaryIfExists(rowsToFill, dictionaryCacheService, recTypeCode);
-        if (dictionaryAsBlock != null) {
-            if (collectNulls) {
-                int nullPosition = dictionaryAsBlock.getPositionCount() - 1;
-                ByteBuffer nullBuff = juffersWE.getNullBuffer();
-                for (int currRow = 0; currRow < rowsToFill; currRow++) {
-                    if (isNull(nullBuff, currRow)) {
-                        ids[currRow] = nullPosition;
-                    }
-                    else {
-                        ids[currRow] = Short.toUnsignedInt(buff.get(currRow));
-                    }
-                }
-            }
-            else {
-                for (int currRow = 0; currRow < rowsToFill; currRow++) {
-                    ids[currRow] = Short.toUnsignedInt(buff.get(currRow));
-                }
-            }
-            resultBlock = DictionaryBlock.create(ids.length, dictionaryAsBlock, ids);
-        }
-        else {
-            int[] offsets = SliceUtils.allocateOffsetsArray(rowsToFill);
-            byte[] values = allocateValuesByteArray(rowsToFill, recTypeLength);
-            Slice outputSlice = Slices.wrappedBuffer(values);
-            Optional<boolean[]> valueIsNullOptional;
-            if (collectNulls) {
-                ByteBuffer nullBuff = juffersWE.getNullBuffer();
-                boolean[] valueIsNull = new boolean[rowsToFill];
-                for (int currRow = 0; currRow < rowsToFill; currRow++) {
-                    if (isNull(nullBuff, currRow)) {
-                        valueIsNull[currRow] = true;
-                        offsets[currRow + 1] = offsets[currRow];
-                    }
-                    else {
-                        copyFromDictionary(buff, readDictionary, currRow, outputSlice, offsets);
-                    }
-                }
-                valueIsNullOptional = Optional.of(valueIsNull);
-            }
-            else {
-                for (int currRow = 0; currRow < rowsToFill; currRow++) {
-                    copyFromDictionary(buff, readDictionary, currRow, outputSlice, offsets);
-                }
-                valueIsNullOptional = Optional.empty();
-            }
-            resultBlock = new VariableWidthBlock(rowsToFill, outputSlice, offsets, valueIsNullOptional);
-        }
-        return resultBlock;
-    }
-
-    protected abstract void copyFromDictionary(
-            ShortBuffer buff,
-            ReadDictionary readDictionary,
-            int currPos,
-            Slice outputSlice,
-            int[] offsets);
-
-    @Override
-    protected Slice getSingleValueWithDictionary(int mappingKey, ReadDictionary readDictionary)
-    {
-        return (Slice) readDictionary.get(mappingKey);
-    }
-
-    @Override
-    protected Block createSingleWithNullBlockWithDictionary(ReadJuffersWarmUpElement juffersWE, int mappingKey, int rowsToFill, ReadDictionary readDictionary)
-    {
-        Slice singleValue = getSingleValueWithDictionary(mappingKey, readDictionary);
-        int trimmedRecLength = SliceUtils.trimSlice(singleValue.toByteBuffer(), singleValue.length(), 0);
-        int[] offsets = SliceUtils.allocateOffsetsArray(rowsToFill);
-        Slice trimmedSlice = Slices.wrappedBuffer(singleValue.byteArray(), offsets[0], trimmedRecLength);
-        Block mappingBlock = createSingleMappingBlock(trimmedSlice);
-        return wrapSingleWithNulls(juffersWE, rowsToFill, mappingBlock, 1);
-    }
 
     private Block createSingleMappingBlock(Slice singleValue)
     {

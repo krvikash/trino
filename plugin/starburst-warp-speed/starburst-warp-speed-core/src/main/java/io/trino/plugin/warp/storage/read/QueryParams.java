@@ -38,7 +38,6 @@ public class QueryParams
     private final int numLucene;
     private final int matchCollectId;
     private final List<WarmupElementCollectParams> collectParams;
-    private final int numLoadDataValues;
     private final int numMatchCollect;
     private final int totalNumRecords;
     private final int minMatchOffset;
@@ -78,9 +77,6 @@ public class QueryParams
         this.numLucene = numLucene;
         this.matchCollectId = matchCollectId;
         this.collectParams = requireNonNull(collectParams, "collectParams is null");
-        this.numLoadDataValues = (int) collectParams.stream()
-                .filter(WarmupElementCollectParams::hasDictionaryParams)
-                .count();
         this.numMatchCollect = (int) collectParams.stream()
                 .filter(WarmupElementCollectParams::hasMatchCollect)
                 .count();
@@ -142,11 +138,6 @@ public class QueryParams
     public int getMatchCollectId()
     {
         return matchCollectId;
-    }
-
-    public int getNumLoadDataValues()
-    {
-        return numLoadDataValues;
     }
 
     public int getNumMatchCollect()
@@ -235,10 +226,9 @@ public class QueryParams
     {
         return String.format(
                 Locale.US,
-                "rootMatchNode %s collectParamsList %s numLoadDataValues %d numLucene %d",
+                "rootMatchNode %s collectParamsList %s numLucene %d",
                 rootMatchNode,
                 collectParams,
-                numLoadDataValues,
                 numLucene);
     }
 

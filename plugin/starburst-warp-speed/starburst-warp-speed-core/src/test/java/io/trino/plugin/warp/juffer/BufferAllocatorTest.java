@@ -92,12 +92,16 @@ public class BufferAllocatorTest
     }
 
     @Test
-    public void testCalculateGreaterThen8VarcharAndSmallerThenMaxExtLimit()
+    public void testCalculateAllocationParamsForBasicVarchar()
     {
         RecordData recordData = generateRecordData("col", VarcharType.createVarcharType(253));
-        WarmupElementWriteMetadata warmupElementWriteMetadata = WarmColumnDataTestUtil.createWarmUpElementWithDictionary(recordData, WarmUpType.WARM_UP_TYPE_DATA);
+        WarmupElementWriteMetadata warmupElementWriteMetadata = WarmColumnDataTestUtil.createWarmupElementWriteMetadata(recordData, WarmUpType.WARM_UP_TYPE_BASIC);
         WarmUpElementAllocationParams warmUpElementAllocationParams = bufferAllocator.calculateAllocationParams(warmupElementWriteMetadata, null);
+        assertThat(warmUpElementAllocationParams.crcBuffSize()).isGreaterThan(0);
+        assertThat(warmUpElementAllocationParams.isMdBufferNeeded()).isFalse();
+        assertThat(warmUpElementAllocationParams.recBuffSize()).isEqualTo(0);
         assertThat(warmUpElementAllocationParams.extRecBuffSize()).isEqualTo(0);
+        assertThat(warmUpElementAllocationParams.isLuceneIndexNeeded()).isFalse();
     }
 
     @Test

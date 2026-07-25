@@ -147,11 +147,11 @@ public class WriteJuffersWarmUpElement
         recordBufferSingleOffset = -1;
     }
 
-    public void createBuffers(boolean isDictionaryValid)
+    public void createBuffers()
     {
         for (BaseJuffer juffer : juffers.values()) {
             BaseWriteJuffer writeJuffer = (BaseWriteJuffer) juffer;
-            writeJuffer.createBuffer(warmUpState.getJbufs(), isDictionaryValid);
+            writeJuffer.createBuffer(warmUpState.getJbufs());
         }
 
         if (allocParams.isRecBufferNeeded() && TypeUtils.isVarlenStr(allocParams.recTypeCode())) {
@@ -189,7 +189,7 @@ public class WriteJuffersWarmUpElement
         chunkOpened = true; // in case we will fail in the middle of this call
         if (allocParams.isRecBufferNeeded()) {
             RecordWriteJuffer recordJuffer = getRecordJuffer();
-            boolean prepareMdBuffer = allocParams.isMdBufferNeeded() && !recordJuffer.isDictionaryValid();
+            boolean prepareMdBuffer = allocParams.isMdBufferNeeded();
             numBytesWritten = calcNumBytesWritten(recordJuffer.getRecordBufferEntrySize(), recordJuffer.getWrappedBuffer(), prepareMdBuffer ? getVarlenMdBuffer() : null);
             if (allocParams.isExtBufferNeeded()) {
                 getExtRecordJuffer().commitAndResetExtRecordBuffer();

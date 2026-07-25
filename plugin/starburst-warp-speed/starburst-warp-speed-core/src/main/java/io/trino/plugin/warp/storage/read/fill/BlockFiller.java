@@ -15,10 +15,8 @@ package io.trino.plugin.warp.storage.read.fill;
 
 import com.google.common.annotations.VisibleForTesting;
 import io.airlift.log.Logger;
-import io.trino.plugin.warp.dictionary.ReadDictionary;
 import io.trino.plugin.warp.gen.constants.QueryResultType;
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
-import io.trino.plugin.warp.gen.stats.DictionaryStats;
 import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
 import io.trino.plugin.warp.storage.juffers.ReadJuffersWarmUpElement;
 import io.trino.plugin.warp.storage.read.WarmupElementCollectParams;
@@ -29,7 +27,6 @@ import io.trino.spi.type.Type;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.nio.ShortBuffer;
 
 public abstract class BlockFiller<V>
 {
@@ -66,26 +63,12 @@ public abstract class BlockFiller<V>
             ReadJuffersWarmUpElement readJuffersWarmUpElement,
             int rowsToFill,
             QueryResultType queryResultType,
-            DictionaryStats dictionaryStats,
             DispatcherPageSourceStats dispatcherPageSourceStats)
     {
         long startTime = System.nanoTime();
         Block block;
         try {
-            if (collectParams.hasDictionary()) {
-                block = fillBlockWithDictionary(
-                        readJuffersWarmUpElement,
-                        queryResultType,
-                        rowsToFill,
-                        collectParams.getBlockRecTypeCode(),
-                        collectParams.getBlockRecTypeLength(),
-                        collectParams.isCollectNulls(),
-                        collectParams.getDictionary());
-                if (logger.isDebugEnabled() && block instanceof DictionaryBlock) {
-                    dictionaryStats.adddictionary_block_saved_bytes(block.getRetainedSizeInBytes() - block.getSizeInBytes());
-                }
-            }
-            else if (collectParams.mappedMatchCollect()) {
+            if (collectParams.mappedMatchCollect()) {
                 Block valuesDict = collectParams.getValuesDictBlock().get();
                 block = fillBlockWithMapping(
                         readJuffersWarmUpElement,
@@ -155,36 +138,6 @@ public abstract class BlockFiller<V>
             boolean collectNulls)
             throws IOException;
 
-    public Block fillBlockWithDictionary(
-            ReadJuffersWarmUpElement juffersWE,
-            QueryResultType queryResultType,
-            int rowsToFill,
-            RecTypeCode recTypeCode,
-            int recLength,
-            boolean collectNulls,
-            ReadDictionary readDictionary)
-    {
-        logger.debug("got result of type=%s, row to fill=%d", queryResultType, rowsToFill);
-        ShortBuffer shortBuff;
-        int mappingKey;
-        return switch (queryResultType) {
-            case QUERY_RESULT_TYPE_RAW -> fillRawBlockWithDictionary(juffersWE, rowsToFill, recTypeCode, recLength, collectNulls, readDictionary);
-            case QUERY_RESULT_TYPE_RAW_NO_NULL -> fillRawBlockWithDictionary(juffersWE, rowsToFill, recTypeCode, recLength, false, readDictionary);
-            case QUERY_RESULT_TYPE_ALL_NULL -> createSingleValueBlock(spiBuilderType, null, rowsToFill);
-            case QUERY_RESULT_TYPE_SINGLE -> {
-                shortBuff = (ShortBuffer) juffersWE.getRecordBuffer();
-                mappingKey = Short.toUnsignedInt(shortBuff.get());
-                yield createSingleWithNullBlockWithDictionary(juffersWE, mappingKey, rowsToFill, readDictionary);
-            }
-            case QUERY_RESULT_TYPE_SINGLE_NO_NULL -> {
-                shortBuff = (ShortBuffer) juffersWE.getRecordBuffer();
-                mappingKey = Short.toUnsignedInt(shortBuff.get());
-                yield createSingleValueBlock(spiBuilderType, getSingleValueWithDictionary(mappingKey, readDictionary), rowsToFill);
-            }
-            default -> throw new UnsupportedOperationException();
-        };
-    }
-
     public Block fillBlockWithMapping(
             ReadJuffersWarmUpElement juffersWE,
             QueryResultType queryResultType,
@@ -253,27 +206,6 @@ public abstract class BlockFiller<V>
             }
         }
         return DictionaryBlock.create(ids.length, mapBlock, ids);
-    }
-
-    protected Block fillRawBlockWithDictionary(
-            ReadJuffersWarmUpElement juffersWE,
-            int rowsToFill,
-            RecTypeCode recTypeCode,
-            int recTypeLength,
-            boolean collectNulls,
-            ReadDictionary readDictionary)
-    {
-        throw new UnsupportedOperationException();
-    }
-
-    protected V getSingleValueWithDictionary(int mappingKey, ReadDictionary readDictionary)
-    {
-        throw new UnsupportedOperationException();
-    }
-
-    protected Block createSingleWithNullBlockWithDictionary(ReadJuffersWarmUpElement juffersWE, int mappingKey, int rowsToFill, ReadDictionary readDictionary)
-    {
-        throw new UnsupportedOperationException();
     }
 
     protected Block createSingleValueBlock(Type spiType, V value, int rowsToFill)

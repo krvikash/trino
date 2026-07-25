@@ -43,8 +43,6 @@ import java.util.List;
 import java.util.Optional;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static io.trino.plugin.warp.dictionary.DictionaryCacheService.DICTIONARY_REC_TYPE_CODE;
-import static io.trino.plugin.warp.dictionary.DictionaryCacheService.DICTIONARY_REC_TYPE_LENGTH;
 import static io.trino.plugin.warp.dispatcher.query.MatchCollectUtils.findMatchForMatchCollect;
 import static io.trino.plugin.warp.dispatcher.query.classifier.QueryClassifier.INVALID_TOTAL_RECORDS;
 import static io.trino.plugin.warp.dispatcher.warmup.warmers.WarmupElementsCreator.INVALID_WARM_ID;
@@ -320,57 +318,24 @@ public class QueryParamsConverter
                 matchCollectElements.add(new MatchCollectElement(queryMatchData, collectDataWarmUpElement.getWarmUpType(), matchCollectIndex, mappedMatchCollect));
             }
 
-            // prepare the dictionary key if required for retrieving dictionary record type length before tx create and loading
-            // the dictionary after tx create
-            if (nativeQueryCollectData.getWarmUpElement().isDictionaryUsed()) {
-                // data values code and length - code is the same, length might be larger than warm up element
-                WarmupElementDictionaryParams dictionaryParams = new WarmupElementDictionaryParams(
-                        nativeQueryCollectData.getWarmUpElement().getDictionaryInfo().dictionaryKey(),
-                        collectDataWarmUpElement.getUsedDictionarySize(),
-                        collectDataWarmUpElement.getRecTypeCode(),
-                        collectDataWarmUpElement.getDictionaryInfo().dataValuesRecTypeLength(),
-                        collectDataWarmUpElement.getDictionaryInfo().dictionaryOffset());
-                collectParamsList.add(
-                        new WarmupElementCollectParams(
-                                warmUpElementCollectParamsQueue.remove(),
-                                collectDataWarmUpElement.getQueryOffset(),
-                                DICTIONARY_REC_TYPE_CODE,   // native should keep this warm up element with the dictionary code
-                                DICTIONARY_REC_TYPE_LENGTH, // native should keep this warm up element with the dictionary length
-                                collectDataWarmUpElement.getWarmUpType(),
-                                collectDataWarmUpElement.getQueryReadSize(),
-                                matchCollectIndex,
-                                isCollectNulls,
-                                collectDataWarmUpElement.hasStoreId() ? INVALID_WARM_ID : collectDataWarmUpElement.getWarmId(),
-                                // page block should hold the original code and length
-                                collectDataWarmUpElement.getRecTypeCode(),
-                                Math.min(collectDataWarmUpElement.getRecTypeLength(), dictionaryParams.dataValuesRecTypeLength()),
-                                collectDataWarmUpElement.getWarmEvents(),
-                                collectDataWarmUpElement.isImported(),
-                                Optional.of(dictionaryParams),
-                                blockIndex,
-                                valuesDictBlock));
-            }
-            else {
-                collectParamsList.add(
-                        new WarmupElementCollectParams(
-                                warmUpElementCollectParamsQueue.remove(),
-                                collectDataWarmUpElement.getQueryOffset(),
-                                collectDataWarmUpElement.getRecTypeCode(),   // native will use the original code
-                                collectDataWarmUpElement.getRecTypeLength(), // native will use the original length
-                                collectDataWarmUpElement.getWarmUpType(),
-                                collectDataWarmUpElement.getQueryReadSize(),
-                                matchCollectIndex,
-                                isCollectNulls,
-                                collectDataWarmUpElement.hasStoreId() ? INVALID_WARM_ID : collectDataWarmUpElement.getWarmId(),
-                                // page block should hold the original code and length
-                                collectDataWarmUpElement.getRecTypeCode(),
-                                collectDataWarmUpElement.getRecTypeLength(),
-                                collectDataWarmUpElement.getWarmEvents(),
-                                collectDataWarmUpElement.isImported(),
-                                Optional.empty(), // no dictionary we put invalid
-                                blockIndex,
-                                valuesDictBlock));
-            }
+            collectParamsList.add(
+                    new WarmupElementCollectParams(
+                            warmUpElementCollectParamsQueue.remove(),
+                            collectDataWarmUpElement.getQueryOffset(),
+                            collectDataWarmUpElement.getRecTypeCode(),   // native will use the original code
+                            collectDataWarmUpElement.getRecTypeLength(), // native will use the original length
+                            collectDataWarmUpElement.getWarmUpType(),
+                            collectDataWarmUpElement.getQueryReadSize(),
+                            matchCollectIndex,
+                            isCollectNulls,
+                            collectDataWarmUpElement.hasStoreId() ? INVALID_WARM_ID : collectDataWarmUpElement.getWarmId(),
+                            // page block should hold the original code and length
+                            collectDataWarmUpElement.getRecTypeCode(),
+                            collectDataWarmUpElement.getRecTypeLength(),
+                            collectDataWarmUpElement.getWarmEvents(),
+                            collectDataWarmUpElement.isImported(),
+                            blockIndex,
+                            valuesDictBlock));
         }
         return new CollectAndMatchCollectParams(collectParamsList, matchCollectElements, matchCollectId);
     }

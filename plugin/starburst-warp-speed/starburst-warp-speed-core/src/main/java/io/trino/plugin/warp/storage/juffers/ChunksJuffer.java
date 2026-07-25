@@ -29,7 +29,7 @@ public class ChunksJuffer
     }
 
     @Override
-    public void createBuffer(MemorySegment[] buffs, boolean isDictionaryValid)
+    public void createBuffer(MemorySegment[] buffs)
     {
         this.baseBuffer = createGenericBuffer(bufferAllocator.memorySegment2ChunksBuff(buffs));
         this.wrappedBuffer = this.baseBuffer;

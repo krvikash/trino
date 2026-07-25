@@ -706,9 +706,6 @@
       }
     ],
     "pt_enable": true,
-    "session_properties": {
-      "enable_dictionary": false
-    },
     "warmup_rules": [
       {
         "colNameId": "Id",
@@ -9606,9 +9603,6 @@
         "type": "double"
       }
     ],
-    "session_properties": {
-      "enable_dictionary": false
-    },
     "warm_query": "select churn_competitor_chosen, count(*) from enable_dict_false where churn_competitor_chosen is null and month = cast('2023-01-01' as date) and acc_region<>'EMEA' group by 1 order by 1",
     "queries_data": [
       {
@@ -9863,16 +9857,10 @@
         }
       }
     ],
-    "session_properties": {
-      "enable_dictionary": false
-    },
     "data": "resources/synthetic/single_chunk_22783_rollback.jsonl"
   },
   {
     "name": "lazy_collect_200k_int",
-    "session_properties": {
-      "enable_dictionary": false
-    },
     "structure": [
       {
         "name": "varchar_1",
@@ -10357,9 +10345,6 @@
       }
     ],
     "pt_enable": true,
-    "session_properties": {
-      "enable_dictionary": false
-    },
     "warmup_rules": [],
     "warm_query": "select * from empty_and_null_varchar",
     "queries_data": [

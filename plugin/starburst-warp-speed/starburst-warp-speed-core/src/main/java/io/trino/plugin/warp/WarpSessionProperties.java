@@ -49,7 +49,6 @@ public final class WarpSessionProperties
     public static final String IMPORT_EXPORT_RELATIVE_S3_PATH = "import_export";
     public static final String PREDICATE_SIMPLIFY_THRESHOLD = "simplify_predicate_threshold";
     public static final String ENABLE_IMPORT_EXPORT = "enable_import_export";
-    public static final String ENABLE_DICTIONARY = "enable_dictionary";
     public static final String ENABLE_MATCH_COLLECT = "enable_match_collect";
     public static final String ENABLE_MAPPED_MATCH_COLLECT = "enable_mapped_match_collect";
     public static final String ENABLE_VARCHAR_MAPPED_MATCH_COLLECT = "enable_varchar_mapped_match_collect";
@@ -84,11 +83,6 @@ public final class WarpSessionProperties
                         ENABLE_IMPORT_EXPORT,
                         "export and import warmup files",
                         globalConfig.getEnableImportExport(),
-                        true),
-                booleanProperty(
-                        ENABLE_DICTIONARY,
-                        "dictionary feature enabled",
-                        null,
                         true),
                 booleanProperty(
                         ENABLE_MATCH_COLLECT,
@@ -220,11 +214,6 @@ public final class WarpSessionProperties
     public static Boolean getEnableImportExport(ConnectorSession session)
     {
         return session == null ? null : getProperty(session, ENABLE_IMPORT_EXPORT, Boolean.class);
-    }
-
-    public static Boolean getEnableDictionary(ConnectorSession session)
-    {
-        return session == null ? null : getProperty(session, ENABLE_DICTIONARY, Boolean.class);
     }
 
     public static boolean getEnabledMappedMatchCollect(ConnectorSession session)

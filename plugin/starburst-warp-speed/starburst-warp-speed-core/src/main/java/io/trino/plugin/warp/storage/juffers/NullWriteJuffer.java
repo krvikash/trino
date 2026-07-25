@@ -31,7 +31,7 @@ public class NullWriteJuffer
     }
 
     @Override
-    public void createBuffer(MemorySegment[] buffs, boolean isDictionaryValid)
+    public void createBuffer(MemorySegment[] buffs)
     {
         this.baseBuffer = createGenericBuffer(bufferAllocator.memorySegment2NullBuff(buffs));
         this.wrappedBuffer = this.baseBuffer;

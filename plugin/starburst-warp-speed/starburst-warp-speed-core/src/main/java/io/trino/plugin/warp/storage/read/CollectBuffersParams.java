@@ -29,6 +29,5 @@ public record CollectBuffersParams(
             RecTypeCode recTypeCode,
             int recTypeLength,
             int requestedRecordBufferSize,
-            int nullBufferSize,
-            boolean hasDictionary) {}
+            int nullBufferSize) {}
 }

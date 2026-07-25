@@ -81,12 +81,4 @@ public class JMXCachingConstants
         public static final String IMPORT_ELEMENTS_FAILED = "import_elements_failed";
         public static final String IMPORT_ELEMENTS_ACCOMPLISHED = "import_elements_accomplished";
     }
-
-    public static class Dictionary
-    {
-        public static final String DICTIONARY_MAX_EXCEPTION_COUNT = "dictionary_max_exception_count";
-        public static final String DICTIONARY_REJECTED_ELEMENTS_COUNT = "dictionary_rejected_elements_count";
-        public static final String DICTIONARY_SUCCESS_ELEMENTS_COUNT = "dictionary_success_elements_count";
-        public static final String WRITE_DICTIONARIES_COUNT = "write_dictionaries_count";
-    }
 }

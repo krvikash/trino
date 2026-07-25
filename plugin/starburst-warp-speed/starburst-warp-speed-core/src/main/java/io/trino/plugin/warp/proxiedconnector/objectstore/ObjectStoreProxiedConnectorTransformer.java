@@ -35,7 +35,6 @@ import io.trino.spi.connector.ConnectorSplit;
 import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.connector.SchemaTableName;
-import io.trino.spi.statistics.ColumnStatistics;
 import io.trino.spi.type.Type;
 
 import java.util.HashMap;
@@ -43,7 +42,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 
 import static java.util.Objects.requireNonNull;
 
@@ -84,16 +82,6 @@ public class ObjectStoreProxiedConnectorTransformer
     {
         return transformerMap.get(getTransformerKey(connectorTableHandle))
                 .isValidForTableStatistics(connectorTableHandle);
-    }
-
-    @Override
-    public Set<String> calculateColumnsNotFitForDictionary(Map<ColumnHandle, ColumnStatistics> columnStatistics, int dictionaryMaxSize)
-    {
-        if (columnStatistics.isEmpty()) {
-            return Set.of();
-        }
-        return transformerMap.get(getTransformerKey(columnStatistics.keySet().stream().findFirst().orElseThrow()))
-                .calculateColumnsNotFitForDictionary(columnStatistics, dictionaryMaxSize);
     }
 
     @Override

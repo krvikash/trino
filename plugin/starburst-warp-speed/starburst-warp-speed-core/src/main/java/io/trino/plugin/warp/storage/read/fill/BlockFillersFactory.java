@@ -16,7 +16,6 @@ package io.trino.plugin.warp.storage.read.fill;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.trino.plugin.warp.config.NativeConfig;
-import io.trino.plugin.warp.dictionary.DictionaryCacheService;
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 
@@ -27,7 +26,6 @@ public class BlockFillersFactory
 
     @Inject
     public BlockFillersFactory(
-            DictionaryCacheService dictionaryCacheService,
             StorageEngineConstants storageEngineConstants,
             NativeConfig nativeConfig)
     {
@@ -35,13 +33,13 @@ public class BlockFillersFactory
         for (RecTypeCode recTypeCode : RecTypeCode.values()) {
             recTypeCodeToBlockFiller[recTypeCode.ordinal()] = switch (recTypeCode) {
                 case REC_TYPE_BOOLEAN -> new BooleanBlockFiller();
-                case REC_TYPE_TIMESTAMP, REC_TYPE_TIMESTAMP_WITH_TZ, REC_TYPE_TIME, REC_TYPE_BIGINT, REC_TYPE_DECIMAL_SHORT, REC_TYPE_DOUBLE -> new LongBlockFiller(dictionaryCacheService);
-                case REC_TYPE_INTEGER, REC_TYPE_REAL, REC_TYPE_DATE -> new IntBlockFiller(dictionaryCacheService);
+                case REC_TYPE_TIMESTAMP, REC_TYPE_TIMESTAMP_WITH_TZ, REC_TYPE_TIME, REC_TYPE_BIGINT, REC_TYPE_DECIMAL_SHORT, REC_TYPE_DOUBLE -> new LongBlockFiller();
+                case REC_TYPE_INTEGER, REC_TYPE_REAL, REC_TYPE_DATE -> new IntBlockFiller();
                 case REC_TYPE_SMALLINT -> new ShortBlockFiller();
                 case REC_TYPE_TINYINT -> new TinyIntBlockFiller();
                 case REC_TYPE_DECIMAL_LONG -> new LongDecimalBlockFiller();
-                case REC_TYPE_CHAR -> new FixedLengthStringSliceBlockFiller(dictionaryCacheService, storageEngineConstants, nativeConfig);
-                case REC_TYPE_VARCHAR -> new VariableLengthStringSliceBlockFiller(dictionaryCacheService, storageEngineConstants, nativeConfig);
+                case REC_TYPE_CHAR -> new FixedLengthStringSliceBlockFiller(storageEngineConstants, nativeConfig);
+                case REC_TYPE_VARCHAR -> new VariableLengthStringSliceBlockFiller(storageEngineConstants, nativeConfig);
                 case REC_TYPE_ARRAY_INT -> new IntArrayBlockFiller(storageEngineConstants);
                 case REC_TYPE_ARRAY_BIGINT, REC_TYPE_ARRAY_DOUBLE -> new BigIntArrayBlockFiller(storageEngineConstants);
                 case REC_TYPE_ARRAY_VARCHAR -> new VarcharArrayBlockFiller(storageEngineConstants);

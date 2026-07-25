@@ -40,8 +40,7 @@ public class WarpSessionPropertiesTest
         List<String> allowedNullProps = List.of(
                 WarpSessionProperties.IMPORT_EXPORT_S3_PATH,
                 WarpSessionProperties.UNSUPPORTED_FUNCTIONS,
-                WarpSessionProperties.UNSUPPORTED_NATIVE_FUNCTIONS,
-                WarpSessionProperties.ENABLE_DICTIONARY);
+                WarpSessionProperties.UNSUPPORTED_NATIVE_FUNCTIONS);
         WarpSessionProperties warpSessionProperties = new WarpSessionProperties(new SharedConfig(), new GlobalConfig());
         List<PropertyMetadata<?>> sessionProperties = warpSessionProperties.getSessionProperties();
         sessionProperties.stream().filter(sessionProperty -> !allowedNullProps.contains(sessionProperty.getName())).forEach(property -> assertThat(property.getDefaultValue()).isNotNull());

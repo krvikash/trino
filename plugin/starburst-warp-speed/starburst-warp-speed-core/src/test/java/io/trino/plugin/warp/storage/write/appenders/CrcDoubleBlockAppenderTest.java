@@ -25,7 +25,6 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 import java.nio.LongBuffer;
 import java.util.List;
-import java.util.Optional;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.params.provider.Arguments.arguments;
@@ -70,11 +69,6 @@ class CrcDoubleBlockAppenderTest
     public void writeWithoutDictionary(Block block, Type blockType, WarmupElementStats expectedResult)
     {
         when(writeJuffersWarmUpElement.getRecordBuffer()).thenReturn(LongBuffer.allocate(100));
-        runTest(block, blockType, expectedResult, Optional.empty());
+        runTest(block, blockType, expectedResult);
     }
-
-    @Override
-    @ParameterizedTest
-    @MethodSource("params")
-    public void writeWithDictionary(Block block, Type blockType, WarmupElementStats expectedResult) {}
 }

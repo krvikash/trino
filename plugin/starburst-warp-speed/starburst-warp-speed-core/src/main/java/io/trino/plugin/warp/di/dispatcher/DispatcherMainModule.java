@@ -17,8 +17,6 @@ import com.google.inject.Binder;
 import com.google.inject.matcher.Matchers;
 import io.trino.plugin.warp.di.ExtraModule;
 import io.trino.plugin.warp.di.WarpBaseModule;
-import io.trino.plugin.warp.dictionary.AttachDictionaryService;
-import io.trino.plugin.warp.dictionary.DictionaryCacheService;
 import io.trino.plugin.warp.dispatcher.DispatcherPageSinkProvider;
 import io.trino.plugin.warp.dispatcher.DispatcherPageSourceProviderFactory;
 import io.trino.plugin.warp.dispatcher.DispatcherTableHandleBuilderProvider;
@@ -63,7 +61,6 @@ import io.trino.plugin.warp.storage.write.StorageWriterService;
 import io.trino.plugin.warp.storage.write.WarmupElementStatsService;
 import io.trino.plugin.warp.storage.write.WarpPageSinkFactory;
 import io.trino.plugin.warp.storage.write.appenders.BlockAppenderFactory;
-import io.trino.plugin.warp.storage.write.dictionary.DictionaryWriterFactory;
 import io.trino.plugin.warp.util.FailureGeneratorInvocationHandler;
 import io.trino.spi.catalog.CatalogName;
 
@@ -89,15 +86,12 @@ public class DispatcherMainModule
         binder.bind(FailureGeneratorInvocationHandler.class);
         boolean isWorker = WarpBaseModule.isSingle(config) || !context.getCurrentNode().isCoordinator();
         if (isWorker) {
-            binder.bind(AttachDictionaryService.class);
             binder.bind(BlockAppenderFactory.class);
             binder.bind(BlockFillersFactory.class);
             binder.bind(BlockTransformerFactory.class);
             binder.bind(ClassifierFactory.class);
             binder.bind(CollectTxService.class);
             binder.bind(DemoterSync.class).toInstance(context.getWarpPluginSharedInstances().demoterSync());
-            binder.bind(DictionaryCacheService.class);
-            binder.bind(DictionaryWriterFactory.class);
             binder.bind(DispatcherPageSourceProviderFactory.class);
             binder.bind(DispatcherPageSinkProvider.class);
             binder.bind(DomainToMapBlockConvertor.class);

@@ -21,7 +21,6 @@ import io.trino.plugin.hive.HiveMetadata;
 import io.trino.plugin.hive.HiveStorageFormat;
 import io.trino.plugin.hive.HiveTableProperties;
 import io.trino.plugin.warp.TestingTxService;
-import io.trino.plugin.warp.config.DictionaryConfig;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.config.NativeConfig;
 import io.trino.plugin.warp.config.SharedConfig;
@@ -124,7 +123,7 @@ public class DispatcherMetadataTest
                 new NativeConfig(),
                 metricsManager,
                 nativeExpressionRulesHandler);
-        dispatcherStatisticsProvider = new DispatcherStatisticsProvider(dispatcherProxiedConnectorTransformer, globalConfig, new DictionaryConfig());
+        dispatcherStatisticsProvider = new DispatcherStatisticsProvider(dispatcherProxiedConnectorTransformer, globalConfig);
     }
 
     @Test
@@ -485,8 +484,7 @@ public class DispatcherMetadataTest
                         Optional.empty()),
                 Optional.empty(),
                 Metrics.EMPTY,
-                false,
-                Set.of());
+                false);
     }
 
     private ConnectorMetadata mockHiveMetadata()

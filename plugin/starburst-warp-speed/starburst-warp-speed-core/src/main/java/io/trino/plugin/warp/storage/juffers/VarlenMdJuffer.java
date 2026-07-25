@@ -30,7 +30,7 @@ public class VarlenMdJuffer
     }
 
     @Override
-    public void createBuffer(MemorySegment[] buffs, boolean isDictionaryValid)
+    public void createBuffer(MemorySegment[] buffs)
     {
         IntBuffer intBuffer = bufferAllocator.memorySegment2VarlenMdBuff(buffs);
         intBuffer.position(0);

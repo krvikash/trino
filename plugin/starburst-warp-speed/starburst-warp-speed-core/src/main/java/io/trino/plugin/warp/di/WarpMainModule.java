@@ -25,7 +25,6 @@ import io.trino.plugin.base.TypeDeserializer;
 import io.trino.plugin.warp.WarpSessionProperties;
 import io.trino.plugin.warp.annotation.ForWarp;
 import io.trino.plugin.warp.cloudvendors.config.CloudVendorConfig;
-import io.trino.plugin.warp.config.DictionaryConfig;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.config.MetricsConfig;
 import io.trino.plugin.warp.config.NativeConfig;
@@ -107,7 +106,6 @@ public class WarpMainModule
         configBinder(binder).bindConfig(GlobalConfig.class);
         configBinder(binder).bindConfig(WarmupDemoterConfig.class);
         configBinder(binder).bindConfig(ProxiedConnectorConfig.class);
-        configBinder(binder).bindConfig(DictionaryConfig.class);
         configBinder(binder).bindConfig(CloudVendorConfig.class, ForWarp.class);
 
         binder.bind(SharedConfig.class).toInstance(context.getWarpPluginSharedInstances().sharedConfig());

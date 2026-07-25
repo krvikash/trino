@@ -15,12 +15,9 @@ package io.trino.plugin.warp.storage.write;
 
 import io.trino.plugin.warp.TestingTxService;
 import io.trino.plugin.warp.WarmColumnDataTestUtil;
-import io.trino.plugin.warp.config.DictionaryConfig;
 import io.trino.plugin.warp.config.NativeConfig;
 import io.trino.plugin.warp.config.SharedConfig;
-import io.trino.plugin.warp.dictionary.DictionaryCacheService;
 import io.trino.plugin.warp.dispatcher.WarmupElementWriteMetadata;
-import io.trino.plugin.warp.dispatcher.model.DictionaryState;
 import io.trino.plugin.warp.dispatcher.warmup.transform.BlockTransformerFactory;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
 import io.trino.plugin.warp.juffer.BufferAllocator;
@@ -60,10 +57,8 @@ import static io.trino.plugin.warp.dispatcher.warmup.warmers.StorageWarmerServic
 import static io.trino.spi.type.VarcharType.createUnboundedVarcharType;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.when;
 
 public class StorageWriterServiceTest
 {
@@ -71,7 +66,6 @@ public class StorageWriterServiceTest
 
     private final String rowGroupFilePath = "/tmp/testStorageWriterService/schema/table/column/offset/length/";
 
-    private DictionaryCacheService dictionaryCacheService;
     private StorageWriterService storageWriterService;
     private BufferAllocator bufferAllocator;
 
@@ -113,16 +107,12 @@ public class StorageWriterServiceTest
         StorageEngine storageEngine = spy(storageEngineToSpy);
         MetricsManager metricsManager = TestingTxService.createMetricsManager();
 
-        DictionaryConfig dictionaryConfig = new DictionaryConfig();
-        dictionaryConfig.setDictionaryCacheConcurrencyLevel(1);
-
         NativeConfig nativeConfig = new NativeConfig();
         nativeConfig.setTaskMaxWorkerThreads(4);
         nativeConfig.setLimitNumIosInParallel(100);
         nativeConfig.setMaxIOMetadataSize(8);
 
         this.bufferAllocator = mockBufferAllocator(storageEngine, storageEngineConstants, nativeConfig, metricsManager);
-        dictionaryCacheService = mock(DictionaryCacheService.class);
         BlockTransformerFactory blockTransformerFactory = new BlockTransformerFactory();
         BlockAppenderFactory blockAppenderFactory = new BlockAppenderFactory(storageEngineConstants, bufferAllocator, blockTransformerFactory);
 
@@ -133,7 +123,6 @@ public class StorageWriterServiceTest
                 storageEngine,
                 storageEngineConstants,
                 bufferAllocator,
-                dictionaryCacheService,
                 metricsManager,
                 mock(PrintMetricsTimerTask.class),
                 blockAppenderFactory,
@@ -146,8 +135,7 @@ public class StorageWriterServiceTest
     @Test
     public void writeVarcharIndex()
     {
-        when(dictionaryCacheService.calculateDictionaryStateForWrite(any(), any(), any())).thenReturn(DictionaryState.DICTIONARY_NOT_EXIST);
-        WarmupElementWriteMetadata warmupElementWriteMetadata = WarmColumnDataTestUtil.createWarmUpElementWithDictionary(WarmColumnDataTestUtil.generateRecordData(
+        WarmupElementWriteMetadata warmupElementWriteMetadata = WarmColumnDataTestUtil.createWarmupElementWriteMetadata(WarmColumnDataTestUtil.generateRecordData(
                         "col1",
                         VarcharType.createVarcharType(9)),
                 WarmUpType.WARM_UP_TYPE_BASIC);
@@ -168,8 +156,7 @@ public class StorageWriterServiceTest
     @Test
     public void writeVarcharWithLucene()
     {
-        when(dictionaryCacheService.calculateDictionaryStateForWrite(any(), any(), any())).thenReturn(DictionaryState.DICTIONARY_NOT_EXIST);
-        WarmupElementWriteMetadata warmupElementWriteMetadata = WarmColumnDataTestUtil.createWarmUpElementWithDictionary(WarmColumnDataTestUtil.generateRecordData(
+        WarmupElementWriteMetadata warmupElementWriteMetadata = WarmColumnDataTestUtil.createWarmupElementWriteMetadata(WarmColumnDataTestUtil.generateRecordData(
                         "col1",
                         VarcharType.createVarcharType(9)),
                 WarmUpType.WARM_UP_TYPE_LUCENE);
@@ -192,8 +179,7 @@ public class StorageWriterServiceTest
     @Test
     public void abortVarcharWithLucene()
     {
-        when(dictionaryCacheService.calculateDictionaryStateForWrite(any(), any(), any())).thenReturn(DictionaryState.DICTIONARY_NOT_EXIST);
-        WarmupElementWriteMetadata warmupElementWriteMetadata = WarmColumnDataTestUtil.createWarmUpElementWithDictionary(WarmColumnDataTestUtil.generateRecordData(
+        WarmupElementWriteMetadata warmupElementWriteMetadata = WarmColumnDataTestUtil.createWarmupElementWriteMetadata(WarmColumnDataTestUtil.generateRecordData(
                         "col1",
                         VarcharType.createVarcharType(9)),
                 WarmUpType.WARM_UP_TYPE_LUCENE);
@@ -231,7 +217,6 @@ public class StorageWriterServiceTest
         return storageWriterService.startWarming(
                 "nodeIdentifier",
                 rowGroupFilePath + suffix,
-                true,
                 true);
     }
 

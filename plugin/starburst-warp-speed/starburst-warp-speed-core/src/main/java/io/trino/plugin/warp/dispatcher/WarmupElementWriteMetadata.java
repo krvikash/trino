@@ -21,8 +21,7 @@ public record WarmupElementWriteMetadata(
         WarmUpElement warmUpElement,
         int connectorBlockIndex,
         Type type,
-        SchemaTableColumn schemaTableColumn,
-        boolean fitForDictionary)
+        SchemaTableColumn schemaTableColumn)
 {
     public static Builder builder(WarmupElementWriteMetadata warmupElementWriteMetadata)
     {
@@ -30,8 +29,7 @@ public record WarmupElementWriteMetadata(
                 .warmUpElement(warmupElementWriteMetadata.warmUpElement())
                 .connectorBlockIndex(warmupElementWriteMetadata.connectorBlockIndex())
                 .type(warmupElementWriteMetadata.type())
-                .schemaTableColumn(warmupElementWriteMetadata.schemaTableColumn())
-                .fitForDictionary(warmupElementWriteMetadata.fitForDictionary());
+                .schemaTableColumn(warmupElementWriteMetadata.schemaTableColumn());
     }
 
     public static Builder builder()
@@ -47,7 +45,6 @@ public record WarmupElementWriteMetadata(
                 ", connectorBlockIndex=" + connectorBlockIndex +
                 ", type=" + type +
                 ", schemaTableColumn=" + schemaTableColumn +
-                ", fitForDictionary=" + fitForDictionary +
                 '}';
     }
 
@@ -57,7 +54,6 @@ public record WarmupElementWriteMetadata(
         private int connectorBlockIndex;
         private Type type;
         private SchemaTableColumn schemaTableColumn;
-        private boolean fitForDictionary = true;
 
         private Builder() {}
 
@@ -85,20 +81,13 @@ public record WarmupElementWriteMetadata(
             return this;
         }
 
-        public Builder fitForDictionary(boolean fitForDictionary)
-        {
-            this.fitForDictionary = fitForDictionary;
-            return this;
-        }
-
         public WarmupElementWriteMetadata build()
         {
             return new WarmupElementWriteMetadata(
                     warmUpElement,
                     connectorBlockIndex,
                     type,
-                    schemaTableColumn,
-                    fitForDictionary);
+                    schemaTableColumn);
         }
     }
 }

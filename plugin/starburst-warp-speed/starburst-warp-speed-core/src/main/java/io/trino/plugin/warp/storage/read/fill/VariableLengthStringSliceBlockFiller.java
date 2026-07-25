@@ -15,8 +15,6 @@ package io.trino.plugin.warp.storage.read.fill;
 
 import io.airlift.slice.Slice;
 import io.trino.plugin.warp.config.NativeConfig;
-import io.trino.plugin.warp.dictionary.DictionaryCacheService;
-import io.trino.plugin.warp.dictionary.ReadDictionary;
 import io.trino.plugin.warp.juffer.ByteBufferInputStream;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.spi.type.VarcharType;
@@ -29,11 +27,10 @@ public class VariableLengthStringSliceBlockFiller
         extends SliceBlockFiller
 {
     public VariableLengthStringSliceBlockFiller(
-            DictionaryCacheService dictionaryCacheService,
             StorageEngineConstants storageEngineConstants,
             NativeConfig nativeConfig)
     {
-        super(dictionaryCacheService, VarcharType.createVarcharType(20), storageEngineConstants, nativeConfig); // using is size 20 is arbitrary since this type is used only for creating a block in RLE
+        super(VarcharType.createVarcharType(20), storageEngineConstants, nativeConfig); // using is size 20 is arbitrary since this type is used only for creating a block in RLE
     }
 
     @Override
@@ -66,18 +63,5 @@ public class VariableLengthStringSliceBlockFiller
             offsets[currPos + 1] = offsets[currPos] + Short.toUnsignedInt(lenBuff.get(currPos));
         }
         outputSlice.setBytes(offsets[0], new ByteBufferInputStream(recordBuff, offsets[0]), offsets[numRecords] - offsets[0]);
-    }
-
-    @Override
-    protected void copyFromDictionary(
-            ShortBuffer buff,
-            ReadDictionary readDictionary,
-            int currPos,
-            Slice outputSlice,
-            int[] offsets)
-    {
-        Slice slice = (Slice) readDictionary.get(Short.toUnsignedInt(buff.get(currPos)));
-        outputSlice.setBytes(offsets[currPos], slice);
-        offsets[currPos + 1] = offsets[currPos] + slice.length();
     }
 }

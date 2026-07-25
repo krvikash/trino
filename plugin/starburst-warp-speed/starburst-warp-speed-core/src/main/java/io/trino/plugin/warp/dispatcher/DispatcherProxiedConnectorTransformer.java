@@ -32,12 +32,10 @@ import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.predicate.TupleDomain;
-import io.trino.spi.statistics.ColumnStatistics;
 import io.trino.spi.transaction.IsolationLevel;
 
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -52,15 +50,6 @@ public interface DispatcherProxiedConnectorTransformer
     default boolean isValidForTableStatistics(ConnectorTableHandle connectorTableHandle)
     {
         return true;
-    }
-
-    default Set<String> calculateColumnsNotFitForDictionary(Map<ColumnHandle, ColumnStatistics> columnStatistics, int dictionaryMaxSize)
-    {
-        return columnStatistics.entrySet()
-                .stream()
-                .filter(entry -> entry.getValue().getDistinctValuesCount().getValue() >= dictionaryMaxSize)
-                .map(entry -> getWarpRegularColumn(entry.getKey()).getName())
-                .collect(Collectors.toSet());
     }
 
     /**

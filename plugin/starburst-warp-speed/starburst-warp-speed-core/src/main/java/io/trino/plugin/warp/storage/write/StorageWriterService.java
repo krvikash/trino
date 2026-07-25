@@ -17,14 +17,7 @@ import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.airlift.log.Logger;
 import io.trino.plugin.warp.config.NativeConfig;
-import io.trino.plugin.warp.dictionary.DictionaryCacheService;
-import io.trino.plugin.warp.dictionary.DictionaryException;
-import io.trino.plugin.warp.dictionary.DictionaryWarmInfo;
-import io.trino.plugin.warp.dictionary.WriteDictionary;
 import io.trino.plugin.warp.dispatcher.WarmupElementWriteMetadata;
-import io.trino.plugin.warp.dispatcher.model.DictionaryInfo;
-import io.trino.plugin.warp.dispatcher.model.DictionaryKey;
-import io.trino.plugin.warp.dispatcher.model.DictionaryState;
 import io.trino.plugin.warp.dispatcher.model.WarmState;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElementState;
@@ -48,7 +41,6 @@ import io.trino.plugin.warp.storage.memory.WorkerMemoryManager;
 import io.trino.plugin.warp.storage.write.appenders.AppendResult;
 import io.trino.plugin.warp.storage.write.appenders.BlockAppender;
 import io.trino.plugin.warp.storage.write.appenders.BlockAppenderFactory;
-import io.trino.plugin.warp.tools.util.Pair;
 import io.trino.plugin.warp.type.TypeUtils;
 import io.trino.plugin.warp.warmup.exceptions.WarmupException;
 import io.trino.spi.TrinoException;
@@ -61,8 +53,6 @@ import java.lang.foreign.ValueLayout;
 import java.util.Locale;
 import java.util.Optional;
 
-import static io.trino.plugin.warp.dictionary.DictionaryCacheService.DICTIONARY_REC_TYPE_CODE;
-import static io.trino.plugin.warp.dictionary.DictionaryCacheService.DICTIONARY_REC_TYPE_LENGTH;
 import static io.trino.plugin.warp.dispatcher.warmup.warmers.WarmupElementsCreator.getCurrentThreadWarmId;
 import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_FD;
 import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_FILE_HASH;
@@ -77,7 +67,6 @@ public class StorageWriterService
     private final StorageEngine storageEngine;
     private final StorageEngineConstants storageEngineConstants;
     private final BufferAllocator bufferAllocator;
-    private final DictionaryCacheService dictionaryCacheService;
     private final BlockAppenderFactory blockAppenderFactory;
     private final WarmupElementStatsService warmupElementStatsService;
     private final WorkerMemoryManager workerMemoryManager;
@@ -91,7 +80,6 @@ public class StorageWriterService
             StorageEngine storageEngine,
             StorageEngineConstants storageEngineConstants,
             BufferAllocator bufferAllocator,
-            DictionaryCacheService dictionaryCacheService,
             MetricsManager metricsManager,
             PrintMetricsTimerTask metricsTimerTask,
             BlockAppenderFactory blockAppenderFactory,
@@ -103,7 +91,6 @@ public class StorageWriterService
         this.storageEngine = requireNonNull(storageEngine);
         this.storageEngineConstants = requireNonNull(storageEngineConstants);
         this.bufferAllocator = requireNonNull(bufferAllocator);
-        this.dictionaryCacheService = requireNonNull(dictionaryCacheService);
         this.blockAppenderFactory = requireNonNull(blockAppenderFactory);
         this.warmupElementStatsService = requireNonNull(warmupElementStatsService);
         this.workerMemoryManager = requireNonNull(workerMemoryManager);
@@ -117,7 +104,6 @@ public class StorageWriterService
     public StorageWriterSplitConfig startWarming(
             String nodeIdentifier,
             String rowGroupFilePath,
-            Boolean dictionaryEnabled,
             boolean allocateCommonWarmUpState)
     {
         /* allocate memory resources */
@@ -139,7 +125,6 @@ public class StorageWriterService
                 warmUpStateOpt,
                 new RecordBufferParams(arena.allocate(RecordBufferParams.RECORD_BUFFER_PARAMS_LAYOUT.byteSize(), ValueLayout.JAVA_INT.byteSize())),
                 compressionStateOpt,
-                dictionaryEnabled,
                 arena);
     }
 
@@ -162,27 +147,17 @@ public class StorageWriterService
             WarmupElementWriteMetadata warmupElementWriteMetadata)
     {
         Optional<LuceneIndexer> luceneIndexerOpt = Optional.empty();
-        Optional<WriteDictionary> writeDictionaryOpt = Optional.empty();
-        Pair<DictionaryKey, DictionaryState> dictionaryKeyAndState = dictionaryOpen(warmupElementWriteMetadata, storageWriterSplitConfig.nodeIdentifier(), storageWriterSplitConfig.dictionaryEnabled());
-        DictionaryState dictionaryState = dictionaryKeyAndState.getValue();
-        DictionaryKey dictionaryKey = dictionaryKeyAndState.getKey();
         WarmUpElementAllocationParams allocParams = bufferAllocator.calculateAllocationParams(warmupElementWriteMetadata, storageWriterSplitConfig.buff());
 
         // initialize file
         WarmUpElement warmUpElement = warmupElementWriteMetadata.warmUpElement();
         WarmUpElement.Builder warmupElementBuilder = WarmUpElement.builder(warmUpElement);
         warmupElementBuilder.startOffset(startOffset);
-        // dictionary
-        boolean hasDictionary = dictionaryState == DictionaryState.DICTIONARY_VALID;
-        if (dictionaryState == DictionaryState.DICTIONARY_REJECTED) {
-            warmupElementBuilder.dictionaryInfo(new DictionaryInfo(dictionaryKey, dictionaryState, 0, 0));
-        }
         // initialize warm up state and file if needed
         WarmUpState warmUpState = storageWriterSplitConfig.warmUpStateOpt().orElseGet(() -> allocateWarmUpState(storageWriterSplitConfig.arena()));
         CompressionState compressionState = storageWriterSplitConfig.compressionStateOpt().orElseGet(() -> allocateCompressionState(storageWriterSplitConfig.arena()));
         storageWeOpen(
                 warmUpElement,
-                hasDictionary,
                 warmUpState,
                 fileCookieParams,
                 storageWriterSplitConfig.contextAllocator().allocate(warmUpElement.getWarmUpContextSize(), Integer.BYTES),
@@ -195,19 +170,10 @@ public class StorageWriterService
         WriteJuffersWarmUpElement writeJuffersWarmUpElement = createWriteJuffers(
                 storageWriterSplitConfig.recordBufferParams(),
                 warmUpState,
-                hasDictionary,
                 allocParams,
                 compressionState,
                 warmId,
                 storageWriterSplitConfig.arena());
-        if (hasDictionary) {
-            WriteDictionary writeDictionary = dictionaryCacheService.computeWriteIfAbsent(dictionaryKey, warmUpElement.getRecTypeCode());
-            dictionaryKey = writeDictionary.getDictionaryKey(); // in order to be aligned with createdTimestamp
-            writeDictionaryOpt = Optional.of(writeDictionary);
-        }
-        // set up dictionary
-        DictionaryWarmInfo dictionaryWarmInfo = new DictionaryWarmInfo(dictionaryState, dictionaryKey);
-
         if (warmUpElement.getWarmUpType() == WarmUpType.WARM_UP_TYPE_LUCENE) {
             // initialize lucene
             LuceneIndexer luceneIndexer = new LuceneIndexer(
@@ -228,13 +194,11 @@ public class StorageWriterService
                 warmupElementWriteMetadata,
                 warmupElementBuilder,
                 writeJuffersWarmUpElement,
-                dictionaryWarmInfo,
                 warmUpState,
                 blockAppender,
-                writeDictionaryOpt,
                 luceneIndexerOpt,
                 warmId);
-        return new WriteOpenResult(storageWriterContext, dictionaryWarmInfo);
+        return new WriteOpenResult(storageWriterContext);
     }
 
     private WarmUpState allocateWarmUpState(ThreadArena arena)
@@ -251,7 +215,6 @@ public class StorageWriterService
     private WriteJuffersWarmUpElement createWriteJuffers(
             RecordBufferParams recordBufferParams,
             WarmUpState warmUpState,
-            boolean dictionaryValid,
             WarmUpElementAllocationParams allocParams,
             CompressionState compressionState,
             byte warmId,
@@ -267,37 +230,12 @@ public class StorageWriterService
                 compressionState,
                 warmId,
                 arena);
-        juffersWE.createBuffers(dictionaryValid);
+        juffersWE.createBuffers();
         return juffersWE;
-    }
-
-    private Pair<DictionaryKey, DictionaryState> dictionaryOpen(
-            WarmupElementWriteMetadata warmupElementWriteMetadata,
-            String nodeIdentifier,
-            Boolean dictionaryEnabled)
-    {
-        DictionaryKey dictionaryKey;
-        WarmUpElement warmUpElement = warmupElementWriteMetadata.warmUpElement();
-        if (warmUpElement.getDictionaryInfo() != null) {
-            dictionaryKey = warmUpElement.getDictionaryInfo().dictionaryKey();
-        }
-        else {
-            long createdTimestamp = dictionaryCacheService.getLastCreatedTimestamp(warmupElementWriteMetadata.schemaTableColumn(), nodeIdentifier);
-            dictionaryKey = new DictionaryKey(warmupElementWriteMetadata.schemaTableColumn(), nodeIdentifier, createdTimestamp);
-        }
-        DictionaryState dictionaryState;
-        if (!warmupElementWriteMetadata.fitForDictionary()) {
-            dictionaryState = DictionaryState.DICTIONARY_NOT_EXIST;
-        }
-        else {
-            dictionaryState = dictionaryCacheService.calculateDictionaryStateForWrite(dictionaryKey, warmUpElement, dictionaryEnabled);
-        }
-        return Pair.of(dictionaryKey, dictionaryState);
     }
 
     private void storageWeOpen(
             WarmUpElement warmUpElement,
-            boolean hasDictionary,
             WarmUpState warmUpState,
             long[] fileCookieParams,
             MemorySegment context,
@@ -312,8 +250,8 @@ public class StorageWriterService
                 (long) fileCookieParams[FILE_COOKIE_PARAMS_FILE_MOD_TIME.ordinal()]);
         // warm up element attributes
         warmUpState.setWarmUpElementAtt(
-                hasDictionary ? DICTIONARY_REC_TYPE_CODE : TypeUtils.nativeRecTypeCode(warmUpElement.getRecTypeCode()),
-                hasDictionary ? DICTIONARY_REC_TYPE_LENGTH : warmUpElement.getRecTypeLength(),
+                TypeUtils.nativeRecTypeCode(warmUpElement.getRecTypeCode()),
+                warmUpElement.getRecTypeLength(),
                 warmUpElement.getWarmUpType());
         // juffers
         bufferAllocator.setWarmBuffers(allocParams, warmUpState);
@@ -370,38 +308,6 @@ public class StorageWriterService
             // Native failed to write
             updateToFailedState(warmupElementBuilder, warmupElementWriteMetadata);
             storageWriterContext.setFailed();
-        }
-        // attach dictionary if needed
-        if (storageWriterContext.weSuccess() && storageWriterContext.getWriteDictionary().isPresent()) {
-            int dictionarySize = 0;
-
-            WriteDictionary writeDictionary = storageWriterContext.getWriteDictionary().get();
-            try {
-                dictionarySize = dictionaryCacheService.writeDictionary(
-                        writeDictionary.getDictionaryKey(),
-                        warmupElementWriteMetadata.warmUpElement().getRecTypeCode(),
-                        offset,
-                        storageWriterSplitConfig.rowGroupFilePath());
-            }
-            catch (Exception e) {
-                storageWriterContext.setFailed();
-                updateToFailedState(warmupElementBuilder, warmupElementWriteMetadata);
-            }
-            logger.debug(
-                    "close fileOffsetsEnd (= dictionaryOffset) %d dictionarySize %d",
-                    offset,
-                    dictionarySize);
-
-            if (dictionarySize != 0) {
-                DictionaryInfo dictionaryInfo = new DictionaryInfo(
-                        writeDictionary.getDictionaryKey(),
-                        storageWriterContext.getDictionaryWarmInfo().dictionaryState(),
-                        writeDictionary.getRecTypeLength(),
-                        offset);
-                warmupElementBuilder.dictionaryInfo(dictionaryInfo)
-                        .usedDictionarySize(writeDictionary.getWriteSize());
-                offset += dictionarySize;
-            }
         }
         // write lucene info if needed
         if (storageWriterContext.weSuccess() && storageWriterContext.getLuceneIndexer().isPresent()) {
@@ -602,7 +508,6 @@ public class StorageWriterService
             AppendResult appendResult = storageWriterContext.getBlockAppender().append(
                     storageWriterContext.getRecordBufferPos(),
                     blockPos,
-                    storageWriterContext.getWriteDictionary(),
                     warmUpElement,
                     storageWriterContext.getWarmupElementStatsBuilder());
             storageWriterContext.getWriteJuffersWarmUpElement().increaseNullsCount(appendResult.nullsCount());
@@ -612,15 +517,6 @@ public class StorageWriterService
             logger.debug("failed appending block to WE %s exception %s", warmupElementWriteMetadata, e);
 
             WarmUpElement.Builder warmupElementBuilder = WarmUpElement.builder(warmUpElement);
-            if (e instanceof DictionaryException dictionaryMaxException) {
-                DictionaryInfo dictionaryInfo = new DictionaryInfo(
-                        dictionaryMaxException.getDictionaryKey(),
-                        dictionaryMaxException.getDictionaryState(),
-                        0, // dataValuesRecTypeLength
-                        DictionaryInfo.NO_OFFSET);
-                warmupElementBuilder.dictionaryInfo(dictionaryInfo);
-                dictionaryCacheService.updateOnFailedWrite(dictionaryMaxException.getDictionaryKey());
-            }
             warmupElementBuilder.state(new WarmUpElementState(e.getState(), 0, System.currentTimeMillis()));
             storageWriterContext.setWarmupElementBuilder(warmupElementBuilder);
         }

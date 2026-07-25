@@ -31,5 +31,4 @@ public record StorageWriterSplitConfig(
         Optional<WarmUpState> warmUpStateOpt, // warm state used during a single element warming, if not present will be allocated per WE
         RecordBufferParams recordBufferParams, // record buffer parameters used for every commit call
         Optional<CompressionState> compressionStateOpt, // compression state used during a single element warming, if not present will be allocated per WE
-        Boolean dictionaryEnabled,
         ThreadArena arena) {}

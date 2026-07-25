@@ -68,8 +68,7 @@ public class TestDispatcherSubstitutionMetadata
                 PROXY_TABLE_HANDLE,
                 Optional.empty(),
                 Metrics.EMPTY,
-                false,
-                Set.of());
+                false);
     }
 
     @Test

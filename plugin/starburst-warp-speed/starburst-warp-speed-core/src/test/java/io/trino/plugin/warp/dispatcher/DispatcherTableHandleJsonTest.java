@@ -63,7 +63,6 @@ public class DispatcherTableHandleJsonTest
                 Optional.of(new WarpExpression(new WarpCall("func", emptyList(), INTEGER), emptyList())),
                 new Metrics(ImmutableMap.<String, Metric<?>>of("stat", new LongCount(3))),
                 true,
-                Set.of("col2"),
                 Optional.of(ExpressionAndAssignments.TRUE));
 
         String json = objectMapper.writeValueAsString(handle);

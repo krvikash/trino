@@ -18,20 +18,14 @@ import io.airlift.log.Logger;
 import io.airlift.units.Duration;
 import io.trino.tempto.query.QueryExecutor;
 import io.trino.tempto.query.QueryResult;
-import org.assertj.core.api.SoftAssertions;
 import org.intellij.lang.annotations.Language;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.StringJoiner;
 
 import static io.trino.tests.product.utils.QueryAssertions.assertEventually;
 import static io.trino.tests.product.utils.QueryExecutors.onTrino;
-import static io.trino.tests.product.warp.utils.JMXCachingConstants.Dictionary.DICTIONARY_MAX_EXCEPTION_COUNT;
-import static io.trino.tests.product.warp.utils.JMXCachingConstants.Dictionary.DICTIONARY_REJECTED_ELEMENTS_COUNT;
-import static io.trino.tests.product.warp.utils.JMXCachingConstants.Dictionary.DICTIONARY_SUCCESS_ELEMENTS_COUNT;
-import static io.trino.tests.product.warp.utils.JMXCachingConstants.Dictionary.WRITE_DICTIONARIES_COUNT;
 import static io.trino.tests.product.warp.utils.JMXCachingConstants.WarmingService.FINISHED;
 import static io.trino.tests.product.warp.utils.JMXCachingConstants.WarmingService.SCHEDULED;
 import static io.trino.tests.product.warp.utils.JMXCachingConstants.WarmingService.STARTED;
@@ -49,19 +43,12 @@ import static io.trino.tests.product.warp.utils.JMXCachingConstants.WarmupImport
 import static io.trino.tests.product.warp.utils.JMXCachingConstants.WarmupImportService.IMPORT_ROW_GROUP_COUNT_STARTED;
 import static io.trino.tests.product.warp.utils.JMXCachingManager.getDiffFromInitial;
 import static io.trino.tests.product.warp.utils.JMXCachingManager.getValue;
-import static io.trino.tests.product.warp.utils.QueryUtils.verifyQueryCountersJson;
 import static java.lang.String.format;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class WarmUtils
 {
     private static final Logger logger = Logger.get(WarmUtils.class);
-
-    private static final List<String> DICTIONARY_COUNTERS_LIST = List.of(
-            WRITE_DICTIONARIES_COUNT,
-            DICTIONARY_SUCCESS_ELEMENTS_COUNT,
-            DICTIONARY_MAX_EXCEPTION_COUNT,
-            DICTIONARY_REJECTED_ELEMENTS_COUNT);
 
     public WarmUtils() {}
 
@@ -92,7 +79,6 @@ public class WarmUtils
                 testFormat.getTableName(),
                 warmQuery,
                 testFormat.expected_warm_failures(),
-                testFormat.expected_dictionary_counters(),
                 fastWarming,
                 true);
     }
@@ -102,12 +88,10 @@ public class WarmUtils
             String tableName,
             @Language("SQL") String warmQuery,
             int expectedFailures,
-            Map<String, Long> expectedDictionaryCounters,
             FastWarming fastWarming,
             boolean useEmptyQuery)
     {
         QueryResult warmingStatsBefore = JMXCachingManager.getWarmingStats();
-        QueryResult dictionaryRowBefore = JMXCachingManager.getDictionaryStats();
         QueryResult exportRowBefore = JMXCachingManager.getExportStats();
         QueryResult importRowBefore = JMXCachingManager.getImportStats();
 
@@ -125,7 +109,6 @@ public class WarmUtils
                 Duration.valueOf("360s"),
                 () -> {
                     QueryResult warmingStatsAfter = JMXCachingManager.getWarmingStats();
-                    QueryResult dictionaryStatsAfter = JMXCachingManager.getDictionaryStats();
                     QueryResult exportStatsAfter = JMXCachingManager.getExportStats();
                     QueryResult importRowAfter = JMXCachingManager.getImportStats();
 
@@ -153,8 +136,8 @@ public class WarmUtils
                     }
                     else {
                         assertThat(getDiffFromInitial(warmingStatsAfter, warmingStatsBefore, WARM_FAILED))
-                                .as("warm_failed must be equal to dictionary_max_exception_count but wasn't. tableName=%s", tableName)
-                                .isEqualTo(getDiffFromInitial(dictionaryStatsAfter, dictionaryRowBefore, DICTIONARY_MAX_EXCEPTION_COUNT));
+                                .as("warm_failed must be zero but wasn't. tableName=%s", tableName)
+                                .isZero();
                     }
                     if (fastWarming == FastWarming.EXPORT) {
                         assertThat(getDiffFromInitial(exportStatsAfter, exportRowBefore, EXPORT_ROW_GROUP_SCHEDULED))
@@ -179,28 +162,7 @@ public class WarmUtils
                                 .isZero();
                     }
                 });
-        SoftAssertions softAssertions = new SoftAssertions();
-        if (expectedDictionaryCounters != null && !expectedDictionaryCounters.isEmpty()) {
-            verifyDictionaryCounters(expectedDictionaryCounters, dictionaryRowBefore, tableName, softAssertions);
-        }
-        softAssertions.assertAll();
         logger.info("Warmup process has finished tableName[%s], fastWarming[%s]", tableName, fastWarming);
-    }
-
-    private void verifyDictionaryCounters(Map<String, Long> expectedDictionaryCounters, QueryResult dictionaryRowBefore, String testName, SoftAssertions softAssert)
-    {
-        if (expectedDictionaryCounters == null) {
-            return;
-        }
-
-        QueryResult dictionaryStatsAfter = JMXCachingManager.getDictionaryStats();
-
-        Map<String, Long> actualValues = new HashMap<>();
-        for (String stat : DICTIONARY_COUNTERS_LIST) {
-            long actualValue = getDiffFromInitial(dictionaryStatsAfter, dictionaryRowBefore, stat);
-            actualValues.put(stat, actualValue);
-        }
-        verifyQueryCountersJson(DICTIONARY_COUNTERS_LIST, expectedDictionaryCounters, actualValues, testName, softAssert);
     }
 
     public void setSessions(Map<String, Object> sessionProperties)

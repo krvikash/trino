@@ -170,9 +170,6 @@ public class NativeCollectClassifier
                     return Optional.empty();
                 }
             }
-
-            // cannot collect using data element in case of a dictionary, because it holds encoded values and not real values, so we use the match elements
-            useMatchElement = warmUpElement.isDictionaryUsed();
         }
         // if we decided to use the match element, we take it
         if (useMatchElement) {

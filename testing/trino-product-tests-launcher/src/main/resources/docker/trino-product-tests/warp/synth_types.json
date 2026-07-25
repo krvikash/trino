@@ -9404,9 +9404,6 @@
           }
         ],
         "warm_query": "select * from trailing_spaces_133k where longchar = 'longChar'",
-        "session_properties": {
-          "enable_dictionary": false
-        },
         "queries_data": [
           {
             "query": "select distinct length(shortchar) from trailing_spaces_133k",
@@ -9672,8 +9669,7 @@
         ],
         "warm_query": "select * from trailing_spaces_133k where longchar = 'longChar'",
         "session_properties": {
-          "enable_varchar_mapped_match_collect": true,
-          "enable_dictionary": false
+          "enable_varchar_mapped_match_collect": true
         },
         "queries_data": [
           {
@@ -9965,9 +9961,6 @@
           }
         ],
         "warm_query": "select * from trailing_spaces_133k where longchar = 'longChar'",
-        "session_properties": {
-          "enable_dictionary": true
-        },
         "queries_data": [
           {
             "query": "select distinct length(shortchar) from trailing_spaces_133k",

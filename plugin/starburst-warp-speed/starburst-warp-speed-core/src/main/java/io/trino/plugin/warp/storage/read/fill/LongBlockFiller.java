@@ -13,29 +13,22 @@
  */
 package io.trino.plugin.warp.storage.read.fill;
 
-import io.trino.plugin.warp.dictionary.DictionaryCacheService;
-import io.trino.plugin.warp.dictionary.ReadDictionary;
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.storage.juffers.ReadJuffersWarmUpElement;
 import io.trino.spi.block.Block;
-import io.trino.spi.block.DictionaryBlock;
 import io.trino.spi.block.LongArrayBlock;
 import io.trino.spi.type.BigintType;
 
 import java.nio.ByteBuffer;
 import java.nio.LongBuffer;
-import java.nio.ShortBuffer;
 import java.util.Optional;
 
 public class LongBlockFiller
         extends BlockFiller<Long>
 {
-    private final DictionaryCacheService dictionaryCacheService;
-
-    public LongBlockFiller(DictionaryCacheService dictionaryCacheService)
+    public LongBlockFiller()
     {
         super(BigintType.BIGINT, BlockFillerType.LONG);
-        this.dictionaryCacheService = dictionaryCacheService;
     }
 
     @Override
@@ -103,82 +96,6 @@ public class LongBlockFiller
         }
 
         return retBlock;
-    }
-
-    @Override
-    public Block fillRawBlockWithDictionary(
-            ReadJuffersWarmUpElement juffersWE,
-            int rowsToFill,
-            RecTypeCode recTypeCode,
-            int recTypeLength,
-            boolean collectNulls,
-            ReadDictionary readDictionary)
-    {
-        ShortBuffer buff = (ShortBuffer) juffersWE.getRecordBuffer();
-        int[] ids = new int[rowsToFill];
-        Block resultBlock;
-
-        Block dictionaryAsBlock = readDictionary.getPreBlockDictionaryIfExists(rowsToFill, dictionaryCacheService, recTypeCode);
-        if (dictionaryAsBlock != null) {
-            if (collectNulls) {
-                int nullPosition = dictionaryAsBlock.getPositionCount() - 1;
-                ByteBuffer nullBuff = juffersWE.getNullBuffer();
-                for (int currRow = 0; currRow < rowsToFill; currRow++) {
-                    if (isNull(nullBuff, currRow)) {
-                        ids[currRow] = nullPosition;
-                    }
-                    else {
-                        ids[currRow] = Short.toUnsignedInt(buff.get(currRow));
-                    }
-                }
-            }
-            else {
-                for (int currRow = 0; currRow < rowsToFill; currRow++) {
-                    ids[currRow] = Short.toUnsignedInt(buff.get(currRow));
-                }
-            }
-            resultBlock = DictionaryBlock.create(ids.length, dictionaryAsBlock, ids);
-        }
-        else {
-            long[] values = new long[rowsToFill];
-            Optional<boolean[]> valueIsNullOptional;
-            if (collectNulls) {
-                ByteBuffer nullBuff = juffersWE.getNullBuffer();
-                boolean[] valueIsNull = new boolean[rowsToFill];
-                for (int i = 0; i < rowsToFill; i++) {
-                    if (isNull(nullBuff, i)) {
-                        valueIsNull[i] = true;
-                    }
-                    else {
-                        values[i] = (long) readDictionary.get(Short.toUnsignedInt(buff.get(i)));
-                    }
-                }
-                valueIsNullOptional = Optional.of(valueIsNull);
-            }
-            else {
-                for (int i = 0; i < rowsToFill; i++) {
-                    values[i] = (long) readDictionary.get(Short.toUnsignedInt(buff.get(i)));
-                }
-                valueIsNullOptional = Optional.empty();
-            }
-            resultBlock = new LongArrayBlock(rowsToFill, valueIsNullOptional, values);
-        }
-        return resultBlock;
-    }
-
-    @Override
-    protected Long getSingleValueWithDictionary(int mappingKey, ReadDictionary readDictionary)
-    {
-        return (long) readDictionary.get(mappingKey);
-    }
-
-    @Override
-    protected Block createSingleWithNullBlockWithDictionary(ReadJuffersWarmUpElement juffersWE, int mappingKey, int rowsToFill, ReadDictionary readDictionary)
-    {
-        long singleValue = getSingleValueWithDictionary(mappingKey, readDictionary);
-        Block mappingBlock = createSingleMappingBlock(singleValue);
-
-        return wrapSingleWithNulls(juffersWE, rowsToFill, mappingBlock, 1);
     }
 
     private Block createSingleMappingBlock(long singleValue)

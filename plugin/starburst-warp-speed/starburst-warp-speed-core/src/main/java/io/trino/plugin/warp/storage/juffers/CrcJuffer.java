@@ -33,7 +33,7 @@ public class CrcJuffer
     }
 
     @Override
-    public void createBuffer(MemorySegment[] buffs, boolean isDictionaryValid)
+    public void createBuffer(MemorySegment[] buffs)
     {
         this.baseBuffer = createGenericBuffer(bufferAllocator.memorySegment2CrcBuff(buffs));
         this.wrappedBuffer = this.baseBuffer;

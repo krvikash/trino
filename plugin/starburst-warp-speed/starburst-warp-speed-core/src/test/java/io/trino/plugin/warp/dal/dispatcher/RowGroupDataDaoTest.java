@@ -25,16 +25,12 @@ import io.airlift.slice.Slices;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.config.SharedConfig;
 import io.trino.plugin.warp.dispatcher.dal.RowGroupDataDao;
-import io.trino.plugin.warp.dispatcher.model.DictionaryInfo;
-import io.trino.plugin.warp.dispatcher.model.DictionaryKey;
-import io.trino.plugin.warp.dispatcher.model.DictionaryState;
 import io.trino.plugin.warp.dispatcher.model.ExportState;
 import io.trino.plugin.warp.dispatcher.model.FastWarmingState;
 import io.trino.plugin.warp.dispatcher.model.RegularColumn;
 import io.trino.plugin.warp.dispatcher.model.RowGroupData;
 import io.trino.plugin.warp.dispatcher.model.RowGroupDataValidation;
 import io.trino.plugin.warp.dispatcher.model.RowGroupKey;
-import io.trino.plugin.warp.dispatcher.model.SchemaTableColumn;
 import io.trino.plugin.warp.dispatcher.model.TransformedColumn;
 import io.trino.plugin.warp.dispatcher.model.WarmState;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
@@ -52,7 +48,6 @@ import io.trino.plugin.warp.tools.util.StringUtils;
 import io.trino.plugin.warp.util.json.SliceSerializer;
 import io.trino.plugin.warp.util.json.WarpColumnJsonKeyDeserializer;
 import io.trino.spi.catalog.CatalogName;
-import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.type.IntegerType;
 import io.trino.spi.type.Type;
 import io.trino.type.TypeDeserializer;
@@ -265,16 +260,6 @@ public class RowGroupDataDaoTest
                 .recTypeCode(RecTypeCode.REC_TYPE_INTEGER)
                 .recTypeLength(4)
                 .warmupElementStats(new WarmupElementStats(0, Long.MIN_VALUE, Long.MAX_VALUE))
-                .usedDictionarySize(7)
-                .dictionaryInfo(new DictionaryInfo(
-                        new DictionaryKey(
-                                new SchemaTableColumn(
-                                        new SchemaTableName("schema", "table"), warpColumn),
-                                nodeIdentifier,
-                                54321),
-                        DictionaryState.DICTIONARY_IMPORTED,
-                        3,
-                        6))
                 .startOffset(1)
                 .queryOffset(2)
                 .queryReadSize(3)
@@ -338,23 +323,12 @@ public class RowGroupDataDaoTest
                 WarpColumn.class, new WarpColumnJsonKeyDeserializer()));
         ObjectMapper objectMapper = provider.get();
 
-        // DictionaryKey
-        DictionaryKey dictionaryKey = new DictionaryKey(
-                new SchemaTableColumn(
-                        new SchemaTableName("schema1", "table1"),
-                        "column1"),
-                "nodeIdentifier111",
-                DictionaryKey.CREATED_TIMESTAMP_UNKNOWN);
-        String str = objectMapper.writerFor(dictionaryKey.getClass()).writeValueAsString(dictionaryKey);
-        assertThat(dictionaryKey)
-                .isEqualTo(objectMapper.readValue(str, dictionaryKey.getClass()));
-
         // WarpColumn
         List<WarpColumn> warpColumns = List.of(
                 new RegularColumn("aaa"),
                 new WildcardColumn(),
                 new TransformedColumn("aaa", "bbbb", new TransformFunction(TransformFunction.TransformType.DATE, List.of(new WarpPrimitiveConstant(1, IntegerType.INTEGER)))));
-        str = objectMapper.writerFor(new TypeReference<List<WarpColumn>>() {}).writeValueAsString(warpColumns);
+        String str = objectMapper.writerFor(new TypeReference<List<WarpColumn>>() {}).writeValueAsString(warpColumns);
         assertThat(warpColumns).isEqualTo(objectMapper.readValue(str, new TypeReference<List<WarpColumn>>() {}));
 
         // WarmUpElement
@@ -364,17 +338,6 @@ public class RowGroupDataDaoTest
                 .recTypeCode(RecTypeCode.REC_TYPE_INTEGER)
                 .recTypeLength(4)
                 .warmupElementStats(new WarmupElementStats(0, Slices.wrappedBuffer(new byte[] {1}), Slices.wrappedBuffer(new byte[] {9})))
-                .usedDictionarySize(7)
-                .dictionaryInfo(new DictionaryInfo(
-                        new DictionaryKey(
-                                new SchemaTableColumn(
-                                        new SchemaTableName("schema1", "table1"),
-                                        "column1"),
-                                "nodeIdentifier111",
-                                DictionaryKey.CREATED_TIMESTAMP_UNKNOWN),
-                        DictionaryState.DICTIONARY_IMPORTED,
-                        4,
-                        DictionaryInfo.NO_OFFSET))
                 .startOffset(1)
                 .queryOffset(2)
                 .totalRecords(7)

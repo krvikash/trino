@@ -13,14 +13,13 @@
  */
 package io.trino.plugin.warp.storage.write;
 
-import io.trino.plugin.warp.dictionary.DictionaryWarmInfo;
 import io.trino.plugin.warp.dispatcher.WarmupElementWriteMetadata;
 import io.trino.plugin.warp.dispatcher.warmup.warmers.WarmSinkResult;
 import io.trino.spi.connector.SourcePage;
 
 public interface PageSink
 {
-    DictionaryWarmInfo open(long[] fileCookieParams, int startOffset, WarmupElementWriteMetadata warmupElementWriteMetadata);
+    void open(long[] fileCookieParams, int startOffset, WarmupElementWriteMetadata warmupElementWriteMetadata);
 
     boolean appendPage(SourcePage page, int totalRecords);
 

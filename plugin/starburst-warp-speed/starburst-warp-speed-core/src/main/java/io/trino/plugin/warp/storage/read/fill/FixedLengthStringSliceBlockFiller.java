@@ -16,8 +16,6 @@ package io.trino.plugin.warp.storage.read.fill;
 import io.airlift.slice.Slice;
 import io.airlift.slice.Slices;
 import io.trino.plugin.warp.config.NativeConfig;
-import io.trino.plugin.warp.dictionary.DictionaryCacheService;
-import io.trino.plugin.warp.dictionary.ReadDictionary;
 import io.trino.plugin.warp.juffer.ByteBufferInputStream;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.util.SliceUtils;
@@ -37,11 +35,10 @@ public class FixedLengthStringSliceBlockFiller
         extends SliceBlockFiller
 {
     public FixedLengthStringSliceBlockFiller(
-            DictionaryCacheService dictionaryCacheService,
             StorageEngineConstants storageEngineConstants,
             NativeConfig nativeConfig)
     {
-        super(dictionaryCacheService, CharType.createCharType(10), storageEngineConstants, nativeConfig); // need to check if length 10 is ok for all
+        super(CharType.createCharType(10), storageEngineConstants, nativeConfig); // need to check if length 10 is ok for all
     }
 
     @Override
@@ -80,20 +77,6 @@ public class FixedLengthStringSliceBlockFiller
             long _ = byteBufferInputStream.skip(recLength - trimmedRecLength);
             offsets[currPos + 1] = offsets[currPos] + trimmedRecLength;
         }
-    }
-
-    @Override
-    protected void copyFromDictionary(
-            ShortBuffer buff,
-            ReadDictionary readDictionary,
-            int currPos,
-            Slice outputSlice,
-            int[] offsets)
-    {
-        Slice slice = (Slice) readDictionary.get(Short.toUnsignedInt(buff.get(currPos)));
-        int trimmedRecLength = SliceUtils.trimSlice(slice.toByteBuffer(), slice.length(), 0);
-        outputSlice.setBytes(offsets[currPos], slice, 0, trimmedRecLength);
-        offsets[currPos + 1] = offsets[currPos] + trimmedRecLength;
     }
 
     @Override

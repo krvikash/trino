@@ -13,8 +13,6 @@
  */
 package io.trino.plugin.warp.storage.write;
 
-import io.trino.plugin.warp.dictionary.DictionaryWarmInfo;
-import io.trino.plugin.warp.dictionary.WriteDictionary;
 import io.trino.plugin.warp.dispatcher.WarmupElementWriteMetadata;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
 import io.trino.plugin.warp.storage.juffers.WriteJuffersWarmUpElement;
@@ -35,11 +33,9 @@ final class StorageWriterContext
     private int recordBufferPos;
     private WarmUpElement.Builder warmupElementBuilder;
     private final WriteJuffersWarmUpElement writeJuffersWarmUpElement;
-    private final DictionaryWarmInfo dictionaryWarmInfo;
     private final WarmUpState warmUpState;
     private final BlockAppender blockAppender;
     private boolean weSuccess;
-    private final Optional<WriteDictionary> writeDictionary;
     private final Optional<LuceneIndexer> luceneIndexer;
     private final byte warmId;
 
@@ -47,10 +43,8 @@ final class StorageWriterContext
             WarmupElementWriteMetadata warmupElementWriteMetadata,
             WarmUpElement.Builder warmupElementBuilder,
             WriteJuffersWarmUpElement writeJuffersWarmUpElement,
-            DictionaryWarmInfo dictionaryWarmInfo,
             WarmUpState warmUpState,
             BlockAppender blockAppender,
-            Optional<WriteDictionary> writeDictionary,
             Optional<LuceneIndexer> luceneIndexer,
             byte warmId)
     {
@@ -59,11 +53,9 @@ final class StorageWriterContext
         this.recordBufferPos = 0;
         this.warmupElementBuilder = warmupElementBuilder;
         this.writeJuffersWarmUpElement = writeJuffersWarmUpElement;
-        this.dictionaryWarmInfo = dictionaryWarmInfo;
         this.warmUpState = warmUpState;
         this.blockAppender = blockAppender;
         this.weSuccess = true;
-        this.writeDictionary = writeDictionary;
         this.luceneIndexer = luceneIndexer;
         this.warmId = warmId;
         this.isCleanupDone = new AtomicReference<>(null);
@@ -83,11 +75,6 @@ final class StorageWriterContext
     void setWeClosed()
     {
         weClosed = true;
-    }
-
-    DictionaryWarmInfo getDictionaryWarmInfo()
-    {
-        return dictionaryWarmInfo;
     }
 
     public WarmUpState getWarmUpState()
@@ -171,11 +158,6 @@ final class StorageWriterContext
         return blockAppender;
     }
 
-    public Optional<WriteDictionary> getWriteDictionary()
-    {
-        return writeDictionary;
-    }
-
     WarmupElementStatsBuilder getWarmupElementStatsBuilder()
     {
         return warmupElementStatsBuilder;
@@ -208,9 +190,7 @@ final class StorageWriterContext
                 Objects.equals(warmupElementWriteMetadata, that.warmupElementWriteMetadata) &&
                 Objects.equals(warmupElementBuilder, that.warmupElementBuilder) &&
                 Objects.equals(writeJuffersWarmUpElement, that.writeJuffersWarmUpElement) &&
-                Objects.equals(dictionaryWarmInfo, that.dictionaryWarmInfo) &&
                 Objects.equals(blockAppender, that.blockAppender) &&
-                Objects.equals(writeDictionary, that.writeDictionary) &&
                 Objects.equals(luceneIndexer, that.luceneIndexer);
     }
 
@@ -224,10 +204,8 @@ final class StorageWriterContext
                 recordBufferPos,
                 warmupElementBuilder,
                 writeJuffersWarmUpElement,
-                dictionaryWarmInfo,
                 blockAppender,
                 weSuccess,
-                writeDictionary,
                 luceneIndexer);
     }
 
@@ -242,10 +220,8 @@ final class StorageWriterContext
                 ", recordBufferPos=" + recordBufferPos +
                 ", warmupElementBuilder=" + warmupElementBuilder +
                 ", writeJuffersWarmUpElement=" + writeJuffersWarmUpElement +
-                ", dictionaryWarmInfo=" + dictionaryWarmInfo +
                 ", blockAppender=" + blockAppender +
                 ", weSuccess=" + weSuccess +
-                ", writeDictionary=" + writeDictionary +
                 ", luceneIndexer=" + luceneIndexer +
                 '}';
     }

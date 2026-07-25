@@ -13,8 +13,6 @@
  */
 package io.trino.plugin.warp.storage.read;
 
-import io.trino.plugin.warp.dictionary.ReadDictionary;
-import io.trino.plugin.warp.dispatcher.model.DictionaryKey;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
 import io.trino.plugin.warp.gen.constants.DataWarmEvents;
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
@@ -46,10 +44,8 @@ public class WarmupElementCollectParams
     private final int blockRecTypeLength;
     private final int warmEvents;
     private final boolean isImported;
-    private final Optional<WarmupElementDictionaryParams> dictionaryParams;
     private final int blockIndex;
     private final Optional<Block> valuesDictBlock;
-    private Optional<ReadDictionary> dictionary;
 
     static {
         WARMUP_ELEMENT_COLLECT_PARAMS_LAYOUT = MemoryLayout.structLayout(
@@ -84,7 +80,6 @@ public class WarmupElementCollectParams
             int blockRecTypeLength,
             int warmEvents,
             boolean isImported,
-            Optional<WarmupElementDictionaryParams> dictionaryParams,
             int blockIndex,
             Optional<Block> valuesDictBlock)
     {
@@ -107,8 +102,6 @@ public class WarmupElementCollectParams
         this.blockRecTypeLength = blockRecTypeLength;
         this.warmEvents = warmEvents;
         this.isImported = isImported;
-        this.dictionaryParams = dictionaryParams;
-        this.dictionary = Optional.empty();
         this.blockIndex = blockIndex;
         this.valuesDictBlock = valuesDictBlock;
     }
@@ -143,46 +136,6 @@ public class WarmupElementCollectParams
         return blockRecTypeLength;
     }
 
-    public boolean hasDictionaryParams()
-    {
-        return dictionaryParams.isPresent();
-    }
-
-    public DictionaryKey getDictionaryKey()
-    {
-        return dictionaryParams.get().dictionaryKey();
-    }
-
-    public int getUsedDictionarySize()
-    {
-        return dictionaryParams.get().usedDictionarySize();
-    }
-
-    public RecTypeCode getDataValuesRecTypeCode()
-    {
-        return dictionaryParams.get().dataValuesRecTypeCode();
-    }
-
-    public int getDataValuesRecTypeLength()
-    {
-        return dictionaryParams.get().dataValuesRecTypeLength();
-    }
-
-    public int getDictionaryOffset()
-    {
-        return dictionaryParams.get().dictionaryOffset();
-    }
-
-    public boolean hasDictionary()
-    {
-        return dictionary.isPresent();
-    }
-
-    public ReadDictionary getDictionary()
-    {
-        return dictionary.get();
-    }
-
     public boolean mappedMatchCollect()
     {
         return valuesDictBlock.isPresent();
@@ -191,11 +144,6 @@ public class WarmupElementCollectParams
     public Optional<Block> getValuesDictBlock()
     {
         return valuesDictBlock;
-    }
-
-    public void setDictionary(ReadDictionary dictionary)
-    {
-        this.dictionary = Optional.of(dictionary);
     }
 
     public int getBlockIndex()
@@ -249,7 +197,6 @@ public class WarmupElementCollectParams
                 ", blockRecTypeLength=" + blockRecTypeLength +
                 ", warmEvents=" + warmEventsToString(warmUpType) +
                 ", isImported=" + isImported +
-                ", dictionaryParams=" + (dictionaryParams.isPresent() ? dictionaryParams : "none") +
                 ", blockIndex=" + blockIndex +
                 '}';
     }

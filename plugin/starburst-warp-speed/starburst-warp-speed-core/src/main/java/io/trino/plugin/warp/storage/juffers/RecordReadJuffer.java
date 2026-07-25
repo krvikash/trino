@@ -27,9 +27,9 @@ public class RecordReadJuffer
     }
 
     @Override
-    public void createBuffer(RecTypeCode recTypeCode, int recTypeLength, boolean hasDictionary, MemorySegment[] buffs)
+    public void createBuffer(RecTypeCode recTypeCode, int recTypeLength, MemorySegment[] buffs)
     {
         this.baseBuffer = bufferAllocator.memorySegment2RecBuff(buffs);
-        this.wrappedBuffer = createWrapperBuffer(this.baseBuffer, recTypeCode, recTypeLength, false, hasDictionary);
+        this.wrappedBuffer = createWrapperBuffer(this.baseBuffer, recTypeCode, recTypeLength, false);
     }
 }

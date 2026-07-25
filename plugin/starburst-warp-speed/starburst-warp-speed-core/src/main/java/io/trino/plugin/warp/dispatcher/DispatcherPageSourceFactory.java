@@ -24,7 +24,6 @@ import io.trino.plugin.warp.dispatcher.query.data.QueryColumn;
 import io.trino.plugin.warp.dispatcher.query.data.match.QueryMatchData;
 import io.trino.plugin.warp.dispatcher.services.RowGroupDataService;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
-import io.trino.plugin.warp.gen.stats.DictionaryStats;
 import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
 import io.trino.plugin.warp.gen.stats.LucenePageCacheStats;
 import io.trino.plugin.warp.gen.stats.NativeStats;
@@ -264,7 +263,6 @@ public abstract class DispatcherPageSourceFactory
     protected void initializeCustomStats(CustomStatsContext customStatsContext)
     {
         customStatsContext.getOrRegister(new DispatcherPageSourceStats());
-        customStatsContext.getOrRegister(new DictionaryStats());
         customStatsContext.getOrRegister(LucenePageCacheStats.create());
         customStatsContext.getOrRegister(NativeStats.create());
     }

@@ -49,11 +49,11 @@ public class ReadJuffersWarmUpElement
         }
     }
 
-    public void createBuffers(RecTypeCode recTypeCode, int recTypeLength, boolean hasDictionary, MemorySegment[] buffs)
+    public void createBuffers(RecTypeCode recTypeCode, int recTypeLength, MemorySegment[] buffs)
     {
         for (BaseJuffer juffer : juffers.values()) {
             BaseReadJuffer readJuffer = (BaseReadJuffer) juffer;
-            readJuffer.createBuffer(recTypeCode, recTypeLength, hasDictionary, buffs);
+            readJuffer.createBuffer(recTypeCode, recTypeLength, buffs);
         }
     }
 

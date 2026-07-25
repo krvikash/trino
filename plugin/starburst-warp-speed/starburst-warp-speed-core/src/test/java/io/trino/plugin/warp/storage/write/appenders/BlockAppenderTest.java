@@ -15,13 +15,6 @@ package io.trino.plugin.warp.storage.write.appenders;
 
 import io.airlift.slice.Slice;
 import io.airlift.slice.Slices;
-import io.trino.plugin.warp.TestingTxService;
-import io.trino.plugin.warp.config.DictionaryConfig;
-import io.trino.plugin.warp.dictionary.AttachDictionaryService;
-import io.trino.plugin.warp.dictionary.DictionaryCacheService;
-import io.trino.plugin.warp.dictionary.WriteDictionary;
-import io.trino.plugin.warp.dispatcher.model.DictionaryKey;
-import io.trino.plugin.warp.dispatcher.model.SchemaTableColumn;
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.juffer.BlockPosHolder;
 import io.trino.plugin.warp.juffer.BufferAllocator;
@@ -37,7 +30,6 @@ import io.trino.plugin.warp.storage.write.WarmupElementStatsBuilder;
 import io.trino.plugin.warp.type.TypeUtils;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.VariableWidthBlockBuilder;
-import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.type.Type;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -49,7 +41,6 @@ import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 import java.util.Random;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -62,8 +53,6 @@ public abstract class BlockAppenderTest
 {
     WriteJuffersWarmUpElement writeJuffersWarmUpElement;
     int jufferPos;
-    DictionaryKey dictionaryKey;
-    DictionaryCacheService dictionaryCacheService;
 
     BlockAppender blockAppender;
 
@@ -93,14 +82,12 @@ public abstract class BlockAppenderTest
         for (int i = 0; i < 10; i++) {
             segments[i] = Arena.global().allocate(100);
         }
-        crcJuffer.createBuffer(segments, false);
+        crcJuffer.createBuffer(segments);
         when(crcJuffer.getWrappedBuffer()).thenReturn(ByteBuffer.allocate(100));
         when(writeJuffersWarmUpElement.getRecBuffSize()).thenReturn(100);
         when(writeJuffersWarmUpElement.getCrcBuffer()).thenReturn(ByteBuffer.allocate(100));
         when(writeJuffersWarmUpElement.getCrcJuffer()).thenReturn(crcJuffer);
         jufferPos = 0;
-        dictionaryKey = new DictionaryKey(new SchemaTableColumn(new SchemaTableName("schema", "table"), "columns"), "1234", 12);
-        dictionaryCacheService = new DictionaryCacheService(new DictionaryConfig(), TestingTxService.createMetricsManager(), mock(AttachDictionaryService.class));
         storageEngineConstants = new StubsStorageEngineConstants();
     }
 
@@ -108,26 +95,17 @@ public abstract class BlockAppenderTest
     @MethodSource("params")
     abstract void writeWithoutDictionary(Block block, Type blockType, WarmupElementStats expectedResult);
 
-    @ParameterizedTest
-    @MethodSource("params")
-    abstract void writeWithDictionary(Block block, Type blockType, WarmupElementStats expectedResult);
-
-    Optional<WriteDictionary> getWriteDictionary(RecTypeCode recTypeCode)
-    {
-        return Optional.of(dictionaryCacheService.computeWriteIfAbsent(dictionaryKey, recTypeCode));
-    }
-
     RecTypeCode getRecTypeCode(Type blockType)
     {
         int recTypeLength = TypeUtils.getTypeLength(blockType, storageEngineConstants.getVarcharMaxLen());
         return TypeUtils.convertToRecTypeCode(blockType, recTypeLength, storageEngineConstants.getFixedLengthStringLimit());
     }
 
-    void runTest(Block block, Type blockType, WarmupElementStats expectedResult, Optional<WriteDictionary> writeDictionary)
+    void runTest(Block block, Type blockType, WarmupElementStats expectedResult)
     {
         BlockPosHolder blockPosHolder = new BlockPosHolder(block, blockType, 0, block.getPositionCount());
         WarmupElementStatsBuilder warmupElementStatsBuilder = new WarmupElementStatsBuilder();
-        blockAppender.append(jufferPos, blockPosHolder, writeDictionary, null, warmupElementStatsBuilder);
+        blockAppender.append(jufferPos, blockPosHolder, null, warmupElementStatsBuilder);
         assertThat(warmupElementStatsBuilder.build()).isEqualTo(expectedResult);
     }
 

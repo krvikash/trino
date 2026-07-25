@@ -26,7 +26,6 @@ import io.trino.spi.predicate.TupleDomain;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalLong;
-import java.util.Set;
 
 import static java.util.Objects.requireNonNull;
 
@@ -43,7 +42,6 @@ public class DispatcherTableHandle
     private final Optional<WarpExpression> warpExpression;
     private final Metrics metrics;
     private final boolean subsumedPredicates;
-    private final Set<String> columnsNotFitForDictionary;
 
     // used for re-constructing warpExpression
     private final Optional<ExpressionAndAssignments> originalExpression;
@@ -57,8 +55,7 @@ public class DispatcherTableHandle
             ConnectorTableHandle proxyConnectorTableHandle,
             Optional<WarpExpression> warpExpression,
             Metrics metrics,
-            boolean subsumedPredicates,
-            Set<String> columnsNotFitForDictionary)
+            boolean subsumedPredicates)
     {
         this(schemaName,
                 tableName,
@@ -69,7 +66,6 @@ public class DispatcherTableHandle
                 warpExpression,
                 metrics,
                 subsumedPredicates,
-                columnsNotFitForDictionary,
                 Optional.empty());
     }
 
@@ -84,7 +80,6 @@ public class DispatcherTableHandle
             @JsonProperty("warpExpression") Optional<WarpExpression> warpExpression,
             @JsonProperty("metrics") Metrics metrics,
             @JsonProperty("subsumedPredicates") boolean subsumedPredicates,
-            @JsonProperty("columnsNotFitForDictionary") Set<String> columnsNotFitForDictionary,
             @JsonProperty("originalExpression") Optional<ExpressionAndAssignments> originalExpression)
     {
         this.schemaTableName = new SchemaTableName(requireNonNull(schemaName), requireNonNull(tableName));
@@ -95,7 +90,6 @@ public class DispatcherTableHandle
         this.warpExpression = requireNonNull(warpExpression);
         this.metrics = requireNonNull(metrics);
         this.subsumedPredicates = subsumedPredicates;
-        this.columnsNotFitForDictionary = columnsNotFitForDictionary;
         this.originalExpression = requireNonNull(originalExpression);
     }
 
@@ -159,17 +153,6 @@ public class DispatcherTableHandle
     }
 
     @JsonProperty
-    public Set<String> getColumnsNotFitForDictionary()
-    {
-        return columnsNotFitForDictionary;
-    }
-
-    public boolean isColumnFitForDictionary(String columnName)
-    {
-        return columnsNotFitForDictionary.isEmpty() || !columnsNotFitForDictionary.contains(columnName);
-    }
-
-    @JsonProperty
     public Optional<ExpressionAndAssignments> getOriginalExpression()
     {
         return originalExpression;
@@ -191,8 +174,7 @@ public class DispatcherTableHandle
                 Objects.equals(fullPredicate, that.fullPredicate) &&
                 Objects.equals(simplifiedColumns, that.simplifiedColumns) &&
                 Objects.equals(warpExpression, that.warpExpression) &&
-                Objects.equals(proxyConnectorTableHandle, that.proxyConnectorTableHandle) &&
-                Objects.equals(columnsNotFitForDictionary, that.columnsNotFitForDictionary);
+                Objects.equals(proxyConnectorTableHandle, that.proxyConnectorTableHandle);
     }
 
     @Override
@@ -205,8 +187,7 @@ public class DispatcherTableHandle
                 simplifiedColumns,
                 proxyConnectorTableHandle,
                 warpExpression,
-                subsumedPredicates,
-                columnsNotFitForDictionary);
+                subsumedPredicates);
     }
 
     @Override
@@ -217,9 +198,6 @@ public class DispatcherTableHandle
         builder.append(", fullPredicate=").append(fullPredicate);
         builder.append(", simplifiedColumns=").append(simplifiedColumns);
         builder.append(", subsumedPredicates=").append(subsumedPredicates);
-        if (!columnsNotFitForDictionary.isEmpty()) {
-            builder.append(", columnsNotFitForDictionary=").append(columnsNotFitForDictionary);
-        }
         limit.ifPresent(value -> builder.append(", limit=").append(value));
         warpExpression.ifPresent(value -> builder.append(", warpExpression=").append(value));
         return builder.toString();

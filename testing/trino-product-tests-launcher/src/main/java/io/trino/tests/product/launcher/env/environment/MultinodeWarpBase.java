@@ -74,9 +74,6 @@ public abstract class MultinodeWarpBase
                 forHostPath(Path.of(".", "/docker/trino-product-tests/warp/lucene.json"), 493),
                 "/docker/lucene.json");
         container.withCopyFileToContainer(
-                forHostPath(Path.of(".", "/docker/trino-product-tests/warp/synth_dict.json"), 493),
-                "/docker/synth_dict.json");
-        container.withCopyFileToContainer(
                 forHostPath(Path.of(".", "/docker/trino-product-tests/warp/synth_partit.json"), 493),
                 "/docker/synth_partit.json");
         container.withCopyFileToContainer(

@@ -30,7 +30,7 @@ public class NullReadJuffer
     }
 
     @Override
-    public void createBuffer(RecTypeCode recTypeCode, int recTypeLength, boolean hasDictionary, MemorySegment[] buffs)
+    public void createBuffer(RecTypeCode recTypeCode, int recTypeLength, MemorySegment[] buffs)
     {
         this.baseBuffer = createGenericBuffer(bufferAllocator.memorySegment2NullBuff(buffs));
         this.wrappedBuffer = this.baseBuffer;

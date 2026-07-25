@@ -13,31 +13,19 @@
  */
 package io.trino.plugin.warp.storage.read.fill;
 
-import io.trino.plugin.warp.TestingTxService;
-import io.trino.plugin.warp.config.DictionaryConfig;
 import io.trino.plugin.warp.config.NativeConfig;
-import io.trino.plugin.warp.dictionary.AttachDictionaryService;
-import io.trino.plugin.warp.dictionary.DictionaryCacheService;
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.storage.engine.StubsStorageEngineConstants;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.mock;
 
 public class BlockFillersFactoryTest
 {
     @Test
     public void test_real()
     {
-        DictionaryConfig dictionaryConfig = new DictionaryConfig();
-        dictionaryConfig.setEnableDictionary(true);
-        DictionaryCacheService dictionaryCacheService = new DictionaryCacheService(
-                dictionaryConfig,
-                TestingTxService.createMetricsManager(),
-                mock(AttachDictionaryService.class));
         BlockFillersFactory blockFillersFactory = new BlockFillersFactory(
-                dictionaryCacheService,
                 new StubsStorageEngineConstants(),
                 new NativeConfig());
         BlockFiller blockFiller = blockFillersFactory.getBlockFiller(RecTypeCode.REC_TYPE_REAL.ordinal());

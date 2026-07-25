@@ -14,7 +14,6 @@
 package io.trino.plugin.warp.extension.execution.debugtools;
 
 import com.google.inject.Inject;
-import io.trino.plugin.warp.dictionary.DictionaryCacheService;
 import io.trino.plugin.warp.dispatcher.model.RowGroupKey;
 import io.trino.plugin.warp.dispatcher.model.TransformedColumn;
 import io.trino.plugin.warp.dispatcher.model.WarpColumn;
@@ -52,15 +51,11 @@ public class WorkerRowGroupTask
     public static final String WORKER_ROW_GROUP_COLLECT_TASK_NAME = "worker-row-group-collect";
 
     private final RowGroupDataService rowGroupDataService;
-    private final DictionaryCacheService dictionaryCacheService;
 
     @Inject
-    public WorkerRowGroupTask(
-            RowGroupDataService rowGroupDataService,
-            DictionaryCacheService dictionaryCacheService)
+    public WorkerRowGroupTask(RowGroupDataService rowGroupDataService)
     {
         this.rowGroupDataService = requireNonNull(rowGroupDataService);
-        this.dictionaryCacheService = requireNonNull(dictionaryCacheService);
     }
 
     @Path(WORKER_ROW_GROUP_COUNT_TASK_NAME)
@@ -116,7 +111,6 @@ public class WorkerRowGroupTask
     public void reset()
     {
         rowGroupDataService.deleteAll();
-        dictionaryCacheService.reset();
     }
 
     @POST

@@ -14,7 +14,6 @@
 package io.trino.plugin.warp.storage.read.fill;
 
 import io.airlift.slice.Slice;
-import io.trino.plugin.warp.dictionary.ReadDictionary;
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.juffer.ByteBufferInputStream;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
@@ -138,65 +137,5 @@ public abstract class ArraySliceFiller
         int len = Short.toUnsignedInt(lenBuff.get(currPos));
         type.writeObject(output, getBlock(byteBufferInputStream, offset, len));
         return len;
-    }
-
-    @Override
-    public Block fillRawBlockWithDictionary(
-            ReadJuffersWarmUpElement juffersWE,
-            int rowsToFill,
-            RecTypeCode recTypeCode,
-            int recTypeLength,
-            boolean collectNulls,
-            ReadDictionary readDictionary)
-    {
-        BlockBuilder output = spiBuilderType.createBlockBuilder(null, rowsToFill);
-        ShortBuffer shortBuffer = (ShortBuffer) juffersWE.getRecordBuffer();
-        if (collectNulls) {
-            ByteBuffer nullBuff = juffersWE.getNullBuffer();
-            int nullValueSize = TypeUtils.isVarlenStr(recTypeCode) ? queryStringNullValueSize : 1;
-            for (int currRow = 0; currRow < rowsToFill; currRow++) {
-                if (isNull(nullBuff, nullValueSize, currRow)) {
-                    output.appendNull();
-                }
-                else {
-                    Slice slice = (Slice) readDictionary.get(Short.toUnsignedInt(shortBuffer.get(currRow)));
-                    Block block = getBlock(slice, 0, slice.length());
-                    spiBuilderType.writeObject(output, block);
-                }
-            }
-        }
-        else {
-            for (int currRow = 0; currRow < rowsToFill; currRow++) {
-                Slice slice = (Slice) readDictionary.get(Short.toUnsignedInt(shortBuffer.get(currRow)));
-                Block block = getBlock(slice, 0, slice.length());
-                spiBuilderType.writeObject(output, block);
-            }
-        }
-        return output.build();
-    }
-
-    @Override
-    protected Block getSingleValueWithDictionary(int mappingKey, ReadDictionary readDictionary)
-    {
-        Slice slice = (Slice) readDictionary.get(mappingKey);
-        return getBlock(slice, 0, slice.length());
-    }
-
-    @Override
-    protected Block createSingleWithNullBlockWithDictionary(ReadJuffersWarmUpElement juffersWE, int mappingKey, int rowsToFill, ReadDictionary readDictionary)
-    {
-        Block block = getSingleValueWithDictionary(mappingKey, readDictionary);
-        BlockBuilder output = spiBuilderType.createBlockBuilder(null, rowsToFill);
-        ByteBuffer nullBuff = juffersWE.getNullBuffer();
-        for (int i = 0; i < rowsToFill; i++) {
-            if (isNull(nullBuff, i)) {
-                output.appendNull();
-            }
-            else {
-                spiBuilderType.writeObject(output, block);
-            }
-        }
-
-        return output.build();
     }
 }

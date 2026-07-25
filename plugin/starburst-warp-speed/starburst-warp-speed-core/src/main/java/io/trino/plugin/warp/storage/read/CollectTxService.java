@@ -171,8 +171,7 @@ public class CollectTxService
                     recTypeCode,
                     recTypeLength,
                     requestedRecordBufferSize,
-                    nullBufferSize,
-                    collectParams.hasDictionary()));
+                    nullBufferSize));
             totalNullBuffs += nullBufferSize;
             totalRequestedRecordBufferSize += requestedRecordBufferSize;
         }
@@ -240,7 +239,6 @@ public class CollectTxService
                 collectBuffersParams.collectJuffersWE().get(collectIx).createBuffers(
                         allocParams.recTypeCode(),
                         allocParams.recTypeLength(),
-                        allocParams.hasDictionary(),
                         collectSegments);
                 // set the addresses in the output segment
                 collectBuffers.setAtIndex(ValueLayout.JAVA_LONG, collectBufIx + JbufType.JBUF_TYPE_REC.ordinal(), collectSegments[JbufType.JBUF_TYPE_REC.ordinal()].address());

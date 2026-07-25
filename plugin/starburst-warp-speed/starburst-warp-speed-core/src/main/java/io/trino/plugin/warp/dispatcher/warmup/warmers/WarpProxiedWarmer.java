@@ -21,9 +21,7 @@ import com.google.common.collect.SetMultimap;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.airlift.log.Logger;
-import io.trino.plugin.warp.WarpSessionProperties;
 import io.trino.plugin.warp.config.GlobalConfig;
-import io.trino.plugin.warp.dictionary.DictionaryWarmInfo;
 import io.trino.plugin.warp.dispatcher.DispatcherProxiedConnectorTransformer;
 import io.trino.plugin.warp.dispatcher.DispatcherSplit;
 import io.trino.plugin.warp.dispatcher.DispatcherTableHandle;
@@ -135,8 +133,7 @@ public class WarpProxiedWarmer
             SetMultimap<WarpColumn, WarmupProperties> requiredWarmUpTypeMap,
             boolean skipWait,
             int firstOffset,
-            boolean extraDebug,
-            List<DictionaryWarmInfo> outDictionariesWarmInfos)
+            boolean extraDebug)
     {
         try (WarpMDCContext _ = new WarpMDCContext(catalogNameProvider.get(), Optional.of("WARMING"))) {
             SetMultimap<WarpColumn, WarmUpElement> proxiedWarmupElementsMultimap = proxiedWarmupElements.stream()
@@ -167,7 +164,6 @@ public class WarpProxiedWarmer
                 storageWriterSplitConfig = storageWriterService.startWarming(
                         nodeIdentifier,
                         rowGroupFilePath,
-                        WarpSessionProperties.getEnableDictionary(session),
                         true);
                 try {
                     int fileOffset = firstOffset;
@@ -196,8 +192,7 @@ public class WarpProxiedWarmer
                                 int pagePositionCount = (nextPage != null) ? nextPage.getPositionCount() : 0;
                                 if (pagePositionCount > 0) {
                                     if (rowCount == 0) { // first time
-                                        DictionaryWarmInfo dictionaryWarmInfo = pageSink.open(fileCookieParams, fileOffset, currWarmUpElementWriteMetadata);
-                                        outDictionariesWarmInfos.add(dictionaryWarmInfo);
+                                        pageSink.open(fileCookieParams, fileOffset, currWarmUpElementWriteMetadata);
                                     }
                                     isValidWE = pageSink.appendPage(nextPage, rowCount);
                                     rowCount += pagePositionCount;
@@ -323,7 +318,6 @@ public class WarpProxiedWarmer
                         .connectorBlockIndex(connectorBlockIdx)
                         .type(type)
                         .schemaTableColumn(new SchemaTableColumn(schemaTableName, warmUpElement.getWarpColumn()))
-                        .fitForDictionary(tableHandle.isColumnFitForDictionary(warmUpElement.getWarpColumn().getName()))
                         .build();
                 columnMap.put(warmUpElement.getWarpColumn(), metadata);
                 warmupElementWriteMetadataColumnHandleMap.put(metadata, columnHandle);

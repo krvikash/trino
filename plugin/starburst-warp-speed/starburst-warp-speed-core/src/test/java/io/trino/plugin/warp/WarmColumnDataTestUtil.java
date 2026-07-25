@@ -14,9 +14,6 @@
 package io.trino.plugin.warp;
 
 import io.trino.plugin.warp.dispatcher.WarmupElementWriteMetadata;
-import io.trino.plugin.warp.dispatcher.model.DictionaryInfo;
-import io.trino.plugin.warp.dispatcher.model.DictionaryKey;
-import io.trino.plugin.warp.dispatcher.model.DictionaryState;
 import io.trino.plugin.warp.dispatcher.model.RecordData;
 import io.trino.plugin.warp.dispatcher.model.RegularColumn;
 import io.trino.plugin.warp.dispatcher.model.SchemaTableColumn;
@@ -26,30 +23,20 @@ import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
 import io.trino.plugin.warp.storage.write.WarmupElementStats;
 import io.trino.plugin.warp.type.TypeUtils;
-import io.trino.spi.NodeManager;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.type.Type;
-
-import static io.trino.plugin.warp.util.NodeUtils.mockNodeManager;
 
 public class WarmColumnDataTestUtil
 {
     private WarmColumnDataTestUtil() {}
 
-    public static WarmupElementWriteMetadata createWarmUpElementWithDictionary(RecordData recordData, WarmUpType warmUpType)
+    public static WarmupElementWriteMetadata createWarmupElementWriteMetadata(RecordData recordData, WarmUpType warmUpType)
     {
-        NodeManager nodeManager = mockNodeManager();
-        DictionaryKey dictionaryKey = new DictionaryKey(
-                recordData.schemaTableColumn(),
-                nodeManager.getCurrentNode().getNodeIdentifier(),
-                DictionaryKey.CREATED_TIMESTAMP_UNKNOWN);
-        DictionaryInfo dictionaryInfo = new DictionaryInfo(dictionaryKey, DictionaryState.DICTIONARY_NOT_EXIST, recordData.recTypeLength(), DictionaryInfo.NO_OFFSET);
         WarmUpElement warmUpElement = WarmUpElement.builder()
                 .warmUpType(warmUpType)
                 .recTypeCode(recordData.recTypeCode())
                 .recTypeLength(recordData.recTypeLength())
                 .warpColumn(recordData.schemaTableColumn().warpColumn())
-                .dictionaryInfo(dictionaryInfo)
                 .warmupElementStats(WarmupElementStats.UNINITIALIZED)
                 .build();
         return WarmupElementWriteMetadata.builder()
@@ -57,7 +44,6 @@ public class WarmColumnDataTestUtil
                 .connectorBlockIndex(0)
                 .type(recordData.type())
                 .schemaTableColumn(recordData.schemaTableColumn())
-                .fitForDictionary(true)
                 .build();
     }
 

@@ -49,7 +49,7 @@ public class ExtendedJuffer
     }
 
     @Override
-    public void createBuffer(MemorySegment[] buffs, boolean isDictionaryValid)
+    public void createBuffer(MemorySegment[] buffs)
     {
         this.baseBuffer = createGenericBuffer(bufferAllocator.memorySegment2ExtRecsBuff(buffs));
         this.wrappedBuffer = this.baseBuffer;

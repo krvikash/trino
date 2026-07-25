@@ -48,8 +48,6 @@ public class WarmUpElement
     public static final String REC_TYPE_LENGTH = "recTypeLength";
     public static final String WARM_UP_CONTEXT_SIZE = "warmUpContextSize";
     public static final String STATS = "stats";
-    public static final String USED_DICTIONARY_SIZE = "usedDictionarySize";
-    public static final String DICTIONARY_INFO = "dictionaryInfo";
     public static final String START_OFFSET = "startOffset";
     public static final String QUERY_OFFSET = "queryOffset";
     public static final String QUERY_READ_SIZE = "queryReadSize";
@@ -72,8 +70,6 @@ public class WarmUpElement
     private final int recTypeLength;
     private final int warmUpContextSize;
     private final WarmupElementStats warmupElementStats;
-    private final int usedDictionarySize;
-    private final DictionaryInfo dictionaryInfo;
     private final int startOffset;
     private final int queryOffset;
     private final int queryReadSize;
@@ -113,8 +109,6 @@ public class WarmUpElement
             int recTypeLength,
             int warmUpContextSize,
             WarmupElementStats warmupElementStats,
-            int usedDictionarySize,
-            DictionaryInfo dictionaryInfo,
             int startOffset,
             int queryOffset,
             int queryReadSize,
@@ -138,8 +132,6 @@ public class WarmUpElement
         this.recTypeLength = recTypeLength;
         this.warmUpContextSize = warmUpContextSize;
         this.warmupElementStats = requireNonNull(warmupElementStats);
-        this.usedDictionarySize = usedDictionarySize;
-        this.dictionaryInfo = dictionaryInfo;
         this.startOffset = startOffset;
         this.queryOffset = queryOffset;
         this.queryReadSize = queryReadSize;
@@ -168,8 +160,6 @@ public class WarmUpElement
                 .recTypeLength(warmUpElement.getRecTypeLength())
                 .warmUpContextSize(warmUpElement.getWarmUpContextSize())
                 .warmupElementStats(warmUpElement.getWarmupElementStats())
-                .usedDictionarySize(warmUpElement.getUsedDictionarySize())
-                .dictionaryInfo(warmUpElement.getDictionaryInfo())
                 .startOffset(warmUpElement.getStartOffset())
                 .queryOffset(warmUpElement.getQueryOffset())
                 .queryReadSize(warmUpElement.getQueryReadSize())
@@ -242,18 +232,6 @@ public class WarmUpElement
         return warmupElementStats;
     }
 
-    @JsonProperty(DICTIONARY_INFO)
-    public DictionaryInfo getDictionaryInfo()
-    {
-        return dictionaryInfo;
-    }
-
-    @JsonProperty(USED_DICTIONARY_SIZE)
-    public int getUsedDictionarySize()
-    {
-        return usedDictionarySize;
-    }
-
     @JsonProperty(STATE)
     public WarmUpElementState getState()
     {
@@ -299,12 +277,6 @@ public class WarmUpElement
             this.firstUsedTimestamp = lastUsedTimestamp;
         }
         this.lastUsedTimestamp = lastUsedTimestamp;
-    }
-
-    @JsonIgnore
-    public boolean isDictionaryUsed()
-    {
-        return usedDictionarySize > 0;
     }
 
     @JsonIgnore
@@ -432,8 +404,6 @@ public class WarmUpElement
                 ", recTypeLength=" + recTypeLength +
                 ", warmUpContextSize=" + warmUpContextSize +
                 ", exportState=" + exportState +
-                ", dictionaryInfo=" + dictionaryInfo +
-                ", usedDictionarySize=" + usedDictionarySize +
                 ", warmupElementStats=" + warmupElementStats +
                 ", state=" + state +
                 ", creationTime=" + creationTime +
@@ -470,8 +440,6 @@ public class WarmUpElement
                 (recTypeLength == warmUpElement.recTypeLength) &&
                 (warmUpContextSize == warmUpElement.warmUpContextSize) &&
                 Objects.equals(warmupElementStats, warmUpElement.warmupElementStats) &&
-                (usedDictionarySize == warmUpElement.usedDictionarySize) &&
-                Objects.equals(dictionaryInfo, warmUpElement.dictionaryInfo) &&
                 (startOffset == warmUpElement.startOffset) &&
                 (queryOffset == warmUpElement.queryOffset) &&
                 (queryReadSize == warmUpElement.queryReadSize) &&
@@ -491,7 +459,7 @@ public class WarmUpElement
     @Override
     public int hashCode()
     {
-        return Objects.hash(warpColumn, warmUpType, recTypeCode, recTypeLength, warmUpContextSize, warmupElementStats, usedDictionarySize, dictionaryInfo, startOffset, queryOffset, queryReadSize, warmEvents, matchOffset, matchReadSize, endOffset, state, exportState, isImported, warmState, storeId, totalRecords);
+        return Objects.hash(warpColumn, warmUpType, recTypeCode, recTypeLength, warmUpContextSize, warmupElementStats, startOffset, queryOffset, queryReadSize, warmEvents, matchOffset, matchReadSize, endOffset, state, exportState, isImported, warmState, storeId, totalRecords);
     }
 
     @JsonPOJOBuilder
@@ -505,8 +473,6 @@ public class WarmUpElement
         long lastUsedTimestamp = Instant.now().toEpochMilli();
         ExportState exportState = ExportState.NOT_EXPORTED;
         WarmupElementStats warmupElementStats;
-        int usedDictionarySize;
-        DictionaryInfo dictionaryInfo;
         WarmUpElementState state = WarmUpElementState.VALID;
         private int startOffset;
         private int queryOffset;
@@ -576,20 +542,6 @@ public class WarmUpElement
         public Builder exportState(ExportState exportState)
         {
             this.exportState = exportState;
-            return this;
-        }
-
-        @JsonProperty(DICTIONARY_INFO)
-        public Builder dictionaryInfo(DictionaryInfo dictionaryInfo)
-        {
-            this.dictionaryInfo = dictionaryInfo;
-            return this;
-        }
-
-        @JsonProperty(USED_DICTIONARY_SIZE)
-        public Builder usedDictionarySize(int usedDictionarySize)
-        {
-            this.usedDictionarySize = usedDictionarySize;
             return this;
         }
 
@@ -714,8 +666,6 @@ public class WarmUpElement
                     recTypeLength,
                     warmUpContextSize,
                     warmupElementStats,
-                    usedDictionarySize,
-                    dictionaryInfo,
                     startOffset,
                     queryOffset,
                     queryReadSize,

@@ -127,13 +127,8 @@ class CrcLongBlockAppenderTest
     public void writeWithoutDictionary(Block block, Type blockType, WarmupElementStats expectedResult)
     {
         when(writeJuffersWarmUpElement.getRecordBuffer()).thenReturn(LongBuffer.allocate(100));
-        runTest(block, blockType, expectedResult, Optional.empty());
+        runTest(block, blockType, expectedResult);
     }
-
-    @Override
-    @ParameterizedTest
-    @MethodSource("params")
-    public void writeWithDictionary(Block block, Type blockType, WarmupElementStats expectedResult) {}
 
     /**
      *  same for TimeType and TimeStampType

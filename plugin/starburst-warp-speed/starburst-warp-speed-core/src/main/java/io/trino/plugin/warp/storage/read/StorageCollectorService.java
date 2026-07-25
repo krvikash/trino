@@ -16,16 +16,13 @@ package io.trino.plugin.warp.storage.read;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.airlift.log.Logger;
-import io.trino.plugin.warp.dictionary.DictionaryCacheService;
 import io.trino.plugin.warp.gen.constants.QueryResultType;
-import io.trino.plugin.warp.gen.stats.DictionaryStats;
 import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
 import io.trino.plugin.warp.gen.stats.NativeStats;
 import io.trino.plugin.warp.juffer.BufferAllocator;
 import io.trino.plugin.warp.log.ShapingLogger;
 import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.metrics.CustomStatsContext;
-import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.storage.engine.nativeimpl.NativeInterrupt;
@@ -59,11 +56,9 @@ public class StorageCollectorService
     // services
     protected final StorageEngine storageEngine;
     protected final BufferAllocator bufferAllocator;
-    protected final DictionaryStats dictionaryStats;
     private final CollectTxService collectTxService;
     private final StorageEngineConstants storageEngineConstants;
     private final BlockFillersFactory blockFillersFactory;
-    private final DictionaryCacheService dictionaryCacheService;
 
     private final ShapingLogger shapingLogger;
 
@@ -71,50 +66,17 @@ public class StorageCollectorService
     StorageCollectorService(
             StorageEngine storageEngine,
             BufferAllocator bufferAllocator,
-            MetricsManager metricsManager,
             CollectTxService collectTxService,
             StorageEngineConstants storageEngineConstants,
             BlockFillersFactory blockFillersFactory,
-            DictionaryCacheService dictionaryCacheService,
             ShapingLoggerFactory shapingLoggerFactory)
     {
         this.storageEngine = requireNonNull(storageEngine);
         this.collectTxService = requireNonNull(collectTxService);
         this.bufferAllocator = requireNonNull(bufferAllocator);
-        this.dictionaryStats = requireNonNull(metricsManager).registerMetric(DictionaryStats.create());
         this.storageEngineConstants = requireNonNull(storageEngineConstants);
         this.blockFillersFactory = requireNonNull(blockFillersFactory);
-        this.dictionaryCacheService = requireNonNull(dictionaryCacheService);
         this.shapingLogger = shapingLoggerFactory.getInstance(StorageCollectorService.class);
-    }
-
-    private void loadDictionaries(QueryArgs queryArgs)
-    {
-        QueryParams queryParams = queryArgs.queryParams();
-
-        if (queryParams.getNumLoadDataValues() == 0) {
-            return;
-        }
-
-        try {
-            for (WarmupElementCollectParams collectParams : queryParams.getCollectElementsParamsList()) {
-                // load dictionaries if needed according to existence of dictionary key prepared earlier
-                if (collectParams.hasDictionaryParams()) {
-                    collectParams.setDictionary(dictionaryCacheService.computeReadIfAbsent(
-                            collectParams.getDictionaryKey(),
-                            collectParams.getUsedDictionarySize(),
-                            collectParams.getDataValuesRecTypeCode(),
-                            collectParams.getDataValuesRecTypeLength(),
-                            collectParams.getDictionaryOffset(),
-                            queryParams.getFilePath()));
-                    dictionaryStats.incdictionary_read_elements_count();
-                }
-            }
-        }
-        catch (Exception e) {
-            shapingLogger.error(e, "loadDictionaries failed");
-            throw e;
-        }
     }
 
     private void fileOpen(QueryArgs queryArgs)
@@ -128,7 +90,6 @@ public class StorageCollectorService
     public AggregatorArgs open(QueryArgs queryArgs)
     {
         fileOpen(queryArgs);
-        loadDictionaries(queryArgs);
         return getStorageCollectorArgs(queryArgs);
     }
 
@@ -222,7 +183,7 @@ public class StorageCollectorService
             BlockFiller<?> blockFiller = aggregatorArgs.blockFillers().get(weIx);
             ReadJuffersWarmUpElement readJuffersWarmUpElement = aggregatorArgs.collectBuffersParams().collectJuffersWE().get(preLoadedBlockIx);
             QueryResultType queryResultType = QueryResultType.values()[queryResultTypes.getAtIndex(ValueLayout.JAVA_INT, preLoadedBlockIx)];
-            Block block = blockFiller.fillBlockWithRecords(collectParams, readJuffersWarmUpElement, rowsToFill, queryResultType, dictionaryStats, queryArgs.dispatcherPageSourceStats());
+            Block block = blockFiller.fillBlockWithRecords(collectParams, readJuffersWarmUpElement, rowsToFill, queryResultType, queryArgs.dispatcherPageSourceStats());
             blocks[collectParams.getBlockIndex()] = block;
             preLoadedBlockIx++;
         }

@@ -13,9 +13,7 @@
  */
 package io.trino.plugin.warp.dispatcher;
 
-import io.airlift.units.DataSize;
 import io.trino.plugin.warp.TestingTxService;
-import io.trino.plugin.warp.config.DictionaryConfig;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.config.NativeConfig;
 import io.trino.plugin.warp.config.SharedConfig;
@@ -157,8 +155,7 @@ public class DispatcherPageSourceFactoryTest
                 proxyTableHandle,
                 Optional.empty(),
                 Metrics.EMPTY,
-                false,
-                Set.of());
+                false);
 
         this.customStatsContext = new CustomStatsContext(mock(MetricsManager.class));
 
@@ -172,9 +169,6 @@ public class DispatcherPageSourceFactoryTest
         MatchCollectIdService matchCollectIdService = mock(MatchCollectIdService.class);
         rowGroupDataDao = mock(RowGroupDataDao.class);
         GlobalConfig globalConfig = new GlobalConfig();
-        DictionaryConfig dictionaryConfig = new DictionaryConfig();
-        dictionaryConfig.setMaxDictionaryTotalCacheWeight(DataSize.of(16L, DataSize.Unit.MEGABYTE));
-        dictionaryConfig.setDictionaryCacheConcurrencyLevel(1);
         NativeConfig nativeConfig = mock(NativeConfig.class);
         when(nativeConfig.getCollectTxSize()).thenReturn(8 * 1024 * 1024);
         when(nativeConfig.getTaskMaxWorkerThreads()).thenReturn(1);

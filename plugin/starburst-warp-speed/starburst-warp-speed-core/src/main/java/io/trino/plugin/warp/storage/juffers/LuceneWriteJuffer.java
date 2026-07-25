@@ -43,7 +43,7 @@ public class LuceneWriteJuffer
     }
 
     @Override
-    public void createBuffer(MemorySegment[] buffs, boolean isDictionaryValid)
+    public void createBuffer(MemorySegment[] buffs)
     {
         luceneBufferSingleExist = SINGLE_UNINITIALIZED;
     }

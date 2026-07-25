@@ -13,7 +13,6 @@
  */
 package io.trino.plugin.warp.storage.write;
 
-import io.trino.plugin.warp.dictionary.DictionaryWarmInfo;
 import io.trino.plugin.warp.dispatcher.WarmupElementWriteMetadata;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElementState;
@@ -50,14 +49,13 @@ public class WarpPageSink
     }
 
     @Override
-    public DictionaryWarmInfo open(long[] fileCookieParams, int startOffset, WarmupElementWriteMetadata warmupElementWriteMetadata)
+    public void open(long[] fileCookieParams, int startOffset, WarmupElementWriteMetadata warmupElementWriteMetadata)
     {
         // now create the native tx
         try {
             WriteOpenResult writeOpenResult = storageWriterService.open(fileCookieParams, startOffset, storageWriterSplitConfig, warmupElementWriteMetadata);
             storageWriterContext = writeOpenResult.storageWriterContext();
             writerOpened = true;
-            return writeOpenResult.dictionaryInfo();
         }
         catch (Exception e) {
             shapingLogger.error("we create failed %s", e.getMessage());

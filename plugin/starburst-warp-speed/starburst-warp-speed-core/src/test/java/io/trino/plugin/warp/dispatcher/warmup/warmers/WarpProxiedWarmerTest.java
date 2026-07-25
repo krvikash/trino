@@ -404,8 +404,7 @@ public class WarpProxiedWarmerTest
                 requiredWarmUpTypeMap,
                 true,
                 0,
-                false,
-                new ArrayList<>());
+                false);
     }
 
     private WarpProxiedWarmer createWarpProxiedWarmer()

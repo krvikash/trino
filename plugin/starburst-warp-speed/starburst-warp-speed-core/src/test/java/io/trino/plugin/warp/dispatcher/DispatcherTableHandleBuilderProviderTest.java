@@ -58,8 +58,7 @@ public class DispatcherTableHandleBuilderProviderTest
                 mock(ConnectorTableHandle.class),
                 Optional.of(new WarpExpression(new WarpCall("func", emptyList(), IntegerType.INTEGER), emptyList())),
                 new Metrics(ImmutableMap.of("stat", new LongCount(1))),
-                true,
-                Set.of());
+                true);
 
         DispatcherTableHandleBuilderProvider builderProvider = new DispatcherTableHandleBuilderProvider(transformer);
         DispatcherTableHandle clonedHandle = builderProvider.builder(handle, 100).build();

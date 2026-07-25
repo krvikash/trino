@@ -20,8 +20,6 @@ import io.airlift.log.Logger;
 import io.trino.plugin.warp.annotation.ForWarp;
 import io.trino.plugin.warp.cloudvendors.config.CloudVendorConfig;
 import io.trino.plugin.warp.config.GlobalConfig;
-import io.trino.plugin.warp.dictionary.DictionaryCacheService;
-import io.trino.plugin.warp.dictionary.DictionaryWarmInfo;
 import io.trino.plugin.warp.dispatcher.DispatcherSplit;
 import io.trino.plugin.warp.dispatcher.DispatcherTableHandle;
 import io.trino.plugin.warp.dispatcher.model.RowGroupData;
@@ -39,7 +37,6 @@ import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorTableCredentials;
 import io.trino.spi.connector.ConnectorTransactionHandle;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -58,7 +55,6 @@ public class WarmingManager
     private final CloudVendorConfig cloudVendorConfig;
     private final RowGroupDataService rowGroupDataService;
     private final WarmupImportServiceStats warmupImportServiceStats;
-    private final DictionaryCacheService dictionaryCacheService;
     private final WeGroupWarmer weGroupWarmer;
     private final StorageWarmerService storageWarmerService;
 
@@ -70,7 +66,6 @@ public class WarmingManager
             @ForWarp CloudVendorConfig cloudVendorConfig,
             RowGroupDataService rowGroupDataService,
             MetricsManager metricsManager,
-            DictionaryCacheService dictionaryCacheService,
             WeGroupWarmer weGroupWarmer,
             StorageWarmerService storageWarmerService)
     {
@@ -81,7 +76,6 @@ public class WarmingManager
         this.rowGroupDataService = requireNonNull(rowGroupDataService);
         this.warmupImportServiceStats = requireNonNull(metricsManager).registerMetric(new WarmupImportServiceStats());
 
-        this.dictionaryCacheService = requireNonNull(dictionaryCacheService);
         this.weGroupWarmer = requireNonNull(weGroupWarmer);
         this.storageWarmerService = requireNonNull(storageWarmerService);
     }
@@ -115,7 +109,6 @@ public class WarmingManager
             boolean skipWait)
             throws InterruptedException
     {
-        List<DictionaryWarmInfo> outDictionariesWarmInfos = new ArrayList<>(columnsToWarm.size());
         RowGroupData rowGroupData = null;
         boolean locked = false;
 
@@ -145,8 +138,7 @@ public class WarmingManager
                             requiredWarmUpTypeMap,
                             skipWait,
                             (rowGroupData != null) ? rowGroupData.getNextOffset() : 0,
-                            globalConfig.getDebugWarming(),
-                            outDictionariesWarmInfos);
+                            globalConfig.getDebugWarming());
                     stopWatch.stop();
                     warmupImportServiceStats.addhiveWarmTime(stopWatch.getNanoTime());
                 }
@@ -154,9 +146,6 @@ public class WarmingManager
             catch (Exception e) {
                 rowGroupDataService.markAsFailed(rowGroupKey, newWarmupElements, partitionKeys);
                 throw e;
-            }
-            finally {
-                dictionaryCacheService.releaseActiveDictionaries(outDictionariesWarmInfos);
             }
         }
         catch (InterruptedException e) {

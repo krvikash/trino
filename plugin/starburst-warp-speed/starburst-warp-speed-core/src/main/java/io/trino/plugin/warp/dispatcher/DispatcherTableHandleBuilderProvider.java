@@ -27,7 +27,6 @@ import io.trino.spi.predicate.TupleDomain;
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalLong;
-import java.util.Set;
 
 import static java.util.Objects.requireNonNull;
 
@@ -51,8 +50,7 @@ public class DispatcherTableHandleBuilderProvider
                 .fullPredicate(dispatcherTableHandle.getFullPredicate())
                 .warpExpression(dispatcherTableHandle.getWarpExpression())
                 .metrics(dispatcherTableHandle.getMetrics())
-                .subsumedPredicates(dispatcherTableHandle.isSubsumedPredicates())
-                .columnsNotFitForDictionary(dispatcherTableHandle.getColumnsNotFitForDictionary());
+                .subsumedPredicates(dispatcherTableHandle.isSubsumedPredicates());
         dispatcherTableHandle.getOriginalExpression().ifPresent(builder::originalExpression);
         dispatcherTableHandle.getLimit().ifPresent(builder::limit);
         return builder;
@@ -80,7 +78,6 @@ public class DispatcherTableHandleBuilderProvider
         protected Optional<WarpExpression> warpExpression = Optional.empty();
         protected boolean subsumedPredicates;
         private Metrics metrics = Metrics.EMPTY;
-        private Set<String> columnsNotFitForDictionary = Set.of();
         private Optional<ExpressionAndAssignments> originalExpression = Optional.of(ExpressionAndAssignments.TRUE);
 
         private Builder(DispatcherProxiedConnectorTransformer transformer, int predicateThreshold)
@@ -137,12 +134,6 @@ public class DispatcherTableHandleBuilderProvider
             return this;
         }
 
-        public Builder columnsNotFitForDictionary(Set<String> columnsNotFitForDictionary)
-        {
-            this.columnsNotFitForDictionary = columnsNotFitForDictionary;
-            return this;
-        }
-
         public Builder originalExpression(ExpressionAndAssignments originalExpression)
         {
             this.originalExpression = Optional.of(originalExpression);
@@ -167,7 +158,6 @@ public class DispatcherTableHandleBuilderProvider
                     warpExpression,
                     metrics,
                     subsumedPredicates,
-                    columnsNotFitForDictionary,
                     originalExpression);
         }
     }

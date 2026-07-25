@@ -13,7 +13,6 @@
  */
 package io.trino.plugin.warp.storage.write.appenders;
 
-import io.trino.plugin.warp.dictionary.WriteDictionary;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
 import io.trino.plugin.warp.juffer.BlockPosHolder;
 import io.trino.plugin.warp.storage.juffers.WriteJuffersWarmUpElement;
@@ -65,11 +64,5 @@ public class BooleanBlockAppender
     private void writeValue(byte val, ByteBuffer buff)
     {
         buff.put(val);
-    }
-
-    @Override
-    public AppendResult appendWithDictionary(BlockPosHolder blockPos, WriteDictionary writeDictionary, WarmupElementStatsBuilder warmupElementStatsBuilder)
-    {
-        throw new UnsupportedOperationException();
     }
 }

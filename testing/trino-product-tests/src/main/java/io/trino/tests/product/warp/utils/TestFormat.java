@@ -44,10 +44,7 @@ public record TestFormat(
         String description,
         int expected_warm_failures,
         List<String> failed_warmup_elements,
-        Map<String, Long> expected_dictionary_counters,
         Set<TableType> skip_type,
-        Map<String, Long> iceberg_expected_dictionary_counters,
-        Map<String, Long> dl_expected_dictionary_counters,
         int split_count,
         List<String> partition_by,
         List<Object> bucketed_by,
@@ -109,10 +106,7 @@ public record TestFormat(
                 .bucketCount(testFormat.bucket_count())
                 .bucketedBy(testFormat.bucketed_by())
                 .expectedWarmFailures(testFormat.expected_warm_failures())
-                .expectedDictionaryCounters(testFormat.expected_dictionary_counters())
                 .skipType(testFormat.skip_type())
-                .expectedIcebergDictionaryCounters(testFormat.iceberg_expected_dictionary_counters())
-                .expectedDLDictionaryCounters(testFormat.dl_expected_dictionary_counters())
                 .overriding(testFormat.overriding())
                 .origTableName(testFormat.orig_table_name());
     }
@@ -123,7 +117,6 @@ public record TestFormat(
     public TestFormat withTableType(String newTableName, TableType tableType)
     {
         List<QueryData> updatedQueriesData = new ArrayList<>();
-        Map<String, Long> updatedDictionaryCounters = expected_dictionary_counters;
 
         for (QueryData queryData : queries_data()) {
             updatedQueriesData.add(getUpdatedQueryData(tableType, queryData, newTableName));
@@ -134,20 +127,12 @@ public record TestFormat(
             updatedWarmQuery = warm_query.replace(getTableName(), newTableName);
         }
 
-        if (tableType == TableType.warp_delta_lake && dl_expected_dictionary_counters != null) {
-            updatedDictionaryCounters = dl_expected_dictionary_counters;
-        }
-        else if (tableType == TableType.warp_iceberg && iceberg_expected_dictionary_counters != null) {
-            updatedDictionaryCounters = iceberg_expected_dictionary_counters;
-        }
-
         return builder(this)
                 .name(newTableName)
                 .tableName(newTableName)
                 .origTableName(Optional.ofNullable(getTableName()))
                 .warmQuery(updatedWarmQuery)
                 .queriesData(updatedQueriesData)
-                .expectedDictionaryCounters(updatedDictionaryCounters)
                 .build();
     }
 
@@ -209,10 +194,7 @@ public record TestFormat(
         private String description;
         private int expectedWarmFailures;
         List<String> failedWarmupElements;
-        private Map<String, Long> expectedDictionaryCounters;
         private Set<TableType> skipType;
-        private Map<String, Long> expectedIcebergDictionaryCounters;
-        private Map<String, Long> expectedDLDictionaryCounters;
         private int splitCount;
         private List<String> partitionBy;
         private List<Object> bucketedBy;
@@ -318,27 +300,9 @@ public record TestFormat(
             return this;
         }
 
-        public Builder expectedDictionaryCounters(Map<String, Long> expectedDictionaryCounters)
-        {
-            this.expectedDictionaryCounters = expectedDictionaryCounters;
-            return this;
-        }
-
         public Builder skipType(Set<TableType> skipType)
         {
             this.skipType = skipType;
-            return this;
-        }
-
-        public Builder expectedIcebergDictionaryCounters(Map<String, Long> expectedIcebergDictionaryCounters)
-        {
-            this.expectedIcebergDictionaryCounters = expectedIcebergDictionaryCounters;
-            return this;
-        }
-
-        public Builder expectedDLDictionaryCounters(Map<String, Long> expectedDLDictionaryCounters)
-        {
-            this.expectedDLDictionaryCounters = expectedDLDictionaryCounters;
             return this;
         }
 
@@ -397,10 +361,7 @@ public record TestFormat(
                     description,
                     expectedWarmFailures,
                     failedWarmupElements,
-                    expectedDictionaryCounters,
                     skipType,
-                    expectedIcebergDictionaryCounters,
-                    expectedDLDictionaryCounters,
                     splitCount,
                     partitionBy,
                     bucketedBy,
@@ -428,10 +389,7 @@ public record TestFormat(
                     description,
                     expectedWarmFailures,
                     failedWarmupElements,
-                    expectedDictionaryCounters,
                     skipType,
-                    expectedIcebergDictionaryCounters,
-                    expectedDLDictionaryCounters,
                     splitCount,
                     partitionBy,
                     bucketedBy,
@@ -456,7 +414,6 @@ public record TestFormat(
             String calculatedTableName = overridingTestFormat.table_name == null ? baseTestFormat.table_name : overridingTestFormat.table_name;
             String calculatedDataFormat = overridingTestFormat.data_format == null ? baseTestFormat.data_format : overridingTestFormat.data_format;
             Map<String, Object> calculatedSessionProperties = overridingTestFormat.session_properties == null ? baseTestFormat.session_properties : overridingTestFormat.session_properties;
-            Map<String, Long> calculatedExpectedDictionaryCounters = overridingTestFormat.expected_dictionary_counters == null ? baseTestFormat.expected_dictionary_counters : overridingTestFormat.expected_dictionary_counters;
             int calculatedExpectedWarmFailures = overridingTestFormat.expected_warm_failures != 0 ? baseTestFormat.expected_warm_failures : overridingTestFormat.expected_warm_failures;
             List<String> calculatedFailedWarmupElements = overridingTestFormat.failed_warmup_elements() != null ? baseTestFormat.failed_warmup_elements() : overridingTestFormat.failed_warmup_elements();
             List<QueryData> queriesData = baseTestFormat.queries_data;
@@ -480,10 +437,7 @@ public record TestFormat(
                     description,
                     calculatedExpectedWarmFailures,
                     calculatedFailedWarmupElements,
-                    calculatedExpectedDictionaryCounters,
                     skipType,
-                    expectedIcebergDictionaryCounters,
-                    expectedDLDictionaryCounters,
                     splitCount,
                     partitionBy,
                     bucketedBy,

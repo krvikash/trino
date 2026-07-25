@@ -22,7 +22,6 @@ import io.trino.plugin.geospatial.GeoPlugin;
 import io.trino.plugin.jmx.JmxPlugin;
 import io.trino.plugin.warp.WarpPlugin;
 import io.trino.plugin.warp.cloudvendors.config.CloudVendorConfig;
-import io.trino.plugin.warp.config.DictionaryConfig;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.config.WarmupDemoterConfig;
 import io.trino.plugin.warp.extension.config.WarpExtensionConfig;
@@ -88,8 +87,6 @@ public class DispatcherQueryRunner
                 .put("hive.metastore.catalog.dir", "file://" + hiveDir.toAbsolutePath())
                 .put("fs.hadoop.enabled", "true")
 //                .put("hive.metastore", "glue")
-                .put(DictionaryConfig.EXCEPTIONAL_LIST_DICTIONARY, "REC_TYPE_ARRAY_INT,REC_TYPE_ARRAY_BIGINT")
-                .put("warp-speed.config.dictionary.max-size", "3")
                 .put(WarmupDemoterConfig.DEFAULT_RULE_TTL_IN_SECONDS, defaultRuleTtlInSeconds)
 //                .put(HTTP_REST_PORT, "" + restPort)
                 .put(WarpExtensionConfig.ENABLED, Boolean.toString(isExtensionsEnabled))

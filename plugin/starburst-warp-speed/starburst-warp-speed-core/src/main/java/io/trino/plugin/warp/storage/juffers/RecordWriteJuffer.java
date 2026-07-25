@@ -21,9 +21,6 @@ import io.trino.plugin.warp.type.TypeUtils;
 
 import java.lang.foreign.MemorySegment;
 
-import static io.trino.plugin.warp.dictionary.DictionaryCacheService.DICTIONARY_REC_TYPE_CODE;
-import static io.trino.plugin.warp.dictionary.DictionaryCacheService.DICTIONARY_REC_TYPE_LENGTH;
-
 public class RecordWriteJuffer
         extends BaseWriteJuffer
 {
@@ -32,7 +29,6 @@ public class RecordWriteJuffer
     private final MemorySegment warmUpState;
     private final MemorySegment compressionState;
     private int recordBufferEntrySize;            // size of one record, one if its a byte buffer
-    private boolean isDictionaryValid;
 
     public RecordWriteJuffer(
             BufferAllocator bufferAllocator,
@@ -49,21 +45,12 @@ public class RecordWriteJuffer
     }
 
     @Override
-    public void createBuffer(MemorySegment[] buffs, boolean isDictionaryValid)
+    public void createBuffer(MemorySegment[] buffs)
     {
-        RecTypeCode bufferRecTypeCode;
-        int bufferRecTypeLength;
         baseBuffer = bufferAllocator.memorySegment2RecBuff(buffs);
-        if (isDictionaryValid) {
-            bufferRecTypeCode = DICTIONARY_REC_TYPE_CODE;
-            bufferRecTypeLength = DICTIONARY_REC_TYPE_LENGTH;
-        }
-        else {
-            bufferRecTypeCode = allocParams.recTypeCode();
-            bufferRecTypeLength = allocParams.recTypeLength();
-        }
-        this.isDictionaryValid = isDictionaryValid;
-        this.wrappedBuffer = createWrapperBuffer(baseBuffer, bufferRecTypeCode, bufferRecTypeLength, true, isDictionaryValid);
+        RecTypeCode bufferRecTypeCode = allocParams.recTypeCode();
+        int bufferRecTypeLength = allocParams.recTypeLength();
+        this.wrappedBuffer = createWrapperBuffer(baseBuffer, bufferRecTypeCode, bufferRecTypeLength, true);
         this.recordBufferEntrySize = calcRecordBufferEntrySize(bufferRecTypeCode, bufferRecTypeLength);
     }
 
@@ -90,10 +77,5 @@ public class RecordWriteJuffer
         // no need to add to chunk map as we are not closing the chunk
         storageEngine.warmupChunk(warmUpState, recordBufferParams, compressionState);
         resetSingleRecordBufferPos();
-    }
-
-    public boolean isDictionaryValid()
-    {
-        return isDictionaryValid;
     }
 }

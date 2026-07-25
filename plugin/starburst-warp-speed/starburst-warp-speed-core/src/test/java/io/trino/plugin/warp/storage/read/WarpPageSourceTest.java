@@ -25,7 +25,6 @@ import io.trino.plugin.warp.gen.constants.FunctionType;
 import io.trino.plugin.warp.gen.constants.PredicateType;
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
-import io.trino.plugin.warp.gen.stats.DictionaryStats;
 import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
 import io.trino.plugin.warp.juffer.PredicateBufferInfo;
 import io.trino.plugin.warp.juffer.PredicateBufferPoolType;
@@ -67,7 +66,6 @@ public class WarpPageSourceTest
         MetricsManager metricsManager = TestingTxService.createMetricsManager();
         this.customStatsContext = new CustomStatsContext(metricsManager);
         customStatsContext.getOrRegister(new DispatcherPageSourceStats());
-        customStatsContext.getOrRegister(new DictionaryStats());
         shapingLoggerFactory = new ShapingLoggerFactory(new CatalogName("catalog-name"), new SharedConfig());
     }
 

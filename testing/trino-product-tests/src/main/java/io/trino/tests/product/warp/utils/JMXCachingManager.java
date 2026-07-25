@@ -119,12 +119,6 @@ public class JMXCachingManager
         return getServiceStats("jmx.current.\"*name=warming_service*\"", statsNames);
     }
 
-    public static QueryResult getDictionaryStats()
-    {
-        List<String> dictionaryStatsNames = JMXCachingManager.getStatsNames(JMXCachingConstants.Dictionary.class);
-        return getServiceStats("jmx.current.\"*name=dictionary*\"", dictionaryStatsNames);
-    }
-
     public static QueryResult getDemoterStats()
     {
         List<String> demoterStatsNames = JMXCachingManager.getStatsNames(JMXCachingConstants.WarmupDemoter.class);

@@ -14,7 +14,6 @@
 package io.trino.plugin.warp.dispatcher;
 
 import io.trino.plugin.base.metrics.LongCount;
-import io.trino.plugin.warp.gen.stats.DictionaryStats;
 import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
 import io.trino.plugin.warp.juffer.StorageEngineTxService;
 import io.trino.plugin.warp.metrics.CustomStatsContext;
@@ -96,7 +95,6 @@ public class DispatcherWrapperPageSource
     private ConnectorPageSource buildDelegatePageSource()
     {
         customStatsContext.getOrRegister(new DispatcherPageSourceStats());
-        customStatsContext.getOrRegister(new DictionaryStats());
         return pageSourceFactory.createConnectorPageSource(
                 connectorPageSourceProvider,
                 transactionHandle,

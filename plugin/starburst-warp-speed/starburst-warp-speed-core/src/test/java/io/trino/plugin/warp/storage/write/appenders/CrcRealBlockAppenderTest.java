@@ -19,14 +19,12 @@ import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.type.RealType;
 import io.trino.spi.type.Type;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import java.nio.IntBuffer;
 import java.util.List;
-import java.util.Optional;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.params.provider.Arguments.arguments;
@@ -68,12 +66,6 @@ class CrcRealBlockAppenderTest
     public void writeWithoutDictionary(Block block, Type blockType, WarmupElementStats expectedResult)
     {
         when(writeJuffersWarmUpElement.getRecordBuffer()).thenReturn(IntBuffer.allocate(100));
-        runTest(block, blockType, expectedResult, Optional.empty());
+        runTest(block, blockType, expectedResult);
     }
-
-    @Disabled
-    @Override
-    @ParameterizedTest
-    @MethodSource("params")
-    public void writeWithDictionary(Block block, Type blockType, WarmupElementStats expectedResult) {}
 }
