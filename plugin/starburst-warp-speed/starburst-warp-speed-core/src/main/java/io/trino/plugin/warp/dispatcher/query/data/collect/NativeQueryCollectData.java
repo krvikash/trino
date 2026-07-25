@@ -24,7 +24,6 @@ import java.util.Optional;
 
 public class NativeQueryCollectData
         extends QueryCollectData
-        implements Comparable<NativeQueryCollectData>
 {
     protected final MatchCollectType matchCollectType;
     protected final int matchCollectId;
@@ -66,12 +65,6 @@ public class NativeQueryCollectData
     public int getMatchCollectId()
     {
         return matchCollectId;
-    }
-
-    @Override
-    public int compareTo(NativeQueryCollectData o)
-    {
-        return Integer.compare(getWarmUpElement().getRecTypeLength(), o.getWarmUpElement().getRecTypeLength());
     }
 
     @Override

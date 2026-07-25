@@ -127,7 +127,6 @@ public class RangeMatcher
     private Optional<WarmUpElement> findColumnInWarmupElements(WarpColumn column, WarmedWarmupTypes allWarmupElements)
     {
         ImmutableListMultimap<WarpColumn, WarmUpElement> basicWarmupElements = allWarmupElements.basicWarmedElements();
-        ImmutableMap<WarpColumn, WarmUpElement> dataWarmupElements = allWarmupElements.dataWarmedElements();
         ImmutableMap<WarpColumn, WarmUpElement> luceneWarmupElements = allWarmupElements.luceneWarmedElements();
 
         Optional<WarmUpElement> element;
@@ -138,9 +137,6 @@ public class RangeMatcher
             element = basicWarmupElements.get(column).stream()
                     .filter(elem -> !elem.getWarpColumn().isTransformedColumn())
                     .findFirst();
-            if (element.isEmpty()) {
-                element = Optional.ofNullable(dataWarmupElements.get(column));
-            }
         }
 
         return element;

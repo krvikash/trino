@@ -169,7 +169,7 @@ public abstract class WorkerWarmerBaseTask
 
         QueryContext queryContext;
         if (rowGroupData != null) {
-            queryContext = queryClassifier.classify(baseQueryContext, rowGroupData, dispatcherTableHandle, Optional.of(session), Optional.empty(), ClassificationType.WARMING);
+            queryContext = queryClassifier.classify(baseQueryContext, rowGroupData, dispatcherTableHandle, session, ClassificationType.WARMING);
         }
         else {
             queryContext = baseQueryContext;

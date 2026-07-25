@@ -35,9 +35,7 @@ import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.DynamicFilter;
 
 import java.util.List;
-import java.util.Optional;
 import java.util.OptionalInt;
-import java.util.UUID;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
@@ -75,14 +73,13 @@ public class QueryClassifier
             QueryContext baseQueryContext,
             RowGroupData rowGroupData,
             DispatcherTableHandle dispatcherTableHandle,
-            Optional<ConnectorSession> session)
+            ConnectorSession session)
     {
         return classify(
                 baseQueryContext,
                 rowGroupData,
                 dispatcherTableHandle,
                 session,
-                Optional.empty(),
                 ClassificationType.QUERY);
     }
 
@@ -90,27 +87,18 @@ public class QueryClassifier
             QueryContext baseQueryContext,
             RowGroupData rowGroupData,
             DispatcherTableHandle dispatcherTableHandle,
-            Optional<ConnectorSession> session,
-            Optional<UUID> storeIdOpt,
+            ConnectorSession session,
             ClassificationType classificationType)
     {
         QueryContext queryContext = null;
         try {
             List<Classifier> classifiers = classifierFactory.getClassifiers(classificationType);
-            boolean minMaxFilter = false;
-            boolean mappedMatchCollect = false;
-            boolean varcharMappedMatchCollect = false;
-            boolean enableInverseWithNulls = false;
-            boolean debugNoPredicateBuffer = false;
-            if (session.isPresent()) {
-                // in cacheManager we don't have session
-                minMaxFilter = WarpSessionProperties.isMinMaxFilter(session.get());
-                mappedMatchCollect = WarpSessionProperties.getEnabledMappedMatchCollect(session.get());
-                varcharMappedMatchCollect = WarpSessionProperties.getEnabledVarcharMappedMatchCollect(session.get());
-                enableInverseWithNulls = WarpSessionProperties.getEnabledInverseWithNulls(session.get());
-                debugNoPredicateBuffer = WarpSessionProperties.isDebugNoPredicateBuffer(session.get(), globalConfig);
-            }
-            WarmedWarmupTypes warmedWarmupTypes = createColumnToWarmUpElementPerType(rowGroupData, storeIdOpt);
+            boolean minMaxFilter = WarpSessionProperties.isMinMaxFilter(session);
+            boolean mappedMatchCollect = WarpSessionProperties.getEnabledMappedMatchCollect(session);
+            boolean varcharMappedMatchCollect = WarpSessionProperties.getEnabledVarcharMappedMatchCollect(session);
+            boolean enableInverseWithNulls = WarpSessionProperties.getEnabledInverseWithNulls(session);
+            boolean debugNoPredicateBuffer = WarpSessionProperties.isDebugNoPredicateBuffer(session, globalConfig);
+            WarmedWarmupTypes warmedWarmupTypes = createColumnToWarmUpElementPerType(rowGroupData);
             ClassifyArgs classifyArgs = new ClassifyArgs(
                     dispatcherTableHandle,
                     rowGroupData,
@@ -240,19 +228,19 @@ public class QueryClassifier
                 session.getQueryId());
     }
 
-    private WarmedWarmupTypes createColumnToWarmUpElementPerType(RowGroupData rowGroupData, Optional<UUID> storeIdOpt)
+    private WarmedWarmupTypes createColumnToWarmUpElementPerType(RowGroupData rowGroupData)
     {
         WarmedWarmupTypes.Builder builder = new WarmedWarmupTypes.Builder();
         rowGroupData.getValidWarmUpElements().stream()
-                .filter(we -> shouldAdd(we, storeIdOpt))
+                .filter(QueryClassifier::shouldAdd)
                 .forEach(builder::add);
 
         return builder.build();
     }
 
-    private boolean shouldAdd(WarmUpElement warmUpElement, Optional<UUID> storeIdOpt)
+    private static boolean shouldAdd(WarmUpElement warmUpElement)
     {
-        return (storeIdOpt.isEmpty() || storeIdOpt.get().equals(warmUpElement.getStoreId()))
-                && (!globalConfig.getEnableFSCacheMode() || !WarmUpType.WARM_UP_TYPE_DATA.equals(warmUpElement.getWarmUpType()));
+        // stale DATA elements may still exist in row group metadata persisted by old versions
+        return !WarmUpType.WARM_UP_TYPE_DATA.equals(warmUpElement.getWarmUpType());
     }
 }

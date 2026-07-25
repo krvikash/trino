@@ -181,11 +181,7 @@ public abstract class DispatcherPageSourceFactory
     protected PageSourceDecision getPageSourceDecision(QueryContext queryContext)
     {
         PageSourceDecision pageSourceDecision = PageSourceDecision.MIXED;
-        if (queryContext.getMatchLeavesDFS().stream().anyMatch(x -> x.getWarmUpElement().getWarmUpType() == WarmUpType.WARM_UP_TYPE_DATA)) {
-            shapingLogger.error("match column contains WARM_UP_TYPE_DATA, invalid state. use proxy connector. %s", queryContext);
-            pageSourceDecision = PageSourceDecision.PROXY;
-        }
-        else if (queryContext.isPrefilledOnly()) {
+        if (queryContext.isPrefilledOnly()) {
             logger.debug("all columns are prefilled -> only prefilled. %s", queryContext);
             pageSourceDecision = PageSourceDecision.PREFILL;
         }
@@ -273,7 +269,7 @@ public abstract class DispatcherPageSourceFactory
     protected void addStatsOnFilteredByPredicate(List<ColumnHandle> columns, CustomStatsContext customStatsContext, DispatcherPageSourceStats dispatcherPageSourceStats, QueryContext basicQueryContext)
     {
         dispatcherPageSourceStats.incfiltered_by_predicate();
-        columns.forEach(columnHandle -> customStatsContext.addFixedStat(createFixedStatKey(WARP_COLLECT, dispatcherProxiedConnectorTransformer.getWarpRegularColumn(columnHandle).getName(), WarmUpType.WARM_UP_TYPE_DATA), 1));
+        columns.forEach(columnHandle -> customStatsContext.addFixedStat(createFixedStatKey(WARP_COLLECT, dispatcherProxiedConnectorTransformer.getWarpRegularColumn(columnHandle).getName(), WarmUpType.WARM_UP_TYPE_BASIC), 1));
         Set<RegularColumn> warpMatchColumns = basicQueryContext.getPredicateContextData().getRemainingColumns();
         warpMatchColumns.forEach(regularColumn -> customStatsContext.addFixedStat(createFixedStatKey(WARP_MATCH, regularColumn.getName(), WarmUpType.WARM_UP_TYPE_BASIC), 1));
         dispatcherPageSourceStats.addwarp_collect_columns(columns.size());

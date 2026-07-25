@@ -13,26 +13,20 @@
  */
 package io.trino.plugin.warp.dispatcher.query.classifier;
 
-import io.airlift.log.Logger;
+import com.google.common.collect.Iterables;
 import io.trino.plugin.warp.dispatcher.DispatcherProxiedConnectorTransformer;
 import io.trino.plugin.warp.dispatcher.model.RegularColumn;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
-import io.trino.plugin.warp.dispatcher.model.WarpColumn;
 import io.trino.plugin.warp.dispatcher.query.MatchCollectUtils.MatchCollectType;
 import io.trino.plugin.warp.dispatcher.query.QueryContext;
 import io.trino.plugin.warp.dispatcher.query.data.collect.NativeQueryCollectData;
 import io.trino.plugin.warp.dispatcher.query.data.match.QueryMatchData;
-import io.trino.plugin.warp.gen.constants.PredicateType;
 import io.trino.plugin.warp.juffer.BufferAllocator;
 import io.trino.plugin.warp.type.TypeUtils;
 import io.trino.spi.connector.ColumnHandle;
-import io.trino.spi.predicate.Domain;
 import io.trino.spi.type.Type;
 
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -41,7 +35,6 @@ import java.util.Optional;
 public class NativeCollectClassifier
         implements Classifier
 {
-    private static final Logger logger = Logger.get(NativeCollectClassifier.class);
     public static final int COLLECT_BUFFER_MAX_MEMORY = 13000 * 1024;
 
     private final int matchCollectBufferSize;
@@ -83,10 +76,10 @@ public class NativeCollectClassifier
                 (maxMatchColumns - Math.min(queryContext.getMatchLeavesDFS().size(), maxMatchColumns)) * matchTxSize;
         final int collectTxMaxMemory = this.collectTxMaxMemoryConfig + remainingTxMemoryFromMatch;
         final int matchCollectBufferSize = queryContext.getEnableMatchCollect() ? this.matchCollectBufferSize : 0;
-        NativeCollectState state = new NativeCollectState(classifyArgs, collectTxMaxMemory, matchCollectBufferSize);
+        NativeCollectState state = new NativeCollectState(collectTxMaxMemory, matchCollectBufferSize);
 
         Map<Integer, ColumnHandle> remainingCollectColumnByBlockIndex = new HashMap<>(queryContext.getRemainingCollectColumnByBlockIndex());
-        Map<CollectCategory, List<NativeQueryCollectData>> nativeQueryCollectDataListsByCategory = new HashMap<>();
+        List<NativeQueryCollectData> matchCollectDataList = new ArrayList<>();
 
         for (Map.Entry<Integer, ColumnHandle> entry : queryContext.getRemainingCollectColumnByBlockIndex().entrySet()) {
             if (!state.isCollectMemoryAvailable()) {
@@ -104,39 +97,17 @@ public class NativeCollectClassifier
                 collectOptional = createMatchCollect(classifyArgs, state, potentialMatchForMatchCollect.get());
             }
 
-            // try data warmup
-            if (collectOptional.isEmpty() && state.isCurrentColumnCollectWarmedForData()) {
-                collectOptional = createCollect(state);
-            }
-
-            collectOptional.ifPresent(collectData -> nativeQueryCollectDataListsByCategory.computeIfAbsent(state.getCurrentCollectCategory(), _ -> new ArrayList<>()).add(collectData));
+            collectOptional.ifPresent(matchCollectDataList::add);
         }
 
         return queryContext.asBuilder()
                 .nativeQueryCollectDataList(createMemoryLimitedNativeQueryCollectDataList(
                         queryContext,
-                        nativeQueryCollectDataListsByCategory,
+                        matchCollectDataList,
                         remainingCollectColumnByBlockIndex,
                         collectTxMaxMemory))
                 .remainingCollectColumnByBlockIndex(remainingCollectColumnByBlockIndex)
                 .build();
-    }
-
-    // assuming collect memory is avaialble - already checked in the calling loop
-    private Optional<NativeQueryCollectData> createCollect(NativeCollectState state)
-    {
-        WarmUpElement warmUpElement = state.getCurrentColumnDataWarmUpElement();
-        final int collectBufferSize = getCollectBufferSize(warmUpElement); // collectBufferSize is always positive
-        final int collectTxSize = getCollectTxSize(warmUpElement);
-        if (state.updateCollectMemoryIfAvailable(collectBufferSize, collectTxSize)) {
-            return Optional.of(NativeQueryCollectData.builder()
-                    .warmUpElement(warmUpElement)
-                    .type(state.getCurrentColumnType())
-                    .blockIndex(state.getCurrentBlockIndex())
-                    .matchCollectType(MatchCollectType.DISABLED)
-                    .build());
-        }
-        return Optional.empty();
     }
 
     // note that we have two types of memory to check here:
@@ -153,28 +124,7 @@ public class NativeCollectClassifier
             return Optional.empty();
         }
 
-        // we prefer to take the data element for the match collect if exists for better storage engine performance
-        WarmUpElement warmUpElement = state.getCurrentColumnDataWarmUpElement();
-        boolean useMatchElement = canMapMatchCollect || (warmUpElement == null);
-
-        if (!useMatchElement) {
-            // If we got a DATA element and this is a range predicate, a regular collect is more efficient than a match-collect.
-            // At this stage, queryMatchData's PredicateType is still not set (will be calculated later on at PredicateBufferClassifier).
-            // There is a delicate relation between choosing PREDICATE_TYPE_INVERSE_VALUES over PREDICATE_TYPE_RANGES and match-collect because if we match-collect we can't inverse.
-            // So here we check if the PredicateType could be PREDICATE_TYPE_RANGES, and if so decide not to match-collect. Then, at PredicateBufferClassifier,
-            // we might choose PREDICATE_TYPE_INVERSE_VALUES (because transformAllowed will be true).
-            Optional<Domain> domain = queryMatchData.getDomain();
-            if (domain.isPresent()) {
-                PredicateType predicateType = classifyArgs.getPredicateTypeFromCache(domain.get(), queryMatchData.getType());
-                if (PredicateType.PREDICATE_TYPE_RANGES.equals(predicateType)) {
-                    return Optional.empty();
-                }
-            }
-        }
-        // if we decided to use the match element, we take it
-        if (useMatchElement) {
-            warmUpElement = queryMatchData.getWarmUpElement();
-        }
+        WarmUpElement warmUpElement = queryMatchData.getWarmUpElement();
 
         // check feasibility in terms of memory
         final int collectBufferSize = getCollectBufferSize(warmUpElement); // collectBufferSize is always positive
@@ -193,7 +143,7 @@ public class NativeCollectClassifier
 
     private List<NativeQueryCollectData> createMemoryLimitedNativeQueryCollectDataList(
             QueryContext queryContext,
-            Map<CollectCategory, List<NativeQueryCollectData>> nativeQueryCollectDataListsByCategory,
+            List<NativeQueryCollectData> matchCollectDataList,
             Map<Integer, ColumnHandle> remainingCollectColumnByBlockIndex,
             int collectTxMaxMemory)
     {
@@ -201,8 +151,8 @@ public class NativeCollectClassifier
         int collectTxMemory = 0;
         List<NativeQueryCollectData> nativeQueryCollectDataList = new ArrayList<>();
 
-        // start with those who are already in the list of the context
-        for (NativeQueryCollectData nativeQueryCollectData : queryContext.getNativeQueryCollectDataList()) {
+        // start with those who are already in the list of the context, then the newly classified ones. stop when memory is exhausted
+        for (NativeQueryCollectData nativeQueryCollectData : Iterables.concat(queryContext.getNativeQueryCollectDataList(), matchCollectDataList)) {
             collectRecordBufferMemory += getCollectBufferSize(nativeQueryCollectData.getWarmUpElement());
             if (collectRecordBufferMemory > COLLECT_BUFFER_MAX_MEMORY) {
                 return nativeQueryCollectDataList;
@@ -213,32 +163,6 @@ public class NativeCollectClassifier
             }
             nativeQueryCollectDataList.add(nativeQueryCollectData);
             remainingCollectColumnByBlockIndex.remove(nativeQueryCollectData.getBlockIndex());
-        }
-
-        // now go from the most important category to the least important one. stop when memory is exhausted
-        for (CollectCategory collectCategory : CollectCategory.values()) {
-            List<NativeQueryCollectData> nativeQueryCollectDataCategoryList =
-                    nativeQueryCollectDataListsByCategory.computeIfAbsent(collectCategory, _ -> new ArrayList<>());
-
-            // if we reached the string list we need to sort it since we want to take shorter string first for better performance
-            // we delay the sort as much as possible in order to avoid it if not required eventually since no string has been taken
-            if ((collectCategory == CollectCategory.STRING) && !nativeQueryCollectDataCategoryList.isEmpty()) {
-                Collections.sort(nativeQueryCollectDataCategoryList);
-                logger.debug("sorted collect strings list %s", nativeQueryCollectDataCategoryList);
-            }
-
-            for (NativeQueryCollectData nativeQueryCollectData : nativeQueryCollectDataCategoryList) {
-                collectRecordBufferMemory += getCollectBufferSize(nativeQueryCollectData.getWarmUpElement());
-                if (collectRecordBufferMemory > COLLECT_BUFFER_MAX_MEMORY) {
-                    return nativeQueryCollectDataList;
-                }
-                collectTxMemory += getCollectTxSize(nativeQueryCollectData.getWarmUpElement());
-                if (collectTxMemory > collectTxMaxMemory) {
-                    return nativeQueryCollectDataList;
-                }
-                nativeQueryCollectDataList.add(nativeQueryCollectData);
-                remainingCollectColumnByBlockIndex.remove(nativeQueryCollectData.getBlockIndex());
-            }
         }
 
         return nativeQueryCollectDataList;
@@ -262,41 +186,21 @@ public class NativeCollectClassifier
         return bufferAllocator.getCollectTxSize(warmUpElement.getRecTypeCode(), warmUpElement.getRecTypeLength());
     }
 
-    enum CollectCategory
-    {
-        MATCH_COLLECT,
-        FIXED_SIZE, // without chars that are covered by string
-        STRING,
-    }
-
     private class NativeCollectState
     {
-        private final Map<WarpColumn, WarmUpElement> collectColumnToWarmElement;
         private final int collectTxMaxMemory;
-        private final EnumMap<CollectCategory, Integer> collectRecordBufferMemoryPerCategory;
-        private final EnumMap<CollectCategory, Integer> collectTxMemoryPerCategory;
         private final int matchCollectBufferSize;
         private RegularColumn currentColumn;
         private Type currentColumnType;
         private int currentBlockIndex;
-        private CollectCategory currentCollectCategory;
+        private int collectRecordBufferMemory;
+        private int collectTxMemory;
         private int matchCollectMemory;
 
-        NativeCollectState(ClassifyArgs classifyArgs, int collectTxMaxMemory, int matchCollectBufferSize)
+        NativeCollectState(int collectTxMaxMemory, int matchCollectBufferSize)
         {
-            this.collectColumnToWarmElement = classifyArgs.getWarmedWarmupTypes().dataWarmedElements();
             this.collectTxMaxMemory = collectTxMaxMemory;
-            this.currentCollectCategory = CollectCategory.MATCH_COLLECT; // default
             this.matchCollectBufferSize = matchCollectBufferSize;
-            this.matchCollectMemory = 0;
-
-            // create map for memory counter per category and initialize it to zero
-            this.collectRecordBufferMemoryPerCategory = new EnumMap(CollectCategory.class);
-            this.collectTxMemoryPerCategory = new EnumMap(CollectCategory.class);
-            for (CollectCategory collectCategory : CollectCategory.values()) {
-                collectRecordBufferMemoryPerCategory.put(collectCategory, 0);
-                collectTxMemoryPerCategory.put(collectCategory, 0);
-            }
         }
 
         void setCurrentColumn(ColumnHandle columnHandle, int blockIndex)
@@ -311,16 +215,6 @@ public class NativeCollectClassifier
             return currentColumn;
         }
 
-        WarmUpElement getCurrentColumnDataWarmUpElement()
-        {
-            return collectColumnToWarmElement.get(currentColumn);
-        }
-
-        boolean isCurrentColumnCollectWarmedForData()
-        {
-            return collectColumnToWarmElement.containsKey(currentColumn);
-        }
-
         Type getCurrentColumnType()
         {
             return currentColumnType;
@@ -331,39 +225,11 @@ public class NativeCollectClassifier
             return currentBlockIndex;
         }
 
-        CollectCategory getCurrentCollectCategory()
-        {
-            return currentCollectCategory;
-        }
-
-        boolean updateCollectMemoryIfAvailable(int collectBufferUpdate, int collectTxUpdate)
-        {
-            final boolean isStr = TypeUtils.isStrType(getCurrentColumnType());
-            return updateCollectMemoryIfAvailable(
-                    collectBufferUpdate,
-                    collectTxUpdate,
-                    0,
-                    isStr ? CollectCategory.STRING : CollectCategory.FIXED_SIZE);
-        }
-
         boolean updateCollectMemoryIfAvailable(int collectBufferUpdate, int collectTxUpdate, int matchCollectBufferUpdate)
         {
-            return updateCollectMemoryIfAvailable(
-                    collectBufferUpdate,
-                    collectTxUpdate,
-                    matchCollectBufferUpdate,
-                    CollectCategory.MATCH_COLLECT);
-        }
-
-        private boolean updateCollectMemoryIfAvailable(
-                int collectBufferUpdate,
-                int collectTxUpdate,
-                int matchCollectBufferUpdate,
-                CollectCategory collectCategory)
-        {
-            // check if the aggregated memory for this category can take the update as well as the match collect memory
-            final int updatedCollectRecordBufferMemory = collectRecordBufferMemoryPerCategory.get(collectCategory) + collectBufferUpdate;
-            final int updatedCollectTxMemory = collectTxMemoryPerCategory.get(collectCategory) + collectTxUpdate;
+            // check if the aggregated memory can take the update as well as the match collect memory
+            final int updatedCollectRecordBufferMemory = collectRecordBufferMemory + collectBufferUpdate;
+            final int updatedCollectTxMemory = collectTxMemory + collectTxUpdate;
             final int updatedMatchCollectMemory = matchCollectMemory + matchCollectBufferUpdate;
             if ((updatedCollectRecordBufferMemory > COLLECT_BUFFER_MAX_MEMORY) ||
                     (updatedMatchCollectMemory > matchCollectBufferSize) ||
@@ -371,29 +237,16 @@ public class NativeCollectClassifier
                 return false;
             }
 
-            // update this category and the match collect
-            collectRecordBufferMemoryPerCategory.put(collectCategory, updatedCollectRecordBufferMemory);
-            collectTxMemoryPerCategory.put(collectCategory, updatedCollectTxMemory);
+            collectRecordBufferMemory = updatedCollectRecordBufferMemory;
+            collectTxMemory = updatedCollectTxMemory;
             matchCollectMemory = updatedMatchCollectMemory;
-
-            // force update the following categories without checking limit
-            Arrays.stream(CollectCategory.values())
-                    .filter(c -> c.compareTo(collectCategory) > 0)
-                    .forEach(c -> collectRecordBufferMemoryPerCategory.put(c, collectRecordBufferMemoryPerCategory.get(c) + collectBufferUpdate));
-            Arrays.stream(CollectCategory.values())
-                    .filter(c -> c.compareTo(collectCategory) > 0)
-                    .forEach(c -> collectTxMemoryPerCategory.put(c, collectTxMemoryPerCategory.get(c) + collectTxUpdate));
-
-            currentCollectCategory = collectCategory;
             return true;
         }
 
-        // if the first category (which is the most important one) still have "room" to take more columns we must continue to look for more
-        // collect elements (match collect in this case). we use this method to know when to stop the main loop
+        // as long as there is "room" to take more columns we must continue to look for more collect elements. we use this method to know when to stop the main loop
         boolean isCollectMemoryAvailable()
         {
-            return (collectRecordBufferMemoryPerCategory.get(CollectCategory.MATCH_COLLECT) < COLLECT_BUFFER_MAX_MEMORY) &&
-                    (collectTxMemoryPerCategory.get(CollectCategory.MATCH_COLLECT) < collectTxMaxMemory);
+            return (collectRecordBufferMemory < COLLECT_BUFFER_MAX_MEMORY) && (collectTxMemory < collectTxMaxMemory);
         }
 
         boolean isMatchCollectMemoryAvailable()

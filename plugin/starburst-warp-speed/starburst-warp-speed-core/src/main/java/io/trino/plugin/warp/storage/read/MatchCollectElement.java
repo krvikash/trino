@@ -15,7 +15,6 @@ package io.trino.plugin.warp.storage.read;
 
 import io.trino.plugin.warp.dispatcher.query.data.match.QueryMatchData;
 import io.trino.plugin.warp.gen.constants.MatchCollectOp;
-import io.trino.plugin.warp.gen.constants.WarmUpType;
 
 import java.util.Objects;
 
@@ -25,10 +24,15 @@ class MatchCollectElement
     private final MatchCollectOp op;
     private final int matchCollectIndex;
 
-    public MatchCollectElement(QueryMatchData queryMatchData, WarmUpType collectWarmUpType, int matchCollectIndex, boolean mappedMatchCollect)
+    public MatchCollectElement(QueryMatchData queryMatchData, int matchCollectIndex, boolean mappedMatchCollect)
     {
         this.queryMatchData = queryMatchData;
-        this.op = (collectWarmUpType == WarmUpType.WARM_UP_TYPE_DATA) ? MatchCollectOp.MATCH_COLLECT_OP_DATA : (mappedMatchCollect ? MatchCollectOp.MATCH_COLLECT_OP_MAPPING : MatchCollectOp.MATCH_COLLECT_OP_INDEX);
+        if (mappedMatchCollect) {
+            this.op = MatchCollectOp.MATCH_COLLECT_OP_MAPPING;
+        }
+        else {
+            this.op = MatchCollectOp.MATCH_COLLECT_OP_INDEX;
+        }
         this.matchCollectIndex = matchCollectIndex;
     }
 

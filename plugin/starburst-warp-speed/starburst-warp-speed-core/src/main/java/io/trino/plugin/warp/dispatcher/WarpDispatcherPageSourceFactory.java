@@ -275,7 +275,7 @@ public class WarpDispatcherPageSourceFactory
                     basicQueryContext,
                     afterLockRowGroupData,
                     dispatcherTableHandle,
-                    Optional.of(session));
+                    session);
 
             pageSourceDecision = getPageSourceDecision(queryContext);
             if (PageSourceDecision.EMPTY.equals(pageSourceDecision)) {

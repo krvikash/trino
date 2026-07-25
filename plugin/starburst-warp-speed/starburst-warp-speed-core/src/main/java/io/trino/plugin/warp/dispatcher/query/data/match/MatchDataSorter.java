@@ -48,7 +48,6 @@ public class MatchDataSorter
             WarmUpType warmUpType = queryMatchData.getWarmUpElement().getWarmUpType();
             // We prefer to first match on columns which are not match-collected since match-collect requires more resources (CPU + memory))
             res = switch (warmUpType) {
-                case WARM_UP_TYPE_DATA -> IndexPriority.DATA.ordinal();
                 case WARM_UP_TYPE_BASIC -> MatchCollectUtils.canBeMatchForMatchCollect(queryMatchData, queryContext.getNativeQueryCollectDataList()) ?
                         IndexPriority.BASIC_WITH_COLLECT.ordinal() : IndexPriority.BASIC_WITHOUT_COLLECT.ordinal();
                 case WARM_UP_TYPE_LUCENE -> IndexPriority.LUCENE.ordinal();
@@ -63,7 +62,6 @@ public class MatchDataSorter
 
     private enum IndexPriority
     {
-        DATA, // for index data collection
         BASIC_WITHOUT_COLLECT, // basic is preferred over lucene
         LUCENE,
         BASIC_WITH_COLLECT, // basic with collect is lowest since it requires collect operation which is costly

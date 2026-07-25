@@ -148,54 +148,6 @@ class RangeMatcherTest
         }
     }
 
-    @ParameterizedTest
-    @MethodSource("rangeConfig")
-    public void testDataRangeMatcherInvalidRange(ClassifyArgs classifyArgs, boolean expectedValidRange)
-    {
-        QueryMatchData queryMatchData = mock(QueryMatchData.class);
-        WarmUpElement warmUpElement = mock(WarmUpElement.class);
-        when(warmUpElement.getRecTypeCode()).thenReturn(RecTypeCode.REC_TYPE_INTEGER);
-        WarmupElementStats warmupElementStats = new WarmupElementStats(1, 1, 100);
-        when(queryMatchData.getWarmUpElement()).thenReturn(warmUpElement);
-        when(warmUpElement.getWarpColumn()).thenReturn(new RegularColumn("aaa"));
-        when(warmUpElement.getWarmupElementStats()).thenReturn(warmupElementStats);
-
-        RegularColumn column = new RegularColumn("remainingColumn");
-        PredicateContext context = mock(PredicateContext.class);
-        IntegerType type = IntegerType.INTEGER;
-        Domain domain = Domain.singleValue(type, 0L);
-        when(context.getDomain()).thenReturn(domain);
-        when(context.getColumnType()).thenReturn(type);
-
-        Optional<NativeExpression> nativeExpression = Optional.of(mock(NativeExpression.class));
-        when(nativeExpression.orElseThrow().functionType()).thenReturn(FunctionType.FUNCTION_TYPE_NONE);
-        WarpExpressionData expressionData = mock(WarpExpressionData.class);
-        when(expressionData.getNativeExpressionOptional()).thenReturn(nativeExpression);
-        when(context.getWarpExpressionData()).thenReturn(expressionData);
-
-        WarmedWarmupTypes warmupTypes = mock(WarmedWarmupTypes.class);
-        ImmutableListMultimap<WarpColumn, WarmUpElement> basicWarmUpElements = ImmutableListMultimap.of();
-        when(warmupTypes.basicWarmedElements()).thenReturn(basicWarmUpElements);
-        ImmutableMap<WarpColumn, WarmUpElement> dataElements = ImmutableMap.of(column, warmUpElement);
-        when(warmupTypes.dataWarmedElements()).thenReturn(dataElements);
-        when(warmupTypes.luceneWarmedElements()).thenReturn(ImmutableMap.of());
-        when(classifyArgs.getWarmedWarmupTypes()).thenReturn(warmupTypes);
-
-        rangeMatcher = new RangeMatcher(new ShapingLoggerFactory(new CatalogName("c"), new SharedConfig()));
-        Map<WarpColumn, PredicateContext> remainingPredicateContext = Map.of(column, context);
-        MatchContext matchContext = new MatchContext(List.of(queryMatchData), remainingPredicateContext, true);
-
-        MatchContext res = rangeMatcher.match(classifyArgs, matchContext);
-
-        assertThat(res.validRange()).isEqualTo(expectedValidRange);
-        if (res.validRange()) {
-            assertThat(res.remainingPredicateContext()).isEqualTo(remainingPredicateContext);
-        }
-        else {
-            assertThat(res.remainingPredicateContext()).isEmpty();   // no need to perform further filtering
-        }
-    }
-
     @Test
     public void testBasicRangeMatcherWithTransformedColumn()
     {
@@ -212,7 +164,6 @@ class RangeMatcherTest
         WarmedWarmupTypes warmupTypes = mock(WarmedWarmupTypes.class);
         ImmutableListMultimap<WarpColumn, WarmUpElement> basicWarmUpElements = ImmutableListMultimap.of(transformedColumn, warmUpElement);
         when(warmupTypes.basicWarmedElements()).thenReturn(basicWarmUpElements);
-        when(warmupTypes.dataWarmedElements()).thenReturn(ImmutableMap.of());
 
         when(warmupTypes.luceneWarmedElements()).thenReturn(ImmutableMap.of());
         when(classifyArgs.getWarmedWarmupTypes()).thenReturn(warmupTypes);

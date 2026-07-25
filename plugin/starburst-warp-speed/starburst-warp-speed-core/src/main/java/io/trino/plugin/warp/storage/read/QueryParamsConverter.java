@@ -45,7 +45,6 @@ import java.util.Optional;
 import static com.google.common.base.Preconditions.checkArgument;
 import static io.trino.plugin.warp.dispatcher.query.MatchCollectUtils.findMatchForMatchCollect;
 import static io.trino.plugin.warp.dispatcher.query.classifier.QueryClassifier.INVALID_TOTAL_RECORDS;
-import static io.trino.plugin.warp.dispatcher.warmup.warmers.WarmupElementsCreator.INVALID_WARM_ID;
 import static io.trino.plugin.warp.storage.read.WarpPageSource.INVALID_COL_IX;
 
 public class QueryParamsConverter
@@ -315,7 +314,7 @@ public class QueryParamsConverter
                 if (mappedMatchCollect) {
                     valuesDictBlock = queryMatchData.getPredicateCacheData().getValuesDict();
                 }
-                matchCollectElements.add(new MatchCollectElement(queryMatchData, collectDataWarmUpElement.getWarmUpType(), matchCollectIndex, mappedMatchCollect));
+                matchCollectElements.add(new MatchCollectElement(queryMatchData, matchCollectIndex, mappedMatchCollect));
             }
 
             collectParamsList.add(
@@ -328,7 +327,7 @@ public class QueryParamsConverter
                             collectDataWarmUpElement.getQueryReadSize(),
                             matchCollectIndex,
                             isCollectNulls,
-                            collectDataWarmUpElement.hasStoreId() ? INVALID_WARM_ID : collectDataWarmUpElement.getWarmId(),
+                            collectDataWarmUpElement.getWarmId(),
                             // page block should hold the original code and length
                             collectDataWarmUpElement.getRecTypeCode(),
                             collectDataWarmUpElement.getRecTypeLength(),

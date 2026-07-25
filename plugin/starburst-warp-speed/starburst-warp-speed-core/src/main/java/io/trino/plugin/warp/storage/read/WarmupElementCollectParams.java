@@ -14,7 +14,6 @@
 package io.trino.plugin.warp.storage.read;
 
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
-import io.trino.plugin.warp.gen.constants.DataWarmEvents;
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
 import io.trino.plugin.warp.type.TypeUtils;
@@ -195,7 +194,7 @@ public class WarmupElementCollectParams
                 ", warmId=" + collectParamsMem.get(ValueLayout.JAVA_BYTE, WARMUP_ELEMENT_COLLECT_PARAMS_OFFSET_WARM_ID) +
                 ", blockRecTypeCode=" + blockRecTypeCode +
                 ", blockRecTypeLength=" + blockRecTypeLength +
-                ", warmEvents=" + warmEventsToString(warmUpType) +
+                ", warmEvents=" + warmEvents +
                 ", isImported=" + isImported +
                 ", blockIndex=" + blockIndex +
                 '}';
@@ -204,26 +203,5 @@ public class WarmupElementCollectParams
     private int getFileOffset()
     {
         return collectParamsMem.get(ValueLayout.JAVA_INT, WARMUP_ELEMENT_COLLECT_PARAMS_OFFSET_FILE_OFFSET);
-    }
-
-    private String warmEventsToString(WarmUpType warmUpType)
-    {
-        if (warmUpType == WarmUpType.WARM_UP_TYPE_DATA) {
-            return "data" +
-                    (eventOccurred(DataWarmEvents.DATA_WARM_EVENTS_COMPRESSION_LZ.ordinal()) ? ":compression_lz" : "") +
-                    (eventOccurred(DataWarmEvents.DATA_WARM_EVENTS_COMPRESSION_LZ_HIGH.ordinal()) ? ":compression_lz_high" : "") +
-                    (eventOccurred(DataWarmEvents.DATA_WARM_EVENTS_ENCODE_BIT_PACKING.ordinal()) ? ":encode_bit_packing" : "") +
-                    (eventOccurred(DataWarmEvents.DATA_WARM_EVENTS_ENCODE_BIT_PACKING_DELTA.ordinal()) ? ":encode_bit_packing_delta" : "") +
-                    (eventOccurred(DataWarmEvents.DATA_WARM_EVENTS_SINGLE_CHUNK.ordinal()) ? ":single_chunk" : "") +
-                    (eventOccurred(DataWarmEvents.DATA_WARM_EVENTS_PACKED_CHUNK.ordinal()) ? ":packed_chunk" : "") +
-                    (eventOccurred(DataWarmEvents.DATA_WARM_EVENTS_SINGLE_CHUNK_ROLLBACK.ordinal()) ? ":single_chunk_rollback" : "") +
-                    (eventOccurred(DataWarmEvents.DATA_WARM_EVENTS_EXT_RECS.ordinal()) ? ":ext_recs" : "");
-        }
-        return "no events";
-    }
-
-    private boolean eventOccurred(int eventNum)
-    {
-        return (warmEvents & (1 << eventNum)) != 0;
     }
 }

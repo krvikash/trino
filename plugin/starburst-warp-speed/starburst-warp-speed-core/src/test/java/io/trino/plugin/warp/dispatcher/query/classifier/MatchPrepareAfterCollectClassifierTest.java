@@ -72,7 +72,7 @@ public class MatchPrepareAfterCollectClassifierTest
     public void testExceededLimitRootIsOr()
     {
         final int maxMatchColumns = 3;
-        QueryMatchData data = generateQueryMatchData(WarmUpType.WARM_UP_TYPE_DATA);
+        QueryMatchData data = generateQueryMatchData(WarmUpType.WARM_UP_TYPE_BASIC);
         QueryMatchData basicWithCollectLowestPriority = generateQueryMatchData(WarmUpType.WARM_UP_TYPE_BASIC, true);
         QueryMatchData onlyMatch = generateQueryMatchData(WarmUpType.WARM_UP_TYPE_BASIC);
         QueryMatchData lucene = generateQueryMatchData(WarmUpType.WARM_UP_TYPE_LUCENE);
@@ -115,7 +115,7 @@ public class MatchPrepareAfterCollectClassifierTest
     {
         final int maxMatchColumns = 3;
 
-        QueryMatchData data = generateQueryMatchData(WarmUpType.WARM_UP_TYPE_DATA);
+        QueryMatchData data = generateQueryMatchData(WarmUpType.WARM_UP_TYPE_BASIC);
         QueryMatchData basicWithCollectLowestPriority = generateQueryMatchData(WarmUpType.WARM_UP_TYPE_BASIC, true);
         QueryMatchData onlyMatch = generateQueryMatchData(WarmUpType.WARM_UP_TYPE_BASIC);
 
@@ -150,7 +150,7 @@ public class MatchPrepareAfterCollectClassifierTest
         assertThat(MatchCollectUtils.canBeMatchForMatchCollect(basicWithCollectLowestPriority, queryContext.getNativeQueryCollectDataList())).isTrue();
 
         QueryContext result = matchPrepareAfterCollectClassifier.classify(classifyArgs, queryContext);
-        LogicalMatchData expectedMatchData = new LogicalMatchData(LogicalMatchData.Operator.AND, List.of(data, onlyMatch, basicWithCollectLowestPriority));
+        LogicalMatchData expectedMatchData = new LogicalMatchData(LogicalMatchData.Operator.AND, List.of(onlyMatch, basicWithCollectLowestPriority, data));
         assertThat(result.getMatchData()).isEqualTo(Optional.of(expectedMatchData));
         assertThat(result.getRemainingCollectColumns()).isEmpty();
         assertThat(result.isCanBeTight()).isFalse();
@@ -248,7 +248,7 @@ public class MatchPrepareAfterCollectClassifierTest
         DispatcherTableHandle dispatcherTableHandle = mock(DispatcherTableHandle.class);
         QueryMatchData basicColumn = generateQueryMatchData(WarmUpType.WARM_UP_TYPE_BASIC);
         QueryMatchData luceneColumn = generateQueryMatchData(WarmUpType.WARM_UP_TYPE_LUCENE);
-        QueryMatchData dataColumn = generateQueryMatchData(WarmUpType.WARM_UP_TYPE_DATA);
+        QueryMatchData dataColumn = generateQueryMatchData(WarmUpType.WARM_UP_TYPE_BASIC);
         WarmedWarmupTypes.Builder warmedWarmupTypes = new WarmedWarmupTypes.Builder();
         ClassifyArgs classifyArgs = new ClassifyArgs(
                 dispatcherTableHandle,
@@ -283,7 +283,7 @@ public class MatchPrepareAfterCollectClassifierTest
         QueryMatchData basicMatchCollectColumn = generateQueryMatchData(WarmUpType.WARM_UP_TYPE_BASIC, true);
         QueryMatchData basicColumn = generateQueryMatchData(WarmUpType.WARM_UP_TYPE_BASIC);
         QueryMatchData luceneColumn = generateQueryMatchData(WarmUpType.WARM_UP_TYPE_LUCENE);
-        QueryMatchData dataColumn = generateQueryMatchData(WarmUpType.WARM_UP_TYPE_DATA);
+        QueryMatchData dataColumn = generateQueryMatchData(WarmUpType.WARM_UP_TYPE_BASIC);
         WarmedWarmupTypes.Builder warmedWarmupTypes = new WarmedWarmupTypes.Builder();
         ClassifyArgs classifyArgs = new ClassifyArgs(
                 dispatcherTableHandle,
@@ -314,7 +314,7 @@ public class MatchPrepareAfterCollectClassifierTest
         QueryMatchData basicMatchCollectColumn = generateQueryMatchData(WarmUpType.WARM_UP_TYPE_BASIC, true);
         QueryMatchData basicColumn = generateQueryMatchData(WarmUpType.WARM_UP_TYPE_BASIC);
         QueryMatchData luceneColumn = generateQueryMatchData(WarmUpType.WARM_UP_TYPE_LUCENE);
-        QueryMatchData dataColumn = generateQueryMatchData(WarmUpType.WARM_UP_TYPE_DATA);
+        QueryMatchData dataColumn = generateQueryMatchData(WarmUpType.WARM_UP_TYPE_BASIC);
         WarmedWarmupTypes.Builder warmedWarmupTypes = new WarmedWarmupTypes.Builder();
         ClassifyArgs classifyArgs = new ClassifyArgs(
                 dispatcherTableHandle,

@@ -28,7 +28,6 @@ import java.lang.foreign.StructLayout;
 import java.lang.foreign.ValueLayout;
 import java.time.Instant;
 import java.util.Objects;
-import java.util.UUID;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
@@ -43,7 +42,6 @@ public class WarmUpElement
 
     public static final String WARP_COLUMN = "warpColumn";
     public static final String WARM_UP_TYPE = "warmUpType";
-    public static final String STORE_ID = "storeId";
     public static final String REC_TYPE_CODE = "recTypeCode";
     public static final String REC_TYPE_LENGTH = "recTypeLength";
     public static final String WARM_UP_CONTEXT_SIZE = "warmUpContextSize";
@@ -87,11 +85,6 @@ public class WarmUpElement
     private final WarmState warmState;
     private final int totalRecords;
 
-    /**
-     * unique id for cacheManager, all WE that warmed in @CacheManager::storePages will have the same storeId
-     */
-    private final UUID storeId;
-
     static {
         WARM_UP_ELEMENT_ATT_LAYOUT = MemoryLayout.structLayout(
                 ValueLayout.JAVA_SHORT.withName("recTypeLength"),
@@ -122,7 +115,6 @@ public class WarmUpElement
             boolean isImported,
             WarmState warmState,
             int totalRecords,
-            UUID storeId,
             long creationTime,
             long firstUsedTimestamp)
     {
@@ -145,7 +137,6 @@ public class WarmUpElement
         this.isImported = isImported;
         this.warmState = warmState;
         this.totalRecords = totalRecords;
-        this.storeId = storeId;
         this.creationTime = creationTime;
         this.firstUsedTimestamp = firstUsedTimestamp;
         this.lastUsedTimestamp = System.currentTimeMillis(); // when loading from DB sets to loading time
@@ -169,7 +160,6 @@ public class WarmUpElement
                 .endOffset(warmUpElement.getEndOffset())
                 .warmId(warmUpElement.getWarmId())
                 .state(warmUpElement.getState())
-                .storeId(warmUpElement.getStoreId())
                 .exportState(warmUpElement.getExportState())
                 .isImported(warmUpElement.isImported())
                 .totalRecords(warmUpElement.getTotalRecords())
@@ -194,12 +184,6 @@ public class WarmUpElement
     public WarmUpType getWarmUpType()
     {
         return warmUpType;
-    }
-
-    @JsonProperty(STORE_ID)
-    public UUID getStoreId()
-    {
-        return storeId;
     }
 
     @JsonProperty(REC_TYPE_CODE)
@@ -260,8 +244,7 @@ public class WarmUpElement
     public boolean isRepresentTheSameElement(WarmUpElement other)
     {
         return warpColumn.equals(other.getWarpColumn()) &&
-                warmUpType.equals(other.getWarmUpType()) &&
-                Objects.equals(storeId, other.getStoreId());    // storeId might be null
+                warmUpType.equals(other.getWarmUpType());
     }
 
     @JsonIgnore
@@ -277,12 +260,6 @@ public class WarmUpElement
             this.firstUsedTimestamp = lastUsedTimestamp;
         }
         this.lastUsedTimestamp = lastUsedTimestamp;
-    }
-
-    @JsonIgnore
-    public boolean hasStoreId()
-    {
-        return storeId != null;
     }
 
     @JsonProperty(START_OFFSET)
@@ -420,7 +397,6 @@ public class WarmUpElement
                 ", warmState=" + warmState +
                 ", totalRecords=" + totalRecords +
                 ", isImported=" + isImported +
-                ", storeId=" + storeId +
                 '}';
     }
 
@@ -445,7 +421,6 @@ public class WarmUpElement
                 (queryReadSize == warmUpElement.queryReadSize) &&
                 (warmEvents == warmUpElement.warmEvents) &&
                 (warmId == warmUpElement.warmId) &&
-                Objects.equals(storeId, warmUpElement.storeId) &&
                 (totalRecords == warmUpElement.totalRecords) &&
                 (matchOffset == warmUpElement.matchOffset) &&
                 (matchReadSize == warmUpElement.matchReadSize) &&
@@ -459,7 +434,7 @@ public class WarmUpElement
     @Override
     public int hashCode()
     {
-        return Objects.hash(warpColumn, warmUpType, recTypeCode, recTypeLength, warmUpContextSize, warmupElementStats, startOffset, queryOffset, queryReadSize, warmEvents, matchOffset, matchReadSize, endOffset, state, exportState, isImported, warmState, storeId, totalRecords);
+        return Objects.hash(warpColumn, warmUpType, recTypeCode, recTypeLength, warmUpContextSize, warmupElementStats, startOffset, queryOffset, queryReadSize, warmEvents, matchOffset, matchReadSize, endOffset, state, exportState, isImported, warmState, totalRecords);
     }
 
     @JsonPOJOBuilder
@@ -488,7 +463,6 @@ public class WarmUpElement
         private int totalRecords;
         private boolean isImported;
         private WarmState warmState = WarmState.HOT;
-        private UUID storeId;
 
         @JsonProperty(WARM_UP_TYPE)
         public Builder warmUpType(WarmUpType warmUpType)
@@ -615,13 +589,6 @@ public class WarmUpElement
             return this;
         }
 
-        @JsonProperty(STORE_ID)
-        public Builder storeId(UUID storeId)
-        {
-            this.storeId = storeId;
-            return this;
-        }
-
         @JsonProperty(IS_IMPORTED)
         public Builder isImported(boolean isImported)
         {
@@ -679,7 +646,6 @@ public class WarmUpElement
                     isImported,
                     warmState,
                     totalRecords,
-                    storeId,
                     creationTime,
                     firstUsedTimestamp);
             warmUpElement.lastUsedTimestamp = lastUsedTimestamp;

@@ -37,7 +37,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -269,8 +268,7 @@ public class RowGroupDataService
         Collection<WarmUpElement> updatedWarmUpElements = new ArrayList<>(existingWarmUpElements);
         Optional<WarmUpElement> weToOverride = Optional.empty();
         for (WarmUpElement we : existingWarmUpElements) {
-            if ((Objects.equals(we.getStoreId(), warmUpElement.getStoreId()) || (we.getState().state() == WarmUpElementState.State.FAILED_TEMPORARILY)) && // if there's temporary-failed WE, replace it with the new one, even if it has a different storeId because this is how CacheManager warm-up retries work
-                    we.getWarpColumn().equals(warmUpElement.getWarpColumn()) &&
+            if (we.getWarpColumn().equals(warmUpElement.getWarpColumn()) &&
                     we.getWarmUpType().equals(warmUpElement.getWarmUpType())) {
                 weToOverride = Optional.of(we);
                 break;

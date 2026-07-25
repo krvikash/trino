@@ -552,7 +552,7 @@ public class DispatcherPageSourceProviderTest
                 eq(basicQueryContext),
                 any(),
                 eq(dispatcherTableHandle),
-                eq(Optional.of(connectorSession))))
+                eq(connectorSession)))
                 .thenReturn(queryContext);
     }
 }

@@ -118,7 +118,7 @@ public class ProxyExecutionTaskTest
         queryContext = mock(QueryContext.class);
         queryClassifier = mock(QueryClassifier.class);
         dispatcherProxiedConnectorTransformer = mock(DispatcherProxiedConnectorTransformer.class);
-        when(queryClassifier.classify(any(), any(), any(), eq(Optional.of(connectorSession)), eq(Optional.empty()), any())).thenReturn(queryContext);
+        when(queryClassifier.classify(any(), any(), any(), eq(connectorSession), any())).thenReturn(queryContext);
         warmingManager = mock(WarmingManager.class);
         when(warmingManager.importWeGroup(any(ConnectorSession.class), any(RowGroupKey.class), anyList())).thenReturn(Optional.empty());
         SchemaTableName schemaTableName = new SchemaTableName("schema", "table");
@@ -169,8 +169,8 @@ public class ProxyExecutionTaskTest
 
         EventBus eventBus = mock(EventBus.class);
         ProxyExecutionTask proxyExecutionTask = createWarmExecutionTask(warmingServiceStats, eventBus);
-        when(queryClassifier.getBasicQueryContext(eq(columnHandleList), eq(dispatcherTableHandle), eq(DynamicFilter.EMPTY), eq(connectorSession))).thenReturn(queryContext);
-        when(queryClassifier.classify(eq(queryContext), eq(rowGroupData), eq(dispatcherTableHandle), eq(Optional.of(connectorSession)), eq(Optional.empty()), eq(ClassificationType.QUERY))).thenReturn(queryContext);
+        when(queryClassifier.getBasicQueryContext(eq(columnHandleList), eq(dispatcherTableHandle), eq(DynamicFilter.EMPTY), eq(connectorSession), eq(ClassificationType.WARMING))).thenReturn(queryContext);
+        when(queryClassifier.classify(eq(queryContext), eq(rowGroupData), eq(dispatcherTableHandle), eq(connectorSession), eq(ClassificationType.WARMING))).thenReturn(queryContext);
         proxyExecutionTask.run();
 
         assertThat(warmingServiceStats.getwarm_finished()).isEqualTo(1);
@@ -198,8 +198,8 @@ public class ProxyExecutionTaskTest
 
         EventBus eventBus = mock(EventBus.class);
         ProxyExecutionTask proxyExecutionTask = createWarmExecutionTask(warmingServiceStats, eventBus);
-        when(queryClassifier.getBasicQueryContext(eq(columnHandleList), eq(dispatcherTableHandle), eq(DynamicFilter.EMPTY), any())).thenReturn(queryContext);
-        when(queryClassifier.classify(eq(queryContext), eq(rowGroupData), eq(dispatcherTableHandle), eq(Optional.of(connectorSession)), eq(Optional.empty()), eq(ClassificationType.QUERY))).thenReturn(queryContext);
+        when(queryClassifier.getBasicQueryContext(eq(columnHandleList), eq(dispatcherTableHandle), eq(DynamicFilter.EMPTY), eq(connectorSession), eq(ClassificationType.WARMING))).thenReturn(queryContext);
+        when(queryClassifier.classify(eq(queryContext), eq(rowGroupData), eq(dispatcherTableHandle), eq(connectorSession), eq(ClassificationType.WARMING))).thenReturn(queryContext);
         proxyExecutionTask.run();
         verify(workerWarmingService, times(1)).warmTaskFinished();
         verify(workerWarmingService, times(1)).removeRowGroupFromSubmittedRowGroup(any());

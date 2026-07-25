@@ -15,14 +15,12 @@ package io.trino.plugin.warp.dispatcher.query.classifier;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Streams;
 import io.airlift.slice.Slices;
 import io.trino.plugin.warp.dispatcher.DispatcherProxiedConnectorTransformer;
 import io.trino.plugin.warp.dispatcher.DispatcherTableHandle;
 import io.trino.plugin.warp.dispatcher.SingleValue;
 import io.trino.plugin.warp.dispatcher.model.RegularColumn;
 import io.trino.plugin.warp.dispatcher.model.RowGroupData;
-import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
 import io.trino.plugin.warp.dispatcher.model.WarpColumn;
 import io.trino.plugin.warp.dispatcher.query.PredicateContext;
 import io.trino.plugin.warp.dispatcher.query.QueryContext;
@@ -198,11 +196,9 @@ class PrefilledCollectClassifier
                         .filter(pair -> pair.getKey().isPresent())
                         .collect(Collectors.toMap(pair -> pair.getKey().get().getWarpColumn(), Function.identity())));
 
-        // Add partition columns and columns that their WarmUpElement has a single value
-        // (tightness is irrelevant since there is only one value in the entire split)
+        // Add partition columns (tightness is irrelevant since there is only one value in the entire split)
         Map<WarpColumn, Pair<Optional<QueryMatchData>, SingleValue>> singleValueInEntireSplit =
-                Streams.concat(getPartitionColumnSingleValues(queryContext, classifyArgs.getRowGroupData()).entrySet().stream(),
-                                getSingleValueWarmUpElements(queryContext, classifyArgs.getWarmedWarmupTypes().dataWarmedElements()).entrySet().stream())
+                getPartitionColumnSingleValues(queryContext, classifyArgs.getRowGroupData()).entrySet().stream()
                         .collect(Collectors.toMap(Map.Entry::getKey, entry -> Pair.of(Optional.empty(), entry.getValue()), (v, _) -> v));
         res.putAll(singleValueInEntireSplit);
 
@@ -257,30 +253,6 @@ class PrefilledCollectClassifier
                 .collect(Collectors.toMap(
                         pair -> dispatcherProxiedConnectorTransformer.getWarpRegularColumn(pair.getKey()),
                         pair -> SingleValue.create(dispatcherProxiedConnectorTransformer.getColumnType(pair.getKey()), pair.getValue().get())));
-    }
-
-    private Map<WarpColumn, SingleValue> getSingleValueWarmUpElements(QueryContext queryContext, ImmutableMap<WarpColumn, WarmUpElement> dataWarmedElements)
-    {
-        Map<WarpColumn, SingleValue> result = new HashMap<>();
-        for (Map.Entry<Integer, ColumnHandle> entry : queryContext.getRemainingCollectColumnByBlockIndex().entrySet()) {
-            RegularColumn regularColumn = dispatcherProxiedConnectorTransformer.getWarpRegularColumn(entry.getValue());
-            WarmUpElement warmUpElement = dataWarmedElements.get(regularColumn);
-            if (warmUpElement != null) {
-                Type type = dispatcherProxiedConnectorTransformer.getColumnType(entry.getValue());
-                if (warmUpElement.getWarmupElementStats().isSingleValue() && warmUpElement.getRecTypeCode().isSupportedFiltering()) {
-                    // minValue = maxValue and 0 nullCount
-                    SingleValue singleValue = createSingleValueFromStat(warmUpElement.getWarmupElementStats().getMaxValue(), type);
-                    result.put(regularColumn, singleValue);
-                }
-                else if ((warmUpElement.getWarmupElementStats().getNullsCount() > 0) &&
-                        warmUpElement.getWarmupElementStats().getNullsCount() == warmUpElement.getTotalRecords()) {
-                    // all nulls
-                    SingleValue nullSingleValue = SingleValue.create(type, null);
-                    result.put(regularColumn, nullSingleValue);
-                }
-            }
-        }
-        return result;
     }
 
     private SingleValue createSingleValueFromStat(Object statValue, Type type)

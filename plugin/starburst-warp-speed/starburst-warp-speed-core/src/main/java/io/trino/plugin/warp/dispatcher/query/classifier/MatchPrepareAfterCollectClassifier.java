@@ -17,7 +17,6 @@ import com.google.common.collect.ImmutableList;
 import io.airlift.log.Logger;
 import io.trino.plugin.warp.dispatcher.query.MatchCollectIdService;
 import io.trino.plugin.warp.dispatcher.query.MatchCollectUtils;
-import io.trino.plugin.warp.dispatcher.query.MatchCollectUtils.MatchCollectType;
 import io.trino.plugin.warp.dispatcher.query.QueryContext;
 import io.trino.plugin.warp.dispatcher.query.data.collect.NativeQueryCollectData;
 import io.trino.plugin.warp.dispatcher.query.data.collect.PrefilledQueryCollectData;
@@ -127,7 +126,6 @@ class MatchPrepareAfterCollectClassifier
                     handleRemovedMatchCollectElement(
                             nativeQueryCollectData,
                             classifyArgs,
-                            nativeQueryCollectDataQueue,
                             remainingCollectColumnByBlockIndex);
                 }
 
@@ -204,7 +202,6 @@ class MatchPrepareAfterCollectClassifier
                         handleRemovedMatchCollectElement(
                                 nativeQueryCollectData,
                                 classifyArgs,
-                                nativeQueryCollectDataQueue,
                                 remainingCollectColumnByBlockIndex);
                     }
                     else {
@@ -225,18 +222,9 @@ class MatchPrepareAfterCollectClassifier
     private void handleRemovedMatchCollectElement(
             NativeQueryCollectData nativeQueryCollectData,
             ClassifyArgs classifyArgs,
-            Deque<NativeQueryCollectData> nativeQueryCollectDataQueue,
             Map<Integer, ColumnHandle> remainingCollectColumnByBlockIndex)
     {
-        // Match collected columns have DATA \ BASIC warmUpElement (See NativeCollectClassifier#createMatchCollect)
-        if (WarmUpType.WARM_UP_TYPE_DATA.equals(nativeQueryCollectData.getWarmUpElement().getWarmUpType())) {
-            nativeQueryCollectDataQueue.add(nativeQueryCollectData.asBuilder()
-                    .matchCollectType(MatchCollectType.DISABLED)
-                    .build());
-        }
-        else {
-            int blockIndex = nativeQueryCollectData.getBlockIndex();
-            remainingCollectColumnByBlockIndex.put(blockIndex, classifyArgs.getCollectColumn(blockIndex));
-        }
+        int blockIndex = nativeQueryCollectData.getBlockIndex();
+        remainingCollectColumnByBlockIndex.put(blockIndex, classifyArgs.getCollectColumn(blockIndex));
     }
 }

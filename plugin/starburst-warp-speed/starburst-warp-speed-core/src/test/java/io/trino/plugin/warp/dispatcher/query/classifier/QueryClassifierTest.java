@@ -113,6 +113,7 @@ public class QueryClassifierTest
      * V0 [data]
      * V1[data,basic]
      * V2[data,basic,lucene]
+     * data elements simulate stale persisted metadata from old deployments; classification ignores them
      */
 
     private final SchemaTableName schemaTableName = new SchemaTableName("s1", "t1");
@@ -262,7 +263,7 @@ public class QueryClassifierTest
                 new QueryContext(predicateContextData, ImmutableList.copyOf(testingConnectorColumnHandles), true, "query-id"),
                 rowGroupData,
                 dispatcherTableHandle,
-                Optional.of(session));
+                session);
 
         assertThat(queryContext.getRemainingCollectColumnByBlockIndex()).isEqualTo(Map.of(
                 0, testingConnectorColumnHandles.get(0),
@@ -287,7 +288,7 @@ public class QueryClassifierTest
                 new QueryContext(predicateContextData, ImmutableList.of(testingConnectorColumnHandles.get(0), testingConnectorColumnHandles.get(1)), true, "query-id"),
                 rowGroupData,
                 dispatcherTableHandle,
-                Optional.of(session));
+                session);
 
         assertThat(queryContext.getRemainingCollectColumnByBlockIndex()).isEqualTo(Map.of(
                 0, testingConnectorColumnHandles.get(0),
@@ -328,7 +329,7 @@ public class QueryClassifierTest
                 new QueryContext(predicateContextData, ImmutableList.of(matchOnlyLuceneColumn), true, "query-id"),
                 rowGroupData,
                 dispatcherTableHandle,
-                Optional.of(session));
+                session);
 
         assertThat(queryContext.getRemainingCollectColumnByBlockIndex()).isEqualTo(Map.of(0, matchOnlyLuceneColumn));
         assertThat(queryContext.getPredicateContextData().getRemainingColumns()).isEmpty();
@@ -364,7 +365,7 @@ public class QueryClassifierTest
                 new QueryContext(predicateContextData, ImmutableList.of(matchOnlyLuceneColumn), true, "query-id"),
                 rowGroupData,
                 dispatcherTableHandle,
-                Optional.of(session));
+                session);
 
         assertThat(queryContext.getRemainingCollectColumnByBlockIndex()).isEqualTo(Map.of(0, matchOnlyLuceneColumn));
         assertThat(queryContext.getPredicateContextData().getRemainingColumns().size()).isZero();
@@ -397,7 +398,7 @@ public class QueryClassifierTest
                 new QueryContext(predicateContextData, ImmutableList.of(matchOnlyLuceneColumn), true, "query-id"),
                 rowGroupData,
                 dispatcherTableHandle,
-                Optional.of(session));
+                session);
 
         assertThat(queryContext.getRemainingCollectColumnByBlockIndex()).isEqualTo(Map.of(0, matchOnlyLuceneColumn));
         assertThat(queryContext.getPredicateContextData().getRemainingColumns().size()).isZero();
@@ -428,7 +429,7 @@ public class QueryClassifierTest
                 baseQueryContext,
                 rowGroupData,
                 dispatcherTableHandle,
-                Optional.of(session));
+                session);
         assertThat(queryContext.getRemainingCollectColumnByBlockIndex()).isEqualTo(Map.of(0, testingConnectorColumnHandles.getFirst(), 1, dataIntColumn));
         assertThat(queryContext.getPredicateContextData().getRemainingColumns().size()).isEqualTo(1);
         assertThat(queryContext.getNativeQueryCollectDataList()).isEmpty();
@@ -453,7 +454,7 @@ public class QueryClassifierTest
                 new QueryContext(predicateContextData, ImmutableList.of(matchCollectIntColumn, matchCollectIntColumn2), true, "query-id"),
                 rowGroupData,
                 mockDispatcherTableHandle(schemaTableName),
-                Optional.of(session));
+                session);
 
         assertThat(queryContext.getRemainingCollectColumnByBlockIndex()).isEmpty();
         assertThat(queryContext.getPredicateContextData().getRemainingColumns()).isEmpty();
@@ -492,7 +493,7 @@ public class QueryClassifierTest
                 new QueryContext(predicateContextData, ImmutableList.of(matchOnlyBasicColumn), true, "query-id"),
                 rowGroupData,
                 mockDispatcherTableHandle(schemaTableName),
-                Optional.of(session));
+                session);
 
         assertThat(queryContext.getRemainingCollectColumnByBlockIndex()).isEmpty();
         assertThat(queryContext.getPredicateContextData().getRemainingColumns()).isEmpty();
@@ -532,7 +533,7 @@ public class QueryClassifierTest
                 new QueryContext(predicateContextData, ImmutableList.of(matchOnlyLuceneColumn), true, "query-id"),
                 rowGroupData,
                 mockDispatcherTableHandle(schemaTableName),
-                Optional.of(session));
+                session);
 
         assertThat(queryContext.getRemainingCollectColumnByBlockIndex()).isEmpty();
         assertThat(queryContext.getPredicateContextData().getRemainingColumns()).isEmpty();
@@ -570,7 +571,7 @@ public class QueryClassifierTest
                 new QueryContext(predicateContextData, ImmutableList.of(columnHandle), true, "query-id"),
                 rowGroupData,
                 dispatcherTableHandle,
-                Optional.of(session));
+                session);
 
         assertThat(queryContext.getMatchLeavesDFS().size()).isEqualTo(1);
         QueryMatchData queryMatchData = queryContext.getMatchLeavesDFS().getFirst();
@@ -604,7 +605,7 @@ public class QueryClassifierTest
         PredicateContextData predicateContextData = predicateContextFactory.create(session, DynamicFilter.EMPTY, dispatcherTableHandle);
 
         QueryContext baseQueryContext = new QueryContext(predicateContextData, remainingCollectColumns, true, "query-id");
-        QueryContext queryContext = queryClassifier.classify(baseQueryContext, rowGroupData, mockDispatcherTableHandle(schemaTableName), Optional.of(session));
+        QueryContext queryContext = queryClassifier.classify(baseQueryContext, rowGroupData, mockDispatcherTableHandle(schemaTableName), session);
 
         assertThat(queryContext.getRemainingCollectColumnByBlockIndex()).isEmpty();
         assertThat(queryContext.getPredicateContextData().getRemainingColumns()).isEmpty();
@@ -648,7 +649,7 @@ public class QueryClassifierTest
                 new QueryContext(predicateContextData, ImmutableList.of(intPartitionColumn, varcharPartitionColumn), true, "query-id"),
                 rowGroupDataWithPartitionKeys,
                 dispatcherTableHandle,
-                Optional.of(session));
+                session);
 
         // Since we have only prefilled columns, we convert one column to regular collect in order to create a valid tx.
         assertThat(queryContext.getRemainingCollectColumnByBlockIndex()).isEmpty();
@@ -684,7 +685,7 @@ public class QueryClassifierTest
                 new QueryContext(predicateContextData, remainingCollectColumns, true, "query-id"),
                 rowGroupDataWithPartitionKeys,
                 dispatcherTableHandle,
-                Optional.of(session));
+                session);
 
         assertThat(queryContext.getRemainingCollectColumnByBlockIndex()).isEqualTo(Map.of(2, column1));
         assertThat(queryContext.getPredicateContextData().getRemainingColumns().contains(new RegularColumn(column1.name()))).isTrue();
@@ -726,7 +727,7 @@ public class QueryClassifierTest
                 new QueryContext(predicateContextData, ImmutableList.of(intPartitionColumn, varcharPartitionColumn), true, "query-id"),
                 rowGroupDataWithPartitionKeys,
                 dispatcherTableHandle,
-                Optional.of(session));
+                session);
 
         assertThat(queryContext.getRemainingCollectColumnByBlockIndex()).isEmpty();
         assertThat(queryContext.getPredicateContextData().getRemainingColumns()).isEmpty();
@@ -827,7 +828,7 @@ public class QueryClassifierTest
                 basicQueryContext,
                 rowGroupData,
                 dispatcherTableHandle,
-                Optional.of(session));
+                session);
 
         assertThat(queryContext.getRemainingCollectColumnByBlockIndex()).isEmpty();
         assertThat(queryContext.getPredicateContextData().getRemainingColumns()).containsExactly(dynamicFilterColumn);

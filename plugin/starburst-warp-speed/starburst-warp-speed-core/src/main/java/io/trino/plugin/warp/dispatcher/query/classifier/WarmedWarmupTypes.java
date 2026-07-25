@@ -33,29 +33,21 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 public final class WarmedWarmupTypes
 {
-    private final ImmutableMap<WarpColumn, WarmUpElement> dataWarmedElements;
     private final ImmutableMap<WarpColumn, WarmUpElement> luceneWarmedElements;
     private final ImmutableListMultimap<WarpColumn, WarmUpElement> basicWarmedElements;
     private final ImmutableMap<WarpColumn, Integer> warpColumnToTotalRecords;
     private final ImmutableSet<WarpColumn> warmedColumns;
 
     private WarmedWarmupTypes(
-            ImmutableMap<WarpColumn, WarmUpElement> dataWarmedElements,
             ImmutableMap<WarpColumn, WarmUpElement> luceneWarmedElements,
             ImmutableListMultimap<WarpColumn, WarmUpElement> basicWarmedElements,
             ImmutableMap<WarpColumn, Integer> warpColumnToTotalRecords,
             ImmutableSet<WarpColumn> warmedColumns)
     {
-        this.dataWarmedElements = dataWarmedElements;
         this.luceneWarmedElements = luceneWarmedElements;
         this.basicWarmedElements = basicWarmedElements;
         this.warpColumnToTotalRecords = warpColumnToTotalRecords;
         this.warmedColumns = warmedColumns;
-    }
-
-    public ImmutableMap<WarpColumn, WarmUpElement> dataWarmedElements()
-    {
-        return dataWarmedElements;
     }
 
     public ImmutableMap<WarpColumn, WarmUpElement> luceneWarmedElements()
@@ -71,7 +63,7 @@ public final class WarmedWarmupTypes
     public Optional<WarmUpElement> getByTypeAndColumn(WarmUpType warmUpType, WarpColumn warpColumn, TransformFunction transformFunction)
     {
         return switch (warmUpType) {
-            case WARM_UP_TYPE_DATA -> Optional.ofNullable(dataWarmedElements.get(warpColumn));
+            case WARM_UP_TYPE_DATA -> Optional.empty();
             case WARM_UP_TYPE_LUCENE -> Optional.ofNullable(luceneWarmedElements.get(warpColumn));
             case WARM_UP_TYPE_BASIC -> basicWarmedElements.get(warpColumn).stream()
                     .filter(x ->
@@ -87,7 +79,7 @@ public final class WarmedWarmupTypes
     public boolean contains(WarpColumn warpColumn, WarmUpType warmUpType, TransformFunction transformFunction)
     {
         return switch (warmUpType) {
-            case WARM_UP_TYPE_DATA -> dataWarmedElements.get(warpColumn) != null;
+            case WARM_UP_TYPE_DATA -> false;
             case WARM_UP_TYPE_LUCENE -> luceneWarmedElements.get(warpColumn) != null;
             case WARM_UP_TYPE_BASIC -> basicWarmedElements.containsKey(warpColumn) &&
                     (((basicWarmedElements.get(warpColumn).stream().findFirst().get().getWarpColumn() instanceof TransformedColumn transformedColumn) &&
@@ -113,15 +105,14 @@ public final class WarmedWarmupTypes
             return false;
         }
         var that = (WarmedWarmupTypes) obj;
-        return Objects.equals(this.dataWarmedElements, that.dataWarmedElements) &&
-                Objects.equals(this.luceneWarmedElements, that.luceneWarmedElements) &&
+        return Objects.equals(this.luceneWarmedElements, that.luceneWarmedElements) &&
                 Objects.equals(this.basicWarmedElements, that.basicWarmedElements);
     }
 
     @Override
     public int hashCode()
     {
-        return Objects.hash(dataWarmedElements, luceneWarmedElements, basicWarmedElements);
+        return Objects.hash(luceneWarmedElements, basicWarmedElements);
     }
 
     @Override
@@ -130,7 +121,6 @@ public final class WarmedWarmupTypes
         return "WarmedWarmupTypes[" +
                 "warmedColumns=" + warmedColumns + ", " +
                 "warpColumnToTotalRecords=" + warpColumnToTotalRecords + ", " +
-                "dataWarmedElements=" + dataWarmedElements + ", " +
                 "luceneWarmedElements=" + luceneWarmedElements + ", " +
                 "basicWarmedElements=" + basicWarmedElements + ']';
     }
@@ -151,7 +141,6 @@ public final class WarmedWarmupTypes
 
     public static class Builder
     {
-        private final ImmutableMap.Builder<WarpColumn, WarmUpElement> dataWarmedElements = ImmutableMap.builder();
         private final ImmutableMap.Builder<WarpColumn, WarmUpElement> luceneWarmedElements = ImmutableMap.builder();
         private final ImmutableListMultimap.Builder<WarpColumn, WarmUpElement> basicWarmedElements = ImmutableListMultimap.builder();
 
@@ -162,7 +151,10 @@ public final class WarmedWarmupTypes
         public void add(WarmUpElement we)
         {
             switch (we.getWarmUpType()) {
-                case WARM_UP_TYPE_DATA -> dataWarmedElements.put(we.getWarpColumn(), we);
+                case WARM_UP_TYPE_DATA -> {
+                    // stale DATA elements may still exist in row group metadata persisted by old versions
+                    return;
+                }
                 case WARM_UP_TYPE_LUCENE -> luceneWarmedElements.put(we.getWarpColumn(), we);
                 case WARM_UP_TYPE_BASIC -> basicWarmedElements.put(we.getWarpColumn(), we);
                 case WARM_UP_TYPE_NUM_OF -> throw new RuntimeException();
@@ -177,7 +169,6 @@ public final class WarmedWarmupTypes
         public WarmedWarmupTypes build()
         {
             return new WarmedWarmupTypes(
-                    dataWarmedElements.buildOrThrow(),
                     luceneWarmedElements.buildOrThrow(),
                     basicWarmedElements.build(),
                     ImmutableMap.copyOf(warpColumnToTotalRecords),

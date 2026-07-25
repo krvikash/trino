@@ -26,7 +26,6 @@ import io.trino.plugin.warp.expression.WarpCall;
 import io.trino.plugin.warp.expression.WarpExpression;
 import io.trino.plugin.warp.expression.WarpExpressionData;
 import io.trino.plugin.warp.expression.WarpPrimitiveConstant;
-import io.trino.plugin.warp.gen.constants.WarmUpType;
 import io.trino.plugin.warp.log.ShapingLogger;
 import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.spi.type.BooleanType;
@@ -82,11 +81,6 @@ class MatchClassifier
             }
             else {
                 for (QueryMatchData queryMatchData : matchData.getLeavesDFS()) {
-                    if (queryMatchData.getWarmUpElement().getWarmUpType() == WarmUpType.WARM_UP_TYPE_DATA) {
-                        shapingLogger.error("calculated queryMatchData with WARM_UP_TYPE_DATA type, skip matching. matchData=%s.", matchData);
-                        matchColumns.clear();
-                        break;
-                    }
                     WarpColumn warpColumn = queryMatchData.getWarpColumn();
                     matchColumns.add(warpColumn);
                 }
