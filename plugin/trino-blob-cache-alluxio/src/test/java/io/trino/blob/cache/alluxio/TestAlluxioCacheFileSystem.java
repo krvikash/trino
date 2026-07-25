@@ -11,7 +11,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.filesystem.alluxio;
+package io.trino.blob.cache.alluxio;
 
 import com.google.common.collect.ImmutableList;
 import io.airlift.units.DataSize;
@@ -29,7 +29,6 @@ import org.junit.jupiter.api.Test;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Comparator;
@@ -37,6 +36,7 @@ import java.util.Iterator;
 import java.util.stream.Stream;
 
 import static io.airlift.tracing.Tracing.noopTracer;
+import static io.trino.blob.cache.alluxio.TestingBlobCache.testingBlobCache;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -45,7 +45,7 @@ public class TestAlluxioCacheFileSystem
 {
     private MemoryFileSystem memoryFileSystem;
     private CacheFileSystem fileSystem;
-    private AlluxioFileSystemCache cache;
+    private AlluxioCache cache;
     private Path tempDirectory;
 
     @BeforeAll
@@ -55,14 +55,14 @@ public class TestAlluxioCacheFileSystem
         tempDirectory = Files.createTempDirectory("test");
         Path cacheDirectory = tempDirectory.resolve("cache");
         Files.createDirectory(cacheDirectory);
-        AlluxioFileSystemCacheConfig configuration = new AlluxioFileSystemCacheConfig()
+        AlluxioCacheConfig configuration = new AlluxioCacheConfig()
                 .setCacheDirectories(ImmutableList.of(cacheDirectory.toAbsolutePath().toString()))
                 .setCachePageSize(DataSize.valueOf("32003B"))
                 .disableTTL()
                 .setMaxCacheSizes(ImmutableList.of(DataSize.valueOf("100MB")));
         memoryFileSystem = new IncompleteStreamMemoryFileSystem();
-        cache = new AlluxioFileSystemCache(noopTracer(), configuration, new AlluxioCacheStats());
-        fileSystem = new CacheFileSystem(memoryFileSystem, cache, new DefaultCacheKeyProvider());
+        cache = new AlluxioCache(noopTracer(), configuration);
+        fileSystem = new CacheFileSystem(memoryFileSystem, testingBlobCache(cache, new AlluxioCacheStats()), new DefaultCacheKeyProvider());
     }
 
     @AfterAll
@@ -103,78 +103,6 @@ public class TestAlluxioCacheFileSystem
                     .isInstanceOf(EOFException.class);
         }
         fileSystem.deleteFile(location);
-    }
-
-    @Test
-    void testReadFullyIntoByteBufferFromCache()
-            throws IOException
-    {
-        Location location = getRootLocation().appendPath("testReadFullyIntoByteBufferFromCache");
-        byte[] content = sequentialBytes(128 * 1024);
-        try (OutputStream output = fileSystem.newOutputFile(location).create()) {
-            output.write(content);
-        }
-
-        int position = 1_000;
-        int length = 50_000;
-        try (TrinoInput input = fileSystem.newInputFile(location).newInput()) {
-            // warm the whole file into the cache
-            input.readFully(0, new byte[content.length], 0, content.length);
-
-            // cache hit fills a direct buffer without a heap intermediate
-            ByteBuffer direct = ByteBuffer.allocateDirect(length);
-            input.readFully(position, direct);
-            assertThat(direct.position()).isEqualTo(direct.limit());
-            assertBufferMatches(direct, content, position, length);
-
-            // cache hit into a heap buffer
-            ByteBuffer heap = ByteBuffer.allocate(length);
-            input.readFully(position, heap);
-            assertThat(heap.position()).isEqualTo(heap.limit());
-            assertBufferMatches(heap, content, position, length);
-        }
-        fileSystem.deleteFile(location);
-    }
-
-    @Test
-    void testReadFullyIntoByteBufferAcrossCacheBoundary()
-            throws IOException
-    {
-        Location location = getRootLocation().appendPath("testReadFullyIntoByteBufferAcrossCacheBoundary");
-        byte[] content = sequentialBytes(200 * 1024);
-        try (OutputStream output = fileSystem.newOutputFile(location).create()) {
-            output.write(content);
-        }
-
-        try (TrinoInput input = fileSystem.newInputFile(location).newInput()) {
-            // warm only a prefix, leaving later pages uncached
-            input.readFully(0, new byte[40_000], 0, 40_000);
-
-            // read spans the cached prefix and the uncached remainder
-            int length = 120_000;
-            ByteBuffer buffer = ByteBuffer.allocate(length);
-            input.readFully(0, buffer);
-            assertThat(buffer.position()).isEqualTo(buffer.limit());
-            assertBufferMatches(buffer, content, 0, length);
-        }
-        fileSystem.deleteFile(location);
-    }
-
-    private static byte[] sequentialBytes(int size)
-    {
-        byte[] content = new byte[size];
-        for (int i = 0; i < size; i++) {
-            content[i] = (byte) i;
-        }
-        return content;
-    }
-
-    private static void assertBufferMatches(ByteBuffer buffer, byte[] expected, int offset, int length)
-    {
-        buffer.flip();
-        for (int i = 0; i < length; i++) {
-            assertThat(buffer.get()).isEqualTo(expected[offset + i]);
-        }
     }
 
     @Override

@@ -237,6 +237,8 @@ public abstract class BaseIcebergConnectorTest
                         .put("iceberg.writer-sort-buffer-size", "1MB")
                         // Disable partition statistics to make diff from Trino smaller
                         .put("iceberg.partition-statistics.enabled", "false")
+                        // Some tests rely on the caching being disabled
+                        .put("iceberg.metadata-cache.enabled", "false")
                         .buildOrThrow())
                 .addIcebergProperty("fs.hadoop.enabled", "true")
                 .setInitialTables(REQUIRED_TPCH_TABLES);
@@ -4941,7 +4943,7 @@ public abstract class BaseIcebergConnectorTest
         // Using Iceberg provided file size fails the query
         assertQueryFails(
                 "SELECT * FROM test_iceberg_file_size",
-                "(Malformed ORC file\\. Invalid file metadata.*)|(.*Malformed Parquet file.*)|(Error opening Iceberg split.* Incorrect file size \\(%s\\) for file .*)".formatted(alteredValue));
+                "(Malformed ORC file\\. (Invalid file metadata|Invalid postscript).*)|(.*Malformed Parquet file.*)|(Error opening Iceberg split.* Incorrect file size \\(%s\\) for file .*)".formatted(alteredValue));
 
         assertUpdate("DROP TABLE test_iceberg_file_size");
     }

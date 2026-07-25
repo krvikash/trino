@@ -22,6 +22,7 @@ import io.airlift.json.JsonMapperProvider;
 import io.airlift.log.Level;
 import io.airlift.log.Logger;
 import io.airlift.log.Logging;
+import io.trino.blob.cache.memory.MemoryBlobCachePlugin;
 import io.trino.plugin.hive.TestingHivePlugin;
 import io.trino.plugin.hive.containers.Hive3FlociDataLake;
 import io.trino.plugin.hive.containers.HiveHadoop;
@@ -214,6 +215,8 @@ public final class IcebergQueryRunner
 
                 Path dataDir = metastoreDirectory.map(File::toPath).orElseGet(() -> queryRunner.getCoordinator().getBaseDataDir().resolve("iceberg_data"));
                 queryRunner.installPlugin(new TestingIcebergPlugin(dataDir, Optional::empty, workScheduler, () -> additionalOverrideModule));
+                queryRunner.installPlugin(new MemoryBlobCachePlugin());
+                queryRunner.loadBlobCacheManager("memory", Map.of("fs.memory-cache.max-size", "128MB"));
                 queryRunner.createCatalog(ICEBERG_CATALOG, "iceberg", icebergProperties.buildOrThrow());
 
                 queryRunner.getServers().forEach(TestingTrinoServer::getSubqueryCacheManagerRegistry);

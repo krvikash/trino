@@ -35,7 +35,6 @@ import io.trino.filesystem.azure.AzureFileSystemConfig;
 import io.trino.filesystem.azure.AzureFileSystemFactory;
 import io.trino.filesystem.cache.CacheKeyProvider;
 import io.trino.filesystem.cache.DefaultCacheKeyProvider;
-import io.trino.filesystem.cache.TrinoFileSystemCache;
 import io.trino.filesystem.gcs.ApplicationDefaultAuth;
 import io.trino.filesystem.gcs.GcsAccessTokenAuth;
 import io.trino.filesystem.gcs.GcsAuth;
@@ -46,7 +45,6 @@ import io.trino.filesystem.gcs.GcsServiceAccountAuthConfig;
 import io.trino.filesystem.gcs.GcsStorageFactory;
 import io.trino.filesystem.local.LocalFileSystemConfig;
 import io.trino.filesystem.local.LocalFileSystemFactory;
-import io.trino.filesystem.memory.MemoryFileSystemCache;
 import io.trino.filesystem.s3.S3FileSystemConfig;
 import io.trino.filesystem.s3.S3FileSystemFactory;
 import io.trino.filesystem.s3.S3FileSystemStats;
@@ -89,9 +87,6 @@ public class ResolvingFileSystemModule
     {
         MapBinder<String, TrinoFileSystemFactory> factories = newMapBinder(binder, String.class, TrinoFileSystemFactory.class);
         newOptionalBinder(binder, CacheKeyProvider.class).setDefault().to(DefaultCacheKeyProvider.class).in(Scopes.SINGLETON);
-
-        newOptionalBinder(binder, TrinoFileSystemCache.class);
-        newOptionalBinder(binder, MemoryFileSystemCache.class);
 
         StorageConfig storageConfig = buildConfigObject(StorageConfig.class);
         StorageConfigurations configurations = readStorageConfig(storageConfig.getCredentialsKey(), storageConfig.getCredentialsFile());

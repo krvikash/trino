@@ -17,12 +17,13 @@
     - [
         lib/trino-filesystem,
         lib/trino-filesystem-azure,
-        lib/trino-filesystem-cache-alluxio,
         lib/trino-filesystem-gcs,
         lib/trino-filesystem-manager,
         lib/trino-filesystem-s3,
         lib/trino-hdfs,
         lib/trino-hive-formats,
+        plugin/trino-blob-cache-alluxio,
+        plugin/trino-blob-cache-memory,
       ]
     - [
         plugin/starburst-warp-speed/starburst-warp-speed-core,
