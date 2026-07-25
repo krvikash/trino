@@ -275,9 +275,6 @@ public class WorkerTaskExecutorService
             else if (task instanceof ProxyExecutionTask) {
                 proxyExecutorService.execute(task);
             }
-            else if (task instanceof WarpCacheTask) {
-                proxyExecutorService.execute(task);
-            }
         }
     }
 

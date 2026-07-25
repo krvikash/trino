@@ -31,18 +31,15 @@ public class WarpTasksModule
 {
     private final boolean isCoordinator;
     private final boolean isWorker;
-    private final boolean isCacheMgr;
     private final Set<Class<? extends BooleanSupplier>> taskExecutionEnabledSupplierClassSet;
 
     public WarpTasksModule(
             boolean isCoordinator,
             boolean isWorker,
-            boolean isCacheMgr,
             Set<Class<? extends BooleanSupplier>> taskExecutionEnabledSupplierClassSet)
     {
         this.isCoordinator = isCoordinator;
         this.isWorker = isWorker;
-        this.isCacheMgr = isCacheMgr;
         this.taskExecutionEnabledSupplierClassSet = taskExecutionEnabledSupplierClassSet;
     }
 
@@ -59,7 +56,7 @@ public class WarpTasksModule
         binder.bind(ConnectorTaskExecutor.class).to(TaskExecutor.class);
         Multibinder<TaskResource> multibinder = Multibinder.newSetBinder(binder, TaskResource.class);
 
-        getTaskExecutors(isCoordinator, isWorker, isCacheMgr)
+        getTaskExecutors(isCoordinator, isWorker)
                 .forEach(task -> {
                     jaxrsBinder(binder).bind(task);
                     multibinder.addBinding().to(task.asSubclass(TaskResource.class));
@@ -69,22 +66,10 @@ public class WarpTasksModule
     private static boolean isTaskAvailable(
             Class<?> aClass,
             boolean isCoordinator,
-            boolean isWorker,
-            boolean isCacheMgr)
+            boolean isWorker)
     {
         if (aClass.getAnnotationsByType(TaskResourceMarker.class).length > 0) {
             TaskResourceMarker taskResourceMarker = aClass.getAnnotationsByType(TaskResourceMarker.class)[0];
-
-            if (isCacheMgr) {
-                if (!taskResourceMarker.cacheMgr()) {
-                    return false;
-                }
-            }
-            else {
-                if (!taskResourceMarker.connector()) {
-                    return false;
-                }
-            }
 
             boolean keep = false;
             if (isCoordinator) {
@@ -101,14 +86,13 @@ public class WarpTasksModule
 
     public static Set<Class<?>> getTaskExecutors(
             boolean isCoordinator,
-            boolean isWorker,
-            boolean isCacheMgr)
+            boolean isWorker)
     {
         Reflections reflections = new Reflections("io.trino.plugin.warp.extension");
         return reflections.getTypesAnnotatedWith(TaskResourceMarker.class)
                 .stream()
                 .filter(aClass -> !aClass.getPackage().getName().contains("test"))
-                .filter(aClass -> isTaskAvailable(aClass, isCoordinator, isWorker, isCacheMgr))
+                .filter(aClass -> isTaskAvailable(aClass, isCoordinator, isWorker))
                 .collect(Collectors.toSet());
     }
 }

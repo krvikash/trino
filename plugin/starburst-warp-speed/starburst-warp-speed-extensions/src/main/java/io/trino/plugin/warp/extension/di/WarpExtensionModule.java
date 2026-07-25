@@ -22,7 +22,6 @@ import io.airlift.configuration.AbstractConfigurationAwareModule;
 import io.airlift.http.server.HttpServerModule;
 import io.airlift.json.JsonModule;
 import io.trino.plugin.warp.annotation.ForWarmupRuleCloudFetcher;
-import io.trino.plugin.warp.config.CacheManagerConfig;
 import io.trino.plugin.warp.di.InitializationModule;
 import io.trino.plugin.warp.di.WarmupCloudFetcherModule;
 import io.trino.plugin.warp.di.WarpBaseModule;
@@ -80,24 +79,20 @@ public class WarpExtensionModule
         else {
             booleanSuppliers.add(WorkerReadyTaskExecutionIsAllowedSupplier.class);
         }
-        CacheManagerConfig cacheManagerConfig = buildConfigObject(CacheManagerConfig.class);
         install(
                 new WarpTasksModule(
                         isCoordinator,
                         isWorker,
-                        cacheManagerConfig.getIsCache(),
                         booleanSuppliers.build()));
         if (!Boolean.parseBoolean(config.getOrDefault(WarpExtensionConfig.USE_HTTP_SERVER_PORT, "true"))) {
             install(new HttpServerModule());
             install(new JsonModule());
 
-            CacheManagerConfig cacheManagerConfig1 = buildConfigObject(CacheManagerConfig.class);
             boolean isCoordinator1 = connectorContext.getCurrentNode().isCoordinator();
             boolean isWorker1 = WarpBaseModule.isSingle(config) || !isCoordinator1;
             WarpJaxrsModule module = new WarpJaxrsModule(
                     isCoordinator1,
-                    isWorker1,
-                    cacheManagerConfig1.getIsCache());
+                    isWorker1);
 
             install(module);
             install(binder1 -> binder1.bind(HttpServerLifeCycleHandler.class));
@@ -114,7 +109,6 @@ public class WarpExtensionModule
 
         WarmupRuleCloudFetcherConfig warmupRuleCloudFetcherConfig = buildConfigObject(WarmupRuleCloudFetcherConfig.class);
         if (isWorker &&
-                !cacheManagerConfig.getIsCache() &&
                 StringUtils.isEmpty(warmupRuleCloudFetcherConfig.getStorePath())) {
             binder.bind(new TypeLiteral<WarmupRuleFetcher<WarmupRule>>() {}).to(WorkerWarmupRuleFetcher.class);
             configBinder(binder).bindConfig(WarmupRuleCloudFetcherConfig.class, ForWarmupRuleCloudFetcher.class);

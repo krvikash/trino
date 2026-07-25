@@ -57,7 +57,7 @@ import static io.trino.plugin.warp.extension.execution.debugtools.WarmupDemoterT
 import static java.util.Objects.requireNonNull;
 
 // connector is true by default
-@TaskResourceMarker(coordinator = false, cacheMgr = true)
+@TaskResourceMarker(coordinator = false)
 @Path(WARMUP_DEMOTER_PATH)
 //@Api(value = "Demoter", tags = "Demoter")
 @Consumes(MediaType.APPLICATION_JSON)

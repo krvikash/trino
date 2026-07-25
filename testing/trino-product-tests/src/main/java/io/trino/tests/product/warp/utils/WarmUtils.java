@@ -32,8 +32,6 @@ import static io.trino.tests.product.warp.utils.JMXCachingConstants.Dictionary.D
 import static io.trino.tests.product.warp.utils.JMXCachingConstants.Dictionary.DICTIONARY_REJECTED_ELEMENTS_COUNT;
 import static io.trino.tests.product.warp.utils.JMXCachingConstants.Dictionary.DICTIONARY_SUCCESS_ELEMENTS_COUNT;
 import static io.trino.tests.product.warp.utils.JMXCachingConstants.Dictionary.WRITE_DICTIONARIES_COUNT;
-import static io.trino.tests.product.warp.utils.JMXCachingConstants.WarmingService.CACHE_WARM_ENGINE_ABORTED;
-import static io.trino.tests.product.warp.utils.JMXCachingConstants.WarmingService.CACHE_WARM_FAILED;
 import static io.trino.tests.product.warp.utils.JMXCachingConstants.WarmingService.FINISHED;
 import static io.trino.tests.product.warp.utils.JMXCachingConstants.WarmingService.SCHEDULED;
 import static io.trino.tests.product.warp.utils.JMXCachingConstants.WarmingService.STARTED;
@@ -231,19 +229,7 @@ public class WarmUtils
                 Duration.valueOf("20s"),
                 () -> {
                     QueryResult warmStats = JMXCachingManager.getWarmingStats();
-                    long cacheWarmAbortedOrFailedCount = 0;
-                    try {
-                        cacheWarmAbortedOrFailedCount = getValue(warmStats, CACHE_WARM_FAILED) + getValue(warmStats, CACHE_WARM_ENGINE_ABORTED);
-                    }
-                    catch (Exception ignore) {
-                    }
-                    if (cacheWarmAbortedOrFailedCount > 0) {
-                        logger.info("cacheWarmAbortedOrFailedCount=%s", cacheWarmAbortedOrFailedCount);
-                        assertThat(getValue(warmStats, STARTED)).isEqualTo(getValue(warmStats, WARM_ACCOMPLISHED) + cacheWarmAbortedOrFailedCount);
-                    }
-                    else {
-                        assertThat(getValue(warmStats, STARTED)).isEqualTo(getValue(warmStats, WARM_ACCOMPLISHED));
-                    }
+                    assertThat(getValue(warmStats, STARTED)).isEqualTo(getValue(warmStats, WARM_ACCOMPLISHED));
                 });
     }
 }

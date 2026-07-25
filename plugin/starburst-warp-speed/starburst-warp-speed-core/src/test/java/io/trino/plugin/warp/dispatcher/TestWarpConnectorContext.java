@@ -26,9 +26,5 @@ public class TestWarpConnectorContext
         assertAllMethodsOverridden(
                 ConnectorContext.class,
                 WarpConnectorContext.class);
-
-        assertAllMethodsOverridden(
-                WarpContext.class,
-                WarpCacheMgrConnectorContext.class);
     }
 }

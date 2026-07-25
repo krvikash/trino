@@ -27,9 +27,5 @@ public @interface TaskResourceMarker
 
     boolean worker() default true;
 
-    boolean cacheMgr() default false;
-
-    boolean connector() default true;
-
     boolean shouldCheckExecutionAllowed() default true;
 }

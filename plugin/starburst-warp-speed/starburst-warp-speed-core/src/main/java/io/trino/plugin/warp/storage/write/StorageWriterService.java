@@ -22,7 +22,6 @@ import io.trino.plugin.warp.dictionary.DictionaryException;
 import io.trino.plugin.warp.dictionary.DictionaryWarmInfo;
 import io.trino.plugin.warp.dictionary.WriteDictionary;
 import io.trino.plugin.warp.dispatcher.WarmupElementWriteMetadata;
-import io.trino.plugin.warp.dispatcher.cache.WarmupElementBlocks;
 import io.trino.plugin.warp.dispatcher.model.DictionaryInfo;
 import io.trino.plugin.warp.dispatcher.model.DictionaryKey;
 import io.trino.plugin.warp.dispatcher.model.DictionaryState;
@@ -55,7 +54,6 @@ import io.trino.plugin.warp.warmup.exceptions.WarmupException;
 import io.trino.spi.TrinoException;
 import io.trino.spi.block.Block;
 import io.trino.spi.connector.SourcePage;
-import io.trino.spi.type.Type;
 
 import java.lang.foreign.MemorySegment;
 import java.lang.foreign.SegmentAllocator;
@@ -307,7 +305,7 @@ public class StorageWriterService
             long writeBufAddr,
             WarmUpElementAllocationParams allocParams)
     {
-        // file set parameters. since in cache manager case we need to set different values per WE, we do this here for all cases for simplicity
+        // file set parameters, set per warmup element
         warmUpState.setFileCookie(
                 (int) fileCookieParams[FILE_COOKIE_PARAMS_FD.ordinal()],
                 (long) fileCookieParams[FILE_COOKIE_PARAMS_FILE_HASH.ordinal()],
@@ -469,76 +467,6 @@ public class StorageWriterService
             currentRecordNumber += blockPosHolder.getPos();
         }
         return storageWriterContext.weSuccess();
-    }
-
-    WarmResult appendWarmupElementBlocks(WarmupElementBlocks warmupElementBlocks, StorageWriterContext storageWriterContext)
-    {
-        // Reset the buffers because they might have been used to write other WEs. For example, what is now a varlenMD buffer for a DATA element
-        // could have been part of a crc buffer for a previous BASIC element, and therefor varlenMdBuff[0] might contain a value which is not 0.
-        storageWriterContext.getWriteJuffersWarmUpElement().resetAllBuffers();
-
-        // isReady will be false supposedly in the last iteration (after Trino passed all the pages)
-        // But the calculation is heuristic, and even when warmupElementBlocks is considered not ready,
-        // it might actually contain enough data to fill the buffer.
-        // In this case, we want to write all the data without stopping after one iteration
-        boolean stopAfterOneChunk = warmupElementBlocks.isReady();
-        int blockIndex = 0;
-        boolean flushed = false;
-        int currentRecordNumber = warmupElementBlocks.getStartOffsetInFirstBlock();
-        for (; blockIndex < warmupElementBlocks.getSize() && !(stopAfterOneChunk && flushed) && storageWriterContext.weSuccess(); blockIndex++) {
-            Block block = warmupElementBlocks.get(blockIndex);
-            if (blockIndex > 0) {
-                currentRecordNumber = 0;
-            }
-            int blockRows = block.getPositionCount();
-            while (storageWriterContext.weSuccess() && currentRecordNumber < blockRows) {
-                flushed = recycleBuffers(storageWriterContext);
-                if (stopAfterOneChunk && flushed) {
-                    break;
-                }
-                int maxRecordsToAdd = Math.min(storageWriterContext.getRemainingBufferSize(), block.getPositionCount() - currentRecordNumber);
-                Type type = storageWriterContext.getWarmupElementWriteMetadata().type();
-                BlockPosHolder blockPosHolder = new BlockPosHolder(block, type, currentRecordNumber, maxRecordsToAdd);
-
-                appendToBuffer(storageWriterContext, blockPosHolder);
-                storageWriterContext.incRecordBufferPos(blockPosHolder.getPos());
-                currentRecordNumber += blockPosHolder.getPos();
-            }
-        }
-
-        if (storageWriterContext.weSuccess() && !(stopAfterOneChunk && flushed)) {
-            // Note that we don't add the amount of flushed records to 'currentRecordNumber' because blockPosHolder.getPos() already counted them
-            flushAfterAppendingBlocks(warmupElementBlocks, storageWriterContext);
-        }
-
-        if (currentRecordNumber == warmupElementBlocks.get(blockIndex - 1).getPositionCount()) {
-            // If the block was already read in full - point on the next block
-            currentRecordNumber = 0;
-        }
-        else {
-            // the for loop increased blockIndex and then existed, this is to point on the current block
-            blockIndex--;
-        }
-
-        return new WarmResult(storageWriterContext.weSuccess(), blockIndex, currentRecordNumber);
-    }
-
-    private void flushAfterAppendingBlocks(WarmupElementBlocks warmupElementBlocks, StorageWriterContext storageWriterContext)
-    {
-        if (storageWriterContext.getRecordBufferPos() == 0) {
-            // no data was written
-            return;
-        }
-
-        if (storageWriterContext.isRecordBufferFull() ||  // for the case that we filled the buffer on the last iteration and exited because recycling
-                !warmupElementBlocks.isReady()) { // When isReady() == false, we have to flush without waiting for cleanup() to do the job, because until then, the data on the buffers might get overwritten with data of another WarmUpElement
-            flushRecordBuffer(storageWriterContext);
-            return;
-        }
-
-        // Note that we have to throw an exception \ handle this case somehow, otherwise we'll report in WarmResult that we wrote some data,
-        // while it wasn't actually flushed (and therefor will be forgotten)
-        throw new RuntimeException("CacheManager expected to flush, but it didn't happen");
     }
 
     private Optional<WarmUpCloseResult> cleanup(boolean aborted, boolean nativeThrowed, StorageWriterContext storageWriterContext)

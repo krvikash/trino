@@ -68,9 +68,6 @@ public abstract class MultinodeWarpBase
     protected void copyTestResources(DockerContainer container)
     {
         container.withCopyFileToContainer(
-                forHostPath(Path.of(".", "/docker/trino-product-tests/warp/synthetic_cache_manager.json"), 493),
-                "/docker/synthetic_cache_manager.json");
-        container.withCopyFileToContainer(
                 forHostPath(Path.of(".", "/docker/trino-product-tests/warp/synthetic.json"), 493),
                 "/docker/synthetic.json");
         container.withCopyFileToContainer(

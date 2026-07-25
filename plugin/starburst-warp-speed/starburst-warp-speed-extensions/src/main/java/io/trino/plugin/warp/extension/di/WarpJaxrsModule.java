@@ -47,16 +47,13 @@ public class WarpJaxrsModule
 {
     private final boolean isCoordinator;
     private final boolean isWorker;
-    private final boolean isCacheMgr;
 
     public WarpJaxrsModule(
             boolean isCoordinator,
-            boolean isWorker,
-            boolean isCacheMgr)
+            boolean isWorker)
     {
         this.isCoordinator = isCoordinator;
         this.isWorker = isWorker;
-        this.isCacheMgr = isCacheMgr;
     }
 
     @Override
@@ -107,7 +104,7 @@ public class WarpJaxrsModule
         OpenApiResource openApiResource = new OpenApiResource();
         openApiResource.setOpenApiConfiguration(
                 new SwaggerConfiguration()
-                        .resourceClasses(WarpTasksModule.getTaskExecutors(isCoordinator, isWorker, isCacheMgr).stream().map(Class::getName).collect(Collectors.toSet())));
+                        .resourceClasses(WarpTasksModule.getTaskExecutors(isCoordinator, isWorker).stream().map(Class::getName).collect(Collectors.toSet())));
         jaxrsBinder(binder).bindInstance(openApiResource);
         jaxrsBinder(binder).bind(WarpExtResource.class);
         jaxrsBinder(binder).bind(TrinoExceptionMapper.class);

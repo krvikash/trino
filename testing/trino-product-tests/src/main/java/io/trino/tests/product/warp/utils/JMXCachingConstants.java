@@ -39,8 +39,6 @@ public class JMXCachingConstants
         public static final String PREFILLED_COLLECT = "warp_prefilled_collect_columns";
         public static final String EXTERNAL_MATCH = "external_match_columns";
         public static final String EXTERNAL_COLLECT = "external_collect_columns";
-        public static final String WARP_CACHE_SKIPPED = "skip_warp_cache_manager";
-        public static final String WARP_CACHE = "warp_cache_manager";
         public static final String FILTERED_BY_PREDICATE = "filtered_by_predicate";
     }
 
@@ -53,13 +51,6 @@ public class JMXCachingConstants
         public static final String WARM_ACCOMPLISHED = "warm_accomplished";
         public static final String WARMUP_ELEMENTS_COUNT = "warmup_elements_count";
         public static final String ROW_GROUP_COUNT = "row_group_count";
-
-        public static final String CACHE_WARM_STARTED = "warm_warp_cache_started";
-        public static final String CACHE_WARM_ACCOMPLISHED = "warm_warp_cache_accomplished";
-
-        public static final String CACHE_WARM_FAILED = "warm_warp_cache_failed";
-        public static final String CACHE_WARM_ENGINE_ABORTED = "warm_warp_cache_engine_aborted";
-        public static final String CACHE_INVALID_TYPE = "warm_warp_cache_invalid_type";
     }
 
     public static class WarmupDemoter

@@ -16,9 +16,7 @@ package io.trino.plugin.warp.dispatcher.warmup.warmers;
 import com.google.common.collect.SetMultimap;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
-import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.dispatcher.DispatcherProxiedConnectorTransformer;
-import io.trino.plugin.warp.dispatcher.model.ExportState;
 import io.trino.plugin.warp.dispatcher.model.RecordData;
 import io.trino.plugin.warp.dispatcher.model.RegularColumn;
 import io.trino.plugin.warp.dispatcher.model.RowGroupData;
@@ -26,7 +24,6 @@ import io.trino.plugin.warp.dispatcher.model.RowGroupKey;
 import io.trino.plugin.warp.dispatcher.model.SchemaTableColumn;
 import io.trino.plugin.warp.dispatcher.model.WarmState;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
-import io.trino.plugin.warp.dispatcher.model.WarmUpElementState;
 import io.trino.plugin.warp.dispatcher.model.WarpColumn;
 import io.trino.plugin.warp.dispatcher.services.RowGroupDataService;
 import io.trino.plugin.warp.dispatcher.warmup.WarmupProperties;
@@ -52,7 +49,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
 import static java.util.Objects.requireNonNull;
@@ -68,7 +64,6 @@ public class WarmupElementsCreator
     private final DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer;
     private final WarmingServiceStats statsWarmingService;
     private final BufferAllocator bufferAllocator;
-    private final GlobalConfig globalConfig;
 
     @Inject
     public WarmupElementsCreator(
@@ -76,14 +71,12 @@ public class WarmupElementsCreator
             MetricsManager metricsManager,
             StorageEngineConstants storageEngineConstants,
             BufferAllocator bufferAllocator,
-            GlobalConfig globalConfig,
             DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer,
             ShapingLoggerFactory shapingLoggerFactory)
     {
         this.rowGroupDataService = requireNonNull(rowGroupDataService);
         this.storageEngineConstants = requireNonNull(storageEngineConstants);
         this.bufferAllocator = requireNonNull(bufferAllocator);
-        this.globalConfig = requireNonNull(globalConfig);
         this.dispatcherProxiedConnectorTransformer = requireNonNull(dispatcherProxiedConnectorTransformer);
         this.statsWarmingService = (WarmingServiceStats) metricsManager.get(WarmingServiceStats.createKey());
         this.shapingLogger = shapingLoggerFactory.getInstance(WarmupElementsCreator.class);
@@ -217,46 +210,6 @@ public class WarmupElementsCreator
                 type,
                 recTypeCode,
                 recTypeLength);
-    }
-
-    public Optional<WarmUpElement> createWarmupElement(String cacheColumnId, Type columnType, UUID storeId)
-    {
-        if (globalConfig.getEnableFSCacheMode() || !TypeUtils.isWarmDataSupported(columnType)) {
-            statsWarmingService.incwarm_warp_cache_invalid_type();
-            return Optional.empty();
-        }
-
-        int recTypeLength = TypeUtils.getTypeLength(columnType, storageEngineConstants.getVarcharMaxLen());
-        RecTypeCode recTypeCode = TypeUtils.convertToRecTypeCode(columnType, recTypeLength, storageEngineConstants.getFixedLengthStringLimit());
-        if (recTypeCode == RecTypeCode.REC_TYPE_INVALID) {
-            statsWarmingService.incwarm_warp_cache_invalid_type();
-            shapingLogger.warn("unexpectedly failed to create warmup element, columnType=%s", columnType);
-            return Optional.empty();
-        }
-        if (recTypeLength < 0) {
-            shapingLogger.error(
-                    "recTypeLength is negative. recTypeLength=%d, recTypeCode=%s, varcharMaxLen=%d, columnType=%s, cacheColumnId=%s",
-                    recTypeLength,
-                    recTypeCode,
-                    storageEngineConstants.getVarcharMaxLen(),
-                    columnType,
-                    cacheColumnId);
-            return Optional.empty();
-        }
-
-        return Optional.of(WarmUpElement.builder()
-                .creationTime(System.currentTimeMillis())
-                .warpColumn(new RegularColumn(cacheColumnId))
-                .warmUpType(WarmUpType.WARM_UP_TYPE_DATA)
-                .recTypeCode(recTypeCode)
-                .recTypeLength(recTypeLength)
-                .warmId(INVALID_WARM_ID)
-                .exportState(ExportState.NOT_EXPORTED)
-                .storeId(storeId)
-                .state(WarmUpElementState.VALID)
-                .warmupElementStats(WarmupElementStats.UNINITIALIZED)
-                .warmUpContextSize(bufferAllocator.getWarmupDataTxSize(recTypeCode, recTypeLength))
-                .build());
     }
 
     public static byte getCurrentThreadWarmId()

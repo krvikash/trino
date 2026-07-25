@@ -21,7 +21,6 @@ import io.trino.plugin.warp.config.NativeConfig;
 import io.trino.plugin.warp.config.SharedConfig;
 import io.trino.plugin.warp.dictionary.DictionaryCacheService;
 import io.trino.plugin.warp.dispatcher.WarmupElementWriteMetadata;
-import io.trino.plugin.warp.dispatcher.cache.WarmupElementBlocks;
 import io.trino.plugin.warp.dispatcher.model.DictionaryState;
 import io.trino.plugin.warp.dispatcher.warmup.transform.BlockTransformerFactory;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
@@ -63,8 +62,6 @@ import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
 import java.nio.LongBuffer;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.stream.IntStream;
 
 import static io.trino.plugin.warp.dispatcher.WarmupTestDataUtil.mockBufferAllocator;
@@ -446,89 +443,6 @@ public class StorageWriterServiceTest
         assertThatThrownBy(directory::listAll).isInstanceOf(AlreadyClosedException.class); // since it finish will throw AlreadyClosedException.class
     }
 
-    @Test
-    public void testAppendWarmupElementBlocksNotReady()
-    {
-        int chunkSize = 10;
-        int numberOfBlocks = 2;
-        int recordsPerBlock = 3;
-
-        WarmupElementWriteMetadata warmupElementWriteMetadata = WarmColumnDataTestUtil.createWarmUpElementWithDictionary(
-                WarmColumnDataTestUtil.generateRecordData("col1", BIGINT),
-                WarmUpType.WARM_UP_TYPE_DATA);
-
-        StorageWriterSplitConfig storageWriterSplitConfig = startWarming("testAppendWarmupElementBlocksNotReady");
-        WriteOpenResult writeOpenResult = txCreate(storageWriterSplitConfig, warmupElementWriteMetadata);
-        StorageWriterContext storageWriterContext = writeOpenResult.storageWriterContext();
-        storageWriterContext.setRecordBufferSize(chunkSize);
-        storageWriterContext.getWriteJuffersWarmUpElement().setChunkTypeAsValid();
-
-        WarmupElementBlocks warmupElementBlocks = new WarmupElementBlocks(chunkSize);
-        buildLongBlocks(numberOfBlocks, recordsPerBlock)
-                .forEach(warmupElementBlocks::add);
-
-        assertThat(warmupElementBlocks.isReady()).isFalse();
-        WarmResult warmResult = storageWriterService.appendWarmupElementBlocks(warmupElementBlocks, storageWriterContext);
-        assertThat(warmResult.success()).isTrue();
-        assertThat(warmResult.columnBlockIndex()).isEqualTo(numberOfBlocks);
-        assertThat(warmResult.offset()).isEqualTo(0);
-    }
-
-    @Test
-    public void testAppendWarmupElementBlocksReadyOnChunkSize()
-    {
-        int chunkSize = 10;
-        int recordsPerBlock = 3;
-        int expectedBlockIndex = chunkSize / recordsPerBlock;
-        int expectedOffset = chunkSize % recordsPerBlock;
-
-        WarmupElementWriteMetadata warmupElementWriteMetadata = WarmColumnDataTestUtil.createWarmUpElementWithDictionary(
-                WarmColumnDataTestUtil.generateRecordData("col1", BIGINT),
-                WarmUpType.WARM_UP_TYPE_DATA);
-
-        StorageWriterSplitConfig storageWriterSplitConfig = startWarming("testAppendWarmupElementBlocksReadyOnChunkSize");
-        StorageWriterContext storageWriterContext = txCreate(storageWriterSplitConfig, warmupElementWriteMetadata).storageWriterContext();
-        storageWriterContext.setRecordBufferSize(chunkSize);
-        storageWriterContext.getWriteJuffersWarmUpElement().setChunkTypeAsValid();
-
-        WarmupElementBlocks warmupElementBlocks = new WarmupElementBlocks(chunkSize);
-        buildLongBlocks(expectedBlockIndex + 1, recordsPerBlock)
-                .forEach(warmupElementBlocks::add);
-
-        assertThat(warmupElementBlocks.isReady()).isTrue();
-        WarmResult warmResult = storageWriterService.appendWarmupElementBlocks(warmupElementBlocks, storageWriterContext);
-        assertThat(warmResult.success()).isTrue();
-        assertThat(warmResult.columnBlockIndex()).isEqualTo(expectedBlockIndex);
-        assertThat(warmResult.offset()).isEqualTo(expectedOffset);
-    }
-
-    @Test
-    public void testAppendWarmupElementBlocksNumberOfRecordsEqualsChunkSize()
-    {
-        int recordsPerBlock = 3;
-        int blocksNumber = 5;
-        int chunkSize = recordsPerBlock * blocksNumber;
-
-        WarmupElementWriteMetadata warmupElementWriteMetadata = WarmColumnDataTestUtil.createWarmUpElementWithDictionary(
-                WarmColumnDataTestUtil.generateRecordData("col1", BIGINT),
-                WarmUpType.WARM_UP_TYPE_DATA);
-
-        StorageWriterSplitConfig storageWriterSplitConfig = startWarming("testAppendWarmupElementBlocksNumberOfRecordsEqualsChunkSize");
-        StorageWriterContext storageWriterContext = txCreate(storageWriterSplitConfig, warmupElementWriteMetadata).storageWriterContext();
-        storageWriterContext.setRecordBufferSize(chunkSize);
-        storageWriterContext.getWriteJuffersWarmUpElement().setChunkTypeAsValid();
-
-        WarmupElementBlocks warmupElementBlocks = new WarmupElementBlocks(chunkSize);
-        buildLongBlocks(blocksNumber, recordsPerBlock)
-                .forEach(warmupElementBlocks::add);
-
-        assertThat(warmupElementBlocks.isReady()).isTrue();
-        WarmResult warmResult = storageWriterService.appendWarmupElementBlocks(warmupElementBlocks, storageWriterContext);
-        assertThat(warmResult.success()).isTrue();
-        assertThat(warmResult.columnBlockIndex()).isEqualTo(blocksNumber);
-        assertThat(warmResult.offset()).isEqualTo(0);
-    }
-
     private WriteOpenResult txCreate(StorageWriterSplitConfig storageWriterSplitConfig, WarmupElementWriteMetadata warmupElementWriteMetadata)
     {
         return storageWriterService.open(new long[] {INVALID_FILE_COOKIE_FD, 0, 0}, 0, storageWriterSplitConfig, warmupElementWriteMetadata);
@@ -625,16 +539,5 @@ public class StorageWriterServiceTest
         }
         ArrayType arrayType = new ArrayType(IntegerType.INTEGER);
         arrayType.writeObject(blockBuilder, elementBlockBuilder.build());
-    }
-
-    private List<Block> buildLongBlocks(int numberOfBlocks, int valuesOnEachBlock)
-    {
-        List<Block> blocks = new ArrayList<>(numberOfBlocks);
-        for (int i = 0; i < numberOfBlocks; i++) {
-            LongArrayBlockBuilder block = new LongArrayBlockBuilder(null, valuesOnEachBlock);
-            IntStream.range(0, valuesOnEachBlock).forEach(block::writeLong);
-            blocks.add(block.build());
-        }
-        return blocks;
     }
 }

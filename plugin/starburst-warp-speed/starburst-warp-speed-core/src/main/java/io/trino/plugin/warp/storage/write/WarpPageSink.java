@@ -15,7 +15,6 @@ package io.trino.plugin.warp.storage.write;
 
 import io.trino.plugin.warp.dictionary.DictionaryWarmInfo;
 import io.trino.plugin.warp.dispatcher.WarmupElementWriteMetadata;
-import io.trino.plugin.warp.dispatcher.cache.WarmupElementBlocks;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElementState;
 import io.trino.plugin.warp.dispatcher.warmup.warmers.WarmSinkResult;
@@ -92,24 +91,6 @@ public class WarpPageSink
             shapingLogger.error(e, "appendPage thrown an exception - aborting. storageWriterContext=%s", storageWriterContext);
             abort(false);
             return false;
-        }
-    }
-
-    @Override
-    public WarmResult appendWarmupElementBlocks(WarmupElementBlocks warmupElementBlocks)
-    {
-        try {
-            return storageWriterService.appendWarmupElementBlocks(warmupElementBlocks, storageWriterContext);
-        }
-        catch (TrinoException te) {
-            shapingLogger.error(te, "appendWarmupElementBlocks thrown a TrinoException - aborting. storageWriterContext=%s", storageWriterContext);
-            abort(ExceptionThrower.isNativeException(te));
-            return new WarmResult(false, 0, warmupElementBlocks.getStartOffsetInFirstBlock());
-        }
-        catch (Exception e) { // in case of exception the writer has aborted the tx internally already, we need to release it now
-            shapingLogger.error(e, "appendWarmupElementBlocks thrown an exception - aborting. storageWriterContext=%s", storageWriterContext);
-            abort(false);
-            return new WarmResult(false, 0, warmupElementBlocks.getStartOffsetInFirstBlock());
         }
     }
 

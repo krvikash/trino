@@ -55,8 +55,6 @@ public final class DispatcherPageSourceStats
     private final LongAdder empty_row_group = new LongAdder();
     private final LongAdder transformed_column = new LongAdder();
     private final LongAdder empty_page_source = new LongAdder();
-    private final LongAdder warp_cache_manager = new LongAdder();
-    private final LongAdder skip_warp_cache_manager = new LongAdder();
     private final LongAdder proxied_pages = new LongAdder();
     private final LongAdder proxied_time = new LongAdder();
     private final LongAdder proxied_loaded_pages = new LongAdder();
@@ -632,52 +630,6 @@ public final class DispatcherPageSourceStats
 
     @JsonIgnore
     @Managed
-    public long getwarp_cache_manager()
-    {
-        return warp_cache_manager.longValue();
-    }
-
-    public void incwarp_cache_manager()
-    {
-        warp_cache_manager.increment();
-    }
-
-    public void addwarp_cache_manager(long val)
-    {
-        warp_cache_manager.add(val);
-    }
-
-    public void setwarp_cache_manager(long val)
-    {
-        warp_cache_manager.reset();
-        addwarp_cache_manager(val);
-    }
-
-    @JsonIgnore
-    @Managed
-    public long getskip_warp_cache_manager()
-    {
-        return skip_warp_cache_manager.longValue();
-    }
-
-    public void incskip_warp_cache_manager()
-    {
-        skip_warp_cache_manager.increment();
-    }
-
-    public void addskip_warp_cache_manager(long val)
-    {
-        skip_warp_cache_manager.add(val);
-    }
-
-    public void setskip_warp_cache_manager(long val)
-    {
-        skip_warp_cache_manager.reset();
-        addskip_warp_cache_manager(val);
-    }
-
-    @JsonIgnore
-    @Managed
     public long getproxied_pages()
     {
         return proxied_pages.longValue();
@@ -1002,8 +954,6 @@ public final class DispatcherPageSourceStats
         ret.put("empty_row_group", empty_row_group);
         ret.put("transformed_column", transformed_column);
         ret.put("empty_page_source", empty_page_source);
-        ret.put("warp_cache_manager", warp_cache_manager);
-        ret.put("skip_warp_cache_manager", skip_warp_cache_manager);
         ret.put("proxied_pages", proxied_pages);
         ret.put("proxied_time", proxied_time);
         ret.put("proxied_loaded_pages", proxied_loaded_pages);
@@ -1049,8 +999,6 @@ public final class DispatcherPageSourceStats
         this.empty_row_group.add(other.empty_row_group.longValue());
         this.transformed_column.add(other.transformed_column.longValue());
         this.empty_page_source.add(other.empty_page_source.longValue());
-        this.warp_cache_manager.add(other.warp_cache_manager.longValue());
-        this.skip_warp_cache_manager.add(other.skip_warp_cache_manager.longValue());
         this.proxied_pages.add(other.proxied_pages.longValue());
         this.proxied_time.add(other.proxied_time.longValue());
         this.proxied_loaded_pages.add(other.proxied_loaded_pages.longValue());
@@ -1094,8 +1042,6 @@ public final class DispatcherPageSourceStats
         empty_row_group.reset();
         transformed_column.reset();
         empty_page_source.reset();
-        warp_cache_manager.reset();
-        skip_warp_cache_manager.reset();
         proxied_pages.reset();
         proxied_time.reset();
         proxied_loaded_pages.reset();
@@ -1153,12 +1099,6 @@ public final class DispatcherPageSourceStats
         }
         if (empty_page_source.longValue() > 0) {
             res.put("dispatcherPageSource:empty_page_source", empty_page_source.longValue());
-        }
-        if (warp_cache_manager.longValue() > 0) {
-            res.put("dispatcherPageSource:warp_cache_manager", warp_cache_manager.longValue());
-        }
-        if (skip_warp_cache_manager.longValue() > 0) {
-            res.put("dispatcherPageSource:skip_warp_cache_manager", skip_warp_cache_manager.longValue());
         }
         if (proxied_pages.longValue() > 0) {
             res.put("dispatcherPageSource:proxied_pages", proxied_pages.longValue());
@@ -1226,8 +1166,6 @@ public final class DispatcherPageSourceStats
         res.put("empty_row_group", getempty_row_group());
         res.put("transformed_column", gettransformed_column());
         res.put("empty_page_source", getempty_page_source());
-        res.put("warp_cache_manager", getwarp_cache_manager());
-        res.put("skip_warp_cache_manager", getskip_warp_cache_manager());
         res.put("lazy_collect_total_blocks", getlazy_collect_total_blocks());
         res.put("lazy_collect_loaded_blocks", getlazy_collect_loaded_blocks());
         res.put("lazy_collect_failed_load", getlazy_collect_failed_load());

@@ -48,7 +48,7 @@ import static io.trino.plugin.warp.extension.execution.debugtools.WorkerRowGroup
 import static io.trino.plugin.warp.extension.execution.debugtools.WorkerRowGroupTask.WORKER_ROW_GROUP_RESET_TASK_NAME;
 import static java.util.Objects.requireNonNull;
 
-@TaskResourceMarker(worker = false, cacheMgr = true)
+@TaskResourceMarker(worker = false)
 @Path(ROW_GROUP_PATH)
 //@Api(value = "Row Group", tags = "Row Group")
 public class RowGroupTask

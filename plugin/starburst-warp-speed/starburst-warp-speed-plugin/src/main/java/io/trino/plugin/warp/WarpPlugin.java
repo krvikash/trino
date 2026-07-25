@@ -15,12 +15,10 @@ package io.trino.plugin.warp;
 
 import com.google.inject.Module;
 import com.starburstdata.trino.plugin.license.LicenseVerifier;
-import io.trino.plugin.warp.dispatcher.DispatcherCacheManagerFactory;
 import io.trino.plugin.warp.dispatcher.DispatcherConnectorFactory;
 import io.trino.plugin.warp.dispatcher.WarpPluginSharedInstancesFactory;
 import io.trino.spi.Plugin;
 import io.trino.spi.TrinoException;
-import io.trino.spi.cache.CacheManagerFactory;
 import io.trino.spi.connector.ConnectorFactory;
 import org.weakref.jmx.$internal.guava.annotations.VisibleForTesting;
 
@@ -67,15 +65,6 @@ public class WarpPlugin
         return List.of(warpConnectorFactory);
     }
 
-    @Override
-    public Iterable<CacheManagerFactory> getCacheManagerFactories()
-    {
-        WarpCacheManagerFactory warpCacheManagerFactory = new WarpCacheManagerFactory(
-                getSharedInstancesFactory(),
-                this.getCacheManagerFactory());
-        return List.of(warpCacheManagerFactory);
-    }
-
     private synchronized WarpPluginSharedInstancesFactory getSharedInstancesFactory()
     {
         if (warpPluginSharedInstancesFactory == null) {
@@ -87,11 +76,6 @@ public class WarpPlugin
     private DispatcherConnectorFactory getConnectorFactory()
     {
         return new DispatcherConnectorFactory(proxyModule);
-    }
-
-    private DispatcherCacheManagerFactory getCacheManagerFactory()
-    {
-        return new DispatcherCacheManagerFactory();
     }
 
     @VisibleForTesting

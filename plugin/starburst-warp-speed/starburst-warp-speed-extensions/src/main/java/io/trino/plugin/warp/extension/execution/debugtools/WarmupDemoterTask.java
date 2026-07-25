@@ -51,7 +51,7 @@ import static io.airlift.http.client.Request.Builder.preparePost;
 import static io.trino.plugin.warp.extension.execution.debugtools.WarmupDemoterTask.WARMUP_DEMOTER_PATH;
 import static java.util.Objects.requireNonNull;
 
-@TaskResourceMarker(worker = false, cacheMgr = true)
+@TaskResourceMarker(worker = false)
 @Path(WARMUP_DEMOTER_PATH)
 //@Api(value = "Demoter", tags = "Demoter")
 @Consumes(MediaType.APPLICATION_JSON)

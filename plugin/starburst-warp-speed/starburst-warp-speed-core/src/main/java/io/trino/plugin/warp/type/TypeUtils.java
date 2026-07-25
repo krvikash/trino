@@ -74,14 +74,6 @@ public class TypeUtils
         return !TypeUtils.isRowType(type) && !TypeUtils.isArrayType(type) && !TypeUtils.isJsonType(type) && !TypeUtils.isVarbinaryType(type) && !TypeUtils.isHyperLogLogType(type);
     }
 
-    public static boolean isCacheWarmBasicSupported(Type type)
-    {
-        // Currently, we don't distinction predicate from unenforcedPredicate - we intersect them at WarpCachePageSourceFactory#createDispatcherTableHandle and
-        // require tightness for the entire predicate. String types are not tight (because we use CRCs, see BasicQueryMatchData#canBeTight),
-        // so no need to create BASIC index for them.
-        return isWarmBasicSupported(type) && !TypeUtils.isStrType(type);
-    }
-
     public static boolean isWarmDataSupported(Type type)
     {
         if (type == null) {

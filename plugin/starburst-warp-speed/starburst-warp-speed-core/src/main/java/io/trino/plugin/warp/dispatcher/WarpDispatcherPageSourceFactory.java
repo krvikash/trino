@@ -21,7 +21,6 @@ import io.airlift.log.Logger;
 import io.trino.plugin.warp.WarpErrorCode;
 import io.trino.plugin.warp.WarpSessionProperties;
 import io.trino.plugin.warp.config.GlobalConfig;
-import io.trino.plugin.warp.dispatcher.cache.WarpCachePageSourceFactory;
 import io.trino.plugin.warp.dispatcher.model.RowGroupData;
 import io.trino.plugin.warp.dispatcher.model.RowGroupKey;
 import io.trino.plugin.warp.dispatcher.query.QueryContext;
@@ -70,7 +69,7 @@ import static java.util.Objects.requireNonNull;
 public class WarpDispatcherPageSourceFactory
         extends DispatcherPageSourceFactory
 {
-    private static final Logger logger = Logger.get(WarpCachePageSourceFactory.class);
+    private static final Logger logger = Logger.get(WarpDispatcherPageSourceFactory.class);
     private final GlobalConfig globalConfig;
     private final WorkerWarmingService workerWarmingService;
     private final WorkerMemoryManager workerMemoryManager;
