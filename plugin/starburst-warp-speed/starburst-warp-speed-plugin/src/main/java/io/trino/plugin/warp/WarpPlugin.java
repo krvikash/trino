@@ -20,7 +20,6 @@ import io.trino.plugin.warp.dispatcher.WarpPluginSharedInstancesFactory;
 import io.trino.spi.Plugin;
 import io.trino.spi.TrinoException;
 import io.trino.spi.connector.ConnectorFactory;
-import org.weakref.jmx.$internal.guava.annotations.VisibleForTesting;
 
 import java.util.List;
 
@@ -78,14 +77,12 @@ public class WarpPlugin
         return new DispatcherConnectorFactory(proxyModule);
     }
 
-    @VisibleForTesting
     public WarpPlugin withStorageEngineModule(Module module)
     {
         this.storageEngineModule = module;
         return this;
     }
 
-    @VisibleForTesting
     public WarpPlugin withProxyModule(Module module)
     {
         this.proxyModule = module;
