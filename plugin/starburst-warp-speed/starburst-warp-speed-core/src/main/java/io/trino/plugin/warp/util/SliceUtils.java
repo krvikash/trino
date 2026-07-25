@@ -214,15 +214,6 @@ public class SliceUtils
         return value;
     }
 
-    public static byte[] slice2ByteArray(Slice value, int length)
-    {
-        byte[] valueInBytes = value.getBytes();
-        if (length > valueInBytes.length) {
-            return ArrayUtils.copyArray(valueInBytes, length, (byte) 0);
-        }
-        return valueInBytes;
-    }
-
     public static int trimSlice(ByteBuffer recordBuff, int length, int baseOffset)
     {
         if (length == 0) {

@@ -14,6 +14,7 @@
 package io.trino.plugin.warp.config;
 
 import io.airlift.configuration.Config;
+import io.airlift.configuration.DefunctConfig;
 import io.airlift.units.DataSize;
 import io.trino.plugin.warp.gen.constants.CompressionUsers;
 import jakarta.validation.constraints.Max;
@@ -28,6 +29,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+@DefunctConfig("warp-speed.config.storage-temp-except.duration")
 public class NativeConfig
 {
     private static final int READERS_WARMERS_RATIO = 32;
@@ -49,7 +51,6 @@ public class NativeConfig
     private int maxPageSourcesWithoutWarmingLimit = 8;
     private Set<String> unsupportedNativeFunctions = Collections.emptySet();
 
-    private Duration storageTemporaryExceptionDuration = Duration.of(5, ChronoUnit.MINUTES);
     private int storageTemporaryExceptionNumTries = 3;
     private Duration storageTemporaryExceptionExpiryDuration = Duration.of(1, ChronoUnit.HOURS);
 
@@ -294,17 +295,6 @@ public class NativeConfig
         unsupportedNativeFunctions = Arrays.stream(unsupportedNativeFunctionsAsString.trim().split(",")).map(String::trim).collect(Collectors.toSet());
     }
 
-    public Duration getStorageTemporaryExceptionDuration()
-    {
-        return storageTemporaryExceptionDuration;
-    }
-
-    @Config("warp-speed.config.storage-temp-except.duration")
-    public void setStorageTemporaryExceptionDuration(io.airlift.units.Duration duration)
-    {
-        this.storageTemporaryExceptionDuration = duration.toJavaTime();
-    }
-
     public int getStorageTemporaryExceptionNumTries()
     {
         return storageTemporaryExceptionNumTries;
@@ -325,11 +315,6 @@ public class NativeConfig
     public void setStorageTemporaryExceptionExpiryDuration(io.airlift.units.Duration duration)
     {
         this.storageTemporaryExceptionExpiryDuration = duration.toJavaTime();
-    }
-
-    public boolean isDebug()
-    {
-        return debugPanicHaltPolicy > 0;
     }
 
     private int string2CompressionUsersList(String str)
@@ -368,7 +353,6 @@ public class NativeConfig
                 Objects.equals(maxRecJufferSize, that.maxRecJufferSize) &&
                 Objects.equals(collectTxSize, that.collectTxSize) &&
                 Objects.equals(unsupportedNativeFunctions, that.unsupportedNativeFunctions) &&
-                Objects.equals(storageTemporaryExceptionDuration, that.storageTemporaryExceptionDuration) &&
                 Objects.equals(storageTemporaryExceptionExpiryDuration, that.storageTemporaryExceptionExpiryDuration);
     }
 
@@ -389,7 +373,6 @@ public class NativeConfig
                 clusterLevel,
                 maxPageSourcesWithoutWarmingLimit,
                 unsupportedNativeFunctions,
-                storageTemporaryExceptionDuration,
                 storageTemporaryExceptionNumTries,
                 storageTemporaryExceptionExpiryDuration,
                 enableSingleChunk,

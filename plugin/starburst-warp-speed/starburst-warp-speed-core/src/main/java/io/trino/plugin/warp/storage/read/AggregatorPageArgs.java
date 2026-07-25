@@ -14,7 +14,6 @@
 package io.trino.plugin.warp.storage.read;
 
 import java.lang.foreign.MemorySegment;
-import java.util.List;
 import java.util.Optional;
 
 public record AggregatorPageArgs(
@@ -22,7 +21,6 @@ public record AggregatorPageArgs(
         Optional<MemorySegment> preLoadedCollectParams,
         Optional<MemorySegment> collectMemory,
         Optional<MemorySegment> collectBuffers,
-        List<WarmupElementRecordBufferState> warmupElementRecordBufferStates,
         Optional<MemorySegment> recordBufferStates,
         Optional<MemorySegment> queryResultTypes,
         Optional<MemorySegment> matchCollectMetadata,

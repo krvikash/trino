@@ -17,29 +17,12 @@ import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
 
 import java.nio.ByteBuffer;
-import java.util.Collection;
 
 public class ArrayUtils
 {
     private static final Logger logger = Logger.get(ArrayUtils.class);
-    private static final int[] EMPTY_INT_ARRAY = {};
 
     private ArrayUtils() {}
-
-    public static int[] convertToIntArray(Collection<? extends Number> col)
-    {
-        final int size = col.size();
-        if (size == 0) {
-            return EMPTY_INT_ARRAY;
-        }
-
-        int[] result = new int[size];
-        int i = 0;
-        for (Number value : col) {
-            result[i++] = value.intValue();
-        }
-        return result;
-    }
 
     /**
      * Returns a copy of the input {@code array}, set to length {@code len}.

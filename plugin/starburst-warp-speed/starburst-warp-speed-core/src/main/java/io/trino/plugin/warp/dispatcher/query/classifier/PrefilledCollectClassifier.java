@@ -15,7 +15,6 @@ package io.trino.plugin.warp.dispatcher.query.classifier;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import io.airlift.slice.Slices;
 import io.trino.plugin.warp.dispatcher.DispatcherProxiedConnectorTransformer;
 import io.trino.plugin.warp.dispatcher.DispatcherTableHandle;
 import io.trino.plugin.warp.dispatcher.SingleValue;
@@ -43,9 +42,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-
-import static io.trino.plugin.warp.type.TypeUtils.isRealType;
-import static io.trino.plugin.warp.type.TypeUtils.isTinyIntType;
 
 class PrefilledCollectClassifier
         implements Classifier
@@ -253,17 +249,5 @@ class PrefilledCollectClassifier
                 .collect(Collectors.toMap(
                         pair -> dispatcherProxiedConnectorTransformer.getWarpRegularColumn(pair.getKey()),
                         pair -> SingleValue.create(dispatcherProxiedConnectorTransformer.getColumnType(pair.getKey()), pair.getValue().get())));
-    }
-
-    private SingleValue createSingleValueFromStat(Object statValue, Type type)
-    {
-        return switch (statValue) {
-            case Integer intVal -> SingleValue.create(type, intVal.longValue());
-            case Short shortVal -> SingleValue.create(type, shortVal.longValue());
-            case String str -> SingleValue.create(type, Slices.utf8Slice(str));
-            case Float intMaxValue when isRealType(type) -> SingleValue.create(type, (long) Float.floatToIntBits(intMaxValue));
-            case Byte byteMaxValue when isTinyIntType(type) -> SingleValue.create(type, byteMaxValue.longValue());
-            case null, default -> SingleValue.create(type, statValue);
-        };
     }
 }

@@ -14,7 +14,6 @@
 package io.trino.plugin.warp.storage.juffers;
 
 import io.trino.plugin.warp.juffer.BufferAllocator;
-import io.trino.plugin.warp.juffer.WarmUpElementAllocationParams;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
 
 import java.lang.foreign.MemorySegment;
@@ -25,23 +24,18 @@ import java.lang.foreign.MemorySegment;
 public class ExtendedJuffer
         extends BaseWriteJuffer
 {
-    private final WarmUpElementAllocationParams allocParams;
     private final StorageEngine storageEngine;
     private final MemorySegment warmUpState;
     private final RecordBufferParams recordBufferParams;
-    private int extSize;                            // extended recs buffer size
     private int extRecFirstOffset;                  // offset of the first extended entry we encountered
-    private int extRecLastPos;                      // extended records last entry address
 
     public ExtendedJuffer(
             BufferAllocator bufferAllocator,
-            WarmUpElementAllocationParams allocParams,
             StorageEngine storageEngine,
             MemorySegment warmUpState,
             RecordBufferParams recordBufferParams)
     {
         super(bufferAllocator, JuffersType.EXTENDED_REC);
-        this.allocParams = allocParams;
         this.storageEngine = storageEngine;
         this.warmUpState = warmUpState;
         this.recordBufferParams = recordBufferParams;
@@ -53,7 +47,6 @@ public class ExtendedJuffer
     {
         this.baseBuffer = createGenericBuffer(bufferAllocator.memorySegment2ExtRecsBuff(buffs));
         this.wrappedBuffer = this.baseBuffer;
-        this.extSize = allocParams.extRecBuffSize();
     }
 
     protected void commitAndResetExtRecordBuffer(int numExtBytes)
@@ -78,28 +71,5 @@ public class ExtendedJuffer
     {
         wrappedBuffer.position(0);
         extRecFirstOffset = -1;
-        extRecLastPos = 0; // native layer will start looking from the next commit buffer after the invalid
-    }
-
-    public int getExtSize()
-    {
-        return extSize;
-    }
-
-    public void advancedExtRecordLastPos(int newPosition)
-    {
-        extRecLastPos = newPosition;
-    }
-
-    public void updateExtRecordFirstOffset(int value)
-    {
-        if (extRecFirstOffset == -1) {
-            extRecFirstOffset = value;
-        }
-    }
-
-    public int getExtRecLastPos()
-    {
-        return extRecLastPos;
     }
 }

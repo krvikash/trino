@@ -28,7 +28,6 @@ import java.util.List;
 
 import static io.trino.plugin.base.util.JsonUtils.jsonFactory;
 import static io.trino.plugin.warp.util.json.JsonExtract.JsonExtractor;
-import static io.trino.plugin.warp.util.json.JsonExtract.JsonValueJsonExtractor;
 import static io.trino.plugin.warp.util.json.JsonExtract.ObjectFieldJsonExtractor;
 import static io.trino.plugin.warp.util.json.JsonExtract.ScalarValueJsonExtractor;
 import static io.trino.plugin.warp.util.json.JsonExtract.generateExtractor;
@@ -158,29 +157,6 @@ public class TestJsonExtract
     }
 
     @Test
-    public void testJsonValueJsonExtractor()
-            throws Exception
-    {
-        JsonValueJsonExtractor extractor = new JsonValueJsonExtractor();
-
-        // Check scalar values
-        assertThat(doExtract(extractor, "123")).isEqualTo("123");
-        assertThat(doExtract(extractor, "-1")).isEqualTo("-1");
-        assertThat(doExtract(extractor, "0.01")).isEqualTo("0.01");
-        assertThat(doExtract(extractor, "\"abc\"")).isEqualTo("\"abc\"");
-        assertThat(doExtract(extractor, "\"\"")).isEqualTo("\"\"");
-        assertThat(doExtract(extractor, "null")).isEqualTo("null");
-
-        // Test character escaped values
-        assertThat(doExtract(extractor, "\"ab\\u0001c\"")).isEqualTo("\"ab\\u0001c\"");
-        assertThat(doExtract(extractor, "\"ab\\u0002c\"")).isEqualTo("\"ab\\u0002c\"");
-
-        // Complex types should return json values
-        assertThat(doExtract(extractor, "[1, 2, 3]")).isEqualTo("[1,2,3]");
-        assertThat(doExtract(extractor, "{\"a\": 1}")).isEqualTo("{\"a\":1}");
-    }
-
-    @Test
     public void testArrayElementJsonExtractor()
             throws Exception
     {
@@ -249,75 +225,6 @@ public class TestJsonExtract
     }
 
     @Test
-    public void testFullJsonExtract()
-    {
-        assertThat(doJsonExtract("{}", "$")).isEqualTo("{}");
-        assertThat(doJsonExtract("{\"fuu\": {\"bar\": 1}}", "$.fuu")).isEqualTo("{\"bar\":1}");
-        assertThat(doJsonExtract("{\"fuu\": 1}", "$.fuu")).isEqualTo("1");
-        assertThat(doJsonExtract("{\"fuu\": 1}", "$[fuu]")).isEqualTo("1");
-        assertThat(doJsonExtract("{\"fuu\": 1}", "$[\"fuu\"]")).isEqualTo("1");
-        assertThat(doJsonExtract("{\"fuu\": null}", "$.fuu")).isEqualTo("null");
-        assertThat(doJsonExtract("{\"fuu\": 1}", "$.bar")).isEqualTo(null);
-        assertThat(doJsonExtract("{\"fuu\": [\"\\u0001\"]}", "$.fuu[0]")).isEqualTo("\"\\u0001\""); // Test escaped characters
-        assertThat(doJsonExtract("{\"fuu\": 1, \"bar\": \"abc\"}", "$.bar")).isEqualTo("\"abc\"");
-        assertThat(doJsonExtract("{\"fuu\": [0.1, 1, 2]}", "$.fuu[0]")).isEqualTo("0.1");
-        assertThat(doJsonExtract("{\"fuu\": [0, [100, 101], 2]}", "$.fuu[1]")).isEqualTo("[100,101]");
-        assertThat(doJsonExtract("{\"fuu\": [0, [100, 101], 2]}", "$.fuu[1][1]")).isEqualTo("101");
-
-        // Test non-object extraction
-        assertThat(doJsonExtract("[0, 1, 2]", "$[0]")).isEqualTo("0");
-        assertThat(doJsonExtract("\"abc\"", "$")).isEqualTo("\"abc\"");
-        assertThat(doJsonExtract("123", "$")).isEqualTo("123");
-        assertThat(doJsonExtract("null", "$")).isEqualTo("null");
-
-        // Test extraction using bracket json path
-        assertThat(doJsonExtract("{\"fuu\": {\"bar\": 1}}", "$[\"fuu\"]")).isEqualTo("{\"bar\":1}");
-        assertThat(doJsonExtract("{\"fuu\": {\"bar\": 1}}", "$[\"fuu\"][\"bar\"]")).isEqualTo("1");
-        assertThat(doJsonExtract("{\"fuu\": 1}", "$[\"fuu\"]")).isEqualTo("1");
-        assertThat(doJsonExtract("{\"fuu\": null}", "$[\"fuu\"]")).isEqualTo("null");
-        assertThat(doJsonExtract("{\"fuu\": 1}", "$[\"bar\"]")).isEqualTo(null);
-        assertThat(doJsonExtract("{\"fuu\": [\"\\u0001\"]}", "$[\"fuu\"][0]")).isEqualTo("\"\\u0001\""); // Test escaped characters
-        assertThat(doJsonExtract("{\"fuu\": 1, \"bar\": \"abc\"}", "$[\"bar\"]")).isEqualTo("\"abc\"");
-        assertThat(doJsonExtract("{\"fuu\": [0.1, 1, 2]}", "$[\"fuu\"][0]")).isEqualTo("0.1");
-        assertThat(doJsonExtract("{\"fuu\": [0, [100, 101], 2]}", "$[\"fuu\"][1]")).isEqualTo("[100,101]");
-        assertThat(doJsonExtract("{\"fuu\": [0, [100, 101], 2]}", "$[\"fuu\"][1][1]")).isEqualTo("101");
-
-        // Test extraction using bracket json path with special json characters in path
-        assertThat(doJsonExtract("{\"@$fuu\": {\".b.ar\": 1}}", "$[\"@$fuu\"]")).isEqualTo("{\".b.ar\":1}");
-        assertThat(doJsonExtract("{\"fuu..\": 1}", "$[\"fuu..\"]")).isEqualTo("1");
-        assertThat(doJsonExtract("{\"fu*u\": null}", "$[\"fu*u\"]")).isEqualTo("null");
-        assertThat(doJsonExtract("{\",fuu\": 1}", "$[\"bar\"]")).isEqualTo(null);
-        assertThat(doJsonExtract("{\",fuu\": [\"\\u0001\"]}", "$[\",fuu\"][0]")).isEqualTo("\"\\u0001\""); // Test escaped characters
-        assertThat(doJsonExtract("{\":fu:u:\": 1, \":b:ar:\": \"abc\"}", "$[\":b:ar:\"]")).isEqualTo("\"abc\"");
-        assertThat(doJsonExtract("{\"?()fuu\": [0.1, 1, 2]}", "$[\"?()fuu\"][0]")).isEqualTo("0.1");
-        assertThat(doJsonExtract("{\"f?uu\": [0, [100, 101], 2]}", "$[\"f?uu\"][1]")).isEqualTo("[100,101]");
-        assertThat(doJsonExtract("{\"fuu()\": [0, [100, 101], 2]}", "$[\"fuu()\"][1][1]")).isEqualTo("101");
-
-        // Test extraction using mix of bracket and dot notation json path
-        assertThat(doJsonExtract("{\"fuu\": {\"bar\": 1}}", "$[\"fuu\"].bar")).isEqualTo("1");
-        assertThat(doJsonExtract("{\"fuu\": {\"bar\": 1}}", "$.fuu[\"bar\"]")).isEqualTo("1");
-        assertThat(doJsonExtract("{\"fuu\": [\"\\u0001\"]}", "$[\"fuu\"][0]")).isEqualTo("\"\\u0001\""); // Test escaped characters
-        assertThat(doJsonExtract("{\"fuu\": [\"\\u0001\"]}", "$.fuu[0]")).isEqualTo("\"\\u0001\""); // Test escaped characters
-
-        // Test extraction using  mix of bracket and dot notation json path with special json characters in path
-        assertThat(doJsonExtract("{\"@$fuu\": {\"bar\": 1}}", "$[\"@$fuu\"].bar")).isEqualTo("1");
-        assertThat(doJsonExtract("{\",fuu\": {\"bar\": [\"\\u0001\"]}}", "$[\",fuu\"].bar[0]")).isEqualTo("\"\\u0001\""); // Test escaped characters
-
-        // Test numeric path expression matches arrays and objects
-        assertThat(doJsonExtract("[0, 1, 2]", "$.1")).isEqualTo("1");
-        assertThat(doJsonExtract("[0, 1, 2]", "$[1]")).isEqualTo("1");
-        assertThat(doJsonExtract("[0, 1, 2]", "$[\"1\"]")).isEqualTo("1");
-        assertThat(doJsonExtract("{\"0\" : 0, \"1\" : 1, \"2\" : 2, }", "$.1")).isEqualTo("1");
-        assertThat(doJsonExtract("{\"0\" : 0, \"1\" : 1, \"2\" : 2, }", "$[1]")).isEqualTo("1");
-        assertThat(doJsonExtract("{\"0\" : 0, \"1\" : 1, \"2\" : 2, }", "$[\"1\"]")).isEqualTo("1");
-
-        // Test fields starting with a digit
-        assertThat(doJsonExtract("{\"15day\" : 0, \"30day\" : 1, \"90day\" : 2, }", "$.30day")).isEqualTo("1");
-        assertThat(doJsonExtract("{\"15day\" : 0, \"30day\" : 1, \"90day\" : 2, }", "$[30day]")).isEqualTo("1");
-        assertThat(doJsonExtract("{\"15day\" : 0, \"30day\" : 1, \"90day\" : 2, }", "$[\"30day\"]")).isEqualTo("1");
-    }
-
-    @Test
     public void testInvalidExtracts()
     {
         assertInvalidExtract("", "", "Invalid JSON path: ''");
@@ -334,7 +241,7 @@ public class TestJsonExtract
     public void testExtractLongString()
     {
         String longString = "a".repeat(StreamReadConstraints.DEFAULT_MAX_STRING_LEN + 1);
-        assertThat(doJsonExtract("{\"key\": \"" + longString + "\"}", "$.key")).isEqualTo('"' + longString + '"');
+        assertThat(doScalarExtract("{\"key\": \"" + longString + "\"}", "$.key")).isEqualTo(longString);
     }
 
     @Test
@@ -362,12 +269,6 @@ public class TestJsonExtract
         return (value == null) ? null : value.toStringUtf8();
     }
 
-    private static String doJsonExtract(String inputJson, String jsonPath)
-    {
-        Slice value = JsonExtract.extract(Slices.utf8Slice(inputJson), generateExtractor(jsonPath, new JsonValueJsonExtractor()));
-        return (value == null) ? null : value.toStringUtf8();
-    }
-
     private static List<String> tokenizePath(String path)
     {
         return ImmutableList.copyOf(new JsonPathTokenizer(path));
@@ -375,7 +276,7 @@ public class TestJsonExtract
 
     private static void assertInvalidExtract(String inputJson, String jsonPath, String message)
     {
-        assertTrinoExceptionThrownBy(() -> doJsonExtract(inputJson, jsonPath))
+        assertTrinoExceptionThrownBy(() -> doScalarExtract(inputJson, jsonPath))
                 .hasErrorCode(INVALID_FUNCTION_ARGUMENT)
                 .hasMessage(message);
     }

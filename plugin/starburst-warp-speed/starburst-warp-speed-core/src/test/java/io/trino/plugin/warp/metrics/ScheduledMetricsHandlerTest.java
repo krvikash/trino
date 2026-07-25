@@ -29,7 +29,6 @@ public class ScheduledMetricsHandlerTest
     public void testScheduler()
     {
         MetricsConfig metricsConfig = new MetricsConfig();
-        metricsConfig.setCleanerKeepDuration(Duration.ofMillis(1));
         metricsConfig.setIntervalCleanerDuration(Duration.ofMillis(1));
         metricsConfig.setDelayDuration(Duration.ofMillis(1));
 

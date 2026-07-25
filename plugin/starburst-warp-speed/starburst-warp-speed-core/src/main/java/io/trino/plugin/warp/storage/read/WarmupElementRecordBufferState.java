@@ -14,52 +14,16 @@
 package io.trino.plugin.warp.storage.read;
 
 import java.lang.foreign.MemoryLayout;
-import java.lang.foreign.MemoryLayout.PathElement;
-import java.lang.foreign.MemorySegment;
 import java.lang.foreign.StructLayout;
 import java.lang.foreign.ValueLayout;
 
-class WarmupElementRecordBufferState
+final class WarmupElementRecordBufferState
 {
-    static final StructLayout RECORD_BUFFER_STATE_LAYOUT;
-    private static final long RECORD_BUFFER_STATE_OFFSET_USED_BYTES;
-    private static final long RECORD_BUFFER_STATE_OFFSET_TOTAL_BYTES;
-    private static final long RECORD_BUFFER_STATE_OFFSET_MAX_REC_LEN;
+    // mirrors native collect_rec_buf_state_t; used only for buffer sizing
+    static final StructLayout RECORD_BUFFER_STATE_LAYOUT = MemoryLayout.structLayout(
+            ValueLayout.JAVA_INT.withName("usedBytes"),
+            ValueLayout.JAVA_INT.withName("totalBytes"),
+            ValueLayout.JAVA_INT.withName("maxRecordLength")).withName("collect_rec_buf_state_t");
 
-    private final MemorySegment recordBufferState;
-
-    static {
-        RECORD_BUFFER_STATE_LAYOUT = MemoryLayout.structLayout(
-                ValueLayout.JAVA_INT.withName("usedBytes"),
-                ValueLayout.JAVA_INT.withName("totalBytes"),
-                ValueLayout.JAVA_INT.withName("maxRecordLength")).withName("collect_rec_buf_state_t");
-        RECORD_BUFFER_STATE_OFFSET_USED_BYTES = RECORD_BUFFER_STATE_LAYOUT.byteOffset(PathElement.groupElement("usedBytes"));
-        RECORD_BUFFER_STATE_OFFSET_TOTAL_BYTES = RECORD_BUFFER_STATE_LAYOUT.byteOffset(PathElement.groupElement("totalBytes"));
-        RECORD_BUFFER_STATE_OFFSET_MAX_REC_LEN = RECORD_BUFFER_STATE_LAYOUT.byteOffset(PathElement.groupElement("maxRecordLength"));
-    }
-
-    WarmupElementRecordBufferState(MemorySegment recordBufferState)
-    {
-        this.recordBufferState = recordBufferState;
-    }
-
-    public int getUsedBytes()
-    {
-        return recordBufferState.get(ValueLayout.JAVA_INT, RECORD_BUFFER_STATE_OFFSET_USED_BYTES);
-    }
-
-    public int getTotalBytes()
-    {
-        return recordBufferState.get(ValueLayout.JAVA_INT, RECORD_BUFFER_STATE_OFFSET_TOTAL_BYTES);
-    }
-
-    public int getMaxRecordLength()
-    {
-        return recordBufferState.get(ValueLayout.JAVA_INT, RECORD_BUFFER_STATE_OFFSET_MAX_REC_LEN);
-    }
-
-    public int getFreeBytes()
-    {
-        return getTotalBytes() - getUsedBytes();
-    }
+    private WarmupElementRecordBufferState() {}
 }

@@ -14,20 +14,17 @@
 package io.trino.plugin.warp.util.json;
 
 import com.fasterxml.jackson.core.JsonFactory;
-import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.core.io.SerializedString;
 import com.google.common.collect.ImmutableList;
 import com.google.common.primitives.Ints;
-import io.airlift.slice.DynamicSliceOutput;
 import io.airlift.slice.Slice;
 import io.trino.spi.TrinoException;
 
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.io.OutputStream;
 import java.io.Reader;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
@@ -35,7 +32,6 @@ import java.nio.charset.StandardCharsets;
 import static com.fasterxml.jackson.core.JsonFactory.Feature.CANONICALIZE_FIELD_NAMES;
 import static com.fasterxml.jackson.core.JsonToken.END_ARRAY;
 import static com.fasterxml.jackson.core.JsonToken.END_OBJECT;
-import static com.fasterxml.jackson.core.JsonToken.FIELD_NAME;
 import static com.fasterxml.jackson.core.JsonToken.START_ARRAY;
 import static com.fasterxml.jackson.core.JsonToken.START_OBJECT;
 import static com.fasterxml.jackson.core.JsonToken.VALUE_NULL;
@@ -121,8 +117,6 @@ import static java.util.Objects.requireNonNull;
  */
 public final class JsonExtract
 {
-    private static final int ESTIMATED_JSON_OUTPUT_SIZE = 512;
-
     // Inlined from JsonUtil.STRING_READER_LENGTH_LIMIT (trino-main)
     private static final int STRING_READER_LENGTH_LIMIT = 8192;
 
@@ -192,13 +186,6 @@ public final class JsonExtract
             return factory.createParser(Reader.of(json.toStringUtf8()));
         }
         return factory.createParser(new InputStreamReader(json.getInput(), StandardCharsets.UTF_8));
-    }
-
-    // Inlined from JsonUtil.createJsonGenerator (trino-main)
-    private static JsonGenerator createJsonGenerator(JsonFactory factory, DynamicSliceOutput output)
-            throws IOException
-    {
-        return factory.createGenerator((OutputStream) output);
     }
 
     public interface JsonExtractor<T>
@@ -315,76 +302,6 @@ public final class JsonExtract
                 return null;
             }
             return utf8Slice(jsonParser.getText());
-        }
-    }
-
-    public static class JsonValueJsonExtractor
-            implements JsonExtractor<Slice>
-    {
-        @Override
-        public Slice extract(JsonParser jsonParser)
-                throws IOException
-        {
-            if (!jsonParser.hasCurrentToken()) {
-                throw new JsonParseException(jsonParser, "Unexpected end of value");
-            }
-
-            DynamicSliceOutput dynamicSliceOutput = new DynamicSliceOutput(ESTIMATED_JSON_OUTPUT_SIZE);
-            try (JsonGenerator jsonGenerator = createJsonGenerator(JSON_FACTORY, dynamicSliceOutput)) {
-                jsonGenerator.copyCurrentStructure(jsonParser);
-            }
-            return dynamicSliceOutput.slice();
-        }
-    }
-
-    public static class JsonSizeExtractor
-            implements JsonExtractor<Long>
-    {
-        @Override
-        public Long extract(JsonParser jsonParser)
-                throws IOException
-        {
-            if (!jsonParser.hasCurrentToken()) {
-                throw new JsonParseException(jsonParser, "Unexpected end of value");
-            }
-
-            if (jsonParser.getCurrentToken() == START_ARRAY) {
-                long length = 0;
-                while (true) {
-                    JsonToken token = jsonParser.nextToken();
-                    if (token == null) {
-                        return null;
-                    }
-                    if (token == END_ARRAY) {
-                        return length;
-                    }
-                    jsonParser.skipChildren();
-
-                    length++;
-                }
-            }
-
-            if (jsonParser.getCurrentToken() == START_OBJECT) {
-                long length = 0;
-                while (true) {
-                    JsonToken token = jsonParser.nextToken();
-                    if (token == null) {
-                        return null;
-                    }
-                    if (token == END_OBJECT) {
-                        return length;
-                    }
-
-                    if (token == FIELD_NAME) {
-                        length++;
-                    }
-                    else {
-                        jsonParser.skipChildren();
-                    }
-                }
-            }
-
-            return 0L;
         }
     }
 

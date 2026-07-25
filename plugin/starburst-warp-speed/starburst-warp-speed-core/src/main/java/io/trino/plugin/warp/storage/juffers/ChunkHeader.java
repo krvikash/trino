@@ -95,12 +95,6 @@ public class ChunkHeader
         return (getTypeAndWarmId() & 0xF) != 0;
     }
 
-    public boolean hasNulls()
-    {
-        int nullsOffset = getNullsOffset();
-        return (nullsOffset >= 0) || (nullsOffset == -1 * StorageLocHomogeneous.STORAGE_LOC_HOMOGENEOUS_ONE.ordinal());
-    }
-
     private boolean verifyStartOffset()
     {
         int startOffset = getStartOffset();

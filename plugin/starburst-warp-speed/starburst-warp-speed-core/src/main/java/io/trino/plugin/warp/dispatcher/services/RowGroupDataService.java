@@ -204,52 +204,6 @@ public class RowGroupDataService
         return rowGroupData;
     }
 
-    public RowGroupData getOrCreateTmpRowGroupData(RowGroupKey rowGroupKey)
-    {
-        RowGroupData rowGroupData = get(rowGroupKey);
-
-        if (rowGroupData == null) {
-            rowGroupData = RowGroupData.builder()
-                    .rowGroupKey(rowGroupKey)
-                    .nodeIdentifier(nodeIdentifier)
-                    .partitionKeys(Collections.emptyMap())
-                    .warmUpElements(Collections.emptyList())
-                    .build();
-            save(rowGroupData);
-        }
-        return rowGroupData;
-    }
-
-    public void updateTmpRowGroupData(
-            RowGroupData rowGroupData,
-            WarmUpElement warmUpElement,
-            int nextOffset,
-            int totalRecords)
-    {
-        Collection<WarmUpElement> existingWarmUpElements = rowGroupData.getWarmUpElements();
-        WarmUpElement.Builder warmupElementBuilder = WarmUpElement.builder(warmUpElement).totalRecords(totalRecords);
-        if (!warmUpElement.isValid()) {
-            warmupElementBuilder
-                    .warmState(WarmState.COLD);
-        }
-        warmUpElement = warmupElementBuilder.build();
-
-        Collection<WarmUpElement> updatedWarmUpElements = new ArrayList<>(existingWarmUpElements);
-
-        updatedWarmUpElements.add(warmUpElement);
-
-        RowGroupData.Builder rowGroupDataBuilder = RowGroupData.builder(rowGroupData).warmUpElements(updatedWarmUpElements);
-
-        if (warmUpElement.isValid()) {
-            rowGroupDataBuilder.isEmpty(totalRecords == 0);
-        }
-        RowGroupData updatedRowGroupData = rowGroupDataBuilder
-                .nextOffset(nextOffset)
-                .fastWarmingState(FastWarmingState.NOT_EXPORTED)
-                .build();
-        save(updatedRowGroupData);
-    }
-
     public synchronized RowGroupData updateRowGroupData(
             RowGroupData rowGroupData,
             WarmUpElement warmUpElement,

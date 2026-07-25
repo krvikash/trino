@@ -17,7 +17,6 @@ package io.trino.plugin.warp.gen.stats;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import io.trino.plugin.warp.metrics.WarpStatType;
 import io.trino.plugin.warp.metrics.WarpStatsBase;
 import org.weakref.jmx.Managed;
 
@@ -55,7 +54,7 @@ public final class WarmupDemoterStats
     @JsonCreator
     public WarmupDemoterStats()
     {
-        super(createKey(), WarpStatType.Worker);
+        super(createKey());
     }
 
     @JsonIgnore

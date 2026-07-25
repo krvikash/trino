@@ -25,14 +25,12 @@ public class WarpStatsBase
 {
     @JsonIgnore
     private final String jmxKey;
-    private final WarpStatType warpStatType;
     @JsonIgnore
     private Map<String, Long> auditMap = Map.of();
 
-    protected WarpStatsBase(String jmxKey, WarpStatType warpStatType)
+    protected WarpStatsBase(String jmxKey)
     {
         this.jmxKey = jmxKey;
-        this.warpStatType = warpStatType;
     }
 
     @JsonIgnore
@@ -66,11 +64,6 @@ public class WarpStatsBase
     protected Map<String, Long> statePrintFields()
     {
         return Map.of();
-    }
-
-    public WarpStatType getWarpStatType()
-    {
-        return warpStatType;
     }
 
     public Map<String, Object> printStatsMap()

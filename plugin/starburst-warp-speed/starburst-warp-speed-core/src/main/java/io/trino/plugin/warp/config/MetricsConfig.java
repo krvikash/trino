@@ -13,23 +13,25 @@
  */
 package io.trino.plugin.warp.config;
 
-import com.google.common.base.Splitter;
 import io.airlift.configuration.Config;
+import io.airlift.configuration.DefunctConfig;
 
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.stream.Collectors;
 
+@DefunctConfig({
+        "warp-speed.metrics.max-limits",
+        "warp-speed.metrics.cluster.interval",
+        "warp-speed.metrics.cleaner.keep",
+})
 public class MetricsConfig
 {
     private final Map<String, Long> limits;
     private boolean enabled = true;
 
     private Duration delayDuration = Duration.ofSeconds(10);
-    private Duration intervalClusterMetricsDuration = Duration.ofSeconds(60);
     private Duration intervalCleanerDuration = Duration.ofSeconds(45);
-    private Duration cleanerKeepDuration = Duration.ofDays(7);
     private Duration printMetricsDuration = Duration.ofMinutes(15);
 
     public MetricsConfig()
@@ -37,17 +39,6 @@ public class MetricsConfig
         limits = new HashMap<>();
         limits.put("column", 16384L);
         limits.put("device", 1024L);
-    }
-
-    public Map<String, Long> getMaxLimits()
-    {
-        return limits;
-    }
-
-    @Config("warp-speed.metrics.max-limits")
-    public void setMaxLimits(String maxLimits)
-    {
-        limits.putAll(Splitter.on(",").withKeyValueSeparator("=").split(maxLimits).entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, entry -> Long.parseLong(entry.getValue()))));
     }
 
     public long getLimit(String type)
@@ -77,17 +68,6 @@ public class MetricsConfig
         this.delayDuration = delayDuration;
     }
 
-    public Duration getIntervalClusterMetricsDuration()
-    {
-        return intervalClusterMetricsDuration;
-    }
-
-    @Config("warp-speed.metrics.cluster.interval")
-    public void setIntervalClusterMetricsDuration(Duration intervalClusterMetricsDuration)
-    {
-        this.intervalClusterMetricsDuration = intervalClusterMetricsDuration;
-    }
-
     public Duration getIntervalCleanerDuration()
     {
         return intervalCleanerDuration;
@@ -97,17 +77,6 @@ public class MetricsConfig
     public void setIntervalCleanerDuration(Duration intervalCleanerDuration)
     {
         this.intervalCleanerDuration = intervalCleanerDuration;
-    }
-
-    public Duration getCleanerKeepDuration()
-    {
-        return cleanerKeepDuration;
-    }
-
-    @Config("warp-speed.metrics.cleaner.keep")
-    public void setCleanerKeepDuration(Duration cleanerKeepDuration)
-    {
-        this.cleanerKeepDuration = cleanerKeepDuration;
     }
 
     public Duration getPrintMetricsDuration()
@@ -128,9 +97,7 @@ public class MetricsConfig
                 "limits=" + limits +
                 ", enabled=" + enabled +
                 ", delayDuration=" + delayDuration +
-                ", intervalClusterMetricsDuration=" + intervalClusterMetricsDuration +
                 ", intervalCleanerDuration=" + intervalCleanerDuration +
-                ", cleanerKeepDuration=" + cleanerKeepDuration +
                 '}';
     }
 }

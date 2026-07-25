@@ -13,8 +13,6 @@
  */
 package io.trino.plugin.warp.storage.juffers;
 
-import com.google.common.annotations.VisibleForTesting;
-import io.airlift.slice.Slice;
 import io.trino.plugin.warp.juffer.BufferAllocator;
 import io.trino.plugin.warp.juffer.WarmUpElementAllocationParams;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
@@ -114,7 +112,6 @@ public class WriteJuffersWarmUpElement
             if (allocParams.isExtBufferNeeded()) {
                 ExtendedJuffer extendedJuffers = new ExtendedJuffer(
                         bufferAllocator,
-                        allocParams,
                         storageEngine,
                         warmUpState.getMemory(),
                         recordBufferParams);
@@ -264,17 +261,6 @@ public class WriteJuffersWarmUpElement
     public void increaseNullsCount(int nullsCount)
     {
         getNullJuffer().increaseNullsCount(nullsCount);
-    }
-
-    public void advancedExtRecordLastPos(int newPosition)
-    {
-        getExtRecordJuffer().advancedExtRecordLastPos(newPosition);
-    }
-
-    // lucene APIs
-    public void updateLuceneProps(Slice val)
-    {
-        getLuceneJuffer().updateLuceneProps(val);
     }
 
     // updates the current opened/closed state of current chunk to closed and returns the previous state
@@ -462,13 +448,6 @@ public class WriteJuffersWarmUpElement
         recordBufferSingleLongDec = null;
     }
 
-    public void resetSingleValueIfNeeded(ByteBuffer byteBuffer, int length)
-    {
-        if ((recordBufferSingleCrc != 0) && (recordBufferSingleCrc != SliceUtils.calcCrc(byteBuffer, length))) {
-            resetSingleValue();
-        }
-    }
-
     // getters
     public int getActualRecTypeLength()
     {
@@ -510,11 +489,6 @@ public class WriteJuffersWarmUpElement
         return (CrcJuffer) getJufferByType(JuffersType.CRC);
     }
 
-    public Buffer getLuceneBuffer()
-    {
-        return getBufferByType(JuffersType.LUCENE);
-    }
-
     public ByteBuffer getExtRecordBuffer()
     {
         return (ByteBuffer) getBufferByType(JuffersType.EXTENDED_REC);
@@ -533,12 +507,5 @@ public class WriteJuffersWarmUpElement
     private ByteBuffer getChunksBuffer()
     {
         return (ByteBuffer) getBufferByType(JuffersType.CHUNKS);
-    }
-
-    // used for tests to avoid hitting invalid chunk type exceptipon
-    @VisibleForTesting
-    public void setChunkTypeAsValid()
-    {
-        chunkHeader.setTypeAndWarmId((byte) ((warmId << 4) | 0x2));
     }
 }

@@ -14,12 +14,10 @@
 package io.trino.plugin.warp.storage.write.appenders;
 
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
-import io.trino.plugin.warp.dispatcher.model.WarmUpElementState;
 import io.trino.plugin.warp.juffer.BlockPosHolder;
 import io.trino.plugin.warp.storage.juffers.CrcJuffer;
 import io.trino.plugin.warp.storage.juffers.WriteJuffersWarmUpElement;
 import io.trino.plugin.warp.storage.write.WarmupElementStatsBuilder;
-import io.trino.plugin.warp.warmup.exceptions.WarmupException;
 
 import java.nio.ByteBuffer;
 
@@ -28,7 +26,6 @@ public abstract class BlockAppender
     protected static final byte NULL_VALUE_BYTE_SIGNAL = -1;
     protected static final byte NON_NULL_VALUE_BYTE_SIGNAL = 0;
     protected static final byte ZERO_BYTE_SIGNAL = 0;
-    private static final byte[] padding = new byte[8192];   // PageSize
     protected final WriteJuffersWarmUpElement juffersWE;
     protected final ByteBuffer nullBuff;
     protected final CrcJuffer crcJuffers;
@@ -56,35 +53,6 @@ public abstract class BlockAppender
             BlockPosHolder blockPos,
             WarmUpElement warmUpElement,
             WarmupElementStatsBuilder warmupElementStatsBuilder);
-
-    protected void padBuffer(ByteBuffer buff, int len)
-    {
-        if (len > padding.length) {
-            while (len > 0) {
-                int size = Math.min(len, padding.length);
-                buff.put(padding, 0, size);
-                len -= size;
-            }
-        }
-        else {
-            buff.put(padding, 0, len);
-        }
-    }
-
-    protected boolean commitWEIfNeeded(BlockPosHolder blockPos, ByteBuffer buff, int jufferPos, int addedNv, int recBuffSize)
-    {
-        boolean committed = false;
-        if (buff.position() >= recBuffSize) {
-            if (buff.position() > recBuffSize) {
-                throw new WarmupException(
-                        "appendStringBlock reached " + buff.position() + " beyond recBuffSize " + recBuffSize,
-                        WarmUpElementState.State.FAILED_PERMANENTLY);
-            }
-            juffersWE.commitAndResetWE(jufferPos + blockPos.getPos(), addedNv, buff.position(), 0);
-            committed = true;
-        }
-        return committed;
-    }
 
     protected AppendResult appendFromMapBlock(BlockPosHolder blockPos, int jufferPos, Object key)
     {

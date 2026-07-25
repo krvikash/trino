@@ -13,10 +13,6 @@
  */
 package io.trino.plugin.warp.cloudvendors;
 
-import com.google.common.annotations.VisibleForTesting;
-import dev.failsafe.Failsafe;
-import dev.failsafe.RetryPolicy;
-import dev.failsafe.function.CheckedBiPredicate;
 import io.airlift.log.Logger;
 import io.trino.filesystem.Location;
 import io.trino.plugin.warp.cloudvendors.model.StorageObjectMetadata;
@@ -30,7 +26,6 @@ import java.io.RandomAccessFile;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
-import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -39,28 +34,6 @@ import java.util.concurrent.Callable;
 public abstract class CloudVendorService
 {
     private static final Logger logger = Logger.get(CloudVendorService.class);
-
-    private long requestRetryDelay = 500L;
-    private long requestRetryMaxDelay = 8000L;
-    private int requestRetryRetries = 5;
-
-    @VisibleForTesting
-    public void setRequestRetryDelay(long requestRetryDelay)
-    {
-        this.requestRetryDelay = requestRetryDelay;
-    }
-
-    @VisibleForTesting
-    public void setRequestRetryMaxDelay(long requestRetryMaxDelay)
-    {
-        this.requestRetryMaxDelay = requestRetryMaxDelay;
-    }
-
-    @VisibleForTesting
-    public void setRequestRetryRetries(int requestRetryRetries)
-    {
-        this.requestRetryRetries = requestRetryRetries;
-    }
 
     public static String concatenatePath(String... parts)
     {
@@ -161,17 +134,5 @@ public abstract class CloudVendorService
     protected String getTempFileSuffix()
     {
         return LocalDateTime.now(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("_yyyyMMdd_HHmmss_SSS"));
-    }
-
-    protected <T> T executeRequestUnderRetry(Callable<T> request, CheckedBiPredicate<Object, ? extends Throwable> completionPredicate)
-    {
-        return Failsafe
-                .with(RetryPolicy.builder()
-                        .withMaxRetries(requestRetryRetries)
-                        .withBackoff(requestRetryDelay, requestRetryMaxDelay, ChronoUnit.MILLIS)
-                        .abortIf(completionPredicate)
-                        .onRetry(event -> logger.warn("failed to execute cloud request, retrying. Attempt=%d", event.getAttemptCount()))
-                        .build())
-                .get(_ -> request.call());
     }
 }

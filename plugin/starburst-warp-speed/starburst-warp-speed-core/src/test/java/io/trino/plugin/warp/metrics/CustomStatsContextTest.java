@@ -75,7 +75,7 @@ public class CustomStatsContextTest
 
         WarpTestStats(String jmxKey)
         {
-            super(jmxKey, WarpStatType.Worker);
+            super(jmxKey);
         }
 
         public void incCounter()

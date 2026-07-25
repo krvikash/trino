@@ -32,7 +32,6 @@ import java.lang.foreign.MemorySegment;
 import java.lang.foreign.SegmentAllocator;
 import java.lang.foreign.ValueLayout;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -99,8 +98,7 @@ public class CollectTxService
                     Optional.empty(),
                     Optional.empty(),
                     Optional.empty(),
-                    Optional.empty(),
-                    Collections.emptyList());
+                    Optional.empty());
         }
 
         // restore match collect metadata
@@ -116,7 +114,6 @@ public class CollectTxService
                 collectMetadataMemory.collectParamsOpt(),
                 collectMemory,
                 collectMetadataMemory.collectBuffersOpt(),
-                collectMetadataMemory.warmupElementRecordBufferStates(),
                 collectMetadataMemory.recordBufferStatesOpt(),
                 collectMetadataMemory.queryResultTypesOpt(),
                 collectMetadataMemory.matchCollectMetadataOpt(),
@@ -290,18 +287,12 @@ public class CollectTxService
         MemorySegment collectParams = allocator.allocate(collectParamsListSize, ValueLayout.ADDRESS.byteSize());
         MemorySegment collectBuffers = allocator.allocate(collectBuffersSize, ValueLayout.JAVA_LONG.byteSize());
         MemorySegment recordBufferStates = allocator.allocate(recordBufferStatesSize, ValueLayout.JAVA_INT.byteSize());
-        List<WarmupElementRecordBufferState> warmupElementRecordBufferStates =
-                recordBufferStates.elements(WarmupElementRecordBufferState.RECORD_BUFFER_STATE_LAYOUT)
-                        .map(recordBufferState -> new WarmupElementRecordBufferState(recordBufferState))
-                        .toList();
-
         return new CollectMetadataMemory(
                 Optional.of(collectParams),
                 Optional.of(collectBuffers),
                 Optional.of(recordBufferStates),
                 Optional.of(allocator.allocate(queryResultTypesSize, ValueLayout.JAVA_INT.byteSize())),
-                (matchCollectMetadataSize > 0) ? Optional.of(allocator.allocate(matchCollectMetadataSize, ValueLayout.JAVA_INT.byteSize())) : Optional.empty(),
-                warmupElementRecordBufferStates);
+                (matchCollectMetadataSize > 0) ? Optional.of(allocator.allocate(matchCollectMetadataSize, ValueLayout.JAVA_INT.byteSize())) : Optional.empty());
     }
 
     private record CollectMetadataMemory(
@@ -309,6 +300,5 @@ public class CollectTxService
             Optional<MemorySegment> collectBuffersOpt,
             Optional<MemorySegment> recordBufferStatesOpt,
             Optional<MemorySegment> queryResultTypesOpt,
-            Optional<MemorySegment> matchCollectMetadataOpt,
-            List<WarmupElementRecordBufferState> warmupElementRecordBufferStates) {}
+            Optional<MemorySegment> matchCollectMetadataOpt) {}
 }

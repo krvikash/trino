@@ -45,17 +45,6 @@ public enum LuceneFileType
         return UNKNOWN;
     }
 
-    public static String getFixedFileName(LuceneFileType type)
-    {
-        return switch (type) {
-            case SI -> "v1.si";
-            case SEGMENTS -> "segments";
-            case CFE -> "v1.cfe";
-            case CFS -> "v1.cfs";
-            default -> "unknown";
-        };
-    }
-
     public int getFileId()
     {
         return fileId;

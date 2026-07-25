@@ -13,7 +13,6 @@
  */
 package io.trino.plugin.warp.tools.util;
 
-import java.nio.file.Path;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -30,10 +29,5 @@ public class PathUtils
                 .map(part -> part.endsWith("/") ? part.substring(0, part.length() - 1) : part)
                 .collect(Collectors.joining("/"));
         return firstPart.endsWith("/") ? firstPart + partsStr : firstPart + "/" + partsStr;
-    }
-
-    public static String getLocalPath(String firstPart, String... parts)
-    {
-        return Path.of(firstPart, parts).toString();
     }
 }

@@ -109,33 +109,6 @@ public class CollectState
         collectState.set(ValueLayout.JAVA_BYTE, COLLECT_STATE_OFFSET_IS_FULL_SCAN, (queryParams.getNumMatchElements() == 0) ? (byte) 1 : (byte) 0);
     }
 
-    public void setLazyState(
-            QueryParams queryParams,
-            long[] fileCookie,
-            int numChunksInRange,
-            MemorySegment recordBufferStates,
-            RecordIndexes recordIndexes,
-            MemorySegment collectBuffers,
-            MemorySegment collectParamsMem)
-    {
-        collectState.set(ValueLayout.JAVA_LONG, COLLECT_STATE_OFFSET_WARMUP_ELEMENT_PARAMS, collectParamsMem.address());
-        collectState.set(ValueLayout.JAVA_LONG, COLLECT_STATE_OFFSET_BUFFERS, collectBuffers.address());
-        collectState.set(ValueLayout.JAVA_LONG, COLLECT_STATE_OFFSET_RECORD_BUFFER_STATES, recordBufferStates.address());
-        collectState.set(ValueLayout.JAVA_LONG, COLLECT_STATE_OFFSET_RECORD_INDEXES, recordIndexes.getAddress());
-        collectState.set(ValueLayout.JAVA_LONG, COLLECT_STATE_OFFSET_MATCH_COLLECT_METADATA, 0L);
-        RowGroupData.setFileCookie(
-                collectState.asSlice(COLLECT_STATE_OFFSET_FILE_COOKIE, RowGroupData.FILE_COOKIE_LAYOUT),
-                (int) fileCookie[FILE_COOKIE_PARAMS_FD.ordinal()],
-                fileCookie[FILE_COOKIE_PARAMS_FILE_HASH.ordinal()],
-                fileCookie[FILE_COOKIE_PARAMS_FILE_MOD_TIME.ordinal()]);
-        collectState.set(ValueLayout.JAVA_INT, COLLECT_STATE_OFFSET_MIN_FILE_OFFSET, queryParams.getMinCollectOffset());
-        collectState.set(ValueLayout.JAVA_INT, COLLECT_STATE_OFFSET_NUM_RECORDS, queryParams.getTotalNumRecords());
-        collectState.set(ValueLayout.JAVA_BYTE, COLLECT_STATE_OFFSET_NUM_WARM_UP_ELEMENTS, (byte) 1);
-        collectState.set(ValueLayout.JAVA_BYTE, COLLECT_STATE_OFFSET_NUM_MATCH_COLLECT_ELEMENTS, (byte) 0);
-        collectState.set(ValueLayout.JAVA_BYTE, COLLECT_STATE_OFFSET_NUM_CHUNKS_IN_RANGE, (byte) numChunksInRange);
-        collectState.set(ValueLayout.JAVA_BYTE, COLLECT_STATE_OFFSET_IS_FULL_SCAN, (queryParams.getNumMatchElements() == 0) ? (byte) 1 : (byte) 0);
-    }
-
     // returns the main memory with the payload
     public MemorySegment getStateMemory()
     {

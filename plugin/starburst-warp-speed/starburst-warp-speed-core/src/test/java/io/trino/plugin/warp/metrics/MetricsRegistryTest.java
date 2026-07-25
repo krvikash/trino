@@ -92,7 +92,7 @@ public class MetricsRegistryTest
     {
         WarpTestStats(String jmxKey)
         {
-            super(jmxKey, WarpStatType.Worker);
+            super(jmxKey);
         }
     }
 }

@@ -221,11 +221,6 @@ public class TypeUtils
         return (type instanceof DecimalType decimalType) && decimalType.isShort();
     }
 
-    public static boolean isDecimalType(Type type)
-    {
-        return isLongDecimalType(type) || isShortDecimalType(type);
-    }
-
     public static boolean isSmallIntType(Type type)
     {
         return type.equals(SMALLINT);

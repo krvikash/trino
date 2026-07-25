@@ -32,6 +32,7 @@ import java.util.stream.Collectors;
         "warp-speed.config.warm-data-varchar-max-length",
         "warp-speed.max-collect-columns-skip-default-warming",
         "warp-speed.data-only-warming",
+        "warp-speed.enable.lazy-for-selective",
 })
 public class GlobalConfig
 {
@@ -71,7 +72,6 @@ public class GlobalConfig
     private boolean enableOrPushdown = true;
     private boolean enableRangeFilter = true;
     private boolean enableInverseWithNulls;
-    private boolean enableLazyForSelective = true;
 
     public boolean getIsSingle()
     {
@@ -144,21 +144,10 @@ public class GlobalConfig
         return enableInverseWithNulls;
     }
 
-    public boolean getEnableLazyForSelective()
-    {
-        return enableLazyForSelective;
-    }
-
     @Config("warp-speed.enable.inverse-with-nulls")
     public void setEnableInverseWithNulls(boolean enableInverseWithNulls)
     {
         this.enableInverseWithNulls = enableInverseWithNulls;
-    }
-
-    @Config("warp-speed.enable.lazy-for-selective")
-    public void setEnableLazyForSelective(boolean enableLazyForSelective)
-    {
-        this.enableLazyForSelective = enableLazyForSelective;
     }
 
     public boolean getEnableOrPushdown()

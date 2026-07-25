@@ -13,7 +13,6 @@
  */
 package io.trino.plugin.warp.storage.write.appenders;
 
-import io.airlift.slice.Slice;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElementState;
 import io.trino.plugin.warp.juffer.BlockPosHolder;
@@ -82,8 +81,6 @@ public class LuceneBlockAppender
     private void writeValue(BlockPosHolder blockPos)
             throws IOException
     {
-        Slice value = blockPos.getSlice();
-        luceneIndexer.addDoc(value);
-        juffersWE.updateLuceneProps(value);
+        luceneIndexer.addDoc(blockPos.getSlice());
     }
 }
