@@ -34,10 +34,12 @@ import io.trino.plugin.warp.storage.memory.WorkerMemoryManager;
 import io.trino.plugin.warp.storage.write.appenders.BlockAppenderFactory;
 import io.trino.spi.Page;
 import io.trino.spi.block.Block;
+import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.block.LongArrayBlockBuilder;
 import io.trino.spi.block.VariableWidthBlockBuilder;
 import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.connector.SourcePage;
+import io.trino.spi.type.BooleanType;
 import io.trino.spi.type.VarcharType;
 import org.apache.commons.io.FileUtils;
 import org.apache.lucene.store.AlreadyClosedException;
@@ -74,6 +76,20 @@ public class StorageWriterServiceTest
         LongArrayBlockBuilder block = new LongArrayBlockBuilder(null, values.length);
         IntStream.range(0, values.length).forEach(i -> block.writeLong(values[i]));
         return new Page(block.build());
+    }
+
+    public static Page buildBooleanPage(Boolean... values)
+    {
+        BlockBuilder blockBuilder = BooleanType.BOOLEAN.createBlockBuilder(null, values.length);
+        for (Boolean value : values) {
+            if (value == null) {
+                blockBuilder.appendNull();
+            }
+            else {
+                BooleanType.BOOLEAN.writeBoolean(blockBuilder, value);
+            }
+        }
+        return new Page(blockBuilder.build());
     }
 
     public static Page buildVarcharPage(String... values)
@@ -151,6 +167,23 @@ public class StorageWriterServiceTest
 
         assertPositionResults(dataRecordJuffer, 2, SHOULD_BE_NULL);
         assertThat(actualRecBuffer.position()).isEqualTo(expectedPosition);
+    }
+
+    @Test
+    public void writeBooleanBasic()
+    {
+        WarmupElementWriteMetadata warmupElementWriteMetadata = WarmColumnDataTestUtil.createWarmupElementWriteMetadata(WarmColumnDataTestUtil.generateRecordData(
+                        "col1",
+                        BooleanType.BOOLEAN),
+                WarmUpType.WARM_UP_TYPE_BASIC);
+        Page page = buildBooleanPage(true, null, false);
+        WriteOpenResult writeOpenResult = runTest(page, warmupElementWriteMetadata);
+        WriteJuffersWarmUpElement dataRecordJuffer = writeOpenResult.storageWriterContext().getWriteJuffersWarmUpElement();
+
+        // booleans are the only type warmed through the record buffer; one byte per position including the null placeholder
+        assertBuffer(dataRecordJuffer.getRecordJuffer(), 3);
+        assertThat(dataRecordJuffer.getCrcJuffer()).isNull();
+        assertPositionResults(dataRecordJuffer, 3, SHOULD_BE_NULL);
     }
 
     @Test

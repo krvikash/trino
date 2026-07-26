@@ -24,9 +24,11 @@ import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
+import io.trino.plugin.warp.storage.engine.StubsStorageEngine;
 import io.trino.plugin.warp.storage.engine.StubsStorageEngineConstants;
 import io.trino.plugin.warp.storage.memory.WorkerMemoryManager;
 import io.trino.spi.catalog.CatalogName;
+import io.trino.spi.type.BooleanType;
 import io.trino.spi.type.VarcharType;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -61,7 +63,7 @@ public class BufferAllocatorTest
         storageEngineConstants = spy(new StubsStorageEngineConstants());
         initStorageEngineConstants(storageEngineConstants);
 
-        StorageEngine storageEngine = mock(StorageEngine.class);
+        StorageEngine storageEngine = new StubsStorageEngine();
 
         CatalogName catalogName = new CatalogName("f");
         bufferAllocator = new BufferAllocator(
@@ -100,6 +102,18 @@ public class BufferAllocatorTest
         assertThat(warmUpElementAllocationParams.crcBuffSize()).isGreaterThan(0);
         assertThat(warmUpElementAllocationParams.isMdBufferNeeded()).isFalse();
         assertThat(warmUpElementAllocationParams.recBuffSize()).isEqualTo(0);
+        assertThat(warmUpElementAllocationParams.isLuceneIndexNeeded()).isFalse();
+    }
+
+    @Test
+    public void testCalculateAllocationParamsForBasicBoolean()
+    {
+        RecordData recordData = generateRecordData("col", BooleanType.BOOLEAN);
+        WarmupElementWriteMetadata warmupElementWriteMetadata = WarmColumnDataTestUtil.createWarmupElementWriteMetadata(recordData, WarmUpType.WARM_UP_TYPE_BASIC);
+        WarmUpElementAllocationParams warmUpElementAllocationParams = bufferAllocator.calculateAllocationParams(warmupElementWriteMetadata, null);
+        assertThat(warmUpElementAllocationParams.recBuffSize()).isGreaterThan(0);
+        assertThat(warmUpElementAllocationParams.crcBuffSize()).isEqualTo(0);
+        assertThat(warmUpElementAllocationParams.isMdBufferNeeded()).isFalse();
         assertThat(warmUpElementAllocationParams.isLuceneIndexNeeded()).isFalse();
     }
 
