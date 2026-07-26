@@ -28,8 +28,6 @@ public class RecordBufferParams
     private static final long RECORD_BUFFER_PARAMS_OFFSET_NVS;
     private static final long RECORD_BUFFER_PARAMS_OFFSET_SIZE;
     private static final long RECORD_BUFFER_PARAMS_OFFSET_SINGLE_VAL_OFFSET;
-    private static final long RECORD_BUFFER_PARAMS_OFFSET_EXT_SIZE;
-    private static final long RECORD_BUFFER_PARAMS_OFFSET_EXT_REC_FIRST_OFFSET;
 
     private final MemorySegment recordBufferParams;
 
@@ -49,8 +47,6 @@ public class RecordBufferParams
         RECORD_BUFFER_PARAMS_OFFSET_NVS = RECORD_BUFFER_PARAMS_LAYOUT.byteOffset(PathElement.groupElement("nvs"));
         RECORD_BUFFER_PARAMS_OFFSET_SIZE = RECORD_BUFFER_PARAMS_LAYOUT.byteOffset(PathElement.groupElement("size"));
         RECORD_BUFFER_PARAMS_OFFSET_SINGLE_VAL_OFFSET = RECORD_BUFFER_PARAMS_LAYOUT.byteOffset(PathElement.groupElement("singleValOffset"));
-        RECORD_BUFFER_PARAMS_OFFSET_EXT_SIZE = RECORD_BUFFER_PARAMS_LAYOUT.byteOffset(PathElement.groupElement("extSize"));
-        RECORD_BUFFER_PARAMS_OFFSET_EXT_REC_FIRST_OFFSET = RECORD_BUFFER_PARAMS_LAYOUT.byteOffset(PathElement.groupElement("extRecFirstOffset"));
     }
 
     public RecordBufferParams(MemorySegment recordBufferParams)
@@ -81,16 +77,5 @@ public class RecordBufferParams
         recordBufferParams.set(ValueLayout.JAVA_INT, RECORD_BUFFER_PARAMS_OFFSET_NVS, numNulls);
         recordBufferParams.set(ValueLayout.JAVA_INT, RECORD_BUFFER_PARAMS_OFFSET_SIZE, numBytes);
         recordBufferParams.set(ValueLayout.JAVA_INT, RECORD_BUFFER_PARAMS_OFFSET_SINGLE_VAL_OFFSET, singleValOffset);
-    }
-
-    // set paramters for extended records write
-    public void setExtParams(int numExtBytes, int extRecFirstOffset)
-    {
-        if (numExtBytes <= 0) {
-            throw new RuntimeException("warmup chunk extended records called with illegal number of bytes " + numExtBytes);
-        }
-
-        recordBufferParams.set(ValueLayout.JAVA_INT, RECORD_BUFFER_PARAMS_OFFSET_EXT_SIZE, numExtBytes);
-        recordBufferParams.set(ValueLayout.JAVA_INT, RECORD_BUFFER_PARAMS_OFFSET_EXT_REC_FIRST_OFFSET, extRecFirstOffset);
     }
 }

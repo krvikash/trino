@@ -16,7 +16,6 @@ package io.trino.plugin.warp.storage.juffers;
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.juffer.BufferAllocator;
 import io.trino.plugin.warp.juffer.WarmUpElementAllocationParams;
-import io.trino.plugin.warp.storage.engine.StorageEngine;
 import io.trino.plugin.warp.type.TypeUtils;
 
 import java.lang.foreign.MemorySegment;
@@ -25,23 +24,12 @@ public class RecordWriteJuffer
         extends BaseWriteJuffer
 {
     private final WarmUpElementAllocationParams allocParams;
-    private final StorageEngine storageEngine;
-    private final MemorySegment warmUpState;
-    private final MemorySegment compressionState;
     private int recordBufferEntrySize;            // size of one record, one if its a byte buffer
 
-    public RecordWriteJuffer(
-            BufferAllocator bufferAllocator,
-            WarmUpElementAllocationParams allocParams,
-            StorageEngine storageEngine,
-            MemorySegment warmUpState,
-            MemorySegment compressionState)
+    public RecordWriteJuffer(BufferAllocator bufferAllocator, WarmUpElementAllocationParams allocParams)
     {
         super(bufferAllocator, JuffersType.RECORD);
         this.allocParams = allocParams;
-        this.storageEngine = storageEngine;
-        this.warmUpState = warmUpState;
-        this.compressionState = compressionState;
     }
 
     @Override
@@ -59,23 +47,11 @@ public class RecordWriteJuffer
         return recordBufferEntrySize;
     }
 
-    public void resetSingleRecordBufferPos()
-    {
-        wrappedBuffer.position(0);
-    }
-
     private int calcRecordBufferEntrySize(RecTypeCode recTypeCode, int recTypeLength)
     {
         if (!TypeUtils.isStr(recTypeCode) && ((recTypeLength == Short.BYTES) || (recTypeLength == Integer.BYTES) || (recTypeLength == Long.BYTES))) {
             return recTypeLength;
         }
         return 1;
-    }
-
-    public void commitAndResetWE(MemorySegment recordBufferParams)
-    {
-        // no need to add to chunk map as we are not closing the chunk
-        storageEngine.warmupChunk(warmUpState, recordBufferParams, compressionState);
-        resetSingleRecordBufferPos();
     }
 }

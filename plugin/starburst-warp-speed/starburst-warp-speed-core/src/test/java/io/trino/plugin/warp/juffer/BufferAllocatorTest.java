@@ -100,7 +100,6 @@ public class BufferAllocatorTest
         assertThat(warmUpElementAllocationParams.crcBuffSize()).isGreaterThan(0);
         assertThat(warmUpElementAllocationParams.isMdBufferNeeded()).isFalse();
         assertThat(warmUpElementAllocationParams.recBuffSize()).isEqualTo(0);
-        assertThat(warmUpElementAllocationParams.extRecBuffSize()).isEqualTo(0);
         assertThat(warmUpElementAllocationParams.isLuceneIndexNeeded()).isFalse();
     }
 

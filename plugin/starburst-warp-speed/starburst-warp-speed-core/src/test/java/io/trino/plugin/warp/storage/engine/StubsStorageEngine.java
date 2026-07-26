@@ -121,14 +121,6 @@ public class StubsStorageEngine
     }
 
     @Override
-    public void warmupChunkExtRec(MemorySegment warmUpState, MemorySegment recordBufferParams)
-    {
-        long chunkHeaderAddress = warmUpState.get(ValueLayout.JAVA_LONG, WarmUpState.WARMUP_STATE_OFFSET_CHUNK_HEADER);
-        MemorySegment chunkHeader = MemorySegment.ofAddress(chunkHeaderAddress).reinterpret(ChunkHeader.CHUNK_HEADER_LAYOUT.byteSize());
-        chunkHeader.set(ValueLayout.JAVA_BYTE, ChunkHeader.CHUNK_HEADER_OFFSET_TYPE_AND_WARM_ID, (byte) 0x22);
-    }
-
-    @Override
     public void matchOpen(MemorySegment matchState) {}
 
     @Override

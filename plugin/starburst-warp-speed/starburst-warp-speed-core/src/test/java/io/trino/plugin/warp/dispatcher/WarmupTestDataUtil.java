@@ -347,7 +347,6 @@ public class WarmupTestDataUtil
         doReturn(allocateByteBuffer(defaultSize)).when(bufferAllocator).memorySegment2NullBuff(any());
         doReturn(allocateByteBuffer(defaultSize)).when(bufferAllocator).memorySegment2RecBuff(any());
         doReturn(allocateByteBuffer(defaultSize)).when(bufferAllocator).memorySegment2CrcBuff(any());
-        doReturn(allocateByteBuffer(defaultSize)).when(bufferAllocator).memorySegment2ExtRecsBuff(any());
         doReturn(allocateIntBuffer(defaultSize)).when(bufferAllocator).memorySegment2VarlenMdBuff(any());
 
         return bufferAllocator;

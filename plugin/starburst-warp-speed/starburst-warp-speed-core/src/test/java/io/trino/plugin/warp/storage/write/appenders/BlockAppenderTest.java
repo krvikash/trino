@@ -21,7 +21,6 @@ import io.trino.plugin.warp.juffer.BufferAllocator;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.storage.engine.StubsStorageEngineConstants;
 import io.trino.plugin.warp.storage.juffers.CrcJuffer;
-import io.trino.plugin.warp.storage.juffers.ExtendedJuffer;
 import io.trino.plugin.warp.storage.juffers.NullWriteJuffer;
 import io.trino.plugin.warp.storage.juffers.VarlenMdJuffer;
 import io.trino.plugin.warp.storage.juffers.WriteJuffersWarmUpElement;
@@ -67,10 +66,6 @@ public abstract class BlockAppenderTest
         when(writeJuffersWarmUpElement.getNullBuffer()).thenReturn(ByteBuffer.allocate(100));
         when(nullJuffer.getWrappedBuffer()).thenReturn(ByteBuffer.allocate(100));
         when(writeJuffersWarmUpElement.getNullJuffer()).thenReturn(nullJuffer);
-        ExtendedJuffer extendedJuffer = mock(ExtendedJuffer.class);
-        when(writeJuffersWarmUpElement.getExtRecordBuffer()).thenReturn(ByteBuffer.allocate(100));
-        when(extendedJuffer.getWrappedBuffer()).thenReturn(ByteBuffer.allocate(100));
-        when(writeJuffersWarmUpElement.getExtRecordJuffer()).thenReturn(extendedJuffer);
         VarlenMdJuffer varlenMdJuffer = mock(VarlenMdJuffer.class);
         when(writeJuffersWarmUpElement.getVarlenMdBuffer()).thenReturn(IntBuffer.allocate(100));
         when(varlenMdJuffer.getWrappedBuffer()).thenReturn(IntBuffer.allocate(100));

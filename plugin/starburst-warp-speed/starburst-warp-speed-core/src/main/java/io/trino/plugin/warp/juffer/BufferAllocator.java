@@ -73,7 +73,6 @@ public class BufferAllocator
     private final int maxRecLenForDataFixed;
     private final int maxRecLenForDataVarlen;
     private final int queryStringNullValueSize;
-    private int extRecBuffSize;
     private int dataTempBufferSize;
     private int indexTempBufferSize;
     private int warmBufferSize;
@@ -167,7 +166,6 @@ public class BufferAllocator
 
         this.dataTempBufferSize = storageEngineConstants.getWarmupDataTempBufferSize();
         this.indexTempBufferSize = storageEngineConstants.getWarmupIndexTempBufferSize();
-        this.extRecBuffSize = storageEngineConstants.getRecordBufferMaxSize();
 
         // NOTE: all the array sizes above are with a +1 size to allow accessing them with the record length as index to the array without the need to -1
         // since 0 is not a valid length and the maximal value is
@@ -298,9 +296,6 @@ public class BufferAllocator
         MemorySegment jbufList = warmUpState.getJbufList();
         if (weAllocParams.isRecBufferNeeded()) {
             warmUpState.setJbufInList(jbufList, JbufType.JBUF_TYPE_REC, slicer.allocate(weAllocParams.recBuffSize(), alignment));
-            if (weAllocParams.extRecBuffSize() > 0) {
-                warmUpState.setJbufInList(jbufList, JbufType.JBUF_TYPE_EXT_RECS, slicer.allocate(weAllocParams.extRecBuffSize(), alignment));
-            }
             // data type
             warmUpState.setJbufInList(jbufList, JbufType.JBUF_TYPE_TEMP, slicer.allocate(dataTempBufferSize, alignment));
         }
@@ -325,11 +320,6 @@ public class BufferAllocator
     public ByteBuffer memorySegment2RecBuff(MemorySegment[] buffs)
     {
         return memorySegment2ByteBuffer(buffs[JbufType.JBUF_TYPE_REC.ordinal()]);
-    }
-
-    public ByteBuffer memorySegment2ExtRecsBuff(MemorySegment[] buffs)
-    {
-        return memorySegment2ByteBuffer(buffs[JbufType.JBUF_TYPE_EXT_RECS.ordinal()]);
     }
 
     public ByteBuffer memorySegment2NullBuff(MemorySegment[] buffs)
@@ -433,7 +423,6 @@ public class BufferAllocator
                 recTypeLength,
                 isRecBufferNeeded ? getWarmupRecordBufferSize(recTypeLength) : 0,
                 isCrcBufferNeeded(warmUpElement.getWarmUpType(), recTypeCode) ? calculateCrcBufferSize(recTypeCode, recTypeLength) : 0,
-                isRecBufferNeeded && isExtendedBufferNeeded(recTypeLength) ? extRecBuffSize : 0,
                 isRecBufferNeeded && isMdBufferNeeded(recTypeCode),
                 isLuceneBuffersNeeded(warmUpElement.getWarmUpType()),
                 loadSegment);
@@ -518,11 +507,6 @@ public class BufferAllocator
             };
         }
         return (recSize + Short.BYTES) * (1 << storageEngineConstants.getChunkSizeShift());
-    }
-
-    private boolean isExtendedBufferNeeded(int recTypeLength)
-    {
-        return recTypeLength > storageEngineConstants.getVarlenExtLimit();
     }
 
     private boolean isMdBufferNeeded(RecTypeCode recTypeCode)

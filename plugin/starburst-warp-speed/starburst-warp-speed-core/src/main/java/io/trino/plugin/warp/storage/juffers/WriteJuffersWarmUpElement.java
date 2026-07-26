@@ -101,22 +101,8 @@ public class WriteJuffersWarmUpElement
         newChunk();
 
         if (allocParams.isRecBufferNeeded()) {
-            RecordWriteJuffer recordJuffers = new RecordWriteJuffer(
-                    bufferAllocator,
-                    allocParams,
-                    storageEngine,
-                    warmUpState.getMemory(),
-                    compressionState.getMemory());
+            RecordWriteJuffer recordJuffers = new RecordWriteJuffer(bufferAllocator, allocParams);
             juffers.put(recordJuffers.getJufferType(), recordJuffers);
-
-            if (allocParams.isExtBufferNeeded()) {
-                ExtendedJuffer extendedJuffers = new ExtendedJuffer(
-                        bufferAllocator,
-                        storageEngine,
-                        warmUpState.getMemory(),
-                        recordBufferParams);
-                juffers.put(extendedJuffers.getJufferType(), extendedJuffers);
-            }
         }
 
         NullWriteJuffer nullJuffers = new NullWriteJuffer(bufferAllocator);
@@ -188,9 +174,6 @@ public class WriteJuffersWarmUpElement
             RecordWriteJuffer recordJuffer = getRecordJuffer();
             boolean prepareMdBuffer = allocParams.isMdBufferNeeded();
             numBytesWritten = calcNumBytesWritten(recordJuffer.getRecordBufferEntrySize(), recordJuffer.getWrappedBuffer(), prepareMdBuffer ? getVarlenMdBuffer() : null);
-            if (allocParams.isExtBufferNeeded()) {
-                getExtRecordJuffer().commitAndResetExtRecordBuffer();
-            }
         }
 
         recordBufferParams.setParams(
@@ -226,24 +209,6 @@ public class WriteJuffersWarmUpElement
         }
 
         return res;
-    }
-
-    public void commitAndResetWE(int numRecs, int addedNV, int numBytes, int numExtBytes)
-    {
-        chunkOpened = true;
-        if (allocParams.isExtBufferNeeded()) {
-            getExtRecordJuffer().commitAndResetExtRecordBuffer(numExtBytes);
-        }
-
-        recordBufferParams.setParams(
-                recordBufferMin,
-                recordBufferMax,
-                numRecs,
-                getNullJuffer().getNullsCount() + addedNV,
-                numBytes,
-                recordBufferSingleOffset);
-
-        getRecordJuffer().commitAndResetWE(recordBufferParams.getMemory());
     }
 
     public void writeChunkListToJuffer(int baseOffset)
@@ -469,11 +434,6 @@ public class WriteJuffersWarmUpElement
         return (LuceneWriteJuffer) getJufferByType(JuffersType.LUCENE);
     }
 
-    public ExtendedJuffer getExtRecordJuffer()
-    {
-        return (ExtendedJuffer) getJufferByType(JuffersType.EXTENDED_REC);
-    }
-
     public NullWriteJuffer getNullJuffer()
     {
         return (NullWriteJuffer) getJufferByType(JuffersType.NULL);
@@ -487,11 +447,6 @@ public class WriteJuffersWarmUpElement
     public CrcJuffer getCrcJuffer()
     {
         return (CrcJuffer) getJufferByType(JuffersType.CRC);
-    }
-
-    public ByteBuffer getExtRecordBuffer()
-    {
-        return (ByteBuffer) getBufferByType(JuffersType.EXTENDED_REC);
     }
 
     public IntBuffer getVarlenMdBuffer()

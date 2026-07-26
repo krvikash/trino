@@ -22,7 +22,6 @@ public record WarmUpElementAllocationParams(
         int recTypeLength,
         int recBuffSize,
         int crcBuffSize,
-        int extRecBuffSize,
         boolean isMdBufferNeeded,
         boolean isLuceneIndexNeeded,
         MemorySegment memorySegment)
@@ -35,10 +34,5 @@ public record WarmUpElementAllocationParams(
     public boolean isRecBufferNeeded()
     {
         return recBuffSize > 0;
-    }
-
-    public boolean isExtBufferNeeded()
-    {
-        return extRecBuffSize > 0;
     }
 }

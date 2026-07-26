@@ -114,11 +114,6 @@ public interface StorageEngine
         throw new UnsupportedOperationException();
     }
 
-    default void warmupChunkExtRec(MemorySegment warmUpState, MemorySegment recordBufferParams)
-    {
-        throw new UnsupportedOperationException();
-    }
-
     // ----------------------- query ----------------------------------------
     default void matchOpen(MemorySegment matchState)
     {

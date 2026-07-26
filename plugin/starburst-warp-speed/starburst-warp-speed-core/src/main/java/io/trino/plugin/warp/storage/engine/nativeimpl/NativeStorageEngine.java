@@ -97,7 +97,6 @@ public class NativeStorageEngine
     private final MethodHandle mWarmupElementClose;
     private final MethodHandle mWarmupVerifyQueryOffset;
     private final MethodHandle mWarmupChunk;
-    private final MethodHandle mWarmupChunkExtRec;
     // match API
     private final MethodHandle mMatchOpen;
     private final MethodHandle mMatchAgg;
@@ -238,9 +237,6 @@ public class NativeStorageEngine
             mWarmupChunk = linker.downcallHandle(
                     libraryHandle.find("warp_speed_warmup_chunk").orElseThrow(),
                     FunctionDescriptor.ofVoid(ValueLayout.ADDRESS, ValueLayout.ADDRESS, ValueLayout.ADDRESS, ValueLayout.JAVA_INT));
-            mWarmupChunkExtRec = linker.downcallHandle(
-                    libraryHandle.find("warp_speed_warmup_chunk_ext_rec").orElseThrow(),
-                    FunctionDescriptor.ofVoid(ValueLayout.ADDRESS, ValueLayout.ADDRESS, ValueLayout.JAVA_INT));
 
             // match API
             mMatchOpen = linker.downcallHandle(
@@ -612,21 +608,6 @@ public class NativeStorageEngine
             }
             shapingLogger.error(t, "failed to warmupChunk");
             throw new TrinoException(WarpErrorCode.WARP_GENERIC, "failed to warmup chunk", t);
-        }
-    }
-
-    @Override
-    public void warmupChunkExtRec(MemorySegment warmUpState, MemorySegment recordBufferParams)
-    {
-        try (NativeLogger.LogId logId = nativeLogger.getLogId(exceptionThrower)) {
-            mWarmupChunkExtRec.invokeExact(warmUpState, recordBufferParams, logId.id());
-        }
-        catch (Throwable t) {
-            if (t instanceof TrinoException te) {
-                throw te;
-            }
-            shapingLogger.error(t, "failed to warmupChunkExtRec");
-            throw new TrinoException(WarpErrorCode.WARP_GENERIC, "failed to warmup extended records", t);
         }
     }
 
