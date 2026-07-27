@@ -138,12 +138,4 @@ public final class ParquetCompressionUtils
         int byteArrayOffset = inputOffset + input.byteArrayOffset();
         return decompressor.decompress(byteArray, byteArrayOffset, inputLength, output, outputOffset, output.length - outputOffset);
     }
-
-    private static void verifyRange(byte[] data, int offset, int length)
-    {
-        requireNonNull(data, "data is null");
-        if (offset < 0 || length < 0 || offset + length > data.length) {
-            throw new IllegalArgumentException(format("Invalid offset or length (%s, %s) in array of length %s", offset, length, data.length));
-        }
-    }
 }
