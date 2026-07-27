@@ -615,8 +615,8 @@ public class TestPostgreSqlConnectorTest
                                         "(BIGINT '2', BIGINT '21', CAST('VIETNAM' AS varchar(25)))")
                                 .isFullyPushedDown())
                 .stopEventsRecording()
-                .streamQueriesContaining("\"nation\""))
-                .noneMatch(query -> query.contains("COLLATE"));
+                .streamQueriesContaining("nation"))
+                .anyMatch(query -> query.replace("\"", "").matches("SELECT nationkey, name, regionkey FROM (\\w+\\.)+nation WHERE name IN \\(\\$1,\\s?\\$2,\\s?\\$3\\)"));
 
         // bigint IN with collation enabled: not affected, no COLLATE in remote SQL
         assertThat(postgreSqlServer
@@ -627,8 +627,8 @@ public class TestPostgreSqlConnectorTest
                                         "(BIGINT '2', BIGINT '21', CAST('VIETNAM' AS varchar(25)))")
                                 .isFullyPushedDown())
                 .stopEventsRecording()
-                .streamQueriesContaining("\"nation\""))
-                .noneMatch(query -> query.contains("COLLATE"));
+                .streamQueriesContaining("nation"))
+                .anyMatch(query -> query.replace("\"", "").matches("SELECT nationkey, name, regionkey FROM (\\w+\\.)+nation WHERE nationkey IN \\(\\$1,\\s?\\$2\\)"));
 
         // enum column mapped to varchar with collation enabled: not collatable, no COLLATE in remote SQL
         String enumType = "test_enum_" + randomNameSuffix();
