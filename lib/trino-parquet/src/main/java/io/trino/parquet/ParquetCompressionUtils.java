@@ -16,10 +16,10 @@ package io.trino.parquet;
 import io.airlift.compress.v3.Decompressor;
 import io.airlift.compress.v3.lz4.Lz4Decompressor;
 import io.airlift.compress.v3.lzo.LzoDecompressor;
+import io.airlift.compress.v3.snappy.SnappyDecompressor;
 import io.airlift.compress.v3.zstd.ZstdDecompressor;
 import io.airlift.slice.Slice;
 import org.apache.parquet.format.CompressionCodec;
-import org.xerial.snappy.Snappy;
 
 import java.io.IOException;
 import java.util.zip.GZIPInputStream;
@@ -51,7 +51,7 @@ public final class ParquetCompressionUtils
         return switch (codec) {
             case UNCOMPRESSED -> input;
             case GZIP -> decompressGzip(input, uncompressedSize);
-            case SNAPPY -> decompressJniSnappy(input, uncompressedSize);
+            case SNAPPY -> decompressSnappy(input, uncompressedSize);
             case LZO -> decompressLZO(input, uncompressedSize);
             case LZ4 -> decompressLz4(input, uncompressedSize);
             case ZSTD -> decompressZstd(input, uncompressedSize);
@@ -59,24 +59,16 @@ public final class ParquetCompressionUtils
         };
     }
 
-    /*
-     * Use JNI Snappy decompressor because aircompressor is failing to load the FFI based native decompressor
-     * This change should be reverted when https://starburstdata.atlassian.net/browse/ENG-3124 is fixed
-     */
-    private static Slice decompressJniSnappy(Slice input, int uncompressedSize)
-            throws IOException
+    private static Slice decompressSnappy(Slice input, int uncompressedSize)
     {
-        if (uncompressedSize == 0) {
-            return EMPTY_SLICE;
+        // Snappy decompressor is more efficient if there's at least a long's worth of extra space
+        // in the output buffer
+        byte[] buffer = new byte[uncompressedSize + SIZE_OF_LONG];
+        int actualUncompressedSize = decompress(SnappyDecompressor.create(), input, 0, input.length(), buffer, 0);
+        if (actualUncompressedSize != uncompressedSize) {
+            throw new IllegalArgumentException(format("Invalid uncompressedSize for SNAPPY input. Expected %s, actual: %s", uncompressedSize, actualUncompressedSize));
         }
-
-        verifyRange(input.byteArray(), input.byteArrayOffset(), input.length());
-        byte[] buffer = new byte[uncompressedSize];
-        int bytesRead = Snappy.uncompress(input.byteArray(), input.byteArrayOffset(), input.length(), buffer, 0);
-        if (bytesRead != uncompressedSize) {
-            throw new IllegalArgumentException(format("Invalid uncompressedSize for ZSTD input. Expected %s, actual: %s", uncompressedSize, bytesRead));
-        }
-        return wrappedBuffer(buffer, 0, bytesRead);
+        return wrappedBuffer(buffer, 0, uncompressedSize);
     }
 
     private static Slice decompressZstd(Slice input, int uncompressedSize)
