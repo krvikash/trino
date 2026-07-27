@@ -1384,13 +1384,6 @@ public final class BenchmarkRunner
     }
 
     /**
-     * GPU mode keeps the pre-existing TestingTrinoServer default of 4 instead of scaling to host
-     * cores: 8 and 16 were tried and caused out-of-memory failures or regressed previously-passing
-     * queries.
-     */
-    private static final int GPU_TASK_CONCURRENCY = 4;
-
-    /**
      * Apply deterministic-write settings (single writer per task, no scaling).
      */
     public static <T extends DistributedQueryRunner.Builder<T>> T applyDataGenerationConfiguration(T builder)
@@ -1446,15 +1439,12 @@ public final class BenchmarkRunner
      */
     public static void applyExecutionMode(DistributedQueryRunner.Builder<?> builder, ExecutionMode mode)
     {
+        // TestingTrinoServer sets both task.concurrency and task.max-worker-threads to 4.
+        // Here, we override them with the default values, which are determined based on the hardware
+        // on which the benchmarks run.
         TaskManagerConfig taskManagerDefaults = new TaskManagerConfig();
-        int taskConcurrency = switch (mode) {
-            case CPU -> taskManagerDefaults.getTaskConcurrency();
-            case GPU -> GPU_TASK_CONCURRENCY;
-        };
-        int maxWorkerThreads = switch (mode) {
-            case CPU -> taskManagerDefaults.getMaxWorkerThreads();
-            case GPU -> GPU_TASK_CONCURRENCY;
-        };
+        int taskConcurrency = taskManagerDefaults.getTaskConcurrency();
+        int maxWorkerThreads = taskManagerDefaults.getMaxWorkerThreads();
         builder.addExtraProperty("task.concurrency", Integer.toString(taskConcurrency));
         builder.addExtraProperty("task.max-worker-threads", Integer.toString(maxWorkerThreads));
         builder.addExtraProperty("query.max-memory-per-node", "80%");
