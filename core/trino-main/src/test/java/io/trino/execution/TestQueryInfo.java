@@ -265,6 +265,7 @@ public class TestQueryInfo
                     ImmutableList.of(),
                     stageId == 1 ? ImmutableList.of() : ImmutableList.of(StageId.valueOf(ImmutableList.of("s", String.valueOf(stageId - 1)))),
                     ImmutableMap.of(),
+                    ImmutableMap.of(new PlanNodeId("gpu_node"), ImmutableSet.of("Unsupported expression")),
                     new ExecutionFailureInfo("", "", null, ImmutableList.of(), ImmutableList.of(), null, null, null)));
         }
         return new StagesInfo(

@@ -99,6 +99,8 @@ public class SqlTaskExecution
     private final Map<PlanNodeId, DriverSplitRunnerFactory> driverRunnerFactoriesWithRemoteSource;
     private final List<DriverSplitRunnerFactory> allDriverRunnerFactories;
 
+    private final Map<PlanNodeId, String> gpuIneligibilityReasons;
+
     @GuardedBy("this")
     private final Map<PlanNodeId, Long> maxAcknowledgedSplitByPlanNode = new HashMap<>();
 
@@ -159,6 +161,8 @@ public class SqlTaskExecution
                     .addAll(this.driverRunnerFactoriesWithTaskLifeCycle)
                     .addAll(this.driverRunnerFactoriesWithSplitLifeCycle.values())
                     .build();
+
+            this.gpuIneligibilityReasons = localExecutionPlan.getGpuIneligibilityReasons();
 
             this.pendingSplitsByPlanNode = this.driverRunnerFactoriesWithSplitLifeCycle.keySet().stream()
                     .collect(toImmutableMap(identity(), _ -> new PendingSplitsForPlanNode()));
@@ -245,6 +249,11 @@ public class SqlTaskExecution
     public TaskContext getTaskContext()
     {
         return taskContext;
+    }
+
+    public Map<PlanNodeId, String> getGpuIneligibilityReasons()
+    {
+        return gpuIneligibilityReasons;
     }
 
     public void addSplitAssignments(List<SplitAssignment> splitAssignments)

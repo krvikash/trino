@@ -161,6 +161,7 @@ public class TestingRemoteTaskFactory
                             Optional.empty()),
                     ImmutableSet.copyOf(noMoreSplits),
                     new TaskStats(Instant.now(), null),
+                    ImmutableMap.of(),
                     Optional.empty(),
                     false);
         }

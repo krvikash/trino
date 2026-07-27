@@ -14,6 +14,7 @@
 package io.trino.execution;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -467,6 +468,19 @@ public class SqlTask
         return ImmutableSet.of();
     }
 
+    private static Map<PlanNodeId, String> getGpuIneligibilityReasons(TaskHolder taskHolder)
+    {
+        TaskInfo finalTaskInfo = taskHolder.getFinalTaskInfo();
+        if (finalTaskInfo != null) {
+            return finalTaskInfo.gpuIneligibilityReasons();
+        }
+        SqlTaskExecution taskExecution = taskHolder.getTaskExecution();
+        if (taskExecution != null) {
+            return taskExecution.getGpuIneligibilityReasons();
+        }
+        return ImmutableMap.of();
+    }
+
     private TaskInfo createTaskInfo(TaskHolder taskHolder)
     {
         // create task status first to prevent potentially seeing incomplete stats for a done task state
@@ -480,6 +494,7 @@ public class SqlTask
                 outputBuffer.getInfo(),
                 noMoreSplits,
                 taskStats,
+                getGpuIneligibilityReasons(taskHolder),
                 Optional.empty(),
                 needsPlan.get());
     }

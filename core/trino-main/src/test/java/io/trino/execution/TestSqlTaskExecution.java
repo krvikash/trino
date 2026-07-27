@@ -130,7 +130,8 @@ public class TestSqlTaskExecution
                             true,
                             ImmutableList.of(testingScanOperatorFactory, taskOutputOperatorFactory),
                             OptionalInt.empty())),
-                    ImmutableList.of(TABLE_SCAN_NODE_ID));
+                    ImmutableList.of(TABLE_SCAN_NODE_ID),
+                    ImmutableMap.of());
             TaskContext taskContext = newTestingTaskContext(taskNotificationExecutor, driverYieldExecutor, driverTimeoutExecutor, taskStateMachine);
             SqlTaskExecution sqlTaskExecution = new SqlTaskExecution(
                     taskStateMachine,

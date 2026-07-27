@@ -306,6 +306,7 @@ public class TestTotalReservationOnBlockedNodesTaskLowMemoryKiller
                         0,
                         new Duration(0, MILLISECONDS),
                         ImmutableList.of()),
+                ImmutableMap.of(),
                 Optional.empty(),
                 false);
     }

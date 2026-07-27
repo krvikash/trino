@@ -360,6 +360,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 import static com.google.common.base.Functions.forMap;
 import static com.google.common.base.MoreObjects.toStringHelper;
@@ -471,6 +472,7 @@ import static java.lang.Math.toIntExact;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.TimeUnit.HOURS;
+import static java.util.function.Predicate.not;
 import static java.util.stream.Collectors.partitioningBy;
 import static java.util.stream.IntStream.range;
 
@@ -759,7 +761,7 @@ public class LocalExecutionPlanner
                         physicalOperation),
                 context);
 
-        return new LocalExecutionPlan(context.getDriverFactories(), partitionedSourceOrder);
+        return new LocalExecutionPlan(context.getDriverFactories(), partitionedSourceOrder, context.getGpuIneligibilityReasons());
     }
 
     private static boolean isSpooledOutput(Session session, PhysicalOperation operation)
@@ -782,6 +784,8 @@ public class LocalExecutionPlanner
         // this is shared with all subContexts
         private final AtomicInteger nextPipelineId;
 
+        private final Map<PlanNodeId, String> gpuIneligibilityReasons;
+
         private int nextOperatorId;
         private boolean inputDriver = true;
         private Optional<CacheContext> cacheContext = Optional.empty();
@@ -797,7 +801,8 @@ public class LocalExecutionPlanner
                     alternativeChooser,
                     new ArrayList<>(),
                     Optional.empty(),
-                    new AtomicInteger(0));
+                    new AtomicInteger(0),
+                    new HashMap<>());
         }
 
         private LocalExecutionPlanContext(
@@ -806,7 +811,8 @@ public class LocalExecutionPlanner
                 AlternativeChooser alternativeChooser,
                 List<SplitDriverFactory> driverFactories,
                 Optional<IndexSourceContext> indexSourceContext,
-                AtomicInteger nextPipelineId)
+                AtomicInteger nextPipelineId,
+                Map<PlanNodeId, String> gpuIneligibilityReasons)
         {
             this.taskContext = taskContext;
             this.metadata = metadata;
@@ -814,6 +820,18 @@ public class LocalExecutionPlanner
             this.driverFactories = driverFactories;
             this.indexSourceContext = indexSourceContext;
             this.nextPipelineId = nextPipelineId;
+            this.gpuIneligibilityReasons = gpuIneligibilityReasons;
+        }
+
+        public void markAsGpuIneligible(PlanNodeId planNodeId, String reason)
+        {
+            checkState(!gpuIneligibilityReasons.containsKey(planNodeId), "GPU ineligibility reason already set for plan node: %s", planNodeId);
+            gpuIneligibilityReasons.put(planNodeId, reason);
+        }
+
+        public Map<PlanNodeId, String> getGpuIneligibilityReasons()
+        {
+            return gpuIneligibilityReasons;
         }
 
         public void addDriverFactory(boolean outputDriver, PhysicalOperation physicalOperation, LocalExecutionPlanContext context)
@@ -961,12 +979,12 @@ public class LocalExecutionPlanner
         public LocalExecutionPlanContext createSubContext()
         {
             checkState(indexSourceContext.isEmpty(), "index build plan cannot have sub-contexts");
-            return new LocalExecutionPlanContext(taskContext, metadata, alternativeChooser, driverFactories, indexSourceContext, nextPipelineId);
+            return new LocalExecutionPlanContext(taskContext, metadata, alternativeChooser, driverFactories, indexSourceContext, nextPipelineId, gpuIneligibilityReasons);
         }
 
         public LocalExecutionPlanContext createIndexSourceSubContext(IndexSourceContext indexSourceContext)
         {
-            return new LocalExecutionPlanContext(taskContext, metadata, alternativeChooser, driverFactories, Optional.of(indexSourceContext), nextPipelineId);
+            return new LocalExecutionPlanContext(taskContext, metadata, alternativeChooser, driverFactories, Optional.of(indexSourceContext), nextPipelineId, gpuIneligibilityReasons);
         }
 
         public Optional<CacheContext> getCacheContext()
@@ -1078,11 +1096,13 @@ public class LocalExecutionPlanner
     {
         private final List<SplitDriverFactory> driverFactories;
         private final List<PlanNodeId> partitionedSourceOrder;
+        private final Map<PlanNodeId, String> gpuIneligibilityReasons;
 
-        public LocalExecutionPlan(List<SplitDriverFactory> driverFactories, List<PlanNodeId> partitionedSourceOrder)
+        public LocalExecutionPlan(List<SplitDriverFactory> driverFactories, List<PlanNodeId> partitionedSourceOrder, Map<PlanNodeId, String> gpuIneligibilityReasons)
         {
             this.driverFactories = ImmutableList.copyOf(requireNonNull(driverFactories, "driverFactories is null"));
             this.partitionedSourceOrder = ImmutableList.copyOf(requireNonNull(partitionedSourceOrder, "partitionedSourceOrder is null"));
+            this.gpuIneligibilityReasons = ImmutableMap.copyOf(requireNonNull(gpuIneligibilityReasons, "gpuIneligibilityReasons is null"));
         }
 
         public List<SplitDriverFactory> getDriverFactories()
@@ -1093,6 +1113,11 @@ public class LocalExecutionPlanner
         public List<PlanNodeId> getPartitionedSourceOrder()
         {
             return partitionedSourceOrder;
+        }
+
+        public Map<PlanNodeId, String> getGpuIneligibilityReasons()
+        {
+            return gpuIneligibilityReasons;
         }
     }
 
@@ -2079,7 +2104,14 @@ public class LocalExecutionPlanner
 
         private Optional<PhysicalOperation> tryPlanGpuTopN(TopNNode node, PhysicalOperation source, LocalExecutionPlanContext context)
         {
-            if (!isGpuExecutionEnabled(session) || !source.getTypes().stream().allMatch(GpuTypeConversion::isConvertible)) {
+            if (!isGpuExecutionEnabled(session)) {
+                return Optional.empty();
+            }
+            Set<Type> unsupportedTypes = source.getTypes().stream()
+                    .filter(not(GpuTypeConversion::isConvertible))
+                    .collect(toImmutableSet());
+            if (!unsupportedTypes.isEmpty()) {
+                context.markAsGpuIneligible(node.getId(), "Unsupported column types: %s".formatted(unsupportedTypes));
                 return Optional.empty();
             }
 
@@ -2382,22 +2414,31 @@ public class LocalExecutionPlanner
                     sourceOutputTypes = sourceNode.getOutputSymbols().stream()
                             .map(Symbol::type)
                             .collect(toImmutableList());
-                    GpuPageSourceSupport gpuPageSourceSupport = pageSourceManager.getGpuPageSourceSupport(table.catalogHandle(), table.connectorHandle(), columns);
-                    if (gpuPageSourceSupport.supported() &&
-                            // table scan has types supported on the GPU
-                            sourceLayout.keySet().stream().map(Symbol::type).allMatch(GpuTypeConversion::isConvertible)) {
-                        GpuOperator.SourceFactory gpuOperator = new GpuOperator.SourceFactory(
-                                context.getNextOperatorId(),
-                                sourceNode.getId(),
-                                pageSourceManager.createPageSourceProvider(table.catalogHandle()),
-                                session,
-                                table,
-                                tableCredentials,
-                                columns,
-                                dynamicFilter,
-                                sourceOutputTypes);
+                    Set<Type> unsupportedTypes = sourceLayout.keySet().stream().map(Symbol::type)
+                            .filter(not(GpuTypeConversion::isConvertible))
+                            .collect(toImmutableSet());
+                    if (!unsupportedTypes.isEmpty()) {
+                        context.markAsGpuIneligible(planNodeId, "Unsupported column types: %s".formatted(unsupportedTypes));
+                    }
+                    else {
+                        GpuPageSourceSupport gpuPageSourceSupport = pageSourceManager.getGpuPageSourceSupport(table.catalogHandle(), table.connectorHandle(), columns);
+                        if (!gpuPageSourceSupport.supported()) {
+                            context.markAsGpuIneligible(planNodeId, gpuPageSourceSupport.reason().orElseThrow());
+                        }
+                        else {
+                            GpuOperator.SourceFactory gpuOperator = new GpuOperator.SourceFactory(
+                                    context.getNextOperatorId(),
+                                    sourceNode.getId(),
+                                    pageSourceManager.createPageSourceProvider(table.catalogHandle()),
+                                    session,
+                                    table,
+                                    tableCredentials,
+                                    columns,
+                                    dynamicFilter,
+                                    sourceOutputTypes);
 
-                        sourceGpuOperation = Optional.of(new PhysicalOperation(gpuOperator, sourceLayout));
+                            sourceGpuOperation = Optional.of(new PhysicalOperation(gpuOperator, sourceLayout));
+                        }
                     }
                 }
                 else {
@@ -2408,12 +2449,13 @@ public class LocalExecutionPlanner
                     }
                 }
 
-                // Filters and projections are only added when there is a preceding GPU operation
-                if (sourceGpuOperation.isPresent() &&
-                        // source has types supported on the GPU
-                        sourceOutputTypes.stream().allMatch(GpuTypeConversion::isConvertible) &&
-                        // projections have types supported on the GPU
-                        projections.stream().map(Expression::type).allMatch(GpuTypeConversion::isConvertible)) {
+                Set<Type> unsupportedTypes = Stream.concat(sourceOutputTypes.stream(), projections.stream().map(Expression::type))
+                        .filter(not(GpuTypeConversion::isConvertible))
+                        .collect(toImmutableSet());
+                if (sourceGpuOperation.isPresent() && !unsupportedTypes.isEmpty()) {
+                    context.markAsGpuIneligible(planNodeId, "Unsupported column types: %s".formatted(unsupportedTypes));
+                }
+                else if (sourceGpuOperation.isPresent()) {
                     Optional<CompiledExpression> gpuFilter = staticFilters.flatMap(filter -> GpuExpressionCompiler.compileExpression(filter, sourceLayout));
                     if (staticFilters.isPresent() == gpuFilter.isPresent()) {
                         PhysicalOperation gpuOperation = sourceGpuOperation.get();
@@ -2456,6 +2498,10 @@ public class LocalExecutionPlanner
                                     context,
                                     planNodeId);
                         }
+                        context.markAsGpuIneligible(planNodeId, "Unsupported expression");
+                    }
+                    else {
+                        context.markAsGpuIneligible(planNodeId, "Unsupported expression");
                     }
                 }
             }
@@ -2616,21 +2662,29 @@ public class LocalExecutionPlanner
             }
 
             Optional<ConnectorTableCredentials> tableCredentials = context.getTaskContext().getTableCredentials(node.getId());
-            if (isGpuExecutionEnabled(session) &&
-                    columnTypes.build().stream().allMatch(GpuTypeConversion::isConvertible)) {
-                GpuPageSourceSupport gpuPageSourceSupport = pageSourceManager.getGpuPageSourceSupport(node.getTable().catalogHandle(), node.getTable().connectorHandle(), columns.build());
-                if (gpuPageSourceSupport.supported()) {
-                    OperatorFactory operatorFactory = new GpuOperator.SourceFactory(
-                            context.getNextOperatorId(),
-                            planNodeId,
-                            pageSourceManager.createPageSourceProvider(node.getTable().catalogHandle()),
-                            session,
-                            node.getTable(),
-                            tableCredentials,
-                            columns.build(),
-                            DynamicFilter.EMPTY,
-                            columnTypes.build());
-                    return new PhysicalOperation(operatorFactory, makeLayout(node));
+            if (isGpuExecutionEnabled(session)) {
+                Set<Type> unsupportedTypes = columnTypes.build().stream()
+                        .filter(not(GpuTypeConversion::isConvertible))
+                        .collect(toImmutableSet());
+                if (!unsupportedTypes.isEmpty()) {
+                    context.markAsGpuIneligible(node.getId(), "Unsupported column types: %s".formatted(unsupportedTypes));
+                }
+                else {
+                    GpuPageSourceSupport gpuPageSourceSupport = pageSourceManager.getGpuPageSourceSupport(node.getTable().catalogHandle(), node.getTable().connectorHandle(), columns.build());
+                    if (gpuPageSourceSupport.supported()) {
+                        OperatorFactory operatorFactory = new GpuOperator.SourceFactory(
+                                context.getNextOperatorId(),
+                                planNodeId,
+                                pageSourceManager.createPageSourceProvider(node.getTable().catalogHandle()),
+                                session,
+                                node.getTable(),
+                                tableCredentials,
+                                columns.build(),
+                                DynamicFilter.EMPTY,
+                                columnTypes.build());
+                        return new PhysicalOperation(operatorFactory, makeLayout(node));
+                    }
+                    context.markAsGpuIneligible(node.getId(), gpuPageSourceSupport.reason().orElseThrow());
                 }
             }
             OperatorFactory operatorFactory = new TableScanOperatorFactory(context.getNextOperatorId(), planNodeId, node.getId(), pageSourceManager, node.getTable(), tableCredentials, columns.build(), columnTypes.build());
@@ -3324,7 +3378,7 @@ public class LocalExecutionPlanner
                 Set<DynamicFilterId> localDynamicFilters,
                 LocalExecutionPlanContext context)
         {
-            Optional<GpuJoinPlanClosure> gpuJoinPlan = tryPlanGpuLookupJoin(node);
+            Optional<GpuJoinPlanClosure> gpuJoinPlan = tryPlanGpuLookupJoin(node, context);
             // Plan probe
             PhysicalOperation probeSource;
             HashExchangeConstraint priorConstraint = context.getHashExchangeConstraint();
@@ -3803,8 +3857,11 @@ public class LocalExecutionPlanner
                 return Optional.empty();
             }
 
-            if (!probeSource.getTypes().stream().allMatch(GpuTypeConversion::isConvertible) ||
-                    !GpuTypeConversion.isConvertible(node.getFilteringSourceJoinSymbol().type())) {
+            Set<Type> unsupportedTypes = Stream.concat(probeSource.getTypes().stream(), Stream.of(node.getFilteringSourceJoinSymbol().type()))
+                    .filter(not(GpuTypeConversion::isConvertible))
+                    .collect(toImmutableSet());
+            if (!unsupportedTypes.isEmpty()) {
+                context.markAsGpuIneligible(node.getId(), "Unsupported column types: %s".formatted(unsupportedTypes));
                 return Optional.empty();
             }
 
@@ -4370,12 +4427,18 @@ public class LocalExecutionPlanner
                 int driverInstanceCount,
                 List<DriverFactoryParameters> driverFactoryParameters)
         {
-            if (!isGpuExecutionEnabled(session) || !isGpuLocalExchangeEligible(node)) {
+            if (!isGpuExecutionEnabled(session)) {
+                return Optional.empty();
+            }
+            Optional<String> gpuIneligibilityReason = findLocalExchangeGpuIneligibilityReason(node);
+            if (gpuIneligibilityReason.isPresent()) {
+                context.markAsGpuIneligible(node.getId(), gpuIneligibilityReason.get());
                 return Optional.empty();
             }
             PartitioningHandle partitioning = node.getPartitioningScheme().getPartitioning().getHandle();
             if (partitioning.equals(FIXED_HASH_DISTRIBUTION) && context.getHashExchangeConstraint() == HashExchangeConstraint.HOST_ONLY) {
                 log.debug("Could not plan local exchange for GPU execution: paired HASH LE with non-GPU lookup join consumer");
+                context.markAsGpuIneligible(node.getId(), "Unsupported local exchange: Paired HASH LE with non-GPU lookup join consumer");
                 return Optional.empty();
             }
             for (DriverFactoryParameters parameters : driverFactoryParameters) {
@@ -4384,11 +4447,13 @@ public class LocalExecutionPlanner
                 // an empty shared tail; conservatively reject rather than inspect each alternative.
                 if (tail.isEmpty()) {
                     log.debug("Could not plan local exchange for GPU execution: upstream pipeline is a plan alternative");
+                    context.markAsGpuIneligible(node.getId(), "Unsupported local exchange: Upstream pipeline is a plan alternative");
                     return Optional.empty();
                 }
                 OperatorFactory tailOperatorFactory = tail.getLast();
                 if (!(tailOperatorFactory instanceof GpuOperator.BaseFactory)) {
                     log.debug("Could not plan local exchange for GPU execution: upstream pipeline ends in %s, not GpuOperator", tailOperatorFactory);
+                    context.markAsGpuIneligible(node.getId(), "Unsupported local exchange: Non-GPU upstream pipeline");
                     return Optional.empty();
                 }
             }
@@ -4671,17 +4736,21 @@ public class LocalExecutionPlanner
             if (!isGpuExecutionEnabled(session)) {
                 return Optional.empty();
             }
-            return GpuAggregationCompiler.compile(node, source.getLayout(), gpuAggregationCompactionThreshold)
-                    .map(compileResult -> addGpuOperations(
-                            compileResult.stages(),
-                            compileResult.finalOutputTypes(),
-                            source,
-                            makeLayout(node),
-                            context,
-                            node.getId()));
+            Optional<GpuAggregationCompiler.CompileResult> compileResult = GpuAggregationCompiler.compile(node, source.getLayout(), gpuAggregationCompactionThreshold);
+            if (compileResult.isEmpty()) {
+                context.markAsGpuIneligible(node.getId(), "Unsupported aggregation");
+                return Optional.empty();
+            }
+            return compileResult.map(result -> addGpuOperations(
+                    result.stages(),
+                    result.finalOutputTypes(),
+                    source,
+                    makeLayout(node),
+                    context,
+                    node.getId()));
         }
 
-        private Optional<GpuJoinPlanClosure> tryPlanGpuLookupJoin(JoinNode node)
+        private Optional<GpuJoinPlanClosure> tryPlanGpuLookupJoin(JoinNode node, LocalExecutionPlanContext context)
         {
             if (!isGpuExecutionEnabled(session)) {
                 return Optional.empty();
@@ -4697,6 +4766,7 @@ public class LocalExecutionPlanner
                 }
                 default -> {
                     log.debug("Could not convert join type for GPU execution: %s", node.getType());
+                    context.markAsGpuIneligible(node.getId(), "Unsupported join type");
                     return Optional.empty();
                 }
             }
@@ -4704,14 +4774,25 @@ public class LocalExecutionPlanner
             // Must have at least one equi-clause
             if (node.getCriteria().isEmpty()) {
                 log.debug("Could not convert join without equi-criteria for GPU execution, join type: %s", node.getType());
+                context.markAsGpuIneligible(node.getId(), "Join without equi-criteria");
                 return Optional.empty();
             }
 
             // Every probe and build column must be GPU-convertible (CopyToDevice copies all of them).
-            if (!node.getLeft().getOutputSymbols().stream().map(Symbol::type).allMatch(GpuTypeConversion::isConvertible)) {
+            Set<Type> unsupportedLeftType = node.getLeft().getOutputSymbols().stream()
+                    .map(Symbol::type)
+                    .filter(not(GpuTypeConversion::isConvertible))
+                    .collect(toImmutableSet());
+            if (!unsupportedLeftType.isEmpty()) {
+                context.markAsGpuIneligible(node.getId(), "Unsupported column types: %s".formatted(unsupportedLeftType));
                 return Optional.empty();
             }
-            if (!node.getRight().getOutputSymbols().stream().map(Symbol::type).allMatch(GpuTypeConversion::isConvertible)) {
+            Set<Type> unsupportedRightTypes = node.getRight().getOutputSymbols().stream()
+                    .map(Symbol::type)
+                    .filter(not(GpuTypeConversion::isConvertible))
+                    .collect(toImmutableSet());
+            if (!unsupportedRightTypes.isEmpty()) {
+                context.markAsGpuIneligible(node.getId(), "Unsupported column types: %s".formatted(unsupportedRightTypes));
                 return Optional.empty();
             }
 
@@ -4722,6 +4803,7 @@ public class LocalExecutionPlanner
                 compiledFilter = GpuExpressionAstCompiler.compile(metadata, filter);
                 if (compiledFilter.isEmpty()) {
                     log.debug("Could not compile join filter for GPU execution for join type %s: %s", node.getType(), filter);
+                    context.markAsGpuIneligible(node.getId(), "Unsupported join filter expression");
                     return Optional.empty();
                 }
             }
@@ -4729,8 +4811,8 @@ public class LocalExecutionPlanner
                 compiledFilter = Optional.empty();
             }
 
-            return Optional.of((probeSource, localDynamicFilters, context, buildContext) ->
-                    planGpuLookupJoin(node, joinType, compiledFilter, probeSource, localDynamicFilters, context, buildContext));
+            return Optional.of((probeSource, localDynamicFilters, joinContext, buildContext) ->
+                    planGpuLookupJoin(node, joinType, compiledFilter, probeSource, localDynamicFilters, joinContext, buildContext));
         }
 
         private PhysicalOperation planGpuLookupJoin(
@@ -5400,43 +5482,49 @@ public class LocalExecutionPlanner
     }
 
     @VisibleForTesting
-    static boolean isGpuLocalExchangeEligible(ExchangeNode node)
+    static Optional<String> findLocalExchangeGpuIneligibilityReason(ExchangeNode node)
     {
         if (node.getOrderingScheme().isPresent()) {
             log.debug("Could not plan local exchange for GPU execution: sort-merge ordering");
-            return false;
+            return Optional.of("Unsupported sort-merge ordering");
         }
         PartitioningHandle partitioning = node.getPartitioningScheme().getPartitioning().getHandle();
         if (!partitioning.equals(SINGLE_DISTRIBUTION)
                 && !partitioning.equals(FIXED_HASH_DISTRIBUTION)
                 && !partitioning.equals(FIXED_ARBITRARY_DISTRIBUTION)) {
             log.debug("Could not plan local exchange for GPU execution: unsupported partitioning %s", partitioning);
-            return false;
+            return Optional.of("Unsupported partitioning: %s".formatted(partitioning));
         }
         if (partitioning.getCatalogHandle().isPresent()) {
             log.debug("Could not plan local exchange for GPU execution: connector partitioning %s", partitioning);
-            return false;
+            return Optional.of("Unsupported partitioning: %s".formatted(partitioning));
         }
         if (partitioning.getConnectorHandle() instanceof MergePartitioningHandle) {
             log.debug("Could not plan local exchange for GPU execution: MERGE INTO partitioning");
-            return false;
+            return Optional.of("Unsupported MERGE INTO partitioning");
         }
         List<Type> outputTypes = node.getOutputSymbols().stream()
                 .map(Symbol::type)
                 .collect(toImmutableList());
-        if (!outputTypes.stream().allMatch(GpuTypeConversion::isConvertible)) {
-            log.debug("Could not plan local exchange for GPU execution: output types not GPU-convertible: %s", outputTypes);
-            return false;
+        Set<Type> unsupportedOutputTypes = outputTypes.stream()
+                .filter(not(GpuTypeConversion::isConvertible))
+                .collect(toImmutableSet());
+        if (!unsupportedOutputTypes.isEmpty()) {
+            log.debug("Could not plan local exchange for GPU execution: output types not GPU-convertible: %s", unsupportedOutputTypes);
+            return Optional.of("Unsupported column types: %s".formatted(unsupportedOutputTypes));
         }
         List<Integer> partitionChannels = node.getPartitioningScheme().getPartitioning().getArguments().stream()
                 .map(argument -> node.getOutputSymbols().indexOf(argument.getColumn()))
                 .collect(toImmutableList());
-        List<Type> partitionKeyTypes = partitionChannels.stream().map(outputTypes::get).collect(toImmutableList());
-        if (!partitionKeyTypes.stream().allMatch(GpuTypeConversion::isConvertible)) {
-            log.debug("Could not plan local exchange for GPU execution: partition-key types not GPU-convertible: %s", partitionKeyTypes);
-            return false;
+        Set<Type> unsupportedPartitionKeyTypes = partitionChannels.stream()
+                .map(outputTypes::get)
+                .filter(not(GpuTypeConversion::isConvertible))
+                .collect(toImmutableSet());
+        if (!unsupportedPartitionKeyTypes.isEmpty()) {
+            log.debug("Could not plan local exchange for GPU execution: partition-key types not GPU-convertible: %s", unsupportedPartitionKeyTypes);
+            return Optional.of("Unsupported column types: %s".formatted(unsupportedPartitionKeyTypes));
         }
-        return true;
+        return Optional.empty();
     }
 
     private boolean isGpuExecutionEnabled(Session session)

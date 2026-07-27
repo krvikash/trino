@@ -13,6 +13,7 @@
  */
 package io.trino.execution;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import io.airlift.units.DataSize;
 import io.trino.execution.buffer.OutputBufferInfo;
@@ -23,6 +24,7 @@ import io.trino.sql.planner.plan.PlanNodeId;
 import java.net.URI;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
@@ -37,6 +39,7 @@ public record TaskInfo(
         OutputBufferInfo outputBuffers,
         Set<PlanNodeId> noMoreSplits,
         TaskStats stats,
+        Map<PlanNodeId, String> gpuIneligibilityReasons,
         // filled in on coordinator
         Optional<DataSize> estimatedMemory,
         boolean needsPlan)
@@ -54,14 +57,14 @@ public record TaskInfo(
     public TaskInfo summarize()
     {
         if (taskStatus.state().isDone()) {
-            return new TaskInfo(taskStatus, lastHeartbeat, outputBuffers.summarizeFinal(), noMoreSplits, stats.summarizeFinal(), estimatedMemory, needsPlan);
+            return new TaskInfo(taskStatus, lastHeartbeat, outputBuffers.summarizeFinal(), noMoreSplits, stats.summarizeFinal(), gpuIneligibilityReasons, estimatedMemory, needsPlan);
         }
-        return new TaskInfo(taskStatus, lastHeartbeat, outputBuffers.summarize(), noMoreSplits, stats.summarize(), estimatedMemory, needsPlan);
+        return new TaskInfo(taskStatus, lastHeartbeat, outputBuffers.summarize(), noMoreSplits, stats.summarize(), gpuIneligibilityReasons, estimatedMemory, needsPlan);
     }
 
     public TaskInfo pruneSpoolingOutputStats()
     {
-        return new TaskInfo(taskStatus, lastHeartbeat, outputBuffers.pruneSpoolingOutputStats(), noMoreSplits, stats, estimatedMemory, needsPlan);
+        return new TaskInfo(taskStatus, lastHeartbeat, outputBuffers.pruneSpoolingOutputStats(), noMoreSplits, stats, gpuIneligibilityReasons, estimatedMemory, needsPlan);
     }
 
     @Override
@@ -93,17 +96,18 @@ public record TaskInfo(
                         Optional.empty()),
                 ImmutableSet.of(),
                 taskStats,
+                ImmutableMap.of(),
                 Optional.empty(),
                 true);
     }
 
     public TaskInfo withTaskStatus(TaskStatus newTaskStatus)
     {
-        return new TaskInfo(newTaskStatus, lastHeartbeat, outputBuffers, noMoreSplits, stats, estimatedMemory, needsPlan);
+        return new TaskInfo(newTaskStatus, lastHeartbeat, outputBuffers, noMoreSplits, stats, gpuIneligibilityReasons, estimatedMemory, needsPlan);
     }
 
     public TaskInfo withEstimatedMemory(DataSize estimatedMemory)
     {
-        return new TaskInfo(taskStatus, lastHeartbeat, outputBuffers, noMoreSplits, stats, Optional.of(estimatedMemory), needsPlan);
+        return new TaskInfo(taskStatus, lastHeartbeat, outputBuffers, noMoreSplits, stats, gpuIneligibilityReasons, Optional.of(estimatedMemory), needsPlan);
     }
 }

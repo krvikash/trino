@@ -38,7 +38,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Unit tests for the static eligibility predicate
- * {@link LocalExecutionPlanner#isGpuLocalExchangeEligible}.
+ * {@link LocalExecutionPlanner#findLocalExchangeGpuIneligibilityReason}.
  * These tests cover the "cheap gate" rejections without touching the GPU planner path
  * or cuDF native libraries.
  */
@@ -58,14 +58,14 @@ public class TestLocalExecutionPlannerGpuLocalExchange
     public void testEligibleForSingleDistribution()
     {
         ExchangeNode node = singleDistributionGather(BIGINT_SYMBOL);
-        assertThat(LocalExecutionPlanner.isGpuLocalExchangeEligible(node)).isTrue();
+        assertThat(LocalExecutionPlanner.findLocalExchangeGpuIneligibilityReason(node)).isEmpty();
     }
 
     @Test
     public void testEligibleForFixedHashDistribution()
     {
         ExchangeNode node = fixedHashRepartition(ImmutableList.of(BIGINT_SYMBOL, INTEGER_SYMBOL), BIGINT_SYMBOL);
-        assertThat(LocalExecutionPlanner.isGpuLocalExchangeEligible(node)).isTrue();
+        assertThat(LocalExecutionPlanner.findLocalExchangeGpuIneligibilityReason(node)).isEmpty();
     }
 
     @Test
@@ -92,14 +92,14 @@ public class TestLocalExecutionPlannerGpuLocalExchange
                 ImmutableList.of(source),
                 ImmutableList.of(ImmutableList.of(orderSymbol)),
                 Optional.of(orderingScheme));
-        assertThat(LocalExecutionPlanner.isGpuLocalExchangeEligible(node)).isFalse();
+        assertThat(LocalExecutionPlanner.findLocalExchangeGpuIneligibilityReason(node)).isPresent();
     }
 
     @Test
     public void testRoundRobinPartitioningIsEligible()
     {
         ExchangeNode node = arbitraryRepartition(BIGINT_SYMBOL);
-        assertThat(LocalExecutionPlanner.isGpuLocalExchangeEligible(node)).isTrue();
+        assertThat(LocalExecutionPlanner.findLocalExchangeGpuIneligibilityReason(node)).isEmpty();
     }
 
     @Test
@@ -123,7 +123,7 @@ public class TestLocalExecutionPlannerGpuLocalExchange
                 ImmutableList.of(source),
                 ImmutableList.of(ImmutableList.of(BIGINT_SYMBOL)),
                 Optional.empty());
-        assertThat(LocalExecutionPlanner.isGpuLocalExchangeEligible(node)).isFalse();
+        assertThat(LocalExecutionPlanner.findLocalExchangeGpuIneligibilityReason(node)).isPresent();
     }
 
     @Test
@@ -131,7 +131,7 @@ public class TestLocalExecutionPlannerGpuLocalExchange
     {
         // ARRAY(INTEGER) is not convertible
         ExchangeNode node = singleDistributionGather(ARRAY_SYMBOL);
-        assertThat(LocalExecutionPlanner.isGpuLocalExchangeEligible(node)).isFalse();
+        assertThat(LocalExecutionPlanner.findLocalExchangeGpuIneligibilityReason(node)).isPresent();
     }
 
     @Test
@@ -139,7 +139,7 @@ public class TestLocalExecutionPlannerGpuLocalExchange
     {
         // Output has bigint (convertible) but partition key is an array (not convertible)
         ExchangeNode node = fixedHashRepartition(ImmutableList.of(BIGINT_SYMBOL, ARRAY_SYMBOL), ARRAY_SYMBOL);
-        assertThat(LocalExecutionPlanner.isGpuLocalExchangeEligible(node)).isFalse();
+        assertThat(LocalExecutionPlanner.findLocalExchangeGpuIneligibilityReason(node)).isPresent();
     }
 
     // --- helpers ---

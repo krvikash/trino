@@ -258,6 +258,7 @@ public class TestQueryJsonProvider
                 ImmutableList.of(),
                 ImmutableList.of(),
                 ImmutableMap.of(),
+                ImmutableMap.of(),
                 null);
         StagesInfo stagesInfo = new StagesInfo(stageId, ImmutableList.of(stageInfo));
 

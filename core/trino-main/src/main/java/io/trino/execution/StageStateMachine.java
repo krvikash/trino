@@ -41,6 +41,7 @@ import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -490,6 +491,8 @@ public class StageStateMachine
         boolean fullyBlocked = true;
         Set<BlockedReason> blockedReasons = new HashSet<>();
 
+        Map<PlanNodeId, Set<String>> gpuIneligibilityReasons = new HashMap<>();
+
         int maxTaskOperatorSummaries = 0;
         for (TaskInfo taskInfo : taskInfos) {
             TaskState taskState = taskInfo.taskStatus().state();
@@ -585,6 +588,9 @@ public class StageStateMachine
             totalFullGcSec += gcSec;
             minFullGcSec = min(minFullGcSec, gcSec);
             maxFullGcSec = max(maxFullGcSec, gcSec);
+
+            taskInfo.gpuIneligibilityReasons().forEach((planNodeId, reasons) ->
+                    gpuIneligibilityReasons.computeIfAbsent(planNodeId, _ -> new HashSet<>()).add(reasons));
 
             // Count and record the maximum number of pipeline / operators across all task infos
             int taskOperatorSummaries = 0;
@@ -684,6 +690,7 @@ public class StageStateMachine
                 taskInfos,
                 ImmutableList.of(),
                 tables,
+                gpuIneligibilityReasons,
                 failureInfo);
     }
 

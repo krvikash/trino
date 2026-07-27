@@ -279,6 +279,7 @@ public class MockRemoteTaskFactory
                     outputBuffer.getInfo(),
                     ImmutableSet.of(),
                     taskContext.getTaskStats(),
+                    ImmutableMap.of(),
                     Optional.empty(),
                     true);
         }

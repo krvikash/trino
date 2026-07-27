@@ -1575,6 +1575,7 @@ public class QueryStateMachine
                         ImmutableList.of(), // Remove the tasks
                         ImmutableList.of(), // Remove the substages
                         ImmutableMap.of(), // Remove tables
+                        ImmutableMap.of(), // Remove gpuIneligibilityReasons
                         outputStageInfo.failureCause())));
     }
 

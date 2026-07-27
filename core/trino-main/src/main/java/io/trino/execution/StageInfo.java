@@ -23,6 +23,7 @@ import jakarta.annotation.Nullable;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static com.google.common.base.MoreObjects.toStringHelper;
 import static java.util.Objects.requireNonNull;
@@ -37,6 +38,7 @@ public record StageInfo(
         List<TaskInfo> tasks,
         List<StageId> subStages,
         Map<PlanNodeId, TableInfo> tables,
+        Map<PlanNodeId, Set<String>> gpuIneligibilityReasons,
         ExecutionFailureInfo failureCause)
 {
     public StageInfo
@@ -49,6 +51,7 @@ public record StageInfo(
         requireNonNull(tables, "tables is null");
         tasks = ImmutableList.copyOf(tasks);
         tables = ImmutableMap.copyOf(tables);
+        gpuIneligibilityReasons = ImmutableMap.copyOf(requireNonNull(gpuIneligibilityReasons, "gpuIneligibilityReasons is null"));
     }
 
     public boolean isFinalStageInfo()
@@ -77,6 +80,7 @@ public record StageInfo(
                 tasks,
                 subStages,
                 tables,
+                gpuIneligibilityReasons,
                 failureCause);
     }
 
@@ -92,6 +96,7 @@ public record StageInfo(
                 tasks,
                 subStages,
                 tables,
+                gpuIneligibilityReasons,
                 failureCause);
     }
 
@@ -106,6 +111,7 @@ public record StageInfo(
                 StageStats.createInitial(),
                 ImmutableList.of(),
                 ImmutableList.of(),
+                ImmutableMap.of(),
                 ImmutableMap.of(),
                 null);
     }

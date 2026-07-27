@@ -972,6 +972,7 @@ public class TestHttpRemoteTask
                     initialTaskInfo.outputBuffers(),
                     initialTaskInfo.noMoreSplits(),
                     initialTaskInfo.stats(),
+                    initialTaskInfo.gpuIneligibilityReasons(),
                     initialTaskInfo.estimatedMemory(),
                     initialTaskInfo.needsPlan());
         }
