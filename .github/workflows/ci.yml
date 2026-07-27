@@ -438,7 +438,7 @@ jobs:
     needs: [ build-pt, synapse-prepare ]
     # Skip build-pt success check so nightly and weekly can run regardless
     # Matrix excludes PT cell if build-pt was skipped
-    if: always() && needs.synapse-prepare.result == 'success'
+    if: always() && !cancelled() && needs.synapse-prepare.result == 'success'
     env:
       REPORT_TEST_SESSION_NAME: ${{ matrix.synapse-test == 'pt' && 'pt' || 'modules' }}
       REPORT_SERVICE_NAME: ${{ matrix.synapse-test == 'pt' && 'suite-synapse-default' || 'starburst-synapse' }}
