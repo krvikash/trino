@@ -23,8 +23,6 @@ import io.trino.plugin.tpch.TpchPlugin;
 import io.trino.spi.connector.CatalogSchemaName;
 import io.trino.testing.DistributedQueryRunner;
 import io.trino.testing.QueryRunner;
-import org.junit.jupiter.api.Disabled;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Execution;
 
 import java.nio.file.Path;
@@ -112,11 +110,6 @@ public class TestIcebergMvOnJdbcSourceSubstitution
     {
         return "json_extract_scalar(" + column + ", '$." + field + "')";
     }
-
-    @Test
-    @Disabled("Postgres does not support time travel")
-    @Override
-    public void testForVersionAsOfNotSubstituted() {}
 
     @Override
     protected List<CoercionColumn> coercionColumns()

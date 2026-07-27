@@ -46,7 +46,7 @@ import static org.junit.jupiter.api.parallel.ExecutionMode.SAME_THREAD;
  */
 @Execution(SAME_THREAD)
 public class TestIcebergMvSubstitutionEnabledByConfigDefaults
-        extends AbstractIcebergMvSubstitutionTest
+        extends AbstractIcebergOnIcebergMvSubstitutionTest
 {
     @Override
     protected QueryRunner createQueryRunner()

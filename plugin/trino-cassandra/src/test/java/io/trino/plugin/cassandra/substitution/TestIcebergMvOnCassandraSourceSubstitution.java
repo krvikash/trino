@@ -118,9 +118,4 @@ public class TestIcebergMvOnCassandraSourceSubstitution
     @Disabled("Cassandra does not support ALTER TABLE ADD COLUMN")
     @Override
     public void testSubstitutionAfterAddColumnToBaseTable() {}
-
-    @Test
-    @Disabled("Cassandra does not support time travel")
-    @Override
-    public void testForVersionAsOfNotSubstituted() {}
 }

@@ -15,7 +15,7 @@ package io.trino.plugin.objectstore.substitution;
 
 import com.google.common.collect.ImmutableMap;
 import io.trino.plugin.iceberg.IcebergPlugin;
-import io.trino.plugin.iceberg.substitution.AbstractIcebergMvSubstitutionTest;
+import io.trino.plugin.iceberg.substitution.AbstractIcebergOnIcebergMvSubstitutionTest;
 import io.trino.plugin.objectstore.ObjectStorePlugin;
 import io.trino.plugin.objectstore.TableType;
 import io.trino.plugin.tpch.TpchPlugin;
@@ -37,7 +37,7 @@ import static org.junit.jupiter.api.parallel.ExecutionMode.SAME_THREAD;
  */
 @Execution(SAME_THREAD)
 final class TestObjectStoreIcebergMvSubstitution
-        extends AbstractIcebergMvSubstitutionTest
+        extends AbstractIcebergOnIcebergMvSubstitutionTest
 {
     @Override
     protected QueryRunner createQueryRunner()

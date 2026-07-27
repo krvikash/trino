@@ -13,7 +13,7 @@
  */
 package io.trino.plugin.lakehouse.substitution;
 
-import io.trino.plugin.iceberg.substitution.AbstractIcebergMvSubstitutionTest;
+import io.trino.plugin.iceberg.substitution.AbstractIcebergOnIcebergMvSubstitutionTest;
 import io.trino.plugin.lakehouse.LakehouseQueryRunner;
 import io.trino.testing.QueryRunner;
 import org.junit.jupiter.api.parallel.Execution;
@@ -30,7 +30,7 @@ import static org.junit.jupiter.api.parallel.ExecutionMode.SAME_THREAD;
  */
 @Execution(SAME_THREAD)
 final class TestLakehouseIcebergMvSubstitution
-        extends AbstractIcebergMvSubstitutionTest
+        extends AbstractIcebergOnIcebergMvSubstitutionTest
 {
     @Override
     protected QueryRunner createQueryRunner()

@@ -15,7 +15,7 @@ package io.trino.plugin.warp.substitution;
 
 import io.trino.metadata.InternalFunctionBundle;
 import io.trino.plugin.iceberg.IcebergPlugin;
-import io.trino.plugin.iceberg.substitution.AbstractIcebergMvSubstitutionTest;
+import io.trino.plugin.iceberg.substitution.AbstractIcebergOnIcebergMvSubstitutionTest;
 import io.trino.plugin.tpch.TpchPlugin;
 import io.trino.plugin.warp.WarpPlugin;
 import io.trino.plugin.warp.di.WarpStubsStorageEngineModule;
@@ -39,7 +39,7 @@ import static io.trino.plugin.warp.extension.config.WarpExtensionConfig.USE_HTTP
  * Warp Speed's {@link DispatcherSubstitutionMetadata} delegation.
  */
 public class TestWarpSpeedIcebergMvSubstitution
-        extends AbstractIcebergMvSubstitutionTest
+        extends AbstractIcebergOnIcebergMvSubstitutionTest
 {
     private static final String CATALOG_NAME = "warp_speed";
 

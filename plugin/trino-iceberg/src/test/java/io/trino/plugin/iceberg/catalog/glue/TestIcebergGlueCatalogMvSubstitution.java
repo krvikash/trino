@@ -17,7 +17,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.trino.plugin.iceberg.IcebergQueryRunner;
 import io.trino.plugin.iceberg.SchemaInitializer;
-import io.trino.plugin.iceberg.substitution.AbstractIcebergMvSubstitutionTest;
+import io.trino.plugin.iceberg.substitution.AbstractIcebergOnIcebergMvSubstitutionTest;
 import io.trino.testing.DistributedQueryRunner;
 import io.trino.testing.QueryRunner;
 import org.junit.jupiter.api.AfterAll;
@@ -38,7 +38,7 @@ import static org.junit.jupiter.api.parallel.ExecutionMode.SAME_THREAD;
 
 @Execution(SAME_THREAD)
 public class TestIcebergGlueCatalogMvSubstitution
-        extends AbstractIcebergMvSubstitutionTest
+        extends AbstractIcebergOnIcebergMvSubstitutionTest
 {
     private final String schemaName = "test_iceberg_mv_substitution_" + randomNameSuffix();
     private File schemaDirectory;

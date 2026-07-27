@@ -72,11 +72,6 @@ public class TestBigQueryMvSubstitution
     }
 
     @Test
-    @Disabled("BigQuery does not support time travel")
-    @Override
-    public void testForVersionAsOfNotSubstituted() {}
-
-    @Test
     @Disabled("BigQuery connector does not support ADD COLUMN")
     @Override
     public void testSubstitutionAfterAddColumnToBaseTable() {}
