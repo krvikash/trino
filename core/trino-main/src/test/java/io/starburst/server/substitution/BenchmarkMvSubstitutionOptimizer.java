@@ -317,7 +317,7 @@ public class BenchmarkMvSubstitutionOptimizer
                     createSubstitutionMetadata((ConnectorServicesProvider) planTester.getCatalogManager()));
             MaterializationIndex index = buildIndex(substitutionMetadata);
             populateIndex(index);
-            optimizer = new MvSubstitutionOptimizer(index, metadata, substitutionMetadata, new AllowAllAccessControl());
+            optimizer = new MvSubstitutionOptimizer(index, metadata, substitutionMetadata, planTester.getPlannerContext().getTypeManager(), new AllowAllAccessControl());
 
             transactionManager = planTester.getTransactionManager();
         }

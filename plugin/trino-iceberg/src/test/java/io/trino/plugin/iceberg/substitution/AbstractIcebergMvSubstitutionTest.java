@@ -25,6 +25,7 @@ import io.trino.spi.connector.CatalogSchemaTableName;
 import io.trino.testing.AbstractTestQueryFramework;
 import io.trino.testing.MaterializedResult;
 import io.trino.testing.QueryRunner.MaterializedResultWithPlan;
+import io.trino.testing.sql.TestTable;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
@@ -41,6 +42,7 @@ import static io.trino.testing.TestingAccessControlManager.TestingPrivilegeType.
 import static io.trino.testing.TestingAccessControlManager.privilege;
 import static io.trino.testing.TestingNames.randomNameSuffix;
 import static io.trino.testing.TransactionBuilder.transaction;
+import static java.util.stream.Collectors.joining;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -223,6 +225,60 @@ public abstract class AbstractIcebergMvSubstitutionTest
                 .getInputs().stream()
                 .map(input -> new CatalogSchemaTableName(input.catalogName(), input.schema(), input.table()))
                 .collect(toImmutableList());
+    }
+
+    @Test
+    public void testFunctionProjectionCoercesStorageTypes()
+    {
+        // A source connector can report a column type that Iceberg normalizes when it stores the MV:
+        // bounded varchar -> unbounded varchar, char -> varchar, smallint -> integer, time(p)/timestamp(p) -> microsecond precision,
+        // and the same recursively inside array. A scalar function over the substituted column forces an
+        // argument coercion whose resolved call records the exact source type, so substitution must scan
+        // the storage column at its own type and cast it back up to the query type. Without the coercion
+        // the substituted plan fails to type-check.
+        List<CoercionColumn> columns = coercionColumns();
+        String columnDefinitions = columns.stream()
+                .map(column -> column.name() + " " + column.columnType())
+                .collect(joining(", "));
+        String values = columns.stream()
+                .map(CoercionColumn::insertValue)
+                .collect(joining(", "));
+        String projectedColumns = columns.stream()
+                .map(CoercionColumn::name)
+                .collect(joining(", "));
+        CatalogSchemaTableName mvName = mvName("mv_coercion_");
+        try (TestTable testTable = newTrinoTable(
+                "coercion_table_",
+                "(id_col BIGINT, " + columnDefinitions + ")",
+                List.of("1, " + values))) {
+            String tableName = testTable.getName();
+            createSubstitutionMv(mvName, "SELECT id_col, " + projectedColumns + " FROM " + tableName);
+
+            Session session = sessionWithSubstitution();
+            for (CoercionColumn column : columns) {
+                String query = "SELECT " + column.projection().formatted(column.name()) + " FROM " + tableName;
+                assertSubstituted(session, query, tableName, mvName);
+                assertSameResults(session, query);
+            }
+        }
+        finally {
+            assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvName);
+        }
+    }
+
+    /**
+     * A base-table column whose source type Iceberg normalizes to a different storage type, together with
+     * a projection template ({@code %s} is the column name) that applies a function forcing an argument
+     * coercion to the exact source type - which reproduces the substitution type-check failure absent the
+     * storage-type coercion.
+     */
+    public record CoercionColumn(String name, String columnType, String insertValue, String projection) {}
+
+    protected List<CoercionColumn> coercionColumns()
+    {
+        return List.of(
+                new CoercionColumn("c_varchar", "varchar(20)", "'Alice'", "upper(%s)"),
+                new CoercionColumn("c_smallint", "smallint", "42", "abs(%s)"));
     }
 
     @Test

@@ -28,6 +28,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Execution;
 
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Map;
 
 import static io.trino.plugin.base.util.Closables.closeAllSuppress;
@@ -70,7 +71,10 @@ public class TestIcebergMvOnJdbcSourceSubstitution
             queryRunner.createCatalog("postgres", "postgresql", ImmutableMap.of(
                     "connection-url", postgreSqlServer.getJdbcUrl(),
                     "connection-user", postgreSqlServer.getUser(),
-                    "connection-password", postgreSqlServer.getPassword()));
+                    "connection-password", postgreSqlServer.getPassword(),
+                    // Enables reading/writing PostgreSQL array columns as Trino ARRAY, so the coercion
+                    // test can exercise array(smallint) -> array(integer) storage normalization.
+                    "postgresql.array-mapping", "AS_ARRAY"));
             queryRunner.execute("CREATE SCHEMA postgres.tpch2");
 
             queryRunner.installPlugin(new TpchPlugin());
@@ -113,4 +117,16 @@ public class TestIcebergMvOnJdbcSourceSubstitution
     @Disabled("Postgres does not support time travel")
     @Override
     public void testForVersionAsOfNotSubstituted() {}
+
+    @Override
+    protected List<CoercionColumn> coercionColumns()
+    {
+        return List.of(
+                new CoercionColumn("c_varchar", "varchar(65535)", "'Alice'", "upper(%s)"),
+                new CoercionColumn("c_char", "char(10)", "'Alice'", "upper(%s)"),
+                new CoercionColumn("c_smallint", "smallint", "42", "abs(%s)"),
+                new CoercionColumn("c_time", "time(3)", "TIME '12:34:56.123'", "hour(%s)"),
+                new CoercionColumn("c_timestamp", "timestamp(3)", "TIMESTAMP '2020-01-01 12:34:56.123'", "year(%s)"),
+                new CoercionColumn("c_array", "array(smallint)", "ARRAY[smallint '1', smallint '2']", "cardinality(%s)"));
+    }
 }

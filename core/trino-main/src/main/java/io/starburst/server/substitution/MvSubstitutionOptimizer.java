@@ -34,13 +34,21 @@ import io.trino.spi.connector.TableNotFoundException;
 import io.trino.spi.connector.substitution.ConnectorColumnId;
 import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.security.AccessDeniedException;
+import io.trino.spi.type.CharType;
+import io.trino.spi.type.Type;
+import io.trino.spi.type.TypeManager;
+import io.trino.spi.type.VarcharType;
+import io.trino.sql.ir.Cast;
 import io.trino.sql.planner.optimizations.PlanNodeSearcher;
 import io.trino.sql.planner.optimizations.PlanOptimizer;
+import io.trino.sql.planner.plan.Assignments;
 import io.trino.sql.planner.plan.PlanNode;
 import io.trino.sql.planner.plan.PlanVisitor;
+import io.trino.sql.planner.plan.ProjectNode;
 import io.trino.sql.planner.plan.TableScanNode;
 import io.trino.sql.planner.plan.TableWriterNode;
 import io.trino.sql.planner.plan.TableWriterNode.RefreshMaterializedViewReference;
+import io.trino.type.TypeCoercion;
 
 import java.time.Duration;
 import java.util.HashMap;
@@ -65,14 +73,21 @@ public class MvSubstitutionOptimizer
     private final MaterializationIndex materializationIndex;
     private final Metadata metadata;
     private final SubstitutionMetadata substitutionMetadata;
+    private final TypeCoercion typeCoercion;
     private final AccessControl accessControl;
     private final NonEvictableLoadingCache<String, Pattern> compiledCandidatesRegexFilters;
 
-    public MvSubstitutionOptimizer(MaterializationIndex materializationIndex, Metadata metadata, SubstitutionMetadata substitutionMetadata, AccessControl accessControl)
+    public MvSubstitutionOptimizer(
+            MaterializationIndex materializationIndex,
+            Metadata metadata,
+            SubstitutionMetadata substitutionMetadata,
+            TypeManager typeManager,
+            AccessControl accessControl)
     {
         this.materializationIndex = requireNonNull(materializationIndex, "materializationIndex is null");
         this.metadata = requireNonNull(metadata, "metadata is null");
         this.substitutionMetadata = requireNonNull(substitutionMetadata, "substitutionMetadata is null");
+        this.typeCoercion = new TypeCoercion(typeManager::getType);
         this.accessControl = requireNonNull(accessControl, "accessControl is null");
         this.compiledCandidatesRegexFilters = buildNonEvictableCache(
                 CacheBuilder.newBuilder().maximumSize(MAX_CACHED_PATTERNS),
@@ -91,7 +106,7 @@ public class MvSubstitutionOptimizer
         if (isRefreshMaterializedViewPlan(plan)) {
             return plan;
         }
-        return optimize(context.session(), plan).orElse(plan);
+        return optimize(context, plan).orElse(plan);
     }
 
     private static boolean isRefreshMaterializedViewPlan(PlanNode plan)
@@ -102,22 +117,22 @@ public class MvSubstitutionOptimizer
                 .matches();
     }
 
-    private Optional<PlanNode> optimize(Session session, PlanNode root)
+    private Optional<PlanNode> optimize(Context context, PlanNode root)
     {
-        Map<PlanNode, ComputationHash> computationHashes = calculateHashes(session, root);
+        Map<PlanNode, ComputationHash> computationHashes = calculateHashes(context.session(), root);
         if (computationHashes.isEmpty()) {
             return Optional.empty();
         }
-        return optimize(session, root, computationHashes);
+        return optimize(context, root, computationHashes);
     }
 
-    private Optional<PlanNode> optimize(Session session, PlanNode planNode, Map<PlanNode, ComputationHash> computationHashes)
+    private Optional<PlanNode> optimize(Context context, PlanNode planNode, Map<PlanNode, ComputationHash> computationHashes)
     {
         ComputationHash hash = computationHashes.get(planNode);
         if (hash != null) {
             List<MaterializationDefinition> candidates = materializationIndex.getMaterializations(hash);
             for (MaterializationDefinition candidate : candidates) {
-                Optional<PlanNode> substitute = trySubstitute(session, planNode, candidate);
+                Optional<PlanNode> substitute = trySubstitute(context, planNode, candidate);
                 if (substitute.isPresent()) {
                     return substitute;
                 }
@@ -127,7 +142,7 @@ public class MvSubstitutionOptimizer
         ImmutableList.Builder<PlanNode> newSources = ImmutableList.builder();
         boolean anySourceOptimized = false;
         for (PlanNode source : planNode.getSources()) {
-            Optional<PlanNode> optimized = optimize(session, source, computationHashes);
+            Optional<PlanNode> optimized = optimize(context, source, computationHashes);
             anySourceOptimized |= optimized.isPresent();
             newSources.add(optimized.orElse(source));
         }
@@ -138,12 +153,13 @@ public class MvSubstitutionOptimizer
         return Optional.of(planNode.replaceChildren(newSources.build()));
     }
 
-    private Optional<PlanNode> trySubstitute(Session session, PlanNode planNode, MaterializationDefinition candidate)
+    private Optional<PlanNode> trySubstitute(Context context, PlanNode planNode, MaterializationDefinition candidate)
     {
         if (!(planNode instanceof TableScanNode queryTableScan && substitutionSupported(queryTableScan))) {
             return Optional.empty();
         }
 
+        Session session = context.session();
         if (!isFreshEnough(session, candidate)) {
             return Optional.empty();
         }
@@ -194,6 +210,8 @@ public class MvSubstitutionOptimizer
         }
 
         ImmutableSet.Builder<String> readMvColumns = ImmutableSet.builder();
+        Assignments.Builder projections = Assignments.builder();
+        boolean needsCoercion = false;
         for (io.trino.sql.planner.Symbol symbol : queryTableScan.getOutputSymbols()) {
             Symbol computationSymbol = querySymbolToMvSymbolMapping.get(symbol);
             String mvColumnName = candidateColumnNames.get(computationSymbol);
@@ -201,9 +219,32 @@ public class MvSubstitutionOptimizer
             if (storageColumnHandle == null) {
                 return Optional.empty();
             }
-            outputs.add(symbol);
-            assignments.put(symbol, storageColumnHandle);
             readMvColumns.add(mvColumnName);
+
+            Type storageType = metadata.getColumnMetadata(session, storageTableHandle.get(), storageColumnHandle).getType();
+            if (!(typeCoercion.canCoerce(symbol.type(), storageType) || (
+            // VARCHAR is not strictly coercible to CHAR, but in this we can safely do it
+            // as the source of the data was CHAR in the first place
+                    storageType instanceof VarcharType && symbol.type() instanceof CharType))) {
+                return Optional.empty();
+            }
+
+            if (storageType.equals(symbol.type())) {
+                outputs.add(symbol);
+                assignments.put(symbol, storageColumnHandle);
+                projections.put(symbol, symbol.toSymbolReference());
+            }
+            else {
+                // The storage column type can differ from the query column type by a type-only coercion:
+                // e.g. the source table has varchar(10) while the Iceberg storage table has unbounded
+                // varchar. Scan the storage type and cast up to the query type in a projection above the
+                // scan, so the substituted subtree still produces the exact types the rest of the plan expects.
+                io.trino.sql.planner.Symbol scanSymbol = context.symbolAllocator().newSymbol(symbol.name(), storageType);
+                outputs.add(scanSymbol);
+                assignments.put(scanSymbol, storageColumnHandle);
+                projections.put(symbol, new Cast(scanSymbol.toSymbolReference(), symbol.type()));
+                needsCoercion = true;
+            }
         }
 
         // Substitution must not let the user read the materialized view's data without SELECT access to the MV.
@@ -213,15 +254,19 @@ public class MvSubstitutionOptimizer
             return Optional.empty();
         }
 
-        return Optional.of(new TableScanNode(
-                planNode.getId(),
+        TableScanNode storageScan = new TableScanNode(
+                needsCoercion ? context.idAllocator().getNextId() : planNode.getId(),
                 storageTableHandle.get(),
                 outputs.build(),
                 assignments.buildOrThrow(),
                 TupleDomain.all(),
                 Optional.empty(),
                 false,
-                Optional.empty()));
+                Optional.empty());
+        if (!needsCoercion) {
+            return Optional.of(storageScan);
+        }
+        return Optional.of(new ProjectNode(planNode.getId(), storageScan, projections.build()));
     }
 
     private boolean canSelectFromMaterializedView(Session session, MaterializationDefinition candidate, Set<String> readMvColumns)

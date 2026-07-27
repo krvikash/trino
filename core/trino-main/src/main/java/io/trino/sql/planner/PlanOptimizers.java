@@ -637,7 +637,7 @@ public class PlanOptimizers
         // and FilterNodes are preserved above the scan for the substituted storage table.
         // When the MV substitution feature is disabled the index isn't bound, so the rule is skipped entirely.
         materializationIndex.ifPresent(index ->
-                builder.add(new MvSubstitutionOptimizer(index, plannerContext.getMetadata(), substitutionMetadata, accessControl)));
+                builder.add(new MvSubstitutionOptimizer(index, plannerContext.getMetadata(), substitutionMetadata, plannerContext.getTypeManager(), accessControl)));
 
         // Perform redirection before CBO rules to ensure stats from destination connector are used
         // Perform redirection before agg, topN, limit, sample etc. push down into table scan as the destination connector may support a different set of push downs

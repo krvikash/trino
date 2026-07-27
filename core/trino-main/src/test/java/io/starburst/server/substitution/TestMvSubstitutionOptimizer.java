@@ -53,6 +53,8 @@ import io.trino.spi.connector.substitution.ConnectorSubstitutionMetadata;
 import io.trino.spi.connector.substitution.ConnectorTableId;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.TypeManager;
+import io.trino.sql.ir.Cast;
+import io.trino.sql.ir.Reference;
 import io.trino.sql.planner.Plan;
 import io.trino.sql.planner.PlanNodeIdAllocator;
 import io.trino.sql.planner.RuleStatsRecorder;
@@ -90,9 +92,12 @@ import static io.trino.execution.querystats.PlanOptimizersStatsCollector.createP
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.VarbinaryType.VARBINARY;
 import static io.trino.spi.type.VarcharType.VARCHAR;
+import static io.trino.spi.type.VarcharType.createVarcharType;
 import static io.trino.sql.planner.LogicalPlanner.Stage.OPTIMIZED;
 import static io.trino.sql.planner.PlanOptimizers.columnPruningRules;
 import static io.trino.sql.planner.assertions.PlanMatchPattern.anyTree;
+import static io.trino.sql.planner.assertions.PlanMatchPattern.expression;
+import static io.trino.sql.planner.assertions.PlanMatchPattern.project;
 import static io.trino.sql.planner.assertions.PlanMatchPattern.tableScan;
 import static io.trino.testing.TestingSession.testSessionBuilder;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -125,7 +130,8 @@ public class TestMvSubstitutionOptimizer
             "storage", ImmutableList.of("name", "opaque"),
             "unidentified_source", ImmutableList.of("name"),
             "unidentified_storage", ImmutableList.of("name"),
-            "opaque_source", ImmutableList.of("opaque"));
+            "opaque_source", ImmutableList.of("opaque"),
+            "coercion_source", ImmutableList.of("name"));
 
     @Override
     protected PlanTester createPlanTester()
@@ -297,6 +303,19 @@ public class TestMvSubstitutionOptimizer
     }
 
     @Test
+    public void testSubstitutesWithStorageTypeCoercion()
+    {
+        MvSubstitutionOptimizer optimizer = optimizerWith(materialization().sourceTable("coercion_source").build());
+        assertPlan(
+                session(true),
+                "SELECT name FROM coercion_source",
+                optimizer,
+                anyTree(project(
+                        ImmutableMap.of("coerced", expression(new Cast(new Reference(VARCHAR, "storage_name"), createVarcharType(10)))),
+                        tableScan("storage", ImmutableMap.of("storage_name", "name")))));
+    }
+
+    @Test
     public void testNoSubstitutionForRefreshMaterializedView()
     {
         // Planning REFRESH must not rewrite the MV's own defining scan to its storage table (a no-op
@@ -435,7 +454,12 @@ public class TestMvSubstitutionOptimizer
                 planTester.getCatalogManager()),
                 new MaterializedViewSubstitutionConfig());
         index.createOrReplace(materialization);
-        return new MvSubstitutionOptimizer(index, planTester.getPlannerContext().getMetadata(), substitutionMetadata, planTester.getAccessControl());
+        return new MvSubstitutionOptimizer(
+                index,
+                planTester.getPlannerContext().getMetadata(),
+                substitutionMetadata,
+                planTester.getPlannerContext().getTypeManager(),
+                planTester.getAccessControl());
     }
 
     private Session session(boolean substitutionEnabled)
@@ -524,13 +548,23 @@ public class TestMvSubstitutionOptimizer
                 RuntimeInfoProvider.noImplementation());
     }
 
+    private static Type columnType(String tableName, String columnName)
+    {
+        // coercion_source.name is a bounded varchar while the storage table's name column is unbounded
+        // varchar. This lets a single query exercise the optimizer's storage-column type coercion.
+        if (tableName.equals("coercion_source") && columnName.equals("name")) {
+            return createVarcharType(10);
+        }
+        return VARCHAR;
+    }
+
     private static ConnectorFactory substitutionConnectorFactory()
     {
         MockConnectorFactory delegate = MockConnectorFactory.builder()
                 .withListSchemaNames(_ -> ImmutableList.of(SCHEMA))
                 .withListTables((_, _) -> ImmutableList.copyOf(TABLE_COLUMNS.keySet()))
                 .withGetColumns(schemaTableName -> TABLE_COLUMNS.getOrDefault(schemaTableName.getTableName(), ImmutableList.of()).stream()
-                        .map(column -> new ColumnMetadata(column, VARCHAR))
+                        .map(column -> new ColumnMetadata(column, columnType(schemaTableName.getTableName(), column)))
                         .collect(toImmutableList()))
                 .withGetTableHandle((_, schemaTableName) -> TABLE_COLUMNS.containsKey(schemaTableName.getTableName())
                         ? new MockConnectorTableHandle(schemaTableName)
