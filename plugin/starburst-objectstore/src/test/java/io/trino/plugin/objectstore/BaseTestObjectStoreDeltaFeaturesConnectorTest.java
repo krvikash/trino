@@ -1250,13 +1250,6 @@ public abstract class BaseTestObjectStoreDeltaFeaturesConnectorTest
 
     @Test
     @Override
-    public void testQueryLoggingCount()
-    {
-        skipDuplicateTestCoverage("testQueryLoggingCount");
-    }
-
-    @Test
-    @Override
     public void testRangePredicate()
     {
         skipDuplicateTestCoverage("testRangePredicate");
