@@ -14,11 +14,14 @@
 package io.trino.operator.gpu;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.SettableFuture;
 import io.trino.Session;
 import io.trino.metadata.Split;
 import io.trino.metadata.TableHandle;
 import io.trino.operator.gpu.memory.AllocatedMemory;
+import io.trino.operator.gpu.scan.ConnectorGpuPageSourceAdapter;
+import io.trino.plugin.base.metrics.LongCount;
 import io.trino.spi.Page;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorTableCredentials;
@@ -28,6 +31,7 @@ import io.trino.spi.gpu.GpuPage;
 import io.trino.spi.gpu.MemoryAllocation;
 import io.trino.spi.gpu.borrow.Move;
 import io.trino.spi.gpu.borrow.Own;
+import io.trino.spi.metrics.Metrics;
 import io.trino.spi.type.Type;
 import io.trino.split.EmptySplit;
 import io.trino.split.PageSourceProvider;
@@ -44,6 +48,8 @@ import static java.util.Objects.requireNonNull;
 public class GpuTableScan
         implements GpuSourceOperation
 {
+    public static final String CPU_FALLBACK_SPLITS_METRIC = "CPU fallback splits";
+
     private final Context context;
     private final PageSourceProvider pageSourceProvider;
     private final Session session;
@@ -141,6 +147,7 @@ public class GpuTableScan
                 yield new Data((AllocatedMemory) allocation, page);
             }
             case ConnectorGpuPageSource.Finished() -> {
+                recordSplitExecutionMode(pageSource);
                 recordPhysicalInput(pageSource, 0);
                 yield new Finished();
             }
@@ -163,6 +170,13 @@ public class GpuTableScan
         completedBytes = endCompletedBytes;
         completedPositions = endCompletedPositions;
         readTimeNanos = endReadTimeNanos;
+    }
+
+    private void recordSplitExecutionMode(ConnectorGpuPageSource pageSource)
+    {
+        if (pageSource instanceof ConnectorGpuPageSourceAdapter) {
+            context.operatorContext().setLatestMetrics(new Metrics(ImmutableMap.of(CPU_FALLBACK_SPLITS_METRIC, new LongCount(1))));
+        }
     }
 
     @Override
