@@ -14,7 +14,7 @@
 package io.trino.tests.substitution;
 
 import com.google.common.collect.ImmutableMap;
-import io.trino.plugin.hive.containers.Hive3MinioDataLake;
+import io.trino.plugin.hive.containers.Hive3FlociDataLake;
 import io.trino.plugin.hive.s3.S3HiveQueryRunner;
 import io.trino.plugin.iceberg.IcebergPlugin;
 import io.trino.plugin.iceberg.substitution.AbstractIcebergMvSubstitutionTest;
@@ -42,13 +42,13 @@ public class TestIcebergMvOnHiveSourceSubstitution
             throws Exception
     {
         String bucketName = "test-iceberg-mv-on-hive-source-" + randomNameSuffix();
-        Hive3MinioDataLake hive3MinioDataLake = closeAfterClass(new Hive3MinioDataLake(bucketName));
-        hive3MinioDataLake.start();
+        Hive3FlociDataLake hiveFlociDataLake = closeAfterClass(new Hive3FlociDataLake(bucketName));
+        hiveFlociDataLake.start();
 
         // Hive is the source catalog (default session catalog "hive", schema "tpch"); the Iceberg
         // catalog holds the MV storage tables. Both share the dockerized Hive metastore and MinIO
         // bucket. Hive 3 gives the source tables ACID support, which the staleness tests rely on.
-        QueryRunner queryRunner = S3HiveQueryRunner.builder(hive3MinioDataLake)
+        QueryRunner queryRunner = S3HiveQueryRunner.builder(hiveFlociDataLake)
                 .setHiveProperties(ImmutableMap.of("hive.security", "allow-all"))
                 .setCreateTpchSchemas(false)
                 .setSkipTimezoneSetup(true)
@@ -58,12 +58,12 @@ public class TestIcebergMvOnHiveSourceSubstitution
             queryRunner.installPlugin(new IcebergPlugin());
             queryRunner.createCatalog(ICEBERG_CATALOG, "iceberg", ImmutableMap.<String, String>builder()
                     .put("iceberg.catalog.type", "HIVE_METASTORE")
-                    .put("hive.metastore.uri", hive3MinioDataLake.getHiveMetastoreEndpoint().toString())
+                    .put("hive.metastore.uri", hiveFlociDataLake.getHiveMetastoreEndpoint().toString())
                     .put("fs.hadoop.enabled", "false")
                     .put("fs.s3.enabled", "true")
                     .put("s3.aws-access-key", MINIO_ROOT_USER)
                     .put("s3.aws-secret-key", MINIO_ROOT_PASSWORD)
-                    .put("s3.endpoint", hive3MinioDataLake.getMinio().getMinioAddress())
+                    .put("s3.endpoint", hiveFlociDataLake.floci().endpoint().toString())
                     .put("s3.region", MINIO_REGION)
                     .put("s3.path-style-access", "true")
                     .buildOrThrow());
