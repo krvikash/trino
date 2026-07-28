@@ -474,43 +474,44 @@ public class TestSynapseConnectorTest
     public void testJoinPushdown()
     {
         // TODO refactor BaseJdbcConnectorTest.testJoinPushdown to be executed on copy of tpch table with case sensitive collation
-        for (JoinOperator joinOperator : JoinOperator.values()) {
-            String caseSensitiveNation = "cs_nation" + randomNameSuffix();
-            String caseSensitiveCustomer = "cs_customer" + randomNameSuffix();
-            try {
-                createTableAdjustCollation(
-                        "nation",
-                        caseSensitiveNation,
-                        "name",
-                        "NVARCHAR(25)",
-                        "Latin1_General_CS_AS");
-                createTableAdjustCollation(
-                        "customer",
-                        caseSensitiveCustomer,
-                        "address",
-                        "NVARCHAR(40)",
-                        "Latin1_General_CS_AS");
-                Session session = joinPushdownEnabled(getSession());
+        String caseSensitiveNation = "cs_nation" + randomNameSuffix();
+        String caseSensitiveCustomer = "cs_customer" + randomNameSuffix();
+        try {
+            createTableAdjustCollation(
+                    "nation",
+                    caseSensitiveNation,
+                    "name",
+                    "NVARCHAR(25)",
+                    "Latin1_General_CS_AS");
+            createTableAdjustCollation(
+                    "customer",
+                    caseSensitiveCustomer,
+                    "address",
+                    "NVARCHAR(40)",
+                    "Latin1_General_CS_AS");
+            Session session = joinPushdownEnabled(getSession());
 
-                // Disable DF here for the sake of negative test cases' expected plan. With DF enabled, some operators return in DF's FilterNode and some do not.
-                Session withoutDynamicFiltering = Session.builder(session)
-                        .setSystemProperty("enable_dynamic_filtering", "false")
-                        .build();
+            // Disable DF here for the sake of negative test cases' expected plan. With DF enabled, some operators return in DF's FilterNode and some do not.
+            Session withoutDynamicFiltering = Session.builder(session)
+                    .setSystemProperty("enable_dynamic_filtering", "false")
+                    .build();
 
-                @SuppressWarnings({"deprecation", "DeprecatedApi"})
-                List<String> nonEqualities = Stream.concat(
-                                Stream.of(JoinCondition.Operator.values())
-                                        .filter(operator -> operator != JoinCondition.Operator.EQUAL && operator != JoinCondition.Operator.IDENTICAL)
-                                        .map(JoinCondition.Operator::getValue),
-                                Stream.of("IS NOT DISTINCT FROM", "IS DISTINCT FROM"))
-                        .collect(toImmutableList());
+            @SuppressWarnings({"deprecation", "DeprecatedApi"})
+            List<String> nonEqualities = Stream.concat(
+                            Stream.of(JoinCondition.Operator.values())
+                                    .filter(operator -> operator != JoinCondition.Operator.EQUAL && operator != JoinCondition.Operator.IDENTICAL)
+                                    .map(JoinCondition.Operator::getValue),
+                            Stream.of("IS NOT DISTINCT FROM", "IS DISTINCT FROM"))
+                    .collect(toImmutableList());
 
-                try (TestTable nationLowercaseTable = new TestTable(
-                        // If a connector supports Join pushdown, but does not allow CTAS, we need to make the table creation here overridable.
-                        getQueryRunner()::execute,
-                        "nation_lowercase",
-                        "AS SELECT nationkey, lower(name) name, regionkey FROM nation")) {
-                    adjustCollation(nationLowercaseTable.getName(), "name", "NVARCHAR(25)", "Latin1_General_CS_AS");
+            // If a connector supports Join pushdown, but does not allow CTAS, we need to make the table creation here overridable.
+            try (TestTable nationLowercaseTable = new TestTable(
+                    getQueryRunner()::execute,
+                    "nation_lowercase",
+                    "AS SELECT nationkey, lower(name) name, regionkey FROM nation")) {
+                adjustCollation(nationLowercaseTable.getName(), "name", "NVARCHAR(25)", "Latin1_General_CS_AS");
+
+                for (JoinOperator joinOperator : JoinOperator.values()) {
                     // basic case
                     assertThat(query(session, format("SELECT r.name, n.name FROM nation n %s region r ON n.regionkey = r.regionkey", joinOperator))).isFullyPushedDown();
 
@@ -598,10 +599,10 @@ public class TestSynapseConnectorTest
                             .isFullyPushedDown();
                 }
             }
-            finally {
-                dropTable(caseSensitiveNation);
-                dropTable(caseSensitiveCustomer);
-            }
+        }
+        finally {
+            dropTable(caseSensitiveNation);
+            dropTable(caseSensitiveCustomer);
         }
     }
 
