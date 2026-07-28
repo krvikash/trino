@@ -16,6 +16,7 @@ import io.trino.spi.TrinoException;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Optional;
 
 import static io.starburst.ai.client.MessageRole.USER;
 import static io.starburst.ai.client.TestingUtils.LANGUAGE_MODEL_PROVIDERS;
@@ -30,7 +31,7 @@ public class TestToolUse
         CalculatorTool tool = new CalculatorTool();
 
         List<LlmMessage> messages = ImmutableList.of(
-                new LlmMessage(USER, "What is 25 + 37? Use the calculator tool."));
+                new LlmMessage(USER, Optional.of("What is 25 + 37? Use the calculator tool."), ImmutableList.of(), ImmutableList.of()));
 
         assertThatThrownBy(() -> executeToolUse(
                 "mistral_large",

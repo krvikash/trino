@@ -9,6 +9,7 @@
  */
 package io.starburst.ai.client.vertexai;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
@@ -19,6 +20,7 @@ import com.google.genai.Client;
 import com.google.genai.types.Content;
 import com.google.genai.types.FunctionCall;
 import com.google.genai.types.FunctionDeclaration;
+import com.google.genai.types.FunctionResponse;
 import com.google.genai.types.GenerateContentConfig;
 import com.google.genai.types.GenerateContentResponse;
 import com.google.genai.types.GenerateContentResponseUsageMetadata;
@@ -46,7 +48,9 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static io.starburst.ai.client.AiClientErrorCode.AI_CLIENT_ERROR;
+import static io.starburst.ai.client.MessageRole.ASSISTANT;
 import static io.starburst.ai.client.MessageRole.USER;
 import static java.util.Objects.requireNonNull;
 
@@ -83,7 +87,7 @@ public class VertexAiLanguageModelClient
     @Override
     protected String generateCompletion(List<String> systemPrompts, String prompt, TokenUsageContext context)
     {
-        return generateCompletion(systemPrompts, ImmutableList.of(new LlmMessage(USER, prompt)), context);
+        return generateCompletion(systemPrompts, ImmutableList.of(new LlmMessage(USER, Optional.of(prompt), ImmutableList.of(), ImmutableList.of())), context);
     }
 
     @Override
@@ -226,23 +230,67 @@ public class VertexAiLanguageModelClient
                 OBJECT_MAPPER.valueToTree(args));
     }
 
+    private static Map<String, Object> jsonToObjectMap(JsonNode node)
+    {
+        if (node == null || node.isNull()) {
+            return ImmutableMap.of();
+        }
+        return OBJECT_MAPPER.convertValue(node, new TypeReference<>() {});
+    }
+
     @VisibleForTesting
     static List<Content> toContents(List<LlmMessage> messages)
     {
+        Map<String, String> toolCallIdNameMap = messages.stream()
+                .filter(m -> m.role() == ASSISTANT)
+                .flatMap(m -> m.toolCalls().stream())
+                .collect(toImmutableMap(ToolUseResponse.ToolCall::id, ToolUseResponse.ToolCall::name));
+
         return messages.stream()
-                .map(VertexAiLanguageModelClient::toContent)
+                .map(message -> toContent(message, toolCallIdNameMap))
                 .collect(toImmutableList());
     }
 
-    private static Content toContent(LlmMessage message)
+    private static Content toContent(LlmMessage message, Map<String, String> toolCallIdNameMap)
     {
         String role = switch (message.role()) {
-            case USER -> "user";
+            case USER, TOOL_RESPONSE -> "user";
             case ASSISTANT -> "model";
         };
+        ImmutableList.Builder<Part> parts = ImmutableList.builder();
+        switch (message.role()) {
+            case USER -> parts.add(Part.fromText(message.content().orElseThrow()));
+            case ASSISTANT -> {
+                message.content().ifPresent(text -> parts.add(Part.fromText(text)));
+                for (ToolUseResponse.ToolCall toolCall : message.toolCalls()) {
+                    parts.add(Part.builder()
+                            .functionCall(FunctionCall.builder()
+                                    .id(toolCall.id())
+                                    .name(toolCall.name())
+                                    .args(jsonToObjectMap(toolCall.input())))
+                            .build());
+                }
+            }
+            case TOOL_RESPONSE -> {
+                for (LlmMessage.ToolResponse response : message.toolResponse()) {
+                    String name = toolCallIdNameMap.get(response.toolUseId());
+                    if (name == null) {
+                        throw new TrinoException(
+                                AI_CLIENT_ERROR,
+                                "No matching tool call found for tool response id " + response.toolUseId());
+                    }
+                    parts.add(Part.builder()
+                            .functionResponse(FunctionResponse.builder()
+                                    .id(response.toolUseId())
+                                    .name(name)
+                                    .response(jsonToObjectMap(response.responseJson())))
+                            .build());
+                }
+            }
+        }
         return Content.builder()
                 .role(role)
-                .parts(Part.fromText(message.content()))
+                .parts(parts.build())
                 .build();
     }
 

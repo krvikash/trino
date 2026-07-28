@@ -148,14 +148,14 @@ public class TestAiAccessControl
         String prompt = "Who let the dogs out?";
         assertQuerySucceeds(
                 sessionWithRole(ALLOW_ROLE),
-                "SELECT ai.prompt('', '%s', '%s')".formatted(prompt, LANGUAGE_ALLOW_MODEL));
+                "SELECT ai.prompt('woof', '%s', '%s')".formatted(prompt, LANGUAGE_ALLOW_MODEL));
         assertQueryFails(
                 sessionWithRole(ALLOW_ROLE),
-                "SELECT ai.prompt('', '%s', '%s')".formatted(prompt, LANGUAGE_DENY_MODEL),
+                "SELECT ai.prompt('woof', '%s', '%s')".formatted(prompt, LANGUAGE_DENY_MODEL),
                 AccessDeniedException.PREFIX + "Cannot execute model " + LANGUAGE_DENY_MODEL);
         assertQueryFails(
                 sessionWithRole(DENY_ROLE),
-                "SELECT ai.prompt('', '%s', '%s')".formatted(prompt, LANGUAGE_ALLOW_MODEL),
+                "SELECT ai.prompt('woof', '%s', '%s')".formatted(prompt, LANGUAGE_ALLOW_MODEL),
                 AccessDeniedException.PREFIX + "Cannot execute model " + LANGUAGE_ALLOW_MODEL);
     }
 

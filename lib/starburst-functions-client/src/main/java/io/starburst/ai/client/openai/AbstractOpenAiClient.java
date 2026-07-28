@@ -65,7 +65,7 @@ public abstract class AbstractOpenAiClient<ResponseType>
     @Override
     protected String generateCompletion(List<String> systemPrompts, String prompt, TokenUsageContext context)
     {
-        return generateCompletion(systemPrompts, ImmutableList.of(new LlmMessage(USER, prompt)), context);
+        return generateCompletion(systemPrompts, ImmutableList.of(new LlmMessage(USER, Optional.of(prompt), ImmutableList.of(), ImmutableList.of())), context);
     }
 
     @Override

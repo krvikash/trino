@@ -13,4 +13,5 @@ public enum MessageRole
 {
     USER,
     ASSISTANT,
+    TOOL_RESPONSE,
 }

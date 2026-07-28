@@ -9,9 +9,14 @@
  */
 package io.starburst.ai.client;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.json.JsonMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.collect.ImmutableList;
+import io.airlift.json.JsonMapperProvider;
 import io.airlift.log.Logger;
+import org.assertj.core.data.Offset;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.TestInstance;
@@ -32,6 +37,7 @@ import static io.starburst.ai.client.JsonSchemaParameterType.INTEGER;
 import static io.starburst.ai.client.JsonSchemaParameterType.NUMBER;
 import static io.starburst.ai.client.JsonSchemaParameterType.STRING;
 import static io.starburst.ai.client.MessageRole.ASSISTANT;
+import static io.starburst.ai.client.MessageRole.TOOL_RESPONSE;
 import static io.starburst.ai.client.MessageRole.USER;
 import static io.starburst.ai.client.TestingUtils.createLlmExecutor;
 import static io.starburst.ai.client.TestingUtils.staticModelClientProvider;
@@ -79,7 +85,7 @@ public abstract class BaseTestToolUse
         CalculatorTool tool = new CalculatorTool();
 
         List<LlmMessage> messages = ImmutableList.of(
-                new LlmMessage(USER, "What is 25 + 37? Use the calculator tool."));
+                new LlmMessage(USER, Optional.of("What is 25 + 37? Use the calculator tool."), ImmutableList.of(), ImmutableList.of()));
 
         ToolUseResponse response = executeToolUse(
                 modelId,
@@ -113,7 +119,7 @@ public abstract class BaseTestToolUse
                 new SearchTool());
 
         List<LlmMessage> messages = ImmutableList.of(
-                new LlmMessage(USER, "What's the weather like in Paris, France?"));
+                new LlmMessage(USER, Optional.of("What's the weather like in Paris, France?"), ImmutableList.of(), ImmutableList.of()));
 
         ToolUseResponse response = executeToolUse(
                 modelId,
@@ -139,9 +145,9 @@ public abstract class BaseTestToolUse
         ToolDefinition<Double> tool = new CalculatorTool();
 
         List<LlmMessage> messages = ImmutableList.of(
-                new LlmMessage(USER, "I need to do some math"),
-                new LlmMessage(ASSISTANT, "I can use my calculator for that! What calculation do you need?"),
-                new LlmMessage(USER, "What's 42 times 13?"));
+                new LlmMessage(USER, Optional.of("I need to do some math"), ImmutableList.of(), ImmutableList.of()),
+                new LlmMessage(ASSISTANT, Optional.of("I can use my calculator for that! What calculation do you need?"), ImmutableList.of(), ImmutableList.of()),
+                new LlmMessage(USER, Optional.of("What's 42 times 13?"), ImmutableList.of(), ImmutableList.of()));
 
         ToolUseResponse response = executeToolUse(
                 modelId,
@@ -160,12 +166,70 @@ public abstract class BaseTestToolUse
 
     @ParameterizedTest
     @MethodSource("modelIds")
+    public void testMultiToolCallHistory(String modelId)
+            throws JsonProcessingException
+    {
+        List<ToolDefinition<?>> tools = ImmutableList.of(
+                new CalculatorTool(),
+                new WeatherTool(),
+                new SearchTool());
+        JsonMapper mapper = new JsonMapperProvider().get();
+        ObjectNode callCalculatorNode0 = mapper.createObjectNode();
+        callCalculatorNode0.put("operation", "multiply");
+        callCalculatorNode0.put("left_operand", 42);
+        callCalculatorNode0.put("right_operand", 13);
+        ObjectNode callCalculatorNode1 = mapper.createObjectNode();
+        callCalculatorNode1.put("operation", "divide");
+        callCalculatorNode1.put("left_operand", 546);
+        callCalculatorNode1.put("right_operand", 3);
+        ObjectNode callCalculatorNode2 = mapper.createObjectNode();
+        callCalculatorNode2.put("operation", "multiply");
+        callCalculatorNode2.put("left_operand", 182.0);
+        callCalculatorNode2.put("right_operand", 99);
+
+        List<LlmMessage> messages = ImmutableList.of(
+                new LlmMessage(USER, Optional.of("What's 42 times 13?"), ImmutableList.of(), ImmutableList.of()),
+                new LlmMessage(ASSISTANT, Optional.empty(), ImmutableList.of(), ImmutableList.of(
+                        new ToolUseResponse.ToolCall("1", "calculator", callCalculatorNode0))),
+                new LlmMessage(TOOL_RESPONSE, Optional.empty(), ImmutableList.of(
+                        new LlmMessage.ToolResponse(mapper.createObjectNode().put("result", 42 * 13), "1")), ImmutableList.of()),
+                new LlmMessage(ASSISTANT, Optional.of("The result is 546."), ImmutableList.of(), ImmutableList.of()),
+                new LlmMessage(USER, Optional.of("Divide this by 3, show the result, then multiply by 99"), ImmutableList.of(), ImmutableList.of()),
+                new LlmMessage(ASSISTANT, Optional.empty(), ImmutableList.of(), ImmutableList.of(
+                        new ToolUseResponse.ToolCall("2", "calculator", callCalculatorNode1),
+                        new ToolUseResponse.ToolCall("3", "calculator", callCalculatorNode2))),
+                // A tool response block MUST contain a matching response id for every call in the preceding tool use block!
+                new LlmMessage(TOOL_RESPONSE, Optional.empty(), ImmutableList.of(
+                        new LlmMessage.ToolResponse(mapper.createObjectNode().put("result", 42 * 13 / 3.0), "2"),
+                        new LlmMessage.ToolResponse(mapper.createObjectNode().put("result", 42 * 13 * 99 / 3.0), "3")), ImmutableList.of()),
+                new LlmMessage(ASSISTANT, Optional.of("The result is %s.".formatted(42 * 13 * 99 / 3.0)), ImmutableList.of(), ImmutableList.of()),
+                new LlmMessage(USER, Optional.of("Divide this by 71"), ImmutableList.of(), ImmutableList.of()));
+
+        ToolUseResponse response = executeToolUse(
+                modelId,
+                "You are a helpful math assistant.",
+                messages,
+                tools);
+        for (ToolUseResponse.ToolCall call : response.toolCalls()) {
+            log.info("Model: %s, Tool call: %s with parameters %s", modelId, call.name(), call.input().toPrettyString());
+        }
+
+        assertThat(response.toolCalls()).withFailMessage("Model response: " + response.textResponse()).isNotEmpty();
+        ToolUseResponse.ToolCall toolCall = response.toolCalls().getFirst();
+        assertThat(toolCall.name()).withFailMessage("Model response: " + response.textResponse()).isEqualTo("calculator");
+        ToolResult<Double> toolResult = new CalculatorTool().execute(toolCall.input());
+        assertThat(toolResult.content()).isPresent();
+        assertThat(toolResult.content().get()).isCloseTo(42 * 13 * 99 / 3.0 / 71.0, Offset.offset(0.01));
+    }
+
+    @ParameterizedTest
+    @MethodSource("modelIds")
     public void testNoToolCallWhenNotNeeded(String modelId)
     {
         ToolDefinition<?> tool = new CalculatorTool();
 
         List<LlmMessage> messages = ImmutableList.of(
-                new LlmMessage(USER, "Hello, how are you?"));
+                new LlmMessage(USER, Optional.of("Hello, how are you?"), ImmutableList.of(), ImmutableList.of()));
 
         ToolUseResponse response = executeToolUse(
                 modelId,
@@ -187,7 +251,7 @@ public abstract class BaseTestToolUse
         ToolDefinition<?> tool = new ClockTool();
 
         List<LlmMessage> messages = ImmutableList.of(
-                new LlmMessage(USER, "What's the current time in UTC?"));
+                new LlmMessage(USER, Optional.of("What's the current time in UTC?"), ImmutableList.of(), ImmutableList.of()));
 
         ToolUseResponse response = executeToolUse(
                 modelId,

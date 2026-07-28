@@ -9,8 +9,12 @@
  */
 package io.starburst.ai.client.bedrock;
 
+import com.fasterxml.jackson.databind.json.JsonMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.collect.ImmutableList;
+import io.airlift.json.JsonMapperProvider;
 import io.starburst.ai.client.LlmMessage;
+import io.starburst.ai.client.ToolUseResponse;
 import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.services.bedrockruntime.model.CachePointType;
 import software.amazon.awssdk.services.bedrockruntime.model.ContentBlock;
@@ -19,8 +23,10 @@ import software.amazon.awssdk.services.bedrockruntime.model.SystemContentBlock;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 import static io.starburst.ai.client.MessageRole.ASSISTANT;
+import static io.starburst.ai.client.MessageRole.TOOL_RESPONSE;
 import static io.starburst.ai.client.MessageRole.USER;
 import static io.starburst.ai.client.bedrock.AwsBedrockLanguageModelClient.MIN_CACHE_POINT_CHARS;
 import static io.starburst.ai.client.bedrock.AwsBedrockLanguageModelClient.addSystemCachePoint;
@@ -83,7 +89,7 @@ class TestAwsBedrockCachePointPlacement
     void testNoCachePointWhenBelowOneIncrement()
     {
         List<LlmMessage> messages = ImmutableList.of(
-                new LlmMessage(USER, "x".repeat(INC - 1)));
+                new LlmMessage(USER, Optional.of("x".repeat(INC - 1)), ImmutableList.of(), ImmutableList.of()));
         List<Message> result = buildMessagesWithCachePoint(messages, ImmutableList.of(), true);
         assertThat(countCachePoints(result)).isEqualTo(0);
     }
@@ -128,8 +134,8 @@ class TestAwsBedrockCachePointPlacement
         // equals the full previous conversation, still well within [2*INC, 3*INC).
         List<LlmMessage> grown = ImmutableList.<LlmMessage>builder()
                 .addAll(conversation)
-                .add(new LlmMessage(ASSISTANT, "x".repeat(500)))
-                .add(new LlmMessage(USER, "x".repeat(500)))
+                .add(new LlmMessage(ASSISTANT, Optional.of("x".repeat(500)), ImmutableList.of(), ImmutableList.of()))
+                .add(new LlmMessage(USER, Optional.of("x".repeat(500)), ImmutableList.of(), ImmutableList.of()))
                 .build();
         assertThat(totalChars(grown)).isLessThan(3 * INC);
         List<Message> result2 = buildMessagesWithCachePoint(grown, ImmutableList.of(), true);
@@ -211,7 +217,7 @@ class TestAwsBedrockCachePointPlacement
         List<SystemContentBlock> system = addSystemCachePoint(blocks, true);
         // Messages with INC chars → charsAfterCachePoint = INC → only CP2
         List<LlmMessage> messages = ImmutableList.of(
-                new LlmMessage(USER, "x".repeat(INC)));
+                new LlmMessage(USER, Optional.of("x".repeat(INC)), ImmutableList.of(), ImmutableList.of()));
         List<Message> result = buildMessagesWithCachePoint(messages, system, true);
         assertThat(countCachePoints(result)).isEqualTo(1);
     }
@@ -237,7 +243,7 @@ class TestAwsBedrockCachePointPlacement
     {
         // One message spans multiple increments — CP2 and CP3 resolve to same index
         List<LlmMessage> messages = ImmutableList.of(
-                new LlmMessage(USER, "x".repeat(3 * INC)));
+                new LlmMessage(USER, Optional.of("x".repeat(3 * INC)), ImmutableList.of(), ImmutableList.of()));
         List<Message> result = buildMessagesWithCachePoint(messages, ImmutableList.of(), true);
         // Should place only one cache point (both targets resolve to the only message)
         assertThat(countCachePoints(result)).isEqualTo(1);
@@ -278,7 +284,9 @@ class TestAwsBedrockCachePointPlacement
         for (int turn = 0; turn < 20; turn++) {
             conversationBuilder.add(new LlmMessage(
                     turn % 2 == 0 ? USER : ASSISTANT,
-                    "x".repeat(1000)));
+                    Optional.of("x".repeat(1000)),
+                    ImmutableList.of(),
+                    ImmutableList.of()));
             List<LlmMessage> conversation = conversationBuilder.build();
             List<Message> result = buildMessagesWithCachePoint(conversation, system, true);
             List<Integer> indices = findAllCachePointIndices(result);
@@ -308,8 +316,8 @@ class TestAwsBedrockCachePointPlacement
         // Call B: model replies with a HUGE response, then user sends the next message.
         List<LlmMessage> callB = ImmutableList.<LlmMessage>builder()
                 .addAll(callA)
-                .add(new LlmMessage(ASSISTANT, "x".repeat(5 * INC))) // huge response
-                .add(new LlmMessage(USER, "x".repeat(500)))
+                .add(new LlmMessage(ASSISTANT, Optional.of("x".repeat(5 * INC)), ImmutableList.of(), ImmutableList.of())) // huge response
+                .add(new LlmMessage(USER, Optional.of("x".repeat(500)), ImmutableList.of(), ImmutableList.of()))
                 .build();
         // With simulation: the previous turn boundary (callA ending in USER) determines CP2's
         // position. callA's chars are still in [INC, 2*INC) so CP2 target is unchanged.
@@ -320,6 +328,136 @@ class TestAwsBedrockCachePointPlacement
         assertThat(indicesB.getFirst())
                 .as("CP2 must not move after a large assistant response — cache would be busted")
                 .isEqualTo(indicesA.getFirst());
+    }
+
+    @Test
+    void testMultiTurnWithToolResponse()
+    {
+        // Simulate turns with ~1K per message, verify stability between slides
+        String longPrompt = "x".repeat(5000);
+        JsonMapper mapper = new JsonMapperProvider().get();
+        ObjectNode toolResponseNode = mapper.createObjectNode();
+        toolResponseNode.put("status", "success");
+        toolResponseNode.put("data", "HEY" + "!".repeat(1000));
+        ObjectNode toolCallNode = mapper.createObjectNode();
+        toolCallNode.put("id", 123);
+        toolCallNode.put("input", "Hello user");
+        List<LlmMessage> messages = ImmutableList.of(
+                new LlmMessage(USER, Optional.of("he" + "y".repeat(1000)), ImmutableList.of(), ImmutableList.of()),
+                new LlmMessage(
+                        ASSISTANT,
+                        Optional.of("I'll call my emotion tool"),
+                        ImmutableList.of(),
+                        ImmutableList.of(new ToolUseResponse.ToolCall("123", "emoter", toolCallNode))),
+                new LlmMessage(TOOL_RESPONSE, Optional.empty(), ImmutableList.of(new LlmMessage.ToolResponse(toolResponseNode, "123")), ImmutableList.of()));
+
+        List<SystemContentBlock> blocks = ImmutableList.of(SystemContentBlock.fromText(longPrompt));
+        List<SystemContentBlock> system = addSystemCachePoint(blocks, true);
+        ImmutableList.Builder<LlmMessage> conversationBuilder = ImmutableList.builder();
+        List<Integer> previousIndices = List.of();
+        int stableTurns = 0;
+
+        for (int turn = 0; turn < 20; turn++) {
+            conversationBuilder.add(messages.get(turn % 3));
+            List<LlmMessage> conversation = conversationBuilder.build();
+            List<Message> result = buildMessagesWithCachePoint(conversation, system, true);
+            List<Integer> indices = findAllCachePointIndices(result);
+
+            if (indices.equals(previousIndices) && !indices.isEmpty()) {
+                stableTurns++;
+            }
+            previousIndices = indices;
+        }
+
+        // Should be stable for multiple consecutive turns between slides
+        assertThat(stableTurns).isGreaterThanOrEqualTo(5);
+    }
+
+    @Test
+    void testToolResponseIsCachePointCandidate()
+    {
+        // Small USER + small ASSISTANT-with-tool-call + large TOOL_RESPONSE.
+        // The TOOL_RESPONSE alone pushes running past INC and is the sole CP candidate,
+        // locking in that TOOL_RESPONSE participates in the candidate filter.
+        List<LlmMessage> messages = ImmutableList.of(
+                new LlmMessage(USER, Optional.of("x".repeat(100)), ImmutableList.of(), ImmutableList.of()),
+                assistantWithToolCall("id1", "tool"),
+                toolResponse("id1", INC));
+        List<Message> result = buildMessagesWithCachePoint(messages, ImmutableList.of(), true);
+        List<Integer> indices = findAllCachePointIndices(result);
+        assertThat(indices).containsExactly(2);
+    }
+
+    @Test
+    void testCachePointsStableWithToolResponse()
+    {
+        // Same shape as testCachePointsStableWithinSlot, but the growth step is a
+        // tool round-trip (ASSISTANT-with-tool-call + TOOL_RESPONSE) instead of plain text.
+        // Confirms TOOL_RESPONSE chars are counted correctly and don't shift the
+        // previously-placed CPs while staying within the same slot.
+        List<LlmMessage> conversation = buildConversation(2 * INC + 1500);
+        List<Message> result1 = buildMessagesWithCachePoint(conversation, ImmutableList.of(), true);
+        List<Integer> indices1 = findAllCachePointIndices(result1);
+        assertThat(indices1).hasSize(2);
+
+        List<LlmMessage> grown = ImmutableList.<LlmMessage>builder()
+                .addAll(conversation)
+                .add(assistantWithToolCall("id1", "tool"))
+                .add(toolResponse("id1", 500))
+                .build();
+        assertThat(totalChars(grown)).isLessThan(3 * INC);
+        List<Message> result2 = buildMessagesWithCachePoint(grown, ImmutableList.of(), true);
+        List<Integer> indices2 = findAllCachePointIndices(result2);
+
+        assertThat(indices2)
+                .as("appending a tool round-trip within the same slot must not shift the CPs")
+                .isEqualTo(indices1);
+    }
+
+    @Test
+    void testLargeToolResponseDoesNotBustCachePoints()
+    {
+        // Regression analogue of testLargeLastAssistantMessageDoesNotBustCachePoints for
+        // TOOL_RESPONSE: a huge tool payload arrives, then the user follows up. CP2 must
+        // stay at its previous position — otherwise the next turn's cache is busted.
+        List<LlmMessage> callA = buildConversation(INC + INC / 2);
+        List<Integer> indicesA = findAllCachePointIndices(
+                buildMessagesWithCachePoint(callA, ImmutableList.of(), true));
+        assertThat(indicesA).hasSize(1);
+
+        List<LlmMessage> callB = ImmutableList.<LlmMessage>builder()
+                .addAll(callA)
+                .add(assistantWithToolCall("id1", "tool"))
+                .add(toolResponse("id1", 5 * INC))
+                .add(new LlmMessage(USER, Optional.of("x".repeat(500)), ImmutableList.of(), ImmutableList.of()))
+                .build();
+        List<Integer> indicesB = findAllCachePointIndices(
+                buildMessagesWithCachePoint(callB, ImmutableList.of(), true));
+        assertThat(indicesB).isNotEmpty();
+        assertThat(indicesB.getFirst())
+                .as("CP2 must not move after a large tool response — cache would be busted")
+                .isEqualTo(indicesA.getFirst());
+    }
+
+    private static LlmMessage assistantWithToolCall(String toolUseId, String toolName)
+    {
+        ObjectNode input = new JsonMapperProvider().get().createObjectNode();
+        return new LlmMessage(
+                ASSISTANT,
+                Optional.empty(),
+                ImmutableList.of(),
+                ImmutableList.of(new ToolUseResponse.ToolCall(toolUseId, toolName, input)));
+    }
+
+    private static LlmMessage toolResponse(String toolUseId, int payloadSize)
+    {
+        ObjectNode node = new JsonMapperProvider().get().createObjectNode();
+        node.put("data", "x".repeat(payloadSize));
+        return new LlmMessage(
+                TOOL_RESPONSE,
+                Optional.empty(),
+                ImmutableList.of(new LlmMessage.ToolResponse(node, toolUseId)),
+                ImmutableList.of());
     }
 
     /**
@@ -335,7 +473,7 @@ class TestAwsBedrockCachePointPlacement
         while (remaining > 0) {
             int size = Math.min(messageSize, remaining);
             // alternate USER and ASSISTANT, but make sure we end with USER
-            builder.add(new LlmMessage(index % 2 == 0 || size == remaining ? USER : ASSISTANT, "x".repeat(size)));
+            builder.add(new LlmMessage(index % 2 == 0 || size == remaining ? USER : ASSISTANT, Optional.of("x".repeat(size)), ImmutableList.of(), ImmutableList.of()));
             remaining -= size;
             index++;
         }
@@ -344,7 +482,7 @@ class TestAwsBedrockCachePointPlacement
 
     private static int totalChars(List<LlmMessage> messages)
     {
-        return messages.stream().mapToInt(m -> m.content().length()).sum();
+        return messages.stream().mapToInt(AwsBedrockLanguageModelClient::messageChars).sum();
     }
 
     private static boolean hasCachePoint(Message message)

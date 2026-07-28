@@ -59,6 +59,8 @@ import software.amazon.awssdk.services.bedrockruntime.model.SystemContentBlock;
 import software.amazon.awssdk.services.bedrockruntime.model.ThrottlingException;
 import software.amazon.awssdk.services.bedrockruntime.model.Tool;
 import software.amazon.awssdk.services.bedrockruntime.model.ToolInputSchema;
+import software.amazon.awssdk.services.bedrockruntime.model.ToolResultBlock;
+import software.amazon.awssdk.services.bedrockruntime.model.ToolResultContentBlock;
 import software.amazon.awssdk.services.bedrockruntime.model.ToolSpecification;
 import software.amazon.awssdk.services.bedrockruntime.model.ToolUseBlock;
 import software.amazon.awssdk.services.bedrockruntime.model.ToolUseBlockDelta;
@@ -81,6 +83,7 @@ import java.util.function.Supplier;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.starburst.ai.client.AiClientErrorCode.AI_CLIENT_ERROR;
 import static io.starburst.ai.client.AiClientErrorCode.INVALID_MODEL_CONFIGURATION;
+import static io.starburst.ai.client.MessageRole.TOOL_RESPONSE;
 import static io.starburst.ai.client.MessageRole.USER;
 import static io.trino.spi.StandardErrorCode.PERMISSION_DENIED;
 import static java.util.Objects.requireNonNull;
@@ -140,7 +143,7 @@ public class AwsBedrockLanguageModelClient
     @Override
     protected String generateCompletion(List<String> systemPrompts, String prompt, TokenUsageContext context)
     {
-        return generateCompletion(systemPrompts, ImmutableList.of(new LlmMessage(USER, prompt)), context);
+        return generateCompletion(systemPrompts, ImmutableList.of(new LlmMessage(USER, Optional.of(prompt), ImmutableList.of(), ImmutableList.of())), context);
     }
 
     @Override
@@ -396,6 +399,16 @@ public class AwsBedrockLanguageModelClient
                 .build();
     }
 
+    static int messageChars(LlmMessage message)
+    {
+        return switch (message.role()) {
+            case USER -> message.content().orElseThrow().length();
+            case TOOL_RESPONSE -> message.toolResponse().stream().mapToInt(toolResponse -> toolResponse.responseJson().toString().length() + toolResponse.toolUseId().length()).sum();
+            case ASSISTANT -> message.content().orElse("").length()
+                    + message.toolCalls().stream().mapToInt(toolCall -> toolCall.name().length() + toolCall.input().toString().length() + toolCall.id().length()).sum();
+        };
+    }
+
     /**
      * In order to make use of Bedrock's caching, a cache point in the current prompt must match
      * the exact token sequence for which a cache point was previously written. We use two sliding
@@ -427,14 +440,14 @@ public class AwsBedrockLanguageModelClient
             List<Integer> candidateIndexes = new ArrayList<>();
             int running = systemPromptChars;
             for (int i = 0; i < messages.size(); i++) {
-                running += messages.get(i).content().length();
+                running += messageChars(messages.get(i));
                 if (running > MAX_CACHE_POINT_CHARS) {
                     break;
                 }
                 if (running - charsAtCachePoint < MIN_CACHE_POINT_CHARS) {
                     continue;
                 }
-                if (messages.get(i).role() == USER) {
+                if (messages.get(i).role() == USER || messages.get(i).role() == TOOL_RESPONSE) {
                     candidateIndexes.add(i);
                     charsAtCachePoint = running;
                 }
@@ -452,22 +465,39 @@ public class AwsBedrockLanguageModelClient
         ImmutableList.Builder<Message> result = ImmutableList.builder();
         for (int i = 0; i < messages.size(); i++) {
             LlmMessage message = messages.get(i);
+            ImmutableList.Builder<ContentBlock> bedrockContentBlockBuilder = ImmutableList.builder();
+            switch (message.role()) {
+                case TOOL_RESPONSE -> {
+                    for (LlmMessage.ToolResponse toolResponse : message.toolResponse()) {
+                        ToolResultContentBlock contentBlock = ToolResultContentBlock.builder()
+                                .json(jsonNodeToDocument(toolResponse.responseJson()))
+                                .build();
+                        ToolResultBlock toolResultBlock = ToolResultBlock.builder()
+                                .toolUseId(toolResponse.toolUseId())
+                                .content(contentBlock)
+                                .build();
+                        bedrockContentBlockBuilder.add(ContentBlock.fromToolResult(toolResultBlock));
+                    }
+                }
+                case USER -> bedrockContentBlockBuilder.add(ContentBlock.fromText(message.content().orElseThrow()));
+                case ASSISTANT -> {
+                    message.content().ifPresent(contentBlock -> bedrockContentBlockBuilder.add(ContentBlock.fromText(contentBlock)));
+                    for (ToolUseResponse.ToolCall toolCall : message.toolCalls()) {
+                        bedrockContentBlockBuilder.add(ContentBlock.fromToolUse(ToolUseBlock.builder()
+                                .toolUseId(toolCall.id())
+                                .name(toolCall.name())
+                                .input(jsonNodeToDocument(toolCall.input()))
+                                .build()));
+                    }
+                }
+            }
+
             if (i == cp2Index || i == cp3Index) {
-                result.add(Message.builder()
-                        .role(toConversationRole(message))
-                        .content(
-                                ContentBlock.fromText(message.content()),
-                                ContentBlock.fromCachePoint(
-                                        CachePointBlock.builder()
-                                                .type(CachePointType.DEFAULT).build()))
-                        .build());
+                bedrockContentBlockBuilder.add(ContentBlock.fromCachePoint(CachePointBlock.builder().type(CachePointType.DEFAULT).build()));
             }
-            else {
-                result.add(Message.builder()
-                        .role(toConversationRole(message))
-                        .content(ContentBlock.fromText(message.content()))
-                        .build());
-            }
+            result.add(Message.builder()
+                    .role(toConversationRole(message))
+                    .content(bedrockContentBlockBuilder.build()).build());
         }
         return result.build();
     }
@@ -588,7 +618,7 @@ public class AwsBedrockLanguageModelClient
     private static ConversationRole toConversationRole(LlmMessage message)
     {
         return switch (message.role()) {
-            case USER -> ConversationRole.USER;
+            case USER, TOOL_RESPONSE -> ConversationRole.USER;
             case ASSISTANT -> ConversationRole.ASSISTANT;
         };
     }

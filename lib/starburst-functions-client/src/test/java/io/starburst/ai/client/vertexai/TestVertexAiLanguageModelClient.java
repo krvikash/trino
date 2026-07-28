@@ -83,8 +83,8 @@ public class TestVertexAiLanguageModelClient
     void testToContentsMapsRoles()
     {
         List<Content> contents = toContents(ImmutableList.of(
-                new LlmMessage(USER, "hello"),
-                new LlmMessage(ASSISTANT, "hi there")));
+                new LlmMessage(USER, Optional.of("hello"), ImmutableList.of(), ImmutableList.of()),
+                new LlmMessage(ASSISTANT, Optional.of("hi there"), ImmutableList.of(), ImmutableList.of())));
 
         assertThat(contents).hasSize(2);
         assertThat(contents.get(0).role()).contains("user");

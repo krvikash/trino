@@ -24,8 +24,10 @@ import com.openai.models.chat.completions.ChatCompletionAssistantMessageParam;
 import com.openai.models.chat.completions.ChatCompletionChunk;
 import com.openai.models.chat.completions.ChatCompletionCreateParams;
 import com.openai.models.chat.completions.ChatCompletionMessage;
+import com.openai.models.chat.completions.ChatCompletionMessageToolCall;
 import com.openai.models.chat.completions.ChatCompletionStreamOptions;
 import com.openai.models.chat.completions.ChatCompletionTool;
+import com.openai.models.chat.completions.ChatCompletionToolMessageParam;
 import com.openai.models.completions.CompletionUsage;
 import io.starburst.ai.client.LlmMessage;
 import io.starburst.ai.client.ModelBackend;
@@ -168,8 +170,27 @@ public class OpenAiLanguageModelClient
 
         llmMessages.forEach(llmMessage -> {
             switch (llmMessage.role()) {
-                case USER -> builder.addUserMessage(llmMessage.content());
-                case ASSISTANT -> builder.addMessage(createAssistantMessage(llmMessage.content()));
+                case USER -> builder.addUserMessage(llmMessage.content().orElseThrow());
+                case TOOL_RESPONSE -> llmMessage.toolResponse().forEach(toolResponse ->
+                        builder.addMessage(ChatCompletionToolMessageParam.builder()
+                                .toolCallId(toolResponse.toolUseId())
+                                .content(toolResponse.responseJson().toString())
+                                .build()));
+                case ASSISTANT -> {
+                    ChatCompletionAssistantMessageParam.Builder assistantBuilder =
+                            ChatCompletionAssistantMessageParam.builder();
+                    llmMessage.content().ifPresent(assistantBuilder::content);
+                    for (ToolUseResponse.ToolCall toolCall : llmMessage.toolCalls()) {
+                        assistantBuilder.addToolCall(ChatCompletionMessageToolCall.builder()
+                                .id(toolCall.id())
+                                .function(ChatCompletionMessageToolCall.Function.builder()
+                                        .name(toolCall.name())
+                                        .arguments(toolCall.input().toString())
+                                        .build())
+                                .build());
+                    }
+                    builder.addMessage(assistantBuilder.build());
+                }
             }
         });
         return builder;
@@ -255,13 +276,5 @@ public class OpenAiLanguageModelClient
                 }));
 
         return new ToolUseResponse(message.content().orElse(""), toolCallBuilder.build());
-    }
-
-    private static ChatCompletionAssistantMessageParam createAssistantMessage(String content)
-    {
-        return ChatCompletionAssistantMessageParam.builder()
-                .role(JsonValue.from("assistant"))
-                .content(content)
-                .build();
     }
 }

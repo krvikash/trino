@@ -14,7 +14,6 @@ import io.airlift.json.JsonCodec;
 import io.airlift.units.Duration;
 import io.starburst.ai.client.bedrock.AwsBedrockLanguageModelClient;
 import io.starburst.ai.client.openai.OpenAiLanguageModelClient;
-import io.starburst.ai.client.openai.OpenAiResponsesLanguageModelClient;
 import io.trino.spi.TrinoException;
 import io.trino.testing.assertions.Assert;
 import org.assertj.core.api.Assertions;
@@ -28,6 +27,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicReference;
@@ -146,16 +146,9 @@ public class TestLanguageModelClient
         // As we add more clients, they should be included in this test
         // Downstream users of these clients may choose to normalize this behavior.
         LanguageModelClient client = modelClientProvider.languageModelClient(utf8Slice(modelId));
-        assertSuccessRateForScalar(() -> {
-            switch (client) {
-                case OpenAiLanguageModelClient openAiClient -> assertThat(openAiClient.generate("", TokenUsageContext.EMPTY)).isNotBlank();
-                case OpenAiResponsesLanguageModelClient openAiClient -> assertThat(openAiClient.generate("", TokenUsageContext.EMPTY)).isNotBlank();
-                case AwsBedrockLanguageModelClient awsAiClient -> assertThatThrownBy(() -> awsAiClient.generate("", TokenUsageContext.EMPTY))
-                        .isInstanceOf(TrinoException.class)
-                        .hasMessage("Bedrock request failed validation");
-                default -> throw new UnsupportedOperationException("Unknown client");
-            }
-        });
+        assertThatThrownBy(() -> client.generate("", TokenUsageContext.EMPTY))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("content may not be blank");
     }
 
     @ParameterizedTest
@@ -308,9 +301,9 @@ public class TestLanguageModelClient
     public void testMultiMessageCompletion(String modelId)
     {
         List<LlmMessage> messages = ImmutableList.<LlmMessage>builder()
-                .add(new LlmMessage(MessageRole.USER, "What is the capital of England?"))
-                .add(new LlmMessage(MessageRole.ASSISTANT, "London"))
-                .add(new LlmMessage(MessageRole.USER, "And France?"))
+                .add(new LlmMessage(MessageRole.USER, Optional.of("What is the capital of England?"), ImmutableList.of(), ImmutableList.of()))
+                .add(new LlmMessage(MessageRole.ASSISTANT, Optional.of("London"), ImmutableList.of(), ImmutableList.of()))
+                .add(new LlmMessage(MessageRole.USER, Optional.of("And France?"), ImmutableList.of(), ImmutableList.of()))
                 .build();
 
         assertSuccessRateForScalar(() -> {
@@ -331,9 +324,9 @@ public class TestLanguageModelClient
                 busiest subway station, you would reply with Nihon""";
 
         List<LlmMessage> messages = ImmutableList.<LlmMessage>builder()
-                .add(new LlmMessage(MessageRole.USER, "I will give you a capital city, reply with the country name. Madrid."))
-                .add(new LlmMessage(MessageRole.ASSISTANT, "España"))
-                .add(new LlmMessage(MessageRole.USER, "Berlin"))
+                .add(new LlmMessage(MessageRole.USER, Optional.of("I will give you a capital city, reply with the country name. Madrid."), ImmutableList.of(), ImmutableList.of()))
+                .add(new LlmMessage(MessageRole.ASSISTANT, Optional.of("España"), ImmutableList.of(), ImmutableList.of()))
+                .add(new LlmMessage(MessageRole.USER, Optional.of("Berlin"), ImmutableList.of(), ImmutableList.of()))
                 .build();
 
         assertSuccessRateForScalar(() -> {

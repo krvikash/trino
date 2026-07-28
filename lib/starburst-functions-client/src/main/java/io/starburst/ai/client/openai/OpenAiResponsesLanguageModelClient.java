@@ -180,12 +180,26 @@ public class OpenAiResponsesLanguageModelClient
             switch (llmMessage.role()) {
                 case USER -> inputItems.add(ResponseInputItem.ofEasyInputMessage(EasyInputMessage.builder()
                         .role(EasyInputMessage.Role.USER)
-                        .content(llmMessage.content())
+                        .content(llmMessage.content().orElseThrow())
                         .build()));
-                case ASSISTANT -> inputItems.add(ResponseInputItem.ofEasyInputMessage(EasyInputMessage.builder()
-                        .role(EasyInputMessage.Role.ASSISTANT)
-                        .content(llmMessage.content())
-                        .build()));
+                case TOOL_RESPONSE -> llmMessage.toolResponse().forEach(toolResponse ->
+                        inputItems.add(ResponseInputItem.ofFunctionCallOutput(
+                                ResponseInputItem.FunctionCallOutput.builder()
+                                        .callId(toolResponse.toolUseId())
+                                        .output(toolResponse.responseJson().toString())
+                                        .build())));
+                case ASSISTANT -> {
+                    llmMessage.content().ifPresent(content -> inputItems.add(ResponseInputItem.ofEasyInputMessage(EasyInputMessage.builder()
+                            .role(EasyInputMessage.Role.ASSISTANT)
+                            .content(content)
+                            .build())));
+                    llmMessage.toolCalls().forEach(toolCall ->
+                            inputItems.add(ResponseInputItem.ofFunctionCall(ResponseFunctionToolCall.builder()
+                                    .callId(toolCall.id())
+                                    .name(toolCall.name())
+                                    .arguments(toolCall.input().toString())
+                                    .build())));
+                }
             }
         });
         builder.inputOfResponse(inputItems.build());

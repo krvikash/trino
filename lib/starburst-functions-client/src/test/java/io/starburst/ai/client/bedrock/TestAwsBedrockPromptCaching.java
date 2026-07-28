@@ -24,6 +24,7 @@ import org.junit.jupiter.api.TestInstance;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 
@@ -204,7 +205,7 @@ public class TestAwsBedrockPromptCaching
 
         // First call: populates the cache. Bedrock writes the system prompt prefix to its cache.
         String msg1 = "Show me query 70 of TPCDS, explain what it does and how it could be optimized";
-        String response1 = client.generate(systemPrompt, ImmutableList.of(new LlmMessage(USER, msg1)), context);
+        String response1 = client.generate(systemPrompt, ImmutableList.of(new LlmMessage(USER, Optional.of(msg1), ImmutableList.of(), ImmutableList.of())), context);
         assertThat(capturedUsages).hasSize(1);
         assertThat(capturedUsages.getFirst().cacheCreationInputTokens()).isGreaterThan(0);
         assertThat(capturedUsages.getFirst().cacheReadInputTokens()).isEqualTo(0);
@@ -215,7 +216,7 @@ public class TestAwsBedrockPromptCaching
         String msg2 = "Explain how table functions work.";
         String response2 = client.generate(
                 systemPrompt,
-                ImmutableList.of(new LlmMessage(USER, msg1), new LlmMessage(ASSISTANT, response1), new LlmMessage(USER, msg2)),
+                ImmutableList.of(new LlmMessage(USER, Optional.of(msg1), ImmutableList.of(), ImmutableList.of()), new LlmMessage(ASSISTANT, Optional.of(response1), ImmutableList.of(), ImmutableList.of()), new LlmMessage(USER, Optional.of(msg2), ImmutableList.of(), ImmutableList.of())),
                 context);
         assertThat(capturedUsages).hasSize(2);
         assertThat(capturedUsages.get(1).cacheCreationInputTokens()).isGreaterThan(0);
@@ -227,7 +228,7 @@ public class TestAwsBedrockPromptCaching
         String msg3 = "Explain how window functions work.";
         client.generate(
                 systemPrompt,
-                ImmutableList.of(new LlmMessage(USER, msg1), new LlmMessage(ASSISTANT, response1), new LlmMessage(USER, msg2), new LlmMessage(ASSISTANT, response2), new LlmMessage(USER, msg3)),
+                ImmutableList.of(new LlmMessage(USER, Optional.of(msg1), ImmutableList.of(), ImmutableList.of()), new LlmMessage(ASSISTANT, Optional.of(response1), ImmutableList.of(), ImmutableList.of()), new LlmMessage(USER, Optional.of(msg2), ImmutableList.of(), ImmutableList.of()), new LlmMessage(ASSISTANT, Optional.of(response2), ImmutableList.of(), ImmutableList.of()), new LlmMessage(USER, Optional.of(msg3), ImmutableList.of(), ImmutableList.of())),
                 context);
         assertThat(capturedUsages).hasSize(3);
         assertThat(capturedUsages.get(2).cacheCreationInputTokens()).isGreaterThan(0);
