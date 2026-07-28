@@ -831,7 +831,7 @@ public abstract class AbstractMvSubstitutionTest
             assertSameResults(session, "SELECT * FROM " + ordersTable + " WHERE orderdate = '1995-01-15'");
             assertSameResults(session, "SELECT * FROM " + ordersTable + " ORDER BY orderkey");
             assertSameResults(session, "SELECT count(*) FROM " + ordersTable);
-            assertSameResults(session, "SELECT orderdate, sum(totalprice) FROM " + ordersTable + " GROUP BY orderdate");
+            assertSameResults(session, "SELECT custkey, sum(totalprice) FROM " + ordersTable + " GROUP BY custkey");
         }
         finally {
             assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvName);
