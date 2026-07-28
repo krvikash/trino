@@ -23,7 +23,7 @@ import java.util.Optional;
 
 public interface ConnectorPageSourceProvider
 {
-    // TODO the idea for this returning Optional is so that we do not need supportsConnectorGpuPageSource() and also so that the GPU vs CPU execution path is determined once we see the split.
+    // TODO the idea for this returning Optional is so that we do not need getGpuPageSourceSupport() and also so that the GPU vs CPU execution path is determined once we see the split.
     //  We could perhaps use plan alternatives for this, but really in their current shape.
     default Optional<ConnectorGpuPageSource> createGpuPageSource(
             ConnectorTransactionHandle transaction,

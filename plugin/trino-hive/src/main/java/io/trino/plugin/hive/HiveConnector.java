@@ -32,6 +32,7 @@ import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorSplitManager;
 import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.ConnectorTransactionHandle;
+import io.trino.spi.connector.GpuPageSourceSupport;
 import io.trino.spi.connector.TableProcedureMetadata;
 import io.trino.spi.connector.substitution.ConnectorSubstitutionMetadata;
 import io.trino.spi.function.FunctionProvider;
@@ -161,13 +162,18 @@ public class HiveConnector
         return new ConnectorPageSourceProviderFactory()
         {
             @Override
-            public boolean supportsConnectorGpuPageSource(ConnectorTableHandle connectorTableHandle, List<ColumnHandle> columns)
+            public GpuPageSourceSupport getGpuPageSourceSupport(ConnectorTableHandle connectorTableHandle, List<ColumnHandle> columns)
             {
-                return columns.stream()
-                        .map(HiveColumnHandle.class::cast)
-                        .allMatch(column -> column.isBaseColumn()
-                                // withTimeUnit(MICROS) in GpuParquetPageSource normalizes all timestamps to microseconds, truncating nanosecond precision
-                                && !containsNanosecondTimestamp(column.getType()));
+                for (ColumnHandle column : columns) {
+                    HiveColumnHandle hiveColumn = (HiveColumnHandle) column;
+                    if (!hiveColumn.isBaseColumn()) {
+                        return GpuPageSourceSupport.unsupported("Non-primitive columns are not supported");
+                    }
+                    if (containsNanosecondTimestamp(hiveColumn.getType())) {
+                        return GpuPageSourceSupport.unsupported("Columns with nanosecond timestamp are not supported");
+                    }
+                }
+                return GpuPageSourceSupport.SUPPORTED;
             }
 
             @Override

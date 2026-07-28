@@ -34,6 +34,7 @@ import io.trino.spi.connector.ConnectorTableCredentials;
 import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.DynamicFilter;
 import io.trino.spi.connector.EmptyPageSource;
+import io.trino.spi.connector.GpuPageSourceSupport;
 import io.trino.spi.connector.MemoryContext;
 import io.trino.spi.gpu.ConnectorGpuPageSource;
 import io.trino.spi.gpu.EmptyGpuPageSource;
@@ -63,10 +64,10 @@ public class PageSourceManager
         this.ioExecutor = requireNonNull(ioExecutor, "ioExecutor is null");
     }
 
-    public boolean supportsConnectorGpuPageSource(CatalogHandle catalogHandle, ConnectorTableHandle connectorTableHandle, List<ColumnHandle> columns)
+    public GpuPageSourceSupport getGpuPageSourceSupport(CatalogHandle catalogHandle, ConnectorTableHandle connectorTableHandle, List<ColumnHandle> columns)
     {
         ConnectorPageSourceProviderFactory provider = pageSourceProviderFactory.getService(catalogHandle);
-        return provider.supportsConnectorGpuPageSource(connectorTableHandle, columns);
+        return provider.getGpuPageSourceSupport(connectorTableHandle, columns);
     }
 
     @Override

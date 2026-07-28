@@ -19,6 +19,7 @@ import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorPageSourceProvider;
 import io.trino.spi.connector.ConnectorPageSourceProviderFactory;
 import io.trino.spi.connector.ConnectorTableHandle;
+import io.trino.spi.connector.GpuPageSourceSupport;
 
 import java.util.List;
 
@@ -38,10 +39,10 @@ public class ClassLoaderSafeConnectorPageSourceProviderFactory
     }
 
     @Override
-    public boolean supportsConnectorGpuPageSource(ConnectorTableHandle connectorTableHandle, List<ColumnHandle> columns)
+    public GpuPageSourceSupport getGpuPageSourceSupport(ConnectorTableHandle connectorTableHandle, List<ColumnHandle> columns)
     {
         try (ThreadContextClassLoader ignored = new ThreadContextClassLoader(classLoader)) {
-            return delegate.supportsConnectorGpuPageSource(connectorTableHandle, columns);
+            return delegate.getGpuPageSourceSupport(connectorTableHandle, columns);
         }
     }
 

@@ -17,9 +17,9 @@ import java.util.List;
 
 public interface ConnectorPageSourceProviderFactory
 {
-    default boolean supportsConnectorGpuPageSource(ConnectorTableHandle connectorTableHandle, List<ColumnHandle> columns)
+    default GpuPageSourceSupport getGpuPageSourceSupport(ConnectorTableHandle connectorTableHandle, List<ColumnHandle> columns)
     {
-        return false;
+        return GpuPageSourceSupport.unsupported("Connector does not support GPU page source");
     }
 
     ConnectorPageSourceProvider createPageSourceProvider();

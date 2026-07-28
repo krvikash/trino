@@ -27,6 +27,7 @@ import io.trino.spi.BlocksHashFactory;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorPageSourceProviderFactory;
 import io.trino.spi.connector.ConnectorTableHandle;
+import io.trino.spi.connector.GpuPageSourceSupport;
 import io.trino.spi.type.TypeManager;
 import org.joda.time.DateTimeZone;
 
@@ -80,21 +81,21 @@ public class IcebergPageSourceProviderFactory
     }
 
     @Override
-    public boolean supportsConnectorGpuPageSource(ConnectorTableHandle connectorTableHandle, List<ColumnHandle> columns)
+    public GpuPageSourceSupport getGpuPageSourceSupport(ConnectorTableHandle connectorTableHandle, List<ColumnHandle> columns)
     {
         for (ColumnHandle column : columns) {
             IcebergColumnHandle icebergColumn = (IcebergColumnHandle) column;
 
             if (!icebergColumn.isBaseColumn()) {
                 log.debug("GPU page source not supported: column '%s' is not a base column", icebergColumn.getName());
-                return false;
+                return GpuPageSourceSupport.unsupported("Non-primitive columns are not supported");
             }
             if (isMetadataColumnId(icebergColumn.getId()) && !isMetadataColumnSupportedForGpu(icebergColumn)) {
                 log.debug("GPU page source not supported: metadata column '%s' is not supported", icebergColumn.getName());
-                return false;
+                return GpuPageSourceSupport.unsupported("Unsupported metadata column");
             }
         }
-        return true;
+        return GpuPageSourceSupport.SUPPORTED;
     }
 
     private static boolean isMetadataColumnSupportedForGpu(IcebergColumnHandle column)

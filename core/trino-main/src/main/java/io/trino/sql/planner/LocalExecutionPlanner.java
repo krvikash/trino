@@ -222,6 +222,7 @@ import io.trino.spi.connector.ConnectorTableCredentials;
 import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.connector.DynamicFilter;
+import io.trino.spi.connector.GpuPageSourceSupport;
 import io.trino.spi.connector.RecordSet;
 import io.trino.spi.connector.SortOrder;
 import io.trino.spi.connector.WriterScalingOptions;
@@ -2381,7 +2382,8 @@ public class LocalExecutionPlanner
                     sourceOutputTypes = sourceNode.getOutputSymbols().stream()
                             .map(Symbol::type)
                             .collect(toImmutableList());
-                    if (pageSourceManager.supportsConnectorGpuPageSource(table.catalogHandle(), table.connectorHandle(), columns) &&
+                    GpuPageSourceSupport gpuPageSourceSupport = pageSourceManager.getGpuPageSourceSupport(table.catalogHandle(), table.connectorHandle(), columns);
+                    if (gpuPageSourceSupport.supported() &&
                             // table scan has types supported on the GPU
                             sourceLayout.keySet().stream().map(Symbol::type).allMatch(GpuTypeConversion::isConvertible)) {
                         // TODO (https://starburstdata.atlassian.net/browse/ENG-9785) Support Dynamic Row-Level Filter in GPU-accelerated Table Scan operator?
@@ -2616,19 +2618,21 @@ public class LocalExecutionPlanner
 
             Optional<ConnectorTableCredentials> tableCredentials = context.getTaskContext().getTableCredentials(node.getId());
             if (isGpuExecutionEnabled(session) &&
-                    columnTypes.build().stream().allMatch(GpuTypeConversion::isConvertible) &&
-                    pageSourceManager.supportsConnectorGpuPageSource(node.getTable().catalogHandle(), node.getTable().connectorHandle(), columns.build())) {
-                OperatorFactory operatorFactory = new GpuOperator.SourceFactory(
-                        context.getNextOperatorId(),
-                        planNodeId,
-                        pageSourceManager.createPageSourceProvider(node.getTable().catalogHandle()),
-                        session,
-                        node.getTable(),
-                        tableCredentials,
-                        columns.build(),
-                        DynamicFilter.EMPTY,
-                        columnTypes.build());
-                return new PhysicalOperation(operatorFactory, makeLayout(node));
+                    columnTypes.build().stream().allMatch(GpuTypeConversion::isConvertible)) {
+                GpuPageSourceSupport gpuPageSourceSupport = pageSourceManager.getGpuPageSourceSupport(node.getTable().catalogHandle(), node.getTable().connectorHandle(), columns.build());
+                if (gpuPageSourceSupport.supported()) {
+                    OperatorFactory operatorFactory = new GpuOperator.SourceFactory(
+                            context.getNextOperatorId(),
+                            planNodeId,
+                            pageSourceManager.createPageSourceProvider(node.getTable().catalogHandle()),
+                            session,
+                            node.getTable(),
+                            tableCredentials,
+                            columns.build(),
+                            DynamicFilter.EMPTY,
+                            columnTypes.build());
+                    return new PhysicalOperation(operatorFactory, makeLayout(node));
+                }
             }
             OperatorFactory operatorFactory = new TableScanOperatorFactory(context.getNextOperatorId(), planNodeId, node.getId(), pageSourceManager, node.getTable(), tableCredentials, columns.build(), columnTypes.build());
             return new PhysicalOperation(operatorFactory, makeLayout(node));
