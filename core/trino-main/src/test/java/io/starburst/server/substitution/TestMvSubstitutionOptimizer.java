@@ -305,7 +305,8 @@ public class TestMvSubstitutionOptimizer
     @Test
     public void testSubstitutesWithStorageTypeCoercion()
     {
-        MvSubstitutionOptimizer optimizer = optimizerWith(materialization().sourceTable("coercion_source").build());
+        MvSubstitutionOptimizer optimizer = optimizerWith(materialization().sourceTable("coercion_source")
+                .nameSymbol(new Symbol(createVarcharType(10), "name")).build());
         assertPlan(
                 session(true),
                 "SELECT name FROM coercion_source",
@@ -374,6 +375,7 @@ public class TestMvSubstitutionOptimizer
         private Instant lastKnownFreshTime = Instant.now();
         private String outputColumnName = "name";
         private String sourceColumnId = "name";
+        private Symbol nameSymbol = NAME_SYMBOL;
 
         MaterializationBuilder sourceTable(String sourceTable)
         {
@@ -417,14 +419,20 @@ public class TestMvSubstitutionOptimizer
             return this;
         }
 
+        MaterializationBuilder nameSymbol(Symbol nameSymbol)
+        {
+            this.nameSymbol = nameSymbol;
+            return this;
+        }
+
         MaterializationDefinition build()
         {
             Output computation = new Output(
                     ImmutableList.of(outputColumnName),
-                    ImmutableList.of(NAME_SYMBOL),
+                    ImmutableList.of(nameSymbol),
                     new TableScan(
                             new TableId(new CatalogName(CATALOG), new MockTableId(sourceTable)),
-                            ImmutableMap.of(new MockColumnId(sourceColumnId), NAME_SYMBOL)));
+                            ImmutableMap.of(new MockColumnId(sourceColumnId), nameSymbol)));
             StorageTableId storageTableId = new StorageTableId(
                     new CatalogName(CATALOG),
                     new ConnectorStorageTableId(SCHEMA, storageTable, storageUniqueId));

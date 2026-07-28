@@ -396,7 +396,7 @@ public class MvSubstitutionOptimizer
                     return false;
                 }
                 Symbol mvSymbol = mvAssignments.get(columnId.get());
-                if (mvSymbol == null) {
+                if (mvSymbol == null || !mvSymbol.type().equals(entry.getKey().type())) {
                     return false;
                 }
                 querySymbolToMvSymbolMapping.put(entry.getKey(), mvSymbol);
