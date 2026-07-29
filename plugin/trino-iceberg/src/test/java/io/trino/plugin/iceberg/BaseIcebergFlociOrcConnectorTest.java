@@ -95,15 +95,21 @@ public abstract class BaseIcebergFlociOrcConnectorTest
     protected Map<String, String> getBehaviorAlteringCatalogProperties()
     {
         return ImmutableMap.<String, String>builder()
-                .put("s3.aws-secret-key", "invalid")
+                .put("s3.endpoint", "http://localhost:1")
+                .put("s3.max-error-retries", "1")
                 .buildOrThrow();
     }
 
     @Override
     protected void assertAlteredCatalogBehavior(String catalogName)
     {
-        assertQueryFails(format("SELECT * FROM %s.tpch.nation", catalogName),
-                "Error accessing metadata file for table tpch.nation");
+        String schemaName = "notrealschema" + randomNameSuffix();
+        assertQueryFails(format(
+                "CREATE SCHEMA %s.%s WITH (location = 's3://%s/%s')",
+                catalogName,
+                schemaName,
+                bucketName,
+                schemaName), "Invalid location URI:.*");
     }
 
     @Override

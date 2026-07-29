@@ -180,7 +180,8 @@ public class TestDeltaLakeConnectorTest
     protected Map<String, String> getBehaviorAlteringCatalogProperties()
     {
         return ImmutableMap.<String, String>builder()
-                .put("s3.aws-secret-key", "invalid")
+                .put("s3.endpoint", "http://localhost:1")
+                .put("s3.max-error-retries", "1")
                 .buildOrThrow();
     }
 
