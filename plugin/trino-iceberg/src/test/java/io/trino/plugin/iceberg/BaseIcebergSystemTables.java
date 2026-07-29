@@ -71,6 +71,7 @@ import static java.util.stream.Collectors.joining;
 import static org.apache.iceberg.MetadataColumns.DELETE_FILE_PATH;
 import static org.apache.iceberg.MetadataColumns.DELETE_FILE_POS;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 
 @TestInstance(PER_CLASS)
@@ -309,6 +310,28 @@ public abstract class BaseIcebergSystemTables
             assertThat(query("SELECT * FROM test_schema.\"" + metadataTable + "\""))
                     .describedAs(tableType.name())
                     .failure().hasMessageMatching(".*Table '.*" + tableName + "\\$" + tableType.name().toLowerCase(ENGLISH) + ".*' (not found|does not exist)");
+        }
+    }
+
+    @Test
+    public void testMetadataTablesWithoutSnapshot()
+    {
+        SchemaTableName tableName = new SchemaTableName("test_schema", "test_metadata_tables_without_snapshot");
+        createTableWithoutSnapshot(tableName);
+        try {
+            for (TableType tableType : TableType.values()) {
+                // ERRORS is not served by the Iceberg connector
+                if (tableType == TableType.DATA || tableType == TableType.MATERIALIZED_VIEW_STORAGE || tableType == TableType.ERRORS) {
+                    continue;
+                }
+                String metadataTable = tableNameWithType(tableName.getTableName(), tableType);
+                assertThatCode(() -> computeActual("SELECT * FROM test_schema.\"" + metadataTable + "\""))
+                        .describedAs(tableType.name())
+                        .doesNotThrowAnyException();
+            }
+        }
+        finally {
+            catalog.dropTable(SESSION, tableName);
         }
     }
 
