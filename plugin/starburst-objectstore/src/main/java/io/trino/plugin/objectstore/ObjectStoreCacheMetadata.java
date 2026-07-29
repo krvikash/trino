@@ -16,11 +16,11 @@ package io.trino.plugin.objectstore;
 import io.trino.plugin.deltalake.DeltaLakeCacheMetadata;
 import io.trino.plugin.hive.HiveCacheMetadata;
 import io.trino.plugin.iceberg.IcebergCacheMetadata;
-import io.trino.spi.cache.CacheColumnId;
-import io.trino.spi.cache.CacheTableId;
-import io.trino.spi.cache.ConnectorCacheMetadata;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorTableHandle;
+import io.trino.spi.subquery.cache.CacheColumnId;
+import io.trino.spi.subquery.cache.CacheTableId;
+import io.trino.spi.subquery.cache.ConnectorCacheMetadata;
 
 import java.util.Optional;
 

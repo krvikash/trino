@@ -26,8 +26,8 @@ import java.util.List;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableListMultimap.toImmutableListMultimap;
-import static io.trino.SystemSessionProperties.isCacheAggregationsEnabled;
-import static io.trino.SystemSessionProperties.isCacheProjectionsEnabled;
+import static io.trino.SystemSessionProperties.isSubqueryCacheAggregationsEnabled;
+import static io.trino.SystemSessionProperties.isSubqueryCacheProjectionsEnabled;
 
 public class CacheController
 {
@@ -52,11 +52,11 @@ public class CacheController
 
         ImmutableList.Builder<CacheCandidate> cacheCandidates = ImmutableList.builder();
 
-        if (isCacheAggregationsEnabled(session)) {
+        if (isSubqueryCacheAggregationsEnabled(session)) {
             cacheCandidates.addAll(aggregationSubplans);
         }
 
-        if (isCacheProjectionsEnabled(session)) {
+        if (isSubqueryCacheProjectionsEnabled(session)) {
             cacheCandidates.addAll(projectionSubplans);
         }
 

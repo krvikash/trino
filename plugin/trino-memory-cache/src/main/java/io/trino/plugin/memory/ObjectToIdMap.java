@@ -16,7 +16,7 @@ package io.trino.plugin.memory;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.BiMap;
 import com.google.common.collect.HashBiMap;
-import io.trino.spi.cache.PlanSignature;
+import io.trino.spi.subquery.cache.PlanSignature;
 import it.unimi.dsi.fastutil.longs.Long2LongMap;
 import it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap;
 

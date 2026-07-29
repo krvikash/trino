@@ -32,14 +32,14 @@ import io.trino.cache.CanonicalSubplan.TopNRankingKey;
 import io.trino.cache.CommonPlanAdaptation.PlanSignatureWithPredicate;
 import io.trino.cost.PlanNodeStatsEstimate;
 import io.trino.metadata.ResolvedFunction;
-import io.trino.spi.cache.CacheColumnId;
-import io.trino.spi.cache.CacheManager;
-import io.trino.spi.cache.CacheTableId;
-import io.trino.spi.cache.PlanSignature;
-import io.trino.spi.cache.SignatureKey;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.SortOrder;
 import io.trino.spi.predicate.TupleDomain;
+import io.trino.spi.subquery.cache.CacheColumnId;
+import io.trino.spi.subquery.cache.CacheTableId;
+import io.trino.spi.subquery.cache.PlanSignature;
+import io.trino.spi.subquery.cache.SignatureKey;
+import io.trino.spi.subquery.cache.SubqueryCacheManager;
 import io.trino.spi.type.Type;
 import io.trino.sql.PlannerContext;
 import io.trino.sql.ir.Expression;
@@ -104,7 +104,7 @@ import static java.util.function.Predicate.not;
 
 /**
  * Identifies common subqueries and provides adaptation to original query plan. Result of common
- * subquery evaluation is cached with {@link CacheManager}. Therefore, IO and computations are
+ * subquery evaluation is cached with {@link SubqueryCacheManager}. Therefore, IO and computations are
  * performed only once and are reused within query execution.
  * <p>
  * The general idea is that if there are two subqueries, e.g:

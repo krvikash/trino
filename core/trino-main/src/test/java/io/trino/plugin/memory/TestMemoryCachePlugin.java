@@ -17,9 +17,9 @@ import com.google.common.collect.ImmutableMap;
 import io.trino.spi.NodeManager;
 import io.trino.spi.Plugin;
 import io.trino.spi.block.BlockEncodingSerde;
-import io.trino.spi.cache.CacheManagerContext;
-import io.trino.spi.cache.CacheManagerFactory;
-import io.trino.spi.cache.MemoryAllocator;
+import io.trino.spi.subquery.cache.MemoryAllocator;
+import io.trino.spi.subquery.cache.SubqueryCacheManagerContext;
+import io.trino.spi.subquery.cache.SubqueryCacheManagerFactory;
 import org.junit.jupiter.api.Test;
 
 import static com.google.common.collect.Iterables.getOnlyElement;
@@ -31,10 +31,10 @@ public class TestMemoryCachePlugin
     public void testCreateCacheManager()
     {
         Plugin plugin = new MemoryCachePlugin();
-        CacheManagerFactory factory = getOnlyElement(plugin.getCacheManagerFactories());
+        SubqueryCacheManagerFactory factory = getOnlyElement(plugin.getSubqueryCacheManagerFactories());
         factory.create(
                 ImmutableMap.of(),
-                new CacheManagerContext()
+                new SubqueryCacheManagerContext()
                 {
                     @Override
                     public MemoryAllocator revocableMemoryAllocator()

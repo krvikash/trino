@@ -16,9 +16,9 @@ package io.trino.plugin.memory;
 import com.google.inject.Injector;
 import io.airlift.bootstrap.Bootstrap;
 import io.trino.plugin.base.jmx.MBeanServerModule;
-import io.trino.spi.cache.CacheManager;
-import io.trino.spi.cache.CacheManagerContext;
-import io.trino.spi.cache.CacheManagerFactory;
+import io.trino.spi.subquery.cache.SubqueryCacheManager;
+import io.trino.spi.subquery.cache.SubqueryCacheManagerContext;
+import io.trino.spi.subquery.cache.SubqueryCacheManagerFactory;
 import org.weakref.jmx.guice.MBeanModule;
 
 import java.util.Map;
@@ -26,7 +26,7 @@ import java.util.Map;
 import static java.util.Objects.requireNonNull;
 
 public class MemoryCacheManagerFactory
-        implements CacheManagerFactory
+        implements SubqueryCacheManagerFactory
 {
     public static final String NAME = "memory-cache";
 
@@ -37,7 +37,7 @@ public class MemoryCacheManagerFactory
     }
 
     @Override
-    public CacheManager create(Map<String, String> config, CacheManagerContext context)
+    public SubqueryCacheManager create(Map<String, String> config, SubqueryCacheManagerContext context)
     {
         requireNonNull(config, "requiredConfig is null");
 
@@ -47,7 +47,7 @@ public class MemoryCacheManagerFactory
                 new MemoryCacheModule(),
                 new MBeanModule(),
                 new MBeanServerModule(),
-                binder -> binder.bind(CacheManagerContext.class).toInstance(context));
+                binder -> binder.bind(SubqueryCacheManagerContext.class).toInstance(context));
 
         Injector injector = app
                 .doNotInitializeLogging()

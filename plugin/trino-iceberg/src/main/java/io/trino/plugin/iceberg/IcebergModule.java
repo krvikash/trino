@@ -75,7 +75,6 @@ import io.trino.plugin.iceberg.procedure.RollbackToSnapshotTableProcedure;
 import io.trino.plugin.iceberg.procedure.UnregisterTableProcedure;
 import io.trino.plugin.iceberg.substitution.IcebergSubstitutionMetadata;
 import io.trino.plugin.iceberg.system.IcebergTablesSystemTable;
-import io.trino.spi.cache.ConnectorCacheMetadata;
 import io.trino.spi.connector.ConnectorContext;
 import io.trino.spi.connector.ConnectorNodePartitioningProvider;
 import io.trino.spi.connector.ConnectorPageSinkProvider;
@@ -87,6 +86,7 @@ import io.trino.spi.connector.substitution.ConnectorSubstitutionMetadata;
 import io.trino.spi.function.FunctionProvider;
 import io.trino.spi.function.table.ConnectorTableFunction;
 import io.trino.spi.procedure.Procedure;
+import io.trino.spi.subquery.cache.ConnectorCacheMetadata;
 import io.trino.spi.type.TypeManager;
 import org.apache.iceberg.PartitionStatisticsWriter;
 

@@ -28,7 +28,7 @@ import io.trino.execution.scheduler.StableHostAddressProviderConfig;
 import io.trino.metadata.Split;
 import io.trino.node.TestingInternalNodeManager;
 import io.trino.spi.HostAddress;
-import io.trino.spi.cache.CacheSplitId;
+import io.trino.spi.subquery.cache.CacheSplitId;
 import io.trino.sql.planner.plan.PlanNodeId;
 import org.junit.jupiter.api.Test;
 

@@ -34,8 +34,8 @@ import io.airlift.node.NodeModule;
 import io.airlift.openmetrics.JmxOpenMetricsModule;
 import io.airlift.tracing.TracingModule;
 import io.airlift.units.Duration;
-import io.trino.cache.CacheManagerModule;
-import io.trino.cache.CacheManagerRegistry;
+import io.trino.cache.SubqueryCacheManagerModule;
+import io.trino.cache.SubqueryCacheManagerRegistry;
 import io.trino.connector.CatalogManagerModule;
 import io.trino.connector.CatalogStoreManager;
 import io.trino.connector.ConnectorServicesProvider;
@@ -110,7 +110,7 @@ public class Server
                 new AccessControlModule(),
                 new EventListenerModule(),
                 new ExchangeManagerModule(),
-                new CacheManagerModule(),
+                new SubqueryCacheManagerModule(),
                 new AiModelConnectionSpecsLoaderModule(),
                 new InternalCoordinatorLocatorModule(),
                 new InternalHttpClientModule(),
@@ -153,7 +153,7 @@ public class Server
                     .ifPresent(PasswordAuthenticatorManager::loadPasswordAuthenticator);
             injector.getInstance(GroupProviderManager.class).loadConfiguredGroupProvider();
             injector.getInstance(ExchangeManagerRegistry.class).loadExchangeManager();
-            injector.getInstance(CacheManagerRegistry.class).loadCacheManager();
+            injector.getInstance(SubqueryCacheManagerRegistry.class).loadSubqueryCacheManager();
             injector.getInstance(SpoolingManagerRegistry.class).loadSpoolingManager();
             injector.getInstance(CertificateAuthenticatorManager.class).loadCertificateAuthenticator();
             injector.getInstance(Key.get(new TypeLiteral<Optional<HeaderAuthenticatorManager>>() {}))

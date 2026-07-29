@@ -18,7 +18,7 @@ import io.trino.spi.Page;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.IntArrayBlock;
 import io.trino.spi.block.LongArrayBlock;
-import io.trino.spi.cache.CacheSplitId;
+import io.trino.spi.subquery.cache.CacheSplitId;
 import org.junit.jupiter.api.Test;
 
 import java.util.Optional;

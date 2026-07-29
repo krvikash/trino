@@ -42,7 +42,6 @@ import io.trino.plugin.hive.metastore.HiveMetastoreModule;
 import io.trino.plugin.hive.procedure.HiveProcedureModule;
 import io.trino.plugin.hive.security.HiveSecurityModule;
 import io.trino.plugin.hive.security.SystemTableAwareAccessControl;
-import io.trino.spi.cache.ConnectorCacheMetadata;
 import io.trino.spi.classloader.ThreadContextClassLoader;
 import io.trino.spi.connector.Connector;
 import io.trino.spi.connector.ConnectorAccessControl;
@@ -56,6 +55,7 @@ import io.trino.spi.connector.TableProcedureMetadata;
 import io.trino.spi.connector.substitution.ConnectorSubstitutionMetadata;
 import io.trino.spi.function.FunctionProvider;
 import io.trino.spi.procedure.Procedure;
+import io.trino.spi.subquery.cache.ConnectorCacheMetadata;
 import org.weakref.jmx.guice.MBeanModule;
 
 import java.util.Map;

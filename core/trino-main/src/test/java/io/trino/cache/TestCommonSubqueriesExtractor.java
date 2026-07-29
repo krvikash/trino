@@ -26,9 +26,6 @@ import io.trino.cost.StatsAndCosts;
 import io.trino.execution.warnings.WarningCollector;
 import io.trino.metadata.ResolvedFunction;
 import io.trino.plugin.tpch.TpchConnectorFactory;
-import io.trino.spi.cache.CacheColumnId;
-import io.trino.spi.cache.CacheTableId;
-import io.trino.spi.cache.PlanSignature;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ColumnMetadata;
 import io.trino.spi.connector.ConnectorTableProperties;
@@ -38,6 +35,9 @@ import io.trino.spi.predicate.Domain;
 import io.trino.spi.predicate.Range;
 import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.predicate.ValueSet;
+import io.trino.spi.subquery.cache.CacheColumnId;
+import io.trino.spi.subquery.cache.CacheTableId;
+import io.trino.spi.subquery.cache.PlanSignature;
 import io.trino.spi.type.Type;
 import io.trino.sql.analyzer.TypeDescriptorProvider;
 import io.trino.sql.ir.Constant;
@@ -69,10 +69,10 @@ import java.util.function.Function;
 import java.util.stream.Stream;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
-import static io.trino.SystemSessionProperties.CACHE_AGGREGATIONS_ENABLED;
-import static io.trino.SystemSessionProperties.CACHE_PROJECTIONS_ENABLED;
 import static io.trino.SystemSessionProperties.JOIN_REORDERING_STRATEGY;
 import static io.trino.SystemSessionProperties.SMALL_DYNAMIC_FILTER_MAX_ROW_COUNT;
+import static io.trino.SystemSessionProperties.SUBQUERY_CACHE_AGGREGATIONS_ENABLED;
+import static io.trino.SystemSessionProperties.SUBQUERY_CACHE_PROJECTIONS_ENABLED;
 import static io.trino.cache.CanonicalSubplanExtractor.canonicalAggregationToColumnId;
 import static io.trino.cache.CommonSubqueriesExtractor.aggregationKey;
 import static io.trino.cache.CommonSubqueriesExtractor.scanFilterProjectKey;
@@ -518,8 +518,8 @@ public class TestCommonSubqueriesExtractor
     private CommonSubqueries extractTpchCommonSubqueries(@Language("SQL") String query, boolean cacheAggregations, boolean cacheProjections, boolean forceSingleNode)
     {
         Session tpchSession = Session.builder(TPCH_SESSION)
-                .setSystemProperty(CACHE_AGGREGATIONS_ENABLED, Boolean.toString(cacheAggregations))
-                .setSystemProperty(CACHE_PROJECTIONS_ENABLED, Boolean.toString(cacheProjections))
+                .setSystemProperty(SUBQUERY_CACHE_AGGREGATIONS_ENABLED, Boolean.toString(cacheAggregations))
+                .setSystemProperty(SUBQUERY_CACHE_PROJECTIONS_ENABLED, Boolean.toString(cacheProjections))
                 .build();
         PlanTester planTester = getPlanTester();
         return planTester.inTransaction(tpchSession, session -> {

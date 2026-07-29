@@ -62,7 +62,7 @@ public class TestDeltaLakeCacheSubqueriesTest
                 .addDeltaProperty("delta.enable-non-concurrent-writes", "true")
                 .addDeltaProperty("fs.hadoop.enabled", "true")
                 .build();
-        queryRunner.getServers().forEach(TestingTrinoServer::getCacheManagerRegistry);
+        queryRunner.getServers().forEach(TestingTrinoServer::getSubqueryCacheManagerRegistry);
         copyTpchTables(queryRunner, "tpch", TINY_SCHEMA_NAME, queryRunner.getDefaultSession(), REQUIRED_TABLES);
         return queryRunner;
     }

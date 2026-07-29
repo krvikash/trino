@@ -62,7 +62,7 @@ public class TestStarburstObjectStoreHiveCacheSubqueriesTest
             throw e;
         }
 
-        queryRunner.getServers().forEach(TestingTrinoServer::getCacheManagerRegistry);
+        queryRunner.getServers().forEach(TestingTrinoServer::getSubqueryCacheManagerRegistry);
         ObjectStoreQueryRunner.initializeTpchTables(queryRunner, REQUIRED_TABLES);
 
         return queryRunner;

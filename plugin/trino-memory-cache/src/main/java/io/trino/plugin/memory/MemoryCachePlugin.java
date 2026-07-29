@@ -15,13 +15,13 @@ package io.trino.plugin.memory;
 
 import com.google.common.collect.ImmutableList;
 import io.trino.spi.Plugin;
-import io.trino.spi.cache.CacheManagerFactory;
+import io.trino.spi.subquery.cache.SubqueryCacheManagerFactory;
 
 public final class MemoryCachePlugin
         implements Plugin
 {
     @Override
-    public Iterable<CacheManagerFactory> getCacheManagerFactories()
+    public Iterable<SubqueryCacheManagerFactory> getSubqueryCacheManagerFactories()
     {
         return ImmutableList.of(new MemoryCacheManagerFactory());
     }

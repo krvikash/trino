@@ -21,7 +21,7 @@ import io.trino.server.ServerConfig;
 import static io.airlift.configuration.ConfigBinder.configBinder;
 import static org.weakref.jmx.guice.ExportBinder.newExporter;
 
-public class CacheManagerModule
+public class SubqueryCacheManagerModule
         extends AbstractConfigurationAwareModule
 {
     @Override
@@ -30,8 +30,8 @@ public class CacheManagerModule
         configBinder(binder).bindConfig(CacheConfig.class);
         binder.bind(CacheStats.class).in(Scopes.SINGLETON);
         newExporter(binder).export(CacheStats.class).withGeneratedName();
-        binder.bind(CacheManagerRegistry.class).in(Scopes.SINGLETON);
-        newExporter(binder).export(CacheManagerRegistry.class).withGeneratedName();
+        binder.bind(SubqueryCacheManagerRegistry.class).in(Scopes.SINGLETON);
+        newExporter(binder).export(SubqueryCacheManagerRegistry.class).withGeneratedName();
         binder.bind(CachePerformanceTracker.class).in(Scopes.SINGLETON);
 
         // some components are needed only on coordinator

@@ -16,8 +16,6 @@ package io.trino.connector;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
-import io.trino.spi.cache.CacheColumnId;
-import io.trino.spi.cache.CacheTableId;
 import io.trino.spi.connector.AggregateFunction;
 import io.trino.spi.connector.AggregationApplicationResult;
 import io.trino.spi.connector.ApplyPartialTopNResult;
@@ -70,6 +68,8 @@ import io.trino.spi.security.RoleGrant;
 import io.trino.spi.security.ViewExpression;
 import io.trino.spi.session.PropertyMetadata;
 import io.trino.spi.statistics.TableStatistics;
+import io.trino.spi.subquery.cache.CacheColumnId;
+import io.trino.spi.subquery.cache.CacheTableId;
 import io.trino.spi.type.Type;
 
 import java.util.ArrayList;

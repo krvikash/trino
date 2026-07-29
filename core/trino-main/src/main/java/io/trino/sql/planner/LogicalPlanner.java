@@ -148,9 +148,9 @@ import static com.google.common.collect.Streams.forEachPair;
 import static com.google.common.collect.Streams.zip;
 import static io.trino.SystemSessionProperties.getMaxWriterTaskCount;
 import static io.trino.SystemSessionProperties.getRetryPolicy;
-import static io.trino.SystemSessionProperties.isCacheEnabled;
 import static io.trino.SystemSessionProperties.isCollectPlanStatisticsForAllQueries;
 import static io.trino.SystemSessionProperties.isReuseCommonSubqueriesEnabled;
+import static io.trino.SystemSessionProperties.isSubqueryCacheEnabled;
 import static io.trino.SystemSessionProperties.isUsePreferredWritePartitioning;
 import static io.trino.SystemSessionProperties.isUseSubPlanAlternatives;
 import static io.trino.metadata.MetadataUtil.createQualifiedObjectName;
@@ -257,7 +257,7 @@ public class LogicalPlanner
         this.statisticsAggregationPlanner = new StatisticsAggregationPlanner(symbolAllocator, plannerContext, session);
         this.statsCalculator = requireNonNull(statsCalculator, "statsCalculator is null");
         this.costCalculator = requireNonNull(costCalculator, "costCalculator is null");
-        this.cacheEnabled = isCacheEnabled(session);
+        this.cacheEnabled = isSubqueryCacheEnabled(session);
         this.cacheCommonSubqueries = new CacheCommonSubqueries(
                 new CacheController(),
                 plannerContext,

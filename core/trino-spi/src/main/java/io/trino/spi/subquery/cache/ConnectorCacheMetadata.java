@@ -11,7 +11,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.spi.cache;
+package io.trino.spi.subquery.cache;
 
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorPageSource;
@@ -22,7 +22,7 @@ import java.util.Optional;
 public interface ConnectorCacheMetadata
 {
     /**
-     * Returns a table identifier for the purpose of caching with {@link CacheManager}.
+     * Returns a table identifier for the purpose of caching with {@link SubqueryCacheManager}.
      * {@link CacheTableId} together with {@link CacheSplitId} and {@link CacheColumnId}s represents
      * rows produced by {@link ConnectorPageSource} for a given split. Local table properties
      * (e.g. rows order) must be part of {@link CacheTableId} if they are present. List of selected
@@ -33,7 +33,7 @@ public interface ConnectorCacheMetadata
     Optional<CacheTableId> getCacheTableId(ConnectorTableHandle tableHandle);
 
     /**
-     * Returns a column identifier for the purpose of caching with {@link CacheManager}.
+     * Returns a column identifier for the purpose of caching with {@link SubqueryCacheManager}.
      * {@link CacheTableId} together with {@link CacheSplitId} and {@link CacheColumnId}s represents
      * rows produced by {@link ConnectorPageSource} for a given split. {@link CacheColumnId} can represent
      * simple, base column or more complex reference (e.g. map or array dereference expressions).
@@ -45,7 +45,7 @@ public interface ConnectorCacheMetadata
      * If any property of {@link ConnectorTableHandle} affects final query result when underlying table
      * is queried, then such property is considered canonical. Otherwise, the property is non-canonical.
      * Canonical {@link ConnectorTableHandle}s allow to match more similar subqueries that
-     * are eligible for caching with {@link CacheManager}. Connector should convert provided
+     * are eligible for caching with {@link SubqueryCacheManager}. Connector should convert provided
      * {@link ConnectorTableHandle} into canonical one by pruning of every non-canonical field.
      */
     ConnectorTableHandle getCanonicalTableHandle(ConnectorTableHandle handle);

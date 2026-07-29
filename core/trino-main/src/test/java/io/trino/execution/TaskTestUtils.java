@@ -21,9 +21,9 @@ import io.airlift.json.JsonCodecFactory;
 import io.airlift.json.JsonMapperProvider;
 import io.opentelemetry.api.trace.Span;
 import io.trino.cache.CacheConfig;
-import io.trino.cache.CacheManagerRegistry;
 import io.trino.cache.CachePerformanceTracker;
 import io.trino.cache.CacheStats;
+import io.trino.cache.SubqueryCacheManagerRegistry;
 import io.trino.connector.CatalogHandle;
 import io.trino.connector.CatalogServiceProvider;
 import io.trino.cost.StatsAndCosts;
@@ -210,7 +210,7 @@ public final class TaskTestUtils
                 hashCompiler,
                 new TableExecuteContextManager(),
                 new ExchangeManagerRegistry(noop(), TestingInternalNodeManager.createDefault().getTestingInternalCoordinatorLocator(), noopTracer(), new SecretsResolver(ImmutableMap.of()), new ExchangeManagerConfig()),
-                new CacheManagerRegistry(new CacheConfig(), new LocalMemoryManager(new NodeMemoryConfig()), TESTING_BLOCK_ENCODING_SERDE, cacheStats, CURRENT_NODE, TestingInternalNodeManager.createDefault()),
+                new SubqueryCacheManagerRegistry(new CacheConfig(), new LocalMemoryManager(new NodeMemoryConfig()), TESTING_BLOCK_ENCODING_SERDE, cacheStats, CURRENT_NODE, TestingInternalNodeManager.createDefault()),
                 new CachePerformanceTracker(),
                 new JsonCodecFactory(new JsonMapperProvider()).jsonCodec(TupleDomain.class),
                 new NodeVersion("test"),

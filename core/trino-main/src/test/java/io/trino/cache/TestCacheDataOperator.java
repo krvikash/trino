@@ -38,11 +38,6 @@ import io.trino.operator.OperatorContext;
 import io.trino.operator.OperatorFactory;
 import io.trino.simd.BlockEncodingSimdSupport;
 import io.trino.spi.Page;
-import io.trino.spi.cache.CacheColumnId;
-import io.trino.spi.cache.CacheManager;
-import io.trino.spi.cache.CacheSplitId;
-import io.trino.spi.cache.PlanSignature;
-import io.trino.spi.cache.SignatureKey;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorPageSource;
 import io.trino.spi.connector.ConnectorTableCredentials;
@@ -51,6 +46,11 @@ import io.trino.spi.connector.FixedPageSource;
 import io.trino.spi.connector.MemoryContext;
 import io.trino.spi.metrics.Metrics;
 import io.trino.spi.predicate.TupleDomain;
+import io.trino.spi.subquery.cache.CacheColumnId;
+import io.trino.spi.subquery.cache.CacheSplitId;
+import io.trino.spi.subquery.cache.PlanSignature;
+import io.trino.spi.subquery.cache.SignatureKey;
+import io.trino.spi.subquery.cache.SubqueryCacheManager;
 import io.trino.split.PageSourceProvider;
 import io.trino.split.PageSourceProviderFactory;
 import io.trino.sql.planner.InternalDynamicFilter;
@@ -71,7 +71,7 @@ import java.util.function.Function;
 import java.util.stream.IntStream;
 
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
-import static io.trino.SystemSessionProperties.getCacheDataReductionThreshold;
+import static io.trino.SystemSessionProperties.getSubqueryCacheDataReductionThreshold;
 import static io.trino.block.BlockAssertions.createLongSequenceBlock;
 import static io.trino.cache.CacheDataOperator.MIN_PROCESSED_BYTES;
 import static io.trino.cache.CacheDataOperator.MIN_PROCESSED_POSITIONS;
@@ -102,7 +102,7 @@ public class TestCacheDataOperator
 {
     private static final Session TEST_SESSION = testSessionBuilder().build();
     private final PlanNodeIdAllocator planNodeIdAllocator = new PlanNodeIdAllocator();
-    private CacheManagerRegistry registry;
+    private SubqueryCacheManagerRegistry registry;
     private JsonCodec<TupleDomain> tupleDomainCodec;
 
     @BeforeEach
@@ -114,8 +114,8 @@ public class TestCacheDataOperator
         LocalMemoryManager memoryManager = new LocalMemoryManager(config, DataSize.of(110, MEGABYTE).toBytes());
         CacheConfig cacheConfig = new CacheConfig();
         cacheConfig.setEnabled(true);
-        registry = new CacheManagerRegistry(cacheConfig, memoryManager, TESTING_BLOCK_ENCODING_SERDE, new CacheStats(), CURRENT_NODE, TestingInternalNodeManager.createDefault());
-        registry.loadCacheManager();
+        registry = new SubqueryCacheManagerRegistry(cacheConfig, memoryManager, TESTING_BLOCK_ENCODING_SERDE, new CacheStats(), CURRENT_NODE, TestingInternalNodeManager.createDefault());
+        registry.loadSubqueryCacheManager();
         tupleDomainCodec = getTupleDomainJsonCodec(new InternalBlockEncodingSerde(new BlockEncodingManager(new FeaturesConfig(), new BlockEncodingSimdSupport(true)), TESTING_TYPE_MANAGER), TESTING_TYPE_MANAGER);
     }
 
@@ -123,7 +123,7 @@ public class TestCacheDataOperator
     public void testLimitCache()
     {
         PlanSignature signature = createPlanSignature("sig");
-        CacheManager.SplitCache splitCache = registry.getCacheManager().getSplitCache(signature);
+        SubqueryCacheManager.SplitCache splitCache = registry.getSubqueryCacheManager().getSplitCache(signature);
         PlanNodeIdAllocator planNodeIdAllocator = new PlanNodeIdAllocator();
 
         CacheDataOperator.CacheDataOperatorFactory operatorFactory = new CacheDataOperator.CacheDataOperatorFactory(
@@ -255,7 +255,7 @@ public class TestCacheDataOperator
                 operatorIdAllocator.incrementAndGet(),
                 planNodeIdAllocator.getNextId(),
                 DataSize.of(256, MEGABYTE).toBytes());
-        double dataReductionThreshold = getCacheDataReductionThreshold(TEST_SESSION);
+        double dataReductionThreshold = getSubqueryCacheDataReductionThreshold(TEST_SESSION);
 
         long inputDataSize = (long) Math.floor((0.7 * bigPage.getSizeInBytes()) / dataReductionThreshold);
         PassThroughOperator.PassThroughOperatorFactory passThroughOperatorFactory =
@@ -436,7 +436,7 @@ public class TestCacheDataOperator
             @Override
             public Operator createOperator(DriverContext driverContext)
             {
-                long size = inputSizeInBytes.orElse((long) Math.ceil(1 + page.getSizeInBytes() / getCacheDataReductionThreshold(TEST_SESSION)));
+                long size = inputSizeInBytes.orElse((long) Math.ceil(1 + page.getSizeInBytes() / getSubqueryCacheDataReductionThreshold(TEST_SESSION)));
                 return new PassThroughOperator(driverContext.addOperatorContext(operatorId, planNodeId, PassThroughOperator.class.getSimpleName()), page, size);
             }
 

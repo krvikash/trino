@@ -11,22 +11,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.spi.cache;
+package io.trino.spi.subquery.cache;
 
 import io.trino.spi.Node;
 import io.trino.spi.NodeManager;
 import io.trino.spi.block.BlockEncodingSerde;
 
-public interface CacheManagerContext
+public interface SubqueryCacheManagerContext
 {
     /**
-     * @return {@link MemoryAllocator} that {@link CacheManager} can use to allocate revocable memory
+     * @return {@link MemoryAllocator} that {@link SubqueryCacheManager} can use to allocate revocable memory
      *         from the engine.
      */
     MemoryAllocator revocableMemoryAllocator();
 
     /**
-     * @return {@link BlockEncodingSerde} that {@link CacheManager} can use to compress cached data.
+     * @return {@link BlockEncodingSerde} that {@link SubqueryCacheManager} can use to compress cached data.
      */
     BlockEncodingSerde blockEncodingSerde();
 

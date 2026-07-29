@@ -15,13 +15,13 @@ package io.trino.plugin.memory;
 
 import io.trino.spi.Page;
 import io.trino.spi.block.BlockEncodingSerde;
-import io.trino.spi.cache.CacheManager.SplitCache;
-import io.trino.spi.cache.CacheManagerContext;
-import io.trino.spi.cache.CacheSplitId;
-import io.trino.spi.cache.MemoryAllocator;
-import io.trino.spi.cache.PlanSignature;
 import io.trino.spi.connector.ConnectorPageSink;
 import io.trino.spi.predicate.TupleDomain;
+import io.trino.spi.subquery.cache.CacheSplitId;
+import io.trino.spi.subquery.cache.MemoryAllocator;
+import io.trino.spi.subquery.cache.PlanSignature;
+import io.trino.spi.subquery.cache.SubqueryCacheManager.SplitCache;
+import io.trino.spi.subquery.cache.SubqueryCacheManagerContext;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Execution;
@@ -56,7 +56,7 @@ public class TestConcurrentCacheManager
     {
         oneMegabytePage = createOneMegaBytePage();
         allocatedRevocableMemory = 0;
-        CacheManagerContext context = new CacheManagerContext()
+        SubqueryCacheManagerContext context = new SubqueryCacheManagerContext()
         {
             @Override
             public MemoryAllocator revocableMemoryAllocator()

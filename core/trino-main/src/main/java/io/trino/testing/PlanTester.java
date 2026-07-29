@@ -41,10 +41,10 @@ import io.trino.SystemSessionProperties;
 import io.trino.SystemSessionPropertiesProvider;
 import io.trino.block.BlockJsonSerde;
 import io.trino.cache.CacheConfig;
-import io.trino.cache.CacheManagerRegistry;
 import io.trino.cache.CacheMetadata;
 import io.trino.cache.CachePerformanceTracker;
 import io.trino.cache.CacheStats;
+import io.trino.cache.SubqueryCacheManagerRegistry;
 import io.trino.connector.CatalogFactory;
 import io.trino.connector.CatalogHandle;
 import io.trino.connector.CatalogServiceProvider;
@@ -384,7 +384,7 @@ public class PlanTester
     private final CoordinatorDynamicCatalogManager catalogManager;
     private final PluginManager pluginManager;
     private final ExchangeManagerRegistry exchangeManagerRegistry;
-    private final CacheManagerRegistry cacheManagerRegistry;
+    private final SubqueryCacheManagerRegistry subqueryCacheManagerRegistry;
     private final CachePerformanceTracker cachePerformanceTracker;
     private final JsonCodec<TupleDomain> tupleDomainCodec;
     private final SpoolingManagerRegistry spoolingManagerRegistry;
@@ -594,7 +594,7 @@ public class PlanTester
                 ImmutableSet.of(),
                 ImmutableSet.of(new ExcludeColumnsFunction()),
                 nodeManager);
-        cacheManagerRegistry = new CacheManagerRegistry(cacheConfig, new LocalMemoryManager(new NodeMemoryConfig()), plannerContext.getBlockEncodingSerde(), new CacheStats(), node, TestingInternalNodeManager.createDefault());
+        subqueryCacheManagerRegistry = new SubqueryCacheManagerRegistry(cacheConfig, new LocalMemoryManager(new NodeMemoryConfig()), plannerContext.getBlockEncodingSerde(), new CacheStats(), node, TestingInternalNodeManager.createDefault());
         cachePerformanceTracker = new CachePerformanceTracker();
         tupleDomainCodec = getTupleDomainJsonCodec(blockEncodingSerde, typeManager);
         exchangeManagerRegistry = new ExchangeManagerRegistry(noop(), nodeManager.getTestingInternalCoordinatorLocator(), noopTracer(), secretsResolver, new ExchangeManagerConfig());
@@ -622,7 +622,7 @@ public class PlanTester
                 TESTING_BLOCK_ENCODING_MANAGER,
                 new HandleResolver(),
                 exchangeManagerRegistry,
-                cacheManagerRegistry,
+                subqueryCacheManagerRegistry,
                 spoolingManagerRegistry);
 
         catalogManager.registerGlobalSystemConnector(globalSystemConnector);
@@ -964,7 +964,7 @@ public class PlanTester
                 hashCompiler,
                 tableExecuteContextManager,
                 exchangeManagerRegistry,
-                cacheManagerRegistry,
+                subqueryCacheManagerRegistry,
                 cachePerformanceTracker,
                 tupleDomainCodec,
                 CURRENT_NODE.getNodeVersion(),

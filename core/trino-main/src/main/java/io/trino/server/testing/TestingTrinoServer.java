@@ -42,9 +42,9 @@ import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.sdk.trace.SpanProcessor;
 import io.trino.Session;
 import io.trino.SystemSessionPropertiesProvider;
-import io.trino.cache.CacheManagerModule;
-import io.trino.cache.CacheManagerRegistry;
 import io.trino.cache.CacheMetadata;
+import io.trino.cache.SubqueryCacheManagerModule;
+import io.trino.cache.SubqueryCacheManagerRegistry;
 import io.trino.connector.CatalogHandle;
 import io.trino.connector.CatalogManagerConfig.CatalogMangerKind;
 import io.trino.connector.CatalogManagerModule;
@@ -237,7 +237,7 @@ public class TestingTrinoServer
     private final boolean coordinator;
     private final FailureInjector failureInjector;
     private final ExchangeManagerRegistry exchangeManagerRegistry;
-    private CacheManagerRegistry cacheManagerRegistry;
+    private SubqueryCacheManagerRegistry subqueryCacheManagerRegistry;
     private final SpoolingManagerRegistry spoolingManagerRegistry;
 
     public static class TestShutdownAction
@@ -338,7 +338,7 @@ public class TestingTrinoServer
                 .add(new TransactionManagerModule())
                 .add(new NodeManagerModule(VERSION))
                 .add(new ServerMainModule(VERSION))
-                .add(new CacheManagerModule())
+                .add(new SubqueryCacheManagerModule())
                 .add(new TestingWarningCollectorModule())
                 .add(new InternalCoordinatorLocatorModule())
                 .add(binder -> {
@@ -582,22 +582,22 @@ public class TestingTrinoServer
         exchangeManagerRegistry.loadExchangeManager(name, properties);
     }
 
-    public CacheManagerRegistry getCacheManagerRegistry()
+    public SubqueryCacheManagerRegistry getSubqueryCacheManagerRegistry()
     {
-        if (cacheManagerRegistry == null) {
-            cacheManagerRegistry = injector.getInstance(CacheManagerRegistry.class);
-            cacheManagerRegistry.loadCacheManager();
+        if (subqueryCacheManagerRegistry == null) {
+            subqueryCacheManagerRegistry = injector.getInstance(SubqueryCacheManagerRegistry.class);
+            subqueryCacheManagerRegistry.loadSubqueryCacheManager();
         }
-        return cacheManagerRegistry;
+        return subqueryCacheManagerRegistry;
     }
 
-    public CacheManagerRegistry getCacheManagerRegistry(String name, Map<String, String> properties)
+    public SubqueryCacheManagerRegistry getSubqueryCacheManagerRegistry(String name, Map<String, String> properties)
     {
-        if (cacheManagerRegistry == null) {
-            cacheManagerRegistry = injector.getInstance(CacheManagerRegistry.class);
-            cacheManagerRegistry.loadCacheManager(name, properties);
+        if (subqueryCacheManagerRegistry == null) {
+            subqueryCacheManagerRegistry = injector.getInstance(SubqueryCacheManagerRegistry.class);
+            subqueryCacheManagerRegistry.loadSubqueryCacheManager(name, properties);
         }
-        return cacheManagerRegistry;
+        return subqueryCacheManagerRegistry;
     }
 
     public void loadSpoolingManager(String name, Map<String, String> properties)

@@ -30,12 +30,12 @@ import io.trino.plugin.warp.di.dispatcher.DispatcherCoordinatorModule;
 import io.trino.plugin.warp.di.dispatcher.DispatcherMainModule;
 import io.trino.plugin.warp.dispatcher.connectors.DispatcherConnectorBase;
 import io.trino.spi.NodeManager;
-import io.trino.spi.cache.ConnectorCacheMetadata;
 import io.trino.spi.connector.Connector;
 import io.trino.spi.connector.ConnectorNodePartitioningProvider;
 import io.trino.spi.connector.ConnectorPageSinkProvider;
 import io.trino.spi.connector.ConnectorPageSourceProviderFactory;
 import io.trino.spi.connector.ConnectorSplitManager;
+import io.trino.spi.subquery.cache.ConnectorCacheMetadata;
 import io.trino.spi.type.TypeManager;
 import org.weakref.jmx.guice.MBeanModule;
 

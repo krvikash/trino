@@ -77,12 +77,12 @@ import java.util.stream.Stream;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.airlift.concurrent.MoreFutures.getFutureValue;
-import static io.trino.SystemSessionProperties.CACHE_AGGREGATIONS_ENABLED;
-import static io.trino.SystemSessionProperties.CACHE_DATA_REDUCTION_THRESHOLD;
-import static io.trino.SystemSessionProperties.CACHE_PROJECTIONS_ENABLED;
 import static io.trino.SystemSessionProperties.ENABLE_DYNAMIC_ROW_FILTERING;
 import static io.trino.SystemSessionProperties.JOIN_DISTRIBUTION_TYPE;
 import static io.trino.SystemSessionProperties.JOIN_REORDERING_STRATEGY;
+import static io.trino.SystemSessionProperties.SUBQUERY_CACHE_AGGREGATIONS_ENABLED;
+import static io.trino.SystemSessionProperties.SUBQUERY_CACHE_DATA_REDUCTION_THRESHOLD;
+import static io.trino.SystemSessionProperties.SUBQUERY_CACHE_PROJECTIONS_ENABLED;
 import static io.trino.cache.CacheDriverFactory.getDynamicRowFilteringUnenforcedPredicate;
 import static io.trino.spi.connector.Constraint.alwaysTrue;
 import static io.trino.spi.predicate.Range.range;
@@ -121,7 +121,7 @@ public abstract class BaseCacheSubqueriesTest
     @BeforeEach
     public void flushCache()
     {
-        getDistributedQueryRunner().getServers().forEach(server -> server.getCacheManagerRegistry().flushCache());
+        getDistributedQueryRunner().getServers().forEach(server -> server.getSubqueryCacheManagerRegistry().flushCache());
     }
 
     public static Object[][] isDynamicRowFilteringEnabled()
@@ -702,17 +702,17 @@ public abstract class BaseCacheSubqueriesTest
     protected Session withCacheEnabled()
     {
         return Session.builder(getSession())
-                .setSystemProperty(CACHE_AGGREGATIONS_ENABLED, "true")
-                .setSystemProperty(CACHE_PROJECTIONS_ENABLED, "true")
-                .setSystemProperty(CACHE_DATA_REDUCTION_THRESHOLD, "100")
+                .setSystemProperty(SUBQUERY_CACHE_AGGREGATIONS_ENABLED, "true")
+                .setSystemProperty(SUBQUERY_CACHE_PROJECTIONS_ENABLED, "true")
+                .setSystemProperty(SUBQUERY_CACHE_DATA_REDUCTION_THRESHOLD, "100")
                 .build();
     }
 
     protected Session withCacheDisabled()
     {
         return Session.builder(getSession())
-                .setSystemProperty(CACHE_AGGREGATIONS_ENABLED, "false")
-                .setSystemProperty(CACHE_PROJECTIONS_ENABLED, "false")
+                .setSystemProperty(SUBQUERY_CACHE_AGGREGATIONS_ENABLED, "false")
+                .setSystemProperty(SUBQUERY_CACHE_PROJECTIONS_ENABLED, "false")
                 .build();
     }
 

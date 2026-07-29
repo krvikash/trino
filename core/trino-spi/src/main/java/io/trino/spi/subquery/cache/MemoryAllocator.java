@@ -11,7 +11,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.spi.cache;
+package io.trino.spi.subquery.cache;
 
 public interface MemoryAllocator
 {

@@ -21,11 +21,11 @@ import io.trino.execution.TaskId;
 import io.trino.memory.LocalMemoryManager;
 import io.trino.memory.NodeMemoryConfig;
 import io.trino.node.TestingInternalNodeManager;
-import io.trino.spi.cache.CacheManager;
-import io.trino.spi.cache.CacheManagerContext;
-import io.trino.spi.cache.CacheManagerFactory;
-import io.trino.spi.cache.MemoryAllocator;
-import io.trino.spi.cache.PlanSignature;
+import io.trino.spi.subquery.cache.MemoryAllocator;
+import io.trino.spi.subquery.cache.PlanSignature;
+import io.trino.spi.subquery.cache.SubqueryCacheManager;
+import io.trino.spi.subquery.cache.SubqueryCacheManagerContext;
+import io.trino.spi.subquery.cache.SubqueryCacheManagerFactory;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -45,14 +45,14 @@ import static org.junit.jupiter.api.parallel.ExecutionMode.SAME_THREAD;
 
 @TestInstance(PER_CLASS)
 @Execution(SAME_THREAD)
-public class TestCacheManagerRegistry
+public class TestSubqueryCacheManagerRegistry
 {
     private static final TaskId TASK_ID = new TaskId(new StageId("id", 0), 1, 2);
     private static final String TEST_CACHE_MANAGER = "test-manager";
 
     private LocalMemoryManager memoryManager;
     private TestCacheManager cacheManager;
-    private CacheManagerRegistry registry;
+    private SubqueryCacheManagerRegistry registry;
 
     @BeforeEach
     public void setup()
@@ -62,9 +62,9 @@ public class TestCacheManagerRegistry
                 .setMaxQueryMemoryPerNode(DataSize.of(100, MEGABYTE).toString());
 
         memoryManager = new LocalMemoryManager(config, DataSize.of(110, MEGABYTE).toBytes());
-        registry = new CacheManagerRegistry(new CacheConfig(), memoryManager, newDirectExecutorService(), TESTING_BLOCK_ENCODING_SERDE, new CacheStats(), CURRENT_NODE, TestingInternalNodeManager.createDefault());
-        registry.addCacheManagerFactory(new TestCacheManagerFactory());
-        registry.loadCacheManager(TEST_CACHE_MANAGER, ImmutableMap.of());
+        registry = new SubqueryCacheManagerRegistry(new CacheConfig(), memoryManager, newDirectExecutorService(), TESTING_BLOCK_ENCODING_SERDE, new CacheStats(), CURRENT_NODE, TestingInternalNodeManager.createDefault());
+        registry.addSubqueryCacheManagerFactory(new TestCacheManagerFactory());
+        registry.loadSubqueryCacheManager(TEST_CACHE_MANAGER, ImmutableMap.of());
     }
 
     @Test
@@ -101,7 +101,7 @@ public class TestCacheManagerRegistry
     }
 
     private class TestCacheManagerFactory
-            implements CacheManagerFactory
+            implements SubqueryCacheManagerFactory
     {
         @Override
         public String getName()
@@ -110,7 +110,7 @@ public class TestCacheManagerRegistry
         }
 
         @Override
-        public CacheManager create(Map<String, String> config, CacheManagerContext context)
+        public SubqueryCacheManager create(Map<String, String> config, SubqueryCacheManagerContext context)
         {
             requireNonNull(context, "context is null");
             requireNonNull(context.revocableMemoryAllocator(), "revocableMemoryAllocator is null");
@@ -121,7 +121,7 @@ public class TestCacheManagerRegistry
     }
 
     private static class TestCacheManager
-            implements CacheManager
+            implements SubqueryCacheManager
     {
         private final MemoryAllocator allocator;
         private OptionalLong bytesToRevoke = OptionalLong.empty();

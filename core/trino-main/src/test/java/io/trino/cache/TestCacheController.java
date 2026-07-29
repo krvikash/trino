@@ -23,14 +23,14 @@ import io.trino.cache.CanonicalSubplan.AggregationKey;
 import io.trino.cache.CanonicalSubplan.ScanFilterProjectKey;
 import io.trino.cache.CanonicalSubplan.TopNRankingKey;
 import io.trino.metadata.TableHandle;
-import io.trino.spi.cache.CacheColumnId;
-import io.trino.spi.cache.CacheTableId;
 import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.connector.CatalogVersion;
 import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.connector.SortOrder;
 import io.trino.spi.predicate.TupleDomain;
+import io.trino.spi.subquery.cache.CacheColumnId;
+import io.trino.spi.subquery.cache.CacheTableId;
 import io.trino.sql.planner.plan.PlanNodeId;
 import io.trino.sql.planner.plan.TopNRankingNode.RankingType;
 import io.trino.sql.planner.plan.ValuesNode;
@@ -40,8 +40,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import static io.trino.SystemSessionProperties.CACHE_AGGREGATIONS_ENABLED;
-import static io.trino.SystemSessionProperties.CACHE_PROJECTIONS_ENABLED;
+import static io.trino.SystemSessionProperties.SUBQUERY_CACHE_AGGREGATIONS_ENABLED;
+import static io.trino.SystemSessionProperties.SUBQUERY_CACHE_PROJECTIONS_ENABLED;
 import static io.trino.connector.CatalogHandle.createRootCatalogHandle;
 import static io.trino.testing.TestingSession.testSessionBuilder;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -184,8 +184,8 @@ public class TestCacheController
     private Session cacheProperties(boolean cacheAggregations, boolean cacheProjections)
     {
         return testSessionBuilder()
-                .setSystemProperty(CACHE_AGGREGATIONS_ENABLED, Boolean.toString(cacheAggregations))
-                .setSystemProperty(CACHE_PROJECTIONS_ENABLED, Boolean.toString(cacheProjections))
+                .setSystemProperty(SUBQUERY_CACHE_AGGREGATIONS_ENABLED, Boolean.toString(cacheAggregations))
+                .setSystemProperty(SUBQUERY_CACHE_PROJECTIONS_ENABLED, Boolean.toString(cacheProjections))
                 .build();
     }
 }

@@ -15,7 +15,6 @@ package io.trino.plugin.warp.dispatcher;
 
 import com.google.inject.Inject;
 import io.trino.plugin.warp.annotation.ForWarp;
-import io.trino.spi.cache.CacheSplitId;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorSplit;
@@ -24,6 +23,7 @@ import io.trino.spi.connector.ConnectorSplitSource;
 import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.connector.Constraint;
+import io.trino.spi.subquery.cache.CacheSplitId;
 
 import java.util.Optional;
 import java.util.Set;

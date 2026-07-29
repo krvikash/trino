@@ -13,7 +13,7 @@
  */
 package io.trino.plugin.warp.dispatcher;
 
-import io.trino.spi.cache.ConnectorCacheMetadata;
+import io.trino.spi.subquery.cache.ConnectorCacheMetadata;
 import org.junit.jupiter.api.Test;
 
 import java.util.Set;

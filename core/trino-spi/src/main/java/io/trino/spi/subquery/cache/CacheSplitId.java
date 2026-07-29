@@ -11,19 +11,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.spi.cache;
+package io.trino.spi.subquery.cache;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 
+import static io.airlift.slice.SizeOf.estimatedSizeOf;
+import static io.airlift.slice.SizeOf.instanceSize;
 import static java.util.Objects.requireNonNull;
 
-public class CacheTableId
+public class CacheSplitId
 {
+    private static final int INSTANCE_SIZE = instanceSize(CacheSplitId.class);
+
     private final String id;
 
     @JsonCreator
-    public CacheTableId(String id)
+    public CacheSplitId(String id)
     {
         this.id = requireNonNull(id, "id is null");
     }
@@ -44,7 +48,7 @@ public class CacheTableId
         if (o == null || getClass() != o.getClass()) {
             return false;
         }
-        CacheTableId that = (CacheTableId) o;
+        CacheSplitId that = (CacheSplitId) o;
         return id.equals(that.id);
     }
 
@@ -52,5 +56,10 @@ public class CacheTableId
     public int hashCode()
     {
         return id.hashCode();
+    }
+
+    public long getRetainedSizeInBytes()
+    {
+        return INSTANCE_SIZE + estimatedSizeOf(id);
     }
 }

@@ -23,14 +23,14 @@ import com.google.errorprone.annotations.concurrent.GuardedBy;
 import io.airlift.slice.Slice;
 import io.trino.spi.Page;
 import io.trino.spi.block.Block;
-import io.trino.spi.cache.CacheColumnId;
-import io.trino.spi.cache.CacheManager;
-import io.trino.spi.cache.CacheSplitId;
-import io.trino.spi.cache.MemoryAllocator;
-import io.trino.spi.cache.PlanSignature;
 import io.trino.spi.connector.ConnectorPageSink;
 import io.trino.spi.connector.ConnectorPageSource;
 import io.trino.spi.predicate.TupleDomain;
+import io.trino.spi.subquery.cache.CacheColumnId;
+import io.trino.spi.subquery.cache.CacheSplitId;
+import io.trino.spi.subquery.cache.MemoryAllocator;
+import io.trino.spi.subquery.cache.PlanSignature;
+import io.trino.spi.subquery.cache.SubqueryCacheManager;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 
@@ -56,13 +56,13 @@ import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.Lists.reverse;
 import static io.airlift.slice.SizeOf.instanceSize;
 import static io.airlift.slice.SizeOf.sizeOf;
-import static io.trino.spi.cache.PlanSignature.canonicalizePlanSignature;
+import static io.trino.spi.subquery.cache.PlanSignature.canonicalizePlanSignature;
 import static java.util.Comparator.comparing;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.CompletableFuture.completedFuture;
 
 /**
- * {@link CacheManager} implementation that caches split pages in revocable memory.
+ * {@link SubqueryCacheManager} implementation that caches split pages in revocable memory.
  * <p>
  * Cache structure essentially consists of multimap:
  * <pre>
@@ -80,7 +80,7 @@ import static java.util.concurrent.CompletableFuture.completedFuture;
  * {@link MemoryCacheManager} does not have support for any filtering adaptation.
  */
 public class MemoryCacheManager
-        implements CacheManager
+        implements SubqueryCacheManager
 {
     // based on SizeOf.estimatedSizeOf(java.util.Map<K,V>, java.util.function.ToLongFunction<K>, java.util.function.ToLongFunction<V>)
     public static final int MAP_ENTRY_SIZE = instanceSize(AbstractMap.SimpleEntry.class);

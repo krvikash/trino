@@ -17,10 +17,10 @@ import com.google.common.collect.ImmutableMap;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.DictionaryBlock;
 import io.trino.spi.block.LongArrayBlock;
-import io.trino.spi.cache.CacheColumnId;
 import io.trino.spi.predicate.Domain;
 import io.trino.spi.predicate.SortedRangeSet;
 import io.trino.spi.predicate.ValueSet;
+import io.trino.spi.subquery.cache.CacheColumnId;
 import io.trino.spi.type.Type;
 import org.junit.jupiter.api.Test;
 

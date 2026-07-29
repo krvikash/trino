@@ -13,10 +13,10 @@
  */
 package io.trino.plugin.base.cache;
 
-import io.trino.spi.cache.CacheColumnId;
 import io.trino.spi.predicate.Domain;
 import io.trino.spi.predicate.SortedRangeSet;
 import io.trino.spi.predicate.TupleDomain;
+import io.trino.spi.subquery.cache.CacheColumnId;
 
 import java.util.LinkedHashMap;
 import java.util.Map;

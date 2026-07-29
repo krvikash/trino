@@ -19,8 +19,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.trino.connector.CatalogHandle;
 import io.trino.spi.HostAddress;
 import io.trino.spi.SplitWeight;
-import io.trino.spi.cache.CacheSplitId;
 import io.trino.spi.connector.ConnectorSplit;
+import io.trino.spi.subquery.cache.CacheSplitId;
 
 import java.util.List;
 import java.util.Optional;

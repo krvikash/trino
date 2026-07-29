@@ -31,11 +31,11 @@ import io.trino.spi.Node;
 import io.trino.spi.NodeManager;
 import io.trino.spi.TrinoException;
 import io.trino.spi.block.BlockEncodingSerde;
-import io.trino.spi.cache.CacheManager;
-import io.trino.spi.cache.CacheManagerContext;
-import io.trino.spi.cache.CacheManagerFactory;
-import io.trino.spi.cache.MemoryAllocator;
 import io.trino.spi.classloader.ThreadContextClassLoader;
+import io.trino.spi.subquery.cache.MemoryAllocator;
+import io.trino.spi.subquery.cache.SubqueryCacheManager;
+import io.trino.spi.subquery.cache.SubqueryCacheManagerContext;
+import io.trino.spi.subquery.cache.SubqueryCacheManagerFactory;
 import org.weakref.jmx.Managed;
 import org.weakref.jmx.Nested;
 
@@ -60,28 +60,28 @@ import static io.airlift.concurrent.MoreFutures.getFutureValue;
 import static io.airlift.concurrent.Threads.daemonThreadsNamed;
 import static io.airlift.configuration.ConfigurationLoader.loadPropertiesFrom;
 import static io.trino.memory.context.AggregatedMemoryContext.newRootAggregatedMemoryContext;
-import static io.trino.spi.StandardErrorCode.CACHE_MANAGER_NOT_CONFIGURED;
+import static io.trino.spi.StandardErrorCode.SUBQUERY_CACHE_MANAGER_NOT_CONFIGURED;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.Executors.newSingleThreadExecutor;
 
 /**
- * {@link CacheManagerRegistry} is responsible for instantiation of {@link CacheManager}.
- * Additionally {@link CacheManagerRegistry} manages revoking of {@link CacheManager}
+ * {@link SubqueryCacheManagerRegistry} is responsible for instantiation of {@link SubqueryCacheManager}.
+ * Additionally {@link SubqueryCacheManagerRegistry} manages revoking of {@link SubqueryCacheManager}
  * memory whenever necessary.
  */
-public class CacheManagerRegistry
+public class SubqueryCacheManagerRegistry
 {
-    private static final Logger log = Logger.get(CacheManagerRegistry.class);
+    private static final Logger log = Logger.get(SubqueryCacheManagerRegistry.class);
 
-    static final File CONFIG_FILE = new File("etc/cache-manager.properties");
-    private static final String CACHE_MANAGER_NAME_PROPERTY = "cache-manager.name";
+    static final File CONFIG_FILE = new File("etc/subquery-cache-manager.properties");
+    private static final String SUBQUERY_CACHE_MANAGER_NAME_PROPERTY = "subquery-cache-manager.name";
 
     private final MemoryPool memoryPool;
     private final boolean enabled;
     private final double revokingThreshold;
     private final double revokingTarget;
-    private final Map<String, CacheManagerFactory> cacheManagerFactories = new ConcurrentHashMap<>();
+    private final Map<String, SubqueryCacheManagerFactory> subqueryCacheManagerFactories = new ConcurrentHashMap<>();
     private final ExecutorService executor;
     private final BlockEncodingSerde blockEncodingSerde;
     private final AtomicBoolean revokeRequested = new AtomicBoolean();
@@ -91,17 +91,17 @@ public class CacheManagerRegistry
     private final InternalNode currentNode;
     private final InternalNodeManager internalNodeManager;
 
-    private volatile CacheManager cacheManager;
+    private volatile SubqueryCacheManager subqueryCacheManager;
     private volatile LocalMemoryContext revocableMemoryContext;
 
     @Inject
-    public CacheManagerRegistry(CacheConfig cacheConfig, LocalMemoryManager localMemoryManager, BlockEncodingSerde blockEncodingSerde, CacheStats cacheStats, InternalNode currentNode, InternalNodeManager internalNodeManager)
+    public SubqueryCacheManagerRegistry(CacheConfig cacheConfig, LocalMemoryManager localMemoryManager, BlockEncodingSerde blockEncodingSerde, CacheStats cacheStats, InternalNode currentNode, InternalNodeManager internalNodeManager)
     {
-        this(cacheConfig, localMemoryManager, newSingleThreadExecutor(daemonThreadsNamed("cache-manager-registry")), blockEncodingSerde, cacheStats, currentNode, internalNodeManager);
+        this(cacheConfig, localMemoryManager, newSingleThreadExecutor(daemonThreadsNamed("subquery-cache-manager-registry")), blockEncodingSerde, cacheStats, currentNode, internalNodeManager);
     }
 
     @VisibleForTesting
-    CacheManagerRegistry(
+    SubqueryCacheManagerRegistry(
             CacheConfig cacheConfig,
             LocalMemoryManager localMemoryManager,
             ExecutorService executor,
@@ -125,46 +125,46 @@ public class CacheManagerRegistry
         this.internalNodeManager = requireNonNull(internalNodeManager, "internalNodeManager is null");
     }
 
-    public void addCacheManagerFactory(CacheManagerFactory factory)
+    public void addSubqueryCacheManagerFactory(SubqueryCacheManagerFactory factory)
     {
         requireNonNull(factory, "factory is null");
-        if (cacheManagerFactories.putIfAbsent(factory.getName(), factory) != null) {
+        if (subqueryCacheManagerFactories.putIfAbsent(factory.getName(), factory) != null) {
             throw new IllegalArgumentException(format("Cache manager factory '%s' is already registered", factory.getName()));
         }
     }
 
-    public void loadCacheManager()
+    public void loadSubqueryCacheManager()
     {
         if (!enabled) {
-            // don't load CacheManager when caching is not enabled
+            // don't load SubqueryCacheManager when caching is not enabled
             return;
         }
 
         if (!CONFIG_FILE.exists()) {
             // use MemoryCacheManager by default
-            loadCacheManager(new MemoryCacheManagerFactory(), ImmutableMap.of());
+            loadSubqueryCacheManager(new MemoryCacheManagerFactory(), ImmutableMap.of());
             return;
         }
 
         Map<String, String> properties = loadProperties(CONFIG_FILE);
-        String name = properties.remove(CACHE_MANAGER_NAME_PROPERTY);
-        checkArgument(!isNullOrEmpty(name), "Cache manager configuration %s does not contain %s", CONFIG_FILE, CACHE_MANAGER_NAME_PROPERTY);
-        loadCacheManager(name, properties);
+        String name = properties.remove(SUBQUERY_CACHE_MANAGER_NAME_PROPERTY);
+        checkArgument(!isNullOrEmpty(name), "Cache manager configuration %s does not contain %s", CONFIG_FILE, SUBQUERY_CACHE_MANAGER_NAME_PROPERTY);
+        loadSubqueryCacheManager(name, properties);
     }
 
-    public synchronized void loadCacheManager(String name, Map<String, String> properties)
+    public synchronized void loadSubqueryCacheManager(String name, Map<String, String> properties)
     {
-        CacheManagerFactory factory = cacheManagerFactories.get(name);
-        checkArgument(factory != null, "Cache manager factory '%s' is not registered. Available factories: %s", name, cacheManagerFactories.keySet());
-        loadCacheManager(factory, properties);
+        SubqueryCacheManagerFactory factory = subqueryCacheManagerFactories.get(name);
+        checkArgument(factory != null, "Cache manager factory '%s' is not registered. Available factories: %s", name, subqueryCacheManagerFactories.keySet());
+        loadSubqueryCacheManager(factory, properties);
     }
 
-    public synchronized void loadCacheManager(CacheManagerFactory factory, Map<String, String> properties)
+    public synchronized void loadSubqueryCacheManager(SubqueryCacheManagerFactory factory, Map<String, String> properties)
     {
-        requireNonNull(factory, "cacheManagerFactory is null");
+        requireNonNull(factory, "subqueryCacheManagerFactory is null");
         log.info("-- Loading cache manager %s --", factory.getName());
 
-        checkState(cacheManager == null, "cacheManager is already loaded");
+        checkState(subqueryCacheManager == null, "subqueryCacheManager is already loaded");
 
         revocableMemoryContext = newRootAggregatedMemoryContext(
                 createReservationHandler(bytes -> {
@@ -178,8 +178,8 @@ public class CacheManagerRegistry
                     return memoryPool.tryReserveRevocable(bytes);
                 }, memoryPool::freeRevocable),
                 0)
-                .newLocalMemoryContext("CacheManager");
-        CacheManagerContext context = new CacheManagerContext()
+                .newLocalMemoryContext("SubqueryCacheManager");
+        SubqueryCacheManagerContext context = new SubqueryCacheManagerContext()
         {
             @Override
             public MemoryAllocator revocableMemoryAllocator()
@@ -224,11 +224,11 @@ public class CacheManagerRegistry
                 return currentNode;
             }
         };
-        CacheManager cacheManager;
+        SubqueryCacheManager subqueryCacheManager;
         try (ThreadContextClassLoader ignored = new ThreadContextClassLoader(factory.getClass().getClassLoader())) {
-            cacheManager = factory.create(properties, context);
+            subqueryCacheManager = factory.create(properties, context);
         }
-        this.cacheManager = cacheManager;
+        this.subqueryCacheManager = subqueryCacheManager;
 
         // revoke cache memory when revoking target is reached
         memoryPool.addListener(_ -> {
@@ -240,13 +240,13 @@ public class CacheManagerRegistry
         log.info("-- Loaded cache manager %s --", factory.getName());
     }
 
-    public CacheManager getCacheManager()
+    public SubqueryCacheManager getSubqueryCacheManager()
     {
-        CacheManager cacheManager = this.cacheManager;
-        if (cacheManager == null) {
-            throw new TrinoException(CACHE_MANAGER_NOT_CONFIGURED, "Cache manager must be configured for cache capabilities to be fully functional");
+        SubqueryCacheManager subqueryCacheManager = this.subqueryCacheManager;
+        if (subqueryCacheManager == null) {
+            throw new TrinoException(SUBQUERY_CACHE_MANAGER_NOT_CONFIGURED, "Cache manager must be configured for cache capabilities to be fully functional");
         }
-        return cacheManager;
+        return subqueryCacheManager;
     }
 
     public void flushCache()
@@ -254,7 +254,7 @@ public class CacheManagerRegistry
         getFutureValue(executor.submit(() -> {
             long bytesToRevoke = memoryPool.getMaxBytes() - memoryPool.getFreeBytes();
             if (bytesToRevoke > 0) {
-                cacheManager.revokeMemory(bytesToRevoke);
+                subqueryCacheManager.revokeMemory(bytesToRevoke);
             }
         }));
     }
@@ -317,7 +317,7 @@ public class CacheManagerRegistry
 
         long revokedBytes;
         try (TimeStat.BlockTimer ignore = cacheStats.recordRevokeMemoryTime()) {
-            revokedBytes = cacheManager.revokeMemory(bytesToRevoke);
+            revokedBytes = subqueryCacheManager.revokeMemory(bytesToRevoke);
         }
 
         if (revokedBytes > 0) {

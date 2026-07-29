@@ -19,6 +19,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Map;
 
+import static io.airlift.configuration.testing.ConfigAssertions.assertDeprecatedEquivalence;
 import static io.airlift.configuration.testing.ConfigAssertions.assertFullMapping;
 import static io.airlift.configuration.testing.ConfigAssertions.assertRecordedDefaults;
 import static io.airlift.configuration.testing.ConfigAssertions.recordDefaults;
@@ -42,13 +43,13 @@ public class TestCacheConfig
     public void testExplicitPropertyMappings()
     {
         Map<String, String> properties = ImmutableMap.<String, String>builder()
-                .put("cache.enabled", "true")
-                .put("cache.revoking-threshold", "0.6")
-                .put("cache.revoking-target", "0.5")
-                .put("cache.aggregations.enabled", "false")
-                .put("cache.projections.enabled", "false")
-                .put("cache.max-split-size", "64MB")
-                .put("cache.data-reduction-threshold", "0.3")
+                .put("subquery-cache.enabled", "true")
+                .put("subquery-cache.revoking-threshold", "0.6")
+                .put("subquery-cache.revoking-target", "0.5")
+                .put("subquery-cache.aggregations.enabled", "false")
+                .put("subquery-cache.projections.enabled", "false")
+                .put("subquery-cache.max-split-size", "64MB")
+                .put("subquery-cache.data-reduction-threshold", "0.3")
                 .buildOrThrow();
 
         CacheConfig expected = new CacheConfig()
@@ -60,5 +61,30 @@ public class TestCacheConfig
                 .setMaxSplitSize(DataSize.of(64, DataSize.Unit.MEGABYTE))
                 .setDataReductionThreshold(0.3d);
         assertFullMapping(properties, expected);
+    }
+
+    @Test
+    public void testDeprecatedEquivalence()
+    {
+        assertDeprecatedEquivalence(
+                CacheConfig.class,
+                ImmutableMap.<String, String>builder()
+                        .put("subquery-cache.enabled", "true")
+                        .put("subquery-cache.revoking-threshold", "0.6")
+                        .put("subquery-cache.revoking-target", "0.5")
+                        .put("subquery-cache.aggregations.enabled", "false")
+                        .put("subquery-cache.projections.enabled", "false")
+                        .put("subquery-cache.max-split-size", "64MB")
+                        .put("subquery-cache.data-reduction-threshold", "0.3")
+                        .buildOrThrow(),
+                ImmutableMap.<String, String>builder()
+                        .put("cache.enabled", "true")
+                        .put("cache.revoking-threshold", "0.6")
+                        .put("cache.revoking-target", "0.5")
+                        .put("cache.aggregations.enabled", "false")
+                        .put("cache.projections.enabled", "false")
+                        .put("cache.max-split-size", "64MB")
+                        .put("cache.data-reduction-threshold", "0.3")
+                        .buildOrThrow());
     }
 }

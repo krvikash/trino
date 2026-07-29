@@ -36,14 +36,6 @@ import io.trino.operator.Driver;
 import io.trino.operator.DriverContext;
 import io.trino.operator.DriverFactory;
 import io.trino.simd.BlockEncodingSimdSupport;
-import io.trino.spi.cache.CacheColumnId;
-import io.trino.spi.cache.CacheManager;
-import io.trino.spi.cache.CacheManager.SplitCache;
-import io.trino.spi.cache.CacheManagerContext;
-import io.trino.spi.cache.CacheManagerFactory;
-import io.trino.spi.cache.CacheSplitId;
-import io.trino.spi.cache.PlanSignature;
-import io.trino.spi.cache.SignatureKey;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorPageSink;
 import io.trino.spi.connector.ConnectorPageSource;
@@ -55,6 +47,14 @@ import io.trino.spi.connector.MemoryContext;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.predicate.Domain;
 import io.trino.spi.predicate.TupleDomain;
+import io.trino.spi.subquery.cache.CacheColumnId;
+import io.trino.spi.subquery.cache.CacheSplitId;
+import io.trino.spi.subquery.cache.PlanSignature;
+import io.trino.spi.subquery.cache.SignatureKey;
+import io.trino.spi.subquery.cache.SubqueryCacheManager;
+import io.trino.spi.subquery.cache.SubqueryCacheManager.SplitCache;
+import io.trino.spi.subquery.cache.SubqueryCacheManagerContext;
+import io.trino.spi.subquery.cache.SubqueryCacheManagerFactory;
 import io.trino.split.PageSourceProvider;
 import io.trino.split.PageSourceProviderFactory;
 import io.trino.sql.planner.DynamicFilterDomain;
@@ -127,7 +127,7 @@ public class TestCacheDriverFactory
 
     private final PlanNodeIdAllocator planNodeIdAllocator = new PlanNodeIdAllocator();
     private TestSplitCache splitCache;
-    private CacheManagerRegistry registry;
+    private SubqueryCacheManagerRegistry registry;
     private CachePerformanceTracker cachePerformanceTracker;
     private JsonCodec<TupleDomain> tupleDomainCodec;
     private ScheduledExecutorService scheduledExecutor;
@@ -140,11 +140,11 @@ public class TestCacheDriverFactory
                 .setMaxQueryMemoryPerNode(DataSize.of(32, MEGABYTE).toString());
         CacheConfig cacheConfig = new CacheConfig();
         cacheConfig.setEnabled(true);
-        registry = new CacheManagerRegistry(cacheConfig, new LocalMemoryManager(config, DataSize.of(1024, MEGABYTE).toBytes()), TESTING_BLOCK_ENCODING_SERDE, new CacheStats(), CURRENT_NODE, TestingInternalNodeManager.createDefault());
+        registry = new SubqueryCacheManagerRegistry(cacheConfig, new LocalMemoryManager(config, DataSize.of(1024, MEGABYTE).toBytes()), TESTING_BLOCK_ENCODING_SERDE, new CacheStats(), CURRENT_NODE, TestingInternalNodeManager.createDefault());
         cachePerformanceTracker = new CachePerformanceTracker();
-        TestCacheManagerFactory cacheManagerFactory = new TestCacheManagerFactory();
-        registry.loadCacheManager(cacheManagerFactory, ImmutableMap.of());
-        splitCache = cacheManagerFactory.getCacheManager().getSplitCache();
+        TestCacheManagerFactory subqueryCacheManagerFactory = new TestCacheManagerFactory();
+        registry.loadSubqueryCacheManager(subqueryCacheManagerFactory, ImmutableMap.of());
+        splitCache = subqueryCacheManagerFactory.getSubqueryCacheManager().getSplitCache();
         tupleDomainCodec = getTupleDomainJsonCodec(new InternalBlockEncodingSerde(new BlockEncodingManager(new FeaturesConfig(), new BlockEncodingSimdSupport(true)), TESTING_TYPE_MANAGER), TESTING_TYPE_MANAGER);
         scheduledExecutor = Executors.newScheduledThreadPool(1);
     }
@@ -579,11 +579,11 @@ public class TestCacheDriverFactory
     }
 
     private static class TestCacheManagerFactory
-            implements CacheManagerFactory
+            implements SubqueryCacheManagerFactory
     {
         private final TestCacheManager cacheManager = new TestCacheManager();
 
-        public TestCacheManager getCacheManager()
+        public TestCacheManager getSubqueryCacheManager()
         {
             return cacheManager;
         }
@@ -595,14 +595,14 @@ public class TestCacheDriverFactory
         }
 
         @Override
-        public TestCacheManager create(Map<String, String> config, CacheManagerContext context)
+        public TestCacheManager create(Map<String, String> config, SubqueryCacheManagerContext context)
         {
             return cacheManager;
         }
     }
 
     private static class TestCacheManager
-            implements CacheManager
+            implements SubqueryCacheManager
     {
         private final TestSplitCache splitCache = new TestSplitCache();
 

@@ -13,11 +13,11 @@
  */
 package io.trino.spi.connector;
 
-import io.trino.spi.cache.CacheColumnId;
-import io.trino.spi.cache.CacheManager;
-import io.trino.spi.cache.CacheSplitId;
-import io.trino.spi.cache.CacheTableId;
 import io.trino.spi.function.table.ConnectorTableFunctionHandle;
+import io.trino.spi.subquery.cache.CacheColumnId;
+import io.trino.spi.subquery.cache.CacheSplitId;
+import io.trino.spi.subquery.cache.CacheTableId;
+import io.trino.spi.subquery.cache.SubqueryCacheManager;
 
 import java.util.Optional;
 import java.util.Set;
@@ -48,7 +48,7 @@ public interface ConnectorSplitManager
     }
 
     /**
-     * Returns a split identifier for the purpose of caching with {@link CacheManager}.
+     * Returns a split identifier for the purpose of caching with {@link SubqueryCacheManager}.
      * {@link CacheSplitId} together with {@link CacheTableId} and {@link CacheColumnId}s
      * represents rows produced by {@link ConnectorPageSource} for a given split.
      */

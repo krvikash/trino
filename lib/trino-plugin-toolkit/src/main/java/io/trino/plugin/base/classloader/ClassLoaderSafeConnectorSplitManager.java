@@ -14,7 +14,6 @@
 package io.trino.plugin.base.classloader;
 
 import com.google.inject.Inject;
-import io.trino.spi.cache.CacheSplitId;
 import io.trino.spi.classloader.ThreadContextClassLoader;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorSession;
@@ -25,6 +24,7 @@ import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.connector.Constraint;
 import io.trino.spi.function.table.ConnectorTableFunctionHandle;
+import io.trino.spi.subquery.cache.CacheSplitId;
 
 import java.util.Optional;
 import java.util.Set;

@@ -11,7 +11,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.spi.cache;
+package io.trino.spi.subquery.cache;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
@@ -20,23 +20,23 @@ import static io.airlift.slice.SizeOf.estimatedSizeOf;
 import static io.airlift.slice.SizeOf.instanceSize;
 import static java.util.Objects.requireNonNull;
 
-public class CacheSplitId
+public class SignatureKey
 {
-    private static final int INSTANCE_SIZE = instanceSize(CacheSplitId.class);
+    private static final int INSTANCE_SIZE = instanceSize(SignatureKey.class);
 
-    private final String id;
+    private final String key;
 
     @JsonCreator
-    public CacheSplitId(String id)
+    public SignatureKey(String key)
     {
-        this.id = requireNonNull(id, "id is null");
+        this.key = requireNonNull(key, "key is null");
     }
 
     @Override
     @JsonValue
     public String toString()
     {
-        return id;
+        return key;
     }
 
     @Override
@@ -48,18 +48,18 @@ public class CacheSplitId
         if (o == null || getClass() != o.getClass()) {
             return false;
         }
-        CacheSplitId that = (CacheSplitId) o;
-        return id.equals(that.id);
+        SignatureKey that = (SignatureKey) o;
+        return key.equals(that.key);
     }
 
     @Override
     public int hashCode()
     {
-        return id.hashCode();
+        return key.hashCode();
     }
 
     public long getRetainedSizeInBytes()
     {
-        return INSTANCE_SIZE + estimatedSizeOf(id);
+        return INSTANCE_SIZE + estimatedSizeOf(key);
     }
 }

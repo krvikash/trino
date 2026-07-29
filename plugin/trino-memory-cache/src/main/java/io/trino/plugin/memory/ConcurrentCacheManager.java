@@ -19,15 +19,15 @@ import com.google.errorprone.annotations.concurrent.GuardedBy;
 import com.google.inject.Inject;
 import io.trino.memory.context.AggregatedMemoryContext;
 import io.trino.memory.context.MemoryReservationHandler;
-import io.trino.spi.cache.CacheColumnId;
-import io.trino.spi.cache.CacheManager;
-import io.trino.spi.cache.CacheManagerContext;
-import io.trino.spi.cache.CacheSplitId;
-import io.trino.spi.cache.MemoryAllocator;
-import io.trino.spi.cache.PlanSignature;
 import io.trino.spi.connector.ConnectorPageSink;
 import io.trino.spi.connector.ConnectorPageSource;
 import io.trino.spi.predicate.TupleDomain;
+import io.trino.spi.subquery.cache.CacheColumnId;
+import io.trino.spi.subquery.cache.CacheSplitId;
+import io.trino.spi.subquery.cache.MemoryAllocator;
+import io.trino.spi.subquery.cache.PlanSignature;
+import io.trino.spi.subquery.cache.SubqueryCacheManager;
+import io.trino.spi.subquery.cache.SubqueryCacheManagerContext;
 import org.weakref.jmx.Managed;
 
 import java.io.IOException;
@@ -40,7 +40,7 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 
 import static io.trino.memory.context.AggregatedMemoryContext.newRootAggregatedMemoryContext;
-import static io.trino.spi.cache.PlanSignature.canonicalizePlanSignature;
+import static io.trino.spi.subquery.cache.PlanSignature.canonicalizePlanSignature;
 import static java.lang.Math.floorMod;
 import static java.lang.Math.min;
 import static java.util.Collections.shuffle;
@@ -50,7 +50,7 @@ import static java.util.Objects.requireNonNull;
  * Distributed cache requests between {@link MemoryCacheManager}s thus reducing locking pressure.
  */
 public class ConcurrentCacheManager
-        implements CacheManager
+        implements SubqueryCacheManager
 {
     private static final int CACHE_MANAGERS_COUNT = 128;
 
@@ -60,13 +60,13 @@ public class ConcurrentCacheManager
     private long allocatedMemory;
 
     @Inject
-    public ConcurrentCacheManager(CacheManagerContext context)
+    public ConcurrentCacheManager(SubqueryCacheManagerContext context)
     {
         this(context, false);
     }
 
     @VisibleForTesting
-    ConcurrentCacheManager(CacheManagerContext context, boolean forceStore)
+    ConcurrentCacheManager(SubqueryCacheManagerContext context, boolean forceStore)
     {
         requireNonNull(context, "context is null");
         this.revocableMemoryAllocator = context.revocableMemoryAllocator();

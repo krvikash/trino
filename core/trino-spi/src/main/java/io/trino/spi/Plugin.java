@@ -14,7 +14,6 @@
 package io.trino.spi;
 
 import io.trino.spi.block.BlockEncoding;
-import io.trino.spi.cache.CacheManagerFactory;
 import io.trino.spi.catalog.CatalogStoreFactory;
 import io.trino.spi.connector.ConnectorFactory;
 import io.trino.spi.eventlistener.EventListenerFactory;
@@ -28,6 +27,7 @@ import io.trino.spi.security.PasswordAuthenticatorFactory;
 import io.trino.spi.security.SystemAccessControlFactory;
 import io.trino.spi.session.SessionPropertyConfigurationManagerFactory;
 import io.trino.spi.spool.SpoolingManagerFactory;
+import io.trino.spi.subquery.cache.SubqueryCacheManagerFactory;
 import io.trino.spi.type.ParametricType;
 import io.trino.spi.type.Type;
 
@@ -118,7 +118,7 @@ public interface Plugin
         return emptyList();
     }
 
-    default Iterable<CacheManagerFactory> getCacheManagerFactories()
+    default Iterable<SubqueryCacheManagerFactory> getSubqueryCacheManagerFactories()
     {
         return emptyList();
     }

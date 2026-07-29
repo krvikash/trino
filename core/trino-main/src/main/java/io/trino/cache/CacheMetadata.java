@@ -18,10 +18,10 @@ import io.trino.Session;
 import io.trino.connector.CatalogHandle;
 import io.trino.connector.CatalogServiceProvider;
 import io.trino.metadata.TableHandle;
-import io.trino.spi.cache.CacheColumnId;
-import io.trino.spi.cache.CacheTableId;
-import io.trino.spi.cache.ConnectorCacheMetadata;
 import io.trino.spi.connector.ColumnHandle;
+import io.trino.spi.subquery.cache.CacheColumnId;
+import io.trino.spi.subquery.cache.CacheTableId;
+import io.trino.spi.subquery.cache.ConnectorCacheMetadata;
 
 import java.util.Optional;
 

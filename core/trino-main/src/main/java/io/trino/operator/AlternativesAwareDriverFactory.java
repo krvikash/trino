@@ -18,7 +18,7 @@ import io.trino.Session;
 import io.trino.cache.CacheDriverFactory;
 import io.trino.execution.ScheduledSplit;
 import io.trino.metadata.TableHandle;
-import io.trino.spi.cache.CacheSplitId;
+import io.trino.spi.subquery.cache.CacheSplitId;
 import io.trino.split.AlternativeChooser;
 import io.trino.sql.planner.plan.PlanNodeId;
 

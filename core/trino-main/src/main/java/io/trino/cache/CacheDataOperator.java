@@ -28,7 +28,7 @@ import jakarta.annotation.Nullable;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
-import static io.trino.SystemSessionProperties.getCacheDataReductionThreshold;
+import static io.trino.SystemSessionProperties.getSubqueryCacheDataReductionThreshold;
 import static java.util.Objects.requireNonNull;
 
 public class CacheDataOperator
@@ -165,7 +165,7 @@ public class CacheDataOperator
             return false;
         }
         double dataReductionRatio = cachedDataSize / (double) sourceBytes;
-        return dataReductionRatio > getCacheDataReductionThreshold(operatorContext.getSession());
+        return dataReductionRatio > getSubqueryCacheDataReductionThreshold(operatorContext.getSession());
     }
 
     @Override

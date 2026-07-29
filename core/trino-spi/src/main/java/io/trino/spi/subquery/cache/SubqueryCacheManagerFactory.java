@@ -11,13 +11,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.spi.cache;
+package io.trino.spi.subquery.cache;
 
 import java.util.Map;
 
-public interface CacheManagerFactory
+public interface SubqueryCacheManagerFactory
 {
     String getName();
 
-    CacheManager create(Map<String, String> config, CacheManagerContext context);
+    SubqueryCacheManager create(Map<String, String> config, SubqueryCacheManagerContext context);
 }

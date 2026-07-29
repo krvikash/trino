@@ -309,7 +309,7 @@ public final class HiveQueryRunner
 
                 queryRunner.createCatalog(HIVE_CATALOG, withPlanAlternatives ? "plan_alternatives_hive" : "hive", hiveProperties);
 
-                queryRunner.getServers().forEach(TestingTrinoServer::getCacheManagerRegistry);
+                queryRunner.getServers().forEach(TestingTrinoServer::getSubqueryCacheManagerRegistry);
 
                 if (createTpchSchemas) {
                     populateData(queryRunner);

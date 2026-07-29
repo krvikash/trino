@@ -17,16 +17,16 @@ import io.trino.spi.Page;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockEncodingSerde;
 import io.trino.spi.block.IntArrayBlock;
-import io.trino.spi.cache.CacheColumnId;
-import io.trino.spi.cache.CacheManager;
-import io.trino.spi.cache.CacheManagerContext;
-import io.trino.spi.cache.CacheSplitId;
-import io.trino.spi.cache.MemoryAllocator;
-import io.trino.spi.cache.PlanSignature;
-import io.trino.spi.cache.SignatureKey;
 import io.trino.spi.connector.ConnectorPageSink;
 import io.trino.spi.connector.ConnectorPageSource;
 import io.trino.spi.predicate.TupleDomain;
+import io.trino.spi.subquery.cache.CacheColumnId;
+import io.trino.spi.subquery.cache.CacheSplitId;
+import io.trino.spi.subquery.cache.MemoryAllocator;
+import io.trino.spi.subquery.cache.PlanSignature;
+import io.trino.spi.subquery.cache.SignatureKey;
+import io.trino.spi.subquery.cache.SubqueryCacheManager;
+import io.trino.spi.subquery.cache.SubqueryCacheManagerContext;
 import io.trino.spi.type.Type;
 import org.junit.jupiter.api.Test;
 import org.openjdk.jmh.annotations.Benchmark;
@@ -72,7 +72,7 @@ public class BenchmarkMemoryCacheManager
 
         private final MemoryCacheManager memoryCacheManager = new MemoryCacheManager(bytes -> bytes <= 4_000_000_000L, true);
         private final ConcurrentCacheManager concurrentCacheManager = new ConcurrentCacheManager(
-                new CacheManagerContext()
+                new SubqueryCacheManagerContext()
                 {
                     @Override
                     public MemoryAllocator revocableMemoryAllocator()
@@ -133,18 +133,18 @@ public class BenchmarkMemoryCacheManager
             return concurrentCacheManager;
         }
 
-        public Optional<ConnectorPageSource> loadCachedData(CacheManager cacheManager)
+        public Optional<ConnectorPageSource> loadCachedData(SubqueryCacheManager cacheManager)
                 throws IOException
         {
-            try (CacheManager.SplitCache splitCache = cacheManager.getSplitCache(getSignature())) {
+            try (SubqueryCacheManager.SplitCache splitCache = cacheManager.getSplitCache(getSignature())) {
                 return splitCache.loadPages(splitId, TupleDomain.all(), TupleDomain.all());
             }
         }
 
-        public void storeCachedData(CacheManager cacheManager)
+        public void storeCachedData(SubqueryCacheManager cacheManager)
                 throws IOException
         {
-            try (CacheManager.SplitCache splitCache = cacheManager.getSplitCache(getSignature())) {
+            try (SubqueryCacheManager.SplitCache splitCache = cacheManager.getSplitCache(getSignature())) {
                 ConnectorPageSink sink = splitCache.storePages(splitId, TupleDomain.all(), TupleDomain.all()).orElseThrow();
                 sink.appendPage(page);
                 sink.finish();

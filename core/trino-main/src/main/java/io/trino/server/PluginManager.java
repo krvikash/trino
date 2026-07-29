@@ -17,7 +17,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.errorprone.annotations.ThreadSafe;
 import com.google.inject.Inject;
 import io.airlift.log.Logger;
-import io.trino.cache.CacheManagerRegistry;
+import io.trino.cache.SubqueryCacheManagerRegistry;
 import io.trino.connector.CatalogFactory;
 import io.trino.connector.CatalogStoreManager;
 import io.trino.eventlistener.EventListenerManager;
@@ -38,7 +38,6 @@ import io.trino.server.security.HeaderAuthenticatorManager;
 import io.trino.server.security.PasswordAuthenticatorManager;
 import io.trino.spi.Plugin;
 import io.trino.spi.block.BlockEncoding;
-import io.trino.spi.cache.CacheManagerFactory;
 import io.trino.spi.catalog.CatalogStoreFactory;
 import io.trino.spi.classloader.ThreadContextClassLoader;
 import io.trino.spi.connector.ConnectorFactory;
@@ -53,6 +52,7 @@ import io.trino.spi.security.PasswordAuthenticatorFactory;
 import io.trino.spi.security.SystemAccessControlFactory;
 import io.trino.spi.session.SessionPropertyConfigurationManagerFactory;
 import io.trino.spi.spool.SpoolingManagerFactory;
+import io.trino.spi.subquery.cache.SubqueryCacheManagerFactory;
 import io.trino.spi.type.ParametricType;
 import io.trino.spi.type.Type;
 
@@ -115,7 +115,7 @@ public class PluginManager
     private final EventListenerManager eventListenerManager;
     private final GroupProviderManager groupProviderManager;
     private final ExchangeManagerRegistry exchangeManagerRegistry;
-    private final CacheManagerRegistry cacheManagerRegistry;
+    private final SubqueryCacheManagerRegistry subqueryCacheManagerRegistry;
     private final SpoolingManagerRegistry spoolingManagerRegistry;
     private final SessionPropertyDefaults sessionPropertyDefaults;
     private final TypeRegistry typeRegistry;
@@ -142,7 +142,7 @@ public class PluginManager
             BlockEncodingManager blockEncodingManager,
             HandleResolver handleResolver,
             ExchangeManagerRegistry exchangeManagerRegistry,
-            CacheManagerRegistry cacheManagerRegistry,
+            SubqueryCacheManagerRegistry subqueryCacheManagerRegistry,
             SpoolingManagerRegistry spoolingManagerRegistry)
     {
         this.pluginsProvider = requireNonNull(pluginsProvider, "pluginsProvider is null");
@@ -162,7 +162,7 @@ public class PluginManager
         this.blockEncodingManager = requireNonNull(blockEncodingManager, "blockEncodingManager is null");
         this.handleResolver = requireNonNull(handleResolver, "handleResolver is null");
         this.exchangeManagerRegistry = requireNonNull(exchangeManagerRegistry, "exchangeManagerRegistry is null");
-        this.cacheManagerRegistry = requireNonNull(cacheManagerRegistry, "cacheManagerRegistry is null");
+        this.subqueryCacheManagerRegistry = requireNonNull(subqueryCacheManagerRegistry, "subqueryCacheManagerRegistry is null");
         this.spoolingManagerRegistry = requireNonNull(spoolingManagerRegistry, "spoolingManagerRegistry is null");
     }
 
@@ -307,9 +307,9 @@ public class PluginManager
             exchangeManagerRegistry.addExchangeManagerFactory(exchangeManagerFactory);
         }
 
-        for (CacheManagerFactory cacheManagerFactory : plugin.getCacheManagerFactories()) {
-            log.info("Registering cache manager %s", cacheManagerFactory.getName());
-            cacheManagerRegistry.addCacheManagerFactory(cacheManagerFactory);
+        for (SubqueryCacheManagerFactory subqueryCacheManagerFactory : plugin.getSubqueryCacheManagerFactories()) {
+            log.info("Registering cache manager %s", subqueryCacheManagerFactory.getName());
+            subqueryCacheManagerRegistry.addSubqueryCacheManagerFactory(subqueryCacheManagerFactory);
         }
 
         for (SpoolingManagerFactory spoolingManagerFactory : plugin.getSpoolingManagerFactories()) {

@@ -16,6 +16,7 @@ package io.trino.cache;
 import io.airlift.configuration.Config;
 import io.airlift.configuration.ConfigDescription;
 import io.airlift.configuration.DefunctConfig;
+import io.airlift.configuration.LegacyConfig;
 import io.airlift.units.DataSize;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
@@ -40,12 +41,19 @@ public class CacheConfig
         return enabled;
     }
 
-    @Config("cache.enabled")
+    @Config("subquery-cache.enabled")
     @ConfigDescription("Enables pipeline level cache")
     public CacheConfig setEnabled(boolean enabled)
     {
         this.enabled = enabled;
         return this;
+    }
+
+    @Deprecated
+    @LegacyConfig(value = "cache.enabled", replacedBy = "subquery-cache.enabled")
+    public CacheConfig setLegacyEnabled(boolean enabled)
+    {
+        return setEnabled(enabled);
     }
 
     @DecimalMin("0.0")
@@ -55,12 +63,19 @@ public class CacheConfig
         return revokingThreshold;
     }
 
-    @Config("cache.revoking-threshold")
+    @Config("subquery-cache.revoking-threshold")
     @ConfigDescription("Revoke cache memory when memory pool is filled over threshold")
     public CacheConfig setRevokingThreshold(double revokingThreshold)
     {
         this.revokingThreshold = revokingThreshold;
         return this;
+    }
+
+    @Deprecated
+    @LegacyConfig(value = "cache.revoking-threshold", replacedBy = "subquery-cache.revoking-threshold")
+    public CacheConfig setLegacyRevokingThreshold(double revokingThreshold)
+    {
+        return setRevokingThreshold(revokingThreshold);
     }
 
     @DecimalMin("0.0")
@@ -70,7 +85,7 @@ public class CacheConfig
         return revokingTarget;
     }
 
-    @Config("cache.revoking-target")
+    @Config("subquery-cache.revoking-target")
     @ConfigDescription("When revoking cache memory, revoke so much that cache memory reservation is below target at the end")
     public CacheConfig setRevokingTarget(double revokingTarget)
     {
@@ -78,12 +93,19 @@ public class CacheConfig
         return this;
     }
 
+    @Deprecated
+    @LegacyConfig(value = "cache.revoking-target", replacedBy = "subquery-cache.revoking-target")
+    public CacheConfig setLegacyRevokingTarget(double revokingTarget)
+    {
+        return setRevokingTarget(revokingTarget);
+    }
+
     public boolean isCacheAggregationsEnabled()
     {
         return cacheAggregationsEnabled;
     }
 
-    @Config("cache.aggregations.enabled")
+    @Config("subquery-cache.aggregations.enabled")
     @ConfigDescription("Enables caching of aggregations")
     public CacheConfig setCacheAggregationsEnabled(boolean cacheAggregationsEnabled)
     {
@@ -91,12 +113,19 @@ public class CacheConfig
         return this;
     }
 
+    @Deprecated
+    @LegacyConfig(value = "cache.aggregations.enabled", replacedBy = "subquery-cache.aggregations.enabled")
+    public CacheConfig setLegacyCacheAggregationsEnabled(boolean cacheAggregationsEnabled)
+    {
+        return setCacheAggregationsEnabled(cacheAggregationsEnabled);
+    }
+
     public boolean isCacheProjectionsEnabled()
     {
         return cacheProjectionsEnabled;
     }
 
-    @Config("cache.projections.enabled")
+    @Config("subquery-cache.projections.enabled")
     @ConfigDescription("Enables caching of projections")
     public CacheConfig setCacheProjectionsEnabled(boolean cacheProjectionsEnabled)
     {
@@ -104,17 +133,31 @@ public class CacheConfig
         return this;
     }
 
+    @Deprecated
+    @LegacyConfig(value = "cache.projections.enabled", replacedBy = "subquery-cache.projections.enabled")
+    public CacheConfig setLegacyCacheProjectionsEnabled(boolean cacheProjectionsEnabled)
+    {
+        return setCacheProjectionsEnabled(cacheProjectionsEnabled);
+    }
+
     public DataSize getMaxSplitSize()
     {
         return maxSplitSize;
     }
 
-    @Config("cache.max-split-size")
+    @Config("subquery-cache.max-split-size")
     @ConfigDescription("Upper bound for size of cached split")
     public CacheConfig setMaxSplitSize(DataSize cacheSubqueriesSize)
     {
         this.maxSplitSize = cacheSubqueriesSize;
         return this;
+    }
+
+    @Deprecated
+    @LegacyConfig(value = "cache.max-split-size", replacedBy = "subquery-cache.max-split-size")
+    public CacheConfig setLegacyMaxSplitSize(DataSize maxSplitSize)
+    {
+        return setMaxSplitSize(maxSplitSize);
     }
 
     @DecimalMin("0.0")
@@ -123,11 +166,18 @@ public class CacheConfig
         return dataReductionThreshold;
     }
 
-    @Config("cache.data-reduction-threshold")
+    @Config("subquery-cache.data-reduction-threshold")
     @ConfigDescription("Minimum factor of data reduction of cached split (values >1 represent data expansion)")
     public CacheConfig setDataReductionThreshold(double dataReductionThreshold)
     {
         this.dataReductionThreshold = dataReductionThreshold;
         return this;
+    }
+
+    @Deprecated
+    @LegacyConfig(value = "cache.data-reduction-threshold", replacedBy = "subquery-cache.data-reduction-threshold")
+    public CacheConfig setLegacyDataReductionThreshold(double dataReductionThreshold)
+    {
+        return setDataReductionThreshold(dataReductionThreshold);
     }
 }

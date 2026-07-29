@@ -15,7 +15,6 @@ package io.trino.plugin.tpch;
 
 import com.google.inject.Inject;
 import io.airlift.bootstrap.LifeCycleManager;
-import io.trino.spi.cache.ConnectorCacheMetadata;
 import io.trino.spi.connector.Connector;
 import io.trino.spi.connector.ConnectorMetadata;
 import io.trino.spi.connector.ConnectorNodePartitioningProvider;
@@ -23,6 +22,7 @@ import io.trino.spi.connector.ConnectorPageSourceProvider;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorSplitManager;
 import io.trino.spi.connector.ConnectorTransactionHandle;
+import io.trino.spi.subquery.cache.ConnectorCacheMetadata;
 import io.trino.spi.transaction.IsolationLevel;
 
 import static java.util.Objects.requireNonNull;

@@ -14,12 +14,12 @@
 package io.trino.plugin.base.classloader;
 
 import com.google.inject.Inject;
-import io.trino.spi.cache.CacheColumnId;
-import io.trino.spi.cache.CacheTableId;
-import io.trino.spi.cache.ConnectorCacheMetadata;
 import io.trino.spi.classloader.ThreadContextClassLoader;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorTableHandle;
+import io.trino.spi.subquery.cache.CacheColumnId;
+import io.trino.spi.subquery.cache.CacheTableId;
+import io.trino.spi.subquery.cache.ConnectorCacheMetadata;
 
 import java.util.Optional;
 

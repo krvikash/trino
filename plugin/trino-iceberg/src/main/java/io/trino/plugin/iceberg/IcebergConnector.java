@@ -23,7 +23,6 @@ import io.trino.plugin.base.classloader.ClassLoaderSafeConnectorMetadata;
 import io.trino.plugin.base.session.SessionPropertiesProvider;
 import io.trino.plugin.hive.HiveTransactionHandle;
 import io.trino.spi.TrinoException;
-import io.trino.spi.cache.ConnectorCacheMetadata;
 import io.trino.spi.connector.Connector;
 import io.trino.spi.connector.ConnectorAccessControl;
 import io.trino.spi.connector.ConnectorAlternativeChooser;
@@ -42,6 +41,7 @@ import io.trino.spi.function.FunctionProvider;
 import io.trino.spi.function.table.ConnectorTableFunction;
 import io.trino.spi.procedure.Procedure;
 import io.trino.spi.session.PropertyMetadata;
+import io.trino.spi.subquery.cache.ConnectorCacheMetadata;
 import io.trino.spi.transaction.IsolationLevel;
 import org.apache.iceberg.exceptions.RESTException;
 

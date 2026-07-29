@@ -33,7 +33,6 @@ import io.trino.metadata.TableProceduresPropertyManager;
 import io.trino.metadata.TablePropertyManager;
 import io.trino.metadata.ViewPropertyManager;
 import io.trino.security.AccessControlManager;
-import io.trino.spi.cache.ConnectorCacheMetadata;
 import io.trino.spi.connector.ConnectorAccessControl;
 import io.trino.spi.connector.ConnectorAlternativeChooser;
 import io.trino.spi.connector.ConnectorIndexProvider;
@@ -43,6 +42,7 @@ import io.trino.spi.connector.ConnectorPageSourceProviderFactory;
 import io.trino.spi.connector.ConnectorSplitManager;
 import io.trino.spi.connector.substitution.ConnectorSubstitutionMetadata;
 import io.trino.spi.function.FunctionProvider;
+import io.trino.spi.subquery.cache.ConnectorCacheMetadata;
 
 import java.util.Optional;
 import java.util.Set;

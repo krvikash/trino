@@ -14,11 +14,11 @@
 package io.trino.cache;
 
 import io.trino.operator.OperatorContext;
-import io.trino.spi.cache.CacheSplitId;
-import io.trino.spi.cache.PlanSignature;
 import io.trino.spi.connector.ConnectorPageSink;
 import io.trino.spi.connector.ConnectorPageSource;
 import io.trino.spi.metrics.Metrics;
+import io.trino.spi.subquery.cache.CacheSplitId;
+import io.trino.spi.subquery.cache.PlanSignature;
 import io.trino.sql.planner.InternalDynamicFilter;
 
 import java.util.Optional;

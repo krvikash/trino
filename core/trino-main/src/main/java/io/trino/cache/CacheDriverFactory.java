@@ -32,10 +32,6 @@ import io.trino.operator.DriverFactory;
 import io.trino.plugin.base.cache.CacheUtils;
 import io.trino.plugin.base.metrics.TDigestHistogram;
 import io.trino.spi.TrinoException;
-import io.trino.spi.cache.CacheColumnId;
-import io.trino.spi.cache.CacheManager.SplitCache;
-import io.trino.spi.cache.CacheSplitId;
-import io.trino.spi.cache.PlanSignature;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorPageSink;
 import io.trino.spi.connector.ConnectorPageSource;
@@ -44,6 +40,10 @@ import io.trino.spi.predicate.DiscreteValues;
 import io.trino.spi.predicate.Domain;
 import io.trino.spi.predicate.Ranges;
 import io.trino.spi.predicate.TupleDomain;
+import io.trino.spi.subquery.cache.CacheColumnId;
+import io.trino.spi.subquery.cache.CacheSplitId;
+import io.trino.spi.subquery.cache.PlanSignature;
+import io.trino.spi.subquery.cache.SubqueryCacheManager.SplitCache;
 import io.trino.split.PageSourceProvider;
 import io.trino.split.PageSourceProviderFactory;
 
@@ -57,7 +57,7 @@ import java.util.stream.IntStream;
 
 import static com.google.common.base.MoreObjects.toStringHelper;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
-import static io.trino.SystemSessionProperties.getCacheDataReductionThreshold;
+import static io.trino.SystemSessionProperties.getSubqueryCacheDataReductionThreshold;
 import static io.trino.SystemSessionProperties.isEnableDynamicRowFiltering;
 import static io.trino.cache.CacheCommonSubqueries.LOAD_PAGES_ALTERNATIVE;
 import static io.trino.cache.CacheCommonSubqueries.ORIGINAL_PLAN_ALTERNATIVE;
@@ -94,7 +94,7 @@ public class CacheDriverFactory
     public CacheDriverFactory(
             Session session,
             PageSourceProviderFactory pageSourceProvider,
-            CacheManagerRegistry cacheManagerRegistry,
+            SubqueryCacheManagerRegistry subqueryCacheManagerRegistry,
             JsonCodec<TupleDomain> tupleDomainCodec,
             TableHandle originalTableHandle,
             PlanSignatureWithPredicate planSignature,
@@ -107,7 +107,7 @@ public class CacheDriverFactory
         requireNonNull(planSignature, "planSignature is null");
         this.session = requireNonNull(session, "session is null");
         this.planSignature = planSignature.signature();
-        this.splitCache = requireNonNull(cacheManagerRegistry, "cacheManagerRegistry is null").getCacheManager().getSplitCache(planSignature.signature());
+        this.splitCache = requireNonNull(subqueryCacheManagerRegistry, "subqueryCacheManagerRegistry is null").getSubqueryCacheManager().getSplitCache(planSignature.signature());
         this.tupleDomainCodec = requireNonNull(tupleDomainCodec, "tupleDomainCodec is null");
         this.originalTableHandle = requireNonNull(originalTableHandle, "originalTableHandle is null");
         this.enforcedPredicate = planSignature.predicate();
@@ -209,7 +209,7 @@ public class CacheDriverFactory
             double dataReductionRatio = processedSplitCount > MIN_PROCESSED_SPLITS && cacheMetrics.getInputCacheBytes() > MIN_PROCESSED_BYTES && cacheMetrics.getSourceBytes() > 0
                     ? cacheMetrics.getInputCacheBytes() / (double) cacheMetrics.getSourceBytes()
                     : 0d;
-            if (dataReductionRatio <= getCacheDataReductionThreshold(session)) {
+            if (dataReductionRatio <= getSubqueryCacheDataReductionThreshold(session)) {
                 Optional<ConnectorPageSink> pageSink = splitCache.storePages(splitIdWithPredicates, projectedEnforcedPredicate.predicate(), projectedUnenforcedPredicate.predicate());
                 if (pageSink.isPresent()) {
                     return new DriverFactoryWithCacheContext(

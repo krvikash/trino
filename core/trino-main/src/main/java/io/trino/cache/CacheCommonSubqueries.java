@@ -16,7 +16,7 @@ package io.trino.cache;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.trino.Session;
-import io.trino.spi.cache.CacheManager;
+import io.trino.spi.subquery.cache.SubqueryCacheManager;
 import io.trino.sql.PlannerContext;
 import io.trino.sql.planner.PlanNodeIdAllocator;
 import io.trino.sql.planner.SymbolAllocator;
@@ -31,7 +31,7 @@ import io.trino.sql.planner.plan.SimplePlanRewriter;
 import java.util.Map;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static io.trino.SystemSessionProperties.isCacheEnabled;
+import static io.trino.SystemSessionProperties.isSubqueryCacheEnabled;
 import static io.trino.cache.CommonSubqueriesExtractor.extractCommonSubqueries;
 import static io.trino.sql.planner.iterative.Lookup.noLookup;
 import static java.util.Objects.requireNonNull;
@@ -40,8 +40,8 @@ import static java.util.Objects.requireNonNull;
  * Extracts common subqueries and substitutes each subquery with {@link ChooseAlternativeNode}
  * consisting of 3 alternatives:
  * * original subplan
- * * subplan that caches data with {@link CacheManager}
- * * subplan that reads data from {@link CacheManager}
+ * * subplan that caches data with {@link SubqueryCacheManager}
+ * * subplan that reads data from {@link SubqueryCacheManager}
  */
 public class CacheCommonSubqueries
 {
@@ -68,7 +68,7 @@ public class CacheCommonSubqueries
         this.session = requireNonNull(session, "session is null");
         this.idAllocator = requireNonNull(idAllocator, "idAllocator is null");
         this.symbolAllocator = requireNonNull(symbolAllocator, "symbolAllocator is null");
-        this.cacheEnabled = isCacheEnabled(session);
+        this.cacheEnabled = isSubqueryCacheEnabled(session);
     }
 
     public PlanNode cacheSubqueries(PlanNode node)

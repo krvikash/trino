@@ -41,13 +41,13 @@ import io.trino.Session;
 import io.trino.SystemSessionProperties;
 import io.trino.cache.CacheDataOperator.CacheDataOperatorFactory;
 import io.trino.cache.CacheDriverFactory;
-import io.trino.cache.CacheManagerRegistry;
 import io.trino.cache.CachePerformanceTracker;
 import io.trino.cache.CacheStats;
 import io.trino.cache.CommonPlanAdaptation.PlanSignatureWithPredicate;
 import io.trino.cache.LoadCachedDataOperator.LoadCachedDataOperatorFactory;
 import io.trino.cache.NonEvictableCache;
 import io.trino.cache.StaticDynamicFilter;
+import io.trino.cache.SubqueryCacheManagerRegistry;
 import io.trino.exchange.ExchangeEncryptionKey;
 import io.trino.exchange.ExchangeManagerRegistry;
 import io.trino.execution.DynamicFilterConfig;
@@ -211,7 +211,6 @@ import io.trino.spi.TrinoException;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.RowBlock;
 import io.trino.spi.block.SqlRow;
-import io.trino.spi.cache.CacheColumnId;
 import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.connector.CatalogSchemaTableName;
 import io.trino.spi.connector.CatalogVersion;
@@ -239,6 +238,7 @@ import io.trino.spi.gpu.GpuTypeConversion;
 import io.trino.spi.predicate.NullableValue;
 import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.spool.SpoolingManager;
+import io.trino.spi.subquery.cache.CacheColumnId;
 import io.trino.spi.type.FunctionType;
 import io.trino.spi.type.RowType;
 import io.trino.spi.type.Type;
@@ -375,12 +375,12 @@ import static com.google.common.collect.Iterables.getOnlyElement;
 import static com.google.common.collect.Range.closedOpen;
 import static io.trino.SystemSessionProperties.getAdaptivePartialAggregationUniqueRowsRatioThreshold;
 import static io.trino.SystemSessionProperties.getAggregationOperatorUnspillMemoryLimit;
-import static io.trino.SystemSessionProperties.getCacheMaxSplitSize;
 import static io.trino.SystemSessionProperties.getDynamicRowFilterSelectivityThreshold;
 import static io.trino.SystemSessionProperties.getFilterAndProjectMinOutputPageRowCount;
 import static io.trino.SystemSessionProperties.getFilterAndProjectMinOutputPageSize;
 import static io.trino.SystemSessionProperties.getPagePartitioningBufferPoolSize;
 import static io.trino.SystemSessionProperties.getSkewedPartitionMinDataProcessedRebalanceThreshold;
+import static io.trino.SystemSessionProperties.getSubqueryCacheMaxSplitSize;
 import static io.trino.SystemSessionProperties.getTaskConcurrency;
 import static io.trino.SystemSessionProperties.getTaskMaxWriterCount;
 import static io.trino.SystemSessionProperties.getTaskMinWriterCount;
@@ -484,7 +484,7 @@ public class LocalExecutionPlanner
     private final Metadata metadata;
     private final Optional<ExplainAnalyzeContext> explainAnalyzeContext;
     private final PageSourceManager pageSourceManager;
-    private final CacheManagerRegistry cacheManagerRegistry;
+    private final SubqueryCacheManagerRegistry subqueryCacheManagerRegistry;
     private final CachePerformanceTracker cachePerformanceTracker;
     private final JsonCodec<TupleDomain> tupleDomainCodec;
     private final AlternativeChooser alternativeChooser;
@@ -574,7 +574,7 @@ public class LocalExecutionPlanner
             NullSafeHashCompiler hashCompiler,
             TableExecuteContextManager tableExecuteContextManager,
             ExchangeManagerRegistry exchangeManagerRegistry,
-            CacheManagerRegistry cacheManagerRegistry,
+            SubqueryCacheManagerRegistry subqueryCacheManagerRegistry,
             CachePerformanceTracker cachePerformanceTracker,
             JsonCodec<TupleDomain> tupleDomainCodec,
             NodeVersion version,
@@ -624,7 +624,7 @@ public class LocalExecutionPlanner
         this.hashCompiler = requireNonNull(hashCompiler, "hashCompiler is null");
         this.tableExecuteContextManager = requireNonNull(tableExecuteContextManager, "tableExecuteContextManager is null");
         this.exchangeManagerRegistry = requireNonNull(exchangeManagerRegistry, "exchangeManagerRegistry is null");
-        this.cacheManagerRegistry = requireNonNull(cacheManagerRegistry, "cacheManagerRegistry is null");
+        this.subqueryCacheManagerRegistry = requireNonNull(subqueryCacheManagerRegistry, "subqueryCacheManagerRegistry is null");
         this.cachePerformanceTracker = requireNonNull(cachePerformanceTracker, "cachePerformanceTracker is null");
         this.tupleDomainCodec = requireNonNull(tupleDomainCodec, "tupleDomainCodec is null");
         this.positionsAppenderFactory = new PositionsAppenderFactory(blockTypeOperators);
@@ -863,7 +863,7 @@ public class LocalExecutionPlanner
                         .map(cacheContext -> new CacheDriverFactory(
                                 taskContext.getSession(),
                                 pageSourceManager,
-                                cacheManagerRegistry,
+                                subqueryCacheManagerRegistry,
                                 tupleDomainCodec,
                                 cacheContext.getOriginalTableHandle(),
                                 cacheContext.getPlanSignature(),
@@ -2637,7 +2637,7 @@ public class LocalExecutionPlanner
         {
             PhysicalOperation source = node.getSource().accept(this, context);
             return new PhysicalOperation(
-                    new CacheDataOperatorFactory(context.getNextOperatorId(), node.getId(), getCacheMaxSplitSize(session).toBytes()),
+                    new CacheDataOperatorFactory(context.getNextOperatorId(), node.getId(), getSubqueryCacheMaxSplitSize(session).toBytes()),
                     source.getLayout(),
                     source);
         }

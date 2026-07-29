@@ -14,8 +14,8 @@
 package io.trino.cache;
 
 import com.google.inject.Inject;
-import io.trino.spi.cache.CacheSplitId;
-import io.trino.spi.cache.PlanSignature;
+import io.trino.spi.subquery.cache.CacheSplitId;
+import io.trino.spi.subquery.cache.PlanSignature;
 
 import java.util.LinkedHashMap;
 

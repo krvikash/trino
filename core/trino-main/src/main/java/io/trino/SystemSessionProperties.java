@@ -234,11 +234,11 @@ public final class SystemSessionProperties
     public static final String USE_SUB_PLAN_ALTERNATIVES = "use_sub_plan_alternatives";
     public static final String PUSH_FILTER_INTO_VALUES_MAX_ROW_COUNT = "push_filter_into_values_max_row_count";
     public static final String FORCE_SPILLING_JOIN = "force_spilling_join";
-    public static final String CACHE_ENABLED = "cache_enabled";
-    public static final String CACHE_AGGREGATIONS_ENABLED = "cache_aggregations_enabled";
-    public static final String CACHE_PROJECTIONS_ENABLED = "cache_projections_enabled";
-    public static final String CACHE_MAX_SPLIT_SIZE = "cache_max_split_size";
-    public static final String CACHE_DATA_REDUCTION_THRESHOLD = "cache_data_reduction_threshold";
+    public static final String SUBQUERY_CACHE_ENABLED = "subquery_cache_enabled";
+    public static final String SUBQUERY_CACHE_AGGREGATIONS_ENABLED = "subquery_cache_aggregations_enabled";
+    public static final String SUBQUERY_CACHE_PROJECTIONS_ENABLED = "subquery_cache_projections_enabled";
+    public static final String SUBQUERY_CACHE_MAX_SPLIT_SIZE = "subquery_cache_max_split_size";
+    public static final String SUBQUERY_CACHE_DATA_REDUCTION_THRESHOLD = "subquery_cache_data_reduction_threshold";
     public static final String PAGE_PARTITIONING_BUFFER_POOL_SIZE = "page_partitioning_buffer_pool_size";
     public static final String IDLE_WRITER_MIN_DATA_SIZE_THRESHOLD = "idle_writer_min_data_size_threshold";
     public static final String CLOSE_IDLE_WRITERS_TRIGGER_DURATION = "close_idle_writers_trigger_duration";
@@ -1259,7 +1259,7 @@ public final class SystemSessionProperties
                         optimizerConfig.isReuseCommonSubqueries(),
                         false),
                 booleanProperty(
-                        CACHE_ENABLED,
+                        SUBQUERY_CACHE_ENABLED,
                         "Enables subquery caching",
                         cacheConfig.isEnabled(),
                         enabled -> {
@@ -1269,25 +1269,25 @@ public final class SystemSessionProperties
                         },
                         true),
                 booleanProperty(
-                        CACHE_AGGREGATIONS_ENABLED,
+                        SUBQUERY_CACHE_AGGREGATIONS_ENABLED,
                         "Enables caching of aggregations",
                         cacheConfig.isEnabled() && cacheConfig.isCacheAggregationsEnabled(),
                         true),
                 booleanProperty(
-                        CACHE_PROJECTIONS_ENABLED,
+                        SUBQUERY_CACHE_PROJECTIONS_ENABLED,
                         "Enables caching of projections",
                         cacheConfig.isEnabled() && cacheConfig.isCacheProjectionsEnabled(),
                         true),
                 dataSizeProperty(
-                        CACHE_MAX_SPLIT_SIZE,
+                        SUBQUERY_CACHE_MAX_SPLIT_SIZE,
                         "Max size of cached split",
                         cacheConfig.getMaxSplitSize(),
                         true),
                 doubleProperty(
-                        CACHE_DATA_REDUCTION_THRESHOLD,
+                        SUBQUERY_CACHE_DATA_REDUCTION_THRESHOLD,
                         "Minimum factor of data reduction of cached split (values >1 represent data expansion)",
                         cacheConfig.getDataReductionThreshold(),
-                        value -> validateDoubleRange(value, CACHE_DATA_REDUCTION_THRESHOLD, 0.0, Double.MAX_VALUE),
+                        value -> validateDoubleRange(value, SUBQUERY_CACHE_DATA_REDUCTION_THRESHOLD, 0.0, Double.MAX_VALUE),
                         true),
                 booleanProperty(
                         ADAPTIVE_FILTER_REORDERING_ENABLED,
@@ -2328,29 +2328,29 @@ public final class SystemSessionProperties
         return session.getSystemProperty(FORCE_SPILLING_JOIN, Boolean.class);
     }
 
-    public static boolean isCacheEnabled(Session session)
+    public static boolean isSubqueryCacheEnabled(Session session)
     {
-        return session.getSystemProperty(CACHE_ENABLED, Boolean.class);
+        return session.getSystemProperty(SUBQUERY_CACHE_ENABLED, Boolean.class);
     }
 
-    public static boolean isCacheAggregationsEnabled(Session session)
+    public static boolean isSubqueryCacheAggregationsEnabled(Session session)
     {
-        return session.getSystemProperty(CACHE_AGGREGATIONS_ENABLED, Boolean.class);
+        return session.getSystemProperty(SUBQUERY_CACHE_AGGREGATIONS_ENABLED, Boolean.class);
     }
 
-    public static boolean isCacheProjectionsEnabled(Session session)
+    public static boolean isSubqueryCacheProjectionsEnabled(Session session)
     {
-        return session.getSystemProperty(CACHE_PROJECTIONS_ENABLED, Boolean.class);
+        return session.getSystemProperty(SUBQUERY_CACHE_PROJECTIONS_ENABLED, Boolean.class);
     }
 
-    public static DataSize getCacheMaxSplitSize(Session session)
+    public static DataSize getSubqueryCacheMaxSplitSize(Session session)
     {
-        return session.getSystemProperty(CACHE_MAX_SPLIT_SIZE, DataSize.class);
+        return session.getSystemProperty(SUBQUERY_CACHE_MAX_SPLIT_SIZE, DataSize.class);
     }
 
-    public static double getCacheDataReductionThreshold(Session session)
+    public static double getSubqueryCacheDataReductionThreshold(Session session)
     {
-        return session.getSystemProperty(CACHE_DATA_REDUCTION_THRESHOLD, Double.class);
+        return session.getSystemProperty(SUBQUERY_CACHE_DATA_REDUCTION_THRESHOLD, Double.class);
     }
 
     public static int getPagePartitioningBufferPoolSize(Session session)

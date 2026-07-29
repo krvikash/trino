@@ -11,7 +11,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.spi.cache;
+package io.trino.spi.subquery.cache;
 
 import io.trino.spi.connector.ConnectorPageSink;
 import io.trino.spi.connector.ConnectorPageSource;
@@ -20,7 +20,7 @@ import io.trino.spi.predicate.TupleDomain;
 import java.io.Closeable;
 import java.util.Optional;
 
-public interface CacheManager
+public interface SubqueryCacheManager
 {
     /**
      * @return {@link SplitCache} for a given {@link PlanSignature}.
@@ -30,7 +30,7 @@ public interface CacheManager
     SplitCache getSplitCache(PlanSignature signature);
 
     /**
-     * Triggers a memory revoke. {@link CacheManager} should revoke
+     * Triggers a memory revoke. {@link SubqueryCacheManager} should revoke
      * at least {@code bytesToRevoke} bytes (if it has allocated
      * that much revocable memory) before allocating new memory.
      *

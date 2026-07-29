@@ -19,11 +19,11 @@ import io.trino.connector.CatalogHandle;
 import io.trino.execution.scheduler.StableHostAddressProvider;
 import io.trino.metadata.Split;
 import io.trino.spi.HostAddress;
-import io.trino.spi.cache.CacheManager;
-import io.trino.spi.cache.CacheSplitId;
-import io.trino.spi.cache.PlanSignature;
 import io.trino.spi.connector.ConnectorSplitManager;
 import io.trino.spi.metrics.Metrics;
+import io.trino.spi.subquery.cache.CacheSplitId;
+import io.trino.spi.subquery.cache.PlanSignature;
+import io.trino.spi.subquery.cache.SubqueryCacheManager;
 import io.trino.split.SplitSource;
 
 import java.util.List;
@@ -33,11 +33,11 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.util.concurrent.Futures.transform;
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
-import static io.trino.spi.cache.PlanSignature.canonicalizePlanSignature;
+import static io.trino.spi.subquery.cache.PlanSignature.canonicalizePlanSignature;
 import static java.util.Objects.requireNonNull;
 
 /**
- * Assigns addresses provided by {@link CacheManager} to splits that
+ * Assigns addresses provided by {@link SubqueryCacheManager} to splits that
  * are to be cached.
  */
 public class CacheSplitSource

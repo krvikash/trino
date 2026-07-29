@@ -26,7 +26,6 @@ import io.trino.plugin.iceberg.CompositeIcebergSplit;
 import io.trino.plugin.iceberg.IcebergSplit;
 import io.trino.plugin.iceberg.IcebergTableHandle;
 import io.trino.plugin.iceberg.functions.tablechanges.TableChangesFunctionHandle;
-import io.trino.spi.cache.CacheSplitId;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorSplit;
@@ -36,6 +35,7 @@ import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.connector.Constraint;
 import io.trino.spi.function.table.ConnectorTableFunctionHandle;
+import io.trino.spi.subquery.cache.CacheSplitId;
 
 import java.util.Optional;
 import java.util.Set;
