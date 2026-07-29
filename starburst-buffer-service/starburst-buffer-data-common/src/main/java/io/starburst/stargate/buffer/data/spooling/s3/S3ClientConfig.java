@@ -31,6 +31,7 @@ public class S3ClientConfig
     private RetryMode retryMode = RetryMode.ADAPTIVE;
     private int maxErrorRetries = 10;
     private ChecksumAlgorithm checksumAlgorithm = ChecksumAlgorithm.CRC32_C;
+    private boolean chunkedEncodingEnabled = true;
 
     public String getS3AwsAccessKey()
     {
@@ -121,6 +122,19 @@ public class S3ClientConfig
     public S3ClientConfig setChecksumAlgorithm(ChecksumAlgorithm checksumAlgorithm)
     {
         this.checksumAlgorithm = checksumAlgorithm;
+        return this;
+    }
+
+    public boolean isChunkedEncodingEnabled()
+    {
+        return chunkedEncodingEnabled;
+    }
+
+    @Config("spooling.s3.chunked-encoding-enabled")
+    @ConfigDescription("Enable aws-chunked content encoding when uploading spooled objects; disable for S3-compatible stores that do not support it")
+    public S3ClientConfig setChunkedEncodingEnabled(boolean chunkedEncodingEnabled)
+    {
+        this.chunkedEncodingEnabled = chunkedEncodingEnabled;
         return this;
     }
 }

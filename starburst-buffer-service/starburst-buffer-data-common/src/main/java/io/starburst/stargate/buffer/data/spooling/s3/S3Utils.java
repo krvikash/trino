@@ -70,6 +70,7 @@ public class S3Utils
                 .credentialsProvider(credentialsProvider)
                 .serviceConfiguration(S3Configuration.builder()
                         .checksumValidationEnabled(false)
+                        .chunkedEncodingEnabled(s3ClientConfig.isChunkedEncodingEnabled())
                         .build())
                 .httpClient(NettyNioAsyncHttpClient.builder()
                         .putChannelOption(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT)

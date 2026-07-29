@@ -32,7 +32,8 @@ public class TestS3ClientConfig
                 .setS3Endpoint(null)
                 .setRetryMode(RetryMode.ADAPTIVE)
                 .setMaxErrorRetries(10)
-                .setChecksumAlgorithm(ChecksumAlgorithm.CRC32_C));
+                .setChecksumAlgorithm(ChecksumAlgorithm.CRC32_C)
+                .setChunkedEncodingEnabled(true));
     }
 
     @Test
@@ -46,6 +47,7 @@ public class TestS3ClientConfig
                 .put("spooling.s3.retry-mode", "STANDARD")
                 .put("spooling.s3.max-error-retries", "8")
                 .put("spooling.s3.checksum-algorithm", "SHA256")
+                .put("spooling.s3.chunked-encoding-enabled", "false")
                 .buildOrThrow();
 
         S3ClientConfig expected = new S3ClientConfig()
@@ -55,7 +57,8 @@ public class TestS3ClientConfig
                 .setS3Endpoint("endpoint")
                 .setRetryMode(RetryMode.STANDARD)
                 .setMaxErrorRetries(8)
-                .setChecksumAlgorithm(ChecksumAlgorithm.SHA256);
+                .setChecksumAlgorithm(ChecksumAlgorithm.SHA256)
+                .setChunkedEncodingEnabled(false);
 
         assertFullMapping(properties, expected);
     }
