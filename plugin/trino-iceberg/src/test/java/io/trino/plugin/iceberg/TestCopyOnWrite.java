@@ -13,7 +13,9 @@
  */
 package io.trino.plugin.iceberg;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import io.airlift.concurrent.MoreFutures;
 import io.trino.filesystem.TrinoFileSystemFactory;
 import io.trino.metastore.HiveMetastore;
 import io.trino.plugin.hive.TestingHivePlugin;
@@ -25,17 +27,29 @@ import jakarta.annotation.Nullable;
 import org.apache.iceberg.BaseTable;
 import org.apache.iceberg.FileContent;
 import org.apache.iceberg.Table;
+import org.junit.jupiter.api.RepeatedTest;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
+import java.util.stream.IntStream;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static io.airlift.concurrent.MoreFutures.tryGetFutureValue;
 import static io.trino.plugin.iceberg.IcebergTestUtils.getFileSystemFactory;
 import static io.trino.plugin.iceberg.IcebergTestUtils.getHiveMetastore;
 import static io.trino.plugin.iceberg.util.EqualityDeleteUtils.writeEqualityDeleteForTable;
+import static io.trino.testing.QueryAssertions.getTrinoExceptionCause;
+import static io.trino.testing.TestingNames.randomNameSuffix;
 import static java.lang.String.format;
+import static java.util.concurrent.Executors.newFixedThreadPool;
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
 
 final class TestCopyOnWrite
@@ -365,6 +379,131 @@ final class TestCopyOnWrite
                     .isNotEqualTo(files);
             assertThat(query("SELECT x FROM " + table.getName()))
                     .matches("VALUES 3");
+        }
+    }
+
+    @Test
+    void testCopyOnWriteWithPartitionEvolution()
+    {
+        try (TestTable table = newTrinoTable(
+                "test_copy_on_write_partition_evolution",
+                "(x int, part int) WITH (partitioning = ARRAY['part'], merge_mode = 'copy-on-write')",
+                List.of("(1, 1)", "(2, 1)"))) {
+            assertUpdate("ALTER TABLE " + table.getName() + " SET PROPERTIES partitioning = ARRAY['x']");
+            assertUpdate("INSERT INTO " + table.getName() + " VALUES (3, 2), (4, 2)", 2);
+            assertThat(getActiveFiles(table.getName())).hasSize(3);
+
+            // rewrites a file written under the old partition spec and removes a file written under the new one
+            assertUpdate("DELETE FROM " + table.getName() + " WHERE x IN (1, 3)", 2);
+            assertThat(getActiveFiles(table.getName())).hasSize(2);
+            assertThat(query("SELECT * FROM " + table.getName()))
+                    .matches("VALUES (2, 1), (4, 2)");
+
+            assertUpdate("UPDATE " + table.getName() + " SET x = x + 10", 2);
+            assertThat(getActiveFiles(table.getName())).hasSize(2);
+            assertThat(query("SELECT * FROM " + table.getName()))
+                    .matches("VALUES (12, 1), (14, 2)");
+        }
+    }
+
+    // Repeat test since the tested aspect is inherently non-deterministic.
+    @RepeatedTest(3)
+    void testConcurrentNonOverlappingUpdate()
+            throws Exception
+    {
+        int threads = 3;
+        CyclicBarrier barrier = new CyclicBarrier(threads);
+        ExecutorService executor = newFixedThreadPool(threads);
+        String tableName = "test_concurrent_non_overlapping_updates_copy_on_write_table_" + randomNameSuffix();
+
+        assertUpdate("CREATE TABLE " + tableName + " (a, part) WITH (partitioning = ARRAY['part'], merge_mode = 'copy-on-write') " +
+                "AS VALUES (1, 10), (11, 20), (21, NULL), (31, 40)", 4);
+
+        try {
+            // update data concurrently by using non-overlapping partition predicate
+            executor.invokeAll(ImmutableList.<Callable<Void>>builder()
+                            .add(() -> {
+                                barrier.await(10, SECONDS);
+                                getQueryRunner().execute("UPDATE " + tableName + " SET a = a + 1 WHERE part = 10");
+                                return null;
+                            })
+                            .add(() -> {
+                                barrier.await(10, SECONDS);
+                                getQueryRunner().execute("UPDATE " + tableName + " SET a = a + 1 WHERE part = 20");
+                                return null;
+                            })
+                            .add(() -> {
+                                barrier.await(10, SECONDS);
+                                getQueryRunner().execute("UPDATE " + tableName + " SET a = a + 1 WHERE part IS NULL");
+                                return null;
+                            })
+                            .build())
+                    .forEach(MoreFutures::getDone);
+
+            assertThat(query("SELECT * FROM " + tableName)).matches("VALUES (2, 10), (12, 20), (22, NULL), (31, 40)");
+        }
+        finally {
+            assertUpdate("DROP TABLE " + tableName);
+            executor.shutdownNow();
+            assertThat(executor.awaitTermination(10, SECONDS)).isTrue();
+        }
+    }
+
+    // Repeat test since the tested aspect is inherently non-deterministic.
+    @RepeatedTest(3)
+    void testConcurrentOverlappingUpdate()
+            throws Exception
+    {
+        int threads = 3;
+        CyclicBarrier barrier = new CyclicBarrier(threads);
+        ExecutorService executor = newFixedThreadPool(threads);
+        String tableName = "test_concurrent_overlapping_updates_copy_on_write_table_" + randomNameSuffix();
+
+        assertUpdate("CREATE TABLE " + tableName + " (a, part) WITH (partitioning = ARRAY['part'], merge_mode = 'copy-on-write') " +
+                "AS VALUES (1, 10), (11, 20), (21, NULL), (31, 40)", 4);
+
+        try {
+            List<Future<Boolean>> futures = IntStream.range(0, threads)
+                    .mapToObj(_ -> executor.submit(() -> {
+                        barrier.await(10, SECONDS);
+                        try {
+                            getQueryRunner().execute("UPDATE " + tableName + " SET a = a + 1 WHERE a > 11");
+                            return true;
+                        }
+                        catch (Exception e) {
+                            RuntimeException trinoException = getTrinoExceptionCause(e);
+                            try {
+                                assertThat(trinoException).hasMessageMatching("Failed to commit the transaction during write.*|" +
+                                        "Failed to commit during write.*");
+                            }
+                            catch (Throwable verifyFailure) {
+                                if (verifyFailure != e) {
+                                    verifyFailure.addSuppressed(e);
+                                }
+                                throw verifyFailure;
+                            }
+                            return false;
+                        }
+                    }))
+                    .collect(toImmutableList());
+
+            long successes = futures.stream()
+                    .map(future -> tryGetFutureValue(future, 10, SECONDS).orElseThrow(() -> new RuntimeException("Wait timed out")))
+                    .filter(success -> success)
+                    .count();
+
+            assertThat(successes).isGreaterThanOrEqualTo(1);
+            // There can be different possible results depending on query order execution.
+            switch ((int) successes) {
+                case 1 -> assertThat(query("SELECT * FROM " + tableName)).matches("VALUES (1, 10), (11, 20), (22, NULL), (32, 40)");
+                case 2 -> assertThat(query("SELECT * FROM " + tableName)).matches("VALUES (1, 10), (11, 20), (23, NULL), (33, 40)");
+                case 3 -> assertThat(query("SELECT * FROM " + tableName)).matches("VALUES (1, 10), (11, 20), (24, NULL), (34, 40)");
+            }
+        }
+        finally {
+            assertUpdate("DROP TABLE " + tableName);
+            executor.shutdownNow();
+            assertThat(executor.awaitTermination(10, SECONDS)).isTrue();
         }
     }
 
