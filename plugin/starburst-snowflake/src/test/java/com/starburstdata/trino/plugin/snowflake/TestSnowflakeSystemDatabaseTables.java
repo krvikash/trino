@@ -14,7 +14,7 @@ import io.trino.testing.AbstractTestQueryFramework;
 import io.trino.testing.QueryRunner;
 import org.junit.jupiter.api.Test;
 
-import static com.starburstdata.trino.plugin.snowflake.SnowflakeQueryRunner.jdbcBuilder;
+import static com.starburstdata.trino.plugin.snowflake.SnowflakeQueryRunner.parallelBuilder;
 import static org.assertj.core.api.Assertions.assertThat;
 
 final class TestSnowflakeSystemDatabaseTables
@@ -36,7 +36,7 @@ final class TestSnowflakeSystemDatabaseTables
          * GRANT USAGE ON WAREHOUSE SEP_TEST_WH TO ROLE SNOWFLAKE_READER;
          * GRANT USAGE ON WAREHOUSE TEST_WH TO ROLE SNOWFLAKE_READER;
          */
-        return jdbcBuilder()
+        return parallelBuilder()
                 .withConnectorProperties(ImmutableMap.of(
                         "snowflake.database-prefix-for-schema.enabled", "true",
                         "snowflake.role", "SNOWFLAKE_READER"))
