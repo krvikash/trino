@@ -2386,7 +2386,6 @@ public class LocalExecutionPlanner
                     if (gpuPageSourceSupport.supported() &&
                             // table scan has types supported on the GPU
                             sourceLayout.keySet().stream().map(Symbol::type).allMatch(GpuTypeConversion::isConvertible)) {
-                        // TODO (https://starburstdata.atlassian.net/browse/ENG-9785) Support Dynamic Row-Level Filter in GPU-accelerated Table Scan operator?
                         GpuOperator.SourceFactory gpuOperator = new GpuOperator.SourceFactory(
                                 context.getNextOperatorId(),
                                 sourceNode.getId(),
