@@ -26,7 +26,6 @@ import java.util.Map;
 import java.util.Optional;
 
 import static com.google.common.base.Verify.verify;
-import static com.starburstdata.trino.plugin.snowflake.SnowflakeConnectorFlavour.PARALLEL;
 import static com.starburstdata.trino.plugin.snowflake.SnowflakeServer.JDBC_URL;
 import static com.starburstdata.trino.plugin.snowflake.SnowflakeServer.PASSWORD;
 import static com.starburstdata.trino.plugin.snowflake.SnowflakeServer.ROLE;
@@ -62,8 +61,7 @@ public class SnowflakeQueryRunner
 
     public static Builder parallelBuilder()
     {
-        return new Builder(createSessionForUser(USER))
-                .withConnectorName(PARALLEL.getName());
+        return new Builder(createSessionForUser(USER));
     }
 
     public static Session createSessionForUser(String user)
@@ -84,7 +82,6 @@ public class SnowflakeQueryRunner
     public static class Builder
             extends DistributedQueryRunner.Builder<Builder>
     {
-        private String connectorName;
         private Optional<String> warehouseName = Optional.of(TEST_WAREHOUSE);
         private Optional<String> databaseName = Optional.of(TEST_DATABASE);
         private Optional<String> privateKey = Optional.empty();
@@ -99,13 +96,6 @@ public class SnowflakeQueryRunner
         protected Builder(Session defaultSession)
         {
             super(defaultSession);
-        }
-
-        @CanIgnoreReturnValue
-        public Builder withConnectorName(String connectorName)
-        {
-            this.connectorName = requireNonNull(connectorName, "connectorName is null");
-            return self();
         }
 
         @CanIgnoreReturnValue
@@ -219,7 +209,7 @@ public class SnowflakeQueryRunner
                 databaseName.ifPresent(database -> properties.put("snowflake.database", database));
 
                 queryRunner.installPlugin(new TestingSnowflakePlugin());
-                queryRunner.createCatalog(catalogName, connectorName, properties.buildOrThrow());
+                queryRunner.createCatalog(catalogName, "snowflake_parallel", properties.buildOrThrow());
 
                 copyTpchTables(queryRunner, TPCH_CATALOG, TINY_SCHEMA_NAME, session, tpchTables);
 
