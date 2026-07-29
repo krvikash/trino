@@ -318,10 +318,11 @@ public class RemoveDanglingDeleteFiles
         String referencedDataFilePath = ContentFileUtil.referencedDataFileLocation(deleteFile);
         if (referencedDataFilePath != null) {
             Long minDataFileSequenceNumber = dataFilesMinSequenceNumberMetadata.minSequenceNumberByReferencedPath().get(referencedDataFilePath);
-            if (minDataFileSequenceNumber != null) {
+            boolean dangling = minDataFileSequenceNumber == null || !(minDataFileSequenceNumber <= deleteFile.dataSequenceNumber());
+            if (!dangling) {
                 builder.trackPositionDeleteForDataFile(referencedDataFilePath, deleteFile);
             }
-            return minDataFileSequenceNumber == null || !(minDataFileSequenceNumber <= deleteFile.dataSequenceNumber());
+            return dangling;
         }
         PartitionSpec spec = icebergTable.specs().get(deleteFile.specId());
         // Non-partition scoped position delete
