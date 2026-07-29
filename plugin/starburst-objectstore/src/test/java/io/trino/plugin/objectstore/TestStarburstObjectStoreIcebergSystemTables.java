@@ -28,6 +28,7 @@ import java.util.Optional;
 import static com.google.common.base.Verify.verify;
 import static io.trino.plugin.base.util.Closables.closeAllSuppress;
 import static io.trino.plugin.iceberg.IcebergFileFormat.PARQUET;
+import static io.trino.plugin.iceberg.IcebergTestUtils.getTrinoCatalog;
 import static io.trino.plugin.objectstore.StarburstObjectStoreConnectorFactory.STARBURST_OBJECTSTORE;
 import static io.trino.plugin.objectstore.TestingObjectStoreUtils.getConnectorService;
 import static io.trino.testing.TestingSession.testSessionBuilder;
@@ -76,6 +77,7 @@ public class TestStarburstObjectStoreIcebergSystemTables
         IcebergConnector icebergConnector = (IcebergConnector) delegateConnectors.icebergConnector();
         fileSystemFactory = icebergConnector.getInjector().getInstance(TrinoFileSystemFactory.class);
         metastore = icebergConnector.getInjector().getInstance(HiveMetastoreFactory.class).createMetastore(Optional.empty());
+        catalog = getTrinoCatalog(metastore, fileSystemFactory, "iceberg");
 
         return queryRunner;
     }
