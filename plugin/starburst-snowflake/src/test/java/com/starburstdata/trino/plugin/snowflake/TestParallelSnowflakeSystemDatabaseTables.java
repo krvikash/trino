@@ -17,7 +17,7 @@ import org.junit.jupiter.api.Test;
 import static com.starburstdata.trino.plugin.snowflake.SnowflakeQueryRunner.parallelBuilder;
 import static org.assertj.core.api.Assertions.assertThat;
 
-final class TestSnowflakeSystemDatabaseTables
+final class TestParallelSnowflakeSystemDatabaseTables
         extends AbstractTestQueryFramework
 {
     @Override

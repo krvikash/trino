@@ -22,7 +22,7 @@ import static com.starburstdata.trino.plugin.snowflake.SnowflakeQueryRunner.impe
 import static com.starburstdata.trino.plugin.snowflake.SnowflakeQueryRunner.parallelBuilder;
 import static io.trino.tpch.TpchTable.ORDERS;
 
-public class TestSnowflakeDynamicFiltering
+public class TestParallelSnowflakeDynamicFiltering
         extends AbstractDynamicFilteringTest
 {
     @Override
@@ -30,17 +30,12 @@ public class TestSnowflakeDynamicFiltering
             throws Exception
     {
         TestDatabase testDatabase = closeAfterClass(SnowflakeServer.createDatabase("TEST"));
-        return createBuilder()
+        return parallelBuilder()
                 .withDatabase(Optional.of(testDatabase.getName()))
                 .withSchema(Optional.of(TEST_SCHEMA))
                 .withConnectorProperties(impersonationDisabled())
                 .withTpchTables(ImmutableList.of(ORDERS))
                 .build();
-    }
-
-    protected SnowflakeQueryRunner.Builder createBuilder()
-    {
-        return parallelBuilder();
     }
 
     // In the distributed SF connector, the page source on worker will accept and use dynamic filter

@@ -21,7 +21,7 @@ import static com.starburstdata.trino.plugin.snowflake.SnowflakeQueryRunner.para
 import static io.trino.testing.TestingNames.randomNameSuffix;
 import static java.lang.String.format;
 
-public class TestSnowflakeTableStatistics
+public class TestParallelSnowflakeTableStatistics
         extends AbstractTestQueryFramework
 {
     @Override

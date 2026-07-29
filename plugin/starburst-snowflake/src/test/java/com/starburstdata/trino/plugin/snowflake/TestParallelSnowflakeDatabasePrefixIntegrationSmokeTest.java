@@ -28,7 +28,7 @@ import static java.lang.String.format;
 import static java.util.Locale.ENGLISH;
 import static org.assertj.core.api.Assertions.assertThat;
 
-public class TestSnowflakeDatabasePrefixIntegrationSmokeTest
+public class TestParallelSnowflakeDatabasePrefixIntegrationSmokeTest
         extends AbstractTestQueryFramework
 {
     private TestDatabase testDatabase;

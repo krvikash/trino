@@ -22,7 +22,7 @@ import static com.starburstdata.trino.plugin.snowflake.SnowflakeQueryRunner.para
 import static io.trino.testing.TestingNames.randomNameSuffix;
 import static java.lang.String.format;
 
-public class TestSnowflakeTableStatisticsWithDatabasePrefix
+public class TestParallelSnowflakeTableStatisticsWithDatabasePrefix
         extends AbstractTestQueryFramework
 {
     private TestDatabase testDatabase;
