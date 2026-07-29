@@ -252,6 +252,42 @@ final class TestStorageFunctions
     }
 
     @Test
+    void testLoadJsonl()
+            throws Exception
+    {
+        Location location = Location.of("s3://test-bucket/jsonl/data.jsonl");
+        fileSystem.newOutputFile(location).createExclusive(
+                """
+                {"id": 1, "name": "alice"}
+                {"id": 2, "name": "bob"}
+                """.getBytes(UTF_8));
+
+        assertThat(query("SELECT * FROM TABLE(load('s3://test-bucket/jsonl/'))"))
+                .matches("VALUES (1, VARCHAR 'alice'), (2, VARCHAR 'bob')");
+
+        assertThat(query("SELECT * FROM TABLE(load('s3://test-bucket/jsonl/', 'JSON', DESCRIPTOR(id BIGINT, name VARCHAR)))"))
+                .matches("VALUES (BIGINT '1', VARCHAR 'alice'), (BIGINT '2', VARCHAR 'bob')");
+    }
+
+    @Test
+    void testLoadNdjson()
+            throws Exception
+    {
+        Location location = Location.of("s3://test-bucket/ndjson/data.ndjson");
+        fileSystem.newOutputFile(location).createExclusive(
+                """
+                {"id": 1, "name": "alice"}
+                {"id": 2, "name": "bob"}
+                """.getBytes(UTF_8));
+
+        assertThat(query("SELECT * FROM TABLE(load('s3://test-bucket/ndjson/'))"))
+                .matches("VALUES (1, VARCHAR 'alice'), (2, VARCHAR 'bob')");
+
+        assertThat(query("SELECT * FROM TABLE(load('s3://test-bucket/ndjson/', 'JSON', DESCRIPTOR(id BIGINT, name VARCHAR)))"))
+                .matches("VALUES (BIGINT '1', VARCHAR 'alice'), (BIGINT '2', VARCHAR 'bob')");
+    }
+
+    @Test
     void testLoadWithDescriptor()
     {
         try (TestTable table = newTrinoTable("test_descriptor", "WITH (format = 'PARQUET') AS SELECT * FROM tpch.tiny.region")) {
