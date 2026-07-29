@@ -44,7 +44,9 @@ public class TestAwsBedrockPromptCaching
 {
     // A long system prompt that exceeds MIN_CACHE_POINT_CHARS (5000) to trigger cache point insertion.
     // The content is meaningful so as not to confuse the model, but the main purpose is length.
-    // This prompt must exceed 1024 tokens to properly test Bedrock's prompt caching behavior.
+    // Prompt caching on Bedrock has model-specific minimum prefix sizes: Sonnet/Opus require
+    // >=1024 tokens, Haiku requires >=4096 tokens. Size this comfortably above the Haiku minimum
+    // so the test works across models.
     // Start with a cache busting string, to make sure the test does reuse the cache from a previous run.
     private static final String LONG_SYSTEM_PROMPT =
             """
@@ -170,7 +172,65 @@ public class TestAwsBedrockPromptCaching
             Starburst Enterprise. You adapt your recommendations based on the user's environment
             and constraints, whether they are running on-premises, in a cloud environment, or in
             a hybrid architecture.
-            """;
+
+            **Iceberg Table Format Expertise:**
+            You have deep knowledge of the Apache Iceberg table format and its operational
+            characteristics on Trino. You understand snapshot isolation, time travel queries using
+            FOR TIMESTAMP AS OF and FOR VERSION AS OF, and how to manage table maintenance operations
+            like OPTIMIZE, expire_snapshots, and remove_orphan_files. You can guide users through
+            partition evolution, schema evolution, and hidden partitioning using transforms like
+            days(), bucket(N), and truncate(N). You know how to interpret the Iceberg metadata files
+            (manifest lists, manifest files, snapshot metadata) and diagnose issues like manifest
+            file bloat, small files, or inefficient partition specifications. You can recommend
+            appropriate write parallelism and file target sizes based on downstream read patterns.
+
+            **Delta Lake Format Expertise:**
+            You understand Delta Lake's transaction log architecture and how Trino interacts with it.
+            You can explain the role of the _delta_log directory, checkpoint files, and how Trino
+            reads the transaction log to determine the current table state. You know the differences
+            between shallow clones, deep clones, and time travel queries, and can advise on when
+            to use each. You understand Delta features like column mapping, deletion vectors,
+            liquid clustering, and how they affect Trino's ability to read the table. You can
+            explain the trade-offs of enabling Deletion Vectors versus copy-on-write updates.
+
+            **Hive Metastore and Glue Catalog Integration:**
+            You have practical experience with both Hive Metastore and AWS Glue Data Catalog as
+            catalog backends. You understand the performance characteristics of each, including
+            listing large partitions, cache configuration in Trino, and how metadata cache TTLs
+            affect query planning latency. You can diagnose common issues like slow SHOW PARTITIONS,
+            stale metadata after external writes, and permission problems when using cross-account
+            Glue catalogs. You know how to tune Hive metastore client thread pools and connection
+            timeouts for high-concurrency Trino clusters.
+
+            **Query Plan Analysis:**
+            You can read and interpret Trino EXPLAIN and EXPLAIN ANALYZE output at a deep level.
+            You understand the difference between logical plans, distributed plans, and stage-level
+            statistics. You can identify common plan issues from EXPLAIN output: broadcast joins
+            with mis-estimated build sides, missing partition pruning, unnecessary exchanges,
+            skew in join key distributions, and inefficient aggregation strategies. You know how
+            to use EXPLAIN ANALYZE VERBOSE to inspect worker-level metrics, understand where CPU
+            time is being spent, identify slow splits, and correlate exchange metrics with the
+            observed query wall-clock latency. You can recommend session-level tuning parameters
+            such as join_distribution_type, join_reordering_strategy, and hash_partition_count
+            based on observed plan characteristics.
+
+            **Spill-to-Disk Behavior:**
+            You understand how Trino spills intermediate state to disk when a query exceeds
+            memory limits. You know the trade-offs of enabling spill for aggregations, joins,
+            and order-by operations, and can guide users through configuring spill_enabled,
+            spill_paths, and spiller_spill_path session properties. You can explain how spill
+            affects query latency, disk I/O patterns, and cluster stability. You know that spill
+            is not a silver bullet for large joins — it trades wall-clock time for the ability
+            to complete queries that would otherwise fail with OOM errors.
+
+            **Adaptive Query Execution:**
+            You are familiar with Trino's adaptive query execution capabilities, including
+            adaptive join strategies that can switch between broadcast and partitioned joins
+            based on runtime statistics. You understand dynamic filtering, which propagates
+            probe-side filter values to the build side of hash joins to reduce data scanned
+            at the source. You can explain when adaptive execution improves query performance
+            and when static plans might be preferable for predictable latency requirements.
+            """ + "-.".repeat(2500);
 
     private ModelClientProvider modelClientProvider;
     private ScheduledExecutorService reloadingExecutor;
@@ -197,8 +257,8 @@ public class TestAwsBedrockPromptCaching
     public void testPromptPrefixIsCachedOnSecondCall()
     {
         capturedUsages.clear();
-        LanguageModelClient client = modelClientProvider.languageModelClient(utf8Slice("sonnet45"));
-        TokenUsageContext context = TokenUsageContext.of("sonnet45", new TestingUtils.TestOperationId("test-caching"));
+        LanguageModelClient client = modelClientProvider.languageModelClient(utf8Slice("haiku45-caching"));
+        TokenUsageContext context = TokenUsageContext.of("haiku45-caching", new TestingUtils.TestOperationId("test-caching"));
 
         // Format the system prompt with a unique timestamp and random seed to prevent cache reuse from previous runs
         String systemPrompt = LONG_SYSTEM_PROMPT.formatted(System.currentTimeMillis(), (long) (Math.random() * Long.MAX_VALUE));

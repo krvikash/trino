@@ -100,6 +100,21 @@ public final class TestingUtils
                         }
                     },
                     {
+                        "id": "haiku45-caching",
+                        "modelName": "us.anthropic.claude-haiku-4-5-20251001-v1:0",
+                        "kind": "GENERATE",
+                        "temperature": 0.0,
+                        "connectionInfo": {
+                            "provider": "AWS_BEDROCK",
+                            "awsAccessKey": "${ENV:BEDROCK_ACCESS_KEY_ID}",
+                            "awsSecretKey": "${ENV:BEDROCK_SECRET_ACCESS_KEY}",
+                            "region": "us-east-1"
+                        },
+                        "traits": {
+                            "PROMPT_CACHING_SUPPORT": "PROMPT_CACHING_SUPPORTED"
+                        }
+                    },
+                    {
                         "id": "sonnet45",
                         "modelName": "us.anthropic.claude-sonnet-4-5-20250929-v1:0",
                         "kind": "GENERATE",
