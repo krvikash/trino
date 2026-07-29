@@ -55,7 +55,7 @@ public final class CacheInputFile
     {
         Optional<CacheKey> key = cacheKey();
         if (key.isPresent()) {
-            return new BlobTrinoInput(cache.get(key.orElseThrow(), source()));
+            return new BlobTrinoInput(location(), cache.get(key.orElseThrow(), source()));
         }
         return delegate.newInput();
     }

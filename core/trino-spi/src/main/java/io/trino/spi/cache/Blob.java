@@ -15,6 +15,7 @@ package io.trino.spi.cache;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 
 /**
  * Positioned reads over a cache entry's content. Implementations only ever serve exact byte
@@ -37,6 +38,20 @@ public interface Blob
      */
     void read(long position, byte[] buffer, int offset, int length)
             throws IOException;
+
+    /**
+     * Reads exactly {@code destination.remaining()} bytes at {@code position} of the entry's
+     * content into {@code destination}, with the same range semantics as
+     * {@link #read(long, byte[], int, int)}. Implementations may fill a direct buffer without
+     * an intermediate heap copy.
+     */
+    default void read(long position, ByteBuffer destination)
+            throws IOException
+    {
+        byte[] buffer = new byte[destination.remaining()];
+        read(position, buffer, 0, buffer.length);
+        destination.put(buffer);
+    }
 
     /**
      * Number of bytes this blob served from cached content so far.

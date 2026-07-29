@@ -13,7 +13,9 @@
  */
 package io.trino.plugin.hive;
 
+import com.google.common.collect.ImmutableMap;
 import io.trino.FeaturesConfig;
+import io.trino.blob.cache.alluxio.AlluxioBlobCachePlugin;
 import io.trino.testing.QueryRunner;
 
 import java.nio.file.Files;
@@ -23,7 +25,7 @@ import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.io.MoreFiles.deleteRecursively;
 import static com.google.common.io.RecursiveDeleteOption.ALLOW_INSECURE;
 
-// GPU reads served through the Alluxio filesystem cache, exercising the ByteBuffer read path.
+// GPU reads served through the Alluxio blob cache, exercising the ByteBuffer read path.
 public class TestHiveGpuCacheConnectorSmokeTest
         extends TestHiveGpuConnectorSmokeTest
 {
@@ -44,8 +46,11 @@ public class TestHiveGpuCacheConnectorSmokeTest
                 .setInitialTables(REQUIRED_TPCH_TABLES)
                 .addHiveProperty("hive.storage-format", "PARQUET")
                 .addHiveProperty("fs.cache.enabled", "true")
-                .addHiveProperty("fs.cache.directories", cacheDirectory.toAbsolutePath().toString())
-                .addHiveProperty("fs.cache.max-sizes", "100MB")
+                .withPlugin(new AlluxioBlobCachePlugin())
+                .withBlobCache("alluxio", ImmutableMap.<String, String>builder()
+                        .put("fs.cache.directories", cacheDirectory.toAbsolutePath().toString())
+                        .put("fs.cache.max-sizes", "100MB")
+                        .buildOrThrow())
                 .build();
     }
 }

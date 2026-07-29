@@ -14,12 +14,15 @@
 package io.trino.filesystem.cache;
 
 import com.google.common.collect.ImmutableMap;
+import io.trino.filesystem.Location;
 import io.trino.filesystem.TrinoInput;
 import io.trino.plugin.base.metrics.LongCount;
 import io.trino.spi.cache.Blob;
 import io.trino.spi.metrics.Metrics;
 
+import java.io.EOFException;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 
 import static java.lang.Math.min;
 import static java.lang.Math.toIntExact;
@@ -29,11 +32,13 @@ import static java.util.Objects.requireNonNull;
 final class BlobTrinoInput
         implements TrinoInput
 {
+    private final Location location;
     private final Blob blob;
     private boolean closed;
 
-    BlobTrinoInput(Blob blob)
+    BlobTrinoInput(Location location, Blob blob)
     {
+        this.location = requireNonNull(location, "location is null");
         this.blob = requireNonNull(blob, "blob is null");
     }
 
@@ -43,6 +48,22 @@ final class BlobTrinoInput
     {
         ensureOpen();
         blob.read(position, buffer, offset, length);
+    }
+
+    @Override
+    public void readFully(long position, ByteBuffer destination)
+            throws IOException
+    {
+        ensureOpen();
+        if (position < 0) {
+            throw new IOException("Negative seek offset");
+        }
+        int length = destination.remaining();
+        long blobLength = blob.length();
+        if (length > blobLength - position) {
+            throw new EOFException("Read past end of file %s: position %s, length %s, file length %s".formatted(location, position, length, blobLength));
+        }
+        blob.read(position, destination);
     }
 
     @Override
@@ -85,13 +106,13 @@ final class BlobTrinoInput
             throws IOException
     {
         if (closed) {
-            throw new IOException("Input closed: " + blob);
+            throw new IOException("Input closed: " + location);
         }
     }
 
     @Override
     public String toString()
     {
-        return blob.toString();
+        return location.toString();
     }
 }

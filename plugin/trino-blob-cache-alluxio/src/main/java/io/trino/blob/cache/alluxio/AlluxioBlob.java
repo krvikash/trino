@@ -22,6 +22,7 @@ import io.trino.spi.cache.BlobSource;
 
 import java.io.EOFException;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static java.util.Objects.checkFromIndexSize;
@@ -81,6 +82,26 @@ final class AlluxioBlob
     }
 
     @Override
+    public void read(long position, ByteBuffer destination)
+            throws IOException
+    {
+        if (position < 0) {
+            throw new IOException("Negative seek offset");
+        }
+        int bufferLength = destination.remaining();
+        if (bufferLength == 0) {
+            return;
+        }
+        if (bufferLength > length - position) {
+            throw new EOFException("Read past end of file %s: position %s, length %s, file length %s".formatted(description, position, bufferLength, length));
+        }
+
+        int bytesRead = helper.doCacheRead(position, destination);
+        cachedSize.addAndGet(bytesRead);
+        doExternalRead(position + bytesRead, destination, bufferLength - bytesRead);
+    }
+
+    @Override
     public long cachedSize()
     {
         return cachedSize.get();
@@ -105,6 +126,23 @@ final class AlluxioBlob
 
         helper.putCache(aligned.pageStart(), aligned.pageEnd(), readBuffer, aligned.length());
         System.arraycopy(readBuffer, aligned.pageOffset(), buffer, offset, bufferLength);
+        statistics.recordExternalRead(readBuffer.length);
+        loadedSize.addAndGet(readBuffer.length);
+    }
+
+    private void doExternalRead(long position, ByteBuffer destination, int bufferLength)
+            throws IOException
+    {
+        if (bufferLength == 0) {
+            return;
+        }
+
+        AlluxioInputHelper.PageAlignedRead aligned = helper.alignRead(position, bufferLength);
+        byte[] readBuffer = new byte[aligned.length()];
+        delegate.readFully(aligned.pageStart(), readBuffer, 0, readBuffer.length);
+
+        helper.putCache(aligned.pageStart(), aligned.pageEnd(), readBuffer, aligned.length());
+        destination.put(readBuffer, aligned.pageOffset(), bufferLength);
         statistics.recordExternalRead(readBuffer.length);
         loadedSize.addAndGet(readBuffer.length);
     }
