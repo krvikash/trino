@@ -58,14 +58,25 @@ public final class SpoolTestHelper
         return createS3SpoolingStorage(minioStorage, "");
     }
 
+    public static SpoolingStorage createS3SpoolingStorage(MinioStorage minioStorage, boolean chunkedEncodingEnabled)
+    {
+        return createS3SpoolingStorage(minioStorage, "", chunkedEncodingEnabled);
+    }
+
     public static SpoolingStorage createS3SpoolingStorage(MinioStorage minioStorage, String path)
+    {
+        return createS3SpoolingStorage(minioStorage, path, true);
+    }
+
+    public static SpoolingStorage createS3SpoolingStorage(MinioStorage minioStorage, String path, boolean chunkedEncodingEnabled)
     {
         try {
             S3ClientConfig s3ClientConfig = new S3ClientConfig()
                     .setS3AwsAccessKey(MinioStorage.ACCESS_KEY)
                     .setS3AwsSecretKey(MinioStorage.SECRET_KEY)
                     .setRegion("us-east-1")
-                    .setS3Endpoint("http://" + minioStorage.getMinio().getMinioApiEndpoint());
+                    .setS3Endpoint("http://" + minioStorage.getMinio().getMinioApiEndpoint())
+                    .setChunkedEncodingEnabled(chunkedEncodingEnabled);
             return new S3SpoolingStorage(
                     new BufferNodeId(0L),
                     new SpoolingDirectoryConfig().setSpoolingDirectory("s3://" + minioStorage.getBucketName() + (path.isEmpty() ? "" : "/" + path)),

@@ -10,6 +10,7 @@
 package io.starburst.stargate.buffer.data.spooling.s3;
 
 import io.starburst.stargate.buffer.data.spooling.AbstractTestSpoolingStorage;
+import io.trino.testing.containers.Minio;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 
@@ -24,9 +25,14 @@ public abstract class AbstractTestS3SpoolingStorage
     @BeforeAll
     public void init()
     {
-        minioStorage = new MinioStorage("spooling-storage-" + randomUUID());
+        minioStorage = new MinioStorage("spooling-storage-" + randomUUID(), minioImage());
         minioStorage.start();
         super.init();
+    }
+
+    protected String minioImage()
+    {
+        return Minio.DEFAULT_IMAGE;
     }
 
     @Override
