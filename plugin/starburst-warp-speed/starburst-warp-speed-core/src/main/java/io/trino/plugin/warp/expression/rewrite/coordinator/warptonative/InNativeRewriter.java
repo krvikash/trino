@@ -124,6 +124,7 @@ class InNativeRewriter
                             return Optional.of(EQUAL_FUNCTION.apply(type, value));
                         };
                         domainType = castType;
+                        functionParams = nativeExpressionBuilder.getFunctionParams();
                     }
                 }
                 else {
