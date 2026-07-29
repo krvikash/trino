@@ -11,7 +11,6 @@ package com.starburstdata.trino.plugin.snowflake.faulttolerant;
 
 import com.google.common.io.Closer;
 import com.google.inject.Module;
-import com.starburstdata.trino.plugin.snowflake.SnowflakeQueryRunner;
 import com.starburstdata.trino.plugin.snowflake.SnowflakeServer;
 import com.starburstdata.trino.plugin.snowflake.TestDatabase;
 import io.trino.Session;
@@ -30,7 +29,7 @@ import java.util.Optional;
 
 import static com.starburstdata.trino.plugin.snowflake.SnowflakeQueryRunner.TEST_SCHEMA;
 import static com.starburstdata.trino.plugin.snowflake.SnowflakeQueryRunner.impersonationDisabled;
-import static com.starburstdata.trino.plugin.snowflake.SnowflakeQueryRunner.jdbcBuilder;
+import static com.starburstdata.trino.plugin.snowflake.SnowflakeQueryRunner.parallelBuilder;
 
 public abstract class BaseSnowflakeFailureRecoveryTest
         extends BaseJdbcFailureRecoveryTest
@@ -57,7 +56,7 @@ public abstract class BaseSnowflakeFailureRecoveryTest
         closer = Closer.create();
         TestDatabase testDB = closer.register(SnowflakeServer.createTestDatabase());
         snowflakeExecutor = sql -> SnowflakeServer.safeExecuteOnDatabase(testDB.getName(), sql);
-        return getBuilder()
+        return parallelBuilder()
                 .addExtraProperties(configProperties)
                 .withConnectorProperties(impersonationDisabled())
                 .withDatabase(Optional.of(testDB.getName()))
@@ -67,11 +66,6 @@ public abstract class BaseSnowflakeFailureRecoveryTest
                 .setAdditionalModule(failureInjectionModule)
                 .withExchange("filesystem")
                 .build();
-    }
-
-    protected SnowflakeQueryRunner.Builder getBuilder()
-    {
-        return jdbcBuilder();
     }
 
     @Test

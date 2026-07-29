@@ -18,7 +18,7 @@ import java.util.Optional;
 
 import static com.starburstdata.trino.plugin.snowflake.SnowflakeQueryRunner.TEST_SCHEMA;
 import static com.starburstdata.trino.plugin.snowflake.SnowflakeQueryRunner.impersonationDisabled;
-import static com.starburstdata.trino.plugin.snowflake.SnowflakeQueryRunner.jdbcBuilder;
+import static com.starburstdata.trino.plugin.snowflake.SnowflakeQueryRunner.parallelBuilder;
 import static io.trino.testing.TestingNames.randomNameSuffix;
 import static java.lang.String.format;
 
@@ -33,17 +33,12 @@ public class TestSnowflakeTableStatisticsWithDatabasePrefix
     {
         testDatabase = closeAfterClass(SnowflakeServer.createTestDatabase());
         SnowflakeServer.createSchema(testDatabase.getName(), TEST_SCHEMA);
-        return createBuilder()
+        return parallelBuilder()
                 .withConnectorProperties(impersonationDisabled())
                 .withSchema(Optional.of(TEST_SCHEMA))
                 .withConnectorProperties(ImmutableMap.of(
                         "snowflake.database-prefix-for-schema.enabled", "true"))
                 .build();
-    }
-
-    protected SnowflakeQueryRunner.Builder createBuilder()
-    {
-        return jdbcBuilder();
     }
 
     @Test

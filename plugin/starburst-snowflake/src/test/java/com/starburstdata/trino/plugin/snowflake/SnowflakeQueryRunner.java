@@ -26,7 +26,6 @@ import java.util.Map;
 import java.util.Optional;
 
 import static com.google.common.base.Verify.verify;
-import static com.starburstdata.trino.plugin.snowflake.SnowflakeConnectorFlavour.DEPRECATED_JDBC;
 import static com.starburstdata.trino.plugin.snowflake.SnowflakeConnectorFlavour.PARALLEL;
 import static com.starburstdata.trino.plugin.snowflake.SnowflakeServer.JDBC_URL;
 import static com.starburstdata.trino.plugin.snowflake.SnowflakeServer.PASSWORD;
@@ -59,12 +58,6 @@ public class SnowflakeQueryRunner
     {
         return ImmutableMap.of(
                 "snowflake.role", ROLE);
-    }
-
-    public static Builder jdbcBuilder()
-    {
-        return new Builder(createSessionForUser(USER))
-                .withConnectorName(DEPRECATED_JDBC.getName());
     }
 
     public static Builder parallelBuilder()
@@ -248,7 +241,7 @@ public class SnowflakeQueryRunner
     {
         Logging.initialize();
 
-        DistributedQueryRunner queryRunner = jdbcBuilder()
+        DistributedQueryRunner queryRunner = parallelBuilder()
                 .withConnectorProperties(ImmutableMap.<String, String>builder()
                         .putAll(impersonationDisabled())
                         .buildOrThrow())

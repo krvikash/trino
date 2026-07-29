@@ -9,10 +9,7 @@
  */
 package com.starburstdata.trino.plugin.snowflake.faulttolerant;
 
-import com.starburstdata.trino.plugin.snowflake.SnowflakeQueryRunner;
 import io.trino.operator.RetryPolicy;
-
-import static com.starburstdata.trino.plugin.snowflake.SnowflakeQueryRunner.parallelBuilder;
 
 public class TestParallelSnowflakeTaskFailureRecoveryTest
         extends BaseSnowflakeFailureRecoveryTest
@@ -20,11 +17,5 @@ public class TestParallelSnowflakeTaskFailureRecoveryTest
     public TestParallelSnowflakeTaskFailureRecoveryTest()
     {
         super(RetryPolicy.TASK);
-    }
-
-    @Override
-    protected SnowflakeQueryRunner.Builder getBuilder()
-    {
-        return parallelBuilder();
     }
 }

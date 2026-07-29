@@ -17,7 +17,7 @@ import java.util.Optional;
 
 import static com.starburstdata.trino.plugin.snowflake.SnowflakeQueryRunner.TEST_SCHEMA;
 import static com.starburstdata.trino.plugin.snowflake.SnowflakeQueryRunner.impersonationDisabled;
-import static com.starburstdata.trino.plugin.snowflake.SnowflakeQueryRunner.jdbcBuilder;
+import static com.starburstdata.trino.plugin.snowflake.SnowflakeQueryRunner.parallelBuilder;
 import static io.trino.testing.TestingNames.randomNameSuffix;
 import static java.lang.String.format;
 
@@ -29,16 +29,11 @@ public class TestSnowflakeTableStatistics
             throws Exception
     {
         TestDatabase testDatabase = closeAfterClass(SnowflakeServer.createTestDatabase());
-        return createBuilder()
+        return parallelBuilder()
                 .withConnectorProperties(impersonationDisabled())
                 .withDatabase(Optional.of(testDatabase.getName()))
                 .withSchema(Optional.of(TEST_SCHEMA))
                 .build();
-    }
-
-    protected SnowflakeQueryRunner.Builder createBuilder()
-    {
-        return jdbcBuilder();
     }
 
     @Test

@@ -19,7 +19,7 @@ import io.trino.testing.sql.SqlExecutor;
 import io.trino.testing.sql.TestTable;
 import org.junit.jupiter.api.Test;
 
-import static com.starburstdata.trino.plugin.snowflake.SnowflakeQueryRunner.jdbcBuilder;
+import static com.starburstdata.trino.plugin.snowflake.SnowflakeQueryRunner.parallelBuilder;
 import static com.starburstdata.trino.plugin.snowflake.jdbc.SnowflakeClient.DATABASE_SEPARATOR;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.testing.QueryAssertions.assertContains;
@@ -47,16 +47,11 @@ public class TestSnowflakeDatabasePrefixIntegrationSmokeTest
         normalizedDatabaseName = testDatabase.getName().toLowerCase(ENGLISH);
         normalizedDatabaseName2 = testDatabase2.getName().toLowerCase(ENGLISH);
 
-        return createBuilder()
+        return parallelBuilder()
                 .withConnectorProperties(ImmutableMap.of(
                         "snowflake.database-prefix-for-schema.enabled", "true",
                         "snowflake.role", "test_role"))
                 .build();
-    }
-
-    protected SnowflakeQueryRunner.Builder createBuilder()
-    {
-        return jdbcBuilder();
     }
 
     @Test
