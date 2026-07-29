@@ -10,14 +10,9 @@
 package com.starburstdata.trino.plugin.snowflake;
 
 import com.google.common.collect.ImmutableList;
-import com.starburstdata.trino.plugin.snowflake.jdbc.SnowflakeJdbcClientModule;
 import com.starburstdata.trino.plugin.snowflake.parallel.SnowflakeParallelConnectorFactory;
-import io.trino.plugin.jdbc.JdbcConnectorFactory;
 import io.trino.spi.Plugin;
 import io.trino.spi.connector.ConnectorFactory;
-
-import static com.starburstdata.trino.plugin.snowflake.SnowflakeConnectorFlavour.DEPRECATED_JDBC;
-import static com.starburstdata.trino.plugin.snowflake.SnowflakeConnectorFlavour.PARALLEL;
 
 public class SnowflakePlugin
         implements Plugin
@@ -25,11 +20,6 @@ public class SnowflakePlugin
     @Override
     public Iterable<ConnectorFactory> getConnectorFactories()
     {
-        return ImmutableList.of(
-                new JdbcConnectorFactory(
-                        DEPRECATED_JDBC.getName(),
-                        () -> new SnowflakeJdbcClientModule(DEPRECATED_JDBC)),
-                new RemovedSnowflakeJdbcConnectorFactory(),
-                new SnowflakeParallelConnectorFactory(PARALLEL.getName()));
+        return ImmutableList.of(new SnowflakeParallelConnectorFactory());
     }
 }

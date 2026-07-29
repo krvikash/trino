@@ -21,16 +21,9 @@ import net.snowflake.client.jdbc.SnowflakeDriver;
 
 import java.util.Properties;
 
-import static com.starburstdata.trino.plugin.snowflake.SnowflakeConnectorFlavour.PARALLEL;
-
 public class SnowflakeJdbcOverrideModule
         extends SnowflakeJdbcClientModule
 {
-    public SnowflakeJdbcOverrideModule()
-    {
-        super(PARALLEL);
-    }
-
     @Override
     protected ConnectionFactory getDriverConnectionFactory(
             BaseJdbcConfig config,

@@ -25,17 +25,10 @@ import static java.util.Objects.requireNonNull;
 public class SnowflakeParallelConnectorFactory
         implements ConnectorFactory
 {
-    private final String name;
-
-    public SnowflakeParallelConnectorFactory(String name)
-    {
-        this.name = requireNonNull(name, "name is null");
-    }
-
     @Override
     public String getName()
     {
-        return name;
+        return "snowflake_parallel";
     }
 
     @Override

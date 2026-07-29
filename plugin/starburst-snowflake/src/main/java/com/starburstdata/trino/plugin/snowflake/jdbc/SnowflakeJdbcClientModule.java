@@ -19,7 +19,6 @@ import com.google.inject.Singleton;
 import com.google.inject.multibindings.ProvidesIntoOptional;
 import com.starburstdata.trino.plugin.jdbc.JdbcConnectionPoolConfig;
 import com.starburstdata.trino.plugin.snowflake.SnowflakeConfig;
-import com.starburstdata.trino.plugin.snowflake.SnowflakeConnectorFlavour;
 import com.starburstdata.trino.plugin.snowflake.SnowflakeCredentialConfig;
 import com.starburstdata.trino.plugin.snowflake.SnowflakeProxyConfig;
 import com.starburstdata.trino.plugin.snowflake.SnowflakeSessionProperties;
@@ -28,7 +27,6 @@ import io.airlift.configuration.ConfigBinder;
 import io.trino.plugin.base.cache.identity.IdentityCacheMapping;
 import io.trino.plugin.base.cache.identity.SingletonIdentityCacheMapping;
 import io.trino.plugin.base.jmx.ConnectorObjectNameGeneratorModule;
-import io.trino.plugin.base.mapping.IdentifierMapping;
 import io.trino.plugin.jdbc.BaseJdbcConfig;
 import io.trino.plugin.jdbc.ConnectionFactory;
 import io.trino.plugin.jdbc.ForBaseJdbc;
@@ -40,11 +38,9 @@ import io.trino.plugin.jdbc.QueryBuilder;
 import io.trino.plugin.jdbc.credential.CredentialPropertiesProvider;
 import io.trino.plugin.jdbc.credential.CredentialProvider;
 import io.trino.plugin.jdbc.credential.CredentialProviderModule;
-import io.trino.plugin.jdbc.logging.RemoteQueryModifier;
 import io.trino.plugin.jdbc.ptf.Query;
 import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.function.table.ConnectorTableFunction;
-import io.trino.spi.type.TypeManager;
 import net.snowflake.client.jdbc.SnowflakeDriver;
 
 import java.lang.annotation.Retention;
@@ -74,15 +70,6 @@ import static java.util.stream.Collectors.toSet;
 public class SnowflakeJdbcClientModule
         extends AbstractConfigurationAwareModule
 {
-    // TODO If any module setup is needed by the JDBC client and needs to be disabled in the distributed connector,
-    //  move all shared module configuration to a separate module and remove this field.
-    private final SnowflakeConnectorFlavour connectorFlavour;
-
-    public SnowflakeJdbcClientModule(SnowflakeConnectorFlavour connectorFlavour)
-    {
-        this.connectorFlavour = connectorFlavour;
-    }
-
     @Override
     protected void setup(Binder binder)
     {
@@ -136,21 +123,7 @@ public class SnowflakeJdbcClientModule
         }
 
         newSetBinder(binder, ConnectorTableFunction.class).addBinding().toProvider(Query.class).in(SINGLETON);
-    }
-
-    @Provides
-    @Singleton
-    public SnowflakeClient getSnowflakeClient(
-            BaseJdbcConfig config,
-            SnowflakeConfig snowflakeConfig,
-            JdbcStatisticsConfig statisticsConfig,
-            ConnectionFactory connectionFactory,
-            QueryBuilder queryBuilder,
-            TypeManager typeManager,
-            IdentifierMapping identifierMapping,
-            RemoteQueryModifier queryModifier)
-    {
-        return new SnowflakeClient(config, snowflakeConfig, statisticsConfig, connectionFactory, connectorFlavour, queryBuilder, typeManager, identifierMapping, queryModifier);
+        binder.bind(SnowflakeClient.class).in(SINGLETON);
     }
 
     @ProvidesIntoOptional(ProvidesIntoOptional.Type.ACTUAL)

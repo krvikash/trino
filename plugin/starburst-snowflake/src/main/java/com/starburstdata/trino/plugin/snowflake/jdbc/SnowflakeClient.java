@@ -13,8 +13,8 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.io.Closer;
+import com.google.inject.Inject;
 import com.starburstdata.trino.plugin.snowflake.SnowflakeConfig;
-import com.starburstdata.trino.plugin.snowflake.SnowflakeConnectorFlavour;
 import com.starburstdata.trino.plugin.snowflake.SnowflakeSessionProperties;
 import io.trino.plugin.base.aggregation.AggregateFunctionRewriter;
 import io.trino.plugin.base.aggregation.AggregateFunctionRule;
@@ -131,7 +131,6 @@ import static com.google.common.base.Throwables.getRootCause;
 import static com.google.common.base.Throwables.throwIfInstanceOf;
 import static com.google.common.base.Verify.verify;
 import static com.google.common.collect.ImmutableList.toImmutableList;
-import static com.starburstdata.trino.plugin.snowflake.SnowflakeConnectorFlavour.DEPRECATED_JDBC;
 import static com.starburstdata.trino.plugin.snowflake.jdbc.DatabaseSchemaName.parseDatabaseSchemaName;
 import static io.airlift.slice.Slices.utf8Slice;
 import static io.trino.plugin.jdbc.JdbcErrorCode.JDBC_ERROR;
@@ -238,16 +237,15 @@ public class SnowflakeClient
     private final AggregateFunctionRewriter<JdbcExpression, ?> aggregateFunctionRewriter;
     private final Type jsonType;
     private final boolean statisticsEnabled;
-    private final SnowflakeConnectorFlavour connectorFlavour;
     private final boolean databasePrefixForSchemaEnabled;
     private final boolean collationCorrectionEnabled;
 
+    @Inject
     public SnowflakeClient(
             BaseJdbcConfig config,
             SnowflakeConfig snowflakeConfig,
             JdbcStatisticsConfig statisticsConfig,
             ConnectionFactory connectionFactory,
-            SnowflakeConnectorFlavour connectorFlavour,
             QueryBuilder queryBuilder,
             TypeManager typeManager,
             IdentifierMapping identifierMapping,
@@ -256,7 +254,6 @@ public class SnowflakeClient
         super(IDENTIFIER_QUOTE, connectionFactory, queryBuilder, config.getJdbcTypesMappedToVarchar(), identifierMapping, queryModifier, true);
         this.jsonType = typeManager.getType(new TypeDescriptor(JSON));
         this.statisticsEnabled = requireNonNull(statisticsConfig, "statisticsConfig is null").isEnabled();
-        this.connectorFlavour = connectorFlavour;
         this.databasePrefixForSchemaEnabled = requireNonNull(snowflakeConfig, "snowflakeConfig is null").getDatabasePrefixForSchemaEnabled();
         this.collationCorrectionEnabled = snowflakeConfig.isCollationCorrectionEnabled();
         Predicate<ConnectorSession> experimentalPushdownEnabled = SnowflakeSessionProperties::getExperimentalPushdownEnabled;
@@ -576,7 +573,7 @@ public class SnowflakeClient
     public boolean isTopNGuaranteed(ConnectorSession session)
     {
         // The data returned conforms to TopN requirements, but can be returned out of order
-        return connectorFlavour == DEPRECATED_JDBC;
+        return false;
     }
 
     @Override
