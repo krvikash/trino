@@ -35,9 +35,16 @@ public class MinioStorage
 
     public MinioStorage(String bucketName)
     {
+        this(bucketName, Minio.DEFAULT_IMAGE);
+    }
+
+    public MinioStorage(String bucketName, String image)
+    {
         this.bucketName = requireNonNull(bucketName, "bucketName is null");
+        requireNonNull(image, "image is null");
         this.network = newNetwork();
         this.minio = Minio.builder()
+                .withImage(image)
                 .withNetwork(network)
                 .withEnvVars(ImmutableMap.<String, String>builder()
                         .put("MINIO_ACCESS_KEY", ACCESS_KEY)
