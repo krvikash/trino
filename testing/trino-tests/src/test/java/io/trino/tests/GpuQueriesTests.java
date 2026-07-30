@@ -34,13 +34,11 @@ import java.lang.reflect.Method;
 import java.nio.file.Path;
 import java.util.Set;
 import java.util.function.Predicate;
-import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import static com.google.common.base.Verify.verify;
 import static io.trino.SystemSessionProperties.GPU_EXECUTION_ENABLED;
 import static io.trino.sql.query.QueryAssertions.QueryAssert.collectGpuPlanNodes;
-import static java.lang.String.format;
 import static java.nio.file.Files.createDirectories;
 import static java.nio.file.Files.isDirectory;
 import static java.nio.file.Files.writeString;
@@ -49,13 +47,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 public final class GpuQueriesTests
 {
     private GpuQueriesTests() {}
-
-    public static Stream<String> getTpchQueries()
-    {
-        return IntStream.rangeClosed(1, 22)
-                .boxed()
-                .map(queryNumber -> format("q%02d", queryNumber));
-    }
 
     static void assertGpuQueryResultsAndOperators(QueryRunner runner, @Language("SQL") String sql, String expectedGpuPlanCoverage)
     {

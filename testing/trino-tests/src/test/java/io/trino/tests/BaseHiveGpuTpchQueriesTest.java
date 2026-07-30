@@ -18,6 +18,7 @@ import io.airlift.log.Logger;
 import io.trino.plugin.hive.HiveQueryRunner;
 import io.trino.plugin.tpch.DecimalTypeMapping;
 import io.trino.testing.QueryRunner;
+import io.trino.tests.benchmark.Tpch;
 import io.trino.tpch.TpchTable;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -28,7 +29,6 @@ import java.util.stream.Stream;
 import static com.google.common.io.Resources.getResource;
 import static io.trino.plugin.base.util.Closables.closeAllSuppress;
 import static io.trino.tests.GpuQueriesTests.assertGpuQueryResultsAndOperators;
-import static io.trino.tests.GpuQueriesTests.getTpchQueries;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 public abstract class BaseHiveGpuTpchQueriesTest
@@ -85,20 +85,13 @@ public abstract class BaseHiveGpuTpchQueriesTest
     @Override
     final Stream<String> queries()
     {
-        return getTpchQueries();
+        return Tpch.allQueries().stream();
     }
 
     @Override
     final String readQuery(String query)
-            throws IOException
     {
-        return Resources.toString(getResource("sql/trino/tpch/%s.sql".formatted(query)), UTF_8)
-                .replace("${database}", "hive")
-                .replace("${schema}", "tpch")
-                .replace("${prefix}", "")
-                .replace("${scale}", String.valueOf(SCALE_FACTOR))
-                .trim()
-                .replaceFirst(";$", "");
+        return Tpch.readQuery(query, "hive", "tpch", SCALE_FACTOR);
     }
 
     private String readExpectedGpuPlanCoverage(String query)
