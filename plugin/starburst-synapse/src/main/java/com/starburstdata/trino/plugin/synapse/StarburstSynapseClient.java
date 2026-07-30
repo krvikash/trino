@@ -20,9 +20,12 @@ import io.trino.plugin.jdbc.CaseSensitivity;
 import io.trino.plugin.jdbc.ColumnMapping;
 import io.trino.plugin.jdbc.ConnectionFactory;
 import io.trino.plugin.jdbc.JdbcExpression;
+import io.trino.plugin.jdbc.JdbcJoinCondition;
 import io.trino.plugin.jdbc.JdbcStatisticsConfig;
 import io.trino.plugin.jdbc.JdbcTypeHandle;
 import io.trino.plugin.jdbc.LongWriteFunction;
+import io.trino.plugin.jdbc.PredicatePushdownController;
+import io.trino.plugin.jdbc.PredicatePushdownController.DomainPushdownResult;
 import io.trino.plugin.jdbc.QueryBuilder;
 import io.trino.plugin.jdbc.RemoteTableName;
 import io.trino.plugin.jdbc.WriteMapping;
@@ -51,6 +54,7 @@ import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.expression.ConnectorExpression;
+import io.trino.spi.predicate.Domain;
 import io.trino.spi.type.CharType;
 import io.trino.spi.type.DecimalType;
 import io.trino.spi.type.TimeType;
@@ -75,14 +79,20 @@ import static com.google.common.base.Verify.verify;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static io.trino.plugin.jdbc.CaseSensitivity.CASE_INSENSITIVE;
 import static io.trino.plugin.jdbc.CaseSensitivity.CASE_SENSITIVE;
+import static io.trino.plugin.jdbc.JdbcMetadataSessionProperties.getDomainCompactionThreshold;
+import static io.trino.plugin.jdbc.PredicatePushdownController.DISABLE_PUSHDOWN;
+import static io.trino.plugin.jdbc.PredicatePushdownController.FULL_PUSHDOWN;
 import static io.trino.plugin.jdbc.StandardColumnMappings.charWriteFunction;
 import static io.trino.plugin.jdbc.StandardColumnMappings.fromTrinoTime;
 import static io.trino.plugin.jdbc.StandardColumnMappings.timeReadFunction;
+import static io.trino.plugin.jdbc.StandardColumnMappings.varcharReadFunction;
 import static io.trino.plugin.jdbc.StandardColumnMappings.varcharWriteFunction;
 import static io.trino.spi.StandardErrorCode.NOT_SUPPORTED;
 import static io.trino.spi.type.TimeType.createTimeType;
 import static io.trino.spi.type.Timestamps.PICOSECONDS_PER_DAY;
 import static io.trino.spi.type.Timestamps.round;
+import static io.trino.spi.type.VarcharType.createUnboundedVarcharType;
+import static io.trino.spi.type.VarcharType.createVarcharType;
 import static java.lang.Math.min;
 import static java.lang.String.format;
 import static java.util.stream.Collectors.joining;
@@ -95,6 +105,22 @@ public class StarburstSynapseClient
     private static final int MAX_VARBINARY_LENGTH = 8000;
 
     private static final int MAX_SUPPORTED_TEMPORAL_PRECISION = 7;
+
+    // CS and BIN collations use PAD SPACE on Synapse. StarburstSynapseQueryBuilder adds a DATALENGTH guard
+    // on equality/IN predicates for NVARCHAR, making the pushdown exact — no Trino re-check needed.
+    private static final PredicatePushdownController EXACT_VARCHAR_PUSHDOWN = (session, domain) -> {
+        if (domain.isOnlyNull()) {
+            return FULL_PUSHDOWN.apply(session, domain);
+        }
+        if (!domain.getValues().isDiscreteSet()) {
+            return DISABLE_PUSHDOWN.apply(session, domain);
+        }
+        Domain simplifiedDomain = domain.simplify(getDomainCompactionThreshold(session));
+        if (!simplifiedDomain.getValues().isDiscreteSet()) {
+            return DISABLE_PUSHDOWN.apply(session, domain);
+        }
+        return new DomainPushdownResult(simplifiedDomain, Domain.all(domain.getType()));
+    };
 
     private final ConnectorExpressionRewriter<ParameterizedExpression> connectorExpressionRewriter;
     private final AggregateFunctionRewriter<JdbcExpression, ?> aggregateFunctionRewriter;
@@ -213,9 +239,23 @@ public class StarburstSynapseClient
             }
             // Synapse does not support text and ntext data types
             case Types.LONGVARCHAR, Types.LONGNVARCHAR -> Optional.empty();
-            default -> null;
+            // Synapse PAD SPACE makes 'abc' = 'abc ' remotely. StarburstSynapseQueryBuilder adds a DATALENGTH
+            // guard to equality/IN, making pushdown exact for NVARCHAR. VARCHAR excluded: the JDBC driver sends
+            // parameters as Unicode (2 bytes/char) but VARCHAR stores Latin-1 (1 byte/char), so DATALENGTH fails.
+            case Types.NVARCHAR -> {
+                CaseSensitivity cs = typeHandle.caseSensitivity().orElse(CASE_INSENSITIVE);
+                if (cs == CASE_SENSITIVE) {
+                    int varcharLength = typeHandle.requiredColumnSize();
+                    VarcharType varcharType = varcharLength <= VarcharType.MAX_LENGTH
+                            ? createVarcharType(varcharLength)
+                            : createUnboundedVarcharType();
+                    yield Optional.of(ColumnMapping.sliceMapping(varcharType, varcharReadFunction(varcharType), varcharWriteFunction(), EXACT_VARCHAR_PUSHDOWN));
+                }
+                yield Optional.empty();
+            }
+            default -> Optional.empty();
         };
-        if (mapping != null) {
+        if (mapping.isPresent()) {
             return mapping;
         }
 
@@ -343,6 +383,19 @@ public class StarburstSynapseClient
                             rowView -> rowView.getColumn("column_name", String.class),
                             rowView -> getCaseSensitivityForCollation(rowView.getColumn("collation_name", String.class))));
         }
+    }
+
+    @Override
+    protected boolean isSupportedJoinCondition(ConnectorSession session, JdbcJoinCondition joinCondition)
+    {
+        // DATALENGTH guards cannot be added to join conditions; disable join pushdown for CS/BIN NVARCHAR
+        // to avoid PAD SPACE false positives ('abc' = 'abc ' in a JOIN ON).
+        if (Stream.of(joinCondition.getLeftColumn(), joinCondition.getRightColumn())
+                .anyMatch(column -> column.getJdbcTypeHandle().jdbcType() == Types.NVARCHAR
+                        && column.getJdbcTypeHandle().caseSensitivity().orElse(CASE_INSENSITIVE) == CASE_SENSITIVE)) {
+            return false;
+        }
+        return super.isSupportedJoinCondition(session, joinCondition);
     }
 
     private static CaseSensitivity getCaseSensitivityForCollation(String collation)

@@ -31,6 +31,7 @@ import io.trino.plugin.jdbc.JdbcPageSourceProvider;
 import io.trino.plugin.jdbc.JdbcSplitManager;
 import io.trino.plugin.jdbc.JdbcStatisticsConfig;
 import io.trino.plugin.jdbc.MaxDomainCompactionThreshold;
+import io.trino.plugin.jdbc.QueryBuilder;
 import io.trino.plugin.jdbc.credential.CredentialProvider;
 import io.trino.plugin.jdbc.ptf.Query;
 import io.trino.plugin.sqlserver.SqlServerConfig;
@@ -65,6 +66,7 @@ public class StarburstSynapseModule
         configBinder(binder).bindConfigDefaults(SqlServerConfig.class, config -> config.setSnapshotIsolationDisabled(true));
         configBinder(binder).bindConfig(JdbcStatisticsConfig.class);
         newOptionalBinder(binder, Key.get(int.class, MaxDomainCompactionThreshold.class)).setBinding().toInstance(SQL_SERVER_MAX_LIST_EXPRESSIONS);
+        newOptionalBinder(binder, QueryBuilder.class).setBinding().to(StarburstSynapseQueryBuilder.class).in(Scopes.SINGLETON);
 
         install(new JdbcJoinPushdownSupportModule());
 
