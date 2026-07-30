@@ -376,7 +376,15 @@ class VariableRewriter
             nativeExpressionBuilder.transformedColumn(TransformFunction.DATE);
             supported = true;
         }
-        else {
+        else if (nativeExpressionBuilder.getFunctionType() == null &&
+                ((columnType instanceof TimestampType timestampType && timestampType.isShort() && isDateType(castToType)) ||
+                        isNumericCastSupported(columnType, castToType))) {
+            // native only has FUNCTION_TYPE_CAST fillers for these (source, target) pairs - see
+            // predicate_match_provider.c. Everything else falls back to Trino's own filtering.
+            //
+            // functionType == null guards against overwriting an enclosing function rewrite (e.g.
+            // day(CAST(ts AS date)), delegated here by FunctionsWithCastRewriter) with a plain CAST,
+            // which would drop the function and compare the wrong values.
             int recTypeLength = TypeUtils.getTypeLength(castToType, storageEngineConstants.getVarcharMaxLen());
             RecTypeCode recTypeCode = TypeUtils.convertToRecTypeCode(castToType, recTypeLength, storageEngineConstants.getFixedLengthStringLimit());
             nativeExpressionBuilder.functionParams(List.of(recTypeCode.ordinal())).functionType(FunctionType.FUNCTION_TYPE_CAST);
@@ -386,6 +394,30 @@ class VariableRewriter
             pushdownPredicatesStats.incunsupported_functions_native();
         }
         return supported;
+    }
+
+    private static boolean isNumericFamilyType(Type type)
+    {
+        return isTinyIntType(type) || isSmallIntType(type) || isIntegerType(type) || isBigIntegerType(type) ||
+                isRealType(type) || isDoubleType(type);
+    }
+
+    /**
+     * Native compares numeric CASTs in double space (cast_numeric_narrow_to_target() in
+     * predicate_match_internal.h), which loses precision past 2^53 and can drop matching rows on a
+     * strict bound. A bigint target is therefore only pushed down from a source that can't exceed
+     * 2^31, keeping it exact; every other numeric pair is already exact (bigint -&gt; double, and
+     * bigint -&gt; real via a direct int-to-float conversion, see buf2value_signed_int_as_cast_source()).
+     */
+    private static boolean isNumericCastSupported(Type columnType, Type castToType)
+    {
+        if (!isNumericFamilyType(columnType) || !isNumericFamilyType(castToType)) {
+            return false;
+        }
+        if (isBigIntegerType(castToType)) {
+            return isTinyIntType(columnType) || isSmallIntType(columnType) || isIntegerType(columnType);
+        }
+        return true;
     }
 
     boolean isNan(WarpExpression warpExpression, RewriteContext rewriteContext)

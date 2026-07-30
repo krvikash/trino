@@ -39,10 +39,15 @@ import io.trino.spi.expression.Variable;
 import io.trino.spi.predicate.Domain;
 import io.trino.spi.predicate.Range;
 import io.trino.spi.predicate.ValueSet;
+import io.trino.spi.type.BigintType;
+import io.trino.spi.type.BooleanType;
+import io.trino.spi.type.DateType;
 import io.trino.spi.type.DoubleType;
 import io.trino.spi.type.IntegerType;
 import io.trino.spi.type.MapType;
 import io.trino.spi.type.RealType;
+import io.trino.spi.type.TimestampType;
+import io.trino.spi.type.TimestampWithTimeZoneType;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.TypeOperators;
 import io.trino.spi.type.VarcharType;
@@ -84,6 +89,11 @@ class NativeExpressionRulesHandlerTest
     private final Variable doubleVariable1 = new Variable("double1", DoubleType.DOUBLE);
     private final Variable doubleVariable2 = new Variable("double2", DoubleType.DOUBLE);
     private final Variable realVariable = new Variable("real1", RealType.REAL);
+    private final Variable integerVariable = new Variable("integer1", IntegerType.INTEGER);
+    private final Variable bigintVariable = new Variable("bigint1", BigintType.BIGINT);
+    private final Variable timestampVariable = new Variable("timestamp1", TimestampType.createTimestampType(3));
+    private final Variable longTimestampVariable = new Variable("timestamp9", TimestampType.createTimestampType(9));
+    private final Variable timestampWithTimeZoneVariable = new Variable("timestamptz1", TimestampWithTimeZoneType.createTimestampWithTimeZoneType(3));
     private final VarcharType varcharType = VarcharType.createVarcharType(10);
     private final Variable varcharVariable = new Variable("varchar1", varcharType);
 
@@ -146,6 +156,30 @@ class NativeExpressionRulesHandlerTest
                 arguments(GREATER_THAN_OR_EQUAL_OPERATOR_FUNCTION_NAME, Domain.create(ValueSet.ofRanges(Range.greaterThanOrEqual(type, value)), false)));
     }
 
+    static Stream<Arguments> castIntegerToDouble()
+    {
+        Type type = DoubleType.DOUBLE;
+        double value = 5d;
+        return Stream.of(
+                arguments(EQUAL_OPERATOR_FUNCTION_NAME, Domain.singleValue(type, value)),
+                arguments(LESS_THAN_OPERATOR_FUNCTION_NAME, Domain.create(ValueSet.ofRanges(Range.lessThan(type, value)), false)),
+                arguments(LESS_THAN_OR_EQUAL_OPERATOR_FUNCTION_NAME, Domain.create(ValueSet.ofRanges(Range.lessThanOrEqual(type, value)), false)),
+                arguments(GREATER_THAN_OPERATOR_FUNCTION_NAME, Domain.create(ValueSet.ofRanges(Range.greaterThan(type, value)), false)),
+                arguments(GREATER_THAN_OR_EQUAL_OPERATOR_FUNCTION_NAME, Domain.create(ValueSet.ofRanges(Range.greaterThanOrEqual(type, value)), false)));
+    }
+
+    static Stream<Arguments> castDoubleToInteger()
+    {
+        Type type = IntegerType.INTEGER;
+        long value = 5L;
+        return Stream.of(
+                arguments(EQUAL_OPERATOR_FUNCTION_NAME, Domain.singleValue(type, value)),
+                arguments(LESS_THAN_OPERATOR_FUNCTION_NAME, Domain.create(ValueSet.ofRanges(Range.lessThan(type, value)), false)),
+                arguments(LESS_THAN_OR_EQUAL_OPERATOR_FUNCTION_NAME, Domain.create(ValueSet.ofRanges(Range.lessThanOrEqual(type, value)), false)),
+                arguments(GREATER_THAN_OPERATOR_FUNCTION_NAME, Domain.create(ValueSet.ofRanges(Range.greaterThan(type, value)), false)),
+                arguments(GREATER_THAN_OR_EQUAL_OPERATOR_FUNCTION_NAME, Domain.create(ValueSet.ofRanges(Range.greaterThanOrEqual(type, value)), false)));
+    }
+
     public static Map<String, ColumnHandle> createAssignments(Variable... variables)
     {
         Map<String, ColumnHandle> assignments = new HashMap<>();
@@ -162,7 +196,16 @@ class NativeExpressionRulesHandlerTest
         StorageEngineConstants storageEngineConstants = new StubsStorageEngineConstants();
         metricsManager = TestingTxService.createMetricsManager();
         nativeExpressionRulesHandler = new NativeExpressionRulesHandler(storageEngineConstants, metricsManager);
-        assignments = createAssignments(doubleVariable1, doubleVariable2, varcharVariable, realVariable);
+        assignments = createAssignments(
+                doubleVariable1,
+                doubleVariable2,
+                varcharVariable,
+                realVariable,
+                integerVariable,
+                bigintVariable,
+                timestampVariable,
+                longTimestampVariable,
+                timestampWithTimeZoneVariable);
         customStats = new HashMap<>();
     }
 
@@ -456,6 +499,332 @@ class NativeExpressionRulesHandlerTest
                 List.of(RecTypeCode.REC_TYPE_REAL.ordinal()),
                 TransformFunction.NONE);
         Optional<NativeExpression> result = nativeExpressionRulesHandler.rewrite(warpExpression, doubleVariable1.getType(), Collections.emptySet(), customStats);
+        assertThat(result).isEqualTo(Optional.of(expectedResult));
+        assertPushdownStatsSum(0);
+    }
+
+    /**
+     * where cast(integerVariable as double) operator 5.0 - a non-real numeric CAST target on an
+     * integer source. Native's int-source filler only handles a real target, so this must be
+     * verified as a supported numeric pair rather than reaching that filler.
+     */
+    @ParameterizedTest
+    @MethodSource("castIntegerToDouble")
+    public void testCastIntegerToDouble(FunctionName functionName, Domain domain)
+    {
+        ColumnHandle integerColumn = assignments.get(integerVariable.getName());
+        WarpCall expectedCastCall = new WarpCall(
+                CAST_FUNCTION_NAME.getName(),
+                List.of(new WarpVariable(integerColumn, integerVariable.getType())),
+                DoubleType.DOUBLE);
+        WarpCall warpExpression = new WarpCall(
+                functionName.getName(),
+                List.of(expectedCastCall, new WarpPrimitiveConstant(5d, DoubleType.DOUBLE)),
+                BOOLEAN);
+
+        PredicateType expectedPredicateType = domain.isSingleValue() ? PREDICATE_TYPE_VALUES : PREDICATE_TYPE_RANGES;
+        NativeExpression expectedResult = new NativeExpression(
+                expectedPredicateType,
+                FunctionType.FUNCTION_TYPE_CAST,
+                domain,
+                false,
+                false,
+                List.of(RecTypeCode.REC_TYPE_DOUBLE.ordinal()),
+                TransformFunction.NONE);
+        Optional<NativeExpression> result = nativeExpressionRulesHandler.rewrite(warpExpression, integerVariable.getType(), Collections.emptySet(), customStats);
+        assertThat(result).isEqualTo(Optional.of(expectedResult));
+        assertPushdownStatsSum(0);
+    }
+
+    /**
+     * where cast(doubleVariable1 as integer) operator 5 - a non-real numeric CAST target on a
+     * double source. Native's double-source cast family only handles a real target, so this must
+     * be verified as a supported numeric pair rather than reaching that filler.
+     */
+    @ParameterizedTest
+    @MethodSource("castDoubleToInteger")
+    public void testCastDoubleToInteger(FunctionName functionName, Domain domain)
+    {
+        ColumnHandle doubleColumn = assignments.get(doubleVariable1.getName());
+        WarpCall expectedCastCall = new WarpCall(
+                CAST_FUNCTION_NAME.getName(),
+                List.of(new WarpVariable(doubleColumn, doubleVariable1.getType())),
+                IntegerType.INTEGER);
+        WarpCall warpExpression = new WarpCall(
+                functionName.getName(),
+                List.of(expectedCastCall, new WarpPrimitiveConstant(5L, IntegerType.INTEGER)),
+                BOOLEAN);
+
+        PredicateType expectedPredicateType = domain.isSingleValue() ? PREDICATE_TYPE_VALUES : PREDICATE_TYPE_RANGES;
+        NativeExpression expectedResult = new NativeExpression(
+                expectedPredicateType,
+                FunctionType.FUNCTION_TYPE_CAST,
+                domain,
+                false,
+                false,
+                List.of(RecTypeCode.REC_TYPE_INTEGER.ordinal()),
+                TransformFunction.NONE);
+        Optional<NativeExpression> result = nativeExpressionRulesHandler.rewrite(warpExpression, doubleVariable1.getType(), Collections.emptySet(), customStats);
+        assertThat(result).isEqualTo(Optional.of(expectedResult));
+        assertPushdownStatsSum(0);
+    }
+
+    /**
+     * where cast(doubleVariable1 as boolean) = true - outside the numeric CAST family entirely, no
+     * native filler exists for this (source, target) pair, so pushdown must be rejected rather than
+     * reaching a native filler that would misread the buffer.
+     */
+    @Test
+    public void testCastUnsupportedTargetFallsBackToTrino()
+    {
+        ColumnHandle doubleColumn = assignments.get(doubleVariable1.getName());
+        WarpCall expectedCastCall = new WarpCall(
+                CAST_FUNCTION_NAME.getName(),
+                List.of(new WarpVariable(doubleColumn, doubleVariable1.getType())),
+                BooleanType.BOOLEAN);
+        WarpCall warpExpression = new WarpCall(
+                EQUAL_OPERATOR_FUNCTION_NAME.getName(),
+                List.of(expectedCastCall, new WarpPrimitiveConstant(true, BooleanType.BOOLEAN)),
+                BOOLEAN);
+
+        Optional<NativeExpression> result = nativeExpressionRulesHandler.rewrite(warpExpression, doubleVariable1.getType(), Collections.emptySet(), customStats);
+        assertThat(result).isEmpty();
+        assertPushdownStatsSum(1);
+        PushdownPredicatesStats pushdownPredicatesStats = (PushdownPredicatesStats) metricsManager.get(PushdownPredicatesStats.createKey());
+        assertThat(pushdownPredicatesStats.getunsupported_functions_native()).isEqualTo(1);
+    }
+
+    /**
+     * where cast(timestampVariable as date) = DATE '2024-01-01' - a short TIMESTAMP source, the one
+     * (source, target) pair native's FUNCTION_TYPE_CAST dispatch actually supports for timestamp.
+     * Must still be pushed down - non-regression check for the isTimestampType() narrowing fix.
+     */
+    @Test
+    public void testCastShortTimestampToDateStillPushedDown()
+    {
+        ColumnHandle timestampColumn = assignments.get(timestampVariable.getName());
+        WarpCall expectedCastCall = new WarpCall(
+                CAST_FUNCTION_NAME.getName(),
+                List.of(new WarpVariable(timestampColumn, timestampVariable.getType())),
+                DateType.DATE);
+        long dateValue = 19723L;
+        WarpCall warpExpression = new WarpCall(
+                EQUAL_OPERATOR_FUNCTION_NAME.getName(),
+                List.of(expectedCastCall, new WarpPrimitiveConstant(dateValue, DateType.DATE)),
+                BOOLEAN);
+
+        Domain domain = Domain.singleValue(DateType.DATE, dateValue);
+        NativeExpression expectedResult = new NativeExpression(
+                PREDICATE_TYPE_VALUES,
+                FunctionType.FUNCTION_TYPE_CAST,
+                domain,
+                false,
+                false,
+                List.of(RecTypeCode.REC_TYPE_DATE.ordinal()),
+                TransformFunction.NONE);
+        Optional<NativeExpression> result = nativeExpressionRulesHandler.rewrite(warpExpression, timestampVariable.getType(), Collections.emptySet(), customStats);
+        assertThat(result).isEqualTo(Optional.of(expectedResult));
+        assertPushdownStatsSum(0);
+    }
+
+    /**
+     * where cast(timestampWithTimeZoneVariable as date) = DATE '2024-01-01' - isTimestampType() also
+     * matches TIMESTAMP WITH TIME ZONE, but there is no native filler for it: a short
+     * timestamp-with-time-zone value is a packed (millis, tzkey) pair, not epoch micros, and the
+     * Java-side buffer sizing writes no precision byte for it while native unconditionally consumes
+     * one for any REC_TYPE_TIMESTAMP rec_type. Must fall back to Trino instead of being pushed down.
+     */
+    @Test
+    public void testCastTimestampWithTimeZoneToDateFallsBackToTrino()
+    {
+        ColumnHandle timestampTzColumn = assignments.get(timestampWithTimeZoneVariable.getName());
+        WarpCall expectedCastCall = new WarpCall(
+                CAST_FUNCTION_NAME.getName(),
+                List.of(new WarpVariable(timestampTzColumn, timestampWithTimeZoneVariable.getType())),
+                DateType.DATE);
+        WarpCall warpExpression = new WarpCall(
+                EQUAL_OPERATOR_FUNCTION_NAME.getName(),
+                List.of(expectedCastCall, new WarpPrimitiveConstant(19723L, DateType.DATE)),
+                BOOLEAN);
+
+        Optional<NativeExpression> result = nativeExpressionRulesHandler.rewrite(warpExpression, timestampWithTimeZoneVariable.getType(), Collections.emptySet(), customStats);
+        assertThat(result).isEmpty();
+        assertPushdownStatsSum(1);
+        PushdownPredicatesStats pushdownPredicatesStats = (PushdownPredicatesStats) metricsManager.get(PushdownPredicatesStats.createKey());
+        assertThat(pushdownPredicatesStats.getunsupported_functions_native()).isEqualTo(1);
+    }
+
+    /**
+     * where cast(longTimestampVariable as date) = DATE '2024-01-01' - TIMESTAMP(9), a long timestamp.
+     * Native's predicate_short_timestamp() rejects any precision > 6, so this must fall back to
+     * Trino rather than reach a native precision check that throws.
+     */
+    @Test
+    public void testCastLongTimestampToDateFallsBackToTrino()
+    {
+        ColumnHandle longTimestampColumn = assignments.get(longTimestampVariable.getName());
+        WarpCall expectedCastCall = new WarpCall(
+                CAST_FUNCTION_NAME.getName(),
+                List.of(new WarpVariable(longTimestampColumn, longTimestampVariable.getType())),
+                DateType.DATE);
+        WarpCall warpExpression = new WarpCall(
+                EQUAL_OPERATOR_FUNCTION_NAME.getName(),
+                List.of(expectedCastCall, new WarpPrimitiveConstant(19723L, DateType.DATE)),
+                BOOLEAN);
+
+        Optional<NativeExpression> result = nativeExpressionRulesHandler.rewrite(warpExpression, longTimestampVariable.getType(), Collections.emptySet(), customStats);
+        assertThat(result).isEmpty();
+        assertPushdownStatsSum(1);
+        PushdownPredicatesStats pushdownPredicatesStats = (PushdownPredicatesStats) metricsManager.get(PushdownPredicatesStats.createKey());
+        assertThat(pushdownPredicatesStats.getunsupported_functions_native()).isEqualTo(1);
+    }
+
+    /**
+     * where cast(integerVariable as bigint) = 5 - the coercion Trino emits for
+     * {@code integer_col = <bigint literal>}. An integer source can never exceed 2^31, so native's
+     * double-space comparison stays exact and this must be pushed down.
+     */
+    @Test
+    public void testCastIntegerToBigintPushedDown()
+    {
+        ColumnHandle integerColumn = assignments.get(integerVariable.getName());
+        WarpCall expectedCastCall = new WarpCall(
+                CAST_FUNCTION_NAME.getName(),
+                List.of(new WarpVariable(integerColumn, integerVariable.getType())),
+                BigintType.BIGINT);
+        WarpCall warpExpression = new WarpCall(
+                EQUAL_OPERATOR_FUNCTION_NAME.getName(),
+                List.of(expectedCastCall, new WarpPrimitiveConstant(5L, BigintType.BIGINT)),
+                BOOLEAN);
+
+        NativeExpression expectedResult = new NativeExpression(
+                PREDICATE_TYPE_VALUES,
+                FunctionType.FUNCTION_TYPE_CAST,
+                Domain.singleValue(BigintType.BIGINT, 5L),
+                false,
+                false,
+                List.of(RecTypeCode.REC_TYPE_BIGINT.ordinal()),
+                TransformFunction.NONE);
+        Optional<NativeExpression> result = nativeExpressionRulesHandler.rewrite(warpExpression, integerVariable.getType(), Collections.emptySet(), customStats);
+        assertThat(result).isEqualTo(Optional.of(expectedResult));
+        assertPushdownStatsSum(0);
+    }
+
+    /**
+     * where cast(doubleVariable1 as bigint) > 9007199254740995 - native compares in double space, so
+     * a bigint literal past 2^53 and the rounded record value can collapse onto the same double and
+     * a strict bound would then drop records Trino keeps. Must fall back to Trino.
+     */
+    @Test
+    public void testCastDoubleToBigintFallsBackToTrino()
+    {
+        ColumnHandle doubleColumn = assignments.get(doubleVariable1.getName());
+        WarpCall expectedCastCall = new WarpCall(
+                CAST_FUNCTION_NAME.getName(),
+                List.of(new WarpVariable(doubleColumn, doubleVariable1.getType())),
+                BigintType.BIGINT);
+        WarpCall warpExpression = new WarpCall(
+                GREATER_THAN_OPERATOR_FUNCTION_NAME.getName(),
+                List.of(expectedCastCall, new WarpPrimitiveConstant(9007199254740995L, BigintType.BIGINT)),
+                BOOLEAN);
+
+        Optional<NativeExpression> result = nativeExpressionRulesHandler.rewrite(warpExpression, doubleVariable1.getType(), Collections.emptySet(), customStats);
+        assertThat(result).isEmpty();
+        assertPushdownStatsSum(1);
+        PushdownPredicatesStats pushdownPredicatesStats = (PushdownPredicatesStats) metricsManager.get(PushdownPredicatesStats.createKey());
+        assertThat(pushdownPredicatesStats.getunsupported_functions_native()).isEqualTo(1);
+    }
+
+    /**
+     * where cast(bigintVariable as real) = 5.0 - a bigint source with a real target. Native rounds
+     * once (int64 -&gt; float, see buf2value_signed_int_as_cast_source in predicate_match_internal.h)
+     * rather than going through a double, so it agrees with Trino on every value and must be pushed
+     * down.
+     */
+    @Test
+    public void testCastBigintToRealPushedDown()
+    {
+        ColumnHandle bigintColumn = assignments.get(bigintVariable.getName());
+        WarpCall expectedCastCall = new WarpCall(
+                CAST_FUNCTION_NAME.getName(),
+                List.of(new WarpVariable(bigintColumn, bigintVariable.getType())),
+                RealType.REAL);
+        long realValue = floatToIntBits(5f);
+        WarpCall warpExpression = new WarpCall(
+                EQUAL_OPERATOR_FUNCTION_NAME.getName(),
+                List.of(expectedCastCall, new WarpPrimitiveConstant(realValue, RealType.REAL)),
+                BOOLEAN);
+
+        NativeExpression expectedResult = new NativeExpression(
+                PREDICATE_TYPE_VALUES,
+                FunctionType.FUNCTION_TYPE_CAST,
+                Domain.singleValue(RealType.REAL, realValue),
+                false,
+                true,
+                List.of(RecTypeCode.REC_TYPE_REAL.ordinal()),
+                TransformFunction.NONE);
+        Optional<NativeExpression> result = nativeExpressionRulesHandler.rewrite(warpExpression, bigintVariable.getType(), Collections.emptySet(), customStats);
+        assertThat(result).isEqualTo(Optional.of(expectedResult));
+        assertPushdownStatsSum(0);
+    }
+
+    /**
+     * where day(cast(timestampVariable as date)) = 15 - FunctionsWithCastRewriter sets
+     * FUNCTION_TYPE_DAY and then delegates the CAST to VariableRewriter.cast(). Native has no filler
+     * that applies day() on top of a CAST, and overwriting the function type with FUNCTION_TYPE_CAST
+     * would match this as cast(timestampVariable as date) = 15, comparing epoch days against 15.
+     * Must fall back to Trino.
+     */
+    @Test
+    public void testDayOfCastTimestampToDateFallsBackToTrino()
+    {
+        ColumnHandle timestampColumn = assignments.get(timestampVariable.getName());
+        WarpCall castCall = new WarpCall(
+                CAST_FUNCTION_NAME.getName(),
+                List.of(new WarpVariable(timestampColumn, timestampVariable.getType())),
+                DateType.DATE);
+        WarpCall dayCall = new WarpCall(SupportedFunctions.DAY.getName(), List.of(castCall), IntegerType.INTEGER);
+        WarpCall warpExpression = new WarpCall(
+                EQUAL_OPERATOR_FUNCTION_NAME.getName(),
+                List.of(dayCall, new WarpPrimitiveConstant(15L, IntegerType.INTEGER)),
+                BOOLEAN);
+
+        Optional<NativeExpression> result = nativeExpressionRulesHandler.rewrite(warpExpression, timestampVariable.getType(), Collections.emptySet(), customStats);
+        assertThat(result).isEmpty();
+        assertPushdownStatsSum(1);
+        PushdownPredicatesStats pushdownPredicatesStats = (PushdownPredicatesStats) metricsManager.get(PushdownPredicatesStats.createKey());
+        assertThat(pushdownPredicatesStats.getunsupported_functions_native()).isEqualTo(1);
+    }
+
+    /**
+     * where day(cast(varcharVariable as date)) = 15 - the one CAST shape that legitimately carries an
+     * enclosing date function: the varchar-to-date branch transforms the column instead of the
+     * predicate, and native does support day() over a DATE-transformed column. Non-regression check
+     * that the enclosing FUNCTION_TYPE_DAY survives.
+     */
+    @Test
+    public void testDayOfCastVarcharToDateStillPushedDown()
+    {
+        ColumnHandle varcharColumn = assignments.get(varcharVariable.getName());
+        WarpCall castCall = new WarpCall(
+                CAST_FUNCTION_NAME.getName(),
+                List.of(new WarpVariable(varcharColumn, varcharType)),
+                DateType.DATE);
+        WarpCall dayCall = new WarpCall(SupportedFunctions.DAY.getName(), List.of(castCall), IntegerType.INTEGER);
+        WarpCall warpExpression = new WarpCall(
+                EQUAL_OPERATOR_FUNCTION_NAME.getName(),
+                List.of(dayCall, new WarpPrimitiveConstant(15L, IntegerType.INTEGER)),
+                BOOLEAN);
+
+        NativeExpression expectedResult = new NativeExpression(
+                PREDICATE_TYPE_VALUES,
+                FunctionType.FUNCTION_TYPE_DAY,
+                Domain.singleValue(IntegerType.INTEGER, 15L),
+                false,
+                true,
+                List.of(),
+                TransformFunction.DATE);
+        Optional<NativeExpression> result = nativeExpressionRulesHandler.rewrite(warpExpression, varcharType, Collections.emptySet(), customStats);
         assertThat(result).isEqualTo(Optional.of(expectedResult));
         assertPushdownStatsSum(0);
     }
