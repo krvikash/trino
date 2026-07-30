@@ -139,7 +139,7 @@ public class TestStarburstOracleConnectorTest
         assertThat(query("SELECT regionkey, nationkey, name FROM nation WHERE nationkey = 1 OR name = 'ROMANIA'"))
                 .matches(
                         """
-                        VALUES (CAST(1 AS DECIMAL(19,0)), CAST(1 AS DECIMAL(19,0)), CAST('ARGENTINA' AS varchar(25))), 
+                        VALUES (CAST(1 AS DECIMAL(19,0)), CAST(1 AS DECIMAL(19,0)), CAST('ARGENTINA' AS varchar(25))),
                                (CAST(3 AS DECIMAL(19,0)), CAST(19 AS DECIMAL(19,0)), CAST('ROMANIA' AS varchar(25)))""")
                 .isFullyPushedDown();
         try (TestTable table = new TestTable(
