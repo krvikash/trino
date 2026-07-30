@@ -450,7 +450,7 @@ public final class BenchmarkRunner
                             if (!isOutOfMemory(e)) {
                                 throw e;
                             }
-                            log.warn("Suite prewarm %s: out of memory — continuing", query);
+                            log.warn(e, "Suite prewarm %s: out of memory — continuing", query);
                         }
                     }
                 }
