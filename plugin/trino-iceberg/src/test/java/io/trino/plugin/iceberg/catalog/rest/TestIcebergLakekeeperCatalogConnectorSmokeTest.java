@@ -32,14 +32,11 @@ import org.junit.jupiter.api.TestInstance;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 
-import static io.trino.plugin.iceberg.IcebergTestUtils.checkOrcFileSorting;
-import static io.trino.plugin.iceberg.IcebergTestUtils.checkParquetFileSorting;
 import static io.trino.testing.TestingNames.randomNameSuffix;
 import static io.trino.testing.assertions.Assert.assertEventually;
 import static io.trino.testing.containers.Minio.MINIO_ROOT_PASSWORD;
 import static io.trino.testing.containers.Minio.MINIO_ROOT_USER;
 import static java.lang.String.format;
-import static org.apache.iceberg.FileFormat.PARQUET;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
@@ -132,15 +129,6 @@ final class TestIcebergLakekeeperCatalogConnectorSmokeTest
         catch (IOException e) {
             throw new UncheckedIOException(e);
         }
-    }
-
-    @Override
-    protected boolean isFileSorted(Location path, String sortColumnName)
-    {
-        if (format == PARQUET) {
-            return checkParquetFileSorting(fileSystem.newInputFile(path), sortColumnName);
-        }
-        return checkOrcFileSorting(fileSystem, path, sortColumnName);
     }
 
     @Override

@@ -15,7 +15,6 @@ package io.trino.plugin.iceberg;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import io.trino.filesystem.Location;
 import io.trino.metastore.HiveMetastore;
 import io.trino.plugin.hive.containers.HiveHadoop;
 import io.trino.plugin.hive.metastore.thrift.BridgingHiveMetastore;
@@ -34,7 +33,6 @@ import static io.trino.plugin.hive.TestingThriftHiveMetastoreBuilder.testingThri
 import static io.trino.plugin.hive.ozone.ApacheOzoneContainer.DEFAULT_REGION;
 import static io.trino.plugin.hive.ozone.ApacheOzoneContainer.DUMMY_ACCESS_KEY;
 import static io.trino.plugin.hive.ozone.ApacheOzoneContainer.DUMMY_SECRET_KEY;
-import static io.trino.plugin.iceberg.IcebergTestUtils.checkParquetFileSorting;
 import static io.trino.plugin.tpch.TpchMetadata.TINY_SCHEMA_NAME;
 import static io.trino.testing.QueryAssertions.copyTpchTables;
 import static io.trino.testing.TestingNames.randomNameSuffix;
@@ -209,12 +207,6 @@ final class TestIcebergOzoneS3GatewayConnectorSmokeTest
             hiveOzoneS3Gateway.deleteFile(file);
         }
         assertThat(hiveOzoneS3Gateway.listFiles(location)).isEmpty();
-    }
-
-    @Override
-    protected boolean isFileSorted(Location path, String sortColumnName)
-    {
-        return checkParquetFileSorting(fileSystem.newInputFile(path), sortColumnName);
     }
 
     @Override

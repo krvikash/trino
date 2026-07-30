@@ -23,7 +23,6 @@ import io.trino.testing.QueryRunner;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 
-import static io.trino.plugin.iceberg.IcebergTestUtils.checkParquetFileSorting;
 import static io.trino.plugin.iceberg.IcebergTestUtils.getHiveMetastore;
 import static io.trino.tpch.TpchTable.NATION;
 import static io.trino.tpch.TpchTable.ORDERS;
@@ -99,11 +98,5 @@ final class TestIcebergCachingHiveCatalogConnectorSmokeTest
         catch (IOException e) {
             throw new UncheckedIOException(e);
         }
-    }
-
-    @Override
-    protected boolean isFileSorted(Location path, String sortColumnName)
-    {
-        return checkParquetFileSorting(fileSystem.newInputFile(path), sortColumnName);
     }
 }

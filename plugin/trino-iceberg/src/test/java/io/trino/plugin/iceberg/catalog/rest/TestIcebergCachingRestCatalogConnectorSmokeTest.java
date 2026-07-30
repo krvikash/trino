@@ -15,7 +15,6 @@ package io.trino.plugin.iceberg.catalog.rest;
 
 import com.google.common.collect.ImmutableMap;
 import io.airlift.http.server.testing.TestingHttpServer;
-import io.trino.filesystem.Location;
 import io.trino.plugin.iceberg.BaseIcebergConnectorSmokeTest;
 import io.trino.plugin.iceberg.IcebergConfig;
 import io.trino.plugin.iceberg.IcebergQueryRunner;
@@ -39,11 +38,8 @@ import java.util.Optional;
 
 import static com.google.common.io.MoreFiles.deleteRecursively;
 import static com.google.common.io.RecursiveDeleteOption.ALLOW_INSECURE;
-import static io.trino.plugin.iceberg.IcebergTestUtils.checkOrcFileSorting;
-import static io.trino.plugin.iceberg.IcebergTestUtils.checkParquetFileSorting;
 import static io.trino.plugin.iceberg.catalog.rest.RestCatalogTestUtils.backendCatalog;
 import static java.lang.String.format;
-import static org.apache.iceberg.FileFormat.PARQUET;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.parallel.ExecutionMode.SAME_THREAD;
 
@@ -188,15 +184,6 @@ final class TestIcebergCachingRestCatalogConnectorSmokeTest
     {
         assertThatThrownBy(super::testDropTableWithMissingManifestListFile)
                 .hasMessageContaining("Table location should not exist");
-    }
-
-    @Override
-    protected boolean isFileSorted(Location path, String sortColumnName)
-    {
-        if (format == PARQUET) {
-            return checkParquetFileSorting(fileSystem.newInputFile(path), sortColumnName);
-        }
-        return checkOrcFileSorting(fileSystem, path, sortColumnName);
     }
 
     @Override

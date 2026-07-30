@@ -16,7 +16,6 @@ package io.trino.plugin.iceberg.catalog.rest;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.airlift.http.server.testing.TestingHttpServer;
-import io.trino.filesystem.Location;
 import io.trino.plugin.iceberg.BaseIcebergConnectorSmokeTest;
 import io.trino.plugin.iceberg.IcebergConfig;
 import io.trino.plugin.iceberg.SchemaInitializer;
@@ -44,13 +43,10 @@ import static com.google.common.io.MoreFiles.deleteRecursively;
 import static com.google.common.io.RecursiveDeleteOption.ALLOW_INSECURE;
 import static io.airlift.testing.Closeables.closeAllSuppress;
 import static io.trino.plugin.iceberg.IcebergQueryRunner.ICEBERG_CATALOG;
-import static io.trino.plugin.iceberg.IcebergTestUtils.checkOrcFileSorting;
-import static io.trino.plugin.iceberg.IcebergTestUtils.checkParquetFileSorting;
 import static io.trino.plugin.iceberg.catalog.rest.RestCatalogTestUtils.backendCatalog;
 import static io.trino.testing.TestingNames.randomNameSuffix;
 import static io.trino.testing.TestingSession.testSessionBuilder;
 import static java.lang.String.format;
-import static org.apache.iceberg.FileFormat.PARQUET;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -259,15 +255,6 @@ final class TestIcebergRestCatalogNestedNamespaceConnectorSmokeTest
     {
         assertThatThrownBy(super::testDropTableWithNonExistentTableLocation)
                 .hasMessageMatching("Failed to load table: (.*)");
-    }
-
-    @Override
-    protected boolean isFileSorted(Location path, String sortColumnName)
-    {
-        if (format == PARQUET) {
-            return checkParquetFileSorting(fileSystem.newInputFile(path), sortColumnName);
-        }
-        return checkOrcFileSorting(fileSystem, path, sortColumnName);
     }
 
     @Override

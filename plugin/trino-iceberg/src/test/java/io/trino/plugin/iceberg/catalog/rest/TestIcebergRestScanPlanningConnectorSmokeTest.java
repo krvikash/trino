@@ -50,10 +50,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import static io.trino.plugin.iceberg.IcebergSessionProperties.COLLECT_EXTENDED_STATISTICS_ON_WRITE;
-import static io.trino.plugin.iceberg.IcebergTestUtils.checkOrcFileSorting;
-import static io.trino.plugin.iceberg.IcebergTestUtils.checkParquetFileSorting;
 import static java.lang.String.format;
-import static org.apache.iceberg.FileFormat.PARQUET;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -256,15 +253,6 @@ final class TestIcebergRestScanPlanningConnectorSmokeTest
     {
         assertThatThrownBy(super::testDropTableWithNonExistentTableLocation)
                 .hasMessageMatching("Failed to load table: (.*)");
-    }
-
-    @Override
-    protected boolean isFileSorted(Location path, String sortColumnName)
-    {
-        if (format == PARQUET) {
-            return checkParquetFileSorting(fileSystem.newInputFile(path), sortColumnName);
-        }
-        return checkOrcFileSorting(fileSystem, path, sortColumnName);
     }
 
     @Override

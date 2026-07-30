@@ -15,7 +15,6 @@ package io.trino.plugin.iceberg.catalog.rest;
 
 import com.google.common.collect.MoreCollectors;
 import io.trino.execution.QueryStats;
-import io.trino.filesystem.Location;
 import io.trino.operator.OperatorStats;
 import io.trino.plugin.base.metrics.LongCount;
 import io.trino.plugin.hive.metastore.unity.DatabricksSqlExecutor;
@@ -366,12 +365,6 @@ final class TestIcebergDatabricksUnityScanPlanningConnectorSmokeTest
     }
 
     @Override
-    protected boolean isFileSorted(Location path, String sortColumnName)
-    {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
     protected void deleteDirectory(String location)
     {
         throw new UnsupportedOperationException();
@@ -662,20 +655,6 @@ final class TestIcebergDatabricksUnityScanPlanningConnectorSmokeTest
     public void testCreateTableWithNonExistingSchemaVerifyLocation()
     {
         testFailsDueToReadOnlyCatalog(super::testCreateTableWithNonExistingSchemaVerifyLocation);
-    }
-
-    @Test
-    @Override
-    public void testSortedNationTable()
-    {
-        testFailsDueToReadOnlyCatalog(super::testSortedNationTable);
-    }
-
-    @Test
-    @Override
-    public void testFileSortingWithLargerTable()
-    {
-        testFailsDueToReadOnlyCatalog(super::testFileSortingWithLargerTable);
     }
 
     @Test

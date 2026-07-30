@@ -45,7 +45,6 @@ import static com.google.common.base.Strings.nullToEmpty;
 import static com.google.common.base.Throwables.getCausalChain;
 import static com.google.common.io.MoreFiles.deleteRecursively;
 import static com.google.common.io.RecursiveDeleteOption.ALLOW_INSECURE;
-import static io.trino.plugin.iceberg.IcebergTestUtils.checkParquetFileSorting;
 import static io.trino.testing.SystemEnvironmentUtils.requireEnv;
 import static io.trino.testing.TestingConnectorSession.SESSION;
 import static io.trino.testing.TestingNames.randomNameSuffix;
@@ -209,12 +208,6 @@ final class TestIcebergDatabricksUnityRestCatalogConnectorSmokeTest
         catch (IOException e) {
             throw new UncheckedIOException(e);
         }
-    }
-
-    @Override
-    protected boolean isFileSorted(Location path, String sortColumnName)
-    {
-        return checkParquetFileSorting(fileSystem.newInputFile(path), sortColumnName);
     }
 
     @Override

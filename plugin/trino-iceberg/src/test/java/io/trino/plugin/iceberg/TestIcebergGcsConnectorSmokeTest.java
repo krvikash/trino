@@ -37,7 +37,6 @@ import java.util.Optional;
 
 import static io.trino.plugin.hive.TestingThriftHiveMetastoreBuilder.testingThriftHiveMetastoreBuilder;
 import static io.trino.plugin.hive.containers.HiveHadoop.HIVE3_IMAGE;
-import static io.trino.plugin.iceberg.IcebergTestUtils.checkOrcFileSorting;
 import static io.trino.plugin.iceberg.IcebergTestUtils.getQualifiedSchemaName;
 import static io.trino.testing.TestingNames.randomNameSuffix;
 import static io.trino.testing.TestingProperties.requiredNonEmptySystemProperty;
@@ -229,11 +228,5 @@ public class TestIcebergGcsConnectorSmokeTest
         catch (IOException e) {
             throw new UncheckedIOException(e);
         }
-    }
-
-    @Override
-    protected boolean isFileSorted(Location path, String sortColumnName)
-    {
-        return checkOrcFileSorting(fileSystem, path, sortColumnName);
     }
 }

@@ -23,7 +23,6 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 
 import static com.google.common.base.Preconditions.checkState;
-import static io.trino.plugin.iceberg.IcebergTestUtils.checkParquetFileSorting;
 import static io.trino.plugin.iceberg.IcebergTestUtils.getHiveMetastore;
 import static org.apache.iceberg.FileFormat.PARQUET;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -70,12 +69,6 @@ public class TestIcebergGpuConnectorSmokeTest
         catch (IOException e) {
             throw new UncheckedIOException(e);
         }
-    }
-
-    @Override
-    protected boolean isFileSorted(Location path, String sortColumnName)
-    {
-        return checkParquetFileSorting(fileSystem.newInputFile(path), sortColumnName);
     }
 
     @Override

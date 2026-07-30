@@ -14,7 +14,6 @@
 package io.trino.plugin.iceberg.catalog.snowflake;
 
 import com.google.common.collect.ImmutableMap;
-import io.trino.filesystem.Location;
 import io.trino.plugin.iceberg.BaseIcebergConnectorSmokeTest;
 import io.trino.plugin.iceberg.IcebergQueryRunner;
 import io.trino.plugin.iceberg.SchemaInitializer;
@@ -29,7 +28,6 @@ import org.junit.jupiter.api.TestInstance;
 import java.sql.SQLException;
 import java.util.Map;
 
-import static io.trino.plugin.iceberg.IcebergTestUtils.checkParquetFileSorting;
 import static io.trino.plugin.iceberg.catalog.snowflake.TestingSnowflakeServer.SNOWFLAKE_JDBC_URI;
 import static io.trino.plugin.iceberg.catalog.snowflake.TestingSnowflakeServer.SNOWFLAKE_PRIVATE_KEY;
 import static io.trino.plugin.iceberg.catalog.snowflake.TestingSnowflakeServer.SNOWFLAKE_ROLE;
@@ -490,22 +488,6 @@ public class TestIcebergSnowflakeCatalogConnectorSmokeTest
 
     @Test
     @Override
-    public void testSortedNationTable()
-    {
-        assertThatThrownBy(super::testSortedNationTable)
-                .hasMessageMatching("Snowflake managed Iceberg tables do not support modifications");
-    }
-
-    @Test
-    @Override
-    public void testFileSortingWithLargerTable()
-    {
-        assertThatThrownBy(super::testFileSortingWithLargerTable)
-                .hasMessageMatching("Snowflake managed Iceberg tables do not support modifications");
-    }
-
-    @Test
-    @Override
     public void testDropTableWithMissingMetadataFile()
     {
         assertThatThrownBy(super::testDropTableWithMissingMetadataFile)
@@ -858,15 +840,6 @@ public class TestIcebergSnowflakeCatalogConnectorSmokeTest
         finally {
             assertUpdate("DROP CATALOG IF EXISTS " + catalog);
         }
-    }
-
-    @Override
-    protected boolean isFileSorted(Location path, String sortColumnName)
-    {
-        if (format == PARQUET) {
-            return checkParquetFileSorting(fileSystem.newInputFile(path), sortColumnName);
-        }
-        throw new UnsupportedOperationException("Only PARQUET file format is supported for Iceberg Snowflake catalogs");
     }
 
     @Override

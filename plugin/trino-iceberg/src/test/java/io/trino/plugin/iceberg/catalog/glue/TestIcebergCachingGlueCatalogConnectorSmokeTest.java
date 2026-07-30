@@ -14,7 +14,6 @@
 package io.trino.plugin.iceberg.catalog.glue;
 
 import com.google.common.collect.ImmutableMap;
-import io.trino.filesystem.Location;
 import io.trino.plugin.iceberg.BaseIcebergConnectorSmokeTest;
 import io.trino.plugin.iceberg.IcebergQueryRunner;
 import io.trino.plugin.iceberg.SchemaInitializer;
@@ -34,7 +33,6 @@ import software.amazon.awssdk.services.s3.model.S3Object;
 import java.util.List;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
-import static io.trino.plugin.iceberg.IcebergTestUtils.checkParquetFileSorting;
 import static io.trino.testing.SystemEnvironmentUtils.requireEnv;
 import static io.trino.testing.TestingNames.randomNameSuffix;
 import static java.lang.String.format;
@@ -161,12 +159,6 @@ final class TestIcebergCachingGlueCatalogConnectorSmokeTest
 
             assertThat(s3.listObjects(ListObjectsRequest.builder().bucket(bucketName).prefix(location).build()).contents()).isEmpty();
         }
-    }
-
-    @Override
-    protected boolean isFileSorted(Location path, String sortColumnName)
-    {
-        return checkParquetFileSorting(fileSystem.newInputFile(path), sortColumnName);
     }
 
     @Override

@@ -16,7 +16,6 @@ package io.trino.plugin.iceberg.catalog.rest;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableMultiset;
 import io.opentelemetry.api.OpenTelemetry;
-import io.trino.filesystem.Location;
 import io.trino.filesystem.s3.S3FileSystemConfig;
 import io.trino.filesystem.s3.S3FileSystemFactory;
 import io.trino.filesystem.s3.S3FileSystemStats;
@@ -46,8 +45,6 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
 
-import static io.trino.plugin.iceberg.IcebergTestUtils.checkOrcFileSorting;
-import static io.trino.plugin.iceberg.IcebergTestUtils.checkParquetFileSorting;
 import static io.trino.plugin.iceberg.catalog.rest.RestCatalogEndpointInvocations.RestCatalogEndpoint.LOAD_TABLE;
 import static io.trino.plugin.iceberg.catalog.rest.RestCatalogEndpointInvocations.RestCatalogEndpoint.LOAD_VIEW;
 import static io.trino.plugin.iceberg.catalog.rest.RestCatalogEndpointInvocations.assertRestCatalogInvocations;
@@ -57,7 +54,6 @@ import static io.trino.testing.containers.Floci.FLOCI_ACCESS_KEY;
 import static io.trino.testing.containers.Floci.FLOCI_REGION;
 import static io.trino.testing.containers.Floci.FLOCI_SECRET_KEY;
 import static java.lang.String.format;
-import static org.apache.iceberg.FileFormat.PARQUET;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.parallel.ExecutionMode.SAME_THREAD;
@@ -328,15 +324,6 @@ final class TestIcebergS3VendingRestCatalogCachingConnectorSmokeTest
                     () -> assertQuery("SELECT * FROM " + table.getName(), "VALUES 1"),
                     ImmutableMultiset.of());
         }
-    }
-
-    @Override
-    protected boolean isFileSorted(Location path, String sortColumnName)
-    {
-        if (format == PARQUET) {
-            return checkParquetFileSorting(fileSystem.newInputFile(path), sortColumnName);
-        }
-        return checkOrcFileSorting(fileSystem, path, sortColumnName);
     }
 
     @Override
