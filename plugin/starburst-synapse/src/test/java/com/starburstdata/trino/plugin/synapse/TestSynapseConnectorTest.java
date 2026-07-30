@@ -830,6 +830,68 @@ public class TestSynapseConnectorTest
         abort("Synapse INSERTs are slow and the futures sometimes timeout in the test. TODO https://starburstdata.atlassian.net/browse/SEP-9214");
     }
 
+    @Test
+    public void testVarcharEqualityNotPushedDownForAnyCollation()
+    {
+        // Varchar equality is never pushed down regardless of collation (CI, CS, or BIN2),
+        // because Synapse and Trino differ in string comparison semantics.
+        try (TestTable table = new TestTable(
+                onRemoteDatabase(),
+                "test_varchar_eq_collation",
+                "(ci_col varchar(5) COLLATE Latin1_General_CI_AS," +
+                        " cs_col varchar(5) COLLATE Latin1_General_CS_AS," +
+                        " bin_col varchar(5) COLLATE Latin1_General_BIN2)",
+                ImmutableList.of("'a', 'a', 'a'", "'a ', 'a ', 'a '", "'A', 'A', 'A'"))) {
+            // CI (Latin1_General_CI_AS): case-insensitive collation
+            assertThat(query("SELECT ci_col FROM " + table.getName() + " WHERE ci_col = 'a'"))
+                    .skippingTypesCheck()
+                    .matches("VALUES 'a'")
+                    .isNotFullyPushedDown(node(FilterNode.class, tableScan(
+                            tableHandle -> !((JdbcTableHandle) tableHandle).getConstraint().isAll(),
+                            TupleDomain.all(),
+                            ImmutableMap.of())));
+            assertThat(query("SELECT ci_col FROM " + table.getName() + " WHERE ci_col = 'a '"))
+                    .skippingTypesCheck()
+                    .matches("VALUES 'a '")
+                    .isNotFullyPushedDown(node(FilterNode.class, tableScan(
+                            tableHandle -> !((JdbcTableHandle) tableHandle).getConstraint().isAll(),
+                            TupleDomain.all(),
+                            ImmutableMap.of())));
+
+            // CS (Latin1_General_CS_AS): case-sensitive collation
+            assertThat(query("SELECT cs_col FROM " + table.getName() + " WHERE cs_col = 'a'"))
+                    .skippingTypesCheck()
+                    .matches("VALUES 'a'")
+                    .isNotFullyPushedDown(node(FilterNode.class, tableScan(
+                            tableHandle -> !((JdbcTableHandle) tableHandle).getConstraint().isAll(),
+                            TupleDomain.all(),
+                            ImmutableMap.of())));
+            assertThat(query("SELECT cs_col FROM " + table.getName() + " WHERE cs_col = 'a '"))
+                    .skippingTypesCheck()
+                    .matches("VALUES 'a '")
+                    .isNotFullyPushedDown(node(FilterNode.class, tableScan(
+                            tableHandle -> !((JdbcTableHandle) tableHandle).getConstraint().isAll(),
+                            TupleDomain.all(),
+                            ImmutableMap.of())));
+
+            // BIN2 (Latin1_General_BIN2): binary collation
+            assertThat(query("SELECT bin_col FROM " + table.getName() + " WHERE bin_col = 'a'"))
+                    .skippingTypesCheck()
+                    .matches("VALUES 'a'")
+                    .isNotFullyPushedDown(node(FilterNode.class, tableScan(
+                            tableHandle -> !((JdbcTableHandle) tableHandle).getConstraint().isAll(),
+                            TupleDomain.all(),
+                            ImmutableMap.of())));
+            assertThat(query("SELECT bin_col FROM " + table.getName() + " WHERE bin_col = 'a '"))
+                    .skippingTypesCheck()
+                    .matches("VALUES 'a '")
+                    .isNotFullyPushedDown(node(FilterNode.class, tableScan(
+                            tableHandle -> !((JdbcTableHandle) tableHandle).getConstraint().isAll(),
+                            TupleDomain.all(),
+                            ImmutableMap.of())));
+        }
+    }
+
     @Override
     protected String errorMessageForInsertIntoNotNullColumn(String columnName)
     {
