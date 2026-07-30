@@ -407,13 +407,6 @@ final class TestIcebergDatabricksUnityScanPlanningConnectorSmokeTest
 
     @Test
     @Override
-    public void testHiddenPathColumn()
-    {
-        testFailsDueToReadOnlyCatalog(super::testHiddenPathColumn);
-    }
-
-    @Test
-    @Override
     public void testRowLevelDelete()
     {
         testFailsDueToReadOnlyCatalog(super::testRowLevelDelete);
