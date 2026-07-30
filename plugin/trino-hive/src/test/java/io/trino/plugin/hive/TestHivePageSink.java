@@ -32,6 +32,7 @@ import io.trino.operator.GroupByHashPageIndexerFactory;
 import io.trino.operator.NullSafeHashCompiler;
 import io.trino.plugin.hive.HiveWritableTableHandle.BucketInfo;
 import io.trino.plugin.hive.metastore.HivePageSinkMetadata;
+import io.trino.plugin.hive.parquet.GpuParquetConfig;
 import io.trino.plugin.hive.parquet.HiveGpuParquetPageSourceFactory;
 import io.trino.plugin.hive.parquet.ParquetReaderConfig;
 import io.trino.plugin.hive.util.SortTempFileFactory;
@@ -422,7 +423,7 @@ public class TestHivePageSink
         HivePageSourceProvider provider = new HivePageSourceProvider(
                 TESTING_TYPE_MANAGER,
                 config,
-                new HiveGpuParquetPageSourceFactory(new ParquetReaderConfig()),
+                new HiveGpuParquetPageSourceFactory(new ParquetReaderConfig(), new GpuParquetConfig()),
                 getDefaultHivePageSourceFactories(fileSystemFactory, config),
                 fileSystemFactory);
         return provider.createPageSource(transaction, getHiveSession(config), split, table, Optional.empty(), ImmutableList.copyOf(getColumnHandles()), DynamicFilter.EMPTY, MemoryContext.NO_LIMIT);

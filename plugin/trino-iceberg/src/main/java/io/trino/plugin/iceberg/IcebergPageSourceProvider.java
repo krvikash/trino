@@ -275,6 +275,7 @@ public class IcebergPageSourceProvider
     private final OrcReaderOptions orcReaderOptions;
     private final ParquetReaderOptions parquetReaderOptions;
     private final ParquetReaderOptions gpuParquetReaderOptions;
+    private final long gpuScanMaxPageSizeBytes;
     private final DateTimeZone dateTimeZone;
     private final TypeManager typeManager;
     private final Optional<BlocksHashFactory> blocksHashFactory;
@@ -294,7 +295,8 @@ public class IcebergPageSourceProvider
             TypeManager typeManager,
             ParquetFooterCache parquetFooterCache,
             Optional<BlocksHashFactory> blocksHashFactory,
-            EncryptionManagerFactory encryptionManagerFactory)
+            EncryptionManagerFactory encryptionManagerFactory,
+            long gpuScanMaxPageSizeBytes)
     {
         this.fileSystemFactory = requireNonNull(fileSystemFactory, "fileSystemFactory is null");
         this.fileIoFactory = requireNonNull(fileIoFactory, "fileIoFactory is null");
@@ -305,6 +307,7 @@ public class IcebergPageSourceProvider
         this.gpuParquetReaderOptions = ParquetReaderOptions.builder(parquetReaderOptions)
                 .withInitialBufferSize(parquetReaderOptions.getMaxBufferSize())
                 .build();
+        this.gpuScanMaxPageSizeBytes = gpuScanMaxPageSizeBytes;
         this.dateTimeZone = requireNonNull(dateTimeZone, "dateTimeZone is null");
         this.typeManager = requireNonNull(typeManager, "typeManager is null");
         this.blocksHashFactory = requireNonNull(blocksHashFactory, "blocksHashFactory is null");
@@ -537,7 +540,7 @@ public class IcebergPageSourceProvider
                 gpuParquetReaderOptions,
                 ioExecutor);
 
-        return Optional.of(new IcebergGpuParquetPageSource(gpuMemoryContext, fabricator, firstOutputColumns, footerCompletedBytes, footerReadTimeNanos));
+        return Optional.of(new IcebergGpuParquetPageSource(gpuMemoryContext, fabricator, firstOutputColumns, footerCompletedBytes, footerReadTimeNanos, gpuScanMaxPageSizeBytes));
     }
 
     private static boolean isSupportedForGpu(PrimitiveType parquetType, Type trinoType)

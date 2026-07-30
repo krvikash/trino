@@ -55,15 +55,17 @@ import static io.trino.plugin.hive.parquet.ParquetPageSourceFactory.getParquetTu
 public final class HiveGpuParquetPageSourceFactory
 {
     private final ParquetReaderOptions options;
+    private final long gpuScanMaxPageSizeBytes;
 
     @Inject
-    public HiveGpuParquetPageSourceFactory(ParquetReaderConfig config)
+    public HiveGpuParquetPageSourceFactory(ParquetReaderConfig config, GpuParquetConfig gpuConfig)
     {
         // Each coalesced read is materialized up front into one byte[], so start the buffer at its max size.
         ParquetReaderOptions options = config.toParquetReaderOptions();
         this.options = ParquetReaderOptions.builder(options)
                 .withInitialBufferSize(options.getMaxBufferSize())
                 .build();
+        this.gpuScanMaxPageSizeBytes = gpuConfig.getMaxPageSize().toBytes();
     }
 
     public ConnectorGpuPageSource createGpuPageSource(
@@ -139,7 +141,7 @@ public final class HiveGpuParquetPageSourceFactory
                         options,
                         ioExecutor);
 
-                return new HiveGpuParquetPageSource(gpuMemoryContext, fabricator, gpuColumns, columnMappings, footerSource.getReadBytes(), footerSource.getReadTimeNanos());
+                return new HiveGpuParquetPageSource(gpuMemoryContext, fabricator, gpuColumns, columnMappings, footerSource.getReadBytes(), footerSource.getReadTimeNanos(), gpuScanMaxPageSizeBytes);
             }
         }
         catch (IOException e) {

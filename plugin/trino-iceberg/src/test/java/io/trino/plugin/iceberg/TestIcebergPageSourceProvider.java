@@ -37,6 +37,7 @@ import io.trino.parquet.writer.ParquetWriterOptions;
 import io.trino.plugin.base.metrics.FileFormatDataSourceStats;
 import io.trino.plugin.hive.orc.OrcReaderConfig;
 import io.trino.plugin.hive.orc.OrcWriterConfig;
+import io.trino.plugin.hive.parquet.GpuParquetConfig;
 import io.trino.plugin.hive.parquet.ParquetReaderConfig;
 import io.trino.plugin.hive.parquet.ParquetWriterConfig;
 import io.trino.plugin.iceberg.delete.DeleteFile;
@@ -293,7 +294,8 @@ class TestIcebergPageSourceProvider
                 TESTING_TYPE_MANAGER,
                 ParquetFooterCache.noop(),
                 Optional.of(blocksHashFactory),
-                ENCRYPTION_MANAGER_FACTORY);
+                ENCRYPTION_MANAGER_FACTORY,
+                new GpuParquetConfig().getMaxPageSize().toBytes());
     }
 
     private static class TestingParquetFooterCache

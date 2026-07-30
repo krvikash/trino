@@ -20,6 +20,7 @@ import io.trino.parquet.ParquetReaderOptions;
 import io.trino.parquet.cache.ParquetFooterCache;
 import io.trino.plugin.base.metrics.FileFormatDataSourceStats;
 import io.trino.plugin.hive.orc.OrcReaderConfig;
+import io.trino.plugin.hive.parquet.GpuParquetConfig;
 import io.trino.plugin.hive.parquet.ParquetReaderConfig;
 import io.trino.plugin.iceberg.encryption.EncryptionManagerFactory;
 import io.trino.plugin.iceberg.fileio.ForwardingFileIoFactory;
@@ -47,6 +48,7 @@ public class IcebergPageSourceProviderFactory
     private final FileFormatDataSourceStats fileFormatDataSourceStats;
     private final OrcReaderOptions orcReaderOptions;
     private final ParquetReaderOptions parquetReaderOptions;
+    private final long gpuScanMaxPageSizeBytes;
     private final DateTimeZone dateTimeZone;
     private final TypeManager typeManager;
     private final Optional<BlocksHashFactory> blocksHashFactory;
@@ -60,6 +62,7 @@ public class IcebergPageSourceProviderFactory
             FileFormatDataSourceStats fileFormatDataSourceStats,
             OrcReaderConfig orcReaderConfig,
             ParquetReaderConfig parquetReaderConfig,
+            GpuParquetConfig gpuParquetConfig,
             IcebergConfig icebergConfig,
             TypeManager typeManager,
             BlocksHashFactory blocksHashFactory,
@@ -71,6 +74,7 @@ public class IcebergPageSourceProviderFactory
         this.fileFormatDataSourceStats = requireNonNull(fileFormatDataSourceStats, "fileFormatDataSourceStats is null");
         this.orcReaderOptions = orcReaderConfig.toOrcReaderOptions();
         this.parquetReaderOptions = parquetReaderConfig.toParquetReaderOptions();
+        this.gpuScanMaxPageSizeBytes = gpuParquetConfig.getMaxPageSize().toBytes();
         this.dateTimeZone = icebergConfig.getDateTimeZone();
         this.typeManager = requireNonNull(typeManager, "typeManager is null");
         this.blocksHashFactory = icebergConfig.isEqualityDeletesBlocksHashEnabled()
@@ -106,6 +110,6 @@ public class IcebergPageSourceProviderFactory
     @Override
     public IcebergPageSourceProvider createPageSourceProvider()
     {
-        return new IcebergPageSourceProvider(fileSystemFactory, fileIoFactory, fileFormatDataSourceStats, orcReaderOptions, parquetReaderOptions, dateTimeZone, typeManager, parquetFooterCache, blocksHashFactory, encryptionManagerFactory);
+        return new IcebergPageSourceProvider(fileSystemFactory, fileIoFactory, fileFormatDataSourceStats, orcReaderOptions, parquetReaderOptions, dateTimeZone, typeManager, parquetFooterCache, blocksHashFactory, encryptionManagerFactory, gpuScanMaxPageSizeBytes);
     }
 }

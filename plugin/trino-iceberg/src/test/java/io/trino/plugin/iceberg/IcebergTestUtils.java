@@ -44,6 +44,7 @@ import io.trino.plugin.base.metrics.FileFormatDataSourceStats;
 import io.trino.plugin.hive.TrinoViewHiveMetastore;
 import io.trino.plugin.hive.orc.OrcReaderConfig;
 import io.trino.plugin.hive.orc.OrcWriterConfig;
+import io.trino.plugin.hive.parquet.GpuParquetConfig;
 import io.trino.plugin.hive.parquet.ParquetReaderConfig;
 import io.trino.plugin.hive.parquet.ParquetWriterConfig;
 import io.trino.plugin.hive.parquet.TrinoParquetDataSource;
@@ -132,6 +133,7 @@ public final class IcebergTestUtils
                     new FileFormatDataSourceStats(),
                     new OrcReaderConfig(),
                     new ParquetReaderConfig(),
+                    new GpuParquetConfig(),
                     new IcebergConfig(),
                     TESTING_TYPE_MANAGER,
                     BLOCKS_HASH_FACTORY,

@@ -354,7 +354,7 @@ public class TestHiveGpuParquetPageSource
         TrinoInputFile inputFile = new MemoryInputFile(
                 Location.of("memory:///test.parquet"),
                 Slices.wrappedBuffer(parquetFile.getBytes()));
-        try (ConnectorGpuPageSource pageSource = new HiveGpuParquetPageSourceFactory(new ParquetReaderConfig()).createGpuPageSource(
+        try (ConnectorGpuPageSource pageSource = new HiveGpuParquetPageSourceFactory(new ParquetReaderConfig(), new GpuParquetConfig()).createGpuPageSource(
                 gpuMemoryContext,
                 inputFile,
                 0,

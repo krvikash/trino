@@ -16,6 +16,7 @@ package io.trino.plugin.hive.parquet;
 import ai.rapids.cudf.ColumnVector;
 import ai.rapids.cudf.DType;
 import ai.rapids.cudf.HostMemoryBuffer;
+import ai.rapids.cudf.ParquetChunkedReader;
 import ai.rapids.cudf.ParquetOptions;
 import ai.rapids.cudf.Scalar;
 import ai.rapids.cudf.Table;
@@ -29,19 +30,25 @@ import io.trino.spi.gpu.Column;
 import io.trino.spi.gpu.ConnectorGpuMemoryContext;
 import io.trino.spi.gpu.ConnectorGpuPageSource;
 import io.trino.spi.gpu.GpuPage;
+import io.trino.spi.gpu.MemoryAmount;
 import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
 import io.trino.spi.gpu.borrow.Own;
 import io.trino.spi.type.Type;
+import jakarta.annotation.Nullable;
 
 import java.util.List;
 import java.util.Optional;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Verify.verify;
 import static io.trino.plugin.base.gpu.GpuUtils.closeColumns;
 import static io.trino.plugin.hive.HiveErrorCode.HIVE_UNSUPPORTED_FORMAT;
 import static io.trino.spi.gpu.GpuTypeConversion.toDType;
 import static io.trino.spi.gpu.GpuTypeConversion.toGpuMapping;
+import static java.lang.Math.clamp;
+import static java.lang.Math.max;
+import static java.lang.Math.min;
 import static java.lang.Math.toIntExact;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
@@ -59,9 +66,18 @@ public class HiveGpuParquetPageSource
     private final List<ColumnMapping> columnMappings;
     private final long footerCompletedBytes;
     private final long footerReadTimeNanos;
+    private final long maxPageSizeBytes;
 
     private boolean finished;
-    private @Own ParquetFileFabricator.FabricatedParquet fabricatedParquet;
+    @Own
+    @Nullable
+    private ParquetFileFabricator.FabricatedParquet fabricatedParquet;
+    @Own
+    @Nullable
+    private ParquetChunkedReader chunkedReader;
+    // Zero-column reads (e.g. COUNT(*)) synthesize prefilled pages; emit them in row-bounded chunks.
+    private int emittedPrefilledRows;
+    private int prefilledRowsPerPage;
 
     public HiveGpuParquetPageSource(
             ConnectorGpuMemoryContext memoryContext,
@@ -69,7 +85,8 @@ public class HiveGpuParquetPageSource
             List<HiveColumnHandle> gpuColumns,
             List<ColumnMapping> columnMappings,
             long footerCompletedBytes,
-            long footerReadTimeNanos)
+            long footerReadTimeNanos,
+            long maxPageSizeBytes)
     {
         this.memoryContext = requireNonNull(memoryContext, "memoryContext is null");
         this.fabricator = requireNonNull(fabricator, "fabricator is null");
@@ -77,6 +94,7 @@ public class HiveGpuParquetPageSource
         this.columnMappings = requireNonNull(columnMappings, "columnMappings is null");
         this.footerCompletedBytes = footerCompletedBytes;
         this.footerReadTimeNanos = footerReadTimeNanos;
+        this.maxPageSizeBytes = maxPageSizeBytes;
     }
 
     @Override
@@ -91,32 +109,69 @@ public class HiveGpuParquetPageSource
             return new Yielded();
         }
 
-        try {
-            if (fabricatedParquet.rowCount() == 0) {
+        if (fabricatedParquet.rowCount() == 0) {
+            finished = true;
+            close();
+            return new Finished();
+        }
+
+        // cuDF doesn't support reading zero columns, so a zero-column read (e.g. COUNT(*)) synthesizes
+        // prefilled columns. Emit them in row-bounded chunks so a large split doesn't materialize one
+        // oversized page.
+        if (gpuColumns.isEmpty()) {
+            int totalRows = toIntExact(fabricatedParquet.rowCount());
+            if (prefilledRowsPerPage == 0) {
+                prefilledRowsPerPage = prefilledRowsPerPage(totalRows);
+            }
+            int rows = min(prefilledRowsPerPage, totalRows - emittedPrefilledRows);
+            if (rows <= 0) {
                 finished = true;
+                close();
                 return new Finished();
             }
-
-            try (var page = ClosingRef.own(readAndConvert());
-                    // TODO pre-allocate before the page gets into GPU memory
+            try (var page = ClosingRef.own(createGpuPageFromPrefilledColumns(rows));
                     var allocation = ClosingRef.own(memoryContext.allocate(page.borrow().retainedMemory()))) {
-                finished = true;
+                emittedPrefilledRows += rows;
                 return new Data(allocation.take(), page.take());
             }
         }
-        finally {
-            fabricatedParquet.close();
-            fabricatedParquet = null;
+
+        // Decode the split in bounded chunks so no single GpuPage exceeds maxPageSizeBytes.
+        if (chunkedReader == null) {
+            chunkedReader = createChunkedReader();
         }
+        // cuDF's ParquetChunkedReader is driven by hasNext(); readChunk() alone does not advance to
+        // end-of-data. readChunk() may return null or an empty table when a step yields no rows.
+        while (chunkedReader.hasNext()) {
+            try (Table table = chunkedReader.readChunk()) {
+                if (table == null || table.getRowCount() == 0) {
+                    continue;
+                }
+                try (var page = ClosingRef.own(convertToGpuPage(table));
+                        var allocation = ClosingRef.own(memoryContext.allocate(page.borrow().retainedMemory()))) {
+                    return new Data(allocation.take(), page.take());
+                }
+            }
+        }
+        finished = true;
+        close();
+        return new Finished();
     }
 
-    private @Move GpuPage readAndConvert()
+    // Rows per synthetic prefilled page
+    private int prefilledRowsPerPage(int totalRows)
     {
-        // cuDF doesn't support reading zero columns
-        if (gpuColumns.isEmpty()) {
-            return createGpuPageFromPrefilledColumns(toIntExact(fabricatedParquet.rowCount()));
+        verify(totalRows > 0, "totalRows must be positive");
+        long bytesPerRow;
+        try (GpuPage singleRow = createGpuPageFromPrefilledColumns(1)) {
+            MemoryAmount retainedMemory = singleRow.retainedMemory();
+            bytesPerRow = retainedMemory.heapBytes() + retainedMemory.offHeapBytes() + retainedMemory.gpuDeviceBytes();
         }
+        return clamp(maxPageSizeBytes / max(bytesPerRow, 1), 1, totalRows);
+    }
 
+    private @Own ParquetChunkedReader createChunkedReader()
+    {
         // Force timestamp columns (including INT96) to be read at microsecond precision.
         // cuDF's INT96 decode silently overflows int64 (https://github.com/rapidsai/cudf/issues/22930):
         // with TIMESTAMP_NANOSECONDS the valid range is only ~1677..2262;
@@ -126,14 +181,10 @@ public class HiveGpuParquetPageSource
         for (HiveColumnHandle col : gpuColumns) {
             optionsBuilder.includeColumn(col.getBaseColumnName());
         }
-        ParquetOptions options = optionsBuilder.build();
 
         @Borrow Buffers data = fabricatedParquet.data().orElseThrow(() -> new IllegalStateException("No fabricated Parquet data available"));
-
-        // Read from the fabricated buffers using cuDF
-        try (Table table = Table.readParquet(options, data.buffers().toArray(HostMemoryBuffer[]::new))) {
-            return convertToGpuPage(table);
-        }
+        // passReadLimit 0 = unlimited; chunkSizeByteLimit bounds each emitted chunk's device size.
+        return new ParquetChunkedReader(maxPageSizeBytes, /*passReadLimit=*/ 0, optionsBuilder.build(), data.buffers().toArray(HostMemoryBuffer[]::new));
     }
 
     private GpuPage createGpuPageFromPrefilledColumns(int rowCount)
@@ -242,6 +293,11 @@ public class HiveGpuParquetPageSource
     @Override
     public void close()
     {
+        // Close the reader before the host buffers it reads from.
+        if (chunkedReader != null) {
+            chunkedReader.close();
+            chunkedReader = null;
+        }
         if (fabricatedParquet != null) {
             fabricatedParquet.close();
             fabricatedParquet = null;
