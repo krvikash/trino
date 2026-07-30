@@ -104,12 +104,6 @@ public class TestIcebergMvOnCassandraSourceSubstitution
         server.getSession().execute("INSERT INTO %s.%s (id, info) VALUES (3, {'name': 'Carol', 'age': '40', 'gender' : 'W'})".formatted(KEYSPACE, tableName));
     }
 
-    @Override
-    protected String subFieldExpression(String column, String field)
-    {
-        return "json_extract_scalar(%s, '$.%s')".formatted(column, field);
-    }
-
     @Test
     @Disabled("Cassandra does not support ALTER TABLE ADD COLUMN")
     @Override

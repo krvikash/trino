@@ -112,4 +112,10 @@ public class TestIcebergMvOnHiveSourceSubstitution
         // only on ACID (transactional) tables.
         return "WITH (transactional = true) ";
     }
+
+    @Override
+    protected SubFieldTestContext subFieldTestContext()
+    {
+        return SubFieldTestContext.ROW;
+    }
 }

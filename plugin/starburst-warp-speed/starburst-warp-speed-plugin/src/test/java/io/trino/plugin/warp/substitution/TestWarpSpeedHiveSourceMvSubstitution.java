@@ -82,4 +82,10 @@ public class TestWarpSpeedHiveSourceMvSubstitution
         // deleted from a source table; the staleness tests that rely on it are skipped.
         return false;
     }
+
+    @Override
+    protected SubFieldTestContext subFieldTestContext()
+    {
+        return SubFieldTestContext.ROW;
+    }
 }

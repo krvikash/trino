@@ -43,6 +43,7 @@ import static io.trino.testing.TestingAccessControlManager.TestingPrivilegeType.
 import static io.trino.testing.TestingAccessControlManager.privilege;
 import static io.trino.testing.TestingNames.randomNameSuffix;
 import static io.trino.testing.TransactionBuilder.transaction;
+import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.joining;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
@@ -448,12 +449,13 @@ public abstract class AbstractMvSubstitutionTest
 
             createSubstitutionMv(mvName, "SELECT id, info FROM " + table);
 
+            SubFieldTestContext context = subFieldTestContext();
             Session session = sessionWithSubstitution();
-            String nameQuery = "SELECT " + subFieldExpression("info", "name") + " FROM " + table;
+            String nameQuery = "SELECT " + context.subFieldExpression("info", "name") + " FROM " + table;
             assertSubstituted(session, nameQuery, table, mvName);
             assertSameResults(session, nameQuery);
 
-            String ageQuery = "SELECT " + subFieldExpression("info", "age") + " FROM " + table;
+            String ageQuery = "SELECT " + context.subFieldExpression("info", "age") + " FROM " + table;
             assertSubstituted(session, ageQuery, table, mvName);
             assertSameResults(session, ageQuery);
         }
@@ -471,17 +473,18 @@ public abstract class AbstractMvSubstitutionTest
         try {
             createNestedTypeTable(tableName);
 
-            createSubstitutionMv(mvName, "SELECT id, " + subFieldExpression("info", "name") + " AS a FROM " + tableName);
+            SubFieldTestContext context = subFieldTestContext();
+            createSubstitutionMv(mvName, "SELECT id, " + context.subFieldExpression("info", "name") + " AS a FROM " + tableName);
 
             Session session = sessionWithSubstitution();
-            String materializedFieldQuery = "SELECT " + subFieldExpression("info", "name") + " FROM " + tableName;
+            String materializedFieldQuery = "SELECT " + context.subFieldExpression("info", "name") + " FROM " + tableName;
             // The MV materializes a single sub-field expression (info.name), not the whole struct, so its
             // defining query is not a bare table scan and cannot be indexed for substitution.
             // This will change to assertSubstituted when projections are supported
             assertNotSubstituted(session, materializedFieldQuery, tableName);
             assertSameResults(session, materializedFieldQuery);
 
-            String siblingFieldQuery = "SELECT " + subFieldExpression("info", "gender") + " FROM " + tableName;
+            String siblingFieldQuery = "SELECT " + context.subFieldExpression("info", "gender") + " FROM " + tableName;
             // We should not substitute a subfield if it is not materialized. This will test for invalid ConnectorColumnId implementations that only ontain the base column name,
             // once projection support is added
             assertNotSubstituted(session, siblingFieldQuery, tableName);
@@ -495,8 +498,9 @@ public abstract class AbstractMvSubstitutionTest
 
     protected void createNestedTypeTable(CatalogSchemaTableName table)
     {
-        sourceSqlExecutor().execute("CREATE TABLE %s (id BIGINT, info %s)".formatted(sourceTableReference(table), subFieldColumnType()));
-        sourceSqlExecutor().execute("INSERT INTO %s VALUES %s".formatted(sourceTableReference(table), subFieldInsertValues()));
+        SubFieldTestContext context = subFieldTestContext();
+        sourceSqlExecutor().execute("CREATE TABLE %s (id BIGINT, info %s)".formatted(sourceTableReference(table), context.subFieldColumnType()));
+        sourceSqlExecutor().execute("INSERT INTO %s VALUES %s".formatted(sourceTableReference(table), context.subFieldInsertValues()));
     }
 
     @Test
@@ -575,37 +579,6 @@ public abstract class AbstractMvSubstitutionTest
         finally {
             assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvName);
         }
-    }
-
-    /**
-     * Type declaration for a column that exposes named sub-fields, used by
-     * {@link #testScanWithSubFieldProjectionOverMv}. Defaults to a Trino ROW (matches
-     * Iceberg's struct support); connectors without ROW (e.g. JDBC/PostgreSQL) override
-     * to a JSON column.
-     */
-    protected String subFieldColumnType()
-    {
-        return "ROW(name VARCHAR, age INTEGER, gender VARCHAR)";
-    }
-
-    /**
-     * INSERT values for {@link #subFieldColumnType()}: three rows, each with id BIGINT
-     * and an info column carrying sub-fields {@code name} (VARCHAR) and {@code age} (INTEGER).
-     */
-    protected String subFieldInsertValues()
-    {
-        return "(1, CAST(ROW('Alice', 30, 'W') AS ROW(name VARCHAR, age INTEGER, gender VARCHAR))), " +
-                "(2, CAST(ROW('Bob', 25, 'M') AS ROW(name VARCHAR, age INTEGER, gender VARCHAR))), " +
-                "(3, CAST(ROW('Carol', 40, 'W') AS ROW(name VARCHAR, age INTEGER, gender VARCHAR)))";
-    }
-
-    /**
-     * Expression returning a sub-field of {@code column} as a string. Defaults to a Trino
-     * struct dereference; JSON-column connectors override to {@code json_extract_scalar}.
-     */
-    protected String subFieldExpression(String column, String field)
-    {
-        return column + "." + field;
     }
 
     @Test
@@ -1353,5 +1326,86 @@ public abstract class AbstractMvSubstitutionTest
     protected CatalogSchemaTableName mvName(String mvName)
     {
         return new CatalogSchemaTableName(mvSchema().getCatalogName(), mvSchema().getSchemaName(), mvName + randomNameSuffix());
+    }
+
+    protected SubFieldTestContext subFieldTestContext()
+    {
+        return SubFieldTestContext.VARCHAR_JSON;
+    }
+
+    public abstract static class SubFieldTestContext
+    {
+        // Type declaration for a column that exposes named sub-fields,
+        private final String subFieldColumnType;
+        // INSERT values for {@link #subFieldColumnType()}: three rows, each with id BIGINT
+        // and an info column carrying sub-fields {@code name} (VARCHAR) and {@code age} (INTEGER).
+        private final String subFieldInsertValues;
+
+        public static final SubFieldTestContext ROW = new SubFieldTestContext(
+                "ROW(name VARCHAR, age INTEGER, gender VARCHAR)",
+                """
+                (1, CAST(ROW('Alice', 30, 'W') AS ROW(name VARCHAR, age INTEGER, gender VARCHAR))),
+                (2, CAST(ROW('Bob', 25, 'M') AS ROW(name VARCHAR, age INTEGER, gender VARCHAR))),
+                (3, CAST(ROW('Carol', 40, 'W') AS ROW(name VARCHAR, age INTEGER, gender VARCHAR)))
+                """)
+        {
+            @Override
+            protected String subFieldExpression(String column, String field)
+            {
+                return column + "." + field;
+            }
+        };
+
+        public static final String VARCHAR_JSON_VALUES =
+                """
+                (1, '{"name":"Alice","age":30, "gender":"W"}'),
+                (2, '{"name":"Bob","age":25, "gender":"M"}'),
+                (3, '{"name":"Carol","age":40, "gender":"W"}')
+                """;
+
+        public static final SubFieldTestContext VARCHAR_JSON = new SubFieldTestContext("VARCHAR", VARCHAR_JSON_VALUES)
+        {
+            @Override
+            protected String subFieldExpression(String column, String field)
+            {
+                return "json_extract_scalar(" + column + ", '$." + field + "')";
+            }
+        };
+
+        public static final SubFieldTestContext JSON = new SubFieldTestContext("JSON",
+                """
+                (1, JSON '{"name":"Alice","age":30, "gender":"W"}'),
+                (2, JSON '{"name":"Bob","age":25, "gender":"M"}'),
+                (3, JSON '{"name":"Carol","age":40, "gender":"W"}')
+                """)
+        {
+            @Override
+            protected String subFieldExpression(String column, String field)
+            {
+                return "json_extract_scalar(" + column + ", '$." + field + "')";
+            }
+        };
+
+        protected SubFieldTestContext(String subFieldColumnType, String subFieldInsertValues)
+        {
+            this.subFieldColumnType = requireNonNull(subFieldColumnType, "subFieldColumnType is null");
+            this.subFieldInsertValues = requireNonNull(subFieldInsertValues, "subFieldInsertValues is null");
+        }
+
+        public String subFieldColumnType()
+        {
+            return subFieldColumnType;
+        }
+
+        public String subFieldInsertValues()
+        {
+            return subFieldInsertValues;
+        }
+
+        /**
+         * Expression returning a sub-field of {@code column} as a string. Defaults to a Trino
+         * struct dereference; JSON-column connectors override to {@code json_extract_scalar}.
+         */
+        protected abstract String subFieldExpression(String column, String field);
     }
 }

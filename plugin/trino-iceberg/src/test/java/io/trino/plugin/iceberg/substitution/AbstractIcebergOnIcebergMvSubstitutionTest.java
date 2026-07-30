@@ -31,6 +31,12 @@ public abstract class AbstractIcebergOnIcebergMvSubstitutionTest
         return new CatalogSchemaName(ICEBERG_CATALOG, "schema");
     }
 
+    @Override
+    protected SubFieldTestContext subFieldTestContext()
+    {
+        return SubFieldTestContext.ROW;
+    }
+
     @Test
     public void testForVersionAsOfNotSubstituted()
     {
