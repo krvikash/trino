@@ -18,7 +18,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableSet;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
@@ -78,6 +77,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Strings.nullToEmpty;
 import static com.google.common.base.Throwables.getCausalChain;
+import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static com.google.common.util.concurrent.MoreExecutors.listeningDecorator;
 import static com.google.common.util.concurrent.MoreExecutors.newDirectExecutorService;
@@ -430,8 +430,12 @@ public final class BenchmarkRunner
                 }
                 verifyTableStatistics(runner, workload);
 
-                Set<String> skipped = ImmutableSet.copyOf(skipQueries);
-                List<String> queriesRun = queries.isEmpty() ? workload.defaultQueries() : List.copyOf(queries);
+                Set<String> skipped = skipQueries.stream().map(workload::normalizeQuery).collect(toImmutableSet());
+                List<String> queriesRun = queries.isEmpty()
+                        ? workload.defaultQueries()
+                        : queries.stream()
+                          .map(workload::normalizeQuery)
+                          .toList();
 
                 List<String> suiteQueries = workload.defaultQueries();
                 for (int round = 1; round <= suiteWarmup; round++) {
@@ -909,7 +913,7 @@ public final class BenchmarkRunner
                     workload.verifyDataset(runner);
                 }
                 verifyTableStatistics(runner, workload);
-                List<String> queriesRun = queries.isEmpty() ? workload.defaultQueries() : List.copyOf(queries);
+                List<String> queriesRun = queries.isEmpty() ? workload.defaultQueries() : queries.stream().map(workload::normalizeQuery).toList();
                 for (String query : queriesRun) {
                     Path target = recordTargetFor(workload.expectedResultResource(query));
                     String sql = workload.readQuery(query);

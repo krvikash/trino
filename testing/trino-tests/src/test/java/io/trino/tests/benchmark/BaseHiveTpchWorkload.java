@@ -72,6 +72,12 @@ public abstract class BaseHiveTpchWorkload
     }
 
     @Override
+    public String normalizeQuery(String query)
+    {
+        return Tpch.normalizeQuery(query);
+    }
+
+    @Override
     public String readQuery(String query)
     {
         return Tpch.readQuery(query, "hive", "tpch", scaleFactor);

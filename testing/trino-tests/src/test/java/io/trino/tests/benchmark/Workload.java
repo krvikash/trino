@@ -37,6 +37,11 @@ public interface Workload
     List<String> defaultQueries();
 
     /**
+     * Converts query name/ID to canonical form as returned by {@link #defaultQueries()}.
+     */
+    String normalizeQuery(String query);
+
+    /**
      * Load the SQL text for a query (typically from a classpath resource).
      */
     String readQuery(String query);

@@ -73,6 +73,12 @@ public abstract class BaseHiveTpcdsWorkload
     }
 
     @Override
+    public String normalizeQuery(String query)
+    {
+        return Tpcds.normalizeQuery(query);
+    }
+
+    @Override
     public String readQuery(String query)
     {
         return Tpcds.readQuery(query, "hive", "tpcds");

@@ -72,6 +72,12 @@ public abstract class BaseIcebergTpcdsWorkload
     }
 
     @Override
+    public String normalizeQuery(String query)
+    {
+        return Tpcds.normalizeQuery(query);
+    }
+
+    @Override
     public String readQuery(String query)
     {
         return Tpcds.readQuery(query, "iceberg", "tpcds");

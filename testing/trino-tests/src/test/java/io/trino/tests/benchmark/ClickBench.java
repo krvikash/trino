@@ -18,8 +18,12 @@ import com.google.common.io.Resources;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.IntStream;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Verify.verify;
 import static com.google.common.io.Resources.getResource;
 import static java.lang.String.format;
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -35,6 +39,19 @@ public final class ClickBench
                 .boxed()
                 .map(queryNumber -> format("q%02d", queryNumber))
                 .toList();
+    }
+
+    public static String normalizeQuery(String query)
+    {
+        Matcher matcher = Pattern.compile("(\\d{1,2})|(q\\d\\d)").matcher(query);
+        checkArgument(matcher.matches(), "Invalid query name: %s", query);
+        String fullQueryName = matcher.group(2);
+        if (fullQueryName != null) {
+            verify(fullQueryName.equals(query));
+            return query;
+        }
+        int queryNumber = Integer.parseInt(matcher.group(1));
+        return format("q%02d", queryNumber);
     }
 
     public static String readQuery(String query, String catalog, String schema)

@@ -180,6 +180,12 @@ public final class BenchmarkHiveClickBench
         }
 
         @Override
+        public String normalizeQuery(String query)
+        {
+            return ClickBench.normalizeQuery(query);
+        }
+
+        @Override
         public String readQuery(String query)
         {
             return ClickBench.readQuery(query, "hive", "clickbench");
