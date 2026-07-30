@@ -73,7 +73,10 @@ public class GpuConfig
     private Optional<DataSize> maxQueryGpuMemoryPerNode = Optional.empty();
     private Optional<DataSize> maxQueryOffHeapMemoryPerNode = Optional.empty();
 
-    private DataSize aggregationCompactionThreshold = DataSize.of(4, GIGABYTE);
+    // Aggregation may take up to `Data Size * Aggregation Reservation Multiplier (currently 3) * Concurrency (currently 4)`
+    // memory. The Data Size is capped by this value and also the size of a single GpuPage.
+    // Default chosen so that it fits in the ~20 GB of memory available on L4 chips.
+    private DataSize aggregationCompactionThreshold = DataSize.of(1536, MEGABYTE);
 
     private int executionConcurrency = 4;
 

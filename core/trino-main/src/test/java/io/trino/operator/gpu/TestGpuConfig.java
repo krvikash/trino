@@ -46,7 +46,7 @@ public class TestGpuConfig
                 .setOffHeapMemoryPoolSize(DataSize.of(8, GIGABYTE))
                 .setMaxQueryGpuMemoryPerNode(null)
                 .setMaxQueryOffHeapMemoryPerNode(null)
-                .setAggregationCompactionThreshold(DataSize.of(4, GIGABYTE))
+                .setAggregationCompactionThreshold(DataSize.of(1536, MEGABYTE))
                 .setExecutionConcurrency(4)
                 .setMaxConcurrentReads(null)
                 .setDeviceStatsSamplingInterval(new Duration(5, TimeUnit.SECONDS)));
