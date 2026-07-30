@@ -13,7 +13,6 @@
  */
 package io.trino.tests.benchmark;
 
-import com.google.common.io.Resources;
 import io.airlift.log.Logger;
 import io.airlift.units.DataSize;
 import io.trino.metastore.HiveMetastore;
@@ -24,17 +23,13 @@ import io.trino.sql.query.QueryAssertions;
 import io.trino.testing.DistributedQueryRunner;
 import io.trino.testing.containers.Minio;
 
-import java.io.IOException;
-import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.stream.IntStream;
 
-import static com.google.common.io.Resources.getResource;
 import static io.trino.testing.containers.Minio.MINIO_REGION;
 import static io.trino.testing.containers.Minio.MINIO_ROOT_PASSWORD;
 import static io.trino.testing.containers.Minio.MINIO_ROOT_USER;
@@ -42,8 +37,6 @@ import static io.trino.tests.benchmark.BenchmarkRunner.isRemote;
 import static io.trino.tests.benchmark.IcebergTablesUtil.findTableDirectory;
 import static io.trino.tests.benchmark.IcebergTablesUtil.registerTables;
 import static io.trino.tests.benchmark.IcebergTablesUtil.resolveTablesLocation;
-import static java.lang.String.format;
-import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -79,23 +72,13 @@ public final class BenchmarkIcebergClickBench
         @Override
         public List<String> defaultQueries()
         {
-            return IntStream.rangeClosed(0, 42).boxed().map(queryNumber -> format("q%02d", queryNumber)).toList();
+            return ClickBench.allQueries();
         }
 
         @Override
         public String readQuery(String query)
         {
-            try {
-                return Resources.toString(
-                                getResource("sql/trino/clickbench/queries/%s.sql".formatted(query)), UTF_8)
-                        .replace("${database}", "iceberg")
-                        .replace("${schema}", "clickbench")
-                        .trim()
-                        .replaceFirst(";$", "");
-            }
-            catch (IOException e) {
-                throw new UncheckedIOException(e);
-            }
+            return ClickBench.readQuery(query, "iceberg", "clickbench");
         }
 
         @Override

@@ -13,7 +13,6 @@
  */
 package io.trino.tests.benchmark;
 
-import com.google.common.io.Resources;
 import io.airlift.log.Logger;
 import io.airlift.units.DataSize;
 import io.trino.Session;
@@ -22,22 +21,17 @@ import io.trino.plugin.hive.TestingHivePlugin;
 import io.trino.sql.query.QueryAssertions;
 import io.trino.testing.DistributedQueryRunner;
 
-import java.io.IOException;
-import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.stream.IntStream;
 
-import static com.google.common.io.Resources.getResource;
 import static io.trino.testing.TestingSession.testSessionBuilder;
 import static io.trino.tests.benchmark.BenchmarkRunner.applyDataGenerationConfiguration;
 import static io.trino.tests.benchmark.BenchmarkRunner.isRemote;
 import static java.lang.String.format;
-import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -182,23 +176,13 @@ public final class BenchmarkHiveClickBench
         @Override
         public List<String> defaultQueries()
         {
-            return IntStream.rangeClosed(0, 42).boxed().map(queryNumber -> format("q%02d", queryNumber)).toList();
+            return ClickBench.allQueries();
         }
 
         @Override
         public String readQuery(String query)
         {
-            try {
-                return Resources.toString(
-                                getResource("sql/trino/clickbench/queries/%s.sql".formatted(query)), UTF_8)
-                        .replace("${database}", "hive")
-                        .replace("${schema}", "clickbench")
-                        .trim()
-                        .replaceFirst(";$", "");
-            }
-            catch (IOException e) {
-                throw new UncheckedIOException(e);
-            }
+            return ClickBench.readQuery(query, "hive", "clickbench");
         }
 
         @Override
