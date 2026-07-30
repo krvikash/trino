@@ -13,7 +13,6 @@
  */
 package io.trino.tests.benchmark;
 
-import com.google.common.io.Resources;
 import io.airlift.log.Logger;
 import io.trino.metastore.HiveMetastore;
 import io.trino.metastore.HiveMetastoreFactory;
@@ -24,8 +23,6 @@ import io.trino.testing.DistributedQueryRunner;
 import io.trino.testing.containers.Minio;
 import io.trino.tpcds.Table;
 
-import java.io.IOException;
-import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
@@ -34,14 +31,11 @@ import java.util.Map;
 import java.util.Optional;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
-import static com.google.common.io.Resources.getResource;
 import static io.trino.testing.containers.Minio.MINIO_REGION;
 import static io.trino.testing.containers.Minio.MINIO_ROOT_PASSWORD;
 import static io.trino.testing.containers.Minio.MINIO_ROOT_USER;
-import static io.trino.tests.GpuQueriesTests.getTpcdsQueries;
 import static io.trino.tests.benchmark.BenchmarkRunner.isRemote;
 import static io.trino.tests.benchmark.IcebergTablesUtil.registerTables;
-import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Locale.ENGLISH;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -74,23 +68,13 @@ public abstract class BaseIcebergTpcdsWorkload
     @Override
     public List<String> defaultQueries()
     {
-        return getTpcdsQueries().toList();
+        return Tpcds.allQueries();
     }
 
     @Override
     public String readQuery(String query)
     {
-        try {
-            return Resources.toString(
-                            getResource("sql/trino/tpcds/%s.sql".formatted(query)), UTF_8)
-                    .replace("${database}", "iceberg")
-                    .replace("${schema}", "tpcds")
-                    .trim()
-                    .replaceFirst(";$", "");
-        }
-        catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
+        return Tpcds.readQuery(query, "iceberg", "tpcds");
     }
 
     @Override

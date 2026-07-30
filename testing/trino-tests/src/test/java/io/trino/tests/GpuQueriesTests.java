@@ -13,7 +13,6 @@
  */
 package io.trino.tests;
 
-import com.google.common.collect.ImmutableSet;
 import io.airlift.log.Logger;
 import io.airlift.log.Logging;
 import io.trino.Session;
@@ -50,21 +49,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 public final class GpuQueriesTests
 {
     private GpuQueriesTests() {}
-
-    // Queries whose template defines two query parts, generated as separate "a" and "b" files.
-    private static final Set<Integer> TPCDS_QUERIES_WITH_TWO_PARTS = ImmutableSet.of(14, 23, 24, 39);
-
-    public static Stream<String> getTpcdsQueries()
-    {
-        return IntStream.rangeClosed(1, 99)
-                .boxed()
-                .flatMap(queryNumber -> {
-                    if (TPCDS_QUERIES_WITH_TWO_PARTS.contains(queryNumber)) {
-                        return Stream.of(format("q%02da", queryNumber), format("q%02db", queryNumber));
-                    }
-                    return Stream.of(format("q%02d", queryNumber));
-                });
-    }
 
     public static Stream<String> getTpchQueries()
     {

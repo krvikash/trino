@@ -17,6 +17,7 @@ import com.google.common.io.Resources;
 import io.airlift.log.Logger;
 import io.trino.plugin.iceberg.IcebergQueryRunner;
 import io.trino.testing.QueryRunner;
+import io.trino.tests.benchmark.Tpcds;
 import io.trino.tpcds.Table;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -27,7 +28,6 @@ import java.util.stream.Stream;
 import static com.google.common.io.Resources.getResource;
 import static io.trino.plugin.base.util.Closables.closeAllSuppress;
 import static io.trino.tests.GpuQueriesTests.assertGpuQueryResultsAndOperators;
-import static io.trino.tests.GpuQueriesTests.getTpcdsQueries;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Locale.ENGLISH;
 
@@ -84,18 +84,13 @@ public abstract class BaseIcebergGpuTpcdsQueriesTest
     @Override
     final Stream<String> queries()
     {
-        return getTpcdsQueries();
+        return Tpcds.allQueries().stream();
     }
 
     @Override
     final String readQuery(String query)
-            throws IOException
     {
-        return Resources.toString(getResource("sql/trino/tpcds/%s.sql".formatted(query)), UTF_8)
-                .replace("${database}", "iceberg")
-                .replace("${schema}", "tpcds")
-                .trim()
-                .replaceFirst(";$", "");
+        return Tpcds.readQuery(query, "iceberg", "tpcds");
     }
 
     private String readExpectedGpuPlanCoverage(String query)
