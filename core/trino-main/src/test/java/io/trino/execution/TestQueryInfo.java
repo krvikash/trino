@@ -16,6 +16,7 @@ package io.trino.execution;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.ImmutableSetMultimap;
 import io.airlift.json.JsonCodec;
 import io.airlift.json.JsonCodecFactory;
 import io.airlift.json.JsonMapperProvider;
@@ -265,7 +266,7 @@ public class TestQueryInfo
                     ImmutableList.of(),
                     stageId == 1 ? ImmutableList.of() : ImmutableList.of(StageId.valueOf(ImmutableList.of("s", String.valueOf(stageId - 1)))),
                     ImmutableMap.of(),
-                    ImmutableMap.of(new PlanNodeId("gpu_node"), ImmutableSet.of("Unsupported expression")),
+                    ImmutableSetMultimap.of(new PlanNodeId("gpu_node"), "Unsupported expression"),
                     new ExecutionFailureInfo("", "", null, ImmutableList.of(), ImmutableList.of(), null, null, null)));
         }
         return new StagesInfo(

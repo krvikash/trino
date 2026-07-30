@@ -15,6 +15,7 @@ package io.trino.execution;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSetMultimap;
 import com.google.errorprone.annotations.ThreadSafe;
 import io.airlift.log.Logger;
 import io.airlift.stats.Distribution;
@@ -41,7 +42,6 @@ import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -491,7 +491,7 @@ public class StageStateMachine
         boolean fullyBlocked = true;
         Set<BlockedReason> blockedReasons = new HashSet<>();
 
-        Map<PlanNodeId, Set<String>> gpuIneligibilityReasons = new HashMap<>();
+        ImmutableSetMultimap.Builder<PlanNodeId, String> gpuIneligibilityReasons = ImmutableSetMultimap.builder();
 
         int maxTaskOperatorSummaries = 0;
         for (TaskInfo taskInfo : taskInfos) {
@@ -589,8 +589,7 @@ public class StageStateMachine
             minFullGcSec = min(minFullGcSec, gcSec);
             maxFullGcSec = max(maxFullGcSec, gcSec);
 
-            taskInfo.gpuIneligibilityReasons().forEach((planNodeId, reasons) ->
-                    gpuIneligibilityReasons.computeIfAbsent(planNodeId, _ -> new HashSet<>()).add(reasons));
+            gpuIneligibilityReasons.putAll(taskInfo.gpuIneligibilityReasons().entrySet());
 
             // Count and record the maximum number of pipeline / operators across all task infos
             int taskOperatorSummaries = 0;
@@ -690,7 +689,7 @@ public class StageStateMachine
                 taskInfos,
                 ImmutableList.of(),
                 tables,
-                gpuIneligibilityReasons,
+                gpuIneligibilityReasons.build(),
                 failureInfo);
     }
 

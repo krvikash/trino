@@ -15,6 +15,7 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.ImmutableSetMultimap;
 import io.airlift.stats.Distribution;
 import io.airlift.units.DataSize;
 import io.airlift.units.Duration;
@@ -258,7 +259,7 @@ public class TestQueryJsonProvider
                 ImmutableList.of(),
                 ImmutableList.of(),
                 ImmutableMap.of(),
-                ImmutableMap.of(),
+                ImmutableSetMultimap.of(),
                 null);
         StagesInfo stagesInfo = new StagesInfo(stageId, ImmutableList.of(stageInfo));
 

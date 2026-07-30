@@ -18,6 +18,7 @@ import com.google.common.base.Ticker;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.ImmutableSetMultimap;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
@@ -1575,7 +1576,7 @@ public class QueryStateMachine
                         ImmutableList.of(), // Remove the tasks
                         ImmutableList.of(), // Remove the substages
                         ImmutableMap.of(), // Remove tables
-                        ImmutableMap.of(), // Remove gpuIneligibilityReasons
+                        ImmutableSetMultimap.of(), // Remove gpuIneligibilityReasons
                         outputStageInfo.failureCause())));
     }
 
