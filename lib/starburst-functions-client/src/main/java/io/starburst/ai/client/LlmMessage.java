@@ -67,6 +67,11 @@ public record LlmMessage(MessageRole role, Optional<String> content, List<ToolRe
         }
     }
 
+    public LlmMessage(MessageRole role, String content)
+    {
+        this(role, Optional.of(requireNonNull(content)), List.of(), List.of());
+    }
+
     public record ToolResponse(ObjectNode responseJson, String toolUseId)
     {
         public ToolResponse
