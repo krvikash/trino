@@ -59,24 +59,26 @@ final class IcebergVariantTypeUtil
     {
         OutputFile outputFile = localOutput(outputFilePath);
 
-        try (FileAppender<Record> writer = Parquet.write(outputFile)
+        FileAppender<Record> writer = Parquet.write(outputFile)
                 .schema(SCHEMA)
                 .variantShreddingFunc((_, _) -> null)
                 .createWriterFunc(fileSchema -> InternalWriter.create(SCHEMA.asStruct(), fileSchema))
-                .build()) {
+                .build();
+        try (writer) {
             for (Variant variantValue : variantValues) {
                 Record record = RECORD.copy(INT_COL_NAME, 1, VARIANT_COL_NAME, variantValue);
                 writer.add(record);
             }
-            DataFile file = fileBuilder
-                    .withRecordCount(1)
-                    .withFileSizeInBytes(2000)
-                    .withPath(outputFile.location())
-                    .withFormat(FileFormat.PARQUET)
-                    .build();
-
-            table.newAppend().appendFile(file).commit();
         }
+        DataFile file = fileBuilder
+                .withRecordCount(1)
+                // file size must be exact: reads trust it as the file length
+                .withFileSizeInBytes(writer.length())
+                .withPath(outputFile.location())
+                .withFormat(FileFormat.PARQUET)
+                .build();
+
+        table.newAppend().appendFile(file).commit();
     }
 
     public static void writeOrcDataToIcebergTable(String outputFilePath, Variant variantValue, DataFiles.Builder fileBuilder, Table table)
@@ -85,20 +87,22 @@ final class IcebergVariantTypeUtil
         OutputFile outputFile = localOutput(outputFilePath);
         Record record = RECORD.copy(INT_COL_NAME, 1, VARIANT_COL_NAME, variantValue);
 
-        try (FileAppender<Record> writer = ORC.write(outputFile)
+        FileAppender<Record> writer = ORC.write(outputFile)
                 .schema(SCHEMA)
                 .createWriterFunc(GenericOrcWriter::buildWriter)
-                .build()) {
+                .build();
+        try (writer) {
             writer.add(record);
-            DataFile file = fileBuilder
-                    .withRecordCount(1)
-                    .withFileSizeInBytes(2000)
-                    .withPath(outputFile.location())
-                    .withFormat(FileFormat.ORC)
-                    .build();
-
-            table.newAppend().appendFile(file).commit();
         }
+        DataFile file = fileBuilder
+                .withRecordCount(1)
+                // file size must be exact: reads trust it as the file length
+                .withFileSizeInBytes(writer.length())
+                .withPath(outputFile.location())
+                .withFormat(FileFormat.ORC)
+                .build();
+
+        table.newAppend().appendFile(file).commit();
     }
 
     public static void writeAvroDataToIcebergTable(String outputFilePath, Variant variantValue, DataFiles.Builder fileBuilder, Table table)
@@ -107,19 +111,21 @@ final class IcebergVariantTypeUtil
         OutputFile outputFile = localOutput(outputFilePath);
         Record record = RECORD.copy(INT_COL_NAME, 1, VARIANT_COL_NAME, variantValue);
 
-        try (FileAppender<Record> writer = Avro.write(outputFile)
+        FileAppender<Record> writer = Avro.write(outputFile)
                 .schema(SCHEMA)
                 .createWriterFunc(DataWriter::create)
-                .build()) {
+                .build();
+        try (writer) {
             writer.add(record);
-            DataFile file = fileBuilder
-                    .withRecordCount(1)
-                    .withFileSizeInBytes(2000)
-                    .withPath(outputFile.location())
-                    .withFormat(FileFormat.AVRO)
-                    .build();
-
-            table.newAppend().appendFile(file).commit();
         }
+        DataFile file = fileBuilder
+                .withRecordCount(1)
+                // file size must be exact: reads trust it as the file length
+                .withFileSizeInBytes(writer.length())
+                .withPath(outputFile.location())
+                .withFormat(FileFormat.AVRO)
+                .build();
+
+        table.newAppend().appendFile(file).commit();
     }
 }
