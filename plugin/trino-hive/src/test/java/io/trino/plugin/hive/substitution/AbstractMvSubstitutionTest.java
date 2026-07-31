@@ -189,10 +189,7 @@ public abstract class AbstractMvSubstitutionTest
         getQueryRunner().execute("REFRESH MATERIALIZED VIEW %s".formatted(mvName));
     }
 
-    protected CatalogSchemaName mvSchema()
-    {
-        return new CatalogSchemaName(getSession().getCatalog().orElseThrow(), getSession().getSchema().orElseThrow());
-    }
+    protected abstract CatalogSchemaName mvSchema();
 
     protected CatalogSchemaName sourceSchema()
     {

@@ -16,7 +16,6 @@ package io.trino.plugin.bigquery.substitution;
 import io.trino.plugin.bigquery.BigQueryQueryRunner;
 import io.trino.plugin.iceberg.TestingIcebergPlugin;
 import io.trino.plugin.iceberg.substitution.AbstractIcebergMvSubstitutionTest;
-import io.trino.spi.connector.CatalogSchemaName;
 import io.trino.testing.DistributedQueryRunner;
 import io.trino.testing.QueryRunner;
 import org.junit.jupiter.api.Disabled;
@@ -63,12 +62,6 @@ public class TestBigQueryMvSubstitution
             throw e;
         }
         return queryRunner;
-    }
-
-    @Override
-    protected CatalogSchemaName mvSchema()
-    {
-        return new CatalogSchemaName(ICEBERG_CATALOG, "tpch");
     }
 
     @Test

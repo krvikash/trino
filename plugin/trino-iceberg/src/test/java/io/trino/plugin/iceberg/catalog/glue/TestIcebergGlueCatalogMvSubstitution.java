@@ -18,6 +18,7 @@ import com.google.common.collect.ImmutableMap;
 import io.trino.plugin.iceberg.IcebergQueryRunner;
 import io.trino.plugin.iceberg.SchemaInitializer;
 import io.trino.plugin.iceberg.substitution.AbstractIcebergOnIcebergMvSubstitutionTest;
+import io.trino.spi.connector.CatalogSchemaName;
 import io.trino.testing.DistributedQueryRunner;
 import io.trino.testing.QueryRunner;
 import org.junit.jupiter.api.AfterAll;
@@ -68,6 +69,12 @@ public class TestIcebergGlueCatalogMvSubstitution
             closeAllSuppress(e, queryRunner);
             throw e;
         }
+    }
+
+    @Override
+    protected CatalogSchemaName mvSchema()
+    {
+        return sourceSchema();
     }
 
     @AfterAll

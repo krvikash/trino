@@ -15,6 +15,7 @@ package io.trino.plugin.lakehouse.substitution;
 
 import io.trino.plugin.iceberg.substitution.AbstractIcebergOnIcebergMvSubstitutionTest;
 import io.trino.plugin.lakehouse.LakehouseQueryRunner;
+import io.trino.spi.connector.CatalogSchemaName;
 import io.trino.testing.QueryRunner;
 import org.junit.jupiter.api.parallel.Execution;
 
@@ -53,5 +54,11 @@ final class TestLakehouseIcebergMvSubstitution
             closeAllSuppress(e, queryRunner);
             throw e;
         }
+    }
+
+    @Override
+    protected CatalogSchemaName mvSchema()
+    {
+        return new CatalogSchemaName("lakehouse", "mv");
     }
 }

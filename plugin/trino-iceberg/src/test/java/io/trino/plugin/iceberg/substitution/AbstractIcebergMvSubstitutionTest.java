@@ -14,6 +14,9 @@
 package io.trino.plugin.iceberg.substitution;
 
 import io.trino.plugin.hive.substitution.AbstractMvSubstitutionTest;
+import io.trino.spi.connector.CatalogSchemaName;
+
+import static io.trino.plugin.iceberg.IcebergQueryRunner.ICEBERG_CATALOG;
 
 public abstract class AbstractIcebergMvSubstitutionTest
         extends AbstractMvSubstitutionTest
@@ -22,5 +25,11 @@ public abstract class AbstractIcebergMvSubstitutionTest
     protected String partitionedByPropertyName()
     {
         return "partitioning";
+    }
+
+    @Override
+    protected CatalogSchemaName mvSchema()
+    {
+        return new CatalogSchemaName(ICEBERG_CATALOG, "tpch");
     }
 }

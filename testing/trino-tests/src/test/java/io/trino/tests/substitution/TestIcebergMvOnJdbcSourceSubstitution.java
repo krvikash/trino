@@ -20,7 +20,6 @@ import io.trino.plugin.iceberg.substitution.AbstractIcebergMvSubstitutionTest;
 import io.trino.plugin.postgresql.PostgreSqlPlugin;
 import io.trino.plugin.postgresql.TestingPostgreSqlServer;
 import io.trino.plugin.tpch.TpchPlugin;
-import io.trino.spi.connector.CatalogSchemaName;
 import io.trino.testing.DistributedQueryRunner;
 import io.trino.testing.QueryRunner;
 import org.junit.jupiter.api.parallel.Execution;
@@ -83,12 +82,6 @@ public class TestIcebergMvOnJdbcSourceSubstitution
             throw e;
         }
         return queryRunner;
-    }
-
-    @Override
-    protected CatalogSchemaName mvSchema()
-    {
-        return new CatalogSchemaName(ICEBERG_CATALOG, "tpch");
     }
 
     @Override
