@@ -29,13 +29,16 @@ public abstract class AbstractIcebergOnIcebergMvSubstitutionTest
         // FOR VERSION AS OF / FOR TIMESTAMP AS OF requests a specific historical snapshot.
         // The MV holds the current data — substituting would silently drop the user's
         // intended version and return current data instead.
-        String tableName = "src_time_travel_" + randomNameSuffix();
+        CatalogSchemaTableName tableName = sourceTable("src_time_travel_" + randomNameSuffix());
         CatalogSchemaTableName mvName = mvName("mv_time_travel_");
         try {
             assertUpdate("CREATE TABLE " + tableName + " AS SELECT 1 AS id", 1);
             // Snapshot S1: one row
             long snapshotS1 = (long) computeActual(
-                    "SELECT max(snapshot_id) FROM \"" + tableName + "$snapshots\"").getOnlyValue();
+                    "SELECT max(snapshot_id) FROM %s.%s.\"%s$snapshots\"".formatted(
+                            tableName.getCatalogName(),
+                            tableName.getSchemaTableName().getSchemaName(),
+                            tableName.getSchemaTableName().getTableName())).getOnlyValue();
 
             assertUpdate("INSERT INTO " + tableName + " VALUES 2", 1);
             assertUpdate("INSERT INTO " + tableName + " VALUES 3", 1);

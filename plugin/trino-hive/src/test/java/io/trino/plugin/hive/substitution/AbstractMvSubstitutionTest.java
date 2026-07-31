@@ -23,7 +23,8 @@ import io.trino.spi.connector.CatalogSchemaName;
 import io.trino.spi.connector.CatalogSchemaTableName;
 import io.trino.testing.AbstractTestQueryFramework;
 import io.trino.testing.MaterializedResult;
-import io.trino.testing.QueryRunner;
+import io.trino.testing.QueryRunner.MaterializedResultWithPlan;
+import io.trino.testing.sql.SqlExecutor;
 import io.trino.testing.sql.TestTable;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -60,8 +61,9 @@ public abstract class AbstractMvSubstitutionTest
 
     // Random suffixes so concurrent runs against a shared catalog (e.g. a shared BigQuery dataset)
     // do not collide on the base table names.
-    private final String ordersTable = "orders_" + randomNameSuffix();
-    private final String lineitemTable = "lineitem_" + randomNameSuffix();
+    protected final CatalogSchemaTableName ordersTable = sourceTable("orders_" + randomNameSuffix());
+
+    protected final CatalogSchemaTableName lineitemTable = sourceTable("lineitem_" + randomNameSuffix());
 
     @BeforeAll
     public void setUp()
@@ -76,6 +78,13 @@ public abstract class AbstractMvSubstitutionTest
         // connectors, e.g. Cassandra, cannot DELETE by an arbitrary predicate). Each test stays
         // independent by capturing its own baseline count instead of relying on a global row
         // count; concrete tests run single-threaded (@Execution(SAME_THREAD)).
+        createOrdersTable();
+
+        createLineItemTable();
+    }
+
+    protected void createOrdersTable()
+    {
         assertUpdate("CREATE TABLE " + ordersTable + " " + sourceTablePropertiesClause() + " AS SELECT " +
                 "orderkey, " +
                 "custkey, " +
@@ -83,7 +92,10 @@ public abstract class AbstractMvSubstitutionTest
                 "totalprice, " +
                 "CAST(orderstatus AS VARCHAR) AS orderstatus " +
                 "FROM tpch.tiny.orders  where orderkey between 20000 and 20010", 8);
+    }
 
+    protected void createLineItemTable()
+    {
         assertUpdate("CREATE TABLE " + lineitemTable + " " + sourceTablePropertiesClause() + " AS SELECT " +
                 "orderkey, " +
                 "linenumber, " +
@@ -93,11 +105,16 @@ public abstract class AbstractMvSubstitutionTest
                 "FROM tpch.tiny.lineitem where orderkey between 20000 and 20010", 32);
     }
 
+    protected void insertIntoOrders(long id)
+    {
+        assertUpdate("INSERT INTO %s VALUES (%s, 400, '1995-02-01', DOUBLE '99.99', 'N')".formatted(ordersTable, id), 1);
+    }
+
     @AfterAll
     public void tearDown()
     {
-        assertUpdate("DROP TABLE IF EXISTS " + ordersTable);
-        assertUpdate("DROP TABLE IF EXISTS " + lineitemTable);
+        sourceSqlExecutor().execute("DROP TABLE IF EXISTS %s".formatted(sourceTableReference(ordersTable)));
+        sourceSqlExecutor().execute("DROP TABLE IF EXISTS %s".formatted(sourceTableReference(lineitemTable)));
     }
 
     /**
@@ -177,32 +194,55 @@ public abstract class AbstractMvSubstitutionTest
         return new CatalogSchemaName(getSession().getCatalog().orElseThrow(), getSession().getSchema().orElseThrow());
     }
 
-    protected QueryRunner.MaterializedResultWithPlan assertSubstituted(Session session, String query, String baseTableName, CatalogSchemaTableName mvName, String... expectedNotSubstitutedTables)
+    protected CatalogSchemaName sourceSchema()
+    {
+        return new CatalogSchemaName("source", "schema");
+    }
+
+    protected String sourceSchemaName()
+    {
+        return sourceSchema().getSchemaName();
+    }
+
+    protected CatalogSchemaTableName sourceTable(String tableName)
+    {
+        return new CatalogSchemaTableName(sourceSchema().getCatalogName(), sourceSchema().getSchemaName(), tableName);
+    }
+
+    protected SqlExecutor sourceSqlExecutor()
+    {
+        return getQueryRunner()::execute;
+    }
+
+    protected String sourceTableReference(CatalogSchemaTableName sourceTable)
+    {
+        return sourceTable.toString();
+    }
+
+    protected MaterializedResultWithPlan assertSubstituted(Session session, String query, CatalogSchemaTableName baseTableName, CatalogSchemaTableName mvName, CatalogSchemaTableName... expectedNotSubstitutedTables)
     {
         return assertSubstituted(session, query, baseTableName, Set.of(mvName), expectedNotSubstitutedTables);
     }
 
-    protected QueryRunner.MaterializedResultWithPlan assertSubstituted(
+    protected MaterializedResultWithPlan assertSubstituted(
             Session session,
             String query,
-            String baseTableName,
+            CatalogSchemaTableName baseTableName,
             Set<CatalogSchemaTableName> materializedViews,
-            String... expectedNotSubstitutedTables)
+            CatalogSchemaTableName... expectedNotSubstitutedTables)
     {
-        QueryRunner.MaterializedResultWithPlan result = getDistributedQueryRunner().executeWithPlan(session, query);
+        MaterializedResultWithPlan result = getDistributedQueryRunner().executeWithPlan(session, query);
         List<CatalogSchemaTableName> scannedTableNames = getScannedTableNames(result);
 
         assertThat(scannedTableNames)
                 .as("Expected at least one table scan in plan")
                 .isNotEmpty();
         assertThat(scannedTableNames)
-                .extracting(table -> table.getSchemaTableName().getTableName())
                 .as("Expected no scan on base tables '%s' — should be substituted with MV storage table", baseTableName)
                 .doesNotContain(baseTableName)
                 .containsAll(ImmutableList.copyOf(expectedNotSubstitutedTables));
         if (expectedNotSubstitutedTables.length > 0) {
             assertThat(scannedTableNames)
-                    .extracting(table -> table.getSchemaTableName().getTableName())
                     .as("Expected scan on base tables '%s' — should not be substituted with MV storage table", Arrays.toString(expectedNotSubstitutedTables))
                     .contains(expectedNotSubstitutedTables);
         }
@@ -237,22 +277,18 @@ public abstract class AbstractMvSubstitutionTest
                 });
     }
 
-    protected QueryRunner.MaterializedResultWithPlan assertNotSubstituted(Session session, String query, String baseTableName)
+    protected MaterializedResultWithPlan assertNotSubstituted(Session session, String query, CatalogSchemaTableName baseTable)
     {
-        QueryRunner.MaterializedResultWithPlan result = getDistributedQueryRunner().executeWithPlan(session, query);
+        MaterializedResultWithPlan result = getDistributedQueryRunner().executeWithPlan(session, query);
         List<CatalogSchemaTableName> scannedTableNames = getScannedTableNames(result);
-        CatalogSchemaTableName baseTable = new CatalogSchemaTableName(
-                getSession().getCatalog().orElseThrow(),
-                getSession().getSchema().orElseThrow(),
-                baseTableName);
         assertThat(scannedTableNames)
-                .as("Expected scan on base table '%s' — no substitution should happen", baseTableName)
+                .as("Expected scan on base table '%s' — no substitution should happen", baseTable)
                 .contains(baseTable);
 
         return result;
     }
 
-    private List<CatalogSchemaTableName> getScannedTableNames(QueryRunner.MaterializedResultWithPlan result)
+    private List<CatalogSchemaTableName> getScannedTableNames(MaterializedResultWithPlan result)
     {
         return getDistributedQueryRunner().getCoordinator()
                 .getQueryManager()
@@ -282,17 +318,18 @@ public abstract class AbstractMvSubstitutionTest
                 .map(CoercionColumn::name)
                 .collect(joining(", "));
         CatalogSchemaTableName mvName = mvName("mv_coercion_");
-        try (TestTable testTable = newTrinoTable(
-                "coercion_table_",
+        try (TestTable testTable = new TestTable(
+                sourceSqlExecutor(),
+                sourceSchemaName() + ".coercion_table_",
                 "(id_col BIGINT, " + columnDefinitions + ")",
                 List.of("1, " + values))) {
-            String tableName = testTable.getName();
-            createSubstitutionMv(mvName, "SELECT id_col, " + projectedColumns + " FROM " + tableName);
+            CatalogSchemaTableName table = sourceTable(testTable.getName().substring(sourceSchemaName().length() + 1));
+            createSubstitutionMv(mvName, "SELECT id_col, " + projectedColumns + " FROM " + table);
 
             Session session = sessionWithSubstitution();
             for (CoercionColumn column : columns) {
-                String query = "SELECT " + column.projection().formatted(column.name()) + " FROM " + tableName;
-                assertSubstituted(session, query, tableName, mvName);
+                String query = "SELECT " + column.projection().formatted(column.name()) + " FROM " + table;
+                assertSubstituted(session, query, table, mvName);
                 assertSameResults(session, query);
             }
         }
@@ -407,32 +444,32 @@ public abstract class AbstractMvSubstitutionTest
         // sub-fields. Substitution must fire because the TableScan sees the same base
         // column on both sides — the sub-field expression lives in a Project above the
         // scan and runs against the substituted MV storage.
-        String tableName = "customers_with_sub_fields_" + randomNameSuffix();
+        CatalogSchemaTableName table = sourceTable("customers_with_sub_fields_" + randomNameSuffix());
         CatalogSchemaTableName mvName = mvName("mv_sub_field_");
         try {
-            createNestedTypeTable(tableName);
+            createNestedTypeTable(table);
 
-            createSubstitutionMv(mvName, "SELECT id, info FROM " + tableName);
+            createSubstitutionMv(mvName, "SELECT id, info FROM " + table);
 
             Session session = sessionWithSubstitution();
-            String nameQuery = "SELECT " + subFieldExpression("info", "name") + " FROM " + tableName;
-            assertSubstituted(session, nameQuery, tableName, mvName);
+            String nameQuery = "SELECT " + subFieldExpression("info", "name") + " FROM " + table;
+            assertSubstituted(session, nameQuery, table, mvName);
             assertSameResults(session, nameQuery);
 
-            String ageQuery = "SELECT " + subFieldExpression("info", "age") + " FROM " + tableName;
-            assertSubstituted(session, ageQuery, tableName, mvName);
+            String ageQuery = "SELECT " + subFieldExpression("info", "age") + " FROM " + table;
+            assertSubstituted(session, ageQuery, table, mvName);
             assertSameResults(session, ageQuery);
         }
         finally {
             assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvName);
-            assertUpdate("DROP TABLE IF EXISTS " + tableName);
+            sourceSqlExecutor().execute("DROP TABLE IF EXISTS %s".formatted(sourceTableReference(table)));
         }
     }
 
     @Test
     public void testSubFieldMaterializingMvDoesNotSubstitute()
     {
-        String tableName = "sub_field_same_type_" + randomNameSuffix();
+        CatalogSchemaTableName tableName = sourceTable("sub_field_same_type_" + randomNameSuffix());
         CatalogSchemaTableName mvName = mvName("mv_sub_field_same_type_");
         try {
             createNestedTypeTable(tableName);
@@ -455,14 +492,14 @@ public abstract class AbstractMvSubstitutionTest
         }
         finally {
             assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvName);
-            assertUpdate("DROP TABLE IF EXISTS " + tableName);
+            sourceSqlExecutor().execute("DROP TABLE IF EXISTS %s".formatted(sourceTableReference(tableName)));
         }
     }
 
-    protected void createNestedTypeTable(String tableName)
+    protected void createNestedTypeTable(CatalogSchemaTableName table)
     {
-        assertUpdate("CREATE TABLE " + tableName + " (id BIGINT, info " + subFieldColumnType() + ")");
-        assertUpdate("INSERT INTO " + tableName + " VALUES " + subFieldInsertValues(), 3);
+        sourceSqlExecutor().execute("CREATE TABLE %s (id BIGINT, info %s)".formatted(sourceTableReference(table), subFieldColumnType()));
+        sourceSqlExecutor().execute("INSERT INTO %s VALUES %s".formatted(sourceTableReference(table), subFieldInsertValues()));
     }
 
     @Test
@@ -583,7 +620,7 @@ public abstract class AbstractMvSubstitutionTest
             createSubstitutionMv(mvName, "SELECT * FROM " + ordersTable, OptionalLong.empty());
 
             // Make MV stale by inserting into base table
-            assertUpdate("INSERT INTO " + ordersTable + " VALUES (99990001, 400, '1995-02-01', DOUBLE '99.99', 'N')", 1);
+            insertIntoOrders(99990001);
 
             // We do not support detecting source table change, so the substitution relies on the grace-period, and stale MV will be used
             assertSubstituted(sessionWithSubstitution(), "SELECT * FROM " + ordersTable, ordersTable, mvName);
@@ -601,7 +638,7 @@ public abstract class AbstractMvSubstitutionTest
         try {
             long baseCount = (long) computeActual("SELECT count(*) FROM " + ordersTable).getOnlyValue();
             createSubstitutionMv(mvName, "SELECT * FROM " + ordersTable, OptionalLong.of(3600));
-            assertUpdate("INSERT INTO " + ordersTable + " VALUES (99990002, 400, '1995-02-01', DOUBLE '99.99', 'N')", 1);
+            insertIntoOrders(99990002);
             // Session start time past the grace period so the stale MV is not used.
             Session expiredSession = Session.builder(sessionWithSubstitution())
                     .setSystemProperty("session_start_time", Instant.now().plus(1, ChronoUnit.DAYS).toString())
@@ -633,7 +670,7 @@ public abstract class AbstractMvSubstitutionTest
             getQueryRunner().execute("REFRESH MATERIALIZED VIEW " + mvName);
 
             // Insert to make it technically stale
-            assertUpdate("INSERT INTO " + ordersTable + " VALUES (99990003, 400, '1995-02-01', DOUBLE '99.99', 'N')", 1);
+            insertIntoOrders(99990003);
 
             // Within grace period — should still substitute
             assertSubstituted(sessionWithSubstitution(), "SELECT * FROM " + ordersTable, ordersTable, mvName);
@@ -656,7 +693,7 @@ public abstract class AbstractMvSubstitutionTest
             getQueryRunner().execute("REFRESH MATERIALIZED VIEW " + mvName);
 
             // Insert to make it stale
-            assertUpdate("INSERT INTO " + ordersTable + " VALUES (99990004, 400, '1995-02-01', DOUBLE '99.99', 'N')", 1);
+            insertIntoOrders(99990004);
 
             // Use a session with future start time to ensure grace period has expired
             Session futureSession = Session.builder(sessionWithSubstitution())
@@ -803,7 +840,7 @@ public abstract class AbstractMvSubstitutionTest
             createSubstitutionMv(mvStale, "SELECT * FROM " + ordersTable);
 
             // Make mvStale stale
-            assertUpdate("INSERT INTO " + ordersTable + " VALUES (99990005, 400, '1995-02-01', DOUBLE '99.99', 'N')", 1);
+            insertIntoOrders(99990005);
 
             // Create a fresh MV after the insert
             createSubstitutionMv(mvFresh, "SELECT * FROM " + ordersTable);
@@ -868,7 +905,7 @@ public abstract class AbstractMvSubstitutionTest
             createSubstitutionMv(mvName, "SELECT * FROM " + ordersTable);
 
             // Change the base table so we can detect it was used during the refresh
-            assertUpdate("INSERT INTO " + ordersTable + " VALUES (99990006, 400, '1995-02-01', DOUBLE '99.99', 'N')", 1);
+            insertIntoOrders(99990006);
 
             // The refresh itself should read from base table, not from the MV
             getQueryRunner().execute(sessionWithSubstitution(), "REFRESH MATERIALIZED VIEW " + mvName);
@@ -884,14 +921,13 @@ public abstract class AbstractMvSubstitutionTest
     @Test
     public void testSubstitutionAfterAddColumnToBaseTable()
     {
-        String tableName = "orders_evolve_" + randomNameSuffix();
+        CatalogSchemaTableName tableName = sourceTable("orders_evolve_" + randomNameSuffix());
         CatalogSchemaTableName mvName = mvName("mv_evolve_");
-        long baseCount = (long) computeActual("SELECT count(*) FROM " + ordersTable).getOnlyValue();
         try {
-            assertUpdate("CREATE TABLE " + tableName + " AS SELECT orderkey, totalprice FROM " + ordersTable, baseCount);
+            sourceSqlExecutor().execute("CREATE TABLE %s AS SELECT orderkey, totalprice FROM %s".formatted(sourceTableReference(tableName), sourceTableReference(ordersTable)));
             createSubstitutionMv(mvName, "SELECT orderkey, totalprice FROM " + tableName);
 
-            assertUpdate("ALTER TABLE " + tableName + " ADD COLUMN new_col VARCHAR");
+            sourceSqlExecutor().execute("ALTER TABLE %s ADD COLUMN new_col CHAR(1)".formatted(sourceTableReference(tableName)));
 
             Session session = sessionWithSubstitution();
             // Query for original columns — MV should still be usable
@@ -900,7 +936,7 @@ public abstract class AbstractMvSubstitutionTest
         }
         finally {
             assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvName);
-            assertUpdate("DROP TABLE IF EXISTS " + tableName);
+            sourceSqlExecutor().execute("DROP TABLE IF EXISTS %s".formatted(sourceTableReference(tableName)));
         }
     }
 
@@ -934,7 +970,7 @@ public abstract class AbstractMvSubstitutionTest
                     " AS SELECT * FROM " + ordersTable);
             getQueryRunner().execute("REFRESH MATERIALIZED VIEW " + mvName);
 
-            assertUpdate("INSERT INTO " + ordersTable + " VALUES (99990007, 400, '1995-02-01', DOUBLE '99.99', 'N')", 1);
+            insertIntoOrders(99990007);
 
             // Stale but within 1-hour grace period — substitution works
             assertSubstituted(sessionWithSubstitution(), "SELECT * FROM " + ordersTable, ordersTable, mvName);
@@ -946,7 +982,7 @@ public abstract class AbstractMvSubstitutionTest
                     " AS SELECT * FROM " + ordersTable);
             getQueryRunner().execute("REFRESH MATERIALIZED VIEW " + mvName);
 
-            assertUpdate("INSERT INTO " + ordersTable + " VALUES (99990008, 500, '1995-02-02', DOUBLE '88.88', 'N')", 1);
+            insertIntoOrders(99990008);
 
             // Stale with zero grace period — substitution must not happen
             assertNotSubstituted(sessionWithSubstitution(), "SELECT * FROM " + ordersTable, ordersTable);
@@ -969,7 +1005,7 @@ public abstract class AbstractMvSubstitutionTest
                     " AS SELECT * FROM " + ordersTable);
             getQueryRunner().execute("REFRESH MATERIALIZED VIEW " + mvName);
 
-            assertUpdate("INSERT INTO " + ordersTable + " VALUES (99990009, 400, '1995-02-01', DOUBLE '99.99', 'N')", 1);
+            insertIntoOrders(99990009);
 
             // Stale with zero grace period — substitution does not work
             assertNotSubstituted(sessionWithSubstitution(), "SELECT * FROM " + ordersTable, ordersTable);
@@ -981,10 +1017,10 @@ public abstract class AbstractMvSubstitutionTest
                     " AS SELECT * FROM " + ordersTable);
             getQueryRunner().execute("REFRESH MATERIALIZED VIEW " + mvName);
 
-            assertUpdate("INSERT INTO " + ordersTable + " VALUES (99990010, 500, '1995-02-02', DOUBLE '88.88', 'N')", 1);
+            insertIntoOrders(99990010);
 
             // Stale but within 1-hour grace period — substitution works now
-            QueryRunner.MaterializedResultWithPlan result = assertSubstituted(sessionWithSubstitution(), "SELECT count(*) FROM " + ordersTable, ordersTable, mvName);
+            MaterializedResultWithPlan result = assertSubstituted(sessionWithSubstitution(), "SELECT count(*) FROM " + ordersTable, ordersTable, mvName);
             // MV was refreshed after the first insert but before the second insert — stale data has baseCount+1
             assertThat(result.result().getOnlyValue())
                     .as("MV is stale but within grace period — should return MV row count, missing the latest insert")
@@ -1130,11 +1166,11 @@ public abstract class AbstractMvSubstitutionTest
             getQueryRunner().execute("REFRESH MATERIALIZED VIEW " + mvName);
 
             // MV has baseCount rows. Insert one more row into the base table.
-            assertUpdate("INSERT INTO " + ordersTable + " VALUES (99990011, 400, '1995-02-01', DOUBLE '99.99', 'N')", 1);
+            insertIntoOrders(99990011);
 
             Session session = sessionWithSubstitution();
             // Within grace period: substitution uses MV, which does NOT have the new row
-            QueryRunner.MaterializedResultWithPlan result = assertSubstituted(session, "SELECT count(*) FROM " + ordersTable, ordersTable, mvName);
+            MaterializedResultWithPlan result = assertSubstituted(session, "SELECT count(*) FROM " + ordersTable, ordersTable, mvName);
             assertThat(result.result().getOnlyValue())
                     .as("MV is stale but within grace period — should return MV data, not base table data")
                     .isEqualTo(baseCount);

@@ -19,6 +19,7 @@ import io.trino.plugin.iceberg.TestingIcebergPlugin;
 import io.trino.plugin.iceberg.substitution.AbstractIcebergMvSubstitutionTest;
 import io.trino.plugin.tpch.TpchPlugin;
 import io.trino.spi.connector.CatalogSchemaName;
+import io.trino.spi.connector.CatalogSchemaTableName;
 import io.trino.testing.DistributedQueryRunner;
 import io.trino.testing.QueryRunner;
 import org.junit.jupiter.api.Disabled;
@@ -100,8 +101,9 @@ public class TestIcebergMvOnCassandraSourceSubstitution
     }
 
     @Override
-    protected void createNestedTypeTable(String tableName)
+    protected void createNestedTypeTable(CatalogSchemaTableName table)
     {
+        String tableName = table.getSchemaTableName().getTableName();
         server.getSession().execute("CREATE TABLE %s.%s (id bigint PRIMARY KEY, info map<text, text>)".formatted(KEYSPACE, tableName));
         server.getSession().execute("INSERT INTO %s.%s (id, info) VALUES (1, {'name': 'Alice', 'age': '30', 'gender' : 'W'})".formatted(KEYSPACE, tableName));
         server.getSession().execute("INSERT INTO %s.%s (id, info) VALUES (2, {'name': 'Bob', 'age': '25', 'gender' : 'M'})".formatted(KEYSPACE, tableName));
