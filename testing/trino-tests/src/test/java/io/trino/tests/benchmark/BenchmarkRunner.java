@@ -27,6 +27,7 @@ import io.airlift.log.Logger;
 import io.airlift.log.Logging;
 import io.trino.ExceededMemoryLimitException;
 import io.trino.Session;
+import io.trino.blob.cache.alluxio.AlluxioBlobCachePlugin;
 import io.trino.client.FailureException;
 import io.trino.client.FailureInfo;
 import io.trino.execution.QueryInfo;
@@ -1466,13 +1467,31 @@ public final class BenchmarkRunner
     }
 
     // Configures an OS-local filesystem cache for a catalog's remote reads. No-op when the directory is absent.
-    public static void applyFilesystemCache(Map<String, String> catalogProperties, Optional<Path> fsCacheDirectory)
+    // The cache manager must be loaded before the catalog using it is created, so use this overload when the
+    // catalog is created by the builder and the overload below when the catalog is created on a running server.
+    public static void applyFilesystemCache(DistributedQueryRunner.Builder<?> builder, Map<String, String> catalogProperties, Optional<Path> fsCacheDirectory)
     {
         fsCacheDirectory.ifPresent(directory -> {
             catalogProperties.put("fs.cache.enabled", "true");
-            catalogProperties.put("fs.cache.directories", directory.toString());
-            catalogProperties.put("fs.cache.max-sizes", FS_CACHE_MAX_SIZE);
+            builder.withPlugin(new AlluxioBlobCachePlugin());
+            builder.withBlobCache("alluxio", blobCacheProperties(directory));
         });
+    }
+
+    public static void applyFilesystemCache(DistributedQueryRunner runner, Map<String, String> catalogProperties, Optional<Path> fsCacheDirectory)
+    {
+        fsCacheDirectory.ifPresent(directory -> {
+            catalogProperties.put("fs.cache.enabled", "true");
+            runner.installPlugin(new AlluxioBlobCachePlugin());
+            runner.loadBlobCacheManager("alluxio", blobCacheProperties(directory));
+        });
+    }
+
+    private static Map<String, String> blobCacheProperties(Path directory)
+    {
+        return ImmutableMap.of(
+                "fs.cache.directories", directory.toString(),
+                "fs.cache.max-sizes", FS_CACHE_MAX_SIZE);
     }
 
     static void enableDebugLogging()

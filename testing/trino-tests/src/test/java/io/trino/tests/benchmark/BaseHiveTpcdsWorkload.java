@@ -139,7 +139,7 @@ public abstract class BaseHiveTpcdsWorkload
         hiveProperties.put("hive.parquet.time-zone", "UTC");
         if (isRemote(dataLocation)) {
             hiveProperties.put("fs.s3.enabled", "true");
-            BenchmarkRunner.applyFilesystemCache(hiveProperties, fsCacheDirectory);
+            BenchmarkRunner.applyFilesystemCache(runner, hiveProperties, fsCacheDirectory);
         }
         else {
             hiveProperties.put("hive.metastore.catalog.dir", "local://" + metastoreDir.resolve("hive").toAbsolutePath());

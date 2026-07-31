@@ -240,7 +240,7 @@ public final class BenchmarkHiveClickBench
             hiveProperties.put("hive.parquet.time-zone", "UTC");
             if (isRemote(dataLocation)) {
                 hiveProperties.put("fs.s3.enabled", "true");
-                BenchmarkRunner.applyFilesystemCache(hiveProperties, fsCacheDirectory);
+                BenchmarkRunner.applyFilesystemCache(queryRunner, hiveProperties, fsCacheDirectory);
             }
             else {
                 hiveProperties.put("hive.metastore.catalog.dir", "local://" + queryRunner.getCoordinator().getBaseDataDir().resolve("clickbench-metastore").toAbsolutePath());

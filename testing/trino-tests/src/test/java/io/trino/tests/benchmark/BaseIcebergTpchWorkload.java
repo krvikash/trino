@@ -119,7 +119,7 @@ public abstract class BaseIcebergTpchWorkload
         BenchmarkRunner.applyExecutionMode(builder, mode);
 
         Map<String, String> fsCacheProperties = new HashMap<>();
-        BenchmarkRunner.applyFilesystemCache(fsCacheProperties, fsCacheDirectory);
+        BenchmarkRunner.applyFilesystemCache(builder, fsCacheProperties, fsCacheDirectory);
         fsCacheProperties.forEach(builder::addIcebergProperty);
 
         if (mode == BenchmarkRunner.ExecutionMode.GPU) {

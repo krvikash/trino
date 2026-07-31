@@ -100,7 +100,6 @@ public final class InternalStarburstObjectStoreConnectorFactory
             Connector deltaConnector = completeConnectorFuture(deltaConnectorFuture);
             Connector hudiConnector = completeConnectorFuture(hudiConnectorFuture);
 
-            Map<String, String> wrapperConfig = withNamespacedCache(objectStoreConfig, "objectstore");
             return usingTracing(context.getTracer(), "build-objectstore-connector", () -> {
                 Bootstrap app = new Bootstrap(
                         connectorModule(ForHive.class, hiveConnector),
@@ -116,7 +115,7 @@ public final class InternalStarburstObjectStoreConnectorFactory
                         .doNotInitializeLogging()
                         .disableSystemProperties()
                         .setRequiredConfigurationProperties(ImmutableMap.of())
-                        .setOptionalConfigurationProperties(wrapperConfig);
+                        .setOptionalConfigurationProperties(objectStoreConfig);
 
                 usedPropertiesConsumer.accept(app.configure().stream()
                         .map(ConfigPropertyMetadata::name)
@@ -159,7 +158,7 @@ public final class InternalStarburstObjectStoreConnectorFactory
             ConnectorContext context,
             Consumer<Set<String>> usedPropertiesConsumer)
     {
-        Map<String, String> hudiConfig = new HashMap<>(withNamespacedCache(config, "hudi"));
+        Map<String, String> hudiConfig = new HashMap<>(config);
         // Vended credentials are only applicable to the Delta sub-connector; remove to avoid UnityMetastoreModule rejecting the Hudi sub-connector
         hudiConfig.remove("hive.metastore.unity.vended-credentials-enabled");
         Connector hudiConnector = HudiConnectorFactory.createConnector(
@@ -187,7 +186,7 @@ public final class InternalStarburstObjectStoreConnectorFactory
         Connector deltaConnector = DeltaLakeConnectorFactory.createConnector(
                 catalogName,
                 ImmutableMap.of(),
-                withNamespacedCache(config, "delta"),
+                config,
                 usedPropertiesConsumer,
                 context,
                 deltaMetastoreModule,
@@ -209,7 +208,7 @@ public final class InternalStarburstObjectStoreConnectorFactory
         Connector icebergConnector = IcebergConnectorFactory.createConnector(
                 catalogName,
                 ImmutableMap.of(),
-                withNamespacedCache(config, "iceberg"),
+                config,
                 usedPropertiesConsumer,
                 context,
                 combine(
@@ -227,7 +226,7 @@ public final class InternalStarburstObjectStoreConnectorFactory
             ConnectorContext context,
             Consumer<Set<String>> usedPropertiesConsumer)
     {
-        Map<String, String> hiveConfig = new HashMap<>(withNamespacedCache(config, "hive"));
+        Map<String, String> hiveConfig = new HashMap<>(config);
         // Vended credentials are only applicable to the Delta sub-connector; remove to avoid UnityMetastoreModule rejecting the Hive sub-connector
         hiveConfig.remove("hive.metastore.unity.vended-credentials-enabled");
         boolean isHiveMetastoreUsed = hiveConfig.containsKey("hive.metastore") && hiveConfig.get("hive.metastore").equals("thrift");
@@ -256,32 +255,5 @@ public final class InternalStarburstObjectStoreConnectorFactory
                 throw new IllegalArgumentException("Configuration property '%s' was not used".formatted(key));
             }
         }
-    }
-
-    // The four delegate connectors and the ObjectStore wrapper each build their own filesystem cache over the same
-    // on-disk directory, so every manager tracks metadata for every page written by any of them, duplicating it. Give
-    // each its own subdirectory so it owns and tracks only its own pages. The per-catalog directory sizing set by the
-    // user is left unchanged.
-    // TODO: revisit once trinodb/trino#29184 (unified blob cache plugin SPI) lands; the single engine-level cache it
-    // introduces removes the per-connector duplication and makes this namespacing unnecessary.
-    private static Map<String, String> withNamespacedCache(Map<String, String> config, String subdirectory)
-    {
-        String directories = config.get("fs.cache.directories");
-        if (directories == null || directories.isBlank()) {
-            return config;
-        }
-        Map<String, String> namespaced = new HashMap<>(config);
-        namespaced.put("fs.cache.directories", appendSubdirectory(directories, subdirectory));
-        return ImmutableMap.copyOf(namespaced);
-    }
-
-    private static String appendSubdirectory(String directories, String subdirectory)
-    {
-        // Duplicate or trailing slashes collapse on the filesystem, so no normalization is needed.
-        return Arrays.stream(directories.split(","))
-                .map(String::trim)
-                .filter(directory -> !directory.isEmpty())
-                .map(directory -> directory + "/" + subdirectory)
-                .collect(Collectors.joining(","));
     }
 }
