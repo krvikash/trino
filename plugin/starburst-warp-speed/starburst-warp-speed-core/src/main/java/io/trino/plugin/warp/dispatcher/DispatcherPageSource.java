@@ -762,14 +762,54 @@ public class DispatcherPageSource
             return blocks[channel];
         }
 
+        private void loadBlocks(int[] channels)
+        {
+            int missingCount = 0;
+            for (int channel : channels) {
+                if (blocks[channel] == null) {
+                    missingCount++;
+                }
+            }
+            if (missingCount == 0) {
+                return;
+            }
+            int[] missingChannels = new int[missingCount];
+            int[] warpChannels = new int[missingCount];
+            int index = 0;
+            for (int channel : channels) {
+                if (blocks[channel] == null) {
+                    missingChannels[index] = channel;
+                    warpChannels[index] = warpIxMap.get(channel);
+                    index++;
+                }
+            }
+            // Single getColumns call loads all missing blocks in one warp collect cycle
+            Page warpPage = warpSourcePage.getColumns(warpChannels);
+            for (int i = 0; i < missingCount; i++) {
+                blocks[missingChannels[i]] = warpPage.getBlock(i);
+            }
+        }
+
         @Override
         public Page getPage()
         {
+            int[] allChannels = new int[blocks.length];
             for (int channel = 0; channel < blocks.length; channel++) {
-                getBlock(channel);
+                allChannels[channel] = channel;
             }
-            // TODO get multiple blocks from warpSourcePage at once
+            loadBlocks(allChannels);
             return new Page(getPositionCount(), blocks);
+        }
+
+        @Override
+        public Page getColumns(int[] channels)
+        {
+            loadBlocks(channels);
+            Block[] projectedBlocks = new Block[channels.length];
+            for (int i = 0; i < channels.length; i++) {
+                projectedBlocks[i] = blocks[channels[i]];
+            }
+            return new Page(getPositionCount(), projectedBlocks);
         }
 
         @Override
