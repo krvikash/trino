@@ -18,17 +18,22 @@ import com.google.inject.Module;
 import io.airlift.log.Logger;
 import io.trino.Session;
 import io.trino.SystemSessionProperties;
+import io.trino.metadata.InternalFunctionBundle;
 import io.trino.plugin.geospatial.GeoPlugin;
+import io.trino.plugin.iceberg.IcebergPlugin;
 import io.trino.plugin.jmx.JmxPlugin;
+import io.trino.plugin.tpch.TpchPlugin;
 import io.trino.plugin.warp.WarpPlugin;
 import io.trino.plugin.warp.cloudvendors.config.CloudVendorConfig;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.config.WarmupDemoterConfig;
+import io.trino.plugin.warp.di.WarpStubsStorageEngineModule;
 import io.trino.plugin.warp.extension.config.WarpExtensionConfig;
 import io.trino.spi.Plugin;
 import io.trino.testing.DistributedQueryRunner;
 import io.trino.testing.QueryRunner;
 import io.trino.testing.TestingSession;
+import io.trino.tpch.TpchTable;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -40,6 +45,7 @@ import java.util.stream.Collectors;
 import static io.trino.plugin.warp.config.GlobalConfig.CONFIG_IS_SINGLE;
 import static io.trino.plugin.warp.config.GlobalConfig.FAILURE_GENERATOR_ENABLED;
 import static io.trino.plugin.warp.extension.config.WarpExtensionConfig.CLUSTER_UUID;
+import static io.trino.testing.QueryAssertions.copyTpchTables;
 
 public class DispatcherQueryRunner
 {
@@ -163,5 +169,50 @@ public class DispatcherQueryRunner
                 .setCatalog(catalogName)
                 .setSystemProperty(SystemSessionProperties.REDISTRIBUTE_WRITES, "true")
                 .build();
+    }
+
+    public static final class WarpSpeedProxiedToIcebergMain
+    {
+        private WarpSpeedProxiedToIcebergMain() {}
+
+        static void main()
+                throws Exception
+        {
+            Logger log = Logger.get(WarpSpeedProxiedToIcebergMain.class);
+            Path icebergDir = Files.createTempDirectory("iceberg_catalog_");
+
+            QueryRunner queryRunner = DispatcherQueryRunner.createQueryRunner(
+                    new WarpStubsStorageEngineModule(),
+                    Optional.empty(),
+                    3,
+                    ImmutableMap.of("http-server.http.port", "8080"),
+                    ImmutableMap.<String, String>builder()
+                            .put("http-server.log.enabled", "false")
+                            .put("warp-speed.use-http-server-port", "false")
+                            .put("node.environment", "warp")
+                            .put("iceberg.catalog.type", "TESTING_FILE_METASTORE")
+                            .put("warp-speed.proxied-connector", "iceberg")
+                            .put("warp-speed.enable.passthrough", "iceberg")
+                            .buildOrThrow(),
+                    icebergDir,
+                    "warp_speed",
+                    "warp",
+                    new WarpPlugin(),
+                    ImmutableMap.of());
+
+            InternalFunctionBundle.InternalFunctionBundleBuilder functions = InternalFunctionBundle.builder();
+            new IcebergPlugin().getFunctions().forEach(functions::functions);
+            queryRunner.addFunctions(functions.build());
+
+            queryRunner.installPlugin(new TpchPlugin());
+            queryRunner.createCatalog("tpch", "tpch");
+
+            String schemaName = queryRunner.getDefaultSession().getSchema().orElseThrow();
+            queryRunner.execute("CREATE SCHEMA " + schemaName);
+            copyTpchTables(queryRunner, "tpch", "tiny", queryRunner.getDefaultSession(), TpchTable.getTables());
+
+            log.info("======== SERVER STARTED ========");
+            log.info("\n====\n%s\n====", queryRunner.getCoordinator().getBaseUrl());
+        }
     }
 }
