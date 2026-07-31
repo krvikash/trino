@@ -50,6 +50,7 @@ public class WarpReader
     private final Matcher matcher;
     private final MatcherArgs matcherArgs;
     private MatcherPageArgs matcherPageArgs;
+    private long readTimeNanos;
 
     WarpReader(
             QueryParams queryParams,
@@ -76,6 +77,11 @@ public class WarpReader
     public boolean isRowsLimitReached()
     {
         return rowsLimit <= queryState.getTotalNumReadRecords();
+    }
+
+    public long getReadTimeNanos()
+    {
+        return readTimeNanos;
     }
 
     void close()
@@ -142,6 +148,7 @@ public class WarpReader
 
     ReadResult getSourcePage()
     {
+        long start = System.nanoTime();
         ReadResult readResult;
         try {
             Block[] blocks = new Block[queryArgs.queryParams().getNumCollectElements()];
@@ -183,6 +190,9 @@ public class WarpReader
         catch (Exception e) {
             abortPage(e);
             throw e;
+        }
+        finally {
+            readTimeNanos += System.nanoTime() - start;
         }
         return readResult;
     }
@@ -344,6 +354,7 @@ public class WarpReader
                 return;
             }
 
+            long start = System.nanoTime();
             try {
                 pageArena = workerMemoryManager.getThreadArena();
                 aggregatorPageArgs = blocksAggregator.openPage(
@@ -378,6 +389,9 @@ public class WarpReader
             catch (Exception e) {
                 abortPage(e);
                 throw e;
+            }
+            finally {
+                readTimeNanos += System.nanoTime() - start;
             }
             closePage();
             if (selectedPositions != null) {

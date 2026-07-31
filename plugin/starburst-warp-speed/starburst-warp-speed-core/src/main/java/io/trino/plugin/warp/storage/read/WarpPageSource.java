@@ -151,6 +151,12 @@ public class WarpPageSource
     }
 
     @Override
+    public long getReadTimeNanos()
+    {
+        return reader.getReadTimeNanos();
+    }
+
+    @Override
     public RowRanges getSortedRowRanges()
     {
         return sortedRowRanges;

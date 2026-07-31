@@ -33,6 +33,8 @@ public interface WarpStoragePageSource
 
     long getCompletedBytes();
 
+    long getReadTimeNanos();
+
     void close();
 
     final class RowRanges

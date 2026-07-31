@@ -76,6 +76,12 @@ public class TestingWarpPageSource
     }
 
     @Override
+    public long getReadTimeNanos()
+    {
+        return 0;
+    }
+
+    @Override
     public void close()
     {
         closed = true;

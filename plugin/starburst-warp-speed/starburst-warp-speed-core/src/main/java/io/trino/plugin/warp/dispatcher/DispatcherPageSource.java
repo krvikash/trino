@@ -445,7 +445,11 @@ public class DispatcherPageSource
     @Override
     public long getReadTimeNanos()
     {
-        return proxiedConnectorPageSource == null ? 0 : proxiedConnectorPageSource.getReadTimeNanos();
+        long readTimeNanos = warpPageSource.getReadTimeNanos();
+        if (proxiedConnectorPageSource != null) {
+            readTimeNanos += proxiedConnectorPageSource.getReadTimeNanos();
+        }
+        return readTimeNanos;
     }
 
     @Override
