@@ -189,12 +189,12 @@ public class TestIcebergGpuQueries
                 "EXPLAIN ANALYZE SELECT name FROM test_gpu_explain WHERE nationkey = rand()",
                 "ScanFilterProject",
                 "GPU: unsupported",
-                "Unsupported expression");
+                "\\QUnsupported expression: (CAST(bigint AS double) = random())");
         assertExplainAnalyze(
                 "EXPLAIN ANALYZE SELECT IF(rand()<42, nationkey) FROM test_gpu_explain",
                 "ScanProject",
                 "GPU: unsupported",
-                "Unsupported expression");
+                "\\QUnsupported expression: (CASE WHEN (random() < double) THEN bigint ELSE bigint END)");
         assertThat((String) computeActual(
                 Session.builder(getSession())
                         .setSystemProperty(GPU_EXECUTION_ENABLED, "false")

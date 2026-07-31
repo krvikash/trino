@@ -109,19 +109,6 @@ public final class GpuExpressionCompiler
     private static final int INTEGER_DECIMAL_DIGITS = 10;
     private static final int BIGINT_DECIMAL_DIGITS = 19;
 
-    public static Optional<List<CompiledExpression>> compileExpressions(List<Expression> expressions, Map<Symbol, Integer> layout)
-    {
-        ImmutableList.Builder<CompiledExpression> compiledExpressions = ImmutableList.builderWithExpectedSize(expressions.size());
-        for (Expression expression : expressions) {
-            Optional<CompiledExpression> compiled = compileExpression(expression, layout);
-            if (compiled.isEmpty()) {
-                return Optional.empty();
-            }
-            compiledExpressions.add(compiled.get());
-        }
-        return Optional.of(compiledExpressions.build());
-    }
-
     public static Optional<CompiledExpression> compileExpression(Expression expression, Map<Symbol, Integer> layout)
     {
         CompilationVisitor visitor = new CompilationVisitor(layout);

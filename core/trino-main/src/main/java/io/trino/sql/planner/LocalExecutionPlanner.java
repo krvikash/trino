@@ -414,6 +414,7 @@ import static io.trino.operator.TableWriterOperator.ROW_COUNT_CHANNEL;
 import static io.trino.operator.TableWriterOperator.STATS_START_CHANNEL;
 import static io.trino.operator.WindowFunctionDefinition.window;
 import static io.trino.operator.aggregation.AccumulatorCompiler.generateAccumulatorFactory;
+import static io.trino.operator.gpu.SignatureFormatter.formatExpression;
 import static io.trino.operator.join.JoinUtils.isBuildSideReplicated;
 import static io.trino.operator.output.SkewedPartitionRebalancer.createPartitionFunction;
 import static io.trino.operator.output.SkewedPartitionRebalancer.getMaxWritersBasedOnMemory;
@@ -2462,7 +2463,7 @@ public class LocalExecutionPlanner
                     context.markAsGpuIneligible(planNodeId, "Unsupported column types: %s".formatted(unsupportedTypes));
                 }
                 else if (sourceGpuOperation.isPresent()) {
-                    Optional<CompiledExpression> gpuFilter = staticFilters.flatMap(filter -> GpuExpressionCompiler.compileExpression(filter, sourceLayout));
+                    Optional<CompiledExpression> gpuFilter = staticFilters.flatMap(filter -> tryCompileGpuExpression(filter, sourceLayout, planNodeId, context));
                     if (staticFilters.isPresent() == gpuFilter.isPresent()) {
                         PhysicalOperation gpuOperation = sourceGpuOperation.get();
                         Optional<GpuDynamicFilterProvider> gpuDynamicFilter;
@@ -2491,23 +2492,16 @@ public class LocalExecutionPlanner
                                     planNodeId);
                         }
 
-                        Optional<List<CompiledExpression>> gpuProjections = GpuExpressionCompiler.compileExpressions(projections, sourceLayout);
-                        if (gpuProjections.isPresent()) {
+                        Optional<GpuProject.Factory> gpuProject = tryCompileGpuProject(projections, sourceLayout, planNodeId, context);
+                        if (gpuProject.isPresent()) {
                             return addGpuOperation(
-                                    new GpuProject.Factory(
-                                            gpuProjections.get().stream()
-                                                    .map(GpuProject.Projection.Gpu::new)
-                                                    .collect(toImmutableList())),
+                                    gpuProject.get(),
                                     getTypes(projections),
                                     gpuOperation,
                                     outputMappings,
                                     context,
                                     planNodeId);
                         }
-                        context.markAsGpuIneligible(planNodeId, "Unsupported expression");
-                    }
-                    else {
-                        context.markAsGpuIneligible(planNodeId, "Unsupported expression");
                     }
                 }
             }
@@ -2579,6 +2573,36 @@ public class LocalExecutionPlanner
                 }
                 throw new TrinoException(COMPILER_ERROR, e);
             }
+        }
+
+        private static Optional<GpuProject.Factory> tryCompileGpuProject(
+                List<Expression> projections,
+                Map<Symbol, Integer> sourceLayout,
+                PlanNodeId planNodeId,
+                LocalExecutionPlanContext context)
+        {
+            ImmutableList.Builder<GpuProject.Projection> compiledProjections = ImmutableList.builderWithExpectedSize(projections.size());
+            for (Expression expression : projections) {
+                Optional<CompiledExpression> compiledExpression = tryCompileGpuExpression(expression, sourceLayout, planNodeId, context);
+                if (compiledExpression.isEmpty()) {
+                    return Optional.empty();
+                }
+                compiledProjections.add(new GpuProject.Projection.Gpu(compiledExpression.get()));
+            }
+            return Optional.of(new GpuProject.Factory(compiledProjections.build()));
+        }
+
+        private static Optional<CompiledExpression> tryCompileGpuExpression(
+                Expression expression,
+                Map<Symbol, Integer> sourceLayout,
+                PlanNodeId planNodeId,
+                LocalExecutionPlanContext context)
+        {
+            Optional<CompiledExpression> compiledExpression = GpuExpressionCompiler.compileExpression(expression, sourceLayout);
+            if (compiledExpression.isEmpty()) {
+                context.markAsGpuIneligible(planNodeId, "Unsupported expression: %s".formatted(formatExpression(expression)));
+            }
+            return compiledExpression;
         }
 
         @Override
