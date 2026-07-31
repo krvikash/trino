@@ -272,8 +272,10 @@ public class WarpReader
     {
         private final RecordIndexes recordIndexes;
         private final List<ChunkProperties> chunkPropertiesList;
-        private final int positionCount;
+        private int positionCount;
         private final Block[] blocks;
+        // Positions retained by selectPositions, relative to the rows produced by native; applied to blocks loaded later
+        private int[] selectedPositions;
 
         public WarpSourcePage(
                 RecordIndexes recordIndexes,
@@ -378,6 +380,11 @@ public class WarpReader
                 throw e;
             }
             closePage();
+            if (selectedPositions != null) {
+                for (int channel : blocksToLoad) {
+                    blocks[channel] = blocks[channel].getPositions(selectedPositions, 0, positionCount);
+                }
+            }
             queryArgs.dispatcherPageSourceStats().addlazy_collect_loaded_blocks(blocksToLoad.size());
         }
 
@@ -417,13 +424,22 @@ public class WarpReader
         @Override
         public void selectPositions(int[] positions, int offset, int size)
         {
-            // TODO: implement lazy selectPositions
-            for (int i = 0; i < blocks.length; i++) {
-                if (blocks[i] == null) {
-                    blocks[i] = getBlock(i);
-                }
-                blocks[i] = blocks[i].getPositions(positions, offset, size);
+            int[] newSelection = new int[size];
+            if (selectedPositions == null) {
+                System.arraycopy(positions, offset, newSelection, 0, size);
             }
+            else {
+                for (int i = 0; i < size; i++) {
+                    newSelection[i] = selectedPositions[positions[offset + i]];
+                }
+            }
+            selectedPositions = newSelection;
+            for (int i = 0; i < blocks.length; i++) {
+                if (blocks[i] != null) {
+                    blocks[i] = blocks[i].getPositions(positions, offset, size);
+                }
+            }
+            positionCount = size;
         }
     }
 }
