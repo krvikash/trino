@@ -14,23 +14,19 @@
 package io.trino.tests.substitution;
 
 import com.google.common.collect.ImmutableMap;
+import io.trino.Session;
 import io.trino.plugin.geospatial.GeoPlugin;
-import io.trino.plugin.iceberg.TestingIcebergPlugin;
 import io.trino.plugin.iceberg.substitution.AbstractIcebergMvSubstitutionTest;
 import io.trino.plugin.postgresql.PostgreSqlPlugin;
 import io.trino.plugin.postgresql.TestingPostgreSqlServer;
-import io.trino.plugin.tpch.TpchPlugin;
+import io.trino.spi.connector.CatalogSchemaName;
 import io.trino.testing.DistributedQueryRunner;
 import io.trino.testing.QueryRunner;
 import org.junit.jupiter.api.parallel.Execution;
 
-import java.nio.file.Path;
 import java.util.List;
-import java.util.Map;
 
 import static io.trino.plugin.base.util.Closables.closeAllSuppress;
-import static io.trino.plugin.iceberg.IcebergQueryRunner.ICEBERG_CATALOG;
-import static io.trino.testing.TestingSession.testSessionBuilder;
 import static org.junit.jupiter.api.parallel.ExecutionMode.SAME_THREAD;
 
 @Execution(SAME_THREAD)
@@ -38,44 +34,23 @@ public class TestIcebergMvOnJdbcSourceSubstitution
         extends AbstractIcebergMvSubstitutionTest
 {
     @Override
-    protected QueryRunner createQueryRunner()
+    protected QueryRunner createSourceQueryRunner(Session defaultSession, CatalogSchemaName sourceSchema)
             throws Exception
     {
         TestingPostgreSqlServer postgreSqlServer = closeAfterClass(new TestingPostgreSqlServer());
-        QueryRunner queryRunner = DistributedQueryRunner.builder(
-                        testSessionBuilder()
-                                .setCatalog("postgres")
-                                .setSchema("tpch2")
-                                .build())
+        QueryRunner queryRunner = DistributedQueryRunner.builder(defaultSession)
                 .addExtraProperty("materialized-view-substitution.support.enabled", "true")
                 .build();
         try {
-            Path baseDataDir = queryRunner.getCoordinator().getBaseDataDir();
-            queryRunner.installPlugin(new TestingIcebergPlugin(baseDataDir));
-            queryRunner.createCatalog(ICEBERG_CATALOG, "iceberg", Map.of(
-                    "iceberg.catalog.type", "TESTING_FILE_METASTORE",
-                    "hive.metastore.catalog.dir", "local:///iceberg-catalog",
-                    "iceberg.hive-catalog-name", "hive",
-                    // MV storage tables must be v3 to hold a JSON column, mapped through Iceberg
-                    // variant; exercised by testScanWithSubFieldProjectionOverMv when the source
-                    // is PostgreSQL.
-                    "iceberg.format-version", "3",
-                    "iceberg.legacy-variant-type-mapping", "JSON"));
-            queryRunner.execute("CREATE SCHEMA %s.tpch".formatted(ICEBERG_CATALOG));
-
             queryRunner.installPlugin(new GeoPlugin());
             queryRunner.installPlugin(new PostgreSqlPlugin());
-            queryRunner.createCatalog("postgres", "postgresql", ImmutableMap.of(
+            queryRunner.createCatalog(sourceSchema.getCatalogName(), "postgresql", ImmutableMap.of(
                     "connection-url", postgreSqlServer.getJdbcUrl(),
                     "connection-user", postgreSqlServer.getUser(),
                     "connection-password", postgreSqlServer.getPassword(),
                     // Enables reading/writing PostgreSQL array columns as Trino ARRAY, so the coercion
                     // test can exercise array(smallint) -> array(integer) storage normalization.
                     "postgresql.array-mapping", "AS_ARRAY"));
-            queryRunner.execute("CREATE SCHEMA postgres.tpch2");
-
-            queryRunner.installPlugin(new TpchPlugin());
-            queryRunner.createCatalog("tpch", "tpch");
         }
         catch (Throwable e) {
             closeAllSuppress(e, queryRunner);

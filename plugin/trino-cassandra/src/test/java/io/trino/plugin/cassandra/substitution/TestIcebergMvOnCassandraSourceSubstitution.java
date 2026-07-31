@@ -13,11 +13,10 @@
  */
 package io.trino.plugin.cassandra.substitution;
 
+import io.trino.Session;
 import io.trino.plugin.cassandra.CassandraPlugin;
 import io.trino.plugin.cassandra.CassandraServer;
-import io.trino.plugin.iceberg.TestingIcebergPlugin;
 import io.trino.plugin.iceberg.substitution.AbstractIcebergMvSubstitutionTest;
-import io.trino.plugin.tpch.TpchPlugin;
 import io.trino.spi.connector.CatalogSchemaName;
 import io.trino.spi.connector.CatalogSchemaTableName;
 import io.trino.testing.DistributedQueryRunner;
@@ -26,13 +25,11 @@ import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Execution;
 
-import java.nio.file.Path;
 import java.util.Map;
 
 import static io.trino.plugin.base.util.Closables.closeAllSuppress;
 import static io.trino.plugin.cassandra.CassandraTestingUtils.createKeyspace;
 import static io.trino.plugin.iceberg.IcebergQueryRunner.ICEBERG_CATALOG;
-import static io.trino.testing.TestingSession.testSessionBuilder;
 import static org.junit.jupiter.api.parallel.ExecutionMode.SAME_THREAD;
 
 /**
@@ -41,10 +38,9 @@ import static org.junit.jupiter.api.parallel.ExecutionMode.SAME_THREAD;
  * <p>
  * A few inherited scenarios rely on base-table operations the Cassandra connector does not
  * support ({@code ALTER ADD COLUMN}, time travel, complex-type DDL); those are {@code @Disabled}
- * with a reason. The complex-type sub-field case is covered instead by
- * {@link #testMapSubFieldProjectionOverMv()}, which creates a Cassandra {@code map} column
- * via raw CQL (read back as a JSON string) since Cassandra cannot create such a column
- * through Trino DDL.
+ * with a reason. The complex-type sub-field case is covered by overriding
+ * {@link #createNestedTypeTable(CatalogSchemaTableName)} to create a Cassandra {@code map} column via raw CQL
+ * (read back as a JSON string) since Cassandra cannot create such a column through Trino DDL.
  */
 @Execution(SAME_THREAD)
 public class TestIcebergMvOnCassandraSourceSubstitution
@@ -55,43 +51,41 @@ public class TestIcebergMvOnCassandraSourceSubstitution
     private CassandraServer server;
 
     @Override
-    protected QueryRunner createQueryRunner()
+    protected QueryRunner createSourceQueryRunner(Session defaultSession, CatalogSchemaName sourceSchema)
             throws Exception
     {
         server = closeAfterClass(new CassandraServer());
-        QueryRunner queryRunner = DistributedQueryRunner.builder(
-                        testSessionBuilder()
-                                .setCatalog("cassandra")
-                                .setSchema(KEYSPACE)
-                                .build())
+        QueryRunner queryRunner = DistributedQueryRunner.builder(defaultSession)
                 .addExtraProperty("materialized-view-substitution.support.enabled", "true")
                 .build();
         try {
-            Path baseDataDir = queryRunner.getCoordinator().getBaseDataDir();
-            queryRunner.installPlugin(new TestingIcebergPlugin(baseDataDir));
-            queryRunner.createCatalog(ICEBERG_CATALOG, "iceberg", Map.of(
-                    "iceberg.catalog.type", "TESTING_FILE_METASTORE",
-                    "hive.metastore.catalog.dir", "local:///iceberg-catalog",
-                    "iceberg.hive-catalog-name", "hive"));
-            queryRunner.execute("CREATE SCHEMA %s.%s".formatted(ICEBERG_CATALOG, KEYSPACE));
-
             queryRunner.installPlugin(new CassandraPlugin());
-            queryRunner.createCatalog("cassandra", "cassandra", Map.of(
+            queryRunner.createCatalog(sourceSchema.getCatalogName(), "cassandra", Map.of(
                     "cassandra.contact-points", server.getHost(),
                     "cassandra.native-protocol-port", Integer.toString(server.getPort()),
                     "cassandra.load-policy.use-dc-aware", "true",
                     "cassandra.load-policy.dc-aware.local-dc", "datacenter1",
                     "cassandra.allow-drop-table", "true"));
-            createKeyspace(server.getSession(), KEYSPACE);
-
-            queryRunner.installPlugin(new TpchPlugin());
-            queryRunner.createCatalog("tpch", "tpch");
+            createKeyspace(server.getSession(), sourceSchema.getSchemaName());
         }
         catch (Throwable e) {
             closeAllSuppress(e, queryRunner);
             throw e;
         }
         return queryRunner;
+    }
+
+    @Override
+    protected CatalogSchemaName sourceSchema()
+    {
+        return new CatalogSchemaName("cassandra", KEYSPACE);
+    }
+
+    // The Cassandra keyspace is created via raw CQL (createKeyspace), not Trino DDL.
+    @Override
+    protected boolean createSourceSchema()
+    {
+        return false;
     }
 
     @Override

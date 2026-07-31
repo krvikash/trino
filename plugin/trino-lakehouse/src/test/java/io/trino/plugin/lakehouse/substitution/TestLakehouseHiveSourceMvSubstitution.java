@@ -13,6 +13,7 @@
  */
 package io.trino.plugin.lakehouse.substitution;
 
+import io.trino.Session;
 import io.trino.plugin.iceberg.substitution.AbstractIcebergMvSubstitutionTest;
 import io.trino.plugin.lakehouse.LakehouseQueryRunner;
 import io.trino.plugin.lakehouse.TableType;
@@ -25,7 +26,6 @@ import java.nio.file.Path;
 
 import static com.google.common.io.MoreFiles.deleteRecursively;
 import static com.google.common.io.RecursiveDeleteOption.ALLOW_INSECURE;
-import static io.airlift.testing.Closeables.closeAllSuppress;
 import static java.nio.file.Files.createTempDirectory;
 import static org.junit.jupiter.api.parallel.ExecutionMode.SAME_THREAD;
 
@@ -40,7 +40,7 @@ final class TestLakehouseHiveSourceMvSubstitution
         extends AbstractIcebergMvSubstitutionTest
 {
     @Override
-    protected QueryRunner createQueryRunner()
+    protected QueryRunner createSourceQueryRunner(Session defaultSession, CatalogSchemaName sourceSchema)
             throws Exception
     {
         Path metastoreDir = createTempDirectory("lakehouse_hive_mv_substitution");
@@ -53,14 +53,35 @@ final class TestLakehouseHiveSourceMvSubstitution
                 .addLakehouseProperty("hive.metastore.catalog.dir", metastoreDir.toFile().toURI().toString())
                 .addLakehouseProperty("fs.hadoop.enabled", "true")
                 .build();
-        try {
-            queryRunner.execute("CREATE SCHEMA IF NOT EXISTS lakehouse.tpch");
-            return queryRunner;
-        }
-        catch (Throwable e) {
-            closeAllSuppress(e, queryRunner);
-            throw e;
-        }
+
+        queryRunner.execute("CREATE SCHEMA %s".formatted(mvSchema()));
+        return queryRunner;
+    }
+
+    // The Lakehouse catalog is its own Iceberg-backed MV storage (no separate iceberg catalog),
+    // provisions a tpch catalog, and its tpch source schema is created above.
+    @Override
+    protected CatalogSchemaName sourceSchema()
+    {
+        return new CatalogSchemaName("lakehouse", "tpch");
+    }
+
+    @Override
+    protected boolean addIcebergConnector()
+    {
+        return false;
+    }
+
+    @Override
+    protected boolean addTpchConnector()
+    {
+        return false;
+    }
+
+    @Override
+    protected boolean createSourceSchema()
+    {
+        return true;
     }
 
     @Override

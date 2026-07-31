@@ -13,18 +13,12 @@
  */
 package io.trino.plugin.iceberg.substitution;
 
-import io.trino.plugin.iceberg.TestingIcebergPlugin;
-import io.trino.plugin.tpch.TpchPlugin;
+import io.trino.Session;
+import io.trino.spi.connector.CatalogSchemaName;
 import io.trino.testing.DistributedQueryRunner;
 import io.trino.testing.QueryRunner;
 import org.junit.jupiter.api.parallel.Execution;
 
-import java.nio.file.Path;
-import java.util.Map;
-
-import static io.trino.plugin.base.util.Closables.closeAllSuppress;
-import static io.trino.plugin.iceberg.IcebergQueryRunner.ICEBERG_CATALOG;
-import static io.trino.testing.TestingSession.testSessionBuilder;
 import static org.junit.jupiter.api.parallel.ExecutionMode.SAME_THREAD;
 
 @Execution(SAME_THREAD)
@@ -32,31 +26,13 @@ public class TestIcebergMvSubstitution
         extends AbstractIcebergOnIcebergMvSubstitutionTest
 {
     @Override
-    protected QueryRunner createQueryRunner()
+    protected QueryRunner createSourceQueryRunner(Session defaultSession, CatalogSchemaName sourceSchema)
             throws Exception
     {
-        QueryRunner queryRunner = DistributedQueryRunner.builder(
-                        testSessionBuilder()
-                                .setCatalog(ICEBERG_CATALOG)
-                                .setSchema("tpch")
-                                .build())
+        QueryRunner queryRunner = DistributedQueryRunner.builder(defaultSession)
                 .addExtraProperty("materialized-view-substitution.support.enabled", "true")
                 .build();
-        try {
-            Path baseDataDir = queryRunner.getCoordinator().getBaseDataDir();
-            queryRunner.installPlugin(new TestingIcebergPlugin(baseDataDir));
-            queryRunner.createCatalog(ICEBERG_CATALOG, "iceberg", Map.of(
-                    "iceberg.catalog.type", "TESTING_FILE_METASTORE",
-                    "hive.metastore.catalog.dir", "local:///iceberg-catalog",
-                    "iceberg.hive-catalog-name", "hive"));
-            queryRunner.installPlugin(new TpchPlugin());
-            queryRunner.createCatalog("tpch", "tpch");
-            queryRunner.execute("CREATE SCHEMA iceberg.tpch");
-        }
-        catch (Throwable e) {
-            closeAllSuppress(e, queryRunner);
-            throw e;
-        }
+
         return queryRunner;
     }
 }

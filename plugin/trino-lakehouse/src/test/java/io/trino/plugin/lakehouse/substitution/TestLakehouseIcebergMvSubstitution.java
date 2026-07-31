@@ -13,6 +13,7 @@
  */
 package io.trino.plugin.lakehouse.substitution;
 
+import io.trino.Session;
 import io.trino.plugin.iceberg.substitution.AbstractIcebergOnIcebergMvSubstitutionTest;
 import io.trino.plugin.lakehouse.LakehouseQueryRunner;
 import io.trino.spi.connector.CatalogSchemaName;
@@ -34,7 +35,7 @@ final class TestLakehouseIcebergMvSubstitution
         extends AbstractIcebergOnIcebergMvSubstitutionTest
 {
     @Override
-    protected QueryRunner createQueryRunner()
+    protected QueryRunner createSourceQueryRunner(Session defaultSession, CatalogSchemaName sourceSchema)
             throws Exception
     {
         File metastoreDir = createTempDirectory("lakehouse_mv_substitution").toFile();
@@ -47,7 +48,7 @@ final class TestLakehouseIcebergMvSubstitution
                 .addLakehouseProperty("fs.hadoop.enabled", "true")
                 .build();
         try {
-            queryRunner.execute("CREATE SCHEMA IF NOT EXISTS lakehouse.tpch");
+            queryRunner.execute("CREATE SCHEMA IF NOT EXISTS " + mvSchema());
             return queryRunner;
         }
         catch (Throwable e) {
@@ -60,5 +61,25 @@ final class TestLakehouseIcebergMvSubstitution
     protected CatalogSchemaName mvSchema()
     {
         return new CatalogSchemaName("lakehouse", "mv");
+    }
+
+    // The Lakehouse catalog (default Iceberg table type) is its own MV storage and installs a tpch
+    // catalog; the tpch source schema is created above.
+    @Override
+    protected CatalogSchemaName sourceSchema()
+    {
+        return new CatalogSchemaName("lakehouse", "tpch");
+    }
+
+    @Override
+    protected boolean addIcebergConnector()
+    {
+        return false;
+    }
+
+    @Override
+    protected boolean addTpchConnector()
+    {
+        return false;
     }
 }

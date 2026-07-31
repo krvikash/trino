@@ -15,25 +15,20 @@ package io.trino.plugin.iceberg.substitution;
 
 import com.google.inject.Binder;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
+import io.airlift.configuration.ConfigBinder;
 import io.starburst.materialization.metastore.client.HttpMaterializationMetastoreModule;
 import io.starburst.materialization.metastore.client.MaterializationMetastoreClientConfig;
 import io.starburst.materialization.metastore.client.RequestAuthenticator;
 import io.starburst.materialization.metastore.server.TestingMaterializationMetastoreServer;
-import io.trino.plugin.iceberg.TestingIcebergPlugin;
-import io.trino.plugin.tpch.TpchPlugin;
+import io.trino.Session;
 import io.trino.server.ServerConfig;
+import io.trino.spi.connector.CatalogSchemaName;
 import io.trino.testing.DistributedQueryRunner;
 import io.trino.testing.QueryRunner;
 import org.junit.jupiter.api.parallel.Execution;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 
-import java.nio.file.Path;
-import java.util.Map;
-
 import static io.airlift.configuration.ConfigBinder.configBinder;
-import static io.trino.plugin.base.util.Closables.closeAllSuppress;
-import static io.trino.plugin.iceberg.IcebergQueryRunner.ICEBERG_CATALOG;
-import static io.trino.testing.TestingSession.testSessionBuilder;
 import static org.junit.jupiter.api.parallel.ExecutionMode.SAME_THREAD;
 
 /**
@@ -48,7 +43,7 @@ public class TestIcebergMvSubstitutionWithRestMetastore
         extends AbstractIcebergOnIcebergMvSubstitutionTest
 {
     @Override
-    protected QueryRunner createQueryRunner()
+    protected QueryRunner createSourceQueryRunner(Session defaultSession, CatalogSchemaName sourceSchema)
             throws Exception
     {
         PostgreSQLContainer metastoreDb = closeAfterClass(new PostgreSQLContainer("postgres:16"));
@@ -58,18 +53,14 @@ public class TestIcebergMvSubstitutionWithRestMetastore
                 metastoreDb.getUsername(),
                 metastoreDb.getPassword()));
 
-        QueryRunner queryRunner = DistributedQueryRunner.builder(
-                        testSessionBuilder()
-                                .setCatalog(ICEBERG_CATALOG)
-                                .setSchema("tpch")
-                                .build())
+        return DistributedQueryRunner.builder(defaultSession)
                 .setAdditionalModuleSupplier(() -> new AbstractConfigurationAwareModule()
                 {
                     @Override
                     protected void setup(Binder binder)
                     {
                         binder.bind(RequestAuthenticator.class).toInstance(_ -> {});
-                        configBinder(binder).bindConfigDefaults(MaterializationMetastoreClientConfig.class, config -> config.setMetastoreId("id"));
+                        ConfigBinder.configBinder(binder).bindConfigDefaults(MaterializationMetastoreClientConfig.class, config -> config.setMetastoreId("id"));
                         if (buildConfigObject(ServerConfig.class).isCoordinator()) {
                             install(new HttpMaterializationMetastoreModule());
                         }
@@ -78,21 +69,5 @@ public class TestIcebergMvSubstitutionWithRestMetastore
                 .addExtraProperty("materialized-view-substitution.support.enabled", "true")
                 .addCoordinatorProperty("materialization.metastore.base-uri", metastoreServer.baseUri().toString())
                 .build();
-        try {
-            Path baseDataDir = queryRunner.getCoordinator().getBaseDataDir();
-            queryRunner.installPlugin(new TestingIcebergPlugin(baseDataDir));
-            queryRunner.createCatalog(ICEBERG_CATALOG, "iceberg", Map.of(
-                    "iceberg.catalog.type", "TESTING_FILE_METASTORE",
-                    "hive.metastore.catalog.dir", "local:///iceberg-catalog",
-                    "iceberg.hive-catalog-name", "hive"));
-            queryRunner.installPlugin(new TpchPlugin());
-            queryRunner.createCatalog("tpch", "tpch");
-            queryRunner.execute("CREATE SCHEMA iceberg.tpch");
-        }
-        catch (Throwable e) {
-            closeAllSuppress(e, queryRunner);
-            throw e;
-        }
-        return queryRunner;
     }
 }

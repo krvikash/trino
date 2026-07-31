@@ -14,6 +14,7 @@
 package io.trino.tests.substitution;
 
 import com.google.common.collect.ImmutableMap;
+import io.trino.Session;
 import io.trino.plugin.hive.containers.Hive3FlociDataLake;
 import io.trino.plugin.hive.s3.S3HiveQueryRunner;
 import io.trino.plugin.iceberg.IcebergPlugin;
@@ -33,12 +34,8 @@ import static org.junit.jupiter.api.parallel.ExecutionMode.SAME_THREAD;
 public class TestIcebergMvOnHiveSourceSubstitution
         extends AbstractIcebergMvSubstitutionTest
 {
-    private static final String ICEBERG_CATALOG = "iceberg";
-    // Distinct metastore database from the Hive source schema, which the default session sets to "tpch".
-    private static final String MV_SCHEMA = "iceberg_mv";
-
     @Override
-    protected QueryRunner createQueryRunner()
+    protected QueryRunner createSourceQueryRunner(Session defaultSession, CatalogSchemaName sourceSchema)
             throws Exception
     {
         String bucketName = "test-iceberg-mv-on-hive-source-" + randomNameSuffix();
@@ -56,7 +53,7 @@ public class TestIcebergMvOnHiveSourceSubstitution
                 .build();
         try {
             queryRunner.installPlugin(new IcebergPlugin());
-            queryRunner.createCatalog(ICEBERG_CATALOG, "iceberg", ImmutableMap.<String, String>builder()
+            queryRunner.createCatalog(mvSchema().getCatalogName(), "iceberg", ImmutableMap.<String, String>builder()
                     .put("iceberg.catalog.type", "HIVE_METASTORE")
                     .put("hive.metastore.uri", hiveFlociDataLake.getHiveMetastoreEndpoint().toString())
                     .put("fs.hadoop.enabled", "false")
@@ -68,8 +65,8 @@ public class TestIcebergMvOnHiveSourceSubstitution
                     .put("s3.path-style-access", "true")
                     .buildOrThrow());
 
-            queryRunner.execute("CREATE SCHEMA hive.tpch WITH (location = 's3a://%s/tpch')".formatted(bucketName));
-            queryRunner.execute("CREATE SCHEMA %s.%s WITH (location = 's3://%s/%s')".formatted(ICEBERG_CATALOG, MV_SCHEMA, bucketName, MV_SCHEMA));
+            queryRunner.execute("CREATE SCHEMA %s WITH (location = 's3a://%s/tpch')".formatted(sourceSchema, bucketName));
+            queryRunner.execute("CREATE SCHEMA %s WITH (location = 's3://%s/%s')".formatted(mvSchema(), bucketName, mvSchema().getSchemaName()));
         }
         catch (Throwable e) {
             closeAllSuppress(e, queryRunner);
@@ -79,9 +76,33 @@ public class TestIcebergMvOnHiveSourceSubstitution
     }
 
     @Override
+    protected CatalogSchemaName sourceSchema()
+    {
+        return new CatalogSchemaName("hive", "tpch");
+    }
+
+    @Override
+    protected boolean addIcebergConnector()
+    {
+        return false;
+    }
+
+    @Override
+    protected boolean addTpchConnector()
+    {
+        return false;
+    }
+
+    @Override
+    protected boolean createSourceSchema()
+    {
+        return false;
+    }
+
+    @Override
     protected CatalogSchemaName mvSchema()
     {
-        return new CatalogSchemaName(ICEBERG_CATALOG, MV_SCHEMA);
+        return new CatalogSchemaName("iceberg", "iceberg_mv");
     }
 
     @Override

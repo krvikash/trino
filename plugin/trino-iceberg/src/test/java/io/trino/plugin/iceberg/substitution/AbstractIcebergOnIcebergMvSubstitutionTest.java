@@ -14,15 +14,23 @@
 package io.trino.plugin.iceberg.substitution;
 
 import io.trino.Session;
+import io.trino.spi.connector.CatalogSchemaName;
 import io.trino.spi.connector.CatalogSchemaTableName;
 import org.junit.jupiter.api.Test;
 
+import static io.trino.plugin.iceberg.IcebergQueryRunner.ICEBERG_CATALOG;
 import static io.trino.testing.TestingNames.randomNameSuffix;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public abstract class AbstractIcebergOnIcebergMvSubstitutionTest
         extends AbstractIcebergMvSubstitutionTest
 {
+    @Override
+    protected CatalogSchemaName sourceSchema()
+    {
+        return new CatalogSchemaName(ICEBERG_CATALOG, "schema");
+    }
+
     @Test
     public void testForVersionAsOfNotSubstituted()
     {

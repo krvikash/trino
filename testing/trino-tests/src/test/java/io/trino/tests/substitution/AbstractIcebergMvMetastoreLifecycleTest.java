@@ -33,6 +33,7 @@ import org.junit.jupiter.api.Test;
 import java.time.Instant;
 import java.util.Optional;
 
+import static io.trino.plugin.iceberg.IcebergQueryRunner.ICEBERG_CATALOG;
 import static io.trino.testing.TestingNames.randomNameSuffix;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -48,7 +49,10 @@ public abstract class AbstractIcebergMvMetastoreLifecycleTest
     /**
      * Catalog/schema where MVs are created (always iceberg.tpch).
      */
-    protected abstract CatalogSchemaName getMvCatalogSchema();
+    protected CatalogSchemaName getMvCatalogSchema()
+    {
+        return new CatalogSchemaName(ICEBERG_CATALOG, "tpch");
+    }
 
     /**
      * Catalog/schema where the {@code orders} source table lives.

@@ -59,12 +59,6 @@ public class TestIcebergMvMetastoreLifecycle
     }
 
     @Override
-    protected CatalogSchemaName getMvCatalogSchema()
-    {
-        return new CatalogSchemaName(ICEBERG_CATALOG, "tpch");
-    }
-
-    @Override
     protected CatalogSchemaName getSourceCatalogSchema()
     {
         return new CatalogSchemaName(ICEBERG_CATALOG, "tpch");

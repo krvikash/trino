@@ -13,9 +13,8 @@
  */
 package io.trino.plugin.warp.substitution;
 
-import io.trino.plugin.iceberg.IcebergPlugin;
+import io.trino.Session;
 import io.trino.plugin.iceberg.substitution.AbstractIcebergMvSubstitutionTest;
-import io.trino.plugin.tpch.TpchPlugin;
 import io.trino.plugin.warp.WarpPlugin;
 import io.trino.plugin.warp.di.WarpStubsStorageEngineModule;
 import io.trino.plugin.warp.dispatcher.DispatcherConnectorFactory;
@@ -47,12 +46,8 @@ import static io.trino.plugin.warp.extension.config.WarpExtensionConfig.USE_HTTP
 public class TestWarpSpeedHiveSourceMvSubstitution
         extends AbstractIcebergMvSubstitutionTest
 {
-    private static final String CATALOG_NAME = "warp_speed";
-    private static final String ICEBERG_CATALOG = "iceberg";
-    private static final String MV_SCHEMA = "mvs";
-
     @Override
-    protected QueryRunner createQueryRunner()
+    protected QueryRunner createSourceQueryRunner(Session defaultSession, CatalogSchemaName sourceSchema)
             throws Exception
     {
         Path hiveDir = Files.createTempDirectory("hive_catalog_");
@@ -73,37 +68,11 @@ public class TestWarpSpeedHiveSourceMvSubstitution
                         PASS_THROUGH_DISPATCHER, HIVE_CONNECTOR_NAME),
                 hiveDir,
                 DispatcherConnectorFactory.DISPATCHER_CONNECTOR_NAME,
-                CATALOG_NAME,
+                sourceSchema.getCatalogName(),
                 new WarpPlugin(),
                 Map.of("materialized-view-substitution.support.enabled", "true"));
 
-        try {
-            queryRunner.installPlugin(new TpchPlugin());
-            queryRunner.createCatalog("tpch", "tpch");
-
-            // Iceberg holds the MV storage tables. Installing the plugin also registers Iceberg's
-            // engine functions (e.g. $iceberg_theta_stat) used when REFRESH writes storage statistics.
-            queryRunner.installPlugin(new IcebergPlugin());
-            queryRunner.createCatalog(ICEBERG_CATALOG, "iceberg", Map.of(
-                    "iceberg.catalog.type", "TESTING_FILE_METASTORE",
-                    "hive.metastore.catalog.dir", icebergDir.toUri().toString(),
-                    "fs.hadoop.enabled", "true"));
-
-            String sourceSchema = queryRunner.getDefaultSession().getSchema().orElseThrow();
-            queryRunner.execute("CREATE SCHEMA IF NOT EXISTS " + CATALOG_NAME + "." + sourceSchema);
-            queryRunner.execute("CREATE SCHEMA " + ICEBERG_CATALOG + "." + MV_SCHEMA);
-            return queryRunner;
-        }
-        catch (Throwable e) {
-            queryRunner.close();
-            throw e;
-        }
-    }
-
-    @Override
-    protected CatalogSchemaName mvSchema()
-    {
-        return new CatalogSchemaName(ICEBERG_CATALOG, MV_SCHEMA);
+        return queryRunner;
     }
 
     @Override

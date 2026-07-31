@@ -13,27 +13,22 @@
  */
 package io.trino.plugin.bigquery.substitution;
 
+import io.trino.Session;
 import io.trino.plugin.bigquery.BigQueryQueryRunner;
-import io.trino.plugin.iceberg.TestingIcebergPlugin;
 import io.trino.plugin.iceberg.substitution.AbstractIcebergMvSubstitutionTest;
-import io.trino.testing.DistributedQueryRunner;
+import io.trino.spi.connector.CatalogSchemaName;
 import io.trino.testing.QueryRunner;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Execution;
 
-import java.nio.file.Path;
-import java.util.Map;
-
-import static io.trino.plugin.base.util.Closables.closeAllSuppress;
-import static io.trino.plugin.iceberg.IcebergQueryRunner.ICEBERG_CATALOG;
 import static org.junit.jupiter.api.parallel.ExecutionMode.SAME_THREAD;
 
 /**
  * MV substitution with BigQuery as the source connector: base tables live in BigQuery, the
  * materialized-view storage lives in Iceberg. BigQuery cannot host substitution MVs itself
  * (SUPPORTS_CREATE_MATERIALIZED_VIEW is false), so this mirrors the JDBC-source variant
- * {@link TestIcebergMvOnJdbcSourceSubstitution} rather than the Iceberg-native tests.
+ * TestIcebergMvOnJdbcSourceSubstitution rather than the Iceberg-native tests.
  * <p>
  * Requires live GCP credentials via the {@code testing.bigquery.credentials-key} system property.
  */
@@ -42,26 +37,31 @@ public class TestBigQueryMvSubstitution
         extends AbstractIcebergMvSubstitutionTest
 {
     @Override
-    protected QueryRunner createQueryRunner()
+    protected QueryRunner createSourceQueryRunner(Session defaultSession, CatalogSchemaName sourceSchema)
             throws Exception
     {
-        DistributedQueryRunner queryRunner = BigQueryQueryRunner.builder()
+        return BigQueryQueryRunner.builder()
                 .addExtraProperty("materialized-view-substitution.support.enabled", "true")
                 .build();
-        try {
-            Path baseDataDir = queryRunner.getCoordinator().getBaseDataDir();
-            queryRunner.installPlugin(new TestingIcebergPlugin(baseDataDir));
-            queryRunner.createCatalog(ICEBERG_CATALOG, "iceberg", Map.of(
-                    "iceberg.catalog.type", "TESTING_FILE_METASTORE",
-                    "hive.metastore.catalog.dir", "local:///iceberg-catalog",
-                    "iceberg.hive-catalog-name", "hive"));
-            queryRunner.execute("CREATE SCHEMA %s.tpch".formatted(ICEBERG_CATALOG));
-        }
-        catch (Throwable e) {
-            closeAllSuppress(e, queryRunner);
-            throw e;
-        }
-        return queryRunner;
+    }
+
+    // BigQueryQueryRunner already provisions the bigquery catalog, its tpch schema, and a tpch catalog.
+    @Override
+    protected CatalogSchemaName sourceSchema()
+    {
+        return new CatalogSchemaName("bigquery", "tpch");
+    }
+
+    @Override
+    protected boolean addTpchConnector()
+    {
+        return false;
+    }
+
+    @Override
+    protected boolean createSourceSchema()
+    {
+        return false;
     }
 
     @Test

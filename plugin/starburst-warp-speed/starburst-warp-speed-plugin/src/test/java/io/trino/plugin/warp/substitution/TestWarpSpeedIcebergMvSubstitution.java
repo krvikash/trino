@@ -13,15 +13,14 @@
  */
 package io.trino.plugin.warp.substitution;
 
-import io.trino.metadata.InternalFunctionBundle;
-import io.trino.plugin.iceberg.IcebergPlugin;
+import io.trino.Session;
 import io.trino.plugin.iceberg.substitution.AbstractIcebergOnIcebergMvSubstitutionTest;
-import io.trino.plugin.tpch.TpchPlugin;
 import io.trino.plugin.warp.WarpPlugin;
 import io.trino.plugin.warp.di.WarpStubsStorageEngineModule;
 import io.trino.plugin.warp.dispatcher.DispatcherConnectorFactory;
 import io.trino.plugin.warp.dispatcher.substitution.DispatcherSubstitutionMetadata;
 import io.trino.plugin.warp.it.DispatcherQueryRunner;
+import io.trino.spi.connector.CatalogSchemaName;
 import io.trino.testing.QueryRunner;
 
 import java.nio.file.Files;
@@ -41,10 +40,8 @@ import static io.trino.plugin.warp.extension.config.WarpExtensionConfig.USE_HTTP
 public class TestWarpSpeedIcebergMvSubstitution
         extends AbstractIcebergOnIcebergMvSubstitutionTest
 {
-    private static final String CATALOG_NAME = "warp_speed";
-
     @Override
-    protected QueryRunner createQueryRunner()
+    protected QueryRunner createSourceQueryRunner(Session defaultSession, CatalogSchemaName sourceSchema)
             throws Exception
     {
         Path icebergDir = Files.createTempDirectory("iceberg_catalog_");
@@ -52,7 +49,7 @@ public class TestWarpSpeedIcebergMvSubstitution
         QueryRunner queryRunner = DispatcherQueryRunner.createQueryRunner(
                 new WarpStubsStorageEngineModule(),
                 Optional.empty(),
-                3,
+                2,
                 Map.of(),
                 Map.ofEntries(
                         Map.entry("http-server.log.enabled", "false"),
@@ -65,26 +62,22 @@ public class TestWarpSpeedIcebergMvSubstitution
                         Map.entry(PASS_THROUGH_DISPATCHER, ICEBERG_CONNECTOR_NAME)),
                 icebergDir,
                 DispatcherConnectorFactory.DISPATCHER_CONNECTOR_NAME,
-                CATALOG_NAME,
+                sourceSchema.getCatalogName(),
                 new WarpPlugin(),
                 Map.of("materialized-view-substitution.support.enabled", "true"));
 
         try {
-            // Register Iceberg internal functions used by the proxied connector.
-            InternalFunctionBundle.InternalFunctionBundleBuilder functions = InternalFunctionBundle.builder();
-            new IcebergPlugin().getFunctions().forEach(functions::functions);
-            queryRunner.addFunctions(functions.build());
-
-            queryRunner.installPlugin(new TpchPlugin());
-            queryRunner.createCatalog("tpch", "tpch");
-
-            String schemaName = queryRunner.getDefaultSession().getSchema().orElseThrow();
-            queryRunner.execute("CREATE SCHEMA IF NOT EXISTS " + schemaName);
             return queryRunner;
         }
         catch (Throwable e) {
             queryRunner.close();
             throw e;
         }
+    }
+
+    @Override
+    protected CatalogSchemaName sourceSchema()
+    {
+        return new CatalogSchemaName("warpspeed", "schema");
     }
 }

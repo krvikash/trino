@@ -14,11 +14,11 @@
 package io.trino.plugin.objectstore.substitution;
 
 import com.google.common.collect.ImmutableMap;
-import io.trino.plugin.iceberg.IcebergPlugin;
+import io.trino.Session;
 import io.trino.plugin.iceberg.substitution.AbstractIcebergOnIcebergMvSubstitutionTest;
 import io.trino.plugin.objectstore.ObjectStorePlugin;
 import io.trino.plugin.objectstore.TableType;
-import io.trino.plugin.tpch.TpchPlugin;
+import io.trino.spi.connector.CatalogSchemaName;
 import io.trino.testing.DistributedQueryRunner;
 import io.trino.testing.QueryRunner;
 import org.junit.jupiter.api.parallel.Execution;
@@ -28,7 +28,6 @@ import java.nio.file.Path;
 import static com.google.common.base.Verify.verify;
 import static io.trino.plugin.base.util.Closables.closeAllSuppress;
 import static io.trino.plugin.objectstore.StarburstObjectStoreConnectorFactory.STARBURST_OBJECTSTORE;
-import static io.trino.testing.TestingSession.testSessionBuilder;
 import static org.junit.jupiter.api.parallel.ExecutionMode.SAME_THREAD;
 
 /**
@@ -40,37 +39,34 @@ final class TestObjectStoreIcebergMvSubstitution
         extends AbstractIcebergOnIcebergMvSubstitutionTest
 {
     @Override
-    protected QueryRunner createQueryRunner()
+    protected QueryRunner createSourceQueryRunner(Session defaultSession, CatalogSchemaName sourceSchema)
             throws Exception
     {
-        DistributedQueryRunner queryRunner = DistributedQueryRunner.builder(
-                        testSessionBuilder()
-                                .setCatalog("objectstore")
-                                .setSchema("tpch")
-                                .build())
+        DistributedQueryRunner queryRunner = DistributedQueryRunner.builder(defaultSession)
                 .addExtraProperty("materialized-view-substitution.support.enabled", "true")
                 .build();
         try {
             Path dataDir = queryRunner.getCoordinator().getBaseDataDir().resolve("objectstore");
             verify(dataDir.toFile().mkdirs());
 
-            queryRunner.installPlugin(new TpchPlugin());
-            queryRunner.createCatalog("tpch", "tpch");
-
-            queryRunner.installPlugin(new IcebergPlugin());
             queryRunner.installPlugin(new ObjectStorePlugin());
-            queryRunner.createCatalog("objectstore", STARBURST_OBJECTSTORE, ImmutableMap.<String, String>builder()
+            queryRunner.createCatalog(sourceSchema.getCatalogName(), STARBURST_OBJECTSTORE, ImmutableMap.<String, String>builder()
                     .put("great-lakes.table-type", TableType.ICEBERG.name())
                     .put("hive.metastore", "file")
                     .put("hive.metastore.catalog.dir", "local://" + dataDir)
                     .put("fs.local.enabled", "true")
                     .buildOrThrow());
-            queryRunner.execute("CREATE SCHEMA objectstore.tpch");
             return queryRunner;
         }
         catch (Throwable e) {
             closeAllSuppress(e, queryRunner);
             throw e;
         }
+    }
+
+    @Override
+    protected CatalogSchemaName sourceSchema()
+    {
+        return new CatalogSchemaName("objectstore", "schema");
     }
 }
