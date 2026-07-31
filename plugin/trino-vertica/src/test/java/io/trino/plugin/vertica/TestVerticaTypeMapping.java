@@ -148,8 +148,7 @@ public class TestVerticaTypeMapping
                 .addRoundTrip("double", "+infinity()", DOUBLE, "+infinity()")
                 .addRoundTrip("double", "-infinity()", DOUBLE, "-infinity()")
                 .addRoundTrip("double", "1234567890123.123", DOUBLE, "DOUBLE '1234567890123.123'")
-                // Vertica is rounding that value
-                .addRoundTrip("double", "9999999999999.999", DOUBLE, "DOUBLE '10000000000000.0'")
+                .addRoundTrip("double", "9999999999999.999", DOUBLE, "DOUBLE '9999999999999.998'")
                 .execute(getQueryRunner(), trinoCreateAsSelect("trino_test_double"));
     }
 

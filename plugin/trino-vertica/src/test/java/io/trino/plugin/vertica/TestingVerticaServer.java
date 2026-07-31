@@ -19,7 +19,6 @@ import com.google.common.collect.ImmutableSet;
 import io.trino.plugin.base.util.AutoCloseableCloser;
 import io.trino.testing.ResourcePresence;
 import io.trino.testing.sql.SqlExecutor;
-import org.junit.jupiter.api.Assumptions;
 import org.testcontainers.containers.JdbcDatabaseContainer;
 import org.testcontainers.utility.DockerImageName;
 import org.testcontainers.utility.MountableFile;
@@ -37,9 +36,7 @@ import static java.util.Objects.requireNonNull;
 
 /**
  * @see <a href="https://www.microfocus.com/productlifecycle/?term=Vertica">Vertica product lifecycle</a>
- * @deprecated because it actually does not work, see constructor comment for details
  */
-@Deprecated
 public class TestingVerticaServer
         extends JdbcDatabaseContainer<TestingVerticaServer>
 {
@@ -70,8 +67,6 @@ public class TestingVerticaServer
     public TestingVerticaServer(String version, String database, String user, String password)
     {
         super(DockerImageName.parse("vertica/vertica-ce").withTag(version));
-        // TODO this class is currently disabled
-        Assumptions.abort("Disabled until Vertica image is fixed");
         this.database = requireNonNull(database, "database is null");
         this.user = requireNonNull(user, "user is null");
         this.password = requireNonNull(password, "password is null");

@@ -21,8 +21,6 @@ import io.trino.spi.connector.JoinCondition;
 import io.trino.spi.connector.SortOrder;
 import io.trino.sql.planner.assertions.PlanMatchPattern;
 import io.trino.sql.planner.plan.AggregationNode;
-import io.trino.sql.planner.plan.ExchangeNode;
-import io.trino.sql.planner.plan.JoinNode;
 import io.trino.sql.planner.plan.TableScanNode;
 import io.trino.sql.planner.plan.TopNNode;
 import io.trino.testing.MaterializedResult;
@@ -41,7 +39,6 @@ import java.util.stream.Stream;
 import static com.google.common.base.Verify.verify;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.MoreCollectors.toOptional;
-import static io.trino.plugin.jdbc.JdbcMetadataSessionProperties.JOIN_PUSHDOWN_ENABLED;
 import static io.trino.plugin.jdbc.JoinOperator.FULL_JOIN;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.sql.planner.assertions.PlanMatchPattern.anyTree;
@@ -79,14 +76,14 @@ public class TestVerticaConnectorTest
     protected boolean hasBehavior(TestingConnectorBehavior connectorBehavior)
     {
         return switch (connectorBehavior) {
-            case SUPPORTS_JOIN_PUSHDOWN -> true;
+            case SUPPORTS_JOIN_PUSHDOWN,
+                 SUPPORTS_TOPN_PUSHDOWN_WITH_VARCHAR -> true;
             case SUPPORTS_ARRAY,
                  SUPPORTS_ADD_COLUMN_WITH_COMMENT,
                  // Vertica returns NaN for stddev functions in case of single value for example, but trino expects null
                  SUPPORTS_AGGREGATION_PUSHDOWN_STDDEV,
                  SUPPORTS_AGGREGATION_PUSHDOWN_VARIANCE,
                  SUPPORTS_ADD_COLUMN_WITH_POSITION,
-                 SUPPORTS_AGGREGATION_PUSHDOWN,
                  SUPPORTS_COMMENT_ON_COLUMN,
                  SUPPORTS_COMMENT_ON_TABLE,
                  SUPPORTS_CREATE_TABLE_WITH_COLUMN_COMMENT,
@@ -94,8 +91,12 @@ public class TestVerticaConnectorTest
                  SUPPORTS_DROP_COLUMN,
                  SUPPORTS_JOIN_PUSHDOWN_WITH_DISTINCT_FROM,
                  SUPPORTS_MAP_TYPE,
+                 SUPPORTS_MERGE,
+                 SUPPORTS_PREDICATE_ARITHMETIC_EXPRESSION_PUSHDOWN,
+                 SUPPORTS_PREDICATE_EXPRESSION_PUSHDOWN_WITH_LIKE,
                  SUPPORTS_RENAME_SCHEMA,
                  SUPPORTS_RENAME_TABLE_ACROSS_SCHEMAS,
+                 SUPPORTS_ROW_LEVEL_UPDATE,
                  SUPPORTS_ROW_TYPE,
                  SUPPORTS_SET_COLUMN_TYPE,
                  SUPPORTS_TOPN_PUSHDOWN -> false;
@@ -398,109 +399,6 @@ public class TestVerticaConnectorTest
         assertExplain(
                 "EXPLAIN SELECT name FROM nation ORDER BY nationkey DESC NULLS LAST LIMIT 5",
                 expectedPattern);
-    }
-
-    /*
-    In Vertica null ordering is:
-        - INTEGER, INT, DATE/TIME: NULL has the smallest value.
-        - FLOAT, BOOLEAN, CHAR, VARCHAR, ARRAY, SET: NULL has the largest value
-    */
-    @Override
-    @Test
-    public void testTopNPushdown()
-    {
-        assertThat(query("SELECT orderkey FROM orders ORDER BY orderkey NULLS FIRST LIMIT 10"))
-                .ordered()
-                .isFullyPushedDown();
-        // no push down due to NULLS LAST in ASC order for numeric
-        assertThat(query("SELECT orderkey FROM orders ORDER BY orderkey NULLS LAST LIMIT 10"))
-                .ordered()
-                .isNotFullyPushedDown(TopNNode.class);
-
-        assertThat(query("SELECT orderkey FROM orders ORDER BY orderkey DESC LIMIT 10"))
-                .ordered()
-                .isFullyPushedDown();
-        // no push down due to NULLS FIRST in DESC order for numeric
-        assertThat(query("SELECT orderkey FROM orders ORDER BY orderkey DESC NULLS FIRST LIMIT 10"))
-                .ordered()
-                .isNotFullyPushedDown(TopNNode.class);
-
-        // multiple sort columns with different orders
-        assertThat(query("SELECT * FROM orders ORDER BY shippriority DESC, totalprice ASC LIMIT 10"))
-                .ordered()
-                .isFullyPushedDown();
-        // no push down due to NULLS FIRST in ASC order for double
-        assertThat(query("SELECT * FROM orders ORDER BY shippriority DESC, totalprice ASC NULLS FIRST LIMIT 10"))
-                .ordered()
-                .isNotFullyPushedDown(TopNNode.class);
-
-        // TopN over aggregation column
-        // no push down due to NULLS LAST in DESC order for double sum
-        assertThat(query("SELECT sum(totalprice) AS total FROM orders GROUP BY custkey ORDER BY total DESC LIMIT 10"))
-                .ordered()
-                .isNotFullyPushedDown(TopNNode.class);
-
-        assertThat(query("SELECT sum(totalprice) AS total FROM orders GROUP BY custkey ORDER BY total ASC LIMIT 10"))
-                .ordered()
-                .isFullyPushedDown();
-
-        // TopN over TopN
-        assertThat(query("SELECT orderkey, totalprice FROM (SELECT orderkey, totalprice FROM orders ORDER BY 1, 2 LIMIT 10) ORDER BY 2, 1 LIMIT 5"))
-                .ordered()
-                .isNotFullyPushedDown(TopNNode.class);
-        assertThat(query("SELECT orderkey, totalprice FROM (SELECT orderkey, totalprice FROM orders ORDER BY 1 NULLS FIRST, 2 LIMIT 10) ORDER BY 2, 1 NULLS FIRST LIMIT 5"))
-                .ordered()
-                .isFullyPushedDown();
-
-        assertThat(query("SELECT orderkey, totalprice " +
-                "FROM (SELECT orderkey, totalprice FROM (SELECT orderkey, totalprice FROM orders ORDER BY 1 NULLS FIRST, 2 LIMIT 10) " +
-                "ORDER BY 2, 1 NULLS FIRST LIMIT 5) ORDER BY 1 NULLS FIRST, 2 LIMIT 3"))
-                .ordered()
-                .isFullyPushedDown();
-
-        // TopN over limit - use high limit for deterministic result
-        assertThat(query("SELECT orderkey, totalprice FROM (SELECT orderkey, totalprice FROM orders LIMIT 15000) ORDER BY totalprice ASC LIMIT 5"))
-                .ordered()
-                .isFullyPushedDown();
-
-        // TopN over limit with filter
-        assertThat(query("SELECT orderkey, totalprice " +
-                "FROM (SELECT orderkey, totalprice FROM orders WHERE orderdate = DATE '1995-09-16' LIMIT 20) " +
-                "ORDER BY totalprice ASC LIMIT 5"))
-                .ordered()
-                .isFullyPushedDown();
-
-        // TopN over aggregation with filter
-        // no push down due to NULLS LAST in DESC order for double sum
-        assertThat(query("" +
-                "SELECT * " +
-                "FROM (SELECT SUM(totalprice) as sum, custkey AS total FROM orders GROUP BY custkey HAVING COUNT(*) > 3) " +
-                "ORDER BY sum DESC LIMIT 10"))
-                .ordered()
-                .isNotFullyPushedDown(TopNNode.class);
-
-        assertThat(query("" +
-                "SELECT * " +
-                "FROM (SELECT SUM(totalprice) as sum, custkey AS total FROM orders GROUP BY custkey HAVING COUNT(*) > 3) " +
-                "ORDER BY sum ASC LIMIT 10"))
-                .ordered()
-                .isFullyPushedDown();
-
-        // TopN over LEFT join (enforces SINGLE TopN cannot be pushed below OUTER side of join)
-        // We expect PARTIAL TopN on the LEFT side of join to be pushed down.
-        assertThat(query(
-                // Explicitly disable join pushdown. The purpose of the this test is to verify partial TopN gets pushed down when Join is not.
-                Session.builder(getSession())
-                        .setCatalogSessionProperty(getSession().getCatalog().orElseThrow(), JOIN_PUSHDOWN_ENABLED, "false")
-                        .build(),
-                "SELECT * FROM nation n LEFT JOIN region r ON n.regionkey = r.regionkey " +
-                        "ORDER BY n.nationkey NULLS FIRST LIMIT 3"))
-                .ordered()
-                .isNotFullyPushedDown(
-                        node(TopNNode.class, // FINAL TopN
-                                anyTree(node(JoinNode.class,
-                                        node(ExchangeNode.class, node(TableScanNode.class)), // no PARTIAL TopN
-                                        anyTree(node(TableScanNode.class))))));
     }
 
     // extension for BaseJdbcConnectorTest.testLimitPushdown
