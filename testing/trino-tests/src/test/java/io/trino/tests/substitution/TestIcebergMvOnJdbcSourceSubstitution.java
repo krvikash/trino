@@ -86,7 +86,7 @@ public class TestIcebergMvOnJdbcSourceSubstitution
     }
 
     @Override
-    protected CatalogSchemaName getMvCatalogSchema()
+    protected CatalogSchemaName mvSchema()
     {
         return new CatalogSchemaName(ICEBERG_CATALOG, "tpch");
     }

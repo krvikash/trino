@@ -101,7 +101,7 @@ public class TestWarpSpeedHiveSourceMvSubstitution
     }
 
     @Override
-    protected CatalogSchemaName getMvCatalogSchema()
+    protected CatalogSchemaName mvSchema()
     {
         return new CatalogSchemaName(ICEBERG_CATALOG, MV_SCHEMA);
     }

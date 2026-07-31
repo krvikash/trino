@@ -95,7 +95,7 @@ public class TestIcebergMvOnCassandraSourceSubstitution
     }
 
     @Override
-    protected CatalogSchemaName getMvCatalogSchema()
+    protected CatalogSchemaName mvSchema()
     {
         return new CatalogSchemaName(ICEBERG_CATALOG, KEYSPACE);
     }
