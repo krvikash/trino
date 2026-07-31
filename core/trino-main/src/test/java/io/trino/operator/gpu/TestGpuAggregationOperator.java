@@ -28,7 +28,6 @@ import io.trino.operator.aggregation.TestingAggregationFunction;
 import io.trino.operator.gpu.aggregation.GpuAggregateFunction;
 import io.trino.operator.gpu.aggregation.GpuAggregation;
 import io.trino.operator.gpu.aggregation.GpuAggregationCompiler;
-import io.trino.operator.gpu.aggregation.GpuAggregationCompiler.CompileResult;
 import io.trino.operator.gpu.aggregation.GpuCountNonNull;
 import io.trino.spi.Page;
 import io.trino.spi.TrinoException;
@@ -837,7 +836,7 @@ final class TestGpuAggregationOperator
 
     private void assertGlobalMatchesCpu(List<Page> inputPages, String functionName, List<Type> argumentTypes, Step step)
     {
-        CompileResult compiled = compileAggregation(functionName, argumentTypes, false, step, false);
+        GpuAggregationCompiler.AggregationCompileResult.Success compiled = compileAggregation(functionName, argumentTypes, false, step, false);
         List<Type> inputTypes = argumentTypes.isEmpty() ? List.of(BIGINT) : List.copyOf(argumentTypes);
 
         List<Page> results = runGpuPipeline(inputPages, inputTypes, compiled);
@@ -860,7 +859,7 @@ final class TestGpuAggregationOperator
 
     private void assertGroupByMatchesCpu(List<Page> inputPages, String functionName, List<Type> argumentTypes, Step step)
     {
-        CompileResult compiled = compileAggregation(functionName, argumentTypes, true, step, false);
+        GpuAggregationCompiler.AggregationCompileResult.Success compiled = compileAggregation(functionName, argumentTypes, true, step, false);
         List<Type> inputTypes = ImmutableList.<Type>builder()
                 .add(BIGINT)
                 .addAll(argumentTypes.isEmpty() ? List.of(BIGINT) : argumentTypes)
@@ -901,7 +900,7 @@ final class TestGpuAggregationOperator
 
     private void assertMaskedGlobalMatchesCpu(Page inputPage, String functionName, List<Type> argumentTypes)
     {
-        CompileResult compiled = compileAggregation(functionName, argumentTypes, false, SINGLE, true);
+        GpuAggregationCompiler.AggregationCompileResult.Success compiled = compileAggregation(functionName, argumentTypes, false, SINGLE, true);
         ImmutableList.Builder<Type> inputTypesBuilder = ImmutableList.builder();
         if (argumentTypes.isEmpty()) {
             inputTypesBuilder.add(BIGINT);
@@ -926,7 +925,7 @@ final class TestGpuAggregationOperator
 
     private void assertMaskedGroupByMatchesCpu(Page inputPage, String functionName, List<Type> argumentTypes)
     {
-        CompileResult compiled = compileAggregation(functionName, argumentTypes, true, SINGLE, true);
+        GpuAggregationCompiler.AggregationCompileResult.Success compiled = compileAggregation(functionName, argumentTypes, true, SINGLE, true);
         ImmutableList.Builder<Type> inputTypesBuilder = ImmutableList.<Type>builder()
                 .add(BIGINT);
         if (argumentTypes.isEmpty()) {
@@ -976,10 +975,20 @@ final class TestGpuAggregationOperator
         }
     }
 
-    private static CompileResult compileAggregation(String functionName, List<Type> argumentTypes, boolean grouped, Step step, boolean masked)
+    private static GpuAggregationCompiler.AggregationCompileResult.Success compileAggregation(String functionName, List<Type> argumentTypes, boolean grouped, Step step, boolean masked)
     {
-        return tryCompileAggregation(functionName, argumentTypes, grouped, step, masked)
-                .orElseThrow(() -> new AssertionError("Failed to compile %s over %s".formatted(functionName, argumentTypes)));
+        return switch (tryCompileAggregation(functionName, argumentTypes, grouped, step, masked)) {
+            case GpuAggregationCompiler.AggregationCompileResult.Failure _ -> throw new AssertionError("Failed to compile %s over %s".formatted(functionName, argumentTypes));
+            case GpuAggregationCompiler.AggregationCompileResult.Success success -> success;
+        };
+    }
+
+    private static GpuAggregationCompiler.AggregationCompileResult.Success compileAggregation(String functionName, List<Type> argumentTypes, List<Type> stepInputTypes, boolean grouped, Step step, boolean masked)
+    {
+        return switch (tryCompileAggregation(functionName, argumentTypes, stepInputTypes, grouped, step, masked)) {
+            case GpuAggregationCompiler.AggregationCompileResult.Failure _ -> throw new AssertionError("Failed to compile %s over %s".formatted(functionName, argumentTypes));
+            case GpuAggregationCompiler.AggregationCompileResult.Success success -> success;
+        };
     }
 
     private static void assertCompileNotSupported(String functionName, List<Type> argumentTypes, boolean grouped)
@@ -991,24 +1000,24 @@ final class TestGpuAggregationOperator
 
     private static void assertCompileNotSupported(String functionName, List<Type> argumentTypes, boolean grouped, Step step)
     {
-        Optional<CompileResult> compiled;
+        GpuAggregationCompiler.AggregationCompileResult result;
         try {
-            compiled = tryCompileAggregation(functionName, argumentTypes, grouped, step, false);
+            result = tryCompileAggregation(functionName, argumentTypes, grouped, step, false);
         }
         catch (TrinoException e) {
             // Trino has no such function for these argument types, so the GPU compiler is never invoked.
             verifyFunctionResolutionError(functionName, e);
             return;
         }
-        assertThat(compiled).isEmpty();
+        assertThat(result).isInstanceOf(GpuAggregationCompiler.AggregationCompileResult.Failure.class);
     }
 
-    private static Optional<CompileResult> tryCompileAggregation(String functionName, List<Type> argumentTypes, boolean grouped, Step step, boolean masked)
+    private static GpuAggregationCompiler.AggregationCompileResult tryCompileAggregation(String functionName, List<Type> argumentTypes, boolean grouped, Step step, boolean masked)
     {
         return tryCompileAggregation(functionName, argumentTypes, argumentTypes, grouped, step, masked);
     }
 
-    private static Optional<CompileResult> tryCompileAggregation(String functionName, List<Type> argumentTypes, List<Type> stepInputTypes, boolean grouped, Step step, boolean masked)
+    private static GpuAggregationCompiler.AggregationCompileResult tryCompileAggregation(String functionName, List<Type> argumentTypes, List<Type> stepInputTypes, boolean grouped, Step step, boolean masked)
     {
         ImmutableList.Builder<Symbol> sourceSymbols = ImmutableList.builder();
         List<Symbol> groupingKeys = List.of();
@@ -1077,7 +1086,7 @@ final class TestGpuAggregationOperator
         return GpuAggregationCompiler.compile(node, layoutBuilder.buildOrThrow(), /*compactionThresholdBytes=*/ 1);
     }
 
-    private static List<Page> runGpuPipeline(List<Page> inputPages, List<Type> inputTypes, CompileResult compiled)
+    private static List<Page> runGpuPipeline(List<Page> inputPages, List<Type> inputTypes, GpuAggregationCompiler.AggregationCompileResult.Success compiled)
     {
         return executeGpuOperation(
                 inputPages,
@@ -1264,8 +1273,8 @@ final class TestGpuAggregationOperator
         }
         Type intermediateType = FUNCTION_RESOLUTION.getAggregateFunction(functionName, fromTypes(argumentType)).getIntermediateType();
 
-        boolean gpuPartialSupported = tryCompileAggregation(functionName, List.of(argumentType), List.of(argumentType), false, PARTIAL, false).isPresent();
-        boolean gpuFinalSupported = tryCompileAggregation(functionName, List.of(argumentType), List.of(intermediateType), false, FINAL, false).isPresent();
+        boolean gpuPartialSupported = tryCompileAggregation(functionName, List.of(argumentType), List.of(argumentType), false, PARTIAL, false) instanceof GpuAggregationCompiler.AggregationCompileResult.Success;
+        boolean gpuFinalSupported = tryCompileAggregation(functionName, List.of(argumentType), List.of(intermediateType), false, FINAL, false) instanceof GpuAggregationCompiler.AggregationCompileResult.Success;
         if (!gpuPartialSupported && !gpuFinalSupported) {
             // SINGLE-step coverage already asserts no GPU path; nothing to verify here.
             return;
@@ -1346,7 +1355,7 @@ final class TestGpuAggregationOperator
 
     private Block runGpuPartialGlobal(String functionName, List<Type> argumentTypes, Page rawInput)
     {
-        CompileResult compiled = compileAggregation(functionName, argumentTypes, false, PARTIAL, false);
+        GpuAggregationCompiler.AggregationCompileResult.Success compiled = compileAggregation(functionName, argumentTypes, false, PARTIAL, false);
         List<Page> results = runGpuPipeline(List.of(rawInput), argumentTypes, compiled);
         checkState(results.size() == 1, "Expected single result page");
         Page resultPage = results.getFirst();
@@ -1356,8 +1365,7 @@ final class TestGpuAggregationOperator
 
     private Object runGpuFinalGlobal(String functionName, List<Type> argumentTypes, Block intermediate, Type intermediateType)
     {
-        CompileResult compiled = tryCompileAggregation(functionName, argumentTypes, List.of(intermediateType), false, FINAL, false)
-                .orElseThrow(() -> new AssertionError("Failed to compile GPU FINAL for %s over %s".formatted(functionName, argumentTypes)));
+        GpuAggregationCompiler.AggregationCompileResult.Success compiled = compileAggregation(functionName, argumentTypes, List.of(intermediateType), false, FINAL, false);
         List<Page> results = runGpuPipeline(List.of(new Page(intermediate)), List.of(intermediateType), compiled);
         checkState(results.size() == 1, "Expected single result page");
         Page resultPage = results.getFirst();
@@ -1393,8 +1401,8 @@ final class TestGpuAggregationOperator
         }
         Type intermediateType = FUNCTION_RESOLUTION.getAggregateFunction(functionName, fromTypes(argumentType)).getIntermediateType();
 
-        boolean gpuPartialSupported = tryCompileAggregation(functionName, List.of(argumentType), List.of(argumentType), true, PARTIAL, false).isPresent();
-        boolean gpuFinalSupported = tryCompileAggregation(functionName, List.of(argumentType), List.of(intermediateType), true, FINAL, false).isPresent();
+        boolean gpuPartialSupported = tryCompileAggregation(functionName, List.of(argumentType), List.of(argumentType), true, PARTIAL, false) instanceof GpuAggregationCompiler.AggregationCompileResult.Success;
+        boolean gpuFinalSupported = tryCompileAggregation(functionName, List.of(argumentType), List.of(intermediateType), true, FINAL, false) instanceof GpuAggregationCompiler.AggregationCompileResult.Success;
         if (!gpuPartialSupported && !gpuFinalSupported) {
             return;
         }
@@ -1462,7 +1470,7 @@ final class TestGpuAggregationOperator
 
     private Page runGpuPartialGrouped(String functionName, List<Type> argumentTypes, Page rawInput, Type intermediateType)
     {
-        CompileResult compiled = compileAggregation(functionName, argumentTypes, true, PARTIAL, false);
+        GpuAggregationCompiler.AggregationCompileResult.Success compiled = compileAggregation(functionName, argumentTypes, true, PARTIAL, false);
         List<Type> inputTypes = ImmutableList.<Type>builder()
                 .add(BIGINT)
                 .addAll(argumentTypes.isEmpty() ? List.of(BIGINT) : argumentTypes)
@@ -1486,8 +1494,7 @@ final class TestGpuAggregationOperator
 
     private Map<Object, Object> runGpuFinalGrouped(String functionName, List<Type> argumentTypes, Page intermediatePage, Type intermediateType)
     {
-        CompileResult compiled = tryCompileAggregation(functionName, argumentTypes, List.of(intermediateType), true, FINAL, false)
-                .orElseThrow(() -> new AssertionError("Failed to compile grouped GPU FINAL for %s over %s".formatted(functionName, argumentTypes)));
+        GpuAggregationCompiler.AggregationCompileResult.Success compiled = compileAggregation(functionName, argumentTypes, List.of(intermediateType), true, FINAL, false);
         List<Page> results = runGpuPipeline(List.of(intermediatePage), List.of(BIGINT, intermediateType), compiled);
         ResolvedFunction resolvedFunction = FUNCTION_RESOLUTION.resolveFunction(functionName, fromTypes(argumentTypes));
         Type returnType = resolvedFunction.signature().getReturnType();

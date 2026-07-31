@@ -69,6 +69,7 @@ import static com.google.common.base.Verify.verifyNotNull;
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static com.google.common.collect.Lists.newArrayList;
 import static io.trino.metadata.GlobalFunctionCatalog.isBuiltinFunctionName;
+import static io.trino.operator.gpu.SignatureFormatter.formatAggregation;
 import static io.trino.spi.gpu.GpuTypeConversion.isConvertible;
 import static io.trino.spi.gpu.GpuTypeConversion.toDType;
 import static io.trino.spi.type.DoubleType.DOUBLE;
@@ -82,20 +83,19 @@ public final class GpuAggregationCompiler
 
     private static final Logger log = Logger.get(GpuAggregationCompiler.class);
 
-    public static Optional<CompileResult> compile(AggregationNode node, Map<Symbol, Integer> sourceLayout, DataSize compactionThreshold)
+    public static AggregationCompileResult compile(AggregationNode node, Map<Symbol, Integer> sourceLayout, DataSize compactionThreshold)
     {
         return compile(node, sourceLayout, compactionThreshold.toBytes());
     }
 
     @VisibleForTesting
-    public static Optional<CompileResult> compile(AggregationNode node, Map<Symbol, Integer> sourceLayout, long compactionThresholdBytes)
+    public static AggregationCompileResult compile(AggregationNode node, Map<Symbol, Integer> sourceLayout, long compactionThresholdBytes)
     {
         Step step = node.getStep();
 
         if (node.getGroupingSetCount() > 1) {
             log.debug("Could not compile aggregation with %s grouping sets for GPU execution", node.getGroupingSetCount());
-            // GROUPING SETS are not supported yet
-            return Optional.empty();
+            return new AggregationCompileResult.Failure("multiple grouping sets");
         }
 
         List<Symbol> groupingKeys = node.getGroupingKeys();
@@ -106,7 +106,7 @@ public final class GpuAggregationCompiler
             Symbol symbol = groupingKeys.get(i);
             Type type = symbol.type();
             if (!isConvertible(type)) {
-                return Optional.empty();
+                return new AggregationCompileResult.Failure("grouping key type: " + type);
             }
             groupByTypesBuilder.add(type);
             groupByChannels[i] = verifyNotNull(sourceLayout.get(symbol), "channel for symbol %s is not in source layout", symbol);
@@ -127,7 +127,7 @@ public final class GpuAggregationCompiler
                         aggregation.getMask().isPresent(),
                         aggregation.isDistinct(),
                         aggregation.getOrderingScheme().isPresent());
-                return Optional.empty();
+                return new AggregationCompileResult.Failure(formatAggregation(aggregation));
             }
             compiled.ifPresent(compilation -> verify(
                     compilation.outputType().equals(outputSymbol.type()),
@@ -139,7 +139,7 @@ public final class GpuAggregationCompiler
             compilations.add(compiled.get());
         }
 
-        return Optional.of(buildPipeline(sourceLayout.size(), groupByChannels, groupByTypes, compilations, step, compactionThresholdBytes));
+        return buildPipeline(sourceLayout.size(), groupByChannels, groupByTypes, compilations, step, compactionThresholdBytes);
     }
 
     /**
@@ -148,7 +148,7 @@ public final class GpuAggregationCompiler
      * least one aggregate needs them — i.e. the existing single-stage behavior is preserved
      * for queries without sum(decimal).
      */
-    private static CompileResult buildPipeline(
+    private static AggregationCompileResult buildPipeline(
             int sourceColumnCount,
             int[] groupByChannels,
             List<Type> groupByTypes,
@@ -172,7 +172,7 @@ public final class GpuAggregationCompiler
                     step.isInputRaw(),
                     compactionThresholdBytes,
                     sourceColumnCount);
-            return new CompileResult(List.of(aggregation), aggregation.getOutputTypes());
+            return new AggregationCompileResult.Success(List.of(aggregation), aggregation.getOutputTypes());
         }
 
         // Pre-projection: pass through all source columns, then append derived columns (chunks /
@@ -236,7 +236,7 @@ public final class GpuAggregationCompiler
                 currentDerivedChannel));
         stages.add(new GpuProject.Factory(postProjections.build()));
 
-        return new CompileResult(stages, postProjectionTypes.build());
+        return new AggregationCompileResult.Success(stages, postProjectionTypes.build());
     }
 
     /**
@@ -556,12 +556,25 @@ public final class GpuAggregationCompiler
         GpuAggregateFunction create(int channel, Type outputType, DType outputDType);
     }
 
-    public record CompileResult(List<GpuOperation.Factory> stages, List<Type> finalOutputTypes)
+    public sealed interface AggregationCompileResult
     {
-        public CompileResult
+        record Success(List<GpuOperation.Factory> stages, List<Type> finalOutputTypes)
+                implements AggregationCompileResult
         {
-            stages = List.copyOf(stages);
-            finalOutputTypes = List.copyOf(finalOutputTypes);
+            public Success
+            {
+                stages = ImmutableList.copyOf(requireNonNull(stages, "stages is null"));
+                finalOutputTypes = ImmutableList.copyOf(requireNonNull(finalOutputTypes, "finalOutputTypes is null"));
+            }
+        }
+
+        record Failure(String reason)
+                implements AggregationCompileResult
+        {
+            public Failure
+            {
+                requireNonNull(reason, "reason is null");
+            }
         }
     }
 

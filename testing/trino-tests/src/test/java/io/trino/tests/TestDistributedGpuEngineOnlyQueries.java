@@ -442,6 +442,10 @@ public class TestDistributedGpuEngineOnlyQueries
                 "EXPLAIN ANALYZE SELECT * FROM nation a, nation b WHERE a.nationkey = b.nationkey")
                 .getOnlyValue())
                 .doesNotContain("GPU");
+        assertExplainAnalyze(
+                "EXPLAIN ANALYZE SELECT covar_samp(rand(), rand())",
+                "GPU: unsupported",
+                "\\QUnsupported aggregation: covar_samp(double, double)");
     }
 
     @Test

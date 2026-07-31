@@ -146,6 +146,7 @@ import io.trino.operator.gpu.GpuProject;
 import io.trino.operator.gpu.GpuTopN;
 import io.trino.operator.gpu.SentinelSinkOperator;
 import io.trino.operator.gpu.aggregation.GpuAggregationCompiler;
+import io.trino.operator.gpu.aggregation.GpuAggregationCompiler.AggregationCompileResult;
 import io.trino.operator.gpu.exchange.GpuLocalExchange;
 import io.trino.operator.gpu.exchange.GpuLocalExchangeWriter;
 import io.trino.operator.gpu.expression.CompiledExpression;
@@ -4743,18 +4744,21 @@ public class LocalExecutionPlanner
             if (!isGpuExecutionEnabled(session)) {
                 return Optional.empty();
             }
-            Optional<GpuAggregationCompiler.CompileResult> compileResult = GpuAggregationCompiler.compile(node, source.getLayout(), gpuAggregationCompactionThreshold);
-            if (compileResult.isEmpty()) {
-                context.markAsGpuIneligible(node.getId(), "Unsupported aggregation");
-                return Optional.empty();
+            switch (GpuAggregationCompiler.compile(node, source.getLayout(), gpuAggregationCompactionThreshold)) {
+                case AggregationCompileResult.Failure failure -> {
+                    context.markAsGpuIneligible(node.getId(), "Unsupported aggregation: %s".formatted(failure.reason()));
+                    return Optional.empty();
+                }
+                case AggregationCompileResult.Success success -> {
+                    return Optional.of(addGpuOperations(
+                            success.stages(),
+                            success.finalOutputTypes(),
+                            source,
+                            makeLayout(node),
+                            context,
+                            node.getId()));
+                }
             }
-            return compileResult.map(result -> addGpuOperations(
-                    result.stages(),
-                    result.finalOutputTypes(),
-                    source,
-                    makeLayout(node),
-                    context,
-                    node.getId()));
         }
 
         private Optional<GpuJoinPlanClosure> tryPlanGpuLookupJoin(JoinNode node, LocalExecutionPlanContext context)
