@@ -31,7 +31,6 @@ import io.trino.spi.connector.ConnectorPageSourceProviderFactory;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorSplitManager;
 import io.trino.spi.connector.ConnectorTransactionHandle;
-import io.trino.spi.subquery.cache.ConnectorCacheMetadata;
 
 import static java.util.Objects.requireNonNull;
 
@@ -99,12 +98,6 @@ public class SingleDispatcherConnector
     public ConnectorSplitManager getSplitManager()
     {
         return coordinatorDispatcherConnector.getSplitManager();
-    }
-
-    @Override
-    public ConnectorCacheMetadata getCacheMetadata()
-    {
-        return coordinatorDispatcherConnector.getCacheMetadata();
     }
 
     @Override

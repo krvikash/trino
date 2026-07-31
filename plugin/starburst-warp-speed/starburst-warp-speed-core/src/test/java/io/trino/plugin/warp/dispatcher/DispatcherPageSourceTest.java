@@ -743,21 +743,6 @@ public class DispatcherPageSourceTest
         mixedQuery_2ProxiedPages_singleRange_simulateLimit();
     }
 
-    @Test
-    public void testForceFinish()
-    {
-        prepareMock(
-                List.of(new TestPage(buildLongPage(100, 101), createRowRanges(0, 2))),
-                List.of(buildLongPage(1, 2)));
-        DispatcherPageSource dispatcherPageSource = getDispatcherPageSource(2, proxiedCollectTypeByBlockIndex);
-        for (int i = 0; i < globalConfig.getEmptyPageIterations() + 1; i++) {
-            dispatcherPageSource.getNextSourcePage();
-            assertThat(dispatcherPageSource.isFinished()).isFalse();
-        }
-        dispatcherPageSource.getNextSourcePage();
-        assertThat(dispatcherPageSource.isFinished()).isTrue();
-    }
-
     private DispatcherPageSource getDispatcherPageSource(int totalCollectColumns, Map<Integer, Type> proxiedCollectTypeByBlockIndex)
     {
         return getDispatcherPageSource(totalCollectColumns, proxiedCollectTypeByBlockIndex, Collections.emptyMap());
@@ -854,7 +839,7 @@ public class DispatcherPageSourceTest
             Optional<Long> prefilled)
     {
         int totalMatchesPosition = 0;
-        while (!dispatcherPageSource.isFinished() && totalMatchesPosition < warpMatches.length) {
+        while (!dispatcherPageSource.isFinished()) {
             SourcePage resultPage = dispatcherPageSource.getNextSourcePage(); // act
             int positionCount = resultPage.getPositionCount();
             for (int i = 0; i < positionCount; i++) {

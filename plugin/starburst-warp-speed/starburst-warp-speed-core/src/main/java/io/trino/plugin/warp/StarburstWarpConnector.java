@@ -34,7 +34,6 @@ import io.trino.spi.function.FunctionProvider;
 import io.trino.spi.function.table.ConnectorTableFunction;
 import io.trino.spi.procedure.Procedure;
 import io.trino.spi.session.PropertyMetadata;
-import io.trino.spi.subquery.cache.ConnectorCacheMetadata;
 import io.trino.spi.transaction.IsolationLevel;
 
 import java.util.List;
@@ -75,12 +74,6 @@ public class StarburstWarpConnector
     public ConnectorSplitManager getSplitManager()
     {
         return warpConnector.getSplitManager();
-    }
-
-    @Override
-    public ConnectorCacheMetadata getCacheMetadata()
-    {
-        return warpConnector.getCacheMetadata();
     }
 
     @Override

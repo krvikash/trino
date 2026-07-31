@@ -15,7 +15,6 @@ package io.trino.plugin.warp.di.dispatcher;
 
 import com.google.inject.Binder;
 import io.trino.plugin.warp.di.ExtraModule;
-import io.trino.plugin.warp.dispatcher.DispatcherCacheMetadata;
 import io.trino.plugin.warp.dispatcher.DispatcherMetadataFactory;
 import io.trino.plugin.warp.dispatcher.DispatcherSplitManager;
 import io.trino.plugin.warp.dispatcher.DispatcherStatisticsProvider;
@@ -49,7 +48,6 @@ public class DispatcherCoordinatorModule
             binder.bind(DispatcherTransactionManager.class);
             binder.bind(DispatcherStatisticsProvider.class);
             binder.bind(DispatcherMetadataFactory.class);
-            binder.bind(DispatcherCacheMetadata.class);
             binder.bind(ExpressionService.class);
             binder.bind(SupportedFunctions.class);
             binder.bind(NativeExpressionRulesHandler.class);

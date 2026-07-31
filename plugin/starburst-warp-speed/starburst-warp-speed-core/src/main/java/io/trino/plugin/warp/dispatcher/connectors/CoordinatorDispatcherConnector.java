@@ -16,12 +16,10 @@ package io.trino.plugin.warp.dispatcher.connectors;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.airlift.bootstrap.LifeCycleManager;
-import io.trino.plugin.base.classloader.ClassLoaderSafeConnectorCacheMetadata;
 import io.trino.plugin.base.classloader.ClassLoaderSafeConnectorMetadata;
 import io.trino.plugin.warp.WarpSessionProperties;
 import io.trino.plugin.warp.annotation.ForWarp;
 import io.trino.plugin.warp.config.GlobalConfig;
-import io.trino.plugin.warp.dispatcher.DispatcherCacheMetadata;
 import io.trino.plugin.warp.dispatcher.DispatcherMetadata;
 import io.trino.plugin.warp.dispatcher.DispatcherMetadataFactory;
 import io.trino.plugin.warp.dispatcher.DispatcherNodePartitioningProvider;
@@ -36,7 +34,6 @@ import io.trino.spi.connector.ConnectorNodePartitioningProvider;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorSplitManager;
 import io.trino.spi.connector.ConnectorTransactionHandle;
-import io.trino.spi.subquery.cache.ConnectorCacheMetadata;
 
 import static java.util.Objects.requireNonNull;
 
@@ -45,7 +42,6 @@ public class CoordinatorDispatcherConnector
         extends DispatcherConnectorBase
 {
     private final DispatcherMetadataFactory dispatcherMetadataFactory;
-    private final ClassLoaderSafeConnectorCacheMetadata dispatcherCacheMetadata;
     private final DispatcherSplitManager dispatcherSplitManager;
     private final DispatcherTransactionManager dispatcherTransactionManager;
     private final CoordinatorNodeManager coordinatorNodeManager;
@@ -56,7 +52,6 @@ public class CoordinatorDispatcherConnector
             @ForWarp Connector proxiedConnector,
             GlobalConfig globalConfig,
             DispatcherMetadataFactory dispatcherMetadataFactory,
-            DispatcherCacheMetadata dispatcherCacheMetadata,
             DispatcherSplitManager dispatcherSplitManager,
             DispatcherTransactionManager dispatcherTransactionManager,
             WarpSessionProperties warpSessionProperties,
@@ -68,7 +63,6 @@ public class CoordinatorDispatcherConnector
     {
         super(proxiedConnector, globalConfig, warpSessionProperties, lifeCycleManager, connectorTaskExecutor, nativeStorageStateHandler);
         this.dispatcherMetadataFactory = requireNonNull(dispatcherMetadataFactory);
-        this.dispatcherCacheMetadata = new ClassLoaderSafeConnectorCacheMetadata(requireNonNull(dispatcherCacheMetadata), getClass().getClassLoader());
         this.dispatcherSplitManager = requireNonNull(dispatcherSplitManager);
         this.dispatcherTransactionManager = requireNonNull(dispatcherTransactionManager);
         this.coordinatorNodeManager = requireNonNull(coordinatorNodeManager);
@@ -114,12 +108,6 @@ public class CoordinatorDispatcherConnector
     public ConnectorSplitManager getSplitManager()
     {
         return dispatcherSplitManager;
-    }
-
-    @Override
-    public ConnectorCacheMetadata getCacheMetadata()
-    {
-        return dispatcherCacheMetadata;
     }
 
     @Override

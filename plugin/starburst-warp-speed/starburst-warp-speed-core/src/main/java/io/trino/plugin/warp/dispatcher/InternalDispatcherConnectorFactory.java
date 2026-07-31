@@ -35,7 +35,6 @@ import io.trino.spi.connector.ConnectorNodePartitioningProvider;
 import io.trino.spi.connector.ConnectorPageSinkProvider;
 import io.trino.spi.connector.ConnectorPageSourceProviderFactory;
 import io.trino.spi.connector.ConnectorSplitManager;
-import io.trino.spi.subquery.cache.ConnectorCacheMetadata;
 import io.trino.spi.type.TypeManager;
 import org.weakref.jmx.guice.MBeanModule;
 
@@ -135,7 +134,6 @@ public class InternalDispatcherConnectorFactory
         return binder -> {
             binder.bind(Connector.class).annotatedWith(ForWarp.class).toInstance(connector);
             binder.bind(ConnectorSplitManager.class).annotatedWith(ForWarp.class).toInstance(connector.getSplitManager());
-            binder.bind(ConnectorCacheMetadata.class).annotatedWith(ForWarp.class).toInstance(connector.getCacheMetadata());
             binder.bind(ConnectorPageSourceProviderFactory.class).annotatedWith(ForWarp.class).toInstance(connector.getPageSourceProviderFactory());
             binder.bind(ConnectorPageSinkProvider.class).annotatedWith(ForWarp.class).toInstance(connector.getPageSinkProvider());
             binder.bind(ConnectorNodePartitioningProvider.class).annotatedWith(ForWarp.class).toInstance(connector.getNodePartitioningProvider());
