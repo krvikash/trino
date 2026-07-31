@@ -198,6 +198,44 @@ public final class TestingUtils
                         }
                     },
                     {
+                        "id": "openai_tiny_max_tokens",
+                        "modelName": "gpt-4o-mini",
+                        "kind": "GENERATE",
+                        "maxTokens": 16,
+                        "temperature": 0.0,
+                        "connectionInfo": {
+                            "provider": "OPENAI",
+                            "endpoint": "https://api.openai.com/v1",
+                            "apiKey": "${ENV:OPEN_AI_API_KEY}"
+                        }
+                    },
+                    {
+                        "id": "openai_responses_tiny_max_tokens",
+                        "modelName": "gpt-4o-mini",
+                        "kind": "GENERATE",
+                        "maxTokens": 16,
+                        "temperature": 0.0,
+                        "connectionInfo": {
+                            "provider": "OPENAI",
+                            "endpoint": "https://api.openai.com/v1",
+                            "apiKey": "${ENV:OPEN_AI_API_KEY}"
+                        },
+                        "useResponsesApi": "true"
+                    },
+                    {
+                        "id": "bedrock_tiny_max_tokens",
+                        "modelName": "us.anthropic.claude-haiku-4-5-20251001-v1:0",
+                        "kind": "GENERATE",
+                        "maxTokens": 16,
+                        "temperature": 0.0,
+                        "connectionInfo": {
+                            "provider": "AWS_BEDROCK",
+                            "awsAccessKey": "${ENV:BEDROCK_ACCESS_KEY_ID}",
+                            "awsSecretKey": "${ENV:BEDROCK_SECRET_ACCESS_KEY}",
+                            "region": "us-east-1"
+                        }
+                    },
+                    {
                         "id": "gpt_oss_120b",
                         "modelName": "openai.gpt-oss-120b-1:0",
                         "kind": "GENERATE",

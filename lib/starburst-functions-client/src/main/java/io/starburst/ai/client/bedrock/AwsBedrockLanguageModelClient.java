@@ -95,7 +95,10 @@ public class AwsBedrockLanguageModelClient
             StopReason.UNKNOWN_TO_SDK_VERSION,
             StopReason.GUARDRAIL_INTERVENED,
             StopReason.CONTENT_FILTERED,
-            StopReason.MAX_TOKENS);
+            StopReason.MAX_TOKENS,
+            StopReason.MODEL_CONTEXT_WINDOW_EXCEEDED,
+            StopReason.MALFORMED_MODEL_OUTPUT,
+            StopReason.MALFORMED_TOOL_USE);
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapperProvider().get();
     private static final Logger log = Logger.get(AwsBedrockLanguageModelClient.class);

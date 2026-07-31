@@ -91,11 +91,12 @@ public class OpenAiLanguageModelClient
     protected String generateCompletion(List<String> systemPrompts, List<LlmMessage> llmMessages, TokenUsageContext context)
     {
         ChatCompletion response = execute(() -> client.chat().completions().create(buildChatCompletionCreateParams(systemPrompts, llmMessages).build()), context);
-        ChatCompletionMessage message = response.choices().stream()
-                .map(ChatCompletion.Choice::message)
+        ChatCompletion.Choice choice = response.choices().stream()
                 .findFirst()
                 .orElseThrow(() -> new TrinoException(AI_CLIENT_ERROR, "No response from AI model"));
+        checkFinishReason(choice);
 
+        ChatCompletionMessage message = choice.message();
         if (message.refusal().isPresent()) {
             throw new TrinoException(AI_CLIENT_ERROR, "AI model refused to generate response: " + message.refusal());
         }
@@ -248,11 +249,12 @@ public class OpenAiLanguageModelClient
     @Override
     protected ToolUseResponse parseToolResponse(ChatCompletion response)
     {
-        ChatCompletionMessage message = response.choices().stream()
-                .map(ChatCompletion.Choice::message)
+        ChatCompletion.Choice choice = response.choices().stream()
                 .findFirst()
                 .orElseThrow(() -> new TrinoException(AI_CLIENT_ERROR, "No response from AI model"));
+        checkFinishReason(choice);
 
+        ChatCompletionMessage message = choice.message();
         if (message.refusal().isPresent()) {
             throw new TrinoException(AI_CLIENT_ERROR, "AI model refused to generate response: " + message.refusal());
         }
@@ -276,5 +278,16 @@ public class OpenAiLanguageModelClient
                 }));
 
         return new ToolUseResponse(message.content().orElse(""), toolCallBuilder.build());
+    }
+
+    private static void checkFinishReason(ChatCompletion.Choice choice)
+    {
+        ChatCompletion.Choice.FinishReason finishReason = choice.finishReason();
+        if (finishReason.equals(ChatCompletion.Choice.FinishReason.LENGTH)) {
+            throw new TrinoException(AI_CLIENT_ERROR, "AI model response was truncated because it reached the maximum output token limit");
+        }
+        if (finishReason.equals(ChatCompletion.Choice.FinishReason.CONTENT_FILTER)) {
+            throw new TrinoException(AI_CLIENT_ERROR, "AI model response was blocked by a content filter");
+        }
     }
 }

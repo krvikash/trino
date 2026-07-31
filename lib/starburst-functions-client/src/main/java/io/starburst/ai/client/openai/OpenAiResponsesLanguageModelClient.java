@@ -22,7 +22,6 @@ import com.openai.models.ReasoningEffort;
 import com.openai.models.responses.EasyInputMessage;
 import com.openai.models.responses.FunctionTool;
 import com.openai.models.responses.Response;
-import com.openai.models.responses.ResponseCompletedEvent;
 import com.openai.models.responses.ResponseCreateParams;
 import com.openai.models.responses.ResponseFunctionToolCall;
 import com.openai.models.responses.ResponseInputItem;
@@ -101,6 +100,7 @@ public class OpenAiResponsesLanguageModelClient
     protected String generateCompletion(List<String> systemPrompts, List<LlmMessage> llmMessages, TokenUsageContext context)
     {
         Response response = execute(() -> client.responses().create(buildResponseCreateParams(systemPrompts, llmMessages).build()), context);
+        checkResponseStatus(response);
 
         List<ResponseOutputMessage.Content> contents = response.output().stream()
                 .flatMap(item -> item.message().stream())
@@ -148,9 +148,8 @@ public class OpenAiResponsesLanguageModelClient
                             output.accept(event.outputTextDelta().get().delta());
                         }
                     })
-                    .filter(ResponseStreamEvent::isCompleted)
-                    .map(ResponseStreamEvent::asCompleted)
-                    .map(ResponseCompletedEvent::response)
+                    .filter(event -> event.isCompleted() || event.isIncomplete() || event.isFailed())
+                    .map(OpenAiResponsesLanguageModelClient::terminalResponse)
                     .findFirst().orElseThrow(() -> new TrinoException(AI_CLIENT_ERROR, "No completion event received from streaming response"));
         }
         catch (Exception e) {
@@ -261,6 +260,8 @@ public class OpenAiResponsesLanguageModelClient
     @Override
     protected ToolUseResponse parseToolResponse(Response response)
     {
+        checkResponseStatus(response);
+
         StringBuilder message = new StringBuilder();
         ImmutableList.Builder<ToolUseResponse.ToolCall> toolCallBuilder = ImmutableList.builder();
         response.output().forEach(item -> {
@@ -288,6 +289,34 @@ public class OpenAiResponsesLanguageModelClient
             }
         });
         return new ToolUseResponse(message.toString(), toolCallBuilder.build());
+    }
+
+    private static Response terminalResponse(ResponseStreamEvent event)
+    {
+        if (event.isCompleted()) {
+            return event.asCompleted().response();
+        }
+        if (event.isIncomplete()) {
+            return event.asIncomplete().response();
+        }
+        return event.asFailed().response();
+    }
+
+    private static void checkResponseStatus(Response response)
+    {
+        response.error().ifPresent(error -> {
+            throw new TrinoException(AI_CLIENT_ERROR, "AI model response failed: " + error.message());
+        });
+        response.incompleteDetails().ifPresent(details -> {
+            Optional<Response.IncompleteDetails.Reason> reason = details.reason();
+            if (reason.filter(Response.IncompleteDetails.Reason.MAX_OUTPUT_TOKENS::equals).isPresent()) {
+                throw new TrinoException(AI_CLIENT_ERROR, "AI model response was truncated because it reached the maximum output token limit");
+            }
+            if (reason.filter(Response.IncompleteDetails.Reason.CONTENT_FILTER::equals).isPresent()) {
+                throw new TrinoException(AI_CLIENT_ERROR, "AI model response was blocked by a content filter");
+            }
+            log.warn("AI model response is incomplete: %s", reason.map(Response.IncompleteDetails.Reason::asString).orElse("unknown reason"));
+        });
     }
 
     private void throwOnRefusals(List<ResponseOutputMessage.Content> contents)

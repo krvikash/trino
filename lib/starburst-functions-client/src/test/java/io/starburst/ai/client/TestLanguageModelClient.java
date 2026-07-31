@@ -354,6 +354,19 @@ public class TestLanguageModelClient
     }
 
     @ParameterizedTest
+    @MethodSource("tinyMaxTokensModelIds")
+    public void testMaxTokensStopIsError(String modelId)
+    {
+        // These models are configured with a maxTokens limit far too small for the requested
+        // output, so generation stops at the output token limit. The truncated response must
+        // surface as an error instead of being returned as if it were complete.
+        String prompt = "Write a detailed essay of at least 500 words about the history of France.";
+        LanguageModelClient client = modelClientProvider.languageModelClient(utf8Slice(modelId));
+        assertThatThrownBy(() -> client.generate(prompt, TokenUsageContext.EMPTY))
+                .isInstanceOf(TrinoException.class);
+    }
+
+    @ParameterizedTest
     @MethodSource("errorModelIds")
     public void testErrorHandling(String modelId)
     {
@@ -392,6 +405,15 @@ public class TestLanguageModelClient
         return new Object[][] {
                 {"openai_error"},
                 {"bedrock_error"},
+        };
+    }
+
+    public static Object[][] tinyMaxTokensModelIds()
+    {
+        return new Object[][] {
+                {"openai_tiny_max_tokens"},
+                {"openai_responses_tiny_max_tokens"},
+                {"bedrock_tiny_max_tokens"},
         };
     }
 
