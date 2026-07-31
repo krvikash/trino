@@ -49,7 +49,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.OptionalLong;
-import java.util.StringJoiner;
 import java.util.function.ObjLongConsumer;
 import java.util.stream.IntStream;
 
@@ -172,12 +171,12 @@ public class DispatcherPageSource
                     queryContext.getQueryId(),
                     pageSourceDecision,
                     currentProxiedPagePosition,
-                    proxiedConnectorPageSource.isFinished(),
+                    isFinishedText(proxiedConnectorPageSource),
                     proxiedPageRanges,
                     warpPageRanges.size(),
                     currentWarpPagePosition,
-                    currentProxiedPage.getPositionCount(),
-                    currentWarpSourcePage.getPositionCount(),
+                    positionCountText(currentProxiedPage),
+                    positionCountText(currentWarpSourcePage),
                     warpWithoutPrefilledAndProxiedCollectTypes,
                     proxiedPagePositionsRead,
                     proxiedConnectorPageSource,
@@ -471,16 +470,14 @@ public class DispatcherPageSource
     {
         // don't call prefilledPageSource.close since it is not used as a ConnectorPageSource here
         try {
-            boolean success = true;
-            StringJoiner errorMsg = new StringJoiner(",");
+            Exception closeException = null;
             try {
                 warpPageRanges.clear();
                 currentWarpSourcePage = null;
                 warpPageSource.close();
             }
             catch (Exception e) {
-                errorMsg.add(e.getMessage());
-                success = false;
+                closeException = e;
             }
             try {
                 if (proxiedConnectorPageSource != null) {
@@ -490,16 +487,19 @@ public class DispatcherPageSource
                 }
             }
             catch (Exception e) {
-                errorMsg.add(e.getMessage());
-                success = false;
+                if (closeException == null) {
+                    closeException = e;
+                }
+                else {
+                    closeException.addSuppressed(e);
+                }
             }
-            if (success) {
+            if (closeException == null) {
                 stats.inccached_warp_success_files();
             }
             else {
                 stats.inccached_warp_failed_files();
-                errorMsg.add(format("failed to close file %s", rowGroupData.getRowGroupKey()));
-                throw new IOException(errorMsg.toString());
+                throw new IOException(format("failed to close file %s", rowGroupData.getRowGroupKey()), closeException);
             }
         }
         finally {
@@ -672,6 +672,22 @@ public class DispatcherPageSource
         {
             return maxExclusive - minInclusive;
         }
+    }
+
+    private static String isFinishedText(ConnectorPageSource pageSource)
+    {
+        if (pageSource == null) {
+            return "null";
+        }
+        return String.valueOf(pageSource.isFinished());
+    }
+
+    private static String positionCountText(SourcePage page)
+    {
+        if (page == null) {
+            return "null";
+        }
+        return String.valueOf(page.getPositionCount());
     }
 
     // TODO add @FormatMethod after implementing ConnectorPageSource.RowRanges#toString
