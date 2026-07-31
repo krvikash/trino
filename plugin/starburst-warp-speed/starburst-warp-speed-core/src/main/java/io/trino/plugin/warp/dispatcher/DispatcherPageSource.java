@@ -21,6 +21,7 @@ import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.dispatcher.model.RowGroupData;
 import io.trino.plugin.warp.dispatcher.query.QueryContext;
 import io.trino.plugin.warp.dispatcher.query.classifier.QueryClassifier;
+import io.trino.plugin.warp.dispatcher.query.data.collect.NativeQueryCollectData;
 import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
 import io.trino.plugin.warp.log.ShapingLogger;
 import io.trino.plugin.warp.log.ShapingLoggerFactory;
@@ -42,15 +43,15 @@ import io.trino.spi.type.Type;
 
 import java.io.IOException;
 import java.util.ArrayDeque;
+import java.util.Arrays;
 import java.util.Deque;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.StringJoiner;
 import java.util.function.ObjLongConsumer;
+import java.util.stream.IntStream;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
@@ -63,7 +64,6 @@ public class DispatcherPageSource
         implements ConnectorPageSource
 {
     private static final int MINIMUM_OUTPUT_ROW_COUNT = 256;
-    private static final int START_INDEX_OF_PROXIED_CONNECTOR_COLUMNS = 0;
     private static final Logger logger = Logger.get(DispatcherPageSource.class);
     private static final int pageSizeInBytes = PageBuilderStatus.DEFAULT_MAX_PAGE_SIZE_IN_BYTES;
 
@@ -94,6 +94,12 @@ public class DispatcherPageSource
     private Deque<RowRange> warpPageRanges;
     private int emptyPagesCounter;
     private boolean forceFinish;
+    // Output layout is fixed per split; each output channel is served by exactly one of proxied, prefilled or warp
+    private final int[] proxiedOutputChannels;
+    private final int[] prefilledOutputChannels;
+    private final int[] warpOutputChannels;
+    private final int[] warpIndexByOutputChannel;
+    private PageBuilder resultPageBuilder;
 
     public DispatcherPageSource(
             Provider<ConnectorPageSource> proxiedConnectorPageSourceProvider,
@@ -137,6 +143,21 @@ public class DispatcherPageSource
         this.warpWithoutPrefilledAndProxiedCollectTypes = warpWithoutPrefilledAndProxiedCollectTypes;
         this.emptyPagesCounter = 0;
         this.forceFinish = false;
+        this.proxiedOutputChannels = queryContext.getRemainingCollectColumnByBlockIndex().keySet().stream()
+                .sorted()
+                .mapToInt(Integer::intValue)
+                .toArray();
+        this.prefilledOutputChannels = IntStream.range(0, queryContext.getTotalCollectCount())
+                .filter(channel -> !queryContext.getRemainingCollectColumnByBlockIndex().containsKey(channel) && prefilledPageSource.hasBlock(channel))
+                .toArray();
+        this.warpOutputChannels = queryContext.getNativeQueryCollectDataList().stream()
+                .mapToInt(NativeQueryCollectData::getBlockIndex)
+                .toArray();
+        this.warpIndexByOutputChannel = new int[queryContext.getTotalCollectCount()];
+        Arrays.fill(warpIndexByOutputChannel, -1);
+        for (int warpIndex = 0; warpIndex < warpOutputChannels.length; warpIndex++) {
+            warpIndexByOutputChannel[warpOutputChannels[warpIndex]] = warpIndex;
+        }
     }
 
     @Override
@@ -183,10 +204,12 @@ public class DispatcherPageSource
         try {
             if (PageSourceDecision.WARP.equals(pageSourceDecision)) {
                 SourcePage warpSourcePage = warpPageSource.getNextSourcePage();
-                return mergeWarpPrefilled(warpSourcePage, prefilledPageSource);
+                return mergeWarpPrefilled(warpSourcePage);
             }
 
-            PageBuilder resultPageBuilder = PageBuilder.withMaxPageSize(pageSizeInBytes, warpWithoutPrefilledAndProxiedCollectTypes);
+            if (resultPageBuilder == null) {
+                resultPageBuilder = PageBuilder.withMaxPageSize(pageSizeInBytes, warpWithoutPrefilledAndProxiedCollectTypes);
+            }
             if (warpPageRanges.isEmpty()) {
                 // Calling getNextPage at least once is necessary to make warp page source populate row ranges
                 getNextWarpSourcePage();
@@ -276,31 +299,17 @@ public class DispatcherPageSource
         }
     }
 
-    private SourcePage mergeWarpPrefilled(
-            SourcePage currentWarpSourcePage,
-            PrefilledPageSource prefilledPageSource)
+    private SourcePage mergeWarpPrefilled(SourcePage currentWarpSourcePage)
     {
-        Block[] orderedBlocks = new Block[queryContext.getTotalCollectCount()];
-        int startPointWarp = 0;
-
         if (currentWarpSourcePage.getPositionCount() == 0 || queryContext.getTotalCollectCount() == 0) {
             return SourcePage.create(currentWarpSourcePage.getPositionCount());
         }
 
-        HashMap<Integer, Integer> warpColumnIndexMap = new HashMap<>();
-        for (int i = 0; i < queryContext.getTotalCollectCount(); i++) {
-            if (prefilledPageSource.hasBlock(i)) {
-                orderedBlocks[i] = prefilledPageSource.createBlock(i, currentWarpSourcePage.getPositionCount());
-            }
-            else {
-                final int warpBlockIndex = queryContext.getNativeQueryCollectDataList()
-                        .get(startPointWarp)
-                        .getBlockIndex();
-                warpColumnIndexMap.put(warpBlockIndex, startPointWarp);
-                startPointWarp++;
-            }
+        Block[] orderedBlocks = new Block[queryContext.getTotalCollectCount()];
+        for (int channel : prefilledOutputChannels) {
+            orderedBlocks[channel] = prefilledPageSource.createBlock(channel, currentWarpSourcePage.getPositionCount());
         }
-        return new DispatcherSourcePage(orderedBlocks, currentWarpSourcePage, warpColumnIndexMap);
+        return new DispatcherSourcePage(orderedBlocks, currentWarpSourcePage, warpIndexByOutputChannel);
     }
 
     private void seekWarpPageSource(int rowsToSkip)
@@ -356,27 +365,18 @@ public class DispatcherPageSource
             throw new TrinoException(WarpErrorCode.WARP_FAILED_TO_BUILD_MIXED_PAGE, "wrong number of columns");
         }
         Block[] orderedBlocks = new Block[queryContext.getTotalCollectCount()];
-        int startPointWarp = 0;
-        int startPointProxied = START_INDEX_OF_PROXIED_CONNECTOR_COLUMNS;
         int positionCount = Math.min(currentProxiedPage.getPositionCount() - currentProxiedPagePosition, overlapRowCount);
-        Page overlapPoxiedPage = currentProxiedPage.getPage().getRegion(currentProxiedPagePosition, positionCount);
+        Page overlapProxiedPage = currentProxiedPage.getPage().getRegion(currentProxiedPagePosition, positionCount);
         recordProxiedPageLoad();
         Page overlapWarpPage = currentWarpSourcePage.getPage().getRegion(currentWarpPagePosition, positionCount);
-        for (int i = 0; i < queryContext.getTotalCollectCount(); i++) {
-            if (queryContext.getRemainingCollectColumnByBlockIndex().containsKey(i)) {
-                orderedBlocks[i] = overlapPoxiedPage.getBlock(startPointProxied);
-                startPointProxied++;
-            }
-            else {
-                if (prefilledPageSource.hasBlock(i)) {
-                    orderedBlocks[i] = prefilledPageSource.createBlock(i, positionCount);
-                }
-                else {
-                    final int warpBlockIndex = queryContext.getNativeQueryCollectDataList().get(startPointWarp).getBlockIndex();
-                    orderedBlocks[warpBlockIndex] = overlapWarpPage.getBlock(startPointWarp);
-                    startPointWarp++;
-                }
-            }
+        for (int proxiedIndex = 0; proxiedIndex < proxiedOutputChannels.length; proxiedIndex++) {
+            orderedBlocks[proxiedOutputChannels[proxiedIndex]] = overlapProxiedPage.getBlock(proxiedIndex);
+        }
+        for (int channel : prefilledOutputChannels) {
+            orderedBlocks[channel] = prefilledPageSource.createBlock(channel, positionCount);
+        }
+        for (int warpIndex = 0; warpIndex < warpOutputChannels.length; warpIndex++) {
+            orderedBlocks[warpOutputChannels[warpIndex]] = overlapWarpPage.getBlock(warpIndex);
         }
 
         seekWarpPageSource(positionCount);
@@ -594,24 +594,14 @@ public class DispatcherPageSource
             throw new TrinoException(WarpErrorCode.WARP_FAILED_TO_BUILD_MIXED_PAGE, "wrong number of columns");
         }
         Block[] orderedBlocks = new Block[blocksCount];
-        final int warpStartIndex = queryContext.getRemainingCollectColumnByBlockIndex().size();
-        int warpColumnIndex = warpStartIndex;
-        int proxiedConnectorColumnIndex = START_INDEX_OF_PROXIED_CONNECTOR_COLUMNS;
-        for (int i = 0; i < queryContext.getTotalCollectCount(); i++) {
-            if (queryContext.getRemainingCollectColumnByBlockIndex().containsKey(i)) {
-                orderedBlocks[i] = resultPage.getBlock(proxiedConnectorColumnIndex);
-                proxiedConnectorColumnIndex++;
-            }
-            else {
-                if (prefilledPageSource.hasBlock(i)) {
-                    orderedBlocks[i] = prefilledPageSource.createBlock(i, resultPage.getPositionCount());
-                }
-                else {
-                    final int warpBlockIndex = queryContext.getNativeQueryCollectDataList().get(warpColumnIndex - warpStartIndex).getBlockIndex();
-                    orderedBlocks[warpBlockIndex] = resultPage.getBlock(warpColumnIndex);
-                    warpColumnIndex++;
-                }
-            }
+        for (int proxiedIndex = 0; proxiedIndex < proxiedOutputChannels.length; proxiedIndex++) {
+            orderedBlocks[proxiedOutputChannels[proxiedIndex]] = resultPage.getBlock(proxiedIndex);
+        }
+        for (int channel : prefilledOutputChannels) {
+            orderedBlocks[channel] = prefilledPageSource.createBlock(channel, resultPage.getPositionCount());
+        }
+        for (int warpIndex = 0; warpIndex < warpOutputChannels.length; warpIndex++) {
+            orderedBlocks[warpOutputChannels[warpIndex]] = resultPage.getBlock(proxiedOutputChannels.length + warpIndex);
         }
         resultPageBuilder.reset();
         return SourcePage.create(new Page(orderedBlocks));
@@ -695,16 +685,16 @@ public class DispatcherPageSource
     {
         private final Block[] blocks;
         private final SourcePage warpSourcePage;
-        private final Map<Integer, Integer> warpIxMap;
+        private final int[] warpIndexByOutputChannel;
 
         DispatcherSourcePage(
                 Block[] blocks,
                 SourcePage warpSourcePage,
-                Map<Integer, Integer> warpIxMap)
+                int[] warpIndexByOutputChannel)
         {
             this.blocks = blocks;
             this.warpSourcePage = warpSourcePage;
-            this.warpIxMap = warpIxMap;
+            this.warpIndexByOutputChannel = warpIndexByOutputChannel;
         }
 
         @Override
@@ -757,7 +747,7 @@ public class DispatcherPageSource
         public Block getBlock(int channel)
         {
             if (blocks[channel] == null) {
-                blocks[channel] = warpSourcePage.getBlock(warpIxMap.get(channel));
+                blocks[channel] = warpSourcePage.getBlock(warpIndexByOutputChannel[channel]);
             }
             return blocks[channel];
         }
@@ -779,7 +769,7 @@ public class DispatcherPageSource
             for (int channel : channels) {
                 if (blocks[channel] == null) {
                     missingChannels[index] = channel;
-                    warpChannels[index] = warpIxMap.get(channel);
+                    warpChannels[index] = warpIndexByOutputChannel[channel];
                     index++;
                 }
             }
