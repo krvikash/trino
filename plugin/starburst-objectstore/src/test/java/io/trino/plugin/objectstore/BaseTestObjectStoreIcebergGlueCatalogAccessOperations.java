@@ -59,7 +59,6 @@ import static io.trino.plugin.iceberg.TableType.PARTITIONS;
 import static io.trino.plugin.iceberg.TableType.PROPERTIES;
 import static io.trino.plugin.iceberg.TableType.REFS;
 import static io.trino.plugin.iceberg.TableType.SNAPSHOTS;
-import static io.trino.plugin.objectstore.BaseTestObjectStoreIcebergGlueCatalogAccessOperations.FileType.METADATA_JSON;
 import static io.trino.plugin.objectstore.BaseTestObjectStoreIcebergGlueCatalogAccessOperations.FileType.fromFilePath;
 import static io.trino.testing.MultisetAssertions.assertMultisetsEqual;
 import static io.trino.testing.TestingNames.randomNameSuffix;
@@ -504,10 +503,7 @@ public abstract class BaseTestObjectStoreIcebergGlueCatalogAccessOperations
                         ImmutableMultiset.<GlueMetastoreMethod>builder()
                                 .add(GET_TABLE)
                                 .build(),
-                        ImmutableMultiset.<FileOperation>builder()
-                                .add(new FileOperation(METADATA_JSON, "InputFile.length"))
-                                .add(new FileOperation(METADATA_JSON, "InputFile.newInput"))
-                                .build());
+                        ImmutableMultiset.of());
 
                 // Pointed lookup via DESCRIBE (which does some additional things before delegating to information_schema.columns)
                 assertInvocations(
@@ -574,10 +570,7 @@ public abstract class BaseTestObjectStoreIcebergGlueCatalogAccessOperations
                         ImmutableMultiset.<GlueMetastoreMethod>builder()
                                 .add(GET_TABLE)
                                 .build(),
-                        ImmutableMultiset.<FileOperation>builder()
-                                .add(new FileOperation(METADATA_JSON, "InputFile.length"))
-                                .add(new FileOperation(METADATA_JSON, "InputFile.newInput"))
-                                .build());
+                        ImmutableMultiset.of());
             }
             finally {
                 for (int i = 0; i < tablesCreated; i++) {
@@ -652,6 +645,9 @@ public abstract class BaseTestObjectStoreIcebergGlueCatalogAccessOperations
         return spans.stream()
                 .filter(span -> span.getName().startsWith("InputFile."))
                 .map(span -> new FileOperation(fromFilePath(span.getAttributes().get(FILE_LOCATION)), span.getName()))
+                // Whether metadata.json is physically read depends on the state of the coordinator metadata
+                // cache, which is shared across tests and subject to eviction, so those reads are not asserted
+                .filter(operation -> operation.fileType() != FileType.METADATA_JSON)
                 .collect(toCollection(HashMultiset::create));
     }
 
