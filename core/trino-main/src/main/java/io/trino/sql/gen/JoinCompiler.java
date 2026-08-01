@@ -21,6 +21,7 @@ import com.google.inject.Inject;
 import io.airlift.bytecode.BytecodeBlock;
 import io.airlift.bytecode.BytecodeNode;
 import io.airlift.bytecode.ClassDefinition;
+import io.airlift.bytecode.CompilationException;
 import io.airlift.bytecode.DynamicClassLoader;
 import io.airlift.bytecode.FieldDefinition;
 import io.airlift.bytecode.MethodDefinition;
@@ -50,6 +51,7 @@ import io.trino.operator.join.PagesHash;
 import io.trino.operator.join.nonspilling.PartitionedLookupSource;
 import io.trino.spi.Page;
 import io.trino.spi.PageBuilder;
+import io.trino.spi.TrinoException;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.block.PreSizedBlockBuilder;
@@ -58,6 +60,7 @@ import io.trino.spi.type.Type;
 import io.trino.spi.type.TypeOperators;
 import io.trino.sql.gen.JoinFilterFunctionCompiler.JoinFilterFunctionFactory;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import org.objectweb.asm.MethodTooLargeException;
 import org.weakref.jmx.Managed;
 import org.weakref.jmx.Nested;
 
@@ -70,6 +73,7 @@ import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.stream.IntStream;
 
+import static com.google.common.base.Throwables.getCausalChain;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.airlift.bytecode.Access.FINAL;
 import static io.airlift.bytecode.Access.PRIVATE;
@@ -90,6 +94,8 @@ import static io.airlift.bytecode.expression.BytecodeExpressions.newInstance;
 import static io.airlift.bytecode.expression.BytecodeExpressions.setStatic;
 import static io.trino.cache.SafeCaches.buildNonEvictableCache;
 import static io.trino.operator.join.JoinUtils.getSingleBigintJoinChannel;
+import static io.trino.spi.StandardErrorCode.COMPILER_ERROR;
+import static io.trino.spi.StandardErrorCode.QUERY_EXCEEDED_COMPILER_LIMIT;
 import static io.trino.spi.function.InvocationConvention.InvocationArgumentConvention.BLOCK_POSITION;
 import static io.trino.spi.function.InvocationConvention.InvocationArgumentConvention.BLOCK_POSITION_NOT_NULL;
 import static io.trino.spi.function.InvocationConvention.InvocationReturnConvention.DEFAULT_ON_NULL;
@@ -148,11 +154,16 @@ public class JoinCompiler
 
     public LookupSourceSupplierFactory compileLookupSourceFactory(List<? extends Type> types, List<Integer> joinChannels, OptionalInt sortChannel, Optional<List<Integer>> outputChannels)
     {
-        return lookupSourceFactories.getUnchecked(new CacheKey(
-                types,
-                outputChannels.orElseGet(() -> rangeList(types.size())),
-                joinChannels,
-                sortChannel));
+        try {
+            return lookupSourceFactories.getUnchecked(new CacheKey(
+                    types,
+                    outputChannels.orElseGet(() -> rangeList(types.size())),
+                    joinChannels,
+                    sortChannel));
+        }
+        catch (RuntimeException e) {
+            throw convertCompilationException(e);
+        }
     }
 
     public PagesHashStrategyFactory compilePagesHashStrategyFactory(List<Type> types, List<Integer> joinChannels)
@@ -166,11 +177,16 @@ public class JoinCompiler
         requireNonNull(joinChannels, "joinChannels is null");
         requireNonNull(outputChannels, "outputChannels is null");
 
-        return new PagesHashStrategyFactory(hashStrategies.getUnchecked(new CacheKey(
-                types,
-                outputChannels.orElseGet(() -> rangeList(types.size())),
-                joinChannels,
-                OptionalInt.empty())));
+        try {
+            return new PagesHashStrategyFactory(hashStrategies.getUnchecked(new CacheKey(
+                    types,
+                    outputChannels.orElseGet(() -> rangeList(types.size())),
+                    joinChannels,
+                    OptionalInt.empty())));
+        }
+        catch (RuntimeException e) {
+            throw convertCompilationException(e);
+        }
     }
 
     private List<Integer> rangeList(int endExclusive)
@@ -845,6 +861,20 @@ public class JoinCompiler
     {
         MethodHandle equalOperator = typeOperators.getEqualOperator(type, simpleConvention(DEFAULT_ON_NULL, BLOCK_POSITION_NOT_NULL, BLOCK_POSITION_NOT_NULL));
         return invoke(callSiteBinder.bind(equalOperator), "equal", leftBlock, leftBlockPosition, rightBlock, rightBlockPosition);
+    }
+
+    private static RuntimeException convertCompilationException(RuntimeException e)
+    {
+        if (getCausalChain(e).stream().anyMatch(MethodTooLargeException.class::isInstance)) {
+            return new TrinoException(
+                    QUERY_EXCEEDED_COMPILER_LIMIT,
+                    "Compiler failed. Possible reasons include: the query may have too many columns",
+                    e);
+        }
+        if (getCausalChain(e).stream().anyMatch(CompilationException.class::isInstance)) {
+            return new TrinoException(COMPILER_ERROR, e);
+        }
+        return e;
     }
 
     @UsedByGeneratedCode
