@@ -217,7 +217,7 @@
 
         <dependency>
             <groupId>net.snowflake</groupId>
-            <artifactId>snowflake-jdbc</artifactId>
+            <artifactId>snowflake-jdbc-thin</artifactId>
         </dependency>
 
         <dependency>
@@ -281,6 +281,14 @@
         <dependency>
             <groupId>org.apache.iceberg</groupId>
             <artifactId>iceberg-snowflake</artifactId>
+            <exclusions>
+                <exclusion>
+                    <!-- The uber jar bundles unshaded Conscrypt 2.5.2 classes that break TLS in
+                         Google Cloud libraries; replaced with snowflake-jdbc-thin -->
+                    <groupId>net.snowflake</groupId>
+                    <artifactId>snowflake-jdbc</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
 
         <dependency>
@@ -1095,7 +1103,6 @@
                         <ignoredResourcePattern>iceberg-build.properties</ignoredResourcePattern>
                         <ignoredResourcePattern>mozilla/public-suffix-list.txt</ignoredResourcePattern>
                         <ignoredResourcePattern>mime.types</ignoredResourcePattern>
-                        <ignoredResourcePattern>org/conscrypt/conscrypt.properties</ignoredResourcePattern>
                         <!-- com.databricks:databricks-jdbc:2.7.1, org.apache.logging.log4j:log4j-api -->
                         <ignoredResourcePattern>Log4j-charsets.properties</ignoredResourcePattern>
                         <!-- Duplicate in test classpath: trino-iceberg/target/test-classes and trino-hive:tests -->
@@ -1103,7 +1110,6 @@
                     </ignoredResourcePatterns>
                     <ignoredClassPatterns>
                         <ignoredClassPattern>org.apache.orc.*</ignoredClassPattern>
-                        <ignoredClassPattern>org.conscrypt.*</ignoredClassPattern>
                     </ignoredClassPatterns>
                 </configuration>
             </plugin>
