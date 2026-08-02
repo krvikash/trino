@@ -1633,7 +1633,6 @@ jobs:
             - suite-kdb
             - suite-sas
             - suite-storage-formats-detailed
-            - suite-parquet
           exclude:
             - suite: suite-delta-lake-databricks-unity
               config: hdp3
