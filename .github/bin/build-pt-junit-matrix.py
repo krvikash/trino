@@ -80,7 +80,7 @@ BUCKETS = [
         ("SuiteHiveSpark", LEGACY_COVERAGE_REMOVED),
         ("SuiteHiveAlluxioCaching", LEGACY_COVERAGE_REMOVED),
         ("SuiteStorageFormatsDetailed", LEGACY_COVERAGE_REMOVED),
-        ("SuiteParquet", ("SuiteParquet",)),
+        ("SuiteParquet", LEGACY_COVERAGE_REMOVED),
     ]),
     ("iceberg", [
         ("SuiteIceberg", LEGACY_COVERAGE_REMOVED),
