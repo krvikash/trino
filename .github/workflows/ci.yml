@@ -1632,7 +1632,6 @@ jobs:
             - suite-iceberg-databricks-unity
             - suite-kdb
             - suite-sas
-            - suite-storage-formats-detailed
           exclude:
             - suite: suite-delta-lake-databricks-unity
               config: hdp3
