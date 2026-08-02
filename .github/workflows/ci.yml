@@ -1624,11 +1624,6 @@ jobs:
             - suite-stargate
             - suite-open-api
             # End of Starburst suites
-            - suite-delta-lake-databricks133
-            - suite-delta-lake-databricks143
-            - suite-delta-lake-databricks154
-            - suite-delta-lake-databricks164
-            - suite-delta-lake-databricks173
             - suite-delta-lake-databricks-unity
             - suite-delta-lake-databricks-unity-s3-credentials-vending
             - suite-delta-lake-databricks-unity-gcs-credentials-vending
@@ -1640,36 +1635,6 @@ jobs:
             - suite-storage-formats-detailed
             - suite-parquet
           exclude:
-            - suite: suite-delta-lake-databricks133
-              ignore exclusion if: >-
-                ${{ (github.event_name == 'schedule' && github.event.schedule == '0 0 * * *') ||
-                    (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'databricks')) ||
-                    (github.event_name == 'workflow_dispatch') ||
-                    (env.CI_SKIP_SECRETS_PRESENCE_CHECKS == '' && secrets.DATABRICKS_TOKEN == '') }}
-            - suite: suite-delta-lake-databricks143
-              ignore exclusion if: >-
-                ${{ (github.event_name == 'schedule' && github.event.schedule == '0 0 * * *') ||
-                    (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'databricks')) ||
-                    (github.event_name == 'workflow_dispatch') ||
-                    (env.CI_SKIP_SECRETS_PRESENCE_CHECKS == '' && secrets.DATABRICKS_TOKEN == '') }}
-            - suite: suite-delta-lake-databricks154
-              ignore exclusion if: >-
-                ${{ (github.event_name == 'schedule' && github.event.schedule == '0 0 * * *') ||
-                    (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'databricks')) ||
-                    (github.event_name == 'workflow_dispatch') ||
-                    (env.CI_SKIP_SECRETS_PRESENCE_CHECKS == '' && secrets.DATABRICKS_TOKEN == '') }}
-            - suite: suite-delta-lake-databricks164
-              ignore exclusion if: >-
-                ${{ (github.event_name == 'schedule' && github.event.schedule == '0 0 * * *') ||
-                    (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'databricks')) ||
-                    (github.event_name == 'workflow_dispatch') ||
-                    (env.CI_SKIP_SECRETS_PRESENCE_CHECKS == '' && secrets.DATABRICKS_TOKEN == '') }}
-            - suite: suite-delta-lake-databricks173
-              ignore exclusion if: >-
-                ${{ (github.event_name == 'schedule' && github.event.schedule == '0 0 * * *') ||
-                    (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'databricks')) ||
-                    (github.event_name == 'workflow_dispatch') ||
-                    (env.CI_SKIP_SECRETS_PRESENCE_CHECKS == '' && secrets.DATABRICKS_TOKEN == '') }}
             - suite: suite-delta-lake-databricks-unity
               config: hdp3
             - suite: suite-delta-lake-databricks-unity

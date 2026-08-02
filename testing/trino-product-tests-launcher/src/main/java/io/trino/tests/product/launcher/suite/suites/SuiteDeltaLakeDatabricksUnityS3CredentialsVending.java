@@ -16,7 +16,7 @@ package io.trino.tests.product.launcher.suite.suites;
 import com.google.common.collect.ImmutableList;
 import io.trino.tests.product.launcher.env.EnvironmentConfig;
 import io.trino.tests.product.launcher.env.environment.EnvMultinodeDatabricksUnityS3CredentialsVending;
-import io.trino.tests.product.launcher.suite.SuiteDeltaLakeDatabricks;
+import io.trino.tests.product.launcher.suite.Suite;
 import io.trino.tests.product.launcher.suite.SuiteTestRun;
 
 import java.util.List;
@@ -26,7 +26,7 @@ import static io.trino.tests.product.TestGroups.DELTA_LAKE_DATABRICKS_UNITY_CRED
 import static io.trino.tests.product.launcher.suite.SuiteTestRun.testOnEnvironment;
 
 public class SuiteDeltaLakeDatabricksUnityS3CredentialsVending
-        extends SuiteDeltaLakeDatabricks
+        extends Suite
 {
     @Override
     public List<SuiteTestRun> getTestRuns(EnvironmentConfig config)
