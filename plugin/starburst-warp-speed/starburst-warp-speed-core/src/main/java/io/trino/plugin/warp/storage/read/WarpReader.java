@@ -24,11 +24,9 @@ import io.trino.spi.block.Block;
 import io.trino.spi.connector.SourcePage;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.ObjLongConsumer;
-import java.util.stream.IntStream;
 
 import static io.trino.plugin.warp.WarpErrorCode.WARP_UNRECOVERABLE_COLLECT_FAILED;
 import static java.util.Objects.requireNonNull;
@@ -179,12 +177,11 @@ public class WarpReader
                 if (queryArgs.queryParams().isRangesRequired()) {
                     ranges = matcher.getRanges(matcherPageArgs);
                 }
-                queryArgs.dispatcherPageSourceStats().addlazy_collect_total_blocks(blocks.length - preLoadedBlocks.size());
             }
             queryState.addTotalNumReadRecords(queryState.getNumRecordsInCurPage());
             long numReadPages = closePage();
 
-            WarpSourcePage warpSourcePage = new WarpSourcePage(recordIndexes, pageChunksList, queryState.getNumRecordsInCurPage(), blocks);
+            WarpSourcePage warpSourcePage = new WarpSourcePage(queryState.getNumRecordsInCurPage(), blocks);
             readResult = new ReadResult(warpSourcePage, queryState.getNumRecordsInCurPage(), ranges, numReadPages);
         }
         catch (Exception e) {
@@ -277,24 +274,14 @@ public class WarpReader
         aggregatorPageArgs = null;
     }
 
-    public class WarpSourcePage
+    public static class WarpSourcePage
             implements SourcePage
     {
-        private final RecordIndexes recordIndexes;
-        private final List<ChunkProperties> chunkPropertiesList;
         private int positionCount;
         private final Block[] blocks;
-        // Positions retained by selectPositions, relative to the rows produced by native; applied to blocks loaded later
-        private int[] selectedPositions;
 
-        public WarpSourcePage(
-                RecordIndexes recordIndexes,
-                List<ChunkProperties> chunkPropertiesList,
-                int positionCount,
-                Block[] blocks)
+        public WarpSourcePage(int positionCount, Block[] blocks)
         {
-            this.recordIndexes = recordIndexes;
-            this.chunkPropertiesList = chunkPropertiesList;
             this.positionCount = positionCount;
             this.blocks = blocks;
         }
@@ -345,109 +332,34 @@ public class WarpReader
             return blocks.length;
         }
 
-        void loadBlocks(List<Integer> blocksToLoad)
-        {
-            blocksToLoad = blocksToLoad.stream()
-                    .filter(i -> blocks[i] == null)
-                    .toList();
-            if (blocksToLoad.isEmpty()) {
-                return;
-            }
-
-            long start = System.nanoTime();
-            try {
-                pageArena = workerMemoryManager.getThreadArena();
-                aggregatorPageArgs = blocksAggregator.openPage(
-                        recordIndexes,
-                        queryArgs,
-                        pageArena,
-                        aggregatorArgs,
-                        queryState,
-                        blocksToLoad);
-
-                for (ChunkProperties chunk : chunkPropertiesList) {
-                    blocksAggregator.prepareBlocks(
-                            chunk,
-                            recordIndexes,
-                            queryArgs,
-                            aggregatorArgs,
-                            aggregatorPageArgs,
-                            queryState,
-                            blocksToLoad);
-                }
-
-                blocksAggregator.aggregateBlocks(
-                        recordIndexes,
-                        queryArgs,
-                        aggregatorArgs,
-                        aggregatorPageArgs,
-                        queryState,
-                        chunkPropertiesList,
-                        blocksToLoad,
-                        blocks);
-            }
-            catch (Exception e) {
-                abortPage(e);
-                throw e;
-            }
-            finally {
-                readTimeNanos += System.nanoTime() - start;
-            }
-            closePage();
-            if (selectedPositions != null) {
-                for (int channel : blocksToLoad) {
-                    blocks[channel] = blocks[channel].getPositions(selectedPositions, 0, positionCount);
-                }
-            }
-            queryArgs.dispatcherPageSourceStats().addlazy_collect_loaded_blocks(blocksToLoad.size());
-        }
-
         @Override
         public Block getBlock(int channel)
         {
-            loadBlocks(List.of(channel));
             return blocks[channel];
         }
 
         @Override
         public Page getPage()
         {
-            if (positionCount > 0) {
-                List<Integer> blocksToLoad = IntStream.range(0, blocks.length)
-                        .boxed()
-                        .toList();
-                loadBlocks(blocksToLoad);
+            if (blocks.length > 0) {
+                return new Page(blocks);
             }
-            return blocks.length > 0 ? new Page(blocks) : new Page(positionCount);
+            return new Page(positionCount);
         }
 
         @Override
         public Page getColumns(int[] channels)
         {
-            List<Integer> blocksToLoad = Arrays.stream(channels)
-                    .boxed()
-                    .toList();
-            loadBlocks(blocksToLoad);
-            Block[] blocks = new Block[channels.length];
+            Block[] selectedBlocks = new Block[channels.length];
             for (int i = 0; i < channels.length; i++) {
-                blocks[i] = getBlock(channels[i]);
+                selectedBlocks[i] = blocks[channels[i]];
             }
-            return new Page(getPositionCount(), blocks);
+            return new Page(positionCount, selectedBlocks);
         }
 
         @Override
         public void selectPositions(int[] positions, int offset, int size)
         {
-            int[] newSelection = new int[size];
-            if (selectedPositions == null) {
-                System.arraycopy(positions, offset, newSelection, 0, size);
-            }
-            else {
-                for (int i = 0; i < size; i++) {
-                    newSelection[i] = selectedPositions[positions[offset + i]];
-                }
-            }
-            selectedPositions = newSelection;
             for (int i = 0; i < blocks.length; i++) {
                 if (blocks[i] != null) {
                     blocks[i] = blocks[i].getPositions(positions, offset, size);

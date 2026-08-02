@@ -2181,8 +2181,6 @@
               "warp_match_columns": 0,
               "warp_collect_columns": 0,
               "empty_collect_columns": 1,
-              "lazy_collect_total_blocks": 0,
-              "lazy_collect_loaded_blocks": 0,
               "external_match_columns": 0,
               "external_collect_columns": 0
             }
@@ -2201,8 +2199,6 @@
             "expected_counters": {
               "warp_match_columns": 0,
               "warp_collect_columns": 0,
-              "lazy_collect_total_blocks": 1,
-              "lazy_collect_loaded_blocks": 1,
               "external_match_columns": 1,
               "external_collect_columns": 1
             }
@@ -2216,8 +2212,6 @@
             "expected_counters": {
               "warp_match_columns": 0,
               "warp_collect_columns": 0,
-              "lazy_collect_total_blocks": 1,
-              "lazy_collect_loaded_blocks": 1,
               "external_match_columns": 1,
               "external_collect_columns": 1
             }
@@ -2231,8 +2225,6 @@
             "expected_counters": {
               "warp_match_columns": 0,
               "warp_collect_columns": 0,
-              "lazy_collect_total_blocks": 1,
-              "lazy_collect_loaded_blocks": 1,
               "external_match_columns": 0,
               "external_collect_columns": 1
             }
@@ -2246,8 +2238,6 @@
             "expected_counters": {
               "warp_match_columns": 0,
               "warp_collect_columns": 0,
-              "lazy_collect_total_blocks": 3,
-              "lazy_collect_loaded_blocks": 2,
               "external_match_columns": 0,
               "external_collect_columns": 3
             }
