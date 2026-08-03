@@ -3,10 +3,11 @@
     - ExchangeNode LOCAL
       - SortNode
         - ExchangeNode REMOTE
-          - AggregationNode
-            - ExchangeNode LOCAL
-              - ExchangeNode REMOTE
-                - AggregationNode (GPU)
-                  - ProjectNode (GPU)
-                    - FilterNode (GPU)
-                      - TableScanNode lineitem (GPU)
+          - ProjectNode
+            - AggregationNode
+              - ExchangeNode LOCAL
+                - ExchangeNode REMOTE
+                  - AggregationNode (GPU)
+                    - ProjectNode (GPU)
+                      - FilterNode (GPU)
+                        - TableScanNode lineitem (GPU)
