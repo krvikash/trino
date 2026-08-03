@@ -55,6 +55,7 @@ import java.util.stream.IntStream;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static io.trino.plugin.iceberg.IcebergFileFormat.ORC;
 import static io.trino.plugin.iceberg.IcebergFileFormat.PARQUET;
+import static io.trino.plugin.iceberg.IcebergTableName.tableNameWithType;
 import static io.trino.plugin.iceberg.IcebergTestUtils.SESSION;
 import static io.trino.plugin.iceberg.IcebergTestUtils.getFileSystemFactory;
 import static io.trino.plugin.iceberg.IcebergTestUtils.getHiveMetastore;
@@ -293,6 +294,21 @@ public abstract class BaseIcebergSystemTables
         }
         finally {
             catalog.dropTable(SESSION, tableName);
+        }
+    }
+
+    @Test
+    public void testMetadataTablesForNonExistentTable()
+    {
+        String tableName = "nonexistent_table";
+        for (TableType tableType : TableType.values()) {
+            if (tableType == TableType.DATA || tableType == TableType.MATERIALIZED_VIEW_STORAGE) {
+                continue;
+            }
+            String metadataTable = tableNameWithType(tableName, tableType);
+            assertThat(query("SELECT * FROM test_schema.\"" + metadataTable + "\""))
+                    .describedAs(tableType.name())
+                    .failure().hasMessageMatching(".*Table '.*" + tableName + "\\$" + tableType.name().toLowerCase(ENGLISH) + ".*' (not found|does not exist)");
         }
     }
 

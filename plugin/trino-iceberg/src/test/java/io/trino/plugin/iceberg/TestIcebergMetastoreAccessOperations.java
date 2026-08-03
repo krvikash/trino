@@ -389,7 +389,7 @@ public class TestIcebergMetastoreAccessOperations
         // select from $partitions
         assertMetastoreInvocations("SELECT * FROM \"test_select_snapshots$partitions\"",
                 ImmutableMultiset.<MetastoreMethod>builder()
-                        .addCopies(GET_TABLE, 2)
+                        .add(GET_TABLE)
                         .build());
 
         // select from $files
@@ -451,7 +451,7 @@ public class TestIcebergMetastoreAccessOperations
                     filterInvocations(getDistributedQueryRunner().getSpans()),
                     ImmutableMultiset.<MetastoreMethod>builder()
                             .add(GET_DATABASE)
-                            .addCopies(GET_TABLE, 2)
+                            .add(GET_TABLE)
                             .build());
         }
 
@@ -462,7 +462,7 @@ public class TestIcebergMetastoreAccessOperations
         assertMultisetsEqual(
                 filterInvocations(getDistributedQueryRunner().getSpans()),
                 ImmutableMultiset.<MetastoreMethod>builder()
-                        .addCopies(GET_TABLE, 2)
+                        .add(GET_TABLE)
                         .build());
     }
 
