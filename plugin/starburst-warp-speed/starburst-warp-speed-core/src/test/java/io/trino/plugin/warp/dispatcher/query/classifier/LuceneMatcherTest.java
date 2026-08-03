@@ -292,8 +292,8 @@ public class LuceneMatcherTest
         Type type = varcharType;
         WarpVariable warpVariable = new WarpVariable(columnHandle, type);
 
-        // col1 LIKE '%aa%' = TRUE
-        Slice likePattern = Slices.utf8Slice("%aa%");
+        // col1 LIKE 'aa%' = TRUE
+        Slice likePattern = Slices.utf8Slice("aa%");
         WarpCall likeEqualsTrueCall = new WarpCall(
                 StandardFunctions.EQUAL_OPERATOR_FUNCTION_NAME.getName(),
                 List.of(new WarpCall(
@@ -375,7 +375,7 @@ public class LuceneMatcherTest
         Type type = VarcharType.createVarcharType(5);
         WarpVariable warpVariable = new WarpVariable(columnHandle, type);
 
-        Slice likePattern = Slices.utf8Slice("%aa%");
+        Slice likePattern = Slices.utf8Slice("aa%");
         WarpCall likeCall = new WarpCall(
                 LIKE_FUNCTION_NAME.getName(),
                 List.of(warpVariable,
@@ -426,7 +426,7 @@ public class LuceneMatcherTest
         ColumnHandle columnHandle = mockColumnHandle(columnName, varcharType, dispatcherProxiedConnectorTransformer);
         Type type = VarcharType.createVarcharType(5);
         WarpVariable warpVariable = new WarpVariable(columnHandle, type);
-        Slice likePattern = Slices.utf8Slice("%aa%");
+        Slice likePattern = Slices.utf8Slice("aa%");
 
         WarpCall likeCall = new WarpCall(
                 LIKE_FUNCTION_NAME.getName(),
@@ -468,6 +468,23 @@ public class LuceneMatcherTest
         assertExpressionNotConverted(columnName, columnHandle, Optional.of(andCallWhichCantBeConverted), Optional.empty());
         assertExpressionConversion(columnName, columnHandle, Optional.of(andCall), Optional.empty(), mustLikeQuery, false, false);
         assertExpressionConversion(columnName, columnHandle, Optional.of(andCallWithInvalidArgument), Optional.empty(), mustLikeQuery, false, false);
+    }
+
+    @Test
+    public void testInfixLikeNotConvertedToLucene()
+    {
+        String columnName = "col1";
+        ColumnHandle columnHandle = mockColumnHandle(columnName, varcharType, dispatcherProxiedConnectorTransformer);
+        Type type = VarcharType.createVarcharType(5);
+        WarpVariable warpVariable = new WarpVariable(columnHandle, type);
+        for (String pattern : List.of("%aa%", "%aa", "_aa")) {
+            WarpCall likeCall = new WarpCall(
+                    LIKE_FUNCTION_NAME.getName(),
+                    List.of(warpVariable,
+                            new WarpSliceConstant(Slices.utf8Slice(pattern), type)),
+                    type);
+            assertExpressionNotConverted(columnName, columnHandle, Optional.of(likeCall), Optional.empty());
+        }
     }
 
     @Test

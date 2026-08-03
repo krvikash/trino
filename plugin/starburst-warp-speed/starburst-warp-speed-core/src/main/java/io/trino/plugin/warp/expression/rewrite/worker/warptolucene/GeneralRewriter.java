@@ -37,6 +37,7 @@ import static io.trino.plugin.warp.storage.lucene.LuceneQueryUtils.createContain
 import static io.trino.plugin.warp.storage.lucene.LuceneQueryUtils.createLikeQuery;
 import static io.trino.plugin.warp.storage.lucene.LuceneQueryUtils.createPrefixQuery;
 import static io.trino.plugin.warp.storage.lucene.LuceneQueryUtils.createRangeQuery;
+import static io.trino.plugin.warp.storage.lucene.LuceneQueryUtils.hasLiteralPrefix;
 
 class GeneralRewriter
         implements ExpressionRewriter<WarpCall>
@@ -61,6 +62,10 @@ class GeneralRewriter
 
     boolean handleLike(WarpExpression expression, LuceneRewriteContext context)
     {
+        Slice likePattern = ((WarpSliceConstant) expression.getChildren().get(1)).getValue();
+        if (!hasLiteralPrefix(likePattern)) {
+            return false;
+        }
         return rewrite(expression, context, (value, _) -> createLikeQuery(value));
     }
 

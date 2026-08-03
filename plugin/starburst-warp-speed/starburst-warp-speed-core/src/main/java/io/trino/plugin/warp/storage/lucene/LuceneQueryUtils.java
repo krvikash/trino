@@ -79,6 +79,20 @@ public class LuceneQueryUtils
         return new TermQuery(new Term(VALUE_FIELD_NAME, new String(slice.getBytes(), UTF_8)));
     }
 
+    /**
+     * A pattern starting with a wildcard compiles to an automaton without a literal prefix, so matching it
+     * cannot seek the terms index and scans every term in the chunk, which costs more than evaluating the
+     * pattern on collected values.
+     */
+    public static boolean hasLiteralPrefix(Slice likePattern)
+    {
+        if (likePattern.length() == 0) {
+            return true;
+        }
+        byte firstCharacter = likePattern.getByte(0);
+        return firstCharacter != '%' && firstCharacter != '_';
+    }
+
     // This method is copy-pasted from our implementation in Trino
     protected static String likeToRegexp(Slice likeSlice)
     {

@@ -16,6 +16,7 @@ package io.trino.plugin.warp.storage.lucene;
 import io.airlift.slice.Slices;
 import org.junit.jupiter.api.Test;
 
+import static io.trino.plugin.warp.storage.lucene.LuceneQueryUtils.hasLiteralPrefix;
 import static io.trino.plugin.warp.storage.lucene.LuceneQueryUtils.likeToRegexp;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -30,5 +31,17 @@ class LuceneQueryUtilsTest
         assertThat(likeToRegexp(Slices.utf8Slice("a%b_c"))).isEqualTo("a.*b.c");
         assertThat(likeToRegexp(Slices.utf8Slice("a[b"))).isEqualTo("a\\[b");
         assertThat(likeToRegexp(Slices.utf8Slice("a_\\b"))).isEqualTo("a.\\\\b");
+    }
+
+    @Test
+    public void testHasLiteralPrefix()
+    {
+        assertThat(hasLiteralPrefix(Slices.utf8Slice("abc%"))).isTrue();
+        assertThat(hasLiteralPrefix(Slices.utf8Slice("a%b%"))).isTrue();
+        assertThat(hasLiteralPrefix(Slices.utf8Slice(""))).isTrue();
+        assertThat(hasLiteralPrefix(Slices.utf8Slice("\\%abc"))).isTrue();
+        assertThat(hasLiteralPrefix(Slices.utf8Slice("%abc"))).isFalse();
+        assertThat(hasLiteralPrefix(Slices.utf8Slice("%abc%"))).isFalse();
+        assertThat(hasLiteralPrefix(Slices.utf8Slice("_abc"))).isFalse();
     }
 }

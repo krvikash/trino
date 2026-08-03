@@ -54,13 +54,11 @@ public class LuceneRulesHandler
         luceneRules.put(IN_PREDICATE_FUNCTION_NAME.getName(), new FunctionRewriter(inRewriter.getPattern(), inRewriter::handleIn));
          */
         LuceneVariableRewriter variableRewriter = new LuceneVariableRewriter();
-        EqualityValueRewriter equalityValueRewriter = new EqualityValueRewriter();
         luceneRules = HashMultimap.create();
         luceneRules.put(IS_NULL_FUNCTION_NAME.getName(), new FunctionRewriter(variableRewriter.getPattern(), variableRewriter::handleIsNull));
         luceneRules.put(NOT_FUNCTION_NAME.getName(), new FunctionRewriter(notRewriter.getPattern(), notRewriter::handleNotLike));
         luceneRules.put(LIKE_FUNCTION_NAME.getName(), new FunctionRewriter(luceneGeneralRewriter.getPattern(), luceneGeneralRewriter::handleLike));
         luceneRules.put(START_WITH.getName(), new FunctionRewriter(luceneGeneralRewriter.getPattern(), luceneGeneralRewriter::handleStartsWith));
-        luceneRules.put(EQUAL_OPERATOR_FUNCTION_NAME.getName(), new FunctionRewriter(equalityValueRewriter.getPattern(), equalityValueRewriter::handleEqual));
         luceneRules.put(OR_FUNCTION_NAME.getName(), new FunctionRewriter(luceneLogicalOperatorRewriter.getPattern(), luceneLogicalOperatorRewriter::handleOr));
         luceneRules.put(AND_FUNCTION_NAME.getName(), new FunctionRewriter(luceneLogicalOperatorRewriter.getPattern(), luceneLogicalOperatorRewriter::handleAnd));
         luceneRules.put(CONTAINS.getName(), new FunctionRewriter(luceneGeneralRewriter.getPattern(), luceneGeneralRewriter::handleContains));
