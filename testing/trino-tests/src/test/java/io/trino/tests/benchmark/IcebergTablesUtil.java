@@ -17,10 +17,17 @@ import io.airlift.log.Logger;
 import io.trino.metastore.HiveMetastore;
 import io.trino.metastore.Table;
 import io.trino.testing.containers.Minio;
-import io.trino.testing.minio.MinioClient;
+import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
+import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
+import software.amazon.awssdk.core.sync.RequestBody;
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.NoSuchBucketException;
+import software.amazon.awssdk.services.s3.model.S3Object;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Comparator;
@@ -29,11 +36,15 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Stream;
 
+import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static io.trino.metastore.PrincipalPrivileges.NO_PRIVILEGES;
 import static io.trino.plugin.hive.TableType.EXTERNAL_TABLE;
 import static io.trino.plugin.iceberg.IcebergUtil.METADATA_FILE_EXTENSION;
 import static io.trino.plugin.iceberg.catalog.AbstractIcebergTableOperations.ICEBERG_METASTORE_STORAGE_FORMAT;
+import static io.trino.testing.containers.Minio.MINIO_REGION;
+import static io.trino.testing.containers.Minio.MINIO_ROOT_PASSWORD;
+import static io.trino.testing.containers.Minio.MINIO_ROOT_USER;
 import static java.util.Locale.ENGLISH;
 import static org.apache.iceberg.BaseMetastoreTableOperations.ICEBERG_TABLE_TYPE_VALUE;
 import static org.apache.iceberg.BaseMetastoreTableOperations.METADATA_LOCATION_PROP;
@@ -78,8 +89,8 @@ final class IcebergTablesUtil
     public static void registerTables(Minio minio, HiveMetastore hiveMetastore, String bucketName, String dataLocation, String schemaName, List<String> tables, String s3Prefix)
     {
         Path tablesDir = resolveTablesLocation(dataLocation);
-        try (MinioClient minioClient = minio.createMinioClient()) {
-            minioClient.ensureBucketExists(bucketName);
+        try (S3Client s3Client = createS3Client(minio)) {
+            ensureBucketExists(s3Client, bucketName);
 
             for (String table : tables) {
                 Path tableDir = findTableDirectory(tablesDir, table);
@@ -87,13 +98,13 @@ final class IcebergTablesUtil
                 String s3TablePath = s3Prefix + "/" + tableDirName;
                 String tableLocation = "s3://%s/%s".formatted(bucketName, s3TablePath);
 
-                if (isUploadComplete(tableDir, minioClient, bucketName, s3TablePath)) {
+                if (isUploadComplete(tableDir, s3Client, bucketName, s3TablePath)) {
                     log.info("Reusing existing Minio data from s3://%s/%s", bucketName, s3TablePath);
                 }
                 else {
-                    uploadToBucket(tableDir, bucketName, s3TablePath, minioClient);
+                    uploadToBucket(tableDir, bucketName, s3TablePath, s3Client);
                 }
-                Optional<String> metadataPath = getMetadataPath(minioClient, bucketName, s3TablePath);
+                Optional<String> metadataPath = getMetadataPath(s3Client, bucketName, s3TablePath);
 
                 if (hiveMetastore.getTable(schemaName, table).isPresent()) {
                     log.info("Reusing existing iceberg.%s.%s", schemaName, table);
@@ -123,7 +134,7 @@ final class IcebergTablesUtil
         }
     }
 
-    private static void uploadToBucket(Path tableDir, String bucketName, String s3TablePath, MinioClient minioClient)
+    private static void uploadToBucket(Path tableDir, String bucketName, String s3TablePath, S3Client s3Client)
     {
         log.info("Uploading %s to s3://%s/%s", tableDir, bucketName, s3TablePath);
         try (Stream<Path> files = Files.walk(tableDir)) {
@@ -134,7 +145,7 @@ final class IcebergTablesUtil
                     .forEach(file -> {
                         String relativePath = tableDir.relativize(file).toString();
                         String s3Path = s3TablePath + "/" + relativePath;
-                        minioClient.putObject(bucketName, readAllBytesUnchecked(file), s3Path);
+                        s3Client.putObject(builder -> builder.bucket(bucketName).key(s3Path), RequestBody.fromBytes(readAllBytesUnchecked(file)));
                     });
         }
         catch (IOException e) {
@@ -142,10 +153,10 @@ final class IcebergTablesUtil
         }
     }
 
-    private static boolean isUploadComplete(Path tableDir, MinioClient minioClient, String bucketName, String s3TablePath)
+    private static boolean isUploadComplete(Path tableDir, S3Client s3Client, String bucketName, String s3TablePath)
     {
         Set<String> localFiles = listLocalFiles(tableDir);
-        Set<String> remoteFiles = minioClient.listObjects(bucketName, s3TablePath + "/").stream()
+        Set<String> remoteFiles = listObjects(s3Client, bucketName, s3TablePath + "/").stream()
                 .map(key -> key.substring(s3TablePath.length() + 1))
                 .collect(toImmutableSet());
         return localFiles.equals(remoteFiles);
@@ -168,11 +179,38 @@ final class IcebergTablesUtil
         return tableDir.relativize(file).startsWith(Path.of("metadata"));
     }
 
-    private static Optional<String> getMetadataPath(MinioClient minioClient, String bucketName, String s3TablePath)
+    private static Optional<String> getMetadataPath(S3Client s3Client, String bucketName, String s3TablePath)
     {
-        return minioClient.listObjects(bucketName, s3TablePath + "/metadata/").stream()
+        return listObjects(s3Client, bucketName, s3TablePath + "/metadata/").stream()
                 .filter(path -> path.endsWith(METADATA_FILE_EXTENSION))
                 .max(Comparator.naturalOrder());
+    }
+
+    private static S3Client createS3Client(Minio minio)
+    {
+        return S3Client.builder()
+                .endpointOverride(URI.create(minio.getMinioAddress()))
+                .region(Region.of(MINIO_REGION))
+                .forcePathStyle(true)
+                .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create(MINIO_ROOT_USER, MINIO_ROOT_PASSWORD)))
+                .build();
+    }
+
+    private static void ensureBucketExists(S3Client s3Client, String bucketName)
+    {
+        try {
+            s3Client.headBucket(builder -> builder.bucket(bucketName));
+        }
+        catch (NoSuchBucketException e) {
+            s3Client.createBucket(builder -> builder.bucket(bucketName));
+        }
+    }
+
+    private static List<String> listObjects(S3Client s3Client, String bucketName, String prefix)
+    {
+        return s3Client.listObjectsV2Paginator(builder -> builder.bucket(bucketName).prefix(prefix)).contents().stream()
+                .map(S3Object::key)
+                .collect(toImmutableList());
     }
 
     private static byte[] readAllBytesUnchecked(Path path)

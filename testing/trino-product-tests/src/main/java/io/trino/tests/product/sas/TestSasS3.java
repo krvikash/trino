@@ -15,11 +15,17 @@ package io.trino.tests.product.sas;
 
 import io.trino.tempto.BeforeMethodWithContext;
 import io.trino.tempto.ProductTest;
-import io.trino.testing.minio.MinioClient;
 import org.testng.annotations.Test;
+import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
+import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
+import software.amazon.awssdk.core.sync.RequestBody;
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.NoSuchBucketException;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -42,6 +48,9 @@ public class TestSasS3
     private static final String BUCKET = "sas-bucket";
     private static final String BUCKET_PREFIX = "data";
     private static final Path DATA_DIRECTORY = Path.of("/docker/sas-data");
+    private static final URI MINIO_ENDPOINT = URI.create("http://minio:9080");
+    private static final String MINIO_ACCESS_KEY = "minio-access-key";
+    private static final String MINIO_SECRET_KEY = "minio-secret-key";
 
     @BeforeMethodWithContext
     public void setUp()
@@ -53,16 +62,28 @@ public class TestSasS3
         catch (IOException e) {
             throw new UncheckedIOException(e);
         }
-        try (MinioClient client = new MinioClient()) {
-            client.ensureBucketExists(BUCKET);
+        try (S3Client client = S3Client.builder()
+                .endpointOverride(MINIO_ENDPOINT)
+                .region(Region.US_EAST_1)
+                .forcePathStyle(true)
+                .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create(MINIO_ACCESS_KEY, MINIO_SECRET_KEY)))
+                .build()) {
+            ensureBucketExists(client);
             for (Path file : files) {
-                try {
-                    client.putObject(BUCKET, Files.readAllBytes(file), BUCKET_PREFIX + "/" + DATA_DIRECTORY.relativize(file));
-                }
-                catch (IOException e) {
-                    throw new UncheckedIOException("Failed to upload " + file, e);
-                }
+                client.putObject(
+                        request -> request.bucket(BUCKET).key(BUCKET_PREFIX + "/" + DATA_DIRECTORY.relativize(file)),
+                        RequestBody.fromFile(file));
             }
+        }
+    }
+
+    private static void ensureBucketExists(S3Client client)
+    {
+        try {
+            client.headBucket(request -> request.bucket(BUCKET));
+        }
+        catch (NoSuchBucketException e) {
+            client.createBucket(request -> request.bucket(BUCKET));
         }
     }
 
