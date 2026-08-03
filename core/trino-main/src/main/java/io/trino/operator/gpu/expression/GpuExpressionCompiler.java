@@ -21,6 +21,7 @@ import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
 import io.trino.operator.gpu.regex.GpuRegexTranspiler;
 import io.trino.operator.project.InputChannels;
+import io.trino.operator.scalar.DivideRoundToScale;
 import io.trino.spi.function.CatalogSchemaFunctionName;
 import io.trino.spi.function.OperatorType;
 import io.trino.spi.type.BigintType;
@@ -265,6 +266,7 @@ public final class GpuExpressionCompiler
                         }
                         yield Optional.of(new GpuCast(input, toDType));
                     }
+                    case DecimalType to when !from.isShort() && from.getScale() == to.getScale() && to.getPrecision() < from.getPrecision() -> Optional.of(new GpuNarrowingDecimalCast(input, toDType, to.getPrecision()));
                     default -> Optional.empty();
                 };
                 case CharType from -> switch (toType) {
@@ -349,7 +351,30 @@ public final class GpuExpressionCompiler
                 return compileDateTrunc(call, context);
             }
 
+            if (name.equals(DivideRoundToScale.NAME) && call.arguments().size() == 2) {
+                return compileDivideRoundToScale(call, context);
+            }
+
             return Optional.empty();
+        }
+
+        private Optional<GpuExpression> compileDivideRoundToScale(Call call, Void context)
+        {
+            Expression dividend = call.arguments().get(0);
+            Expression divisor = call.arguments().get(1);
+            // The scalar is currently only called with a decimal(38, s) sum (a DECIMAL128) and a bigint count.
+            if (!(dividend.type() instanceof DecimalType dividendType) || dividendType.isShort() || divisor.type() != BIGINT) {
+                return Optional.empty();
+            }
+            Optional<GpuExpression> dividendCompiled = dividend.accept(this, context);
+            if (dividendCompiled.isEmpty()) {
+                return Optional.empty();
+            }
+            Optional<GpuExpression> divisorCompiled = divisor.accept(this, context);
+            if (divisorCompiled.isEmpty()) {
+                return Optional.empty();
+            }
+            return Optional.of(new GpuDivideRoundToScale(dividendCompiled.get(), divisorCompiled.get()));
         }
 
         private Optional<GpuExpression> compileComparison(IrExpressions.Comparison comparison, Void context)

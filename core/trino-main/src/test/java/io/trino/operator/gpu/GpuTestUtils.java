@@ -957,5 +957,40 @@ public final class GpuTestUtils
         return builder.buildOrThrow();
     }
 
+    public static Block longDecimalBlock(DecimalType type, Long... unscaledValues)
+    {
+        BlockBuilder builder = type.createBlockBuilder(null, unscaledValues.length);
+        for (Long unscaled : unscaledValues) {
+            if (unscaled == null) {
+                builder.appendNull();
+            }
+            else {
+                type.writeObject(builder, Int128.valueOf(unscaled));
+            }
+        }
+        return builder.build();
+    }
+
+    public static Block longDecimalBlock(DecimalType type, BigInteger unscaledValue)
+    {
+        BlockBuilder builder = type.createBlockBuilder(null, 1);
+        type.writeObject(builder, Int128.valueOf(unscaledValue));
+        return builder.build();
+    }
+
+    public static Block bigintBlock(Long... values)
+    {
+        BlockBuilder builder = BIGINT.createBlockBuilder(null, values.length);
+        for (Long value : values) {
+            if (value == null) {
+                builder.appendNull();
+            }
+            else {
+                BIGINT.writeLong(builder, value);
+            }
+        }
+        return builder.build();
+    }
+
     public record PagePosition(Page page, int position) {}
 }
