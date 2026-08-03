@@ -26,7 +26,8 @@ public final class ConnectorSensitiveProperties
                             "http-client.key-store-password",
                             "http-client.trust-store-password",
                             "ldap.ssl.keystore.password",
-                            "ldap.ssl.truststore.password"))
+                            "ldap.ssl.truststore.password",
+                            "vault.token"))
             .put("bigquery",
                     ImmutableSet.of(
                             "aws.kms.secret-key",
@@ -39,7 +40,8 @@ public final class ConnectorSensitiveProperties
                             "http-client.key-store-password",
                             "http-client.trust-store-password",
                             "ldap.ssl.keystore.password",
-                            "ldap.ssl.truststore.password"))
+                            "ldap.ssl.truststore.password",
+                            "vault.token"))
             .put("blackhole",
                     ImmutableSet.of(
                             "aws.kms.secret-key",
@@ -48,7 +50,8 @@ public final class ConnectorSensitiveProperties
                             "http-client.key-store-password",
                             "http-client.trust-store-password",
                             "ldap.ssl.keystore.password",
-                            "ldap.ssl.truststore.password"))
+                            "ldap.ssl.truststore.password",
+                            "vault.token"))
             .put("cassandra",
                     ImmutableSet.of(
                             "aws.kms.secret-key",
@@ -60,7 +63,8 @@ public final class ConnectorSensitiveProperties
                             "http-client.key-store-password",
                             "http-client.trust-store-password",
                             "ldap.ssl.keystore.password",
-                            "ldap.ssl.truststore.password"))
+                            "ldap.ssl.truststore.password",
+                            "vault.token"))
             .put("clickhouse",
                     ImmutableSet.of(
                             "aws.kms.secret-key",
@@ -71,7 +75,8 @@ public final class ConnectorSensitiveProperties
                             "http-client.trust-store-password",
                             "keystore-password",
                             "ldap.ssl.keystore.password",
-                            "ldap.ssl.truststore.password"))
+                            "ldap.ssl.truststore.password",
+                            "vault.token"))
             .put("datasketches",
                     ImmutableSet.of())
             .put("delta_lake",
@@ -99,7 +104,8 @@ public final class ConnectorSensitiveProperties
                             "s3.aws-secret-key",
                             "s3.http-proxy.password",
                             "s3.sse.customer-key",
-                            "ssh-tunnel.private-key"))
+                            "ssh-tunnel.private-key",
+                            "vault.token"))
             .put("deprecated_snowflake_jdbc",
                     ImmutableSet.of(
                             "aws.kms.secret-key",
@@ -113,7 +119,8 @@ public final class ConnectorSensitiveProperties
                             "ldap.ssl.truststore.password",
                             "snowflake.connection-private-key",
                             "snowflake.connection-private-key.passphrase",
-                            "snowflake.proxy.password"))
+                            "snowflake.proxy.password",
+                            "vault.token"))
             .put("druid",
                     ImmutableSet.of(
                             "aws.kms.secret-key",
@@ -124,7 +131,8 @@ public final class ConnectorSensitiveProperties
                             "http-client.trust-store-password",
                             "keystore-password",
                             "ldap.ssl.keystore.password",
-                            "ldap.ssl.truststore.password"))
+                            "ldap.ssl.truststore.password",
+                            "vault.token"))
             .put("duckdb",
                     ImmutableSet.of(
                             "aws.kms.secret-key",
@@ -135,7 +143,8 @@ public final class ConnectorSensitiveProperties
                             "http-client.trust-store-password",
                             "keystore-password",
                             "ldap.ssl.keystore.password",
-                            "ldap.ssl.truststore.password"))
+                            "ldap.ssl.truststore.password",
+                            "vault.token"))
             .put("elasticsearch",
                     ImmutableSet.of(
                             "aws.kms.secret-key",
@@ -148,7 +157,8 @@ public final class ConnectorSensitiveProperties
                             "http-client.key-store-password",
                             "http-client.trust-store-password",
                             "ldap.ssl.keystore.password",
-                            "ldap.ssl.truststore.password"))
+                            "ldap.ssl.truststore.password",
+                            "vault.token"))
             .put("exasol",
                     ImmutableSet.of(
                             "aws.kms.secret-key",
@@ -159,7 +169,8 @@ public final class ConnectorSensitiveProperties
                             "http-client.trust-store-password",
                             "keystore-password",
                             "ldap.ssl.keystore.password",
-                            "ldap.ssl.truststore.password"))
+                            "ldap.ssl.truststore.password",
+                            "vault.token"))
             .put("faker",
                     ImmutableSet.of(
                             "aws.kms.secret-key",
@@ -168,7 +179,8 @@ public final class ConnectorSensitiveProperties
                             "http-client.key-store-password",
                             "http-client.trust-store-password",
                             "ldap.ssl.keystore.password",
-                            "ldap.ssl.truststore.password"))
+                            "ldap.ssl.truststore.password",
+                            "vault.token"))
             .put("great_lakes",
                     ImmutableSet.of(
                             "aws.kms.secret-key",
@@ -207,7 +219,8 @@ public final class ConnectorSensitiveProperties
                             "s3.aws-secret-key",
                             "s3.http-proxy.password",
                             "s3.sse.customer-key",
-                            "ssh-tunnel.private-key"))
+                            "ssh-tunnel.private-key",
+                            "vault.token"))
             .put("gsheets",
                     ImmutableSet.of(
                             "aws.kms.secret-key",
@@ -217,7 +230,8 @@ public final class ConnectorSensitiveProperties
                             "http-client.key-store-password",
                             "http-client.trust-store-password",
                             "ldap.ssl.keystore.password",
-                            "ldap.ssl.truststore.password"))
+                            "ldap.ssl.truststore.password",
+                            "vault.token"))
             .put("hive",
                     ImmutableSet.of(
                             "aws.kms.secret-key",
@@ -243,7 +257,8 @@ public final class ConnectorSensitiveProperties
                             "s3.aws-secret-key",
                             "s3.http-proxy.password",
                             "s3.sse.customer-key",
-                            "ssh-tunnel.private-key"))
+                            "ssh-tunnel.private-key",
+                            "vault.token"))
             .put("hudi",
                     ImmutableSet.of(
                             "aws.kms.secret-key",
@@ -269,7 +284,8 @@ public final class ConnectorSensitiveProperties
                             "s3.aws-secret-key",
                             "s3.http-proxy.password",
                             "s3.sse.customer-key",
-                            "ssh-tunnel.private-key"))
+                            "ssh-tunnel.private-key",
+                            "vault.token"))
             .put("iceberg",
                     ImmutableSet.of(
                             "aws.kms.secret-key",
@@ -304,7 +320,8 @@ public final class ConnectorSensitiveProperties
                             "s3.aws-secret-key",
                             "s3.http-proxy.password",
                             "s3.sse.customer-key",
-                            "ssh-tunnel.private-key"))
+                            "ssh-tunnel.private-key",
+                            "vault.token"))
             .put("ignite",
                     ImmutableSet.of(
                             "aws.kms.secret-key",
@@ -315,7 +332,8 @@ public final class ConnectorSensitiveProperties
                             "http-client.trust-store-password",
                             "keystore-password",
                             "ldap.ssl.keystore.password",
-                            "ldap.ssl.truststore.password"))
+                            "ldap.ssl.truststore.password",
+                            "vault.token"))
             .put("jmx",
                     ImmutableSet.of(
                             "aws.kms.secret-key",
@@ -324,7 +342,8 @@ public final class ConnectorSensitiveProperties
                             "http-client.key-store-password",
                             "http-client.trust-store-password",
                             "ldap.ssl.keystore.password",
-                            "ldap.ssl.truststore.password"))
+                            "ldap.ssl.truststore.password",
+                            "vault.token"))
             .put("kafka",
                     ImmutableSet.of(
                             "aws.kms.secret-key",
@@ -336,7 +355,8 @@ public final class ConnectorSensitiveProperties
                             "kafka.ssl.keystore.password",
                             "kafka.ssl.truststore.password",
                             "ldap.ssl.keystore.password",
-                            "ldap.ssl.truststore.password"))
+                            "ldap.ssl.truststore.password",
+                            "vault.token"))
             .put("lakehouse",
                     ImmutableSet.of(
                             "aws.kms.secret-key",
@@ -371,7 +391,8 @@ public final class ConnectorSensitiveProperties
                             "s3.aws-secret-key",
                             "s3.http-proxy.password",
                             "s3.sse.customer-key",
-                            "ssh-tunnel.private-key"))
+                            "ssh-tunnel.private-key",
+                            "vault.token"))
             .put("loki",
                     ImmutableSet.of(
                             "aws.kms.secret-key",
@@ -380,7 +401,8 @@ public final class ConnectorSensitiveProperties
                             "http-client.key-store-password",
                             "http-client.trust-store-password",
                             "ldap.ssl.keystore.password",
-                            "ldap.ssl.truststore.password"))
+                            "ldap.ssl.truststore.password",
+                            "vault.token"))
             .put("mariadb",
                     ImmutableSet.of(
                             "aws.kms.secret-key",
@@ -391,7 +413,8 @@ public final class ConnectorSensitiveProperties
                             "http-client.trust-store-password",
                             "keystore-password",
                             "ldap.ssl.keystore.password",
-                            "ldap.ssl.truststore.password"))
+                            "ldap.ssl.truststore.password",
+                            "vault.token"))
             .put("memory",
                     ImmutableSet.of(
                             "aws.kms.secret-key",
@@ -400,7 +423,8 @@ public final class ConnectorSensitiveProperties
                             "http-client.key-store-password",
                             "http-client.trust-store-password",
                             "ldap.ssl.keystore.password",
-                            "ldap.ssl.truststore.password"))
+                            "ldap.ssl.truststore.password",
+                            "vault.token"))
             .put("mongodb",
                     ImmutableSet.of(
                             "aws.kms.secret-key",
@@ -412,7 +436,8 @@ public final class ConnectorSensitiveProperties
                             "ldap.ssl.truststore.password",
                             "mongodb.connection-url",
                             "mongodb.tls.keystore-password",
-                            "mongodb.tls.truststore-password"))
+                            "mongodb.tls.truststore-password",
+                            "vault.token"))
             .put("mysql",
                     ImmutableSet.of(
                             "aws.kms.secret-key",
@@ -423,7 +448,8 @@ public final class ConnectorSensitiveProperties
                             "http-client.trust-store-password",
                             "keystore-password",
                             "ldap.ssl.keystore.password",
-                            "ldap.ssl.truststore.password"))
+                            "ldap.ssl.truststore.password",
+                            "vault.token"))
             .put("opensearch",
                     ImmutableSet.of(
                             "aws.kms.secret-key",
@@ -436,7 +462,8 @@ public final class ConnectorSensitiveProperties
                             "opensearch.auth.password",
                             "opensearch.aws.secret-key",
                             "opensearch.tls.keystore-password",
-                            "opensearch.tls.truststore-password"))
+                            "opensearch.tls.truststore-password",
+                            "vault.token"))
             .put("oracle",
                     ImmutableSet.of(
                             "aws.kms.secret-key",
@@ -447,7 +474,8 @@ public final class ConnectorSensitiveProperties
                             "http-client.trust-store-password",
                             "keystore-password",
                             "ldap.ssl.keystore.password",
-                            "ldap.ssl.truststore.password"))
+                            "ldap.ssl.truststore.password",
+                            "vault.token"))
             .put("pinot",
                     ImmutableSet.of(
                             "aws.kms.secret-key",
@@ -460,7 +488,8 @@ public final class ConnectorSensitiveProperties
                             "pinot.broker.authentication.password",
                             "pinot.controller.authentication.password",
                             "pinot.grpc.tls.keystore-password",
-                            "pinot.grpc.tls.truststore-password"))
+                            "pinot.grpc.tls.truststore-password",
+                            "vault.token"))
             .put("postgresql",
                     ImmutableSet.of(
                             "aws.kms.secret-key",
@@ -471,7 +500,8 @@ public final class ConnectorSensitiveProperties
                             "http-client.trust-store-password",
                             "keystore-password",
                             "ldap.ssl.keystore.password",
-                            "ldap.ssl.truststore.password"))
+                            "ldap.ssl.truststore.password",
+                            "vault.token"))
             .put("prometheus",
                     ImmutableSet.of(
                             "aws.kms.secret-key",
@@ -481,7 +511,8 @@ public final class ConnectorSensitiveProperties
                             "http-client.trust-store-password",
                             "ldap.ssl.keystore.password",
                             "ldap.ssl.truststore.password",
-                            "prometheus.auth.password"))
+                            "prometheus.auth.password",
+                            "vault.token"))
             .put("redis",
                     ImmutableSet.of(
                             "aws.kms.secret-key",
@@ -493,7 +524,8 @@ public final class ConnectorSensitiveProperties
                             "ldap.ssl.truststore.password",
                             "redis.password",
                             "redis.tls.keystore-password",
-                            "redis.tls.truststore-password"))
+                            "redis.tls.truststore-password",
+                            "vault.token"))
             .put("redshift",
                     ImmutableSet.of(
                             "aws.kms.secret-key",
@@ -507,7 +539,8 @@ public final class ConnectorSensitiveProperties
                             "ldap.ssl.truststore.password",
                             "s3.aws-secret-key",
                             "s3.http-proxy.password",
-                            "s3.sse.customer-key"))
+                            "s3.sse.customer-key",
+                            "vault.token"))
             .put("sap_hana",
                     ImmutableSet.of(
                             "aws.kms.secret-key",
@@ -518,7 +551,8 @@ public final class ConnectorSensitiveProperties
                             "http-client.trust-store-password",
                             "keystore-password",
                             "ldap.ssl.keystore.password",
-                            "ldap.ssl.truststore.password"))
+                            "ldap.ssl.truststore.password",
+                            "vault.token"))
             .put("sas",
                     ImmutableSet.of(
                             "aws.kms.secret-key",
@@ -527,7 +561,8 @@ public final class ConnectorSensitiveProperties
                             "http-client.key-store-password",
                             "http-client.trust-store-password",
                             "ldap.ssl.keystore.password",
-                            "ldap.ssl.truststore.password"))
+                            "ldap.ssl.truststore.password",
+                            "vault.token"))
             .put("singlestore",
                     ImmutableSet.of(
                             "aws.kms.secret-key",
@@ -538,7 +573,8 @@ public final class ConnectorSensitiveProperties
                             "http-client.trust-store-password",
                             "keystore-password",
                             "ldap.ssl.keystore.password",
-                            "ldap.ssl.truststore.password"))
+                            "ldap.ssl.truststore.password",
+                            "vault.token"))
             .put("snowflake_jdbc",
                     ImmutableSet.of(
                             "aws.kms.secret-key",
@@ -552,7 +588,8 @@ public final class ConnectorSensitiveProperties
                             "ldap.ssl.truststore.password",
                             "snowflake.connection-private-key",
                             "snowflake.connection-private-key.passphrase",
-                            "snowflake.proxy.password"))
+                            "snowflake.proxy.password",
+                            "vault.token"))
             .put("snowflake_parallel",
                     ImmutableSet.of(
                             "aws.kms.secret-key",
@@ -566,7 +603,8 @@ public final class ConnectorSensitiveProperties
                             "ldap.ssl.truststore.password",
                             "snowflake.connection-private-key",
                             "snowflake.connection-private-key.passphrase",
-                            "snowflake.proxy.password"))
+                            "snowflake.proxy.password",
+                            "vault.token"))
             .put("sqlserver",
                     ImmutableSet.of(
                             "aws.kms.secret-key",
@@ -577,7 +615,8 @@ public final class ConnectorSensitiveProperties
                             "http-client.trust-store-password",
                             "keystore-password",
                             "ldap.ssl.keystore.password",
-                            "ldap.ssl.truststore.password"))
+                            "ldap.ssl.truststore.password",
+                            "vault.token"))
             .put("starburst_functions",
                     ImmutableSet.of(
                             "aws.kms.secret-key",
@@ -604,7 +643,8 @@ public final class ConnectorSensitiveProperties
                             "s3.aws-secret-key",
                             "s3.http-proxy.password",
                             "s3.sse.customer-key",
-                            "ssh-tunnel.private-key"))
+                            "ssh-tunnel.private-key",
+                            "vault.token"))
             .put("starburst_internal_testing",
                     ImmutableSet.of(
                             "aws.kms.secret-key",
@@ -613,7 +653,8 @@ public final class ConnectorSensitiveProperties
                             "http-client.key-store-password",
                             "http-client.trust-store-password",
                             "ldap.ssl.keystore.password",
-                            "ldap.ssl.truststore.password"))
+                            "ldap.ssl.truststore.password",
+                            "vault.token"))
             .put("starburst_kdb",
                     ImmutableSet.of(
                             "aws.kms.secret-key",
@@ -623,7 +664,8 @@ public final class ConnectorSensitiveProperties
                             "http-client.trust-store-password",
                             "kdb.password",
                             "ldap.ssl.keystore.password",
-                            "ldap.ssl.truststore.password"))
+                            "ldap.ssl.truststore.password",
+                            "vault.token"))
             .put("starburst_openapi",
                     ImmutableSet.of(
                             "aws.kms.secret-key",
@@ -634,7 +676,8 @@ public final class ConnectorSensitiveProperties
                             "ldap.ssl.keystore.password",
                             "ldap.ssl.truststore.password",
                             "openapi.security-scheme.client-secret",
-                            "openapi.security-scheme.secret"))
+                            "openapi.security-scheme.secret",
+                            "vault.token"))
             .put("stargate",
                     ImmutableSet.of(
                             "aws.kms.secret-key",
@@ -646,7 +689,8 @@ public final class ConnectorSensitiveProperties
                             "keystore-password",
                             "ldap.ssl.keystore.password",
                             "ldap.ssl.truststore.password",
-                            "ssl.truststore.password"))
+                            "ssl.truststore.password",
+                            "vault.token"))
             .put("stargate_parallel",
                     ImmutableSet.of(
                             "aws.kms.secret-key",
@@ -658,7 +702,8 @@ public final class ConnectorSensitiveProperties
                             "keystore-password",
                             "ldap.ssl.keystore.password",
                             "ldap.ssl.truststore.password",
-                            "ssl.truststore.password"))
+                            "ssl.truststore.password",
+                            "vault.token"))
             .put("synapse",
                     ImmutableSet.of(
                             "aws.kms.secret-key",
@@ -669,7 +714,8 @@ public final class ConnectorSensitiveProperties
                             "http-client.trust-store-password",
                             "keystore-password",
                             "ldap.ssl.keystore.password",
-                            "ldap.ssl.truststore.password"))
+                            "ldap.ssl.truststore.password",
+                            "vault.token"))
             .put("tpcds",
                     ImmutableSet.of(
                             "aws.kms.secret-key",
@@ -678,7 +724,8 @@ public final class ConnectorSensitiveProperties
                             "http-client.key-store-password",
                             "http-client.trust-store-password",
                             "ldap.ssl.keystore.password",
-                            "ldap.ssl.truststore.password"))
+                            "ldap.ssl.truststore.password",
+                            "vault.token"))
             .put("tpch",
                     ImmutableSet.of(
                             "aws.kms.secret-key",
@@ -687,7 +734,8 @@ public final class ConnectorSensitiveProperties
                             "http-client.key-store-password",
                             "http-client.trust-store-password",
                             "ldap.ssl.keystore.password",
-                            "ldap.ssl.truststore.password"))
+                            "ldap.ssl.truststore.password",
+                            "vault.token"))
             .put("trino_thrift",
                     ImmutableSet.of(
                             "aws.kms.secret-key",
@@ -696,7 +744,8 @@ public final class ConnectorSensitiveProperties
                             "http-client.key-store-password",
                             "http-client.trust-store-password",
                             "ldap.ssl.keystore.password",
-                            "ldap.ssl.truststore.password"))
+                            "ldap.ssl.truststore.password",
+                            "vault.token"))
             .put("vertica",
                     ImmutableSet.of(
                             "aws.kms.secret-key",
@@ -707,7 +756,8 @@ public final class ConnectorSensitiveProperties
                             "http-client.trust-store-password",
                             "keystore-password",
                             "ldap.ssl.keystore.password",
-                            "ldap.ssl.truststore.password"))
+                            "ldap.ssl.truststore.password",
+                            "vault.token"))
             .put("warp_speed",
                     ImmutableSet.of(
                             "aws.kms.secret-key",
@@ -751,7 +801,8 @@ public final class ConnectorSensitiveProperties
                             "s3.aws-secret-key",
                             "s3.http-proxy.password",
                             "s3.sse.customer-key",
-                            "ssh-tunnel.private-key"))
+                            "ssh-tunnel.private-key",
+                            "vault.token"))
             .buildOrThrow();
 
     private ConnectorSensitiveProperties() {}
