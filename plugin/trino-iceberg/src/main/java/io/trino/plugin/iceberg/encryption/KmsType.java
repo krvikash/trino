@@ -18,5 +18,6 @@ public enum KmsType
     AWS,
     AZURE,
     GCP,
+    VAULT,
     /**/
 }

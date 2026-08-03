@@ -26,6 +26,7 @@ final class TestKmsClientInstantiation
             "org.apache.iceberg.aws.AwsKeyManagementClient",
             "org.apache.iceberg.azure.keymanagement.AzureKeyManagementClient",
             "org.apache.iceberg.gcp.GcpKeyManagementClient",
+            "org.apache.iceberg.hashicorp.VaultKeyManagementClient",
     })
     void testKmsClientClassCanBeLoaded(String kmsImpl)
             throws Exception

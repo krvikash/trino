@@ -416,6 +416,24 @@ public class TestIcebergPlugin
                 .shutdown();
     }
 
+    @Test
+    public void testThriftMetastoreWithVaultKms()
+    {
+        ConnectorFactory factory = getConnectorFactory();
+
+        factory.create(
+                        "test",
+                        Map.of(
+                                "iceberg.catalog.type", "HIVE_METASTORE",
+                                "hive.metastore.uri", "thrift://foo:1234",
+                                "iceberg.encryption.kms-type", "VAULT",
+                                "vault.address", "http://foo:1234",
+                                "vault.token", "test-token",
+                                "bootstrap.quiet", "true"),
+                        new TestingConnectorContext())
+                .shutdown();
+    }
+
     private static ConnectorFactory getConnectorFactory()
     {
         return getOnlyElement(new IcebergPlugin().getConnectorFactories());

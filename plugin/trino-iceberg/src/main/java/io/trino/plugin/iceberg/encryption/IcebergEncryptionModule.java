@@ -35,6 +35,7 @@ public class IcebergEncryptionModule
                         case AWS -> new AwsKmsModule();
                         case AZURE -> new AzureKmsModule();
                         case GCP -> new GcpKmsModule();
+                        case VAULT -> new VaultKmsModule();
                     });
                 },
                 () -> newOptionalBinder(binder, EncryptionManagerFactory.class)

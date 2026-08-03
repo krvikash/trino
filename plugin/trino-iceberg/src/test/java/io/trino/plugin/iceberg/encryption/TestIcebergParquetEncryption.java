@@ -88,7 +88,7 @@ final class TestIcebergParquetEncryption
     @BeforeAll
     void setUp()
     {
-        catalog = getTrinoCatalog(getHiveMetastore(getQueryRunner()), getFileSystemFactory(getQueryRunner()), "iceberg");
+        catalog = getTrinoCatalog(getHiveMetastore(getQueryRunner()), getFileSystemFactory(getQueryRunner()), "iceberg", new DefaultEncryptionManagerFactory(Optional.of(KMS_CLIENT)));
         getQueryRunner().execute("CREATE SCHEMA IF NOT EXISTS tpch");
     }
 
