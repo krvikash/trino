@@ -16,6 +16,7 @@ package io.trino.tests.benchmark;
 import ai.rapids.cudf.Rmm;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Splitter;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -365,6 +366,9 @@ public final class BenchmarkRunner
                 description = "Run the benchmark JVM under NVIDIA compute-sanitizer with the given arguments (e.g. \"--tool memcheck --leak-check full\"). Defaults to \"--tool memcheck\" when passed with no value. Requires --mode=gpu.")
         Optional<String> gpuSanitizer;
 
+        @Option(names = "--nsys", description = "Run the benchmark JVM under nsys profile. Optional value is extra nsys arguments. Requires --mode=gpu.")
+        boolean nsys;
+
         RunCommand(Launcher launcher, Workload workload)
         {
             this.launcher = requireNonNull(launcher, "launcher is null");
@@ -375,7 +379,12 @@ public final class BenchmarkRunner
         public Integer call()
                 throws Exception
         {
-            Optional<List<String>> launchWrapperCommand = gpuSanitizer.map(gpuSanitizer -> {
+            if (gpuSanitizer.isPresent() && nsys) {
+                throw new IllegalArgumentException("--gpu-sanitizer and --nsys are mutually exclusive");
+            }
+            Optional<List<String>> launchWrapperCommand;
+            if (gpuSanitizer.isPresent()) {
+                String sanitizerArgs = gpuSanitizer.get();
                 if (Boolean.getBoolean(NO_FORK_SYSTEM_PROPERTY)) {
                     throw new IllegalArgumentException("--gpu-sanitizer cannot be used with -D%s=true: there is no child process to wrap with compute-sanitizer".formatted(
                             NO_FORK_SYSTEM_PROPERTY));
@@ -383,12 +392,31 @@ public final class BenchmarkRunner
                 if (mode != ExecutionMode.GPU) {
                     throw new IllegalArgumentException("--gpu-sanitizer is not useful without --mode=GPU");
                 }
-                checkArgument(!gpuSanitizer.contains("\"") && !gpuSanitizer.contains("'"), "Quotes are not supported in --gpu-sanitizer: %s", gpuSanitizer);
-                return Stream.concat(
+                checkArgument(!sanitizerArgs.contains("\"") && !sanitizerArgs.contains("'"), "Quotes are not supported in --gpu-sanitizer: %s", sanitizerArgs);
+                launchWrapperCommand = Optional.of(Stream.concat(
                                 Stream.of("compute-sanitizer"),
-                                Splitter.on(" ").omitEmptyStrings().splitToStream(gpuSanitizer))
-                        .toList();
-            });
+                                Splitter.on(" ").omitEmptyStrings().splitToStream(sanitizerArgs))
+                        .toList());
+            }
+            else if (nsys) {
+                if (Boolean.getBoolean(NO_FORK_SYSTEM_PROPERTY)) {
+                    throw new IllegalArgumentException("--nsys cannot be used with -D%s=true: there is no child process to wrap with nsys".formatted(
+                            NO_FORK_SYSTEM_PROPERTY));
+                }
+                if (mode != ExecutionMode.GPU) {
+                    throw new IllegalArgumentException("--nsys is not useful without --mode=GPU");
+                }
+                if (queries.size() != 1) {
+                    throw new IllegalArgumentException("--nsys requires exactly one --query to profile");
+                }
+                Path profileOutputDir = PROJECT_ROOT.resolve("target/benchmark-output").resolve(workload.name()).resolve("profile");
+                Files.createDirectories(profileOutputDir);
+                Path outputPath = profileOutputDir.resolve(workload.normalizeQuery(queries.getFirst()));
+                launchWrapperCommand = Optional.of(buildNsysCommand(outputPath));
+            }
+            else {
+                launchWrapperCommand = Optional.empty();
+            }
             if (launcher.relaunchIfNeeded(launchWrapperCommand)) {
                 return 0;
             }
@@ -736,6 +764,18 @@ public final class BenchmarkRunner
         {
             BenchmarkRunner.mergeCollapsedFiles(profileOutputDir, queriesRun);
         }
+    }
+
+    private static List<String> buildNsysCommand(Path outputPath)
+    {
+        return ImmutableList.<String>builder()
+                .add("nsys")
+                .add("profile")
+                .add("--trace=cuda,nvtx,osrt")
+                .add("--cuda-memory-usage=true")
+                .add("--output=%s".formatted(outputPath.toAbsolutePath()))
+                .add("--force-overwrite=true")
+                .build();
     }
 
     @Command(
