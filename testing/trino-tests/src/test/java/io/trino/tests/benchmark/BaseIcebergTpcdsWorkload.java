@@ -119,7 +119,7 @@ public abstract class BaseIcebergTpcdsWorkload
         if (bind8080) {
             builder.addCoordinatorProperty("http-server.http.port", "8080");
         }
-        BenchmarkRunner.applyExecutionMode(builder, mode);
+        BenchmarkRunner.configureQueryRunner(builder, mode);
 
         Map<String, String> fsCacheProperties = new HashMap<>();
         BenchmarkRunner.applyFilesystemCache(builder, fsCacheProperties, fsCacheDirectory);

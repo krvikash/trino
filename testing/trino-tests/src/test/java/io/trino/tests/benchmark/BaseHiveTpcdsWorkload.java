@@ -127,7 +127,7 @@ public abstract class BaseHiveTpcdsWorkload
         if (bind8080) {
             builder.addCoordinatorProperty("http-server.http.port", "8080");
         }
-        BenchmarkRunner.applyExecutionMode(builder, mode);
+        BenchmarkRunner.configureQueryRunner(builder, mode);
 
         DistributedQueryRunner runner = builder.build();
 

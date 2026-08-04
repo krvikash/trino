@@ -159,7 +159,7 @@ public final class BenchmarkIcebergClickBench
                     .addIcebergProperty("s3.endpoint", minio.getMinioAddress())
                     .addIcebergProperty("s3.path-style-access", "true")
                     .registerResource(minio);
-            BenchmarkRunner.applyExecutionMode(builder, mode);
+            BenchmarkRunner.configureQueryRunner(builder, mode);
 
             Map<String, String> fsCacheProperties = new HashMap<>();
             BenchmarkRunner.applyFilesystemCache(builder, fsCacheProperties, fsCacheDirectory);

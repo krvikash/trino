@@ -1423,9 +1423,9 @@ public final class BenchmarkRunner
     }
 
     /**
-     * Apply connector-agnostic mode-specific extras (resource sizing, GPU acceleration toggles, single-node).
+     * Apply connector-agnostic extras (resource sizing, GPU acceleration toggles, single-node, etc.).
      */
-    public static void applyExecutionMode(DistributedQueryRunner.Builder<?> builder, ExecutionMode mode)
+    public static void configureQueryRunner(DistributedQueryRunner.Builder<?> builder, ExecutionMode mode)
     {
         // TestingTrinoServer sets both task.concurrency and task.max-worker-threads to 4.
         // Here, we override them with the default values, which are determined based on the hardware
