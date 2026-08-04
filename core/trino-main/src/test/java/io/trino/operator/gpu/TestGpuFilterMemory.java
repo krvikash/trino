@@ -14,6 +14,7 @@
 package io.trino.operator.gpu;
 
 import ai.rapids.cudf.BinaryOp;
+import ai.rapids.cudf.ColumnVector;
 import ai.rapids.cudf.DType;
 import ai.rapids.cudf.Scalar;
 import io.trino.operator.gpu.GpuOperation.Blocked;
@@ -28,6 +29,7 @@ import io.trino.operator.project.InputChannels;
 import io.trino.plugin.base.gpu.UncheckedCloser;
 import io.trino.spi.Page;
 import io.trino.spi.gpu.GpuPage;
+import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.type.Type;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -79,9 +81,26 @@ class TestGpuFilterMemory
         try (GpuDeviceMemoryUsageValidation memoryValidation = GpuDeviceMemoryUsageValidation.createAndRegister(context, 1024 * 1024)) {
             Iterator<Page> inputPages = createPages(types, NO_NULLS, MULTIPLE_PAGES, ROWS_PER_PAGE, true);
 
-            GpuExpression filterExpression = (_, inputs) -> {
-                try (Scalar zero = Scalar.fromLong(0)) {
-                    return inputs.getFirst().binaryOp(BinaryOp.GREATER_EQUAL, zero, DType.BOOL8);
+            GpuExpression filterExpression = new GpuExpression()
+            {
+                @Override
+                public ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputs)
+                {
+                    try (Scalar zero = Scalar.fromLong(0)) {
+                        return inputs.getFirst().binaryOp(BinaryOp.GREATER_EQUAL, zero, DType.BOOL8);
+                    }
+                }
+
+                @Override
+                public boolean equals(Object obj)
+                {
+                    throw new UnsupportedOperationException();
+                }
+
+                @Override
+                public int hashCode()
+                {
+                    throw new UnsupportedOperationException();
                 }
             };
             CompiledExpression compiledFilter = new CompiledExpression(filterExpression, new InputChannels(0));

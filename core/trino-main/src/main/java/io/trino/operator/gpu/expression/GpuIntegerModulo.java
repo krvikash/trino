@@ -22,6 +22,7 @@ import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
 
 import java.util.List;
+import java.util.Objects;
 
 import static ai.rapids.cudf.BinaryOp.MOD;
 import static ai.rapids.cudf.BinaryOp.NULL_LOGICAL_AND;
@@ -33,8 +34,8 @@ import static java.util.Objects.requireNonNull;
 /**
  * Integer MOD with divide-by-zero detection.
  */
-public class GpuIntegerModulo
-        implements GpuExpression
+public final class GpuIntegerModulo
+        extends GpuExpression
 {
     private final GpuExpression left;
     private final GpuExpression right;
@@ -66,5 +67,20 @@ public class GpuIntegerModulo
             }
             return leftResult.binaryOp(MOD, rightResult, operandType);
         }
+    }
+
+    @Override
+    public boolean equals(Object obj)
+    {
+        return obj instanceof GpuIntegerModulo other
+                && left.equals(other.left)
+                && right.equals(other.right)
+                && operandType.equals(other.operandType);
+    }
+
+    @Override
+    public int hashCode()
+    {
+        return Objects.hash(getClass(), left, right, operandType);
     }
 }

@@ -22,6 +22,7 @@ import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
 
 import java.util.List;
+import java.util.Objects;
 
 import static ai.rapids.cudf.BinaryOp.GREATER;
 import static ai.rapids.cudf.BinaryOp.LESS;
@@ -38,8 +39,8 @@ import static java.util.Objects.requireNonNull;
  * Narrowing cast between integer types with overflow detection (e.g. BIGINT → INTEGER).
  */
 // TODO: revisit arithmetic overflow detection to use a shared range-check helper.
-public class GpuNarrowingIntegerCast
-        implements GpuExpression
+public final class GpuNarrowingIntegerCast
+        extends GpuExpression
 {
     private final GpuExpression argument;
     private final DType sourceDType;
@@ -77,5 +78,21 @@ public class GpuNarrowingIntegerCast
             }
             return source.castTo(targetDType);
         }
+    }
+
+    @Override
+    public boolean equals(Object obj)
+    {
+        return obj instanceof GpuNarrowingIntegerCast other
+                && argument.equals(other.argument)
+                && sourceDType.equals(other.sourceDType)
+                && targetDType.equals(other.targetDType)
+                && targetTrinoTypeName.equals(other.targetTrinoTypeName);
+    }
+
+    @Override
+    public int hashCode()
+    {
+        return Objects.hash(getClass(), argument, sourceDType, targetDType, targetTrinoTypeName);
     }
 }

@@ -18,11 +18,12 @@ import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
 
 import java.util.List;
+import java.util.Objects;
 
 import static java.util.Objects.requireNonNull;
 
-public class GpuIsNull
-        implements GpuExpression
+public final class GpuIsNull
+        extends GpuExpression
 {
     private final GpuExpression operand;
 
@@ -37,5 +38,17 @@ public class GpuIsNull
         try (ColumnVector result = operand.evaluate(positionCount, inputColumns)) {
             return result.isNull();
         }
+    }
+
+    @Override
+    public boolean equals(Object obj)
+    {
+        return obj instanceof GpuIsNull other && operand.equals(other.operand);
+    }
+
+    @Override
+    public int hashCode()
+    {
+        return Objects.hash(getClass(), operand);
     }
 }

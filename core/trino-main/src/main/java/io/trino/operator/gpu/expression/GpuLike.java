@@ -19,6 +19,7 @@ import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
@@ -27,8 +28,8 @@ import static java.lang.Character.isSurrogate;
 import static java.lang.Character.isValidCodePoint;
 import static java.util.Objects.requireNonNull;
 
-public class GpuLike
-        implements GpuExpression
+public final class GpuLike
+        extends GpuExpression
 {
     private final GpuExpression searched;
     private final String pattern;
@@ -59,5 +60,20 @@ public class GpuLike
                 Scalar escapeScalar = Scalar.fromString(escape)) {
             return searched.like(patternScalar, escapeScalar);
         }
+    }
+
+    @Override
+    public boolean equals(Object obj)
+    {
+        return obj instanceof GpuLike other
+                && searched.equals(other.searched)
+                && pattern.equals(other.pattern)
+                && escape.equals(other.escape);
+    }
+
+    @Override
+    public int hashCode()
+    {
+        return Objects.hash(getClass(), searched, pattern, escape);
     }
 }

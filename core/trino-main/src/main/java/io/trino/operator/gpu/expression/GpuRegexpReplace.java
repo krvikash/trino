@@ -20,13 +20,14 @@ import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
 
 import java.util.List;
+import java.util.Objects;
 
 import static ai.rapids.cudf.CaptureGroups.EXTRACT;
 import static ai.rapids.cudf.CaptureGroups.NON_CAPTURE;
 import static java.util.Objects.requireNonNull;
 
-public class GpuRegexpReplace
-        implements GpuExpression
+public final class GpuRegexpReplace
+        extends GpuExpression
 {
     private final GpuExpression source;
     private final String cudfPattern;
@@ -56,5 +57,21 @@ public class GpuRegexpReplace
                 }
             }
         }
+    }
+
+    @Override
+    public boolean equals(Object obj)
+    {
+        return obj instanceof GpuRegexpReplace other
+                && source.equals(other.source)
+                && cudfPattern.equals(other.cudfPattern)
+                && cudfReplacement.equals(other.cudfReplacement)
+                && hasBackreferences == other.hasBackreferences;
+    }
+
+    @Override
+    public int hashCode()
+    {
+        return Objects.hash(getClass(), source, cudfPattern, cudfReplacement, hasBackreferences);
     }
 }

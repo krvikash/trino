@@ -22,6 +22,7 @@ import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
 
 import java.util.List;
+import java.util.Objects;
 
 import static io.trino.operator.gpu.expression.CudfUtils.allTrue;
 import static io.trino.operator.gpu.expression.CudfUtils.anyTrue;
@@ -38,8 +39,8 @@ import static java.util.Objects.requireNonNull;
  * {@code coalesce} would otherwise resurrect the zero divisor from any
  * NULL-masked input.
  */
-public class GpuIf
-        implements GpuExpression
+public final class GpuIf
+        extends GpuExpression
 {
     private final GpuExpression condition;
     private final GpuExpression trueValue;
@@ -131,5 +132,20 @@ public class GpuIf
                 Table finalTable = falseResultTable.scatter(falseIndices, partial)) {
             return finalTable.getColumn(0).incRefCount();
         }
+    }
+
+    @Override
+    public boolean equals(Object obj)
+    {
+        return obj instanceof GpuIf other
+                && condition.equals(other.condition)
+                && trueValue.equals(other.trueValue)
+                && falseValue.equals(other.falseValue);
+    }
+
+    @Override
+    public int hashCode()
+    {
+        return Objects.hash(getClass(), condition, trueValue, falseValue);
     }
 }

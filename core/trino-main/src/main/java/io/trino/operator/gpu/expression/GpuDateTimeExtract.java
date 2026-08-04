@@ -18,12 +18,13 @@ import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.function.Function;
 
 import static java.util.Objects.requireNonNull;
 
-public class GpuDateTimeExtract
-        implements GpuExpression
+public final class GpuDateTimeExtract
+        extends GpuExpression
 {
     private final GpuExpression argument;
     private final Field field;
@@ -40,6 +41,20 @@ public class GpuDateTimeExtract
         try (ColumnVector timestamp = argument.evaluate(positionCount, inputColumns)) {
             return field.extract(timestamp);
         }
+    }
+
+    @Override
+    public boolean equals(Object obj)
+    {
+        return obj instanceof GpuDateTimeExtract other
+                && argument.equals(other.argument)
+                && field == other.field;
+    }
+
+    @Override
+    public int hashCode()
+    {
+        return Objects.hash(getClass(), argument, field);
     }
 
     public enum Field

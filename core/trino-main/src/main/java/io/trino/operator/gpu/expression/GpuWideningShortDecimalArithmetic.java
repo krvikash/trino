@@ -21,12 +21,13 @@ import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
 
 import java.util.List;
+import java.util.Objects;
 
 import static ai.rapids.cudf.DType.DTypeEnum.DECIMAL128;
 import static java.util.Objects.requireNonNull;
 
-public class GpuWideningShortDecimalArithmetic
-        implements GpuExpression
+public final class GpuWideningShortDecimalArithmetic
+        extends GpuExpression
 {
     private final GpuExpression left;
     private final GpuExpression right;
@@ -54,5 +55,21 @@ public class GpuWideningShortDecimalArithmetic
                 return leftWide.binaryOp(op, rightWide, outputType);
             }
         }
+    }
+
+    @Override
+    public boolean equals(Object obj)
+    {
+        return obj instanceof GpuWideningShortDecimalArithmetic other
+                && left.equals(other.left)
+                && right.equals(other.right)
+                && op == other.op
+                && outputType.equals(other.outputType);
+    }
+
+    @Override
+    public int hashCode()
+    {
+        return Objects.hash(getClass(), left, right, op, outputType);
     }
 }

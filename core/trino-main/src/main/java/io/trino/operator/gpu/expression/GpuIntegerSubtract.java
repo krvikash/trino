@@ -23,6 +23,7 @@ import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
 
 import java.util.List;
+import java.util.Objects;
 
 import static ai.rapids.cudf.BinaryOp.BITWISE_AND;
 import static ai.rapids.cudf.BinaryOp.BITWISE_XOR;
@@ -37,8 +38,8 @@ import static java.util.Objects.requireNonNull;
 /**
  * Integer SUB with overflow detection.
  */
-public class GpuIntegerSubtract
-        implements GpuExpression
+public final class GpuIntegerSubtract
+        extends GpuExpression
 {
     private final GpuExpression left;
     private final GpuExpression right;
@@ -82,5 +83,21 @@ public class GpuIntegerSubtract
             }
             return result.take();
         }
+    }
+
+    @Override
+    public boolean equals(Object obj)
+    {
+        return obj instanceof GpuIntegerSubtract other
+                && left.equals(other.left)
+                && right.equals(other.right)
+                && operandType.equals(other.operandType)
+                && operandTrinoTypeName.equals(other.operandTrinoTypeName);
+    }
+
+    @Override
+    public int hashCode()
+    {
+        return Objects.hash(getClass(), left, right, operandType, operandTrinoTypeName);
     }
 }

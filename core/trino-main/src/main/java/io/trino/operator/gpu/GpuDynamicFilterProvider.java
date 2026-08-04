@@ -20,8 +20,12 @@ import com.google.common.collect.ImmutableMap;
 import com.google.errorprone.annotations.concurrent.GuardedBy;
 import io.airlift.log.Logger;
 import io.trino.operator.ReferenceCount;
+import io.trino.operator.gpu.expression.Apply;
 import io.trino.operator.gpu.expression.CompiledExpression;
+import io.trino.operator.gpu.expression.GetOnlyColumn;
+import io.trino.operator.gpu.expression.GpuConstantColumn;
 import io.trino.operator.gpu.expression.GpuExpression;
+import io.trino.operator.gpu.expression.GpuInColumn;
 import io.trino.operator.gpu.expression.GpuIsNull;
 import io.trino.operator.gpu.expression.GpuLogicalExpression;
 import io.trino.operator.project.InputChannels;
@@ -216,7 +220,7 @@ public class GpuDynamicFilterProvider
                     int mappedChannel = inputChannels.size();
                     inputChannels.add(channel);
                     // The combined expression requests all channels. Due to constraints of GpuExpressionCompiler, compileDomain returns GpuExpression that expects single channel.
-                    domainFilters.add((positionCount, inputColumns) -> compiled.evaluate(positionCount, ImmutableList.of(inputColumns.get(mappedChannel))));
+                    domainFilters.add(new Apply(mappedChannel, compiled));
                     compiledDomains++;
                 }
             }
@@ -245,11 +249,13 @@ public class GpuDynamicFilterProvider
             // separately.
             ColumnVector inList = handleCopier.get(handle).copyToDevice(new Blocks(ImmutableList.of(sortedRangeSet.getSortedRanges())));
             ownedVectors.add(inList);
-            GpuExpression inPredicate = (_, inputColumns) -> getOnlyElement(inputColumns).contains(inList);
+            GpuExpression inPredicate = new GpuInColumn(
+                    new GetOnlyColumn(),
+                    new GpuConstantColumn(inList));
             if (domain.isNullAllowed()) {
                 return Optional.of(GpuLogicalExpression.or(ImmutableList.of(
                         inPredicate,
-                        new GpuIsNull((_, inputColumns) -> getOnlyElement(inputColumns)))));
+                        new GpuIsNull(new GetOnlyColumn()))));
             }
             return Optional.of(inPredicate);
         }

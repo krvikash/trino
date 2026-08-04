@@ -29,8 +29,8 @@ import static com.google.common.base.Preconditions.checkState;
  * Always produces the full 4-long form: {@code [sum_low(8), sum_high(8), count(8), overflow(8)]}.
  * Overflow is always zero because short-decimal sums cannot overflow DECIMAL128.
  */
-public class GpuPackAvgDecimalState
-        implements GpuExpression
+public final class GpuPackAvgDecimalState
+        extends GpuExpression
 {
     @Override
     public @Move ColumnVector evaluate(int positionCount, @Borrow List<ColumnVector> inputColumns)
@@ -49,5 +49,17 @@ public class GpuPackAvgDecimalState
                 ColumnVector overflowBytes = overflowColumn.asByteList(false)) {
             return ColumnVector.listConcatenateByRow(sumBytes, countBytes, overflowBytes);
         }
+    }
+
+    @Override
+    public boolean equals(Object obj)
+    {
+        return obj instanceof GpuPackAvgDecimalState;
+    }
+
+    @Override
+    public int hashCode()
+    {
+        return getClass().hashCode();
     }
 }

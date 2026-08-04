@@ -22,6 +22,7 @@ import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
 
 import java.util.List;
+import java.util.Objects;
 
 import static com.google.common.base.Preconditions.checkState;
 import static io.trino.operator.gpu.expression.CudfUtils.anyTrue;
@@ -41,8 +42,8 @@ import static java.util.Objects.requireNonNull;
  * by row. The bytes land in the same order as cuDF's DECIMAL128 in-memory layout:
  * [chunk0_LE, chunk1_LE, chunk2_LE, chunk3_LE] = [low_8_LE, high_8_LE].
  */
-public class GpuCombineSumChunksToVarbinary
-        implements GpuExpression
+public final class GpuCombineSumChunksToVarbinary
+        extends GpuExpression
 {
     private final DType decimal128Type;
 
@@ -90,5 +91,17 @@ public class GpuCombineSumChunksToVarbinary
                 ColumnVector bytes3 = chunk3.asByteList(false)) {
             return ColumnVector.listConcatenateByRow(bytes0, bytes1, bytes2, bytes3);
         }
+    }
+
+    @Override
+    public boolean equals(Object obj)
+    {
+        return obj instanceof GpuCombineSumChunksToVarbinary other && decimal128Type.equals(other.decimal128Type);
+    }
+
+    @Override
+    public int hashCode()
+    {
+        return Objects.hash(getClass(), decimal128Type);
     }
 }

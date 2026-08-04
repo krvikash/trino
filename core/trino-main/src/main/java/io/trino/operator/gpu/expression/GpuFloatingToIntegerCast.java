@@ -23,6 +23,7 @@ import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
 
 import java.util.List;
+import java.util.Objects;
 
 import static ai.rapids.cudf.BinaryOp.ADD;
 import static ai.rapids.cudf.BinaryOp.GREATER;
@@ -46,8 +47,8 @@ import static java.util.Objects.requireNonNull;
  * one-way relaxation can be removed and this implementation will match CPU exactly.
  */
 // TODO: revisit arithmetic overflow detection to use a shared range-check helper.
-public class GpuFloatingToIntegerCast
-        implements GpuExpression
+public final class GpuFloatingToIntegerCast
+        extends GpuExpression
 {
     private final GpuExpression argument;
     private final DType sourceDType;
@@ -161,5 +162,31 @@ public class GpuFloatingToIntegerCast
                 }
             }
         }
+    }
+
+    @Override
+    public boolean equals(Object obj)
+    {
+        return obj instanceof GpuFloatingToIntegerCast other
+                && argument.equals(other.argument)
+                && sourceDType.equals(other.sourceDType)
+                && targetDType.equals(other.targetDType)
+                // derived: && lowerBoundExclusive == other.lowerBoundExclusive
+                // derived: && upperBoundExclusive == other.upperBoundExclusive
+                && sourceTrinoTypeName.equals(other.sourceTrinoTypeName)
+                && targetTrinoTypeName.equals(other.targetTrinoTypeName);
+    }
+
+    @Override
+    public int hashCode()
+    {
+        return Objects.hash(getClass(),
+                argument,
+                sourceDType,
+                targetDType,
+                // derived: lowerBoundExclusive,
+                // derived: upperBoundExclusive,
+                sourceTrinoTypeName,
+                targetTrinoTypeName);
     }
 }

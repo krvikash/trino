@@ -24,6 +24,7 @@ import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
 
 import java.util.List;
+import java.util.Objects;
 
 import static com.google.common.base.Preconditions.checkState;
 import static io.trino.operator.gpu.expression.CudfUtils.anyTrue;
@@ -46,7 +47,7 @@ import static java.util.Objects.requireNonNull;
  * </ul>
  */
 public final class GpuCombineDecimalStateSumsToDecimal128
-        implements GpuExpression
+        extends GpuExpression
 {
     private final DType decimal128Type;
 
@@ -88,5 +89,17 @@ public final class GpuCombineDecimalStateSumsToDecimal128
                 ColumnVector nonZero = overflowSum.binaryOp(BinaryOp.NOT_EQUAL, zero, DType.BOOL8)) {
             return anyTrue(nonZero);
         }
+    }
+
+    @Override
+    public boolean equals(Object obj)
+    {
+        return obj instanceof GpuCombineDecimalStateSumsToDecimal128 other && decimal128Type.equals(other.decimal128Type);
+    }
+
+    @Override
+    public int hashCode()
+    {
+        return Objects.hash(getClass(), decimal128Type);
     }
 }

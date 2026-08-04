@@ -23,13 +23,14 @@ import io.trino.spi.gpu.borrow.Move;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalLong;
 
 import static java.util.Objects.requireNonNull;
 
-public class GpuDateTrunc
-        implements GpuExpression
+public final class GpuDateTrunc
+        extends GpuExpression
 {
     private final GpuExpression argument;
     private final Field field;
@@ -63,6 +64,20 @@ public class GpuDateTrunc
                 }
             }
         }
+    }
+
+    @Override
+    public boolean equals(Object obj)
+    {
+        return obj instanceof GpuDateTrunc other
+                && argument.equals(other.argument)
+                && field == other.field;
+    }
+
+    @Override
+    public int hashCode()
+    {
+        return Objects.hash(getClass(), argument, field);
     }
 
     public enum Field

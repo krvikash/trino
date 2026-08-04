@@ -19,11 +19,12 @@ import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
 
 import java.util.List;
+import java.util.Objects;
 
 import static java.util.Objects.requireNonNull;
 
-public class GpuCast
-        implements GpuExpression
+public final class GpuCast
+        extends GpuExpression
 {
     private final GpuExpression argument;
     private final DType toType;
@@ -40,5 +41,19 @@ public class GpuCast
         try (ColumnVector result = argument.evaluate(positionCount, inputColumns)) {
             return result.castTo(toType);
         }
+    }
+
+    @Override
+    public boolean equals(Object obj)
+    {
+        return obj instanceof GpuCast other
+                && argument.equals(other.argument)
+                && toType.equals(other.toType);
+    }
+
+    @Override
+    public int hashCode()
+    {
+        return Objects.hash(getClass(), argument, toType);
     }
 }

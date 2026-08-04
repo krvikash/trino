@@ -22,6 +22,7 @@ import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
 
 import java.util.List;
+import java.util.Objects;
 
 import static ai.rapids.cudf.BinaryOp.DIV;
 import static ai.rapids.cudf.BinaryOp.NULL_LOGICAL_AND;
@@ -37,8 +38,8 @@ import static java.util.Objects.requireNonNull;
 /**
  * Integer DIV with divide-by-zero and {@code MIN/-1} overflow detection.
  */
-public class GpuIntegerDivide
-        implements GpuExpression
+public final class GpuIntegerDivide
+        extends GpuExpression
 {
     private final GpuExpression left;
     private final GpuExpression right;
@@ -88,5 +89,21 @@ public class GpuIntegerDivide
             }
             return leftResult.binaryOp(DIV, rightResult, operandType);
         }
+    }
+
+    @Override
+    public boolean equals(Object obj)
+    {
+        return obj instanceof GpuIntegerDivide other
+                && left.equals(other.left)
+                && right.equals(other.right)
+                && operandType.equals(other.operandType)
+                && operandTrinoTypeName.equals(other.operandTrinoTypeName);
+    }
+
+    @Override
+    public int hashCode()
+    {
+        return Objects.hash(getClass(), left, right, operandType, operandTrinoTypeName);
     }
 }

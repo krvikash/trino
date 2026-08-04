@@ -19,8 +19,16 @@ import io.trino.spi.gpu.borrow.Move;
 
 import java.util.List;
 
-public interface GpuExpression
+public abstract class GpuExpression
 {
     @Move
-    ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns);
+    public abstract ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns);
+
+    /// Two GPU expressions are equal when they are semantically equivalent,
+    /// meaning they will produce the same output for the same input.
+    @Override
+    public abstract boolean equals(Object obj);
+
+    @Override
+    public abstract int hashCode();
 }

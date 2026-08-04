@@ -23,7 +23,6 @@ import io.trino.operator.gpu.regex.GpuRegexTranspiler;
 import io.trino.operator.project.InputChannels;
 import io.trino.spi.function.CatalogSchemaFunctionName;
 import io.trino.spi.function.OperatorType;
-import io.trino.spi.gpu.GpuTypeConversion.GpuTypeMapping;
 import io.trino.spi.type.BigintType;
 import io.trino.spi.type.BooleanType;
 import io.trino.spi.type.CharType;
@@ -146,7 +145,7 @@ public final class GpuExpressionCompiler
         protected Optional<GpuExpression> visitConstant(Constant literal, Void context)
         {
             return toGpuMapping(literal.type())
-                    .map(typeMapping -> new GpuConstant(typeMapping.toScalar(), Optional.ofNullable(literal.value())));
+                    .map(_ -> new GpuConstant(literal.type(), Optional.ofNullable(literal.value())));
         }
 
         @Override
@@ -162,7 +161,7 @@ public final class GpuExpressionCompiler
                 inputChannels.add(sourceChannel);
                 return compactLayout.size();
             });
-            return Optional.of((_, inputColumns) -> inputColumns.get(compactField).incRefCount());
+            return Optional.of(new GetColumn(compactField));
         }
 
         @Override
@@ -724,7 +723,6 @@ public final class GpuExpressionCompiler
                     return Optional.empty();
                 }
             }
-            GpuTypeMapping typeMapping = toGpuMapping(in.value().type()).orElseThrow();
 
             Optional<GpuExpression> valueCompiled = in.value().accept(this, context);
             if (valueCompiled.isEmpty()) {
@@ -747,7 +745,7 @@ public final class GpuExpressionCompiler
                 }
             }
 
-            return Optional.of(new GpuIn(valueCompiled.get(), nonNullConstants.build(), hasNull, in.value().type(), typeMapping.toColumn()));
+            return Optional.of(new GpuIn(valueCompiled.get(), nonNullConstants.build(), hasNull, in.value().type()));
         }
 
         @Override

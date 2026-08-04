@@ -24,6 +24,8 @@ import io.trino.operator.gpu.GpuOperation;
 import io.trino.operator.gpu.GpuProject;
 import io.trino.operator.gpu.GpuProject.Projection;
 import io.trino.operator.gpu.expression.CompiledExpression;
+import io.trino.operator.gpu.expression.GetColumn;
+import io.trino.operator.gpu.expression.GetOnlyColumn;
 import io.trino.operator.gpu.expression.GpuCast;
 import io.trino.operator.gpu.expression.GpuCombineDecimalStateSumsToDecimal128;
 import io.trino.operator.gpu.expression.GpuCombineSumChunksToVarbinary;
@@ -59,6 +61,7 @@ import io.trino.sql.planner.plan.AggregationNode.Step;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalInt;
 
@@ -66,7 +69,6 @@ import static ai.rapids.cudf.DType.FLOAT64;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Verify.verify;
 import static com.google.common.base.Verify.verifyNotNull;
-import static com.google.common.collect.Iterables.getOnlyElement;
 import static com.google.common.collect.Lists.newArrayList;
 import static io.trino.metadata.GlobalFunctionCatalog.isBuiltinFunctionName;
 import static io.trino.operator.gpu.SignatureFormatter.formatAggregation;
@@ -339,10 +341,10 @@ public final class GpuAggregationCompiler
                 verify(!step.isOutputPartial() || outputType == DOUBLE, "Unexpected outputType for sum with argument type %s at step %s: %s", argumentType, step, outputType);
 
                 List<Integer> inputChannels = newArrayList(column.get().channel());
-                GpuExpression input = inputReference(0);
+                GpuExpression input = new GetColumn(0);
                 if (maskChannel.isPresent()) {
                     inputChannels.add(maskChannel.getAsInt());
-                    input = mask(inputReference(1), input);
+                    input = new Mask(new GetColumn(1), input);
                 }
                 // sum(REAL) and sum(DOUBLE) both use DOUBLE as accumulator type
                 if (step.isInputRaw() && argumentType == REAL) {
@@ -353,7 +355,7 @@ public final class GpuAggregationCompiler
                 // for sum(REAL), the final result type is REAL
                 if (outputType == REAL) {
                     postProjection = Optional.of(new PostProjection(channels -> new CompiledExpression(
-                            new GpuCast(inputReference(0), DType.FLOAT32),
+                            new GpuCast(new GetColumn(0), DType.FLOAT32),
                             new InputChannels(channels[0]))));
                 }
 
@@ -451,10 +453,10 @@ public final class GpuAggregationCompiler
         int negatedScale = -inputDecimalType.getScale();
         DType decimal128Type = DType.create(DType.DTypeEnum.DECIMAL128, negatedScale);
         CompiledExpression cast = new CompiledExpression(
-                (_, inputColumns) -> getOnlyElement(inputColumns).castTo(decimal128Type),
+                new GpuCast(new GetOnlyColumn(), decimal128Type),
                 new InputChannels(ImmutableList.of(column.channel())));
         CompiledExpression passthrough = new CompiledExpression(
-                (_, inputColumns) -> getOnlyElement(inputColumns).incRefCount(),
+                new GetOnlyColumn(),
                 new InputChannels(ImmutableList.of(column.channel())));
 
         Type sumOutputType = decimalSumOutputType(inputDecimalType);
@@ -639,7 +641,7 @@ public final class GpuAggregationCompiler
                     decimal128Type.getScale(),
                     negatedScale);
             CompiledExpression cast = new CompiledExpression(
-                    (_, inputColumns) -> getOnlyElement(inputColumns).castTo(decimal128Type),
+                    new GpuCast(new GetOnlyColumn(), decimal128Type),
                     new InputChannels(List.of(sourceChannel)));
             Type sumOutputType = decimalSumOutputType(inputDecimalType);
             return new AggregateCompilation(
@@ -765,32 +767,51 @@ public final class GpuAggregationCompiler
     private static CompiledExpression maskExpression(int maskChannel, int valueChannel)
     {
         return new CompiledExpression(
-                mask(inputReference(0), inputReference(1)),
+                new Mask(new GetColumn(0), new GetColumn(1)),
                 new InputChannels(ImmutableList.of(maskChannel, valueChannel)));
     }
 
-    private static GpuExpression mask(GpuExpression mask, GpuExpression value)
+    private static final class Mask
+            extends GpuExpression
     {
-        requireNonNull(mask, "mask is null");
-        requireNonNull(value, "value is null");
-        return (positionCount, inputColumns) -> {
+        private final GpuExpression mask;
+        private final GpuExpression value;
+
+        public Mask(GpuExpression mask, GpuExpression value)
+        {
+            this.mask = requireNonNull(mask, "mask is null");
+            this.value = requireNonNull(value, "value is null");
+        }
+
+        @Override
+        public ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns)
+        {
             try (ColumnVector maskVector = mask.evaluate(positionCount, inputColumns);
                     ColumnVector valueVector = value.evaluate(positionCount, inputColumns)) {
                 return mask(maskVector, valueVector);
             }
-        };
-    }
-
-    private static @Move ColumnVector mask(@Borrow ColumnVector mask, @Borrow ColumnVector value)
-    {
-        checkArgument(mask.getType() == DType.BOOL8, "Unexpected mask type: %s", mask.getType());
-        try (Scalar nullScalar = Scalar.fromNull(value.getType())) {
-            return mask.ifElse(value, nullScalar);
         }
-    }
 
-    private static GpuExpression inputReference(int inputChannel)
-    {
-        return (_, inputColumns) -> inputColumns.get(inputChannel).incRefCount();
+        private static @Move ColumnVector mask(@Borrow ColumnVector mask, @Borrow ColumnVector value)
+        {
+            checkArgument(mask.getType() == DType.BOOL8, "Unexpected mask type: %s", mask.getType());
+            try (Scalar nullScalar = Scalar.fromNull(value.getType())) {
+                return mask.ifElse(value, nullScalar);
+            }
+        }
+
+        @Override
+        public boolean equals(Object obj)
+        {
+            return obj instanceof Mask other
+                    && mask.equals(other.mask)
+                    && value.equals(other.value);
+        }
+
+        @Override
+        public int hashCode()
+        {
+            return Objects.hash(getClass(), mask, value);
+        }
     }
 }

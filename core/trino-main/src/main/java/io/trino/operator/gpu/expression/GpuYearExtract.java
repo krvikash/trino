@@ -23,6 +23,7 @@ import io.trino.spi.gpu.borrow.Move;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Objects;
 
 import static ai.rapids.cudf.BinaryOp.GREATER;
 import static ai.rapids.cudf.BinaryOp.LESS;
@@ -41,8 +42,8 @@ import static java.util.Objects.requireNonNull;
  *
  * @see GpuDateTimeExtract
  */
-public class GpuYearExtract
-        implements GpuExpression
+public final class GpuYearExtract
+        extends GpuExpression
 {
     private static final long LOWER_EPOCH_DAY = LocalDate.of(Short.MIN_VALUE, 1, 1).toEpochDay();
     private static final long UPPER_EPOCH_DAY = LocalDate.of(Short.MAX_VALUE, 12, 31).toEpochDay();
@@ -103,5 +104,17 @@ public class GpuYearExtract
             case TIMESTAMP_MICROSECONDS -> Scalar.timestampFromLong(type, UPPER_EPOCH_DAY * MICROSECONDS_PER_DAY + MICROSECONDS_PER_DAY - 1);
             default -> throw new IllegalStateException("Unexpected timestamp type: " + type);
         };
+    }
+
+    @Override
+    public boolean equals(Object obj)
+    {
+        return obj instanceof GpuYearExtract other && argument.equals(other.argument);
+    }
+
+    @Override
+    public int hashCode()
+    {
+        return Objects.hash(getClass(), argument);
     }
 }

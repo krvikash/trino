@@ -26,7 +26,6 @@ import io.trino.spi.Page;
 import io.trino.spi.block.Block;
 import io.trino.spi.function.OperatorType;
 import io.trino.spi.gpu.borrow.Borrow;
-import io.trino.spi.gpu.borrow.Move;
 import io.trino.spi.type.BigintType;
 import io.trino.spi.type.DecimalType;
 import io.trino.spi.type.Type;
@@ -47,6 +46,7 @@ import org.junit.jupiter.api.parallel.Execution;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.IntStream;
 
@@ -71,6 +71,7 @@ import static io.trino.sql.ir.TestingIr.between;
 import static io.trino.sql.ir.TestingIr.comparison;
 import static io.trino.sql.planner.TestingPlannerContext.PLANNER_CONTEXT;
 import static java.lang.Float.floatToIntBits;
+import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.junit.jupiter.api.parallel.ExecutionMode.CONCURRENT;
@@ -300,7 +301,7 @@ class TestGpuExpressionAstCompiler
 
         List<Integer> channels = IntStream.range(0, inputTypes.size()).boxed().toList();
         CompiledExpression gpuExpression = new CompiledExpression(
-                (_, columns) -> evaluateAst(cudfAst, columns),
+                new EvaluateAst(cudfAst),
                 new InputChannels(channels));
 
         int positionsCount = 64;
@@ -325,11 +326,35 @@ class TestGpuExpressionAstCompiler
                 .isEmpty();
     }
 
-    private static @Move ColumnVector evaluateAst(AstExpression cudfAst, @Borrow List<ColumnVector> inputs)
+    private static final class EvaluateAst
+            extends GpuExpression
     {
-        try (Table table = new Table(inputs.toArray(new ColumnVector[0]));
-                var compiled = cudfAst.compile()) {
-            return compiled.computeColumn(table);
+        private final AstExpression cudfAst;
+
+        public EvaluateAst(AstExpression cudfAst)
+        {
+            this.cudfAst = requireNonNull(cudfAst, "cudfAst is null");
+        }
+
+        @Override
+        public ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns)
+        {
+            try (Table table = new Table(inputColumns.toArray(new ColumnVector[0]));
+                    var compiled = cudfAst.compile()) {
+                return compiled.computeColumn(table);
+            }
+        }
+
+        @Override
+        public boolean equals(Object obj)
+        {
+            return obj instanceof EvaluateAst other && cudfAst.equals(other.cudfAst);
+        }
+
+        @Override
+        public int hashCode()
+        {
+            return Objects.hash(getClass(), cudfAst);
         }
     }
 

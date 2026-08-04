@@ -22,18 +22,20 @@ import io.trino.plugin.base.gpu.ClosingRef;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.gpu.Column;
+import io.trino.spi.gpu.GpuTypeConversion;
 import io.trino.spi.gpu.GpuTypeConversion.ToColumn;
 import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
 import io.trino.spi.type.Type;
 
 import java.util.List;
+import java.util.Objects;
 
 import static io.trino.spi.type.TypeUtils.writeNativeValue;
 import static java.util.Objects.requireNonNull;
 
-public class GpuIn
-        implements GpuExpression
+public final class GpuIn
+        extends GpuExpression
 {
     private final GpuExpression value;
     private final List<Object> nonNullConstants;
@@ -41,13 +43,15 @@ public class GpuIn
     private final ToColumn toColumn;
     private final boolean hasNull;
 
-    public GpuIn(GpuExpression value, List<Object> nonNullConstants, boolean hasNull, Type type, ToColumn toColumn)
+    public GpuIn(GpuExpression value, List<Object> nonNullConstants, boolean hasNull, Type type)
     {
         this.value = requireNonNull(value, "value is null");
-        this.nonNullConstants = ImmutableList.copyOf(nonNullConstants);
+        this.nonNullConstants = ImmutableList.copyOf(requireNonNull(nonNullConstants, "nonNullConstants is null"));
         this.hasNull = hasNull;
         this.type = requireNonNull(type, "type is null");
-        this.toColumn = requireNonNull(toColumn, "toColumn is null");
+        this.toColumn = GpuTypeConversion.toGpuMapping(type)
+                .orElseThrow(() -> new UnsupportedOperationException("Unsupported type: " + type))
+                .toColumn();
     }
 
     @Override
@@ -80,5 +84,27 @@ public class GpuIn
         }
         Block block = builder.build();
         return toColumn.copyToDevice(new Column.Blocks(ImmutableList.of(block)));
+    }
+
+    @Override
+    public boolean equals(Object obj)
+    {
+        return obj instanceof GpuIn other
+                && value.equals(other.value)
+                && nonNullConstants.equals(other.nonNullConstants)
+                && type.equals(other.type)
+                // derived: && toColumn.equals(other.toColumn)
+                && hasNull == other.hasNull;
+    }
+
+    @Override
+    public int hashCode()
+    {
+        return Objects.hash(getClass(),
+                value,
+                nonNullConstants,
+                type,
+                // derived: toColumn,
+                hasNull);
     }
 }

@@ -20,11 +20,12 @@ import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
 
 import java.util.List;
+import java.util.Objects;
 
 import static java.util.Objects.requireNonNull;
 
-public class GpuStringLength
-        implements GpuExpression
+public final class GpuStringLength
+        extends GpuExpression
 {
     private final GpuExpression argument;
 
@@ -42,5 +43,17 @@ public class GpuStringLength
             // cuDF returns INT32; Trino's length() returns BIGINT.
             return charLengths.castTo(DType.INT64);
         }
+    }
+
+    @Override
+    public boolean equals(Object obj)
+    {
+        return obj instanceof GpuStringLength other && argument.equals(other.argument);
+    }
+
+    @Override
+    public int hashCode()
+    {
+        return Objects.hash(getClass(), argument);
     }
 }

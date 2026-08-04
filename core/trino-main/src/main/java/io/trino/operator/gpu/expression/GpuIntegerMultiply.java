@@ -22,6 +22,7 @@ import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
 
 import java.util.List;
+import java.util.Objects;
 
 import static ai.rapids.cudf.BinaryOp.MUL;
 import static ai.rapids.cudf.BinaryOp.NOT_EQUAL;
@@ -34,8 +35,8 @@ import static java.util.Objects.requireNonNull;
  * Integer MUL with overflow detection.
  */
 // TODO (https://starburstdata.atlassian.net/browse/ENG-12005) Optimize GPU BIGINT multiply overflow detection
-public class GpuIntegerMultiply
-        implements GpuExpression
+public final class GpuIntegerMultiply
+        extends GpuExpression
 {
     private final GpuExpression left;
     private final GpuExpression right;
@@ -76,5 +77,22 @@ public class GpuIntegerMultiply
                 return narrowed.take();
             }
         }
+    }
+
+    @Override
+    public boolean equals(Object obj)
+    {
+        return obj instanceof GpuIntegerMultiply other
+                && left.equals(other.left)
+                && right.equals(other.right)
+                && operandType.equals(other.operandType)
+                && widerType.equals(other.widerType)
+                && operandTrinoTypeName.equals(other.operandTrinoTypeName);
+    }
+
+    @Override
+    public int hashCode()
+    {
+        return Objects.hash(getClass(), left, right, operandType, widerType, operandTrinoTypeName);
     }
 }

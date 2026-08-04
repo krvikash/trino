@@ -20,6 +20,7 @@ import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 import static ai.rapids.cudf.BinaryOp.ADD;
@@ -34,8 +35,8 @@ import static ai.rapids.cudf.DType.BOOL8;
 import static ai.rapids.cudf.DType.INT32;
 import static java.util.Objects.requireNonNull;
 
-public class GpuSubstring
-        implements GpuExpression
+public final class GpuSubstring
+        extends GpuExpression
 {
     private final GpuExpression source;
     private final GpuExpression start;
@@ -166,5 +167,20 @@ public class GpuSubstring
                 ColumnVector clamped = int64Column.clamp(intMin, intMax)) {
             return clamped.castTo(INT32);
         }
+    }
+
+    @Override
+    public boolean equals(Object obj)
+    {
+        return obj instanceof GpuSubstring other
+                && source.equals(other.source)
+                && start.equals(other.start)
+                && length.equals(other.length);
+    }
+
+    @Override
+    public int hashCode()
+    {
+        return Objects.hash(getClass(), source, start, length);
     }
 }

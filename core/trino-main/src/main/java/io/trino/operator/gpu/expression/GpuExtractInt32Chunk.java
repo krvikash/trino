@@ -20,6 +20,7 @@ import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
 
 import java.util.List;
+import java.util.Objects;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
@@ -31,8 +32,8 @@ import static java.util.Objects.requireNonNull;
  * is independently summed as INT64, and {@code Aggregation128Utils.combineInt64SumChunks}
  * reassembles them into DECIMAL128 with overflow detection.
  */
-public class GpuExtractInt32Chunk
-        implements GpuExpression
+public final class GpuExtractInt32Chunk
+        extends GpuExpression
 {
     private final int chunkIdx;
     private final DType chunkType;
@@ -58,5 +59,19 @@ public class GpuExtractInt32Chunk
                 "Expected DECIMAL128 input column, got %s",
                 input.getType());
         return Aggregation128Utils.extractInt32Chunk(input, chunkType, chunkIdx);
+    }
+
+    @Override
+    public boolean equals(Object obj)
+    {
+        return obj instanceof GpuExtractInt32Chunk other
+                && chunkIdx == other.chunkIdx
+                && chunkType.equals(other.chunkType);
+    }
+
+    @Override
+    public int hashCode()
+    {
+        return Objects.hash(getClass(), chunkIdx, chunkType);
     }
 }

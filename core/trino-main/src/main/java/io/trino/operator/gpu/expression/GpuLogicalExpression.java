@@ -22,14 +22,15 @@ import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
 
 import java.util.List;
+import java.util.Objects;
 
 import static ai.rapids.cudf.BinaryOp.NULL_LOGICAL_AND;
 import static ai.rapids.cudf.BinaryOp.NULL_LOGICAL_OR;
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 
-public class GpuLogicalExpression
-        implements GpuExpression
+public final class GpuLogicalExpression
+        extends GpuExpression
 {
     private final List<GpuExpression> operands;
     private final BinaryOp operation;
@@ -63,5 +64,19 @@ public class GpuLogicalExpression
             }
             return result.take();
         }
+    }
+
+    @Override
+    public boolean equals(Object obj)
+    {
+        return obj instanceof GpuLogicalExpression other
+                && operands.equals(other.operands)
+                && operation == other.operation;
+    }
+
+    @Override
+    public int hashCode()
+    {
+        return Objects.hash(getClass(), operands, operation);
     }
 }

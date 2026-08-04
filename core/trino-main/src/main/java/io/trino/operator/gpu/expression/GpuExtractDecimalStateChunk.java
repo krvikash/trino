@@ -26,6 +26,7 @@ import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -52,7 +53,7 @@ import static java.lang.Math.toIntExact;
  * {@link GpuCombineDecimalStateSumsToDecimal128} reassembles the sums into a DECIMAL128.
  */
 public final class GpuExtractDecimalStateChunk
-        implements GpuExpression
+        extends GpuExpression
 {
     public static final int COMPONENT_COUNT = 5;
     private static final int[] BYTE_OFFSET = {0, 4, 8, 12, 16};
@@ -214,5 +215,17 @@ public final class GpuExtractDecimalStateChunk
                         "sum(decimal) FINAL on GPU expects 8, 16, or 24 byte intermediate states");
             }
         }
+    }
+
+    @Override
+    public boolean equals(Object obj)
+    {
+        return obj instanceof GpuExtractDecimalStateChunk other && componentIdx == other.componentIdx;
+    }
+
+    @Override
+    public int hashCode()
+    {
+        return Objects.hash(getClass(), componentIdx);
     }
 }

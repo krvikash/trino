@@ -20,11 +20,12 @@ import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
 
 import java.util.List;
+import java.util.Objects;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
-public class GpuCoalesce
-        implements GpuExpression
+public final class GpuCoalesce
+        extends GpuExpression
 {
     private final List<GpuExpression> operands;
 
@@ -46,5 +47,17 @@ public class GpuCoalesce
             }
             return result.take();
         }
+    }
+
+    @Override
+    public boolean equals(Object obj)
+    {
+        return obj instanceof GpuCoalesce other && operands.equals(other.operands);
+    }
+
+    @Override
+    public int hashCode()
+    {
+        return Objects.hash(getClass(), operands);
     }
 }

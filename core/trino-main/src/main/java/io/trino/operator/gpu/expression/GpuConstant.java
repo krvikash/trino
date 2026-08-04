@@ -15,25 +15,32 @@ package io.trino.operator.gpu.expression;
 
 import ai.rapids.cudf.ColumnVector;
 import ai.rapids.cudf.Scalar;
+import io.trino.spi.gpu.GpuTypeConversion;
 import io.trino.spi.gpu.GpuTypeConversion.ToScalar;
 import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
+import io.trino.spi.type.Type;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 import static java.util.Objects.requireNonNull;
 
-public class GpuConstant
-        implements GpuExpression
+public final class GpuConstant
+        extends GpuExpression
 {
+    private final Type type;
     // TODO (https://starburstdata.atlassian.net/browse/ENG-9846) should the Scalar be created once?
     private final ToScalar toScalar;
     private final Optional<Object> value;
 
-    public GpuConstant(ToScalar toScalar, Optional<Object> value)
+    public GpuConstant(Type type, Optional<Object> value)
     {
-        this.toScalar = requireNonNull(toScalar, "toScalar is null");
+        this.type = requireNonNull(type, "type is null");
+        this.toScalar = GpuTypeConversion.toGpuMapping(type)
+                .orElseThrow(() -> new UnsupportedOperationException("Unsupported type: " + type))
+                .toScalar();
         this.value = requireNonNull(value, "value is null");
     }
 
@@ -43,5 +50,24 @@ public class GpuConstant
         try (Scalar scalar = toScalar.copyToScalar(value)) {
             return ColumnVector.fromScalar(scalar, positionCount);
         }
+    }
+
+    @Override
+    public boolean equals(Object obj)
+    {
+        return obj instanceof GpuConstant other
+                && type.equals(other.type)
+                // derived: && toScalar.equals(other.toScalar)
+                && value.equals(other.value);
+    }
+
+    @Override
+    public int hashCode()
+    {
+        return Objects.hash(
+                getClass(),
+                type,
+                // derived: toScalar,
+                value);
     }
 }

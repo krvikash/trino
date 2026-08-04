@@ -49,6 +49,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.stream.Stream;
@@ -416,14 +417,33 @@ final class TestGpuSumDecimalAggregation
      * compiled cast that {@link io.trino.operator.gpu.aggregation.GpuAggregationCompiler}'s
      * {@code shortDecimalSumPartial} emits as the first pre-projection.
      */
-    private record GpuShortDecimalToDecimal128(DType decimal128Type)
-            implements GpuExpression
+    private static final class GpuShortDecimalToDecimal128
+            extends GpuExpression
     {
+        private final DType decimal128Type;
+
+        private GpuShortDecimalToDecimal128(DType decimal128Type)
+        {
+            this.decimal128Type = decimal128Type;
+        }
+
         @Override
         public ColumnVector evaluate(int positionCount, List<ColumnVector> inputColumns)
         {
             checkState(inputColumns.size() == 1, "Expected exactly one input column, got %s", inputColumns.size());
             return inputColumns.getFirst().castTo(decimal128Type);
+        }
+
+        @Override
+        public boolean equals(Object obj)
+        {
+            return obj instanceof GpuShortDecimalToDecimal128 other && decimal128Type.equals(other.decimal128Type);
+        }
+
+        @Override
+        public int hashCode()
+        {
+            return Objects.hash(getClass(), decimal128Type);
         }
     }
 

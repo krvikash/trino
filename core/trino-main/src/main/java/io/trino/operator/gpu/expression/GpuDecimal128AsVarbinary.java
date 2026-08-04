@@ -31,8 +31,8 @@ import static com.google.common.base.Preconditions.checkState;
  * <p>Implementation reuses {@link GpuCombineSumChunksToVarbinary#decimal128ToBytes} since
  * cuDF's {@code byte_cast} rejects fixed-point inputs directly.
  */
-public class GpuDecimal128AsVarbinary
-        implements GpuExpression
+public final class GpuDecimal128AsVarbinary
+        extends GpuExpression
 {
     @Override
     public @Move ColumnVector evaluate(int positionCount, @Borrow List<ColumnVector> inputColumns)
@@ -43,5 +43,17 @@ public class GpuDecimal128AsVarbinary
                 "Expected DECIMAL128 input, got %s",
                 input.getType());
         return GpuCombineSumChunksToVarbinary.decimal128ToBytes(input);
+    }
+
+    @Override
+    public boolean equals(Object obj)
+    {
+        return obj instanceof GpuDecimal128AsVarbinary;
+    }
+
+    @Override
+    public int hashCode()
+    {
+        return getClass().hashCode();
     }
 }

@@ -20,14 +20,15 @@ import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
 
 import java.util.List;
+import java.util.Objects;
 
 import static ai.rapids.cudf.BinaryOp.GREATER_EQUAL;
 import static ai.rapids.cudf.BinaryOp.LESS_EQUAL;
 import static ai.rapids.cudf.BinaryOp.NULL_LOGICAL_AND;
 import static java.util.Objects.requireNonNull;
 
-public class GpuBetween
-        implements GpuExpression
+public final class GpuBetween
+        extends GpuExpression
 {
     private final GpuExpression value;
     private final GpuExpression min;
@@ -57,5 +58,20 @@ public class GpuBetween
                 }
             }
         }
+    }
+
+    @Override
+    public boolean equals(Object obj)
+    {
+        return obj instanceof GpuBetween other
+                && value.equals(other.value)
+                && min.equals(other.min)
+                && max.equals(other.max);
+    }
+
+    @Override
+    public int hashCode()
+    {
+        return Objects.hash(getClass(), value, min, max);
     }
 }

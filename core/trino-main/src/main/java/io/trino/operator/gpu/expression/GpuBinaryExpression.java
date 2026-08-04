@@ -21,14 +21,15 @@ import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
 
 import java.util.List;
+import java.util.Objects;
 
 import static java.util.Objects.requireNonNull;
 
 /**
  * Wrapper around cuDF {@link ColumnVector#binaryOp(BinaryOp, BinaryOperable, DType)}.
  */
-public class GpuBinaryExpression
-        implements GpuExpression
+public final class GpuBinaryExpression
+        extends GpuExpression
 {
     private final GpuExpression left;
     private final GpuExpression right;
@@ -50,5 +51,21 @@ public class GpuBinaryExpression
                 ColumnVector rightResult = right.evaluate(positionCount, inputColumns)) {
             return leftResult.binaryOp(operation, rightResult, outputType);
         }
+    }
+
+    @Override
+    public boolean equals(Object obj)
+    {
+        return obj instanceof GpuBinaryExpression other
+                && left.equals(other.left)
+                && right.equals(other.right)
+                && operation == other.operation
+                && outputType.equals(other.outputType);
+    }
+
+    @Override
+    public int hashCode()
+    {
+        return Objects.hash(getClass(), left, right, operation, outputType);
     }
 }
