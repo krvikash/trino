@@ -468,7 +468,6 @@
                                 <exclude>**/TestParallelSnowflakeQueryFailureRecoveryTest.java</exclude>
                                 <exclude>**/TestParallelSnowflakeTaskFailureRecoveryTest.java</exclude>
                                 <exclude>**/TestParallelSnowflakeTypeMapping.java</exclude>
-                                <exclude>**/TestSnowflakeJmxStats.java</exclude>
                             </excludes>
                         </configuration>
                     </plugin>
