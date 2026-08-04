@@ -439,6 +439,9 @@
                                 </packages>
                             </exception>
                         </exceptions>
+                        <ignoredClassPatterns>
+                            <ignoredClassPattern>org\.bouncycastle\.asn1\.iana\.IANAObjectIdentifiers</ignoredClassPattern>
+                        </ignoredClassPatterns>
                     </configuration>
                 </plugin>
             </plugins>
