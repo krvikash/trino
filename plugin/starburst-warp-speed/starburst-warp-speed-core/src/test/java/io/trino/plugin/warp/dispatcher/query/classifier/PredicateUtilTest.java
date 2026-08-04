@@ -15,7 +15,11 @@ package io.trino.plugin.warp.dispatcher.query.classifier;
 
 import io.airlift.slice.Slices;
 import io.trino.plugin.warp.dispatcher.query.PredicateData;
+import io.trino.plugin.warp.expression.NativeExpression;
+import io.trino.plugin.warp.expression.TransformFunction;
+import io.trino.plugin.warp.gen.constants.FunctionType;
 import io.trino.plugin.warp.gen.constants.PredicateType;
+import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.type.TypeUtils;
 import io.trino.spi.predicate.Domain;
 import io.trino.spi.predicate.Range;
@@ -23,9 +27,12 @@ import io.trino.spi.predicate.ValueSet;
 import io.trino.spi.type.DateType;
 import io.trino.spi.type.DecimalType;
 import io.trino.spi.type.Decimals;
+import io.trino.spi.type.DoubleType;
 import io.trino.spi.type.Int128;
 import io.trino.spi.type.IntegerType;
+import io.trino.spi.type.RealType;
 import io.trino.spi.type.SmallintType;
+import io.trino.spi.type.TimestampType;
 import io.trino.spi.type.TinyintType;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.VarcharType;
@@ -240,6 +247,74 @@ public class PredicateUtilTest
             domain = Domain.create(ValueSet.ofRanges(range1, range2), true);
             validatePredicateType(domain, PREDICATE_TYPE_VALUES, false);
         }
+    }
+
+    @Test
+    public void testCalcPredicateData_castWideningRangesSizedAtTargetWidth()
+    {
+        // CAST(int_col AS double): sizing must use the 8-byte target width, not the 4-byte source.
+        Domain domain = Domain.create(ValueSet.ofRanges(Range.greaterThan(DoubleType.DOUBLE, 5.0)), false);
+        int sourceRecTypeLength = TypeUtils.getTypeLength(IntegerType.INTEGER, 0);
+        int castTargetRecTypeLength = TypeUtils.getTypeLength(DoubleType.DOUBLE, 0);
+        NativeExpression nativeExpression = castNativeExpression(PREDICATE_TYPE_RANGES, domain, RecTypeCode.REC_TYPE_DOUBLE);
+
+        PredicateData predicateData = PredicateUtil.calcPredicateData(nativeExpression, sourceRecTypeLength, true, IntegerType.INTEGER, castTargetRecTypeLength);
+
+        int expectedSize = PredicateUtil.PREDICATE_HEADER_SIZE
+                + Byte.BYTES // function-type byte
+                + Integer.BYTES // cast-target tag
+                + 2 * (castTargetRecTypeLength + 1); // 1 range * [value][inclusive] pairs, at TARGET width
+        assertThat(predicateData.getPredicateSize()).isEqualTo(expectedSize);
+        assertThat(predicateData.getPredicateInfo().predicateType()).isEqualTo(PREDICATE_TYPE_RANGES);
+        assertThat(predicateData.getPredicateInfo().recTypeLength()).isEqualTo(sourceRecTypeLength);
+    }
+
+    @Test
+    public void testCalcPredicateData_castNarrowingRangesNotRegressed()
+    {
+        // CAST(double_col AS real): the pre-existing narrowing case, still correct at the target width.
+        Domain domain = Domain.create(ValueSet.ofRanges(Range.greaterThan(RealType.REAL, (long) Float.floatToIntBits(5.0f))), false);
+        int sourceRecTypeLength = TypeUtils.getTypeLength(DoubleType.DOUBLE, 0);
+        int castTargetRecTypeLength = TypeUtils.getTypeLength(RealType.REAL, 0);
+        NativeExpression nativeExpression = castNativeExpression(PREDICATE_TYPE_RANGES, domain, RecTypeCode.REC_TYPE_REAL);
+
+        PredicateData predicateData = PredicateUtil.calcPredicateData(nativeExpression, sourceRecTypeLength, true, DoubleType.DOUBLE, castTargetRecTypeLength);
+
+        int expectedSize = PredicateUtil.PREDICATE_HEADER_SIZE + Byte.BYTES + Integer.BYTES + 2 * (castTargetRecTypeLength + 1);
+        assertThat(predicateData.getPredicateSize()).isEqualTo(expectedSize);
+    }
+
+    @Test
+    public void testCalcPredicateData_castTimestampToDatePrecisionByteMatchesSource()
+    {
+        // CAST(ts_col AS date): the precision byte is keyed on the source type (TimestampType), not
+        // the CAST target (date).
+        Type sourceType = TimestampType.createTimestampType(3);
+        Domain domain = Domain.create(ValueSet.ofRanges(Range.greaterThan(DateType.DATE, 100L)), false);
+        int sourceRecTypeLength = TypeUtils.getTypeLength(sourceType, 0);
+        int castTargetRecTypeLength = TypeUtils.getTypeLength(DateType.DATE, 0);
+        NativeExpression nativeExpression = castNativeExpression(PREDICATE_TYPE_RANGES, domain, RecTypeCode.REC_TYPE_DATE);
+
+        PredicateData predicateData = PredicateUtil.calcPredicateData(nativeExpression, sourceRecTypeLength, true, sourceType, castTargetRecTypeLength);
+
+        int expectedSize = PredicateUtil.PREDICATE_HEADER_SIZE
+                + Byte.BYTES // function-type byte
+                + Byte.BYTES // timestamp precision byte (source is TimestampType)
+                + Integer.BYTES // cast-target tag
+                + 2 * (castTargetRecTypeLength + 1); // 1 range, at the DATE target's width
+        assertThat(predicateData.getPredicateSize()).isEqualTo(expectedSize);
+    }
+
+    private static NativeExpression castNativeExpression(PredicateType predicateType, Domain domain, RecTypeCode castTargetRecTypeCode)
+    {
+        return new NativeExpression(
+                predicateType,
+                FunctionType.FUNCTION_TYPE_CAST,
+                domain,
+                false,
+                false,
+                List.of(castTargetRecTypeCode.ordinal()),
+                TransformFunction.NONE);
     }
 
     private void validatePredicateType(Domain domain, PredicateType expectedPredicateType, boolean transformAllowed)

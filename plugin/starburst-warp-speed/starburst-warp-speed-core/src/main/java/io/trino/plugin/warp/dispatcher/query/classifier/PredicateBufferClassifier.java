@@ -33,7 +33,9 @@ import io.trino.plugin.warp.juffer.PredicateCacheData;
 import io.trino.plugin.warp.juffer.PredicatesCacheService;
 import io.trino.plugin.warp.log.ShapingLogger;
 import io.trino.plugin.warp.log.ShapingLoggerFactory;
+import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.tools.util.Pair;
+import io.trino.plugin.warp.type.TypeUtils;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.predicate.Domain;
 import io.trino.spi.type.IntegerType;
@@ -63,6 +65,7 @@ class PredicateBufferClassifier
 
     private final ShapingLogger shapingLogger;
     private final PredicatesCacheService predicatesCacheService;
+    private final StorageEngineConstants storageEngineConstants;
     private final PredefinedPredicate noneWithNulls;
     private final PredefinedPredicate noneWithoutNulls;
     private final PredefinedPredicate allWithNulls;
@@ -72,9 +75,11 @@ class PredicateBufferClassifier
 
     PredicateBufferClassifier(
             PredicatesCacheService predicatesCacheService,
-            ShapingLoggerFactory shapingLoggerFactory)
+            ShapingLoggerFactory shapingLoggerFactory,
+            StorageEngineConstants storageEngineConstants)
     {
         this.predicatesCacheService = predicatesCacheService;
+        this.storageEngineConstants = storageEngineConstants;
         this.noneWithNulls = buildPredicateDataWithoutBuffer(PREDICATE_TYPE_NONE, true);
         this.noneWithoutNulls = buildPredicateDataWithoutBuffer(PREDICATE_TYPE_NONE, false);
         this.allWithNulls = buildPredicateDataWithoutBuffer(PREDICATE_TYPE_ALL, true);
@@ -149,11 +154,16 @@ class PredicateBufferClassifier
             int recTypeLength = queryMatchData.getWarmUpElement().getRecTypeLength();
             if (nativeExpressionOptional.isPresent()) {
                 domain = nativeExpressionOptional.get().domain();
+                // CAST predicates: the fillers write the payload at the target's width, not recTypeLength (the source's).
+                int castTargetRecTypeLength = nativeExpressionOptional.get().functionType() == FunctionType.FUNCTION_TYPE_CAST
+                        ? TypeUtils.getTypeLength(domain.getType(), storageEngineConstants.getVarcharMaxLen())
+                        : recTypeLength;
                 predicateData = calcPredicateData(
                         nativeExpressionOptional.get(),
                         recTypeLength,
                         transformAllowed,
-                        columnType);
+                        columnType,
+                        castTargetRecTypeLength);
             }
             else {
                 predicateData = calcPredicateData(

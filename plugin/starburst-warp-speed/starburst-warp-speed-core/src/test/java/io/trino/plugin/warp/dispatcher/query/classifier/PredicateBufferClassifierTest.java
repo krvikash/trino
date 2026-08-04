@@ -92,7 +92,8 @@ class PredicateBufferClassifierTest
         doReturn(Optional.of(mock(PredicateCacheData.class))).when(predicatesCacheService).predicateDataToBuffer(any(), any());
         predicateBufferClassifier = new PredicateBufferClassifier(
                 predicatesCacheService,
-                new ShapingLoggerFactory(new CatalogName("c"), new SharedConfig()));
+                new ShapingLoggerFactory(new CatalogName("c"), new SharedConfig()),
+                storageEngineConstants);
 
         rowGroupData = mock(RowGroupData.class);
         DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer = new TestingConnectorProxiedConnectorTransformer();

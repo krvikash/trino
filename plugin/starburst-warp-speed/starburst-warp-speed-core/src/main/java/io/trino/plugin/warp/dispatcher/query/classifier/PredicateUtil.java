@@ -58,7 +58,7 @@ public class PredicateUtil
                 (type.isOrderable() || warmUpElement.get().getWarpColumn().isTransformedColumn());
     }
 
-    static PredicateData calcPredicateData(NativeExpression nativeExpression, int recTypeLength, boolean transformAllowed, Type columnType)
+    static PredicateData calcPredicateData(NativeExpression nativeExpression, int recTypeLength, boolean transformAllowed, Type columnType, int castTargetRecTypeLength)
     {
         int numMatchElements;
         int predicateSize = PREDICATE_HEADER_SIZE;
@@ -74,9 +74,12 @@ public class PredicateUtil
         if (functionType == FunctionType.FUNCTION_TYPE_TRANSFORMED) {
             functionType = FunctionType.FUNCTION_TYPE_NONE;
         }
+        // CAST predicates: fillers write the payload at the target's width, not the source's.
+        int elementRecTypeLength = (functionType == FunctionType.FUNCTION_TYPE_CAST) ? castTargetRecTypeLength : recTypeLength;
         if (functionType != FunctionType.FUNCTION_TYPE_NONE) {
             predicateSize += Byte.BYTES;
-            if (type instanceof TimestampType) {
+            // the precision byte is keyed on the source column type, not the CAST target - match it.
+            if (columnType instanceof TimestampType) {
                 predicateSize += Byte.BYTES;
             }
         }
@@ -107,17 +110,17 @@ public class PredicateUtil
                 // @TODO in testMapMultipleMapTypes we have a predicate that is all single but also ranges
                 // this is why we check here if type is values and not force it until the issue is fixed
                 if (nativeExpression.allSingleValue() && (predicateType == PredicateType.PREDICATE_TYPE_VALUES)) { // values and not ranges
-                    predicateSize += predicateSizeValues(numMatchElements, recTypeLength);
+                    predicateSize += predicateSizeValues(numMatchElements, elementRecTypeLength);
                 }
                 else if (transformAllowed && isInversePredicate(sortedRangeSet, type)) {
                     predicateType = PredicateType.PREDICATE_TYPE_INVERSE_VALUES;
                     numMatchElements--; // (-inf, 5),(5, 10),(10, inf) - we ignore infinity and take 5, 10
-                    predicateSize += predicateSizeInverseValues(numMatchElements, recTypeLength);
+                    predicateSize += predicateSizeInverseValues(numMatchElements, elementRecTypeLength);
                 }
                 else {
                     logger.debug("nativeExpression all-single %b predicate-type %s", nativeExpression.allSingleValue(), predicateType);
                     checkArgument(predicateType == PredicateType.PREDICATE_TYPE_RANGES, "predicateType is not ranges as expected");
-                    predicateSize += predicateSizeRanges(numMatchElements, recTypeLength);
+                    predicateSize += predicateSizeRanges(numMatchElements, elementRecTypeLength);
                 }
             }
         }
