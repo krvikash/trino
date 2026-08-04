@@ -288,8 +288,6 @@ public class WarpDispatcherPageSourceFactory
                 return new EmptyPageSource();
             }
 
-            addColumnStats(customStatsContext, queryContext);
-
             if (PageSourceDecision.PROXY.equals(pageSourceDecision)) {
                 addProxiedColumnStats(
                         dispatcherPageSourceStats,
@@ -311,6 +309,8 @@ public class WarpDispatcherPageSourceFactory
                         closeHandler,
                         PageSourceDecision.PROXY);
             }
+
+            addColumnStats(customStatsContext, queryContext);
 
             checkArgument(queryContext.getTotalRecords() != QueryClassifier.INVALID_TOTAL_RECORDS, "invalid totalRecords, %s", queryContext);
             if (PageSourceDecision.PREFILL.equals(pageSourceDecision)) {
