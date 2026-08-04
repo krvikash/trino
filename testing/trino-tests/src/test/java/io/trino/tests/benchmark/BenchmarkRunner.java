@@ -16,7 +16,6 @@ package io.trino.tests.benchmark;
 import ai.rapids.cudf.Rmm;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Splitter;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -668,62 +667,6 @@ public final class BenchmarkRunner
 
         void mergeCollapsedFiles(List<String> queriesRun)
                 throws IOException;
-    }
-
-    private static final class CompositeProfileSession
-            implements ProfileSession
-    {
-        private final List<ProfileSession> sessions;
-
-        CompositeProfileSession(List<ProfileSession> sessions)
-        {
-            this.sessions = ImmutableList.copyOf(requireNonNull(sessions, "sessions is null"));
-        }
-
-        @Override
-        public void writeRunMetadata(List<String> queriesRun, int warmup, int runs)
-                throws IOException
-        {
-            for (ProfileSession session : sessions) {
-                session.writeRunMetadata(queriesRun, warmup, runs);
-            }
-        }
-
-        @Override
-        public void start()
-                throws IOException
-        {
-            for (ProfileSession session : sessions) {
-                session.start();
-            }
-        }
-
-        @Override
-        public void stop()
-                throws IOException
-        {
-            for (ProfileSession session : sessions) {
-                session.stop();
-            }
-        }
-
-        @Override
-        public void dumpAndPostProcess(String displayName)
-                throws IOException
-        {
-            for (ProfileSession session : sessions) {
-                session.dumpAndPostProcess(displayName);
-            }
-        }
-
-        @Override
-        public void mergeCollapsedFiles(List<String> queriesRun)
-                throws IOException
-        {
-            for (ProfileSession session : sessions) {
-                session.mergeCollapsedFiles(queriesRun);
-            }
-        }
     }
 
     private static final class AsyncProfileSession
