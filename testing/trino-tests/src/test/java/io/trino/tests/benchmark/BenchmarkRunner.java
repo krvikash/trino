@@ -34,6 +34,7 @@ import io.trino.execution.QueryInfo;
 import io.trino.execution.TaskManagerConfig;
 import io.trino.server.testing.TestingTrinoServer;
 import io.trino.spi.NodeVersion;
+import io.trino.sql.planner.OptimizerConfig;
 import io.trino.sql.planner.planprinter.PlanPrinter;
 import io.trino.testing.DistributedQueryRunner;
 import io.trino.testing.MaterializedResult;
@@ -1439,6 +1440,8 @@ public final class BenchmarkRunner
         builder.addExtraProperty("query.max-memory", "1TB");
         builder.addExtraProperty("memory.heap-headroom-per-node", "20%");
         builder.addExtraProperty("experimental.force-single-node-query", "true");
+        // Restore the default overridden by DistributedQueryRunner.
+        builder.addExtraProperty("join-distribution-type", new OptimizerConfig().getJoinDistributionType().name());
         if (bind8080) {
             builder.addCoordinatorProperty("http-server.http.port", "8080");
         }
