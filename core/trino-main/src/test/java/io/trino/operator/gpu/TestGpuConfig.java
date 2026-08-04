@@ -47,7 +47,7 @@ public class TestGpuConfig
                 .setMaxQueryGpuMemoryPerNode(null)
                 .setMaxQueryOffHeapMemoryPerNode(null)
                 .setAggregationCompactionThreshold(DataSize.of(4, GIGABYTE))
-                .setTaskConcurrency(4)
+                .setExecutionConcurrency(4)
                 .setMaxConcurrentReads(null)
                 .setDeviceStatsSamplingInterval(new Duration(5, TimeUnit.SECONDS)));
     }
@@ -64,7 +64,7 @@ public class TestGpuConfig
                 .put("query.max-gpu-memory-per-node", "8GB")
                 .put("query.max-off-heap-memory-per-node", "4GB")
                 .put("gpu.aggregation.compaction-threshold", "2GB")
-                .put("gpu.task-concurrency", "8")
+                .put("gpu.execution-concurrency", "8")
                 .put("gpu.max-concurrent-reads", "32")
                 .put("gpu.device-stats.sampling-interval", "500ms")
                 .buildOrThrow();
@@ -78,7 +78,7 @@ public class TestGpuConfig
                 .setMaxQueryGpuMemoryPerNode(DataSize.of(8, GIGABYTE))
                 .setMaxQueryOffHeapMemoryPerNode(DataSize.of(4, GIGABYTE))
                 .setAggregationCompactionThreshold(DataSize.of(2, GIGABYTE))
-                .setTaskConcurrency(8)
+                .setExecutionConcurrency(8)
                 .setMaxConcurrentReads(32)
                 .setDeviceStatsSamplingInterval(new Duration(500, TimeUnit.MILLISECONDS));
 

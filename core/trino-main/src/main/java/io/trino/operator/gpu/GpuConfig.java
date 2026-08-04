@@ -75,7 +75,7 @@ public class GpuConfig
 
     private DataSize aggregationCompactionThreshold = DataSize.of(4, GIGABYTE);
 
-    private int taskConcurrency = 4;
+    private int executionConcurrency = 4;
 
     private Optional<Integer> maxConcurrentReads = Optional.empty();
 
@@ -208,17 +208,17 @@ public class GpuConfig
     }
 
     @Min(1)
-    public int getTaskConcurrency()
+    public int getExecutionConcurrency()
     {
-        return taskConcurrency;
+        return executionConcurrency;
     }
 
-    @Config("gpu.task-concurrency")
-    @ConfigDescription("Maximum number of drivers allowed to run GPU work concurrently")
+    @Config("gpu.execution-concurrency")
+    @ConfigDescription("Maximum number of execution threads allowed to run GPU work concurrently")
     @ConfigHidden // TODO (https://starburstdata.atlassian.net/browse/ENG-9839) officialize config toggles
-    public GpuConfig setTaskConcurrency(int taskConcurrency)
+    public GpuConfig setExecutionConcurrency(int executionConcurrency)
     {
-        this.taskConcurrency = taskConcurrency;
+        this.executionConcurrency = executionConcurrency;
         return this;
     }
 

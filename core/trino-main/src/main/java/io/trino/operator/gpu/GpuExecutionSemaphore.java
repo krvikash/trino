@@ -57,8 +57,8 @@ public class GpuExecutionSemaphore
     @Inject
     public GpuExecutionSemaphore(GpuConfig config)
     {
-        this.maxPermits = config.getTaskConcurrency();
-        this.availablePermits = config.getTaskConcurrency();
+        this.maxPermits = config.getExecutionConcurrency();
+        this.availablePermits = config.getExecutionConcurrency();
     }
 
     public synchronized AcquisitionResult tryAcquire()
