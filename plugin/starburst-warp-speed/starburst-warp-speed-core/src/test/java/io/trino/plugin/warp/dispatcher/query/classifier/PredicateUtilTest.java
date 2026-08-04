@@ -305,6 +305,24 @@ public class PredicateUtilTest
         assertThat(predicateData.getPredicateSize()).isEqualTo(expectedSize);
     }
 
+    @Test
+    public void testCalcPredicateData_castNeverPromotedToInverseValues()
+    {
+        // CAST(int_col AS bigint) <> 5: would normally be reclassified as INVERSE_VALUES, but must
+        // never be for a CAST predicate - native's fill_inverse_values() has no CAST handling.
+        Range range1 = Range.greaterThan(BIGINT, 5L);
+        Range range2 = Range.lessThan(BIGINT, 5L);
+        Domain domain = Domain.create(ValueSet.ofRanges(range1, range2), true);
+        int sourceRecTypeLength = TypeUtils.getTypeLength(IntegerType.INTEGER, 0);
+        int castTargetRecTypeLength = TypeUtils.getTypeLength(BIGINT, 0);
+        NativeExpression nativeExpression = castNativeExpression(PREDICATE_TYPE_RANGES, domain, RecTypeCode.REC_TYPE_BIGINT);
+
+        PredicateData predicateData = PredicateUtil.calcPredicateData(nativeExpression, sourceRecTypeLength, true, IntegerType.INTEGER, castTargetRecTypeLength);
+
+        assertThat(predicateData.getPredicateInfo().predicateType()).isEqualTo(PREDICATE_TYPE_RANGES);
+        assertThat(predicateData.getPredicateInfo().numValues()).isEqualTo(domain.getValues().getRanges().getRangeCount());
+    }
+
     private static NativeExpression castNativeExpression(PredicateType predicateType, Domain domain, RecTypeCode castTargetRecTypeCode)
     {
         return new NativeExpression(

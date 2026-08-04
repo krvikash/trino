@@ -112,7 +112,9 @@ public class PredicateUtil
                 if (nativeExpression.allSingleValue() && (predicateType == PredicateType.PREDICATE_TYPE_VALUES)) { // values and not ranges
                     predicateSize += predicateSizeValues(numMatchElements, elementRecTypeLength);
                 }
-                else if (transformAllowed && isInversePredicate(sortedRangeSet, type)) {
+                // never promote a CAST predicate to INVERSE_VALUES: native's fill_inverse_values() has
+                // no FUNCTION_TYPE_CAST handling and would misread the CAST-target-width payload.
+                else if (transformAllowed && functionType != FunctionType.FUNCTION_TYPE_CAST && isInversePredicate(sortedRangeSet, type)) {
                     predicateType = PredicateType.PREDICATE_TYPE_INVERSE_VALUES;
                     numMatchElements--; // (-inf, 5),(5, 10),(10, inf) - we ignore infinity and take 5, 10
                     predicateSize += predicateSizeInverseValues(numMatchElements, elementRecTypeLength);
