@@ -63,17 +63,19 @@ public abstract class GpuAggregation
          * True if input is raw data (SINGLE/PARTIAL steps), false if input is intermediate state (FINAL/INTERMEDIATE steps).
          */
         private final boolean inputRaw;
+        private final boolean outputPartial;
         // derived
         private final List<Type> outputTypes;
         private final long compactionThresholdBytes;
         private final int inputColumnCount;
 
-        public Factory(List<GpuAggregateFunction> aggregates, int[] groupByChannels, List<Type> groupByTypes, boolean inputRaw, long compactionThresholdBytes, int inputColumnCount)
+        public Factory(List<GpuAggregateFunction> aggregates, int[] groupByChannels, List<Type> groupByTypes, boolean inputRaw, boolean outputPartial, long compactionThresholdBytes, int inputColumnCount)
         {
             this.aggregates = ImmutableList.copyOf(requireNonNull(aggregates, "aggregates is null"));
             this.groupByChannels = groupByChannels.clone();
             this.groupByTypes = ImmutableList.copyOf(requireNonNull(groupByTypes, "groupByTypes is null"));
             this.inputRaw = inputRaw;
+            this.outputPartial = outputPartial;
 
             ImmutableList.Builder<Type> outputTypes = ImmutableList.builder();
             outputTypes.addAll(groupByTypes);
@@ -88,16 +90,16 @@ public abstract class GpuAggregation
         @Override
         public Factory duplicate()
         {
-            return new Factory(aggregates, groupByChannels, groupByTypes, inputRaw, compactionThresholdBytes, inputColumnCount);
+            return new Factory(aggregates, groupByChannels, groupByTypes, inputRaw, outputPartial, compactionThresholdBytes, inputColumnCount);
         }
 
         @Override
         public GpuOperation create(Context context, GpuOperation source)
         {
             if (groupByChannels.length == 0) {
-                return new GpuGlobalAggregation(context, source, aggregates, inputRaw, compactionThresholdBytes, inputColumnCount);
+                return new GpuGlobalAggregation(context, source, aggregates, inputRaw, outputPartial, compactionThresholdBytes, inputColumnCount);
             }
-            return new GpuGroupByAggregation(context, source, aggregates, groupByChannels, inputRaw, compactionThresholdBytes, inputColumnCount);
+            return new GpuGroupByAggregation(context, source, aggregates, groupByChannels, inputRaw, outputPartial, compactionThresholdBytes, inputColumnCount);
         }
 
         @Override
@@ -113,6 +115,7 @@ public abstract class GpuAggregation
     private final GpuOperation source;
     protected final List<GpuAggregateFunction> aggregates;
     protected final boolean inputRaw;
+    private final boolean outputPartial;
     private final long compactionThresholdBytes;
 
     private final @Own TablesList inputTables = TablesList.create();
@@ -128,6 +131,7 @@ public abstract class GpuAggregation
             GpuOperation source,
             List<GpuAggregateFunction> aggregates,
             boolean inputRaw,
+            boolean outputPartial,
             long compactionThresholdBytes,
             int inputColumnCount)
     {
@@ -135,6 +139,7 @@ public abstract class GpuAggregation
         this.source = requireNonNull(source, "source is null");
         this.aggregates = ImmutableList.copyOf(requireNonNull(aggregates, "aggregates is null"));
         this.inputRaw = inputRaw;
+        this.outputPartial = outputPartial;
         this.compactionThresholdBytes = compactionThresholdBytes;
         this.maxNestedInputRowCountPerColumn = new int[inputColumnCount];
         this.allocated = ClosingRef.own(context.taskMemoryContext().allocate(getClass().getSimpleName(), MemoryAmount.ZERO));
@@ -153,7 +158,8 @@ public abstract class GpuAggregation
             case Yielded yielded -> yielded;
             case Data(AllocatedMemory memory, GpuPage page) -> {
                 bufferPage(memory, page);
-                yield new Yielded();
+                Optional<Data> flushed = maybeFlushPartial();
+                yield flushed.isPresent() ? flushed.get() : new Yielded();
             }
             case Finished() -> {
                 finished = true;
@@ -201,6 +207,34 @@ public abstract class GpuAggregation
                     compact();
                 }
             }
+        }
+    }
+
+    private @Move Optional<Data> maybeFlushPartial()
+    {
+        if (!outputPartial || compactedTable.isEmpty()) {
+            return Optional.empty();
+        }
+        long compactedBytes = compactedTable.borrow().getDeviceMemorySize();
+        if (compactedBytes <= compactionThresholdBytes) {
+            return Optional.empty();
+        }
+
+        @Own Optional<GpuPage> aggregationResult = finishAggregation();
+
+        totalInputBytes = 0;
+        Arrays.fill(maxNestedInputRowCountPerColumn, 0);
+        totalBufferedRowCount = 0;
+
+        if (aggregationResult.isEmpty()) {
+            return Optional.empty();
+        }
+        try (ClosingRef<GpuPage> flushed = ClosingRef.own(aggregationResult.get());
+                ClosingRef<AllocatedMemory> movedAllocation = ClosingRef.own(context.taskMemoryContext().allocate(getClass().getSimpleName(), MemoryAmount.ZERO))) {
+            MemoryAmount pageMemory = flushed.borrow().retainedMemory();
+            allocated.borrow().update(pageMemory); // nothing gets retained
+            movedAllocation.borrow().transferFrom(allocated.borrow(), pageMemory);
+            return Optional.of(new Data(movedAllocation.take(), flushed.take()));
         }
     }
 
@@ -253,11 +287,12 @@ public abstract class GpuAggregation
     private Optional<GpuPage> finishAggregation()
     {
         compact();
-        try (compactedTable) {
-            if (compactedTable.isEmpty()) {
-                return finishAggregation(null, totalBufferedRowCount);
-            }
-            return finishAggregation(compactedTable.borrow(), totalBufferedRowCount);
+        if (compactedTable.isEmpty()) {
+            return finishAggregation(null, totalBufferedRowCount);
+        }
+        try (Table table = compactedTable.take()) {
+            // TODO we might need to account for memory needed to calculate `GpuAggregateFunction.postProcessGroupByResult`
+            return finishAggregation(table, totalBufferedRowCount);
         }
     }
 

@@ -91,6 +91,10 @@ final class TestGpuAggregationOperator
 {
     private static final TestingFunctionResolution FUNCTION_RESOLUTION = new TestingFunctionResolution();
     private static final int GROUP_KEY_CHANNEL = 0;
+    // Small enough that the multi-batch tests compact incrementally (each ~100k-row batch exceeds it) and a
+    // high-cardinality partial aggregation flushes, but large enough that low-cardinality and small inputs
+    // aggregate into a single resident state without flushing.
+    private static final long COMPACTION_THRESHOLD_BYTES = 256 * 1024;
 
     @BeforeAll
     static void maybeSetGpuMemoryPool()
@@ -540,6 +544,20 @@ final class TestGpuAggregationOperator
     }
 
     @Test
+    void testGroupByHighCardinalityPartialFlushes()
+    {
+        // Many distinct groups so the compacted partial state grows past COMPACTION_THRESHOLD_BYTES and the
+        // partial aggregation flushes mid-stream, spreading a group's intermediate across multiple output pages.
+        int groupCount = 60_000;
+        List<Page> inputPages = List.of(
+                new Page(createGroupByBlock(TARGET_ROW_COUNT, groupCount), createBigintBlock(TARGET_ROW_COUNT, RANDOM_NULLS, 1, 10)),
+                new Page(createGroupByBlock(TARGET_ROW_COUNT, groupCount), createBigintBlock(TARGET_ROW_COUNT, RANDOM_NULLS, 1, 10)),
+                new Page(createGroupByBlock(TARGET_ROW_COUNT, groupCount), createBigintBlock(TARGET_ROW_COUNT, RANDOM_NULLS, 1, 10)));
+        List<Page> results = assertGroupByMatchesCpu(inputPages, "sum", List.of(BIGINT), PARTIAL);
+        assertThat(results).as("Expected the partial aggregation to flush multiple pages").hasSizeGreaterThan(1);
+    }
+
+    @Test
     void testBoolOrGlobalEmpty()
     {
         Page inputPage = createEmptyPage(List.of(BOOLEAN));
@@ -840,16 +858,20 @@ final class TestGpuAggregationOperator
         List<Type> inputTypes = argumentTypes.isEmpty() ? List.of(BIGINT) : List.copyOf(argumentTypes);
 
         List<Page> results = runGpuPipeline(inputPages, inputTypes, compiled);
-        checkState(results.size() == 1, "Expected single result page");
-        Page resultPage = results.getFirst();
-        checkState(resultPage.getPositionCount() == 1, "Expected single row");
 
         ResolvedFunction resolvedFunction = FUNCTION_RESOLUTION.resolveFunction(functionName, fromTypes(argumentTypes));
         Object gpuResult;
         if (step.isOutputPartial()) {
-            gpuResult = runCpuFinal(functionName, resolvedFunction.signature().getReturnType(), resultPage.getBlock(0));
+            // A partial aggregation may flush its state as several pages; the final re-merge is associative, so
+            // concatenate the intermediates and fold them together with the CPU FINAL aggregation.
+            Type intermediateType = FUNCTION_RESOLUTION.getAggregateFunction(functionName, fromTypes(argumentTypes)).getIntermediateType();
+            Block merged = mergePages(results, List.of(intermediateType)).getBlock(0);
+            gpuResult = runCpuFinal(functionName, resolvedFunction.signature().getReturnType(), merged);
         }
         else {
+            checkState(results.size() == 1, "Expected single result page");
+            Page resultPage = results.getFirst();
+            checkState(resultPage.getPositionCount() == 1, "Expected single row");
             gpuResult = getOnlyValue(resolvedFunction.signature().getReturnType(), resultPage.getBlock(0));
         }
 
@@ -857,7 +879,7 @@ final class TestGpuAggregationOperator
         assertAggregation(FUNCTION_RESOLUTION, functionName, fromTypes(argumentTypes), gpuResult, inputPage);
     }
 
-    private void assertGroupByMatchesCpu(List<Page> inputPages, String functionName, List<Type> argumentTypes, Step step)
+    private List<Page> assertGroupByMatchesCpu(List<Page> inputPages, String functionName, List<Type> argumentTypes, Step step)
     {
         GpuAggregationCompiler.AggregationCompileResult.Success compiled = compileAggregation(functionName, argumentTypes, true, step, false);
         List<Type> inputTypes = ImmutableList.<Type>builder()
@@ -868,20 +890,36 @@ final class TestGpuAggregationOperator
         List<Page> results = runGpuPipeline(inputPages, inputTypes, compiled);
 
         ResolvedFunction resolvedFunction = FUNCTION_RESOLUTION.resolveFunction(functionName, fromTypes(argumentTypes));
-        Type outputType = step.isOutputPartial() ? VARBINARY : resolvedFunction.signature().getReturnType();
 
         Map<Object, Object> gpuResult = new HashMap<>();
-        for (Page page : results) {
-            for (int position = 0; position < page.getPositionCount(); position++) {
-                Object groupKey = BIGINT.getObjectValue(page.getBlock(0), position);
-                Object groupValue;
-                if (step.isOutputPartial()) {
-                    groupValue = runCpuFinal(functionName, resolvedFunction.signature().getReturnType(), page.getBlock(1).getRegion(position, 1));
+        if (step.isOutputPartial()) {
+            // A partial aggregation may flush its state before seeing all rows, so a group's intermediate can be
+            // split across several output pages. Collect each group's partial states and fold them together with
+            // the CPU FINAL aggregation (which is associative) before comparing.
+            Type intermediateType = FUNCTION_RESOLUTION.getAggregateFunction(functionName, fromTypes(argumentTypes)).getIntermediateType();
+            Map<Object, BlockBuilder> partialsByGroup = new HashMap<>();
+            for (Page page : results) {
+                Block groupBlock = page.getBlock(0);
+                Block intermediateBlock = page.getBlock(1);
+                for (int position = 0; position < page.getPositionCount(); position++) {
+                    Object groupKey = BIGINT.getObjectValue(groupBlock, position);
+                    partialsByGroup.computeIfAbsent(groupKey, _ -> intermediateType.createBlockBuilder(null, results.size()))
+                            .appendBlockRange(intermediateBlock, position, 1);
                 }
-                else {
-                    groupValue = outputType.getObjectValue(page.getBlock(1), position);
+            }
+            for (Map.Entry<Object, BlockBuilder> entry : partialsByGroup.entrySet()) {
+                verify(gpuResult.put(entry.getKey(), runCpuFinal(functionName, resolvedFunction.signature().getReturnType(), entry.getValue().build())) == null);
+            }
+        }
+        else {
+            Type outputType = resolvedFunction.signature().getReturnType();
+            for (Page page : results) {
+                Block groupBlock = page.getBlock(0);
+                Block valueBlock = page.getBlock(1);
+                for (int position = 0; position < page.getPositionCount(); position++) {
+                    Object groupKey = BIGINT.getObjectValue(groupBlock, position);
+                    verify(gpuResult.put(groupKey, outputType.getObjectValue(valueBlock, position)) == null);
                 }
-                verify(gpuResult.put(groupKey, groupValue) == null);
             }
         }
 
@@ -896,6 +934,7 @@ final class TestGpuAggregationOperator
                     .as("Group %s: expected %s but was %s", groupKey, cpuValue, gpuValue)
                     .isTrue();
         }
+        return results;
     }
 
     private void assertMaskedGlobalMatchesCpu(Page inputPage, String functionName, List<Type> argumentTypes)
@@ -1083,7 +1122,7 @@ final class TestGpuAggregationOperator
             layoutBuilder.put(allSourceSymbols.get(i), i);
         }
 
-        return GpuAggregationCompiler.compile(node, layoutBuilder.buildOrThrow(), /*compactionThresholdBytes=*/ 1);
+        return GpuAggregationCompiler.compile(node, layoutBuilder.buildOrThrow(), COMPACTION_THRESHOLD_BYTES);
     }
 
     private static List<Page> runGpuPipeline(List<Page> inputPages, List<Type> inputTypes, GpuAggregationCompiler.AggregationCompileResult.Success compiled)
@@ -1201,7 +1240,7 @@ final class TestGpuAggregationOperator
                 inputTypes,
                 outputTypesBuilder.build(),
                 (context, copyToDevice) -> {
-                    GpuAggregation.Factory factory = new GpuAggregation.Factory(aggregates, groupByChannels, groupByTypesBuilder.build(), inputRaw, /*compactionThresholdBytes=*/ 1, inputTypes.size());
+                    GpuAggregation.Factory factory = new GpuAggregation.Factory(aggregates, groupByChannels, groupByTypesBuilder.build(), inputRaw, /*outputPartial=*/ false, COMPACTION_THRESHOLD_BYTES, inputTypes.size());
                     return factory.create(context, copyToDevice);
                 });
     }

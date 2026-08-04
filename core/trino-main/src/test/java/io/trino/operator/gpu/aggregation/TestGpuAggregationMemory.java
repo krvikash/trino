@@ -133,6 +133,7 @@ class TestGpuAggregationMemory
                 new int[] {0},
                 List.of(BIGINT),
                 /*inputRaw=*/ true,
+                /*outputPartial=*/ false,
                 threshold,
                 inputTypes.size());
         Iterator<Page> inputPages = fewDistinctKeyPages(6).iterator();
@@ -212,6 +213,7 @@ class TestGpuAggregationMemory
                     groupByChannels,
                     groupByTypes,
                     inputRaw,
+                    /*outputPartial=*/ false,
                     /*compactionThresholdBytes=*/ 1,
                     inputTypes.size());
             try (var source = new SettableGpuOperation();

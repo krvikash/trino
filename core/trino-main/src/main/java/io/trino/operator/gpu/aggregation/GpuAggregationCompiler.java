@@ -217,6 +217,7 @@ public final class GpuAggregationCompiler
                 aggregationGroupByChannels,
                 groupByTypes,
                 step.isInputRaw(),
+                step.isOutputPartial(),
                 compactionThresholdBytes,
                 currentChannel));
         stages.add(new GpuProject.Factory(postProjections.build()));

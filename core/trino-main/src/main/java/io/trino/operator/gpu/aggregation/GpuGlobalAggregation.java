@@ -44,10 +44,11 @@ final class GpuGlobalAggregation
             GpuOperation source,
             List<GpuAggregateFunction> aggregates,
             boolean inputRaw,
+            boolean outputPartial,
             long compactionThresholdBytes,
             int inputColumnCount)
     {
-        super(context, source, aggregates, inputRaw, compactionThresholdBytes, inputColumnCount);
+        super(context, source, aggregates, inputRaw, outputPartial, compactionThresholdBytes, inputColumnCount);
     }
 
     @Override

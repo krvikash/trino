@@ -54,6 +54,17 @@ public record MemoryAmount(long heapBytes, long gpuDeviceBytes, long offHeapByte
                 Math.min(first.offHeapBytes(), second.offHeapBytes()));
     }
 
+    /**
+     * Returns the component-wise maximum of two memory amounts.
+     */
+    public static MemoryAmount max(MemoryAmount first, MemoryAmount second)
+    {
+        return new MemoryAmount(
+                Math.max(first.heapBytes(), second.heapBytes()),
+                Math.max(first.gpuDeviceBytes(), second.gpuDeviceBytes()),
+                Math.max(first.offHeapBytes(), second.offHeapBytes()));
+    }
+
     public MemoryAmount add(MemoryAmount other)
     {
         return new MemoryAmount(
