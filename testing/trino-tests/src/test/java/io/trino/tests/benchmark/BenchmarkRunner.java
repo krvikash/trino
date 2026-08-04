@@ -1438,14 +1438,13 @@ public final class BenchmarkRunner
         builder.addExtraProperty("query.max-memory-per-node", "80%");
         builder.addExtraProperty("query.max-memory", "1TB");
         builder.addExtraProperty("memory.heap-headroom-per-node", "20%");
+        builder.addExtraProperty("experimental.force-single-node-query", "true");
         switch (mode) {
             case CPU -> builder
-                    .addExtraProperty("gpu-execution", "false")
-                    .addExtraProperty("experimental.force-single-node-query", "true");
+                    .addExtraProperty("gpu-execution", "false");
             case GPU -> builder
                     .addExtraProperty("gpu-execution", "true")
-                    .addExtraProperty("task.gpu-execution.enabled", "true")
-                    .addExtraProperty("experimental.force-single-node-query", "true");
+                    .addExtraProperty("task.gpu-execution.enabled", "true");
         }
     }
 
