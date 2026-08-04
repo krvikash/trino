@@ -20,12 +20,14 @@ import io.trino.plugin.warp.WarpSessionProperties;
 import io.trino.plugin.warp.annotation.ForWarp;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.dispatcher.DispatcherPageSourceProviderFactory;
+import io.trino.plugin.warp.dispatcher.DispatcherSplitManager;
 import io.trino.plugin.warp.dispatcher.WorkerNodePartitioningProvider;
 import io.trino.plugin.warp.storage.capacity.WorkerCapacityManager;
 import io.trino.plugin.warp.storage.engine.nativeimpl.NativeStorageStateHandler;
 import io.trino.spi.connector.Connector;
 import io.trino.spi.connector.ConnectorNodePartitioningProvider;
 import io.trino.spi.connector.ConnectorPageSourceProviderFactory;
+import io.trino.spi.connector.ConnectorSplitManager;
 
 import static java.util.Objects.requireNonNull;
 
@@ -34,6 +36,7 @@ public class WorkerDispatcherConnector
         extends DispatcherConnectorBase
 {
     private final DispatcherPageSourceProviderFactory dispatcherPageSourceProviderFactory;
+    private final DispatcherSplitManager dispatcherSplitManager;
     private final WorkerCapacityManager workerCapacityManager;
 
     @Inject
@@ -42,6 +45,7 @@ public class WorkerDispatcherConnector
             GlobalConfig globalConfig,
             WarpSessionProperties warpSessionProperties,
             DispatcherPageSourceProviderFactory dispatcherPageSourceProviderFactory,
+            DispatcherSplitManager dispatcherSplitManager,
             LifeCycleManager lifeCycleManager,
             ConnectorTaskExecutor connectorTaskExecutor,
             NativeStorageStateHandler nativeStorageStateHandler,
@@ -49,7 +53,14 @@ public class WorkerDispatcherConnector
     {
         super(proxiedConnector, globalConfig, warpSessionProperties, lifeCycleManager, connectorTaskExecutor, nativeStorageStateHandler);
         this.dispatcherPageSourceProviderFactory = requireNonNull(dispatcherPageSourceProviderFactory);
+        this.dispatcherSplitManager = requireNonNull(dispatcherSplitManager);
         this.workerCapacityManager = workerCapacityManager;
+    }
+
+    @Override
+    public ConnectorSplitManager getSplitManager()
+    {
+        return dispatcherSplitManager;
     }
 
     @Override

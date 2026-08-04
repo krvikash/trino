@@ -49,6 +49,7 @@ import io.trino.spi.security.AiModelAccessControl;
 import io.trino.testing.AbstractTestQueryFramework;
 import io.trino.testing.QueryRunner;
 import io.trino.testing.TestingConnectorSession;
+import org.apache.iceberg.BaseTable;
 import org.apache.iceberg.FileFormat;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.PartitionSpecParser;
@@ -114,6 +115,7 @@ import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.sql.planner.TestingPlannerContext.PLANNER_CONTEXT;
 import static io.trino.tpch.TpchTable.NATION;
 import static io.trino.type.InternalTypeManager.TESTING_TYPE_MANAGER;
+import static org.apache.iceberg.SnapshotSummary.TOTAL_DELETE_FILES_PROP;
 import static org.apache.iceberg.TableProperties.ENCRYPTION_TABLE_KEY;
 import static org.apache.iceberg.TestIcebergPartitionStatistics.PARTITION_STATISTICS_WRITER;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -135,6 +137,10 @@ public class TestIcebergSplitSource
                     new ParquetWriterConfig())
                     .getSessionProperties())
             .build();
+    private static final long MEMORY_PER_POSITIONAL_DELETE_FILE =
+            new IcebergConfig().getRemoteSplitsGenerationMemoryPerPositionalDeleteFile().toBytes();
+    private static final long MEMORY_PER_EQUALITY_DELETE_FILE =
+            new IcebergConfig().getRemoteSplitsGenerationMemoryPerEqualityDeleteFile().toBytes();
 
     private TrinoFileSystemFactory fileSystemFactory;
     private TrinoCatalog catalog;
@@ -189,6 +195,7 @@ public class TestIcebergSplitSource
                 CREATE_CHANGELOG_VIEW,
                 Optional.empty(),
                 3,
+                16,
                 false,
                 _ -> false,
                 UTC,
@@ -342,6 +349,132 @@ public class TestIcebergSplitSource
         }
         finally {
             assertUpdate("DROP TABLE test_row_group_merging");
+        }
+    }
+
+    @Test
+    public void testMemoryUsage()
+            throws Exception
+    {
+        assertUpdate("CREATE TABLE test_memory_usage AS SELECT * FROM tpch.tiny.nation", 25);
+        try {
+            assertUpdate("DELETE FROM test_memory_usage WHERE nationkey % 5 = 0", 5);
+            SchemaTableName schemaTableName = new SchemaTableName("tpch", "test_memory_usage");
+            Table table = catalog.loadTable(SESSION, schemaTableName);
+            long totalDeleteFiles = Long.parseLong(table.currentSnapshot().summary().get(TOTAL_DELETE_FILES_PROP));
+            assertThat(totalDeleteFiles).isPositive();
+
+            IcebergTableHandle tableHandle = createTableHandle(schemaTableName, table, TupleDomain.all());
+            try (IcebergSplitSource splitSource = new IcebergSplitSource(
+                    new DefaultIcebergFileSystemFactory(fileSystemFactory),
+                    SESSION,
+                    icebergMetadata,
+                    tableHandle,
+                    table,
+                    table.newScan(),
+                    Optional.empty(),
+                    alwaysTrue(),
+                    TESTING_TYPE_MANAGER,
+                    false,
+                    0,
+                    MEMORY_PER_POSITIONAL_DELETE_FILE,
+                    MEMORY_PER_EQUALITY_DELETE_FILE,
+                    new NoopSplitAffinityProvider(),
+                    new InMemoryMetricsReporter(),
+                    newDirectExecutorService(),
+                    ImmutableSet.of(),
+                    ConnectorExpressionEvaluator.NO_OP)) {
+                // the delete-index estimate is reported before any split generation happens
+                assertThat(splitSource.getMemoryUsage()).isEqualTo(totalDeleteFiles * MEMORY_PER_POSITIONAL_DELETE_FILE);
+
+                while (!splitSource.isFinished()) {
+                    splitSource.getNextBatch(100, DynamicFilterSnapshot.EMPTY).get();
+                }
+                // exhausting the source releases the estimate
+                assertThat(splitSource.getMemoryUsage()).isEqualTo(0);
+            }
+        }
+        finally {
+            assertUpdate("DROP TABLE test_memory_usage");
+        }
+    }
+
+    @Test
+    public void testMemoryUsageWithPartitionPredicate()
+    {
+        assertUpdate("CREATE TABLE test_memory_usage_pruning WITH (partitioning = ARRAY['regionkey']) AS SELECT * FROM tpch.tiny.nation", 25);
+        try {
+            // one DELETE per region, so each commit adds a delete manifest covering a single partition
+            assertUpdate("DELETE FROM test_memory_usage_pruning WHERE nationkey IN (0, 5)", 2);
+            assertUpdate("DELETE FROM test_memory_usage_pruning WHERE nationkey IN (1, 2)", 2);
+            SchemaTableName schemaTableName = new SchemaTableName("tpch", "test_memory_usage_pruning");
+            Table table = catalog.loadTable(SESSION, schemaTableName);
+            long totalDeleteFiles = Long.parseLong(table.currentSnapshot().summary().get(TOTAL_DELETE_FILES_PROP));
+            assertThat(totalDeleteFiles).isEqualTo(2);
+
+            IcebergColumnHandle regionKey = IcebergColumnHandle.optional(
+                            new ColumnIdentity(3, "regionkey", ColumnIdentity.TypeCategory.PRIMITIVE, ImmutableList.of()))
+                    .columnType(BIGINT)
+                    .build();
+            IcebergTableHandle tableHandle = createTableHandle(
+                    schemaTableName,
+                    table,
+                    TupleDomain.fromFixedValues(ImmutableMap.of(regionKey, NullableValue.of(BIGINT, 0L))));
+            try (IcebergSplitSource splitSource = new IcebergSplitSource(
+                    new DefaultIcebergFileSystemFactory(fileSystemFactory),
+                    SESSION,
+                    icebergMetadata,
+                    tableHandle,
+                    table,
+                    table.newScan(),
+                    Optional.empty(),
+                    alwaysTrue(),
+                    TESTING_TYPE_MANAGER,
+                    false,
+                    0,
+                    MEMORY_PER_POSITIONAL_DELETE_FILE,
+                    MEMORY_PER_EQUALITY_DELETE_FILE,
+                    new NoopSplitAffinityProvider(),
+                    new InMemoryMetricsReporter(),
+                    newDirectExecutorService(),
+                    ImmutableSet.of(),
+                    ConnectorExpressionEvaluator.NO_OP)) {
+                // the delete manifest of the non-matching partition is pruned from the estimate
+                assertThat(splitSource.getMemoryUsage()).isEqualTo(MEMORY_PER_POSITIONAL_DELETE_FILE);
+            }
+        }
+        finally {
+            assertUpdate("DROP TABLE test_memory_usage_pruning");
+        }
+    }
+
+    @Test
+    public void testLoadTableFromMetadataLocation()
+    {
+        assertUpdate("CREATE TABLE test_load_from_metadata_location AS SELECT 1 x", 1);
+        try {
+            SchemaTableName schemaTableName = new SchemaTableName("tpch", "test_load_from_metadata_location");
+            BaseTable table = catalog.loadTable(SESSION, schemaTableName);
+            String metadataLocation = table.operations().current().metadataFileLocation();
+
+            // handles produced at analysis time carry the metadata location for worker-side split generation
+            IcebergTableHandle tableHandle = (IcebergTableHandle) icebergMetadata.getTableHandle(SESSION, schemaTableName, Optional.empty(), Optional.empty());
+            assertThat(tableHandle.getMetadataLocation()).contains(metadataLocation);
+
+            // advance the metastore's current metadata pointer past the captured location
+            table.updateProperties().set("test_pinned_property", "value").commit();
+            assertThat(table.properties()).containsEntry("test_pinned_property", "value");
+
+            // loading from the captured location reads that file, not the metastore's current pointer
+            BaseTable pinned = catalog.loadTableFromMetadataLocation(SESSION, schemaTableName, metadataLocation);
+            assertThat(pinned.properties()).doesNotContainKey("test_pinned_property");
+
+            // the parsed metadata is cached per location, so repeated split-generation loads do not re-parse the JSON
+            BaseTable pinnedAgain = catalog.loadTableFromMetadataLocation(SESSION, schemaTableName, metadataLocation);
+            assertThat(pinnedAgain.operations().current()).isSameAs(pinned.operations().current());
+        }
+        finally {
+            assertUpdate("DROP TABLE test_load_from_metadata_location");
         }
     }
 
@@ -676,6 +809,8 @@ public class TestIcebergSplitSource
                 TESTING_TYPE_MANAGER,
                 false,
                 0,
+                MEMORY_PER_POSITIONAL_DELETE_FILE,
+                MEMORY_PER_EQUALITY_DELETE_FILE,
                 new NoopSplitAffinityProvider(),
                 new InMemoryMetricsReporter(),
                 newDirectExecutorService(),
@@ -708,7 +843,7 @@ public class TestIcebergSplitSource
                 schemaTableName.getSchemaName(),
                 schemaTableName.getTableName(),
                 TableType.DATA,
-                OptionalLong.empty(),
+                OptionalLong.of(nationTable.currentSnapshot().snapshotId()),
                 SchemaParser.toJson(nationTable.schema()),
                 nationTable.spec() == null ? OptionalInt.empty() : OptionalInt.of(nationTable.spec().specId()),
                 transformValues(nationTable.specs(), PartitionSpecParser::toJson),
@@ -721,6 +856,7 @@ public class TestIcebergSplitSource
                 projectedColumns,
                 Optional.empty(),
                 nationTable.location(),
+                Optional.empty(),
                 nationTable.properties(),
                 Optional.empty(),
                 Optional.empty(),

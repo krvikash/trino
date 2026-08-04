@@ -32,6 +32,7 @@ import static io.airlift.configuration.testing.ConfigAssertions.assertRecordedDe
 import static io.airlift.configuration.testing.ConfigAssertions.recordDefaults;
 import static io.airlift.testing.ValidationAssertions.assertFailsValidation;
 import static io.airlift.units.DataSize.Unit.GIGABYTE;
+import static io.airlift.units.DataSize.Unit.KILOBYTE;
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
 import static io.trino.plugin.hive.HiveCompressionOption.ZSTD;
 import static io.trino.plugin.hive.util.TestHiveUtil.nonDefaultTimeZone;
@@ -99,6 +100,10 @@ public class TestIcebergConfig
                 .setMetadataParallelism(8)
                 .setCompositeSplitsEnabled(false)
                 .setBucketExecutionEnabled(true)
+                .setRemoteSplitsGenerationEnabled(false)
+                .setRemoteSplitsGenerationManifestsPerThread(16)
+                .setRemoteSplitsGenerationMemoryPerPositionalDeleteFile(DataSize.of(3, KILOBYTE))
+                .setRemoteSplitsGenerationMemoryPerEqualityDeleteFile(DataSize.of(6, KILOBYTE))
                 .setTimeZone("UTC")
                 .setLegacyVariantTypeMapping(VariantMapping.VARIANT)
                 .setDropTableMode(DropTableMode.PURGE)
@@ -158,6 +163,10 @@ public class TestIcebergConfig
                 .put("iceberg.metadata.parallelism", "10")
                 .put("iceberg.experimental.composite-splits.enabled", "true")
                 .put("iceberg.bucket-execution", "false")
+                .put("iceberg.remote-splits-generation.enabled", "true")
+                .put("iceberg.remote-splits-generation.manifests-per-thread", "32")
+                .put("iceberg.remote-splits-generation.memory-per-positional-delete-file", "4kB")
+                .put("iceberg.remote-splits-generation.memory-per-equality-delete-file", "7kB")
                 .put("iceberg.time-zone", nonDefaultTimeZone().getID())
                 .put("iceberg.legacy-variant-type-mapping", "JSON")
                 .put("iceberg.drop-table-mode", "keep")
@@ -215,6 +224,10 @@ public class TestIcebergConfig
                 .setMetadataParallelism(10)
                 .setCompositeSplitsEnabled(true)
                 .setBucketExecutionEnabled(false)
+                .setRemoteSplitsGenerationEnabled(true)
+                .setRemoteSplitsGenerationManifestsPerThread(32)
+                .setRemoteSplitsGenerationMemoryPerPositionalDeleteFile(DataSize.of(4, KILOBYTE))
+                .setRemoteSplitsGenerationMemoryPerEqualityDeleteFile(DataSize.of(7, KILOBYTE))
                 .setTimeZone(nonDefaultTimeZone().getID())
                 .setLegacyVariantTypeMapping(VariantMapping.JSON)
                 .setDropTableMode(DropTableMode.KEEP)

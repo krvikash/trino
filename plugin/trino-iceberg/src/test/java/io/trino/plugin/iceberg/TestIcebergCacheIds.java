@@ -68,6 +68,7 @@ import static com.google.common.util.concurrent.MoreExecutors.listeningDecorator
 import static com.google.common.util.concurrent.MoreExecutors.newDirectExecutorService;
 import static io.trino.hdfs.HdfsTestUtils.HDFS_FILE_SYSTEM_FACTORY;
 import static io.trino.metadata.InternalBlockEncodingSerde.TESTING_BLOCK_ENCODING_SERDE;
+import static io.trino.node.TestingInternalNodeManager.CURRENT_NODE;
 import static io.trino.plugin.iceberg.ColumnIdentity.primitiveColumnIdentity;
 import static io.trino.plugin.iceberg.IcebergTestUtils.CREATE_CHANGELOG_VIEW;
 import static io.trino.plugin.iceberg.IcebergTestUtils.ENCRYPTION_MANAGER_FACTORY;
@@ -160,13 +161,15 @@ public class TestIcebergCacheIds
                 createJsonCodec(IcebergColumnHandle.class));
         splitManager = new IcebergSplitManager(
                 new IcebergTransactionManager(icebergMetadataFactory),
+                new IcebergConfig(),
                 TESTING_TYPE_MANAGER,
                 new DefaultIcebergFileSystemFactory(HDFS_FILE_SYSTEM_FACTORY),
                 listeningDecorator(newSingleThreadExecutor()),
                 newSingleThreadScheduledExecutor(),
                 createJsonCodec(IcebergCacheSplitId.class),
                 new NoopSplitAffinityProvider(),
-                ConnectorExpressionEvaluator.NO_OP);
+                ConnectorExpressionEvaluator.NO_OP,
+                CURRENT_NODE);
     }
 
     @AfterAll
@@ -374,6 +377,7 @@ public class TestIcebergCacheIds
                 projectedColumns,
                 nameMappingJson,
                 tableLocation,
+                Optional.empty(),
                 Map.of(),
                 Optional.empty(),
                 Optional.empty(),
@@ -411,6 +415,7 @@ public class TestIcebergCacheIds
                 projectedColumns,
                 nameMappingJson,
                 tableLocation,
+                Optional.empty(),
                 Map.of(),
                 Optional.empty(),
                 Optional.empty(),
@@ -450,6 +455,7 @@ public class TestIcebergCacheIds
                 projectedColumns,
                 nameMappingJson,
                 tableLocation,
+                Optional.empty(),
                 Map.of(),
                 Optional.empty(),
                 Optional.empty(),
@@ -483,6 +489,7 @@ public class TestIcebergCacheIds
                 Set.of(),
                 Optional.empty(),
                 "tableLocation",
+                Optional.empty(),
                 storageProperties,
                 Optional.empty(),
                 Optional.empty(),

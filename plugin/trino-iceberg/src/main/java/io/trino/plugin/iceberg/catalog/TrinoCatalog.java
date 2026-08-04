@@ -160,6 +160,18 @@ public interface TrinoCatalog
     BaseTable loadTable(ConnectorSession session, SchemaTableName schemaTableName);
 
     /**
+     * Load an Iceberg table pinned to the given metadata file, reading it through FileIO instead
+     * of consulting the catalog backend for the current metadata pointer. Used by remote splits
+     * generation so a worker does not repeat the metastore round-trip the coordinator already made.
+     * Catalogs that cannot construct table operations from a metadata location (e.g. REST) fall
+     * back to a regular {@link #loadTable}.
+     */
+    default BaseTable loadTableFromMetadataLocation(ConnectorSession session, SchemaTableName schemaTableName, String metadataLocation)
+    {
+        return loadTable(session, schemaTableName);
+    }
+
+    /**
      * Bulk load column metadata. The returned map may contain fewer entries then asked for.
      */
     Map<SchemaTableName, List<ColumnMetadata>> tryGetColumnMetadata(ConnectorSession session, List<SchemaTableName> tables);

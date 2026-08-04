@@ -69,6 +69,7 @@ public class IcebergCacheMetadata
                 icebergTableHandle.getProjectedColumns(),
                 icebergTableHandle.getNameMappingJson(),
                 icebergTableHandle.getTableLocation(),
+                icebergTableHandle.getMetadataLocation(),
                 icebergTableHandle.getStorageProperties(),
                 icebergTableHandle.getTablePartitioning(),
                 icebergTableHandle.getBranch(),

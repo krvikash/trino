@@ -116,6 +116,7 @@ import static io.trino.cache.CacheUtils.uncheckedCacheGet;
 import static io.trino.cache.SafeCaches.buildNonEvictableCache;
 import static io.trino.plugin.iceberg.ExpressionConverter.isConvertibleToIcebergExpression;
 import static io.trino.plugin.iceberg.ExpressionConverter.toIcebergExpression;
+import static io.trino.plugin.iceberg.IcebergDeleteFilesMemoryEstimator.estimateSplitSourceMemory;
 import static io.trino.plugin.iceberg.IcebergExceptions.translateMetadataException;
 import static io.trino.plugin.iceberg.IcebergMetadataColumn.isMetadataColumnId;
 import static io.trino.plugin.iceberg.IcebergPartitionFunction.Transform.BUCKET;
@@ -173,6 +174,7 @@ public class IcebergSplitSource
     @GuardedBy("closer")
     private ListenableFuture<List<ConnectorSplit>> currentBatchFuture;
     private final double minimumAssignedSplitWeight;
+    private final Supplier<Long> estimatedSplitSourceMemory;
     private final Set<Integer> projectedBaseColumns;
     private final TupleDomain<IcebergColumnHandle> dataColumnPredicate;
     private final Domain partitionDomain;
@@ -226,6 +228,8 @@ public class IcebergSplitSource
             TypeManager typeManager,
             boolean recordScannedFiles,
             double minimumAssignedSplitWeight,
+            long memoryPerPositionalDeleteFile,
+            long memoryPerEqualityDeleteFile,
             SplitAffinityProvider splitAffinityProvider,
             InMemoryMetricsReporter metricsReporter,
             ListeningExecutorService executor,
@@ -253,6 +257,12 @@ public class IcebergSplitSource
         this.specsById = icebergTable.specs();
         this.currentSpecId = icebergTable.spec().specId();
         this.minimumAssignedSplitWeight = minimumAssignedSplitWeight;
+        this.estimatedSplitSourceMemory = memoize(() -> estimateSplitSourceMemory(
+                icebergTable,
+                tableHandle,
+                tableScan,
+                memoryPerPositionalDeleteFile,
+                memoryPerEqualityDeleteFile));
         this.projectedBaseColumns = tableHandle.getProjectedColumns().stream()
                 .map(column -> column.getBaseColumnIdentity().getId())
                 .collect(toImmutableSet());
@@ -644,6 +654,15 @@ public class IcebergSplitSource
                     .put("deletionVectorFiles", new LongCount(scanMetrics.dvs().value()));
         }
         return new Metrics(metrics.buildOrThrow());
+    }
+
+    @Override
+    public long getMemoryUsage()
+    {
+        if (finished) {
+            return 0;
+        }
+        return estimatedSplitSourceMemory.get();
     }
 
     @Override

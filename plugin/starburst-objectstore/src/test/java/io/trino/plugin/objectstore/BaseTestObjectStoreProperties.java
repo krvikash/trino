@@ -151,6 +151,8 @@ public abstract class BaseTestObjectStoreProperties
                         ('objectstore.query_partition_filter_required', 'false', 'boolean'),
                         ('objectstore.query_partition_filter_required_schemas', '[]', 'array(varchar)'),
                         ('objectstore.rcfile_optimized_writer_validate', 'false', 'boolean'),
+                        ('objectstore.remote_splits_generation_enabled', 'false', 'boolean'),
+                        ('objectstore.remote_splits_generation_manifests_per_thread', '16', 'integer'),
                         ('objectstore.remove_orphan_files_min_retention', '7.00d', 'varchar'),
                         ('objectstore.respect_table_format', 'true', 'boolean'),
                         ('objectstore.size_based_split_weights_enabled', 'true', 'boolean'),

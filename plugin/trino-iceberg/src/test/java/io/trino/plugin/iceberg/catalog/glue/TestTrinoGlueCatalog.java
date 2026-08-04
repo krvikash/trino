@@ -193,6 +193,7 @@ public class TestTrinoGlueCatalog
                     CREATE_CHANGELOG_VIEW,
                     Optional.empty(),
                     3,
+                    16,
                     false,
                     _ -> false,
                     UTC,

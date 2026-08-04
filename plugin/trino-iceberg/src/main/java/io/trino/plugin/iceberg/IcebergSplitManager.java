@@ -21,6 +21,7 @@ import io.trino.filesystem.cache.SplitAffinityProvider;
 import io.trino.plugin.base.classloader.ClassLoaderSafeConnectorSplitSource;
 import io.trino.plugin.iceberg.functions.tablechanges.TableChangesFunctionHandle;
 import io.trino.plugin.iceberg.functions.tablechanges.TableChangesSplitSource;
+import io.trino.spi.Node;
 import io.trino.spi.SplitWeight;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorExpressionEvaluator;
@@ -64,6 +65,8 @@ public class IcebergSplitManager
     public static final int ICEBERG_DOMAIN_COMPACTION_THRESHOLD = 1000;
 
     private final IcebergTransactionManager transactionManager;
+    private final long memoryPerPositionalDeleteFile;
+    private final long memoryPerEqualityDeleteFile;
     private final TypeManager typeManager;
     private final IcebergFileSystemFactory fileSystemFactory;
     private final ListeningExecutorService splitSourceExecutor;
@@ -71,19 +74,24 @@ public class IcebergSplitManager
     private final JsonCodec<IcebergCacheSplitId> splitIdCodec;
     private final SplitAffinityProvider splitAffinityProvider;
     private final ConnectorExpressionEvaluator evaluator;
+    private final boolean coordinator;
 
     @Inject
     public IcebergSplitManager(
             IcebergTransactionManager transactionManager,
+            IcebergConfig config,
             TypeManager typeManager,
             IcebergFileSystemFactory fileSystemFactory,
             @ForIcebergSplitSource ListeningExecutorService splitSourceExecutor,
             @ForIcebergSplitManager ExecutorService icebergPlanningExecutor,
             JsonCodec<IcebergCacheSplitId> splitIdCodec,
             SplitAffinityProvider splitAffinityProvider,
-            ConnectorExpressionEvaluator evaluator)
+            ConnectorExpressionEvaluator evaluator,
+            Node currentNode)
     {
         this.transactionManager = requireNonNull(transactionManager, "transactionManager is null");
+        this.memoryPerPositionalDeleteFile = config.getRemoteSplitsGenerationMemoryPerPositionalDeleteFile().toBytes();
+        this.memoryPerEqualityDeleteFile = config.getRemoteSplitsGenerationMemoryPerEqualityDeleteFile().toBytes();
         this.typeManager = requireNonNull(typeManager, "typeManager is null");
         this.fileSystemFactory = requireNonNull(fileSystemFactory, "fileSystemFactory is null");
         this.splitSourceExecutor = requireNonNull(splitSourceExecutor, "splitSourceExecutor is null");
@@ -91,6 +99,7 @@ public class IcebergSplitManager
         this.splitIdCodec = requireNonNull(splitIdCodec, "splitIdCodec is null");
         this.splitAffinityProvider = requireNonNull(splitAffinityProvider, "splitAffinityProvider is null");
         this.evaluator = requireNonNull(evaluator, "evaluator is null");
+        this.coordinator = currentNode.isCoordinator();
     }
 
     @Override
@@ -110,8 +119,11 @@ public class IcebergSplitManager
             return emptySplitSource();
         }
 
-        IcebergMetadata icebergMetadata = transactionManager.get(transaction, session.getIdentity());
-        Table icebergTable = icebergMetadata.getIcebergTable(session, table.getSchemaTableName());
+        IcebergMetadata icebergMetadata = transactionManager.getOrCreateTransient(transaction, session.getIdentity());
+        // Only a worker generating splits remotely rebuilds the table from the handle's metadata
+        // location; the coordinator keeps the cached loadTable, including for the local-by-design
+        // paths (OPTIMIZE, ANALYZE, MV refresh) that run there with the feature enabled.
+        Table icebergTable = icebergMetadata.getIcebergTable(session, table, !coordinator);
         InMemoryMetricsReporter metricsReporter = new InMemoryMetricsReporter();
         Scan scan = getScan(icebergMetadata, icebergTable, table, metricsReporter, icebergPlanningExecutor);
 
@@ -127,6 +139,8 @@ public class IcebergSplitManager
                 typeManager,
                 table.isRecordScannedFiles(),
                 getMinimumAssignedSplitWeight(session),
+                memoryPerPositionalDeleteFile,
+                memoryPerEqualityDeleteFile,
                 splitAffinityProvider,
                 metricsReporter,
                 splitSourceExecutor,

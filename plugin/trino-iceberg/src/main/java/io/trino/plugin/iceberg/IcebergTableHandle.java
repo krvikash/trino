@@ -51,6 +51,11 @@ public class IcebergTableHandle
     private final Map<Integer, String> partitionSpecJsons;
     private final int formatVersion;
     private final String tableLocation;
+    // Location of the metadata file the table was resolved from on the coordinator. Lets a worker load
+    // the table for remote splits generation by reading this file through FileIO instead of
+    // repeating the coordinator's metastore round-trip. Empty when the catalog serves metadata
+    // without a file location (e.g. REST), in which case split generation falls back to a catalog load.
+    private final Optional<String> metadataLocation;
     private final Map<String, String> storageProperties;
     private final Optional<String> branch;
     private final boolean versionPinnedByQuery;
@@ -113,6 +118,7 @@ public class IcebergTableHandle
             @JsonProperty("projectedColumns") Set<IcebergColumnHandle> projectedColumns,
             @JsonProperty("nameMappingJson") Optional<String> nameMappingJson,
             @JsonProperty("tableLocation") String tableLocation,
+            @JsonProperty("metadataLocation") Optional<String> metadataLocation,
             @JsonProperty("storageProperties") Map<String, String> storageProperties,
             @JsonProperty("branch") Optional<String> branch,
             @JsonProperty("versionPinnedByQuery") boolean versionPinnedByQuery,
@@ -135,6 +141,7 @@ public class IcebergTableHandle
                 projectedColumns,
                 nameMappingJson,
                 tableLocation,
+                metadataLocation,
                 storageProperties,
                 Optional.empty(),
                 branch,
@@ -164,6 +171,7 @@ public class IcebergTableHandle
             Set<IcebergColumnHandle> projectedColumns,
             Optional<String> nameMappingJson,
             String tableLocation,
+            Optional<String> metadataLocation,
             Map<String, String> storageProperties,
             Optional<IcebergTablePartitioning> tablePartitioning,
             Optional<String> branch,
@@ -195,6 +203,7 @@ public class IcebergTableHandle
         this.projectedColumns = ImmutableSet.copyOf(requireNonNull(projectedColumns, "projectedColumns is null"));
         this.nameMappingJson = requireNonNull(nameMappingJson, "nameMappingJson is null");
         this.tableLocation = requireNonNull(tableLocation, "tableLocation is null");
+        this.metadataLocation = requireNonNull(metadataLocation, "metadataLocation is null");
         this.storageProperties = ImmutableMap.copyOf(requireNonNull(storageProperties, "storageProperties is null"));
         this.tablePartitioning = requireNonNull(tablePartitioning, "tablePartitioning is null");
         this.branch = requireNonNull(branch, "branch is null");
@@ -290,6 +299,12 @@ public class IcebergTableHandle
     public String getTableLocation()
     {
         return tableLocation;
+    }
+
+    @JsonProperty
+    public Optional<String> getMetadataLocation()
+    {
+        return metadataLocation;
     }
 
     @JsonProperty
@@ -396,6 +411,7 @@ public class IcebergTableHandle
                 projectedColumns,
                 nameMappingJson,
                 tableLocation,
+                metadataLocation,
                 storageProperties,
                 tablePartitioning,
                 branch,
@@ -427,6 +443,7 @@ public class IcebergTableHandle
                 projectedColumns,
                 nameMappingJson,
                 tableLocation,
+                metadataLocation,
                 storageProperties,
                 tablePartitioning,
                 branch,
@@ -458,6 +475,7 @@ public class IcebergTableHandle
                 projectedColumns,
                 nameMappingJson,
                 tableLocation,
+                metadataLocation,
                 storageProperties,
                 tablePartitioning,
                 branch,
@@ -489,6 +507,7 @@ public class IcebergTableHandle
                 projectedColumns,
                 nameMappingJson,
                 tableLocation,
+                metadataLocation,
                 storageProperties,
                 tablePartitioning,
                 branch,
@@ -520,6 +539,7 @@ public class IcebergTableHandle
                 projectedColumns,
                 nameMappingJson,
                 tableLocation,
+                metadataLocation,
                 storageProperties,
                 requiredTablePartitioning,
                 branch,
@@ -556,6 +576,7 @@ public class IcebergTableHandle
                 projectedColumns,
                 nameMappingJson,
                 tableLocation,
+                metadataLocation,
                 storageProperties,
                 tablePartitioning,
                 branch,
@@ -587,6 +608,7 @@ public class IcebergTableHandle
                 projectedColumns,
                 nameMappingJson,
                 tableLocation,
+                metadataLocation,
                 storageProperties,
                 tablePartitioning,
                 branch,
@@ -618,6 +640,7 @@ public class IcebergTableHandle
                 projectedColumns,
                 nameMappingJson,
                 tableLocation,
+                metadataLocation,
                 storageProperties,
                 tablePartitioning,
                 branch,
@@ -656,6 +679,7 @@ public class IcebergTableHandle
                 Objects.equals(projectedColumns, that.projectedColumns) &&
                 Objects.equals(nameMappingJson, that.nameMappingJson) &&
                 Objects.equals(tableLocation, that.tableLocation) &&
+                Objects.equals(metadataLocation, that.metadataLocation) &&
                 Objects.equals(storageProperties, that.storageProperties) &&
                 Objects.equals(branch, that.branch) &&
                 versionPinnedByQuery == that.versionPinnedByQuery &&
@@ -686,6 +710,7 @@ public class IcebergTableHandle
                 projectedColumns,
                 nameMappingJson,
                 tableLocation,
+                metadataLocation,
                 storageProperties,
                 branch,
                 versionPinnedByQuery,

@@ -13,8 +13,11 @@
  */
 package io.trino.plugin.iceberg.catalog;
 
+import com.google.common.cache.Cache;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.util.concurrent.UncheckedExecutionException;
+import io.trino.cache.EvictableCacheBuilder;
 import io.trino.filesystem.Location;
 import io.trino.filesystem.TrinoFileSystem;
 import io.trino.filesystem.TrinoFileSystemFactory;
@@ -69,8 +72,10 @@ import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.stream.Stream;
 
+import static com.google.common.base.Throwables.throwIfUnchecked;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
+import static io.trino.cache.CacheUtils.uncheckedCacheGet;
 import static io.trino.metastore.Table.TABLE_COMMENT;
 import static io.trino.metastore.TableInfo.ICEBERG_MATERIALIZED_VIEW_COMMENT;
 import static io.trino.plugin.hive.HiveMetadata.STORAGE_TABLE;
@@ -97,6 +102,7 @@ import static io.trino.plugin.iceberg.IcebergUtil.METADATA_FOLDER_NAME;
 import static io.trino.plugin.iceberg.IcebergUtil.commit;
 import static io.trino.plugin.iceberg.IcebergUtil.createTableProperties;
 import static io.trino.plugin.iceberg.IcebergUtil.getIcebergTableProperties;
+import static io.trino.plugin.iceberg.IcebergUtil.getIcebergTableWithMetadata;
 import static io.trino.plugin.iceberg.IcebergUtil.schemaFromMetadata;
 import static io.trino.plugin.iceberg.PartitionFields.parsePartitionFields;
 import static io.trino.plugin.iceberg.PartitionTransforms.getColumnTransform;
@@ -136,6 +142,11 @@ public abstract class AbstractTrinoCatalog
     protected static final String TRINO_CREATED_BY = HiveMetadata.TRINO_CREATED_BY;
     protected static final String TRINO_QUERY_ID_NAME = HiveMetadata.TRINO_QUERY_ID_NAME;
 
+    // Metadata files are immutable once written, so entries never go stale.
+    private final Cache<String, TableMetadata> tableMetadataByLocationCache = EvictableCacheBuilder.newBuilder()
+            .maximumSize(1000)
+            .build();
+
     private final CatalogName catalogName;
     private final boolean useUniqueTableLocation;
     protected final TypeManager typeManager;
@@ -160,6 +171,23 @@ public abstract class AbstractTrinoCatalog
         this.workScheduler = requireNonNull(workScheduler, "workScheduler is null");
         this.fileSystemFactory = requireNonNull(fileSystemFactory, "fileSystemFactory is null");
         this.fileIoFactory = requireNonNull(fileIoFactory, "fileIoFactory is null");
+    }
+
+    @Override
+    public BaseTable loadTableFromMetadataLocation(ConnectorSession session, SchemaTableName schemaTableName, String metadataLocation)
+    {
+        TableMetadata metadata;
+        try {
+            metadata = uncheckedCacheGet(
+                    tableMetadataByLocationCache,
+                    metadataLocation,
+                    () -> TableMetadataParser.read(fileIoFactory.create(fileSystemFactory.create(session)), metadataLocation));
+        }
+        catch (UncheckedExecutionException e) {
+            throwIfUnchecked(e.getCause());
+            throw e;
+        }
+        return getIcebergTableWithMetadata(this, tableOperationsProvider, session, schemaTableName, metadata);
     }
 
     @Override

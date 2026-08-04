@@ -56,6 +56,19 @@ public class IcebergTransactionManager
         return transactions.get(transactionHandle).get(identity);
     }
 
+    public IcebergMetadata getOrCreateTransient(ConnectorTransactionHandle transactionHandle, ConnectorIdentity identity)
+    {
+        MemoizedMetadata memoizedMetadata = transactions.get(transactionHandle);
+        if (memoizedMetadata != null) {
+            return memoizedMetadata.get(identity);
+        }
+        // Remote split task on a worker: the transaction was begun on the coordinator and its
+        // commit/rollback will never reach this node, so nothing may be registered here
+        try (ThreadContextClassLoader _ = new ThreadContextClassLoader(classLoader)) {
+            return metadataFactory.create(identity);
+        }
+    }
+
     public void commit(ConnectorTransactionHandle transaction)
     {
         MemoizedMetadata transactionalMetadata = transactions.remove(transaction);

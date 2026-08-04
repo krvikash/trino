@@ -19,6 +19,7 @@ import io.trino.plugin.warp.di.ExtraModule;
 import io.trino.plugin.warp.di.WarpBaseModule;
 import io.trino.plugin.warp.dispatcher.DispatcherPageSinkProvider;
 import io.trino.plugin.warp.dispatcher.DispatcherPageSourceProviderFactory;
+import io.trino.plugin.warp.dispatcher.DispatcherSplitManager;
 import io.trino.plugin.warp.dispatcher.DispatcherTableHandleBuilderProvider;
 import io.trino.plugin.warp.dispatcher.ReadErrorHandler;
 import io.trino.plugin.warp.dispatcher.WarpConnectorContext;
@@ -131,6 +132,7 @@ public class DispatcherMainModule
             binder.bind(DispatcherConnectorBase.class).to(CoordinatorDispatcherConnector.class);
         }
         else {
+            binder.bind(DispatcherSplitManager.class);
             binder.bind(DispatcherConnectorBase.class).to(WorkerDispatcherConnector.class);
         }
         binder.bind(DispatcherTableHandleBuilderProvider.class);

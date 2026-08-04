@@ -79,6 +79,7 @@ public class TestIcebergSubstitutionMetadata
                 ImmutableSet.of(),
                 Optional.empty(),
                 "loc",
+                Optional.empty(),
                 ImmutableMap.of(),
                 Optional.empty(),
                 Optional.empty(),

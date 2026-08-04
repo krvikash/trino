@@ -44,6 +44,7 @@ import java.util.TimeZone;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static io.airlift.units.DataSize.Unit.GIGABYTE;
+import static io.airlift.units.DataSize.Unit.KILOBYTE;
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
 import static io.trino.plugin.iceberg.CatalogType.HIVE_METASTORE;
 import static io.trino.plugin.iceberg.IcebergFileFormat.PARQUET;
@@ -99,6 +100,10 @@ public class IcebergConfig
     private boolean registerTableProcedureEnabled;
     private boolean registerViewProcedureEnabled;
     private boolean addFilesProcedureEnabled;
+    private boolean remoteSplitsGenerationEnabled;
+    private int remoteSplitsGenerationManifestsPerThread = 16;
+    private DataSize remoteSplitsGenerationMemoryPerPositionalDeleteFile = DataSize.of(3, KILOBYTE);
+    private DataSize remoteSplitsGenerationMemoryPerEqualityDeleteFile = DataSize.of(6, KILOBYTE);
     private Optional<String> hiveCatalogName = Optional.empty();
     private int formatVersion = FORMAT_VERSION_DEFAULT;
     private int maxFormatVersion = 3;
@@ -382,6 +387,68 @@ public class IcebergConfig
     public IcebergConfig setAddFilesProcedureEnabled(boolean addFilesProcedureEnabled)
     {
         this.addFilesProcedureEnabled = addFilesProcedureEnabled;
+        return this;
+    }
+
+    public boolean isRemoteSplitsGenerationEnabled()
+    {
+        return remoteSplitsGenerationEnabled;
+    }
+
+    @Config("iceberg.remote-splits-generation.enabled")
+    @ConfigDescription("Enable remote splits generation for large Iceberg tables. " +
+            "Workers do not have the coordinator's in-memory metadata cache, " +
+            "so pair this with fs.cache.enabled to keep repeated metadata reads warm")
+    public IcebergConfig setRemoteSplitsGenerationEnabled(boolean remoteSplitsGenerationEnabled)
+    {
+        this.remoteSplitsGenerationEnabled = remoteSplitsGenerationEnabled;
+        return this;
+    }
+
+    @Min(0)
+    public int getRemoteSplitsGenerationManifestsPerThread()
+    {
+        return remoteSplitsGenerationManifestsPerThread;
+    }
+
+    @Config("iceberg.remote-splits-generation.manifests-per-thread")
+    @ConfigDescription("Delegate split generation to a worker only when a table has more manifests " +
+            "than this value times iceberg.split-manager-threads")
+    public IcebergConfig setRemoteSplitsGenerationManifestsPerThread(int remoteSplitsGenerationManifestsPerThread)
+    {
+        this.remoteSplitsGenerationManifestsPerThread = remoteSplitsGenerationManifestsPerThread;
+        return this;
+    }
+
+    @NotNull
+    public DataSize getRemoteSplitsGenerationMemoryPerPositionalDeleteFile()
+    {
+        return remoteSplitsGenerationMemoryPerPositionalDeleteFile;
+    }
+
+    @Config("iceberg.remote-splits-generation.memory-per-positional-delete-file")
+    @ConfigDescription("Estimated retained memory per positional delete file or deletion vector, used to account " +
+            "the delete file index built during split generation against query memory")
+    public IcebergConfig setRemoteSplitsGenerationMemoryPerPositionalDeleteFile(
+            DataSize remoteSplitsGenerationMemoryPerPositionalDeleteFile)
+    {
+        this.remoteSplitsGenerationMemoryPerPositionalDeleteFile = remoteSplitsGenerationMemoryPerPositionalDeleteFile;
+        return this;
+    }
+
+    @NotNull
+    public DataSize getRemoteSplitsGenerationMemoryPerEqualityDeleteFile()
+    {
+        return remoteSplitsGenerationMemoryPerEqualityDeleteFile;
+    }
+
+    @Config("iceberg.remote-splits-generation.memory-per-equality-delete-file")
+    @ConfigDescription("Estimated retained memory per equality delete file, used to account the delete file index " +
+            "built during split generation against query memory")
+    public IcebergConfig setRemoteSplitsGenerationMemoryPerEqualityDeleteFile(
+            DataSize remoteSplitsGenerationMemoryPerEqualityDeleteFile)
+    {
+        this.remoteSplitsGenerationMemoryPerEqualityDeleteFile = remoteSplitsGenerationMemoryPerEqualityDeleteFile;
         return this;
     }
 

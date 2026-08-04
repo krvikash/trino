@@ -115,6 +115,8 @@ public final class IcebergSessionProperties
     private static final String PLAINTEXT_FILES_ALLOWED_FOR_ENCRYPTED_TABLES = "plaintext_files_allowed_for_encrypted_tables";
     private static final String MAX_PARTITIONS_PER_WRITER = "max_partitions_per_writer";
     private static final String DROP_TABLE_MODE = "drop_table_mode";
+    private static final String REMOTE_SPLITS_GENERATION_ENABLED = "remote_splits_generation_enabled";
+    private static final String REMOTE_SPLITS_GENERATION_MANIFESTS_PER_THREAD = "remote_splits_generation_manifests_per_thread";
 
     private final List<PropertyMetadata<?>> sessionProperties;
 
@@ -422,6 +424,17 @@ public final class IcebergSessionProperties
                         "Allow reading unencrypted files in tables with encryption enabled",
                         encryptionConfig.isPlaintextFilesAllowedForEncryptedTables(),
                         false))
+                .add(booleanProperty(
+                        REMOTE_SPLITS_GENERATION_ENABLED,
+                        "Enable remote splits generation for Iceberg tables",
+                        icebergConfig.isRemoteSplitsGenerationEnabled(),
+                        false))
+                .add(integerProperty(
+                        REMOTE_SPLITS_GENERATION_MANIFESTS_PER_THREAD,
+                        "Delegate split generation to a worker only when a table has more manifests " +
+                                "than this value times iceberg.split-manager-threads",
+                        icebergConfig.getRemoteSplitsGenerationManifestsPerThread(),
+                        false))
                 .add(integerProperty(
                         MAX_PARTITIONS_PER_WRITER,
                         "Maximum number of partitions per writer",
@@ -712,5 +725,15 @@ public final class IcebergSessionProperties
     public static boolean arePlaintextFilesAllowedForEncryptedTables(ConnectorSession session)
     {
         return session.getProperty(PLAINTEXT_FILES_ALLOWED_FOR_ENCRYPTED_TABLES, Boolean.class);
+    }
+
+    public static boolean isRemoteSplitsGenerationEnabled(ConnectorSession session)
+    {
+        return session.getProperty(REMOTE_SPLITS_GENERATION_ENABLED, Boolean.class);
+    }
+
+    public static int getRemoteSplitsGenerationManifestsPerThread(ConnectorSession session)
+    {
+        return session.getProperty(REMOTE_SPLITS_GENERATION_MANIFESTS_PER_THREAD, Integer.class);
     }
 }

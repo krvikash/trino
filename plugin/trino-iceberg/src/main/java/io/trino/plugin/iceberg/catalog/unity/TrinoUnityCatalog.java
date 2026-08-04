@@ -217,6 +217,12 @@ public class TrinoUnityCatalog
     }
 
     @Override
+    public BaseTable loadTableFromMetadataLocation(ConnectorSession session, SchemaTableName schemaTableName, String metadataLocation)
+    {
+        return loadTable(session, schemaTableName);
+    }
+
+    @Override
     public Map<SchemaTableName, List<ColumnMetadata>> tryGetColumnMetadata(ConnectorSession session, List<SchemaTableName> tables)
     {
         throw new UnsupportedOperationException("tryGetColumnMetadata is not supported");

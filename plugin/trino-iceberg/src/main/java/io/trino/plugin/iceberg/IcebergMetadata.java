@@ -353,6 +353,7 @@ import static io.trino.plugin.iceberg.IcebergSessionProperties.getDropTableMode;
 import static io.trino.plugin.iceberg.IcebergSessionProperties.getExpireSnapshotMinRetention;
 import static io.trino.plugin.iceberg.IcebergSessionProperties.getHiveCatalogName;
 import static io.trino.plugin.iceberg.IcebergSessionProperties.getQueryPartitionFilterRequiredSchemas;
+import static io.trino.plugin.iceberg.IcebergSessionProperties.getRemoteSplitsGenerationManifestsPerThread;
 import static io.trino.plugin.iceberg.IcebergSessionProperties.getRemoveOrphanFilesMinRetention;
 import static io.trino.plugin.iceberg.IcebergSessionProperties.isBucketExecutionEnabled;
 import static io.trino.plugin.iceberg.IcebergSessionProperties.isCollectExtendedStatisticsOnWrite;
@@ -362,6 +363,7 @@ import static io.trino.plugin.iceberg.IcebergSessionProperties.isMergeManifestsO
 import static io.trino.plugin.iceberg.IcebergSessionProperties.isOptimizePartialTopNEnabled;
 import static io.trino.plugin.iceberg.IcebergSessionProperties.isProjectionPushdownEnabled;
 import static io.trino.plugin.iceberg.IcebergSessionProperties.isQueryPartitionFilterRequired;
+import static io.trino.plugin.iceberg.IcebergSessionProperties.isRemoteSplitsGenerationEnabled;
 import static io.trino.plugin.iceberg.IcebergSessionProperties.isStatisticsEnabled;
 import static io.trino.plugin.iceberg.IcebergTableName.isDataTable;
 import static io.trino.plugin.iceberg.IcebergTableName.isIcebergTableName;
@@ -587,6 +589,7 @@ public class IcebergMetadata
     private final OptimizePositionDeletes optimizePositionDeletes;
     private final Optional<HiveMetastoreFactory> metastoreFactory;
     private final int maxFormatVersion;
+    private final int splitManagerThreads;
     private final boolean addFilesProcedureEnabled;
     private final Predicate<String> allowedExtraProperties;
     private final DateTimeZone dateTimeZone;
@@ -626,6 +629,7 @@ public class IcebergMetadata
             CreateChangelogView createChangelogView,
             Optional<HiveMetastoreFactory> metastoreFactory,
             int maxFormatVersion,
+            int splitManagerThreads,
             boolean addFilesProcedureEnabled,
             Predicate<String> allowedExtraProperties,
             DateTimeZone dateTimeZone,
@@ -651,6 +655,7 @@ public class IcebergMetadata
         this.optimizePositionDeletes = requireNonNull(optimizePositionDeletes, "optimizePositionDeletes is null");
         this.metastoreFactory = requireNonNull(metastoreFactory, "metastoreFactory is null");
         this.maxFormatVersion = maxFormatVersion;
+        this.splitManagerThreads = splitManagerThreads;
         this.addFilesProcedureEnabled = addFilesProcedureEnabled;
         this.allowedExtraProperties = requireNonNull(allowedExtraProperties, "allowedExtraProperties is null");
         this.dateTimeZone = requireNonNull(dateTimeZone, "dateTimeZone is null");
@@ -916,6 +921,7 @@ public class IcebergMetadata
                 ImmutableSet.of(),
                 Optional.ofNullable(tableProperties.get(TableProperties.DEFAULT_NAME_MAPPING)),
                 table.location(),
+                Optional.ofNullable(table.operations().current().metadataFileLocation()),
                 tableProperties,
                 getTablePartitioning(session, table),
                 branch,
@@ -4461,6 +4467,7 @@ public class IcebergMetadata
                 table.getProjectedColumns(),
                 table.getNameMappingJson(),
                 table.getTableLocation(),
+                table.getMetadataLocation(),
                 table.getStorageProperties(),
                 table.getTablePartitioning(),
                 table.getBranch(),
@@ -4581,6 +4588,7 @@ public class IcebergMetadata
                         table.getProjectedColumns(),
                         table.getNameMappingJson(),
                         table.getTableLocation(),
+                        table.getMetadataLocation(),
                         table.getStorageProperties(),
                         table.getTablePartitioning(),
                         table.getBranch(),
@@ -4759,6 +4767,7 @@ public class IcebergMetadata
                 Sets.union(firstTable.getProjectedColumns(), secondTable.getProjectedColumns()),
                 firstTable.getNameMappingJson(),
                 firstTable.getTableLocation(),
+                firstTable.getMetadataLocation(),
                 firstTable.getStorageProperties(),
                 firstTable.getTablePartitioning(),
                 firstTable.getBranch(),
@@ -4898,6 +4907,7 @@ public class IcebergMetadata
                 ImmutableSet.of(), // projectedColumns are used to request statistics only for the required columns, but are not part of cache key
                 originalHandle.getNameMappingJson(),
                 originalHandle.getTableLocation(),
+                originalHandle.getMetadataLocation(),
                 originalHandle.getStorageProperties(),
                 Optional.empty(), // requiredTablePartitioning does not affect stats
                 originalHandle.getBranch(),
@@ -4945,6 +4955,20 @@ public class IcebergMetadata
     Table getIcebergTable(ConnectorSession session, SchemaTableName schemaTableName)
     {
         return catalog.loadTable(session, schemaTableName);
+    }
+
+    /**
+     * Loads the table for split generation. When {@code useMetadataLocation} is set and the handle
+     * carries the metadata location captured at analysis time, the table is rebuilt from that file
+     * directly, so a worker generating splits remotely does not repeat the coordinator's metastore
+     * round-trip. The coordinator always loads through {@code loadTable} for its built-in cache.
+     */
+    Table getIcebergTable(ConnectorSession session, IcebergTableHandle table, boolean useMetadataLocation)
+    {
+        return table.getMetadataLocation()
+                .filter(_ -> useMetadataLocation)
+                .map(metadataLocation -> catalog.loadTableFromMetadataLocation(session, table.getSchemaTableName(), metadataLocation))
+                .orElseGet(() -> catalog.loadTable(session, table.getSchemaTableName()));
     }
 
     @Override
@@ -5519,6 +5543,45 @@ public class IcebergMetadata
                 .withPreferSmallInitialReads(count < 100_000)
                 .withSortOrderId(sortInfo.sortOrderId());
         return Optional.of(new ApplyPartialTopNResult(true, alternative));
+    }
+
+    @Override
+    public boolean useRemoteSplitsGeneration(ConnectorSession session, ConnectorTableHandle tableHandle)
+    {
+        if (!isRemoteSplitsGenerationEnabled(session)) {
+            return false;
+        }
+
+        IcebergTableHandle table = checkValidTableHandle(tableHandle);
+        if (table.isRecordScannedFiles() || table.isForceReadingAllFiles()) {
+            return false;
+        }
+
+        if (table.getForAnalyze().orElse(false)) {
+            return false;
+        }
+
+        if (isMaterializedViewStorage(table.getTableName()) || fromSnapshotForRefresh.isPresent()) {
+            return false;
+        }
+
+        if (table.getSnapshotId().isEmpty()) {
+            // no snapshot means an empty table; plan locally
+            return false;
+        }
+
+        // Delegate only for large scans: local split generation parallelizes manifest reads across the
+        // iceberg.split-manager-threads pool, so gate on manifest count relative to that capacity.
+        // The check is cheap: loadTable is served from the metadata cache and the manifest list is a
+        // small file memoized on the snapshot.
+        Table icebergTable = catalog.loadTable(session, table.getSchemaTableName());
+        Snapshot snapshot = icebergTable.snapshot(table.getSnapshotId().getAsLong());
+        if (snapshot == null) {
+            return false;
+        }
+        long manifestThreshold =
+                (long) getRemoteSplitsGenerationManifestsPerThread(session) * splitManagerThreads;
+        return snapshot.allManifests(icebergTable.io()).size() > manifestThreshold;
     }
 
     public OptionalLong getIncrementalRefreshFromSnapshot()
