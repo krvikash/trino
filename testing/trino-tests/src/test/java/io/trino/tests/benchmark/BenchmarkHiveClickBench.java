@@ -229,10 +229,7 @@ public final class BenchmarkHiveClickBench
             DistributedQueryRunner.Builder<?> builder = DistributedQueryRunner.builder(testSessionBuilder().build());
 
             builder.setWorkerCount(0); // single-node
-            if (bind8080) {
-                builder.addCoordinatorProperty("http-server.http.port", "8080");
-            }
-            BenchmarkRunner.configureQueryRunner(builder, mode);
+            BenchmarkRunner.configureQueryRunner(builder, mode, bind8080);
 
             DistributedQueryRunner queryRunner = builder.build();
 

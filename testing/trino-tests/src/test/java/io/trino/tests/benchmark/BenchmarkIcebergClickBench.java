@@ -159,7 +159,7 @@ public final class BenchmarkIcebergClickBench
                     .addIcebergProperty("s3.endpoint", minio.getMinioAddress())
                     .addIcebergProperty("s3.path-style-access", "true")
                     .registerResource(minio);
-            BenchmarkRunner.configureQueryRunner(builder, mode);
+            BenchmarkRunner.configureQueryRunner(builder, mode, bind8080);
 
             Map<String, String> fsCacheProperties = new HashMap<>();
             BenchmarkRunner.applyFilesystemCache(builder, fsCacheProperties, fsCacheDirectory);
@@ -168,9 +168,6 @@ public final class BenchmarkIcebergClickBench
             if (mode == BenchmarkRunner.ExecutionMode.GPU) {
                 builder.addIcebergProperty("iceberg.max-split-size", "512MB")
                         .addIcebergProperty("iceberg.experimental.composite-splits.enabled", "true");
-            }
-            if (bind8080) {
-                builder.addCoordinatorProperty("http-server.http.port", "8080");
             }
             DistributedQueryRunner queryRunner = builder.build();
 

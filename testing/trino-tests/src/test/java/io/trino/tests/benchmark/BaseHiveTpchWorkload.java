@@ -123,10 +123,7 @@ public abstract class BaseHiveTpchWorkload
 
         builder.setWorkerCount(0);
         builder.setBaseDataDir(Optional.of(metastoreDir));
-        if (bind8080) {
-            builder.addCoordinatorProperty("http-server.http.port", "8080");
-        }
-        BenchmarkRunner.configureQueryRunner(builder, mode);
+        BenchmarkRunner.configureQueryRunner(builder, mode, bind8080);
 
         DistributedQueryRunner runner = builder.build();
 

@@ -1425,7 +1425,7 @@ public final class BenchmarkRunner
     /**
      * Apply connector-agnostic extras (resource sizing, GPU acceleration toggles, single-node, etc.).
      */
-    public static void configureQueryRunner(DistributedQueryRunner.Builder<?> builder, ExecutionMode mode)
+    public static void configureQueryRunner(DistributedQueryRunner.Builder<?> builder, ExecutionMode mode, boolean bind8080)
     {
         // TestingTrinoServer sets both task.concurrency and task.max-worker-threads to 4.
         // Here, we override them with the default values, which are determined based on the hardware
@@ -1439,6 +1439,9 @@ public final class BenchmarkRunner
         builder.addExtraProperty("query.max-memory", "1TB");
         builder.addExtraProperty("memory.heap-headroom-per-node", "20%");
         builder.addExtraProperty("experimental.force-single-node-query", "true");
+        if (bind8080) {
+            builder.addCoordinatorProperty("http-server.http.port", "8080");
+        }
         switch (mode) {
             case CPU -> builder
                     .addExtraProperty("gpu-execution", "false");

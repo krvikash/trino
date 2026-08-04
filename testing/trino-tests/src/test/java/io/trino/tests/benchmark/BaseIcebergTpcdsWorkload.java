@@ -116,10 +116,7 @@ public abstract class BaseIcebergTpcdsWorkload
                 .addIcebergProperty("s3.endpoint", minio.getMinioAddress())
                 .addIcebergProperty("s3.path-style-access", "true")
                 .registerResource(minio);
-        if (bind8080) {
-            builder.addCoordinatorProperty("http-server.http.port", "8080");
-        }
-        BenchmarkRunner.configureQueryRunner(builder, mode);
+        BenchmarkRunner.configureQueryRunner(builder, mode, bind8080);
 
         Map<String, String> fsCacheProperties = new HashMap<>();
         BenchmarkRunner.applyFilesystemCache(builder, fsCacheProperties, fsCacheDirectory);
