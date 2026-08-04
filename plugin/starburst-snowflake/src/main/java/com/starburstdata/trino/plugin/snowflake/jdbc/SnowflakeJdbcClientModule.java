@@ -22,6 +22,8 @@ import com.starburstdata.trino.plugin.snowflake.SnowflakeConfig;
 import com.starburstdata.trino.plugin.snowflake.SnowflakeCredentialConfig;
 import com.starburstdata.trino.plugin.snowflake.SnowflakeProxyConfig;
 import com.starburstdata.trino.plugin.snowflake.SnowflakeSessionProperties;
+import com.starburstdata.trino.plugin.snowflake.parallel.ParallelWarehouseAwareDriverConnectionFactory;
+import com.starburstdata.trino.plugin.snowflake.parallel.ParallelWarehouseAwareDriverPoolingConnectionFactory;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
 import io.airlift.configuration.ConfigBinder;
 import io.trino.plugin.base.cache.identity.IdentityCacheMapping;
@@ -145,27 +147,8 @@ public class SnowflakeJdbcClientModule
             @ForSnowflakeConnectionFactory Properties connectionProperties,
             SnowflakeCredentialConfig snowflakeCredentialConfig)
     {
-        return getDriverConnectionFactory(
-                config,
-                credentialProvider,
-                catalogName,
-                connectionPoolingConfig,
-                identityCacheMapping,
-                connectionProperties,
-                snowflakeCredentialConfig);
-    }
-
-    protected ConnectionFactory getDriverConnectionFactory(
-            BaseJdbcConfig config,
-            CredentialProvider credentialProvider,
-            CatalogName catalogName,
-            JdbcConnectionPoolConfig connectionPoolingConfig,
-            IdentityCacheMapping identityCacheMapping,
-            Properties connectionProperties,
-            SnowflakeCredentialConfig snowflakeCredentialConfig)
-    {
         if (connectionPoolingConfig.isConnectionPoolEnabled()) {
-            return new WarehouseAwareDriverPoolingConnectionFactory(
+            return new ParallelWarehouseAwareDriverPoolingConnectionFactory(
                     catalogName.toString(),
                     connectionProperties,
                     config,
@@ -174,7 +157,7 @@ public class SnowflakeJdbcClientModule
                     identityCacheMapping,
                     snowflakeCredentialConfig);
         }
-        return new WarehouseAwareDriverConnectionFactory(
+        return new ParallelWarehouseAwareDriverConnectionFactory(
                 new SnowflakeDriver(),
                 config.getConnectionUrl(),
                 connectionProperties,
