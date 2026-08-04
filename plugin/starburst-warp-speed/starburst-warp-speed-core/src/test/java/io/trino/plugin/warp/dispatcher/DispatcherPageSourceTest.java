@@ -711,6 +711,63 @@ public class DispatcherPageSourceTest
         actAndAssert(new long[] {100, 101, 105, 106, 110, 111}, new long[] {1, 2, 6, 7, 12, 13}, dispatcherPageSource);
     }
 
+    @Test
+    public void testProxiedChannelLoadsLazily()
+    {
+        prepareMock(
+                Lists.newArrayList(new TestPage(buildPageLong(new long[] {7}), createRowRanges(2, 3))),
+                Lists.newArrayList(buildLongPage(-1, -1, 42, -1, -1, -1, -1, -1)));
+        DispatcherPageSource dispatcherPageSource = getDispatcherPageSource(2, proxiedCollectTypeByBlockIndex);
+
+        SourcePage resultPage = dispatcherPageSource.getNextSourcePage();
+        assertThat(resultPage.getPositionCount()).isEqualTo(1);
+        assertThat(stats.getproxied_loaded_pages()).isEqualTo(0);
+        assertThat(BigintType.BIGINT.getLong(resultPage.getBlock(1), 0)).isEqualTo(42);
+        assertThat(stats.getproxied_loaded_pages()).isEqualTo(1);
+    }
+
+    @Test
+    public void testSelectPositionsOnPartiallyLoadedLazyMixedPage()
+    {
+        // narrows the merged page after one proxied channel is loaded; the remaining channel loads from the narrowed backing page
+        Page proxiedPage = new Page(buildLongPage(10, 11, 12, 13).getBlock(0), buildLongPage(20, 21, 22, 23).getBlock(0));
+        prepareMock(
+                Lists.newArrayList(new TestPage(buildPageLong(new long[] {100, 101, 102, 103}), createRowRanges(0, 4))),
+                Lists.newArrayList(proxiedPage));
+        DispatcherPageSource dispatcherPageSource = getDispatcherPageSource(3, Map.of(1, BIGINT, 2, BIGINT));
+
+        SourcePage resultPage = dispatcherPageSource.getNextSourcePage();
+        assertThat(BigintType.BIGINT.getLong(resultPage.getBlock(1), 0)).isEqualTo(10);
+        resultPage.selectPositions(new int[] {1, 3}, 0, 2);
+
+        assertThat(resultPage.getPositionCount()).isEqualTo(2);
+        assertThat(resultPage.getRetainedSizeInBytes()).isGreaterThan(0);
+        long[][] expectedValuesByChannel = {{101, 103}, {11, 13}, {21, 23}};
+        for (int channel = 0; channel < expectedValuesByChannel.length; channel++) {
+            for (int position = 0; position < 2; position++) {
+                assertThat(BigintType.BIGINT.getLong(resultPage.getBlock(channel), position)).isEqualTo(expectedValuesByChannel[channel][position]);
+            }
+        }
+    }
+
+    @Test
+    public void testDeferredProxiedLoadRecordsStatsPerPage()
+    {
+        prepareMock(
+                Lists.newArrayList(
+                        new TestPage(buildPageLong(new long[] {7}), createRowRanges(0, 1)),
+                        new TestPage(buildPageLong(new long[] {8}), createRowRanges(2, 3))),
+                Lists.newArrayList(buildLongPage(42, -1), buildLongPage(43, -1)));
+        DispatcherPageSource dispatcherPageSource = getDispatcherPageSource(2, proxiedCollectTypeByBlockIndex);
+
+        SourcePage firstResultPage = dispatcherPageSource.getNextSourcePage();
+        SourcePage secondResultPage = dispatcherPageSource.getNextSourcePage();
+        assertThat(BigintType.BIGINT.getLong(firstResultPage.getBlock(1), 0)).isEqualTo(42);
+        assertThat(stats.getproxied_loaded_pages()).isEqualTo(1);
+        assertThat(BigintType.BIGINT.getLong(secondResultPage.getBlock(1), 0)).isEqualTo(43);
+        assertThat(stats.getproxied_loaded_pages()).isEqualTo(2);
+    }
+
     private PrefilledQueryCollectData createPrefilledQueryCollectData(long singleValue)
     {
         return PrefilledQueryCollectData.builder()

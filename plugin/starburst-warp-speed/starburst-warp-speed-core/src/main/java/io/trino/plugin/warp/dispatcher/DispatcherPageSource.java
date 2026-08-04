@@ -78,7 +78,7 @@ public class DispatcherPageSource
     private int currentProxiedPagePosition; // Position upto which currentProxiedPage has been consumed
     private final Deque<RowRange> proxiedPageRanges;
     private long proxiedPagePositionsRead;
-    private boolean wasProxiedPagedLoaded;
+    private SourcePage lastLoadRecordedProxiedPage;
     private SourcePage currentWarpSourcePage;
     private int currentWarpPagePosition; // Position upto which currentWarpPage has been consumed
     private Deque<RowRange> warpPageRanges;
@@ -89,6 +89,7 @@ public class DispatcherPageSource
     private final int[] prefilledOutputChannels;
     private final int[] warpOutputChannels;
     private final int[] warpIndexByOutputChannel;
+    private final int[] proxiedIndexByOutputChannel;
 
     public DispatcherPageSource(
             Provider<ConnectorPageSource> proxiedConnectorPageSourceProvider,
@@ -147,6 +148,11 @@ public class DispatcherPageSource
         for (int warpIndex = 0; warpIndex < warpOutputChannels.length; warpIndex++) {
             warpIndexByOutputChannel[warpOutputChannels[warpIndex]] = warpIndex;
         }
+        this.proxiedIndexByOutputChannel = new int[queryContext.getTotalCollectCount()];
+        Arrays.fill(proxiedIndexByOutputChannel, -1);
+        for (int proxiedIndex = 0; proxiedIndex < proxiedOutputChannels.length; proxiedIndex++) {
+            proxiedIndexByOutputChannel[proxiedOutputChannels[proxiedIndex]] = proxiedIndex;
+        }
     }
 
     @Override
@@ -157,7 +163,7 @@ public class DispatcherPageSource
                     Locale.US,
                     "queryId=%s, pageSourceDecision=%s, currentProxiedPagePosition=%s, proxiedConnectorPageSource.isFinished=%s, proxiedPageRanges=%s, warpPageRanges.size=%s, currentWarpPagePosition=%s, " +
                             "currentProxiedPage.getPositionCount()=%s, currentWarpPage.getPositionCount()=%s, warpWithoutPrefilledAndProxiedCollectTypes=%s, proxiedPagePositionsRead=%s, proxiedConnectorPageSource=%s, " +
-                            "wasProxiedPagedLoaded=%s, dispatcherTableHandle=%s, dispatcherSplit=%s, rowGroupKey=%s",
+                            "currentProxiedPageLoadRecorded=%s, dispatcherTableHandle=%s, dispatcherSplit=%s, rowGroupKey=%s",
                     queryContext.getQueryId(),
                     pageSourceDecision,
                     currentProxiedPagePosition,
@@ -170,7 +176,7 @@ public class DispatcherPageSource
                     warpWithoutPrefilledAndProxiedCollectTypes,
                     proxiedPagePositionsRead,
                     proxiedConnectorPageSource,
-                    wasProxiedPagedLoaded,
+                    currentProxiedPage != null && isSameSourcePage(lastLoadRecordedProxiedPage, currentProxiedPage),
                     dispatcherTableHandle,
                     dispatcherSplit,
                     rowGroupData.getRowGroupKey());
@@ -310,6 +316,30 @@ public class DispatcherPageSource
     }
 
     /**
+     * Merges eagerly resolved warp and prefilled blocks with proxied channels that load on demand, so the
+     * engine's filter short-circuit can skip decoding proxied columns of pages it fully filters out.
+     */
+    private SourcePage buildLazyMergedPage(SourcePage maskedProxiedPage, Page overlapWarpPage, int positionCount)
+    {
+        if (queryContext.getTotalCollectCount() != (maskedProxiedPage.getChannelCount() + currentWarpSourcePage.getChannelCount() + prefilledPageSource.getChannelCount())) {
+            throw new TrinoException(WarpErrorCode.WARP_FAILED_TO_BUILD_MIXED_PAGE, "wrong number of columns");
+        }
+        Block[] eagerBlocks = new Block[queryContext.getTotalCollectCount()];
+        for (int channel : prefilledOutputChannels) {
+            eagerBlocks[channel] = prefilledPageSource.createBlock(channel, positionCount);
+        }
+        for (int warpIndex = 0; warpIndex < warpOutputChannels.length; warpIndex++) {
+            eagerBlocks[warpOutputChannels[warpIndex]] = overlapWarpPage.getBlock(warpIndex);
+        }
+        return new LazyMixedSourcePage(
+                eagerBlocks,
+                maskedProxiedPage,
+                proxiedIndexByOutputChannel,
+                positionCount,
+                () -> recordProxiedPageLoad(maskedProxiedPage));
+    }
+
+    /**
      * Resolves the warp matches of the current proxied page and masks it down to the matched positions with
      * {@link SourcePage#selectPositions}. When the current warp page ends inside the proxied page, the resolved
      * prefix is emitted as a smaller page and the unresolved tail stays selected for the next warp page;
@@ -362,8 +392,9 @@ public class DispatcherPageSource
                     positionCount++;
                 }
                 currentProxiedPage.selectPositions(positions, 0, positionCount);
-                recordProxiedPageLoad();
+                // The head warp range overlaps this page, so at least one position is already resolved
                 Page resolvedProxiedPage = currentProxiedPage.getPage().getRegion(0, resolvedRowCount);
+                recordProxiedPageLoad(currentProxiedPage);
                 Page resolvedWarpPage = currentWarpSourcePage.getPage().getRegion(warpPagePosition, resolvedRowCount);
                 SourcePage mergedPage = buildMergedPage(resolvedProxiedPage, resolvedWarpPage, resolvedRowCount);
                 proxiedPageRanges.addFirst(new RowRange(firstUnresolvedRow, pageEndExclusive));
@@ -372,11 +403,12 @@ public class DispatcherPageSource
                 return mergedPage;
             }
             currentProxiedPage.selectPositions(positions, 0, positionCount);
-            recordProxiedPageLoad();
             Page overlapWarpPage = currentWarpSourcePage.getPage().getRegion(warpPagePosition, positionCount);
-            SourcePage mergedPage = buildMergedPage(currentProxiedPage.getPage(), overlapWarpPage, positionCount);
+            SourcePage mergedPage = buildLazyMergedPage(currentProxiedPage, overlapWarpPage, positionCount);
             seekWarpPageSource(warpRowsToSkip + positionCount);
-            getNextProxiedPage();
+            // The merged page loads proxied channels on demand; the next proxied page is fetched lazily
+            // on the next call, after the engine has consumed this one
+            currentProxiedPage = null;
             return mergedPage;
         }
         finally {
@@ -384,13 +416,24 @@ public class DispatcherPageSource
         }
     }
 
-    private void recordProxiedPageLoad()
+    /**
+     * A lazy merged page can load its proxied blocks after the next proxied page was already fetched,
+     * so loads are deduplicated by page identity. {@link SourcePage#getSizeInBytes} covers only loaded
+     * blocks, so callers record after materializing.
+     */
+    private void recordProxiedPageLoad(SourcePage proxiedPage)
     {
-        if (!wasProxiedPagedLoaded) {
-            wasProxiedPagedLoaded = true;
+        if (!isSameSourcePage(lastLoadRecordedProxiedPage, proxiedPage)) {
+            lastLoadRecordedProxiedPage = proxiedPage;
             stats.incproxied_loaded_pages();
-            stats.addproxied_loaded_pages_bytes(currentProxiedPage.getSizeInBytes());
+            stats.addproxied_loaded_pages_bytes(proxiedPage.getSizeInBytes());
         }
+    }
+
+    @SuppressWarnings("ReferenceEquality")
+    private static boolean isSameSourcePage(SourcePage left, SourcePage right)
+    {
+        return left == right;
     }
 
     @Override
@@ -450,6 +493,7 @@ public class DispatcherPageSource
                 if (proxiedConnectorPageSource != null) {
                     proxiedPageRanges.clear();
                     currentProxiedPage = null;
+                    lastLoadRecordedProxiedPage = null;
                     proxiedConnectorPageSource.close();
                 }
             }
@@ -531,7 +575,6 @@ public class DispatcherPageSource
             proxiedConnectorPageSource = proxiedConnectorPageSourceProvider.get();
         }
         currentProxiedPage = null;
-        wasProxiedPagedLoaded = false;
         while (currentProxiedPage == null && !proxiedConnectorPageSource.isFinished()) {
             currentProxiedPage = proxiedConnectorPageSource.getNextSourcePage();
             if (currentProxiedPage != null && currentProxiedPage.getPositionCount() > 0) {
@@ -610,27 +653,23 @@ public class DispatcherPageSource
         return String.valueOf(page.getPositionCount());
     }
 
-    private static class DispatcherSourcePage
+    /**
+     * Output page over eagerly resolved blocks and a backing page that supplies the remaining channels on
+     * first access; a null entry in {@code blocks} loads from the backing page through
+     * {@code backingIndexByOutputChannel}.
+     */
+    private abstract static class MergedSourcePage
             implements SourcePage
     {
-        private final Block[] blocks;
-        private final SourcePage warpSourcePage;
-        private final int[] warpIndexByOutputChannel;
+        final Block[] blocks;
+        final SourcePage backingPage;
+        final int[] backingIndexByOutputChannel;
 
-        DispatcherSourcePage(
-                Block[] blocks,
-                SourcePage warpSourcePage,
-                int[] warpIndexByOutputChannel)
+        MergedSourcePage(Block[] blocks, SourcePage backingPage, int[] backingIndexByOutputChannel)
         {
             this.blocks = blocks;
-            this.warpSourcePage = warpSourcePage;
-            this.warpIndexByOutputChannel = warpIndexByOutputChannel;
-        }
-
-        @Override
-        public int getPositionCount()
-        {
-            return warpSourcePage.getPositionCount();
+            this.backingPage = backingPage;
+            this.backingIndexByOutputChannel = backingIndexByOutputChannel;
         }
 
         @Override
@@ -646,28 +685,6 @@ public class DispatcherPageSource
         }
 
         @Override
-        public long getRetainedSizeInBytes()
-        {
-            long retainedSizeInBytes = 0;
-            for (Block block : blocks) {
-                if (block != null) {
-                    retainedSizeInBytes += block.getRetainedSizeInBytes();
-                }
-            }
-            return retainedSizeInBytes;
-        }
-
-        @Override
-        public void retainedBytesForEachPart(ObjLongConsumer<Object> consumer)
-        {
-            for (Block block : blocks) {
-                if (block != null) {
-                    block.retainedBytesForEachPart(consumer);
-                }
-            }
-        }
-
-        @Override
         public int getChannelCount()
         {
             return blocks.length;
@@ -677,7 +694,7 @@ public class DispatcherPageSource
         public Block getBlock(int channel)
         {
             if (blocks[channel] == null) {
-                blocks[channel] = warpSourcePage.getBlock(warpIndexByOutputChannel[channel]);
+                loadBlocks(new int[] {channel});
             }
             return blocks[channel];
         }
@@ -694,21 +711,24 @@ public class DispatcherPageSource
                 return;
             }
             int[] missingChannels = new int[missingCount];
-            int[] warpChannels = new int[missingCount];
+            int[] backingChannels = new int[missingCount];
             int index = 0;
             for (int channel : channels) {
                 if (blocks[channel] == null) {
                     missingChannels[index] = channel;
-                    warpChannels[index] = warpIndexByOutputChannel[channel];
+                    backingChannels[index] = backingIndexByOutputChannel[channel];
                     index++;
                 }
             }
-            // Single getColumns call loads all missing blocks in one warp collect cycle
-            Page warpPage = warpSourcePage.getColumns(warpChannels);
+            // Single getColumns call loads all missing blocks in one pass over the backing page
+            Page backingBlocks = backingPage.getColumns(backingChannels);
             for (int i = 0; i < missingCount; i++) {
-                blocks[missingChannels[i]] = warpPage.getBlock(i);
+                blocks[missingChannels[i]] = backingBlocks.getBlock(i);
             }
+            backingBlocksLoaded();
         }
+
+        void backingBlocksLoaded() {}
 
         @Override
         public Page getPage()
@@ -740,7 +760,115 @@ public class DispatcherPageSource
                     blocks[i] = blocks[i].getPositions(positions, offset, size);
                 }
             }
-            warpSourcePage.selectPositions(positions, offset, size);
+            backingPage.selectPositions(positions, offset, size);
+        }
+    }
+
+    private static class DispatcherSourcePage
+            extends MergedSourcePage
+    {
+        DispatcherSourcePage(
+                Block[] blocks,
+                SourcePage warpSourcePage,
+                int[] warpIndexByOutputChannel)
+        {
+            super(blocks, warpSourcePage, warpIndexByOutputChannel);
+        }
+
+        @Override
+        public int getPositionCount()
+        {
+            return backingPage.getPositionCount();
+        }
+
+        @Override
+        public long getRetainedSizeInBytes()
+        {
+            long retainedSizeInBytes = 0;
+            for (Block block : blocks) {
+                if (block != null) {
+                    retainedSizeInBytes += block.getRetainedSizeInBytes();
+                }
+            }
+            return retainedSizeInBytes;
+        }
+
+        @Override
+        public void retainedBytesForEachPart(ObjLongConsumer<Object> consumer)
+        {
+            for (Block block : blocks) {
+                if (block != null) {
+                    block.retainedBytesForEachPart(consumer);
+                }
+            }
+        }
+    }
+
+    private static class LazyMixedSourcePage
+            extends MergedSourcePage
+    {
+        private final Runnable firstProxiedLoadListener;
+        private int positionCount;
+        private boolean proxiedLoaded;
+
+        LazyMixedSourcePage(
+                Block[] eagerBlocks,
+                SourcePage proxiedPage,
+                int[] proxiedIndexByOutputChannel,
+                int positionCount,
+                Runnable firstProxiedLoadListener)
+        {
+            super(eagerBlocks, proxiedPage, proxiedIndexByOutputChannel);
+            this.positionCount = positionCount;
+            this.firstProxiedLoadListener = firstProxiedLoadListener;
+        }
+
+        @Override
+        public int getPositionCount()
+        {
+            return positionCount;
+        }
+
+        @Override
+        void backingBlocksLoaded()
+        {
+            if (!proxiedLoaded) {
+                proxiedLoaded = true;
+                // notified after the load so the listener sees the materialized bytes
+                firstProxiedLoadListener.run();
+            }
+        }
+
+        @Override
+        public long getRetainedSizeInBytes()
+        {
+            // backingPage is retained even before any load; blocks loaded from it are views of the same memory
+            long retainedSizeInBytes = backingPage.getRetainedSizeInBytes();
+            for (int channel = 0; channel < blocks.length; channel++) {
+                if (blocks[channel] != null && backingIndexByOutputChannel[channel] < 0) {
+                    retainedSizeInBytes += blocks[channel].getRetainedSizeInBytes();
+                }
+            }
+            return retainedSizeInBytes;
+        }
+
+        @Override
+        public void retainedBytesForEachPart(ObjLongConsumer<Object> consumer)
+        {
+            // backingPage is retained even before any load; blocks loaded from it are views of the same memory
+            backingPage.retainedBytesForEachPart(consumer);
+            for (int channel = 0; channel < blocks.length; channel++) {
+                if (blocks[channel] != null && backingIndexByOutputChannel[channel] < 0) {
+                    blocks[channel].retainedBytesForEachPart(consumer);
+                }
+            }
+        }
+
+        @Override
+        public void selectPositions(int[] positions, int offset, int size)
+        {
+            super.selectPositions(positions, offset, size);
+            positionCount = size;
         }
     }
 }
