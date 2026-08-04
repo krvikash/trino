@@ -22,6 +22,8 @@ import io.starburst.stargate.icehouse.catalog.hms.HmsTableOperationModule;
 import io.starburst.stargate.icehouse.catalog.rest.RestTableOperationModule;
 import io.trino.FeaturesConfig;
 import io.trino.metadata.TypeRegistry;
+import io.trino.plugin.iceberg.IcebergConfig.VariantMapping;
+import io.trino.plugin.iceberg.IcebergTypeManager;
 import io.trino.spi.type.TypeManager;
 import io.trino.spi.type.TypeOperators;
 import io.trino.type.InternalTypeManager;
@@ -51,6 +53,8 @@ public class IcehouseCatalogModule
     @Singleton
     public TypeManager provideTypeManager()
     {
-        return new InternalTypeManager(new TypeRegistry(new TypeOperators(), new FeaturesConfig()));
+        return new IcebergTypeManager(
+                new InternalTypeManager(new TypeRegistry(new TypeOperators(), new FeaturesConfig())),
+                VariantMapping.VARIANT);
     }
 }

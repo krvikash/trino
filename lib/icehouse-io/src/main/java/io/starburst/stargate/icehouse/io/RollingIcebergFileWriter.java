@@ -25,8 +25,10 @@ import io.trino.filesystem.TrinoOutputFile;
 import io.trino.metadata.TypeRegistry;
 import io.trino.parquet.writer.ParquetWriterOptions;
 import io.trino.plugin.hive.RollbackAction;
+import io.trino.plugin.iceberg.IcebergConfig.VariantMapping;
 import io.trino.plugin.iceberg.IcebergFileWriter;
 import io.trino.plugin.iceberg.IcebergParquetFileWriter;
+import io.trino.plugin.iceberg.IcebergTypeManager;
 import io.trino.plugin.iceberg.IcebergUtil;
 import io.trino.plugin.iceberg.util.PrimitiveTypeMapBuilder;
 import io.trino.spi.Page;
@@ -61,7 +63,9 @@ import static java.util.Objects.requireNonNullElse;
 public class RollingIcebergFileWriter
         implements IcebergFileWriter
 {
-    private static final InternalTypeManager TYPE_MANAGER = new InternalTypeManager(new TypeRegistry(new TypeOperators(), new FeaturesConfig()));
+    private static final IcebergTypeManager TYPE_MANAGER = new IcebergTypeManager(
+            new InternalTypeManager(new TypeRegistry(new TypeOperators(), new FeaturesConfig())),
+            VariantMapping.VARIANT);
     private static final String TRINO_VERSION = requireNonNullElse(IcebergUtil.class.getPackage().getImplementationVersion(), "unknown");
 
     private final TrinoFileSystem fileSystem;
