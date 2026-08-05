@@ -508,20 +508,19 @@ public class UnityHiveMetastore
         TableType tableType = TableType.valueOf(table.getTableType());
         checkArgument(EXTERNAL_TABLE.equals(tableType), "Invalid table type: %s, create table is supported only for external tables", tableType);
 
+        String tableProviderValue = table.getParameters().get(DELTA_TABLE_PROVIDER_PROPERTY);
+        if (!DELTA_TABLE_PROVIDER_VALUE.equalsIgnoreCase(tableProviderValue)) {
+            throw new TrinoException(NOT_SUPPORTED, "Invalid table provider: %s, create table is only supported for tables with delta provider".formatted(tableProviderValue));
+        }
+
         CreateTable createTable = new CreateTable()
                 .catalogName(catalogName)
                 .schemaName(table.getDatabaseName())
                 .name(table.getTableName())
                 .tableType(EXTERNAL)
                 .storageLocation(table.getStorage().getLocation())
-                .properties(table.getParameters());
-
-        if (DELTA_TABLE_PROVIDER_VALUE.equals(table.getParameters().get(DELTA_TABLE_PROVIDER_PROPERTY))) {
-            createTable.setDataSourceFormat(DELTA);
-        }
-        else {
-            createTable.setDataSourceFormat(getDataSourceFormat(table.getStorage().getStorageFormat()));
-        }
+                .properties(table.getParameters())
+                .dataSourceFormat(DELTA);
 
         if (!table.getPartitionColumns().isEmpty()) {
             throw new TrinoException(NOT_SUPPORTED, "Create table with partitioned columns are not supported for Unity metastore");
@@ -1048,29 +1047,6 @@ public class UnityHiveMetastore
         }
 
         throw new TrinoException(NOT_SUPPORTED, "Unsupported column type: " + hiveType);
-    }
-
-    private static DataSourceFormat getDataSourceFormat(StorageFormat storageFormat)
-    {
-        if (AVRO.toStorageFormat().equals(storageFormat)) {
-            return DataSourceFormat.AVRO;
-        }
-        if (ORC.toStorageFormat().equals(storageFormat)) {
-            return DataSourceFormat.ORC;
-        }
-        if (PARQUET.toStorageFormat().equals(storageFormat)) {
-            return DataSourceFormat.PARQUET;
-        }
-        if (CSV.toStorageFormat().equals(storageFormat)) {
-            return DataSourceFormat.CSV;
-        }
-        if (JSON.toStorageFormat().equals(storageFormat)) {
-            return DataSourceFormat.JSON;
-        }
-        if (TEXTFILE.toStorageFormat().equals(storageFormat)) {
-            return DataSourceFormat.TEXT;
-        }
-        throw new TrinoException(NOT_SUPPORTED, "Unsupported data source format: " + storageFormat);
     }
 
     private static <T> T retry(ApiCall<T> call)

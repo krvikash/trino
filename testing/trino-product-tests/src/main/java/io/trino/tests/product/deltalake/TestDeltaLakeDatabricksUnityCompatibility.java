@@ -61,8 +61,7 @@ public class TestDeltaLakeDatabricksUnityCompatibility
         onDelta().executeQuery(format("DROP SCHEMA IF EXISTS %s.%s CASCADE", unityCatalogName, schemaName));
     }
 
-    // TODO https://starburstdata.atlassian.net/browse/ENG-19790
-    @Test(groups = {DELTA_LAKE_DATABRICKS_UNITY, DELTA_LAKE_DATABRICKS_UNITY_CREDENTIALS_VENDING, PROFILE_SPECIFIC_TESTS}, enabled = false)
+    @Test(groups = {DELTA_LAKE_DATABRICKS_UNITY, DELTA_LAKE_DATABRICKS_UNITY_CREDENTIALS_VENDING, PROFILE_SPECIFIC_TESTS})
     @Flaky(issue = DATABRICKS_COMMUNICATION_FAILURE_ISSUE, match = DATABRICKS_COMMUNICATION_FAILURE_MATCH)
     public void testTableReadWriteExternalTable()
     {
@@ -193,8 +192,7 @@ public class TestDeltaLakeDatabricksUnityCompatibility
         }
     }
 
-    // TODO https://starburstdata.atlassian.net/browse/ENG-19790
-    @Test(groups = {DELTA_LAKE_DATABRICKS_UNITY, DELTA_LAKE_DATABRICKS_UNITY_CREDENTIALS_VENDING, PROFILE_SPECIFIC_TESTS}, enabled = false)
+    @Test(groups = {DELTA_LAKE_DATABRICKS_UNITY, DELTA_LAKE_DATABRICKS_UNITY_CREDENTIALS_VENDING, PROFILE_SPECIFIC_TESTS})
     @Flaky(issue = DATABRICKS_COMMUNICATION_FAILURE_ISSUE, match = DATABRICKS_COMMUNICATION_FAILURE_MATCH)
     public void testTableReadWriteManagedTable()
     {
