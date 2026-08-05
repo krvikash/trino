@@ -169,41 +169,43 @@ public class DispatcherWrapperPageSource
     @Override
     public Metrics getMetrics()
     {
-        Metrics.Accumulator result = Metrics.accumulator();
-        if (closed) {
-            Map<String, Long> statsMap = new TreeMap<>();
-            customStatsContext.getRegisteredStats().forEach((_, value) -> statsMap.putAll(value.statsCounterMapper()));
-            statsMap.putAll(customStatsContext.getFixedStats());
-            statsMap.put(CUSTOM_METRIC_SCHEMA_NAME + dispatcherTableHandle.getSchemaTableName().getSchemaName(), 1L);
-            statsMap.put(CUSTOM_METRIC_TABLE_NAME + dispatcherTableHandle.getSchemaTableName().getTableName(), 1L);
-            statsMap.put(CUSTOM_METRIC_CATALOG_NAME + catalogName, 1L);
-
-            Map<String, Metric<?>> metricsMap = statsMap.entrySet()
-                    .stream()
-                    .collect(toImmutableMap(
-                            Map.Entry::getKey,
-                            entry -> new LongCount(entry.getValue())));
-            result.add(new Metrics(metricsMap));
-        }
-        if (connectorPageSource != null) {
-            result.add(getConnectorPageSource().getMetrics());
-            return result.get();
-        }
-        else {
+        if (!closed) {
+            if (connectorPageSource != null) {
+                return connectorPageSource.getMetrics();
+            }
             return Metrics.EMPTY;
         }
+        if (connectorPageSource == null) {
+            return Metrics.EMPTY;
+        }
+        Metrics.Accumulator result = Metrics.accumulator();
+        Map<String, Long> statsMap = new TreeMap<>();
+        customStatsContext.getRegisteredStats().forEach((_, value) -> statsMap.putAll(value.statsCounterMapper()));
+        statsMap.putAll(customStatsContext.getFixedStats());
+        statsMap.put(CUSTOM_METRIC_SCHEMA_NAME + dispatcherTableHandle.getSchemaTableName().getSchemaName(), 1L);
+        statsMap.put(CUSTOM_METRIC_TABLE_NAME + dispatcherTableHandle.getSchemaTableName().getTableName(), 1L);
+        statsMap.put(CUSTOM_METRIC_CATALOG_NAME + catalogName, 1L);
+
+        Map<String, Metric<?>> metricsMap = statsMap.entrySet()
+                .stream()
+                .collect(toImmutableMap(
+                        Map.Entry::getKey,
+                        entry -> new LongCount(entry.getValue())));
+        result.add(new Metrics(metricsMap));
+        result.add(connectorPageSource.getMetrics());
+        return result.get();
     }
 
     ConnectorPageSource getConnectorPageSource()
     {
-        try (WarpMDCContext _ = new WarpMDCContext(catalogName, Optional.of(session.getQueryId()))) {
-            if (connectorPageSource == null) {
+        if (connectorPageSource == null) {
+            try (WarpMDCContext _ = new WarpMDCContext(catalogName, Optional.of(session.getQueryId()))) {
                 connectorPageSource = buildDelegatePageSource();
-                if (connectorPageSource != null) {
-                    txService.updateRunningPageSourcesCount(true);
-                }
             }
-            return connectorPageSource;
+            if (connectorPageSource != null) {
+                txService.updateRunningPageSourcesCount(true);
+            }
         }
+        return connectorPageSource;
     }
 }
