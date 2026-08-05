@@ -211,12 +211,20 @@ public abstract class GpuAggregation
             return;
         }
 
-        // Peak working set is a multiple of `before` whose factor depends on subclass (global vs grouped) and the
-        // shape of the input (see compactPeakMultiplier).
+        // Peak working set of the compaction: a subclass-specific combination of the resident data
+        // (`before`), the concatenation copy, and the groupBy hash scratch (which scales with rows,
+        // not data). See compactPeakReservationBytes.
         MemoryAmount before = allocated.borrow().amount();
         boolean multiInput = inputTables.borrow().size() > 1;
-        long multiplier = compactPeakMultiplier(inputTables.borrow().getFirst() /* any */, multiInput);
-        allocated.borrow().update(MemoryAmount.gpuDevice(multiplier * before.gpuDeviceBytes()));
+        long inputRows = 0;
+        for (Table table : inputTables.borrow()) {
+            inputRows += table.getRowCount();
+        }
+        if (!compactedTable.isEmpty()) {
+            inputRows += compactedTable.borrow().getRowCount();
+        }
+        long reservationBytes = compactPeakReservationBytes(inputTables.borrow().getFirst() /* any */, multiInput, before.gpuDeviceBytes(), inputRows);
+        allocated.borrow().update(MemoryAmount.gpuDevice(reservationBytes));
 
         try (ClosingRef<Table> preAggregated = ClosingRef.empty();
                 TablesList toMerge = TablesList.create()) {
@@ -260,11 +268,16 @@ public abstract class GpuAggregation
     protected abstract @Move Table preAggregate(@Borrow Table table);
 
     /**
-     * Multiplier covering the peak working set of {@link #compact} relative to {@code before}.
-     * Depends on whether concat is a no-op (single-table) and on the cost of {@link #preAggregate}
-     * (negligible for global aggregation, key-type dependent for group-by).
+     * GPU device bytes to reserve for the peak working set of {@link #compact}. The peak is the larger
+     * of two independent transient costs — the concatenation copy (proportional to data) and the
+     * groupBy hash scratch (proportional to row count, not data) — added to the resident data.
+     *
+     * @param sample a buffered input table, for inspecting key column types
+     * @param multiInput whether more than one table is buffered (so concatenation copies)
+     * @param dataBytes resident data (buffered + previously compacted) device bytes
+     * @param rows total input rows about to be aggregated (buffered + previously compacted)
      */
-    protected abstract long compactPeakMultiplier(@Borrow Table sample, boolean multiInput);
+    protected abstract long compactPeakReservationBytes(@Borrow Table sample, boolean multiInput, long dataBytes, long rows);
 
     /**
      * Merge previously pre-aggregated intermediate tables into one.

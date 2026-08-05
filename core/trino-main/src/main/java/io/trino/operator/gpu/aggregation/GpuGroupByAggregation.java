@@ -42,6 +42,12 @@ import static java.util.Objects.requireNonNull;
 final class GpuGroupByAggregation
         extends GpuAggregation
 {
+    // Fixed-width keys are narrow (e.g. an 8-byte BIGINT), so the 2x-data floor in
+    // compactPeakReservationBytes does not cover the groupBy hash scratch; add a row-proportional term.
+    // Calibrated so count-type aggregations (data ~16 B/row) reach the previously-validated ~3x data;
+    // measured ~8-16 B/row of over-input working set for INT64 keys, so 32 keeps a margin.
+    private static final long FIXED_WIDTH_SCRATCH_BYTES_PER_ROW = 32;
+
     private final int[] groupByChannels;
     private final int[] mergeGroupByChannels;
 
@@ -60,22 +66,36 @@ final class GpuGroupByAggregation
     }
 
     @Override
-    protected long compactPeakMultiplier(@Borrow Table sample, boolean multiInput)
+    protected long compactPeakReservationBytes(@Borrow Table sample, boolean multiInput, long dataBytes, long rows)
     {
-        // cuDF's groupBy peak depends on key type:
-        //   - Fixed-width primitive keys (BIGINT, etc.): hash workspace is large relative to data,
-        //     pushing peak to ~2.5x before; reserve 3x.
-        //   - Variable-width / nested keys (VARCHAR, LIST, ...): hash table is small (pointers
-        //     only), so the peak is closer to 2x; reserve 2x to keep the over-reservation check
-        //     happy without under-reserving.
+        // The compaction peak is the larger of two independent transients, not one multiplier on data:
+        //   - concatenation copies the data once -> ~2x data;
+        //   - the groupBy holds its input plus output plus hash scratch.
+        // reserve max(2*data, data + hashScratch). This is tight for wide-state aggregations (data
+        // dominates -> ~2x, vs. the previous flat 3x that over-reserved them, e.g. TPC-H q18's
+        // `group by l_orderkey`) and still ~3x for narrow high-cardinality ones like count.
+        //
+        // hashScratch is a per-row term ONLY for fixed-width keys. For variable-width / nested keys the
+        // wide per-row key data already makes the 2x-data floor cover the scratch, so we add nothing.
+        // We deliberately do NOT add a per-row term for them: it would reserve for the all-distinct worst
+        // case, but the reservation cannot know the group cardinality, so on a low-cardinality string
+        // group-by (e.g. q01's returnflag/linestatus, ~12 groups) it would over-reserve and OOM under
+        // concurrency. The trade-off is that a genuinely high-cardinality string key is under-reserved
+        // (accepted; matches the previous behavior). Sizing this correctly needs NDV, which is not cheap.
+        long hashScratchBytes = fixedWidthKeys(sample) ? FIXED_WIDTH_SCRATCH_BYTES_PER_ROW * rows : 0;
+        return Math.max(2 * dataBytes, dataBytes + hashScratchBytes);
+    }
+
+    private boolean fixedWidthKeys(@Borrow Table sample)
+    {
         int[] keyChannels = inputRaw ? groupByChannels : mergeGroupByChannels;
         for (int channel : keyChannels) {
             DType type = sample.getColumn(channel).getType();
-            if (!type.isNestedType() && type.getTypeId() != DType.DTypeEnum.STRING) {
-                return 3;
+            if (type.isNestedType() || type.getTypeId() == DType.DTypeEnum.STRING) {
+                return false;
             }
         }
-        return 2;
+        return true;
     }
 
     @Override

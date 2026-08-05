@@ -51,11 +51,12 @@ final class GpuGlobalAggregation
     }
 
     @Override
-    protected long compactPeakMultiplier(@Borrow Table sample, boolean multiInput)
+    protected long compactPeakReservationBytes(@Borrow Table sample, boolean multiInput, long dataBytes, long rows)
     {
-        // preAggregate emits one scalar per aggregate (negligible). Concat dominates: 2x for
-        // multi-table, ~1x for a single-table no-op.
-        return multiInput ? 2 : 1;
+        // preAggregate reduces each aggregate to a single scalar (negligible), so there is no
+        // row-scaled hash scratch. Concat dominates: 2x data for multi-table, ~1x for a single-table
+        // no-op.
+        return (multiInput ? 2 : 1) * dataBytes;
     }
 
     @Override
