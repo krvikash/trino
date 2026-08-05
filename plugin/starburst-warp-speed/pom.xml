@@ -21,7 +21,7 @@
 
     <properties>
         <air.main.basedir>${project.parent.basedir}</air.main.basedir>
-        <dep.warp-speed-native.version>513</dep.warp-speed-native.version>
+        <dep.warp-speed-native.version>515</dep.warp-speed-native.version>
         <air.compiler.fail-warnings>true</air.compiler.fail-warnings>
         <trino.error-prone.extra-args>@${project.parent.basedir}/.mvn/errorprone.config</trino.error-prone.extra-args>
     </properties>
