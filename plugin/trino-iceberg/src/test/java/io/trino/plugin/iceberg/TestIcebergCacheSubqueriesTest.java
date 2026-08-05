@@ -45,6 +45,7 @@ public class TestIcebergCacheSubqueriesTest
             throws Exception
     {
         return IcebergQueryRunner.builder()
+                .setWorkerCount(1)
                 .setExtraProperties(EXTRA_PROPERTIES)
                 .setInitialTables(REQUIRED_TABLES)
                 .build();
