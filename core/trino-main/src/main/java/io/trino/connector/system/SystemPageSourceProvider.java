@@ -133,8 +133,8 @@ public class SystemPageSourceProvider
         TupleDomain<Integer> newConstraint = systemSplit.getConstraint().transformKeys(columnHandle ->
                 columnsByName.get(((SystemColumnHandle) columnHandle).columnName()));
 
-        ConnectorAccessControl accessControl1 = new InjectedConnectorAccessControl(
-                accessControl,
+        ConnectorAccessControl accessControl = new InjectedConnectorAccessControl(
+                this.accessControl,
                 new SecurityContext(
                         systemTransaction.getTransactionId(),
                         ((FullConnectorSession) session).getSession().getIdentity(),
@@ -156,7 +156,7 @@ public class SystemPageSourceProvider
                             systemTransaction.getConnectorTransactionHandle(),
                             session,
                             newConstraint,
-                            accessControl1),
+                            accessControl),
                     userToSystemFieldIndex.build());
         }
         catch (UnsupportedOperationException e) {
@@ -168,7 +168,7 @@ public class SystemPageSourceProvider
                             newConstraint,
                             requiredColumns.build(),
                             systemSplit,
-                            accessControl1),
+                            accessControl),
                     userToSystemFieldIndex.build()));
         }
     }
