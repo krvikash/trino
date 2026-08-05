@@ -29,6 +29,7 @@ import io.trino.operator.gpu.aggregation.GpuAggregateFunction;
 import io.trino.operator.gpu.aggregation.GpuAggregation;
 import io.trino.operator.gpu.aggregation.GpuSum;
 import io.trino.operator.gpu.expression.CompiledExpression;
+import io.trino.operator.gpu.expression.GetColumn;
 import io.trino.operator.gpu.expression.GpuCombineDecimalStateSumsToDecimal128;
 import io.trino.operator.gpu.expression.GpuCombineSumChunksToVarbinary;
 import io.trino.operator.gpu.expression.GpuDecimal128AsVarbinary;
@@ -372,7 +373,7 @@ final class TestGpuSumDecimalAggregation
         }
         for (int component = 0; component < GpuExtractDecimalStateChunk.COMPONENT_COUNT; component++) {
             preProjections.add(new Projection.Gpu(new CompiledExpression(
-                    new GpuExtractDecimalStateChunk(component),
+                    new GpuExtractDecimalStateChunk(new GetColumn(0), component),
                     new InputChannels(List.of(sourceChannel)))));
         }
 
@@ -408,7 +409,7 @@ final class TestGpuSumDecimalAggregation
     private static CompiledExpression chunkExpression(int sourceChannel, int chunkIdx, DType chunkType)
     {
         return new CompiledExpression(
-                new GpuExtractInt32Chunk(chunkIdx, chunkType),
+                new GpuExtractInt32Chunk(new GetColumn(0), chunkIdx, chunkType),
                 new InputChannels(List.of(sourceChannel)));
     }
 

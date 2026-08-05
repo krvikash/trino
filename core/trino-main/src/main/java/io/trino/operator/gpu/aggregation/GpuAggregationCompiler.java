@@ -25,7 +25,6 @@ import io.trino.operator.gpu.GpuProject;
 import io.trino.operator.gpu.GpuProject.Projection;
 import io.trino.operator.gpu.expression.CompiledExpression;
 import io.trino.operator.gpu.expression.GetColumn;
-import io.trino.operator.gpu.expression.GetOnlyColumn;
 import io.trino.operator.gpu.expression.GpuCast;
 import io.trino.operator.gpu.expression.GpuCombineDecimalStateSumsToDecimal128;
 import io.trino.operator.gpu.expression.GpuCombineSumChunksToVarbinary;
@@ -69,7 +68,6 @@ import static ai.rapids.cudf.DType.FLOAT64;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Verify.verify;
 import static com.google.common.base.Verify.verifyNotNull;
-import static com.google.common.collect.Lists.newArrayList;
 import static io.trino.metadata.GlobalFunctionCatalog.isBuiltinFunctionName;
 import static io.trino.operator.gpu.SignatureFormatter.formatAggregation;
 import static io.trino.spi.gpu.GpuTypeConversion.isConvertible;
@@ -196,12 +194,13 @@ public final class GpuAggregationCompiler
             postProjectionTypes.add(groupByTypes.get(i));
         }
 
+        InputChannels allSourceChannels = allChannels(sourceColumnCount);
         int currentDerivedChannel = sourceColumnCount;
         int currentAggChannel = groupByChannels.length;
         for (AggregateCompilation compilation : compilations) {
             int derivedStart = currentDerivedChannel;
-            for (CompiledExpression derivedExpression : compilation.preProjection()) {
-                preProjections.add(new Projection.Gpu(derivedExpression));
+            for (GpuExpression derivedExpression : compilation.preProjection()) {
+                preProjections.add(new Projection.Gpu(new CompiledExpression(derivedExpression, allSourceChannels)));
             }
             currentDerivedChannel += compilation.preProjection().size();
 
@@ -340,11 +339,9 @@ public final class GpuAggregationCompiler
                 verify(outputType == REAL || outputType == DOUBLE, "Unexpected outputType for sum with argument type %s: %s", argumentType, outputType);
                 verify(!step.isOutputPartial() || outputType == DOUBLE, "Unexpected outputType for sum with argument type %s at step %s: %s", argumentType, step, outputType);
 
-                List<Integer> inputChannels = newArrayList(column.get().channel());
-                GpuExpression input = new GetColumn(0);
+                GpuExpression input = new GetColumn(column.get().channel());
                 if (maskChannel.isPresent()) {
-                    inputChannels.add(maskChannel.getAsInt());
-                    input = new Mask(new GetColumn(1), input);
+                    input = new Mask(new GetColumn(maskChannel.getAsInt()), input);
                 }
                 // sum(REAL) and sum(DOUBLE) both use DOUBLE as accumulator type
                 if (step.isInputRaw() && argumentType == REAL) {
@@ -361,7 +358,7 @@ public final class GpuAggregationCompiler
 
                 yield Optional.of(new AggregateCompilation(
                         outputType,
-                        ImmutableList.of(new CompiledExpression(input, new InputChannels(inputChannels))),
+                        ImmutableList.of(input),
                         ImmutableList.of(channel -> new GpuSum(channel, outputType, FLOAT64)),
                         postProjection));
             }
@@ -452,12 +449,8 @@ public final class GpuAggregationCompiler
     {
         int negatedScale = -inputDecimalType.getScale();
         DType decimal128Type = DType.create(DType.DTypeEnum.DECIMAL128, negatedScale);
-        CompiledExpression cast = new CompiledExpression(
-                new GpuCast(new GetOnlyColumn(), decimal128Type),
-                new InputChannels(ImmutableList.of(column.channel())));
-        CompiledExpression passthrough = new CompiledExpression(
-                new GetOnlyColumn(),
-                new InputChannels(ImmutableList.of(column.channel())));
+        GpuExpression cast = new GpuCast(new GetColumn(column.channel()), decimal128Type);
+        GpuExpression passthrough = new GetColumn(column.channel());
 
         Type sumOutputType = decimalSumOutputType(inputDecimalType);
 
@@ -587,9 +580,10 @@ public final class GpuAggregationCompiler
      * @param outputType the Trino type the aggregate's output column carries (the AggregationNode's
      *         symbol type for this aggregate — the *intermediate* type for PARTIAL, or
      *         the return type for SINGLE/FINAL)
-     * @param preProjection compiled expressions appended to the pre-projection stage as derived
-     *         input columns (e.g. the four chunks for long-decimal sum). Empty for
-     *         simple aggregates that read the source column directly.
+     * @param preProjection expressions appended to the pre-projection stage as derived input
+     *         columns (e.g. the four chunks for long-decimal sum). Each reads the source page
+     *         directly via its own source-channel references. Empty for simple aggregates that
+     *         read the source column directly.
      * @param aggregates one or more aggregate slot factories — multiple for chunked aggregations
      *         like long-decimal sum (4 INT64 sums of UINT32/INT32 chunks). Each factory
      *         receives the resolved input channel (the appended derived column when
@@ -600,7 +594,7 @@ public final class GpuAggregationCompiler
      */
     private record AggregateCompilation(
             Type outputType,
-            List<CompiledExpression> preProjection,
+            List<GpuExpression> preProjection,
             List<AggregateSlotFactory> aggregates,
             Optional<PostProjection> postProjection)
     {
@@ -640,9 +634,7 @@ public final class GpuAggregationCompiler
                     "decimal128Type must have the same scale as the input, got %s vs %s",
                     decimal128Type.getScale(),
                     negatedScale);
-            CompiledExpression cast = new CompiledExpression(
-                    new GpuCast(new GetOnlyColumn(), decimal128Type),
-                    new InputChannels(List.of(sourceChannel)));
+            GpuExpression cast = new GpuCast(new GetColumn(sourceChannel), decimal128Type);
             Type sumOutputType = decimalSumOutputType(inputDecimalType);
             return new AggregateCompilation(
                     VARBINARY,
@@ -657,7 +649,7 @@ public final class GpuAggregationCompiler
         {
             // Pre-projection: extract the four 32-bit chunks of the DECIMAL128 input. Chunks
             // 0..2 are unsigned, chunk 3 carries the sign of the value.
-            List<CompiledExpression> chunks = List.of(
+            List<GpuExpression> chunks = List.of(
                     chunkExpression(sourceChannel, 0, DType.UINT32),
                     chunkExpression(sourceChannel, 1, DType.UINT32),
                     chunkExpression(sourceChannel, 2, DType.UINT32),
@@ -680,11 +672,9 @@ public final class GpuAggregationCompiler
                             new InputChannels(List.of(channels[0], channels[1], channels[2], channels[3]))))));
         }
 
-        private static CompiledExpression chunkExpression(int sourceChannel, int chunkIdx, DType chunkType)
+        private static GpuExpression chunkExpression(int sourceChannel, int chunkIdx, DType chunkType)
         {
-            return new CompiledExpression(
-                    new GpuExtractInt32Chunk(chunkIdx, chunkType),
-                    new InputChannels(List.of(sourceChannel)));
+            return new GpuExtractInt32Chunk(new GetColumn(sourceChannel), chunkIdx, chunkType);
         }
 
         static AggregateCompilation decimalSumFinal(int sourceChannel, DType decimal128Type, Type outputType)
@@ -693,7 +683,7 @@ public final class GpuAggregationCompiler
             // width components — 4 INT32 chunks of the 128-bit running sum, plus the running
             // overflow long. Variable-length input (8/16/24 byte rows from CPU PARTIAL or uniform
             // 16-byte from GPU PARTIAL) is handled inside GpuExtractDecimalStateChunk.
-            List<CompiledExpression> components = List.of(
+            List<GpuExpression> components = List.of(
                     decimalStateComponentExpression(sourceChannel, 0),
                     decimalStateComponentExpression(sourceChannel, 1),
                     decimalStateComponentExpression(sourceChannel, 2),
@@ -715,11 +705,9 @@ public final class GpuAggregationCompiler
                             new InputChannels(List.of(channels[0], channels[1], channels[2], channels[3], channels[4]))))));
         }
 
-        private static CompiledExpression decimalStateComponentExpression(int sourceChannel, int componentIdx)
+        private static GpuExpression decimalStateComponentExpression(int sourceChannel, int componentIdx)
         {
-            return new CompiledExpression(
-                    new GpuExtractDecimalStateChunk(componentIdx),
-                    new InputChannels(List.of(sourceChannel)));
+            return new GpuExtractDecimalStateChunk(new GetColumn(sourceChannel), componentIdx);
         }
     }
 
@@ -764,11 +752,18 @@ public final class GpuAggregationCompiler
         return DecimalType.createDecimalType(38, input.getScale());
     }
 
-    private static CompiledExpression maskExpression(int maskChannel, int valueChannel)
+    private static GpuExpression maskExpression(int maskChannel, int valueChannel)
     {
-        return new CompiledExpression(
-                new Mask(new GetColumn(0), new GetColumn(1)),
-                new InputChannels(ImmutableList.of(maskChannel, valueChannel)));
+        return new Mask(new GetColumn(maskChannel), new GetColumn(valueChannel));
+    }
+
+    private static InputChannels allChannels(int count)
+    {
+        ImmutableList.Builder<Integer> channels = ImmutableList.builderWithExpectedSize(count);
+        for (int i = 0; i < count; i++) {
+            channels.add(i);
+        }
+        return new InputChannels(channels.build());
     }
 
     private static final class Mask

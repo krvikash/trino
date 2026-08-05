@@ -34,6 +34,7 @@ import static com.google.common.base.Preconditions.checkState;
 import static io.trino.operator.gpu.expression.CudfUtils.allTrue;
 import static io.trino.spi.StandardErrorCode.GENERIC_INTERNAL_ERROR;
 import static java.lang.Math.toIntExact;
+import static java.util.Objects.requireNonNull;
 
 /**
  * Unpacks one component of the {@code sum(decimal)} VARBINARY intermediate state
@@ -60,10 +61,12 @@ public final class GpuExtractDecimalStateChunk
     private static final int[] BYTE_COUNT = {4, 4, 4, 4, 8};
     private static final DType[] OUTPUT_DTYPE = {DType.UINT32, DType.UINT32, DType.UINT32, DType.INT32, DType.INT64};
 
+    private final GpuExpression source;
     private final int componentIdx;
 
-    public GpuExtractDecimalStateChunk(int componentIdx)
+    public GpuExtractDecimalStateChunk(GpuExpression source, int componentIdx)
     {
+        this.source = requireNonNull(source, "source is null");
         checkArgument(componentIdx >= 0 && componentIdx < COMPONENT_COUNT,
                 "componentIdx must be in [0, %s), got %s",
                 COMPONENT_COUNT,
@@ -72,10 +75,15 @@ public final class GpuExtractDecimalStateChunk
     }
 
     @Override
-    public @Move ColumnVector evaluate(int positionCount, @Borrow List<ColumnVector> inputColumns)
+    public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns)
     {
-        checkState(inputColumns.size() == 1, "Expected exactly one input column, got %s", inputColumns.size());
-        @Borrow ColumnVector input = inputColumns.getFirst();
+        try (ColumnVector input = source.evaluate(positionCount, inputColumns)) {
+            return extract(input);
+        }
+    }
+
+    private @Move ColumnVector extract(@Borrow ColumnVector input)
+    {
         checkState(input.getType().getTypeId() == DType.DTypeEnum.LIST,
                 "Expected LIST input, got %s",
                 input.getType());
@@ -220,12 +228,14 @@ public final class GpuExtractDecimalStateChunk
     @Override
     public boolean equals(Object obj)
     {
-        return obj instanceof GpuExtractDecimalStateChunk other && componentIdx == other.componentIdx;
+        return obj instanceof GpuExtractDecimalStateChunk other
+                && source.equals(other.source)
+                && componentIdx == other.componentIdx;
     }
 
     @Override
     public int hashCode()
     {
-        return Objects.hash(getClass(), componentIdx);
+        return Objects.hash(getClass(), source, componentIdx);
     }
 }
