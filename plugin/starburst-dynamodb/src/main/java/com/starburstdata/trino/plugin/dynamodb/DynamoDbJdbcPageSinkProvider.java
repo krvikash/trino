@@ -24,6 +24,7 @@ import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorTableCredentials;
 import io.trino.spi.connector.ConnectorTableExecuteHandle;
 import io.trino.spi.connector.ConnectorTransactionHandle;
+import io.trino.spi.connector.MemoryContext;
 
 import java.util.Optional;
 
@@ -59,8 +60,8 @@ public class DynamoDbJdbcPageSinkProvider
     }
 
     @Override
-    public ConnectorMergeSink createMergeSink(ConnectorTransactionHandle transactionHandle, ConnectorSession session, ConnectorMergeTableHandle mergeHandle, Optional<ConnectorTableCredentials> tableCredentials, ConnectorPageSinkId pageSinkId)
+    public ConnectorMergeSink createMergeSink(ConnectorTransactionHandle transactionHandle, ConnectorSession session, ConnectorMergeTableHandle mergeHandle, Optional<ConnectorTableCredentials> tableCredentials, ConnectorPageSinkId pageSinkId, MemoryContext memoryContext)
     {
-        return super.createMergeSink(transactionHandle, session, mergeHandle, tableCredentials, pageSinkId);
+        return super.createMergeSink(transactionHandle, session, mergeHandle, tableCredentials, pageSinkId, memoryContext);
     }
 }

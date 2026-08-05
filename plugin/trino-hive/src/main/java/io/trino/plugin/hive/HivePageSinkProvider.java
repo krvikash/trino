@@ -38,6 +38,7 @@ import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorTableCredentials;
 import io.trino.spi.connector.ConnectorTableExecuteHandle;
 import io.trino.spi.connector.ConnectorTransactionHandle;
+import io.trino.spi.connector.MemoryContext;
 import io.trino.spi.type.TypeManager;
 
 import java.util.List;
@@ -145,7 +146,8 @@ public class HivePageSinkProvider
             ConnectorSession session,
             ConnectorMergeTableHandle mergeHandle,
             Optional<ConnectorTableCredentials> tableCredentials,
-            ConnectorPageSinkId pageSinkId)
+            ConnectorPageSinkId pageSinkId,
+            MemoryContext memoryContext)
     {
         HiveMergeTableHandle hiveMergeHandle = (HiveMergeTableHandle) mergeHandle;
         HiveInsertTableHandle insertHandle = hiveMergeHandle.getInsertHandle();

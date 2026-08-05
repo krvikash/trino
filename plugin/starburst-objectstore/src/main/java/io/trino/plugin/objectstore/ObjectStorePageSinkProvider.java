@@ -36,6 +36,7 @@ import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorTableCredentials;
 import io.trino.spi.connector.ConnectorTableExecuteHandle;
 import io.trino.spi.connector.ConnectorTransactionHandle;
+import io.trino.spi.connector.MemoryContext;
 
 import java.util.Optional;
 
@@ -102,12 +103,12 @@ public class ObjectStorePageSinkProvider
     }
 
     @Override
-    public ConnectorMergeSink createMergeSink(ConnectorTransactionHandle transactionHandle, ConnectorSession session, ConnectorMergeTableHandle table, Optional<ConnectorTableCredentials> tableCredentials, ConnectorPageSinkId pageSinkId)
+    public ConnectorMergeSink createMergeSink(ConnectorTransactionHandle transactionHandle, ConnectorSession session, ConnectorMergeTableHandle table, Optional<ConnectorTableCredentials> tableCredentials, ConnectorPageSinkId pageSinkId, MemoryContext memoryContext)
     {
         ObjectStoreTransactionHandle transaction = (ObjectStoreTransactionHandle) transactionHandle;
         return switch (table) {
-            case IcebergMergeTableHandle _ -> icebergPageSinkProvider.createMergeSink(transaction.getIcebergHandle(), unwrap(ICEBERG, session), table, tableCredentials, pageSinkId);
-            case DeltaLakeMergeTableHandle _ -> deltaPageSinkProvider.createMergeSink(transaction.getDeltaHandle(), unwrap(DELTA, session), table, tableCredentials, pageSinkId);
+            case IcebergMergeTableHandle _ -> icebergPageSinkProvider.createMergeSink(transaction.getIcebergHandle(), unwrap(ICEBERG, session), table, tableCredentials, pageSinkId, memoryContext);
+            case DeltaLakeMergeTableHandle _ -> deltaPageSinkProvider.createMergeSink(transaction.getDeltaHandle(), unwrap(DELTA, session), table, tableCredentials, pageSinkId, memoryContext);
             default -> throw new VerifyException("Unhandled class: " + table.getClass().getName());
         };
     }
