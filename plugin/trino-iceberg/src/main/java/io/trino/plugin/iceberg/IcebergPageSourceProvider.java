@@ -523,6 +523,9 @@ public class IcebergPageSourceProvider
                 footerCompletedBytes += dataSource.getReadBytes();
                 footerReadTimeNanos += dataSource.getReadTimeNanos();
             }
+            catch (TrinoException e) {
+                throw e;
+            }
             catch (IOException | RuntimeException e) {
                 throw new TrinoException(ICEBERG_CANNOT_OPEN_SPLIT, "Failed to create GPU Parquet page source for: " + inputFile.location() + ". " + e.getMessage(), e);
             }
