@@ -284,7 +284,8 @@ jobs:
     needs: path-filters
     if: github.event_name != 'pull_request' || needs.path-filters.outputs.non_docs == 'true'
     runs-on: [self-hosted, gha-fleet-ec2-4cpu-16gb-amd64, latest]
-    timeout-minutes: 30
+    # TODO https://starburstdata.atlassian.net/browse/ENG-22240 Restore to 30 minutes after fixing maven cache bloat issue
+    timeout-minutes: 45
     env:
       REPORT_TEST_SESSION_NAME: modules
       REPORT_SERVICE_NAME: jdbc-compatibility
