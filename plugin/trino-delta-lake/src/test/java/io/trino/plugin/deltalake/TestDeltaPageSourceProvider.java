@@ -19,6 +19,7 @@ import io.trino.filesystem.local.LocalFileSystemFactory;
 import io.trino.plugin.base.metrics.FileFormatDataSourceStats;
 import io.trino.plugin.deltalake.transactionlog.MetadataEntry;
 import io.trino.plugin.deltalake.transactionlog.ProtocolEntry;
+import io.trino.plugin.hive.parquet.GpuParquetConfig;
 import io.trino.plugin.hive.parquet.ParquetReaderConfig;
 import io.trino.spi.SplitWeight;
 import io.trino.spi.connector.ColumnHandle;
@@ -58,6 +59,7 @@ public class TestDeltaPageSourceProvider
                 new DefaultDeltaLakeFileSystemFactory(new LocalFileSystemFactory(Files.createTempDirectory("prefix")), new NoOpTableCredentialsProvider()),
                 new FileFormatDataSourceStats(),
                 new ParquetReaderConfig(),
+                new GpuParquetConfig(),
                 new DeltaLakeConfig(),
                 TESTING_TYPE_MANAGER);
     }

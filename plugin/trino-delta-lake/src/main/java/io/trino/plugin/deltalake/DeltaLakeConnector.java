@@ -21,6 +21,7 @@ import io.airlift.bootstrap.LifeCycleManager;
 import io.trino.plugin.base.classloader.ClassLoaderSafeConnectorMetadata;
 import io.trino.plugin.base.session.SessionPropertiesProvider;
 import io.trino.plugin.hive.HiveTransactionHandle;
+import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.Connector;
 import io.trino.spi.connector.ConnectorAccessControl;
 import io.trino.spi.connector.ConnectorCapabilities;
@@ -28,9 +29,12 @@ import io.trino.spi.connector.ConnectorMetadata;
 import io.trino.spi.connector.ConnectorNodePartitioningProvider;
 import io.trino.spi.connector.ConnectorPageSinkProvider;
 import io.trino.spi.connector.ConnectorPageSourceProvider;
+import io.trino.spi.connector.ConnectorPageSourceProviderFactory;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorSplitManager;
+import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.ConnectorTransactionHandle;
+import io.trino.spi.connector.GpuPageSourceSupport;
 import io.trino.spi.connector.SystemTable;
 import io.trino.spi.connector.TableProcedureMetadata;
 import io.trino.spi.function.FunctionProvider;
@@ -142,6 +146,25 @@ public class DeltaLakeConnector
     public ConnectorPageSourceProvider getPageSourceProvider()
     {
         return pageSourceProvider;
+    }
+
+    @Override
+    public ConnectorPageSourceProviderFactory getPageSourceProviderFactory()
+    {
+        return new ConnectorPageSourceProviderFactory()
+        {
+            @Override
+            public GpuPageSourceSupport getGpuPageSourceSupport(ConnectorTableHandle connectorTableHandle, List<ColumnHandle> columns)
+            {
+                return DeltaLakePageSourceProvider.getGpuPageSourceSupport(columns);
+            }
+
+            @Override
+            public ConnectorPageSourceProvider createPageSourceProvider()
+            {
+                return pageSourceProvider;
+            }
+        };
     }
 
     @Override

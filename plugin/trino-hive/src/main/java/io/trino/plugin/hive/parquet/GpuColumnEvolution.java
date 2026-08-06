@@ -50,7 +50,15 @@ public final class GpuColumnEvolution
             // TODO: Handle overflow https://starburstdata.atlassian.net/browse/ENG-18406
             return cudfColumn.castTo(expectedDType);
         }
-        if (isIntegerType(actualDType) && (isIntegerType(expectedDType) || expectedDType.isDecimalType())
+        if (isIntegerType(actualDType) && isIntegerType(expectedDType)) {
+            // A narrow logical type (e.g. TINYINT/SMALLINT) may be stored as a wider physical INT32/INT64
+            // (Delta writes byte/short as unannotated INT32). Casting to the declared type reads the value
+            // for well-formed data, whose values fit the logical domain; widening (schema evolution) is
+            // likewise a plain cast. cuDF castTo truncates rather than checking range for out-of-domain
+            // values. TODO: Handle overflow https://starburstdata.atlassian.net/browse/ENG-18406
+            return cudfColumn.castTo(expectedDType);
+        }
+        if (isIntegerType(actualDType) && expectedDType.isDecimalType()
                 && expectedDType.getSizeInBytes() >= actualDType.getSizeInBytes()) {
             // TODO: Handle overflow https://starburstdata.atlassian.net/browse/ENG-18406
             return cudfColumn.castTo(expectedDType);

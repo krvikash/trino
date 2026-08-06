@@ -29,6 +29,7 @@ import io.trino.plugin.base.metrics.FileFormatDataSourceStats;
 import io.trino.plugin.deltalake.transactionlog.MetadataEntry;
 import io.trino.plugin.deltalake.transactionlog.ProtocolEntry;
 import io.trino.plugin.hive.HiveTransactionHandle;
+import io.trino.plugin.hive.parquet.GpuParquetConfig;
 import io.trino.plugin.hive.parquet.ParquetReaderConfig;
 import io.trino.plugin.hive.parquet.ParquetWriterConfig;
 import io.trino.spi.Page;
@@ -325,6 +326,7 @@ public class TestDeltaLakeNodeLocalDynamicSplitPruning
                 new DefaultDeltaLakeFileSystemFactory(HDFS_FILE_SYSTEM_FACTORY, new NoOpTableCredentialsProvider()),
                 stats,
                 PARQUET_READER_CONFIG,
+                new GpuParquetConfig(),
                 deltaLakeConfig,
                 TESTING_TYPE_MANAGER);
 
