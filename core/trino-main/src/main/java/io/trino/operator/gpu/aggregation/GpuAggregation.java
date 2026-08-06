@@ -152,9 +152,7 @@ public abstract class GpuAggregation
             case Blocked blocked -> blocked;
             case Yielded yielded -> yielded;
             case Data(AllocatedMemory memory, GpuPage page) -> {
-                try (memory; page) {
-                    bufferPage(memory, page);
-                }
+                bufferPage(memory, page);
                 yield new Yielded();
             }
             case Finished() -> {
@@ -170,29 +168,39 @@ public abstract class GpuAggregation
         };
     }
 
-    private void bufferPage(@Borrow AllocatedMemory pageAllocation, @Borrow GpuPage page)
+    private void bufferPage(@Move AllocatedMemory pageAllocation, @Move GpuPage incomingPage)
     {
-        totalBufferedRowCount += page.positionCount();
+        try (pageAllocation; var page = ClosingRef.own(incomingPage)) {
+            totalBufferedRowCount += page.borrow().positionCount();
 
-        if (page.columnCount() == 0) {
-            // When no columns, only totalBufferedRowCount is tracked
-            return;
-        }
-
-        try (ClosingRef<Table> inputTable = ClosingRef.own(toTable(page))) {
-            long tableBytes = inputTable.borrow().getDeviceMemorySize();
-            int[] tableRows = maxRowsPerColumn(inputTable.borrow());
-
-            if (!inputTables.isEmpty()
-                    && (totalInputBytes + tableBytes > compactionThresholdBytes
-                    || anyColumnExceedsRowCountThreshold(tableRows))) {
-                compact();
+            if (page.borrow().columnCount() == 0) {
+                // When no columns, only totalBufferedRowCount is tracked
+                return;
             }
 
-            allocated.borrow().transferFrom(pageAllocation);
-            inputTables.add(inputTable.take());
-            totalInputBytes += tableBytes;
-            addRowCounts(tableRows);
+            try (ClosingRef<Table> inputTable = ClosingRef.own(toTable(page.borrow()))) {
+                page.close();
+                long tableBytes = inputTable.borrow().getDeviceMemorySize();
+                int[] tableRows = maxRowsPerColumn(inputTable.borrow());
+
+                // Compact before appending, so the working set flushed at once stays within the
+                // threshold rather than growing to threshold + this page. The post-append compaction
+                // below still flushes a page that already exceeds the threshold on its own.
+                if (!inputTables.isEmpty()
+                        && (totalInputBytes + tableBytes > compactionThresholdBytes
+                        || anyColumnExceedsRowCountThreshold(tableRows))) {
+                    compact();
+                }
+
+                allocated.borrow().transferFrom(pageAllocation);
+                inputTables.add(inputTable.take());
+                totalInputBytes += tableBytes;
+                addRowCounts(tableRows);
+
+                if (totalInputBytes >= compactionThresholdBytes) {
+                    compact();
+                }
+            }
         }
     }
 
