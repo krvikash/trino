@@ -41,6 +41,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Predicate;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
@@ -62,7 +63,8 @@ public class QueryParamsConverter
             String filePath,
             long fileModTime,
             boolean rangesRequired,
-            String queryId)
+            String queryId,
+            Predicate<WarmUpElement> indexUncached)
     {
         checkArgument(queryContext.getTotalRecords() != INVALID_TOTAL_RECORDS, "Invalid total records");
 
@@ -116,7 +118,8 @@ public class QueryParamsConverter
                 predicateCacheDataBuilder,
                 minOffsets,
                 warmUpElementMatchParamsQueue,
-                matchNodeAttsQueue)).orElseGet(() -> new MatchNodes(Collections.emptyList(), 0, 0));
+                matchNodeAttsQueue,
+                indexUncached)).orElseGet(() -> new MatchNodes(Collections.emptyList(), 0, 0));
         // calculate the root
         Optional<MatchNode> rootMatchNode = createRootMatchNode(matchNodes.terms(), rootMatchNodeAtt);
 
@@ -205,7 +208,8 @@ public class QueryParamsConverter
             ImmutableList.Builder<PredicateCacheData> predicateCacheDataBuilder,
             int[] minOffsets,
             ArrayDeque<MemorySegment> warmUpElementMatchParamsQueue,
-            ArrayDeque<MemorySegment> matchNodeAttsQueue)
+            ArrayDeque<MemorySegment> matchNodeAttsQueue,
+            Predicate<WarmUpElement> indexUncached)
     {
         List<MatchNode> convertedList = new ArrayList<>(matchDataList.size());
 
@@ -245,6 +249,7 @@ public class QueryParamsConverter
                                 matchCollectIndex,
                                 matchDataWarmUpElement.getWarmupElementStats().getNullsCount() > 0 && queryMatchData.isCollectNulls(),
                                 queryMatchData.isTightnessRequired(),
+                                indexUncached.test(matchDataWarmUpElement),
                                 matchDataWarmUpElement.getWarmEvents(),
                                 matchDataWarmUpElement.isImported(),
                                 luceneParams,
@@ -264,7 +269,8 @@ public class QueryParamsConverter
                         predicateCacheDataBuilder,
                         minOffsets,
                         warmUpElementMatchParamsQueue,
-                        matchNodeAttsQueue);
+                        matchNodeAttsQueue,
+                        indexUncached);
                 MatchNodeType nodeType = logicalMatchData.getOperator() == LogicalMatchData.Operator.AND ? MatchNodeType.MATCH_NODE_TYPE_AND : MatchNodeType.MATCH_NODE_TYPE_OR;
                 convertedList.add(new LogicalMatchNode(nodeType, matchNodes.terms(), matchNodeAtt));
                 currentNumLeaves = matchNodes.numLeaves();

@@ -35,6 +35,7 @@ public class NativeStorageEngineConstants
     private final int pageSize;                      // native layer page size
     private final int pageSizeMask;                  // mask for page alignment
     private final int pageOffsetMask;                // mask for in page offset
+    private final int storageCacheSizeInPages;       // native layer storage cache capacity in pages
     // buffer
     private final int recordBufferMaxSize;
     private final int indexChunkMaxSize;
@@ -72,6 +73,7 @@ public class NativeStorageEngineConstants
             pageSize = 1;
             pageOffsetMask = 1;
             pageSizeMask = 1;
+            storageCacheSizeInPages = 1;
             recordBufferMaxSize = 1;
             indexChunkMaxSize = 1;
             queryStringNullValueSize = 1;
@@ -108,6 +110,7 @@ public class NativeStorageEngineConstants
             pageSize = 1 << pageSizeShift;
             pageOffsetMask = pageSize - 1;
             pageSizeMask = ~pageOffsetMask;
+            storageCacheSizeInPages = storageEngine.getStorageCacheSizeInPages();
 
             // buffers
             recordBufferMaxSize = getWarpSpeedConstant(libraryHandle, "warp_speed_constants_get_record_buffer_max_size");
@@ -180,6 +183,12 @@ public class NativeStorageEngineConstants
     public int getPageSizeShift()
     {
         return pageSizeShift;
+    }
+
+    @Override
+    public int getStorageCacheSizeInPages()
+    {
+        return storageCacheSizeInPages;
     }
 
     @Override

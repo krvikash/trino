@@ -65,7 +65,8 @@ public class QueryParamsConverterTest
                 "filePath",
                 0x40302010,
                 false,
-                "test-query-id");
+                "test-query-id",
+                _ -> false);
         List<MatchNode> es = List.of(new LogicalMatchNode(
                 MatchNodeType.MATCH_NODE_TYPE_AND,
                 List.of(convertLuceneMatchDataToMatchParams(luceneQueryMatchData0, 0),
@@ -77,6 +78,30 @@ public class QueryParamsConverterTest
                 MemorySegment.ofArray(new byte[10])));
         assertThat(queryParams.getRootMatchNode().orElseThrow()).isEqualTo(es.getFirst());
         assertThat(queryParams.getNumLucene()).isEqualTo(3);
+    }
+
+    @Test
+    public void testIndexUncachedFlagFollowsPredicate()
+    {
+        LuceneQueryMatchData cachedMatchData = createLuceneQueryMatchData("lucene0", 0);
+        LuceneQueryMatchData uncachedMatchData = createLuceneQueryMatchData("lucene1", 1);
+        MatchData matchData = new LogicalMatchData(LogicalMatchData.Operator.AND, List.of(cachedMatchData, uncachedMatchData));
+
+        QueryContext queryContext = mock(QueryContext.class);
+        when(queryContext.getMatchData()).thenReturn(Optional.of(matchData));
+        when(queryContext.getNativeQueryCollectDataList()).thenReturn(ImmutableList.of());
+        when(queryContext.getTotalRecords()).thenReturn(100);
+        QueryParams queryParams = QueryParamsConverter.createQueryParams(
+                new WorkerMemoryManager(new CatalogName("f"), new ShapingLoggerFactory(new CatalogName("c"), new SharedConfig())),
+                queryContext,
+                "filePath",
+                0x40302010,
+                false,
+                "test-query-id",
+                warmUpElement -> warmUpElement.getWarpColumn().getName().equals("lucene1"));
+        List<MatchNode> leaves = queryParams.getRootMatchNode().orElseThrow().getChildren();
+        assertThat(((WarmupElementMatchParams) leaves.get(0)).isIndexUncached()).isFalse();
+        assertThat(((WarmupElementMatchParams) leaves.get(1)).isIndexUncached()).isTrue();
     }
 
     private WarmupElementMatchParams convertLuceneMatchDataToMatchParams(LuceneQueryMatchData luceneQueryMatchData, int luceneIx)
@@ -93,6 +118,7 @@ public class QueryParamsConverterTest
                 -1,
                 luceneQueryMatchData.getWarmUpElement().getWarmupElementStats().getNullsCount() > 0 && luceneQueryMatchData.isCollectNulls(),
                 luceneQueryMatchData.isTightnessRequired(),
+                false,
                 luceneQueryMatchData.getWarmUpElement().getWarmEvents(),
                 luceneQueryMatchData.getWarmUpElement().isImported(),
                 Optional.of(new WarmupElementLuceneParams(luceneQueryMatchData, luceneIx)),

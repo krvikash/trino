@@ -23,11 +23,13 @@ import io.trino.plugin.warp.WarpSessionProperties;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.dispatcher.model.RowGroupData;
 import io.trino.plugin.warp.dispatcher.model.RowGroupKey;
+import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
 import io.trino.plugin.warp.dispatcher.query.QueryContext;
 import io.trino.plugin.warp.dispatcher.query.classifier.QueryClassifier;
 import io.trino.plugin.warp.dispatcher.query.data.QueryColumn;
 import io.trino.plugin.warp.dispatcher.services.RowGroupDataService;
 import io.trino.plugin.warp.dispatcher.warmup.WorkerWarmingService;
+import io.trino.plugin.warp.gen.constants.WarmUpType;
 import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
 import io.trino.plugin.warp.juffer.PredicatesCacheService;
 import io.trino.plugin.warp.log.ShapingLoggerFactory;
@@ -427,6 +429,16 @@ public class WarpDispatcherPageSourceFactory
                 MemoryContext.NO_LIMIT);
     }
 
+    // a column whose total basic index footprint exceeds the storage cache capacity cannot stay
+    // resident, so caching its index pages only evicts other columns
+    private boolean isIndexUncached(RowGroupKey rowGroupKey, WarmUpElement warmUpElement)
+    {
+        if (warmUpElement.getWarmUpType() != WarmUpType.WARM_UP_TYPE_BASIC) {
+            return false;
+        }
+        return rowGroupDataService.getBasicIndexFootprintPages(rowGroupKey, warmUpElement.getWarpColumn()) > storageEngineConstants.getStorageCacheSizeInPages();
+    }
+
     private ConnectorPageSource createMixedPageSource(
             ConnectorPageSourceProvider connectorPageSourceProvider,
             QueryClassifier queryClassifier,
@@ -466,7 +478,14 @@ public class WarpDispatcherPageSourceFactory
         boolean isMixedQuery = PageSourceDecision.MIXED.equals(pageSourceDecision);
         String filePath = rowGroupData.getRowGroupKey().stringFileNameRepresentation(globalConfig.getLocalStorePath());
         long fileModTime = rowGroupData.getRowGroupKey().fileModifiedTime();
-        QueryParams queryParams = createQueryParams(workerMemoryManager, queryContext, filePath, fileModTime, isMixedQuery, session.getQueryId());
+        QueryParams queryParams = createQueryParams(
+                workerMemoryManager,
+                queryContext,
+                filePath,
+                fileModTime,
+                isMixedQuery,
+                session.getQueryId(),
+                warmUpElement -> isIndexUncached(rowGroupData.getRowGroupKey(), warmUpElement));
         WarpPageSource warpPageSource = new WarpPageSource(
                 storageEngineConstants,
                 dispatcherTableHandle.getLimit().orElse(Long.MAX_VALUE),

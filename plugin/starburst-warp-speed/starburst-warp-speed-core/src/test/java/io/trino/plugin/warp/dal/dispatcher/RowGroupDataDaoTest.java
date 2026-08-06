@@ -197,6 +197,61 @@ public class RowGroupDataDaoTest
     }
 
     @Test
+    public void testBasicIndexFootprintTracking()
+    {
+        RegularColumn warpColumn = new RegularColumn("aaa");
+        RowGroupData firstRowGroupData = rowGroupDataWithBasicElement(warpColumn, "file_path_1", 10, 30);
+        RowGroupData secondRowGroupData = rowGroupDataWithBasicElement(warpColumn, "file_path_2", 0, 15);
+        RowGroupKey firstRowGroupKey = firstRowGroupData.getRowGroupKey();
+
+        assertThat(rowGroupDataDao.getBasicIndexFootprintPages(firstRowGroupKey, warpColumn)).isEqualTo(0);
+
+        rowGroupDataDao.save(List.of(firstRowGroupData, secondRowGroupData));
+        assertThat(rowGroupDataDao.getBasicIndexFootprintPages(firstRowGroupKey, warpColumn)).isEqualTo(35);
+
+        // replacing a row group counts the new elements and discounts the replaced ones
+        rowGroupDataDao.save(List.of(rowGroupDataWithBasicElement(warpColumn, "file_path_1", 10, 35)));
+        assertThat(rowGroupDataDao.getBasicIndexFootprintPages(firstRowGroupKey, warpColumn)).isEqualTo(40);
+
+        // non-hot elements do not count
+        RowGroupData warmRowGroupData = RowGroupData.builder(secondRowGroupData)
+                .warmUpElements(List.of(WarmUpElement.builder(secondRowGroupData.getWarmUpElements().iterator().next())
+                        .warmState(WarmState.WARM)
+                        .build()))
+                .build();
+        rowGroupDataDao.save(List.of(warmRowGroupData));
+        assertThat(rowGroupDataDao.getBasicIndexFootprintPages(firstRowGroupKey, warpColumn)).isEqualTo(25);
+
+        rowGroupDataDao.invalidate(firstRowGroupKey);
+        assertThat(rowGroupDataDao.getBasicIndexFootprintPages(firstRowGroupKey, warpColumn)).isEqualTo(0);
+    }
+
+    private static RowGroupData rowGroupDataWithBasicElement(RegularColumn warpColumn, String filePath, int startOffset, int endOffset)
+    {
+        WarmUpElement warmUpElement = WarmUpElement.builder()
+                .warmUpType(WarmUpType.WARM_UP_TYPE_BASIC)
+                .recTypeCode(RecTypeCode.REC_TYPE_INTEGER)
+                .recTypeLength(4)
+                .warpColumn(warpColumn)
+                .warmupElementStats(new WarmupElementStats(0, Long.MIN_VALUE, Long.MAX_VALUE))
+                .startOffset(startOffset)
+                .endOffset(endOffset)
+                .build();
+        return RowGroupData.builder()
+                .rowGroupKey(new RowGroupKey(
+                        "schema",
+                        "table",
+                        filePath,
+                        0,
+                        1L,
+                        0,
+                        "",
+                        ""))
+                .warmUpElements(List.of(warmUpElement))
+                .build();
+    }
+
+    @Test
     public void testLongFilePath()
     {
         WarmUpElement warmUpElement = WarmUpElement.builder()

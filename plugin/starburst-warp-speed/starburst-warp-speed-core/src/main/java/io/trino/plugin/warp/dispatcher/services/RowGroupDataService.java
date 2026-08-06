@@ -153,6 +153,11 @@ public class RowGroupDataService
         return new ArrayList<>(rowGroupDataDao.getAll());
     }
 
+    public long getBasicIndexFootprintPages(RowGroupKey rowGroupKey, WarpColumn warpColumn)
+    {
+        return rowGroupDataDao.getBasicIndexFootprintPages(rowGroupKey, warpColumn);
+    }
+
     public void deleteFile(RowGroupData rowGroupData)
     {
         if (rowGroupData == null) {

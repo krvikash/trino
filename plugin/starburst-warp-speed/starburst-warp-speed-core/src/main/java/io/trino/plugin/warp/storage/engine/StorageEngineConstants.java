@@ -28,6 +28,8 @@ public interface StorageEngineConstants
 
     int getPageSizeShift();
 
+    int getStorageCacheSizeInPages();
+
     int getRecordBufferMaxSize();
 
     int getIndexChunkMaxSize();

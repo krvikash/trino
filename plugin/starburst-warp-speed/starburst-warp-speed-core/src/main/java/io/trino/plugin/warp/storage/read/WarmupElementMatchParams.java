@@ -47,6 +47,7 @@ public class WarmupElementMatchParams
     private static final long WARMUP_ELEMENT_MATCH_PARAMS_OFFSET_WARM_ID;
     private static final long WARMUP_ELEMENT_MATCH_PARAMS_OFFSET_IS_COLLECT_NULLS;
     private static final long WARMUP_ELEMENT_MATCH_PARAMS_OFFSET_IS_TIGHTNESS_REQUIRED;
+    private static final long WARMUP_ELEMENT_MATCH_PARAMS_OFFSET_IS_INDEX_UNCACHED;
 
     private final MemorySegment matchParamsMem;
     private final int warmEvents;
@@ -66,7 +67,7 @@ public class WarmupElementMatchParams
                 ValueLayout.JAVA_BYTE.withName("warm_id"),
                 ValueLayout.JAVA_BYTE.withName("collect_nulls"),
                 ValueLayout.JAVA_BYTE.withName("tightness_required"),
-                ValueLayout.JAVA_BYTE.withName("padding")).withName("we_match_params_t");
+                ValueLayout.JAVA_BYTE.withName("index_uncached")).withName("we_match_params_t");
         WARMUP_ELEMENT_MATCH_PARAMS_OFFSET_PREDICATE_BUFFER_ADDRESS = WARMUP_ELEMENT_MATCH_PARAMS_LAYOUT.byteOffset(PathElement.groupElement("ppred_buf"));
         WARMUP_ELEMENT_MATCH_PARAMS_OFFSET_FILE_OFFSET = WARMUP_ELEMENT_MATCH_PARAMS_LAYOUT.byteOffset(PathElement.groupElement("entry_loc"));
         WARMUP_ELEMENT_MATCH_PARAMS_OFFSET_WARM_UP_ELEMENT_ATT = WARMUP_ELEMENT_MATCH_PARAMS_LAYOUT.byteOffset(PathElement.groupElement("we_attr"));
@@ -76,6 +77,7 @@ public class WarmupElementMatchParams
         WARMUP_ELEMENT_MATCH_PARAMS_OFFSET_WARM_ID = WARMUP_ELEMENT_MATCH_PARAMS_LAYOUT.byteOffset(PathElement.groupElement("warm_id"));
         WARMUP_ELEMENT_MATCH_PARAMS_OFFSET_IS_COLLECT_NULLS = WARMUP_ELEMENT_MATCH_PARAMS_LAYOUT.byteOffset(PathElement.groupElement("collect_nulls"));
         WARMUP_ELEMENT_MATCH_PARAMS_OFFSET_IS_TIGHTNESS_REQUIRED = WARMUP_ELEMENT_MATCH_PARAMS_LAYOUT.byteOffset(PathElement.groupElement("tightness_required"));
+        WARMUP_ELEMENT_MATCH_PARAMS_OFFSET_IS_INDEX_UNCACHED = WARMUP_ELEMENT_MATCH_PARAMS_LAYOUT.byteOffset(PathElement.groupElement("index_uncached"));
     }
 
     public WarmupElementMatchParams(
@@ -90,6 +92,7 @@ public class WarmupElementMatchParams
             int matchCollectIndex,
             boolean isCollectNulls,
             boolean isTightnessRequired,
+            boolean isIndexUncached,
             int warmEvents,
             boolean isImported,
             Optional<WarmupElementLuceneParams> luceneParams,
@@ -105,6 +108,7 @@ public class WarmupElementMatchParams
         matchParamsMem.set(ValueLayout.JAVA_BYTE, WARMUP_ELEMENT_MATCH_PARAMS_OFFSET_WARM_ID, (byte) INVALID_WARM_ID);
         matchParamsMem.set(ValueLayout.JAVA_BYTE, WARMUP_ELEMENT_MATCH_PARAMS_OFFSET_IS_COLLECT_NULLS, isCollectNulls ? (byte) 1 : (byte) 0);
         matchParamsMem.set(ValueLayout.JAVA_BYTE, WARMUP_ELEMENT_MATCH_PARAMS_OFFSET_IS_TIGHTNESS_REQUIRED, isTightnessRequired ? (byte) 1 : (byte) 0);
+        matchParamsMem.set(ValueLayout.JAVA_BYTE, WARMUP_ELEMENT_MATCH_PARAMS_OFFSET_IS_INDEX_UNCACHED, isIndexUncached ? (byte) 1 : (byte) 0);
 
         MemorySegment warmupElementAtt = matchParamsMem.asSlice(WARMUP_ELEMENT_MATCH_PARAMS_OFFSET_WARM_UP_ELEMENT_ATT, WarmUpElement.WARM_UP_ELEMENT_ATT_LAYOUT);
         WarmUpElement.setRecTypeCode(warmupElementAtt, TypeUtils.nativeRecTypeCode(recTypeCode));
@@ -121,6 +125,11 @@ public class WarmupElementMatchParams
     public boolean hasLuceneParams()
     {
         return luceneParams.isPresent();
+    }
+
+    boolean isIndexUncached()
+    {
+        return matchParamsMem.get(ValueLayout.JAVA_BYTE, WARMUP_ELEMENT_MATCH_PARAMS_OFFSET_IS_INDEX_UNCACHED) != 0;
     }
 
     public LuceneQueryMatchData getLuceneQueryMatchData()
@@ -200,6 +209,7 @@ public class WarmupElementMatchParams
                 ", matchCollectIndex=" + matchParamsMem.get(ValueLayout.JAVA_BYTE, WARMUP_ELEMENT_MATCH_PARAMS_OFFSET_MATCH_COLLECT_INDEX) +
                 ", isCollectNulls=" + matchParamsMem.get(ValueLayout.JAVA_BYTE, WARMUP_ELEMENT_MATCH_PARAMS_OFFSET_IS_COLLECT_NULLS) +
                 ", isTightnessRequired=" + matchParamsMem.get(ValueLayout.JAVA_BYTE, WARMUP_ELEMENT_MATCH_PARAMS_OFFSET_IS_TIGHTNESS_REQUIRED) +
+                ", isIndexUncached=" + matchParamsMem.get(ValueLayout.JAVA_BYTE, WARMUP_ELEMENT_MATCH_PARAMS_OFFSET_IS_INDEX_UNCACHED) +
                 ", warmEvents=" + warmEventsToString() +
                 ", isImported=" + isImported +
                 ", luceneParams=" + luceneParams +

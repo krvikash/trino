@@ -59,6 +59,12 @@ public class StubsStorageEngineConstants
     }
 
     @Override
+    public int getStorageCacheSizeInPages()
+    {
+        return 1024;
+    }
+
+    @Override
     public int getRecordBufferMaxSize()
     {
         return 1 << 15;

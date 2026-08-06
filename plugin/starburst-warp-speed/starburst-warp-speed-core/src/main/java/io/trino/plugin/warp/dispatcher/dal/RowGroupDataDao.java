@@ -17,6 +17,7 @@ import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
+import com.google.common.cache.RemovalNotification;
 import com.google.common.util.concurrent.UncheckedExecutionException;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
@@ -25,6 +26,9 @@ import io.airlift.log.Logger;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.dispatcher.model.RowGroupData;
 import io.trino.plugin.warp.dispatcher.model.RowGroupKey;
+import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
+import io.trino.plugin.warp.dispatcher.model.WarpColumn;
+import io.trino.plugin.warp.gen.constants.WarmUpType;
 import io.trino.plugin.warp.log.ShapingLogger;
 import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
@@ -38,6 +42,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 
 import static java.util.Objects.requireNonNull;
@@ -52,6 +57,8 @@ public class RowGroupDataDao
     private final JsonMapper jsonMapper;
     private final LoadingCache<RowGroupKey, Optional<RowGroupData>> cache;
     private final StorageEngineConstants storageEngineConstants;
+    // total basic index footprint per column over the row groups currently in the cache
+    private final ConcurrentHashMap<ColumnFootprintKey, Long> basicIndexFootprintPages = new ConcurrentHashMap<>();
 
     protected boolean loaded;
 
@@ -114,7 +121,9 @@ public class RowGroupDataDao
                             throw new RuntimeException("corrupted RowGroupData file");
                         }
                         String str = CompressionUtil.decompressGzip(bytes);
-                        return Optional.of(jsonMapper.readerFor(RowGroupData.class).readValue(str));
+                        RowGroupData rowGroupData = jsonMapper.readerFor(RowGroupData.class).readValue(str);
+                        updateBasicIndexFootprint(rowGroupData, 1);
+                        return Optional.of(rowGroupData);
                     }
                     catch (IOException e) {
                         shapingLogger.error(e, "failed reading file [%s]", rowGroupDataFile.getAbsolutePath());
@@ -125,7 +134,9 @@ public class RowGroupDataDao
             }
         };
         cache = buildUnsafeCache(CacheBuilder.newBuilder()
-                        .maximumSize(Integer.MAX_VALUE), // replace MAX_VALUE with a config
+                        .maximumSize(Integer.MAX_VALUE) // replace MAX_VALUE with a config
+                        .removalListener((RemovalNotification<RowGroupKey, Optional<RowGroupData>> notification) ->
+                                notification.getValue().ifPresent(rowGroupData -> updateBasicIndexFootprint(rowGroupData, -1))),
                 loader);
     }
 
@@ -154,7 +165,11 @@ public class RowGroupDataDao
 
     public Collection<RowGroupData> save(Collection<RowGroupData> entities)
     {
-        entities.forEach(rowGroupData -> cache.put(rowGroupData.getRowGroupKey(), Optional.of(rowGroupData)));
+        entities.forEach(rowGroupData -> {
+            // the removal listener decrements the footprint of the replaced entry
+            updateBasicIndexFootprint(rowGroupData, 1);
+            cache.put(rowGroupData.getRowGroupKey(), Optional.of(rowGroupData));
+        });
         return entities;
     }
 
@@ -302,4 +317,35 @@ public class RowGroupDataDao
         }
         flushInternal(rowGroupKey);
     }
+
+    public long getBasicIndexFootprintPages(RowGroupKey rowGroupKey, WarpColumn warpColumn)
+    {
+        return basicIndexFootprintPages.getOrDefault(columnFootprintKey(rowGroupKey, warpColumn), 0L);
+    }
+
+    private void updateBasicIndexFootprint(RowGroupData rowGroupData, long sign)
+    {
+        for (WarmUpElement warmUpElement : rowGroupData.getWarmUpElements()) {
+            if ((warmUpElement.getWarmUpType() == WarmUpType.WARM_UP_TYPE_BASIC) && warmUpElement.isValid() && warmUpElement.isHot()) {
+                long deltaPages = sign * ((long) warmUpElement.getEndOffset() - warmUpElement.getStartOffset());
+                basicIndexFootprintPages.merge(
+                        columnFootprintKey(rowGroupData.getRowGroupKey(), warmUpElement.getWarpColumn()),
+                        deltaPages,
+                        (currentPages, delta) -> {
+                            long updatedPages = currentPages + delta;
+                            if (updatedPages == 0) {
+                                return null;
+                            }
+                            return updatedPages;
+                        });
+            }
+        }
+    }
+
+    private static ColumnFootprintKey columnFootprintKey(RowGroupKey rowGroupKey, WarpColumn warpColumn)
+    {
+        return new ColumnFootprintKey(rowGroupKey.catalogName(), rowGroupKey.schema(), rowGroupKey.table(), warpColumn.getColumnId());
+    }
+
+    private record ColumnFootprintKey(String catalogName, String schema, String table, String columnId) {}
 }
