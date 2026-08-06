@@ -29,13 +29,10 @@ public class ReadStats
     private static final long READ_STATS_OFFSET_CACHE_MD_CHUNK_MISSES;
     private static final long READ_STATS_OFFSET_CACHE_MD_BASIC_HITS;
     private static final long READ_STATS_OFFSET_CACHE_MD_BASIC_MISSES;
-    private static final long READ_STATS_OFFSET_CACHE_MD_DATA_HITS;
-    private static final long READ_STATS_OFFSET_CACHE_MD_DATA_MISSES;
     private static final long READ_STATS_OFFSET_CACHE_MD_NULLS_HITS;
     private static final long READ_STATS_OFFSET_CACHE_MD_NULLS_MISSES;
-    private static final long READ_STATS_OFFSET_UNCACHE_MISSES;
-    private static final long READ_STATS_OFFSET_UNCACHE_DATA_MISSES;
-    private static final long READ_STATS_OFFSET_UNCACHE_EXT_DATA_MISSES;
+    private static final long READ_STATS_OFFSET_CACHE_INDEX_HITS;
+    private static final long READ_STATS_OFFSET_CACHE_INDEX_MISSES;
     private static final long READ_STATS_OFFSET_READ_TIME_WAIT_NANOS;
 
     private MemorySegment readStats;
@@ -46,25 +43,19 @@ public class ReadStats
                 ValueLayout.JAVA_LONG.withName("cache_md_chunk_misses"),
                 ValueLayout.JAVA_LONG.withName("cache_md_basic_hits"),
                 ValueLayout.JAVA_LONG.withName("cache_md_basic_misses"),
-                ValueLayout.JAVA_LONG.withName("cache_md_data_hits"),
-                ValueLayout.JAVA_LONG.withName("cache_md_data_misses"),
                 ValueLayout.JAVA_LONG.withName("cache_md_nulls_hits"),
                 ValueLayout.JAVA_LONG.withName("cache_md_nulls_misses"),
-                ValueLayout.JAVA_LONG.withName("uncache_misses"),
-                ValueLayout.JAVA_LONG.withName("uncache_data_misses"),
-                ValueLayout.JAVA_LONG.withName("uncache_ext_data_misses"),
+                ValueLayout.JAVA_LONG.withName("cache_index_hits"),
+                ValueLayout.JAVA_LONG.withName("cache_index_misses"),
                 ValueLayout.JAVA_LONG.withName("read_time_wait_nanos")).withName("storage_read_stats_t");
         READ_STATS_OFFSET_CACHE_MD_CHUNK_HITS = READ_STATS_LAYOUT.byteOffset(PathElement.groupElement("cache_md_chunk_hits"));
         READ_STATS_OFFSET_CACHE_MD_CHUNK_MISSES = READ_STATS_LAYOUT.byteOffset(PathElement.groupElement("cache_md_chunk_misses"));
         READ_STATS_OFFSET_CACHE_MD_BASIC_HITS = READ_STATS_LAYOUT.byteOffset(PathElement.groupElement("cache_md_basic_hits"));
         READ_STATS_OFFSET_CACHE_MD_BASIC_MISSES = READ_STATS_LAYOUT.byteOffset(PathElement.groupElement("cache_md_basic_misses"));
-        READ_STATS_OFFSET_CACHE_MD_DATA_HITS = READ_STATS_LAYOUT.byteOffset(PathElement.groupElement("cache_md_data_hits"));
-        READ_STATS_OFFSET_CACHE_MD_DATA_MISSES = READ_STATS_LAYOUT.byteOffset(PathElement.groupElement("cache_md_data_misses"));
         READ_STATS_OFFSET_CACHE_MD_NULLS_HITS = READ_STATS_LAYOUT.byteOffset(PathElement.groupElement("cache_md_nulls_hits"));
         READ_STATS_OFFSET_CACHE_MD_NULLS_MISSES = READ_STATS_LAYOUT.byteOffset(PathElement.groupElement("cache_md_nulls_misses"));
-        READ_STATS_OFFSET_UNCACHE_MISSES = READ_STATS_LAYOUT.byteOffset(PathElement.groupElement("uncache_misses"));
-        READ_STATS_OFFSET_UNCACHE_DATA_MISSES = READ_STATS_LAYOUT.byteOffset(PathElement.groupElement("uncache_data_misses"));
-        READ_STATS_OFFSET_UNCACHE_EXT_DATA_MISSES = READ_STATS_LAYOUT.byteOffset(PathElement.groupElement("uncache_ext_data_misses"));
+        READ_STATS_OFFSET_CACHE_INDEX_HITS = READ_STATS_LAYOUT.byteOffset(PathElement.groupElement("cache_index_hits"));
+        READ_STATS_OFFSET_CACHE_INDEX_MISSES = READ_STATS_LAYOUT.byteOffset(PathElement.groupElement("cache_index_misses"));
         READ_STATS_OFFSET_READ_TIME_WAIT_NANOS = READ_STATS_LAYOUT.byteOffset(PathElement.groupElement("read_time_wait_nanos"));
     }
 
@@ -93,26 +84,17 @@ public class ReadStats
         misses = readStats.get(ValueLayout.JAVA_LONG, READ_STATS_OFFSET_CACHE_MD_BASIC_MISSES);
         nativeStats.addread_cache_md_basic_misses(misses);
         totalReadPages += (int) misses;
-        hits = readStats.get(ValueLayout.JAVA_LONG, READ_STATS_OFFSET_CACHE_MD_DATA_HITS);
-        nativeStats.addread_cache_md_data_hits(hits);
-        totalReadPages += (int) hits;
-        misses = readStats.get(ValueLayout.JAVA_LONG, READ_STATS_OFFSET_CACHE_MD_DATA_MISSES);
-        nativeStats.addread_cache_md_data_misses(misses);
-        totalReadPages += (int) misses;
         hits = readStats.get(ValueLayout.JAVA_LONG, READ_STATS_OFFSET_CACHE_MD_NULLS_HITS);
         nativeStats.addread_cache_md_nulls_hits(hits);
         totalReadPages += (int) hits;
         misses = readStats.get(ValueLayout.JAVA_LONG, READ_STATS_OFFSET_CACHE_MD_NULLS_MISSES);
         nativeStats.addread_cache_md_nulls_misses(misses);
         totalReadPages += (int) misses;
-        misses = readStats.get(ValueLayout.JAVA_LONG, READ_STATS_OFFSET_UNCACHE_MISSES);
-        nativeStats.addread_uncache_misses(misses);
-        totalReadPages += (int) misses;
-        misses = readStats.get(ValueLayout.JAVA_LONG, READ_STATS_OFFSET_UNCACHE_DATA_MISSES);
-        nativeStats.addread_uncache_data_misses(misses);
-        totalReadPages += (int) misses;
-        misses = readStats.get(ValueLayout.JAVA_LONG, READ_STATS_OFFSET_UNCACHE_EXT_DATA_MISSES);
-        nativeStats.addread_uncache_ext_data_misses(misses);
+        hits = readStats.get(ValueLayout.JAVA_LONG, READ_STATS_OFFSET_CACHE_INDEX_HITS);
+        nativeStats.addread_cache_index_hits(hits);
+        totalReadPages += (int) hits;
+        misses = readStats.get(ValueLayout.JAVA_LONG, READ_STATS_OFFSET_CACHE_INDEX_MISSES);
+        nativeStats.addread_cache_index_misses(misses);
         totalReadPages += (int) misses;
 
         nativeStats.addread_time_wait_nanos(readStats.get(ValueLayout.JAVA_LONG, READ_STATS_OFFSET_READ_TIME_WAIT_NANOS));

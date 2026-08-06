@@ -32,15 +32,12 @@ public final class NativeStats
     /* This class file is auto-generated from native xml file for statistics and counters */
     private final LongAdder read_cache_md_chunk_hits = new LongAdder();
     private final LongAdder read_cache_md_basic_hits = new LongAdder();
-    private final LongAdder read_cache_md_data_hits = new LongAdder();
     private final LongAdder read_cache_md_nulls_hits = new LongAdder();
     private final LongAdder read_cache_md_chunk_misses = new LongAdder();
     private final LongAdder read_cache_md_basic_misses = new LongAdder();
-    private final LongAdder read_cache_md_data_misses = new LongAdder();
     private final LongAdder read_cache_md_nulls_misses = new LongAdder();
-    private final LongAdder read_uncache_misses = new LongAdder();
-    private final LongAdder read_uncache_data_misses = new LongAdder();
-    private final LongAdder read_uncache_ext_data_misses = new LongAdder();
+    private final LongAdder read_cache_index_hits = new LongAdder();
+    private final LongAdder read_cache_index_misses = new LongAdder();
     private final LongAdder read_time_wait_nanos = new LongAdder();
 
     @JsonCreator
@@ -93,29 +90,6 @@ public final class NativeStats
     {
         read_cache_md_basic_hits.reset();
         addread_cache_md_basic_hits(val);
-    }
-
-    @JsonIgnore
-    @Managed
-    public long getread_cache_md_data_hits()
-    {
-        return read_cache_md_data_hits.longValue();
-    }
-
-    public void incread_cache_md_data_hits()
-    {
-        read_cache_md_data_hits.increment();
-    }
-
-    public void addread_cache_md_data_hits(long val)
-    {
-        read_cache_md_data_hits.add(val);
-    }
-
-    public void setread_cache_md_data_hits(long val)
-    {
-        read_cache_md_data_hits.reset();
-        addread_cache_md_data_hits(val);
     }
 
     @JsonIgnore
@@ -189,29 +163,6 @@ public final class NativeStats
 
     @JsonIgnore
     @Managed
-    public long getread_cache_md_data_misses()
-    {
-        return read_cache_md_data_misses.longValue();
-    }
-
-    public void incread_cache_md_data_misses()
-    {
-        read_cache_md_data_misses.increment();
-    }
-
-    public void addread_cache_md_data_misses(long val)
-    {
-        read_cache_md_data_misses.add(val);
-    }
-
-    public void setread_cache_md_data_misses(long val)
-    {
-        read_cache_md_data_misses.reset();
-        addread_cache_md_data_misses(val);
-    }
-
-    @JsonIgnore
-    @Managed
     public long getread_cache_md_nulls_misses()
     {
         return read_cache_md_nulls_misses.longValue();
@@ -235,71 +186,48 @@ public final class NativeStats
 
     @JsonIgnore
     @Managed
-    public long getread_uncache_misses()
+    public long getread_cache_index_hits()
     {
-        return read_uncache_misses.longValue();
+        return read_cache_index_hits.longValue();
     }
 
-    public void incread_uncache_misses()
+    public void incread_cache_index_hits()
     {
-        read_uncache_misses.increment();
+        read_cache_index_hits.increment();
     }
 
-    public void addread_uncache_misses(long val)
+    public void addread_cache_index_hits(long val)
     {
-        read_uncache_misses.add(val);
+        read_cache_index_hits.add(val);
     }
 
-    public void setread_uncache_misses(long val)
+    public void setread_cache_index_hits(long val)
     {
-        read_uncache_misses.reset();
-        addread_uncache_misses(val);
-    }
-
-    @JsonIgnore
-    @Managed
-    public long getread_uncache_data_misses()
-    {
-        return read_uncache_data_misses.longValue();
-    }
-
-    public void incread_uncache_data_misses()
-    {
-        read_uncache_data_misses.increment();
-    }
-
-    public void addread_uncache_data_misses(long val)
-    {
-        read_uncache_data_misses.add(val);
-    }
-
-    public void setread_uncache_data_misses(long val)
-    {
-        read_uncache_data_misses.reset();
-        addread_uncache_data_misses(val);
+        read_cache_index_hits.reset();
+        addread_cache_index_hits(val);
     }
 
     @JsonIgnore
     @Managed
-    public long getread_uncache_ext_data_misses()
+    public long getread_cache_index_misses()
     {
-        return read_uncache_ext_data_misses.longValue();
+        return read_cache_index_misses.longValue();
     }
 
-    public void incread_uncache_ext_data_misses()
+    public void incread_cache_index_misses()
     {
-        read_uncache_ext_data_misses.increment();
+        read_cache_index_misses.increment();
     }
 
-    public void addread_uncache_ext_data_misses(long val)
+    public void addread_cache_index_misses(long val)
     {
-        read_uncache_ext_data_misses.add(val);
+        read_cache_index_misses.add(val);
     }
 
-    public void setread_uncache_ext_data_misses(long val)
+    public void setread_cache_index_misses(long val)
     {
-        read_uncache_ext_data_misses.reset();
-        addread_uncache_ext_data_misses(val);
+        read_cache_index_misses.reset();
+        addread_cache_index_misses(val);
     }
 
     @JsonIgnore
@@ -341,15 +269,12 @@ public final class NativeStats
         Map<String, LongAdder> ret = new HashMap<>();
         ret.put("read_cache_md_chunk_hits", read_cache_md_chunk_hits);
         ret.put("read_cache_md_basic_hits", read_cache_md_basic_hits);
-        ret.put("read_cache_md_data_hits", read_cache_md_data_hits);
         ret.put("read_cache_md_nulls_hits", read_cache_md_nulls_hits);
         ret.put("read_cache_md_chunk_misses", read_cache_md_chunk_misses);
         ret.put("read_cache_md_basic_misses", read_cache_md_basic_misses);
-        ret.put("read_cache_md_data_misses", read_cache_md_data_misses);
         ret.put("read_cache_md_nulls_misses", read_cache_md_nulls_misses);
-        ret.put("read_uncache_misses", read_uncache_misses);
-        ret.put("read_uncache_data_misses", read_uncache_data_misses);
-        ret.put("read_uncache_ext_data_misses", read_uncache_ext_data_misses);
+        ret.put("read_cache_index_hits", read_cache_index_hits);
+        ret.put("read_cache_index_misses", read_cache_index_misses);
         ret.put("read_time_wait_nanos", read_time_wait_nanos);
 
         return ret;
@@ -364,15 +289,12 @@ public final class NativeStats
         NativeStats other = (NativeStats) warpStatsBase;
         this.read_cache_md_chunk_hits.add(other.read_cache_md_chunk_hits.longValue());
         this.read_cache_md_basic_hits.add(other.read_cache_md_basic_hits.longValue());
-        this.read_cache_md_data_hits.add(other.read_cache_md_data_hits.longValue());
         this.read_cache_md_nulls_hits.add(other.read_cache_md_nulls_hits.longValue());
         this.read_cache_md_chunk_misses.add(other.read_cache_md_chunk_misses.longValue());
         this.read_cache_md_basic_misses.add(other.read_cache_md_basic_misses.longValue());
-        this.read_cache_md_data_misses.add(other.read_cache_md_data_misses.longValue());
         this.read_cache_md_nulls_misses.add(other.read_cache_md_nulls_misses.longValue());
-        this.read_uncache_misses.add(other.read_uncache_misses.longValue());
-        this.read_uncache_data_misses.add(other.read_uncache_data_misses.longValue());
-        this.read_uncache_ext_data_misses.add(other.read_uncache_ext_data_misses.longValue());
+        this.read_cache_index_hits.add(other.read_cache_index_hits.longValue());
+        this.read_cache_index_misses.add(other.read_cache_index_misses.longValue());
         this.read_time_wait_nanos.add(other.read_time_wait_nanos.longValue());
     }
 
@@ -381,15 +303,12 @@ public final class NativeStats
     {
         read_cache_md_chunk_hits.reset();
         read_cache_md_basic_hits.reset();
-        read_cache_md_data_hits.reset();
         read_cache_md_nulls_hits.reset();
         read_cache_md_chunk_misses.reset();
         read_cache_md_basic_misses.reset();
-        read_cache_md_data_misses.reset();
         read_cache_md_nulls_misses.reset();
-        read_uncache_misses.reset();
-        read_uncache_data_misses.reset();
-        read_uncache_ext_data_misses.reset();
+        read_cache_index_hits.reset();
+        read_cache_index_misses.reset();
         read_time_wait_nanos.reset();
     }
 
@@ -403,9 +322,6 @@ public final class NativeStats
         if (read_cache_md_basic_hits.longValue() > 0) {
             res.put("native:read_cache_md_basic_hits", read_cache_md_basic_hits.longValue());
         }
-        if (read_cache_md_data_hits.longValue() > 0) {
-            res.put("native:read_cache_md_data_hits", read_cache_md_data_hits.longValue());
-        }
         if (read_cache_md_nulls_hits.longValue() > 0) {
             res.put("native:read_cache_md_nulls_hits", read_cache_md_nulls_hits.longValue());
         }
@@ -415,20 +331,14 @@ public final class NativeStats
         if (read_cache_md_basic_misses.longValue() > 0) {
             res.put("native:read_cache_md_basic_misses", read_cache_md_basic_misses.longValue());
         }
-        if (read_cache_md_data_misses.longValue() > 0) {
-            res.put("native:read_cache_md_data_misses", read_cache_md_data_misses.longValue());
-        }
         if (read_cache_md_nulls_misses.longValue() > 0) {
             res.put("native:read_cache_md_nulls_misses", read_cache_md_nulls_misses.longValue());
         }
-        if (read_uncache_misses.longValue() > 0) {
-            res.put("native:read_uncache_misses", read_uncache_misses.longValue());
+        if (read_cache_index_hits.longValue() > 0) {
+            res.put("native:read_cache_index_hits", read_cache_index_hits.longValue());
         }
-        if (read_uncache_data_misses.longValue() > 0) {
-            res.put("native:read_uncache_data_misses", read_uncache_data_misses.longValue());
-        }
-        if (read_uncache_ext_data_misses.longValue() > 0) {
-            res.put("native:read_uncache_ext_data_misses", read_uncache_ext_data_misses.longValue());
+        if (read_cache_index_misses.longValue() > 0) {
+            res.put("native:read_cache_index_misses", read_cache_index_misses.longValue());
         }
         res.put("native:read_time_wait_nanos", read_time_wait_nanos.longValue());
         return res;
