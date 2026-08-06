@@ -13,21 +13,9 @@
  */
 package io.trino.plugin.objectstore;
 
-import com.google.common.collect.ImmutableSet;
 import io.trino.spi.connector.ConnectorPageSourceProvider;
 import io.trino.spi.connector.ConnectorPageSourceProviderFactory;
-import io.trino.spi.connector.ConnectorSession;
-import io.trino.spi.connector.ConnectorSplit;
-import io.trino.spi.connector.ConnectorTableHandle;
-import io.trino.spi.connector.ConnectorTransactionHandle;
-import io.trino.spi.connector.DynamicFilter;
-import io.trino.spi.gpu.ConnectorGpuMemoryContext;
-import io.trino.spi.gpu.IoExecutor;
 import org.junit.jupiter.api.Test;
-
-import java.lang.reflect.Method;
-import java.util.List;
-import java.util.Optional;
 
 import static io.trino.testing.InterfaceTestUtils.assertAllMethodsOverridden;
 
@@ -35,26 +23,8 @@ class TestObjectStorePageSourceProviderFactory
 {
     @Test
     void testEverythingImplemented()
-            throws Exception
     {
-        assertAllMethodsOverridden(ConnectorPageSourceProviderFactory.class, ObjectStorePageSourceProviderFactory.class, ImmutableSet.<Method>builder()
-                // TODO (https://starburstdata.atlassian.net/browse/ENG-22306) support GPU Table Scan via ObjectStore connector
-                .add(ConnectorPageSourceProviderFactory.class.getMethod("getGpuPageSourceSupport", ConnectorTableHandle.class, List.class))
-                .build());
-
-        assertAllMethodsOverridden(ConnectorPageSourceProvider.class, ObjectStorePageSourceProviderFactory.ObjectStorePageSourceProvider.class, ImmutableSet.<Method>builder()
-                // TODO (https://starburstdata.atlassian.net/browse/ENG-22306) support GPU Table Scan via ObjectStore connector
-                .add(ObjectStorePageSourceProviderFactory.ObjectStorePageSourceProvider.class.getMethod(
-                        "createGpuPageSource",
-                        ConnectorTransactionHandle.class,
-                        ConnectorSession.class,
-                        ConnectorSplit.class,
-                        ConnectorTableHandle.class,
-                        Optional.class,
-                        List.class,
-                        DynamicFilter.class,
-                        ConnectorGpuMemoryContext.class,
-                        IoExecutor.class))
-                .build());
+        assertAllMethodsOverridden(ConnectorPageSourceProviderFactory.class, ObjectStorePageSourceProviderFactory.class);
+        assertAllMethodsOverridden(ConnectorPageSourceProvider.class, ObjectStorePageSourceProviderFactory.ObjectStorePageSourceProvider.class);
     }
 }

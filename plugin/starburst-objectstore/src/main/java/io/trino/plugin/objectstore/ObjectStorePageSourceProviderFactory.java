@@ -30,7 +30,11 @@ import io.trino.spi.connector.ConnectorTableCredentials;
 import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.connector.DynamicFilter;
+import io.trino.spi.connector.GpuPageSourceSupport;
 import io.trino.spi.connector.MemoryContext;
+import io.trino.spi.gpu.ConnectorGpuMemoryContext;
+import io.trino.spi.gpu.ConnectorGpuPageSource;
+import io.trino.spi.gpu.IoExecutor;
 import io.trino.spi.predicate.TupleDomain;
 
 import java.util.List;
@@ -67,6 +71,12 @@ public class ObjectStorePageSourceProviderFactory
     }
 
     @Override
+    public GpuPageSourceSupport getGpuPageSourceSupport(ConnectorTableHandle table, List<ColumnHandle> columns)
+    {
+        return factoryForHandle(table).getGpuPageSourceSupport(table, columns);
+    }
+
+    @Override
     public ConnectorPageSourceProvider createPageSourceProvider()
     {
         return new ObjectStorePageSourceProvider();
@@ -84,6 +94,17 @@ public class ObjectStorePageSourceProviderFactory
             case DeltaLakeTableHandle _ -> new PageSourceProvider(DELTA, deltaPageSourceProviderFactory.createPageSourceProvider());
             case HudiTableHandle _ -> new PageSourceProvider(HUDI, hudiPageSourceProviderFactory.createPageSourceProvider());
             default -> throw new UnsupportedOperationException("Unsupported table handle " + handle.getClass() + " with split " + split.getClass());
+        };
+    }
+
+    private ConnectorPageSourceProviderFactory factoryForHandle(ConnectorTableHandle handle)
+    {
+        return switch (handle) {
+            case HiveTableHandle _ -> hivePageSourceProviderFactory;
+            case IcebergTableHandle _ -> icebergPageSourceProviderFactory;
+            case DeltaLakeTableHandle _ -> deltaPageSourceProviderFactory;
+            case HudiTableHandle _ -> hudiPageSourceProviderFactory;
+            default -> throw new UnsupportedOperationException("Unsupported table handle " + handle.getClass());
         };
     }
 
@@ -130,6 +151,23 @@ public class ObjectStorePageSourceProviderFactory
             PageSourceProvider pageSourceProvider = getPageSourceProvider(split, table);
             return pageSourceProvider.pageSourceProvider()
                     .createPageSource(transaction, unwrap(pageSourceProvider.tableType(), session), split, table, tableCredentials, columns, dynamicFilter, memoryContext);
+        }
+
+        @Override
+        public Optional<ConnectorGpuPageSource> createGpuPageSource(
+                ConnectorTransactionHandle transaction,
+                ConnectorSession session,
+                ConnectorSplit split,
+                ConnectorTableHandle table,
+                Optional<ConnectorTableCredentials> tableCredentials,
+                List<ColumnHandle> columns,
+                DynamicFilter dynamicFilter,
+                ConnectorGpuMemoryContext memoryContext,
+                IoExecutor ioExecutor)
+        {
+            PageSourceProvider pageSourceProvider = getPageSourceProvider(split, table);
+            return pageSourceProvider.pageSourceProvider()
+                    .createGpuPageSource(transaction, unwrap(pageSourceProvider.tableType(), session), split, table, tableCredentials, columns, dynamicFilter, memoryContext, ioExecutor);
         }
 
         @Override
