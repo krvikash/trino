@@ -17,14 +17,13 @@ import io.airlift.slice.Slice;
 import io.trino.plugin.warp.util.SliceUtils;
 import io.trino.plugin.warp.util.StringPredicateData;
 import io.trino.spi.block.Block;
-import io.trino.spi.predicate.Range;
-import io.trino.spi.predicate.Ranges;
+import io.trino.spi.block.ByteArrayBlock;
+import io.trino.spi.block.Int128ArrayBlock;
+import io.trino.spi.block.IntArrayBlock;
+import io.trino.spi.block.LongArrayBlock;
+import io.trino.spi.block.ShortArrayBlock;
+import io.trino.spi.block.VariableWidthBlock;
 import io.trino.spi.predicate.SortedRangeSet;
-import io.trino.spi.type.Int128;
-import io.trino.spi.type.IntegerType;
-import io.trino.spi.type.SmallintType;
-import io.trino.spi.type.TinyintType;
-import io.trino.spi.type.Type;
 
 import java.nio.ByteBuffer;
 import java.util.function.Function;
@@ -53,40 +52,40 @@ class RangesConverter
 
     RangesConverter() {}
 
-    void setBooleanRanges(Ranges ranges, ByteBuffer lowBuf, ByteBuffer highBuf)
+    void setBooleanRanges(ByteBuffer lowBuf, ByteBuffer highBuf, SortedRangeSet sortedRangeSet)
     {
-        for (Range r : ranges.getOrderedRanges()) {
-            // low
-            if (r.isLowUnbounded()) {
-                lowBuf.put((byte) 0);
-                lowBuf.put(INCLUSIVE);
-            }
-            else {
-                Boolean low = (Boolean) r.getLowBoundedValue();
-                lowBuf.put(low ? (byte) 1 : (byte) 0);
-                lowBuf.put(r.isLowInclusive()
-                        ? INCLUSIVE
-                        : EXCLUSIVE);
-            }
-
-            // high
-            if (r.isHighUnbounded()) {
-                highBuf.put((byte) 1);
-                highBuf.put(INCLUSIVE);
-            }
-            else {
-                Boolean high = (Boolean) r.getHighBoundedValue();
-                highBuf.put(high ? (byte) 1 : (byte) 0);
-                highBuf.put(r.isHighInclusive()
-                        ? INCLUSIVE
-                        : EXCLUSIVE);
-            }
+        Block sortedRangesBlock = sortedRangeSet.getSortedRanges();
+        ByteArrayBlock valueBlock = (ByteArrayBlock) sortedRangesBlock.getUnderlyingValueBlock();
+        int positionCount = sortedRangesBlock.getPositionCount();
+        boolean[] inclusive = sortedRangeSet.getInclusive();
+        boolean lowUnbounded = isUnbounded(sortedRangesBlock, 0);
+        boolean highUnbounded = isUnbounded(sortedRangesBlock, positionCount - 1);
+        if (lowUnbounded) {
+            lowBuf.put((byte) 0);
+            lowBuf.put(INCLUSIVE); // inclusive
+            highBuf.put(valueBlock.getByte(sortedRangesBlock.getUnderlyingValuePosition(1)));
+            highBuf.put(inclusive[1] ? INCLUSIVE : EXCLUSIVE); // BELOW is the '0' case
+        }
+        int endRange = highUnbounded ? positionCount - 2 : positionCount;
+        int startRange = lowUnbounded ? 2 : 0;
+        for (int i = startRange; i < endRange; i += 2) {
+            lowBuf.put(valueBlock.getByte(sortedRangesBlock.getUnderlyingValuePosition(i)));
+            lowBuf.put(inclusive[i] ? INCLUSIVE : EXCLUSIVE);
+            highBuf.put(valueBlock.getByte(sortedRangesBlock.getUnderlyingValuePosition(i + 1)));
+            highBuf.put(inclusive[i + 1] ? INCLUSIVE : EXCLUSIVE);
+        }
+        if (highUnbounded) {
+            lowBuf.put(valueBlock.getByte(sortedRangesBlock.getUnderlyingValuePosition(positionCount - 2)));
+            lowBuf.put(inclusive[positionCount - 2] ? INCLUSIVE : EXCLUSIVE); // ABOVE is the '0' case
+            highBuf.put((byte) 1);
+            highBuf.put(INCLUSIVE); // inclusive
         }
     }
 
     void setIntRanges(ByteBuffer lowBuf, ByteBuffer highBuf, SortedRangeSet sortedRangeSet)
     {
         Block sortedRangesBlock = sortedRangeSet.getSortedRanges();
+        IntArrayBlock valueBlock = (IntArrayBlock) sortedRangesBlock.getUnderlyingValueBlock();
         int positionCount = sortedRangesBlock.getPositionCount();
         boolean[] inclusive = sortedRangeSet.getInclusive();
         boolean lowUnbounded = isUnbounded(sortedRangesBlock, 0);
@@ -94,78 +93,79 @@ class RangesConverter
         if (lowUnbounded) {
             lowBuf.putInt(INT_LOWER_UNBOUNDED);
             lowBuf.put(INCLUSIVE); // inclusive
-            highBuf.putInt(IntegerType.INTEGER.getInt(sortedRangesBlock, 1));
+            highBuf.putInt(valueBlock.getInt(sortedRangesBlock.getUnderlyingValuePosition(1)));
             highBuf.put(inclusive[1] ? INCLUSIVE : EXCLUSIVE); // BELOW is the '0' case
         }
         int endRange = highUnbounded ? positionCount - 2 : positionCount;
         int startRange = lowUnbounded ? 2 : 0;
         for (int i = startRange; i < endRange; i += 2) {
-            lowBuf.putInt(IntegerType.INTEGER.getInt(sortedRangesBlock, i));
+            lowBuf.putInt(valueBlock.getInt(sortedRangesBlock.getUnderlyingValuePosition(i)));
             lowBuf.put(inclusive[i] ? INCLUSIVE : EXCLUSIVE);
-            highBuf.putInt(IntegerType.INTEGER.getInt(sortedRangesBlock, i + 1));
+            highBuf.putInt(valueBlock.getInt(sortedRangesBlock.getUnderlyingValuePosition(i + 1)));
             highBuf.put(inclusive[i + 1] ? INCLUSIVE : EXCLUSIVE);
         }
         if (highUnbounded) {
-            lowBuf.putInt(IntegerType.INTEGER.getInt(sortedRangesBlock, positionCount - 2));
+            lowBuf.putInt(valueBlock.getInt(sortedRangesBlock.getUnderlyingValuePosition(positionCount - 2)));
             lowBuf.put(inclusive[positionCount - 2] ? INCLUSIVE : EXCLUSIVE); // ABOVE is the '0' case
             highBuf.putInt(INT_UPPER_UNBOUNDED);
             highBuf.put(INCLUSIVE); // inclusive
         }
     }
 
-    void setRealRanges(Ranges ranges, ByteBuffer lowBuf, ByteBuffer highBuf)
+    void setRealRanges(ByteBuffer lowBuf, ByteBuffer highBuf, SortedRangeSet sortedRangeSet)
     {
-        for (Range r : ranges.getOrderedRanges()) {
-            // low
-            if (r.isLowUnbounded()) {
-                lowBuf.putFloat(FLOAT_LOWER_UNBOUNDED);
-                lowBuf.put(INCLUSIVE); // inclusive
-            }
-            else {
-                lowBuf.putInt(((Long) r.getLowBoundedValue()).intValue());
-                lowBuf.put(r.isLowInclusive()
-                        ? INCLUSIVE
-                        : EXCLUSIVE); // ABOVE is the '0' case
-            }
-
-            // high
-            if (r.isHighUnbounded()) {
-                highBuf.putFloat(FLOAT_UPPER_UNBOUNDED);
-                highBuf.put(INCLUSIVE); // inclusive
-            }
-            else {
-                highBuf.putInt(((Long) r.getHighBoundedValue()).intValue());
-                highBuf.put(r.isHighInclusive()
-                        ? INCLUSIVE
-                        : EXCLUSIVE); // BELOW is the '0' case
-            }
+        Block sortedRangesBlock = sortedRangeSet.getSortedRanges();
+        IntArrayBlock valueBlock = (IntArrayBlock) sortedRangesBlock.getUnderlyingValueBlock();
+        int positionCount = sortedRangesBlock.getPositionCount();
+        boolean[] inclusive = sortedRangeSet.getInclusive();
+        boolean lowUnbounded = isUnbounded(sortedRangesBlock, 0);
+        boolean highUnbounded = isUnbounded(sortedRangesBlock, positionCount - 1);
+        if (lowUnbounded) {
+            lowBuf.putFloat(FLOAT_LOWER_UNBOUNDED);
+            lowBuf.put(INCLUSIVE); // inclusive
+            highBuf.putInt(valueBlock.getInt(sortedRangesBlock.getUnderlyingValuePosition(1)));
+            highBuf.put(inclusive[1] ? INCLUSIVE : EXCLUSIVE); // BELOW is the '0' case
+        }
+        int endRange = highUnbounded ? positionCount - 2 : positionCount;
+        int startRange = lowUnbounded ? 2 : 0;
+        for (int i = startRange; i < endRange; i += 2) {
+            lowBuf.putInt(valueBlock.getInt(sortedRangesBlock.getUnderlyingValuePosition(i)));
+            lowBuf.put(inclusive[i] ? INCLUSIVE : EXCLUSIVE);
+            highBuf.putInt(valueBlock.getInt(sortedRangesBlock.getUnderlyingValuePosition(i + 1)));
+            highBuf.put(inclusive[i + 1] ? INCLUSIVE : EXCLUSIVE);
+        }
+        if (highUnbounded) {
+            lowBuf.putInt(valueBlock.getInt(sortedRangesBlock.getUnderlyingValuePosition(positionCount - 2)));
+            lowBuf.put(inclusive[positionCount - 2] ? INCLUSIVE : EXCLUSIVE); // ABOVE is the '0' case
+            highBuf.putFloat(FLOAT_UPPER_UNBOUNDED);
+            highBuf.put(INCLUSIVE); // inclusive
         }
     }
 
     void setLongRanges(ByteBuffer lowBuf, ByteBuffer highBuf, SortedRangeSet sortedRangeSet)
     {
         Block sortedRangesBlock = sortedRangeSet.getSortedRanges();
+        LongArrayBlock valueBlock = (LongArrayBlock) sortedRangesBlock.getUnderlyingValueBlock();
         int positionCount = sortedRangesBlock.getPositionCount();
         boolean[] inclusive = sortedRangeSet.getInclusive();
         boolean lowUnbounded = isUnbounded(sortedRangesBlock, 0);
         boolean highUnbounded = isUnbounded(sortedRangesBlock, positionCount - 1);
-        Type type = sortedRangeSet.getType();
         if (lowUnbounded) {
             lowBuf.putLong(LONG_LOWER_UNBOUNDED);
             lowBuf.put(INCLUSIVE); // inclusive
-            highBuf.putLong(type.getLong(sortedRangesBlock, 1));
+            highBuf.putLong(valueBlock.getLong(sortedRangesBlock.getUnderlyingValuePosition(1)));
             highBuf.put(inclusive[1] ? INCLUSIVE : EXCLUSIVE); // BELOW is the '0' case
         }
         int endRange = highUnbounded ? positionCount - 2 : positionCount;
         int startRange = lowUnbounded ? 2 : 0;
         for (int i = startRange; i < endRange; i += 2) {
-            lowBuf.putLong(type.getLong(sortedRangesBlock, i));
+            lowBuf.putLong(valueBlock.getLong(sortedRangesBlock.getUnderlyingValuePosition(i)));
             lowBuf.put(inclusive[i] ? INCLUSIVE : EXCLUSIVE);
-            highBuf.putLong(type.getLong(sortedRangesBlock, i + 1));
+            highBuf.putLong(valueBlock.getLong(sortedRangesBlock.getUnderlyingValuePosition(i + 1)));
             highBuf.put(inclusive[i + 1] ? INCLUSIVE : EXCLUSIVE);
         }
         if (highUnbounded) {
-            lowBuf.putLong(type.getLong(sortedRangesBlock, positionCount - 2));
+            lowBuf.putLong(valueBlock.getLong(sortedRangesBlock.getUnderlyingValuePosition(positionCount - 2)));
             lowBuf.put(inclusive[positionCount - 2] ? INCLUSIVE : EXCLUSIVE); // ABOVE is the '0' case
             highBuf.putLong(LONG_UPPER_UNBOUNDED);
             highBuf.put(INCLUSIVE); // inclusive
@@ -175,8 +175,8 @@ class RangesConverter
     void setLongDecimalRanges(ByteBuffer lowBuf, ByteBuffer highBuf, SortedRangeSet sortedRangeSet)
     {
         Block sortedRangesBlock = sortedRangeSet.getSortedRanges();
+        Int128ArrayBlock valueBlock = (Int128ArrayBlock) sortedRangesBlock.getUnderlyingValueBlock();
         int positionCount = sortedRangesBlock.getPositionCount();
-        Type type = sortedRangeSet.getType();
         boolean[] inclusive = sortedRangeSet.getInclusive();
         boolean lowUnbounded = isUnbounded(sortedRangesBlock, 0);
         boolean highUnbounded = isUnbounded(sortedRangesBlock, positionCount - 1);
@@ -185,27 +185,27 @@ class RangesConverter
             lowBuf.putLong(LONG_DECIMAL_LOWER_UNBOUNDED_LSB);
             lowBuf.put(INCLUSIVE); // inclusive
 
-            Int128 value = (Int128) type.getObject(sortedRangesBlock, 1);
-            highBuf.putLong(value.getHigh());
-            highBuf.putLong(value.getLow());
+            int position = sortedRangesBlock.getUnderlyingValuePosition(1);
+            highBuf.putLong(valueBlock.getInt128High(position));
+            highBuf.putLong(valueBlock.getInt128Low(position));
             highBuf.put(inclusive[1] ? INCLUSIVE : EXCLUSIVE); // BELOW is the '0' case
         }
         int endRange = highUnbounded ? positionCount - 2 : positionCount;
         int startRange = lowUnbounded ? 2 : 0;
         for (int i = startRange; i < endRange; i += 2) {
-            Int128 value = (Int128) type.getObject(sortedRangesBlock, i);
-            lowBuf.putLong(value.getHigh());
-            lowBuf.putLong(value.getLow());
+            int lowPosition = sortedRangesBlock.getUnderlyingValuePosition(i);
+            lowBuf.putLong(valueBlock.getInt128High(lowPosition));
+            lowBuf.putLong(valueBlock.getInt128Low(lowPosition));
             lowBuf.put(inclusive[i] ? INCLUSIVE : EXCLUSIVE);
-            value = (Int128) type.getObject(sortedRangesBlock, i + 1);
-            highBuf.putLong(value.getHigh());
-            highBuf.putLong(value.getLow());
+            int highPosition = sortedRangesBlock.getUnderlyingValuePosition(i + 1);
+            highBuf.putLong(valueBlock.getInt128High(highPosition));
+            highBuf.putLong(valueBlock.getInt128Low(highPosition));
             highBuf.put(inclusive[i + 1] ? INCLUSIVE : EXCLUSIVE);
         }
         if (highUnbounded) {
-            Int128 value = (Int128) type.getObject(sortedRangesBlock, positionCount - 2);
-            lowBuf.putLong(value.getHigh());
-            lowBuf.putLong(value.getLow());
+            int position = sortedRangesBlock.getUnderlyingValuePosition(positionCount - 2);
+            lowBuf.putLong(valueBlock.getInt128High(position));
+            lowBuf.putLong(valueBlock.getInt128Low(position));
             lowBuf.put(inclusive[positionCount - 2] ? INCLUSIVE : EXCLUSIVE); // ABOVE is the '0' case
             highBuf.putLong(LONG_DECIMAL_UPPER_UNBOUNDED_MSB);
             highBuf.putLong(LONG_DECIMAL_UPPER_UNBOUNDED_LSB);
@@ -215,8 +215,8 @@ class RangesConverter
 
     void setDoubleRanges(ByteBuffer lowBuf, ByteBuffer highBuf, SortedRangeSet sortedRangeSet)
     {
-        Type type = sortedRangeSet.getType();
         Block sortedRangesBlock = sortedRangeSet.getSortedRanges();
+        LongArrayBlock valueBlock = (LongArrayBlock) sortedRangesBlock.getUnderlyingValueBlock();
         int positionCount = sortedRangesBlock.getPositionCount();
         boolean[] inclusive = sortedRangeSet.getInclusive();
         boolean lowUnbounded = isUnbounded(sortedRangesBlock, 0);
@@ -224,19 +224,19 @@ class RangesConverter
         if (lowUnbounded) {
             lowBuf.putDouble(DOUBLE_LOWER_UNBOUNDED);
             lowBuf.put(INCLUSIVE); // inclusive
-            highBuf.putDouble(type.getDouble(sortedRangesBlock, 1));
+            highBuf.putDouble(Double.longBitsToDouble(valueBlock.getLong(sortedRangesBlock.getUnderlyingValuePosition(1))));
             highBuf.put(inclusive[1] ? INCLUSIVE : EXCLUSIVE); // BELOW is the '0' case
         }
         int endRange = highUnbounded ? positionCount - 2 : positionCount;
         int startRange = lowUnbounded ? 2 : 0;
         for (int i = startRange; i < endRange; i += 2) {
-            lowBuf.putDouble(type.getDouble(sortedRangesBlock, i));
+            lowBuf.putDouble(Double.longBitsToDouble(valueBlock.getLong(sortedRangesBlock.getUnderlyingValuePosition(i))));
             lowBuf.put(inclusive[i] ? INCLUSIVE : EXCLUSIVE);
-            highBuf.putDouble(type.getDouble(sortedRangesBlock, i + 1));
+            highBuf.putDouble(Double.longBitsToDouble(valueBlock.getLong(sortedRangesBlock.getUnderlyingValuePosition(i + 1))));
             highBuf.put(inclusive[i + 1] ? INCLUSIVE : EXCLUSIVE);
         }
         if (highUnbounded) {
-            lowBuf.putDouble(type.getDouble(sortedRangesBlock, positionCount - 2));
+            lowBuf.putDouble(Double.longBitsToDouble(valueBlock.getLong(sortedRangesBlock.getUnderlyingValuePosition(positionCount - 2))));
             lowBuf.put(inclusive[positionCount - 2] ? INCLUSIVE : EXCLUSIVE); // ABOVE is the '0' case
             highBuf.putDouble(DOUBLE_UPPER_UNBOUNDED);
             highBuf.put(INCLUSIVE); // inclusive
@@ -246,6 +246,7 @@ class RangesConverter
     void setTinyintRanges(ByteBuffer lowBuf, ByteBuffer highBuf, SortedRangeSet sortedRangeSet)
     {
         Block sortedRangesBlock = sortedRangeSet.getSortedRanges();
+        ByteArrayBlock valueBlock = (ByteArrayBlock) sortedRangesBlock.getUnderlyingValueBlock();
         int positionCount = sortedRangesBlock.getPositionCount();
         boolean[] inclusive = sortedRangeSet.getInclusive();
         boolean lowUnbounded = isUnbounded(sortedRangesBlock, 0);
@@ -253,19 +254,19 @@ class RangesConverter
         if (lowUnbounded) {
             lowBuf.put(BYTE_LOWER_UNBOUNDED);
             lowBuf.put(INCLUSIVE); // inclusive
-            highBuf.put(TinyintType.TINYINT.getByte(sortedRangesBlock, 1));
+            highBuf.put(valueBlock.getByte(sortedRangesBlock.getUnderlyingValuePosition(1)));
             highBuf.put(inclusive[1] ? INCLUSIVE : EXCLUSIVE); // ABOVE is the '0' case
         }
         int endRange = highUnbounded ? positionCount - 2 : positionCount;
         int startRange = lowUnbounded ? 2 : 0;
         for (int i = startRange; i < endRange; i += 2) {
-            lowBuf.put(TinyintType.TINYINT.getByte(sortedRangesBlock, i));
+            lowBuf.put(valueBlock.getByte(sortedRangesBlock.getUnderlyingValuePosition(i)));
             lowBuf.put(inclusive[i] ? INCLUSIVE : EXCLUSIVE);
-            highBuf.put(TinyintType.TINYINT.getByte(sortedRangesBlock, i + 1));
+            highBuf.put(valueBlock.getByte(sortedRangesBlock.getUnderlyingValuePosition(i + 1)));
             highBuf.put(inclusive[i + 1] ? INCLUSIVE : EXCLUSIVE);
         }
         if (highUnbounded) {
-            lowBuf.put(TinyintType.TINYINT.getByte(sortedRangesBlock, positionCount - 2));
+            lowBuf.put(valueBlock.getByte(sortedRangesBlock.getUnderlyingValuePosition(positionCount - 2)));
             lowBuf.put(inclusive[positionCount - 2] ? INCLUSIVE : EXCLUSIVE); // ABOVE is the '0' case
             highBuf.put(BYTE_UPPER_UNBOUNDED);
             highBuf.put(INCLUSIVE); // inclusive
@@ -275,6 +276,7 @@ class RangesConverter
     void setSmallIntRanges(ByteBuffer lowBuf, ByteBuffer highBuf, SortedRangeSet sortedRangeSet)
     {
         Block sortedRangesBlock = sortedRangeSet.getSortedRanges();
+        ShortArrayBlock valueBlock = (ShortArrayBlock) sortedRangesBlock.getUnderlyingValueBlock();
         int positionCount = sortedRangesBlock.getPositionCount();
         boolean[] inclusive = sortedRangeSet.getInclusive();
         boolean lowUnbounded = isUnbounded(sortedRangesBlock, 0);
@@ -282,19 +284,19 @@ class RangesConverter
         if (lowUnbounded) {
             lowBuf.putShort(SHORT_LOWER_UNBOUNDED);
             lowBuf.put(INCLUSIVE); // inclusive
-            highBuf.putShort(SmallintType.SMALLINT.getShort(sortedRangesBlock, 1));
+            highBuf.putShort(valueBlock.getShort(sortedRangesBlock.getUnderlyingValuePosition(1)));
             highBuf.put(inclusive[1] ? INCLUSIVE : EXCLUSIVE); // ABOVE is the '0' case
         }
         int endRange = highUnbounded ? positionCount - 2 : positionCount;
         int startRange = lowUnbounded ? 2 : 0;
         for (int i = startRange; i < endRange; i += 2) {
-            lowBuf.putShort(SmallintType.SMALLINT.getShort(sortedRangesBlock, i));
+            lowBuf.putShort(valueBlock.getShort(sortedRangesBlock.getUnderlyingValuePosition(i)));
             lowBuf.put(inclusive[i] ? INCLUSIVE : EXCLUSIVE);
-            highBuf.putShort(SmallintType.SMALLINT.getShort(sortedRangesBlock, i + 1));
+            highBuf.putShort(valueBlock.getShort(sortedRangesBlock.getUnderlyingValuePosition(i + 1)));
             highBuf.put(inclusive[i + 1] ? INCLUSIVE : EXCLUSIVE);
         }
         if (highUnbounded) {
-            lowBuf.putShort(SmallintType.SMALLINT.getShort(sortedRangesBlock, positionCount - 2));
+            lowBuf.putShort(valueBlock.getShort(sortedRangesBlock.getUnderlyingValuePosition(positionCount - 2)));
             lowBuf.put(inclusive[positionCount - 2] ? INCLUSIVE : EXCLUSIVE); // ABOVE is the '0' case
             highBuf.putShort(SHORT_UPPER_UNBOUNDED);
             highBuf.put(INCLUSIVE); // inclusive
@@ -308,9 +310,9 @@ class RangesConverter
             int recLength,
             Function<Slice, Slice> sliceConverter)
     {
-        Type type = sortedRangeSet.getType();
         boolean[] inclusive = sortedRangeSet.getInclusive();
         Block sortedRangesBlock = sortedRangeSet.getSortedRanges();
+        VariableWidthBlock valueBlock = (VariableWidthBlock) sortedRangesBlock.getUnderlyingValueBlock();
         final int positionCount = sortedRangesBlock.getPositionCount();
         SliceUtils.StringPredicateDataFactory stringPredicateDataFactory = new SliceUtils.StringPredicateDataFactory();
         StringPredicateData stringPredicateData;
@@ -321,7 +323,7 @@ class RangesConverter
             lowBuf.put(INCLUSIVE); // inclusive
             posIx++;
 
-            Slice highSlice = type.getSlice(sortedRangesBlock, posIx);
+            Slice highSlice = valueBlock.getSlice(sortedRangesBlock.getUnderlyingValuePosition(posIx));
             Slice convertedHighSlice = sliceConverter.apply(highSlice);
             stringPredicateData = stringPredicateDataFactory.create(convertedHighSlice, recLength, false, highSlice);
             highBuf.putLong(stringPredicateData.comperationValue());
@@ -331,14 +333,14 @@ class RangesConverter
 
         final int endPosIx = isUnbounded(sortedRangesBlock, positionCount - 1) ? positionCount - 2 : positionCount;
         while (posIx < endPosIx) {
-            Slice lowSlice = type.getSlice(sortedRangesBlock, posIx);
+            Slice lowSlice = valueBlock.getSlice(sortedRangesBlock.getUnderlyingValuePosition(posIx));
             Slice convertedLowSlice = sliceConverter.apply(lowSlice);
             stringPredicateData = stringPredicateDataFactory.create(convertedLowSlice, recLength, false, lowSlice);
             lowBuf.putLong(stringPredicateData.comperationValue());
             lowBuf.put(inclusive[posIx] ? INCLUSIVE : EXCLUSIVE);
             posIx++;
 
-            Slice highSlice = type.getSlice(sortedRangesBlock, posIx);
+            Slice highSlice = valueBlock.getSlice(sortedRangesBlock.getUnderlyingValuePosition(posIx));
             Slice convertedHighSlice = sliceConverter.apply(highSlice);
             stringPredicateData = stringPredicateDataFactory.create(convertedHighSlice, recLength, false, highSlice);
             highBuf.putLong(stringPredicateData.comperationValue());
@@ -347,7 +349,7 @@ class RangesConverter
         }
 
         if (posIx < positionCount) {
-            Slice lowSlice = type.getSlice(sortedRangesBlock, posIx);
+            Slice lowSlice = valueBlock.getSlice(sortedRangesBlock.getUnderlyingValuePosition(posIx));
             Slice convertedLowSlice = sliceConverter.apply(lowSlice);
             stringPredicateData = stringPredicateDataFactory.create(convertedLowSlice, recLength, false, lowSlice);
             lowBuf.putLong(stringPredicateData.comperationValue());

@@ -35,8 +35,6 @@ import java.util.List;
 import java.util.Optional;
 
 import static io.trino.plugin.warp.util.SliceUtils.allocateOffsetsArray;
-import static io.trino.spi.type.IntegerType.INTEGER;
-import static io.trino.spi.type.SmallintType.SMALLINT;
 import static java.util.Objects.requireNonNull;
 
 @Singleton
@@ -75,16 +73,18 @@ public class DomainToMapBlockConvertor
         else if (TypeUtils.isSmallIntType(type)) {
             short[] shortValues = new short[numValues];
 
+            ShortArrayBlock block = (ShortArrayBlock) sortedRangesBlock.getUnderlyingValueBlock();
             for (arrIx = 0, buffIx = 0; buffIx < sortedRangesBlock.getPositionCount(); arrIx += 1, buffIx += 2) {
-                shortValues[arrIx] = SMALLINT.getShort(sortedRangesBlock, buffIx);
+                shortValues[arrIx] = block.getShort(sortedRangesBlock.getUnderlyingValuePosition(buffIx));
             }
             ret = Optional.of(new ShortArrayBlock(numValues, Optional.ofNullable(nulls), shortValues));
         }
         else if (TypeUtils.isIntegerType(type) || TypeUtils.isRealType(type)) {
             int[] intValues = new int[numValues];
 
+            IntArrayBlock block = (IntArrayBlock) sortedRangesBlock.getUnderlyingValueBlock();
             for (arrIx = 0, buffIx = 0; buffIx < sortedRangesBlock.getPositionCount(); arrIx += 1, buffIx += 2) {
-                intValues[arrIx] = INTEGER.getInt(sortedRangesBlock, buffIx);
+                intValues[arrIx] = block.getInt(sortedRangesBlock.getUnderlyingValuePosition(buffIx));
             }
             ret = Optional.of(new IntArrayBlock(numValues, Optional.ofNullable(nulls), intValues));
         }

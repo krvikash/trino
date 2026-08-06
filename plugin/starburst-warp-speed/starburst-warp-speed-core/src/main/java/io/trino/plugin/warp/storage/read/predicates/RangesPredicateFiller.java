@@ -78,7 +78,7 @@ public class RangesPredicateFiller
 
             // set value in buffer according to types
             if (TypeUtils.isRealType(type)) { // must be before intType
-                rangesConverter.setRealRanges(sortedRangeSet.getRanges(), lowBuf, highBuf);
+                rangesConverter.setRealRanges(lowBuf, highBuf, sortedRangeSet);
             }
             else if (TypeUtils.isIntType(type) || TypeUtils.isRealType(type)) {
                 rangesConverter.setIntRanges(lowBuf, highBuf, sortedRangeSet);
@@ -90,7 +90,7 @@ public class RangesPredicateFiller
                 rangesConverter.setDoubleRanges(lowBuf, highBuf, sortedRangeSet);
             }
             else if (TypeUtils.isBooleanType(type)) {
-                rangesConverter.setBooleanRanges(sortedRangeSet.getRanges(), lowBuf, highBuf);
+                rangesConverter.setBooleanRanges(lowBuf, highBuf, sortedRangeSet);
             }
             else if (TypeUtils.isSmallIntType(type)) {
                 rangesConverter.setSmallIntRanges(lowBuf, highBuf, sortedRangeSet);

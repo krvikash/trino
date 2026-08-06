@@ -17,20 +17,12 @@ import io.airlift.log.Logger;
 import io.trino.plugin.warp.dispatcher.query.PredicateData;
 import io.trino.plugin.warp.gen.constants.PredicateType;
 import io.trino.plugin.warp.juffer.BufferAllocator;
-import io.trino.plugin.warp.type.TypeUtils;
-import io.trino.spi.TrinoException;
 import io.trino.spi.block.Block;
 import io.trino.spi.predicate.Domain;
 import io.trino.spi.predicate.SortedRangeSet;
-import io.trino.spi.type.Int128;
-import io.trino.spi.type.IntegerType;
-import io.trino.spi.type.SmallintType;
-import io.trino.spi.type.TinyintType;
 import io.trino.spi.type.Type;
 
 import java.nio.ByteBuffer;
-
-import static io.trino.plugin.warp.WarpErrorCode.WARP_CONTROL;
 
 public class InverseValuesPredicateFiller
         extends PredicateFiller
@@ -67,47 +59,8 @@ public class InverseValuesPredicateFiller
         Type type = domain.getType();
         try {
             Block sortedRangesBlock = ((SortedRangeSet) domain.getValues()).getSortedRanges();
-            int lastPosition = sortedRangesBlock.getPositionCount() - 2;
-            if (TypeUtils.isIntType(type) || TypeUtils.isRealType(type)) {
-                for (int i = 1; i < lastPosition; i += 2) {
-                    buf.putInt(IntegerType.INTEGER.getInt(sortedRangesBlock, i));
-                }
-            }
-            else if (TypeUtils.isLongType(type) || TypeUtils.isShortDecimalType(type)) {
-                for (int i = 1; i < lastPosition; i += 2) {
-                    buf.putLong(type.getLong(sortedRangesBlock, i));
-                }
-            }
-            else if (TypeUtils.isDoubleType(type)) {
-                for (int i = 1; i < lastPosition; i += 2) {
-                    buf.putDouble(type.getDouble(sortedRangesBlock, i));
-                }
-            }
-            else if (TypeUtils.isSmallIntType(type)) {
-                for (int i = 1; i < lastPosition; i += 2) {
-                    buf.putShort(SmallintType.SMALLINT.getShort(sortedRangesBlock, i));
-                }
-            }
-            else if (TypeUtils.isTinyIntType(type)) {
-                for (int i = 1; i < lastPosition; i += 2) {
-                    buf.put(TinyintType.TINYINT.getByte(sortedRangesBlock, i));
-                }
-            }
-            else if (TypeUtils.isBooleanType(type)) {
-                for (int i = 1; i < lastPosition; i += 2) {
-                    buf.put(type.getBoolean(sortedRangesBlock, i) ? BOOLEAN_TRUE_VALUE : BOOLEAN_FALSE_VALUE);
-                }
-            }
-            else if (TypeUtils.isLongDecimalType(type)) {
-                for (int i = 1; i < lastPosition; i += 2) {
-                    Int128 value = (Int128) type.getObject(sortedRangesBlock, i);
-                    buf.putLong(value.getHigh());
-                    buf.putLong(value.getLow());
-                }
-            }
-            else {
-                throw new TrinoException(WARP_CONTROL, "unexpected ValType " + type);
-            }
+            // the first low and last high bounds are unbounded; the boundary values sit at the odd positions between them
+            writeValues(sortedRangesBlock, type, buf, 1, sortedRangesBlock.getPositionCount() - 2);
         }
         catch (Exception e) {
             logger.error(e, "convertValues failed type=%s", type);

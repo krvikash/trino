@@ -30,7 +30,6 @@ import io.trino.spi.type.VarcharType;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
@@ -57,6 +56,7 @@ import static io.trino.plugin.warp.storage.read.predicates.RangesConverter.LONG_
 import static io.trino.plugin.warp.storage.read.predicates.RangesConverter.SHORT_LOWER_UNBOUNDED;
 import static io.trino.plugin.warp.storage.read.predicates.RangesConverter.SHORT_UPPER_UNBOUNDED;
 import static io.trino.spi.type.BigintType.BIGINT;
+import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.spi.type.SmallintType.SMALLINT;
 import static io.trino.spi.type.TinyintType.TINYINT;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -230,6 +230,45 @@ class RangesConverterTest
                 Pair.of(25L, EXCLUSIVE),
                 Pair.of(35L, INCLUSIVE),
                 Pair.of(LONG_UPPER_UNBOUNDED, INCLUSIVE));
+        validateResults(high, expectedHighResults, sortedRangeSet.getType());
+    }
+
+    @Test
+    public void testBooleanSingleValue()
+    {
+        Range trueValue = Range.equal(BOOLEAN, true);
+        SortedRangeSet sortedRangeSet = SortedRangeSet.copyOf(BOOLEAN, List.of(trueValue));
+        rangesConverter.setBooleanRanges(low, high, sortedRangeSet);
+
+        List<Pair<Byte, Byte>> expectedLowResults = List.of(Pair.of((byte) 1, INCLUSIVE));
+        List<Pair<Byte, Byte>> expectedHighResults = List.of(Pair.of((byte) 1, INCLUSIVE));
+        validateResults(low, expectedLowResults, sortedRangeSet.getType());
+        validateResults(high, expectedHighResults, sortedRangeSet.getType());
+    }
+
+    @Test
+    public void testBooleanUnboundedLow()
+    {
+        Range lessThanTrue = Range.lessThan(BOOLEAN, true);
+        SortedRangeSet sortedRangeSet = SortedRangeSet.copyOf(BOOLEAN, List.of(lessThanTrue));
+        rangesConverter.setBooleanRanges(low, high, sortedRangeSet);
+
+        List<Pair<Byte, Byte>> expectedLowResults = List.of(Pair.of((byte) 0, INCLUSIVE));
+        List<Pair<Byte, Byte>> expectedHighResults = List.of(Pair.of((byte) 1, EXCLUSIVE));
+        validateResults(low, expectedLowResults, sortedRangeSet.getType());
+        validateResults(high, expectedHighResults, sortedRangeSet.getType());
+    }
+
+    @Test
+    public void testBooleanUnboundedHigh()
+    {
+        Range greaterThanFalse = Range.greaterThan(BOOLEAN, false);
+        SortedRangeSet sortedRangeSet = SortedRangeSet.copyOf(BOOLEAN, List.of(greaterThanFalse));
+        rangesConverter.setBooleanRanges(low, high, sortedRangeSet);
+
+        List<Pair<Byte, Byte>> expectedLowResults = List.of(Pair.of((byte) 0, EXCLUSIVE));
+        List<Pair<Byte, Byte>> expectedHighResults = List.of(Pair.of((byte) 1, INCLUSIVE));
+        validateResults(low, expectedLowResults, sortedRangeSet.getType());
         validateResults(high, expectedHighResults, sortedRangeSet.getType());
     }
 
@@ -420,32 +459,24 @@ class RangesConverterTest
         assertThat(high.get(highPosition + Long.BYTES * 2)).isEqualTo(INCLUSIVE);
     }
 
-    @Disabled
     @Test
     public void testManyRangesReal()
     {
         RangesConverter rangesConverter = new RangesConverter();
-        Range lessRange = Range.lessThanOrEqual(RealType.REAL, 9L);
-/*        Range middleRange1 = Range.range(RealType.REAL, 3L, true, 5L, true);
-        Range middleRange2 = Range.range(RealType.REAL, 7L, false, 10L, false);
-        Range middleRange3 = Range.range(RealType.REAL, 20L, true, 25L, false);
-        Range middleRange4 = Range.range(RealType.REAL, 30L, false, 35L, true); */
-        Range greater = Range.greaterThanOrEqual(RealType.REAL, 90L);
-        SortedRangeSet sortedRangeSet = SortedRangeSet.copyOf(RealType.REAL, List.of(
-                lessRange,
-                /*                          middleRange1,
-                                          middleRange2,
-                                          middleRange3,
-                                          middleRange4,*/
-                greater));
-        rangesConverter.setRealRanges(sortedRangeSet.getRanges(), low, high);
+        Range lessRange = Range.lessThanOrEqual(RealType.REAL, (long) Float.floatToRawIntBits(9.0f));
+        Range middleRange = Range.range(RealType.REAL, (long) Float.floatToRawIntBits(20.0f), true, (long) Float.floatToRawIntBits(25.0f), false);
+        Range greater = Range.greaterThanOrEqual(RealType.REAL, (long) Float.floatToRawIntBits(90.0f));
+        SortedRangeSet sortedRangeSet = SortedRangeSet.copyOf(RealType.REAL, List.of(lessRange, middleRange, greater));
+        rangesConverter.setRealRanges(low, high, sortedRangeSet);
 
-        var expectedLowResults =
-                List.of(Pair.of(FLOAT_LOWER_UNBOUNDED, INCLUSIVE),
-                        Pair.of(90.0d, INCLUSIVE));
+        List<? extends Pair<? extends Number, Byte>> expectedLowResults = List.of(
+                Pair.of(FLOAT_LOWER_UNBOUNDED, INCLUSIVE),
+                Pair.of(20.0f, INCLUSIVE),
+                Pair.of(90.0f, INCLUSIVE));
         validateResults(low, expectedLowResults, sortedRangeSet.getType());
         List<? extends Pair<? extends Number, Byte>> expectedHighResults = List.of(
-                Pair.of(9.0d, INCLUSIVE),
+                Pair.of(9.0f, INCLUSIVE),
+                Pair.of(25.0f, EXCLUSIVE),
                 Pair.of(FLOAT_UPPER_UNBOUNDED, INCLUSIVE));
         validateResults(high, expectedHighResults, sortedRangeSet.getType());
     }
@@ -510,7 +541,7 @@ class RangesConverterTest
             }
             return;
         }
-        else if (type.equals(TINYINT)) {
+        else if (type.equals(TINYINT) || type.equals(BOOLEAN)) {
             int pos = 0;
             for (var expected : expectedResult) {
                 assertThat(byteBuffer.get(pos)).isEqualTo(expected.getKey());
@@ -543,7 +574,7 @@ class RangesConverterTest
         else if (type.equals(RealType.REAL)) {
             int pos = 0;
             for (var expected : expectedResult) {
-                assertThat(byteBuffer.getLong(pos)).isEqualTo(expected.getKey());
+                assertThat(byteBuffer.getFloat(pos)).isEqualTo(expected.getKey());
                 pos += Float.BYTES;
                 assertThat(byteBuffer.get(pos)).isEqualTo(expected.getValue());
                 pos += 1;

@@ -21,6 +21,7 @@ import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.type.TypeUtils;
 import io.trino.spi.TrinoException;
 import io.trino.spi.block.Block;
+import io.trino.spi.block.VariableWidthBlock;
 import io.trino.spi.predicate.SortedRangeSet;
 import io.trino.spi.type.CharType;
 import io.trino.spi.type.MapType;
@@ -268,9 +269,10 @@ public class SliceUtils
         SliceUtils.StringPredicateDataFactory stringPredicateDataFactory = new SliceUtils.StringPredicateDataFactory();
         // Starting from 1 since inverse values are represented as ranges and starts with MIN and ends with MAX
         Block sortedRangesBlock = sortedRangeSet.getSortedRanges();
+        VariableWidthBlock valueBlock = (VariableWidthBlock) sortedRangesBlock.getUnderlyingValueBlock();
 
         for (int i = 1; i < numValues * 2; i += 2) {
-            Slice orgVal = type.getSlice(sortedRangesBlock, i);
+            Slice orgVal = valueBlock.getSlice(sortedRangesBlock.getUnderlyingValuePosition(i));
             Slice value = sliceConverter.apply(orgVal);
             // crc is calculated on the string without the length byte in native as well
             strDataList.add(stringPredicateDataFactory.create(value, recLength, true, orgVal));

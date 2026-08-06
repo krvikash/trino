@@ -19,11 +19,22 @@ import io.trino.plugin.warp.gen.constants.FunctionType;
 import io.trino.plugin.warp.gen.constants.PredicateHeaderFlags;
 import io.trino.plugin.warp.gen.constants.PredicateType;
 import io.trino.plugin.warp.juffer.BufferAllocator;
+import io.trino.plugin.warp.type.TypeUtils;
+import io.trino.spi.TrinoException;
+import io.trino.spi.block.Block;
+import io.trino.spi.block.ByteArrayBlock;
+import io.trino.spi.block.Int128ArrayBlock;
+import io.trino.spi.block.IntArrayBlock;
+import io.trino.spi.block.LongArrayBlock;
+import io.trino.spi.block.ShortArrayBlock;
+import io.trino.spi.block.ValueBlock;
 import io.trino.spi.predicate.Domain;
 import io.trino.spi.type.TimestampType;
+import io.trino.spi.type.Type;
 
 import java.nio.ByteBuffer;
 
+import static io.trino.plugin.warp.WarpErrorCode.WARP_CONTROL;
 import static java.lang.String.format;
 
 public abstract class PredicateFiller
@@ -83,4 +94,62 @@ public abstract class PredicateFiller
     }
 
     public abstract void convertValues(Domain domain, ByteBuffer predicateBuffer);
+
+    // reads values through the concrete value-block classes rather than generic Type accessors
+    protected static void writeValues(Block sortedRangesBlock, Type type, ByteBuffer predicateBuffer, int startPosition, int endPosition)
+    {
+        ValueBlock valueBlock = sortedRangesBlock.getUnderlyingValueBlock();
+        if (TypeUtils.isIntType(type) || TypeUtils.isRealType(type)) {
+            IntArrayBlock intArrayBlock = (IntArrayBlock) valueBlock;
+            for (int i = startPosition; i < endPosition; i += 2) {
+                predicateBuffer.putInt(intArrayBlock.getInt(sortedRangesBlock.getUnderlyingValuePosition(i)));
+            }
+        }
+        else if (TypeUtils.isLongType(type) || TypeUtils.isShortDecimalType(type)) {
+            LongArrayBlock longArrayBlock = (LongArrayBlock) valueBlock;
+            for (int i = startPosition; i < endPosition; i += 2) {
+                predicateBuffer.putLong(longArrayBlock.getLong(sortedRangesBlock.getUnderlyingValuePosition(i)));
+            }
+        }
+        else if (TypeUtils.isDoubleType(type)) {
+            LongArrayBlock longArrayBlock = (LongArrayBlock) valueBlock;
+            for (int i = startPosition; i < endPosition; i += 2) {
+                predicateBuffer.putDouble(Double.longBitsToDouble(longArrayBlock.getLong(sortedRangesBlock.getUnderlyingValuePosition(i))));
+            }
+        }
+        else if (TypeUtils.isSmallIntType(type)) {
+            ShortArrayBlock shortArrayBlock = (ShortArrayBlock) valueBlock;
+            for (int i = startPosition; i < endPosition; i += 2) {
+                predicateBuffer.putShort(shortArrayBlock.getShort(sortedRangesBlock.getUnderlyingValuePosition(i)));
+            }
+        }
+        else if (TypeUtils.isTinyIntType(type)) {
+            ByteArrayBlock byteArrayBlock = (ByteArrayBlock) valueBlock;
+            for (int i = startPosition; i < endPosition; i += 2) {
+                predicateBuffer.put(byteArrayBlock.getByte(sortedRangesBlock.getUnderlyingValuePosition(i)));
+            }
+        }
+        else if (TypeUtils.isBooleanType(type)) {
+            ByteArrayBlock byteArrayBlock = (ByteArrayBlock) valueBlock;
+            for (int i = startPosition; i < endPosition; i += 2) {
+                if (byteArrayBlock.getByte(sortedRangesBlock.getUnderlyingValuePosition(i)) != 0) {
+                    predicateBuffer.put(BOOLEAN_TRUE_VALUE);
+                }
+                else {
+                    predicateBuffer.put(BOOLEAN_FALSE_VALUE);
+                }
+            }
+        }
+        else if (TypeUtils.isLongDecimalType(type)) {
+            Int128ArrayBlock int128ArrayBlock = (Int128ArrayBlock) valueBlock;
+            for (int i = startPosition; i < endPosition; i += 2) {
+                int position = sortedRangesBlock.getUnderlyingValuePosition(i);
+                predicateBuffer.putLong(int128ArrayBlock.getInt128High(position));
+                predicateBuffer.putLong(int128ArrayBlock.getInt128Low(position));
+            }
+        }
+        else {
+            throw new TrinoException(WARP_CONTROL, "unexpected ValType " + type);
+        }
+    }
 }
