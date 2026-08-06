@@ -12,7 +12,6 @@ package com.starburstdata.trino.plugin.dynamodb;
 import io.airlift.configuration.Config;
 import io.airlift.configuration.ConfigDescription;
 import io.airlift.configuration.ConfigSecuritySensitive;
-import io.airlift.configuration.validation.FileExists;
 import jakarta.annotation.PostConstruct;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -174,7 +173,6 @@ public class DynamoDbConfig
         return this;
     }
 
-    @FileExists
     public String getSchemaDirectory()
     {
         return schemaDirectory;

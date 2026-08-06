@@ -12,9 +12,14 @@ package com.starburstdata.trino.plugin.dynamodb;
 import com.google.common.collect.ImmutableMap;
 import io.trino.plugin.jdbc.ConnectionFactory;
 import io.trino.plugin.jdbc.credential.CredentialPropertiesProvider;
+import io.trino.spi.TrinoException;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.security.ConnectorIdentity;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
+import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.Driver;
 import java.sql.SQLException;
@@ -27,6 +32,7 @@ import static com.google.common.base.Preconditions.checkState;
 import static com.starburstdata.trino.plugin.dynamodb.DynamoDbSessionProperties.getFlattenArrayElementCount;
 import static com.starburstdata.trino.plugin.dynamodb.DynamoDbSessionProperties.getGenerateSchemaFiles;
 import static com.starburstdata.trino.plugin.dynamodb.DynamoDbSessionProperties.isFlattenObjectsEnabled;
+import static io.trino.spi.StandardErrorCode.CONFIGURATION_INVALID;
 import static io.trino.spi.type.VarcharType.UNBOUNDED_LENGTH;
 import static java.util.Objects.requireNonNull;
 
@@ -97,7 +103,18 @@ public class DynamoDbConnectionFactory
                     .append("Verbosity=\"").append(dynamoDbConfig.getDriverLoggingVerbosity()).append("\";");
         }
 
-        Optional.ofNullable(dynamoDbConfig.getSchemaDirectory()).ifPresent(directory -> builder.append("Location=\"").append(directory).append("\";"));
+        Optional.ofNullable(dynamoDbConfig.getSchemaDirectory()).ifPresent(directory -> {
+            try {
+                Files.createDirectories(Path.of(dynamoDbConfig.getSchemaDirectory()));
+            }
+            catch (IOException | InvalidPathException e) {
+                throw new TrinoException(
+                        CONFIGURATION_INVALID,
+                        "Unable to create or get configured schema directory %s".formatted(directory),
+                        e);
+            }
+            builder.append("Location=\"").append(directory).append("\";");
+        });
 
         builder
                 .append("Other=\"")
