@@ -15,6 +15,7 @@ package io.trino.split.remote;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
 import io.airlift.log.Logger;
 import io.opentelemetry.api.trace.Tracer;
@@ -317,15 +318,21 @@ public class RemoteSplitsTaskManager
     @VisibleForTesting
     void cleanupExpired()
     {
-        // computeIfPresent (rather than a plain check-then-close(id)) makes the stale
-        // check atomic with touch(), so a concurrent touch can't be silently overridden below
-        tasks.keySet().forEach(id -> tasks.computeIfPresent(id, (taskId, task) -> {
-            if (task.isStale()) {
-                closeQuietly(taskId, task);
-                return null;
+        ImmutableMap.Builder<String, RemoteSplitsTask> expired = ImmutableMap.builder();
+        for (Map.Entry<String, RemoteSplitsTask> entry : tasks.entrySet()) {
+            if (!entry.getValue().isStale()) {
+                continue;
             }
-            return task;
-        }));
+            // use computeIfPresent to handle the concurrent against getAndTouchTask
+            tasks.computeIfPresent(entry.getKey(), (id, task) -> {
+                if (!task.isStale()) {
+                    return task;
+                }
+                expired.put(id, task);
+                return null;
+            });
+        }
+        expired.buildOrThrow().forEach(this::closeQuietly);
     }
 
     private RemoteSplitsTask getAndTouchTask(String taskId)
