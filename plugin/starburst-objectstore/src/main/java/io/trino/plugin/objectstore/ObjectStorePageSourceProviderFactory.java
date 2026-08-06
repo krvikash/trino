@@ -13,6 +13,7 @@
  */
 package io.trino.plugin.objectstore;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.inject.Inject;
 import io.trino.plugin.deltalake.DeltaLakeTableHandle;
 import io.trino.plugin.hive.HiveTableHandle;
@@ -93,12 +94,27 @@ public class ObjectStorePageSourceProviderFactory
 
     private record PageSourceProvider(TableType tableType, ConnectorPageSourceProvider pageSourceProvider) {}
 
-    private class ObjectStorePageSourceProvider
+    @VisibleForTesting
+    final class ObjectStorePageSourceProvider
             implements ConnectorPageSourceProvider
     {
         // createPageSourceProvider is called for each scan within a query
         // we hold on to ConnectorPageSourceProvider instance to allow IcebergPageSourceProvider to reuse equality deletes between splits of the same scan
         private volatile PageSourceProvider delegate;
+
+        @Override
+        @SuppressWarnings("deprecation") // the method itself is deprecated
+        public ConnectorPageSource createPageSource(
+                ConnectorTransactionHandle transaction,
+                ConnectorSession session,
+                ConnectorSplit split,
+                ConnectorTableHandle table,
+                Optional<ConnectorTableCredentials> tableCredentials,
+                List<ColumnHandle> columns,
+                DynamicFilter dynamicFilter)
+        {
+            throw new UnsupportedOperationException("The non-deprecated overload should be called instead");
+        }
 
         @Override
         public ConnectorPageSource createPageSource(
