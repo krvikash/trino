@@ -434,6 +434,13 @@ public final class IcebergSessionProperties
                         "Delegate split generation to a worker only when a table has more manifests " +
                                 "than this value times iceberg.split-manager-threads",
                         icebergConfig.getRemoteSplitsGenerationManifestsPerThread(),
+                        value -> {
+                            if (value < 0) {
+                                throw new TrinoException(
+                                        INVALID_SESSION_PROPERTY,
+                                        format("%s must be greater than or equal to 0", REMOTE_SPLITS_GENERATION_MANIFESTS_PER_THREAD));
+                            }
+                        },
                         false))
                 .add(integerProperty(
                         MAX_PARTITIONS_PER_WRITER,
