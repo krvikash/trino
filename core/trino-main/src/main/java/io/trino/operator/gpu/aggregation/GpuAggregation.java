@@ -121,7 +121,6 @@ public abstract class GpuAggregation
     private long totalInputBytes;
     private final int[] maxNestedInputRowCountPerColumn;
     private long totalBufferedRowCount;
-    private @Nullable @Own GpuPage result;
     private boolean finished;
 
     protected GpuAggregation(
@@ -148,13 +147,6 @@ public abstract class GpuAggregation
             return new Finished();
         }
 
-        if (result != null) {
-            GpuPage page = result;
-            result = null;
-            finished = true;
-            return new Data(allocated.take(), page);
-        }
-
         @Own Result sourceResult = source.execute();
         return switch (sourceResult) {
             case Blocked blocked -> blocked;
@@ -166,14 +158,14 @@ public abstract class GpuAggregation
                 yield new Yielded();
             }
             case Finished() -> {
+                finished = true;
                 Optional<GpuPage> aggregationResult = finishAggregation();
                 if (aggregationResult.isEmpty()) {
-                    finished = true;
                     yield new Finished();
                 }
-                result = aggregationResult.get();
+                GpuPage result = aggregationResult.get();
                 allocated.borrow().update(result.retainedMemory());
-                yield new Yielded();  // Will return result on next execute()
+                yield new Data(allocated.take(), result);
             }
         };
     }
@@ -300,10 +292,6 @@ public abstract class GpuAggregation
             closer.register(allocated); // release after data resources below are closed
             closer.register(inputTables);
             closer.register(compactedTable);
-            if (result != null) {
-                closer.register(result);
-                result = null;
-            }
         }
     }
 
