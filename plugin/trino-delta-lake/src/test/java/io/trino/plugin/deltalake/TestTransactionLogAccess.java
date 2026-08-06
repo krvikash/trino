@@ -642,6 +642,7 @@ public class TestTransactionLogAccess
                                     "schema",
                                     tableName,
                                     true,
+                                    false,
                                     Optional.empty(),
                                     tableDir.toURI().toString(), // the location should keep the same as the previous test cases
                                     metadataEntry,

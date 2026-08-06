@@ -29,6 +29,7 @@ import io.unitycatalog.client.delta.model.DeltaStorageCredentialConfig;
 import io.unitycatalog.client.model.AwsCredentials;
 import io.unitycatalog.client.model.AzureUserDelegationSAS;
 import io.unitycatalog.client.model.GcpOauthToken;
+import io.unitycatalog.client.model.TableOperation;
 import io.unitycatalog.client.model.TemporaryCredentials;
 
 import java.net.URI;
@@ -53,7 +54,11 @@ abstract class AbstractUnityDeltaLakeTableCredentialsProvider
         UnityMetastore unityMetastore = getUnityMetastore(identity);
 
         FileSystemCredentials credentials;
-        if (handle.catalogManaged()) {
+        // TODO: migrate external tables off the legacy credential API when they are supported by DeltaTemporaryCredentialsApi
+        if (handle.materializedView()) {
+            credentials = fromTemporaryCredentials(unityMetastore.getTemporaryTableCredentials(handle.tableId().orElseThrow(), TableOperation.READ), handle.tableLocation());
+        }
+        else if (handle.catalogManaged()) {
             credentials = fromDeltaCredentials(unityMetastore.getTemporaryTableCredentials(handle.schemaTableName().orElseThrow(), READ_WRITE), handle.tableLocation());
         }
         else if (handle.managed()) {

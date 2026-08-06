@@ -24,6 +24,7 @@ public record DeltaMetastoreTable(
         SchemaTableName schemaTableName,
         boolean managed,
         boolean catalogManaged,
+        boolean materializedView,
         String location,
         Optional<String> tableId)
 {
@@ -36,6 +37,10 @@ public record DeltaMetastoreTable(
         if (catalogManaged) {
             checkArgument(managed, "catalog managed tables must be managed");
             checkArgument(tableId.isPresent(), "tableId must be present for catalog managed tables");
+        }
+
+        if (materializedView) {
+            checkArgument(managed, "materialized view must be exposed as a managed table");
         }
     }
 }

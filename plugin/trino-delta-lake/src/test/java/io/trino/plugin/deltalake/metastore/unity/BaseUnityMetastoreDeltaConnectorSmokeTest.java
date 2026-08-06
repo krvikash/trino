@@ -23,6 +23,7 @@ import io.trino.testing.QueryRunner;
 import io.trino.testing.TestingConnectorBehavior;
 import io.trino.testing.sql.SqlExecutor;
 import io.trino.tpch.TpchTable;
+import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -50,6 +51,8 @@ abstract class BaseUnityMetastoreDeltaConnectorSmokeTest
     private static final Logger LOG = Logger.get(BaseUnityMetastoreDeltaConnectorSmokeTest.class);
     protected static final String SCHEMA_NAME = TPCH_SCHEMA + "_delta_ci_external";
     private static final String HIVE_TABLE_NAME = "hive_table";
+    private static final String MV_WITH_EXTERNAL_METADATA = SCHEMA_NAME + ".mv_nation_external_metadata";
+    private static final String MV_WITHOUT_EXTERNAL_METADATA = SCHEMA_NAME + ".mv_nation_without_external_metadata";
 
     protected abstract Map<String, String> getDeltaLakeProperties();
 
@@ -449,6 +452,47 @@ abstract class BaseUnityMetastoreDeltaConnectorSmokeTest
         finally {
             onDatabricks().execute("DROP TABLE IF EXISTS %s.%s.%s".formatted(getDatabricksUnityCatalogName(), SCHEMA_NAME, tableName));
         }
+    }
+
+    @Test
+    void testReadMaterializedView()
+    {
+        assertThat(query("SELECT nationkey, name FROM %s ORDER BY nationkey".formatted(MV_WITH_EXTERNAL_METADATA)))
+                .matches("VALUES (BIGINT '0', VARCHAR 'ALGERIA'), (BIGINT '1', VARCHAR 'ARGENTINA'), (BIGINT '2', VARCHAR 'BRAZIL')");
+    }
+
+    @Test
+    void testReadMaterializedViewWithoutExternalMetadataFails()
+    {
+        assertQueryFails(
+                "SELECT * FROM " + MV_WITHOUT_EXTERNAL_METADATA,
+                "Materialized view '%s' cannot be read: external metadata access must be enabled".formatted(MV_WITHOUT_EXTERNAL_METADATA));
+    }
+
+    @Test
+    void testMaterializedViewWritesRejected()
+    {
+        @Language("RegExp") String expected = "Writes are not supported against Unity materialized views: " + MV_WITH_EXTERNAL_METADATA;
+        assertQueryFails("INSERT INTO %s VALUES (BIGINT '99', VARCHAR 'ZZZ')".formatted(MV_WITH_EXTERNAL_METADATA), expected);
+        assertQueryFails("UPDATE %s SET name = 'X' WHERE nationkey = 0".formatted(MV_WITH_EXTERNAL_METADATA), expected);
+        assertQueryFails("DELETE FROM %s WHERE nationkey = 0".formatted(MV_WITH_EXTERNAL_METADATA), expected);
+        assertQueryFails("DELETE FROM " + MV_WITH_EXTERNAL_METADATA, expected);
+        assertQueryFails("TRUNCATE TABLE " + MV_WITH_EXTERNAL_METADATA, expected);
+        assertQueryFails(
+                "MERGE INTO %s t USING (SELECT BIGINT '0' AS nationkey) s ON t.nationkey = s.nationkey WHEN MATCHED THEN DELETE".formatted(MV_WITH_EXTERNAL_METADATA),
+                expected);
+        assertQueryFails("DROP TABLE " + MV_WITH_EXTERNAL_METADATA, expected);
+        assertQueryFails(
+                "ALTER TABLE %s RENAME TO renamed_mv".formatted(MV_WITH_EXTERNAL_METADATA),
+                "Renaming a Unity materialized view is not supported: " + MV_WITH_EXTERNAL_METADATA);
+        assertQueryFails("ALTER TABLE %s ADD COLUMN x int".formatted(MV_WITH_EXTERNAL_METADATA), expected);
+        assertQueryFails("ALTER TABLE %s DROP COLUMN name".formatted(MV_WITH_EXTERNAL_METADATA), expected);
+        assertQueryFails("ALTER TABLE %s RENAME COLUMN name TO namex".formatted(MV_WITH_EXTERNAL_METADATA), expected);
+        assertQueryFails("ALTER TABLE %s SET PROPERTIES change_data_feed_enabled = false".formatted(MV_WITH_EXTERNAL_METADATA), expected);
+        assertQueryFails("COMMENT ON TABLE %s IS 'nope'".formatted(MV_WITH_EXTERNAL_METADATA), expected);
+        assertQueryFails("COMMENT ON COLUMN %s.name IS 'nope'".formatted(MV_WITH_EXTERNAL_METADATA), expected);
+        assertQueryFails("ANALYZE " + MV_WITH_EXTERNAL_METADATA, expected);
+        assertQueryFails("CREATE OR REPLACE TABLE %s AS SELECT BIGINT '0' AS nationkey, VARCHAR 'X' AS name".formatted(MV_WITH_EXTERNAL_METADATA), expected);
     }
 
     @Override

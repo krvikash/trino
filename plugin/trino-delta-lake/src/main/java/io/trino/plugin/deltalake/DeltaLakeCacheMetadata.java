@@ -58,6 +58,7 @@ public class DeltaLakeCacheMetadata
                 deltaLakeTableHandle.getSchemaName(),
                 deltaLakeTableHandle.getTableName(),
                 deltaLakeTableHandle.isManaged(),
+                deltaLakeTableHandle.materializedView(),
                 deltaLakeTableHandle.getTableId(),
                 deltaLakeTableHandle.getLocation(),
                 deltaLakeTableHandle.getMetadataEntry(),

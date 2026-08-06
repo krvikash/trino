@@ -78,10 +78,12 @@ import io.unitycatalog.client.model.CreateSchema;
 import io.unitycatalog.client.model.CreateTable;
 import io.unitycatalog.client.model.DataSourceFormat;
 import io.unitycatalog.client.model.GenerateTemporaryPathCredential;
+import io.unitycatalog.client.model.GenerateTemporaryTableCredential;
 import io.unitycatalog.client.model.ListSchemasResponse;
 import io.unitycatalog.client.model.ListTablesResponse;
 import io.unitycatalog.client.model.PathOperation;
 import io.unitycatalog.client.model.SchemaInfo;
+import io.unitycatalog.client.model.TableOperation;
 import io.unitycatalog.client.model.TemporaryCredentials;
 
 import java.io.IOException;
@@ -137,6 +139,7 @@ import static io.trino.spi.security.PrincipalType.USER;
 import static io.unitycatalog.client.model.DataSourceFormat.DELTA;
 import static io.unitycatalog.client.model.TableType.EXTERNAL;
 import static io.unitycatalog.client.model.TableType.MANAGED;
+import static io.unitycatalog.client.model.TableType.MATERIALIZED_VIEW;
 import static java.net.Authenticator.RequestorType.PROXY;
 import static java.net.Proxy.NO_PROXY;
 import static java.net.Proxy.Type.HTTP;
@@ -152,6 +155,7 @@ public class UnityHiveMetastore
     private static final Logger LOG = Logger.get(UnityHiveMetastore.class);
 
     public static final String UNITY_CATALOG_TABLE_ID = "io.unitycatalog.tableId";
+    public static final String UNITY_ORIGINAL_TABLE_TYPE = "starburst.unity.original_table_type";
 
     // TODO: support azure credentials vending https://starburstdata.atlassian.net/browse/SEP-18169
 
@@ -159,6 +163,7 @@ public class UnityHiveMetastore
     private static final String DELTA_PATH_PROPERTY = "path";
     private static final String DELTA_TABLE_PROVIDER_PROPERTY = "spark.sql.sources.provider";
     private static final String DELTA_TABLE_PROVIDER_VALUE = "DELTA";
+    private static final String EXTERNAL_METADATA_PATH_PROPERTY = "spark.internal.pipelines.external_metadata_path";
     private static final String USER_AGENT = "Starburst-Delta-Lake-Connector/%s UnityCatalog-Java-Client/%s".formatted(
             requireNonNullElse(UnityHiveMetastore.class.getPackage().getImplementationVersion(), "unknown"),
             requireNonNullElse(ApiClient.class.getPackage().getImplementationVersion(), "unknown"));
@@ -166,7 +171,8 @@ public class UnityHiveMetastore
     private static final int LIST_PAGE_SIZE = 50;
     private static final Map<io.unitycatalog.client.model.TableType, TableType> SUPPORTED_TABLE_TYPES_MAPPING = ImmutableMap.of(
             MANAGED, MANAGED_TABLE,
-            EXTERNAL, EXTERNAL_TABLE);
+            EXTERNAL, EXTERNAL_TABLE,
+            MATERIALIZED_VIEW, MANAGED_TABLE);
     private static final ObjectMapper OBJECT_MAPPER = new JsonMapperProvider().get();
     // sometimes we see transient errors from unity api, which could be retried
     private static final RetryPolicy<Object> UNITY_API_RETRY_POLICY = RetryPolicy.builder()
@@ -452,7 +458,7 @@ public class UnityHiveMetastore
     {
         DataSourceFormat dataSourceFormat = requireNonNullElse(tableInfo.getDataSourceFormat(), DELTA);
         io.unitycatalog.client.model.TableType tableType = requireNonNullElse(tableInfo.getTableType(), MANAGED);
-        if (dataSourceFormat != DELTA && tableType == MANAGED) {
+        if (dataSourceFormat != DELTA && (tableType == MANAGED || tableType == MATERIALIZED_VIEW)) {
             return false;
         }
         return supportedUnityTableFormats.contains(dataSourceFormat)
@@ -835,27 +841,29 @@ public class UnityHiveMetastore
         if (!supportedUnityTableFormats.contains(dataSourceFormat)) {
             throw new TrinoException(NOT_SUPPORTED, "Unsupported data source format: " + dataSourceFormat);
         }
-        if (dataSourceFormat != DELTA && tableType == MANAGED) {
-            throw new TrinoException(NOT_SUPPORTED, "Only DELTA table format supports managed table type: " + dataSourceFormat);
+        if (dataSourceFormat != DELTA && (tableType == MANAGED || tableType == MATERIALIZED_VIEW)) {
+            throw new TrinoException(NOT_SUPPORTED, "Only DELTA table format supports %s table type: %s".formatted(tableType, dataSourceFormat));
         }
 
+        String storageLocation = getStorageLocation(tableInfo, tableType);
         TableType type = SUPPORTED_TABLE_TYPES_MAPPING.get(tableType);
         Table.Builder tableBuilder = Table.builder()
                 .setDatabaseName(tableInfo.getSchemaName())
                 .setTableName(tableInfo.getName())
                 .setTableType(type.name())
                 .setOwner(Optional.ofNullable(tableInfo.getOwner()))
-                .setParameter(META_TABLE_LOCATION, tableInfo.getStorageLocation());
+                .setParameter(META_TABLE_LOCATION, storageLocation);
 
         if (dataSourceFormat == DataSourceFormat.DELTA) {
             tableBuilder.setDataColumns(ImmutableList.of(new Column("dummy", HIVE_STRING, Optional.empty(), ImmutableMap.of())));
             tableBuilder.withStorage(storage -> storage
                     .setStorageFormat(getStorageFormat(dataSourceFormat))
-                    .setLocation(tableInfo.getStorageLocation())
-                    .setSerdeParameters(Map.of(DELTA_PATH_PROPERTY, requireNonNull(tableInfo.getStorageLocation(), "storage location is null"))));
+                    .setLocation(storageLocation)
+                    .setSerdeParameters(Map.of(DELTA_PATH_PROPERTY, requireNonNull(storageLocation, "storage location is null"))));
             tableBuilder.setParameters(tableInfo.getProperties());
             tableBuilder.setParameter(DELTA_TABLE_PROVIDER_PROPERTY, DELTA_TABLE_PROVIDER_VALUE);
             tableBuilder.setParameter(UNITY_CATALOG_TABLE_ID, tableInfo.getTableId());
+            tableBuilder.setParameter(UNITY_ORIGINAL_TABLE_TYPE, tableType.getValue());
         }
         else {
             requireNonNull(tableInfo.getColumns(), "columns is null");
@@ -880,6 +888,24 @@ public class UnityHiveMetastore
         }
 
         return Optional.of(tableBuilder.build().withComment(Optional.ofNullable(tableInfo.getComment())));
+    }
+
+    private static String getStorageLocation(io.unitycatalog.client.model.TableInfo tableInfo, io.unitycatalog.client.model.TableType tableType)
+    {
+        if (tableType == MATERIALIZED_VIEW) {
+            Map<String, String> properties = requireNonNullElse(tableInfo.getProperties(), ImmutableMap.of());
+            String storageLocation = properties.get(EXTERNAL_METADATA_PATH_PROPERTY);
+            if (storageLocation == null) {
+                throw new TrinoException(
+                        NOT_SUPPORTED,
+                        "Materialized view '%s.%s' cannot be read: external metadata access must be enabled".formatted(tableInfo.getSchemaName(), tableInfo.getName()));
+            }
+
+            return storageLocation;
+        }
+        else {
+            return tableInfo.getStorageLocation();
+        }
     }
 
     private static HiveType getHiveTypeFromUnity(String hiveType)
@@ -1227,6 +1253,17 @@ public class UnityHiveMetastore
             return deltaTemporaryCredentialsApi.getTableCredentials(operation, catalogName, schemaTableName.getSchemaName(), schemaTableName.getTableName());
         }
         catch (ApiException e) {
+            throw new TrinoException(HIVE_METASTORE_ERROR, e);
+        }
+    }
+
+    @Override
+    public TemporaryCredentials getTemporaryTableCredentials(String tableId, TableOperation operation)
+    {
+        try {
+            return temporaryCredentialsApi.generateTemporaryTableCredentials(new GenerateTemporaryTableCredential().tableId(tableId).operation(operation));
+        }
+        catch (Exception e) {
             throw new TrinoException(HIVE_METASTORE_ERROR, e);
         }
     }

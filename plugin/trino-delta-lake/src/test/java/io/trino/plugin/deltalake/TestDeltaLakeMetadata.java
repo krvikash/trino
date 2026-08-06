@@ -604,6 +604,7 @@ public class TestDeltaLakeMetadata
                 "test_schema_name",
                 "test_table_name",
                 true,
+                false,
                 Optional.empty(),
                 "test_location",
                 createMetadataEntry(),

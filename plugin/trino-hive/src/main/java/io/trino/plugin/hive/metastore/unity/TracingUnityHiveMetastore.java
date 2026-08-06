@@ -20,6 +20,7 @@ import io.trino.spi.connector.SchemaTableName;
 import io.unitycatalog.client.delta.model.DeltaCredentialOperation;
 import io.unitycatalog.client.delta.model.DeltaCredentialsResponse;
 import io.unitycatalog.client.model.PathOperation;
+import io.unitycatalog.client.model.TableOperation;
 import io.unitycatalog.client.model.TemporaryCredentials;
 
 import java.util.Optional;
@@ -63,6 +64,14 @@ public class TracingUnityHiveMetastore
         Span span = tracer.spanBuilder("UnityHiveMetastore.getTemporaryTableCredentials")
                 .startSpan();
         return withTracing(span, () -> delegate.getTemporaryTableCredentials(schemaTableName, operation));
+    }
+
+    @Override
+    public TemporaryCredentials getTemporaryTableCredentials(String tableId, TableOperation operation)
+    {
+        Span span = tracer.spanBuilder("UnityHiveMetastore.getTemporaryTableCredentialsById")
+                .startSpan();
+        return withTracing(span, () -> delegate.getTemporaryTableCredentials(tableId, operation));
     }
 
     @Override

@@ -24,6 +24,11 @@ public interface LocatedTableHandle
 
     boolean managed();
 
+    default boolean materializedView()
+    {
+        return false;
+    }
+
     String location();
 
     VendedCredentialsHandle toCredentialsHandle();

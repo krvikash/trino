@@ -23,12 +23,15 @@ import static java.util.Objects.requireNonNull;
 public record VendedCredentialsHandle(
         boolean catalogManaged,
         boolean managed,
+        boolean materializedView,
         Optional<SchemaTableName> schemaTableName,
+        Optional<String> tableId,
         String tableLocation)
 {
     public VendedCredentialsHandle
     {
         requireNonNull(schemaTableName, "schemaTableName is null");
+        requireNonNull(tableId, "tableId is null");
         requireNonNull(tableLocation, "tableLocation is null");
 
         if (catalogManaged) {
@@ -37,11 +40,15 @@ public record VendedCredentialsHandle(
         if (managed) {
             checkArgument(schemaTableName.isPresent(), "schemaTableName must be present for managed tables");
         }
+        if (materializedView) {
+            checkArgument(managed, "materialized view must be exposed as a managed table");
+            checkArgument(tableId.isPresent(), "tableId must be present for materialized views");
+        }
     }
 
     public static VendedCredentialsHandle empty(String tableLocation)
     {
-        return new VendedCredentialsHandle(false, false, Optional.empty(), tableLocation);
+        return new VendedCredentialsHandle(false, false, false, Optional.empty(), Optional.empty(), tableLocation);
     }
 
     public static VendedCredentialsHandle of(DeltaMetastoreTable table)
@@ -49,7 +56,9 @@ public record VendedCredentialsHandle(
         return new VendedCredentialsHandle(
                 table.catalogManaged(),
                 table.managed(),
+                table.materializedView(),
                 Optional.of(table.schemaTableName()),
+                table.tableId(),
                 table.location());
     }
 }

@@ -196,6 +196,7 @@ public class TestDeltaPageSourceProvider
                 "schema",
                 "table",
                 false,
+                false,
                 Optional.empty(),
                 "test_location",
                 metadataEntry,

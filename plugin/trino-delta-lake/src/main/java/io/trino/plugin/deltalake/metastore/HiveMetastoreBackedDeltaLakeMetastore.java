@@ -32,6 +32,8 @@ import static io.trino.plugin.deltalake.DeltaLakeMetadata.PATH_PROPERTY;
 import static io.trino.plugin.hive.TableType.MANAGED_TABLE;
 import static io.trino.plugin.hive.ViewReaderUtil.isSomeKindOfAView;
 import static io.trino.plugin.hive.metastore.unity.UnityHiveMetastore.UNITY_CATALOG_TABLE_ID;
+import static io.trino.plugin.hive.metastore.unity.UnityHiveMetastore.UNITY_ORIGINAL_TABLE_TYPE;
+import static io.unitycatalog.client.model.TableType.MATERIALIZED_VIEW;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
@@ -133,8 +135,14 @@ public class HiveMetastoreBackedDeltaLakeMetastore
                 new SchemaTableName(table.getDatabaseName(), table.getTableName()),
                 table.getTableType().equals(MANAGED_TABLE.name()),
                 catalogManaged(table),
+                isUnityMaterializedView(table),
                 getTableLocation(table),
                 getTableId(table));
+    }
+
+    private static boolean isUnityMaterializedView(Table table)
+    {
+        return MATERIALIZED_VIEW.getValue().equals(table.getParameters().get(UNITY_ORIGINAL_TABLE_TYPE));
     }
 
     private static boolean catalogManaged(Table table)

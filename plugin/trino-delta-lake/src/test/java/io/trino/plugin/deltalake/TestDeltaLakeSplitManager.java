@@ -94,6 +94,7 @@ public class TestDeltaLakeSplitManager
             "schema",
             "table",
             true,
+            false,
             Optional.empty(),
             TABLE_PATH,
             metadataEntry,

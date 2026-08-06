@@ -37,6 +37,7 @@ public class DeltaLakeTableHandle
     private final String schemaName;
     private final String tableName;
     private final boolean managed;
+    private final boolean materializedView;
     private final Optional<String> tableId;
     private final String location;
     private final MetadataEntry metadataEntry;
@@ -64,6 +65,7 @@ public class DeltaLakeTableHandle
             @JsonProperty("schemaName") String schemaName,
             @JsonProperty("tableName") String tableName,
             @JsonProperty("managed") boolean managed,
+            @JsonProperty("materializedView") boolean materializedView,
             @JsonProperty("tableId") Optional<String> tableId,
             @JsonProperty("location") String location,
             @JsonProperty("metadataEntry") MetadataEntry metadataEntry,
@@ -79,6 +81,7 @@ public class DeltaLakeTableHandle
         this(schemaName,
                 tableName,
                 managed,
+                materializedView,
                 tableId,
                 location,
                 metadataEntry,
@@ -100,6 +103,7 @@ public class DeltaLakeTableHandle
             String schemaName,
             String tableName,
             boolean managed,
+            boolean materializedView,
             Optional<String> tableId,
             String location,
             MetadataEntry metadataEntry,
@@ -119,6 +123,7 @@ public class DeltaLakeTableHandle
         this.schemaName = requireNonNull(schemaName, "schemaName is null");
         this.tableName = requireNonNull(tableName, "tableName is null");
         this.managed = managed;
+        this.materializedView = materializedView;
         this.tableId = requireNonNull(tableId, "tableId is null");
         this.location = requireNonNull(location, "location is null");
         this.metadataEntry = requireNonNull(metadataEntry, "metadataEntry is null");
@@ -142,6 +147,7 @@ public class DeltaLakeTableHandle
                 schemaName,
                 tableName,
                 managed,
+                materializedView,
                 tableId,
                 location,
                 metadataEntry,
@@ -165,6 +171,7 @@ public class DeltaLakeTableHandle
                 schemaName,
                 tableName,
                 managed,
+                materializedView,
                 tableId,
                 location,
                 metadataEntry,
@@ -188,6 +195,7 @@ public class DeltaLakeTableHandle
                 schemaName,
                 tableName,
                 managed,
+                materializedView,
                 tableId,
                 location,
                 metadataEntry,
@@ -240,6 +248,13 @@ public class DeltaLakeTableHandle
         return managed;
     }
 
+    @Override
+    @JsonProperty
+    public boolean materializedView()
+    {
+        return materializedView;
+    }
+
     @JsonProperty
     public Optional<String> getTableId()
     {
@@ -255,7 +270,7 @@ public class DeltaLakeTableHandle
     @Override
     public VendedCredentialsHandle toCredentialsHandle()
     {
-        return new VendedCredentialsHandle(isCatalogManagedTable(protocolEntry), managed, Optional.of(getSchemaTableName()), location);
+        return new VendedCredentialsHandle(isCatalogManagedTable(protocolEntry), managed, materializedView, Optional.of(getSchemaTableName()), tableId, location);
     }
 
     @JsonProperty
@@ -349,6 +364,7 @@ public class DeltaLakeTableHandle
                 getSchemaName(),
                 getTableName(),
                 isManaged(),
+                materializedView(),
                 getTableId(),
                 getLocation(),
                 getMetadataEntry(),
@@ -388,6 +404,7 @@ public class DeltaLakeTableHandle
                 Objects.equals(schemaName, that.schemaName) &&
                 Objects.equals(tableName, that.tableName) &&
                 managed == that.managed &&
+                materializedView == that.materializedView &&
                 Objects.equals(tableId, that.tableId) &&
                 Objects.equals(location, that.location) &&
                 Objects.equals(metadataEntry, that.metadataEntry) &&
@@ -410,6 +427,7 @@ public class DeltaLakeTableHandle
                 schemaName,
                 tableName,
                 managed,
+                materializedView,
                 tableId,
                 location,
                 metadataEntry,
