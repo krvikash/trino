@@ -743,6 +743,10 @@
                                         <groupId>org.apache.httpcomponents.client5</groupId>
                                         <artifactId>httpclient5</artifactId>
                                     </dependency>
+                                    <dependency>
+                                        <groupId>org.apache.ozone</groupId>
+                                        <artifactId>ozone-filesystem-hadoop3</artifactId>
+                                    </dependency>
                                 </conflictingDependencies>
                                 <resources>
                                     <resource>mozilla/public-suffix-list.txt</resource>
@@ -851,8 +855,6 @@
                         <ignoredClassPattern>org.apache.parquet.conf.ParquetConfiguration</ignoredClassPattern>
                         <!-- net.snowflake:snowflake-jdbc, org.conscrypt:conscrypt-openjdk-uber -->
                         <ignoredClassPattern>org.conscrypt.*</ignoredClassPattern>
-                        <!-- com.google.protobuf:protobuf-java and org.apache.ozone:ozone-filesystem-hadoop3-client both ship PluginProtos -->
-                        <ignoredClassPattern>com\.google\.protobuf\.compiler\.PluginProtos.*</ignoredClassPattern>
                     </ignoredClassPatterns>
                 </configuration>
             </plugin>

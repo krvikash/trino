@@ -110,13 +110,14 @@
 
         <dependency>
             <groupId>org.apache.ozone</groupId>
-            <artifactId>ozone-filesystem-hadoop3-client</artifactId>
+            <!-- From 2.2.0, the artifact id has been changed to ozone-filesystem-hadoop3 -->
+            <artifactId>ozone-filesystem-hadoop3</artifactId>
             <!-- Do not change server version for ozone, keeping it 1.4.0. -->
             <!-- Server ozone version is used only for tests. -->
             <!-- Ozone 2.0.0 requires Hadoop 3.4.1 dependency. -->
             <!-- Tests use Hadoop hdp3.1-hive image. -->
             <!-- Not related in this context, but trino production code is based on Hadoop 3.3.5. -->
-            <version>2.1.0-e.6</version>
+            <version>2.2.0-e.2</version>
             <scope>runtime</scope>
         </dependency>
 
