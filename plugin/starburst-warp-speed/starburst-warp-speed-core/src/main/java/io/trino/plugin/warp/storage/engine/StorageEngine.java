@@ -21,6 +21,11 @@ import java.lang.foreign.MemorySegment;
 public interface StorageEngine
 {
     // ----------------------- initialization ----------------------------------------
+    default int getStorageCacheSizeInPages()
+    {
+        throw new UnsupportedOperationException();
+    }
+
     default int getWarmupRecordBufferSize(int recTypeLength)
     {
         throw new UnsupportedOperationException();

@@ -169,6 +169,12 @@ public class StubsStorageEngine
     }
 
     @Override
+    public int getStorageCacheSizeInPages()
+    {
+        return 1024;
+    }
+
+    @Override
     public boolean isFirstLoaded()
     {
         return true;

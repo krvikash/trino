@@ -13,7 +13,9 @@
  */
 package io.trino.plugin.warp.storage.engine.nativeimpl;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.inject.Singleton;
+import com.sun.management.OperatingSystemMXBean;
 import io.airlift.log.Logger;
 import io.trino.plugin.warp.WarpErrorCode;
 import io.trino.plugin.warp.config.NativeConfig;
@@ -36,6 +38,7 @@ import java.lang.foreign.StructLayout;
 import java.lang.foreign.SymbolLookup;
 import java.lang.foreign.ValueLayout;
 import java.lang.invoke.MethodHandle;
+import java.lang.management.ManagementFactory;
 import java.util.Optional;
 
 import static java.util.Objects.requireNonNull;
@@ -56,6 +59,8 @@ public class NativeStorageEngine
     private static final long ENV_PROPERTIES_OFFSET_LZ4_HC_PERCENT;
     private static final long ENV_PROPERTIES_OFFSET_COLLECT_TX_SIZE;
     private static final long ENV_PROPERTIES_OFFSET_STORAGE_CACHE_SIZE_IN_PAGES;
+    private static final int MIN_STORAGE_CACHE_SIZE_IN_PAGES = 32 * 1024;
+    private static final int MAX_STORAGE_CACHE_SIZE_IN_PAGES = 16 * 1024 * 1024;
     private static final long ENV_PROPERTIES_OFFSET_PREDICATE_HEADER_SIZE;
     private static final long ENV_PROPERTIES_OFFSET_SKIP_INDEX_PERCENT;
     private static final long ENV_PROPERTIES_OFFSET_LIMIT_NUM_IOS_IN_PARALLEL;
@@ -73,6 +78,7 @@ public class NativeStorageEngine
     @SuppressWarnings({"FieldCanBeLocal", "unused"})
     private final Optional<ExceptionThrower> exceptionThrower; // we keep a reference to hold this object for native layer ref
     private final boolean isFirstLoaded;
+    private final int storageCacheSizeInPages;
     private boolean isLoaded;
 
     // file API
@@ -171,10 +177,24 @@ public class NativeStorageEngine
                 "load storage engine taskMaxWorkerThreads %d panicHaltPolicy %d",
                 taskMaxWorkerThreads,
                 panicHaltPolicy);
+        SymbolLookup libraryHandle = SymbolLookup.loaderLookup();
+        Linker linker = Linker.nativeLinker();
+        int storageCacheBytesPerPage = getStorageCacheBytesPerPage(libraryHandle, linker);
+        long totalPhysicalMemory = ((OperatingSystemMXBean) ManagementFactory.getOperatingSystemMXBean()).getTotalMemorySize();
+        long maxHeapMemory = Runtime.getRuntime().maxMemory();
+        this.storageCacheSizeInPages = calculateStorageCacheSizeInPages(
+                nativeConfig.getStorageCacheMemoryPercent(),
+                totalPhysicalMemory,
+                maxHeapMemory,
+                storageCacheBytesPerPage);
+        logger.info(
+                "storage cache %d pages, %d MB from %d%% of memory outside the heap (physical %d MB, max heap %d MB)",
+                storageCacheSizeInPages,
+                ((long) storageCacheSizeInPages * storageCacheBytesPerPage) >> 20,
+                nativeConfig.getStorageCacheMemoryPercent(),
+                totalPhysicalMemory >> 20,
+                maxHeapMemory >> 20);
         try (Arena arena = Arena.ofConfined()) {
-            SymbolLookup libraryHandle = SymbolLookup.loaderLookup();
-            Linker linker = Linker.nativeLinker();
-
             // file API
             mFileOpen = linker.downcallHandle(
                     libraryHandle.find("storage_file_open").orElseThrow(),
@@ -281,7 +301,7 @@ public class NativeStorageEngine
             envProperties.set(ValueLayout.JAVA_INT, ENV_PROPERTIES_OFFSET_PANIC_HALT_POLICY, panicHaltPolicy);
             envProperties.set(ValueLayout.JAVA_INT, ENV_PROPERTIES_OFFSET_LZ4_HC_PERCENT, nativeConfig.getCompressionLevel());
             envProperties.set(ValueLayout.JAVA_INT, ENV_PROPERTIES_OFFSET_COLLECT_TX_SIZE, nativeConfig.getCollectTxSize());
-            envProperties.set(ValueLayout.JAVA_INT, ENV_PROPERTIES_OFFSET_STORAGE_CACHE_SIZE_IN_PAGES, nativeConfig.getStorageCacheSizeInPages());
+            envProperties.set(ValueLayout.JAVA_INT, ENV_PROPERTIES_OFFSET_STORAGE_CACHE_SIZE_IN_PAGES, storageCacheSizeInPages);
             envProperties.set(ValueLayout.JAVA_INT, ENV_PROPERTIES_OFFSET_PREDICATE_HEADER_SIZE, PredicateUtil.PREDICATE_HEADER_SIZE);
             envProperties.set(ValueLayout.JAVA_INT, ENV_PROPERTIES_OFFSET_SKIP_INDEX_PERCENT, nativeConfig.getSkipIndexPercent());
             envProperties.set(ValueLayout.JAVA_INT, ENV_PROPERTIES_OFFSET_LIMIT_NUM_IOS_IN_PARALLEL, nativeConfig.getLimitNumIosInParallel());
@@ -320,6 +340,33 @@ public class NativeStorageEngine
     public boolean isFirstLoaded()
     {
         return isFirstLoaded;
+    }
+
+    @Override
+    public int getStorageCacheSizeInPages()
+    {
+        return storageCacheSizeInPages;
+    }
+
+    private static int getStorageCacheBytesPerPage(SymbolLookup libraryHandle, Linker linker)
+    {
+        try {
+            MemorySegment symbol = libraryHandle.find("warp_speed_constants_get_storage_cache_bytes_per_page").orElseThrow();
+            MethodHandle handle = linker.downcallHandle(symbol, FunctionDescriptor.of(ValueLayout.JAVA_INT));
+            return (int) handle.invokeExact();
+        }
+        catch (Throwable t) {
+            throw new TrinoException(WarpErrorCode.WARP_GENERIC, "failed reading storage cache bytes per page", t);
+        }
+    }
+
+    // pages that fit in memoryPercent of the physical memory outside the heap, within the native cache limits
+    @VisibleForTesting
+    static int calculateStorageCacheSizeInPages(int memoryPercent, long totalPhysicalMemory, long maxHeapMemory, int bytesPerPage)
+    {
+        long memoryOutsideHeap = Math.max(totalPhysicalMemory - maxHeapMemory, 0);
+        long budget = memoryOutsideHeap * memoryPercent / 100;
+        return (int) Math.clamp(budget / bytesPerPage, MIN_STORAGE_CACHE_SIZE_IN_PAGES, MAX_STORAGE_CACHE_SIZE_IN_PAGES);
     }
 
     @Override

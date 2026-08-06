@@ -21,4 +21,11 @@ public class DelegateStorageEngine
         implements StorageEngine
 {
     public DelegateStorageEngine() {}
+
+    // the coordinator holds no storage cache
+    @Override
+    public int getStorageCacheSizeInPages()
+    {
+        return 0;
+    }
 }

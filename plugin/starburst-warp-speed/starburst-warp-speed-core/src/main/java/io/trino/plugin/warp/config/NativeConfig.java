@@ -14,6 +14,7 @@
 package io.trino.plugin.warp.config;
 
 import io.airlift.configuration.Config;
+import io.airlift.configuration.ConfigDescription;
 import io.airlift.configuration.DefunctConfig;
 import io.airlift.units.DataSize;
 import io.trino.plugin.warp.gen.constants.CompressionUsers;
@@ -29,25 +30,27 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-@DefunctConfig("warp-speed.config.storage-temp-except.duration")
+@DefunctConfig({
+        "warp-speed.config.storage-temp-except.duration",
+        "warp-speed.config.storage-cache-size-in-pages",
+        "warp-speed.config.cluster-level",
+})
 public class NativeConfig
 {
     private static final int READERS_WARMERS_RATIO = 32;
     private static final int MIN_WARMING_THREADS = 2;
-    private static final int DEFAULT_STORAGE_CACHE_SIZE_IN_PAGES = 1024 * 1024;
     private static final String EXCEPTIONAL_LIST_COMPRESSION = "enable.compression.exceptional-list";
 
     private DataSize maxRecJufferSize = DataSize.of(10, DataSize.Unit.MEGABYTE);
     private int lz4HcPercent = 10;
     private DataSize collectTxSize = DataSize.of(10, DataSize.Unit.MEGABYTE);
-    private int storageCacheSizeInPages;
+    private int storageCacheMemoryPercent = 20;
     private int skipIndexPercent = 80;
     private int limitNumIosInParallel = 2400;
     private int maxIOMetadataSize = 24; // maximal IO md size is two longs - pointer and offset, and 2 integers - size and returned value
     private int taskMaxWorkerThreads = Runtime.getRuntime().availableProcessors() * 2;
     private int taskMinWarmingThreads; // used for limiting number of warming threads running in parallel to query
     private int debugPanicHaltPolicy;
-    private int clusterLevel = -1;
     private int maxPageSourcesWithoutWarmingLimit = 8;
     private Set<String> unsupportedNativeFunctions = Collections.emptySet();
 
@@ -106,26 +109,18 @@ public class NativeConfig
         this.collectTxSize = DataSize.of(collectTxSizeInMegaBytes, DataSize.Unit.MEGABYTE);
     }
 
-    @Min(32 * 1024)
-    @Max(16 * 1024 * 1024)
-    public int getStorageCacheSizeInPages()
+    @Min(1)
+    @Max(100)
+    public int getStorageCacheMemoryPercent()
     {
-        if (storageCacheSizeInPages == 0) {
-            storageCacheSizeInPages = switch (getClusterLevel()) {
-                case 0 -> (DEFAULT_STORAGE_CACHE_SIZE_IN_PAGES >> 4) - 1;
-                case 1 -> DEFAULT_STORAGE_CACHE_SIZE_IN_PAGES >> 2;
-                case 3 -> DEFAULT_STORAGE_CACHE_SIZE_IN_PAGES << 1;
-                case 4 -> DEFAULT_STORAGE_CACHE_SIZE_IN_PAGES << 2;
-                default -> DEFAULT_STORAGE_CACHE_SIZE_IN_PAGES; // 2 is the default level
-            };
-        }
-        return storageCacheSizeInPages;
+        return storageCacheMemoryPercent;
     }
 
-    @Config("warp-speed.config.storage-cache-size-in-pages")
-    public void setStorageCacheSizeInPages(int storageCacheSizeInPages)
+    @Config("warp-speed.storage-cache.memory-percent")
+    @ConfigDescription("Percentage of physical memory outside the JVM heap given to the warp storage cache, the resulting page count is clamped to the 32K to 16M range")
+    public void setStorageCacheMemoryPercent(int storageCacheMemoryPercent)
     {
-        this.storageCacheSizeInPages = storageCacheSizeInPages;
+        this.storageCacheMemoryPercent = storageCacheMemoryPercent;
     }
 
     /**
@@ -231,36 +226,6 @@ public class NativeConfig
         this.debugPanicHaltPolicy = debugPanicHaltPolicy;
     }
 
-    @Min(0)
-    @Max(4)
-    public int getClusterLevel()
-    {
-        if (clusterLevel == -1) {
-            if (taskMaxWorkerThreads <= 16) { // 1x 2x
-                clusterLevel = 0;
-            }
-            else if (taskMaxWorkerThreads <= 32) { // 4x
-                clusterLevel = 1;
-            }
-            else if (taskMaxWorkerThreads <= 64) { // 8x which is the default
-                clusterLevel = 2;
-            }
-            else if (taskMaxWorkerThreads <= 96) {
-                clusterLevel = 3;
-            }
-            else { // 16x and up
-                clusterLevel = 4;
-            }
-        }
-        return clusterLevel;
-    }
-
-    @Config("warp-speed.config.cluster-level")
-    public void setClusterLevel(int clusterLevel)
-    {
-        this.clusterLevel = clusterLevel;
-    }
-
     @Config("warp-speed.config.max-page-sources-without-warming-limit")
     public void setMaxPageSourcesWithoutWarmingLimit(int maxPageSourcesWithoutWarmingLimit)
     {
@@ -336,14 +301,13 @@ public class NativeConfig
         }
         NativeConfig that = (NativeConfig) object;
         return (lz4HcPercent == that.lz4HcPercent) &&
-                (storageCacheSizeInPages == that.storageCacheSizeInPages) &&
+                (storageCacheMemoryPercent == that.storageCacheMemoryPercent) &&
                 (skipIndexPercent == that.skipIndexPercent) &&
                 (limitNumIosInParallel == that.limitNumIosInParallel) &&
                 (maxIOMetadataSize == that.maxIOMetadataSize) &&
                 (taskMaxWorkerThreads == that.taskMaxWorkerThreads) &&
                 (taskMinWarmingThreads == that.taskMinWarmingThreads) &&
                 (debugPanicHaltPolicy == that.debugPanicHaltPolicy) &&
-                (clusterLevel == that.clusterLevel) &&
                 (maxPageSourcesWithoutWarmingLimit == that.maxPageSourcesWithoutWarmingLimit) &&
                 (storageTemporaryExceptionNumTries == that.storageTemporaryExceptionNumTries) &&
                 (enableSingleChunk == that.enableSingleChunk) &&
@@ -363,14 +327,13 @@ public class NativeConfig
                 maxRecJufferSize,
                 lz4HcPercent,
                 collectTxSize,
-                storageCacheSizeInPages,
+                storageCacheMemoryPercent,
                 skipIndexPercent,
                 limitNumIosInParallel,
                 maxIOMetadataSize,
                 taskMaxWorkerThreads,
                 taskMinWarmingThreads,
                 debugPanicHaltPolicy,
-                clusterLevel,
                 maxPageSourcesWithoutWarmingLimit,
                 unsupportedNativeFunctions,
                 storageTemporaryExceptionNumTries,
