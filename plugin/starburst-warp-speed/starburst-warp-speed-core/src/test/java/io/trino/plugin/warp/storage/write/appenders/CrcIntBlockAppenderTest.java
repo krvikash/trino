@@ -16,7 +16,9 @@ package io.trino.plugin.warp.storage.write.appenders;
 import io.trino.plugin.warp.storage.write.WarmupElementStats;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
+import io.trino.spi.block.DictionaryBlock;
 import io.trino.spi.block.IntArrayBlock;
+import io.trino.spi.block.RunLengthEncodedBlock;
 import io.trino.spi.type.DateType;
 import io.trino.spi.type.IntegerType;
 import io.trino.spi.type.Type;
@@ -73,7 +75,15 @@ class CrcIntBlockAppenderTest
                 arguments(
                         new IntArrayBlock(4, Optional.of(new boolean[] {false, false, false, true}), new int[] {1, -50, 30, 33333}),
                         IntegerType.INTEGER,
-                        new WarmupElementStats(1, -50, 30)));
+                        new WarmupElementStats(1, -50, 30)),
+                arguments(
+                        DictionaryBlock.create(6, new IntArrayBlock(4, Optional.of(new boolean[] {false, false, false, true}), new int[] {1, -50, 30, 33333}), new int[] {3, 0, 1, 2, 1, 3}),
+                        IntegerType.INTEGER,
+                        new WarmupElementStats(2, -50, 30)),
+                arguments(
+                        RunLengthEncodedBlock.create(new IntArrayBlock(1, Optional.empty(), new int[] {7}), 5),
+                        IntegerType.INTEGER,
+                        new WarmupElementStats(0, 7, 7)));
     }
 
     private static BlockBuilder createDateBlockBuilder(Type dateType, List<LocalDate> values)

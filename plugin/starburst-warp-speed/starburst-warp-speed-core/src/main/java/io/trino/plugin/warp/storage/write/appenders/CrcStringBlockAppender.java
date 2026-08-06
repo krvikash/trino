@@ -22,7 +22,11 @@ import io.trino.plugin.warp.storage.juffers.WriteJuffersWarmUpElement;
 import io.trino.plugin.warp.storage.write.WarmupElementStatsBuilder;
 import io.trino.plugin.warp.type.TypeUtils;
 import io.trino.plugin.warp.util.SliceUtils;
+import io.trino.spi.block.DictionaryBlock;
+import io.trino.spi.block.RunLengthEncodedBlock;
 import io.trino.spi.block.SqlMap;
+import io.trino.spi.block.ValueBlock;
+import io.trino.spi.block.VariableWidthBlock;
 import io.trino.spi.type.MapType;
 import io.trino.spi.type.Type;
 
@@ -59,7 +63,6 @@ public class CrcStringBlockAppender
             WarmUpElement warmUpElement,
             WarmupElementStatsBuilder warmupElementStatsBuilder)
     {
-        int nullsCount = 0;
         // string length must be taken form type since the warm up type length represents the index length (maximum is 8)
         int stringLength = TypeUtils.getTypeLength(filterType, storageEngineConstants.getVarcharMaxLen());
 
@@ -69,27 +72,144 @@ public class CrcStringBlockAppender
                 isFixedLength,
                 false);
 
+        return switch (blockPos.getBlock()) {
+            case RunLengthEncodedBlock rleBlock -> appendRepeatedValue((VariableWidthBlock) rleBlock.getValue(), jufferPos, blockPos, warmupElementStatsBuilder, stringLength, sliceConverter);
+            case DictionaryBlock dictionaryBlock -> appendDictionaryBlock(dictionaryBlock, jufferPos, blockPos, warmupElementStatsBuilder, stringLength, sliceConverter);
+            case ValueBlock valueBlock -> appendValueBlock((VariableWidthBlock) valueBlock, jufferPos, blockPos, warmupElementStatsBuilder, stringLength, sliceConverter);
+        };
+    }
+
+    private AppendResult appendValueBlock(
+            VariableWidthBlock valueBlock,
+            int jufferPos,
+            BlockPosHolder blockPos,
+            WarmupElementStatsBuilder warmupElementStatsBuilder,
+            int stringLength,
+            Function<Slice, Slice> sliceConverter)
+    {
+        int nullsCount = 0;
         for (; blockPos.inRange(); blockPos.advance()) {
-            if (blockPos.isNull()) {
+            int position = blockPos.getBlockPosition();
+            if (valueBlock.isNull(position)) {
                 nullBuff.put(NULL_VALUE_BYTE_SIGNAL);
                 nullsCount++;
             }
             else {
-                Slice slice = getSlice(blockPos.getSlice());
-
-                if (slice == null) {
-                    nullBuff.put(NULL_VALUE_BYTE_SIGNAL);
-                    nullsCount++;
-                }
-                else {
-                    nullBuff.put(NON_NULL_VALUE_BYTE_SIGNAL);
-                    warmupElementStatsBuilder.updateMinMax(slice);
-                    Slice value = sliceConverter.apply(slice);
-                    writeValue(blockPos, jufferPos, stringLength, value);
-                }
+                nullsCount += appendSlice(valueBlock.getSlice(position), jufferPos, blockPos, warmupElementStatsBuilder, stringLength, sliceConverter);
             }
         }
         return new AppendResult(nullsCount);
+    }
+
+    private AppendResult appendDictionaryBlock(
+            DictionaryBlock dictionaryBlock,
+            int jufferPos,
+            BlockPosHolder blockPos,
+            WarmupElementStatsBuilder warmupElementStatsBuilder,
+            int stringLength,
+            Function<Slice, Slice> sliceConverter)
+    {
+        VariableWidthBlock dictionary = (VariableWidthBlock) dictionaryBlock.getDictionary();
+        // entry-level min/max is exact for a compact dictionary; the whole-block check avoids rescanning on chunked appends
+        boolean statsFromDictionary = dictionaryBlock.isCompact() && blockPos.getNumEntries() == dictionaryBlock.getPositionCount();
+        if (statsFromDictionary) {
+            for (int position = 0; position < dictionary.getPositionCount(); position++) {
+                if (!dictionary.isNull(position)) {
+                    Slice slice = getSlice(dictionary.getSlice(position));
+                    if (slice != null) {
+                        warmupElementStatsBuilder.updateMinMax(slice);
+                    }
+                }
+            }
+        }
+        int nullsCount = 0;
+        for (; blockPos.inRange(); blockPos.advance()) {
+            int position = dictionaryBlock.getId(blockPos.getBlockPosition());
+            if (dictionary.isNull(position)) {
+                nullBuff.put(NULL_VALUE_BYTE_SIGNAL);
+                nullsCount++;
+            }
+            else if (statsFromDictionary) {
+                nullsCount += appendSliceWithoutStats(dictionary.getSlice(position), jufferPos, blockPos, stringLength, sliceConverter);
+            }
+            else {
+                nullsCount += appendSlice(dictionary.getSlice(position), jufferPos, blockPos, warmupElementStatsBuilder, stringLength, sliceConverter);
+            }
+        }
+        return new AppendResult(nullsCount);
+    }
+
+    private AppendResult appendRepeatedValue(
+            VariableWidthBlock valueBlock,
+            int jufferPos,
+            BlockPosHolder blockPos,
+            WarmupElementStatsBuilder warmupElementStatsBuilder,
+            int stringLength,
+            Function<Slice, Slice> sliceConverter)
+    {
+        int nullsCount = 0;
+        if (valueBlock.isNull(0)) {
+            for (; blockPos.inRange(); blockPos.advance()) {
+                nullBuff.put(NULL_VALUE_BYTE_SIGNAL);
+                nullsCount++;
+            }
+            return new AppendResult(nullsCount);
+        }
+        Slice slice = getSlice(valueBlock.getSlice(0));
+        if (slice == null) {
+            for (; blockPos.inRange(); blockPos.advance()) {
+                nullBuff.put(NULL_VALUE_BYTE_SIGNAL);
+                nullsCount++;
+            }
+            return new AppendResult(nullsCount);
+        }
+        warmupElementStatsBuilder.updateMinMax(slice);
+        Slice value = sliceConverter.apply(slice);
+        for (; blockPos.inRange(); blockPos.advance()) {
+            nullBuff.put(NON_NULL_VALUE_BYTE_SIGNAL);
+            writeValue(blockPos, jufferPos, stringLength, value);
+        }
+        return new AppendResult(nullsCount);
+    }
+
+    // the getSlice hook can turn a value into null (e.g. a missing json field); reports 1 for such rows
+    private int appendSlice(
+            Slice rawSlice,
+            int jufferPos,
+            BlockPosHolder blockPos,
+            WarmupElementStatsBuilder warmupElementStatsBuilder,
+            int stringLength,
+            Function<Slice, Slice> sliceConverter)
+    {
+        Slice slice = getSlice(rawSlice);
+        if (slice == null) {
+            nullBuff.put(NULL_VALUE_BYTE_SIGNAL);
+            return 1;
+        }
+        nullBuff.put(NON_NULL_VALUE_BYTE_SIGNAL);
+        warmupElementStatsBuilder.updateMinMax(slice);
+        Slice value = sliceConverter.apply(slice);
+        writeValue(blockPos, jufferPos, stringLength, value);
+        return 0;
+    }
+
+    // variant for callers that already collected min/max at the dictionary level
+    private int appendSliceWithoutStats(
+            Slice rawSlice,
+            int jufferPos,
+            BlockPosHolder blockPos,
+            int stringLength,
+            Function<Slice, Slice> sliceConverter)
+    {
+        Slice slice = getSlice(rawSlice);
+        if (slice == null) {
+            nullBuff.put(NULL_VALUE_BYTE_SIGNAL);
+            return 1;
+        }
+        nullBuff.put(NON_NULL_VALUE_BYTE_SIGNAL);
+        Slice value = sliceConverter.apply(slice);
+        writeValue(blockPos, jufferPos, stringLength, value);
+        return 0;
     }
 
     protected Slice getSlice(Slice slice)

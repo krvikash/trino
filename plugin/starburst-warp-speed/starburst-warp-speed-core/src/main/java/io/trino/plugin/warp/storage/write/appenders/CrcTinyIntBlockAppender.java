@@ -17,7 +17,11 @@ import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
 import io.trino.plugin.warp.juffer.BlockPosHolder;
 import io.trino.plugin.warp.storage.juffers.WriteJuffersWarmUpElement;
 import io.trino.plugin.warp.storage.write.WarmupElementStatsBuilder;
+import io.trino.spi.block.ByteArrayBlock;
+import io.trino.spi.block.DictionaryBlock;
+import io.trino.spi.block.RunLengthEncodedBlock;
 import io.trino.spi.block.SqlMap;
+import io.trino.spi.block.ValueBlock;
 import io.trino.spi.type.TinyintType;
 
 public class CrcTinyIntBlockAppender
@@ -35,16 +39,26 @@ public class CrcTinyIntBlockAppender
             WarmUpElement warmUpElement,
             WarmupElementStatsBuilder warmupElementStatsBuilder)
     {
+        return switch (blockPos.getBlock()) {
+            case RunLengthEncodedBlock rleBlock -> appendRepeatedValue((ByteArrayBlock) rleBlock.getValue(), jufferPos, blockPos, warmupElementStatsBuilder);
+            case DictionaryBlock dictionaryBlock -> appendDictionaryBlock(dictionaryBlock, jufferPos, blockPos, warmupElementStatsBuilder);
+            case ValueBlock valueBlock -> appendValueBlock((ByteArrayBlock) valueBlock, jufferPos, blockPos, warmupElementStatsBuilder);
+        };
+    }
+
+    private AppendResult appendValueBlock(ByteArrayBlock valueBlock, int jufferPos, BlockPosHolder blockPos, WarmupElementStatsBuilder warmupElementStatsBuilder)
+    {
         int nullsCount = 0;
-        if (blockPos.mayHaveNull()) {
+        if (valueBlock.mayHaveNull()) {
             for (; blockPos.inRange(); blockPos.advance()) {
-                if (blockPos.isNull()) {
+                int position = blockPos.getBlockPosition();
+                if (valueBlock.isNull(position)) {
                     nullBuff.put(NULL_VALUE_BYTE_SIGNAL);
                     nullsCount++;
                 }
                 else {
                     nullBuff.put(NON_NULL_VALUE_BYTE_SIGNAL);
-                    byte val = blockPos.getByte();
+                    byte val = valueBlock.getByte(position);
                     warmupElementStatsBuilder.updateMinMax(val);
                     writeValue(jufferPos, blockPos, val);
                 }
@@ -53,8 +67,58 @@ public class CrcTinyIntBlockAppender
         else {
             for (; blockPos.inRange(); blockPos.advance()) {
                 nullBuff.put(NON_NULL_VALUE_BYTE_SIGNAL);
-                byte val = blockPos.getByte();
+                byte val = valueBlock.getByte(blockPos.getBlockPosition());
                 warmupElementStatsBuilder.updateMinMax(val);
+                writeValue(jufferPos, blockPos, val);
+            }
+        }
+        return new AppendResult(nullsCount);
+    }
+
+    private AppendResult appendDictionaryBlock(DictionaryBlock dictionaryBlock, int jufferPos, BlockPosHolder blockPos, WarmupElementStatsBuilder warmupElementStatsBuilder)
+    {
+        ByteArrayBlock dictionary = (ByteArrayBlock) dictionaryBlock.getDictionary();
+        int nullsCount = 0;
+        if (dictionaryBlock.mayHaveNull()) {
+            for (; blockPos.inRange(); blockPos.advance()) {
+                int position = dictionaryBlock.getId(blockPos.getBlockPosition());
+                if (dictionary.isNull(position)) {
+                    nullBuff.put(NULL_VALUE_BYTE_SIGNAL);
+                    nullsCount++;
+                }
+                else {
+                    nullBuff.put(NON_NULL_VALUE_BYTE_SIGNAL);
+                    byte val = dictionary.getByte(position);
+                    warmupElementStatsBuilder.updateMinMax(val);
+                    writeValue(jufferPos, blockPos, val);
+                }
+            }
+        }
+        else {
+            for (; blockPos.inRange(); blockPos.advance()) {
+                nullBuff.put(NON_NULL_VALUE_BYTE_SIGNAL);
+                byte val = dictionary.getByte(dictionaryBlock.getId(blockPos.getBlockPosition()));
+                warmupElementStatsBuilder.updateMinMax(val);
+                writeValue(jufferPos, blockPos, val);
+            }
+        }
+        return new AppendResult(nullsCount);
+    }
+
+    private AppendResult appendRepeatedValue(ByteArrayBlock valueBlock, int jufferPos, BlockPosHolder blockPos, WarmupElementStatsBuilder warmupElementStatsBuilder)
+    {
+        int nullsCount = 0;
+        if (valueBlock.isNull(0)) {
+            for (; blockPos.inRange(); blockPos.advance()) {
+                nullBuff.put(NULL_VALUE_BYTE_SIGNAL);
+                nullsCount++;
+            }
+        }
+        else {
+            byte val = valueBlock.getByte(0);
+            warmupElementStatsBuilder.updateMinMax(val);
+            for (; blockPos.inRange(); blockPos.advance()) {
+                nullBuff.put(NON_NULL_VALUE_BYTE_SIGNAL);
                 writeValue(jufferPos, blockPos, val);
             }
         }

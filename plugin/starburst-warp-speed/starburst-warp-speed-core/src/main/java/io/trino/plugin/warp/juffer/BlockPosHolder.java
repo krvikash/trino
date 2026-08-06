@@ -40,6 +40,17 @@ public class BlockPosHolder
         this.pos = startPos;
     }
 
+    public Block getBlock()
+    {
+        return block;
+    }
+
+    // absolute position of the cursor within the block
+    public int getBlockPosition()
+    {
+        return pos;
+    }
+
     public void advance()
     {
         pos++;

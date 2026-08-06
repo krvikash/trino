@@ -16,6 +16,9 @@ package io.trino.plugin.warp.storage.write.appenders;
 import io.trino.plugin.warp.storage.write.WarmupElementStats;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
+import io.trino.spi.block.DictionaryBlock;
+import io.trino.spi.block.LongArrayBlock;
+import io.trino.spi.block.RunLengthEncodedBlock;
 import io.trino.spi.type.DoubleType;
 import io.trino.spi.type.Type;
 import org.junit.jupiter.api.BeforeEach;
@@ -25,6 +28,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 import java.nio.LongBuffer;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.params.provider.Arguments.arguments;
@@ -60,7 +64,15 @@ class CrcDoubleBlockAppenderTest
         Block blockWithNull = blockBuilder.build();
         return Stream.of(
                 arguments(blockWithoutNull, DoubleType.DOUBLE, new WarmupElementStats(0, expectedMinValue, expectedMaxValue)),
-                arguments(blockWithNull, DoubleType.DOUBLE, new WarmupElementStats(1, expectedMinValue, expectedMaxValue)));
+                arguments(blockWithNull, DoubleType.DOUBLE, new WarmupElementStats(1, expectedMinValue, expectedMaxValue)),
+                arguments(
+                        DictionaryBlock.create(5, blockWithNull, new int[] {5, 0, 4, 1, 5}),
+                        DoubleType.DOUBLE,
+                        new WarmupElementStats(2, -1.5, 5.1)),
+                arguments(
+                        RunLengthEncodedBlock.create(new LongArrayBlock(1, Optional.empty(), new long[] {Double.doubleToLongBits(3.5)}), 4),
+                        DoubleType.DOUBLE,
+                        new WarmupElementStats(0, 3.5, 3.5)));
     }
 
     @Override

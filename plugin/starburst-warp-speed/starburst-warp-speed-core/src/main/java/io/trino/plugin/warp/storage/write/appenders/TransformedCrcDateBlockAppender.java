@@ -13,9 +13,11 @@
  */
 package io.trino.plugin.warp.storage.write.appenders;
 
+import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElementState;
 import io.trino.plugin.warp.juffer.BlockPosHolder;
 import io.trino.plugin.warp.storage.juffers.WriteJuffersWarmUpElement;
+import io.trino.plugin.warp.storage.write.WarmupElementStatsBuilder;
 import io.trino.plugin.warp.warmup.exceptions.WarmupException;
 
 import java.util.Locale;
@@ -34,8 +36,41 @@ public class TransformedCrcDateBlockAppender
         this.transformColumn = transformColumnFunction;
     }
 
+    // the source block is varchar, so values go through the row-by-row transform instead of the typed int paths
     @Override
-    protected int getIntValue(BlockPosHolder blockPos)
+    public AppendResult appendValues(
+            int jufferPos,
+            BlockPosHolder blockPos,
+            WarmUpElement warmUpElement,
+            WarmupElementStatsBuilder warmupElementStatsBuilder)
+    {
+        int nullsCount = 0;
+        if (blockPos.mayHaveNull()) {
+            for (; blockPos.inRange(); blockPos.advance()) {
+                if (blockPos.isNull()) {
+                    nullBuff.put(NULL_VALUE_BYTE_SIGNAL);
+                    nullsCount++;
+                }
+                else {
+                    nullBuff.put(NON_NULL_VALUE_BYTE_SIGNAL);
+                    int val = transformedValue(blockPos);
+                    warmupElementStatsBuilder.updateMinMax(val);
+                    writeValue(jufferPos, blockPos, val);
+                }
+            }
+        }
+        else {
+            for (; blockPos.inRange(); blockPos.advance()) {
+                nullBuff.put(NON_NULL_VALUE_BYTE_SIGNAL);
+                int val = transformedValue(blockPos);
+                warmupElementStatsBuilder.updateMinMax(val);
+                writeValue(jufferPos, blockPos, val);
+            }
+        }
+        return new AppendResult(nullsCount);
+    }
+
+    private int transformedValue(BlockPosHolder blockPos)
     {
         try {
             return transformColumn.apply(blockPos);

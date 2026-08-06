@@ -17,6 +17,10 @@ import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
 import io.trino.plugin.warp.juffer.BlockPosHolder;
 import io.trino.plugin.warp.storage.juffers.WriteJuffersWarmUpElement;
 import io.trino.plugin.warp.storage.write.WarmupElementStatsBuilder;
+import io.trino.spi.block.DictionaryBlock;
+import io.trino.spi.block.Int128ArrayBlock;
+import io.trino.spi.block.RunLengthEncodedBlock;
+import io.trino.spi.block.ValueBlock;
 import io.trino.spi.type.Int128;
 
 public class CrcLongDecimalBlockAppender
@@ -34,27 +38,78 @@ public class CrcLongDecimalBlockAppender
             WarmUpElement warmUpElement,
             WarmupElementStatsBuilder warmupElementStatsBuilder)
     {
+        return switch (blockPos.getBlock()) {
+            case RunLengthEncodedBlock rleBlock -> appendRepeatedValue((Int128ArrayBlock) rleBlock.getValue(), jufferPos, blockPos);
+            case DictionaryBlock dictionaryBlock -> appendDictionaryBlock(dictionaryBlock, jufferPos, blockPos);
+            case ValueBlock valueBlock -> appendValueBlock((Int128ArrayBlock) valueBlock, jufferPos, blockPos);
+        };
+    }
+
+    private AppendResult appendValueBlock(Int128ArrayBlock valueBlock, int jufferPos, BlockPosHolder blockPos)
+    {
         int nullsCount = 0;
-        if (blockPos.mayHaveNull()) {
-            while (blockPos.inRange()) {
-                if (blockPos.isNull()) {
+        if (valueBlock.mayHaveNull()) {
+            for (; blockPos.inRange(); blockPos.advance()) {
+                int position = blockPos.getBlockPosition();
+                if (valueBlock.isNull(position)) {
                     nullBuff.put(NULL_VALUE_BYTE_SIGNAL);
                     nullsCount++;
                 }
                 else {
                     nullBuff.put(NON_NULL_VALUE_BYTE_SIGNAL);
-                    Int128 value = (Int128) blockPos.getObject();
-                    writeValue(value, blockPos, jufferPos);
+                    writeValue(valueBlock.getInt128(position), blockPos, jufferPos);
                 }
-                blockPos.advance();
             }
         }
         else {
-            while (blockPos.inRange()) {
+            for (; blockPos.inRange(); blockPos.advance()) {
                 nullBuff.put(NON_NULL_VALUE_BYTE_SIGNAL);
-                Int128 value = (Int128) blockPos.getObject();
+                writeValue(valueBlock.getInt128(blockPos.getBlockPosition()), blockPos, jufferPos);
+            }
+        }
+        return new AppendResult(nullsCount);
+    }
+
+    private AppendResult appendDictionaryBlock(DictionaryBlock dictionaryBlock, int jufferPos, BlockPosHolder blockPos)
+    {
+        Int128ArrayBlock dictionary = (Int128ArrayBlock) dictionaryBlock.getDictionary();
+        int nullsCount = 0;
+        if (dictionaryBlock.mayHaveNull()) {
+            for (; blockPos.inRange(); blockPos.advance()) {
+                int position = dictionaryBlock.getId(blockPos.getBlockPosition());
+                if (dictionary.isNull(position)) {
+                    nullBuff.put(NULL_VALUE_BYTE_SIGNAL);
+                    nullsCount++;
+                }
+                else {
+                    nullBuff.put(NON_NULL_VALUE_BYTE_SIGNAL);
+                    writeValue(dictionary.getInt128(position), blockPos, jufferPos);
+                }
+            }
+        }
+        else {
+            for (; blockPos.inRange(); blockPos.advance()) {
+                nullBuff.put(NON_NULL_VALUE_BYTE_SIGNAL);
+                writeValue(dictionary.getInt128(dictionaryBlock.getId(blockPos.getBlockPosition())), blockPos, jufferPos);
+            }
+        }
+        return new AppendResult(nullsCount);
+    }
+
+    private AppendResult appendRepeatedValue(Int128ArrayBlock valueBlock, int jufferPos, BlockPosHolder blockPos)
+    {
+        int nullsCount = 0;
+        if (valueBlock.isNull(0)) {
+            for (; blockPos.inRange(); blockPos.advance()) {
+                nullBuff.put(NULL_VALUE_BYTE_SIGNAL);
+                nullsCount++;
+            }
+        }
+        else {
+            Int128 value = valueBlock.getInt128(0);
+            for (; blockPos.inRange(); blockPos.advance()) {
+                nullBuff.put(NON_NULL_VALUE_BYTE_SIGNAL);
                 writeValue(value, blockPos, jufferPos);
-                blockPos.advance();
             }
         }
         return new AppendResult(nullsCount);

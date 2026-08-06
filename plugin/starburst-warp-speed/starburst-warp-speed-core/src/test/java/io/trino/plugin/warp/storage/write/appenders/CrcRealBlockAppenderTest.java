@@ -16,6 +16,9 @@ package io.trino.plugin.warp.storage.write.appenders;
 import io.trino.plugin.warp.storage.write.WarmupElementStats;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
+import io.trino.spi.block.DictionaryBlock;
+import io.trino.spi.block.IntArrayBlock;
+import io.trino.spi.block.RunLengthEncodedBlock;
 import io.trino.spi.type.RealType;
 import io.trino.spi.type.Type;
 import org.junit.jupiter.api.BeforeEach;
@@ -25,6 +28,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 import java.nio.IntBuffer;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.params.provider.Arguments.arguments;
@@ -57,7 +61,15 @@ class CrcRealBlockAppenderTest
         Block blockWithNull = blockBuilder.build();
         return Stream.of(
                 arguments(blockWithoutNull, realType, new WarmupElementStats(0, expectedMinValue, expectedMaxValue)),
-                arguments(blockWithNull, realType, new WarmupElementStats(1, expectedMinValue, expectedMaxValue)));
+                arguments(blockWithNull, realType, new WarmupElementStats(1, expectedMinValue, expectedMaxValue)),
+                arguments(
+                        DictionaryBlock.create(4, blockWithNull, new int[] {4, 0, 2, 4}),
+                        realType,
+                        new WarmupElementStats(2, -10.3f, 1.1f)),
+                arguments(
+                        RunLengthEncodedBlock.create(new IntArrayBlock(1, Optional.empty(), new int[] {Float.floatToIntBits(2.5f)}), 3),
+                        realType,
+                        new WarmupElementStats(0, 2.5f, 2.5f)));
     }
 
     @Override

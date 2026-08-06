@@ -15,6 +15,8 @@ package io.trino.plugin.warp.storage.write.appenders;
 
 import io.trino.plugin.warp.storage.write.WarmupElementStats;
 import io.trino.spi.block.Block;
+import io.trino.spi.block.DictionaryBlock;
+import io.trino.spi.block.RunLengthEncodedBlock;
 import io.trino.spi.block.ShortArrayBlock;
 import io.trino.spi.type.SmallintType;
 import io.trino.spi.type.Type;
@@ -50,7 +52,13 @@ class CrcSmallIntBlockAppenderTest
                         new WarmupElementStats(0, (short) 1, (short) 3)),
                 arguments(new ShortArrayBlock(4, Optional.of(new boolean[] {false, false, false, true}), new short[] {1, -50, 30, 333}),
                         blockType,
-                        new WarmupElementStats(1, (short) -50, (short) 30)));
+                        new WarmupElementStats(1, (short) -50, (short) 30)),
+                arguments(DictionaryBlock.create(6, new ShortArrayBlock(4, Optional.of(new boolean[] {false, false, false, true}), new short[] {1, -50, 30, 333}), new int[] {3, 0, 1, 2, 1, 3}),
+                        blockType,
+                        new WarmupElementStats(2, (short) -50, (short) 30)),
+                arguments(RunLengthEncodedBlock.create(new ShortArrayBlock(1, Optional.empty(), new short[] {7}), 5),
+                        blockType,
+                        new WarmupElementStats(0, (short) 7, (short) 7)));
     }
 
     @Override

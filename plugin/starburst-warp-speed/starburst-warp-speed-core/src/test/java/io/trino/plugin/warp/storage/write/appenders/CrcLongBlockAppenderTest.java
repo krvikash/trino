@@ -17,7 +17,9 @@ import io.trino.plugin.warp.storage.write.WarmupElementStats;
 import io.trino.plugin.warp.type.TypeUtils;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
+import io.trino.spi.block.DictionaryBlock;
 import io.trino.spi.block.LongArrayBlock;
+import io.trino.spi.block.RunLengthEncodedBlock;
 import io.trino.spi.type.BigintType;
 import io.trino.spi.type.DecimalType;
 import io.trino.spi.type.Decimals;
@@ -118,7 +120,15 @@ class CrcLongBlockAppenderTest
                 arguments(
                         new LongArrayBlock(4, Optional.of(new boolean[] {false, false, false, true}), new long[] {1, -50, 30, 33333}),
                         BigintType.BIGINT,
-                        new WarmupElementStats(1, -50L, 30L)));
+                        new WarmupElementStats(1, -50L, 30L)),
+                arguments(
+                        DictionaryBlock.create(6, new LongArrayBlock(4, Optional.of(new boolean[] {false, false, false, true}), new long[] {1, -50, 30, 33333}), new int[] {3, 0, 1, 2, 1, 3}),
+                        BigintType.BIGINT,
+                        new WarmupElementStats(2, -50L, 30L)),
+                arguments(
+                        RunLengthEncodedBlock.create(new LongArrayBlock(1, Optional.empty(), new long[] {7}), 5),
+                        BigintType.BIGINT,
+                        new WarmupElementStats(0, 7L, 7L)));
     }
 
     @Override

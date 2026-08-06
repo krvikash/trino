@@ -19,6 +19,8 @@ import io.trino.plugin.warp.storage.engine.StubsStorageEngineConstants;
 import io.trino.plugin.warp.storage.write.WarmupElementStats;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
+import io.trino.spi.block.DictionaryBlock;
+import io.trino.spi.block.RunLengthEncodedBlock;
 import io.trino.spi.block.VariableWidthBlockBuilder;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.VarcharType;
@@ -71,7 +73,19 @@ class CrcStringBlockAppenderTest
         Block blockWithNull = blockBuilder.build();
         return Stream.of(
                 arguments(blockWithoutNull, VARCHAR_TYPE, new WarmupElementStats(0, expectedMinValue, expectedMaxValue)),
-                arguments(blockWithNull, VARCHAR_TYPE, new WarmupElementStats(1, expectedMinValue, expectedMaxValue)));
+                arguments(blockWithNull, VARCHAR_TYPE, new WarmupElementStats(1, expectedMinValue, expectedMaxValue)),
+                arguments(
+                        DictionaryBlock.create(5, blockWithNull, new int[] {4, 0, 2, 4, 1}),
+                        VARCHAR_TYPE,
+                        new WarmupElementStats(2, Slices.utf8Slice("aaaaa"), Slices.utf8Slice("ccccc"))),
+                arguments(
+                        DictionaryBlock.create(6, blockWithNull, new int[] {4, 0, 2, 3, 4, 1}),
+                        VARCHAR_TYPE,
+                        new WarmupElementStats(2, Slices.utf8Slice("aaaaa"), Slices.utf8Slice("ddddd"))),
+                arguments(
+                        RunLengthEncodedBlock.create(buildVarcharBlockBuilder(List.of(Slices.utf8Slice("eeeee"))).build(), 3),
+                        VARCHAR_TYPE,
+                        new WarmupElementStats(0, Slices.utf8Slice("eeeee"), Slices.utf8Slice("eeeee"))));
     }
 
     @Override
