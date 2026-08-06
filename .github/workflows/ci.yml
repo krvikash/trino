@@ -113,7 +113,9 @@ jobs:
       - name: Remove Trino from local Maven repo to avoid caching it
         # Avoid caching artifacts built in this job, cache should only include dependencies
         if: steps.cache.outputs.cache-hit != 'true' && matrix.cache == 'true'
-        run: rm -rf ~/.m2/repository/io/trino/trino-*
+        run: |
+          rm -rf ~/.m2/repository/io/trino
+          rm -rf ~/.m2/repository/io/starburst
       - name: Cancel merge queue workflow
         if: ${{ failure() && github.event_name == 'merge_group' }}
         env:
