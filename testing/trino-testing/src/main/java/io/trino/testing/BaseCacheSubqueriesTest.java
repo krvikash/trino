@@ -110,7 +110,9 @@ public abstract class BaseCacheSubqueriesTest
 {
     protected static final Set<TpchTable<?>> REQUIRED_TABLES = ImmutableSet.of(NATION, LINE_ITEM, ORDERS, CUSTOMER);
     protected static final Map<String, String> EXTRA_PROPERTIES = ImmutableMap.of(
-            "cache.enabled", "true",
+            "subquery-cache.enabled", "true",
+            "subquery-cache.revoking-threshold", "1.0",
+            "subquery-cache.revoking-target", "1.0",
             "dynamic-filtering.bloom-filter.max-distinct-values-per-driver", "1000",
             "dynamic-filtering.partitioned-bloom-filter.max-distinct-values-per-driver", "100",
             "dynamic-filtering.max-distinct-values-per-driver", "100",
