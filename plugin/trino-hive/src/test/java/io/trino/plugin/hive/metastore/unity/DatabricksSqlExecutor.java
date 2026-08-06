@@ -75,7 +75,7 @@ public final class DatabricksSqlExecutor
         return Throwables.getCausalChain(e).stream().anyMatch(t -> {
             String message = t.getMessage();
             return message != null && (
-                    message.contains("429") || message.contains("502") || message.contains("503") || message.contains("504"));
+                    message.contains("429") || message.contains("500") || message.contains("502") || message.contains("503") || message.contains("504"));
         });
     }
 }
