@@ -23,6 +23,7 @@ import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.type.TypeUtils;
 import io.trino.spi.predicate.Domain;
 import io.trino.spi.predicate.Range;
+import io.trino.spi.predicate.SortedRangeSet;
 import io.trino.spi.predicate.ValueSet;
 import io.trino.spi.type.DateType;
 import io.trino.spi.type.DecimalType;
@@ -247,6 +248,21 @@ public class PredicateUtilTest
             domain = Domain.create(ValueSet.ofRanges(range1, range2), true);
             validatePredicateType(domain, PREDICATE_TYPE_VALUES, false);
         }
+    }
+
+    @Test
+    public void nullOnlyDomainIsAllSingleValue()
+    {
+        Domain domain = Domain.onlyNull(VarcharType.VARCHAR);
+        NativeExpression isNull = NativeExpression.builder()
+                .predicateType(PREDICATE_TYPE_VALUES)
+                .functionType(FunctionType.FUNCTION_TYPE_NONE)
+                .domain(domain)
+                .collectNulls(true)
+                .build();
+
+        assertThat(PredicateUtil.isAllSingleValue((SortedRangeSet) domain.getValues(), VarcharType.VARCHAR)).isTrue();
+        assertThat(isNull.mergeAnd(isNull).allSingleValue()).isTrue();
     }
 
     @Test

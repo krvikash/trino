@@ -108,7 +108,7 @@ public class PredicateContextData
                 domainExpression.getDomain().getValues() instanceof SortedRangeSet sortedRangeSet &&
                 /* we choose to warm Lucene in case of PREDICATE_TYPE_STRING_RANGES, cause native
                  only can say if all the chunk is in or out and then trino needs to filter after us, means we are not tight */
-                !isAllSingleValue(sortedRangeSet.getInclusive(), sortedRangeSet.getSortedRanges(), domainExpression.getType()) &&
+                !isAllSingleValue(sortedRangeSet, domainExpression.getType()) &&
                 !isInversePredicate(sortedRangeSet, domainExpression.getType());
     }
 

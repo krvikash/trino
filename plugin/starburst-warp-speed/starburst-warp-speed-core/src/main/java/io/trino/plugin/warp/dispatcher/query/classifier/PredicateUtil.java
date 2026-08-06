@@ -22,9 +22,7 @@ import io.trino.plugin.warp.expression.NativeExpression;
 import io.trino.plugin.warp.gen.constants.FunctionType;
 import io.trino.plugin.warp.gen.constants.PredicateType;
 import io.trino.plugin.warp.type.TypeUtils;
-import io.trino.spi.block.Block;
 import io.trino.spi.predicate.Domain;
-import io.trino.spi.predicate.Range;
 import io.trino.spi.predicate.SortedRangeSet;
 import io.trino.spi.predicate.ValueSet;
 import io.trino.spi.type.ArrayType;
@@ -32,15 +30,10 @@ import io.trino.spi.type.TimestampType;
 import io.trino.spi.type.Type;
 
 import java.util.Collections;
-import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static io.trino.spi.type.IntegerType.INTEGER;
-import static io.trino.spi.type.RealType.REAL;
-import static io.trino.spi.type.SmallintType.SMALLINT;
-import static io.trino.spi.type.TinyintType.TINYINT;
 import static java.lang.String.format;
 
 public class PredicateUtil
@@ -146,8 +139,6 @@ public class PredicateUtil
         ValueSet values = domain.getValues();
         checkArgument(values instanceof SortedRangeSet, "unsupported ValueSet %s", values.getClass());
         SortedRangeSet sortedRangeSet = (SortedRangeSet) values;
-        Block sortedRanges = sortedRangeSet.getSortedRanges();
-        boolean[] inclusive = sortedRangeSet.getInclusive();
         int numMatchElements = sortedRangeSet.getRangeCount();
         Type type = domain.getType();
         int predicateSize = PREDICATE_HEADER_SIZE;
@@ -155,7 +146,7 @@ public class PredicateUtil
 
         if (numMatchElements > 0) {
             if (TypeUtils.isStrType(type)) {
-                if (isAllSingleValue(inclusive, sortedRanges, type)) {
+                if (isAllSingleValue(sortedRangeSet, type)) {
                     predicateType = PredicateType.PREDICATE_TYPE_STRING_VALUES;
                     predicateSize += predicateSizeStringValues(numMatchElements);
                 }
@@ -170,7 +161,7 @@ public class PredicateUtil
                 }
             }
             else {
-                if (isAllSingleValue(inclusive, sortedRanges, type)) {
+                if (isAllSingleValue(sortedRangeSet, type)) {
                     predicateType = PredicateType.PREDICATE_TYPE_VALUES;
                     predicateSize += predicateSizeValues(numMatchElements, recTypeLength);
                 }
@@ -260,98 +251,37 @@ public class PredicateUtil
                 return false;
             }
         }
-        List<Range> orderedRanges = sortedRangeSet.getOrderedRanges();
-
-        if (!(orderedRanges.getFirst().isLowUnbounded() && orderedRanges.get(rangeCount - 1).isHighUnbounded())) {
-            return false;
-        }
-
-        for (int rangeIdx = 0; rangeIdx < rangeCount - 1; rangeIdx++) {
-            Range currentRange = orderedRanges.get(rangeIdx);
-            Range nextRange = orderedRanges.get(rangeIdx + 1);
-            if (!currentRange.getHighBoundedValue().equals(nextRange.getLowBoundedValue())) {
-                return false;
-            }
-        }
-
-        return true;
+        // the set is a complement of single values iff its complement is a discrete set
+        return sortedRangeSet.complement().isDiscreteSet();
     }
 
-    // this method replaced sortedRangeSet.getOrderedRanges().stream().allMatch(range -> range.isSingleValue()) because of complexity of getOrderRanges
-    public static boolean isAllSingleValue(boolean[] inclusive, Block sortedRangesBlock, Type type)
+    // delegates the single-value scan to SortedRangeSet, which memoizes it per instance
+    public static boolean isAllSingleValue(SortedRangeSet sortedRangeSet, Type type)
     {
-        for (boolean isInclusive : inclusive) {
-            if (!isInclusive) {
-                return false;
-            }
-        }
-        if (TypeUtils.isStrType(type)) {
-            for (int i = 0; i < sortedRangesBlock.getPositionCount(); i += 2) {
-                if (!type.getSlice(sortedRangesBlock, i).equals(type.getSlice(sortedRangesBlock, i + 1))) {
-                    return false;
-                }
-            }
-        }
-        else if (TypeUtils.isLongDecimalType(type)) {
-            for (int i = 0; i < sortedRangesBlock.getPositionCount(); i += 2) {
-                if (!type.getObject(sortedRangesBlock, i).equals(type.getObject(sortedRangesBlock, i + 1))) {
-                    return false;
-                }
-            }
-        }
-        else if (TypeUtils.isLongType(type) || TypeUtils.isShortDecimalType(type)) {
-            for (int i = 0; i < sortedRangesBlock.getPositionCount(); i += 2) {
-                if (!(type.getLong(sortedRangesBlock, i) == type.getLong(sortedRangesBlock, i + 1))) {
-                    return false;
-                }
-            }
-        }
-        else if (TypeUtils.isIntegerType(type) || TypeUtils.isDateType(type)) {
-            for (int i = 0; i < sortedRangesBlock.getPositionCount(); i += 2) {
-                if (!(INTEGER.getInt(sortedRangesBlock, i) == INTEGER.getInt(sortedRangesBlock, i + 1))) {
-                    return false;
-                }
-            }
-        }
-        else if (TypeUtils.isBooleanType(type)) {
-            for (int i = 0; i < sortedRangesBlock.getPositionCount(); i += 2) {
-                if (!(type.getBoolean(sortedRangesBlock, i) == type.getBoolean(sortedRangesBlock, i + 1))) {
-                    return false;
-                }
-            }
-        }
-        else if (TypeUtils.isDoubleType(type)) {
-            for (int i = 0; i < sortedRangesBlock.getPositionCount(); i += 2) {
-                if (!(type.getDouble(sortedRangesBlock, i) == type.getDouble(sortedRangesBlock, i + 1))) {
-                    return false;
-                }
-            }
-        }
-        else if (TypeUtils.isRealType(type)) {
-            for (int i = 0; i < sortedRangesBlock.getPositionCount(); i += 2) {
-                if (!(Float.intBitsToFloat(REAL.getInt(sortedRangesBlock, i)) == Float.intBitsToFloat(REAL.getInt(sortedRangesBlock, i + 1)))) {
-                    return false;
-                }
-            }
-        }
-        else if (TypeUtils.isSmallIntType(type)) {
-            for (int i = 0; i < sortedRangesBlock.getPositionCount(); i += 2) {
-                if (!(SMALLINT.getShort(sortedRangesBlock, i) == SMALLINT.getShort(sortedRangesBlock, i + 1))) {
-                    return false;
-                }
-            }
-        }
-        else if (TypeUtils.isTinyIntType(type)) {
-            for (int i = 0; i < sortedRangesBlock.getPositionCount(); i += 2) {
-                if (!(TINYINT.getByte(sortedRangesBlock, i) == TINYINT.getByte(sortedRangesBlock, i + 1))) {
-                    return false;
-                }
-            }
-        }
-        else {
+        if (!isValuesEncodingSupported(type)) {
             return false;
         }
-        return true;
+        // a null-only domain holds no range that could disqualify it, while isDiscreteSet() reports false on an empty set
+        if (sortedRangeSet.getRangeCount() == 0) {
+            return true;
+        }
+        return sortedRangeSet.isDiscreteSet();
+    }
+
+    // types without a native values-encoding fill path stay as ranges
+    private static boolean isValuesEncodingSupported(Type type)
+    {
+        return TypeUtils.isStrType(type) ||
+                TypeUtils.isLongDecimalType(type) ||
+                TypeUtils.isLongType(type) ||
+                TypeUtils.isShortDecimalType(type) ||
+                TypeUtils.isIntegerType(type) ||
+                TypeUtils.isDateType(type) ||
+                TypeUtils.isBooleanType(type) ||
+                TypeUtils.isDoubleType(type) ||
+                TypeUtils.isRealType(type) ||
+                TypeUtils.isSmallIntType(type) ||
+                TypeUtils.isTinyIntType(type);
     }
 
     // A predicate's Domain (io.trino.spi.predicate.Domain) pairs the matched ValueSet with the Type

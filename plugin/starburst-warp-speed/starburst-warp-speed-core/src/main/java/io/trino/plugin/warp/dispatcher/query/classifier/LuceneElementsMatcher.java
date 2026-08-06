@@ -15,6 +15,7 @@ package io.trino.plugin.warp.dispatcher.query.classifier;
 
 import com.google.common.collect.ImmutableListMultimap;
 import com.google.common.collect.ImmutableMap;
+import io.airlift.slice.Slice;
 import io.trino.plugin.warp.dispatcher.DispatcherProxiedConnectorTransformer;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
 import io.trino.plugin.warp.dispatcher.model.WarpColumn;
@@ -28,6 +29,8 @@ import io.trino.plugin.warp.expression.WarpExpression;
 import io.trino.plugin.warp.expression.rewrite.worker.warptolucene.LuceneRewriteContext;
 import io.trino.plugin.warp.expression.rewrite.worker.warptolucene.LuceneRulesHandler;
 import io.trino.plugin.warp.gen.constants.PredicateType;
+import io.trino.spi.block.Block;
+import io.trino.spi.block.VariableWidthBlock;
 import io.trino.spi.predicate.Domain;
 import io.trino.spi.predicate.SortedRangeSet;
 import io.trino.spi.type.BooleanType;
@@ -195,8 +198,23 @@ final class LuceneElementsMatcher
 
             SortedRangeSet sortedRangeSet = (SortedRangeSet) domain.getValues();
             if (sortedRangeSet.getRangeCount() > 0) {
+                Block sortedRangesBlock = sortedRangeSet.getSortedRanges();
+                VariableWidthBlock valueBlock = (VariableWidthBlock) sortedRangesBlock.getUnderlyingValueBlock();
+                boolean[] inclusive = sortedRangeSet.getInclusive();
                 BooleanQuery.Builder innerQueryBuilder = new BooleanQuery.Builder();
-                sortedRangeSet.getOrderedRanges().forEach(range -> innerQueryBuilder.add(createRangeQuery(range), BooleanClause.Occur.SHOULD));
+                for (int rangeIndex = 0; rangeIndex < sortedRangeSet.getRangeCount(); rangeIndex++) {
+                    int lowPosition = 2 * rangeIndex;
+                    int highPosition = lowPosition + 1;
+                    Slice lowValue = null;
+                    if (!sortedRangesBlock.isNull(lowPosition)) {
+                        lowValue = valueBlock.getSlice(sortedRangesBlock.getUnderlyingValuePosition(lowPosition));
+                    }
+                    Slice highValue = null;
+                    if (!sortedRangesBlock.isNull(highPosition)) {
+                        highValue = valueBlock.getSlice(sortedRangesBlock.getUnderlyingValuePosition(highPosition));
+                    }
+                    innerQueryBuilder.add(createRangeQuery(lowValue, inclusive[lowPosition], highValue, inclusive[highPosition]), BooleanClause.Occur.SHOULD);
+                }
                 queryBuilder.add(innerQueryBuilder.build(), BooleanClause.Occur.MUST);
             }
             isValid = true;

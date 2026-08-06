@@ -18,7 +18,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.trino.plugin.warp.dispatcher.query.classifier.PredicateUtil;
 import io.trino.plugin.warp.gen.constants.FunctionType;
 import io.trino.plugin.warp.gen.constants.PredicateType;
-import io.trino.spi.block.Block;
 import io.trino.spi.predicate.Domain;
 import io.trino.spi.predicate.SortedRangeSet;
 
@@ -243,9 +242,7 @@ public record NativeExpression(
             else {
                 checkArgument(domain.getValues() instanceof SortedRangeSet);
                 SortedRangeSet sortedRangeSet = (SortedRangeSet) domain.getValues();
-                Block sortedRanges = sortedRangeSet.getSortedRanges();
-                boolean[] inclusive = sortedRangeSet.getInclusive();
-                boolean allSingleValue = PredicateUtil.isAllSingleValue(inclusive, sortedRanges, domain.getType());
+                boolean allSingleValue = PredicateUtil.isAllSingleValue(sortedRangeSet, domain.getType());
                 res = new NativeExpression(
                         requireNonNull(predicateType),
                         requireNonNull(functionType),

@@ -24,12 +24,16 @@ import io.trino.plugin.warp.dispatcher.model.WarpColumn;
 import io.trino.plugin.warp.dispatcher.query.PredicateContext;
 import io.trino.plugin.warp.dispatcher.query.data.match.LuceneQueryMatchData;
 import io.trino.plugin.warp.dispatcher.query.data.match.QueryMatchData;
+import io.trino.plugin.warp.expression.DomainExpression;
+import io.trino.plugin.warp.expression.NativeExpression;
 import io.trino.plugin.warp.expression.WarpCall;
 import io.trino.plugin.warp.expression.WarpExpression;
 import io.trino.plugin.warp.expression.WarpExpressionData;
 import io.trino.plugin.warp.expression.WarpPrimitiveConstant;
 import io.trino.plugin.warp.expression.WarpSliceConstant;
 import io.trino.plugin.warp.expression.WarpVariable;
+import io.trino.plugin.warp.gen.constants.FunctionType;
+import io.trino.plugin.warp.gen.constants.PredicateType;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.DynamicFilter;
@@ -39,6 +43,7 @@ import io.trino.spi.predicate.Range;
 import io.trino.spi.predicate.SortedRangeSet;
 import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.predicate.ValueSet;
+import io.trino.spi.type.ArrayType;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.VarcharType;
 import org.apache.lucene.search.BooleanClause;
@@ -581,6 +586,31 @@ public class LuceneMatcherTest
 
         assertThat(result.matchDataList()).isEmpty();
         assertThat(result.remainingPredicateContext().get(warpColumn).getDomain()).isEqualTo(domain);
+    }
+
+    @Test
+    public void testIsNullOnArrayColumn()
+    {
+        String columnName = "col1";
+        Type arrayType = new ArrayType(varcharType);
+        ColumnHandle columnHandle = mockColumnHandle(columnName, arrayType, dispatcherProxiedConnectorTransformer);
+        RegularColumn regularColumn = new RegularColumn(columnName);
+        WarpVariable warpVariable = new WarpVariable(columnHandle, arrayType);
+
+        // col1 IS NULL: an empty SortedRangeSet with nullAllowed = true
+        Domain domain = Domain.onlyNull(arrayType);
+        DomainExpression domainExpression = new DomainExpression(warpVariable, domain);
+        NativeExpression nativeExpression = NativeExpression.builder()
+                .predicateType(PredicateType.PREDICATE_TYPE_RANGES)
+                .functionType(FunctionType.FUNCTION_TYPE_NONE)
+                .domain(domain)
+                .collectNulls(domain.isNullAllowed())
+                .build();
+        WarpExpressionData warpExpressionData = new WarpExpressionData(domainExpression, arrayType, domain.isNullAllowed(), Optional.of(nativeExpression), regularColumn);
+
+        MatchContext result = executeMatch(columnHandle, TupleDomain.all(), warpExpressionData);
+
+        assertThat(result.matchDataList().size()).isEqualTo(1);
     }
 
     private void assertExpressionConversion(

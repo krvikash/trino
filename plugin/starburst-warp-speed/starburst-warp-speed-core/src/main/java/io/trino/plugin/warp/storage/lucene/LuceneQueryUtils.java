@@ -26,7 +26,6 @@ import org.apache.lucene.search.TermQuery;
 import org.apache.lucene.search.TermRangeQuery;
 import org.apache.lucene.util.BytesRef;
 
-import java.nio.charset.Charset;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -43,15 +42,32 @@ public class LuceneQueryUtils
 
     public static Query createRangeQuery(Range range)
     {
-        if (range.isSingleValue()) {
-            return new TermQuery(new Term(VALUE_FIELD_NAME, new String(((Slice) range.getSingleValue()).getBytes(), Charset.defaultCharset())));
+        Slice lowValue = null;
+        if (!range.isLowUnbounded()) {
+            lowValue = (Slice) range.getLowBoundedValue();
         }
-        return new TermRangeQuery(
-                VALUE_FIELD_NAME,
-                range.isLowUnbounded() ? null : new BytesRef(((Slice) range.getLowBoundedValue()).getBytes()),
-                range.isHighUnbounded() ? null : new BytesRef(((Slice) range.getHighBoundedValue()).getBytes()),
-                range.isLowInclusive(),
-                range.isHighInclusive());
+        Slice highValue = null;
+        if (!range.isHighUnbounded()) {
+            highValue = (Slice) range.getHighBoundedValue();
+        }
+        return createRangeQuery(lowValue, range.isLowInclusive(), highValue, range.isHighInclusive());
+    }
+
+    // null low/high value stands for an unbounded end
+    public static Query createRangeQuery(Slice lowValue, boolean lowInclusive, Slice highValue, boolean highInclusive)
+    {
+        if (lowInclusive && highInclusive && lowValue != null && lowValue.equals(highValue)) {
+            return new TermQuery(new Term(VALUE_FIELD_NAME, new BytesRef(lowValue.getBytes())));
+        }
+        BytesRef lowBytes = null;
+        if (lowValue != null) {
+            lowBytes = new BytesRef(lowValue.getBytes());
+        }
+        BytesRef highBytes = null;
+        if (highValue != null) {
+            highBytes = new BytesRef(highValue.getBytes());
+        }
+        return new TermRangeQuery(VALUE_FIELD_NAME, lowBytes, highBytes, lowInclusive, highInclusive);
     }
 
     public static Query createPrefixQuery(Slice prefix)
