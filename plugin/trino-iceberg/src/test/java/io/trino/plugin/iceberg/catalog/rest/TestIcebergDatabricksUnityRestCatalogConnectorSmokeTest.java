@@ -204,8 +204,8 @@ final class TestIcebergDatabricksUnityRestCatalogConnectorSmokeTest
                         "   compression_codec = 'ZSTD',\n" +
                         "   data_location = '.*',\n" +
                         "   format = '" + format.name() + "',\n" +
-                        "   format_version = 2,\n" +
-                        "   location = '.*/" + schemaName + "/.*',\n" +
+                        "   format_version = 3,\n" +
+                        "   location = '.*',\n" +
                         "   max_previous_versions = 100,\n" +
                         "   object_store_layout_enabled = true\n" +
                         "\\)");
