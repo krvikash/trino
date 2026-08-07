@@ -35,7 +35,9 @@ import io.trino.plugin.warp.gen.constants.FunctionType;
 import io.trino.plugin.warp.gen.constants.PredicateType;
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
+import io.trino.plugin.warp.juffer.BufferAllocator;
 import io.trino.plugin.warp.log.ShapingLoggerFactory;
+import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.storage.write.WarmupElementStats;
 import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.connector.ColumnHandle;
@@ -84,7 +86,7 @@ class MatchClassifierTest
     {
         dispatcherProxiedConnectorTransformer = mock(DispatcherProxiedConnectorTransformer.class);
         dispatcherTableHandle = mock(DispatcherTableHandle.class);
-        BasicMatcher basicMatcher = new BasicMatcher();
+        BasicMatcher basicMatcher = new BasicMatcher(mock(BufferAllocator.class), mock(StorageEngineConstants.class));
         matchClassifier = new MatchClassifier(
                 List.of(basicMatcher),
                 new ShapingLoggerFactory(new CatalogName("c"), new SharedConfig()));
@@ -237,7 +239,7 @@ class MatchClassifierTest
         when(classifyArgs.getWarmedWarmupTypes()).thenReturn(warmedWarmupTypes);
 
         MatchClassifier classifierUnderTest = new MatchClassifier(
-                List.of(new RangeMatcher(new ShapingLoggerFactory(new CatalogName("c"), new SharedConfig())), new BasicMatcher()),
+                List.of(new RangeMatcher(new ShapingLoggerFactory(new CatalogName("c"), new SharedConfig())), new BasicMatcher(mock(BufferAllocator.class), mock(StorageEngineConstants.class))),
                 new ShapingLoggerFactory(new CatalogName("c"), new SharedConfig()));
 
         QueryContext result = classifierUnderTest.classify(classifyArgs, queryContext);
@@ -361,7 +363,7 @@ class MatchClassifierTest
         when(classifyArgs.getWarmedWarmupTypes()).thenReturn(warmedWarmupTypes);
 
         MatchClassifier classifierUnderTest = new MatchClassifier(
-                List.of(new RangeMatcher(new ShapingLoggerFactory(new CatalogName("c"), new SharedConfig())), new BasicMatcher()),
+                List.of(new RangeMatcher(new ShapingLoggerFactory(new CatalogName("c"), new SharedConfig())), new BasicMatcher(mock(BufferAllocator.class), mock(StorageEngineConstants.class))),
                 new ShapingLoggerFactory(new CatalogName("c"), new SharedConfig()));
 
         QueryContext result = classifierUnderTest.classify(classifyArgs, queryContext);

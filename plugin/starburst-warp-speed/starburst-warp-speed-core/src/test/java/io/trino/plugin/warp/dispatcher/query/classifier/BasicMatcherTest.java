@@ -22,6 +22,9 @@ import io.trino.plugin.warp.dispatcher.query.data.match.BasicQueryMatchData;
 import io.trino.plugin.warp.dispatcher.query.data.match.MatchData;
 import io.trino.plugin.warp.dispatcher.query.data.match.QueryMatchData;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
+import io.trino.plugin.warp.juffer.BufferAllocator;
+import io.trino.plugin.warp.juffer.PredicateBufferPoolType;
+import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.DynamicFilter;
@@ -39,6 +42,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -46,13 +50,16 @@ class BasicMatcherTest
         extends ClassifierTest
 {
     private BasicMatcher basicMatcher;
+    private BufferAllocator bufferAllocator;
     private RowGroupData rowGroupData;
 
     @BeforeEach
     public void before()
     {
         init();
-        basicMatcher = new BasicMatcher();
+        bufferAllocator = mock(BufferAllocator.class);
+        when(bufferAllocator.getRequiredPredicateBufferType(anyInt())).thenReturn(PredicateBufferPoolType.SMALL);
+        basicMatcher = new BasicMatcher(bufferAllocator, mock(StorageEngineConstants.class));
         rowGroupData = mock(RowGroupData.class);
     }
 
@@ -74,6 +81,21 @@ class BasicMatcherTest
         assertThat(basicQueryMatchData.getType()).isEqualTo(IntegerType.INTEGER);
         assertThat(basicQueryMatchData.getWarpColumn()).isEqualTo(new RegularColumn(columnName));
         assertThat(result.remainingPredicateContext().isEmpty()).isTrue();
+    }
+
+    @Test
+    public void testPredicateTooLargeForAnyBufferPool()
+    {
+        when(bufferAllocator.getRequiredPredicateBufferType(anyInt())).thenReturn(PredicateBufferPoolType.INVALID);
+        String columnName = "col1";
+        ColumnHandle columnHandle = mockColumnHandle(columnName, IntegerType.INTEGER, dispatcherProxiedConnectorTransformer);
+        Domain domain = Domain.singleValue(IntegerType.INTEGER, 7L);
+        TupleDomain<ColumnHandle> tupleDomain = TupleDomain.withColumnDomains(Map.of(columnHandle, domain));
+
+        MatchContext result = executeMatch(columnHandle, tupleDomain);
+
+        assertThat(result.matchDataList()).isEmpty();
+        assertThat(result.remainingPredicateContext().get(new RegularColumn(columnName)).getDomain()).isEqualTo(domain);
     }
 
     @Test

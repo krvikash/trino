@@ -114,7 +114,7 @@ public class ClassifierFactory
         }
         matchers.add(
                 new LuceneElementsMatcher(dispatcherProxiedConnectorTransformer),
-                new BasicMatcher());
+                new BasicMatcher(bufferAllocator, storageEngineConstants));
         return new MatchClassifier(matchers.build(), shapingLoggerFactory);
     }
 
