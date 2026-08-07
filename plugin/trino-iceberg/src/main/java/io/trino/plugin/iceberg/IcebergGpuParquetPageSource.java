@@ -273,6 +273,7 @@ public class IcebergGpuParquetPageSource
     @Override
     public void close()
     {
+        finished = true;
         // Close the reader before the host buffers it reads from.
         if (chunkedReader != null) {
             chunkedReader.close();
