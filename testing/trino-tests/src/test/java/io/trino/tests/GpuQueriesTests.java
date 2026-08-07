@@ -38,6 +38,12 @@ import java.util.stream.Stream;
 
 import static com.google.common.base.Verify.verify;
 import static io.trino.SystemSessionProperties.GPU_EXECUTION_ENABLED;
+import static io.trino.SystemSessionProperties.REDISTRIBUTE_WRITES;
+import static io.trino.SystemSessionProperties.SCALE_WRITERS;
+import static io.trino.SystemSessionProperties.TASK_CONCURRENCY;
+import static io.trino.SystemSessionProperties.TASK_MAX_WRITER_COUNT;
+import static io.trino.SystemSessionProperties.TASK_MIN_WRITER_COUNT;
+import static io.trino.SystemSessionProperties.TASK_SCALE_WRITERS_ENABLED;
 import static io.trino.sql.query.QueryAssertions.QueryAssert.collectGpuPlanNodes;
 import static java.nio.file.Files.createDirectories;
 import static java.nio.file.Files.isDirectory;
@@ -47,6 +53,18 @@ import static org.assertj.core.api.Assertions.assertThat;
 public final class GpuQueriesTests
 {
     private GpuQueriesTests() {}
+
+    static Session deterministicLoadSession(Session session)
+    {
+        return Session.builder(session)
+                .setSystemProperty(REDISTRIBUTE_WRITES, "false")
+                .setSystemProperty(SCALE_WRITERS, "false")
+                .setSystemProperty(TASK_SCALE_WRITERS_ENABLED, "false")
+                .setSystemProperty(TASK_MAX_WRITER_COUNT, "1")
+                .setSystemProperty(TASK_MIN_WRITER_COUNT, "1")
+                .setSystemProperty(TASK_CONCURRENCY, "1")
+                .build();
+    }
 
     static void assertGpuQueryResultsAndOperators(QueryRunner runner, @Language("SQL") String sql, String expectedGpuPlanCoverage)
     {

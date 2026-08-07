@@ -738,6 +738,10 @@
 
         <profile>
             <id>gpu</id>
+            <properties>
+                <!-- e.g. TestHiveGpuTpcdsQueries needs more than 3g test heap with query runner default setup -->
+                <air.test.jvmsize>4g</air.test.jvmsize>
+            </properties>
             <build>
                 <plugins>
                     <plugin>

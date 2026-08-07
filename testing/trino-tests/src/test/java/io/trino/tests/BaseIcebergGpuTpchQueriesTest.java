@@ -16,6 +16,7 @@ package io.trino.tests;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.io.Resources;
 import io.airlift.log.Logger;
+import io.trino.Session;
 import io.trino.plugin.iceberg.IcebergQueryRunner;
 import io.trino.testing.QueryRunner;
 import io.trino.tests.benchmark.Tpch;
@@ -29,6 +30,7 @@ import java.util.stream.Stream;
 import static com.google.common.io.Resources.getResource;
 import static io.trino.plugin.base.util.Closables.closeAllSuppress;
 import static io.trino.tests.GpuQueriesTests.assertGpuQueryResultsAndOperators;
+import static io.trino.tests.GpuQueriesTests.deterministicLoadSession;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 public abstract class BaseIcebergGpuTpchQueriesTest
@@ -48,12 +50,13 @@ public abstract class BaseIcebergGpuTpchQueriesTest
         configureRunner(builder);
         QueryRunner runner = builder.build();
         try {
+            Session loadSession = deterministicLoadSession(runner.getDefaultSession());
             runner.createCatalog("tpch_decimal", "tpch", ImmutableMap.of("tpch.double-type-mapping", "DECIMAL"));
             runner.execute("CREATE SCHEMA iceberg.tpch");
             for (TpchTable<?> table : TpchTable.getTables()) {
                 String name = table.getTableName();
                 long start = System.nanoTime();
-                runner.execute("CREATE TABLE iceberg.tpch.%s AS SELECT * FROM tpch_decimal.sf%d.%s"
+                runner.execute(loadSession, "CREATE TABLE iceberg.tpch.%s AS SELECT * FROM tpch_decimal.sf%d.%s"
                         .formatted(name, SCALE_FACTOR, name));
                 log.info("Loaded iceberg.tpch.%s from tpch_decimal.sf%d in %d ms", name, SCALE_FACTOR, (System.nanoTime() - start) / 1_000_000);
             }

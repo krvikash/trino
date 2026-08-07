@@ -15,6 +15,7 @@ package io.trino.tests;
 
 import com.google.common.io.Resources;
 import io.airlift.log.Logger;
+import io.trino.Session;
 import io.trino.plugin.hive.HiveQueryRunner;
 import io.trino.testing.QueryRunner;
 import io.trino.tests.benchmark.Tpcds;
@@ -28,6 +29,7 @@ import java.util.stream.Stream;
 import static com.google.common.io.Resources.getResource;
 import static io.trino.plugin.base.util.Closables.closeAllSuppress;
 import static io.trino.tests.GpuQueriesTests.assertGpuQueryResultsAndOperators;
+import static io.trino.tests.GpuQueriesTests.deterministicLoadSession;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Locale.ENGLISH;
 
@@ -51,6 +53,7 @@ public abstract class BaseHiveGpuTpcdsQueriesTest
         configureRunner(builder);
         QueryRunner runner = builder.build();
         try {
+            Session loadSession = deterministicLoadSession(runner.getDefaultSession());
             runner.execute("CREATE SCHEMA hive.tpcds");
             for (Table table : Table.getBaseTables()) {
                 if (table == Table.DBGEN_VERSION) {
@@ -58,7 +61,7 @@ public abstract class BaseHiveGpuTpcdsQueriesTest
                 }
                 String name = table.getName().toLowerCase(ENGLISH);
                 long start = System.nanoTime();
-                runner.execute("CREATE TABLE hive.tpcds.%s WITH (format = 'PARQUET') AS SELECT * FROM tpcds.sf%d.%s"
+                runner.execute(loadSession, "CREATE TABLE hive.tpcds.%s WITH (format = 'PARQUET') AS SELECT * FROM tpcds.sf%d.%s"
                         .formatted(name, SCALE_FACTOR, name));
                 log.info("Loaded hive.tpcds.%s from tpcds.sf%d in %d ms", name, SCALE_FACTOR, (System.nanoTime() - start) / 1_000_000);
             }
