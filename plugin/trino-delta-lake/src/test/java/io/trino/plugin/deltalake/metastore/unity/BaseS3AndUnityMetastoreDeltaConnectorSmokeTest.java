@@ -16,10 +16,12 @@ package io.trino.plugin.deltalake.metastore.unity;
 import com.google.common.collect.ImmutableMap;
 import io.trino.plugin.hive.metastore.unity.DatabricksSqlExecutor;
 import io.trino.testing.sql.SqlExecutor;
+import org.junit.jupiter.api.Test;
 
 import java.util.Map;
 
 import static io.trino.testing.SystemEnvironmentUtils.requireEnv;
+import static org.assertj.core.api.Assertions.assertThat;
 
 abstract class BaseS3AndUnityMetastoreDeltaConnectorSmokeTest
         extends BaseUnityMetastoreDeltaConnectorSmokeTest
@@ -65,5 +67,23 @@ abstract class BaseS3AndUnityMetastoreDeltaConnectorSmokeTest
     protected SqlExecutor onDatabricks()
     {
         return DATABRICKS;
+    }
+
+    @Override
+    @Test
+    public void testShowCreateTable()
+    {
+        assertThat((String) computeScalar("SHOW CREATE TABLE region"))
+                .isEqualTo(
+                        """
+                        CREATE TABLE delta.%s.region (
+                           regionkey bigint,
+                           name varchar,
+                           comment varchar
+                        )
+                        WITH (
+                           deletion_vectors_enabled = true,
+                           location = '%s/%s/region'
+                        )""".formatted(SCHEMA_NAME, getDatabricksUnityExternalLocation(), SCHEMA_NAME));
     }
 }
