@@ -192,6 +192,17 @@ public class RollingIcebergFileWriter
             Optional<DataSize> maxRowGroupSize)
             throws IOException
     {
+        return createParquetWriter(fileSystem, schema, outputPath, maxRowGroupSize, CompressionCodec.ZSTD);
+    }
+
+    public static IcebergFileWriter createParquetWriter(
+            TrinoFileSystem fileSystem,
+            Schema schema,
+            Location outputPath,
+            Optional<DataSize> maxRowGroupSize,
+            CompressionCodec compressionCodec)
+            throws IOException
+    {
         List<String> fileColumnNames = schema.columns().stream()
                 .map(Types.NestedField::name)
                 .collect(toImmutableList());
@@ -215,7 +226,7 @@ public class RollingIcebergFileWriter
                 PrimitiveTypeMapBuilder.makeTypeMap(fileColumnTypes, fileColumnNames),
                 optionsBuilder.build(),
                 IntStream.range(0, fileColumnNames.size()).toArray(),
-                CompressionCodec.ZSTD,
+                compressionCodec,
                 TRINO_VERSION);
     }
 }
