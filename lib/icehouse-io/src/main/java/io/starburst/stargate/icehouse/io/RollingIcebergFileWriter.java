@@ -201,7 +201,9 @@ public class RollingIcebergFileWriter
 
         TrinoOutputFile outputFile = fileSystem.newOutputFile(outputPath);
 
-        ParquetWriterOptions.Builder optionsBuilder = ParquetWriterOptions.builder();
+        // iceberg-arrow's vectorized parquet reader has a known issue reading DELTA_LENGTH_BYTE_ARRAY (apache/iceberg#17017)
+        ParquetWriterOptions.Builder optionsBuilder = ParquetWriterOptions.builder()
+                .setUseDeltaLengthByteArrayEncoding(false);
         maxRowGroupSize.ifPresent(optionsBuilder::setMaxBlockSize);
         return new IcebergParquetFileWriter(
                 MetricsConfig.getDefault(),
