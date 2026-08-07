@@ -68,78 +68,7 @@ public class ObjectStorePageSourceProviderFactory
     @Override
     public ConnectorPageSourceProvider createPageSourceProvider()
     {
-        // createPageSourceProvider is called for each scan within a query
-        // we hold on to ConnectorPageSourceProvider instance to allow IcebergPageSourceProvider to reuse equality deletes between splits of the same scan
-        return new ConnectorPageSourceProvider()
-        {
-            private volatile PageSourceProvider delegate;
-
-            @Override
-            public ConnectorPageSource createPageSource(
-                    ConnectorTransactionHandle transaction,
-                    ConnectorSession session,
-                    ConnectorSplit split,
-                    ConnectorTableHandle table,
-                    Optional<ConnectorTableCredentials> tableCredentials,
-                    List<ColumnHandle> columns,
-                    DynamicFilter dynamicFilter,
-                    MemoryContext memoryContext)
-            {
-                PageSourceProvider pageSourceProvider = getPageSourceProvider(split, table);
-                return pageSourceProvider.pageSourceProvider()
-                        .createPageSource(transaction, unwrap(pageSourceProvider.tableType(), session), split, table, tableCredentials, columns, dynamicFilter, memoryContext);
-            }
-
-            @Override
-            public TupleDomain<ColumnHandle> getUnenforcedPredicate(
-                    ConnectorSession session,
-                    ConnectorSplit split,
-                    ConnectorTableHandle table,
-                    TupleDomain<ColumnHandle> dynamicFilter)
-            {
-                PageSourceProvider pageSourceProvider = getPageSourceProvider(split, table);
-                return pageSourceProvider.pageSourceProvider()
-                        .getUnenforcedPredicate(unwrap(pageSourceProvider.tableType(), session), split, table, dynamicFilter);
-            }
-
-            @Override
-            public TupleDomain<ColumnHandle> prunePredicate(
-                    ConnectorSession session,
-                    ConnectorSplit split,
-                    ConnectorTableHandle table,
-                    TupleDomain<ColumnHandle> predicate)
-            {
-                PageSourceProvider pageSourceProvider = getPageSourceProvider(split, table);
-                return pageSourceProvider.pageSourceProvider()
-                        .prunePredicate(unwrap(pageSourceProvider.tableType(), session), split, table, predicate);
-            }
-
-            @Override
-            public long getMemoryUsage()
-            {
-                PageSourceProvider provider = delegate;
-                if (provider == null) {
-                    // No page source was created, so no memory is used
-                    return 0;
-                }
-                return provider.pageSourceProvider().getMemoryUsage();
-            }
-
-            private PageSourceProvider getPageSourceProvider(ConnectorSplit split, ConnectorTableHandle table)
-            {
-                PageSourceProvider result = delegate;
-                if (result == null) {
-                    synchronized (this) {
-                        result = delegate;
-                        if (result == null) {
-                            result = forHandle(split, table);
-                            delegate = result;
-                        }
-                    }
-                }
-                return result;
-            }
-        };
+        return new ObjectStorePageSourceProvider();
     }
 
     private PageSourceProvider forHandle(ConnectorSplit split, ConnectorTableHandle handle)
@@ -163,4 +92,78 @@ public class ObjectStorePageSourceProviderFactory
     }
 
     private record PageSourceProvider(TableType tableType, ConnectorPageSourceProvider pageSourceProvider) {}
+
+    private class ObjectStorePageSourceProvider
+            implements ConnectorPageSourceProvider
+    {
+        // createPageSourceProvider is called for each scan within a query
+        // we hold on to ConnectorPageSourceProvider instance to allow IcebergPageSourceProvider to reuse equality deletes between splits of the same scan
+        private volatile PageSourceProvider delegate;
+
+        @Override
+        public ConnectorPageSource createPageSource(
+                ConnectorTransactionHandle transaction,
+                ConnectorSession session,
+                ConnectorSplit split,
+                ConnectorTableHandle table,
+                Optional<ConnectorTableCredentials> tableCredentials,
+                List<ColumnHandle> columns,
+                DynamicFilter dynamicFilter,
+                MemoryContext memoryContext)
+        {
+            PageSourceProvider pageSourceProvider = getPageSourceProvider(split, table);
+            return pageSourceProvider.pageSourceProvider()
+                    .createPageSource(transaction, unwrap(pageSourceProvider.tableType(), session), split, table, tableCredentials, columns, dynamicFilter, memoryContext);
+        }
+
+        @Override
+        public TupleDomain<ColumnHandle> getUnenforcedPredicate(
+                ConnectorSession session,
+                ConnectorSplit split,
+                ConnectorTableHandle table,
+                TupleDomain<ColumnHandle> dynamicFilter)
+        {
+            PageSourceProvider pageSourceProvider = getPageSourceProvider(split, table);
+            return pageSourceProvider.pageSourceProvider()
+                    .getUnenforcedPredicate(unwrap(pageSourceProvider.tableType(), session), split, table, dynamicFilter);
+        }
+
+        @Override
+        public TupleDomain<ColumnHandle> prunePredicate(
+                ConnectorSession session,
+                ConnectorSplit split,
+                ConnectorTableHandle table,
+                TupleDomain<ColumnHandle> predicate)
+        {
+            PageSourceProvider pageSourceProvider = getPageSourceProvider(split, table);
+            return pageSourceProvider.pageSourceProvider()
+                    .prunePredicate(unwrap(pageSourceProvider.tableType(), session), split, table, predicate);
+        }
+
+        @Override
+        public long getMemoryUsage()
+        {
+            PageSourceProvider provider = delegate;
+            if (provider == null) {
+                // No page source was created, so no memory is used
+                return 0;
+            }
+            return provider.pageSourceProvider().getMemoryUsage();
+        }
+
+        private PageSourceProvider getPageSourceProvider(ConnectorSplit split, ConnectorTableHandle table)
+        {
+            PageSourceProvider result = delegate;
+            if (result == null) {
+                synchronized (this) {
+                    result = delegate;
+                    if (result == null) {
+                        result = forHandle(split, table);
+                        delegate = result;
+                    }
+                }
+            }
+            return result;
+        }
+    }
 }
