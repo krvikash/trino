@@ -47,7 +47,6 @@ public class TestIcebergCacheSubqueriesTest
         return IcebergQueryRunner.builder()
                 .setWorkerCount(1)
                 .setExtraProperties(EXTRA_PROPERTIES)
-                .addExtraProperty("node-scheduler.include-coordinator", "false")
                 .setInitialTables(REQUIRED_TABLES)
                 .build();
     }
