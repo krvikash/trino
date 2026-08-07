@@ -729,6 +729,7 @@
                                 <exclude>**/TestIcebergGpuTpcdsQueries.java</exclude>
                                 <exclude>**/TestDistributedIcebergGpuTpchQueries.java</exclude>
                                 <exclude>**/TestDistributedIcebergGpuTpcdsQueries.java</exclude>
+                                <exclude>**/TestGpuExecutionAssertions.java</exclude>
                             </excludes>
                         </configuration>
                     </plugin>
@@ -765,6 +766,7 @@
                                 <include>**/TestIcebergGpuTpcdsQueries.java</include>
                                 <include>**/TestDistributedIcebergGpuTpchQueries.java</include>
                                 <include>**/TestDistributedIcebergGpuTpcdsQueries.java</include>
+                                <include>**/TestGpuExecutionAssertions.java</include>
                             </includes>
                         </configuration>
                     </plugin>

@@ -16,12 +16,14 @@ package io.trino.sql.query;
 import com.google.common.base.Joiner;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import com.google.errorprone.annotations.CheckReturnValue;
 import io.trino.Session;
 import io.trino.cost.StatsAndCosts;
+import io.trino.execution.QueryInfo;
 import io.trino.execution.QueryStats;
 import io.trino.metadata.Metadata;
 import io.trino.operator.OperatorStats;
@@ -51,6 +53,7 @@ import io.trino.sql.planner.plan.PlanNodeId;
 import io.trino.sql.planner.plan.ProjectNode;
 import io.trino.sql.planner.plan.TableScanNode;
 import io.trino.sql.planner.plan.ValuesNode;
+import io.trino.sql.planner.planprinter.PlanNodeGpuStatus;
 import io.trino.testing.MaterializedResult;
 import io.trino.testing.MaterializedRow;
 import io.trino.testing.PlanTester;
@@ -85,23 +88,27 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Strings.nullToEmpty;
 import static com.google.common.base.Suppliers.memoize;
+import static com.google.common.base.Verify.verifyNotNull;
 import static com.google.common.collect.ImmutableList.toImmutableList;
-import static com.google.common.collect.ImmutableSet.toImmutableSet;
+import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static com.google.common.collect.Iterables.getOnlyElement;
-import static com.google.common.collect.Sets.intersection;
 import static io.trino.SystemSessionProperties.GPU_EXECUTION_ENABLED;
 import static io.trino.cost.StatsCalculator.noopStatsCalculator;
+import static io.trino.execution.StagesInfo.getAllStages;
 import static io.trino.metadata.OperatorNameUtil.mangleOperatorName;
 import static io.trino.sql.dialect.trino.operationmetadata.GroupIdOperationMetadata.GROUPING_SETS;
 import static io.trino.sql.ir.IrExpressions.mayFail;
 import static io.trino.sql.planner.assertions.PlanAssert.assertPlan;
+import static io.trino.sql.planner.planprinter.PlanNodeGpuStatusSummarizer.aggregateGpuStatuses;
 import static io.trino.sql.planner.planprinter.PlanPrinter.textLogicalPlan;
 import static io.trino.sql.query.QueryAssertions.QueryAssert.newQueryAssert;
 import static io.trino.testing.TestingHandles.TEST_CATALOG_NAME;
@@ -601,37 +608,68 @@ public class QueryAssertions
             return matches(withoutPushdown, query());
         }
 
+        /**
+         * Asserts that at least one plan node of the given type executed fully on the GPU
+         */
         @CanIgnoreReturnValue
         public QueryAssert executesWithGpu(Class<? extends PlanNode> planNodeType)
         {
-            QueryResultAndExecutionStats result = executeAndGetExecutionStats();
+            return assertGpuExecution(planNodeType, false);
+        }
+
+        /**
+         * Asserts that at least one plan node of the given type was planned for the GPU but had to fall back to CPU
+         */
+        @CanIgnoreReturnValue
+        public QueryAssert executesWithGpuCpuFallback(Class<? extends PlanNode> planNodeType)
+        {
+            return assertGpuExecution(planNodeType, true);
+        }
+
+        private QueryAssert assertGpuExecution(Class<? extends PlanNode> planNodeType, boolean expectCpuFallback)
+        {
+            QueryResultAndGpuExecutionStatus result = executeAndGetExecutionStats();
 
             // Validate results
             validateResultsWithGpuDisabled(result.result().result());
 
-            // Validate GPU usage
             PlanNode queryPlan = result.result().queryPlan().orElseThrow(() -> new AssertionError("No plan")).getRoot();
-            Set<PlanNodeId> matchingPlanNodeIds = PlanNodeSearcher.searchFrom(queryPlan)
+            Predicate<PlanNodeId> fullyOnGpu = id -> {
+                PlanNodeGpuStatus gpuStatus = result.gpuStatuses().get(id);
+                return gpuStatus != null && (gpuStatus.gpuTaskCount() > 0 || gpuStatus.gpuSplitCount() > 0) && (gpuStatus.cpuTaskCount() == 0 && gpuStatus.cpuSplitCount() == 0);
+            };
+            Predicate<PlanNodeId> gpuCpuFallback = id -> {
+                PlanNodeGpuStatus gpuStatus = result.gpuStatuses().get(id);
+                return gpuStatus != null && gpuStatus.gpuTaskCount() > 0 && gpuStatus.gpuSplitCount() == 0 && gpuStatus.cpuTaskCount() == 0 && gpuStatus.cpuSplitCount() > 0;
+            };
+            Predicate<PlanNodeId> partiallyOnGpu = id -> {
+                PlanNodeGpuStatus gpuStatus = result.gpuStatuses().get(id);
+                return gpuStatus != null && (gpuStatus.gpuTaskCount() > 0 || gpuStatus.gpuSplitCount() > 0) && (gpuStatus.cpuTaskCount() > 0 || gpuStatus.cpuSplitCount() > 0);
+            };
+            List<PlanNode> nodesOfExpectedType = PlanNodeSearcher.searchFrom(queryPlan)
                     .where(planNodeType::isInstance)
-                    .findAll()
-                    .stream()
+                    .findAll();
+            boolean anyOnGpu = nodesOfExpectedType.stream()
                     .map(PlanNode::getId)
-                    .collect(toImmutableSet());
-            checkState(!matchingPlanNodeIds.isEmpty(), "Plan node %s not found in the query plan", planNodeType);
-
-            Set<PlanNodeId> gpuPlanNodes = collectGpuPlanNodes(result.queryStats());
-            if (intersection(matchingPlanNodeIds, gpuPlanNodes).isEmpty()) {
-                List<String> gpuPlanNodeClasses = PlanNodeSearcher.searchFrom(queryPlan)
-                        .findAll()
-                        .stream()
-                        .filter(planNode -> gpuPlanNodes.contains(planNode.getId()))
+                    .anyMatch(expectCpuFallback ? gpuCpuFallback : fullyOnGpu);
+            if (!anyOnGpu) {
+                List<String> nodesFullyOnGpu = PlanNodeSearcher.searchFrom(queryPlan).findAll().stream()
+                        .filter(planNode -> fullyOnGpu.test(planNode.getId()))
                         .map(planNode -> planNode.getClass().getSimpleName())
+                        .distinct()
                         .sorted()
                         .collect(toImmutableList());
-                throw new AssertionError("Query plan has PlanNodes of %s: %s, but none of these was executing with GpuOperator. These did: %s".formatted(
+                List<String> nodesPartiallyOnGpu = PlanNodeSearcher.searchFrom(queryPlan).findAll().stream()
+                        .filter(planNode -> partiallyOnGpu.test(planNode.getId()))
+                        .map(planNode -> planNode.getClass().getSimpleName())
+                        .distinct()
+                        .sorted()
+                        .collect(toImmutableList());
+                throw new AssertionError("Query plan has %s PlanNodes of %s, but none of these was fully executed on GPU. These were %s, and these were partially %s".formatted(
+                        nodesOfExpectedType.size(),
                         planNodeType,
-                        matchingPlanNodeIds,
-                        gpuPlanNodeClasses));
+                        nodesFullyOnGpu,
+                        nodesPartiallyOnGpu));
             }
 
             return this;
@@ -640,19 +678,25 @@ public class QueryAssertions
         @CanIgnoreReturnValue
         public QueryAssert executesWithoutGpu()
         {
-            QueryResultAndExecutionStats result = executeAndGetExecutionStats();
+            QueryResultAndGpuExecutionStatus result = executeAndGetExecutionStats();
 
             // Validate no GPU usage
             PlanNode queryPlan = result.result().queryPlan().orElseThrow(() -> new AssertionError("No plan")).getRoot();
-            Set<PlanNodeId> gpuPlanNodes = collectGpuPlanNodes(result.queryStats());
-            if (!gpuPlanNodes.isEmpty()) {
-                List<String> withGpu = PlanNodeSearcher.searchFrom(queryPlan)
-                        .findAll()
-                        .stream()
-                        .filter(planNode -> gpuPlanNodes.contains(planNode.getId()))
-                        .map(planNode -> "%s: %s".formatted(planNode.getId(), planNode.getClass().getSimpleName()))
-                        .sorted()
-                        .collect(toImmutableList());
+            Map<PlanNodeId, String> planNodeNames = PlanNodeSearcher.searchFrom(queryPlan).findAll().stream()
+                    .collect(toImmutableMap(PlanNode::getId, planNode -> planNode.getClass().getSimpleName()));
+            List<String> withGpu = result.gpuStatuses().entrySet().stream()
+                    .flatMap(entry -> {
+                        PlanNodeId id = entry.getKey();
+                        PlanNodeGpuStatus gpuStatus = entry.getValue();
+                        String className = verifyNotNull(planNodeNames.get(id), "class name is null");
+                        if (gpuStatus.gpuTaskCount() == 0 && gpuStatus.gpuSplitCount() == 0) {
+                            return Stream.empty();
+                        }
+                        return Stream.of("%s: %s".formatted(id, className));
+                    })
+                    .sorted()
+                    .collect(toImmutableList());
+            if (!withGpu.isEmpty()) {
                 throw new AssertionError("Query executed with GPU: " + withGpu);
             }
 
@@ -662,14 +706,14 @@ public class QueryAssertions
             return this;
         }
 
-        private QueryResultAndExecutionStats executeAndGetExecutionStats()
+        private QueryResultAndGpuExecutionStatus executeAndGetExecutionStats()
         {
             MaterializedResultWithPlan result = runner.executeWithPlan(session, query());
-            QueryStats queryStats = runner.getCoordinator()
+            QueryInfo queryInfo = runner.getCoordinator()
                     .getQueryManager()
-                    .getFullQueryInfo(result.queryId())
-                    .getQueryStats();
-            return new QueryResultAndExecutionStats(result, queryStats);
+                    .getFullQueryInfo(result.queryId());
+            Map<PlanNodeId, PlanNodeGpuStatus> gpuStatuses = aggregateGpuStatuses(getAllStages(queryInfo.getStages()));
+            return new QueryResultAndGpuExecutionStatus(result, gpuStatuses);
         }
 
         public static Set<PlanNodeId> collectGpuPlanNodes(QueryStats stats)
@@ -710,12 +754,12 @@ public class QueryAssertions
         }
     }
 
-    private record QueryResultAndExecutionStats(MaterializedResultWithPlan result, QueryStats queryStats)
+    private record QueryResultAndGpuExecutionStatus(MaterializedResultWithPlan result, Map<PlanNodeId, PlanNodeGpuStatus> gpuStatuses)
     {
-        QueryResultAndExecutionStats
+        QueryResultAndGpuExecutionStatus
         {
             requireNonNull(result, "result is null");
-            requireNonNull(queryStats, "queryStats is null");
+            gpuStatuses = ImmutableMap.copyOf(requireNonNull(gpuStatuses, "gpuStatuses is null"));
         }
     }
 

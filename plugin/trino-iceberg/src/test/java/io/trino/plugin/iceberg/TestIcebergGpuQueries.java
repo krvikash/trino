@@ -30,6 +30,7 @@ import io.trino.spi.type.LongTimestamp;
 import io.trino.spi.type.TimestampType;
 import io.trino.spi.type.Type;
 import io.trino.sql.planner.plan.TableScanNode;
+import io.trino.sql.query.QueryAssertions;
 import io.trino.testing.BaseGpuQueriesTest;
 import io.trino.testing.QueryRunner;
 import io.trino.testing.sql.TestTable;
@@ -146,8 +147,14 @@ public class TestIcebergGpuQueries
                     getQueryRunner()::execute,
                     "nation_" + format.name().toLowerCase(ENGLISH),
                     "WITH (format = '%s') AS TABLE nation".formatted(format.name()))) {
-                assertThat(query("TABLE " + table.getName()))
-                        .executesWithGpu(TableScanNode.class);
+                QueryAssertions.QueryAssert queryAssert = assertThat(query("TABLE " + table.getName()));
+                if (format == IcebergFileFormat.PARQUET) {
+                    queryAssert.executesWithGpu(TableScanNode.class);
+                }
+                else {
+                    // Only Parquet is read on the GPU; other formats fall back to the CPU reader per split
+                    queryAssert.executesWithGpuCpuFallback(TableScanNode.class);
+                }
             }
         }
     }
@@ -158,7 +165,8 @@ public class TestIcebergGpuQueries
         assertUpdate("CREATE TABLE test_gpu_eq_delete AS SELECT nationkey, name FROM nation", 25);
         assertUpdate("DELETE FROM test_gpu_eq_delete WHERE nationkey = 1", 1);
         assertThat(query("SELECT nationkey FROM test_gpu_eq_delete"))
-                .executesWithGpu(TableScanNode.class);
+                // Splits with deletes fall back to the CPU reader
+                .executesWithGpuCpuFallback(TableScanNode.class);
         assertExplainAnalyze(
                 "EXPLAIN ANALYZE SELECT name FROM test_gpu_eq_delete",
                 "TableScan",
@@ -404,10 +412,9 @@ public class TestIcebergGpuQueries
                 .commit();
 
         assertThat(query("SELECT ts FROM " + tableName))
-                // In fact, the table scan is executed on the CPU.
-                // The plan indicates that the table scan was executed on the GPU because
-                // fallback cannot occur during local planning, but only after reading the footer.
-                .executesWithGpu(TableScanNode.class)
+                // INT96 is not supported on the GPU; the scan is planned for the GPU but every split
+                // falls back to the CPU reader after the footer is read.
+                .executesWithGpuCpuFallback(TableScanNode.class)
                 .matches("VALUES " +
                         "TIMESTAMP '1970-01-01 00:00:00.000000', " +
                         "TIMESTAMP '2024-06-15 12:34:56.123456', " +

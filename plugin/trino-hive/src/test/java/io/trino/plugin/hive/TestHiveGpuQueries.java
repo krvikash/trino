@@ -26,6 +26,7 @@ import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.security.ConnectorIdentity;
 import io.trino.sql.planner.plan.ProjectNode;
 import io.trino.sql.planner.plan.TableScanNode;
+import io.trino.sql.query.QueryAssertions;
 import io.trino.testing.QueryRunner;
 import io.trino.testing.sql.TestTable;
 import org.apache.parquet.format.CompressionCodec;
@@ -114,7 +115,7 @@ public class TestHiveGpuQueries
     }
 
     @Test
-    public void testUnsupportedFileFormat()
+    public void testAllFileFormats()
     {
         for (HiveStorageFormat hiveStorageFormat : HiveStorageFormat.values()) {
             if (hiveStorageFormat == HiveStorageFormat.CSV) {
@@ -142,7 +143,14 @@ public class TestHiveGpuQueries
                     getQueryRunner()::execute,
                     "nation_" + hiveStorageFormat.name().toLowerCase(ENGLISH),
                     "WITH (format = '%s') AS TABLE nation".formatted(hiveStorageFormat.name()))) {
-                assertThat(query("TABLE " + table.getName())).executesWithGpu(TableScanNode.class);
+                QueryAssertions.QueryAssert queryAssert = assertThat(query("TABLE " + table.getName()));
+                if (hiveStorageFormat == HiveStorageFormat.PARQUET) {
+                    queryAssert.executesWithGpu(TableScanNode.class);
+                }
+                else {
+                    // Only Parquet is read on the GPU; other formats fall back to the CPU reader per split
+                    queryAssert.executesWithGpuCpuFallback(TableScanNode.class);
+                }
             }
         }
     }
