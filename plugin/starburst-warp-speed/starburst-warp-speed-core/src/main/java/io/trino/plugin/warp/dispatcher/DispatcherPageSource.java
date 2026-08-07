@@ -391,7 +391,7 @@ public class DispatcherPageSource
                     positions[positionCount] = currentProxiedPagePosition + toIntExact(row - pageStartInclusive);
                     positionCount++;
                 }
-                currentProxiedPage.selectPositions(positions, 0, positionCount);
+                maskCurrentProxiedPage(positions, positionCount);
                 // The head warp range overlaps this page, so at least one position is already resolved
                 Page resolvedProxiedPage = currentProxiedPage.getPage().getRegion(0, resolvedRowCount);
                 recordProxiedPageLoad(currentProxiedPage);
@@ -402,7 +402,7 @@ public class DispatcherPageSource
                 seekWarpPageSource(warpRowsToSkip + resolvedRowCount);
                 return mergedPage;
             }
-            currentProxiedPage.selectPositions(positions, 0, positionCount);
+            maskCurrentProxiedPage(positions, positionCount);
             Page overlapWarpPage = currentWarpSourcePage.getPage().getRegion(warpPagePosition, positionCount);
             SourcePage mergedPage = buildLazyMergedPage(currentProxiedPage, overlapWarpPage, positionCount);
             seekWarpPageSource(warpRowsToSkip + positionCount);
@@ -414,6 +414,18 @@ public class DispatcherPageSource
         finally {
             stats.addproxied_loaded_pages_time(System.nanoTime() - start);
         }
+    }
+
+    /**
+     * The positions are ascending and start at {@code currentProxiedPagePosition}, so a count equal to the
+     * page size means every position is kept and masking would copy each block onto itself.
+     */
+    private void maskCurrentProxiedPage(int[] positions, int positionCount)
+    {
+        if (positionCount == currentProxiedPage.getPositionCount()) {
+            return;
+        }
+        currentProxiedPage.selectPositions(positions, 0, positionCount);
     }
 
     /**

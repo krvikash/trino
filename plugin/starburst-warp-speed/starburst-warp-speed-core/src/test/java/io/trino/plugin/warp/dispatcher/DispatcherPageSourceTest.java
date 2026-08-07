@@ -768,6 +768,35 @@ public class DispatcherPageSourceTest
         assertThat(stats.getproxied_loaded_pages()).isEqualTo(2);
     }
 
+    @Test
+    public void testPartialResolveKeepsPageFullySelected()
+    {
+        // the unresolved tail keeps the page fully selected on the first pass, so the second mask addresses the original page frame
+        prepareMock(
+                Lists.newArrayList(
+                        new TestPage(buildPageLong(new long[] {100, 101}), createRowRanges(0, 2)),
+                        new TestPage(buildPageLong(new long[] {102, 103}), createRowRanges(2, 4))),
+                Lists.newArrayList(buildLongPage(10, 11, 12, 13)));
+        DispatcherPageSource dispatcherPageSource = getDispatcherPageSource(2, proxiedCollectTypeByBlockIndex);
+
+        actAndAssert(new long[] {100, 101, 102, 103}, new long[] {10, 11, 12, 13}, dispatcherPageSource);
+    }
+
+    @Test
+    public void testFullyMatchedProxiedPageKeepsBlocks()
+    {
+        Page proxiedPage = buildLongPage(11, 12, 13, 14);
+        prepareMock(
+                Lists.newArrayList(new TestPage(buildPageLong(new long[] {7, 8, 9, 10}), createRowRanges(0, 4))),
+                Lists.newArrayList(proxiedPage));
+        DispatcherPageSource dispatcherPageSource = getDispatcherPageSource(2, proxiedCollectTypeByBlockIndex);
+
+        SourcePage resultPage = dispatcherPageSource.getNextSourcePage();
+
+        assertThat(resultPage.getPositionCount()).isEqualTo(4);
+        assertThat(resultPage.getBlock(1)).isSameAs(proxiedPage.getBlock(0));
+    }
+
     private PrefilledQueryCollectData createPrefilledQueryCollectData(long singleValue)
     {
         return PrefilledQueryCollectData.builder()
