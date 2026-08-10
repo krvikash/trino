@@ -18,6 +18,7 @@ import ai.rapids.cudf.GatherMap;
 import ai.rapids.cudf.HashJoin;
 import ai.rapids.cudf.Table;
 import io.trino.spi.gpu.borrow.Own;
+import org.junit.jupiter.api.Test;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
@@ -90,13 +91,13 @@ public class BenchmarkGpuJoinGatherMaps
     public static class JoinData
     {
         @Param({"1000", "10000", "100000", "1000000"})
-        private int probeRows;
+        private int probeRows = 1000;
 
         @Param({"1000", "100000"})
-        private int buildRows;
+        private int buildRows = 1000;
 
         @Param({"0.1", "0.5", "1.0"})
-        private double matchRatio;
+        private double matchRatio = 0.5;
 
         private @Own ColumnVector probeColumn;
         private @Own ColumnVector buildColumn;
@@ -137,6 +138,23 @@ public class BenchmarkGpuJoinGatherMaps
             probeKeys.close();
             buildColumn.close();
             probeColumn.close();
+        }
+    }
+
+    @Test
+    public void ensureBenchmarkValid()
+    {
+        JoinData data = new JoinData();
+        data.setup();
+        try {
+            BenchmarkGpuJoinGatherMaps benchmark = new BenchmarkGpuJoinGatherMaps();
+            benchmark.innerJoinWithRowCount(data);
+            benchmark.innerJoinWithoutRowCount(data);
+            benchmark.leftJoinWithRowCount(data);
+            benchmark.leftJoinWithoutRowCount(data);
+        }
+        finally {
+            data.tearDown();
         }
     }
 
