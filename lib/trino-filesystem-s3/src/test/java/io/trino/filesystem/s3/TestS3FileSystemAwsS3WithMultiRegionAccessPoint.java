@@ -24,6 +24,7 @@ import software.amazon.awssdk.services.s3.S3Configuration;
 import java.time.Duration;
 
 import static io.trino.testing.SystemEnvironmentUtils.requireEnv;
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static software.amazon.awssdk.regions.Region.AWS_GLOBAL;
 
@@ -64,6 +65,8 @@ public class TestS3FileSystemAwsS3WithMultiRegionAccessPoint
                 .httpClient(AwsCrtHttpClient.builder()
                         .maxConcurrency(100)
                         .connectionAcquisitionTimeout(Duration.ofSeconds(30))
+                        .connectionTimeout(Duration.ofSeconds(10))
+                        .connectionMaxIdleTime(Duration.ofSeconds(60))
                         .build())
                 .serviceConfiguration(S3Configuration.builder()
                         .useArnRegionEnabled(true)
@@ -88,7 +91,9 @@ public class TestS3FileSystemAwsS3WithMultiRegionAccessPoint
                         .setRegion(AWS_GLOBAL.toString())
                         .setMultiRegionAccessPointsEnabled(true)
                         .setPathStyleAccess(false)
-                        .setStreamingPartSize(streamingPartSize),
+                        .setStreamingPartSize(streamingPartSize)
+                        .setSocketConnectTimeout(new io.airlift.units.Duration(10, SECONDS))
+                        .setConnectionMaxIdleTime(new io.airlift.units.Duration(60, SECONDS)),
                 new S3FileSystemStats());
     }
 }
