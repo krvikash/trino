@@ -16,6 +16,7 @@ package io.trino.operator.gpu;
 import ai.rapids.cudf.ColumnVector;
 import com.google.common.collect.AbstractIterator;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableMultiset;
 import com.google.common.collect.Streams;
 import io.airlift.slice.Slices;
@@ -28,9 +29,11 @@ import io.trino.operator.gpu.GpuOperation.Blocked;
 import io.trino.operator.gpu.GpuOperation.Data;
 import io.trino.operator.gpu.GpuOperation.Finished;
 import io.trino.operator.gpu.GpuOperation.Yielded;
+import io.trino.operator.gpu.expression.CompiledExpression;
 import io.trino.operator.gpu.memory.AllocatedMemory;
 import io.trino.operator.project.PageProcessor;
 import io.trino.spi.Page;
+import io.trino.spi.TrinoException;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.block.VariableWidthBlockBuilder;
@@ -50,6 +53,7 @@ import io.trino.spi.type.Type;
 import io.trino.spi.type.VarcharType;
 import io.trino.sql.gen.TestColumnarFilters.NullsProvider;
 import io.trino.sql.ir.Expression;
+import io.trino.sql.ir.Reference;
 import io.trino.sql.planner.InternalDynamicFilter;
 import io.trino.sql.planner.Symbol;
 import io.trino.testing.MaterializedResult;
@@ -77,6 +81,7 @@ import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static com.google.common.collect.Streams.stream;
 import static io.airlift.testing.Closeables.closeAllSuppress;
 import static io.trino.memory.context.AggregatedMemoryContext.newSimpleAggregatedMemoryContext;
+import static io.trino.operator.gpu.expression.GpuExpressionCompiler.compileExpression;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.spi.type.CharType.createCharType;
@@ -93,6 +98,7 @@ import static io.trino.spi.type.TinyintType.TINYINT;
 import static io.trino.spi.type.VarbinaryType.VARBINARY;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.spi.type.VarcharType.createVarcharType;
+import static io.trino.testing.assertions.TrinoExceptionAssert.assertTrinoExceptionThrownBy;
 import static java.lang.Math.clamp;
 import static java.lang.Math.min;
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -865,6 +871,90 @@ public final class GpuTestUtils
     {
         return IntStream.range(0, page.getPositionCount())
                 .mapToObj(i -> new PagePosition(page, i));
+    }
+
+    public static void assertGpuMatchesCpu(List<Page> inputPages, List<Type> inputTypes, Expression expression, Set<Integer> expectedInputChannels)
+    {
+        assertGpuMatchesCpu(inputPages, inputTypes, expression, expectedInputChannels, false);
+    }
+
+    public static void assertGpuMatchesCpu(List<Page> inputPages, List<Type> inputTypes, Expression expression, Set<Integer> expectedInputChannels, boolean allowMultipleInputsForExceptionTesting)
+    {
+        Map<Symbol, Integer> layout = layoutFor(inputTypes);
+        PageProcessor pageProcessor = compileCpuExpression(expression, layout);
+        CompiledExpression gpuExpression = compileExpression(expression, layout)
+                .orElseThrow(() -> new AssertionError("GPU expression compile failed for: " + expression));
+
+        assertThat(gpuExpression.inputChannels().getInputChannels())
+                .containsExactlyInAnyOrderElementsOf(expectedInputChannels);
+
+        assertGpuMatchesCpu(inputPages, inputTypes, expression, pageProcessor, gpuExpression, allowMultipleInputsForExceptionTesting);
+    }
+
+    /**
+     * Runs {@code expression} on both CPU and GPU and asserts identical behavior: equal output, or
+     * both throwing the same {@link TrinoException} error code. Compiles for both engines, so a GPU
+     * compile failure fails the test. Exception cases should use single-row inputs.
+     */
+    public static void assertGpuMatchesCpu(List<Page> inputPages, List<Type> inputTypes, Expression expression)
+    {
+        Map<Symbol, Integer> layout = layoutFor(inputTypes);
+        PageProcessor cpuProcessor = compileCpuExpression(expression, layout);
+        CompiledExpression gpuExpression = compileExpression(expression, layout)
+                .orElseThrow(() -> new AssertionError("GPU expression compile failed for: " + expression));
+        assertGpuMatchesCpu(inputPages, inputTypes, expression, cpuProcessor, gpuExpression, false);
+    }
+
+    public static void assertGpuMatchesCpu(List<Page> inputPages, List<Type> inputTypes, Expression expression, PageProcessor cpuProcessor, CompiledExpression gpuExpression, boolean allowMultipleInputsForExceptionTesting)
+    {
+        List<Page> cpuResults;
+        try {
+            cpuResults = executeWithCpu(cpuProcessor, inputPages);
+        }
+        catch (TrinoException cpuExecutionException) {
+            // The boolean flag is a safety mechanism not to nullify test coverage over large input data set when one of the rows triggers execution exception
+            if (!allowMultipleInputsForExceptionTesting) {
+                assertThat(inputPages.stream().mapToLong(Page::getPositionCount).sum())
+                        .describedAs("When testing exception flows, it is recommended to test with single row inputs. Use the flag to suppress.")
+                        .isEqualTo(1);
+            }
+            try {
+                assertTrinoExceptionThrownBy(() -> executeWithGpu(inputPages, inputTypes, expression, gpuExpression))
+                        .hasErrorCode(cpuExecutionException::getErrorCode);
+            }
+            catch (AssertionError failure) {
+                failure.addSuppressed(new Exception("expression: " + expression));
+                failure.addSuppressed(new Exception("inputTypes: " + inputTypes));
+                failure.addSuppressed(new Exception("CPU execution exception", cpuExecutionException));
+                throw failure;
+            }
+            return;
+        }
+        List<Page> gpuResults = executeWithGpu(inputPages, inputTypes, expression, gpuExpression);
+        assertSameDataInOrder(gpuResults, cpuResults, List.of(expression.type()));
+    }
+
+    public static List<Page> executeWithGpu(List<Page> inputPages, List<Type> inputTypes, Expression expression, CompiledExpression gpuExpression)
+    {
+        return executeGpuOperation(
+                inputPages,
+                inputTypes,
+                List.of(expression.type()),
+                (context, copyToDevice) -> new GpuProject(context, copyToDevice, List.of(new GpuProject.Projection.Gpu(gpuExpression))));
+    }
+
+    public static Reference field(int channel, Type type)
+    {
+        return new Reference(type, "ref" + channel);
+    }
+
+    public static Map<Symbol, Integer> layoutFor(List<Type> inputTypes)
+    {
+        ImmutableMap.Builder<Symbol, Integer> builder = ImmutableMap.builder();
+        for (int i = 0; i < inputTypes.size(); i++) {
+            builder.put(new Symbol(inputTypes.get(i), "ref" + i), i);
+        }
+        return builder.buildOrThrow();
     }
 
     public record PagePosition(Page page, int position) {}

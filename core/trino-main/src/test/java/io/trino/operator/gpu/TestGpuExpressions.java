@@ -16,7 +16,6 @@ package io.trino.operator.gpu;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Streams;
 import io.airlift.slice.Slices;
@@ -83,12 +82,15 @@ import static com.google.common.base.Verify.verify;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.trino.operator.gpu.GpuTestUtils.FUNCTION_RESOLUTION;
+import static io.trino.operator.gpu.GpuTestUtils.assertGpuMatchesCpu;
 import static io.trino.operator.gpu.GpuTestUtils.assertSameDataInOrder;
 import static io.trino.operator.gpu.GpuTestUtils.compileCpuExpression;
 import static io.trino.operator.gpu.GpuTestUtils.createBigintBlock;
 import static io.trino.operator.gpu.GpuTestUtils.createBlock;
-import static io.trino.operator.gpu.GpuTestUtils.executeGpuOperation;
 import static io.trino.operator.gpu.GpuTestUtils.executeWithCpu;
+import static io.trino.operator.gpu.GpuTestUtils.executeWithGpu;
+import static io.trino.operator.gpu.GpuTestUtils.field;
+import static io.trino.operator.gpu.GpuTestUtils.layoutFor;
 import static io.trino.operator.gpu.GpuTestUtils.maybeSetGpuMemoryPoolForTests;
 import static io.trino.operator.gpu.expression.GpuExpressionCompiler.compileExpression;
 import static io.trino.spi.StandardErrorCode.INVALID_CAST_ARGUMENT;
@@ -1520,26 +1522,8 @@ public class TestGpuExpressions
         assertSameDataInOrder(gpuResults, cpuResults, List.of(constantExpression.type()));
     }
 
-    private void assertGpuMatchesCpu(List<Page> inputPages, List<Type> inputTypes, Expression expression, Set<Integer> expectedInputChannels)
-    {
-        assertGpuMatchesCpu(inputPages, inputTypes, expression, expectedInputChannels, false);
-    }
-
-    private void assertGpuMatchesCpu(List<Page> inputPages, List<Type> inputTypes, Expression expression, Set<Integer> expectedInputChannels, boolean allowMultipleInputsForExceptionTesting)
-    {
-        Map<Symbol, Integer> layout = layoutFor(inputTypes);
-        PageProcessor pageProcessor = compileCpuExpression(expression, layout);
-        CompiledExpression gpuExpression = compileExpression(expression, layout)
-                .orElseThrow(() -> new AssertionError("GPU expression compile failed for: " + expression));
-
-        assertThat(gpuExpression.inputChannels().getInputChannels())
-                .containsExactlyInAnyOrderElementsOf(expectedInputChannels);
-
-        assertGpuMatchesCpu(inputPages, inputTypes, expression, pageProcessor, gpuExpression, allowMultipleInputsForExceptionTesting);
-    }
-
     /**
-     * Like {@link #assertGpuMatchesCpu(List, List, Expression, PageProcessor, CompiledExpression, boolean)},
+     * Like {@link GpuTestUtils#assertGpuMatchesCpu(List, List, Expression, PageProcessor, CompiledExpression, boolean)},
      * but accepts {@code INVALID_CAST_ARGUMENT} from GPU when CPU returns {@code NUMERIC_VALUE_OUT_OF_RANGE}.
      * Used in the cast smoke loop.
      */
@@ -1572,44 +1556,6 @@ public class TestGpuExpressions
         }
         List<Page> gpuResults = executeWithGpu(inputPages, inputTypes, expression, gpuExpression);
         assertSameDataInOrder(gpuResults, cpuResults, List.of(expression.type()));
-    }
-
-    private void assertGpuMatchesCpu(List<Page> inputPages, List<Type> inputTypes, Expression expression, PageProcessor cpuProcessor, CompiledExpression gpuExpression, boolean allowMultipleInputsForExceptionTesting)
-    {
-        List<Page> cpuResults;
-        try {
-            cpuResults = executeWithCpu(cpuProcessor, inputPages);
-        }
-        catch (TrinoException cpuExecutionException) {
-            // The boolean flag is a safety mechanism not to nullify test coverage over large input data set when one of the rows triggers execution exception
-            if (!allowMultipleInputsForExceptionTesting) {
-                assertThat(inputPages.stream().mapToLong(Page::getPositionCount).sum())
-                        .describedAs("When testing exception flows, it is recommended to test with single row inputs. Use the flag to suppress.")
-                        .isEqualTo(1);
-            }
-            try {
-                assertTrinoExceptionThrownBy(() -> executeWithGpu(inputPages, inputTypes, expression, gpuExpression))
-                        .hasErrorCode(cpuExecutionException::getErrorCode);
-            }
-            catch (AssertionError failure) {
-                failure.addSuppressed(new Exception("expression: " + expression));
-                failure.addSuppressed(new Exception("inputTypes: " + inputTypes));
-                failure.addSuppressed(new Exception("CPU execution exception", cpuExecutionException));
-                throw failure;
-            }
-            return;
-        }
-        List<Page> gpuResults = executeWithGpu(inputPages, inputTypes, expression, gpuExpression);
-        assertSameDataInOrder(gpuResults, cpuResults, List.of(expression.type()));
-    }
-
-    private List<Page> executeWithGpu(List<Page> inputPages, List<Type> inputTypes, Expression expression, CompiledExpression gpuExpression)
-    {
-        return executeGpuOperation(
-                inputPages,
-                inputTypes,
-                List.of(expression.type()),
-                (context, copyToDevice) -> new GpuProject(context, copyToDevice, List.of(new GpuProject.Projection.Gpu(gpuExpression))));
     }
 
     private Expression createLikeExpression(int channel, String pattern, Optional<Character> escape)
@@ -1667,11 +1613,6 @@ public class TestGpuExpressions
                 .boxed();
     }
 
-    private static Reference field(int channel, Type type)
-    {
-        return new Reference(type, "ref" + channel);
-    }
-
     private static Block booleanBlock(Boolean[] values)
     {
         BlockBuilder builder = BOOLEAN.createBlockBuilder(null, values.length);
@@ -1684,15 +1625,6 @@ public class TestGpuExpressions
             }
         }
         return builder.build();
-    }
-
-    private static Map<Symbol, Integer> layoutFor(List<Type> inputTypes)
-    {
-        ImmutableMap.Builder<Symbol, Integer> builder = ImmutableMap.builder();
-        for (int i = 0; i < inputTypes.size(); i++) {
-            builder.put(new Symbol(inputTypes.get(i), "ref" + i), i);
-        }
-        return builder.buildOrThrow();
     }
 
     private static Expression buildUnaryOperatorExpression(OperatorType operator, ResolvedFunction function, Expression argument)
