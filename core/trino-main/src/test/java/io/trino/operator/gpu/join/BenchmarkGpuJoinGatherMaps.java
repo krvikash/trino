@@ -137,10 +137,6 @@ public class BenchmarkGpuJoinGatherMaps
             throws Exception
     {
         benchmark(BenchmarkGpuJoinGatherMaps.class)
-                .withOptions(options -> options
-                        .param("probeRows", "1000000")
-                        .param("buildRows", "100000")
-                        .param("matchRatio", "0.5"))
                 .run();
     }
 }
