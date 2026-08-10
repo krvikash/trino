@@ -21,6 +21,7 @@ import io.airlift.json.JsonCodec;
 import io.starburst.ai.model.ModelConnectionSpecs;
 import io.trino.node.InternalCoordinatorLocator;
 import io.trino.server.InternalHttpClient;
+import io.trino.spi.classloader.ThreadContextClassLoader;
 import io.trino.spi.connector.ai.ModelConnectionSpecsLoader;
 
 import java.net.URI;
@@ -55,8 +56,13 @@ public class RemoteModelConnectionSpecsLoader
                 .setUri(coordinatorUri().resolve(BASE_PATH))
                 .addHeader(CONTENT_TYPE, JSON_UTF_8.toString())
                 .build();
-        FullJsonResponseHandler.JsonResponse<ModelConnectionSpecs> response = httpClient.execute(request, createFullJsonResponseHandler(CONNECTION_SPECS_CODEC));
-        return response.getValue();
+        // This runs under the AI connector's plugin class loader, both during connector creation and on the
+        // connector's refresh thread. Jetty looks up its ALPN processors with ServiceLoader, which resolves
+        // against the thread context class loader, so an HTTPS/2 request would fail with "No Client ALPNProcessors!".
+        try (ThreadContextClassLoader _ = new ThreadContextClassLoader(RemoteModelConnectionSpecsLoader.class.getClassLoader())) {
+            FullJsonResponseHandler.JsonResponse<ModelConnectionSpecs> response = httpClient.execute(request, createFullJsonResponseHandler(CONNECTION_SPECS_CODEC));
+            return response.getValue();
+        }
     }
 
     private URI coordinatorUri()
