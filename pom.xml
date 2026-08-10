@@ -388,7 +388,7 @@
             <dependency>
                 <groupId>ai.rapids</groupId>
                 <artifactId>cudf</artifactId>
-                <version>26.06.0</version>
+                <version>26.08.1</version>
                 <classifier>cuda13</classifier>
             </dependency>
 

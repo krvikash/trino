@@ -215,6 +215,7 @@ public final class GpuLookupJoin
 
         try (Table probeKeyTable = toTable(probePage, probeKeyChannels)) {
             @Own GatherMap[] maps;
+            MemoryAmount reservationBeforeJoin = allocation.amount();
             if (!filteredJoin) {
                 HashJoinBridge bridge = (HashJoinBridge) joinBridge;
                 long joinOutputRowCount = switch (joinType) {
@@ -226,7 +227,7 @@ public final class GpuLookupJoin
                 }
                 // TODO support joins that produce more than 2B rows
                 checkState(joinOutputRowCount < Integer.MAX_VALUE, "Join output exceeds Integer.MAX_VALUE rows: %s", joinOutputRowCount);
-                MemoryAmount estimatedMemory = estimateNonFilteredJoinMemoryUsage(probePage, joinBridge, joinOutputRowCount);
+                MemoryAmount estimatedMemory = estimateJoinOutputMemoryUsage(probePage, joinBridge, joinOutputRowCount);
                 allocation.update(allocation.amount().add(estimatedMemory));
                 maps = switch (joinType) {
                     case INNER -> probeKeyTable.innerJoinGatherMaps(bridge.hashJoin(), joinOutputRowCount);
@@ -235,12 +236,22 @@ public final class GpuLookupJoin
             }
             else {
                 FilteredHashJoinBridge bridge = (FilteredHashJoinBridge) joinBridge;
-                MemoryAmount estimatedMemory = estimateFilteredJoinMemoryUsage(probePage, bridge);
-                allocation.update(allocation.amount().add(estimatedMemory));
+                // cuDF materializes every equality match before applying the filter, so the peak memory
+                // of the mixed join scales with the equality match count rather than with row counts.
+                long equalityMatchCount = switch (joinType) {
+                    case INNER -> probeKeyTable.innerJoinRowCount(bridge.hashJoin());
+                    case LEFT -> probeKeyTable.leftJoinRowCount(bridge.hashJoin());
+                };
+                if (equalityMatchCount == 0) {
+                    // No equality match can survive the filter, so there is nothing to join
+                    return Optional.empty();
+                }
                 // The compiled AST references columns by their source-layout channel index, so
                 // hand the kernel the full probe page (wrapped as a cuDF Table view) and the
                 // full build source table; the kernel only reads columns the AST refers to.
                 try (Table probeSourceTable = toTable(probePage)) {
+                    MemoryAmount estimatedMemory = estimateFilteredJoinMemoryUsage(probeSourceTable, bridge, equalityMatchCount);
+                    allocation.update(allocation.amount().add(estimatedMemory));
                     maps = switch (joinType) {
                         case INNER -> Table.mixedInnerJoinGatherMaps(probeKeyTable, bridge.buildKeysTable(), probeSourceTable, bridge.buildSourceTable(), bridge.compiledFilter(), NullEquality.UNEQUAL);
                         case LEFT -> Table.mixedLeftJoinGatherMaps(probeKeyTable, bridge.buildKeysTable(), probeSourceTable, bridge.buildSourceTable(), bridge.compiledFilter(), NullEquality.UNEQUAL);
@@ -257,6 +268,13 @@ public final class GpuLookupJoin
                 int rows = toIntExact(outputRowCount);
                 if (rows == 0) {
                     return Optional.empty();
+                }
+                if (filteredJoin) {
+                    // A filtered join's output size is only known once the join has run, so unlike the
+                    // non-filtered path it could not be reserved upfront. The mixed join's temporaries are
+                    // gone by now, so replace their reservation with one for the gather maps and the
+                    // output page about to be built from them.
+                    allocation.update(reservationBeforeJoin.add(estimateJoinOutputMemoryUsage(probePage, joinBridge, outputRowCount)));
                 }
                 // cuDF Table rejects an empty column array; skip creating the probe
                 // output table when there are no probe output columns (e.g. COUNT(*)).
@@ -275,7 +293,8 @@ public final class GpuLookupJoin
         }
     }
 
-    private MemoryAmount estimateNonFilteredJoinMemoryUsage(@Borrow GpuPage probePage, GpuJoinBridge joinBridge, long outputRows)
+    /// Estimates the gather maps and the gathered output page a join of `outputRows` rows produces.
+    private MemoryAmount estimateJoinOutputMemoryUsage(@Borrow GpuPage probePage, GpuJoinBridge joinBridge, long outputRows)
     {
         long estimatedGatherMapBytes = 2L * outputRows * Integer.BYTES;
         long estimatedOutputPageBytes = 0;
@@ -292,15 +311,14 @@ public final class GpuLookupJoin
         return MemoryAmount.gpuDevice(estimatedGatherMapBytes + estimatedOutputPageBytes);
     }
 
-    private MemoryAmount estimateFilteredJoinMemoryUsage(@Borrow GpuPage probePage, FilteredHashJoinBridge bridge)
+    /// Estimates what the mixed join itself consumes. The output gather maps are not included; their
+    /// size is only known once the join has run and is reserved separately.
+    // TODO: https://github.com/NVIDIA/cudf/issues/22748 might let the output size be known upfront.
+    private MemoryAmount estimateFilteredJoinMemoryUsage(@Borrow Table probeSourceTable, FilteredHashJoinBridge bridge, long equalityMatchCount)
     {
-        // For filtered joins, we don't have a good way to determine the output row count upfront,
-        // so the estimate below doesn't include gather maps or GPU page output sizes.
-        // TODO: https://github.com/NVIDIA/cudf/issues/22748 might address this.
-        long buildRows = bridge.buildKeysTable().getRowCount();
         long bytes = switch (joinType) {
-            case INNER -> getMixedInnerJoinGpuDeviceMemoryUsage(buildRows, probePage.positionCount());
-            case LEFT -> getMixedLeftJoinGpuDeviceMemoryUsage(buildRows, probePage.positionCount());
+            case INNER -> getMixedInnerJoinGpuDeviceMemoryUsage(bridge.buildKeysTable(), bridge.buildSourceTable(), probeSourceTable, equalityMatchCount);
+            case LEFT -> getMixedLeftJoinGpuDeviceMemoryUsage(bridge.buildKeysTable(), bridge.buildSourceTable(), probeSourceTable, equalityMatchCount);
         };
         return MemoryAmount.gpuDevice(bytes);
     }

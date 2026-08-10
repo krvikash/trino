@@ -252,11 +252,6 @@ class TestGpuMemoryUtils
 
     private void testGetMixedJoinGpuDeviceMemoryUsage(JoinType joinType, Type type, NullsProvider nullsProvider, int buildRows, int probeRows)
     {
-        long reported = switch (joinType) {
-            case INNER -> getMixedInnerJoinGpuDeviceMemoryUsage(buildRows, probeRows);
-            case LEFT -> getMixedLeftJoinGpuDeviceMemoryUsage(buildRows, probeRows);
-        };
-
         Block buildKeysBlock = createBlock(type, buildRows, nullsProvider);
         Block buildValuesBlock = createBlock(type, buildRows, nullsProvider);
         Block probeKeysBlock = createBlock(type, probeRows, nullsProvider);
@@ -269,6 +264,23 @@ class TestGpuMemoryUtils
                 Table probeKeyTable = toTable(probePage, 0);
                 Table probeSourceTable = toTable(probePage, 0, 1);
                 CompiledExpression filter = Literal.ofBoolean(true).compile()) {
+            long equalityMatchCount;
+            try (HashJoin hashJoin = new HashJoin(buildKeyTable, /*compareNullsEqual=*/ false)) {
+                equalityMatchCount = switch (joinType) {
+                    case INNER -> probeKeyTable.innerJoinRowCount(hashJoin);
+                    case LEFT -> probeKeyTable.leftJoinRowCount(hashJoin);
+                };
+            }
+            if (equalityMatchCount == 0) {
+                // GpuLookupJoin skips the mixed join entirely when the equality part of the join has no
+                // match, since no row can survive the filter, so there is nothing to estimate
+                return;
+            }
+            long reported = switch (joinType) {
+                case INNER -> getMixedInnerJoinGpuDeviceMemoryUsage(buildKeyTable, buildSourceTable, probeSourceTable, equalityMatchCount);
+                case LEFT -> getMixedLeftJoinGpuDeviceMemoryUsage(buildKeyTable, buildSourceTable, probeSourceTable, equalityMatchCount);
+            };
+
             long memoryBefore = Rmm.getTotalBytesAllocated();
             long peakMemory;
             long gatherMapBytes;
@@ -301,7 +313,7 @@ class TestGpuMemoryUtils
             long actual = peakMemory - memoryBefore - gatherMapBytes;
 
             assertThat(reported)
-                    .as("reported within 5%% of actual, type=%s nullsProvider=%s buildRows=%s probeRows=%s", type, nullsProvider, buildRows, probeRows)
+                    .as("reported within 5%% of actual, type=%s nullsProvider=%s buildRows=%s probeRows=%s equalityMatchCount=%s", type, nullsProvider, buildRows, probeRows, equalityMatchCount)
                     .isBetween((long) (actual * 0.95), (long) (actual * 1.05));
         }
     }

@@ -49,6 +49,8 @@ public sealed interface GpuJoinBridge
     record FilteredHashJoinBridge(
             @Borrow Table buildSourceTable,
             @Borrow Table buildKeysTable,
+            // built from buildKeysTable
+            @Borrow HashJoin hashJoin,
             @Borrow CompiledExpression compiledFilter,
             @Nullable @Borrow Table buildOutputTable)
             implements GpuJoinBridge
@@ -57,6 +59,7 @@ public sealed interface GpuJoinBridge
         {
             requireNonNull(buildSourceTable, "buildSourceTable is null");
             requireNonNull(buildKeysTable, "buildKeysTable is null");
+            requireNonNull(hashJoin, "hashJoin is null");
             requireNonNull(compiledFilter, "compiledFilter is null");
         }
     }

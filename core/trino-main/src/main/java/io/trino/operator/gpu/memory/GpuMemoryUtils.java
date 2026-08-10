@@ -18,6 +18,7 @@ import ai.rapids.cudf.DType;
 import ai.rapids.cudf.NullEquality;
 import ai.rapids.cudf.Table;
 import ai.rapids.cudf.ast.CompiledExpression;
+import com.google.common.math.LongMath;
 import io.trino.spi.gpu.GpuPage;
 import io.trino.spi.gpu.borrow.Borrow;
 
@@ -32,6 +33,15 @@ public final class GpuMemoryUtils
     private static final long HASH_TABLE_ENTRY_BYTES = Integer.BYTES + Integer.BYTES;
     // Each slot holds size_type (int32_t) = 4 bytes
     private static final long HASH_SET_ENTRY_BYTES = Integer.BYTES;
+    // sizeof(cudf::column_device_view)
+    private static final long COLUMN_DEVICE_VIEW_BYTES = 64;
+    // cudf::detail::DEFAULT_JOIN_CG_SIZE
+    private static final long JOIN_CG_SIZE = 2;
+    // cuco::storage<2> used by cudf::hash_join
+    private static final long JOIN_BUCKET_SIZE = 2;
+    // Measured fixed cost of a mixed join: the cub temporary storage base plus the parsed AST of a
+    // small predicate, neither of which is worth modelling in detail
+    private static final long MIXED_JOIN_FIXED_BYTES = 1157;
 
     /// Estimate the additional GPU device memory retained by `new HashJoin(buildKeys, [false])`,
     /// assuming `buildKeys` is retained by the caller and therefore not counted here.
@@ -42,9 +52,7 @@ public final class GpuMemoryUtils
         if (rowCount == 0) {
             return 0;
         }
-        long cucoBytes = cucoHashTableCapacity(rowCount) * HASH_TABLE_ENTRY_BYTES;
-        long preprocessedBytes = preprocessedTableBytes(buildKeys);
-        return includePoolOverhead(cucoBytes, preprocessedBytes);
+        return joinHashTableBytes(rowCount) + preprocessedTableBytes(buildKeys);
     }
 
     /// Estimates the temporary GPU device memory consumed during a call to
@@ -82,74 +90,122 @@ public final class GpuMemoryUtils
         // STRING has 1 C++ child (offsets), LIST has 2 C++ children (offsets + elements)
         long bytes = 79;
         for (int i = 0; i < table.getNumberOfColumns(); i++) {
-            DType.DTypeEnum typeId = table.getColumn(i).getType().getTypeId();
-            if (typeId == DType.DTypeEnum.STRING) {
-                bytes += 64;
-            }
-            else if (typeId == DType.DTypeEnum.LIST) {
-                bytes += 128;
-            }
+            bytes += COLUMN_DEVICE_VIEW_BYTES * childColumnCount(table.getColumn(i).getType());
         }
         return bytes;
     }
 
+    /// Bytes of the `cudf::table_device_view` cuDF builds for a table: one `column_device_view` per
+    /// column plus one per C++ child column.
+    private static long tableDeviceViewBytes(Table table)
+    {
+        long bytes = 0;
+        for (int i = 0; i < table.getNumberOfColumns(); i++) {
+            bytes += COLUMN_DEVICE_VIEW_BYTES * (1 + childColumnCount(table.getColumn(i).getType()));
+        }
+        return bytes;
+    }
+
+    /// Number of C++ child columns a `cudf::column_device_view` of this type has: STRING has one
+    /// (offsets), LIST has two (offsets and elements).
+    private static long childColumnCount(DType type)
+    {
+        DType.DTypeEnum typeId = type.getTypeId();
+        if (typeId == DType.DTypeEnum.STRING) {
+            return 1;
+        }
+        if (typeId == DType.DTypeEnum.LIST) {
+            return 2;
+        }
+        return 0;
+    }
+
     /// Estimates the peak temporary GPU device memory consumed by a single call to
     /// {@link Table#mixedInnerJoinGatherMaps(Table, Table, Table, Table, CompiledExpression, NullEquality)}.
-    /// The estimate excludes the output gather maps whose size depends on join selectivity.
-    public static long getMixedInnerJoinGpuDeviceMemoryUsage(long buildRows, long probeRows)
+    ///
+    /// `equalityMatchCount` is the number of index pairs produced by the equality part of the join
+    /// alone, as reported by {@link Table#innerJoinRowCount(ai.rapids.cudf.HashJoin)} for a hash join
+    /// built over `buildKeys`. Since cuDF 26.08 the mixed join materializes all of those pairs before
+    /// evaluating the AST predicate, so the peak is a function of join selectivity and cannot be
+    /// derived from row counts alone.
+    ///
+    /// The estimate excludes the output gather maps whose size depends on how many pairs survive the
+    /// predicate. `equalityMatchCount` must be positive: a join with no equality match produces no row
+    /// at all, so callers are expected to skip it rather than estimate it.
+    public static long getMixedInnerJoinGpuDeviceMemoryUsage(Table buildKeys, Table buildSource, Table probeSource, long equalityMatchCount)
     {
-        checkArgument(buildRows >= 0, "buildRows must be non-negative");
-        checkArgument(probeRows >= 0, "probeRows must be non-negative");
-        // cuDF swaps the probe and build sides for inner joins when buildRows > probeRows
-        long hashTableRows = Math.min(buildRows, probeRows);
-        long outerRows = Math.max(buildRows, probeRows);
-        return estimateMixedJoinBytes(hashTableRows, outerRows, hashTableRows);
+        return estimateMixedJoinBytes(buildKeys, buildSource, probeSource, equalityMatchCount, false);
     }
 
     /// Estimates the peak temporary GPU device memory consumed by a single call to
     /// {@link Table#mixedLeftJoinGatherMaps(Table, Table, Table, Table, CompiledExpression, NullEquality)}.
-    /// The estimate excludes the output gather maps whose size depends on join selectivity.
-    public static long getMixedLeftJoinGpuDeviceMemoryUsage(long buildRows, long probeRows)
+    ///
+    /// See {@link #getMixedInnerJoinGpuDeviceMemoryUsage} for `equalityMatchCount`, which here is
+    /// {@link Table#leftJoinRowCount(ai.rapids.cudf.HashJoin)}.
+    public static long getMixedLeftJoinGpuDeviceMemoryUsage(Table buildKeys, Table buildSource, Table probeSource, long equalityMatchCount)
     {
-        checkArgument(buildRows >= 0, "buildRows must be non-negative");
-        checkArgument(probeRows >= 0, "probeRows must be non-negative");
-        return estimateMixedJoinBytes(buildRows, probeRows, buildRows);
+        return estimateMixedJoinBytes(buildKeys, buildSource, probeSource, equalityMatchCount, true);
     }
 
-    private static long estimateMixedJoinBytes(long hashTableRows, long outerRows, long bitmaskRows)
+    /// Models `cudf::detail::mixed_join` as of cuDF 26.08: it builds a `cudf::hash_join` over the
+    /// build (right) equality keys, materializes the complete unfiltered equality match pairs with
+    /// `equality_join_indices`, then applies the AST predicate and compacts with
+    /// `filter_join_indices`. There is no chunking, so everything below is live at the same time.
+    private static long estimateMixedJoinBytes(Table buildKeys, Table buildSource, Table probeSource, long equalityMatchCount, boolean trackUnmatchedProbeRows)
     {
-        long cucoBytes = cucoHashTableCapacity(hashTableRows) * HASH_TABLE_ENTRY_BYTES;
-        // precompute_mixed_join_data probes the hash table and stores per outer row:
-        //   input_pairs (8B): pair<hash, row_index> — which build row matched
-        //   hash_indices (8B): pair<hash, hash> — window coordinates for resuming multiset probing
-        long precomputedBytes = outerRows * 16;
-        // compute_mixed_join_matches_per_row: int32 count of filter-surviving matches per outer row
-        long matchesPerRowBytes = outerRows * Integer.BYTES;
-        // exclusive prefix sum of matchesPerRow — output write offsets per outer row
-        long joinOffsetsBytes = outerRows * Integer.BYTES;
-        // one bit per build row for null handling
-        long bitmaskBytes = (bitmaskRows + 7) / 8;
-        return includePoolOverhead(cucoBytes, precomputedBytes + matchesPerRowBytes + joinOffsetsBytes + bitmaskBytes);
+        checkArgument(equalityMatchCount > 0, "equalityMatchCount must be positive");
+        long buildRows = buildKeys.getRowCount();
+        // The hash table over the build equality keys, rebuilt on every call. While it is being built,
+        // hash_join also holds a transient validity bitmask over the build keys; that is added rather
+        // than maximized against the pairs below, which overestimates by at most 0.8% of the table.
+        long hashTableBytes = joinHashTableBytes(buildRows) + preprocessedTableBytes(buildKeys)
+                + nullMaskBytes(buildRows);
+        // equality_join_indices materializes two int32 gather maps covering every equality match, and
+        // filter_join_indices allocates one bool per match to hold the predicate results
+        long matchBytes = equalityMatchCount * (2 * Integer.BYTES + 1);
+        // cub tile state backing the stream compaction over the match pairs; measured at <= matches/80
+        long compactionBytes = equalityMatchCount / 64;
+        long unmatchedTrackingBytes = 0;
+        if (trackUnmatchedProbeRows) {
+            unmatchedTrackingBytes = filterPassingSetBytes(probeSource.getRowCount());
+        }
+        // table_device_view of both conditional tables, plus the parsed AST and the fixed part of the
+        // cub temporary storage. The AST part grows with expression size; it is a few hundred bytes for
+        // the expressions cork produces and is dwarfed by matchBytes for any non-trivial join.
+        long fixedBytes = tableDeviceViewBytes(buildSource) + tableDeviceViewBytes(probeSource) + MIXED_JOIN_FIXED_BYTES;
+        return hashTableBytes + matchBytes + compactionBytes + unmatchedTrackingBytes + fixedBytes;
     }
 
-    private static long includePoolOverhead(long cucoBytes, long remainingBytes)
+    /// Bytes held by the `cuco::static_multiset` backing `cudf::hash_join`.
+    ///
+    /// cuDF builds it with `CUCO_DESIRED_LOAD_FACTOR = 0.5`, `cuco::storage<2>` and
+    /// `cuco::double_hashing<DEFAULT_JOIN_CG_SIZE = 2>`, so the requested capacity is `2 * rowCount`
+    /// slots, which cuco groups into `ceilDiv(2 * rowCount, cgSize * bucketSize)` groups. Double
+    /// hashing requires a prime number of groups, so cuco rounds that up to the next prime, then
+    /// over-allocates one bucket for alignment.
+    private static long joinHashTableBytes(long rowCount)
     {
-        // cuco's storage<2> appears in the RMM ASYNC pool as two separately 2MB-rounded chunks,
-        // so the effective rounding is 4MB for large allocations.
-        // For large allocations, cuco's storage appears in the RMM ASYNC pool as two separately
-        // 2MB-rounded chunks, so the effective rounding is 4MB. Add a 1% safety margin for internal overhead.
-        long twoMb = 2L * 1024 * 1024;
-        long fourMb = 4L * 1024 * 1024;
-        if (cucoBytes >= fourMb) {
-            long rounded = ((cucoBytes + fourMb - 1) / fourMb) * fourMb;
-            return rounded + rounded / 100 + remainingBytes;
+        long groups = nextPrime(ceilDiv(2 * rowCount, JOIN_CG_SIZE * JOIN_BUCKET_SIZE));
+        return (groups * JOIN_CG_SIZE + 1) * JOIN_BUCKET_SIZE * HASH_TABLE_ENTRY_BYTES;
+    }
+
+    /// Bytes held by the `cuco::static_set` that `filter_join_indices` uses on left joins to record
+    /// which probe rows kept at least one match. It uses `CUCO_DESIRED_LOAD_FACTOR = 0.5` with the
+    /// default `cuco::storage<1>` and `cuco::double_hashing<1>`, so the group count is `2 * probeRows`
+    /// rounded up to the next prime, plus one bucket for alignment.
+    private static long filterPassingSetBytes(long probeRows)
+    {
+        return (nextPrime(2 * probeRows) + 1) * HASH_SET_ENTRY_BYTES;
+    }
+
+    /// Smallest prime greater than or equal to `value`, matching `cuco::detail::next_prime`.
+    private static long nextPrime(long value)
+    {
+        long candidate = Math.max(value, 2);
+        while (!LongMath.isPrime(candidate)) {
+            candidate++;
         }
-        // Medium allocations (2MB..4MB) are not rounded by the pool, but have slightly larger internal overhead
-        if (cucoBytes >= twoMb) {
-            return cucoBytes + 1024 + remainingBytes;
-        }
-        // For small allocations (<2MB), add empirically observed fixed cuco internal overhead
-        return cucoBytes + 304 + remainingBytes;
+        return candidate;
     }
 
     private static long cucoHashTableCapacity(long rowCount)
@@ -170,10 +226,15 @@ public final class GpuMemoryUtils
         return 2L * rowCount;
     }
 
+    /// cuDF validity mask: one bit per row, `ceil(rows / 8)` bytes padded to a 64-byte boundary.
+    private static long nullMaskBytes(long rowCount)
+    {
+        return 64 * ceilDiv(ceilDiv(rowCount, 8), 64);
+    }
+
     public static long getNullColumnMemoryUsage(DType type, int positionCount)
     {
-        // cuDF null validity mask: one bit per row, ceil(N/8) bytes, padded to 64-byte boundary
-        long nullMaskBytes = 64L * ceilDiv(ceilDiv(positionCount, 8), 64);
+        long nullMaskBytes = nullMaskBytes(positionCount);
         int sizeInBytes = type.getSizeInBytes();
         if (sizeInBytes == 0) {
             // Variable-width: offsets array with N+1 INT32 elements (pairs of consecutive offsets

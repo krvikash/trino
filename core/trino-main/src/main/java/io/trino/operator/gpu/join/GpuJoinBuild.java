@@ -191,21 +191,28 @@ public final class GpuJoinBuild
                 buildOutputTable = null;
             }
 
+            allocated.update(MemoryAmount.gpuDevice(buildSourceTable.borrow().getDeviceMemorySize() + getHashJoinAdditionalGpuDeviceMemoryUsage(buildKeyTable.borrow())));
+            // The filtered path uses this HashJoin only to count equality matches for the memory reservation;
+            // Table.mixedInnerJoinGatherMaps builds its own hash table internally and throws this one away.
+            // TODO reuse it once cuDF can take a caller-supplied hash_join in the mixed join, or exposes hash
+            //  join and predicate filtering as composable primitives
+            //  https://github.com/NVIDIA/cudf/issues/24096
+            //  https://github.com/NVIDIA/cudf/issues/22748
+            hashJoin.set(new HashJoin(buildKeyTable.borrow(), /*compareNullsEqual=*/ false));
+
             if (filter.isEmpty()) {
-                allocated.update(MemoryAmount.gpuDevice(buildSourceTable.borrow().getDeviceMemorySize() + getHashJoinAdditionalGpuDeviceMemoryUsage(buildKeyTable.borrow())));
                 buildSourceTable.close();
-                hashJoin.set(new HashJoin(buildKeyTable.borrow(), /*compareNullsEqual=*/ false));
                 buildKeyTable.close();
                 bridge = new GpuJoinBridge.HashJoinBridge(
                         hashJoin.borrow(),
                         buildOutputTable);
             }
             else {
-                allocated.update(MemoryAmount.gpuDevice(buildSourceTable.borrow().getDeviceMemorySize()));
                 compiledFilter.set(filter.get().compile());
                 bridge = new FilteredHashJoinBridge(
                         buildSourceTable.borrow(),
                         buildKeyTable.borrow(),
+                        hashJoin.borrow(),
                         compiledFilter.borrow(),
                         buildOutputTable);
             }
