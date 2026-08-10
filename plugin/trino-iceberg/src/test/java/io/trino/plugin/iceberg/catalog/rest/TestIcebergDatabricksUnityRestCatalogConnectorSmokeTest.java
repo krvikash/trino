@@ -58,6 +58,7 @@ final class TestIcebergDatabricksUnityRestCatalogConnectorSmokeTest
     private static final String DATABRICKS_AWS_ACCESS_KEY_ID = requireEnv("DATABRICKS_AWS_ACCESS_KEY_ID");
     private static final String DATABRICKS_AWS_SECRET_ACCESS_KEY = requireEnv("DATABRICKS_AWS_SECRET_ACCESS_KEY");
     private static final String DATABRICKS_AWS_REGION = requireEnv("DATABRICKS_AWS_REGION");
+    private static final String DATABRICKS_UNITY_EXTERNAL_LOCATION = requireEnv("DATABRICKS_UNITY_EXTERNAL_LOCATION");
 
     private static final String SCHEMA = "test_iceberg_smoke_" + randomNameSuffix();
 
@@ -136,7 +137,7 @@ final class TestIcebergDatabricksUnityRestCatalogConnectorSmokeTest
     @Override
     protected String schemaPath()
     {
-        return format("s3://starburstdata-unity/%s", getSession().getSchema().orElseThrow());
+        return format("%s/%s", DATABRICKS_UNITY_EXTERNAL_LOCATION, getSession().getSchema().orElseThrow());
     }
 
     @Override
