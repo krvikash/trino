@@ -36,9 +36,11 @@ echo "${MRAP_NAME}" > "${S3_SCRIPTS_DIR}/.mrap-identifier"
 
 echo "Waiting for Multi-Region Access Point ${MRAP_NAME} to be created"
 
-# Timeout after 10 minutes. This operation typically takes 2-3 minutes.
-TIMEOUT=600
+# Timeout after 15 minutes. This operation typically takes 2-3 minutes, but could take up to 24 hours per AWS documentation.
+TIMEOUT=900
 START_TIME=$(date +%s)
+POLL_COUNT=0
+LAST_STATUS=""
 while [ $(($(date +%s) - START_TIME)) -lt "${TIMEOUT}" ]; do
     OPERATION_STATUS=$(aws s3control describe-multi-region-access-point-operation \
       --region us-west-2 \
@@ -47,11 +49,18 @@ while [ $(($(date +%s) - START_TIME)) -lt "${TIMEOUT}" ]; do
       --query 'AsyncOperation.RequestStatus' \
       --output text)
 
+    POLL_COUNT=$((POLL_COUNT + 1))
+    ELAPSED=$(($(date +%s) - START_TIME))
+    if [ "${OPERATION_STATUS}" != "${LAST_STATUS}" ] || [ $((POLL_COUNT % 10)) -eq 0 ]; then
+        echo "poll=${POLL_COUNT} elapsed=${ELAPSED}s status=${OPERATION_STATUS}"
+        LAST_STATUS="${OPERATION_STATUS}"
+    fi
+
     if [ "${OPERATION_STATUS}" = "SUCCEEDED" ]; then
-        echo "Multi-Region Access Point ${MRAP_NAME} has been created successfully"
+        echo "Multi-Region Access Point ${MRAP_NAME} has been created successfully in ${ELAPSED}s"
         break
     elif [ "${OPERATION_STATUS}" = "FAILED" ]; then
-        echo "Failed to create Multi-Region Access Point ${MRAP_NAME}"
+        echo "Failed to create Multi-Region Access Point ${MRAP_NAME} in ${ELAPSED}s"
         exit 1
     fi
 
