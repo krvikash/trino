@@ -24,14 +24,18 @@ import io.airlift.slice.Slice;
 import io.trino.metadata.Metadata;
 import io.trino.operator.gpu.join.CudfAstExpression;
 import io.trino.spi.function.CatalogSchemaFunctionName;
+import io.trino.spi.type.ArrayType;
 import io.trino.spi.type.BigintType;
 import io.trino.spi.type.BooleanType;
 import io.trino.spi.type.DateType;
 import io.trino.spi.type.DoubleType;
 import io.trino.spi.type.IntegerType;
+import io.trino.spi.type.MapType;
 import io.trino.spi.type.RealType;
+import io.trino.spi.type.RowType;
 import io.trino.spi.type.SmallintType;
 import io.trino.spi.type.TinyintType;
+import io.trino.spi.type.Type;
 import io.trino.spi.type.VarcharType;
 import io.trino.sql.ir.Call;
 import io.trino.sql.ir.ComparisonOperator;
@@ -53,6 +57,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.trino.metadata.GlobalFunctionCatalog.isBuiltinFunctionName;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
+import static io.trino.spi.type.DoubleType.DOUBLE;
+import static io.trino.spi.type.NumberType.NUMBER;
+import static io.trino.spi.type.RealType.REAL;
 import static io.trino.sql.ir.IrExpressions.comparison;
 import static io.trino.sql.ir.IrExpressions.matchComparison;
 import static java.lang.Float.intBitsToFloat;
@@ -92,17 +99,29 @@ public final class GpuExpressionAstCompiler
         return translated;
     }
 
-    private static Optional<BinaryOperator> mapComparisonOperator(ComparisonOperator op)
+    private static Optional<BinaryOperator> mapComparisonOperator(IrExpressions.Comparison comparison)
     {
-        return switch (op) {
+        return switch (comparison.operator()) {
             case EQUAL -> Optional.of(BinaryOperator.EQUAL);
             case NOT_EQUAL -> Optional.of(BinaryOperator.NOT_EQUAL);
             case LESS_THAN -> Optional.of(BinaryOperator.LESS);
             case LESS_THAN_OR_EQUAL -> Optional.of(BinaryOperator.LESS_EQUAL);
             case GREATER_THAN -> Optional.of(BinaryOperator.GREATER);
             case GREATER_THAN_OR_EQUAL -> Optional.of(BinaryOperator.GREATER_EQUAL);
-            case IDENTICAL -> Optional.empty();
+            case IDENTICAL -> {
+                Type operand = comparison.left().type();
+                // The semantics of NULL_EQUAL has not been verified for container types
+                // NULL_EQUAL returns undesired results for NaN values
+                yield (isPrimitiveType(operand) && operand != REAL && operand != DOUBLE && operand != NUMBER)
+                        ? Optional.of(BinaryOperator.NULL_EQUAL)
+                        : Optional.empty();
+            }
         };
+    }
+
+    private static boolean isPrimitiveType(Type type)
+    {
+        return !(type instanceof ArrayType || type instanceof MapType || type instanceof RowType);
     }
 
     private static Optional<CudfAstExpression> translateLogical(Logical logical, Context context)
@@ -194,7 +213,7 @@ public final class GpuExpressionAstCompiler
 
         IrExpressions.Comparison comparison = matchComparison(call);
         if (comparison != null) {
-            return mapComparisonOperator(comparison.operator()).flatMap(operator ->
+            return mapComparisonOperator(comparison).flatMap(operator ->
                     translate(comparison.left(), context).flatMap(left ->
                             translate(comparison.right(), context).map(right ->
                                     new CudfAstExpression.BinaryOperation(operator, left, right))));

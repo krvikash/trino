@@ -351,9 +351,11 @@ public final class GpuExpressionCompiler
             switch (comparison.left().type()) {
                 case BooleanType _,
                      TinyintType _, SmallintType _, IntegerType _, BigintType _,
-                     RealType _, DoubleType _,
                      DecimalType _,
                      CharType _, VarcharType _, DateType _ -> {
+                    // cudf comparison semantics for carrier DType match those of Trino Type
+                }
+                case RealType _, DoubleType _ when !(comparison instanceof IrExpressions.Comparison.Identical) -> {
                     // cudf comparison semantics for carrier DType match those of Trino Type
                 }
                 case TimestampType timestampType when timestampType.getPrecision() <= 9 -> {
@@ -379,7 +381,7 @@ public final class GpuExpressionCompiler
                 case IrExpressions.Comparison.NotEqual _ -> Optional.of(new GpuBinaryExpression(left, right, BinaryOp.NOT_EQUAL, DType.BOOL8));
                 case IrExpressions.Comparison.LessThan _ -> Optional.of(new GpuBinaryExpression(left, right, BinaryOp.LESS, DType.BOOL8));
                 case IrExpressions.Comparison.LessThanOrEqual _ -> Optional.of(new GpuBinaryExpression(left, right, BinaryOp.LESS_EQUAL, DType.BOOL8));
-                case IrExpressions.Comparison.Identical _ -> Optional.empty();
+                case IrExpressions.Comparison.Identical _ -> Optional.of(new GpuBinaryExpression(left, right, BinaryOp.NULL_EQUALS, DType.BOOL8));
             };
         }
 

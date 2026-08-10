@@ -93,6 +93,21 @@ class TestGpuExpressionCompiler
 
     @ParameterizedTest
     @MethodSource("operandTypes")
+    void testIdenticalComparisonAcceptsType(Type type, boolean expectGpuCompile)
+    {
+        Reference left = new Reference(type, "a");
+        Reference right = new Reference(type, "b");
+        Map<Symbol, Integer> layout = ImmutableMap.of(
+                new Symbol(type, "a"), 0,
+                new Symbol(type, "b"), 1);
+        boolean expectIdenticalCompile = expectGpuCompile && type != REAL && type != DOUBLE;
+        assertThat(compileExpression(comparison(ComparisonOperator.IDENTICAL, left, right), layout).isPresent())
+                .as("IS NOT DISTINCT FROM on %s", type)
+                .isEqualTo(expectIdenticalCompile);
+    }
+
+    @ParameterizedTest
+    @MethodSource("operandTypes")
     void testBetweenAcceptsType(Type type, boolean expectGpuCompile)
     {
         if (!type.isOrderable()) {

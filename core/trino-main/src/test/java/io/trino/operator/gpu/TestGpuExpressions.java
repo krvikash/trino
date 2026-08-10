@@ -814,7 +814,7 @@ public class TestGpuExpressions
                 createBlock(type, positionsCount, nullsProvider),
                 createBlock(type, positionsCount, nullsProvider)));
 
-        if (operator == ComparisonOperator.IDENTICAL) {
+        if (operator == ComparisonOperator.IDENTICAL && (type == REAL || type == DOUBLE)) {
             // operator currently not supported
             assertThat(compileExpression(expression, layoutFor(inputTypes)))
                     .isEmpty();

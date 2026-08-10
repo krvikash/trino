@@ -27,6 +27,7 @@ import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.function.OperatorType;
 import io.trino.spi.gpu.borrow.Borrow;
+import io.trino.spi.type.ArrayType;
 import io.trino.spi.type.BigintType;
 import io.trino.spi.type.DecimalType;
 import io.trino.spi.type.Type;
@@ -165,18 +166,52 @@ class TestGpuExpressionAstCompiler
     void testAllComparisonOperators()
     {
         for (ComparisonOperator operator : ComparisonOperator.values()) {
-            if (operator == ComparisonOperator.IDENTICAL) {
-                continue;
-            }
             Expression expression = comparison(operator, field(0, BIGINT), new Constant(BIGINT, 0L));
             assertCompilesAndExecutes(expression, List.of(BIGINT));
         }
     }
 
     @Test
-    void testIdenticalNotCompiled()
+    void testIdenticalComparison()
     {
-        assertDoesNotCompile(comparison(ComparisonOperator.IDENTICAL, field(0, BIGINT), field(1, BIGINT)));
+        Expression expression = comparison(ComparisonOperator.IDENTICAL, field(0, BIGINT), field(1, BIGINT));
+        assertCompilesAndExecutes(expression, List.of(BIGINT, BIGINT));
+    }
+
+    @Test
+    void testIdenticalOnVarchar()
+    {
+        Expression expression = comparison(ComparisonOperator.IDENTICAL, field(0, VARCHAR), field(1, VARCHAR));
+        assertCompilesAndExecutes(expression, List.of(VARCHAR, VARCHAR));
+    }
+
+    @Test
+    void testIdenticalOnArray()
+    {
+        ArrayType arrayType = new ArrayType(BIGINT);
+        assertDoesNotCompile(comparison(ComparisonOperator.IDENTICAL, field(0, arrayType), field(1, arrayType)));
+    }
+
+    @Test
+    void testIdenticalOnRealWithNaN()
+    {
+        // In Trino NaN IS NOT DISTINCT FROM NaN is true, and +0 is not distinct from -0
+        Expression expression = comparison(ComparisonOperator.IDENTICAL, field(0, REAL), field(1, REAL));
+        // TODO use this test cases when support is added:
+        // Block a = realBlock(Float.NaN, Float.NaN, Float.NaN, 1.0f, null, 0.0f, Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY);
+        // Block b = realBlock(Float.NaN, 1.0f, null, 1.0f, null, -0.0f, Float.POSITIVE_INFINITY, 2.0f);
+        assertDoesNotCompile(expression);
+    }
+
+    @Test
+    void testIdenticalOnDoubleWithNaN()
+    {
+        // In Trino NaN IS NOT DISTINCT FROM NaN is true, and +0 is not distinct from -0
+        Expression expression = comparison(ComparisonOperator.IDENTICAL, field(0, DOUBLE), field(1, DOUBLE));
+        // TODO use this test cases when support is added:
+        // Block a = doubleBlock(Double.NaN, Double.NaN, Double.NaN, 1.0, null, 0.0, Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY);
+        // Block b = doubleBlock(Double.NaN, 1.0, null, 1.0, null, -0.0, Double.POSITIVE_INFINITY, 2.0);
+        assertDoesNotCompile(expression);
     }
 
     @Test
@@ -383,6 +418,34 @@ class TestGpuExpressionAstCompiler
         {
             return Objects.hash(getClass(), cudfAst);
         }
+    }
+
+    private static Block realBlock(Float... values)
+    {
+        BlockBuilder builder = REAL.createBlockBuilder(null, values.length);
+        for (Float value : values) {
+            if (value == null) {
+                builder.appendNull();
+            }
+            else {
+                REAL.writeFloat(builder, value);
+            }
+        }
+        return builder.build();
+    }
+
+    private static Block doubleBlock(Double... values)
+    {
+        BlockBuilder builder = DOUBLE.createBlockBuilder(null, values.length);
+        for (Double value : values) {
+            if (value == null) {
+                builder.appendNull();
+            }
+            else {
+                DOUBLE.writeDouble(builder, value);
+            }
+        }
+        return builder.build();
     }
 
     private static Reference field(int channel, Type type)
