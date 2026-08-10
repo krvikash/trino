@@ -17,6 +17,7 @@ import ai.rapids.cudf.ColumnVector;
 import ai.rapids.cudf.GatherMap;
 import ai.rapids.cudf.HashJoin;
 import ai.rapids.cudf.Table;
+import io.trino.spi.gpu.borrow.Own;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
@@ -97,9 +98,11 @@ public class BenchmarkGpuJoinGatherMaps
         @Param({"0.1", "0.5", "1.0"})
         private double matchRatio;
 
-        private Table probeKeys;
-        private Table buildKeys;
-        private HashJoin hashJoin;
+        private @Own ColumnVector probeColumn;
+        private @Own ColumnVector buildColumn;
+        private @Own Table probeKeys;
+        private @Own Table buildKeys;
+        private @Own HashJoin hashJoin;
 
         @Setup
         public void setup()
@@ -119,8 +122,10 @@ public class BenchmarkGpuJoinGatherMaps
                 buildValues[i] = i;
             }
 
-            probeKeys = new Table(ColumnVector.fromInts(probeValues));
-            buildKeys = new Table(ColumnVector.fromInts(buildValues));
+            probeColumn = ColumnVector.fromInts(probeValues);
+            buildColumn = ColumnVector.fromInts(buildValues);
+            probeKeys = new Table(probeColumn);
+            buildKeys = new Table(buildColumn);
             hashJoin = new HashJoin(buildKeys, false);
         }
 
@@ -130,6 +135,8 @@ public class BenchmarkGpuJoinGatherMaps
             hashJoin.close();
             buildKeys.close();
             probeKeys.close();
+            buildColumn.close();
+            probeColumn.close();
         }
     }
 
