@@ -128,6 +128,10 @@ import static org.junit.jupiter.api.parallel.ExecutionMode.CONCURRENT;
 @Execution(CONCURRENT)
 public class TestGpuExpressions
 {
+    // The nine {true, false, null} x {true, false, null} combinations, column-wise.
+    private static final Boolean[] TRUTH_TABLE_LEFT = {true, true, true, false, false, false, null, null, null};
+    private static final Boolean[] TRUTH_TABLE_RIGHT = {true, false, null, true, false, null, true, false, null};
+
     /**
      * Useful test strings, including interesting inputs and patterns for LIKE testing.
      */
@@ -897,6 +901,26 @@ public class TestGpuExpressions
         assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA, channelB));
     }
 
+    @Test
+    public void testAndNullSemantics()
+    {
+        List<Type> inputTypes = List.of(BOOLEAN, BOOLEAN);
+        List<Page> inputPages = List.of(new Page(booleanBlock(TRUTH_TABLE_LEFT), booleanBlock(TRUTH_TABLE_RIGHT)));
+        Expression expression = new Logical(Logical.Operator.AND, ImmutableList.of(field(0, BOOLEAN), field(1, BOOLEAN)));
+
+        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(0, 1));
+    }
+
+    @Test
+    public void testOrNullSemantics()
+    {
+        List<Type> inputTypes = List.of(BOOLEAN, BOOLEAN);
+        List<Page> inputPages = List.of(new Page(booleanBlock(TRUTH_TABLE_LEFT), booleanBlock(TRUTH_TABLE_RIGHT)));
+        Expression expression = new Logical(Logical.Operator.OR, ImmutableList.of(field(0, BOOLEAN), field(1, BOOLEAN)));
+
+        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(0, 1));
+    }
+
     @ParameterizedTest
     @EnumSource(NullsProvider.class)
     public void testNot(NullsProvider nullsProvider)
@@ -1553,6 +1577,20 @@ public class TestGpuExpressions
     private static Reference field(int channel, Type type)
     {
         return new Reference(type, "ref" + channel);
+    }
+
+    private static Block booleanBlock(Boolean[] values)
+    {
+        BlockBuilder builder = BOOLEAN.createBlockBuilder(null, values.length);
+        for (Boolean value : values) {
+            if (value == null) {
+                builder.appendNull();
+            }
+            else {
+                BOOLEAN.writeBoolean(builder, value);
+            }
+        }
+        return builder.build();
     }
 
     private static Map<Symbol, Integer> layoutFor(List<Type> inputTypes)

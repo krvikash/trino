@@ -24,6 +24,7 @@ import io.trino.operator.gpu.join.CudfAstExpression;
 import io.trino.operator.project.InputChannels;
 import io.trino.spi.Page;
 import io.trino.spi.block.Block;
+import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.function.OperatorType;
 import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.type.BigintType;
@@ -80,6 +81,10 @@ import static org.junit.jupiter.api.parallel.ExecutionMode.CONCURRENT;
 @Execution(CONCURRENT)
 class TestGpuExpressionAstCompiler
 {
+    // The nine {true, false, null} x {true, false, null} combinations, column-wise.
+    private static final Boolean[] TRUTH_TABLE_LEFT = {true, true, true, false, false, false, null, null, null};
+    private static final Boolean[] TRUTH_TABLE_RIGHT = {true, false, null, true, false, null, true, false, null};
+
     @BeforeAll
     static void maybeSetGpuMemoryPool()
     {
@@ -207,6 +212,24 @@ class TestGpuExpressionAstCompiler
     }
 
     @Test
+    void testLogicalAndNullSemantics()
+    {
+        assertCompilesAndExecutes(
+                new Logical(Logical.Operator.AND, List.of(field(0, BOOLEAN), field(1, BOOLEAN))),
+                List.of(BOOLEAN, BOOLEAN),
+                List.of(new Page(booleanBlock(TRUTH_TABLE_LEFT), booleanBlock(TRUTH_TABLE_RIGHT))));
+    }
+
+    @Test
+    void testLogicalOrNullSemantics()
+    {
+        assertCompilesAndExecutes(
+                new Logical(Logical.Operator.OR, List.of(field(0, BOOLEAN), field(1, BOOLEAN))),
+                List.of(BOOLEAN, BOOLEAN),
+                List.of(new Page(booleanBlock(TRUTH_TABLE_LEFT), booleanBlock(TRUTH_TABLE_RIGHT))));
+    }
+
+    @Test
     void testLogicalAndManyTerms()
     {
         // Exercises the left-deep tree the compiler builds for AND of more than 2 terms.
@@ -294,6 +317,15 @@ class TestGpuExpressionAstCompiler
 
     private void assertCompilesAndExecutes(Expression expression, List<Type> inputTypes)
     {
+        int positionsCount = 64;
+        List<Page> inputPages = List.of(new Page(positionsCount, inputTypes.stream()
+                .map(type -> createBlock(type, positionsCount, NullsProvider.RANDOM_NULLS))
+                .toArray(Block[]::new)));
+        assertCompilesAndExecutes(expression, inputTypes, inputPages);
+    }
+
+    private void assertCompilesAndExecutes(Expression expression, List<Type> inputTypes, List<Page> inputPages)
+    {
         Map<Symbol, Integer> layout = layoutFor(inputTypes);
         CudfAstExpression compiled = compile(expression)
                 .orElseThrow(() -> new AssertionError("GPU AST compile failed: " + expression));
@@ -303,11 +335,6 @@ class TestGpuExpressionAstCompiler
         CompiledExpression gpuExpression = new CompiledExpression(
                 new EvaluateAst(cudfAst),
                 new InputChannels(channels));
-
-        int positionsCount = 64;
-        List<Page> inputPages = List.of(new Page(positionsCount, inputTypes.stream()
-                .map(type -> createBlock(type, positionsCount, NullsProvider.RANDOM_NULLS))
-                .toArray(Block[]::new)));
 
         List<Page> cpuResults = executeWithCpu(inputPages, List.of(expression), layout);
         List<Page> gpuResults = executeGpuOperation(
@@ -361,6 +388,20 @@ class TestGpuExpressionAstCompiler
     private static Reference field(int channel, Type type)
     {
         return new Reference(type, "ref" + channel);
+    }
+
+    private static Block booleanBlock(Boolean[] values)
+    {
+        BlockBuilder builder = BOOLEAN.createBlockBuilder(null, values.length);
+        for (Boolean value : values) {
+            if (value == null) {
+                builder.appendNull();
+            }
+            else {
+                BOOLEAN.writeBoolean(builder, value);
+            }
+        }
+        return builder.build();
     }
 
     private static Map<Symbol, Integer> layoutFor(List<Type> inputTypes)

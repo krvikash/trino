@@ -119,8 +119,8 @@ public final class GpuExpressionAstCompiler
             case 1 -> translate(getOnlyElement(terms), context);
             default -> {
                 BinaryOperator op = switch (logical.operator()) {
-                    case AND -> BinaryOperator.LOGICAL_AND;
-                    case OR -> BinaryOperator.LOGICAL_OR;
+                    case AND -> BinaryOperator.NULL_LOGICAL_AND;
+                    case OR -> BinaryOperator.NULL_LOGICAL_OR;
                 };
                 ArrayDeque<Expression> queue = new ArrayDeque<>(terms);
                 Optional<CudfAstExpression> first = translate(queue.removeFirst(), context);
