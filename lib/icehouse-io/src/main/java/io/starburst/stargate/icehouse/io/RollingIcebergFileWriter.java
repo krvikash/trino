@@ -13,6 +13,7 @@
  */
 package io.starburst.stargate.icehouse.io;
 
+import com.google.common.collect.ImmutableSet;
 import com.google.common.io.Closer;
 import io.airlift.units.DataSize;
 import io.starburst.stargate.icehouse.spi.file.FileFormat;
@@ -46,6 +47,7 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.stream.IntStream;
@@ -192,7 +194,7 @@ public class RollingIcebergFileWriter
             Optional<DataSize> maxRowGroupSize)
             throws IOException
     {
-        return createParquetWriter(fileSystem, schema, outputPath, maxRowGroupSize, CompressionCodec.ZSTD);
+        return createParquetWriter(fileSystem, schema, outputPath, maxRowGroupSize, CompressionCodec.ZSTD, ImmutableSet.of());
     }
 
     public static IcebergFileWriter createParquetWriter(
@@ -200,7 +202,8 @@ public class RollingIcebergFileWriter
             Schema schema,
             Location outputPath,
             Optional<DataSize> maxRowGroupSize,
-            CompressionCodec compressionCodec)
+            CompressionCodec compressionCodec,
+            Set<String> bloomFilterColumns)
             throws IOException
     {
         List<String> fileColumnNames = schema.columns().stream()
@@ -214,7 +217,8 @@ public class RollingIcebergFileWriter
 
         // iceberg-arrow's vectorized parquet reader has a known issue reading DELTA_LENGTH_BYTE_ARRAY (apache/iceberg#17017)
         ParquetWriterOptions.Builder optionsBuilder = ParquetWriterOptions.builder()
-                .setUseDeltaLengthByteArrayEncoding(false);
+                .setUseDeltaLengthByteArrayEncoding(false)
+                .setBloomFilterColumns(bloomFilterColumns);
         maxRowGroupSize.ifPresent(optionsBuilder::setMaxBlockSize);
         return new IcebergParquetFileWriter(
                 MetricsConfig.getDefault(),
