@@ -1732,6 +1732,36 @@ public class TestParallelSnowflakeConnectorTest
     }
 
     @Test
+    public void testBooleanConstantPushdown()
+    {
+        try (TestTable table = new TestTable(
+                onRemoteDatabase(),
+                getSession().getSchema().orElseThrow() + ".boolean_constant",
+                "(id INTEGER, a_boolean BOOLEAN)",
+                ImmutableList.of(
+                        "1, TRUE",
+                        "2, FALSE",
+                        "3, NULL"))) {
+            assertThat(query("SELECT * FROM " + table.getName() + " WHERE a_boolean = TRUE"))
+                    .isFullyPushedDown()
+                    .hasCorrectResultsRegardlessOfPushdown()
+                    .result().rowCount().isEqualTo(1);
+            assertThat(query("SELECT * FROM " + table.getName() + " WHERE a_boolean = FALSE"))
+                    .isFullyPushedDown()
+                    .hasCorrectResultsRegardlessOfPushdown()
+                    .result().rowCount().isEqualTo(1);
+            assertThat(query("SELECT * FROM " + table.getName() + " WHERE a_boolean IS NOT DISTINCT FROM TRUE"))
+                    .isFullyPushedDown()
+                    .hasCorrectResultsRegardlessOfPushdown()
+                    .result().rowCount().isEqualTo(1);
+            assertThat(query("SELECT * FROM " + table.getName() + " WHERE a_boolean IS DISTINCT FROM TRUE"))
+                    .isFullyPushedDown()
+                    .hasCorrectResultsRegardlessOfPushdown()
+                    .result().rowCount().isEqualTo(2);
+        }
+    }
+
+    @Test
     public void testAbsPushdown()
     {
         try (TestTable table = new TestTable(
