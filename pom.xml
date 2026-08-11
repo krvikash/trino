@@ -51,7 +51,6 @@
         <module>lib/starburst-materialization-metastore-api</module>
         <module>lib/starburst-materialization-metastore-server</module>
         <module>lib/starburst-schema-discovery</module>
-        <module>lib/starburst-table-maintenance</module>
         <module>lib/starburst-testing-auto-configuration</module>
         <module>lib/trino-array</module>
         <module>lib/trino-cache</module>
