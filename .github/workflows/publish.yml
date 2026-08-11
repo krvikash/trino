@@ -70,3 +70,11 @@ jobs:
             -am \
             -pl :trino-iceberg,:trino-ssh-tunnel,:starburst-events-model,:icehouse-io,:icehouse-catalog \
             -Drevision="${TRINO_VERSION}"
+
+      - name: Tag release commit
+        if: github.event_name == 'push'
+        run: |
+          git config user.name 'Cork Automation'
+          git config user.email 'starburstdata-automation@starburstdata.com'
+          git tag -m '' "${TRINO_VERSION}" HEAD
+          git push origin "${TRINO_VERSION}"
