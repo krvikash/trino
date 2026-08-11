@@ -28,18 +28,24 @@ import io.trino.plugin.warp.expression.rewrite.WarpExpression;
 import io.trino.plugin.warp.util.json.SliceSerializer;
 import io.trino.spi.block.Block;
 import io.trino.spi.connector.ConnectorTableHandle;
+import io.trino.spi.expression.Constant;
+import io.trino.spi.expression.Lambda;
+import io.trino.spi.expression.Variable;
 import io.trino.spi.metrics.Metric;
 import io.trino.spi.metrics.Metrics;
 import io.trino.spi.predicate.TupleDomain;
+import io.trino.spi.type.FunctionType;
 import io.trino.spi.type.Type;
 import io.trino.type.TypeDeserializer;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.Set;
 
 import static io.trino.metadata.InternalBlockEncodingSerde.TESTING_BLOCK_ENCODING_SERDE;
+import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.spi.type.IntegerType.INTEGER;
 import static io.trino.type.InternalTypeManager.TESTING_TYPE_MANAGER;
 import static java.util.Collections.emptyList;
@@ -64,6 +70,37 @@ public class DispatcherTableHandleJsonTest
                 new Metrics(ImmutableMap.<String, Metric<?>>of("stat", new LongCount(3))),
                 true,
                 Optional.of(ExpressionAndAssignments.TRUE));
+
+        String json = objectMapper.writeValueAsString(handle);
+        DispatcherTableHandle roundTripped = objectMapper.readValue(json, DispatcherTableHandle.class);
+
+        assertThat(roundTripped).isEqualTo(handle);
+        // equals excludes metrics and originalExpression; assert them explicitly
+        assertThat(roundTripped.getMetrics()).isEqualTo(handle.getMetrics());
+        assertThat(roundTripped.getOriginalExpression()).isEqualTo(handle.getOriginalExpression());
+    }
+
+    @Test
+    public void testJsonRoundTripWithLambdaInOriginalExpression()
+            throws Exception
+    {
+        ObjectMapper objectMapper = createObjectMapper();
+
+        Lambda lambda = new Lambda(
+                new FunctionType(List.of(INTEGER), BOOLEAN),
+                List.of(new Variable("x", INTEGER)),
+                Constant.TRUE);
+        DispatcherTableHandle handle = new DispatcherTableHandle(
+                "schemaName",
+                "tableName",
+                OptionalLong.of(7),
+                TupleDomain.all(),
+                new SimplifiedColumns(Set.of(new RegularColumn("col1"))),
+                new ProxyTableHandle("proxyName"),
+                Optional.of(new WarpExpression(new WarpCall("func", emptyList(), INTEGER), emptyList())),
+                new Metrics(ImmutableMap.<String, Metric<?>>of("stat", new LongCount(3))),
+                true,
+                Optional.of(new ExpressionAndAssignments(lambda, ImmutableMap.of())));
 
         String json = objectMapper.writeValueAsString(handle);
         DispatcherTableHandle roundTripped = objectMapper.readValue(json, DispatcherTableHandle.class);
