@@ -21,8 +21,8 @@ import ai.rapids.cudf.HostMemoryBuffer;
 import ai.rapids.cudf.Scalar;
 import io.airlift.slice.Slice;
 import io.airlift.slice.Slices;
+import io.trino.spi.block.Bitmap;
 import io.trino.spi.block.Block;
-import io.trino.spi.block.BooleanArrayBlock;
 import io.trino.spi.block.ByteArrayBlock;
 import io.trino.spi.block.DictionaryBlock;
 import io.trino.spi.block.Fixed12Block;
@@ -966,7 +966,7 @@ public final class GpuTypeConversion
     private record ValidityResult(@Own @Nullable HostMemoryBuffer buffer, long nullCount) {}
 
     /**
-     * Build the Arrow-style validity bitmask from Trino blocks using ValueBlock.getNulls().
+     * Build the Arrow-style validity bitmask from Trino blocks using ValueBlock.getValidityBitmap().
      * Returns a null buffer with zero null count if there are no nulls.
      */
     private static @Move ValidityResult buildValidity(Blocks blocks, int totalPositions)
@@ -1029,13 +1029,13 @@ public final class GpuTypeConversion
             }
             return 0;
         }
-        Optional<BooleanArrayBlock> nullsOptional = block.getUnderlyingValueBlock().getNulls();
-        if (nullsOptional.isEmpty()) {
+        Optional<Bitmap> validityOptional = block.getUnderlyingValueBlock().getValidityBitmap();
+        if (validityOptional.isEmpty()) {
             return 0;
         }
-        BooleanArrayBlock nullsBlock = nullsOptional.get();
-        boolean[] isNull = nullsBlock.getRawValues();
-        int isNullOffset = nullsBlock.getRawValuesOffset();
+        Bitmap validity = validityOptional.get();
+        long[] valueIsValid = validity.getRawWords();
+        int arrayOffset = validity.getRawBitOffset();
         int positionCount = block.getPositionCount();
 
         int firstByteIndex = destPosition >>> 3;
@@ -1046,7 +1046,7 @@ public final class GpuTypeConversion
 
         long nullCount = 0;
         for (int i = 0; i < positionCount; i++) {
-            if (isNull[isNullOffset + block.getUnderlyingValuePosition(i)]) {
+            if (!Bitmap.isSet(valueIsValid, arrayOffset, block.getUnderlyingValuePosition(i))) {
                 int bitPosition = destPosition + i;
                 int byteIndex = (bitPosition >>> 3) - firstByteIndex;
                 int bitIndex = bitPosition & 7;

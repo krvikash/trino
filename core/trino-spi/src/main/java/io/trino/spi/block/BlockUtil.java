@@ -356,6 +356,6 @@ final class BlockUtil
         if (valueIsNull == null) {
             return Optional.empty();
         }
-        return Optional.of(new BooleanArrayBlock(arrayOffset, positionCount, valueIsNull));
+        return Optional.of(new BooleanArrayBlock(positionCount, Optional.empty(), Bitmap.compactBitmapFromNulls(valueIsNull, arrayOffset, positionCount).getRawWords()));
     }
 }

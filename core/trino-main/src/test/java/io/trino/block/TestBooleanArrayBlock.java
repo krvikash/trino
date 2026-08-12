@@ -18,8 +18,12 @@ import io.trino.spi.block.BooleanArrayBlock;
 import io.trino.spi.block.ShortArrayBlockBuilder;
 import org.junit.jupiter.api.Test;
 
+import java.util.Arrays;
+import java.util.Optional;
 import java.util.Random;
 
+import static io.trino.spi.block.Bitmap.set;
+import static io.trino.spi.block.Bitmap.wordsForBits;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class TestBooleanArrayBlock
@@ -55,10 +59,12 @@ public class TestBooleanArrayBlock
     public void testCompactBlock()
     {
         boolean[] booleanArray = {false, true, false, false, false, false};
+        long[] packedValues = packBooleans(booleanArray);
 
-        testCompactBlock(new BooleanArrayBlock(0, 0, new boolean[0]));
-        testCompactBlock(new BooleanArrayBlock(0, booleanArray.length, booleanArray));
-        testNotCompactBlock(new BooleanArrayBlock(0, booleanArray.length - 1, booleanArray));
+        testCompactBlock(new BooleanArrayBlock(0, Optional.empty(), new long[0]));
+        testCompactBlock(new BooleanArrayBlock(booleanArray.length, Optional.empty(), packedValues));
+        // one word more than the position count requires
+        testNotCompactBlock(new BooleanArrayBlock(booleanArray.length, Optional.empty(), Arrays.copyOf(packedValues, packedValues.length + 1)));
     }
 
     private void assertFixedWithValues(Boolean[] expectedValues)
@@ -82,7 +88,7 @@ public class TestBooleanArrayBlock
         for (int i = 0; i < values.length; i++) {
             booleanValues[i] = values[i];
         }
-        return new BooleanArrayBlock(0, values.length, booleanValues);
+        return new BooleanArrayBlock(booleanValues.length, Optional.empty(), packBooleans(booleanValues));
     }
 
     @Override
@@ -95,5 +101,16 @@ public class TestBooleanArrayBlock
 
         assertThat(block.isNull(position)).isFalse();
         assertThat(((BooleanArrayBlock) block).getBoolean(position)).isEqualTo(expectedValue);
+    }
+
+    private static long[] packBooleans(boolean[] values)
+    {
+        long[] rawWords = new long[wordsForBits(values.length)];
+        for (int position = 0; position < values.length; position++) {
+            if (values[position]) {
+                set(rawWords, 0, position);
+            }
+        }
+        return rawWords;
     }
 }

@@ -13,8 +13,8 @@
  */
 package io.trino.operator.join;
 
+import io.trino.spi.block.Bitmap;
 import io.trino.spi.block.Block;
-import io.trino.spi.block.BooleanArrayBlock;
 import io.trino.spi.block.DictionaryBlock;
 import io.trino.spi.block.RunLengthEncodedBlock;
 import io.trino.spi.block.ValueBlock;
@@ -71,13 +71,13 @@ public final class NullablePositions
             }
             case DictionaryBlock dictionaryBlock -> {
                 ValueBlock dictionary = dictionaryBlock.getDictionary();
-                Optional<BooleanArrayBlock> dictionaryIsNullBlock = dictionary.getNulls();
-                if (dictionaryIsNullBlock.isPresent()) {
+                Optional<Bitmap> dictionaryValidity = dictionary.getValidityBitmap();
+                if (dictionaryValidity.isPresent()) {
                     int outputPositionCount = 0;
-                    boolean[] dictionaryIsNull = dictionaryIsNullBlock.get().getRawValues();
-                    int isNullOffset = dictionaryIsNullBlock.get().getRawValuesOffset();
+                    long[] dictionaryIsValid = dictionaryValidity.get().getRawWords();
+                    int validityOffset = dictionaryValidity.get().getRawBitOffset();
                     for (int position = 0; position < positionCount; position++) {
-                        boolean isNull = dictionaryIsNull[isNullOffset + dictionaryBlock.getId(position)];
+                        boolean isNull = !Bitmap.isSet(dictionaryIsValid, validityOffset, dictionaryBlock.getId(position));
                         outputPositions[outputPositionCount] = position;
                         outputPositionCount += isNull ? 0 : 1;
                     }
@@ -85,14 +85,14 @@ public final class NullablePositions
                 }
             }
             case ValueBlock valueBlock -> {
-                Optional<BooleanArrayBlock> isNullsBlock = valueBlock.getNulls();
-                if (isNullsBlock.isPresent()) {
+                Optional<Bitmap> validity = valueBlock.getValidityBitmap();
+                if (validity.isPresent()) {
                     int outputPositionCount = 0;
-                    boolean[] isNulls = isNullsBlock.get().getRawValues();
-                    int isNullOffset = isNullsBlock.get().getRawValuesOffset();
+                    long[] valueIsValid = validity.get().getRawWords();
+                    int validityOffset = validity.get().getRawBitOffset();
                     for (int position = 0; position < positionCount; position++) {
                         outputPositions[outputPositionCount] = position;
-                        outputPositionCount += isNulls[isNullOffset + position] ? 0 : 1;
+                        outputPositionCount += !Bitmap.isSet(valueIsValid, validityOffset, position) ? 0 : 1;
                     }
                     return outputPositionCount;
                 }
@@ -114,22 +114,22 @@ public final class NullablePositions
             }
             case DictionaryBlock dictionaryBlock -> {
                 ValueBlock dictionary = dictionaryBlock.getDictionary();
-                Optional<BooleanArrayBlock> dictionaryIsNullBlock = dictionary.getNulls();
-                if (dictionaryIsNullBlock.isPresent()) {
-                    boolean[] dictionaryIsNull = dictionaryIsNullBlock.get().getRawValues();
-                    int isNullOffset = dictionaryIsNullBlock.get().getRawValuesOffset();
+                Optional<Bitmap> dictionaryValidity = dictionary.getValidityBitmap();
+                if (dictionaryValidity.isPresent()) {
+                    long[] dictionaryIsValid = dictionaryValidity.get().getRawWords();
+                    int validityOffset = dictionaryValidity.get().getRawBitOffset();
                     for (int position = 0; position < isNull.length; position++) {
-                        isNull[position] |= dictionaryIsNull[isNullOffset + dictionaryBlock.getId(position)];
+                        isNull[position] |= !Bitmap.isSet(dictionaryIsValid, validityOffset, dictionaryBlock.getId(position));
                     }
                 }
             }
             case ValueBlock valueBlock -> {
-                Optional<BooleanArrayBlock> isNullsBlock = valueBlock.getNulls();
-                if (isNullsBlock.isPresent()) {
-                    boolean[] isNulls = isNullsBlock.get().getRawValues();
-                    int isNullOffset = isNullsBlock.get().getRawValuesOffset();
+                Optional<Bitmap> validity = valueBlock.getValidityBitmap();
+                if (validity.isPresent()) {
+                    long[] valueIsValid = validity.get().getRawWords();
+                    int validityOffset = validity.get().getRawBitOffset();
                     for (int position = 0; position < isNull.length; position++) {
-                        isNull[position] |= isNulls[isNullOffset + position];
+                        isNull[position] |= !Bitmap.isSet(valueIsValid, validityOffset, position);
                     }
                 }
             }
@@ -147,12 +147,12 @@ public final class NullablePositions
             }
             case DictionaryBlock dictionaryBlock -> {
                 ValueBlock dictionary = dictionaryBlock.getDictionary();
-                Optional<BooleanArrayBlock> dictionaryIsNullBlock = dictionary.getNulls();
-                if (dictionaryIsNullBlock.isPresent()) {
-                    boolean[] dictionaryIsNull = dictionaryIsNullBlock.get().getRawValues();
-                    int isNullOffset = dictionaryIsNullBlock.get().getRawValuesOffset();
+                Optional<Bitmap> dictionaryValidity = dictionary.getValidityBitmap();
+                if (dictionaryValidity.isPresent()) {
+                    long[] dictionaryIsValid = dictionaryValidity.get().getRawWords();
+                    int validityOffset = dictionaryValidity.get().getRawBitOffset();
                     for (int position = 0; position < isNull.length; position++) {
-                        isNull[position] |= dictionaryIsNull[isNullOffset + dictionaryBlock.getId(position)];
+                        isNull[position] |= !Bitmap.isSet(dictionaryIsValid, validityOffset, dictionaryBlock.getId(position));
                         outputPositions[outputPositionCount] = position;
                         outputPositionCount += isNull[position] ? 0 : 1;
                     }
@@ -160,12 +160,12 @@ public final class NullablePositions
                 }
             }
             case ValueBlock valueBlock -> {
-                Optional<BooleanArrayBlock> isNullsBlock = valueBlock.getNulls();
-                if (isNullsBlock.isPresent()) {
-                    boolean[] isNulls = isNullsBlock.get().getRawValues();
-                    int isNullOffset = isNullsBlock.get().getRawValuesOffset();
+                Optional<Bitmap> validity = valueBlock.getValidityBitmap();
+                if (validity.isPresent()) {
+                    long[] valueIsValid = validity.get().getRawWords();
+                    int validityOffset = validity.get().getRawBitOffset();
                     for (int position = 0; position < isNull.length; position++) {
-                        isNull[position] |= isNulls[isNullOffset + position];
+                        isNull[position] |= !Bitmap.isSet(valueIsValid, validityOffset, position);
                         outputPositions[outputPositionCount] = position;
                         outputPositionCount += isNull[position] ? 0 : 1;
                     }
