@@ -79,6 +79,13 @@ final class EmbeddedBufferQueryRunner
                 .withExchange("buffer", exchangeManagerProperties)
                 .build();
 
+        installMockConnector(queryRunner);
+
+        return queryRunner;
+    }
+
+    static void installMockConnector(DistributedQueryRunner queryRunner)
+    {
         queryRunner.installPlugin(new MockConnectorPlugin(
                 MockConnectorFactory.builder()
                         .withGetColumns(_ -> ImmutableList.of(
@@ -93,7 +100,5 @@ final class EmbeddedBufferQueryRunner
                         })
                         .build()));
         queryRunner.createCatalog("mock", "mock");
-
-        return queryRunner;
     }
 }

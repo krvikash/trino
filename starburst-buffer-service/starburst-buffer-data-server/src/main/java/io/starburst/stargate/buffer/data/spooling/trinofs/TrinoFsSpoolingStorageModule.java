@@ -44,11 +44,14 @@ import jakarta.annotation.PreDestroy;
 import java.net.URI;
 import java.util.Optional;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 import static com.google.common.util.concurrent.MoreExecutors.listeningDecorator;
 import static com.google.inject.Scopes.SINGLETON;
+import static io.airlift.concurrent.Threads.daemonThreadsNamed;
 import static io.airlift.concurrent.Threads.threadsNamed;
 import static io.airlift.configuration.ConfigBinder.configBinder;
 import static java.util.Objects.requireNonNull;
@@ -200,6 +203,16 @@ public class TrinoFsSpoolingStorageModule
         {
             return newPool(config.getDeleteExecutorThreads(), "trino-fs-spooling-delete-%s");
         }
+
+        @Provides
+        @Singleton
+        @ForTrinoFsSpooling
+        static ScheduledExecutorService trinoFsTimeoutExecutor()
+        {
+            ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(1, daemonThreadsNamed("trino-fs-spooling-timeout"));
+            executor.setRemoveOnCancelPolicy(true);
+            return executor;
+        }
     }
 
     private static ListeningExecutorService newPool(int threads, String nameFormat)
@@ -225,14 +238,17 @@ public class TrinoFsSpoolingStorageModule
     {
         private final ListeningExecutorService readWriteExecutor;
         private final ListeningExecutorService deleteExecutor;
+        private final ScheduledExecutorService timeoutExecutor;
 
         @Inject
         TrinoFsExecutorLifecycle(
                 @ForTrinoFsSpooling ListeningExecutorService readWriteExecutor,
-                @ForTrinoFsSpoolingDelete ListeningExecutorService deleteExecutor)
+                @ForTrinoFsSpoolingDelete ListeningExecutorService deleteExecutor,
+                @ForTrinoFsSpooling ScheduledExecutorService timeoutExecutor)
         {
             this.readWriteExecutor = requireNonNull(readWriteExecutor, "readWriteExecutor is null");
             this.deleteExecutor = requireNonNull(deleteExecutor, "deleteExecutor is null");
+            this.timeoutExecutor = requireNonNull(timeoutExecutor, "timeoutExecutor is null");
         }
 
         @PreDestroy
@@ -242,6 +258,7 @@ public class TrinoFsSpoolingStorageModule
             // matching the cancellation contract documented on TrinoFsSpoolingStorage.
             readWriteExecutor.shutdownNow();
             deleteExecutor.shutdownNow();
+            timeoutExecutor.shutdownNow();
         }
     }
 }

@@ -17,6 +17,7 @@ import io.airlift.units.DataSize;
 import io.airlift.units.Duration;
 import io.airlift.units.MaxDataSize;
 import io.airlift.units.MinDataSize;
+import io.airlift.units.MinDuration;
 import jakarta.annotation.PostConstruct;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
@@ -39,6 +40,9 @@ public class ChunkManagerConfig
     private DataSize chunkSliceSize = DataSize.of(128, KILOBYTE);
     private Duration exchangeStalenessThreshold = DEFAULT_EXCHANGE_STALENESS_THRESHOLD;
     private Duration chunkSpoolInterval = succinctDuration(50, MILLISECONDS);
+    // Generous by design: it only exists to unblock spooling against a stuck filesystem, and must not cancel a
+    // legitimately slow write of a merged chunk. Draining uses its own, much tighter, per-attempt bound.
+    private Duration chunkSpoolTimeout = succinctDuration(5, MINUTES);
     // It is important to keep number of spooling threads on lower end.
     // With default chunks size and merging configuration single spooling request can have up to 16MB*10=160MB. It was
     // observed that S3 client tends to allocate off-heap memory which is proportional to size of PUT requests in flight.
@@ -117,6 +121,21 @@ public class ChunkManagerConfig
     public ChunkManagerConfig setChunkSpoolInterval(Duration chunkSpoolInterval)
     {
         this.chunkSpoolInterval = chunkSpoolInterval;
+        return this;
+    }
+
+    @NotNull
+    @MinDuration("1s")
+    public Duration getChunkSpoolTimeout()
+    {
+        return chunkSpoolTimeout;
+    }
+
+    @Config("chunk.spool-timeout")
+    @ConfigDescription("Timeout for a single round of synchronous chunk spooling outside of draining")
+    public ChunkManagerConfig setChunkSpoolTimeout(Duration chunkSpoolTimeout)
+    {
+        this.chunkSpoolTimeout = chunkSpoolTimeout;
         return this;
     }
 

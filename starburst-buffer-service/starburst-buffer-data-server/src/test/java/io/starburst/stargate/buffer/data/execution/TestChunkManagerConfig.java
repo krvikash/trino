@@ -38,6 +38,7 @@ public class TestChunkManagerConfig
                 .setChunkSliceSize(DataSize.of(128, KILOBYTE))
                 .setExchangeStalenessThreshold(DEFAULT_EXCHANGE_STALENESS_THRESHOLD)
                 .setChunkSpoolInterval(succinctDuration(50, MILLISECONDS))
+                .setChunkSpoolTimeout(succinctDuration(5, MINUTES))
                 .setChunkSpoolConcurrency(8)
                 .setChunkSpoolMergeThreshold(10));
     }
@@ -51,6 +52,7 @@ public class TestChunkManagerConfig
                 .put("chunk.slice-size", "1MB")
                 .put("exchange.staleness-threshold", "1m")
                 .put("chunk.spool-interval", "5s")
+                .put("chunk.spool-timeout", "7m")
                 .put("chunk.spool-concurrency", "10")
                 .put("chunk.spool-merge-threshold", "12")
                 .buildOrThrow();
@@ -61,6 +63,7 @@ public class TestChunkManagerConfig
                 .setChunkSliceSize(DataSize.of(1, MEGABYTE))
                 .setExchangeStalenessThreshold(succinctDuration(1, MINUTES))
                 .setChunkSpoolInterval(succinctDuration(5, SECONDS))
+                .setChunkSpoolTimeout(succinctDuration(7, MINUTES))
                 .setChunkSpoolConcurrency(10)
                 .setChunkSpoolMergeThreshold(12);
 

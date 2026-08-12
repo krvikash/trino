@@ -29,6 +29,7 @@ import io.starburst.stargate.buffer.data.spooling.s3.MinioStorage;
 import io.starburst.stargate.buffer.data.spooling.s3.S3ClientConfig;
 import io.starburst.stargate.buffer.data.spooling.s3.S3SpoolingStorage;
 import io.starburst.stargate.buffer.data.spooling.s3.S3Utils;
+import io.starburst.stargate.buffer.data.spooling.trinofs.TrinoFsSpoolingConfig;
 import io.starburst.stargate.buffer.data.spooling.trinofs.TrinoFsSpoolingStorage;
 import io.trino.filesystem.TrinoFileSystem;
 import io.trino.filesystem.azure.AzureAuthAccessKey;
@@ -46,8 +47,11 @@ import java.io.UncheckedIOException;
 import java.nio.file.Path;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 
 import static com.google.common.util.concurrent.MoreExecutors.newDirectExecutorService;
+import static io.airlift.concurrent.Threads.daemonThreadsNamed;
 
 public final class SpoolTestHelper
 {
@@ -206,7 +210,14 @@ public final class SpoolTestHelper
                 new DataServerStats(),
                 fileSystem,
                 newDirectExecutorService(),
-                newDirectExecutorService());
+                newDirectExecutorService(),
+                new TrinoFsSpoolingConfig(),
+                newTimeoutExecutor());
+    }
+
+    private static ScheduledExecutorService newTimeoutExecutor()
+    {
+        return new ScheduledThreadPoolExecutor(1, daemonThreadsNamed("test-timeout-%s"));
     }
 
     private static TrinoFileSystem createMinioTrinoFileSystem(MinioStorage minioStorage)

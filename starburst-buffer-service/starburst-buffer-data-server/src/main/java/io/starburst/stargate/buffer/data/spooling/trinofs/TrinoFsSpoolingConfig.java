@@ -11,12 +11,18 @@ package io.starburst.stargate.buffer.data.spooling.trinofs;
 
 import io.airlift.configuration.Config;
 import io.airlift.configuration.ConfigDescription;
+import io.airlift.units.Duration;
+import io.airlift.units.MinDuration;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotNull;
+
+import java.util.concurrent.TimeUnit;
 
 public class TrinoFsSpoolingConfig
 {
-    private int executorThreads = 50;
+    private int executorThreads = 128;
     private int deleteExecutorThreads = 10;
+    private Duration operationTimeout = new Duration(60, TimeUnit.SECONDS);
 
     @Min(1)
     public int getExecutorThreads()
@@ -43,6 +49,21 @@ public class TrinoFsSpoolingConfig
     public TrinoFsSpoolingConfig setDeleteExecutorThreads(int deleteExecutorThreads)
     {
         this.deleteExecutorThreads = deleteExecutorThreads;
+        return this;
+    }
+
+    @NotNull
+    @MinDuration("1s")
+    public Duration getOperationTimeout()
+    {
+        return operationTimeout;
+    }
+
+    @Config("spooling.trino-fs.operation-timeout")
+    @ConfigDescription("Maximum time a single blocking TrinoFileSystem read/write/delete may take before it is cancelled and reported as failed. Bounds drain time so a hung filesystem call cannot exceed the node's shutdown grace period.")
+    public TrinoFsSpoolingConfig setOperationTimeout(Duration operationTimeout)
+    {
+        this.operationTimeout = operationTimeout;
         return this;
     }
 }

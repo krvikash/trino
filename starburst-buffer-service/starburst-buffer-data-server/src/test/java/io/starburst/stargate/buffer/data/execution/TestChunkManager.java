@@ -9,9 +9,10 @@
  */
 package io.starburst.stargate.buffer.data.execution;
 
+import com.google.common.base.VerifyException;
 import com.google.common.collect.ImmutableList;
-import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.SettableFuture;
 import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
 import io.airlift.testing.TestingTicker;
@@ -61,6 +62,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
+import static com.google.common.util.concurrent.Futures.immediateFailedFuture;
+import static com.google.common.util.concurrent.Futures.immediateVoidFuture;
 import static com.google.common.util.concurrent.Uninterruptibles.sleepUninterruptibly;
 import static io.airlift.concurrent.MoreFutures.getFutureValue;
 import static io.airlift.slice.Slices.utf8Slice;
@@ -123,7 +126,7 @@ public class TestChunkManager
         {
             String exchangeId = chunkDataLeaseMap.keySet().stream().findFirst().get().getExchangeId();
             if (failureExchanges.contains(exchangeId)) {
-                return Futures.immediateFailedFuture(new ExecutionException("Task did not complete", new IOException("Write failed")));
+                return immediateFailedFuture(new ExecutionException("Task did not complete", new IOException("Write failed")));
             }
 
             return super.putStorageObject(fileName, chunkDataLeaseMap, contentLength);
@@ -1076,6 +1079,32 @@ public class TestChunkManager
         newChunkManager.removeExchange(EXCHANGE_0);
     }
 
+    @Test
+    public void testDrainAllChunksSpoolSyncTimeout()
+    {
+        // BlockingSpoolingStorage returns futures that never complete, simulating a hung FS call
+        SpoolingStorage blockingStorage = getBlockingSpoolStorage();
+
+        ChunkManager chunkManager = createChunkManager(
+                BUFFER_NODE_ID,
+                defaultMemoryAllocator(),
+                DataSize.of(16, MEGABYTE),
+                DataSize.of(64, MEGABYTE),
+                DataSize.of(128, KILOBYTE),
+                blockingStorage,
+                1,
+                succinctDuration(500, MILLISECONDS),
+                1);
+
+        chunkManager.registerExchange(EXCHANGE_0, STANDARD, Optional.empty());
+        getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 0L, ImmutableList.of(utf8Slice("data"))).addDataPagesFuture());
+        getFutureValue(chunkManager.finishExchange(EXCHANGE_0));
+
+        assertThatThrownBy(chunkManager::drainAllChunks)
+                .isInstanceOf(VerifyException.class)
+                .hasMessageContaining("closed chunks exist after spooling all chunks");
+    }
+
     @AfterAll
     public void destroy()
     {
@@ -1152,6 +1181,29 @@ public class TestChunkManager
             SpoolingStorage spoolingStorage,
             int chunkSpoolConcurrency)
     {
+        return createChunkManager(
+                bufferNodeId,
+                memoryAllocator,
+                chunkTargetSize,
+                chunkMaxSize,
+                chunkSliceSize,
+                spoolingStorage,
+                chunkSpoolConcurrency,
+                new DataServerConfig().getDrainAllChunksTimeout(),
+                new DataServerConfig().getDrainingMaxAttempts());
+    }
+
+    private ChunkManager createChunkManager(
+            long bufferNodeId,
+            MemoryAllocator memoryAllocator,
+            DataSize chunkTargetSize,
+            DataSize chunkMaxSize,
+            DataSize chunkSliceSize,
+            SpoolingStorage spoolingStorage,
+            int chunkSpoolConcurrency,
+            Duration drainAllChunksTimeout,
+            int drainingMaxAttempts)
+    {
         ChunkManagerConfig chunkManagerConfig = new ChunkManagerConfig()
                 .setChunkTargetSize(chunkTargetSize)
                 .setChunkMaxSize(chunkMaxSize)
@@ -1163,7 +1215,9 @@ public class TestChunkManager
                 .setDataIntegrityVerificationEnabled(true)
                 .setMinDrainingDuration(succinctDuration(0, SECONDS)) // don't wait for extra time in tests
                 // Reduce timeout here for calls when we expect zero results - we want those to return ASAP to reduce test duration
-                .setChunkListPollTimeout(Duration.succinctDuration(5, MILLISECONDS));
+                .setChunkListPollTimeout(Duration.succinctDuration(5, MILLISECONDS))
+                .setDrainAllChunksTimeout(drainAllChunksTimeout)
+                .setDrainingMaxAttempts(drainingMaxAttempts);
         ExchangeChunkBytes exchangeAllocatedBytes = new ExchangeChunkBytes();
         ChunkDataFactory chunkDataFactory = new ChunkDataFactory(Optional.empty(), memoryAllocator, executor, Optional.empty(), exchangeAllocatedBytes, new DataServerStats(), chunkManagerConfig, dataServerConfig);
         return new ChunkManager(
@@ -1225,6 +1279,41 @@ public class TestChunkManager
             sleepUninterruptibly(100, MILLISECONDS);
         }
         return abort();
+    }
+
+    private static SpoolingStorage getBlockingSpoolStorage()
+    {
+        SettableFuture<Map<Long, SpooledChunk>> neverCompletingFuture = SettableFuture.create();
+        return new SpoolingStorage()
+        {
+            @Override
+            public ListenableFuture<Map<Long, SpooledChunk>> writeMergedChunks(long bufferNodeId, String exchangeId, Map<Chunk, ChunkDataLease> chunkDataLeaseMap, long contentLength)
+            {
+                // ChunkManager owns the leases; on cancellation the failure callback surrenders them for release
+                return neverCompletingFuture;
+            }
+
+            @Override
+            public ListenableFuture<Void> writeMetadataFile(long bufferNodeId, Slice metadataSlice)
+            {
+                return immediateVoidFuture();
+            }
+
+            @Override
+            public ListenableFuture<Slice> readMetadataFile(long bufferNodeId)
+            {
+                return immediateFailedFuture(new UnsupportedOperationException());
+            }
+
+            @Override
+            public ListenableFuture<Void> removeExchange(long bufferNodeId, String exchangeId)
+            {
+                return immediateVoidFuture();
+            }
+
+            @Override
+            public void close() {}
+        };
     }
 
     protected void assertDrainedChunkDataResult(ChunkManager chunkManager, long drainedBufferNodeId)
