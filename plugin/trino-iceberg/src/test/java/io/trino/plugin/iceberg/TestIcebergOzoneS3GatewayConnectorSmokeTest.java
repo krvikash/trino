@@ -78,7 +78,7 @@ final class TestIcebergOzoneS3GatewayConnectorSmokeTest
                                 .put("iceberg.register-table-procedure.enabled", "true")
                                 .put("iceberg.writer-sort-buffer-size", "1MB")
                                 .put("fs.hadoop.enabled", "false")
-                                .put("fs.native-s3.enabled", "true")
+                                .put("fs.s3.enabled", "true")
                                 .put("s3.aws-access-key", DUMMY_ACCESS_KEY)
                                 .put("s3.aws-secret-key", DUMMY_SECRET_KEY)
                                 .put("s3.region", DEFAULT_REGION)
