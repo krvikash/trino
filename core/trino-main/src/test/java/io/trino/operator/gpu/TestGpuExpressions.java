@@ -49,6 +49,7 @@ import io.trino.sql.ir.Constant;
 import io.trino.sql.ir.Expression;
 import io.trino.sql.ir.In;
 import io.trino.sql.ir.IsNull;
+import io.trino.sql.ir.Let;
 import io.trino.sql.ir.Logical;
 import io.trino.sql.ir.Reference;
 import io.trino.sql.ir.WhenClause;
@@ -978,6 +979,31 @@ public class TestGpuExpressions
                 new Constant(BIGINT, 50L));
 
         assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA));
+    }
+
+    @ParameterizedTest
+    @EnumSource(NullsProvider.class)
+    public void testBetweenNonTrivialValue(NullsProvider nullsProvider)
+    {
+        int channelA = 0;
+        int channelB = 1;
+        List<Type> inputTypes = List.of(BIGINT, BIGINT);
+        int positionsCount = 64;
+        List<Page> inputPages = List.of(new Page(
+                positionsCount,
+                createBigintBlock(positionsCount, nullsProvider, -100, 100),
+                createBigintBlock(positionsCount, nullsProvider, -100, 100)));
+
+        // (a + b) BETWEEN 10 AND 50 — the non-trivial value is bound with a Let so it is evaluated once
+        Expression expression = between(
+                new Call(
+                        FUNCTION_RESOLUTION.resolveOperator(OperatorType.ADD, List.of(BIGINT, BIGINT)),
+                        ImmutableList.of(field(channelA, BIGINT), field(channelB, BIGINT))),
+                new Constant(BIGINT, 10L),
+                new Constant(BIGINT, 50L));
+        assertThat(expression).isInstanceOf(Let.class);
+
+        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA, channelB));
     }
 
     @ParameterizedTest

@@ -86,6 +86,7 @@ import static io.trino.spi.type.IntegerType.INTEGER;
 import static io.trino.spi.type.RealType.REAL;
 import static io.trino.spi.type.SmallintType.SMALLINT;
 import static io.trino.spi.type.TinyintType.TINYINT;
+import static io.trino.sql.ir.IrExpressions.matchBetween;
 import static io.trino.sql.ir.IrExpressions.matchComparison;
 import static io.trino.type.IntervalDayTimeType.INTERVAL_DAY_TIME;
 import static io.trino.type.IntervalYearMonthType.INTERVAL_YEAR_MONTH;
@@ -702,6 +703,13 @@ public final class GpuExpressionCompiler
         @Override
         protected Optional<GpuExpression> visitLet(Let let, Void context)
         {
+            IrExpressions.Between between = matchBetween(let);
+            if (between != null) {
+                // GpuBetween evaluates the value once, just like Let
+                return compileAll(ImmutableList.of(between.value(), between.min(), between.max()), context)
+                        .map(args -> new GpuBetween(args.get(0), args.get(1), args.get(2)));
+            }
+
             // The GPU expression model has no variable binding, and inlining the bound value into the body
             // would evaluate it once per occurrence, violating Let's single-evaluation semantics.
             return Optional.empty();

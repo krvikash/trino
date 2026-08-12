@@ -15,6 +15,7 @@ package io.trino.testing;
 
 import com.google.common.collect.ImmutableList;
 import io.trino.sql.planner.plan.AggregationNode;
+import io.trino.sql.planner.plan.FilterNode;
 import io.trino.sql.planner.plan.TableScanNode;
 import io.trino.tpch.TpchTable;
 import org.junit.jupiter.api.Test;
@@ -260,6 +261,35 @@ public abstract class BaseGpuQueriesTest
                 .matches("VALUES BIGINT '0'");
 
         assertUpdate("DROP TABLE test_gpu_empty");
+    }
+
+    @Test
+    public void testBetweenExecutesWithGpu()
+    {
+        // A BETWEEN over a non-trivial value is lowered to a Let binding so the value is evaluated
+        // once; the GPU compiler must recognize that shape and keep the filter on the GPU.
+        assertUpdate(
+                """
+                CREATE TABLE test_gpu_between AS SELECT * FROM (VALUES
+                    (20, BIGINT '30', 15),
+                    (100, BIGINT '100', 200),
+                    (5, BIGINT '40', 10),
+                    (NULL, NULL, NULL))
+                t(int_a, big_b, int_c)
+                """,
+                4);
+
+        // Widening cast is unwrapped into a base-column range (UnwrapCastInComparison).
+        assertThat(query("SELECT int_a FROM test_gpu_between WHERE CAST(int_a AS bigint) BETWEEN 10 AND 50"))
+                .executesWithGpu(FilterNode.class);
+        // Narrowing cast in BETWEEN cannot be unwrapped, so BETWEEN gets expressed as Let in IR
+        assertThat(query("SELECT big_b FROM test_gpu_between WHERE CAST(big_b AS integer) BETWEEN 10 AND 50"))
+                .executesWithGpu(FilterNode.class);
+        // BETWEEN expressed as Let in IR
+        assertThat(query("SELECT int_a FROM test_gpu_between WHERE (int_a + int_c) BETWEEN 10 AND 50"))
+                .executesWithGpu(FilterNode.class);
+
+        assertUpdate("DROP TABLE test_gpu_between");
     }
 
     @Test
