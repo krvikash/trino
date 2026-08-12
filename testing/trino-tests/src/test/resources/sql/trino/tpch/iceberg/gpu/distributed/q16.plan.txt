@@ -11,7 +11,7 @@
                     - ExchangeNode LOCAL (GPU)
                       - AggregationNode (GPU)
                         - ProjectNode (GPU)
-                          - FilterNode
+                          - FilterNode (GPU)
                             - SemiJoinNode (GPU)
                               - ExchangeNode REMOTE
                                 - JoinNode (GPU)
@@ -25,5 +25,5 @@
                               - ExchangeNode LOCAL
                                 - ExchangeNode REMOTE
                                   - ProjectNode (GPU)
-                                    - FilterNode
+                                    - FilterNode (GPU)
                                       - TableScanNode supplier (GPU)

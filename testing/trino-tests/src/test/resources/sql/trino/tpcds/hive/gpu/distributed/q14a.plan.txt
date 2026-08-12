@@ -33,7 +33,7 @@
                                                           - ExchangeNode LOCAL
                                                             - ExchangeNode REMOTE
                                                               - ProjectNode (GPU)
-                                                                - FilterNode
+                                                                - FilterNode (GPU)
                                                                   - TableScanNode date_dim (GPU)
                                                   - ExchangeNode LOCAL (GPU)
                                                     - JoinNode (GPU)
@@ -46,7 +46,7 @@
                                                             - AggregationNode (GPU)
                                                               - JoinNode (GPU)
                                                                 - ProjectNode (GPU)
-                                                                  - FilterNode
+                                                                  - FilterNode (GPU)
                                                                     - AggregationNode (GPU)
                                                                       - ExchangeNode LOCAL
                                                                         - ProjectNode
@@ -63,7 +63,7 @@
                                                                                         - ExchangeNode LOCAL
                                                                                           - ExchangeNode REMOTE
                                                                                             - ProjectNode (GPU)
-                                                                                              - FilterNode
+                                                                                              - FilterNode (GPU)
                                                                                                 - TableScanNode date_dim (GPU)
                                                                                 - ExchangeNode LOCAL
                                                                                   - ExchangeNode REMOTE
@@ -83,7 +83,7 @@
                                                                                         - ExchangeNode LOCAL
                                                                                           - ExchangeNode REMOTE
                                                                                             - ProjectNode (GPU)
-                                                                                              - FilterNode
+                                                                                              - FilterNode (GPU)
                                                                                                 - TableScanNode date_dim (GPU)
                                                                                 - ExchangeNode LOCAL
                                                                                   - ExchangeNode REMOTE
@@ -103,7 +103,7 @@
                                                                                         - ExchangeNode LOCAL
                                                                                           - ExchangeNode REMOTE
                                                                                             - ProjectNode (GPU)
-                                                                                              - FilterNode
+                                                                                              - FilterNode (GPU)
                                                                                                 - TableScanNode date_dim (GPU)
                                                                                 - ExchangeNode LOCAL
                                                                                   - ExchangeNode REMOTE
@@ -127,7 +127,7 @@
                                                           - ExchangeNode LOCAL
                                                             - ExchangeNode REMOTE
                                                               - ProjectNode (GPU)
-                                                                - FilterNode
+                                                                - FilterNode (GPU)
                                                                   - TableScanNode date_dim (GPU)
                                                     - AggregationNode (GPU)
                                                       - ProjectNode (GPU)
@@ -138,7 +138,7 @@
                                                           - ExchangeNode LOCAL
                                                             - ExchangeNode REMOTE
                                                               - ProjectNode (GPU)
-                                                                - FilterNode
+                                                                - FilterNode (GPU)
                                                                   - TableScanNode date_dim (GPU)
                                                     - AggregationNode (GPU)
                                                       - ProjectNode (GPU)
@@ -149,7 +149,7 @@
                                                           - ExchangeNode LOCAL
                                                             - ExchangeNode REMOTE
                                                               - ProjectNode (GPU)
-                                                                - FilterNode
+                                                                - FilterNode (GPU)
                                                                   - TableScanNode date_dim (GPU)
                                 - ProjectNode
                                   - ProjectNode
@@ -170,7 +170,7 @@
                                                           - ExchangeNode LOCAL
                                                             - ExchangeNode REMOTE
                                                               - ProjectNode (GPU)
-                                                                - FilterNode
+                                                                - FilterNode (GPU)
                                                                   - TableScanNode date_dim (GPU)
                                                   - ExchangeNode LOCAL (GPU)
                                                     - JoinNode (GPU)
@@ -183,7 +183,7 @@
                                                             - AggregationNode (GPU)
                                                               - JoinNode (GPU)
                                                                 - ProjectNode (GPU)
-                                                                  - FilterNode
+                                                                  - FilterNode (GPU)
                                                                     - AggregationNode (GPU)
                                                                       - ExchangeNode LOCAL
                                                                         - ProjectNode
@@ -200,7 +200,7 @@
                                                                                         - ExchangeNode LOCAL
                                                                                           - ExchangeNode REMOTE
                                                                                             - ProjectNode (GPU)
-                                                                                              - FilterNode
+                                                                                              - FilterNode (GPU)
                                                                                                 - TableScanNode date_dim (GPU)
                                                                                 - ExchangeNode LOCAL
                                                                                   - ExchangeNode REMOTE
@@ -220,7 +220,7 @@
                                                                                         - ExchangeNode LOCAL
                                                                                           - ExchangeNode REMOTE
                                                                                             - ProjectNode (GPU)
-                                                                                              - FilterNode
+                                                                                              - FilterNode (GPU)
                                                                                                 - TableScanNode date_dim (GPU)
                                                                                 - ExchangeNode LOCAL
                                                                                   - ExchangeNode REMOTE
@@ -240,7 +240,7 @@
                                                                                         - ExchangeNode LOCAL
                                                                                           - ExchangeNode REMOTE
                                                                                             - ProjectNode (GPU)
-                                                                                              - FilterNode
+                                                                                              - FilterNode (GPU)
                                                                                                 - TableScanNode date_dim (GPU)
                                                                                 - ExchangeNode LOCAL
                                                                                   - ExchangeNode REMOTE
@@ -264,7 +264,7 @@
                                                           - ExchangeNode LOCAL
                                                             - ExchangeNode REMOTE
                                                               - ProjectNode (GPU)
-                                                                - FilterNode
+                                                                - FilterNode (GPU)
                                                                   - TableScanNode date_dim (GPU)
                                                     - AggregationNode (GPU)
                                                       - ProjectNode (GPU)
@@ -275,7 +275,7 @@
                                                           - ExchangeNode LOCAL
                                                             - ExchangeNode REMOTE
                                                               - ProjectNode (GPU)
-                                                                - FilterNode
+                                                                - FilterNode (GPU)
                                                                   - TableScanNode date_dim (GPU)
                                                     - AggregationNode (GPU)
                                                       - ProjectNode (GPU)
@@ -286,7 +286,7 @@
                                                           - ExchangeNode LOCAL
                                                             - ExchangeNode REMOTE
                                                               - ProjectNode (GPU)
-                                                                - FilterNode
+                                                                - FilterNode (GPU)
                                                                   - TableScanNode date_dim (GPU)
                                 - ProjectNode
                                   - ProjectNode
@@ -306,7 +306,7 @@
                                                         - ExchangeNode LOCAL
                                                           - ExchangeNode REMOTE
                                                             - ProjectNode (GPU)
-                                                              - FilterNode
+                                                              - FilterNode (GPU)
                                                                 - TableScanNode date_dim (GPU)
                                                     - ExchangeNode LOCAL (GPU)
                                                       - JoinNode (GPU)
@@ -319,7 +319,7 @@
                                                               - AggregationNode (GPU)
                                                                 - JoinNode (GPU)
                                                                   - ProjectNode (GPU)
-                                                                    - FilterNode
+                                                                    - FilterNode (GPU)
                                                                       - AggregationNode (GPU)
                                                                         - ExchangeNode LOCAL
                                                                           - ProjectNode
@@ -336,7 +336,7 @@
                                                                                           - ExchangeNode LOCAL
                                                                                             - ExchangeNode REMOTE
                                                                                               - ProjectNode (GPU)
-                                                                                                - FilterNode
+                                                                                                - FilterNode (GPU)
                                                                                                   - TableScanNode date_dim (GPU)
                                                                                   - ExchangeNode LOCAL
                                                                                     - ExchangeNode REMOTE
@@ -356,7 +356,7 @@
                                                                                           - ExchangeNode LOCAL
                                                                                             - ExchangeNode REMOTE
                                                                                               - ProjectNode (GPU)
-                                                                                                - FilterNode
+                                                                                                - FilterNode (GPU)
                                                                                                   - TableScanNode date_dim (GPU)
                                                                                   - ExchangeNode LOCAL
                                                                                     - ExchangeNode REMOTE
@@ -376,7 +376,7 @@
                                                                                           - ExchangeNode LOCAL
                                                                                             - ExchangeNode REMOTE
                                                                                               - ProjectNode (GPU)
-                                                                                                - FilterNode
+                                                                                                - FilterNode (GPU)
                                                                                                   - TableScanNode date_dim (GPU)
                                                                                   - ExchangeNode LOCAL
                                                                                     - ExchangeNode REMOTE
@@ -400,7 +400,7 @@
                                                           - ExchangeNode LOCAL
                                                             - ExchangeNode REMOTE
                                                               - ProjectNode (GPU)
-                                                                - FilterNode
+                                                                - FilterNode (GPU)
                                                                   - TableScanNode date_dim (GPU)
                                                     - AggregationNode (GPU)
                                                       - ProjectNode (GPU)
@@ -411,7 +411,7 @@
                                                           - ExchangeNode LOCAL
                                                             - ExchangeNode REMOTE
                                                               - ProjectNode (GPU)
-                                                                - FilterNode
+                                                                - FilterNode (GPU)
                                                                   - TableScanNode date_dim (GPU)
                                                     - AggregationNode (GPU)
                                                       - ProjectNode (GPU)
@@ -422,5 +422,5 @@
                                                           - ExchangeNode LOCAL
                                                             - ExchangeNode REMOTE
                                                               - ProjectNode (GPU)
-                                                                - FilterNode
+                                                                - FilterNode (GPU)
                                                                   - TableScanNode date_dim (GPU)

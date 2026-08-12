@@ -21,7 +21,7 @@
                                         - AggregationNode (GPU)
                                           - ProjectNode (GPU)
                                             - ProjectNode (GPU)
-                                              - FilterNode
+                                              - FilterNode (GPU)
                                                 - JoinNode (GPU)
                                                   - ExchangeNode REMOTE
                                                     - FilterNode (GPU)
@@ -43,7 +43,7 @@
                                         - AggregationNode (GPU)
                                           - ProjectNode (GPU)
                                             - ProjectNode (GPU)
-                                              - FilterNode
+                                              - FilterNode (GPU)
                                                 - JoinNode (GPU)
                                                   - ExchangeNode REMOTE
                                                     - FilterNode (GPU)
@@ -65,7 +65,7 @@
                                       - AggregationNode (GPU)
                                         - ProjectNode (GPU)
                                           - ProjectNode (GPU)
-                                            - FilterNode
+                                            - FilterNode (GPU)
                                               - JoinNode (GPU)
                                                 - ExchangeNode REMOTE
                                                   - FilterNode (GPU)

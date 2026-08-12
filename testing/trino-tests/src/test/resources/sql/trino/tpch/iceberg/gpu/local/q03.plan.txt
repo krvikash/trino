@@ -8,7 +8,7 @@
               - AggregationNode (GPU)
                 - ProjectNode (GPU)
                   - ProjectNode (GPU)
-                    - FilterNode
+                    - FilterNode (GPU)
                       - TableScanNode lineitem (GPU)
               - ExchangeNode LOCAL (GPU)
                 - JoinNode (GPU)
@@ -16,5 +16,5 @@
                     - TableScanNode orders (GPU)
                   - ExchangeNode LOCAL (GPU)
                     - ProjectNode (GPU)
-                      - FilterNode
+                      - FilterNode (GPU)
                         - TableScanNode customer (GPU)

@@ -22,14 +22,14 @@
                                           - TableScanNode web_sales (GPU)
                                         - ExchangeNode LOCAL (GPU)
                                           - ProjectNode (GPU)
-                                            - FilterNode
+                                            - FilterNode (GPU)
                                               - TableScanNode ship_mode (GPU)
                                       - ExchangeNode LOCAL (GPU)
                                         - FilterNode (GPU)
                                           - TableScanNode date_dim (GPU)
                                     - ExchangeNode LOCAL (GPU)
                                       - ProjectNode (GPU)
-                                        - FilterNode
+                                        - FilterNode (GPU)
                                           - TableScanNode time_dim (GPU)
                               - ExchangeNode LOCAL (GPU)
                                 - TableScanNode warehouse (GPU)
@@ -51,14 +51,14 @@
                                           - TableScanNode catalog_sales (GPU)
                                         - ExchangeNode LOCAL (GPU)
                                           - ProjectNode (GPU)
-                                            - FilterNode
+                                            - FilterNode (GPU)
                                               - TableScanNode ship_mode (GPU)
                                       - ExchangeNode LOCAL (GPU)
                                         - FilterNode (GPU)
                                           - TableScanNode date_dim (GPU)
                                     - ExchangeNode LOCAL (GPU)
                                       - ProjectNode (GPU)
-                                        - FilterNode
+                                        - FilterNode (GPU)
                                           - TableScanNode time_dim (GPU)
                               - ExchangeNode LOCAL (GPU)
                                 - TableScanNode warehouse (GPU)

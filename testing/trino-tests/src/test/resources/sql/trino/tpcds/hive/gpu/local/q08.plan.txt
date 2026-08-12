@@ -13,14 +13,14 @@
                         - TableScanNode store_sales (GPU)
                       - ExchangeNode LOCAL (GPU)
                         - ProjectNode (GPU)
-                          - FilterNode
+                          - FilterNode (GPU)
                             - TableScanNode date_dim (GPU)
                     - ExchangeNode LOCAL (GPU)
                       - TableScanNode store (GPU)
                 - ExchangeNode LOCAL (GPU)
                   - ProjectNode (GPU)
                     - ProjectNode (GPU)
-                      - FilterNode
+                      - FilterNode (GPU)
                         - AggregationNode (GPU)
                           - ExchangeNode LOCAL (GPU)
                             - ProjectNode (GPU)
@@ -40,5 +40,5 @@
                                               - TableScanNode customer_address (GPU)
                                             - ExchangeNode LOCAL (GPU)
                                               - ProjectNode (GPU)
-                                                - FilterNode
+                                                - FilterNode (GPU)
                                                   - TableScanNode customer (GPU)

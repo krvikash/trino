@@ -18,7 +18,7 @@
                                   - TableScanNode catalog_sales (GPU)
                                 - ExchangeNode LOCAL (GPU)
                                   - ProjectNode (GPU)
-                                    - FilterNode
+                                    - FilterNode (GPU)
                                       - TableScanNode item (GPU)
                               - ExchangeNode LOCAL (GPU)
                                 - FilterNode (GPU)
@@ -35,7 +35,7 @@
                                   - TableScanNode store_sales (GPU)
                                 - ExchangeNode LOCAL (GPU)
                                   - ProjectNode (GPU)
-                                    - FilterNode
+                                    - FilterNode (GPU)
                                       - TableScanNode item (GPU)
                               - ExchangeNode LOCAL (GPU)
                                 - FilterNode (GPU)
@@ -52,7 +52,7 @@
                                   - TableScanNode web_sales (GPU)
                                 - ExchangeNode LOCAL (GPU)
                                   - ProjectNode (GPU)
-                                    - FilterNode
+                                    - FilterNode (GPU)
                                       - TableScanNode item (GPU)
                               - ExchangeNode LOCAL (GPU)
                                 - FilterNode (GPU)
@@ -74,7 +74,7 @@
                                     - TableScanNode catalog_sales (GPU)
                                   - ExchangeNode LOCAL (GPU)
                                     - ProjectNode (GPU)
-                                      - FilterNode
+                                      - FilterNode (GPU)
                                         - TableScanNode item (GPU)
                                 - ExchangeNode LOCAL (GPU)
                                   - FilterNode (GPU)
@@ -91,7 +91,7 @@
                                     - TableScanNode store_sales (GPU)
                                   - ExchangeNode LOCAL (GPU)
                                     - ProjectNode (GPU)
-                                      - FilterNode
+                                      - FilterNode (GPU)
                                         - TableScanNode item (GPU)
                                 - ExchangeNode LOCAL (GPU)
                                   - FilterNode (GPU)
@@ -108,7 +108,7 @@
                                     - TableScanNode web_sales (GPU)
                                   - ExchangeNode LOCAL (GPU)
                                     - ProjectNode (GPU)
-                                      - FilterNode
+                                      - FilterNode (GPU)
                                         - TableScanNode item (GPU)
                                 - ExchangeNode LOCAL (GPU)
                                   - FilterNode (GPU)

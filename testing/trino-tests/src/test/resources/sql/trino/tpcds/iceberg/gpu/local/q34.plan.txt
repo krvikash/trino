@@ -17,13 +17,13 @@
                             - TableScanNode store_sales (GPU)
                           - ExchangeNode LOCAL (GPU)
                             - ProjectNode (GPU)
-                              - FilterNode
+                              - FilterNode (GPU)
                                 - TableScanNode date_dim (GPU)
                         - ExchangeNode LOCAL (GPU)
                           - ProjectNode (GPU)
-                            - FilterNode
+                            - FilterNode (GPU)
                               - TableScanNode household_demographics (GPU)
                       - ExchangeNode LOCAL (GPU)
                         - ProjectNode (GPU)
-                          - FilterNode
+                          - FilterNode (GPU)
                             - TableScanNode store (GPU)

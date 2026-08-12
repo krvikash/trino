@@ -23,15 +23,15 @@
                                     - JoinNode (GPU)
                                       - ExchangeNode REMOTE
                                         - ProjectNode (GPU)
-                                          - FilterNode
+                                          - FilterNode (GPU)
                                             - TableScanNode inventory (GPU)
                                       - ExchangeNode LOCAL
                                         - ExchangeNode REMOTE
                                           - ProjectNode (GPU)
-                                            - FilterNode
+                                            - FilterNode (GPU)
                                               - TableScanNode item (GPU)
                                   - ExchangeNode LOCAL
                                     - ExchangeNode REMOTE
                                       - ProjectNode (GPU)
-                                        - FilterNode
+                                        - FilterNode (GPU)
                                           - TableScanNode date_dim (GPU)

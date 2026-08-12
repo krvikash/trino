@@ -40,13 +40,13 @@
                                   - TableScanNode web_sales (GPU)
                                 - ExchangeNode LOCAL (GPU)
                                   - ProjectNode (GPU)
-                                    - FilterNode
+                                    - FilterNode (GPU)
                                       - TableScanNode customer_address (GPU)
                               - ExchangeNode LOCAL (GPU)
                                 - ProjectNode (GPU)
-                                  - FilterNode
+                                  - FilterNode (GPU)
                                     - TableScanNode date_dim (GPU)
                             - ExchangeNode LOCAL (GPU)
                               - ProjectNode (GPU)
-                                - FilterNode
+                                - FilterNode (GPU)
                                   - TableScanNode web_site (GPU)

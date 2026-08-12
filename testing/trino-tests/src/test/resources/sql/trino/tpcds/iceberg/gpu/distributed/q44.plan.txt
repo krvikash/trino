@@ -27,7 +27,7 @@
                                                     - ExchangeNode REMOTE
                                                       - AggregationNode (GPU)
                                                         - ProjectNode (GPU)
-                                                          - FilterNode
+                                                          - FilterNode (GPU)
                                                             - TableScanNode store_sales (GPU)
                                                 - ExchangeNode LOCAL
                                                   - ProjectNode
@@ -41,7 +41,7 @@
                                                                   - ExchangeNode REMOTE
                                                                     - AggregationNode (GPU)
                                                                       - ProjectNode (GPU)
-                                                                        - FilterNode
+                                                                        - FilterNode (GPU)
                                                                           - TableScanNode store_sales (GPU)
                             - ExchangeNode LOCAL
                               - ExchangeNode REMOTE
@@ -59,7 +59,7 @@
                                                       - ExchangeNode REMOTE
                                                         - AggregationNode (GPU)
                                                           - ProjectNode (GPU)
-                                                            - FilterNode
+                                                            - FilterNode (GPU)
                                                               - TableScanNode store_sales (GPU)
                                                   - ExchangeNode LOCAL
                                                     - ProjectNode
@@ -73,7 +73,7 @@
                                                                     - ExchangeNode REMOTE
                                                                       - AggregationNode (GPU)
                                                                         - ProjectNode (GPU)
-                                                                          - FilterNode
+                                                                          - FilterNode (GPU)
                                                                             - TableScanNode store_sales (GPU)
                         - ExchangeNode LOCAL
                           - ExchangeNode REMOTE

@@ -13,5 +13,5 @@
                         - TableScanNode item (GPU)
                     - ExchangeNode LOCAL (GPU)
                       - ProjectNode (GPU)
-                        - FilterNode
+                        - FilterNode (GPU)
                           - TableScanNode item (GPU)

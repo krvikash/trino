@@ -26,16 +26,16 @@
                                                   - ExchangeNode LOCAL
                                                     - ExchangeNode REMOTE
                                                       - ProjectNode (GPU)
-                                                        - FilterNode
+                                                        - FilterNode (GPU)
                                                           - TableScanNode store_sales (GPU)
                                                     - ExchangeNode REMOTE
                                                       - ProjectNode (GPU)
-                                                        - FilterNode
+                                                        - FilterNode (GPU)
                                                           - TableScanNode store_returns (GPU)
                                                   - ExchangeNode LOCAL
                                                     - ExchangeNode REMOTE
                                                       - ProjectNode (GPU)
-                                                        - FilterNode
+                                                        - FilterNode (GPU)
                                                           - TableScanNode date_dim (GPU)
                                             - ExchangeNode LOCAL
                                               - ExchangeNode REMOTE
@@ -51,16 +51,16 @@
                                                 - ExchangeNode LOCAL
                                                   - ExchangeNode REMOTE
                                                     - ProjectNode (GPU)
-                                                      - FilterNode
+                                                      - FilterNode (GPU)
                                                         - TableScanNode catalog_sales (GPU)
                                                   - ExchangeNode REMOTE
                                                     - ProjectNode (GPU)
-                                                      - FilterNode
+                                                      - FilterNode (GPU)
                                                         - TableScanNode catalog_returns (GPU)
                                                 - ExchangeNode LOCAL
                                                   - ExchangeNode REMOTE
                                                     - ProjectNode (GPU)
-                                                      - FilterNode
+                                                      - FilterNode (GPU)
                                                         - TableScanNode date_dim (GPU)
                                             - ExchangeNode LOCAL
                                               - ExchangeNode REMOTE
@@ -77,7 +77,7 @@
                                                   - ExchangeNode LOCAL
                                                     - ExchangeNode REMOTE
                                                       - ProjectNode (GPU)
-                                                        - FilterNode
+                                                        - FilterNode (GPU)
                                                           - TableScanNode web_sales (GPU)
                                                     - ExchangeNode REMOTE
                                                       - ProjectNode (GPU)
@@ -92,7 +92,7 @@
                                                   - ExchangeNode LOCAL
                                                     - ExchangeNode REMOTE
                                                       - ProjectNode (GPU)
-                                                        - FilterNode
+                                                        - FilterNode (GPU)
                                                           - TableScanNode date_dim (GPU)
                                             - ExchangeNode LOCAL
                                               - ExchangeNode REMOTE

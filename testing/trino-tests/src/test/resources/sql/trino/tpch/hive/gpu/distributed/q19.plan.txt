@@ -7,7 +7,7 @@
             - JoinNode
               - ExchangeNode REMOTE
                 - ProjectNode (GPU)
-                  - FilterNode
+                  - FilterNode (GPU)
                     - TableScanNode lineitem (GPU)
               - ExchangeNode LOCAL
                 - ExchangeNode REMOTE

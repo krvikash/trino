@@ -13,10 +13,10 @@
                         - ExchangeNode REMOTE
                           - AggregationNode (GPU)
                             - ProjectNode (GPU)
-                              - FilterNode
+                              - FilterNode (GPU)
                                 - TableScanNode lineitem (GPU)
                     - ExchangeNode LOCAL
                       - ExchangeNode REMOTE
                         - ProjectNode (GPU)
-                          - FilterNode
+                          - FilterNode (GPU)
                             - TableScanNode orders (GPU)

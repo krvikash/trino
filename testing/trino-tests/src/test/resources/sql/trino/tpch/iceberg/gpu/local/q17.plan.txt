@@ -16,5 +16,5 @@
                           - TableScanNode lineitem (GPU)
                   - ExchangeNode LOCAL (GPU)
                     - ProjectNode (GPU)
-                      - FilterNode
+                      - FilterNode (GPU)
                         - TableScanNode part (GPU)

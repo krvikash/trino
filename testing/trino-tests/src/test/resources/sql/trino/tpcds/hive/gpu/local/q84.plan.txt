@@ -21,9 +21,9 @@
                             - TableScanNode customer (GPU)
                           - ExchangeNode LOCAL (GPU)
                             - ProjectNode (GPU)
-                              - FilterNode
+                              - FilterNode (GPU)
                                 - TableScanNode customer_address (GPU)
                     - ExchangeNode LOCAL (GPU)
                       - ProjectNode (GPU)
-                        - FilterNode
+                        - FilterNode (GPU)
                           - TableScanNode income_band (GPU)

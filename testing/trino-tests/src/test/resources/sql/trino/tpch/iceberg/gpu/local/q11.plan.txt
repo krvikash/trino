@@ -17,7 +17,7 @@
                             - TableScanNode supplier (GPU)
                           - ExchangeNode LOCAL (GPU)
                             - ProjectNode (GPU)
-                              - FilterNode
+                              - FilterNode (GPU)
                                 - TableScanNode nation (GPU)
             - ExchangeNode LOCAL
               - ProjectNode
@@ -35,5 +35,5 @@
                                   - TableScanNode supplier (GPU)
                                 - ExchangeNode LOCAL (GPU)
                                   - ProjectNode (GPU)
-                                    - FilterNode
+                                    - FilterNode (GPU)
                                       - TableScanNode nation (GPU)

@@ -21,18 +21,18 @@
                                 - ExchangeNode LOCAL (GPU)
                                   - JoinNode (GPU)
                                     - ProjectNode (GPU)
-                                      - FilterNode
+                                      - FilterNode (GPU)
                                         - TableScanNode customer (GPU)
                                     - ExchangeNode LOCAL
                                       - FilterNode
                                         - TableScanNode customer_address
                           - ExchangeNode LOCAL (GPU)
                             - ProjectNode (GPU)
-                              - FilterNode
+                              - FilterNode (GPU)
                                 - TableScanNode date_dim (GPU)
                         - ExchangeNode LOCAL (GPU)
                           - ProjectNode (GPU)
-                            - FilterNode
+                            - FilterNode (GPU)
                               - TableScanNode customer_demographics (GPU)
                       - ExchangeNode LOCAL (GPU)
                         - TableScanNode item (GPU)

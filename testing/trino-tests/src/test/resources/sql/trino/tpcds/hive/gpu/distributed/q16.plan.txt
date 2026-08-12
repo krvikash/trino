@@ -11,7 +11,7 @@
                     - FilterNode (GPU)
                       - GroupIdNode (GPU)
                         - ProjectNode (GPU)
-                          - FilterNode
+                          - FilterNode (GPU)
                             - JoinNode (GPU)
                               - ProjectNode (GPU)
                                 - AggregationNode (GPU)

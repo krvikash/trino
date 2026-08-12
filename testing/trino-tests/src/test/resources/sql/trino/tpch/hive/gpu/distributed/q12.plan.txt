@@ -15,5 +15,5 @@
                       - ExchangeNode LOCAL
                         - ExchangeNode REMOTE
                           - ProjectNode (GPU)
-                            - FilterNode
+                            - FilterNode (GPU)
                               - TableScanNode lineitem (GPU)

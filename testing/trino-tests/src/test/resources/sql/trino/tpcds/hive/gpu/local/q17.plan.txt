@@ -32,7 +32,7 @@
                                               - TableScanNode date_dim
                                   - ExchangeNode LOCAL (GPU)
                                     - ProjectNode (GPU)
-                                      - FilterNode
+                                      - FilterNode (GPU)
                                         - TableScanNode date_dim (GPU)
                             - ExchangeNode LOCAL
                               - ProjectNode

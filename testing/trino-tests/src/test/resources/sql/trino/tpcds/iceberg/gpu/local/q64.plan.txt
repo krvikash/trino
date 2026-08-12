@@ -75,7 +75,7 @@
                                             - TableScanNode store (GPU)
                                       - ExchangeNode LOCAL (GPU)
                                         - ProjectNode (GPU)
-                                          - FilterNode
+                                          - FilterNode (GPU)
                                             - TableScanNode item (GPU)
                                     - ExchangeNode LOCAL (GPU)
                                       - TableScanNode promotion (GPU)
@@ -154,7 +154,7 @@
                                             - TableScanNode store (GPU)
                                         - ExchangeNode LOCAL (GPU)
                                           - ProjectNode (GPU)
-                                            - FilterNode
+                                            - FilterNode (GPU)
                                               - TableScanNode item (GPU)
                                       - ExchangeNode LOCAL (GPU)
                                         - TableScanNode promotion (GPU)

@@ -2319,7 +2319,7 @@ public class LocalExecutionPlanner
         public PhysicalOperation visitFilter(FilterNode node, LocalExecutionPlanContext context)
         {
             List<Symbol> outputSymbols = node.getOutputSymbols();
-            return visitScanFilterAndProject(context, node.getId(), node.getSource(), Optional.of(node.getPredicate()), Assignments.identity(outputSymbols), outputSymbols);
+            return visitScanFilterAndProject(context, node.getId(), Optional.of(node.getId()), node.getSource(), Optional.of(node.getPredicate()), Assignments.identity(outputSymbols), outputSymbols);
         }
 
         @Override
@@ -2327,9 +2327,11 @@ public class LocalExecutionPlanner
         {
             PlanNode sourceNode;
             Optional<Expression> filterExpression = Optional.empty();
+            Optional<PlanNodeId> filterNodeId = Optional.empty();
             if (node.getSource() instanceof FilterNode filterNode) {
                 sourceNode = filterNode.getSource();
                 filterExpression = Optional.of(filterNode.getPredicate());
+                filterNodeId = Optional.of(filterNode.getId());
             }
             else {
                 sourceNode = node.getSource();
@@ -2337,13 +2339,14 @@ public class LocalExecutionPlanner
 
             List<Symbol> outputSymbols = node.getOutputSymbols();
 
-            return visitScanFilterAndProject(context, node.getId(), sourceNode, filterExpression, node.getAssignments(), outputSymbols);
+            return visitScanFilterAndProject(context, node.getId(), filterNodeId, sourceNode, filterExpression, node.getAssignments(), outputSymbols);
         }
 
         // TODO: This should be refactored, so that there's an optimizer that merges scan-filter-project into a single PlanNode
         private PhysicalOperation visitScanFilterAndProject(
                 LocalExecutionPlanContext context,
                 PlanNodeId planNodeId,
+                Optional<PlanNodeId> filterNodeId,
                 PlanNode sourceNode,
                 Optional<Expression> filterExpression,
                 Assignments assignments,
@@ -2381,6 +2384,7 @@ public class LocalExecutionPlanner
                 return visitScanFilterAndProject(
                         context,
                         planNodeId,
+                        filterNodeId,
                         sampleNode.getSource(),
                         filterExpression,
                         assignments,
@@ -2489,7 +2493,7 @@ public class LocalExecutionPlanner
                                     gpuOperation,
                                     gpuOperation.getLayout(),
                                     context,
-                                    planNodeId);
+                                    filterNodeId.orElseThrow());
                         }
 
                         Optional<GpuProject.Factory> gpuProject = tryCompileGpuProject(projections, sourceLayout, planNodeId, context);

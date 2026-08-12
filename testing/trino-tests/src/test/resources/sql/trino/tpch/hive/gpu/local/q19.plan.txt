@@ -5,7 +5,7 @@
         - ProjectNode
           - JoinNode
             - ProjectNode (GPU)
-              - FilterNode
+              - FilterNode (GPU)
                 - TableScanNode lineitem (GPU)
             - ExchangeNode LOCAL (GPU)
               - FilterNode (GPU)

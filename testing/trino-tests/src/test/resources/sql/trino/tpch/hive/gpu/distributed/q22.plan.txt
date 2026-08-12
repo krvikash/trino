@@ -9,7 +9,7 @@
                 - AggregationNode (GPU)
                   - ProjectNode (GPU)
                     - ProjectNode (GPU)
-                      - FilterNode
+                      - FilterNode (GPU)
                         - JoinNode (GPU)
                           - ExchangeNode REMOTE
                             - ProjectNode
@@ -24,7 +24,7 @@
                                           - ExchangeNode REMOTE
                                             - AggregationNode (GPU)
                                               - ProjectNode (GPU)
-                                                - FilterNode
+                                                - FilterNode (GPU)
                                                   - TableScanNode customer (GPU)
                           - ProjectNode (GPU)
                             - AggregationNode (GPU)

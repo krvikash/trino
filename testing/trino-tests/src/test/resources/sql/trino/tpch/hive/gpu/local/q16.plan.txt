@@ -6,7 +6,7 @@
           - ExchangeNode LOCAL (GPU)
             - AggregationNode (GPU)
               - ProjectNode (GPU)
-                - FilterNode
+                - FilterNode (GPU)
                   - SemiJoinNode (GPU)
                     - JoinNode (GPU)
                       - FilterNode (GPU)
@@ -16,5 +16,5 @@
                           - TableScanNode part (GPU)
                     - ExchangeNode LOCAL (GPU)
                       - ProjectNode (GPU)
-                        - FilterNode
+                        - FilterNode (GPU)
                           - TableScanNode supplier (GPU)

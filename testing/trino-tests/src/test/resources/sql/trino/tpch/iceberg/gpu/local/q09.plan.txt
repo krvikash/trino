@@ -11,7 +11,7 @@
                     - JoinNode (GPU)
                       - JoinNode (GPU)
                         - ProjectNode (GPU)
-                          - FilterNode
+                          - FilterNode (GPU)
                             - TableScanNode part (GPU)
                         - ExchangeNode LOCAL (GPU)
                           - FilterNode (GPU)

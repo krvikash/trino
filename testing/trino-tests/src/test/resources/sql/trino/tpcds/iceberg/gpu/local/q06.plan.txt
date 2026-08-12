@@ -26,7 +26,7 @@
                                       - ExchangeNode LOCAL (GPU)
                                         - AggregationNode (GPU)
                                           - ProjectNode (GPU)
-                                            - FilterNode
+                                            - FilterNode (GPU)
                                               - TableScanNode date_dim (GPU)
                     - ExchangeNode LOCAL (GPU)
                       - TableScanNode customer_address (GPU)

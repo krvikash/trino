@@ -14,11 +14,11 @@
                           - JoinNode
                             - AggregationNode
                               - ProjectNode (GPU)
-                                - FilterNode
+                                - FilterNode (GPU)
                                   - TableScanNode inventory (GPU)
                             - ExchangeNode LOCAL (GPU)
                               - ProjectNode (GPU)
-                                - FilterNode
+                                - FilterNode (GPU)
                                   - TableScanNode date_dim (GPU)
                           - ExchangeNode LOCAL (GPU)
                             - FilterNode (GPU)
@@ -37,11 +37,11 @@
                             - JoinNode
                               - AggregationNode
                                 - ProjectNode (GPU)
-                                  - FilterNode
+                                  - FilterNode (GPU)
                                     - TableScanNode inventory (GPU)
                               - ExchangeNode LOCAL (GPU)
                                 - ProjectNode (GPU)
-                                  - FilterNode
+                                  - FilterNode (GPU)
                                     - TableScanNode date_dim (GPU)
                             - ExchangeNode LOCAL (GPU)
                               - TableScanNode item (GPU)

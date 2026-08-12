@@ -27,7 +27,7 @@
                                         - ExchangeNode LOCAL
                                           - ExchangeNode REMOTE
                                             - ProjectNode (GPU)
-                                              - FilterNode
+                                              - FilterNode (GPU)
                                                 - TableScanNode part (GPU)
                               - ExchangeNode LOCAL
                                 - ExchangeNode REMOTE
@@ -44,7 +44,7 @@
                                           - ExchangeNode LOCAL
                                             - ExchangeNode REMOTE
                                               - ProjectNode (GPU)
-                                                - FilterNode
+                                                - FilterNode (GPU)
                                                   - TableScanNode region (GPU)
                           - ExchangeNode LOCAL
                             - ExchangeNode REMOTE

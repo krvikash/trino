@@ -12,7 +12,7 @@
                       - TableScanNode store_returns (GPU)
                     - ExchangeNode LOCAL (GPU)
                       - ProjectNode (GPU)
-                        - FilterNode
+                        - FilterNode (GPU)
                           - TableScanNode date_dim (GPU)
             - ExchangeNode LOCAL (GPU)
               - TableScanNode customer (GPU)
@@ -30,9 +30,9 @@
                                 - TableScanNode store_returns (GPU)
                               - ExchangeNode LOCAL (GPU)
                                 - ProjectNode (GPU)
-                                  - FilterNode
+                                  - FilterNode (GPU)
                                     - TableScanNode date_dim (GPU)
               - ExchangeNode LOCAL (GPU)
                 - ProjectNode (GPU)
-                  - FilterNode
+                  - FilterNode (GPU)
                     - TableScanNode store (GPU)

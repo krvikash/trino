@@ -18,7 +18,7 @@
                               - TableScanNode lineitem (GPU)
                             - ExchangeNode LOCAL (GPU)
                               - ProjectNode (GPU)
-                                - FilterNode
+                                - FilterNode (GPU)
                                   - TableScanNode part (GPU)
                       - ExchangeNode LOCAL (GPU)
                         - JoinNode (GPU)
@@ -30,7 +30,7 @@
                                 - TableScanNode nation (GPU)
                               - ExchangeNode LOCAL (GPU)
                                 - ProjectNode (GPU)
-                                  - FilterNode
+                                  - FilterNode (GPU)
                                     - TableScanNode region (GPU)
                     - ExchangeNode LOCAL (GPU)
                       - JoinNode (GPU)

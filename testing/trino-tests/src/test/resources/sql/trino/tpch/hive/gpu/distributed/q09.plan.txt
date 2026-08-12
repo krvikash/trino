@@ -18,7 +18,7 @@
                                   - JoinNode (GPU)
                                     - ExchangeNode REMOTE
                                       - ProjectNode (GPU)
-                                        - FilterNode
+                                        - FilterNode (GPU)
                                           - TableScanNode part (GPU)
                                     - ExchangeNode LOCAL
                                       - ExchangeNode REMOTE

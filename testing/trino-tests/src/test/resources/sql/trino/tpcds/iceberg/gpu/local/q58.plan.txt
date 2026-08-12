@@ -28,7 +28,7 @@
                                       - EnforceSingleRowNode
                                         - ExchangeNode LOCAL (GPU)
                                           - ProjectNode (GPU)
-                                            - FilterNode
+                                            - FilterNode (GPU)
                                               - TableScanNode date_dim (GPU)
             - JoinNode (GPU)
               - AggregationNode (GPU)
@@ -55,7 +55,7 @@
                                         - EnforceSingleRowNode
                                           - ExchangeNode LOCAL (GPU)
                                             - ProjectNode (GPU)
-                                              - FilterNode
+                                              - FilterNode (GPU)
                                                 - TableScanNode date_dim (GPU)
               - AggregationNode (GPU)
                 - ExchangeNode LOCAL (GPU)
@@ -81,5 +81,5 @@
                                         - EnforceSingleRowNode
                                           - ExchangeNode LOCAL (GPU)
                                             - ProjectNode (GPU)
-                                              - FilterNode
+                                              - FilterNode (GPU)
                                                 - TableScanNode date_dim (GPU)

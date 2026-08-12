@@ -18,7 +18,7 @@
                               - TableScanNode catalog_returns (GPU)
                         - ExchangeNode LOCAL (GPU)
                           - ProjectNode (GPU)
-                            - FilterNode
+                            - FilterNode (GPU)
                               - TableScanNode item (GPU)
                       - ExchangeNode LOCAL (GPU)
                         - FilterNode (GPU)

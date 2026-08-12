@@ -13,7 +13,7 @@
                         - AggregationNode (GPU)
                           - ProjectNode (GPU)
                             - ProjectNode (GPU)
-                              - FilterNode
+                              - FilterNode (GPU)
                                 - JoinNode (GPU)
                                   - FilterNode (GPU)
                                     - TableScanNode store_sales (GPU)
@@ -29,7 +29,7 @@
                         - AggregationNode (GPU)
                           - ProjectNode (GPU)
                             - ProjectNode (GPU)
-                              - FilterNode
+                              - FilterNode (GPU)
                                 - JoinNode (GPU)
                                   - FilterNode (GPU)
                                     - TableScanNode web_sales (GPU)
@@ -45,7 +45,7 @@
                       - AggregationNode (GPU)
                         - ProjectNode (GPU)
                           - ProjectNode (GPU)
-                            - FilterNode
+                            - FilterNode (GPU)
                               - JoinNode (GPU)
                                 - FilterNode (GPU)
                                   - TableScanNode catalog_sales (GPU)

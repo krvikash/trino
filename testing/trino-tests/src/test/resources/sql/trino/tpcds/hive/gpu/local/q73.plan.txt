@@ -17,7 +17,7 @@
                             - TableScanNode store_sales (GPU)
                           - ExchangeNode LOCAL (GPU)
                             - ProjectNode (GPU)
-                              - FilterNode
+                              - FilterNode (GPU)
                                 - TableScanNode date_dim (GPU)
                         - ExchangeNode LOCAL
                           - ProjectNode
@@ -25,5 +25,5 @@
                               - TableScanNode household_demographics
                       - ExchangeNode LOCAL (GPU)
                         - ProjectNode (GPU)
-                          - FilterNode
+                          - FilterNode (GPU)
                             - TableScanNode store (GPU)

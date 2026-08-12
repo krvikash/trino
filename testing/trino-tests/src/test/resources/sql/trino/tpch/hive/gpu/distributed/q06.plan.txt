@@ -4,5 +4,5 @@
       - ExchangeNode REMOTE
         - AggregationNode (GPU)
           - ProjectNode (GPU)
-            - FilterNode
+            - FilterNode (GPU)
               - TableScanNode lineitem (GPU)

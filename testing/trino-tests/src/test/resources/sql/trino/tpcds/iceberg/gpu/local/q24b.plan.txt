@@ -27,7 +27,7 @@
                                         - TableScanNode customer_address (GPU)
                                       - ExchangeNode LOCAL (GPU)
                                         - ProjectNode (GPU)
-                                          - FilterNode
+                                          - FilterNode (GPU)
                                             - TableScanNode store (GPU)
                             - ExchangeNode LOCAL (GPU)
                               - FilterNode (GPU)
@@ -63,5 +63,5 @@
                                                     - TableScanNode customer_address (GPU)
                                                   - ExchangeNode LOCAL (GPU)
                                                     - ProjectNode (GPU)
-                                                      - FilterNode
+                                                      - FilterNode (GPU)
                                                         - TableScanNode store (GPU)

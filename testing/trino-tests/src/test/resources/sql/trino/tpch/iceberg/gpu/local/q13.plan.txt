@@ -12,5 +12,5 @@
                       - TableScanNode customer (GPU)
                       - ExchangeNode LOCAL (GPU)
                         - ProjectNode (GPU)
-                          - FilterNode
+                          - FilterNode (GPU)
                             - TableScanNode orders (GPU)

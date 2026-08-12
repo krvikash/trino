@@ -13,11 +13,11 @@
                     - ExchangeNode LOCAL (GPU)
                       - JoinNode (GPU)
                         - ProjectNode (GPU)
-                          - FilterNode
+                          - FilterNode (GPU)
                             - TableScanNode lineitem (GPU)
                         - ExchangeNode LOCAL (GPU)
                           - ProjectNode (GPU)
-                            - FilterNode
+                            - FilterNode (GPU)
                               - TableScanNode orders (GPU)
                   - ExchangeNode LOCAL (GPU)
                     - TableScanNode nation (GPU)

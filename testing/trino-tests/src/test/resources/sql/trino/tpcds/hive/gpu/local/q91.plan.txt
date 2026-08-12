@@ -21,15 +21,15 @@
                                 - TableScanNode catalog_returns (GPU)
                               - ExchangeNode LOCAL (GPU)
                                 - ProjectNode (GPU)
-                                  - FilterNode
+                                  - FilterNode (GPU)
                                     - TableScanNode date_dim (GPU)
                         - ExchangeNode LOCAL (GPU)
                           - ProjectNode (GPU)
-                            - FilterNode
+                            - FilterNode (GPU)
                               - TableScanNode customer_address (GPU)
                   - ExchangeNode LOCAL (GPU)
                     - TableScanNode call_center (GPU)
                 - ExchangeNode LOCAL (GPU)
                   - ProjectNode (GPU)
-                    - FilterNode
+                    - FilterNode (GPU)
                       - TableScanNode household_demographics (GPU)

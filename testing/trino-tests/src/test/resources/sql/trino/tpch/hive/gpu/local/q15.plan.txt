@@ -10,7 +10,7 @@
               - ExchangeNode LOCAL (GPU)
                 - AggregationNode (GPU)
                   - ProjectNode (GPU)
-                    - FilterNode
+                    - FilterNode (GPU)
                       - TableScanNode lineitem (GPU)
           - ExchangeNode LOCAL (GPU)
             - AggregationNode (GPU)
@@ -21,5 +21,5 @@
                       - ExchangeNode LOCAL (GPU)
                         - AggregationNode (GPU)
                           - ProjectNode (GPU)
-                            - FilterNode
+                            - FilterNode (GPU)
                               - TableScanNode lineitem (GPU)

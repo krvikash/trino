@@ -14,7 +14,7 @@
                     - FilterNode (GPU)
                       - TableScanNode orders (GPU)
                     - ProjectNode (GPU)
-                      - FilterNode
+                      - FilterNode (GPU)
                         - AggregationNode (GPU)
                           - ExchangeNode LOCAL (GPU)
                             - AggregationNode (GPU)

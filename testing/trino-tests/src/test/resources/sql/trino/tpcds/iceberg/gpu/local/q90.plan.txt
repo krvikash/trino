@@ -10,7 +10,7 @@
                   - AggregationNode (GPU)
                     - JoinNode (GPU)
                       - ProjectNode (GPU)
-                        - FilterNode
+                        - FilterNode (GPU)
                           - TableScanNode time_dim (GPU)
                       - ExchangeNode LOCAL (GPU)
                         - JoinNode (GPU)
@@ -19,18 +19,18 @@
                               - TableScanNode web_sales (GPU)
                             - ExchangeNode LOCAL (GPU)
                               - ProjectNode (GPU)
-                                - FilterNode
+                                - FilterNode (GPU)
                                   - TableScanNode web_page (GPU)
                           - ExchangeNode LOCAL (GPU)
                             - ProjectNode (GPU)
-                              - FilterNode
+                              - FilterNode (GPU)
                                 - TableScanNode household_demographics (GPU)
             - AggregationNode (GPU)
               - ExchangeNode LOCAL (GPU)
                 - AggregationNode (GPU)
                   - JoinNode (GPU)
                     - ProjectNode (GPU)
-                      - FilterNode
+                      - FilterNode (GPU)
                         - TableScanNode time_dim (GPU)
                     - ExchangeNode LOCAL (GPU)
                       - JoinNode (GPU)
@@ -39,9 +39,9 @@
                             - TableScanNode web_sales (GPU)
                           - ExchangeNode LOCAL (GPU)
                             - ProjectNode (GPU)
-                              - FilterNode
+                              - FilterNode (GPU)
                                 - TableScanNode web_page (GPU)
                         - ExchangeNode LOCAL (GPU)
                           - ProjectNode (GPU)
-                            - FilterNode
+                            - FilterNode (GPU)
                               - TableScanNode household_demographics (GPU)

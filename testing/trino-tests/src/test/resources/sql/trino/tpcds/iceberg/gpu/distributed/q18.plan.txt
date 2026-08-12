@@ -19,7 +19,7 @@
                                     - JoinNode (GPU)
                                       - ExchangeNode REMOTE
                                         - ProjectNode (GPU)
-                                          - FilterNode
+                                          - FilterNode (GPU)
                                             - TableScanNode customer_demographics (GPU)
                                       - ExchangeNode LOCAL
                                         - ExchangeNode REMOTE
@@ -40,7 +40,7 @@
                                                           - JoinNode (GPU)
                                                             - ExchangeNode REMOTE
                                                               - ProjectNode (GPU)
-                                                                - FilterNode
+                                                                - FilterNode (GPU)
                                                                   - TableScanNode customer (GPU)
                                                             - ExchangeNode LOCAL
                                                               - ExchangeNode REMOTE
@@ -49,7 +49,7 @@
                                             - ExchangeNode LOCAL
                                               - ExchangeNode REMOTE
                                                 - ProjectNode (GPU)
-                                                  - FilterNode
+                                                  - FilterNode (GPU)
                                                     - TableScanNode date_dim (GPU)
                                   - ExchangeNode LOCAL
                                     - ExchangeNode REMOTE
