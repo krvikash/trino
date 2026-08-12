@@ -221,12 +221,6 @@ public final class ShortArrayBlock
     }
 
     @Override
-    public Optional<BooleanArrayBlock> getNulls()
-    {
-        return BlockUtil.getNulls(valueIsValid, arrayOffset, positionCount);
-    }
-
-    @Override
     public Optional<Bitmap> getValidityBitmap()
     {
         if (valueIsValid == null) {

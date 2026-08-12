@@ -406,12 +406,6 @@ public final class ArrayBlock
         return Optional.of(new Bitmap(valueIsValid, arrayOffset, positionCount));
     }
 
-    @Override
-    public Optional<BooleanArrayBlock> getNulls()
-    {
-        return BlockUtil.getNulls(valueIsValid, arrayOffset, positionCount);
-    }
-
     public <T> T apply(ArrayBlockFunction<T> function, int position)
     {
         checkValidPosition(position, positionCount);

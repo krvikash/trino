@@ -462,12 +462,6 @@ public final class VariantBlock
     }
 
     @Override
-    public Optional<BooleanArrayBlock> getNulls()
-    {
-        return BlockUtil.getNulls(valueIsValid, startOffset, positionCount);
-    }
-
-    @Override
     public Optional<Bitmap> getValidityBitmap()
     {
         if (valueIsValid == null) {

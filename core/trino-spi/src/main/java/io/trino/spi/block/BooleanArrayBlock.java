@@ -255,12 +255,6 @@ public final class BooleanArrayBlock
     }
 
     @Override
-    public Optional<BooleanArrayBlock> getNulls()
-    {
-        return Optional.empty();
-    }
-
-    @Override
     public Optional<Bitmap> getValidityBitmap()
     {
         if (valueIsValid == null) {

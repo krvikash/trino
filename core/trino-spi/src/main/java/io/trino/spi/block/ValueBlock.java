@@ -43,13 +43,6 @@ public non-sealed interface ValueBlock
     }
 
     /**
-     * Returns a BooleanArrayBlock specifying whether the current positions in the Block contain a NULL.
-     * Returns Optional.empty() when there are no NULLs in the Block.
-     * The returned BooleanArrayBlock must not contain NULL values.
-     */
-    Optional<BooleanArrayBlock> getNulls();
-
-    /**
      * Faster equivalent of {@link #isNull(int)} for hot loops where the caller has already
      * established that the position is in range. Implementations may skip bounds checks.
      */

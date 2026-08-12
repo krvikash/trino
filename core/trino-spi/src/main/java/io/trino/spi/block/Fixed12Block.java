@@ -247,12 +247,6 @@ public final class Fixed12Block
     }
 
     @Override
-    public Optional<BooleanArrayBlock> getNulls()
-    {
-        return BlockUtil.getNulls(valueIsValid, positionOffset, positionCount);
-    }
-
-    @Override
     public Optional<Bitmap> getValidityBitmap()
     {
         if (valueIsValid == null) {
