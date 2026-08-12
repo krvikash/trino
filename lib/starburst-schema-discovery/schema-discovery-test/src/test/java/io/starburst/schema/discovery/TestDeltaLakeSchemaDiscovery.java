@@ -97,7 +97,6 @@ public class TestDeltaLakeSchemaDiscovery
                 .satisfies(discovered -> {
                     String root = discovered.rootPath().path();
                     assertThat(discovered.errors()).containsExactly(
-                            "Table [__tmp_path_dir] at [%stable1/__tmp_path_dir] is invalid - no valid columns were found".formatted(root),
                             "Mismatched table formats, found: [DELTA_LAKE] and [JSON], at: [%stable1/]".formatted(root),
                             "Mismatched table formats, found: [DELTA_LAKE] and [PARQUET], at: [%stable3]".formatted(root));
                 })
