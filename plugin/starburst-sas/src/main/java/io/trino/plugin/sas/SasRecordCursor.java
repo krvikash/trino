@@ -93,10 +93,7 @@ public class SasRecordCursor
 
             reader = new CustomSasFileParser.Builder(inputStream).build();
 
-            for (int a = 0; a < start; a++) {
-                reader.readNextPage(true);
-            }
-            reader.setMaxPageToRead(pageCount);
+            reader.setPageRange(start, start + pageCount);
             long end = System.currentTimeMillis();
 
             log.debug("Sas record cursor on: %s, start: %d end skip in %ds", file, start, (end - begin) / 1000);
