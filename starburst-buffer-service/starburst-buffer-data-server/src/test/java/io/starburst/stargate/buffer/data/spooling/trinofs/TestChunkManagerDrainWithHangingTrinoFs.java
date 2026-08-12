@@ -9,7 +9,10 @@
  */
 package io.starburst.stargate.buffer.data.spooling.trinofs;
 
+import com.google.common.util.concurrent.AbstractFuture;
+import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
+import io.airlift.slice.Slice;
 import io.airlift.slice.Slices;
 import io.airlift.testing.TestingTicker;
 import io.airlift.units.DataSize;
@@ -17,7 +20,10 @@ import io.airlift.units.Duration;
 import io.opentelemetry.api.trace.SpanBuilder;
 import io.opentelemetry.api.trace.Tracer;
 import io.starburst.stargate.buffer.data.client.ChunkDeliveryMode;
+import io.starburst.stargate.buffer.data.client.spooling.SpooledChunk;
+import io.starburst.stargate.buffer.data.execution.Chunk;
 import io.starburst.stargate.buffer.data.execution.ChunkDataFactory;
+import io.starburst.stargate.buffer.data.execution.ChunkDataLease;
 import io.starburst.stargate.buffer.data.execution.ChunkManager;
 import io.starburst.stargate.buffer.data.execution.ChunkManagerConfig;
 import io.starburst.stargate.buffer.data.execution.ExchangeChunkBytes;
@@ -31,6 +37,7 @@ import io.starburst.stargate.buffer.data.server.BufferNodeStateManager;
 import io.starburst.stargate.buffer.data.server.DataServerConfig;
 import io.starburst.stargate.buffer.data.server.DataServerStats;
 import io.starburst.stargate.buffer.data.spooling.MergedFileNameGenerator;
+import io.starburst.stargate.buffer.data.spooling.SpoolingStorage;
 import io.trino.filesystem.TrinoFileSystem;
 import io.trino.filesystem.local.LocalFileSystemFactory;
 import io.trino.spi.security.ConnectorIdentity;
@@ -42,6 +49,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -50,6 +58,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
+import static com.google.common.util.concurrent.Futures.immediateFuture;
 import static com.google.common.util.concurrent.MoreExecutors.listeningDecorator;
 import static io.airlift.concurrent.Threads.daemonThreadsNamed;
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
@@ -126,7 +135,7 @@ public class TestChunkManagerDrainWithHangingTrinoFs
         TrinoFsSpoolingStorage spoolingStorage = createTrinoFsStorage(fileSystem, new Duration(1, TimeUnit.HOURS));
 
         MemoryAllocator memoryAllocator = createMemoryAllocator();
-        long freeMemoryBeforeDrain = memoryAllocator.getFreeMemory();
+        long initialFreeMemory = memoryAllocator.getFreeMemory();
         ChunkManager chunkManager = createChunkManager(
                 memoryAllocator, spoolingStorage, DataSize.of(1, MEGABYTE), new Duration(3, TimeUnit.SECONDS), 2);
         addChunkData(chunkManager);
@@ -143,7 +152,7 @@ public class TestChunkManagerDrainWithHangingTrinoFs
         chunkManager.removeExchange(EXCHANGE_ID);
         assertThat(memoryAllocator.getFreeMemory())
                 .describedAs("leases of cancelled writes must be released")
-                .isEqualTo(freeMemoryBeforeDrain);
+                .isEqualTo(initialFreeMemory);
     }
 
     @Test
@@ -157,7 +166,7 @@ public class TestChunkManagerDrainWithHangingTrinoFs
         TrinoFsSpoolingStorage spoolingStorage = createTrinoFsStorage(fileSystem, "local:///", new Duration(1, TimeUnit.HOURS));
 
         MemoryAllocator memoryAllocator = createMemoryAllocator();
-        long freeMemoryBeforeDrain = memoryAllocator.getFreeMemory();
+        long initialFreeMemory = memoryAllocator.getFreeMemory();
         ChunkManager chunkManager = createChunkManager(
                 memoryAllocator, spoolingStorage, DataSize.of(1, MEGABYTE), new Duration(6, TimeUnit.SECONDS), 2);
         addChunkData(chunkManager);
@@ -181,7 +190,40 @@ public class TestChunkManagerDrainWithHangingTrinoFs
         chunkManager.removeExchange(EXCHANGE_ID);
         assertThat(memoryAllocator.getFreeMemory())
                 .describedAs("leases retained for the retry must be released once draining finishes")
-                .isEqualTo(freeMemoryBeforeDrain);
+                .isEqualTo(initialFreeMemory);
+    }
+
+    @Test
+    @Timeout(value = 30, unit = TimeUnit.SECONDS)
+    public void testDrainForceReleasesLeasesOfUncancellableWrites()
+            throws Exception
+    {
+        UncancellableSpoolingStorage spoolingStorage = new UncancellableSpoolingStorage();
+        MemoryAllocator memoryAllocator = createMemoryAllocator();
+        long initialFreeMemory = memoryAllocator.getFreeMemory();
+        // single attempt so releaseChunksOnFailure=true, ensuring both lease and chunk are released by force-release
+        ChunkManager chunkManager = createChunkManager(
+                memoryAllocator, spoolingStorage, DataSize.of(1, MEGABYTE), new Duration(3, TimeUnit.SECONDS), 1);
+        addChunkData(chunkManager);
+
+        Future<?> drainFuture = executor.submit(chunkManager::drainAllChunks);
+        chunkManager.markAllClosedChunksReceived(EXCHANGE_ID);
+        // force-release path must unblock drain even though cancel() had no effect on the write future
+        assertThat(drainFuture).succeedsWithin(20, TimeUnit.SECONDS);
+
+        assertThat(memoryAllocator.getFreeMemory())
+                .describedAs("force-release must return all lease memory")
+                .isEqualTo(initialFreeMemory);
+
+        // simulate the hung write eventually completing after force-release;
+        // onceFailureRelease must be a no-op (AtomicBoolean already flipped by force-release)
+        spoolingStorage.writeFuture.failWith(new RuntimeException("late failure after force-release"));
+        // flush executor to ensure the callback has run before asserting
+        executor.submit(() -> {}).get(5, TimeUnit.SECONDS);
+
+        assertThat(memoryAllocator.getFreeMemory())
+                .describedAs("late callback after force-release must not double-release memory")
+                .isEqualTo(initialFreeMemory);
     }
 
     private static MemoryAllocator createMemoryAllocator()
@@ -227,7 +269,7 @@ public class TestChunkManagerDrainWithHangingTrinoFs
 
     private ChunkManager createChunkManager(
             MemoryAllocator memoryAllocator,
-            TrinoFsSpoolingStorage spoolingStorage,
+            SpoolingStorage spoolingStorage,
             DataSize chunkSize,
             Duration drainAllChunksTimeout,
             int drainingMaxAttempts)
@@ -292,5 +334,53 @@ public class TestChunkManagerDrainWithHangingTrinoFs
         executor.setRemoveOnCancelPolicy(true);
         spoolingExecutors.add(executor);
         return executor;
+    }
+
+    private static class UncancellableSpoolingStorage
+            implements SpoolingStorage
+    {
+        final UncancellableFuture<Map<Long, SpooledChunk>> writeFuture = new UncancellableFuture<>();
+
+        @Override
+        public ListenableFuture<Map<Long, SpooledChunk>> writeMergedChunks(long bufferNodeId, String exchangeId, Map<Chunk, ChunkDataLease> chunkDataLeaseMap, long contentLength)
+        {
+            return writeFuture;
+        }
+
+        @Override
+        public ListenableFuture<Void> writeMetadataFile(long bufferNodeId, Slice metadataSlice)
+        {
+            return immediateFuture(null);
+        }
+
+        @Override
+        public ListenableFuture<Slice> readMetadataFile(long bufferNodeId)
+        {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public ListenableFuture<Void> removeExchange(long bufferNodeId, String exchangeId)
+        {
+            return immediateFuture(null);
+        }
+
+        @Override
+        public void close() {}
+    }
+
+    private static class UncancellableFuture<V>
+            extends AbstractFuture<V>
+    {
+        @Override
+        public boolean cancel(boolean mayInterruptIfRunning)
+        {
+            return false; // stays !isDone() despite cancel — simulates a write stuck in uninterruptible I/O
+        }
+
+        void failWith(Throwable t)
+        {
+            setException(t);
+        }
     }
 }

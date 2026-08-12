@@ -645,7 +645,7 @@ public class ChunkManager
 
     private void getFutureValueWithTimeout(ListenableFuture<Void> future, int timeoutValue, TimeUnit timeUnit)
     {
-        requireNonNull(future, "future is null");
+        requireNonNull(future, "writeFuture is null");
         checkArgument(timeoutValue >= 0, "timeout is negative");
         requireNonNull(timeUnit, "timeUnit is null");
 
@@ -778,7 +778,7 @@ public class ChunkManager
                 }
                 if (nominatedBytes == 0) {
                     // No more chunks can be spooled at this point.
-                    // It's possible for us to reach here, since we fulfill memory requests as soon as we release new
+                    // It's possible for us to reach here, since we fulfill memory requests as soon as we onFailureRelease new
                     // memory. It's totally fine as long as we don't deadlock.
                     return;
                 }
@@ -787,8 +787,8 @@ public class ChunkManager
                 log.debug("Allocation ratio %.2f%% (%s), starting to spool closed chunks", allocationPercentage.getAsDouble(), storageType);
                 // blocking call here to make sure:
                 // 1. No duplicate spooling
-                // 2. Wait for pending writes to make progress as we release memory as a result of chunk spooling
-                if (!spoolChunksSync(spoolCandidates, chunkSpoolTimeoutMillis, /*releaseChunksOnFailure=*/ false)) {
+                // 2. Wait for pending writes to make progress as we onFailureRelease memory as a result of chunk spooling
+                if (!spoolChunksSync(spoolCandidates, chunkSpoolTimeoutMillis, false)) {
                     return;
                 }
             }
@@ -838,8 +838,8 @@ public class ChunkManager
      * For example:
      * <pre>{@code
      * List<Integer> userIds = Lists.of(1, 2, 3);
-     * ListenableFuture<List<UserInfo>> future = processAllToCompletion(ids, client::getUserInfoById, 2, executor);
-     * List<UserInfo> userInfos = future.get(...);
+     * ListenableFuture<List<UserInfo>> writeFuture = processAllToCompletion(ids, client::getUserInfoById, 2, executor);
+     * List<UserInfo> userInfos = writeFuture.get(...);
      * }</pre>
      *
      * @param tasks tasks to process
@@ -848,7 +848,7 @@ public class ChunkManager
      * @param submitExecutor task submission executor
      * @return {@link ListenableFuture} containing a list of values returned by the {@code tasks}.
      *         The order of elements in the list matches the order of {@code tasks}.
-     *         If the result future is cancelled all the remaining tasks are cancelled (submitted tasks will be cancelled, pending tasks will not be submitted).
+     *         If the result writeFuture is cancelled all the remaining tasks are cancelled (submitted tasks will be cancelled, pending tasks will not be submitted).
      *         If any of the submitted tasks fails or are cancelled, the remaining tasks will continue to execute.
      *         If any of the submitted tasks fails or are cancelled, the remaining pending tasks are cancelled.
      */
@@ -898,8 +898,7 @@ public class ChunkManager
         List<ChunksWithExchangeId> chunksWithExchangeIds = chunksWithExchangeIdBuilder.build();
         CountDownLatch countCompletions = new CountDownLatch(chunksWithExchangeIds.size());
         List<Throwable> failures = synchronizedList(new ArrayList<>());
-        // in-flight writes, so that they can be cancelled when spooling times out
-        List<ListenableFuture<?>> spoolingFutures = synchronizedList(new ArrayList<>());
+        List<InFlightWrite> inFlightWrites = synchronizedList(new ArrayList<>());
 
         getFutureValue(processAllToCompletion(
                 chunksWithExchangeIds,
@@ -935,7 +934,18 @@ public class ChunkManager
                             exchangeId,
                             chunkDataLeaseMap,
                             contentLength);
-                    spoolingFutures.add(spoolingFuture);
+                    AtomicBoolean releaseHandled = new AtomicBoolean(false);
+                    Runnable onceFailureRelease = () -> {
+                        if (releaseHandled.compareAndSet(false, true)) {
+                            chunkDataLeaseMap.forEach((chunk, chunkDataLease) -> {
+                                chunkDataLease.release();
+                                if (releaseChunksOnFailure) {
+                                    chunk.release();
+                                }
+                            });
+                        }
+                    };
+                    inFlightWrites.add(new InFlightWrite(spoolingFuture, exchangeId, chunkDataLeaseMap.size(), onceFailureRelease));
                     addCallback(
                             spoolingFuture,
                             new FutureCallback<>()
@@ -946,11 +956,17 @@ public class ChunkManager
                                     try {
                                         exchange.markSpooled();
                                         spooledChunksByExchange.update(exchangeId, spooledChunkMap);
-                                        chunkDataLeaseMap.forEach((chunk, chunkDataLease) -> {
-                                            exchange.chunkSpooled(chunk.getHandle());
-                                            chunkDataLease.release();
-                                            chunk.release();
-                                        });
+                                        if (releaseHandled.compareAndSet(false, true)) {
+                                            chunkDataLeaseMap.forEach((chunk, chunkDataLease) -> {
+                                                exchange.chunkSpooled(chunk.getHandle());
+                                                chunkDataLease.release();
+                                                chunk.release();
+                                            });
+                                        }
+                                        else {
+                                            // still notify exchange that chunks were spooled even though the leases were already released (e.g. due to a hung write that was cancelled)
+                                            chunkDataLeaseMap.keySet().forEach(chunk -> exchange.chunkSpooled(chunk.getHandle()));
+                                        }
                                     }
                                     finally {
                                         countCompletions.countDown();
@@ -961,14 +977,8 @@ public class ChunkManager
                                 public void onFailure(Throwable t)
                                 {
                                     try {
-                                        // release lease refs (base ref keeps chunk data alive for retry).
-                                        // On drain give-up, also release the chunk so it's removed from its partition.
-                                        chunkDataLeaseMap.forEach((chunk, chunkDataLease) -> {
-                                            chunkDataLease.release();
-                                            if (releaseChunksOnFailure) {
-                                                chunk.release();
-                                            }
-                                        });
+                                        // onFailureRelease lease refs
+                                        onceFailureRelease.run();
                                         failures.add(t);
                                     }
                                     finally {
@@ -985,13 +995,27 @@ public class ChunkManager
             boolean completed = countCompletions.await(timeoutMillis, MILLISECONDS);
             if (!completed) {
                 log.warn("spoolChunksSync timed out after %d ms; %d completions still pending, cancelling in-flight writes", timeoutMillis, countCompletions.getCount());
-                spoolingFutures.forEach(future -> future.cancel(true));
+                List.copyOf(inFlightWrites).forEach(w -> w.writeFuture().cancel(true));
                 long cancellationTimeoutMillis = min(timeoutMillis, CANCELLATION_TIMEOUT.toMillis());
                 if (!countCompletions.await(cancellationTimeoutMillis, MILLISECONDS)) {
-                    // leases of hung writes are leaked; releasing them here would race with the hung write eventually completing
-                    log.warn("%d writes did not react to cancellation within %d ms; leases leaked",
-                            countCompletions.getCount(),
-                            cancellationTimeoutMillis);
+                    // Here there is a need to force-onFailureRelease futures that are still running (never responded to cancel).
+                    long hungCount = 0;
+                    List<String> hungWriteDetails = new ArrayList<>();
+                    for (InFlightWrite write : List.copyOf(inFlightWrites)) {
+                        if (!write.writeFuture().isDone()) {
+                            hungCount++;
+                            hungWriteDetails.add(write.exchangeId() + "(" + write.chunkCount() + " chunks)");
+                            write.onFailureRelease().run(); // gated by AtomicBoolean; no-op if callback already fired
+                        }
+                    }
+                    long countCompletionsCount = countCompletions.getCount();
+                    log.error(
+                            "%d writes did not react to cancellation within %d ms; force-released %d hung writes %s; %d cancelled writes still pending callback",
+                            countCompletionsCount,
+                            cancellationTimeoutMillis,
+                            hungCount,
+                            hungWriteDetails,
+                            countCompletionsCount - hungCount);
                 }
             }
             if (!failures.isEmpty()) {
@@ -1058,6 +1082,8 @@ public class ChunkManager
     record ChunksWithExchangeId(
             String exchangeId,
             List<Chunk> chunks) {}
+
+    record InFlightWrite(ListenableFuture<?> writeFuture, String exchangeId, int chunkCount, Runnable onFailureRelease) {}
 
     @Retention(RUNTIME)
     @Target({FIELD, PARAMETER, METHOD})
