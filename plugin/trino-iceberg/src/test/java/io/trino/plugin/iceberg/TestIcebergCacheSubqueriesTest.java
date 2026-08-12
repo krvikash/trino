@@ -37,6 +37,7 @@ import static java.util.stream.Collectors.joining;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.parallel.ExecutionMode.SAME_THREAD;
 
+// TODO Test isolation prevents the cache from being revoked, but this is not the intended long-term solution https://starburstdata.atlassian.net/browse/ENG-9823
 @Isolated
 @Execution(SAME_THREAD)
 public class TestIcebergCacheSubqueriesTest
