@@ -522,6 +522,7 @@ public class ChunkManager
         long maxBackOff = 60_000;
         int delayScaleFactor = 2;
         for (int i = 0; i < drainingMaxAttempts; ++i) {
+            boolean lastAttempt = (i == drainingMaxAttempts - 1);
             try {
                 ImmutableList.Builder<Chunk> chunks = ImmutableList.builder();
                 for (Exchange exchange : exchanges.values()) {
@@ -538,10 +539,15 @@ public class ChunkManager
                 if (attemptChunks.isEmpty()) {
                     break;
                 }
-                if (spoolChunksSync(attemptChunks, drainSpoolAttemptTimeoutMillis)) {
+                if (spoolChunksSync(attemptChunks, drainSpoolAttemptTimeoutMillis, lastAttempt)) {
                     break;
                 }
-                log.warn("spooling all chunks did not settle, retrying in %d milliseconds", backoff);
+                if (lastAttempt) {
+                    log.warn("giving up spooling remaining chunks; %d chunks abandoned", getClosedChunks());
+                }
+                else {
+                    log.warn("spooling all chunks did not settle, retrying in %d milliseconds", backoff);
+                }
             }
             catch (RuntimeException e) {
                 log.warn(e, "spooling all chunks failed, retrying in %d milliseconds", backoff);
@@ -555,8 +561,12 @@ public class ChunkManager
             backoff = Math.min(backoff * delayScaleFactor, maxBackOff);
         }
 
+        if (getClosedChunks() != 0) {
+            // last-attempt path releases failed chunks; remaining closed chunks can only come from hung writes
+            // whose callbacks never fired. Log and continue so drain finishes and the node can shut down.
+            log.error("drain gave up: %d chunks stranded by hung writes", getClosedChunks());
+        }
         verify(getOpenChunks() == 0, "open chunks exist after spooling all chunks");
-        verify(getClosedChunks() == 0, "closed chunks exist after spooling all chunks");
 
         log.info("Finished draining all chunks");
 
@@ -778,7 +788,7 @@ public class ChunkManager
                 // blocking call here to make sure:
                 // 1. No duplicate spooling
                 // 2. Wait for pending writes to make progress as we release memory as a result of chunk spooling
-                if (!spoolChunksSync(spoolCandidates, chunkSpoolTimeoutMillis)) {
+                if (!spoolChunksSync(spoolCandidates, chunkSpoolTimeoutMillis, /*releaseChunksOnFailure=*/ false)) {
                     return;
                 }
             }
@@ -860,17 +870,20 @@ public class ChunkManager
     }
 
     /**
-     * Spools the given chunks as a single attempt. On success the lease and chunk are released inline; on failure
-     * the lease is released so its extra reference is dropped, but the chunk is not released so the caller can
-     * retry from a fresh lease (the base reference kept by the underlying chunk data keeps the resource alive).
+     * Spools the given chunks as a single attempt. The {@code onSuccess} callback releases the lease and the chunk
+     * inline. On failure the lease is released; when {@code releaseChunksOnFailure} is true the chunk is also released
+     * so it is removed from its partition (drain give-up path). Otherwise the chunk stays closed so the caller can
+     * retry from a fresh lease.
      * <p>
      * When the attempt times out, in-flight writes are cancelled and awaited again with a bounded timeout. Writes
-     * that never react to cancellation leak their leases (their callback never fires).
+     * that never react to cancellation leak their leases (the callback never fires).
      *
      * @param timeoutMillis how long to wait for the spooling writes to complete before cancelling them
+     * @param releaseChunksOnFailure if true, {@code onFailure} also calls {@link Chunk#release()} so the chunk is
+     *         removed from its partition (used by the last drain attempt to signal give-up)
      * @return true iff all writes completed successfully
      */
-    private boolean spoolChunksSync(List<Chunk> chunks, long timeoutMillis)
+    private boolean spoolChunksSync(List<Chunk> chunks, long timeoutMillis, boolean releaseChunksOnFailure)
     {
         ImmutableList.Builder<ChunksWithExchangeId> chunksWithExchangeIdBuilder = ImmutableList.builder();
         for (Map.Entry<String, Collection<Chunk>> entry : Multimaps.index(chunks, Chunk::getExchangeId).asMap().entrySet()) {
@@ -948,9 +961,14 @@ public class ChunkManager
                                 public void onFailure(Throwable t)
                                 {
                                     try {
-                                        // release lease refs so the extra reference is dropped; the base reference
-                                        // kept by chunkData keeps the chunk alive for retry
-                                        chunkDataLeaseMap.values().forEach(ChunkDataLease::release);
+                                        // release lease refs (base ref keeps chunk data alive for retry).
+                                        // On drain give-up, also release the chunk so it's removed from its partition.
+                                        chunkDataLeaseMap.forEach((chunk, chunkDataLease) -> {
+                                            chunkDataLease.release();
+                                            if (releaseChunksOnFailure) {
+                                                chunk.release();
+                                            }
+                                        });
                                         failures.add(t);
                                     }
                                     finally {
@@ -970,7 +988,7 @@ public class ChunkManager
                 spoolingFutures.forEach(future -> future.cancel(true));
                 long cancellationTimeoutMillis = min(timeoutMillis, CANCELLATION_TIMEOUT.toMillis());
                 if (!countCompletions.await(cancellationTimeoutMillis, MILLISECONDS)) {
-                    // leases of hung writes are leaked; their callback never fires
+                    // leases of hung writes are leaked; releasing them here would race with the hung write eventually completing
                     log.warn("%d writes did not react to cancellation within %d ms; leases leaked",
                             countCompletions.getCount(),
                             cancellationTimeoutMillis);

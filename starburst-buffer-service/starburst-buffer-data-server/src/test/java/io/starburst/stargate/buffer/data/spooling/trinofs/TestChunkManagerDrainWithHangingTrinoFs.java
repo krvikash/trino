@@ -9,7 +9,6 @@
  */
 package io.starburst.stargate.buffer.data.spooling.trinofs;
 
-import com.google.common.base.VerifyException;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import io.airlift.slice.Slices;
 import io.airlift.testing.TestingTicker;
@@ -57,7 +56,6 @@ import static io.airlift.units.DataSize.Unit.MEGABYTE;
 import static io.airlift.units.Duration.succinctDuration;
 import static io.trino.testing.assertions.Assert.assertEventually;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class TestChunkManagerDrainWithHangingTrinoFs
 {
@@ -108,10 +106,10 @@ public class TestChunkManagerDrainWithHangingTrinoFs
                 List.of(Slices.utf8Slice("x".repeat(1024 * 512))));
 
         // drainAllChunks() must return (not hang) — the @Timeout above is the guard.
-        // It throws VerifyException because chunks remain unspooled after all retries exhaust.
-        assertThatThrownBy(chunkManager::drainAllChunks)
-                .isInstanceOf(VerifyException.class)
-                .hasMessageContaining("chunks exist after spooling all chunks");
+        // On the last attempt, failed writes release their chunks so drain proceeds past the retry loop.
+        Future<?> drainFuture = executor.submit(chunkManager::drainAllChunks);
+        chunkManager.markAllClosedChunksReceived(EXCHANGE_ID);
+        assertThat(drainFuture).succeedsWithin(20, TimeUnit.SECONDS);
 
         assertThat(chunkManager.getSpooledChunksCount())
                 .describedAs("hanging filesystem must not produce successful spooled chunks")
@@ -133,14 +131,15 @@ public class TestChunkManagerDrainWithHangingTrinoFs
                 memoryAllocator, spoolingStorage, DataSize.of(1, MEGABYTE), new Duration(3, TimeUnit.SECONDS), 2);
         addChunkData(chunkManager);
 
-        assertThatThrownBy(chunkManager::drainAllChunks)
-                .isInstanceOf(VerifyException.class)
-                .hasMessageContaining("chunks exist after spooling all chunks");
+        Future<?> drainFuture = executor.submit(chunkManager::drainAllChunks);
 
         assertThat(fileSystem.interrupted.await(10, TimeUnit.SECONDS))
                 .describedAs("hanging write must be cancelled")
                 .isTrue();
-        // a lease left behind by a cancelled write keeps a reference to the chunk memory, so dropping the exchange would not free it
+        chunkManager.markAllClosedChunksReceived(EXCHANGE_ID);
+        assertThat(drainFuture).succeedsWithin(20, TimeUnit.SECONDS);
+
+        // cancellation fires onFailure which releases both lease and chunk on the last attempt
         chunkManager.removeExchange(EXCHANGE_ID);
         assertThat(memoryAllocator.getFreeMemory())
                 .describedAs("leases of cancelled writes must be released")

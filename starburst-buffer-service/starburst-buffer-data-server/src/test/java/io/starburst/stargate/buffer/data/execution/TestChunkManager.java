@@ -9,7 +9,6 @@
  */
 package io.starburst.stargate.buffer.data.execution;
 
-import com.google.common.base.VerifyException;
 import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
@@ -1100,9 +1099,11 @@ public class TestChunkManager
         getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 0L, ImmutableList.of(utf8Slice("data"))).addDataPagesFuture());
         getFutureValue(chunkManager.finishExchange(EXCHANGE_0));
 
-        assertThatThrownBy(chunkManager::drainAllChunks)
-                .isInstanceOf(VerifyException.class)
-                .hasMessageContaining("closed chunks exist after spooling all chunks");
+        // BlockingSpoolingStorage futures never complete or react to cancellation → chunks stranded, drain logs and continues
+        Future<?> drainFuture = executor.submit(chunkManager::drainAllChunks);
+        chunkManager.markAllClosedChunksReceived(EXCHANGE_0);
+        assertThat(drainFuture).succeedsWithin(20, SECONDS);
+        assertThat(chunkManager.getSpooledChunksCount()).isZero();
     }
 
     @AfterAll
