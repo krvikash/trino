@@ -682,6 +682,13 @@ public abstract class BaseTestObjectStoreHiveFeaturesConnectorTest
 
     @Test
     @Override
+    public void testCharToVarcharCastCoercionAcrossPushdown()
+    {
+        skipDuplicateTestCoverage("testCharToVarcharCastCoercionAcrossPushdown");
+    }
+
+    @Test
+    @Override
     public void testCharVarcharComparison()
     {
         skipDuplicateTestCoverage("testCharVarcharComparison");
@@ -692,13 +699,6 @@ public abstract class BaseTestObjectStoreHiveFeaturesConnectorTest
     public void testColumnCommentMaterializedView()
     {
         skipDuplicateTestCoverage("testColumnCommentMaterializedView");
-    }
-
-    @Test
-    @Override
-    public void testMaterializedViewWhenStaleFail()
-    {
-        skipDuplicateTestCoverage("testMaterializedViewWhenStaleFail");
     }
 
     @Test
@@ -1420,6 +1420,13 @@ public abstract class BaseTestObjectStoreHiveFeaturesConnectorTest
     public void testMaterializedViewGracePeriod()
     {
         skipDuplicateTestCoverage("testMaterializedViewGracePeriod");
+    }
+
+    @Test
+    @Override
+    public void testMaterializedViewWhenStaleFail()
+    {
+        skipDuplicateTestCoverage("testMaterializedViewWhenStaleFail");
     }
 
     @Test

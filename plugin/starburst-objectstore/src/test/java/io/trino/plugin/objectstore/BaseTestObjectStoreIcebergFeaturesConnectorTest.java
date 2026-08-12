@@ -430,6 +430,13 @@ public abstract class BaseTestObjectStoreIcebergFeaturesConnectorTest
 
     @Test
     @Override
+    public void testCharToVarcharCastCoercionAcrossPushdown()
+    {
+        skipDuplicateTestCoverage("testCharToVarcharCastCoercionAcrossPushdown");
+    }
+
+    @Test
+    @Override
     public void testColumnCommentMaterializedView()
     {
         skipDuplicateTestCoverage("testColumnCommentMaterializedView");

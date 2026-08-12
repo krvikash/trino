@@ -221,6 +221,13 @@ public abstract class BaseTestObjectStoreDeltaFeaturesConnectorTest
 
     @Test
     @Override
+    public void testCharToVarcharCastCoercionAcrossPushdown()
+    {
+        skipDuplicateTestCoverage("testCharToVarcharCastCoercionAcrossPushdown");
+    }
+
+    @Test
+    @Override
     public void testColumnCommentMaterializedView()
     {
         skipDuplicateTestCoverage("testColumnCommentMaterializedView");
