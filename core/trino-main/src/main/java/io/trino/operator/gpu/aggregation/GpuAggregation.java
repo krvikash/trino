@@ -174,9 +174,8 @@ public abstract class GpuAggregation
     {
         totalBufferedRowCount += page.positionCount();
 
-        int columnCount = page.columnCount();
-        if (columnCount == 0) {
-            // TODO shouldn't we rather check position count?
+        if (page.columnCount() == 0) {
+            // When no columns, only totalBufferedRowCount is tracked
             return;
         }
 
