@@ -86,7 +86,6 @@ import static io.trino.spi.type.IntegerType.INTEGER;
 import static io.trino.spi.type.RealType.REAL;
 import static io.trino.spi.type.SmallintType.SMALLINT;
 import static io.trino.spi.type.TinyintType.TINYINT;
-import static io.trino.sql.ir.IrExpressions.matchBetween;
 import static io.trino.sql.ir.IrExpressions.matchComparison;
 import static io.trino.type.IntervalDayTimeType.INTERVAL_DAY_TIME;
 import static io.trino.type.IntervalYearMonthType.INTERVAL_YEAR_MONTH;
@@ -130,6 +129,8 @@ public final class GpuExpressionCompiler
         // the materialized list of device-resident columns.
         private final Map<Symbol, Integer> compactLayout = new HashMap<>();
         private final List<Integer> inputChannels = new ArrayList<>();
+        // Symbols bound by enclosing Lets, in binding order (innermost last).
+        private final List<Symbol> bindingStack = new ArrayList<>();
 
         private CompilationVisitor(Map<Symbol, Integer> sourceLayout)
         {
@@ -156,6 +157,10 @@ public final class GpuExpressionCompiler
                 return Optional.empty();
             }
             Symbol symbol = Symbol.from(reference);
+            int binding = bindingStack.lastIndexOf(symbol);
+            if (binding >= 0) {
+                return Optional.of(new GpuBoundReference(bindingStack.size() - 1 - binding));
+            }
             Integer sourceChannel = sourceLayout.get(symbol);
             verify(sourceChannel != null, "Reference %s not present in source layout", symbol);
             int compactField = compactLayout.computeIfAbsent(symbol, _ -> {
@@ -703,16 +708,24 @@ public final class GpuExpressionCompiler
         @Override
         protected Optional<GpuExpression> visitLet(Let let, Void context)
         {
-            IrExpressions.Between between = matchBetween(let);
-            if (between != null) {
-                // GpuBetween evaluates the value once, just like Let
-                return compileAll(ImmutableList.of(between.value(), between.min(), between.max()), context)
-                        .map(args -> new GpuBetween(args.get(0), args.get(1), args.get(2)));
+            // Compile the value in the enclosing scope; a Let value cannot reference its own binding.
+            Optional<GpuExpression> value = let.value().accept(this, context);
+            if (value.isEmpty()) {
+                return Optional.empty();
             }
-
-            // The GPU expression model has no variable binding, and inlining the bound value into the body
-            // would evaluate it once per occurrence, violating Let's single-evaluation semantics.
-            return Optional.empty();
+            if (bindingStack.contains(let.name())) {
+                // This is considered impossible
+                log.warn("Duplicate nested Let symbols");
+                return Optional.empty();
+            }
+            bindingStack.addLast(let.name());
+            try {
+                return let.body().accept(this, context)
+                        .map(body -> new GpuLet(value.get(), body));
+            }
+            finally {
+                bindingStack.removeLast();
+            }
         }
 
         @Override

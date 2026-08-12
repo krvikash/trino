@@ -1008,6 +1008,73 @@ public class TestGpuExpressions
 
     @ParameterizedTest
     @EnumSource(NullsProvider.class)
+    public void testNestedLet(NullsProvider nullsProvider)
+    {
+        List<Type> inputTypes = List.of(BIGINT, BIGINT, BIGINT);
+        int positionsCount = 64;
+        List<Page> inputPages = List.of(new Page(
+                positionsCount,
+                createBigintBlock(positionsCount, nullsProvider, -100, 100),
+                createBigintBlock(positionsCount, nullsProvider, -100, 100),
+                createBigintBlock(positionsCount, nullsProvider, -100, 100)));
+
+        // Let s1 = ref0 + ref1 in (Let s2 = s1 + ref2 in (s1 + s2))
+        // Body references s1 (de Bruijn index 1) and s2 (index 0); the inner value references s1 (index 0).
+        Symbol s1 = new Symbol(BIGINT, "s1");
+        Symbol s2 = new Symbol(BIGINT, "s2");
+        Expression inner = new Let(
+                s2,
+                add(s1.toSymbolReference(), field(2, BIGINT)),
+                add(s1.toSymbolReference(), s2.toSymbolReference()));
+        Expression expression = new Let(s1, add(field(0, BIGINT), field(1, BIGINT)), inner);
+
+        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(0, 1, 2));
+    }
+
+    @ParameterizedTest
+    @EnumSource(NullsProvider.class)
+    public void testSiblingLets(NullsProvider nullsProvider)
+    {
+        List<Type> inputTypes = List.of(BIGINT, BIGINT);
+        int positionsCount = 64;
+        List<Page> inputPages = List.of(new Page(
+                positionsCount,
+                createBigintBlock(positionsCount, nullsProvider, -100, 100),
+                createBigintBlock(positionsCount, nullsProvider, -100, 100)));
+
+        // (Let s1 = ref0 + ref1 in s1 + s1) + (Let s2 = ref0 - ref1 in s2 + s2)
+        // Sibling bindings are never live simultaneously, so both reuse the same tail slot (index 0).
+        Symbol s1 = new Symbol(BIGINT, "s1");
+        Symbol s2 = new Symbol(BIGINT, "s2");
+        Expression left = new Let(
+                s1,
+                add(field(0, BIGINT), field(1, BIGINT)),
+                add(s1.toSymbolReference(), s1.toSymbolReference()));
+        Expression right = new Let(
+                s2,
+                subtract(field(0, BIGINT), field(1, BIGINT)),
+                add(s2.toSymbolReference(), s2.toSymbolReference()));
+        Expression expression = add(left, right);
+
+        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(0, 1));
+    }
+
+    private static Expression add(Expression left, Expression right)
+    {
+        return new Call(
+                FUNCTION_RESOLUTION.resolveOperator(OperatorType.ADD, List.of(BIGINT, BIGINT)),
+                ImmutableList.of(left, right));
+    }
+
+    private static Expression subtract(Expression left, Expression right)
+    {
+        return new Call(
+                FUNCTION_RESOLUTION.resolveOperator(OperatorType.SUBTRACT, List.of(BIGINT, BIGINT)),
+                ImmutableList.of(left, right));
+    }
+
+    @ParameterizedTest
+    @EnumSource(NullsProvider.class)
     public void testCoalesce(NullsProvider nullsProvider)
     {
         int channelA = 0;
