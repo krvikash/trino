@@ -421,34 +421,6 @@ class TestGpuExpressionAstCompiler
         }
     }
 
-    private static Block realBlock(Float... values)
-    {
-        BlockBuilder builder = REAL.createBlockBuilder(null, values.length);
-        for (Float value : values) {
-            if (value == null) {
-                builder.appendNull();
-            }
-            else {
-                REAL.writeFloat(builder, value);
-            }
-        }
-        return builder.build();
-    }
-
-    private static Block doubleBlock(Double... values)
-    {
-        BlockBuilder builder = DOUBLE.createBlockBuilder(null, values.length);
-        for (Double value : values) {
-            if (value == null) {
-                builder.appendNull();
-            }
-            else {
-                DOUBLE.writeDouble(builder, value);
-            }
-        }
-        return builder.build();
-    }
-
     private static Reference field(int channel, Type type)
     {
         return new Reference(type, "ref" + channel);
