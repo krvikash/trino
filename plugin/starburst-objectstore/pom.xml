@@ -240,19 +240,6 @@
         </dependency>
 
         <dependency>
-            <groupId>com.amazonaws</groupId>
-            <artifactId>aws-java-sdk-s3</artifactId>
-            <version>1.12.797</version>
-            <scope>runtime</scope>
-            <exclusions>
-                <exclusion>
-                    <groupId>commons-logging</groupId>
-                    <artifactId>commons-logging</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-
-        <dependency>
             <groupId>io.airlift</groupId>
             <artifactId>http-server</artifactId>
             <scope>runtime</scope>
@@ -793,10 +780,6 @@
                                     <dependency>
                                         <groupId>software.amazon.awssdk</groupId>
                                         <artifactId>sdk-core</artifactId>
-                                    </dependency>
-                                    <dependency>
-                                        <groupId>com.amazonaws</groupId>
-                                        <artifactId>aws-java-sdk-s3</artifactId>
                                     </dependency>
                                     <dependency>
                                         <groupId>com.amazonaws</groupId>
