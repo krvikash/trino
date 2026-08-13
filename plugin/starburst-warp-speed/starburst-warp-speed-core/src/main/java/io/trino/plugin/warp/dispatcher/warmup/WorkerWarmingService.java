@@ -13,7 +13,6 @@
  */
 package io.trino.plugin.warp.dispatcher.warmup;
 
-import com.amazonaws.util.CollectionUtils;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.ImmutableMap;
@@ -84,6 +83,7 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
+import static io.trino.plugin.warp.dispatcher.warmup.WarmUtils.isEmptyCollection;
 import static io.trino.plugin.warp.type.TypeUtils.isWarmBasicSupported;
 import static java.util.Objects.requireNonNull;
 
@@ -555,7 +555,7 @@ public class WorkerWarmingService
                 continue;
             }
             if (!(partitionKeysMap.isEmpty() ||
-                    CollectionUtils.isNullOrEmpty(warmupRule.getPredicates()) ||
+                    isEmptyCollection(warmupRule.getPredicates()) ||
                     warmupRule.getPredicates().stream().allMatch(warmupPredicateRule -> warmupPredicateRule.test(partitionKeysMap)))) {
                 continue;
             }

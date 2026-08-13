@@ -13,7 +13,6 @@
  */
 package io.trino.plugin.warp.extension.execution.debugtools;
 
-import com.amazonaws.util.CollectionUtils;
 import com.google.common.eventbus.EventBus;
 import com.google.common.eventbus.Subscribe;
 import com.google.inject.Inject;
@@ -53,6 +52,7 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static io.trino.plugin.warp.dispatcher.warmup.WarmUtils.isEmptyCollection;
 import static io.trino.plugin.warp.extension.execution.debugtools.WarmupDemoterTask.WARMUP_DEMOTER_PATH;
 import static java.util.Objects.requireNonNull;
 
@@ -284,10 +284,10 @@ public class WorkerWarmupDemoterTask
     private List<TupleFilter> calculateTupleFilter(WarmupDemoterData warmupDemoterData)
     {
         List<TupleFilter> tupleFilters = new ArrayList<>();
-        if (warmupDemoterData.getSchemaTableName() != null || !CollectionUtils.isNullOrEmpty(warmupDemoterData.getWarmupElementsData())) {
+        if (warmupDemoterData.getSchemaTableName() != null || !isEmptyCollection(warmupDemoterData.getWarmupElementsData())) {
             tupleFilters.add(new ColumnFilter(warmupDemoterData.getSchemaTableName(), warmupDemoterData.getWarmupElementsData()));
         }
-        if (!CollectionUtils.isNullOrEmpty(warmupDemoterData.getFilePaths())) {
+        if (!isEmptyCollection(warmupDemoterData.getFilePaths())) {
             tupleFilters.add(new FileFilter(warmupDemoterData.getFilePaths()));
         }
         return tupleFilters;
