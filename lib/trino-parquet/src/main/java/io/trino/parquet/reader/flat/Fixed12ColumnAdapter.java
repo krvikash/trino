@@ -20,7 +20,6 @@ import java.util.List;
 import java.util.Optional;
 
 import static io.airlift.slice.SizeOf.sizeOf;
-import static io.trino.parquet.ParquetReaderUtils.castToByteNegate;
 
 public class Fixed12ColumnAdapter
         implements ColumnAdapter<int[]>
@@ -46,15 +45,11 @@ public class Fixed12ColumnAdapter
     }
 
     @Override
-    public void unpackNullValues(int[] source, int[] destination, boolean[] isNull, int destOffset, int nonNullCount, int totalValuesCount)
+    public void copyValue(int[] source, int sourceIndex, int[] destination, int destinationIndex)
     {
-        int srcOffset = 0;
-        while (srcOffset < nonNullCount) {
-            copyValue(source, srcOffset, destination, destOffset);
-            // Avoid branching
-            srcOffset += castToByteNegate(isNull[destOffset]);
-            destOffset++;
-        }
+        destination[destinationIndex * 3] = source[sourceIndex * 3];
+        destination[(destinationIndex * 3) + 1] = source[(sourceIndex * 3) + 1];
+        destination[(destinationIndex * 3) + 2] = source[(sourceIndex * 3) + 2];
     }
 
     @Override
@@ -79,12 +74,5 @@ public class Fixed12ColumnAdapter
     public int[] merge(List<int[]> buffers)
     {
         return IntColumnAdapter.concatIntArrays(buffers);
-    }
-
-    private void copyValue(int[] source, int sourceIndex, int[] destination, int destinationIndex)
-    {
-        destination[destinationIndex * 3] = source[sourceIndex * 3];
-        destination[(destinationIndex * 3) + 1] = source[(sourceIndex * 3) + 1];
-        destination[(destinationIndex * 3) + 2] = source[(sourceIndex * 3) + 2];
     }
 }

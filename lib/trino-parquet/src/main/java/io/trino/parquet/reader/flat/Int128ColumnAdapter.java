@@ -20,7 +20,6 @@ import java.util.List;
 import java.util.Optional;
 
 import static io.airlift.slice.SizeOf.sizeOf;
-import static io.trino.parquet.ParquetReaderUtils.castToByteNegate;
 
 public class Int128ColumnAdapter
         implements ColumnAdapter<long[]>
@@ -46,15 +45,10 @@ public class Int128ColumnAdapter
     }
 
     @Override
-    public void unpackNullValues(long[] source, long[] destination, boolean[] isNull, int destOffset, int nonNullCount, int totalValuesCount)
+    public void copyValue(long[] source, int sourceIndex, long[] destination, int destinationIndex)
     {
-        int srcOffset = 0;
-        while (srcOffset < nonNullCount) {
-            copyValue(source, srcOffset, destination, destOffset);
-            // Avoid branching
-            srcOffset += castToByteNegate(isNull[destOffset]);
-            destOffset++;
-        }
+        destination[destinationIndex * 2] = source[sourceIndex * 2];
+        destination[(destinationIndex * 2) + 1] = source[(sourceIndex * 2) + 1];
     }
 
     @Override
@@ -78,11 +72,5 @@ public class Int128ColumnAdapter
     public long[] merge(List<long[]> buffers)
     {
         return LongColumnAdapter.concatLongArrays(buffers);
-    }
-
-    private void copyValue(long[] source, int sourceIndex, long[] destination, int destinationIndex)
-    {
-        destination[destinationIndex * 2] = source[sourceIndex * 2];
-        destination[(destinationIndex * 2) + 1] = source[(sourceIndex * 2) + 1];
     }
 }

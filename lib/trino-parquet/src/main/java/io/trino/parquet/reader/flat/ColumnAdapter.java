@@ -17,6 +17,8 @@ import io.trino.spi.block.Block;
 
 import java.util.List;
 
+import static io.trino.parquet.ParquetReaderUtils.castToByteNegate;
+
 public interface ColumnAdapter<BufferType>
 {
     /**
@@ -29,6 +31,8 @@ public interface ColumnAdapter<BufferType>
 
     BufferType createBuffer(int size);
 
+    void copyValue(BufferType source, int sourceIndex, BufferType destination, int destinationIndex);
+
     Block createNullableBlock(boolean[] nulls, BufferType values);
 
     default Block createNullableDictionaryBlock(BufferType dictionary, int nonNullsCount)
@@ -40,7 +44,16 @@ public interface ColumnAdapter<BufferType>
 
     Block createNonNullBlock(BufferType values);
 
-    void unpackNullValues(BufferType source, BufferType destination, boolean[] isNull, int destOffset, int nonNullCount, int totalValuesCount);
+    default void unpackNullValues(BufferType source, BufferType destination, boolean[] isNull, int destOffset, int nonNullCount, int totalValuesCount)
+    {
+        int srcOffset = 0;
+        while (srcOffset < nonNullCount) {
+            copyValue(source, srcOffset, destination, destOffset);
+            // Avoid branching
+            srcOffset += castToByteNegate(isNull[destOffset]);
+            destOffset++;
+        }
+    }
 
     void decodeDictionaryIds(BufferType values, int offset, int length, int[] ids, BufferType dictionary);
 

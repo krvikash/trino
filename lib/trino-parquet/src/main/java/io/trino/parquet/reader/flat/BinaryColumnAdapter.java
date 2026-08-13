@@ -42,6 +42,13 @@ public class BinaryColumnAdapter
     }
 
     @Override
+    public void copyValue(BinaryBuffer source, int sourceIndex, BinaryBuffer destination, int destinationIndex)
+    {
+        // ignore as unpackNullValues is overridden
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     public Block createNullableBlock(boolean[] nulls, BinaryBuffer values)
     {
         return new VariableWidthBlock(values.getValueCount(), values.asSlice(), values.getOffsets(), Optional.of(nulls));
