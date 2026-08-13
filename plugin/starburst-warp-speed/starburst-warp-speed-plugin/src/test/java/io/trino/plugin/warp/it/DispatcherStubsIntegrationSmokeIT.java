@@ -587,7 +587,7 @@ public abstract class DispatcherStubsIntegrationSmokeIT
         List<String> demoteColumns = List.of("dead_objects_deleted", "deleted_by_low_priority");
 
         Map<String, DemoteInput> demoteInputsBefore = Arrays.stream(demoteInputs).map(demoteInput -> {
-            String jmxTable = "%s:*name=%s_%s*,type=%s".formatted(
+            String jmxTable = "%s:*name=%s_%s,type=%s".formatted(
                     WarmupDemoterStats.class.getPackageName(),
                     WarmupDemoterStats.createKey(),
                     demoteInput.catalog(),
@@ -616,7 +616,7 @@ public abstract class DispatcherStubsIntegrationSmokeIT
         runWithRetries(() -> {
             Map<String, DemoteInput> demoteInputsAfter = Arrays.stream(demoteInputs)
                     .map(demoteInput -> {
-                        String jmxTable = "%s:*name=%s_%s*,type=%s".formatted(
+                        String jmxTable = "%s:*name=%s_%s,type=%s".formatted(
                                 WarmupDemoterStats.class.getPackageName(),
                                 WarmupDemoterStats.createKey(),
                                 demoteInput.catalog(),
