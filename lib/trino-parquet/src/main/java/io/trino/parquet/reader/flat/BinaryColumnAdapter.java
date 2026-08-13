@@ -53,13 +53,6 @@ public class BinaryColumnAdapter
     }
 
     @Override
-    public void copyValue(BinaryBuffer source, int sourceIndex, BinaryBuffer destination, int destinationIndex)
-    {
-        // ignore as unpackNullValues is overridden
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
     public void copyValues(BinaryBuffer source, int sourceIndex, BinaryBuffer destination, int destinationIndex, int length)
     {
         // ignore as unpackNullValues is overridden
