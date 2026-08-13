@@ -49,7 +49,6 @@ public class RestClientModule
                 && !securityProperties.variesByUser()
                 // If the cache were used on workers, there would be no way to invalidate it.
                 && currentNode.isCoordinator()
-                && !restConfig.isVendedCredentialsEnabled()
                 // With per-user sessions, different users may receive different responses
                 // (e.g. different credentials) for the same table, so caching is disabled
                 // to avoid serving one session's cached response to another.
