@@ -18,6 +18,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Streams;
 import io.airlift.slice.Slices;
+import io.airlift.units.Duration;
 import io.opentelemetry.api.trace.Span;
 import io.trino.Session;
 import io.trino.cache.CacheDataOperator;
@@ -70,6 +71,7 @@ import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
 import java.util.stream.LongStream;
 import java.util.stream.Stream;
@@ -95,6 +97,7 @@ import static io.trino.sql.planner.plan.ExchangeNode.Type.REPLICATE;
 import static io.trino.testing.QueryAssertions.assertEqualsIgnoreOrder;
 import static io.trino.testing.TestingNames.randomNameSuffix;
 import static io.trino.testing.TransactionBuilder.transaction;
+import static io.trino.testing.assertions.Assert.assertEventually;
 import static io.trino.tpch.TpchTable.CUSTOMER;
 import static io.trino.tpch.TpchTable.LINE_ITEM;
 import static io.trino.tpch.TpchTable.NATION;
@@ -102,6 +105,7 @@ import static io.trino.tpch.TpchTable.ORDERS;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.CompletableFuture.completedFuture;
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assumptions.abort;
 
@@ -204,13 +208,21 @@ public abstract class BaseCacheSubqueriesTest
         // make sure data was cached
         assertThat(getCacheDataOperatorInputPositions(resultWithCache.queryId())).isPositive();
 
-        resultWithCache = executeWithPlan(
-                withCacheEnabled(),
-                "SELECT partkey FROM lineitem WHERE orderkey BETWEEN 0 AND 1000000001");
-        // make sure data was read from cache because both "orderkey BETWEEN 0 AND 1000000000"
-        // and "orderkey BETWEEN 0 AND 1000000001" should evaluate to TRUE for lineitem splits
-        assertThat(getLoadCachedDataOperatorInputPositions(resultWithCache.queryId())).isPositive();
-        assertThat(getScanOperatorInputPositions(resultWithCache.queryId())).isZero();
+        // Verify the second query reads from cache. Split placement is best-effort
+        // (CacheDriverFactory falls back to the non-cached plan when Split#isSplitAddressEnforced()
+        // is false), so under load the query may miss the cached node; retry until it hits. Each
+        // attempt uses a distinct upper bound so a failed attempt can't satisfy a later retry via
+        // its own leftover cached data.
+        AtomicLong upperBound = new AtomicLong(1_000_000_001);
+        assertEventually(new Duration(10, SECONDS), () -> {
+            MaterializedResultWithPlan result = executeWithPlan(
+                    withCacheEnabled(),
+                    "SELECT partkey FROM lineitem WHERE orderkey BETWEEN 0 AND " + upperBound.getAndIncrement());
+            // make sure data was read from cache because all these predicates evaluate to TRUE
+            // for lineitem splits, same as "orderkey BETWEEN 0 AND 1000000000" used above
+            assertThat(getLoadCachedDataOperatorInputPositions(result.queryId())).isPositive();
+            assertThat(getScanOperatorInputPositions(result.queryId())).isZero();
+        });
 
         // query with predicate that doesn't evaluate to TRUE for lineitem splits shouldn't read from cache
         resultWithCache = executeWithPlan(
