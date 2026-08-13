@@ -13,7 +13,6 @@
  */
 package io.trino.plugin.objectstore.hive.schemadiscovery;
 
-import com.amazonaws.ClientConfiguration;
 import com.google.common.collect.ImmutableMap;
 import org.junit.jupiter.api.Test;
 
@@ -29,7 +28,7 @@ public class TestSchemaDiscoveryConfig
     public void testDefaults()
     {
         assertRecordedDefaults(recordDefaults(SchemaDiscoveryConfig.class)
-                .setExecutorThreadCount(ClientConfiguration.DEFAULT_MAX_CONNECTIONS));
+                .setExecutorThreadCount(50));
     }
 
     @Test

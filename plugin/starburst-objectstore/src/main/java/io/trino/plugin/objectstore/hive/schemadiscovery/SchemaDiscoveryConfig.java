@@ -13,7 +13,6 @@
  */
 package io.trino.plugin.objectstore.hive.schemadiscovery;
 
-import com.amazonaws.ClientConfiguration;
 import io.airlift.configuration.Config;
 import io.airlift.configuration.ConfigDescription;
 import jakarta.validation.constraints.Max;
@@ -21,10 +20,11 @@ import jakarta.validation.constraints.Min;
 
 public class SchemaDiscoveryConfig
 {
-    private int executorThreadCount = Math.min(100, ClientConfiguration.DEFAULT_MAX_CONNECTIONS);
+    // 50 comes from com.amazonaws.ClientConfiguration.DEFAULT_MAX_CONNECTIONS
+    private int executorThreadCount = 50;
 
     @Min(1)
-    @Max(ClientConfiguration.DEFAULT_MAX_CONNECTIONS)
+    @Max(50)
     public int getExecutorThreadCount()
     {
         return executorThreadCount;
