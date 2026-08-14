@@ -163,6 +163,7 @@
 - modules:
     - plugin/trino-bigquery
   profiles:
+    - default
     - cloud-tests-1
     - cloud-tests-2
   notify-channels:
