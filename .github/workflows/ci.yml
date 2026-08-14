@@ -1387,7 +1387,7 @@ jobs:
       - name: Salesforce tests
         id: tests-salesforce
         if: >-
-          contains(matrix.modules, 'starburst-salesforce') &&
+          matrix.modules == 'plugin/starburst-salesforce' &&
           (env.CI_SKIP_SECRETS_PRESENCE_CHECKS != '' || env.SALESFORCE_BASIC_AUTH_USER_PASSWORD != '' || env.SALESFORCE_BASIC_AUTH_USER_SECURITY_TOKEN != '')
         env:
           SALESFORCE_BASIC_AUTH_USER_USERNAME: ${{ vars.SALESFORCE_BASIC_AUTH_USER_USERNAME }}
