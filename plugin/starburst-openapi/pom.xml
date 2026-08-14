@@ -15,7 +15,7 @@
     <description>Starburst OpenAPI connector</description>
 
     <properties>
-        <dep.swagger-parser.version>2.1.37</dep.swagger-parser.version>
+        <dep.swagger-parser.version>2.1.46</dep.swagger-parser.version>
     </properties>
 
     <dependencies>
@@ -318,6 +318,21 @@
                                 <header>${starburst-license.header-file}</header>
                             </licenseSet>
                         </licenseSets>
+                    </configuration>
+                </plugin>
+
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-enforcer-plugin</artifactId>
+                    <configuration>
+                        <rules>
+                            <requireUpperBoundDeps>
+                                <excludes combine.children="append">
+                                    <exclude>com.fasterxml.jackson.dataformat:jackson-dataformat-yaml</exclude>
+                                    <exclude>com.fasterxml.jackson.core:jackson-databind</exclude>
+                                </excludes>
+                            </requireUpperBoundDeps>
+                        </rules>
                     </configuration>
                 </plugin>
             </plugins>
