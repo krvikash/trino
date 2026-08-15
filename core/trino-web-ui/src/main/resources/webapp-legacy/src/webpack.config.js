@@ -37,6 +37,11 @@ module.exports = {
         chunkIds: 'deterministic',
         minimizer: [
             new TerserPlugin({
+                // Since the bun migration webpack runs under "bun --bun", and terser's jest-worker pool
+                // (os.cpus().length - 1 workers by default) deadlocks there on high core count machines:
+                // the build hangs after "bun install" with no output. Minify in-process instead; this
+                // bundle is small enough that the parallelism is not worth the hang.
+                parallel: false,
                 terserOptions: {
                     format: {
                         comments: false,
