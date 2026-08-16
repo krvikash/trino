@@ -14,6 +14,10 @@
     <name>${project.artifactId}</name>
     <description>Starburst Enterprise - SAS Connector</description>
 
+    <properties>
+        <air.compiler.fail-warnings>true</air.compiler.fail-warnings>
+    </properties>
+
     <dependencies>
 
         <dependency>
