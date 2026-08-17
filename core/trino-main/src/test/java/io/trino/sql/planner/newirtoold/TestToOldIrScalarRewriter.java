@@ -19,18 +19,21 @@ import io.trino.metadata.ResolvedFunction;
 import io.trino.metadata.TestingFunctionResolution;
 import io.trino.spi.function.OperatorType;
 import io.trino.spi.type.RowType;
+import io.trino.spi.type.Type;
 import io.trino.sql.dialect.trino.Context;
 import io.trino.sql.dialect.trino.Context.RowField;
 import io.trino.sql.dialect.trino.ProgramBuilder;
 import io.trino.sql.dialect.trino.ScalarProgramBuilder;
 import io.trino.sql.dialect.trino.operation.FieldReference;
 import io.trino.sql.dialect.trino.operation.Return;
+import io.trino.sql.dialect.trino.operationmetadata.CastOperationMetadata.CastKind;
 import io.trino.sql.dialect.trino.operationmetadata.LogicalOperationMetadata.LogicalOperator;
 import io.trino.sql.ir.Array;
 import io.trino.sql.ir.Bind;
 import io.trino.sql.ir.Call;
 import io.trino.sql.ir.Case;
 import io.trino.sql.ir.Cast;
+import io.trino.sql.ir.Cast.Kind;
 import io.trino.sql.ir.Coalesce;
 import io.trino.sql.ir.Constant;
 import io.trino.sql.ir.Expression;
@@ -59,6 +62,7 @@ import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static io.trino.spi.function.OperatorType.ADD;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
+import static io.trino.spi.type.DecimalType.createDecimalType;
 import static io.trino.spi.type.DoubleType.DOUBLE;
 import static io.trino.spi.type.EmptyRowType.EMPTY_ROW;
 import static io.trino.spi.type.RowType.anonymousRow;
@@ -365,13 +369,47 @@ class TestToOldIrScalarRewriter
         Cast cast = new Cast(new Reference(BIGINT, "b"), DOUBLE);
 
         FieldReference fieldReferenceOperation = new FieldReference("%0", INPUT_ROW_PARAMETER, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
-        io.trino.sql.dialect.trino.operation.Cast castOperation = new io.trino.sql.dialect.trino.operation.Cast("%1", fieldReferenceOperation.result(), DOUBLE, fieldReferenceOperation.attributes());
+        io.trino.sql.dialect.trino.operation.Cast castOperation = new io.trino.sql.dialect.trino.operation.Cast(
+                "%1",
+                fieldReferenceOperation.result(),
+                DOUBLE,
+                CastKind.CONVERT,
+                fieldReferenceOperation.attributes());
         Return returnOperation = new Return("%2", castOperation.result(), castOperation.attributes());
         Block rewritten = new Block(
                 Optional.empty(),
                 ImmutableList.of(INPUT_ROW_PARAMETER),
                 ImmutableList.of(
                         fieldReferenceOperation,
+                        castOperation,
+                        returnOperation));
+
+        assertRoundtrip(cast, rewritten);
+    }
+
+    @Test
+    public void testReinterpretCast()
+    {
+        Type sourceType = createDecimalType(7, 2);
+        Type targetType = createDecimalType(12, 2);
+        Cast cast = new Cast(
+                new Constant(sourceType, 123L),
+                targetType,
+                Kind.REINTERPRET);
+
+        io.trino.sql.dialect.trino.operation.Constant constantOperation = new io.trino.sql.dialect.trino.operation.Constant("%0", sourceType, 123L);
+        io.trino.sql.dialect.trino.operation.Cast castOperation = new io.trino.sql.dialect.trino.operation.Cast(
+                "%1",
+                constantOperation.result(),
+                targetType,
+                CastKind.REINTERPRET,
+                constantOperation.attributes());
+        Return returnOperation = new Return("%2", castOperation.result(), castOperation.attributes());
+        Block rewritten = new Block(
+                Optional.empty(),
+                ImmutableList.of(INPUT_ROW_PARAMETER),
+                ImmutableList.of(
+                        constantOperation,
                         castOperation,
                         returnOperation));
 

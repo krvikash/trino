@@ -51,7 +51,7 @@ IR version = 1
                 %1504 = field_reference(%37) : ("row(bigint,bigint,integer,bigint)") -> "integer" ()
                     {field_reference:index = "2"}
                 %1505 = cast(%1504) : ("integer") -> "bigint" ()
-                    {cast:to_type = "bigint"}
+                    {cast:to_type = "bigint", cast:kind = "CONVERT"}
                 %1507 = field_reference(%37) : ("row(bigint,bigint,integer,bigint)") -> "bigint" ()
                     {field_reference:index = "1"}
                 %1509 = field_reference(%37) : ("row(bigint,bigint,integer,bigint)") -> "bigint" ()
@@ -990,11 +990,11 @@ IR version = 1
                 %869 = field_reference(%860) : ("row(bigint,bigint,integer,double,double,integer,double,double)") -> "double" ()
                     {field_reference:index = "4", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %870 = cast(%869) : ("double") -> "decimal(30,10)" ()
-                    {cast:to_type = "decimal(30,10)", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {cast:to_type = "decimal(30,10)", cast:kind = "CONVERT", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %871 = field_reference(%860) : ("row(bigint,bigint,integer,double,double,integer,double,double)") -> "double" ()
                     {field_reference:index = "7", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %872 = cast(%871) : ("double") -> "decimal(30,10)" ()
-                    {cast:to_type = "decimal(30,10)", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {cast:to_type = "decimal(30,10)", cast:kind = "CONVERT", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %873 = row(%861, %862, %863, %864, %865, %866, %867, %868, %870, %872) : ("bigint", "bigint", "integer", "double", "double", "integer", "double", "double", "decimal(30,10)", "decimal(30,10)") -> "row(bigint,bigint,integer,double,double,integer,double,double,decimal(30,10),decimal(30,10))" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %874 = return(%873) : ("row(bigint,bigint,integer,double,double,integer,double,double,decimal(30,10),decimal(30,10))") -> "row(bigint,bigint,integer,double,double,integer,double,double,decimal(30,10),decimal(30,10))" ()

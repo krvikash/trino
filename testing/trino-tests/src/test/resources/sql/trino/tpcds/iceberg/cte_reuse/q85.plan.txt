@@ -1184,7 +1184,7 @@ IR version = 1
                 %647 = field_reference(%644) : ("row(decimal(7,2),decimal(7,2),varchar,integer)") -> "integer" ()
                     {field_reference:index = "3", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %648 = cast(%647) : ("integer") -> "bigint" ()
-                    {cast:to_type = "bigint", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {cast:to_type = "bigint", cast:kind = "CONVERT", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %649 = field_reference(%644) : ("row(decimal(7,2),decimal(7,2),varchar,integer)") -> "varchar" ()
                     {field_reference:index = "2", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %650 = row(%645, %646, %648, %649) : ("decimal(7,2)", "decimal(7,2)", "bigint", "varchar") -> "row(decimal(7,2),decimal(7,2),bigint,varchar)" ()

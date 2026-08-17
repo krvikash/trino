@@ -1003,7 +1003,7 @@ IR version = 1
                 %512 = field_reference(%508) : ("row(bigint,decimal(7,2),decimal(7,2))") -> "decimal(7,2)" ()
                     {field_reference:index = "1", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %513 = cast(%512) : ("decimal(7,2)") -> "decimal(9,3)" ()
-                    {cast:to_type = "decimal(9,3)", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {cast:to_type = "decimal(9,3)", cast:kind = "CONVERT", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %514 = call(%511, %513) : ("decimal(9,3)", "decimal(9,3)") -> "boolean" ()
                     {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$less_than""},""returnType"":""boolean"",""argumentTypes"":[""decimal(9,3)"",""decimal(9,3)""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$less_than<t:orderable>(t,t):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":true,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %515 = return(%514) : ("boolean") -> "boolean" ()

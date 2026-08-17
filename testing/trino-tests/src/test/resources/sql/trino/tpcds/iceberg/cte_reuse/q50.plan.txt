@@ -489,7 +489,7 @@ IR version = 1
                 %250 = case(%247, %248, %249) : ("boolean", "integer", "integer") -> "integer" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %251 = cast(%250) : ("integer") -> "bigint" ()
-                    {cast:to_type = "bigint", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {cast:to_type = "bigint", cast:kind = "CONVERT", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %252 = constant() : () -> "bigint" ()
                     {constant:value = "[type=bigint, value=30]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %253 = field_reference(%242) : ("row(bigint,bigint,bigint)") -> "bigint" ()
@@ -519,7 +519,7 @@ IR version = 1
                 %265 = case(%262, %263, %264) : ("boolean", "integer", "integer") -> "integer" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %266 = cast(%265) : ("integer") -> "bigint" ()
-                    {cast:to_type = "bigint", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {cast:to_type = "bigint", cast:kind = "CONVERT", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %267 = constant() : () -> "bigint" ()
                     {constant:value = "[type=bigint, value=60]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %268 = field_reference(%242) : ("row(bigint,bigint,bigint)") -> "bigint" ()
@@ -549,7 +549,7 @@ IR version = 1
                 %280 = case(%277, %278, %279) : ("boolean", "integer", "integer") -> "integer" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %281 = cast(%280) : ("integer") -> "bigint" ()
-                    {cast:to_type = "bigint", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {cast:to_type = "bigint", cast:kind = "CONVERT", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %282 = constant() : () -> "bigint" ()
                     {constant:value = "[type=bigint, value=90]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %283 = field_reference(%242) : ("row(bigint,bigint,bigint)") -> "bigint" ()
@@ -579,7 +579,7 @@ IR version = 1
                 %295 = case(%292, %293, %294) : ("boolean", "integer", "integer") -> "integer" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %296 = cast(%295) : ("integer") -> "bigint" ()
-                    {cast:to_type = "bigint", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {cast:to_type = "bigint", cast:kind = "CONVERT", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %297 = constant() : () -> "bigint" ()
                     {constant:value = "[type=bigint, value=120]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %298 = field_reference(%242) : ("row(bigint,bigint,bigint)") -> "bigint" ()
@@ -597,7 +597,7 @@ IR version = 1
                 %304 = case(%301, %302, %303) : ("boolean", "integer", "integer") -> "integer" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %305 = cast(%304) : ("integer") -> "bigint" ()
-                    {cast:to_type = "bigint", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {cast:to_type = "bigint", cast:kind = "CONVERT", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %306 = field_reference(%242) : ("row(bigint,bigint,bigint)") -> "bigint" ()
                     {field_reference:index = "0", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %307 = row(%251, %266, %281, %296, %305, %306) : ("bigint", "bigint", "bigint", "bigint", "bigint", "bigint") -> "row(bigint,bigint,bigint,bigint,bigint,bigint)" ()

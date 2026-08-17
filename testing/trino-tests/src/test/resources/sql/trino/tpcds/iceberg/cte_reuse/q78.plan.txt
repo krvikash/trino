@@ -211,7 +211,7 @@ IR version = 1
                 %107 = field_reference(%104) : ("row(bigint,bigint,integer,decimal(7,2),decimal(7,2),bigint)") -> "integer" ()
                     {field_reference:index = "2", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %108 = cast(%107) : ("integer") -> "bigint" ()
-                    {cast:to_type = "bigint", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {cast:to_type = "bigint", cast:kind = "CONVERT", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %109 = field_reference(%104) : ("row(bigint,bigint,integer,decimal(7,2),decimal(7,2),bigint)") -> "bigint" ()
                     {field_reference:index = "0", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %110 = field_reference(%104) : ("row(bigint,bigint,integer,decimal(7,2),decimal(7,2),bigint)") -> "bigint" ()
@@ -932,7 +932,7 @@ IR version = 1
                 %471 = field_reference(%468) : ("row(bigint,bigint,integer,decimal(7,2),decimal(7,2),bigint)") -> "integer" ()
                     {field_reference:index = "2", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %472 = cast(%471) : ("integer") -> "bigint" ()
-                    {cast:to_type = "bigint", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {cast:to_type = "bigint", cast:kind = "CONVERT", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %473 = field_reference(%468) : ("row(bigint,bigint,integer,decimal(7,2),decimal(7,2),bigint)") -> "bigint" ()
                     {field_reference:index = "0", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %474 = field_reference(%468) : ("row(bigint,bigint,integer,decimal(7,2),decimal(7,2),bigint)") -> "bigint" ()
@@ -1684,7 +1684,7 @@ IR version = 1
                 %870 = field_reference(%867) : ("row(bigint,bigint,integer,decimal(7,2),decimal(7,2),bigint)") -> "integer" ()
                     {field_reference:index = "2", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %871 = cast(%870) : ("integer") -> "bigint" ()
-                    {cast:to_type = "bigint", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {cast:to_type = "bigint", cast:kind = "CONVERT", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %872 = field_reference(%867) : ("row(bigint,bigint,integer,decimal(7,2),decimal(7,2),bigint)") -> "bigint" ()
                     {field_reference:index = "1", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %873 = field_reference(%867) : ("row(bigint,bigint,integer,decimal(7,2),decimal(7,2),bigint)") -> "bigint" ()
@@ -2277,7 +2277,7 @@ IR version = 1
                 %1188 = field_reference(%1181) : ("row(integer,bigint,bigint,bigint,decimal(38,2),decimal(38,2),bigint,decimal(38,2),decimal(38,2),bigint,decimal(38,2),decimal(38,2))") -> "bigint" ()
                     {field_reference:index = "3", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %1189 = cast(%1188) : ("bigint") -> "decimal(10,2)" ()
-                    {cast:to_type = "decimal(10,2)", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {cast:to_type = "decimal(10,2)", cast:kind = "CONVERT", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %1190 = field_reference(%1181) : ("row(integer,bigint,bigint,bigint,decimal(38,2),decimal(38,2),bigint,decimal(38,2),decimal(38,2),bigint,decimal(38,2),decimal(38,2))") -> "bigint" ()
                     {field_reference:index = "6", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %1191 = constant() : () -> "bigint" ()
@@ -2293,7 +2293,7 @@ IR version = 1
                 %1196 = call(%1192, %1195) : ("bigint", "bigint") -> "bigint" ()
                     {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$add""},""returnType"":""bigint"",""argumentTypes"":[""bigint"",""bigint""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$add(bigint,bigint):bigint"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":false,""functionNullability"":{""returnNullable"":false,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %1197 = cast(%1196) : ("bigint") -> "decimal(19,0)" ()
-                    {cast:to_type = "decimal(19,0)", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {cast:to_type = "decimal(19,0)", cast:kind = "CONVERT", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %1198 = call(%1189, %1197) : ("decimal(10,2)", "decimal(19,0)") -> "decimal(30,22)" ()
                     {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$divide""},""returnType"":""decimal(30,22)"",""argumentTypes"":[""decimal(10,2)"",""decimal(19,0)""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$divide<r_precision:min((((a_precision - a_scale) + b_scale) + max(6, ((a_scale + b_precision) + 1))), 38),r_scale:min(max(6, ((a_scale + b_precision) + 1)), if(((((a_precision - a_scale) + b_scale) + max(6, ((a_scale + b_precision) + 1))) - max(6, ((a_scale + b_precision) + 1))) > 32, 6, (38 - ((((a_precision - a_scale) + b_scale) + max(6, ((a_scale + b_precision) + 1))) - max(6, ((a_scale + b_precision) + 1))))))>(decimal(a_precision,a_scale),decimal(b_precision,b_scale)):decimal(r_precision,r_scale)"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":false,""functionNullability"":{""returnNullable"":false,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %1199 = constant() : () -> "integer" ()

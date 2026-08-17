@@ -73,6 +73,7 @@ import io.trino.sql.dialect.trino.operation.Union;
 import io.trino.sql.dialect.trino.operation.Values;
 import io.trino.sql.dialect.trino.operation.Window;
 import io.trino.sql.dialect.trino.operation.WindowFunctionCall;
+import io.trino.sql.dialect.trino.operationmetadata.CastOperationMetadata.CastKind;
 import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.ConstantValue;
 import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.SortOrderList;
 import io.trino.sql.newir.Attributes;
@@ -833,6 +834,7 @@ class TestCreateOperation
                 "%1",
                 constantOperation.result(),
                 BIGINT,
+                CastKind.CONVERT,
                 constantOperation.attributes());
 
         Operation actualCastOperation = TESTING_TRINO_DIALECT.createOperation(
@@ -843,6 +845,8 @@ class TestCreateOperation
                 attributes(
                         new AttributeKey(TRINO, "cast:to_type"),
                         BIGINT,
+                        new AttributeKey(TRINO, "cast:kind"),
+                        CastKind.CONVERT,
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
                         new AttributeKey(IR, "repeatability"),
                         DETERMINISTIC,

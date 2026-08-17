@@ -1659,7 +1659,7 @@ IR version = 1
                 %1243 = field_reference(%1241) : ("row(varchar,decimal(38,2))") -> "decimal(38,2)" ()
                     {field_reference:index = "1", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %1244 = cast(%1243) : ("decimal(38,2)") -> "decimal(38,3)" ()
-                    {cast:to_type = "decimal(38,3)", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {cast:to_type = "decimal(38,3)", cast:kind = "CONVERT", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %1258 = let(%1244) : ("decimal(38,3)") -> "boolean" ({
                     ^body (%1245 : "row(decimal(38,3))")
                         %1246 = field_reference(%1242) : ("row(varchar,decimal(38,2),decimal(38,2))") -> "decimal(38,2)" ()
@@ -1691,7 +1691,7 @@ IR version = 1
                 %1259 = field_reference(%1241) : ("row(varchar,decimal(38,2))") -> "decimal(38,2)" ()
                     {field_reference:index = "1", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %1260 = cast(%1259) : ("decimal(38,2)") -> "decimal(38,3)" ()
-                    {cast:to_type = "decimal(38,3)", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {cast:to_type = "decimal(38,3)", cast:kind = "CONVERT", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %1274 = let(%1260) : ("decimal(38,3)") -> "boolean" ({
                     ^body (%1261 : "row(decimal(38,3))")
                         %1262 = field_reference(%1242) : ("row(varchar,decimal(38,2),decimal(38,2))") -> "decimal(38,2)" ()
@@ -1723,7 +1723,7 @@ IR version = 1
                 %1275 = field_reference(%1242) : ("row(varchar,decimal(38,2),decimal(38,2))") -> "decimal(38,2)" ()
                     {field_reference:index = "1", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %1276 = cast(%1275) : ("decimal(38,2)") -> "decimal(38,3)" ()
-                    {cast:to_type = "decimal(38,3)", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {cast:to_type = "decimal(38,3)", cast:kind = "CONVERT", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %1290 = let(%1276) : ("decimal(38,3)") -> "boolean" ({
                     ^body (%1277 : "row(decimal(38,3))")
                         %1278 = field_reference(%1241) : ("row(varchar,decimal(38,2))") -> "decimal(38,2)" ()
@@ -1755,7 +1755,7 @@ IR version = 1
                 %1291 = field_reference(%1242) : ("row(varchar,decimal(38,2),decimal(38,2))") -> "decimal(38,2)" ()
                     {field_reference:index = "1", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %1292 = cast(%1291) : ("decimal(38,2)") -> "decimal(38,3)" ()
-                    {cast:to_type = "decimal(38,3)", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {cast:to_type = "decimal(38,3)", cast:kind = "CONVERT", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %1306 = let(%1292) : ("decimal(38,3)") -> "boolean" ({
                     ^body (%1293 : "row(decimal(38,3))")
                         %1294 = field_reference(%1242) : ("row(varchar,decimal(38,2),decimal(38,2))") -> "decimal(38,2)" ()
@@ -1787,7 +1787,7 @@ IR version = 1
                 %1307 = field_reference(%1242) : ("row(varchar,decimal(38,2),decimal(38,2))") -> "decimal(38,2)" ()
                     {field_reference:index = "2", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %1308 = cast(%1307) : ("decimal(38,2)") -> "decimal(38,3)" ()
-                    {cast:to_type = "decimal(38,3)", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {cast:to_type = "decimal(38,3)", cast:kind = "CONVERT", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %1322 = let(%1308) : ("decimal(38,3)") -> "boolean" ({
                     ^body (%1309 : "row(decimal(38,3))")
                         %1310 = field_reference(%1241) : ("row(varchar,decimal(38,2))") -> "decimal(38,2)" ()
@@ -1819,7 +1819,7 @@ IR version = 1
                 %1323 = field_reference(%1242) : ("row(varchar,decimal(38,2),decimal(38,2))") -> "decimal(38,2)" ()
                     {field_reference:index = "2", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %1324 = cast(%1323) : ("decimal(38,2)") -> "decimal(38,3)" ()
-                    {cast:to_type = "decimal(38,3)", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {cast:to_type = "decimal(38,3)", cast:kind = "CONVERT", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %1338 = let(%1324) : ("decimal(38,3)") -> "boolean" ({
                     ^body (%1325 : "row(decimal(38,3))")
                         %1326 = field_reference(%1242) : ("row(varchar,decimal(38,2),decimal(38,2))") -> "decimal(38,2)" ()
@@ -2056,7 +2056,7 @@ IR version = 1
                 %1442 = field_reference(%1436) : ("row(varchar,decimal(38,2),decimal(38,2),decimal(38,2))") -> "decimal(38,2)" ()
                     {field_reference:index = "1", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %1443 = cast(%1442) : ("decimal(38,2)") -> "decimal(16,7)" ()
-                    {cast:to_type = "decimal(16,7)", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {cast:to_type = "decimal(16,7)", cast:kind = "CONVERT", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %1444 = field_reference(%1436) : ("row(varchar,decimal(38,2),decimal(38,2),decimal(38,2))") -> "decimal(38,2)" ()
                     {field_reference:index = "2", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %1445 = call(%1443, %1444) : ("decimal(16,7)", "decimal(38,2)") -> "decimal(38,2)" ()
@@ -2076,13 +2076,13 @@ IR version = 1
                 %1452 = call(%1450, %1451) : ("decimal(38,6)", "decimal(10,0)") -> "decimal(38,6)" ()
                     {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$multiply""},""returnType"":""decimal(38,6)"",""argumentTypes"":[""decimal(38,6)"",""decimal(10,0)""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$multiply<r_precision:min((a_precision + b_precision), 38),r_scale:min((a_scale + b_scale), if(((a_precision + b_precision) - (a_scale + b_scale)) > 32, 6, (38 - ((a_precision + b_precision) - (a_scale + b_scale)))))>(decimal(a_precision,a_scale),decimal(b_precision,b_scale)):decimal(r_precision,r_scale)"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":false,""functionNullability"":{""returnNullable"":false,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %1453 = cast(%1452) : ("decimal(38,6)") -> "decimal(7,2)" ()
-                    {cast:to_type = "decimal(7,2)", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {cast:to_type = "decimal(7,2)", cast:kind = "CONVERT", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %1454 = field_reference(%1436) : ("row(varchar,decimal(38,2),decimal(38,2),decimal(38,2))") -> "decimal(38,2)" ()
                     {field_reference:index = "2", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %1455 = field_reference(%1436) : ("row(varchar,decimal(38,2),decimal(38,2),decimal(38,2))") -> "decimal(38,2)" ()
                     {field_reference:index = "1", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %1456 = cast(%1455) : ("decimal(38,2)") -> "decimal(16,7)" ()
-                    {cast:to_type = "decimal(16,7)", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {cast:to_type = "decimal(16,7)", cast:kind = "CONVERT", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %1457 = field_reference(%1436) : ("row(varchar,decimal(38,2),decimal(38,2),decimal(38,2))") -> "decimal(38,2)" ()
                     {field_reference:index = "2", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %1458 = call(%1456, %1457) : ("decimal(16,7)", "decimal(38,2)") -> "decimal(38,2)" ()
@@ -2102,13 +2102,13 @@ IR version = 1
                 %1465 = call(%1463, %1464) : ("decimal(38,6)", "decimal(10,0)") -> "decimal(38,6)" ()
                     {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$multiply""},""returnType"":""decimal(38,6)"",""argumentTypes"":[""decimal(38,6)"",""decimal(10,0)""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$multiply<r_precision:min((a_precision + b_precision), 38),r_scale:min((a_scale + b_scale), if(((a_precision + b_precision) - (a_scale + b_scale)) > 32, 6, (38 - ((a_precision + b_precision) - (a_scale + b_scale)))))>(decimal(a_precision,a_scale),decimal(b_precision,b_scale)):decimal(r_precision,r_scale)"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":false,""functionNullability"":{""returnNullable"":false,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %1466 = cast(%1465) : ("decimal(38,6)") -> "decimal(7,2)" ()
-                    {cast:to_type = "decimal(7,2)", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {cast:to_type = "decimal(7,2)", cast:kind = "CONVERT", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %1467 = field_reference(%1436) : ("row(varchar,decimal(38,2),decimal(38,2),decimal(38,2))") -> "decimal(38,2)" ()
                     {field_reference:index = "3", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %1468 = field_reference(%1436) : ("row(varchar,decimal(38,2),decimal(38,2),decimal(38,2))") -> "decimal(38,2)" ()
                     {field_reference:index = "1", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %1469 = cast(%1468) : ("decimal(38,2)") -> "decimal(16,7)" ()
-                    {cast:to_type = "decimal(16,7)", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {cast:to_type = "decimal(16,7)", cast:kind = "CONVERT", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %1470 = field_reference(%1436) : ("row(varchar,decimal(38,2),decimal(38,2),decimal(38,2))") -> "decimal(38,2)" ()
                     {field_reference:index = "2", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %1471 = call(%1469, %1470) : ("decimal(16,7)", "decimal(38,2)") -> "decimal(38,2)" ()
@@ -2128,7 +2128,7 @@ IR version = 1
                 %1478 = call(%1476, %1477) : ("decimal(38,6)", "decimal(10,0)") -> "decimal(38,6)" ()
                     {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$multiply""},""returnType"":""decimal(38,6)"",""argumentTypes"":[""decimal(38,6)"",""decimal(10,0)""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$multiply<r_precision:min((a_precision + b_precision), 38),r_scale:min((a_scale + b_scale), if(((a_precision + b_precision) - (a_scale + b_scale)) > 32, 6, (38 - ((a_precision + b_precision) - (a_scale + b_scale)))))>(decimal(a_precision,a_scale),decimal(b_precision,b_scale)):decimal(r_precision,r_scale)"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":false,""functionNullability"":{""returnNullable"":false,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %1479 = cast(%1478) : ("decimal(38,6)") -> "decimal(7,2)" ()
-                    {cast:to_type = "decimal(7,2)", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {cast:to_type = "decimal(7,2)", cast:kind = "CONVERT", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %1480 = field_reference(%1436) : ("row(varchar,decimal(38,2),decimal(38,2),decimal(38,2))") -> "decimal(38,2)" ()
                     {field_reference:index = "1", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %1481 = field_reference(%1436) : ("row(varchar,decimal(38,2),decimal(38,2),decimal(38,2))") -> "decimal(38,2)" ()

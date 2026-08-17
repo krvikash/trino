@@ -529,7 +529,7 @@ IR version = 1
                 %272 = field_reference(%270) : ("row(bigint,integer)") -> "integer" ()
                     {field_reference:index = "1", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %273 = cast(%272) : ("integer") -> "bigint" ()
-                    {cast:to_type = "bigint", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {cast:to_type = "bigint", cast:kind = "CONVERT", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %274 = row(%271, %273) : ("bigint", "bigint") -> "row(bigint,bigint)" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %275 = return(%274) : ("row(bigint,bigint)") -> "row(bigint,bigint)" ()
@@ -969,7 +969,7 @@ IR version = 1
                 %711 = field_reference(%709) : ("row(bigint,integer)") -> "integer" ()
                     {field_reference:index = "1", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %712 = cast(%711) : ("integer") -> "bigint" ()
-                    {cast:to_type = "bigint", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {cast:to_type = "bigint", cast:kind = "CONVERT", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %713 = row(%710, %712) : ("bigint", "bigint") -> "row(bigint,bigint)" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %714 = return(%713) : ("row(bigint,bigint)") -> "row(bigint,bigint)" ()
@@ -1409,7 +1409,7 @@ IR version = 1
                 %1150 = field_reference(%1148) : ("row(bigint,integer)") -> "integer" ()
                     {field_reference:index = "1", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %1151 = cast(%1150) : ("integer") -> "bigint" ()
-                    {cast:to_type = "bigint", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {cast:to_type = "bigint", cast:kind = "CONVERT", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %1152 = row(%1149, %1151) : ("bigint", "bigint") -> "row(bigint,bigint)" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %1153 = return(%1152) : ("row(bigint,bigint)") -> "row(bigint,bigint)" ()
@@ -1996,21 +1996,21 @@ IR version = 1
                 %1448 = field_reference(%1443) : ("row(varchar,bigint,bigint,bigint)") -> "bigint" ()
                     {field_reference:index = "1", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %1449 = cast(%1448) : ("bigint") -> "decimal(19,0)" ()
-                    {cast:to_type = "decimal(19,0)", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {cast:to_type = "decimal(19,0)", cast:kind = "CONVERT", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %1450 = field_reference(%1443) : ("row(varchar,bigint,bigint,bigint)") -> "bigint" ()
                     {field_reference:index = "1", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %1451 = cast(%1450) : ("bigint") -> "decimal(9,4)" ()
-                    {cast:to_type = "decimal(9,4)", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {cast:to_type = "decimal(9,4)", cast:kind = "CONVERT", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %1452 = field_reference(%1443) : ("row(varchar,bigint,bigint,bigint)") -> "bigint" ()
                     {field_reference:index = "2", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %1453 = cast(%1452) : ("bigint") -> "decimal(19,0)" ()
-                    {cast:to_type = "decimal(19,0)", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {cast:to_type = "decimal(19,0)", cast:kind = "CONVERT", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %1454 = call(%1451, %1453) : ("decimal(9,4)", "decimal(19,0)") -> "decimal(24,4)" ()
                     {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$add""},""returnType"":""decimal(24,4)"",""argumentTypes"":[""decimal(9,4)"",""decimal(19,0)""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$add<r_precision:min(((max(a_scale, b_scale) + max((a_precision - a_scale), (b_precision - b_scale))) + 1), 38),r_scale:min(max(a_scale, b_scale), (min(((max(a_scale, b_scale) + max((a_precision - a_scale), (b_precision - b_scale))) + 1), 38) - max((a_precision - a_scale), (b_precision - b_scale))))>(decimal(a_precision,a_scale),decimal(b_precision,b_scale)):decimal(r_precision,r_scale)"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":false,""functionNullability"":{""returnNullable"":false,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %1455 = field_reference(%1443) : ("row(varchar,bigint,bigint,bigint)") -> "bigint" ()
                     {field_reference:index = "3", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %1456 = cast(%1455) : ("bigint") -> "decimal(19,0)" ()
-                    {cast:to_type = "decimal(19,0)", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {cast:to_type = "decimal(19,0)", cast:kind = "CONVERT", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %1457 = call(%1454, %1456) : ("decimal(24,4)", "decimal(19,0)") -> "decimal(25,4)" ()
                     {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$add""},""returnType"":""decimal(25,4)"",""argumentTypes"":[""decimal(24,4)"",""decimal(19,0)""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$add<r_precision:min(((max(a_scale, b_scale) + max((a_precision - a_scale), (b_precision - b_scale))) + 1), 38),r_scale:min(max(a_scale, b_scale), (min(((max(a_scale, b_scale) + max((a_precision - a_scale), (b_precision - b_scale))) + 1), 38) - max((a_precision - a_scale), (b_precision - b_scale))))>(decimal(a_precision,a_scale),decimal(b_precision,b_scale)):decimal(r_precision,r_scale)"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":false,""functionNullability"":{""returnNullable"":false,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %1458 = call(%1449, %1457) : ("decimal(19,0)", "decimal(25,4)") -> "decimal(38,15)" ()
@@ -2024,25 +2024,25 @@ IR version = 1
                 %1462 = call(%1460, %1461) : ("decimal(38,14)", "decimal(10,0)") -> "decimal(38,6)" ()
                     {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$multiply""},""returnType"":""decimal(38,6)"",""argumentTypes"":[""decimal(38,14)"",""decimal(10,0)""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$multiply<r_precision:min((a_precision + b_precision), 38),r_scale:min((a_scale + b_scale), if(((a_precision + b_precision) - (a_scale + b_scale)) > 32, 6, (38 - ((a_precision + b_precision) - (a_scale + b_scale)))))>(decimal(a_precision,a_scale),decimal(b_precision,b_scale)):decimal(r_precision,r_scale)"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":false,""functionNullability"":{""returnNullable"":false,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %1463 = cast(%1462) : ("decimal(38,6)") -> "decimal(7,2)" ()
-                    {cast:to_type = "decimal(7,2)", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {cast:to_type = "decimal(7,2)", cast:kind = "CONVERT", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %1464 = field_reference(%1443) : ("row(varchar,bigint,bigint,bigint)") -> "bigint" ()
                     {field_reference:index = "2", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %1465 = cast(%1464) : ("bigint") -> "decimal(19,0)" ()
-                    {cast:to_type = "decimal(19,0)", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {cast:to_type = "decimal(19,0)", cast:kind = "CONVERT", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %1466 = field_reference(%1443) : ("row(varchar,bigint,bigint,bigint)") -> "bigint" ()
                     {field_reference:index = "1", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %1467 = cast(%1466) : ("bigint") -> "decimal(9,4)" ()
-                    {cast:to_type = "decimal(9,4)", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {cast:to_type = "decimal(9,4)", cast:kind = "CONVERT", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %1468 = field_reference(%1443) : ("row(varchar,bigint,bigint,bigint)") -> "bigint" ()
                     {field_reference:index = "2", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %1469 = cast(%1468) : ("bigint") -> "decimal(19,0)" ()
-                    {cast:to_type = "decimal(19,0)", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {cast:to_type = "decimal(19,0)", cast:kind = "CONVERT", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %1470 = call(%1467, %1469) : ("decimal(9,4)", "decimal(19,0)") -> "decimal(24,4)" ()
                     {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$add""},""returnType"":""decimal(24,4)"",""argumentTypes"":[""decimal(9,4)"",""decimal(19,0)""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$add<r_precision:min(((max(a_scale, b_scale) + max((a_precision - a_scale), (b_precision - b_scale))) + 1), 38),r_scale:min(max(a_scale, b_scale), (min(((max(a_scale, b_scale) + max((a_precision - a_scale), (b_precision - b_scale))) + 1), 38) - max((a_precision - a_scale), (b_precision - b_scale))))>(decimal(a_precision,a_scale),decimal(b_precision,b_scale)):decimal(r_precision,r_scale)"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":false,""functionNullability"":{""returnNullable"":false,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %1471 = field_reference(%1443) : ("row(varchar,bigint,bigint,bigint)") -> "bigint" ()
                     {field_reference:index = "3", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %1472 = cast(%1471) : ("bigint") -> "decimal(19,0)" ()
-                    {cast:to_type = "decimal(19,0)", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {cast:to_type = "decimal(19,0)", cast:kind = "CONVERT", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %1473 = call(%1470, %1472) : ("decimal(24,4)", "decimal(19,0)") -> "decimal(25,4)" ()
                     {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$add""},""returnType"":""decimal(25,4)"",""argumentTypes"":[""decimal(24,4)"",""decimal(19,0)""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$add<r_precision:min(((max(a_scale, b_scale) + max((a_precision - a_scale), (b_precision - b_scale))) + 1), 38),r_scale:min(max(a_scale, b_scale), (min(((max(a_scale, b_scale) + max((a_precision - a_scale), (b_precision - b_scale))) + 1), 38) - max((a_precision - a_scale), (b_precision - b_scale))))>(decimal(a_precision,a_scale),decimal(b_precision,b_scale)):decimal(r_precision,r_scale)"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":false,""functionNullability"":{""returnNullable"":false,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %1474 = call(%1465, %1473) : ("decimal(19,0)", "decimal(25,4)") -> "decimal(38,15)" ()
@@ -2056,25 +2056,25 @@ IR version = 1
                 %1478 = call(%1476, %1477) : ("decimal(38,14)", "decimal(10,0)") -> "decimal(38,6)" ()
                     {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$multiply""},""returnType"":""decimal(38,6)"",""argumentTypes"":[""decimal(38,14)"",""decimal(10,0)""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$multiply<r_precision:min((a_precision + b_precision), 38),r_scale:min((a_scale + b_scale), if(((a_precision + b_precision) - (a_scale + b_scale)) > 32, 6, (38 - ((a_precision + b_precision) - (a_scale + b_scale)))))>(decimal(a_precision,a_scale),decimal(b_precision,b_scale)):decimal(r_precision,r_scale)"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":false,""functionNullability"":{""returnNullable"":false,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %1479 = cast(%1478) : ("decimal(38,6)") -> "decimal(7,2)" ()
-                    {cast:to_type = "decimal(7,2)", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {cast:to_type = "decimal(7,2)", cast:kind = "CONVERT", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %1480 = field_reference(%1443) : ("row(varchar,bigint,bigint,bigint)") -> "bigint" ()
                     {field_reference:index = "3", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %1481 = cast(%1480) : ("bigint") -> "decimal(19,0)" ()
-                    {cast:to_type = "decimal(19,0)", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {cast:to_type = "decimal(19,0)", cast:kind = "CONVERT", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %1482 = field_reference(%1443) : ("row(varchar,bigint,bigint,bigint)") -> "bigint" ()
                     {field_reference:index = "1", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %1483 = cast(%1482) : ("bigint") -> "decimal(9,4)" ()
-                    {cast:to_type = "decimal(9,4)", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {cast:to_type = "decimal(9,4)", cast:kind = "CONVERT", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %1484 = field_reference(%1443) : ("row(varchar,bigint,bigint,bigint)") -> "bigint" ()
                     {field_reference:index = "2", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %1485 = cast(%1484) : ("bigint") -> "decimal(19,0)" ()
-                    {cast:to_type = "decimal(19,0)", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {cast:to_type = "decimal(19,0)", cast:kind = "CONVERT", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %1486 = call(%1483, %1485) : ("decimal(9,4)", "decimal(19,0)") -> "decimal(24,4)" ()
                     {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$add""},""returnType"":""decimal(24,4)"",""argumentTypes"":[""decimal(9,4)"",""decimal(19,0)""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$add<r_precision:min(((max(a_scale, b_scale) + max((a_precision - a_scale), (b_precision - b_scale))) + 1), 38),r_scale:min(max(a_scale, b_scale), (min(((max(a_scale, b_scale) + max((a_precision - a_scale), (b_precision - b_scale))) + 1), 38) - max((a_precision - a_scale), (b_precision - b_scale))))>(decimal(a_precision,a_scale),decimal(b_precision,b_scale)):decimal(r_precision,r_scale)"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":false,""functionNullability"":{""returnNullable"":false,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %1487 = field_reference(%1443) : ("row(varchar,bigint,bigint,bigint)") -> "bigint" ()
                     {field_reference:index = "3", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %1488 = cast(%1487) : ("bigint") -> "decimal(19,0)" ()
-                    {cast:to_type = "decimal(19,0)", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {cast:to_type = "decimal(19,0)", cast:kind = "CONVERT", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %1489 = call(%1486, %1488) : ("decimal(24,4)", "decimal(19,0)") -> "decimal(25,4)" ()
                     {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$add""},""returnType"":""decimal(25,4)"",""argumentTypes"":[""decimal(24,4)"",""decimal(19,0)""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$add<r_precision:min(((max(a_scale, b_scale) + max((a_precision - a_scale), (b_precision - b_scale))) + 1), 38),r_scale:min(max(a_scale, b_scale), (min(((max(a_scale, b_scale) + max((a_precision - a_scale), (b_precision - b_scale))) + 1), 38) - max((a_precision - a_scale), (b_precision - b_scale))))>(decimal(a_precision,a_scale),decimal(b_precision,b_scale)):decimal(r_precision,r_scale)"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":false,""functionNullability"":{""returnNullable"":false,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %1490 = call(%1481, %1489) : ("decimal(19,0)", "decimal(25,4)") -> "decimal(38,15)" ()
@@ -2088,7 +2088,7 @@ IR version = 1
                 %1494 = call(%1492, %1493) : ("decimal(38,14)", "decimal(10,0)") -> "decimal(38,6)" ()
                     {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$multiply""},""returnType"":""decimal(38,6)"",""argumentTypes"":[""decimal(38,14)"",""decimal(10,0)""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$multiply<r_precision:min((a_precision + b_precision), 38),r_scale:min((a_scale + b_scale), if(((a_precision + b_precision) - (a_scale + b_scale)) > 32, 6, (38 - ((a_precision + b_precision) - (a_scale + b_scale)))))>(decimal(a_precision,a_scale),decimal(b_precision,b_scale)):decimal(r_precision,r_scale)"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":false,""functionNullability"":{""returnNullable"":false,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %1495 = cast(%1494) : ("decimal(38,6)") -> "decimal(7,2)" ()
-                    {cast:to_type = "decimal(7,2)", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {cast:to_type = "decimal(7,2)", cast:kind = "CONVERT", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %1496 = field_reference(%1443) : ("row(varchar,bigint,bigint,bigint)") -> "bigint" ()
                     {field_reference:index = "1", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %1497 = field_reference(%1443) : ("row(varchar,bigint,bigint,bigint)") -> "bigint" ()
@@ -2100,7 +2100,7 @@ IR version = 1
                 %1500 = call(%1498, %1499) : ("bigint", "bigint") -> "bigint" ()
                     {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$add""},""returnType"":""bigint"",""argumentTypes"":[""bigint"",""bigint""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$add(bigint,bigint):bigint"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":false,""functionNullability"":{""returnNullable"":false,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %1501 = cast(%1500) : ("bigint") -> "decimal(19,0)" ()
-                    {cast:to_type = "decimal(19,0)", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {cast:to_type = "decimal(19,0)", cast:kind = "CONVERT", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %1502 = constant() : () -> "decimal(3,2)" ()
                     {constant:value = "[type=decimal(3,2), value=3.00]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %1503 = call(%1501, %1502) : ("decimal(19,0)", "decimal(3,2)") -> "decimal(27,6)" ()

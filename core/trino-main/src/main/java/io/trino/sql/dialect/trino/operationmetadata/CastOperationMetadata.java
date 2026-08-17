@@ -17,6 +17,7 @@ import com.google.common.collect.ImmutableSet;
 import io.trino.spi.type.Type;
 import io.trino.sql.dialect.trino.operation.Cast;
 import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.TrinoAttributeSignature;
+import io.trino.sql.ir.Cast.Kind;
 import io.trino.sql.newir.Attributes;
 import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Region;
@@ -35,6 +36,7 @@ import static io.trino.sql.dialect.ir.IrAttributeUtils.hasSideEffects;
 import static io.trino.sql.dialect.ir.IrAttributeUtils.isKnownDeterministic;
 import static io.trino.sql.dialect.ir.IrAttributeUtils.isKnownHasNoSideEffects;
 import static io.trino.sql.dialect.ir.IrAttributeUtils.isKnownHasSideEffects;
+import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.internalEnumAttributeMetadata;
 import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.prefixedName;
 import static java.util.Objects.requireNonNull;
 
@@ -43,9 +45,12 @@ public class CastOperationMetadata
 {
     public static final String NAME = "cast";
 
+    private static final TrinoAttributeMetadata<CastKind> CAST_KIND_ATTRIBUTE_METADATA = internalEnumAttributeMetadata(NAME, "kind", CastKind.class);
+
+    public static final TrinoAttributeSignature<CastKind> CAST_KIND = CAST_KIND_ATTRIBUTE_METADATA.trinoAttributeSignature();
     public static final TrinoAttributeSignature<Type> TO_TYPE = new TrinoAttributeSignature<>(prefixedName(NAME, "to_type"), false);
 
-    public static final Set<TrinoAttributeSignature<?>> OPERATION_ATTRIBUTES = ImmutableSet.of(TO_TYPE);
+    public static final Set<TrinoAttributeSignature<?>> OPERATION_ATTRIBUTES = ImmutableSet.of(CAST_KIND, TO_TYPE);
 
     private final TrinoAttributeMetadata<Type> toTypeTrinoAttributeMetadata;
 
@@ -65,7 +70,9 @@ public class CastOperationMetadata
     @Override
     public Set<TrinoAttributeMetadata<?>> operationAttributes()
     {
-        return ImmutableSet.of(toTypeTrinoAttributeMetadata);
+        return ImmutableSet.of(
+                CAST_KIND_ATTRIBUTE_METADATA,
+                toTypeTrinoAttributeMetadata);
     }
 
     @Override
@@ -82,6 +89,7 @@ public class CastOperationMetadata
                 resultName,
                 getOnlyElement(arguments),
                 TO_TYPE.getAttribute(operationAttributes),
+                CAST_KIND.getAttribute(operationAttributes),
                 Attributes.empty(),
                 derivedAttributes);
     }
@@ -116,5 +124,19 @@ public class CastOperationMetadata
         }
 
         return derivedAttributes.buildOrThrow();
+    }
+
+    public enum CastKind
+    {
+        CONVERT,
+        REINTERPRET;
+
+        public static CastKind of(Kind kind)
+        {
+            return switch (kind) {
+                case CONVERT -> CONVERT;
+                case REINTERPRET -> REINTERPRET;
+            };
+        }
     }
 }

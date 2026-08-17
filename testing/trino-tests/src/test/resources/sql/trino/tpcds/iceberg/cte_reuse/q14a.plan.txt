@@ -201,7 +201,7 @@ IR version = 1
                 %84 = field_reference(%83) : ("row(bigint,integer,decimal(7,2))") -> "integer" ()
                     {field_reference:index = "1", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %85 = cast(%84) : ("integer") -> "decimal(10,0)" ()
-                    {cast:to_type = "decimal(10,0)", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {cast:to_type = "decimal(10,0)", cast:kind = "CONVERT", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %86 = field_reference(%83) : ("row(bigint,integer,decimal(7,2))") -> "decimal(7,2)" ()
                     {field_reference:index = "2", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %87 = call(%85, %86) : ("decimal(10,0)", "decimal(7,2)") -> "decimal(17,2)" ()
@@ -2713,7 +2713,7 @@ IR version = 1
                 %19590 = field_reference(%1457) : ("row(integer,decimal(7,2))") -> "integer" ()
                     {field_reference:index = "0"}
                 %19591 = cast(%19590) : ("integer") -> "decimal(10,0)" ()
-                    {cast:to_type = "decimal(10,0)"}
+                    {cast:to_type = "decimal(10,0)", cast:kind = "CONVERT"}
                 %19592 = field_reference(%1457) : ("row(integer,decimal(7,2))") -> "decimal(7,2)" ()
                     {field_reference:index = "1"}
                 %19593 = call(%19591, %19592) : ("decimal(10,0)", "decimal(7,2)") -> "decimal(17,2)" ()
@@ -2883,7 +2883,7 @@ IR version = 1
                 %42330 = field_reference(%1559) : ("row(integer,decimal(7,2))") -> "integer" ()
                     {field_reference:index = "0"}
                 %42331 = cast(%42330) : ("integer") -> "decimal(10,0)" ()
-                    {cast:to_type = "decimal(10,0)"}
+                    {cast:to_type = "decimal(10,0)", cast:kind = "CONVERT"}
                 %42332 = field_reference(%1559) : ("row(integer,decimal(7,2))") -> "decimal(7,2)" ()
                     {field_reference:index = "1"}
                 %42333 = call(%42331, %42332) : ("decimal(10,0)", "decimal(7,2)") -> "decimal(17,2)" ()
@@ -3053,7 +3053,7 @@ IR version = 1
                 %54590 = field_reference(%1661) : ("row(integer,decimal(7,2))") -> "integer" ()
                     {field_reference:index = "0"}
                 %54591 = cast(%54590) : ("integer") -> "decimal(10,0)" ()
-                    {cast:to_type = "decimal(10,0)"}
+                    {cast:to_type = "decimal(10,0)", cast:kind = "CONVERT"}
                 %54592 = field_reference(%1661) : ("row(integer,decimal(7,2))") -> "decimal(7,2)" ()
                     {field_reference:index = "1"}
                 %54593 = call(%54591, %54592) : ("decimal(10,0)", "decimal(7,2)") -> "decimal(17,2)" ()
@@ -3229,7 +3229,7 @@ IR version = 1
                 %1753 = field_reference(%1752) : ("row(decimal(17,2))") -> "decimal(17,2)" ()
                     {field_reference:index = "0", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %1754 = cast(%1753) : ("decimal(17,2)") -> "decimal(38,2)" ()
-                    {cast:to_type = "decimal(38,2)", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {cast:to_type = "decimal(38,2)", cast:kind = "CONVERT", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %1755 = row(%1754) : ("decimal(38,2)") -> "row(decimal(38,2))" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %1756 = return(%1755) : ("row(decimal(38,2))") -> "row(decimal(38,2))" ()
@@ -3494,7 +3494,7 @@ IR version = 1
                 %1902 = field_reference(%1901) : ("row(bigint,integer,decimal(7,2))") -> "integer" ()
                     {field_reference:index = "1", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %1903 = cast(%1902) : ("integer") -> "decimal(10,0)" ()
-                    {cast:to_type = "decimal(10,0)", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {cast:to_type = "decimal(10,0)", cast:kind = "CONVERT", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %1904 = field_reference(%1901) : ("row(bigint,integer,decimal(7,2))") -> "decimal(7,2)" ()
                     {field_reference:index = "2", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %1905 = call(%1903, %1904) : ("decimal(10,0)", "decimal(7,2)") -> "decimal(17,2)" ()
@@ -3881,7 +3881,7 @@ IR version = 1
                 %3571 = field_reference(%3570) : ("row(decimal(17,2))") -> "decimal(17,2)" ()
                     {field_reference:index = "0", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %3572 = cast(%3571) : ("decimal(17,2)") -> "decimal(38,2)" ()
-                    {cast:to_type = "decimal(38,2)", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {cast:to_type = "decimal(38,2)", cast:kind = "CONVERT", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %3573 = row(%3572) : ("decimal(38,2)") -> "row(decimal(38,2))" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %3574 = return(%3573) : ("row(decimal(38,2))") -> "row(decimal(38,2))" ()
@@ -4146,7 +4146,7 @@ IR version = 1
                 %3720 = field_reference(%3719) : ("row(bigint,integer,decimal(7,2))") -> "integer" ()
                     {field_reference:index = "1", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %3721 = cast(%3720) : ("integer") -> "decimal(10,0)" ()
-                    {cast:to_type = "decimal(10,0)", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {cast:to_type = "decimal(10,0)", cast:kind = "CONVERT", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %3722 = field_reference(%3719) : ("row(bigint,integer,decimal(7,2))") -> "decimal(7,2)" ()
                     {field_reference:index = "2", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %3723 = call(%3721, %3722) : ("decimal(10,0)", "decimal(7,2)") -> "decimal(17,2)" ()
@@ -4533,7 +4533,7 @@ IR version = 1
                 %5389 = field_reference(%5388) : ("row(decimal(17,2))") -> "decimal(17,2)" ()
                     {field_reference:index = "0", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %5390 = cast(%5389) : ("decimal(17,2)") -> "decimal(38,2)" ()
-                    {cast:to_type = "decimal(38,2)", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {cast:to_type = "decimal(38,2)", cast:kind = "CONVERT", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %5391 = row(%5390) : ("decimal(38,2)") -> "row(decimal(38,2))" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %5392 = return(%5391) : ("row(decimal(38,2))") -> "row(decimal(38,2))" ()

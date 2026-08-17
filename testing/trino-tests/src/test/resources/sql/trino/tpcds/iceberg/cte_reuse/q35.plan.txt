@@ -1271,15 +1271,15 @@ IR version = 1
                 %705 = field_reference(%701) : ("row(varchar,varchar,varchar,integer,integer,integer)") -> "integer" ()
                     {field_reference:index = "3", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %706 = cast(%705) : ("integer") -> "bigint" ()
-                    {cast:to_type = "bigint", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {cast:to_type = "bigint", cast:kind = "CONVERT", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %707 = field_reference(%701) : ("row(varchar,varchar,varchar,integer,integer,integer)") -> "integer" ()
                     {field_reference:index = "4", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %708 = cast(%707) : ("integer") -> "bigint" ()
-                    {cast:to_type = "bigint", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {cast:to_type = "bigint", cast:kind = "CONVERT", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %709 = field_reference(%701) : ("row(varchar,varchar,varchar,integer,integer,integer)") -> "integer" ()
                     {field_reference:index = "5", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %710 = cast(%709) : ("integer") -> "bigint" ()
-                    {cast:to_type = "bigint", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {cast:to_type = "bigint", cast:kind = "CONVERT", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %711 = field_reference(%701) : ("row(varchar,varchar,varchar,integer,integer,integer)") -> "varchar" ()
                     {field_reference:index = "0", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %712 = field_reference(%701) : ("row(varchar,varchar,varchar,integer,integer,integer)") -> "varchar" ()

@@ -16,6 +16,7 @@ package io.trino.sql.dialect.trino.operation;
 import com.google.common.collect.ImmutableList;
 import io.trino.spi.type.Type;
 import io.trino.sql.dialect.trino.operationmetadata.CastOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.CastOperationMetadata.CastKind;
 import io.trino.sql.newir.Attributes;
 import io.trino.sql.newir.FormatOptions.PrintOptions;
 import io.trino.sql.newir.Operation;
@@ -27,6 +28,7 @@ import java.util.List;
 import static io.trino.sql.dialect.trino.TrinoDialect.TRINO;
 import static io.trino.sql.dialect.trino.TrinoDialect.irType;
 import static io.trino.sql.dialect.trino.TrinoDialect.trinoType;
+import static io.trino.sql.dialect.trino.operationmetadata.CastOperationMetadata.CAST_KIND;
 import static io.trino.sql.dialect.trino.operationmetadata.CastOperationMetadata.NAME;
 import static io.trino.sql.dialect.trino.operationmetadata.CastOperationMetadata.TO_TYPE;
 import static java.util.Objects.requireNonNull;
@@ -38,17 +40,18 @@ public final class Cast
     private final Value input;
     private final Attributes attributes;
 
-    public Cast(String resultName, Value input, Type type, Attributes sourceAttributes)
+    public Cast(String resultName, Value input, Type type, CastKind kind, Attributes sourceAttributes)
     {
-        this(resultName, input, type, sourceAttributes, Attributes.empty());
+        this(resultName, input, type, kind, sourceAttributes, Attributes.empty());
     }
 
-    public Cast(String resultName, Value input, Type type, Attributes sourceAttributes, Attributes enforcedAttributes)
+    public Cast(String resultName, Value input, Type type, CastKind kind, Attributes sourceAttributes, Attributes enforcedAttributes)
     {
         super(TRINO, NAME);
         requireNonNull(resultName, "resultName is null");
         requireNonNull(input, "input is null");
         requireNonNull(type, "type is null");
+        requireNonNull(kind, "kind is null");
         requireNonNull(sourceAttributes, "sourceAttributes is null");
         requireNonNull(enforcedAttributes, "enforcedAttributes is null");
 
@@ -56,7 +59,10 @@ public final class Cast
 
         this.input = input;
 
-        Attributes operationAttributes = TO_TYPE.asAttributes(type);
+        Attributes.Builder operationAttributesBuilder = Attributes.builder();
+        TO_TYPE.putAttribute(operationAttributesBuilder, type);
+        CAST_KIND.putAttribute(operationAttributesBuilder, kind);
+        Attributes operationAttributes = operationAttributesBuilder.buildOrThrow();
 
         Attributes.Builder attributes = Attributes.builder();
         attributes.putAll(operationAttributes);
@@ -105,13 +111,19 @@ public final class Cast
                 result.name(),
                 newArgument,
                 trinoType(result.type()),
+                kind(),
                 Attributes.empty());
     }
 
     @Override
     public Operation withResultName(String newName)
     {
-        return new Cast(newName, input, trinoType(result.type()), Attributes.empty());
+        return new Cast(
+                newName,
+                input,
+                trinoType(result.type()),
+                kind(),
+                Attributes.empty());
     }
 
     @Override
@@ -123,6 +135,11 @@ public final class Cast
     public Value argument()
     {
         return input;
+    }
+
+    public CastKind kind()
+    {
+        return CAST_KIND.getAttribute(attributes);
     }
 
     @Override

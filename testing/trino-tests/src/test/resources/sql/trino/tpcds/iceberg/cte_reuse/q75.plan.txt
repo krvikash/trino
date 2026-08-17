@@ -1740,7 +1740,7 @@ IR version = 1
                 %1047 = field_reference(%1045) : ("row(integer,integer,integer,integer,integer,integer,decimal(8,2))") -> "integer" ()
                     {field_reference:index = "5", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %1048 = cast(%1047) : ("integer") -> "bigint" ()
-                    {cast:to_type = "bigint", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {cast:to_type = "bigint", cast:kind = "CONVERT", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %1049 = field_reference(%1045) : ("row(integer,integer,integer,integer,integer,integer,decimal(8,2))") -> "integer" ()
                     {field_reference:index = "0", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %1050 = field_reference(%1045) : ("row(integer,integer,integer,integer,integer,integer,decimal(8,2))") -> "integer" ()
@@ -2042,7 +2042,7 @@ IR version = 1
                 %2062 = field_reference(%2060) : ("row(integer,integer,integer,integer,integer,integer,decimal(8,2))") -> "integer" ()
                     {field_reference:index = "5", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %2063 = cast(%2062) : ("integer") -> "bigint" ()
-                    {cast:to_type = "bigint", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {cast:to_type = "bigint", cast:kind = "CONVERT", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %2064 = field_reference(%2060) : ("row(integer,integer,integer,integer,integer,integer,decimal(8,2))") -> "integer" ()
                     {field_reference:index = "0", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %2065 = field_reference(%2060) : ("row(integer,integer,integer,integer,integer,integer,decimal(8,2))") -> "integer" ()
@@ -2172,11 +2172,11 @@ IR version = 1
                 %2128 = field_reference(%2126) : ("row(integer,integer,integer,integer,integer,bigint,decimal(38,2))") -> "bigint" ()
                     {field_reference:index = "5", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %2129 = cast(%2128) : ("bigint") -> "decimal(17,2)" ()
-                    {cast:to_type = "decimal(17,2)", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {cast:to_type = "decimal(17,2)", cast:kind = "CONVERT", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %2130 = field_reference(%2127) : ("row(integer,integer,integer,integer,integer,bigint,decimal(38,2))") -> "bigint" ()
                     {field_reference:index = "5", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %2131 = cast(%2130) : ("bigint") -> "decimal(17,2)" ()
-                    {cast:to_type = "decimal(17,2)", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {cast:to_type = "decimal(17,2)", cast:kind = "CONVERT", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %2132 = call(%2129, %2131) : ("decimal(17,2)", "decimal(17,2)") -> "decimal(37,20)" ()
                     {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$divide""},""returnType"":""decimal(37,20)"",""argumentTypes"":[""decimal(17,2)"",""decimal(17,2)""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$divide<r_precision:min((((a_precision - a_scale) + b_scale) + max(6, ((a_scale + b_precision) + 1))), 38),r_scale:min(max(6, ((a_scale + b_precision) + 1)), if(((((a_precision - a_scale) + b_scale) + max(6, ((a_scale + b_precision) + 1))) - max(6, ((a_scale + b_precision) + 1))) > 32, 6, (38 - ((((a_precision - a_scale) + b_scale) + max(6, ((a_scale + b_precision) + 1))) - max(6, ((a_scale + b_precision) + 1))))))>(decimal(a_precision,a_scale),decimal(b_precision,b_scale)):decimal(r_precision,r_scale)"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":false,""functionNullability"":{""returnNullable"":false,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %2133 = constant() : () -> "decimal(37,20)" ()

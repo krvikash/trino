@@ -1735,7 +1735,7 @@ IR version = 1
                 %1864 = field_reference(%1856) : ("row(varchar,integer,decimal(38,2),decimal(38,2))") -> "decimal(38,2)" ()
                     {field_reference:index = "3", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %1865 = cast(%1864) : ("decimal(38,2)") -> "decimal(38,3)" ()
-                    {cast:to_type = "decimal(38,3)", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {cast:to_type = "decimal(38,3)", cast:kind = "CONVERT", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %1866 = field_reference(%1856) : ("row(varchar,integer,decimal(38,2),decimal(38,2))") -> "decimal(38,2)" ()
                     {field_reference:index = "2", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %1867 = call(%1865, %1866) : ("decimal(38,3)", "decimal(38,2)") -> "decimal(38,6)" ()
@@ -1777,7 +1777,7 @@ IR version = 1
                 %1886 = field_reference(%1881) : ("row(varchar,decimal(38,2),decimal(38,2),decimal(38,2),decimal(38,2))") -> "decimal(38,2)" ()
                     {field_reference:index = "1", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %1887 = cast(%1886) : ("decimal(38,2)") -> "decimal(38,3)" ()
-                    {cast:to_type = "decimal(38,3)", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {cast:to_type = "decimal(38,3)", cast:kind = "CONVERT", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %1888 = field_reference(%1882) : ("row(varchar,integer,decimal(38,2),decimal(38,2),decimal(38,6))") -> "decimal(38,2)" ()
                     {field_reference:index = "3", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %1889 = call(%1887, %1888) : ("decimal(38,3)", "decimal(38,2)") -> "decimal(38,6)" ()
@@ -1795,7 +1795,7 @@ IR version = 1
                 %1895 = field_reference(%1881) : ("row(varchar,decimal(38,2),decimal(38,2),decimal(38,2),decimal(38,2))") -> "decimal(38,2)" ()
                     {field_reference:index = "4", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %1896 = cast(%1895) : ("decimal(38,2)") -> "decimal(38,3)" ()
-                    {cast:to_type = "decimal(38,3)", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {cast:to_type = "decimal(38,3)", cast:kind = "CONVERT", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %1897 = field_reference(%1881) : ("row(varchar,decimal(38,2),decimal(38,2),decimal(38,2),decimal(38,2))") -> "decimal(38,2)" ()
                     {field_reference:index = "3", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %1898 = call(%1896, %1897) : ("decimal(38,3)", "decimal(38,2)") -> "decimal(38,6)" ()
@@ -1817,7 +1817,7 @@ IR version = 1
                 %1906 = field_reference(%1881) : ("row(varchar,decimal(38,2),decimal(38,2),decimal(38,2),decimal(38,2))") -> "decimal(38,2)" ()
                     {field_reference:index = "3", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %1907 = cast(%1906) : ("decimal(38,2)") -> "decimal(38,3)" ()
-                    {cast:to_type = "decimal(38,3)", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {cast:to_type = "decimal(38,3)", cast:kind = "CONVERT", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %1908 = field_reference(%1881) : ("row(varchar,decimal(38,2),decimal(38,2),decimal(38,2),decimal(38,2))") -> "decimal(38,2)" ()
                     {field_reference:index = "2", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %1909 = call(%1907, %1908) : ("decimal(38,3)", "decimal(38,2)") -> "decimal(38,6)" ()

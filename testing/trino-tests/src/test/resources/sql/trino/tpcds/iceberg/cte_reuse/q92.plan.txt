@@ -20,7 +20,7 @@ IR version = 1
                 %1317 = field_reference(%3) : ("row(bigint,decimal(7,2),bigint)") -> "decimal(7,2)" ()
                     {field_reference:index = "1"}
                 %1318 = cast(%1317) : ("decimal(7,2)") -> "decimal(9,3)" ()
-                    {cast:to_type = "decimal(9,3)"}
+                    {cast:to_type = "decimal(9,3)", cast:kind = "CONVERT"}
                 %1319 = constant() : () -> "varchar" ()
                     {constant:value = "[type=varchar, value=GREATER_THAN]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %1320 = constant() : () -> "varchar" ()
@@ -613,7 +613,7 @@ IR version = 1
                 %341 = field_reference(%338) : ("row(bigint,decimal(7,2))") -> "decimal(7,2)" ()
                     {field_reference:index = "1", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %342 = cast(%341) : ("decimal(7,2)") -> "decimal(9,3)" ()
-                    {cast:to_type = "decimal(9,3)", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {cast:to_type = "decimal(9,3)", cast:kind = "CONVERT", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %343 = call(%340, %342) : ("decimal(9,3)", "decimal(9,3)") -> "boolean" ()
                     {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$less_than""},""returnType"":""boolean"",""argumentTypes"":[""decimal(9,3)"",""decimal(9,3)""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$less_than<t:orderable>(t,t):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":true,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %344 = return(%343) : ("boolean") -> "boolean" ()

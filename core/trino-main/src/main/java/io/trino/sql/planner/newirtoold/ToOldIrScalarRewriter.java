@@ -36,7 +36,9 @@ import io.trino.sql.dialect.trino.operation.Logical;
 import io.trino.sql.dialect.trino.operation.Return;
 import io.trino.sql.dialect.trino.operation.TrinoOperation;
 import io.trino.sql.dialect.trino.operation.TrinoOperationVisitor;
+import io.trino.sql.dialect.trino.operationmetadata.CastOperationMetadata.CastKind;
 import io.trino.sql.dialect.trino.operationmetadata.LogicalOperationMetadata.LogicalOperator;
+import io.trino.sql.ir.Cast.Kind;
 import io.trino.sql.ir.Expression;
 import io.trino.sql.ir.Logical.Operator;
 import io.trino.sql.ir.Match;
@@ -240,7 +242,15 @@ public class ToOldIrScalarRewriter
             Expression argument = context.getOperation(operation.argument()).accept(this, context);
             Type type = trinoType(operation.result().type());
 
-            return new io.trino.sql.ir.Cast(argument, type);
+            return new io.trino.sql.ir.Cast(argument, type, rewriteCastKind(operation.kind()));
+        }
+
+        private static Kind rewriteCastKind(CastKind kind)
+        {
+            return switch (kind) {
+                case CONVERT -> Kind.CONVERT;
+                case REINTERPRET -> Kind.REINTERPRET;
+            };
         }
 
         @Override

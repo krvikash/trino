@@ -615,7 +615,7 @@ IR version = 1
                 %317 = field_reference(%315) : ("row(bigint,decimal(7,2),decimal(7,2),decimal(7,2),decimal(7,2))") -> "decimal(7,2)" ()
                     {field_reference:index = "3", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %318 = cast(%317) : ("decimal(7,2)") -> "decimal(12,2)" ()
-                    {cast:to_type = "decimal(12,2)", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {cast:to_type = "decimal(12,2)", cast:kind = "REINTERPRET", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %319 = constant() : () -> "decimal(12,2)" ()
                     {constant:value = "[type=decimal(12,2), value=0.00]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %320 = coalesce(%318, %319) : ("decimal(12,2)", "decimal(12,2)") -> "decimal(12,2)" ()
@@ -625,7 +625,7 @@ IR version = 1
                 %322 = field_reference(%315) : ("row(bigint,decimal(7,2),decimal(7,2),decimal(7,2),decimal(7,2))") -> "decimal(7,2)" ()
                     {field_reference:index = "4", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %323 = cast(%322) : ("decimal(7,2)") -> "decimal(12,2)" ()
-                    {cast:to_type = "decimal(12,2)", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {cast:to_type = "decimal(12,2)", cast:kind = "REINTERPRET", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %324 = constant() : () -> "decimal(12,2)" ()
                     {constant:value = "[type=decimal(12,2), value=0.00]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %325 = coalesce(%323, %324) : ("decimal(12,2)", "decimal(12,2)") -> "decimal(12,2)" ()
@@ -1595,7 +1595,7 @@ IR version = 1
                 %888 = field_reference(%886) : ("row(bigint,decimal(7,2),decimal(7,2),decimal(7,2),decimal(7,2))") -> "decimal(7,2)" ()
                     {field_reference:index = "3", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %889 = cast(%888) : ("decimal(7,2)") -> "decimal(12,2)" ()
-                    {cast:to_type = "decimal(12,2)", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {cast:to_type = "decimal(12,2)", cast:kind = "REINTERPRET", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %890 = constant() : () -> "decimal(12,2)" ()
                     {constant:value = "[type=decimal(12,2), value=0.00]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %891 = coalesce(%889, %890) : ("decimal(12,2)", "decimal(12,2)") -> "decimal(12,2)" ()
@@ -1605,7 +1605,7 @@ IR version = 1
                 %893 = field_reference(%886) : ("row(bigint,decimal(7,2),decimal(7,2),decimal(7,2),decimal(7,2))") -> "decimal(7,2)" ()
                     {field_reference:index = "4", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %894 = cast(%893) : ("decimal(7,2)") -> "decimal(12,2)" ()
-                    {cast:to_type = "decimal(12,2)", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {cast:to_type = "decimal(12,2)", cast:kind = "REINTERPRET", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %895 = constant() : () -> "decimal(12,2)" ()
                     {constant:value = "[type=decimal(12,2), value=0.00]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %896 = coalesce(%894, %895) : ("decimal(12,2)", "decimal(12,2)") -> "decimal(12,2)" ()
@@ -2575,7 +2575,7 @@ IR version = 1
                 %1459 = field_reference(%1457) : ("row(bigint,decimal(7,2),decimal(7,2),decimal(7,2),decimal(7,2))") -> "decimal(7,2)" ()
                     {field_reference:index = "3", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %1460 = cast(%1459) : ("decimal(7,2)") -> "decimal(12,2)" ()
-                    {cast:to_type = "decimal(12,2)", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {cast:to_type = "decimal(12,2)", cast:kind = "REINTERPRET", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %1461 = constant() : () -> "decimal(12,2)" ()
                     {constant:value = "[type=decimal(12,2), value=0.00]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %1462 = coalesce(%1460, %1461) : ("decimal(12,2)", "decimal(12,2)") -> "decimal(12,2)" ()
@@ -2585,7 +2585,7 @@ IR version = 1
                 %1464 = field_reference(%1457) : ("row(bigint,decimal(7,2),decimal(7,2),decimal(7,2),decimal(7,2))") -> "decimal(7,2)" ()
                     {field_reference:index = "4", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %1465 = cast(%1464) : ("decimal(7,2)") -> "decimal(12,2)" ()
-                    {cast:to_type = "decimal(12,2)", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {cast:to_type = "decimal(12,2)", cast:kind = "REINTERPRET", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %1466 = constant() : () -> "decimal(12,2)" ()
                     {constant:value = "[type=decimal(12,2), value=0.00]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %1467 = coalesce(%1465, %1466) : ("decimal(12,2)", "decimal(12,2)") -> "decimal(12,2)" ()

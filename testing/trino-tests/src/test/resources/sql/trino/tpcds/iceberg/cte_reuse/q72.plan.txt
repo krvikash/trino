@@ -1391,7 +1391,7 @@ IR version = 1
                 %711 = case(%708, %709, %710) : ("boolean", "integer", "integer") -> "integer" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %712 = cast(%711) : ("integer") -> "bigint" ()
-                    {cast:to_type = "bigint", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {cast:to_type = "bigint", cast:kind = "CONVERT", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %713 = field_reference(%706) : ("row(varchar,varchar,integer,bigint)") -> "bigint" ()
                     {field_reference:index = "3", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %714 = is_null(%713) : ("bigint") -> "boolean" ()
@@ -1405,7 +1405,7 @@ IR version = 1
                 %718 = case(%715, %716, %717) : ("boolean", "integer", "integer") -> "integer" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %719 = cast(%718) : ("integer") -> "bigint" ()
-                    {cast:to_type = "bigint", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {cast:to_type = "bigint", cast:kind = "CONVERT", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %720 = field_reference(%706) : ("row(varchar,varchar,integer,bigint)") -> "varchar" ()
                     {field_reference:index = "1", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %721 = field_reference(%706) : ("row(varchar,varchar,integer,bigint)") -> "varchar" ()

@@ -796,7 +796,7 @@ IR version = 1
                 %539 = field_reference(%537) : ("row(bigint,decimal(38,2),decimal(38,2),varchar)") -> "decimal(38,2)" ()
                     {field_reference:index = "1", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %540 = cast(%539) : ("decimal(38,2)") -> "decimal(38,3)" ()
-                    {cast:to_type = "decimal(38,3)", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {cast:to_type = "decimal(38,3)", cast:kind = "CONVERT", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %541 = field_reference(%537) : ("row(bigint,decimal(38,2),decimal(38,2),varchar)") -> "decimal(38,2)" ()
                     {field_reference:index = "2", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %542 = constant() : () -> "decimal(1,1)" ()

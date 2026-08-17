@@ -39,6 +39,8 @@ import io.trino.sql.dialect.trino.operation.Logical;
 import io.trino.sql.dialect.trino.operation.Match;
 import io.trino.sql.dialect.trino.operation.Return;
 import io.trino.sql.dialect.trino.operation.Row;
+import io.trino.sql.dialect.trino.operationmetadata.CastOperationMetadata.CastKind;
+import io.trino.sql.ir.Cast.Kind;
 import io.trino.sql.ir.Expression;
 import io.trino.sql.ir.Logical.Operator;
 import io.trino.sql.ir.MatchClause;
@@ -55,6 +57,7 @@ import java.util.Optional;
 
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
+import static io.trino.spi.type.DecimalType.createDecimalType;
 import static io.trino.spi.type.DoubleType.DOUBLE;
 import static io.trino.spi.type.EmptyRowType.EMPTY_ROW;
 import static io.trino.spi.type.RowType.anonymousRow;
@@ -293,6 +296,7 @@ final class TestScalarProgramBuilder
                 "%1",
                 constantOperation.result(),
                 BIGINT,
+                CastKind.CONVERT,
                 constantOperation.attributes());
 
         assertProgram(
@@ -301,6 +305,32 @@ final class TestScalarProgramBuilder
                         constantOperation,
                         castOperation),
                 BIGINT);
+    }
+
+    @Test
+    public void testReinterpretCast()
+    {
+        Type sourceType = createDecimalType(7, 2);
+        Type targetType = createDecimalType(12, 2);
+        io.trino.sql.ir.Cast castExpression = new io.trino.sql.ir.Cast(
+                new io.trino.sql.ir.Constant(sourceType, 123L),
+                targetType,
+                Kind.REINTERPRET);
+
+        Constant constantOperation = new Constant("%0", sourceType, 123L);
+        Cast castOperation = new Cast(
+                "%1",
+                constantOperation.result(),
+                targetType,
+                CastKind.REINTERPRET,
+                constantOperation.attributes());
+
+        assertProgram(
+                castExpression,
+                ImmutableList.of(
+                        constantOperation,
+                        castOperation),
+                targetType);
     }
 
     @Test
@@ -670,7 +700,7 @@ final class TestScalarProgramBuilder
 
         Constant constantOperationFirst = new Constant("%0", BIGINT, 0L);
         Constant constantOperationSecond = new Constant("%1", SMALLINT, 1L);
-        Cast castOperation = new Cast("%2", constantOperationSecond.result(), BIGINT, constantOperationSecond.attributes());
+        Cast castOperation = new Cast("%2", constantOperationSecond.result(), BIGINT, CastKind.CONVERT, constantOperationSecond.attributes());
         Call callOperation = new Call(
                 "%3",
                 ImmutableList.of(constantOperationFirst.result(), castOperation.result()),

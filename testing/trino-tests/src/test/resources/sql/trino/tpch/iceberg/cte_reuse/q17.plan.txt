@@ -20,7 +20,7 @@ IR version = 1
                 %562 = field_reference(%3) : ("row(bigint,decimal(12,2),decimal(12,2))") -> "decimal(12,2)" ()
                     {field_reference:index = "1"}
                 %563 = cast(%562) : ("decimal(12,2)") -> "decimal(13,3)" ()
-                    {cast:to_type = "decimal(13,3)"}
+                    {cast:to_type = "decimal(13,3)", cast:kind = "CONVERT"}
                 %564 = constant() : () -> "varchar" ()
                     {constant:value = "[type=varchar, value=LESS_THAN]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %565 = constant() : () -> "varchar" ()
@@ -403,7 +403,7 @@ IR version = 1
                 %205 = field_reference(%203) : ("row(bigint,decimal(12,2),decimal(12,2))") -> "decimal(12,2)" ()
                     {field_reference:index = "1", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %206 = cast(%205) : ("decimal(12,2)") -> "decimal(13,3)" ()
-                    {cast:to_type = "decimal(13,3)", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {cast:to_type = "decimal(13,3)", cast:kind = "CONVERT", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %207 = field_reference(%204) : ("row(bigint,decimal(13,3))") -> "decimal(13,3)" ()
                     {field_reference:index = "1", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %208 = call(%206, %207) : ("decimal(13,3)", "decimal(13,3)") -> "boolean" ()

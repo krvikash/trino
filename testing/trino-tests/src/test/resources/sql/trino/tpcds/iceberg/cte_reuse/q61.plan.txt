@@ -1499,11 +1499,11 @@ IR version = 1
                 %924 = field_reference(%921) : ("row(decimal(38,2),decimal(38,2))") -> "decimal(38,2)" ()
                     {field_reference:index = "0", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %925 = cast(%924) : ("decimal(38,2)") -> "decimal(15,4)" ()
-                    {cast:to_type = "decimal(15,4)", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {cast:to_type = "decimal(15,4)", cast:kind = "CONVERT", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %926 = field_reference(%921) : ("row(decimal(38,2),decimal(38,2))") -> "decimal(38,2)" ()
                     {field_reference:index = "1", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %927 = cast(%926) : ("decimal(38,2)") -> "decimal(15,4)" ()
-                    {cast:to_type = "decimal(15,4)", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {cast:to_type = "decimal(15,4)", cast:kind = "CONVERT", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %928 = call(%925, %927) : ("decimal(15,4)", "decimal(15,4)") -> "decimal(35,20)" ()
                     {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$divide""},""returnType"":""decimal(35,20)"",""argumentTypes"":[""decimal(15,4)"",""decimal(15,4)""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$divide<r_precision:min((((a_precision - a_scale) + b_scale) + max(6, ((a_scale + b_precision) + 1))), 38),r_scale:min(max(6, ((a_scale + b_precision) + 1)), if(((((a_precision - a_scale) + b_scale) + max(6, ((a_scale + b_precision) + 1))) - max(6, ((a_scale + b_precision) + 1))) > 32, 6, (38 - ((((a_precision - a_scale) + b_scale) + max(6, ((a_scale + b_precision) + 1))) - max(6, ((a_scale + b_precision) + 1))))))>(decimal(a_precision,a_scale),decimal(b_precision,b_scale)):decimal(r_precision,r_scale)"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":false,""functionNullability"":{""returnNullable"":false,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %929 = constant() : () -> "decimal(10,0)" ()

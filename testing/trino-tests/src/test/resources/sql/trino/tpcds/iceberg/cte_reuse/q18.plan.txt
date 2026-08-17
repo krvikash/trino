@@ -941,31 +941,31 @@ IR version = 1
                 %481 = field_reference(%476) : ("row(integer,decimal(7,2),decimal(7,2),decimal(7,2),decimal(7,2),integer,varchar,integer,varchar,varchar,varchar)") -> "integer" ()
                     {field_reference:index = "0", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %482 = cast(%481) : ("integer") -> "decimal(12,2)" ()
-                    {cast:to_type = "decimal(12,2)", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {cast:to_type = "decimal(12,2)", cast:kind = "CONVERT", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %483 = field_reference(%476) : ("row(integer,decimal(7,2),decimal(7,2),decimal(7,2),decimal(7,2),integer,varchar,integer,varchar,varchar,varchar)") -> "decimal(7,2)" ()
                     {field_reference:index = "1", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %484 = cast(%483) : ("decimal(7,2)") -> "decimal(12,2)" ()
-                    {cast:to_type = "decimal(12,2)", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {cast:to_type = "decimal(12,2)", cast:kind = "REINTERPRET", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %485 = field_reference(%476) : ("row(integer,decimal(7,2),decimal(7,2),decimal(7,2),decimal(7,2),integer,varchar,integer,varchar,varchar,varchar)") -> "decimal(7,2)" ()
                     {field_reference:index = "3", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %486 = cast(%485) : ("decimal(7,2)") -> "decimal(12,2)" ()
-                    {cast:to_type = "decimal(12,2)", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {cast:to_type = "decimal(12,2)", cast:kind = "REINTERPRET", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %487 = field_reference(%476) : ("row(integer,decimal(7,2),decimal(7,2),decimal(7,2),decimal(7,2),integer,varchar,integer,varchar,varchar,varchar)") -> "decimal(7,2)" ()
                     {field_reference:index = "2", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %488 = cast(%487) : ("decimal(7,2)") -> "decimal(12,2)" ()
-                    {cast:to_type = "decimal(12,2)", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {cast:to_type = "decimal(12,2)", cast:kind = "REINTERPRET", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %489 = field_reference(%476) : ("row(integer,decimal(7,2),decimal(7,2),decimal(7,2),decimal(7,2),integer,varchar,integer,varchar,varchar,varchar)") -> "decimal(7,2)" ()
                     {field_reference:index = "4", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %490 = cast(%489) : ("decimal(7,2)") -> "decimal(12,2)" ()
-                    {cast:to_type = "decimal(12,2)", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {cast:to_type = "decimal(12,2)", cast:kind = "REINTERPRET", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %491 = field_reference(%476) : ("row(integer,decimal(7,2),decimal(7,2),decimal(7,2),decimal(7,2),integer,varchar,integer,varchar,varchar,varchar)") -> "integer" ()
                     {field_reference:index = "7", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %492 = cast(%491) : ("integer") -> "decimal(12,2)" ()
-                    {cast:to_type = "decimal(12,2)", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {cast:to_type = "decimal(12,2)", cast:kind = "CONVERT", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %493 = field_reference(%476) : ("row(integer,decimal(7,2),decimal(7,2),decimal(7,2),decimal(7,2),integer,varchar,integer,varchar,varchar,varchar)") -> "integer" ()
                     {field_reference:index = "5", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %494 = cast(%493) : ("integer") -> "decimal(12,2)" ()
-                    {cast:to_type = "decimal(12,2)", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {cast:to_type = "decimal(12,2)", cast:kind = "CONVERT", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %495 = row(%477, %478, %479, %480, %482, %484, %486, %488, %490, %492, %494) : ("varchar", "varchar", "varchar", "varchar", "decimal(12,2)", "decimal(12,2)", "decimal(12,2)", "decimal(12,2)", "decimal(12,2)", "decimal(12,2)", "decimal(12,2)") -> "row(varchar,varchar,varchar,varchar,decimal(12,2),decimal(12,2),decimal(12,2),decimal(12,2),decimal(12,2),decimal(12,2),decimal(12,2))" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %496 = return(%495) : ("row(varchar,varchar,varchar,varchar,decimal(12,2),decimal(12,2),decimal(12,2),decimal(12,2),decimal(12,2),decimal(12,2),decimal(12,2))") -> "row(varchar,varchar,varchar,varchar,decimal(12,2),decimal(12,2),decimal(12,2),decimal(12,2),decimal(12,2),decimal(12,2),decimal(12,2))" ()

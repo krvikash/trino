@@ -476,7 +476,7 @@ IR version = 1
                 %271 = case(%268, %269, %270) : ("boolean", "integer", "integer") -> "integer" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %272 = cast(%271) : ("integer") -> "bigint" ()
-                    {cast:to_type = "bigint", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {cast:to_type = "bigint", cast:kind = "CONVERT", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %273 = field_reference(%262) : ("row(bigint,bigint)") -> "bigint" ()
                     {field_reference:index = "0", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %274 = is_null(%273) : ("bigint") -> "boolean" ()
@@ -496,7 +496,7 @@ IR version = 1
                 %281 = case(%278, %279, %280) : ("boolean", "integer", "integer") -> "integer" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %282 = cast(%281) : ("integer") -> "bigint" ()
-                    {cast:to_type = "bigint", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {cast:to_type = "bigint", cast:kind = "CONVERT", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %283 = field_reference(%262) : ("row(bigint,bigint)") -> "bigint" ()
                     {field_reference:index = "0", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %284 = is_null(%283) : ("bigint") -> "boolean" ()
@@ -518,7 +518,7 @@ IR version = 1
                 %292 = case(%289, %290, %291) : ("boolean", "integer", "integer") -> "integer" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %293 = cast(%292) : ("integer") -> "bigint" ()
-                    {cast:to_type = "bigint", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {cast:to_type = "bigint", cast:kind = "CONVERT", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %294 = row(%272, %282, %293) : ("bigint", "bigint", "bigint") -> "row(bigint,bigint,bigint)" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %295 = return(%294) : ("row(bigint,bigint,bigint)") -> "row(bigint,bigint,bigint)" ()

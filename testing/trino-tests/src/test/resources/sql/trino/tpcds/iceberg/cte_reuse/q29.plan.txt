@@ -1140,15 +1140,15 @@ IR version = 1
                 %580 = field_reference(%579) : ("row(integer,varchar,varchar,integer,varchar,varchar,integer)") -> "integer" ()
                     {field_reference:index = "0", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %581 = cast(%580) : ("integer") -> "bigint" ()
-                    {cast:to_type = "bigint", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {cast:to_type = "bigint", cast:kind = "CONVERT", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %582 = field_reference(%579) : ("row(integer,varchar,varchar,integer,varchar,varchar,integer)") -> "integer" ()
                     {field_reference:index = "3", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %583 = cast(%582) : ("integer") -> "bigint" ()
-                    {cast:to_type = "bigint", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {cast:to_type = "bigint", cast:kind = "CONVERT", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %584 = field_reference(%579) : ("row(integer,varchar,varchar,integer,varchar,varchar,integer)") -> "integer" ()
                     {field_reference:index = "6", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %585 = cast(%584) : ("integer") -> "bigint" ()
-                    {cast:to_type = "bigint", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {cast:to_type = "bigint", cast:kind = "CONVERT", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %586 = field_reference(%579) : ("row(integer,varchar,varchar,integer,varchar,varchar,integer)") -> "varchar" ()
                     {field_reference:index = "4", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %587 = field_reference(%579) : ("row(integer,varchar,varchar,integer,varchar,varchar,integer)") -> "varchar" ()

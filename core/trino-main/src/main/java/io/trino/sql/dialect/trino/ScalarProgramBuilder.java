@@ -35,6 +35,7 @@ import io.trino.sql.dialect.trino.operation.Logical;
 import io.trino.sql.dialect.trino.operation.Match;
 import io.trino.sql.dialect.trino.operation.Return;
 import io.trino.sql.dialect.trino.operation.Row;
+import io.trino.sql.dialect.trino.operationmetadata.CastOperationMetadata.CastKind;
 import io.trino.sql.dialect.trino.operationmetadata.LogicalOperationMetadata.LogicalOperator;
 import io.trino.sql.ir.Expression;
 import io.trino.sql.ir.IrVisitor;
@@ -200,7 +201,12 @@ public class ScalarProgramBuilder
     {
         Operation argument = node.expression().accept(this, context);
         String resultName = nameAllocator.newName();
-        Cast cast = new Cast(resultName, argument.result(), node.type(), argument.attributes());
+        Cast cast = new Cast(
+                resultName,
+                argument.result(),
+                node.type(),
+                CastKind.of(node.kind()),
+                argument.attributes());
         context.block().addOperation(cast);
         return cast;
     }

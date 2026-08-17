@@ -250,7 +250,7 @@ IR version = 1
                 %130 = field_reference(%128) : ("row(bigint,integer,decimal(12,2))") -> "integer" ()
                     {field_reference:index = "1", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %131 = cast(%130) : ("integer") -> "decimal(10,0)" ()
-                    {cast:to_type = "decimal(10,0)", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {cast:to_type = "decimal(10,0)", cast:kind = "CONVERT", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %132 = call(%129, %131) : ("decimal(12,2)", "decimal(10,0)") -> "decimal(22,2)" ()
                     {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$multiply""},""returnType"":""decimal(22,2)"",""argumentTypes"":[""decimal(12,2)"",""decimal(10,0)""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$multiply<r_precision:min((a_precision + b_precision), 38),r_scale:min((a_scale + b_scale), if(((a_precision + b_precision) - (a_scale + b_scale)) > 32, 6, (38 - ((a_precision + b_precision) - (a_scale + b_scale)))))>(decimal(a_precision,a_scale),decimal(b_precision,b_scale)):decimal(r_precision,r_scale)"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":false,""functionNullability"":{""returnNullable"":false,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %133 = field_reference(%128) : ("row(bigint,integer,decimal(12,2))") -> "bigint" ()
@@ -494,7 +494,7 @@ IR version = 1
                 %333 = field_reference(%331) : ("row(integer,decimal(12,2))") -> "integer" ()
                     {field_reference:index = "0", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %334 = cast(%333) : ("integer") -> "decimal(10,0)" ()
-                    {cast:to_type = "decimal(10,0)", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {cast:to_type = "decimal(10,0)", cast:kind = "CONVERT", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %335 = call(%332, %334) : ("decimal(12,2)", "decimal(10,0)") -> "decimal(22,2)" ()
                     {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$multiply""},""returnType"":""decimal(22,2)"",""argumentTypes"":[""decimal(12,2)"",""decimal(10,0)""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$multiply<r_precision:min((a_precision + b_precision), 38),r_scale:min((a_scale + b_scale), if(((a_precision + b_precision) - (a_scale + b_scale)) > 32, 6, (38 - ((a_precision + b_precision) - (a_scale + b_scale)))))>(decimal(a_precision,a_scale),decimal(b_precision,b_scale)):decimal(r_precision,r_scale)"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":false,""functionNullability"":{""returnNullable"":false,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %336 = row(%335) : ("decimal(22,2)") -> "row(decimal(22,2))" ()
@@ -744,7 +744,7 @@ IR version = 1
                 %459 = field_reference(%457) : ("row(bigint,decimal(38,2),decimal(38,6))") -> "decimal(38,2)" ()
                     {field_reference:index = "1", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %460 = cast(%459) : ("decimal(38,2)") -> "decimal(38,6)" ()
-                    {cast:to_type = "decimal(38,6)", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {cast:to_type = "decimal(38,6)", cast:kind = "CONVERT", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %461 = call(%458, %460) : ("decimal(38,6)", "decimal(38,6)") -> "boolean" ()
                     {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$less_than""},""returnType"":""boolean"",""argumentTypes"":[""decimal(38,6)"",""decimal(38,6)""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$less_than<t:orderable>(t,t):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":true,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %462 = return(%461) : ("boolean") -> "boolean" ()

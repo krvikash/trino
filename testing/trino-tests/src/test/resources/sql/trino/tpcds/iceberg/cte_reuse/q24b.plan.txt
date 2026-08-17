@@ -2226,7 +2226,7 @@ IR version = 1
                 %1305 = field_reference(%1303) : ("row(varchar,varchar,varchar,decimal(38,2),decimal(38,4))") -> "decimal(38,2)" ()
                     {field_reference:index = "3", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %1306 = cast(%1305) : ("decimal(38,2)") -> "decimal(38,4)" ()
-                    {cast:to_type = "decimal(38,4)", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {cast:to_type = "decimal(38,4)", cast:kind = "CONVERT", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %1307 = call(%1304, %1306) : ("decimal(38,4)", "decimal(38,4)") -> "boolean" ()
                     {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$less_than""},""returnType"":""boolean"",""argumentTypes"":[""decimal(38,4)"",""decimal(38,4)""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$less_than<t:orderable>(t,t):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":true,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
                 %1308 = return(%1307) : ("boolean") -> "boolean" ()
