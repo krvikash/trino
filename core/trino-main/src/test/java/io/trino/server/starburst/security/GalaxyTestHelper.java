@@ -119,9 +119,22 @@ public class GalaxyTestHelper
 
     public void initialize(boolean enableSharedCache)
     {
+        initialize(enableSharedCache, ImmutableSet.of());
+    }
+
+    public void initialize(boolean enableSharedCache, Set<String> accountFeatureFlags)
+    {
         cockroach = new GalaxyCockroachContainer();
         accountFactory = createTestingAccountFactory(() -> cockroach);
         accountClient = accountFactory.createAccountClient();
+
+        // Enable account feature flags before issuing any access-control-server request below (createRole, etc.).
+        // The portal-server and access-control-server run as Docker containers with independent feature-flag caches over
+        // the shared database. The testing config sets featureflag.cache-expiration-time=PT0S, but Guava's
+        // expireAfterWrite treats a zero duration as "never expire" rather than "no caching", so the access-control-server
+        // permanently caches an account's flags on first read. Upserting here goes through the portal-server to the shared
+        // database before the access-control-server has read (and cached) the flags, so its first load picks them up.
+        accountFeatureFlags.forEach(flag -> accountClient.upsertAccountFeatureFlag(flag, true));
 
         // creating auth keys is very slow so cache them
         // todo figure out why this is slow

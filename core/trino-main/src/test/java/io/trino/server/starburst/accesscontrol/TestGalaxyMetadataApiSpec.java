@@ -146,7 +146,9 @@ public abstract class TestGalaxyMetadataApiSpec
             throws Exception
     {
         helper = new GalaxyTestHelper();
-        helper.initialize(enableSharedCoordinatorCache);
+        // Enable BRANCH_PRIVILEGES so that entity creation includes the CREATE_BRANCH privilege. This must be set as part
+        // of initialize(), before any access-control-server request caches the account's feature flags (see GalaxyTestHelper).
+        helper.initialize(enableSharedCoordinatorCache, ImmutableSet.of("BRANCH_PRIVILEGES"));
         accountClient = helper.getAccountClient();
         accountId = accountClient.getAccountId();
         adminRoleId = accountClient.getAdminRoleId();
