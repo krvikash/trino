@@ -161,7 +161,7 @@ public class IcebergGpuParquetPageSource
 
         // Decode the split in bounded chunks so no single GpuPage exceeds maxPageSizeBytes.
         if (chunkedReader == null) {
-            chunkedReader = createChunkedReader();
+            createChunkedReader();
         }
         // cuDF's ParquetChunkedReader is driven by hasNext(); readChunk() alone does not advance to
         // end-of-data. readChunk() may return null or an empty table when a step yields no rows.
@@ -193,15 +193,16 @@ public class IcebergGpuParquetPageSource
         return clamp(maxPageSizeBytes / max(bytesPerRow, 1), 1, totalRows);
     }
 
-    private @Own ParquetChunkedReader createChunkedReader()
+    private void createChunkedReader()
     {
         ParquetOptions options = ParquetOptions.builder()
                 .includeColumn(parquetColumnNames)
                 .build();
 
         @Borrow Buffers data = fabricatedParquet.data().orElseThrow(() -> new IllegalStateException("No fabricated Parquet data available"));
+        verify(chunkedReader == null, "chunkedReader already set");
         // passReadLimit 0 = unlimited; chunkSizeByteLimit bounds each emitted chunk's device size.
-        return new ParquetChunkedReader(maxPageSizeBytes, /*passReadLimit=*/ 0, options, data.buffers().toArray(HostMemoryBuffer[]::new));
+        chunkedReader = new ParquetChunkedReader(maxPageSizeBytes, /*passReadLimit=*/ 0, options, data.buffers().toArray(HostMemoryBuffer[]::new));
     }
 
     private @Move GpuPage createPageFromConstants(int rowCount)

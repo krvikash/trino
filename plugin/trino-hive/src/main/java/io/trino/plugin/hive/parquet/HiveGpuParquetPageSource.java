@@ -138,7 +138,7 @@ public class HiveGpuParquetPageSource
 
         // Decode the split in bounded chunks so no single GpuPage exceeds maxPageSizeBytes.
         if (chunkedReader == null) {
-            chunkedReader = createChunkedReader();
+            createChunkedReader();
         }
         // cuDF's ParquetChunkedReader is driven by hasNext(); readChunk() alone does not advance to
         // end-of-data. readChunk() may return null or an empty table when a step yields no rows.
@@ -170,7 +170,7 @@ public class HiveGpuParquetPageSource
         return clamp(maxPageSizeBytes / max(bytesPerRow, 1), 1, totalRows);
     }
 
-    private @Own ParquetChunkedReader createChunkedReader()
+    private void createChunkedReader()
     {
         // Force timestamp columns (including INT96) to be read at microsecond precision.
         // cuDF's INT96 decode silently overflows int64 (https://github.com/rapidsai/cudf/issues/22930):
@@ -183,8 +183,9 @@ public class HiveGpuParquetPageSource
         }
 
         @Borrow Buffers data = fabricatedParquet.data().orElseThrow(() -> new IllegalStateException("No fabricated Parquet data available"));
+        verify(chunkedReader == null, "chunkedReader already set");
         // passReadLimit 0 = unlimited; chunkSizeByteLimit bounds each emitted chunk's device size.
-        return new ParquetChunkedReader(maxPageSizeBytes, /*passReadLimit=*/ 0, optionsBuilder.build(), data.buffers().toArray(HostMemoryBuffer[]::new));
+        chunkedReader = new ParquetChunkedReader(maxPageSizeBytes, /*passReadLimit=*/ 0, optionsBuilder.build(), data.buffers().toArray(HostMemoryBuffer[]::new));
     }
 
     private GpuPage createGpuPageFromPrefilledColumns(int rowCount)
