@@ -15,7 +15,7 @@ import static io.airlift.slice.SizeOf.estimatedSizeOf;
 import static io.airlift.slice.SizeOf.instanceSize;
 
 /**
- * Only selected session properties that are used by {@link net.snowflake.client.core.arrow the converters}
+ * Only selected session properties that are used by {@link net.snowflake.client.internal.core.arrow the converters}
  */
 public record SnowflakeSessionParameters(
         @JsonProperty("timestampOutputFormat") String timestampOutputFormat,

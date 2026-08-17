@@ -95,7 +95,7 @@
         <dependency>
             <groupId>net.snowflake</groupId>
             <artifactId>snowflake-jdbc-thin</artifactId>
-            <version>3.26.1</version>
+            <version>4.3.2</version>
             <exclusions>
                 <exclusion>
                     <groupId>com.amazonaws</groupId>
@@ -197,6 +197,20 @@
             <groupId>io.trino</groupId>
             <artifactId>trino-spi</artifactId>
             <scope>provided</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>com.azure</groupId>
+            <artifactId>azure-core</artifactId>
+            <version>1.58.1</version>
+            <scope>runtime</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>com.azure</groupId>
+            <artifactId>azure-core-http-netty</artifactId>
+            <version>1.16.5</version>
+            <scope>runtime</scope>
         </dependency>
 
         <dependency>
@@ -460,6 +474,7 @@
                             <ignoredResourcePattern>aircompressor/.*</ignoredResourcePattern>
                             <!-- snowflake-jdbc-thin (this connector) vs snowflake-jdbc pulled by trino-iceberg -->
                             <ignoredResourcePattern>net/snowflake/.*</ignoredResourcePattern>
+                            <ignoredResourcePattern>minicore/.*</ignoredResourcePattern>
                         </ignoredResourcePatterns>
                         <ignoredClassPatterns combine.children="append">
                             <!-- snowflake-jdbc-thin (this connector) vs snowflake-jdbc pulled by trino-iceberg -->

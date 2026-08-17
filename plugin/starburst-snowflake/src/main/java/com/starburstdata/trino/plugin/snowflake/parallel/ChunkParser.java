@@ -14,8 +14,8 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorSplit;
-import net.snowflake.client.core.SFSession;
-import net.snowflake.client.core.SessionUtil;
+import net.snowflake.client.internal.core.SFSession;
+import net.snowflake.client.internal.core.SessionUtil;
 
 import java.util.HashMap;
 import java.util.List;
@@ -26,7 +26,7 @@ import static com.starburstdata.trino.plugin.snowflake.parallel.Chunk.newFileChu
 import static com.starburstdata.trino.plugin.snowflake.parallel.Chunk.newInlineChunk;
 import static com.starburstdata.trino.plugin.snowflake.parallel.SnowflakeParallelSessionProperties.getTargetSplitSize;
 import static java.util.Collections.emptyMap;
-import static net.snowflake.client.core.ResultUtil.effectiveParamValue;
+import static net.snowflake.client.internal.core.ResultUtil.effectiveParamValue;
 
 final class ChunkParser
 {
@@ -40,7 +40,7 @@ final class ChunkParser
     private ChunkParser() {}
 
     /**
-     * Originates from {@link net.snowflake.client.jdbc.SnowflakeResultSetSerializableV1#parseChunkFiles()}
+     * Originates from {@link net.snowflake.client.internal.jdbc.SnowflakeResultSetSerializableV1#parseChunkFiles()}
      */
     public static List<ConnectorSplit> parseChunks(ConnectorSession session, JsonNode rootNode, SFSession snowflakeSession)
     {

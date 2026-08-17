@@ -21,7 +21,7 @@ import io.trino.spi.type.TimestampType;
 import io.trino.spi.type.TimestampWithTimeZoneType;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.VarcharType;
-import net.snowflake.client.core.arrow.ArrowVectorConverter;
+import net.snowflake.client.internal.core.arrow.ArrowVectorConverter;
 
 import java.sql.Types;
 

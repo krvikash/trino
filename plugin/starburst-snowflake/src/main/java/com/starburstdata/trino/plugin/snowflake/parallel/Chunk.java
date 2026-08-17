@@ -13,7 +13,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.airlift.slice.SizeOf;
-import net.snowflake.client.core.SessionUtil;
+import net.snowflake.client.internal.core.SessionUtil;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;

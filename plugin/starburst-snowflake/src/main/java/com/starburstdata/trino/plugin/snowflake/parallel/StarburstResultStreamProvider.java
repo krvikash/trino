@@ -12,9 +12,9 @@ package com.starburstdata.trino.plugin.snowflake.parallel;
 import com.google.inject.Inject;
 import com.starburstdata.trino.plugin.snowflake.SnowflakeConfig;
 import io.trino.spi.TrinoException;
-import net.snowflake.client.core.ExecTimeTelemetryData;
-import net.snowflake.client.jdbc.RestRequest;
-import net.snowflake.client.jdbc.SnowflakeSQLException;
+import net.snowflake.client.api.exception.SnowflakeSQLException;
+import net.snowflake.client.internal.jdbc.RestRequest;
+import net.snowflake.client.internal.jdbc.telemetry.ExecTimeTelemetryData;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.utils.URIBuilder;
@@ -30,10 +30,10 @@ import java.util.Map;
 import static io.trino.plugin.jdbc.JdbcErrorCode.JDBC_ERROR;
 import static java.util.Objects.requireNonNull;
 import static java.util.Objects.requireNonNullElse;
-import static net.snowflake.client.jdbc.DefaultResultStreamProvider.detectGzipAndGetStream;
+import static net.snowflake.client.internal.jdbc.DefaultResultStreamProvider.detectGzipAndGetStream;
 
 /**
- * {@link net.snowflake.client.jdbc.DefaultResultStreamProvider} adapted to work with the split
+ * {@link net.snowflake.client.internal.jdbc.DefaultResultStreamProvider} adapted to work with the split
  */
 public class StarburstResultStreamProvider
 {

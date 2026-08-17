@@ -12,8 +12,8 @@ package com.starburstdata.trino.plugin.snowflake.parallel.writer;
 import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.type.Decimals;
 import io.trino.spi.type.Type;
-import net.snowflake.client.core.SFException;
-import net.snowflake.client.core.arrow.ArrowVectorConverter;
+import net.snowflake.client.internal.core.SFException;
+import net.snowflake.client.internal.core.arrow.ArrowVectorConverter;
 
 import static java.lang.Math.max;
 import static java.math.RoundingMode.UNNECESSARY;

@@ -10,7 +10,6 @@
 package com.starburstdata.trino.plugin.snowflake.jdbc;
 
 import com.google.common.collect.ImmutableMap;
-import com.snowflake.client.jdbc.SnowflakeDriver;
 import com.starburstdata.trino.plugin.jdbc.JdbcConnectionPoolConfig;
 import com.starburstdata.trino.plugin.jdbc.PoolingConnectionFactory;
 import com.starburstdata.trino.plugin.snowflake.SnowflakeCredentialConfig;
@@ -18,6 +17,7 @@ import io.trino.plugin.base.cache.identity.IdentityCacheMapping;
 import io.trino.plugin.jdbc.BaseJdbcConfig;
 import io.trino.plugin.jdbc.credential.CredentialProvider;
 import io.trino.spi.connector.ConnectorSession;
+import net.snowflake.client.api.driver.SnowflakeDriver;
 
 import java.util.Map;
 import java.util.Properties;

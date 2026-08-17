@@ -30,9 +30,9 @@ import io.trino.spi.TrinoException;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.DynamicFilterSnapshot;
 import io.trino.spi.type.Type;
-import net.snowflake.client.core.ParameterBindingDTO;
-import net.snowflake.client.core.SFSession;
-import net.snowflake.client.jdbc.SnowflakeConnectionV1;
+import net.snowflake.client.internal.api.implementation.connection.SnowflakeConnectionImpl;
+import net.snowflake.client.internal.core.ParameterBindingDTO;
+import net.snowflake.client.internal.core.SFSession;
 import net.snowflake.client.jdbc.StarburstSnowflakeStatementV1;
 
 import java.sql.Connection;
@@ -81,7 +81,7 @@ public class SnowflakeParallelSplitSourceFactory
 
         final SFSession sfSession;
         try {
-            sfSession = connection.unwrap(SnowflakeConnectionV1.class).getSfSession();
+            sfSession = connection.unwrap(SnowflakeConnectionImpl.class).getSfSession();
         }
         catch (SQLException e) {
             try {
@@ -131,7 +131,7 @@ public class SnowflakeParallelSplitSourceFactory
     private Map<String, ParameterBindingDTO> convertToSnowflakeFormatWithStatement(String modifiedQuery, List<QueryParameter> parameters, ConnectorSession session, Connection connection)
             throws SQLException
     {
-        StarburstSnowflakeStatementV1 statement = new StarburstSnowflakeStatementV1(connection.unwrap(SnowflakeConnectionV1.class), modifiedQuery);
+        StarburstSnowflakeStatementV1 statement = new StarburstSnowflakeStatementV1(connection.unwrap(SnowflakeConnectionImpl.class), modifiedQuery);
 
         for (int i = 0; i < parameters.size(); i++) {
             QueryParameter parameter = parameters.get(i);

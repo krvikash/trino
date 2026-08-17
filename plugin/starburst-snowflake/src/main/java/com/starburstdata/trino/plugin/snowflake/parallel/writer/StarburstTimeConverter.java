@@ -10,9 +10,9 @@
 package com.starburstdata.trino.plugin.snowflake.parallel.writer;
 
 import com.google.common.collect.ImmutableList;
-import net.snowflake.client.core.DataConversionContext;
-import net.snowflake.client.core.arrow.BigIntToTimeConverter;
-import net.snowflake.client.core.arrow.IntToTimeConverter;
+import net.snowflake.client.internal.core.DataConversionContext;
+import net.snowflake.client.internal.core.arrow.BigIntToTimeConverter;
+import net.snowflake.client.internal.core.arrow.IntToTimeConverter;
 import net.snowflake.client.jdbc.internal.apache.arrow.vector.BigIntVector;
 import net.snowflake.client.jdbc.internal.apache.arrow.vector.IntVector;
 import net.snowflake.client.jdbc.internal.apache.arrow.vector.ValueVector;

@@ -11,14 +11,16 @@ package com.starburstdata.trino.plugin.snowflake.parallel.writer;
 
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
-import net.snowflake.client.core.SFException;
-import net.snowflake.client.core.arrow.ArrowVectorConverter;
+import net.snowflake.client.internal.core.SFException;
+import net.snowflake.client.internal.core.arrow.ArrowVectorConverter;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.Time;
 import java.sql.Timestamp;
+import java.time.Duration;
+import java.time.Period;
 import java.util.TimeZone;
 
 import static io.trino.spi.type.BigintType.BIGINT;
@@ -169,6 +171,18 @@ class TestBlockWriter
 
         @Override
         public BigDecimal toBigDecimal(int index)
+        {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public Period toPeriod(int index)
+        {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public Duration toDuration(int index)
         {
             throw new UnsupportedOperationException();
         }

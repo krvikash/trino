@@ -9,10 +9,10 @@
  */
 package com.starburstdata.trino.plugin.snowflake.parallel;
 
-import net.snowflake.client.core.DataConversionContext;
-import net.snowflake.client.core.SFBaseSession;
-import net.snowflake.client.core.SFSession;
-import net.snowflake.client.jdbc.internal.snowflake.common.core.SFBinaryFormat;
+import net.snowflake.client.internal.common.core.SFBinaryFormat;
+import net.snowflake.client.internal.core.DataConversionContext;
+import net.snowflake.client.internal.core.SFBaseSession;
+import net.snowflake.client.internal.core.SFSession;
 import net.snowflake.client.jdbc.internal.snowflake.common.core.SnowflakeDateTimeFormat;
 
 import java.time.ZoneId;
@@ -38,7 +38,7 @@ public class StarburstDataConversionContext
     private final SFSession snowflakeSession;
 
     /**
-     * Originates from {@link net.snowflake.client.jdbc.SnowflakeResultSetSerializableV1#setupFieldsFromParameters()}
+     * Originates from {@link net.snowflake.client.internal.jdbc.SnowflakeResultSetSerializableV1#setupFieldsFromParameters()}
      */
     public StarburstDataConversionContext(SnowflakeSessionParameters parameters, int[] scales, long resultVersion)
     {

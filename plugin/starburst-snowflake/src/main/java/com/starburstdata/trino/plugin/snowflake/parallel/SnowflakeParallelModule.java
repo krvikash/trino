@@ -18,9 +18,9 @@ import com.starburstdata.trino.plugin.snowflake.SnowflakeProxyConfig;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
 import io.trino.plugin.jdbc.JdbcSplitManager;
 import io.trino.spi.connector.ConnectorSplitManager;
-import net.snowflake.client.core.HttpClientSettingsKey;
-import net.snowflake.client.core.HttpUtil;
-import net.snowflake.client.core.OCSPMode;
+import net.snowflake.client.internal.core.HttpClientSettingsKey;
+import net.snowflake.client.internal.core.HttpUtil;
+import net.snowflake.client.internal.core.OCSPMode;
 import org.apache.http.impl.client.CloseableHttpClient;
 
 import static com.google.inject.Scopes.SINGLETON;

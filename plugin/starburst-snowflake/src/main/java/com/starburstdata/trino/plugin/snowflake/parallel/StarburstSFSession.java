@@ -9,20 +9,19 @@
  */
 package com.starburstdata.trino.plugin.snowflake.parallel;
 
-import net.snowflake.client.config.SFClientConfig;
-import net.snowflake.client.core.HttpClientSettingsKey;
-import net.snowflake.client.core.OCSPMode;
-import net.snowflake.client.core.QueryContextDTO;
-import net.snowflake.client.core.QueryStatus;
-import net.snowflake.client.core.SFException;
-import net.snowflake.client.core.SFSession;
-import net.snowflake.client.core.SFSessionProperty;
-import net.snowflake.client.jdbc.QueryStatusV2;
-import net.snowflake.client.jdbc.SFConnectionHandler;
-import net.snowflake.client.jdbc.SnowflakeConnectString;
-import net.snowflake.client.jdbc.SnowflakeSQLException;
-import net.snowflake.client.jdbc.SnowflakeType;
-import net.snowflake.client.jdbc.telemetry.Telemetry;
+import net.snowflake.client.api.exception.SnowflakeSQLException;
+import net.snowflake.client.api.resultset.QueryStatus;
+import net.snowflake.client.api.resultset.SnowflakeType;
+import net.snowflake.client.internal.config.SFClientConfig;
+import net.snowflake.client.internal.core.HttpClientSettingsKey;
+import net.snowflake.client.internal.core.OCSPMode;
+import net.snowflake.client.internal.core.QueryContextDTO;
+import net.snowflake.client.internal.core.SFException;
+import net.snowflake.client.internal.core.SFSession;
+import net.snowflake.client.internal.core.SFSessionProperty;
+import net.snowflake.client.internal.jdbc.SFConnectionHandler;
+import net.snowflake.client.internal.jdbc.SnowflakeConnectString;
+import net.snowflake.client.internal.jdbc.telemetry.Telemetry;
 
 import java.sql.DriverPropertyInfo;
 import java.sql.SQLException;
@@ -55,13 +54,6 @@ public class StarburstSFSession
     @Deprecated
     @Override
     public QueryStatus getQueryStatus(String queryID)
-            throws SQLException
-    {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public QueryStatusV2 getQueryStatusV2(String queryID)
             throws SQLException
     {
         throw new UnsupportedOperationException();

@@ -27,11 +27,11 @@ import io.trino.spi.connector.DynamicFilterSnapshot;
 import io.trino.spi.connector.FixedSplitSource;
 import io.trino.spi.metrics.Metrics;
 import jakarta.annotation.Nullable;
-import net.snowflake.client.core.ExecTimeTelemetryData;
-import net.snowflake.client.core.SFException;
-import net.snowflake.client.core.SFSession;
-import net.snowflake.client.core.SFStatement;
-import net.snowflake.client.jdbc.SnowflakeSQLException;
+import net.snowflake.client.api.exception.SnowflakeSQLException;
+import net.snowflake.client.internal.core.SFException;
+import net.snowflake.client.internal.core.SFSession;
+import net.snowflake.client.internal.core.SFStatement;
+import net.snowflake.client.internal.jdbc.telemetry.ExecTimeTelemetryData;
 
 import java.sql.Connection;
 import java.sql.SQLException;

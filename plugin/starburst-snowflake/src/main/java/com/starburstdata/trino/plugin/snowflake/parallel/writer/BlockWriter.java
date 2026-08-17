@@ -10,7 +10,7 @@
 package com.starburstdata.trino.plugin.snowflake.parallel.writer;
 
 import io.trino.spi.block.BlockBuilder;
-import net.snowflake.client.core.SFException;
+import net.snowflake.client.internal.core.SFException;
 
 public interface BlockWriter
 {

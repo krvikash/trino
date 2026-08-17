@@ -13,8 +13,8 @@ import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.type.LongTimestampWithTimeZone;
 import io.trino.spi.type.TimeZoneKey;
 import io.trino.spi.type.Type;
-import net.snowflake.client.core.SFException;
-import net.snowflake.client.core.arrow.ArrowVectorConverter;
+import net.snowflake.client.internal.core.SFException;
+import net.snowflake.client.internal.core.arrow.ArrowVectorConverter;
 
 import java.time.ZonedDateTime;
 
