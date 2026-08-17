@@ -257,7 +257,7 @@
         <dep.jna.version>5.19.1</dep.jna.version>
         <dep.hudi.version>1.2.0</dep.hudi.version>
         <dep.jsonwebtoken.version>0.13.0</dep.jsonwebtoken.version>
-        <dep.jsch.version>0.2.5</dep.jsch.version>
+        <dep.jsch.version>2.28.6</dep.jsch.version>
         <dep.jts.version>1.20.0</dep.jts.version>
         <dep.lucene.version>10.4.0</dep.lucene.version>
         <dep.netty.version>4.2.16.Final</dep.netty.version>
