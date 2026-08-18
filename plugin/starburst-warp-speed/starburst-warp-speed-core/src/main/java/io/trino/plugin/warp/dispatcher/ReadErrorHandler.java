@@ -33,7 +33,6 @@ import java.util.Set;
 import java.util.StringJoiner;
 import java.util.stream.Collectors;
 
-import static io.trino.plugin.warp.WarpErrorCode.WARP_FAILED_TO_ADD_COLUMN_TO_BUILDER;
 import static io.trino.plugin.warp.WarpErrorCode.WARP_NATIVE_READ_OUT_OF_BOUNDS;
 import static io.trino.plugin.warp.WarpErrorCode.WARP_NATIVE_UNRECOVERABLE_ERROR;
 import static io.trino.plugin.warp.WarpErrorCode.WARP_NATIVE_UNRECOVERABLE_MATCH_ERROR;
@@ -70,8 +69,7 @@ public class ReadErrorHandler
                 logger.warn("unrecoverable error: demoting due error code %s rowGroupKey %s queryContextWarmupElements %s", errorCode.getName(), failedRowGroupData.getRowGroupKey(), queryContextWarmupElements);
                 rowGroupDataService.markAsFailed(failedRowGroupData.getRowGroupKey(), queryContextWarmupElements, failedRowGroupData.getPartitionKeys());
             }
-            else if (errorCode.equals(WARP_NATIVE_READ_OUT_OF_BOUNDS.toErrorCode()) ||
-                    errorCode.equals(WARP_FAILED_TO_ADD_COLUMN_TO_BUILDER.toErrorCode())) {
+            else if (errorCode.equals(WARP_NATIVE_READ_OUT_OF_BOUNDS.toErrorCode())) {
                 Set<WarmUpElement> queryContextWarmupElements = getQueryContextWarmupElements(queryContext);
                 Collection<WarmUpElement> allAsPermanentlyFailed = queryContextWarmupElements.stream().map(x -> WarmUpElement.builder(x).state(WarmUpElementState.FAILED_PERMANENTLY).build()).collect(Collectors.toSet());
                 logger.warn("%s error: marking as failed rowGroupKey %s allAsPermanentlyFailed %s", errorCode, failedRowGroupData.getRowGroupKey(), allAsPermanentlyFailed);
