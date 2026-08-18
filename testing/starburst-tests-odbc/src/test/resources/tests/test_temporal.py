@@ -44,7 +44,7 @@ def test_timestamp(cursor):
     cursor.execute(
         "SELECT * FROM (VALUES (" "TIMESTAMP '2012-03-14 1:59:26.535'))" "AS t "
     )
-    cursor.fetchval() == dt.datetime(2012, 3, 14, 1, 59, 26, 535)
+    assert cursor.fetchval() == dt.datetime(2012, 3, 14, 1, 59, 26, 535000)
 
 
 def test_timestamptz_with_non_utc(america_ny_tzid_connection):
