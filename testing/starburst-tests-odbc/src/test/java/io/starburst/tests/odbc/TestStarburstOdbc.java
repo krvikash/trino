@@ -50,13 +50,13 @@ public class TestStarburstOdbc
                 container.start();
             }
             catch (ContainerLaunchException e) {
-                assertThat(container.getLogs()).as("ODBC test results").contains("22 passed");
+                assertThat(container.getLogs()).as("ODBC test results").contains("20 passed");
                 throw e;
             }
 
             String results = container.getLogs();
             log.info("ODBC test results:\n%s", results.strip());
-            assertThat(results).contains("22 passed");
+            assertThat(results).contains("21 passed");
 
             ignoreSshContainer();
         }

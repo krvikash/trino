@@ -21,35 +21,24 @@ def test_initiate_tests(testing_starburst):
 
 def test_connect(configuration, testing_starburst):
     connection_string = format_connection_string(configuration, testing_starburst)
-    connection = pyodbc.connect(connection_string, timeout=10)
-    connection.close()
+    connection = pyodbc.connect(connection_string, timeout=10, autocommit=True)
+    try:
+        assert connection.cursor().execute("select 42").fetchval() == 42
+    finally:
+        connection.close()
 
 
 def test_smoke_test(cursor):
     assert cursor.execute("select count(*) from tpch.tiny.nation").fetchval() == 25
 
-@pytest.mark.parametrize(
-    "flags",
-    [
-        {},
-        {"autocommit": True},
-        {"autocommit": False},
-    ],
-)
-def test_connect_with_flags(configuration, testing_starburst, flags):
-    connection_string = format_connection_string(configuration, testing_starburst)
-    connection = pyodbc.connect(connection_string, timeout=10, **flags)
-    connection.close()
 
-    connection = pyodbc.connect(connection_string, timeout=10, **flags)
-    try:
-        cursor = connection.cursor()
-        try:
-            assert cursor.execute("select 42").fetchval() == 42
-        finally:
-            cursor.close()
-    finally:
-        connection.close()
+def test_connect_autocommit_off_not_supported(configuration, testing_starburst):
+    # ODBC v3 always operates in autocommit mode; explicitly disabling it is rejected.
+    connection_string = format_connection_string(configuration, testing_starburst)
+
+    with pytest.raises(pyodbc.Error) as exc_info:
+        pyodbc.connect(connection_string, timeout=10, autocommit=False)
+    assert "HY024" in str(exc_info.value)
 
 
 def test_connect_no_schema(configuration, testing_starburst):

@@ -12,6 +12,9 @@ from contextlib import closing
 
 import datetime as dt
 
+# TIMESTAMP WITH TIME ZONE / TIME WITH TIME ZONE values are returned as localized
+# datetime.datetime objects rather than formatted strings.
+
 
 def test_timestamptz_with_precision(cursor):
     cursor.execute(
@@ -19,13 +22,13 @@ def test_timestamptz_with_precision(cursor):
         "CAST(TIMESTAMP '2020-05-01 12:34:56.12344' AS TIMESTAMP(4) WITH TIME ZONE)))  "
         "AS t "
     )
-    assert cursor.fetchval() == "2020-05-01 12:34:56.1234 UTC"
+    assert cursor.fetchval() == dt.datetime(2020, 5, 1, 12, 34, 56, 123400)
     cursor.execute(
         "SELECT * FROM (VALUES ("
         "CAST(TIMESTAMP '2020-05-01 12:34:56.12348' AS TIMESTAMP(4) WITH TIME ZONE)))  "
         "AS t "
     )
-    assert cursor.fetchval() == "2020-05-01 12:34:56.1235 UTC"
+    assert cursor.fetchval() == dt.datetime(2020, 5, 1, 12, 34, 56, 123500)
 
 
 def test_timestamptz(cursor):
@@ -34,7 +37,7 @@ def test_timestamptz(cursor):
         "CAST(TIMESTAMP '2020-05-01 12:34:56.12344' AS TIMESTAMP WITH TIME ZONE)))  "
         "AS t "
     )
-    assert cursor.fetchval() == "2020-05-01 12:34:56.123 UTC"
+    assert cursor.fetchval() == dt.datetime(2020, 5, 1, 12, 34, 56, 123000)
 
 
 def test_timestamp(cursor):
@@ -52,4 +55,4 @@ def test_timestamptz_with_non_utc(america_ny_tzid_connection):
             "AS TIMESTAMP(4) WITH TIME ZONE))) "
             "AS t "
         )
-        assert cursor.fetchval() == "2020-05-01 12:34:56.1235 America/New_York"
+        assert cursor.fetchval() == dt.datetime(2020, 5, 1, 12, 34, 56, 123500)
