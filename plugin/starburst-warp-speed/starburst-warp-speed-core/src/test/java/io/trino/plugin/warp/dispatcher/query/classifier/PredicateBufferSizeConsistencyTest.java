@@ -23,6 +23,7 @@ import io.trino.plugin.warp.juffer.BufferAllocator;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import io.trino.plugin.warp.storage.engine.StubsStorageEngineConstants;
 import io.trino.plugin.warp.storage.read.predicates.RangesPredicateFiller;
+import io.trino.plugin.warp.storage.read.predicates.ValuesPredicateFiller;
 import io.trino.plugin.warp.type.TypeUtils;
 import io.trino.spi.predicate.Domain;
 import io.trino.spi.predicate.Range;
@@ -44,10 +45,11 @@ import static org.mockito.Mockito.when;
 
 /**
  * Allocates exactly the size {@link PredicateUtil#calcPredicateData} computes and runs the real
- * {@link RangesPredicateFiller} against it, so a mismatch surfaces as an overflow rather than a byte
- * count we thought to encode. {@link #castFromTimestampBufferIsLargeEnoughToFill} is the ENG-21561
- * shape; it's masked while {@link #castWideningBufferIsLargeEnoughToFill}'s bug is also present, since
- * the wider timestamp source then over-allocates by more than the missing precision byte.
+ * {@link RangesPredicateFiller} or {@link ValuesPredicateFiller} against it, so a mismatch surfaces as
+ * an overflow rather than a byte count we thought to encode. {@link #castFromTimestampBufferIsLargeEnoughToFill}
+ * is the ENG-21561 shape; it's masked while {@link #castWideningBufferIsLargeEnoughToFill}'s bug is also
+ * present, since the wider timestamp source then over-allocates by more than the missing precision byte.
+ * {@link #dayWeekFamilyValuesBufferIsLargeEnoughToFill} is the ENG-22836 shape.
  */
 class PredicateBufferSizeConsistencyTest
 {
@@ -73,6 +75,56 @@ class PredicateBufferSizeConsistencyTest
                 IntegerType.INTEGER,
                 Domain.create(ValueSet.ofRanges(Range.range(BigintType.BIGINT, 1L, true, 5L, true)), false),
                 RecTypeCode.REC_TYPE_BIGINT);
+    }
+
+    /**
+     * day_of_year(date_col) IN (...) - the ENG-22836 shape. Like a CAST, the DAY/WEEK family (day(),
+     * day_of_week(), day_of_year(), week(), year_of_week()) always returns bigint (8-byte), so the
+     * predicate buffer must be sized off that result type rather than the 4-byte DATE source column.
+     */
+    @Test
+    public void dayWeekFamilyValuesBufferIsLargeEnoughToFill()
+    {
+        for (FunctionType functionType : List.of(
+                FunctionType.FUNCTION_TYPE_DAY,
+                FunctionType.FUNCTION_TYPE_DAY_OF_WEEK,
+                FunctionType.FUNCTION_TYPE_DAY_OF_YEAR,
+                FunctionType.FUNCTION_TYPE_WEEK,
+                FunctionType.FUNCTION_TYPE_YEAR_OF_WEEK)) {
+            assertValuesBufferFillsWithoutOverflow(functionType);
+        }
+    }
+
+    private static void assertValuesBufferFillsWithoutOverflow(FunctionType functionType)
+    {
+        Domain domain = Domain.create(
+                ValueSet.ofRanges(Range.equal(BigintType.BIGINT, 1L), Range.equal(BigintType.BIGINT, 5L), Range.equal(BigintType.BIGINT, 9L)),
+                false);
+        NativeExpression nativeExpression = new NativeExpression(
+                PredicateType.PREDICATE_TYPE_VALUES,
+                functionType,
+                domain,
+                false,
+                true,
+                List.of(),
+                TransformFunction.NONE);
+        StorageEngineConstants storageEngineConstants = new StubsStorageEngineConstants();
+        int sourceRecTypeLength = TypeUtils.getTypeLength(DateType.DATE, storageEngineConstants.getVarcharMaxLen());
+        int functionTargetRecTypeLength = TypeUtils.getTypeLength(domain.getType(), storageEngineConstants.getVarcharMaxLen());
+        PredicateData predicateData = PredicateUtil.calcPredicateData(
+                nativeExpression,
+                sourceRecTypeLength,
+                false,
+                DateType.DATE,
+                functionTargetRecTypeLength);
+
+        BufferAllocator bufferAllocator = mock(BufferAllocator.class);
+        when(bufferAllocator.createBuffView(any())).thenAnswer(invocation -> ((ByteBuffer) invocation.getArgument(0)).duplicate());
+        ValuesPredicateFiller filler = new ValuesPredicateFiller(bufferAllocator);
+
+        ByteBuffer buffer = ByteBuffer.allocate(predicateData.getPredicateSize());
+        assertThatCode(() -> filler.fillPredicate(domain, buffer, predicateData))
+                .doesNotThrowAnyException();
     }
 
     private static void assertSizedBufferFillsWithoutOverflow(Type sourceType, Domain domain, RecTypeCode castTargetRecTypeCode)

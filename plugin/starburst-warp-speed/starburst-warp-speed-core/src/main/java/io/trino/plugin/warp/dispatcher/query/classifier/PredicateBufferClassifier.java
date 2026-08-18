@@ -154,8 +154,8 @@ class PredicateBufferClassifier
             int recTypeLength = queryMatchData.getWarmUpElement().getRecTypeLength();
             if (nativeExpressionOptional.isPresent()) {
                 domain = nativeExpressionOptional.get().domain();
-                // CAST predicates: the fillers write the payload at the target's width, not recTypeLength (the source's).
-                int castTargetRecTypeLength = nativeExpressionOptional.get().functionType() == FunctionType.FUNCTION_TYPE_CAST
+                // CAST/DAY-WEEK predicates size off the domain's type width, not recTypeLength - see usesDomainWidth().
+                int functionTargetRecTypeLength = PredicateUtil.usesDomainWidth(nativeExpressionOptional.get().functionType())
                         ? TypeUtils.getTypeLength(domain.getType(), storageEngineConstants.getVarcharMaxLen())
                         : recTypeLength;
                 predicateData = calcPredicateData(
@@ -163,7 +163,7 @@ class PredicateBufferClassifier
                         recTypeLength,
                         transformAllowed,
                         columnType,
-                        castTargetRecTypeLength);
+                        functionTargetRecTypeLength);
             }
             else {
                 predicateData = calcPredicateData(

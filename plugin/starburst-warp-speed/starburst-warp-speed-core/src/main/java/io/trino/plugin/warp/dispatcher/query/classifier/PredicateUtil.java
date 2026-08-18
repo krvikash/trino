@@ -58,7 +58,7 @@ public class PredicateUtil
                 (type.isOrderable() || warmUpElement.get().getWarpColumn().isTransformedColumn());
     }
 
-    static PredicateData calcPredicateData(NativeExpression nativeExpression, int recTypeLength, boolean transformAllowed, Type columnType, int castTargetRecTypeLength)
+    static PredicateData calcPredicateData(NativeExpression nativeExpression, int recTypeLength, boolean transformAllowed, Type columnType, int functionTargetRecTypeLength)
     {
         int numMatchElements;
         int predicateSize = PREDICATE_HEADER_SIZE;
@@ -74,8 +74,8 @@ public class PredicateUtil
         if (functionType == FunctionType.FUNCTION_TYPE_TRANSFORMED) {
             functionType = FunctionType.FUNCTION_TYPE_NONE;
         }
-        // CAST predicates: fillers write the payload at the target's width, not the source's.
-        int elementRecTypeLength = (functionType == FunctionType.FUNCTION_TYPE_CAST) ? castTargetRecTypeLength : recTypeLength;
+        // CAST/DAY-WEEK predicates size off the domain's type width, not recTypeLength - see usesDomainWidth().
+        int elementRecTypeLength = usesDomainWidth(functionType) ? functionTargetRecTypeLength : recTypeLength;
         if (functionType != FunctionType.FUNCTION_TYPE_NONE) {
             predicateSize += Byte.BYTES;
             // the precision byte is keyed on the source column type, not the CAST target - match it.
@@ -352,6 +352,20 @@ public class PredicateUtil
             return false;
         }
         return true;
+    }
+
+    // A predicate's Domain (io.trino.spi.predicate.Domain) pairs the matched ValueSet with the Type
+    // those values are expressed in. Usually that Type matches the source column, so recTypeLength
+    // (the column's on-disk width) is also the payload width the fillers write at. CAST and the
+    // DAY/WEEK family (day(), day_of_week(), day_of_year(), week(), year_of_week()) are exceptions:
+    // Trino gives the domain the function's result type - e.g. bigint for day_of_year(date_col),
+    // not the DATE column's 4-byte width - so the buffer must be sized off domain.getType() instead.
+    public static boolean usesDomainWidth(FunctionType functionType)
+    {
+        return switch (functionType) {
+            case FUNCTION_TYPE_CAST, FUNCTION_TYPE_DAY, FUNCTION_TYPE_DAY_OF_WEEK, FUNCTION_TYPE_DAY_OF_YEAR, FUNCTION_TYPE_WEEK, FUNCTION_TYPE_YEAR_OF_WEEK -> true;
+            default -> false;
+        };
     }
 
     public static boolean canMapMatchCollect(Type type, PredicateType predicateType, FunctionType functionType, int numValues)
