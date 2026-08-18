@@ -52,6 +52,7 @@ import io.trino.sql.ir.WhenClause;
 import io.trino.sql.planner.Symbol;
 import io.trino.sql.planner.assertions.SymbolAliases;
 import io.trino.transaction.TestingTransactionManager;
+import io.trino.type.CharVarcharCoercion;
 import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
@@ -61,6 +62,7 @@ import java.util.Optional;
 import java.util.Set;
 
 import static io.trino.SessionTestUtils.TEST_SESSION;
+import static io.trino.SystemSessionProperties.getCharVarcharCoercion;
 import static io.trino.spi.StandardErrorCode.DIVISION_BY_ZERO;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
@@ -91,6 +93,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 public class TestExpressionInterpreter
 {
+    private static final CharVarcharCoercion CHAR_VARCHAR_COERCION = getCharVarcharCoercion(TEST_SESSION);
     private static final Set<Symbol> SYMBOLS = ImmutableSet.of(
             new Symbol(INTEGER, "bound_value"),
             new Symbol(INTEGER, "unbound_value"));
@@ -273,13 +276,13 @@ public class TestExpressionInterpreter
     public void testIsNotNull()
     {
         assertOptimizedEquals(
-                not(FUNCTIONS.getMetadata(), new IsNull(new Constant(UNKNOWN, null))),
+                not(FUNCTIONS.getMetadata(), CHAR_VARCHAR_COERCION, new IsNull(new Constant(UNKNOWN, null))),
                 FALSE);
         assertOptimizedEquals(
-                not(FUNCTIONS.getMetadata(), new IsNull(new Constant(INTEGER, 1L))),
+                not(FUNCTIONS.getMetadata(), CHAR_VARCHAR_COERCION, new IsNull(new Constant(INTEGER, 1L))),
                 TRUE);
         assertOptimizedEquals(
-                not(FUNCTIONS.getMetadata(), new IsNull(new Call(ADD_INTEGER, ImmutableList.of(new Constant(INTEGER, null), new Constant(INTEGER, 1L))))),
+                not(FUNCTIONS.getMetadata(), CHAR_VARCHAR_COERCION, new IsNull(new Call(ADD_INTEGER, ImmutableList.of(new Constant(INTEGER, null), new Constant(INTEGER, 1L))))),
                 FALSE);
     }
 
@@ -318,17 +321,17 @@ public class TestExpressionInterpreter
     public void testNot()
     {
         assertOptimizedEquals(
-                not(PLANNER_CONTEXT.getMetadata(), TRUE),
+                not(PLANNER_CONTEXT.getMetadata(), CHAR_VARCHAR_COERCION, TRUE),
                 FALSE);
         assertOptimizedEquals(
-                not(PLANNER_CONTEXT.getMetadata(), FALSE),
+                not(PLANNER_CONTEXT.getMetadata(), CHAR_VARCHAR_COERCION, FALSE),
                 TRUE);
         assertOptimizedEquals(
-                not(PLANNER_CONTEXT.getMetadata(), new Constant(BOOLEAN, null)),
+                not(PLANNER_CONTEXT.getMetadata(), CHAR_VARCHAR_COERCION, new Constant(BOOLEAN, null)),
                 new Constant(BOOLEAN, null));
         assertOptimizedEquals(
-                not(PLANNER_CONTEXT.getMetadata(), comparison(EQUAL, new Reference(INTEGER, "unbound_value"), new Constant(INTEGER, 1L))),
-                not(PLANNER_CONTEXT.getMetadata(), comparison(EQUAL, new Reference(INTEGER, "unbound_value"), new Constant(INTEGER, 1L))));
+                not(PLANNER_CONTEXT.getMetadata(), CHAR_VARCHAR_COERCION, comparison(EQUAL, new Reference(INTEGER, "unbound_value"), new Constant(INTEGER, 1L))),
+                not(PLANNER_CONTEXT.getMetadata(), CHAR_VARCHAR_COERCION, comparison(EQUAL, new Reference(INTEGER, "unbound_value"), new Constant(INTEGER, 1L))));
     }
 
     @Test
@@ -1040,6 +1043,6 @@ public class TestExpressionInterpreter
 
     private static MatchClause equalityClause(Expression value, Expression result)
     {
-        return IrExpressions.equalityClause(PLANNER_CONTEXT.getMetadata(), new Symbol(value.type(), "operand"), value, result);
+        return IrExpressions.equalityClause(PLANNER_CONTEXT.getMetadata(), CHAR_VARCHAR_COERCION, new Symbol(value.type(), "operand"), value, result);
     }
 }

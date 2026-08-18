@@ -18,6 +18,7 @@ import io.trino.metadata.Metadata;
 import io.trino.sql.dialect.trino.ProgramBuilder;
 import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Value;
+import io.trino.type.CharVarcharCoercion;
 
 import java.util.List;
 import java.util.Map;
@@ -51,14 +52,15 @@ public class SingleGroupMerger
             Map<Operation, Operation> operationToDownstream,
             ProgramBuilder.ValueNameAllocator nameAllocator,
             Map<Value, Operation> newOperations,
-            Metadata metadata)
+            Metadata metadata,
+            CharVarcharCoercion charVarcharCoercion)
     {
         SingleGroupProcessor processor = SINGLE_GROUP_PROCESSORS.stream()
                 .filter(singleGroupProcessor -> singleGroupProcessor.processes(branches.getFirst().nextOperation().operation()))
                 .findFirst()
                 .orElseThrow();
 
-        return processor.mergeNextSingleGroupOperation(unifiedOperation, branches, checkpoints, branchToCheckpoint, operationToDownstream, nameAllocator, newOperations, metadata);
+        return processor.mergeNextSingleGroupOperation(unifiedOperation, branches, checkpoints, branchToCheckpoint, operationToDownstream, nameAllocator, newOperations, metadata, charVarcharCoercion);
     }
 
     /**
@@ -119,6 +121,7 @@ public class SingleGroupMerger
                 Map<Operation, Operation> operationToDownstream,
                 ProgramBuilder.ValueNameAllocator nameAllocator,
                 Map<Value, Operation> newOperations,
-                Metadata metadata);
+                Metadata metadata,
+                CharVarcharCoercion charVarcharCoercion);
     }
 }

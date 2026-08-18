@@ -30,6 +30,7 @@ import io.trino.sql.planner.optimizations.ctereuse.CteReuse.TraversalState;
 import io.trino.sql.planner.optimizations.ctereuse.CteReuse.UnifiedStates;
 import io.trino.sql.planner.optimizations.ctereuse.CteReuse.UnifiedStatesAndCheckpointMapping;
 import io.trino.sql.planner.optimizations.ctereuse.SingleGroupMerger.SingleGroupMergeDecomposition;
+import io.trino.type.CharVarcharCoercion;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -171,7 +172,8 @@ public class ExchangeMerger
             Map<Operation, Operation> operationToDownstream,
             ProgramBuilder.ValueNameAllocator nameAllocator,
             Map<Value, Operation> newOperations,
-            Metadata metadata)
+            Metadata metadata,
+            CharVarcharCoercion charVarcharCoercion)
     {
         checkArgument(branches.size() > 1, "must provide at least two branches for merging");
         // TODO reuse the code or make it stateful so that we can record and use the rebased operation from the identifyExchangesToMerge() method

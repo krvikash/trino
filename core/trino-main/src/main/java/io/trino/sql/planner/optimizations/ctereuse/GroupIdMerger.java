@@ -30,6 +30,7 @@ import io.trino.sql.planner.optimizations.ctereuse.CteReuse.TraversalState;
 import io.trino.sql.planner.optimizations.ctereuse.CteReuse.UnifiedStates;
 import io.trino.sql.planner.optimizations.ctereuse.CteReuse.UnifiedStatesAndCheckpointMapping;
 import io.trino.sql.planner.optimizations.ctereuse.SingleGroupMerger.SingleGroupMergeDecomposition;
+import io.trino.type.CharVarcharCoercion;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -141,7 +142,8 @@ public class GroupIdMerger
             Map<Operation, Operation> operationToDownstream,
             ProgramBuilder.ValueNameAllocator nameAllocator,
             Map<Value, Operation> newOperations,
-            Metadata metadata)
+            Metadata metadata,
+            CharVarcharCoercion charVarcharCoercion)
     {
         Type unifiedRowType = relationRowType(trinoType(unifiedOperation.result().type()));
         int unifiedRowFieldCount = unifiedRowType.getTypeParameters().size();

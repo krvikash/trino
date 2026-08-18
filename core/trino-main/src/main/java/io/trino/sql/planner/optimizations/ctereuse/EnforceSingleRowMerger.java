@@ -28,6 +28,7 @@ import io.trino.sql.newir.Value;
 import io.trino.sql.planner.optimizations.ctereuse.CteReuse.TraversalState;
 import io.trino.sql.planner.optimizations.ctereuse.CteReuse.UnifiedStates;
 import io.trino.sql.planner.optimizations.ctereuse.SingleGroupMerger.SingleGroupMergeDecomposition;
+import io.trino.type.CharVarcharCoercion;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -115,7 +116,8 @@ public class EnforceSingleRowMerger
             Map<Operation, Operation> operationToDownstream,
             ProgramBuilder.ValueNameAllocator nameAllocator,
             Map<Value, Operation> newOperations,
-            Metadata metadata)
+            Metadata metadata,
+            CharVarcharCoercion charVarcharCoercion)
     {
         checkArgument(branches.stream().allMatch(branch -> isTrue(branch.traversalContext().predicateToApply())), "All branches must have a TRUE residual predicate");
         EnforceSingleRow unifiedEnforceSingleRow = new EnforceSingleRow(

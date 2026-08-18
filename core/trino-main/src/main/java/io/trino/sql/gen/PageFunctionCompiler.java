@@ -62,6 +62,7 @@ import io.trino.sql.ir.Lambda;
 import io.trino.sql.ir.Reference;
 import io.trino.sql.planner.CompilerConfig;
 import io.trino.sql.planner.Symbol;
+import io.trino.type.CharVarcharCoercion;
 import jakarta.annotation.Nullable;
 import org.objectweb.asm.MethodTooLargeException;
 import org.weakref.jmx.Managed;
@@ -123,8 +124,10 @@ public class PageFunctionCompiler
 
     private record CompiledProjection(MethodHandle constructor, boolean deterministic) {}
 
-    private final NonEvictableCache<Expression, CompiledProjection> projectionCache;
-    private final NonEvictableCache<Expression, Class<? extends PageFilter>> filterCache;
+    private record CacheKey(Expression expression, CharVarcharCoercion charVarcharCoercion) {}
+
+    private final NonEvictableCache<CacheKey, CompiledProjection> projectionCache;
+    private final NonEvictableCache<CacheKey, Class<? extends PageFilter>> filterCache;
 
     private final CacheStatsMBean projectionCacheStats;
     private final CacheStatsMBean filterCacheStats;
@@ -189,7 +192,7 @@ public class PageFunctionCompiler
         return filterCacheStats;
     }
 
-    public Supplier<PageProjection> compileProjection(Expression projection, Map<Symbol, Integer> layout, Optional<String> classNameSuffix)
+    public Supplier<PageProjection> compileProjection(Expression projection, Map<Symbol, Integer> layout, CharVarcharCoercion charVarcharCoercion, Optional<String> classNameSuffix)
     {
         requireNonNull(projection, "projection is null");
 
@@ -208,7 +211,7 @@ public class PageFunctionCompiler
 
         if (projection instanceof Call call && call.function().functionKind() == BATCH) {
             List<Supplier<PageProjection>> batchInputProjections = call.arguments().stream()
-                    .map(argument -> compileProjection(argument, layout, classNameSuffix))
+                    .map(argument -> compileProjection(argument, layout, charVarcharCoercion, classNameSuffix))
                     .collect(toImmutableList());
             ResolvedFunction resolvedFunction = call.function();
             BatchFunctionImplementation batchFunctionImplementation = functionManager.getBatchFunctionImplementation(resolvedFunction);
@@ -223,12 +226,12 @@ public class PageFunctionCompiler
         if (containsBatchFunction(projection)) {
             BatchFunctionsRewriter.Result rewriteResult = rewriteBatchFunctionsToVariableReferences(projection);
             List<Supplier<PageProjection>> batchProjections = rewriteResult.batchExpressions().stream()
-                    .map(expression -> compileProjection(expression, layout, classNameSuffix))
+                    .map(expression -> compileProjection(expression, layout, charVarcharCoercion, classNameSuffix))
                     .collect(toImmutableList());
             Expression rewrittenExpression = rewriteResult.rewrittenExpression();
             BatchFunctionsRewriter.Layout batchLayout = BatchFunctionsRewriter.buildBatchOutputLayout(rewrittenExpression, layout, rewriteResult.batchExpressions());
             // Synthetic batch_output_N symbols vary per call, so do not cache.
-            CompiledProjection compiled = compileProjectionClass(rewrittenExpression, batchLayout.compactLayout(), classNameSuffix);
+            CompiledProjection compiled = compileProjectionClass(rewrittenExpression, batchLayout.compactLayout(), charVarcharCoercion, classNameSuffix);
             return () -> new ScalarProjectionOverBatchFunctions(
                     batchProjections.stream().map(Supplier::get).collect(toImmutableList()),
                     new GeneratedPageProjection(rewrittenExpression, compiled.deterministic(), batchLayout.inputChannels(), compiled.constructor()));
@@ -238,10 +241,10 @@ public class PageFunctionCompiler
         CompiledProjection compiled;
         try {
             if (projectionCache == null) {
-                compiled = compileProjectionClass(projection, result.compactLayout(), classNameSuffix);
+                compiled = compileProjectionClass(projection, result.compactLayout(), charVarcharCoercion, classNameSuffix);
             }
             else {
-                compiled = projectionCache.get(projection, () -> compileProjectionClass(projection, result.compactLayout(), Optional.empty()));
+                compiled = projectionCache.get(new CacheKey(projection, charVarcharCoercion), () -> compileProjectionClass(projection, result.compactLayout(), charVarcharCoercion, Optional.empty()));
             }
         }
         catch (UncheckedExecutionException e) {
@@ -258,12 +261,12 @@ public class PageFunctionCompiler
         return () -> new GeneratedPageProjection(projection, deterministic, result.inputChannels(), constructor);
     }
 
-    private CompiledProjection compileProjectionClass(Expression projection, Map<Symbol, Integer> compactLayout, Optional<String> classNameSuffix)
+    private CompiledProjection compileProjectionClass(Expression projection, Map<Symbol, Integer> compactLayout, CharVarcharCoercion charVarcharCoercion, Optional<String> classNameSuffix)
     {
         Class<?> pageProjectionWorkClass;
         try {
             CallSiteBinder callSiteBinder = new CallSiteBinder();
-            ExpressionGenerationContext context = definePageProjectWorkClass(projection, compactLayout, callSiteBinder, classNameSuffix);
+            ExpressionGenerationContext context = definePageProjectWorkClass(projection, compactLayout, callSiteBinder, charVarcharCoercion, classNameSuffix);
             List<ClassDefinition> generatedClasses = context.generateChunkClasses();
             pageProjectionWorkClass = context.defineClasses(PageProjectionWork.class, new DynamicClassLoader(getClass().getClassLoader(), callSiteBinder.getBindings()), generatedClasses);
         }
@@ -290,7 +293,7 @@ public class PageFunctionCompiler
         return makeClassName("PageProjectionWork", classNameSuffix);
     }
 
-    private ExpressionGenerationContext definePageProjectWorkClass(Expression projection, Map<Symbol, Integer> compactLayout, CallSiteBinder callSiteBinder, Optional<String> classNameSuffix)
+    private ExpressionGenerationContext definePageProjectWorkClass(Expression projection, Map<Symbol, Integer> compactLayout, CallSiteBinder callSiteBinder, CharVarcharCoercion charVarcharCoercion, Optional<String> classNameSuffix)
     {
         ClassDefinition classDefinition = new ClassDefinition(
                 a(PUBLIC, FINAL),
@@ -314,8 +317,8 @@ public class PageFunctionCompiler
         generateProcessMethod(classDefinition, blockBuilderField, sessionField, selectedPositionsField);
 
         // evaluate
-        Map<Lambda, CompiledLambda> compiledLambdaMap = generateMethodsForLambda(classDefinition, callSiteBinder, cachedInstanceBinder, projection, functionManager, metadata, typeManager, maxMethodComplexity);
-        generateEvaluateMethod(classDefinition, context, callSiteBinder, cachedInstanceBinder, compiledLambdaMap, projection, compactLayout, blockBuilderField);
+        Map<Lambda, CompiledLambda> compiledLambdaMap = generateMethodsForLambda(classDefinition, callSiteBinder, cachedInstanceBinder, projection, functionManager, metadata, typeManager, maxMethodComplexity, charVarcharCoercion);
+        generateEvaluateMethod(classDefinition, context, callSiteBinder, cachedInstanceBinder, compiledLambdaMap, projection, compactLayout, charVarcharCoercion, blockBuilderField);
 
         // constructor
         Parameter blockBuilder = arg("blockBuilder", PreSizedBlockBuilder.class);
@@ -399,6 +402,7 @@ public class PageFunctionCompiler
             Map<Lambda, CompiledLambda> compiledLambdaMap,
             Expression projection,
             Map<Symbol, Integer> compactLayout,
+            CharVarcharCoercion charVarcharCoercion,
             FieldDefinition blockBuilder)
     {
         Parameter session = arg("session", ConnectorSession.class);
@@ -430,6 +434,7 @@ public class PageFunctionCompiler
                 metadata,
                 typeManager,
                 maxMethodComplexity,
+                charVarcharCoercion,
                 compiledLambdaMap,
                 ImmutableList.of(session, position),
                 Optional.of(new ParentMethodContext(context, ImmutableList.of(wasNullVariable))));
@@ -441,17 +446,17 @@ public class PageFunctionCompiler
         return method;
     }
 
-    public Supplier<PageFilter> compileFilter(Expression filter, Map<Symbol, Integer> layout, Optional<String> classNameSuffix)
+    public Supplier<PageFilter> compileFilter(Expression filter, Map<Symbol, Integer> layout, CharVarcharCoercion charVarcharCoercion, Optional<String> classNameSuffix)
     {
         requireNonNull(filter, "filter is null");
 
         Class<? extends PageFilter> filterClass;
         try {
             if (filterCache == null) {
-                filterClass = compileFilterClass(filter, layout, classNameSuffix);
+                filterClass = compileFilterClass(filter, layout, charVarcharCoercion, classNameSuffix);
             }
             else {
-                filterClass = filterCache.get(filter, () -> compileFilterClass(filter, layout, Optional.empty()));
+                filterClass = filterCache.get(new CacheKey(filter, charVarcharCoercion), () -> compileFilterClass(filter, layout, charVarcharCoercion, Optional.empty()));
             }
         }
         catch (UncheckedExecutionException e) {
@@ -475,13 +480,13 @@ public class PageFunctionCompiler
         };
     }
 
-    private Class<? extends PageFilter> compileFilterClass(Expression filter, Map<Symbol, Integer> layout, Optional<String> classNameSuffix)
+    private Class<? extends PageFilter> compileFilterClass(Expression filter, Map<Symbol, Integer> layout, CharVarcharCoercion charVarcharCoercion, Optional<String> classNameSuffix)
     {
         PageFieldsToInputParametersRewriter.Result result = rewritePageFieldsToInputParameters(filter, layout);
 
         try {
             CallSiteBinder callSiteBinder = new CallSiteBinder();
-            ExpressionGenerationContext context = defineFilterClass(filter, result.compactLayout(), callSiteBinder, classNameSuffix);
+            ExpressionGenerationContext context = defineFilterClass(filter, result.compactLayout(), callSiteBinder, charVarcharCoercion, classNameSuffix);
             List<ClassDefinition> generatedClasses = context.generateChunkClasses();
             return context.defineClasses(PageFilter.class, new DynamicClassLoader(getClass().getClassLoader(), callSiteBinder.getBindings()), generatedClasses);
         }
@@ -504,7 +509,7 @@ public class PageFunctionCompiler
         return makeClassName(PageFilter.class.getSimpleName(), classNameSuffix);
     }
 
-    private ExpressionGenerationContext defineFilterClass(Expression filter, Map<Symbol, Integer> compactLayout, CallSiteBinder callSiteBinder, Optional<String> classNameSuffix)
+    private ExpressionGenerationContext defineFilterClass(Expression filter, Map<Symbol, Integer> compactLayout, CallSiteBinder callSiteBinder, CharVarcharCoercion charVarcharCoercion, Optional<String> classNameSuffix)
     {
         ClassDefinition classDefinition = new ClassDefinition(
                 a(PUBLIC, FINAL),
@@ -517,8 +522,8 @@ public class PageFunctionCompiler
 
         FieldDefinition inputChannelsField = classDefinition.declareField(a(PRIVATE, FINAL), "inputChannels", InputChannels.class);
 
-        Map<Lambda, CompiledLambda> compiledLambdaMap = generateMethodsForLambda(classDefinition, callSiteBinder, cachedInstanceBinder, filter, functionManager, metadata, typeManager, maxMethodComplexity);
-        generateFilterMethod(classDefinition, context, callSiteBinder, cachedInstanceBinder, compiledLambdaMap, filter, compactLayout);
+        Map<Lambda, CompiledLambda> compiledLambdaMap = generateMethodsForLambda(classDefinition, callSiteBinder, cachedInstanceBinder, filter, functionManager, metadata, typeManager, maxMethodComplexity, charVarcharCoercion);
+        generateFilterMethod(classDefinition, context, callSiteBinder, cachedInstanceBinder, compiledLambdaMap, filter, compactLayout, charVarcharCoercion);
 
         FieldDefinition selectedPositions = classDefinition.declareField(a(PRIVATE), "selectedPositions", boolean[].class);
         generatePageFilterMethod(classDefinition, selectedPositions);
@@ -617,7 +622,8 @@ public class PageFunctionCompiler
             CachedInstanceBinder cachedInstanceBinder,
             Map<Lambda, CompiledLambda> compiledLambdaMap,
             Expression filter,
-            Map<Symbol, Integer> compactLayout)
+            Map<Symbol, Integer> compactLayout,
+            CharVarcharCoercion charVarcharCoercion)
     {
         Parameter session = arg("session", ConnectorSession.class);
         Parameter page = arg("page", SourcePage.class);
@@ -651,6 +657,7 @@ public class PageFunctionCompiler
                 metadata,
                 typeManager,
                 maxMethodComplexity,
+                charVarcharCoercion,
                 compiledLambdaMap,
                 ImmutableList.of(session, page, position),
                 Optional.of(new ParentMethodContext(

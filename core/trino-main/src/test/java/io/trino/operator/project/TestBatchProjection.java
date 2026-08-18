@@ -75,6 +75,7 @@ import static io.trino.sql.ir.IrExpressions.call;
 import static io.trino.testing.DataProviders.cartesianProduct;
 import static io.trino.testing.DataProviders.toDataProvider;
 import static io.trino.testing.DataProviders.trueFalse;
+import static io.trino.type.CharVarcharCoercion.SQL_STANDARD;
 import static java.lang.Double.doubleToLongBits;
 import static java.lang.Math.toIntExact;
 import static java.lang.invoke.MethodHandles.lookup;
@@ -294,6 +295,7 @@ final class TestBatchProjection
         Expression batchFilter = call(BATCH_LESS_THAN_BIGINT, COL_A, new Constant(BIGINT, CONSTANT));
 
         Optional<Supplier<FilterEvaluator>> evaluator = FilterEvaluator.createColumnarFilterEvaluator(
+                SQL_STANDARD,
                 true,
                 false,
                 false,
@@ -565,7 +567,7 @@ final class TestBatchProjection
 
     private static List<Block> processProjection(List<Page> inputPages, List<SelectedPositions> positions, Expression projection)
     {
-        PageProjection pageProjection = FUNCTION_RESOLUTION.getPageFunctionCompiler().compileProjection(projection, LAYOUT, Optional.empty()).get();
+        PageProjection pageProjection = FUNCTION_RESOLUTION.getPageFunctionCompiler().compileProjection(projection, LAYOUT, SQL_STANDARD, Optional.empty()).get();
         ImmutableList.Builder<Block> outputBlocksBuilder = ImmutableList.builder();
         for (int i = 0; i < inputPages.size(); i++) {
             Page inputPage = inputPages.get(i);
@@ -646,12 +648,12 @@ final class TestBatchProjection
 
     private static void verifyFilter(List<Page> inputPages, Expression filter)
     {
-        PageFilter pageFilter = compilePageFilterWithBatchFunction(filter, LAYOUT, Optional.empty(), FUNCTION_RESOLUTION.getPageFunctionCompiler())
+        PageFilter pageFilter = compilePageFilterWithBatchFunction(filter, LAYOUT, Optional.empty(), FUNCTION_RESOLUTION.getPageFunctionCompiler(), SQL_STANDARD)
                 .orElseThrow(() -> new IllegalArgumentException("Expected filter to contain batch function"))
                 .get();
         List<SelectedPositions> expectedPositions = processFilter(inputPages, pageFilter);
         Expression scalarFilter = rewriteBatchToScalarFunction(filter);
-        pageFilter = FUNCTION_RESOLUTION.getPageFunctionCompiler().compileFilter(scalarFilter, LAYOUT, Optional.empty()).get();
+        pageFilter = FUNCTION_RESOLUTION.getPageFunctionCompiler().compileFilter(scalarFilter, LAYOUT, SQL_STANDARD, Optional.empty()).get();
         List<SelectedPositions> actualPositions = processFilter(inputPages, pageFilter);
         assertThat(expectedPositions).hasSize(actualPositions.size());
 

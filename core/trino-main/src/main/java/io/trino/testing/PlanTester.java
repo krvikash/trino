@@ -487,8 +487,7 @@ public class PlanTester
                 catalogManager,
                 () -> {
                     throw new UnsupportedOperationException();
-                },
-                featuresConfig));
+                }));
         JsonMapper mapper = new JsonMapperProvider()
                 .withJsonDeserializers(ImmutableMap.of(
                         Type.class, new TypeDeserializer(typeManager),
@@ -511,7 +510,7 @@ public class PlanTester
 
         CacheMetadata cacheMetadata = new CacheMetadata(createCacheMetadata(catalogManager));
         FunctionManager functionManager = new FunctionManager(createFunctionProvider(catalogManager), globalFunctionCatalog, languageFunctionManager);
-        this.plannerContext = new PlannerContext(metadata, cacheMetadata, typeOperators, blockEncodingSerde, typeManager, functionManager, languageFunctionManager, tracer, expressionCodec, featuresConfig);
+        this.plannerContext = new PlannerContext(metadata, cacheMetadata, typeOperators, blockEncodingSerde, typeManager, functionManager, languageFunctionManager, tracer, expressionCodec);
         this.evaluator = new InternalConnectorExpressionEvaluator(plannerContext);
         NodeInfo nodeInfo = new NodeInfo("test");
         catalogFactory.setCatalogFactory(new DefaultCatalogFactory(
@@ -716,7 +715,7 @@ public class PlanTester
                         new SpoolingEnabledConfig(),
                         taskManagerConfig,
                         new MemoryManagerConfig(),
-                        new FeaturesConfig(),
+                        new FeaturesConfig().setLegacyVarcharToCharCoercion(false),
                         optimizerConfig,
                         new NodeMemoryConfig(),
                         new DynamicFilterConfig(),

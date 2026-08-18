@@ -53,6 +53,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
+import static io.trino.SessionTestUtils.TEST_SESSION;
 import static io.trino.jmh.Benchmarks.benchmark;
 import static io.trino.memory.context.AggregatedMemoryContext.newSimpleAggregatedMemoryContext;
 import static io.trino.spi.type.BigintType.BIGINT;
@@ -118,7 +119,7 @@ public class BenchmarkPageProcessor2
 
         inputPage = createPage(types, dictionaryBlocks);
         pageProcessor = new ExpressionCompiler(pageFunctionCompiler, columnarFilterCompiler)
-                .compilePageProcessor(Optional.of(getFilter(type)), projections, sourceLayout)
+                .compilePageProcessor(TEST_SESSION, Optional.of(getFilter(type)), projections, sourceLayout)
                 .get();
     }
 

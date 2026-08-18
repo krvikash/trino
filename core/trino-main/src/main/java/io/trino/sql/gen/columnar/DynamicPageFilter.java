@@ -30,6 +30,7 @@ import io.trino.sql.planner.DynamicFilterTupleDomain;
 import io.trino.sql.planner.InternalDynamicFilter;
 import io.trino.sql.planner.Symbol;
 import io.trino.sql.planner.SymbolAllocator;
+import io.trino.type.CharVarcharCoercion;
 import jakarta.annotation.Nullable;
 
 import java.util.List;
@@ -40,6 +41,7 @@ import java.util.function.Supplier;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
+import static io.trino.SystemSessionProperties.getCharVarcharCoercion;
 import static io.trino.sql.gen.columnar.BloomColumnarFilter.createBloomFilterEvaluator;
 import static io.trino.sql.gen.columnar.FilterEvaluator.createColumnarFilterEvaluator;
 import static java.util.Objects.requireNonNull;
@@ -121,6 +123,7 @@ public final class DynamicPageFilter
         // symbol introduced by a rule (e.g. a Let binding) cannot collide with a column reference
         // in the expression handed to codegen below.
         SymbolAllocator symbolAllocator = new SymbolAllocator(columnHandles.values());
+        CharVarcharCoercion charVarcharCoercion = getCharVarcharCoercion(session);
         // We translate each conjunct into separate FilterEvaluator to make it easy to profile selectivity
         // of dynamic filter per column and drop them if they're ineffective
         List<Supplier<FilterEvaluator>> subExpressionEvaluators = currentPredicate.getDomains().orElseThrow()
@@ -130,10 +133,10 @@ public final class DynamicPageFilter
                     if (entry.getValue().getBloomfilterWithRange().isPresent()) {
                         return Optional.of(createBloomFilterEvaluator(entry.getValue().getBloomfilterWithRange().orElseThrow(), sourceLayout.get(symbol)));
                     }
-                    Expression expression = domainTranslator.toPredicate(entry.getValue().getDomain().orElseThrow(), symbol.toSymbolReference());
+                    Expression expression = domainTranslator.toPredicate(getCharVarcharCoercion(session), entry.getValue().getDomain().orElseThrow(), symbol.toSymbolReference());
                     // Run the expression derived from TupleDomain through IR optimizer to simplify predicates. E.g. SimplifyContinuousInValues
                     expression = irExpressionOptimizer.process(expression, session, symbolAllocator, ImmutableMap.of()).orElse(expression);
-                    return createColumnarFilterEvaluator(false, false, filterReorderingEnabled, true, expression, sourceLayout, compiler, pageFunctionCompiler, Optional.empty());
+                    return createColumnarFilterEvaluator(charVarcharCoercion, false, false, filterReorderingEnabled, true, expression, sourceLayout, compiler, pageFunctionCompiler, Optional.empty());
                 })
                 .filter(Optional::isPresent)
                 .map(Optional::get)

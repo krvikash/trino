@@ -52,6 +52,7 @@ import io.trino.sql.ir.Match;
 import io.trino.sql.ir.Reference;
 import io.trino.sql.ir.Row;
 import io.trino.sql.ir.WhenClause;
+import io.trino.type.CharVarcharCoercion;
 
 import java.util.HashMap;
 import java.util.List;
@@ -86,6 +87,7 @@ public class ExpressionBytecodeCompiler
     private final Metadata metadata;
     private final TypeManager typeManager;
     private final int maxMethodComplexity;
+    private final CharVarcharCoercion charVarcharCoercion;
     private final Map<Lambda, CompiledLambda> compiledLambdaMap;
     private final List<Parameter> contextArguments;  // arguments that need to be propagated to generated methods
     private final Optional<ParentMethodContext> parentMethodContext;
@@ -101,6 +103,7 @@ public class ExpressionBytecodeCompiler
             Metadata metadata,
             TypeManager typeManager,
             int maxMethodComplexity,
+            CharVarcharCoercion charVarcharCoercion,
             Map<Lambda, CompiledLambda> compiledLambdaMap,
             List<Parameter> contextArguments,
             Optional<ParentMethodContext> parentMethodContext)
@@ -114,6 +117,7 @@ public class ExpressionBytecodeCompiler
         this.metadata = requireNonNull(metadata, "metadata is null");
         this.typeManager = requireNonNull(typeManager, "typeManager is null");
         this.maxMethodComplexity = maxMethodComplexity;
+        this.charVarcharCoercion = requireNonNull(charVarcharCoercion, "charVarcharCoercion is null");
         this.compiledLambdaMap = requireNonNull(compiledLambdaMap, "compiledLambdaMap is null");
         this.contextArguments = ImmutableList.copyOf(requireNonNull(contextArguments, "contextArguments is null"));
         this.parentMethodContext = requireNonNull(parentMethodContext, "parentMethodContext is null");
@@ -229,6 +233,7 @@ public class ExpressionBytecodeCompiler
                 metadata,
                 typeManager,
                 maxMethodComplexity,
+                charVarcharCoercion,
                 compiledLambdaMap,
                 contextArguments,
                 Optional.of(parentMethodContext));
@@ -403,7 +408,7 @@ public class ExpressionBytecodeCompiler
                 return generatorContext.generate(node.expression());
             }
 
-            ResolvedFunction coercion = metadata.getCoercion(sourceType, returnType);
+            ResolvedFunction coercion = metadata.getCoercion(charVarcharCoercion, sourceType, returnType);
             return generatorContext.generateFullCall(coercion, ImmutableList.of(node.expression()));
         }
 
@@ -463,7 +468,7 @@ public class ExpressionBytecodeCompiler
         @Override
         protected BytecodeNode visitIn(In node, Context context)
         {
-            return new InCodeGenerator(node, metadata).generateExpression(generatorContext(context.scope(), context.lets()));
+            return new InCodeGenerator(node, metadata, charVarcharCoercion).generateExpression(generatorContext(context.scope(), context.lets()));
         }
 
         @Override

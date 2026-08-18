@@ -44,6 +44,7 @@ import io.trino.spi.type.Type;
 import io.trino.sql.ir.Expression;
 import io.trino.sql.planner.DomainTranslator;
 import io.trino.sql.planner.Symbol;
+import io.trino.type.CharVarcharCoercion;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -80,6 +81,7 @@ public class GpuDynamicFilterProvider
     }
 
     private final DomainTranslator domainTranslator;
+    private final CharVarcharCoercion charVarcharCoercion;
     private final DynamicFilter dynamicFilter;
     private final Map<ColumnHandle, Integer> sourceLayout;
     private final Map<ColumnHandle, Type> handleType;
@@ -98,11 +100,13 @@ public class GpuDynamicFilterProvider
             DomainTranslator domainTranslator,
             DynamicFilter dynamicFilter,
             Map<ColumnHandle, Integer> sourceLayout,
-            List<Type> types)
+            List<Type> types,
+            CharVarcharCoercion charVarcharCoercion)
     {
         this.dynamicFilter = requireNonNull(dynamicFilter, "dynamicFilter is null");
         this.sourceLayout = ImmutableMap.copyOf(requireNonNull(sourceLayout, "sourceLayout is null"));
         this.domainTranslator = requireNonNull(domainTranslator, "domainTranslator is null");
+        this.charVarcharCoercion = charVarcharCoercion;
 
         ImmutableMap.Builder<ColumnHandle, Type> handleType = ImmutableMap.builder();
         ImmutableMap.Builder<ColumnHandle, ToColumn> handleCopier = ImmutableMap.builder();
@@ -261,7 +265,7 @@ public class GpuDynamicFilterProvider
         }
 
         Symbol symbol = new Symbol(handleType.get(handle), "synthetic");
-        Expression expression = domainTranslator.toPredicate(domain, symbol.toSymbolReference());
+        Expression expression = domainTranslator.toPredicate(charVarcharCoercion, domain, symbol.toSymbolReference());
         Optional<GpuExpression> compiled = compileExpression(expression, ImmutableMap.of(symbol, 0))
                 .map(CompiledExpression::expression);
         if (compiled.isEmpty()) {

@@ -42,6 +42,7 @@ import io.trino.sql.planner.optimizations.ctereuse.CteReuse.TraversalState;
 import io.trino.sql.planner.optimizations.ctereuse.CteReuse.UnifiedStates;
 import io.trino.sql.planner.optimizations.ctereuse.CteReuse.UnifiedStatesAndCheckpointMapping;
 import io.trino.sql.planner.optimizations.ctereuse.SingleGroupMerger.SingleGroupMergeDecomposition;
+import io.trino.type.CharVarcharCoercion;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -324,7 +325,8 @@ public class AggregationMerger
             Map<Operation, Operation> operationToDownstream,
             ProgramBuilder.ValueNameAllocator nameAllocator,
             Map<Value, Operation> newOperations,
-            Metadata metadata)
+            Metadata metadata,
+            CharVarcharCoercion charVarcharCoercion)
     {
         TraversalState firstBranch = branches.getFirst();
         Aggregation firstAggregation = (Aggregation) firstBranch.nextOperation().operation();
@@ -477,7 +479,8 @@ public class AggregationMerger
                         maskFieldIndex,
                         aggregationStep,
                         nameAllocator,
-                        metadata);
+                        metadata,
+                        charVarcharCoercion);
                 unifiedAggregates.add(countAggregate);
                 maskToCountAllIndex.put(maskFieldIndex, groupingKeysCount + unifiedAggregates.size() - 1);
             }
@@ -534,7 +537,8 @@ public class AggregationMerger
                             mergedAggregationRowType,
                             countAllIndex,
                             nameAllocator,
-                            metadata);
+                            metadata,
+                            charVarcharCoercion);
 
                     finalPredicate = isTrue(rebasedGroupingPredicate)
                             ? aggregatePredicate
@@ -587,7 +591,8 @@ public class AggregationMerger
             int maskFieldIndex,
             AggregationStep aggregationStep,
             ProgramBuilder.ValueNameAllocator nameAllocator,
-            Metadata metadata)
+            Metadata metadata,
+            CharVarcharCoercion charVarcharCoercion)
     {
         io.trino.spi.type.Type inputRowType = relationRowType(trinoType(inputType));
         Block.Parameter parameter = new Block.Parameter(nameAllocator.newName(), inputType);
@@ -595,7 +600,7 @@ public class AggregationMerger
         Block filterSelector = AssignmentsUtils.getEmptyFieldSelector("^filterSelector", inputRowType, nameAllocator);
         Block maskSelector = createSingleFieldSelector(inputRowType, maskFieldIndex, Optional.of("^maskSelector"), true, nameAllocator);
         Block orderingSelector = AssignmentsUtils.getEmptyFieldSelector("^orderingSelector", inputRowType, nameAllocator);
-        ResolvedFunction countFunction = metadata.resolveBuiltinFunction("count", ImmutableList.of());
+        ResolvedFunction countFunction = metadata.resolveBuiltinFunction(charVarcharCoercion, "count", ImmutableList.of());
 
         AggregateCall countAggregateCall = new AggregateCall(
                 nameAllocator.newName(),
@@ -674,7 +679,8 @@ public class AggregationMerger
             io.trino.spi.type.Type inputRowType,
             int countAllIndex,
             ProgramBuilder.ValueNameAllocator nameAllocator,
-            Metadata metadata)
+            Metadata metadata,
+            CharVarcharCoercion charVarcharCoercion)
     {
         Block.Parameter parameter = new Block.Parameter(nameAllocator.newName(), irType(inputRowType));
         Block.Builder builder = new Block.Builder(Optional.of("^predicate"), ImmutableList.of(parameter));
@@ -693,7 +699,7 @@ public class AggregationMerger
         Call comparison = new Call(
                 nameAllocator.newName(),
                 ImmutableList.of(zeroConstant.result(), countReference.result()),
-                metadata.resolveOperator(OperatorType.LESS_THAN, ImmutableList.of(BIGINT, BIGINT)),
+                metadata.resolveOperator(charVarcharCoercion, OperatorType.LESS_THAN, ImmutableList.of(BIGINT, BIGINT)),
                 ImmutableList.of(zeroConstant.attributes(), countReference.attributes()));
         builder.addOperation(comparison);
 

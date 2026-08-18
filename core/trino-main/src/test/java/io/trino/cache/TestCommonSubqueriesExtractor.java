@@ -73,6 +73,7 @@ import static io.trino.SystemSessionProperties.JOIN_REORDERING_STRATEGY;
 import static io.trino.SystemSessionProperties.SMALL_DYNAMIC_FILTER_MAX_ROW_COUNT;
 import static io.trino.SystemSessionProperties.SUBQUERY_CACHE_AGGREGATIONS_ENABLED;
 import static io.trino.SystemSessionProperties.SUBQUERY_CACHE_PROJECTIONS_ENABLED;
+import static io.trino.SystemSessionProperties.getCharVarcharCoercion;
 import static io.trino.cache.CanonicalSubplanExtractor.canonicalAggregationToColumnId;
 import static io.trino.cache.CommonSubqueriesExtractor.aggregationKey;
 import static io.trino.cache.CommonSubqueriesExtractor.scanFilterProjectKey;
@@ -500,6 +501,7 @@ public class TestCommonSubqueriesExtractor
     private CanonicalAggregation canonicalAggregation(String name, Optional<Symbol> mask, Expression... arguments)
     {
         ResolvedFunction resolvedFunction = getPlanTester().getPlannerContext().getMetadata().resolveBuiltinFunction(
+                getCharVarcharCoercion(getPlanTester().getDefaultSession()),
                 name,
                 TypeDescriptorProvider.fromTypes(Stream.of(arguments)
                         .map(Expression::type)

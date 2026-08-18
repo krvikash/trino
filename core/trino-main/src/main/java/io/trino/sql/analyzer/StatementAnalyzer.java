@@ -288,6 +288,7 @@ import io.trino.sql.tree.WindowSpecification;
 import io.trino.sql.tree.With;
 import io.trino.sql.tree.WithQuery;
 import io.trino.transaction.TransactionManager;
+import io.trino.type.CharVarcharCoercion;
 import io.trino.type.TypeCoercion;
 
 import java.math.RoundingMode;
@@ -320,6 +321,7 @@ import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static com.google.common.collect.Iterables.getLast;
 import static com.google.common.collect.Iterables.getOnlyElement;
+import static io.trino.SystemSessionProperties.getCharVarcharCoercion;
 import static io.trino.SystemSessionProperties.getMaxGroupingSets;
 import static io.trino.SystemSessionProperties.getRetryPolicy;
 import static io.trino.metadata.FunctionResolver.toPath;
@@ -464,6 +466,7 @@ class StatementAnalyzer
     private final PlannerContext plannerContext;
     private final TypeCoercion typeCoercion;
     private final Session session;
+    private final CharVarcharCoercion charVarcharCoercion;
     private final SqlParser sqlParser;
     private final GroupProvider groupProvider;
     private final AccessControl accessControl;
@@ -499,7 +502,8 @@ class StatementAnalyzer
         this.analysis = requireNonNull(analysis, "analysis is null");
         this.plannerContext = requireNonNull(plannerContext, "plannerContext is null");
         this.metadata = plannerContext.getMetadata();
-        this.typeCoercion = new TypeCoercion(plannerContext.getTypeManager()::getType, plannerContext.isLegacyVarcharToCharCoercion());
+        this.charVarcharCoercion = getCharVarcharCoercion(session);
+        this.typeCoercion = new TypeCoercion(plannerContext.getTypeManager()::getType, charVarcharCoercion);
         this.sqlParser = requireNonNull(sqlParser, "sqlParser is null");
         this.groupProvider = requireNonNull(groupProvider, "groupProvider is null");
         this.accessControl = requireNonNull(accessControl, "accessControl is null");
@@ -2824,7 +2828,7 @@ class StatementAnalyzer
 
                 if (!tableField.getType().equals(viewField.getType())) {
                     try {
-                        metadata.getCoercion(viewField.getType(), tableField.getType());
+                        metadata.getCoercion(charVarcharCoercion, viewField.getType(), tableField.getType());
                     }
                     catch (TrinoException e) {
                         throw semanticException(
@@ -4358,7 +4362,7 @@ class StatementAnalyzer
 
                 // ensure a comparison operator exists for the given types (applying coercions if necessary)
                 try {
-                    metadata.resolveOperator(OperatorType.EQUAL, ImmutableList.of(
+                    metadata.resolveOperator(charVarcharCoercion, OperatorType.EQUAL, ImmutableList.of(
                             leftField.getType(), rightField.getType()));
                 }
                 catch (OperatorNotFoundException e) {
@@ -4701,6 +4705,7 @@ class StatementAnalyzer
         {
             return new JsonPathAnalyzer(
                     plannerContext.getMetadata(),
+                    session,
                     createConstantAnalyzer(plannerContext, accessControl, session, analysis.getParameters(), WarningCollector.NOOP, analysis.isDescribe()))
                     .analyzeJsonPath(path, ImmutableMap.of());
         }
@@ -4709,6 +4714,7 @@ class StatementAnalyzer
         {
             return new JsonPathAnalyzer(
                     plannerContext.getMetadata(),
+                    session,
                     createConstantAnalyzer(plannerContext, accessControl, session, analysis.getParameters(), WarningCollector.NOOP, analysis.isDescribe()))
                     .analyzeImplicitJsonPath(path, columnLocation.orElseThrow(() -> new IllegalStateException("missing NodeLocation for JSON_TABLE column")));
         }
@@ -5911,7 +5917,7 @@ class StatementAnalyzer
 
             Type actualType = expressionAnalysis.getType(expression);
             if (!actualType.equals(BOOLEAN)) {
-                TypeCoercion coercion = new TypeCoercion(plannerContext.getTypeManager()::getType, plannerContext.isLegacyVarcharToCharCoercion());
+                TypeCoercion coercion = new TypeCoercion(plannerContext.getTypeManager()::getType, charVarcharCoercion);
 
                 if (!coercion.canCoerce(actualType, BOOLEAN)) {
                     throw new TrinoException(TYPE_MISMATCH, extractLocation(table), format("Expected row filter for '%s' to be of type BOOLEAN, but was %s", name, actualType), null);
@@ -5974,7 +5980,7 @@ class StatementAnalyzer
 
             Type actualType = expressionAnalysis.getType(expression);
             if (!actualType.equals(BOOLEAN)) {
-                TypeCoercion coercion = new TypeCoercion(plannerContext.getTypeManager()::getType, plannerContext.isLegacyVarcharToCharCoercion());
+                TypeCoercion coercion = new TypeCoercion(plannerContext.getTypeManager()::getType, charVarcharCoercion);
 
                 if (!coercion.canCoerce(actualType, BOOLEAN)) {
                     throw new TrinoException(TYPE_MISMATCH, extractLocation(table), format("Expected check constraint for '%s' to be of type BOOLEAN, but was %s", name, actualType), null);
@@ -6053,7 +6059,7 @@ class StatementAnalyzer
             Type expectedType = field.getType();
             Type actualType = expressionAnalysis.getType(expression);
             if (!actualType.equals(expectedType)) {
-                TypeCoercion coercion = new TypeCoercion(plannerContext.getTypeManager()::getType, plannerContext.isLegacyVarcharToCharCoercion());
+                TypeCoercion coercion = new TypeCoercion(plannerContext.getTypeManager()::getType, charVarcharCoercion);
 
                 if (!coercion.canCoerce(actualType, field.getType())) {
                     throw new TrinoException(TYPE_MISMATCH, extractLocation(table), format("Expected column mask for '%s.%s' to be of type %s, but was %s", tableName, column, field.getType(), actualType), null);
@@ -6764,7 +6770,7 @@ class StatementAnalyzer
             if (sourceType.equals(targetType)) {
                 return value;
             }
-            ResolvedFunction coercion = metadata.getCoercion(sourceType, targetType);
+            ResolvedFunction coercion = metadata.getCoercion(charVarcharCoercion, sourceType, targetType);
             InterpretedFunctionInvoker functionInvoker = new InterpretedFunctionInvoker(plannerContext.getFunctionManager());
             return functionInvoker.invoke(coercion, session.toConnectorSession(), value);
         }

@@ -118,8 +118,7 @@ public final class TestingMetadataManager
                     tableFunctionRegistry,
                     typeManager,
                     NO_CATALOGS,
-                    () -> { throw new UnsupportedOperationException(); },
-                    featuresConfig);
+                    () -> { throw new UnsupportedOperationException(); });
         }
     }
 

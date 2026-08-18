@@ -102,6 +102,7 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static com.google.common.collect.Iterables.getOnlyElement;
+import static io.trino.SystemSessionProperties.getCharVarcharCoercion;
 import static io.trino.SystemSessionProperties.isDebugCteReuseEnabled;
 import static io.trino.plugin.base.expression.ConnectorExpressions.and;
 import static io.trino.plugin.base.util.ConnectorExpressionUtil.extractVariableNames;
@@ -646,7 +647,7 @@ public class CteReuse
             expressionConjuncts.add(ConnectorExpressionTranslator.translate(session, expressionAndAssignments.expression(), plannerContext, variableMappings, symbolAllocator));
         }
         TupleDomain<Symbol> symbolTupleDomain = tupleDomain.transformKeys(columnMap::get);
-        expressionConjuncts.add(new DomainTranslator(metadata).toPredicate(symbolTupleDomain));
+        expressionConjuncts.add(new DomainTranslator(metadata).toPredicate(getCharVarcharCoercion(session), symbolTupleDomain));
         Expression expression = IrUtils.combineConjuncts(expressionConjuncts);
 
         Block.Parameter parameter = new Block.Parameter(nameAllocator.newName(), irType(relationRowType));
@@ -835,7 +836,7 @@ public class CteReuse
         if (subgroups.singleGroupMerges().size() + subgroups.multiGroupMerges().size() == 1 && subgroups.hangingBranches().isEmpty() && subgroups.remainingSingleGroupBranches().isEmpty()) {
             UnifiedStatesAndCheckpointMapping nextOperationMerged;
             if (subgroups.singleGroupMerges().size() == 1) {
-                nextOperationMerged = SingleGroupMerger.mergeNextSingleGroupOperation(commonPartMerged.unifiedOperation(), commonPartMerged.residualStates(), checkpoints, branchToCheckpoint, operationToDownstream, nameAllocator, newOperations, plannerContext.getMetadata());
+                nextOperationMerged = SingleGroupMerger.mergeNextSingleGroupOperation(commonPartMerged.unifiedOperation(), commonPartMerged.residualStates(), checkpoints, branchToCheckpoint, operationToDownstream, nameAllocator, newOperations, plannerContext.getMetadata(), getCharVarcharCoercion(session));
             }
             else {
                 setCheckpoint |= multiGroupMerger.isCheckpointRequired(getOnlyElement(subgroups.multiGroupMerges()).hangingGroups());

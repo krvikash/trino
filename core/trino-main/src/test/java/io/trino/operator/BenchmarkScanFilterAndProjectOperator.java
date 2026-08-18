@@ -44,6 +44,7 @@ import io.trino.testing.TestingMetadata.TestingColumnHandle;
 import io.trino.testing.TestingSession;
 import io.trino.testing.TestingTaskContext;
 import io.trino.transaction.TestingTransactionManager;
+import io.trino.type.CharVarcharCoercion;
 import org.junit.jupiter.api.Test;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
@@ -63,6 +64,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -159,7 +161,7 @@ public class BenchmarkScanFilterAndProjectOperator
 
             PageFunctionCompiler pageFunctionCompiler = new PageFunctionCompiler(PLANNER_CONTEXT.getFunctionManager(), PLANNER_CONTEXT.getMetadata(), PLANNER_CONTEXT.getTypeManager(), 0);
             ColumnarFilterCompiler compiler = new ColumnarFilterCompiler(PLANNER_CONTEXT, 0);
-            PageProcessor pageProcessor = new ExpressionCompiler(pageFunctionCompiler, compiler).compilePageProcessor(Optional.of(getFilter(type)), projections, sourceLayout).get();
+            PageProcessor pageProcessor = new ExpressionCompiler(pageFunctionCompiler, compiler).compilePageProcessor(CharVarcharCoercion.SQL_STANDARD, true, true, false, true, Optional.of(getFilter(type)), Optional.empty(), projections, sourceLayout, Optional.empty(), OptionalInt.empty()).apply(InternalDynamicFilter.EMPTY);
 
             createTaskContext();
             createScanFilterAndProjectOperatorFactories(createInputPages(types), pageProcessor, columnHandles, types);

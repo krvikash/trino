@@ -34,6 +34,7 @@ import java.util.Optional;
 import static com.google.common.collect.Iterators.getOnlyElement;
 import static io.trino.SequencePageBuilder.createSequencePage;
 import static io.trino.SequencePageBuilder.createSequencePageWithDictionaryBlocks;
+import static io.trino.SessionTestUtils.TEST_SESSION;
 import static io.trino.block.BlockAssertions.createLongSequenceBlock;
 import static io.trino.memory.context.AggregatedMemoryContext.newSimpleAggregatedMemoryContext;
 import static io.trino.operator.PageAssertions.assertPageEquals;
@@ -95,7 +96,7 @@ public class TestColumnarPageProcessor
         Map<Symbol, Integer> layout = ImmutableMap.of(
                 new Symbol(types.get(0), "$col_0"), 3,
                 new Symbol(types.get(1), "$col_1"), 1);
-        return compiler.compilePageProcessor(Optional.empty(), projections, layout, MAX_BATCH_SIZE)
+        return compiler.compilePageProcessor(TEST_SESSION, Optional.empty(), projections, layout, MAX_BATCH_SIZE)
                 .get();
     }
 }

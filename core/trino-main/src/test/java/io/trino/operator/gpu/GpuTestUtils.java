@@ -98,6 +98,7 @@ import static io.trino.spi.type.VarbinaryType.VARBINARY;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.spi.type.VarcharType.createVarcharType;
 import static io.trino.testing.assertions.TrinoExceptionAssert.assertTrinoExceptionThrownBy;
+import static io.trino.type.CharVarcharCoercion.SQL_STANDARD;
 import static java.lang.Math.clamp;
 import static java.lang.Math.min;
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -689,6 +690,7 @@ public final class GpuTestUtils
     public static PageProcessor compileCpuExpressions(List<Expression> expressions, Map<Symbol, Integer> layout)
     {
         return FUNCTION_RESOLUTION.getExpressionCompiler().compilePageProcessor(
+                        SQL_STANDARD,
                         false,
                         true,
                         false,

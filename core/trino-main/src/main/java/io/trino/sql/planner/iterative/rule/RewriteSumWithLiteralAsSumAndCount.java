@@ -39,6 +39,7 @@ import io.trino.sql.planner.plan.AggregationNode;
 import io.trino.sql.planner.plan.AggregationNode.Aggregation;
 import io.trino.sql.planner.plan.Assignments;
 import io.trino.sql.planner.plan.ProjectNode;
+import io.trino.type.CharVarcharCoercion;
 
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -47,6 +48,7 @@ import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Set;
 
+import static io.trino.SystemSessionProperties.getCharVarcharCoercion;
 import static io.trino.SystemSessionProperties.isRewriteSumWithLiteralEnabled;
 import static io.trino.matching.Capture.newCapture;
 import static io.trino.metadata.GlobalFunctionCatalog.builtinFunctionName;
@@ -176,7 +178,8 @@ public class RewriteSumWithLiteralAsSumAndCount
             }
         }
 
-        AggregateAllocator allocator = new AggregateAllocator(context, newChildAssignments);
+        CharVarcharCoercion charVarcharCoercion = getCharVarcharCoercion(context.getSession());
+        AggregateAllocator allocator = new AggregateAllocator(context, newChildAssignments, charVarcharCoercion);
         Assignments.Builder outerAssignments = Assignments.builder()
                 .putIdentities(parent.getGroupingKeys());
         for (Entry<Symbol, Aggregation> entry : parent.getAggregations().entrySet()) {
@@ -191,7 +194,7 @@ public class RewriteSumWithLiteralAsSumAndCount
             Symbol sumInput = allocator.sumInputFor(match);
             Symbol sumSymbol = allocator.sumAggregateFor(sumInput);
             Symbol countSymbol = allocator.countAggregateFor(match.column());
-            outerAssignments.put(outputSymbol, buildRewrittenExpression(sumSymbol, countSymbol, match));
+            outerAssignments.put(outputSymbol, buildRewrittenExpression(sumSymbol, countSymbol, match, charVarcharCoercion));
         }
 
         ProjectNode newChildProject = new ProjectNode(
@@ -211,15 +214,15 @@ public class RewriteSumWithLiteralAsSumAndCount
                 outerAssignments.build()));
     }
 
-    private Expression buildRewrittenExpression(Symbol sumSymbol, Symbol countSymbol, Match match)
+    private Expression buildRewrittenExpression(Symbol sumSymbol, Symbol countSymbol, Match match, CharVarcharCoercion charVarcharCoercion)
     {
         Expression literal = match.literal().type().equals(BIGINT)
                 ? match.literal()
                 : new Cast(match.literal(), BIGINT);
-        ResolvedFunction multiply = plannerContext.getMetadata().resolveOperator(OperatorType.MULTIPLY, ImmutableList.of(BIGINT, BIGINT));
+        ResolvedFunction multiply = plannerContext.getMetadata().resolveOperator(charVarcharCoercion, OperatorType.MULTIPLY, ImmutableList.of(BIGINT, BIGINT));
         Expression literalTimesCount = new Call(multiply, ImmutableList.of(literal, countSymbol.toSymbolReference()));
         ResolvedFunction outerOperator = plannerContext.getMetadata().resolveOperator(
-                match.isSubtract() ? OperatorType.SUBTRACT : OperatorType.ADD, ImmutableList.of(BIGINT, BIGINT));
+                charVarcharCoercion, match.isSubtract() ? OperatorType.SUBTRACT : OperatorType.ADD, ImmutableList.of(BIGINT, BIGINT));
         Expression sumReference = sumSymbol.toSymbolReference();
         return match.columnOnLeft()
                 ? new Call(outerOperator, ImmutableList.of(sumReference, literalTimesCount))
@@ -389,11 +392,13 @@ public class RewriteSumWithLiteralAsSumAndCount
         private final Map<Symbol, Symbol> sumInputs = new HashMap<>();
         private final Map<Symbol, Symbol> sumAggregates = new HashMap<>();
         private final Map<Symbol, Symbol> countAggregates = new HashMap<>();
+        private final CharVarcharCoercion charVarcharCoercion;
 
-        AggregateAllocator(Context context, Assignments.Builder childAssignments)
+        AggregateAllocator(Context context, Assignments.Builder childAssignments, CharVarcharCoercion charVarcharCoercion)
         {
             this.context = context;
             this.childAssignments = childAssignments;
+            this.charVarcharCoercion = charVarcharCoercion;
         }
 
         Symbol sumInputFor(Match match)
@@ -409,7 +414,7 @@ public class RewriteSumWithLiteralAsSumAndCount
         {
             return sumAggregates.computeIfAbsent(sumInput, input -> {
                 ResolvedFunction function = plannerContext.getMetadata()
-                        .resolveBuiltinFunction("sum", TypeDescriptorProvider.fromTypes(input.type()));
+                        .resolveBuiltinFunction(charVarcharCoercion, "sum", TypeDescriptorProvider.fromTypes(input.type()));
                 Symbol symbol = context.getSymbolAllocator().newSymbol("sum", function.signature().getReturnType());
                 newAggregations.put(symbol, new Aggregation(
                         function,
@@ -426,7 +431,7 @@ public class RewriteSumWithLiteralAsSumAndCount
         {
             return countAggregates.computeIfAbsent(column, col -> {
                 ResolvedFunction function = plannerContext.getMetadata()
-                        .resolveBuiltinFunction("count", TypeDescriptorProvider.fromTypes(col.type()));
+                        .resolveBuiltinFunction(charVarcharCoercion, "count", TypeDescriptorProvider.fromTypes(col.type()));
                 Symbol symbol = context.getSymbolAllocator().newSymbol("count", function.signature().getReturnType());
                 newAggregations.put(symbol, new Aggregation(
                         function,

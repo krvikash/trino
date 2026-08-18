@@ -102,6 +102,7 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.trino.SystemSessionProperties.GPU_EXECUTION_ENABLED;
+import static io.trino.SystemSessionProperties.getCharVarcharCoercion;
 import static io.trino.cost.StatsCalculator.noopStatsCalculator;
 import static io.trino.execution.StagesInfo.getAllStages;
 import static io.trino.metadata.OperatorNameUtil.mangleOperatorName;
@@ -1173,7 +1174,7 @@ public class QueryAssertions
         public ExpressionAssert neverFails()
         {
             Expression expression = outermostExpression();
-            assertThat(mayFail(runner.getPlannerContext(), expression))
+            assertThat(mayFail(runner.getPlannerContext(), getCharVarcharCoercion(session), expression))
                     .as("Expression %s may fail", expression)
                     .isFalse();
             return this;
@@ -1186,7 +1187,7 @@ public class QueryAssertions
         public ExpressionAssert couldFail()
         {
             Expression expression = outermostExpression();
-            assertThat(mayFail(runner.getPlannerContext(), expression))
+            assertThat(mayFail(runner.getPlannerContext(), getCharVarcharCoercion(session), expression))
                     .as("Expression %s may fail", expression)
                     .isTrue();
             return this;

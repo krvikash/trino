@@ -32,10 +32,13 @@ import io.trino.sql.planner.iterative.rule.test.PlanBuilder;
 import io.trino.sql.planner.plan.Assignments;
 import io.trino.sql.planner.plan.JoinNode;
 import io.trino.sql.planner.plan.UnnestNode;
+import io.trino.type.CharVarcharCoercion;
 import org.junit.jupiter.api.Test;
 
 import java.util.Optional;
 
+import static io.trino.SessionTestUtils.TEST_SESSION;
+import static io.trino.SystemSessionProperties.getCharVarcharCoercion;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.spi.type.IntegerType.INTEGER;
@@ -59,11 +62,13 @@ import static io.trino.sql.planner.plan.JoinType.FULL;
 import static io.trino.sql.planner.plan.JoinType.INNER;
 import static io.trino.sql.planner.plan.JoinType.LEFT;
 import static io.trino.sql.planner.plan.JoinType.RIGHT;
+import static io.trino.type.CharVarcharCoercion.SQL_STANDARD;
 import static io.trino.type.JoniRegexpType.JONI_REGEXP;
 
 public class TestDecorrelateInnerUnnestWithGlobalAggregation
         extends BaseRuleTest
 {
+    private static final CharVarcharCoercion CHAR_VARCHAR_COERCION = getCharVarcharCoercion(TEST_SESSION);
     private static final TestingFunctionResolution FUNCTIONS = new TestingFunctionResolution();
     private static final ResolvedFunction REGEXP_EXTRACT_ALL = FUNCTIONS.resolveFunction("regexp_extract_all", fromTypes(VARCHAR, VARCHAR));
     private static final ResolvedFunction ADD_INTEGER = FUNCTIONS.resolveOperator(OperatorType.ADD, ImmutableList.of(INTEGER, INTEGER));
@@ -148,7 +153,7 @@ public class TestDecorrelateInnerUnnestWithGlobalAggregation
                                         Optional.empty(),
                                         SINGLE,
                                         project(
-                                                ImmutableMap.of("mask", expression(not(FUNCTIONS.getMetadata(), new IsNull(new Reference(BIGINT, "ordinality"))))),
+                                                ImmutableMap.of("mask", expression(not(FUNCTIONS.getMetadata(), CHAR_VARCHAR_COERCION, new IsNull(new Reference(BIGINT, "ordinality"))))),
                                                 unnest(
                                                         ImmutableList.of("corr", "unique"),
                                                         ImmutableList.of(unnestMapping("corr", ImmutableList.of("unnested_corr"))),
@@ -187,7 +192,7 @@ public class TestDecorrelateInnerUnnestWithGlobalAggregation
                                         project(
                                                 ImmutableMap.of("new_mask", expression(new Logical(AND, ImmutableList.of(new Reference(BOOLEAN, "old_mask"), new Reference(BOOLEAN, "mask"))))),
                                                 project(
-                                                        ImmutableMap.of("mask", expression(not(FUNCTIONS.getMetadata(), new IsNull(new Reference(BIGINT, "ordinality"))))),
+                                                        ImmutableMap.of("mask", expression(not(FUNCTIONS.getMetadata(), CHAR_VARCHAR_COERCION, new IsNull(new Reference(BIGINT, "ordinality"))))),
                                                         unnest(
                                                                 ImmutableList.of("corr", "old_masks", "unique"),
                                                                 ImmutableList.of(
@@ -224,7 +229,7 @@ public class TestDecorrelateInnerUnnestWithGlobalAggregation
                                         Optional.empty(),
                                         SINGLE,
                                         project(
-                                                ImmutableMap.of("mask", expression(not(FUNCTIONS.getMetadata(), new IsNull(new Reference(BIGINT, "ordinality"))))),
+                                                ImmutableMap.of("mask", expression(not(FUNCTIONS.getMetadata(), CHAR_VARCHAR_COERCION, new IsNull(new Reference(BIGINT, "ordinality"))))),
                                                 unnest(
                                                         ImmutableList.of("corr", "unique"),
                                                         ImmutableList.of(unnestMapping("corr", ImmutableList.of("unnested_corr"))),
@@ -271,7 +276,7 @@ public class TestDecorrelateInnerUnnestWithGlobalAggregation
                                                 Optional.empty(),
                                                 SINGLE,
                                                 project(
-                                                        ImmutableMap.of("mask", expression(not(FUNCTIONS.getMetadata(), new IsNull(new Reference(BIGINT, "ordinality"))))),
+                                                        ImmutableMap.of("mask", expression(not(FUNCTIONS.getMetadata(), CHAR_VARCHAR_COERCION, new IsNull(new Reference(BIGINT, "ordinality"))))),
                                                         unnest(
                                                                 ImmutableList.of("corr", "unique"),
                                                                 ImmutableList.of(unnestMapping("corr", ImmutableList.of("unnested_corr"))),
@@ -310,7 +315,7 @@ public class TestDecorrelateInnerUnnestWithGlobalAggregation
                                                 Optional.empty(),
                                                 SINGLE,
                                                 project(
-                                                        ImmutableMap.of("mask", expression(not(FUNCTIONS.getMetadata(), new IsNull(new Reference(BIGINT, "ordinality"))))),
+                                                        ImmutableMap.of("mask", expression(not(FUNCTIONS.getMetadata(), CHAR_VARCHAR_COERCION, new IsNull(new Reference(BIGINT, "ordinality"))))),
                                                         unnest(
                                                                 ImmutableList.of("corr", "unique"),
                                                                 ImmutableList.of(unnestMapping("corr", ImmutableList.of("unnested_corr"))),
@@ -326,7 +331,7 @@ public class TestDecorrelateInnerUnnestWithGlobalAggregation
                 .on(p -> {
                     Symbol corr = p.symbol("corr", VARCHAR);
                     Call regexpExtractAll = new Call(
-                            tester().getMetadata().resolveBuiltinFunction("regexp_extract_all", fromTypes(VARCHAR, VARCHAR)),
+                            tester().getMetadata().resolveBuiltinFunction(CHAR_VARCHAR_COERCION, "regexp_extract_all", fromTypes(VARCHAR, VARCHAR)),
                             ImmutableList.of(corr.toSymbolReference(), new Cast(new Constant(VARCHAR, Slices.utf8Slice(".")), JONI_REGEXP)));
 
                     return p.correlatedJoin(
@@ -354,7 +359,7 @@ public class TestDecorrelateInnerUnnestWithGlobalAggregation
                                         Optional.empty(),
                                         SINGLE,
                                         project(
-                                                ImmutableMap.of("mask", expression(not(FUNCTIONS.getMetadata(), new IsNull(new Reference(BIGINT, "ordinality"))))),
+                                                ImmutableMap.of("mask", expression(not(FUNCTIONS.getMetadata(), CHAR_VARCHAR_COERCION, new IsNull(new Reference(BIGINT, "ordinality"))))),
                                                 unnest(
                                                         ImmutableList.of("corr", "unique", "char_array"),
                                                         ImmutableList.of(unnestMapping("char_array", ImmutableList.of("unnested_corr"))),
@@ -423,7 +428,7 @@ public class TestDecorrelateInnerUnnestWithGlobalAggregation
                                                                 project(
                                                                         ImmutableMap.of("modulo", expression(new Call(MODULO_BIGINT, ImmutableList.of(new Reference(BIGINT, "number"), new Constant(BIGINT, 10L))))),
                                                                         project(
-                                                                                ImmutableMap.of("mask", expression(not(FUNCTIONS.getMetadata(), new IsNull(new Reference(BIGINT, "ordinality"))))),
+                                                                                ImmutableMap.of("mask", expression(not(FUNCTIONS.getMetadata(), CHAR_VARCHAR_COERCION, new IsNull(new Reference(BIGINT, "ordinality"))))),
                                                                                 unnest(
                                                                                         ImmutableList.of("groups", "numbers", "unique"),
                                                                                         ImmutableList.of(
@@ -466,7 +471,7 @@ public class TestDecorrelateInnerUnnestWithGlobalAggregation
                                         SINGLE,
                                         join(LEFT, builder -> builder
                                                 .left(project(
-                                                        ImmutableMap.of("mask", expression(not(FUNCTIONS.getMetadata(), new IsNull(new Reference(BIGINT, "ordinality"))))),
+                                                        ImmutableMap.of("mask", expression(not(FUNCTIONS.getMetadata(), SQL_STANDARD, new IsNull(new Reference(BIGINT, "ordinality"))))),
                                                         unnest(
                                                                 ImmutableList.of("corr", "unique"),
                                                                 ImmutableList.of(unnestMapping("corr", ImmutableList.of("unnested_corr"))),

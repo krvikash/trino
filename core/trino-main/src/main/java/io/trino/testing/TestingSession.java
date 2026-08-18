@@ -16,14 +16,24 @@ package io.trino.testing;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import io.starburst.server.substitution.MaterializedViewSubstitutionSessionProperties;
+import io.trino.FeaturesConfig;
 import io.trino.Session;
 import io.trino.Session.SessionBuilder;
 import io.trino.SystemSessionProperties;
+import io.trino.cache.CacheConfig;
 import io.trino.client.ClientCapabilities;
+import io.trino.execution.DynamicFilterConfig;
 import io.trino.execution.QueryIdGenerator;
+import io.trino.execution.QueryManagerConfig;
+import io.trino.execution.TaskManagerConfig;
+import io.trino.execution.scheduler.NodeSchedulerConfig;
+import io.trino.memory.MemoryManagerConfig;
+import io.trino.memory.NodeMemoryConfig;
 import io.trino.metadata.SessionPropertyManager;
+import io.trino.server.protocol.spooling.SpoolingEnabledConfig;
 import io.trino.spi.security.Identity;
 import io.trino.spi.type.TimeZoneKey;
+import io.trino.sql.planner.OptimizerConfig;
 
 import java.util.Arrays;
 
@@ -60,7 +70,17 @@ public final class TestingSession
     public static SessionBuilder testSessionBuilder()
     {
         return testSessionBuilder(new SessionPropertyManager(
-                ImmutableSet.of(new SystemSessionProperties(), new MaterializedViewSubstitutionSessionProperties()),
+                ImmutableSet.of(new SystemSessionProperties(
+                        new QueryManagerConfig(),
+                        new SpoolingEnabledConfig(),
+                        new TaskManagerConfig(),
+                        new MemoryManagerConfig(),
+                        new FeaturesConfig().setLegacyVarcharToCharCoercion(false),
+                        new OptimizerConfig(),
+                        new NodeMemoryConfig(),
+                        new DynamicFilterConfig(),
+                        new CacheConfig(),
+                        new NodeSchedulerConfig()), new MaterializedViewSubstitutionSessionProperties()),
                 _ -> ImmutableMap.of()));
     }
 

@@ -78,6 +78,7 @@ import static com.google.common.collect.Iterables.getLast;
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.airlift.slice.Slices.utf8Slice;
 import static io.trino.SystemSessionProperties.TASK_CONCURRENCY;
+import static io.trino.SystemSessionProperties.getCharVarcharCoercion;
 import static io.trino.cache.CanonicalSubplanExtractor.canonicalAggregationToColumnId;
 import static io.trino.cache.CanonicalSubplanExtractor.canonicalExpressionToColumnId;
 import static io.trino.cache.CanonicalSubplanExtractor.columnIdToSymbol;
@@ -886,7 +887,7 @@ public class TestCanonicalSubplanExtractor
 
     private ResolvedFunction sumBigint()
     {
-        return getPlanTester().getPlannerContext().getMetadata().resolveBuiltinFunction("sum", TypeDescriptorProvider.fromTypes(BIGINT));
+        return getPlanTester().getPlannerContext().getMetadata().resolveBuiltinFunction(getCharVarcharCoercion(TEST_SESSION), "sum", TypeDescriptorProvider.fromTypes(BIGINT));
     }
 
     private ProjectNode createScanAndProjectNode()
@@ -923,6 +924,7 @@ public class TestCanonicalSubplanExtractor
                         comparison(GREATER_THAN, new Call(ADD_BIGINT, ImmutableList.of(new Reference(BIGINT, "symbol1"), new Reference(BIGINT, "symbol2"))), new Constant(BIGINT, 0L)),
                         createDynamicFilterExpression(
                                 metadataManager,
+                                getCharVarcharCoercion(TEST_SESSION),
                                 new DynamicFilterId("dynamic_filter_id"),
                                 BIGINT,
                                 new Reference(BIGINT, "symbol1"))));

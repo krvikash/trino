@@ -38,6 +38,7 @@ import io.trino.sql.ir.Expression;
 import io.trino.sql.ir.Lambda;
 import io.trino.sql.ir.Reference;
 import io.trino.sql.planner.Symbol;
+import io.trino.type.CharVarcharCoercion;
 import org.objectweb.asm.Handle;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
@@ -85,7 +86,8 @@ public final class LambdaBytecodeGenerator
             FunctionManager functionManager,
             Metadata metadata,
             TypeManager typeManager,
-            int maxMethodComplexity)
+            int maxMethodComplexity,
+            CharVarcharCoercion charVarcharCoercion)
     {
         Set<Lambda> lambdaExpressions = ImmutableSet.copyOf(extractLambdaExpressions(expression));
         ImmutableMap.Builder<Lambda, CompiledLambda> compiledLambdaMap = ImmutableMap.builder();
@@ -102,7 +104,8 @@ public final class LambdaBytecodeGenerator
                     functionManager,
                     metadata,
                     typeManager,
-                    maxMethodComplexity);
+                    maxMethodComplexity,
+                    charVarcharCoercion);
             compiledLambdaMap.put(lambdaExpression, compiledLambda);
             counter++;
         }
@@ -123,7 +126,8 @@ public final class LambdaBytecodeGenerator
             FunctionManager functionManager,
             Metadata metadata,
             TypeManager typeManager,
-            int maxMethodComplexity)
+            int maxMethodComplexity,
+            CharVarcharCoercion charVarcharCoercion)
     {
         ImmutableList.Builder<Parameter> parameters = ImmutableList.builder();
         ImmutableMap.Builder<String, ParameterAndType> parameterMapBuilder = ImmutableMap.builder();
@@ -145,6 +149,7 @@ public final class LambdaBytecodeGenerator
                 functionManager,
                 metadata,
                 typeManager,
+                charVarcharCoercion,
                 classDefinition,
                 methodName,
                 parameters.build(),
@@ -160,6 +165,7 @@ public final class LambdaBytecodeGenerator
             FunctionManager functionManager,
             Metadata metadata,
             TypeManager typeManager,
+            CharVarcharCoercion charVarcharCoercion,
             ClassDefinition classDefinition,
             String methodName,
             List<Parameter> inputParameters,
@@ -181,6 +187,7 @@ public final class LambdaBytecodeGenerator
                 metadata,
                 typeManager,
                 maxMethodComplexity,
+                charVarcharCoercion,
                 compiledLambdaMap,
                 inputParameters,
                 Optional.empty());
@@ -261,7 +268,7 @@ public final class LambdaBytecodeGenerator
         return block;
     }
 
-    public static Class<? extends Supplier<Object>> compileLambdaProvider(Lambda lambdaExpression, FunctionManager functionManager, Metadata metadata, TypeManager typeManager, int maxMethodComplexity, Class<?> lambdaInterface)
+    public static Class<? extends Supplier<Object>> compileLambdaProvider(Lambda lambdaExpression, FunctionManager functionManager, Metadata metadata, TypeManager typeManager, int maxMethodComplexity, CharVarcharCoercion charVarcharCoercion, Class<?> lambdaInterface)
     {
         ClassDefinition lambdaProviderClassDefinition = new ClassDefinition(
                 a(PUBLIC, Access.FINAL),
@@ -282,7 +289,8 @@ public final class LambdaBytecodeGenerator
                 functionManager,
                 metadata,
                 typeManager,
-                maxMethodComplexity);
+                maxMethodComplexity,
+                charVarcharCoercion);
 
         MethodDefinition method = lambdaProviderClassDefinition.declareMethod(
                 a(PUBLIC),
@@ -308,6 +316,7 @@ public final class LambdaBytecodeGenerator
                 metadata,
                 typeManager,
                 maxMethodComplexity,
+                charVarcharCoercion,
                 compiledLambdaMap,
                 ImmutableList.of(),
                 Optional.empty());

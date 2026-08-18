@@ -37,6 +37,7 @@ import io.trino.sql.ir.Logical;
 import io.trino.sql.ir.Reference;
 import io.trino.sql.planner.Symbol;
 import io.trino.sql.planner.SymbolsExtractor;
+import io.trino.type.CharVarcharCoercion;
 
 import java.util.List;
 import java.util.Map;
@@ -80,6 +81,7 @@ public sealed interface FilterEvaluator
     record SelectionResult(SelectedPositions selectedPositions, long filterTimeNanos) {}
 
     static Optional<Supplier<FilterEvaluator>> createColumnarFilterEvaluator(
+            CharVarcharCoercion charVarcharCoercion,
             boolean columnarFilterEvaluationEnabled,
             boolean columnarFilterSubexpressionEvaluationEnabled,
             boolean isDebugOutputEnabled,
@@ -92,6 +94,7 @@ public sealed interface FilterEvaluator
     {
         if (columnarFilterEvaluationEnabled && filter.isPresent()) {
             return createColumnarFilterEvaluator(
+                    charVarcharCoercion,
                     columnarFilterSubexpressionEvaluationEnabled,
                     isDebugOutputEnabled,
                     filterReorderingEnabled,
@@ -106,6 +109,7 @@ public sealed interface FilterEvaluator
     }
 
     static Optional<Supplier<FilterEvaluator>> createColumnarFilterEvaluator(
+            CharVarcharCoercion charVarcharCoercion,
             boolean columnarFilterSubexpressionEvaluationEnabled,
             boolean isDebugOutputEnabled,
             boolean filterReorderingEnabled,
@@ -125,15 +129,15 @@ public sealed interface FilterEvaluator
                 }
                 if (isNotExpression(call) && call.arguments().getFirst() instanceof IsNull isNull) {
                     // "not(is_null(reference))" is handled explicitly as it is easy.
-                    yield createIsNotNullExpressionEvaluator(columnarFilterSubexpressionEvaluationEnabled, isDebugOutputEnabled, dynamicFilter, compiler, pageFunctionCompiler, call, isNull, layout, classNameSuffix);
+                    yield createIsNotNullExpressionEvaluator(charVarcharCoercion, columnarFilterSubexpressionEvaluationEnabled, isDebugOutputEnabled, dynamicFilter, compiler, pageFunctionCompiler, call, isNull, layout, classNameSuffix);
                 }
-                yield createCallExpressionEvaluator(columnarFilterSubexpressionEvaluationEnabled, isDebugOutputEnabled, dynamicFilter, compiler, pageFunctionCompiler, call, layout, classNameSuffix);
+                yield createCallExpressionEvaluator(charVarcharCoercion, columnarFilterSubexpressionEvaluationEnabled, isDebugOutputEnabled, dynamicFilter, compiler, pageFunctionCompiler, call, layout, classNameSuffix);
             }
-            case IsNull isNull -> createIsNullExpressionEvaluator(columnarFilterSubexpressionEvaluationEnabled, isDebugOutputEnabled, dynamicFilter, compiler, pageFunctionCompiler, isNull, layout, classNameSuffix);
-            case Logical logical when logical.operator() == Logical.Operator.AND -> createAndExpressionEvaluator(columnarFilterSubexpressionEvaluationEnabled, isDebugOutputEnabled, filterReorderingEnabled, dynamicFilter, compiler, pageFunctionCompiler, logical, layout, classNameSuffix);
-            case Logical logical when logical.operator() == Logical.Operator.OR -> createOrExpressionEvaluator(columnarFilterSubexpressionEvaluationEnabled, isDebugOutputEnabled, filterReorderingEnabled, dynamicFilter, compiler, pageFunctionCompiler, logical, layout, classNameSuffix);
-            case In in -> createInExpressionEvaluator(columnarFilterSubexpressionEvaluationEnabled, isDebugOutputEnabled, dynamicFilter, compiler, pageFunctionCompiler, in, layout, classNameSuffix);
-            case Let let -> createLetEvaluator(columnarFilterSubexpressionEvaluationEnabled, isDebugOutputEnabled, filterReorderingEnabled, dynamicFilter, compiler, pageFunctionCompiler, let, layout, classNameSuffix);
+            case IsNull isNull -> createIsNullExpressionEvaluator(charVarcharCoercion, columnarFilterSubexpressionEvaluationEnabled, isDebugOutputEnabled, dynamicFilter, compiler, pageFunctionCompiler, isNull, layout, classNameSuffix);
+            case Logical logical when logical.operator() == Logical.Operator.AND -> createAndExpressionEvaluator(charVarcharCoercion, columnarFilterSubexpressionEvaluationEnabled, isDebugOutputEnabled, filterReorderingEnabled, dynamicFilter, compiler, pageFunctionCompiler, logical, layout, classNameSuffix);
+            case Logical logical when logical.operator() == Logical.Operator.OR -> createOrExpressionEvaluator(charVarcharCoercion, columnarFilterSubexpressionEvaluationEnabled, isDebugOutputEnabled, filterReorderingEnabled, dynamicFilter, compiler, pageFunctionCompiler, logical, layout, classNameSuffix);
+            case In in -> createInExpressionEvaluator(charVarcharCoercion, columnarFilterSubexpressionEvaluationEnabled, isDebugOutputEnabled, dynamicFilter, compiler, pageFunctionCompiler, in, layout, classNameSuffix);
+            case Let let -> createLetEvaluator(charVarcharCoercion, columnarFilterSubexpressionEvaluationEnabled, isDebugOutputEnabled, filterReorderingEnabled, dynamicFilter, compiler, pageFunctionCompiler, let, layout, classNameSuffix);
             default -> Optional.empty();
         };
     }
@@ -146,9 +150,9 @@ public sealed interface FilterEvaluator
 
     // Reordering can expose a term that may fail to rows that an earlier term would have filtered out,
     // changing SQL short-circuit semantics. Only reorder when every term is guaranteed not to fail.
-    static boolean isReorderingSafe(PlannerContext plannerContext, List<Expression> terms)
+    static boolean isReorderingSafe(PlannerContext plannerContext, CharVarcharCoercion charVarcharCoercion, List<Expression> terms)
     {
-        return terms.stream().noneMatch(term -> mayFail(plannerContext, term));
+        return terms.stream().noneMatch(term -> mayFail(plannerContext, charVarcharCoercion, term));
     }
 
     /**
@@ -161,6 +165,7 @@ public sealed interface FilterEvaluator
      * {@link ColumnarFilterEvaluatorWithProjectedArguments}.
      */
     private static Optional<Supplier<FilterEvaluator>> createReferenceValueFilterEvaluator(
+            CharVarcharCoercion charVarcharCoercion,
             boolean columnarFilterSubexpressionEvaluationEnabled,
             boolean isDebugOutputEnabled,
             boolean dynamicFilter,
@@ -172,19 +177,19 @@ public sealed interface FilterEvaluator
             Optional<String> classNameSuffix)
     {
         if (value instanceof Reference) {
-            return compiler.generateFilter(buildFilter.apply(value), layout, dynamicFilter)
+            return compiler.generateFilter(charVarcharCoercion, buildFilter.apply(value), layout, dynamicFilter)
                     .map(supplier -> () -> createDictionaryAwareEvaluator(supplier.get()));
         }
         if (!columnarFilterSubexpressionEvaluationEnabled) {
             return Optional.empty();
         }
-        Optional<Supplier<PageProjection>> projection = compileProjection(pageFunctionCompiler, value, layout, classNameSuffix);
+        Optional<Supplier<PageProjection>> projection = compileProjection(charVarcharCoercion, pageFunctionCompiler, value, layout, classNameSuffix);
         if (projection.isEmpty()) {
             return Optional.empty();
         }
         Symbol projectedSymbol = new Symbol(value.type(), "$projected_0");
         Expression rewrittenFilter = buildFilter.apply(new Reference(value.type(), projectedSymbol.name()));
-        return compiler.generateFilter(rewrittenFilter, ImmutableMap.of(projectedSymbol, 0), dynamicFilter)
+        return compiler.generateFilter(charVarcharCoercion, rewrittenFilter, ImmutableMap.of(projectedSymbol, 0), dynamicFilter)
                 .map(supplier -> () -> new ColumnarFilterEvaluatorWithProjectedArguments(
                         new DebugContext(ImmutableList.of(value), layout, rewrittenFilter.toString(), isDebugOutputEnabled),
                         ImmutableList.of(projection.get().get()),
@@ -199,6 +204,7 @@ public sealed interface FilterEvaluator
      * already a {@link Reference} no projection is needed.
      */
     private static Optional<Supplier<FilterEvaluator>> createLetEvaluator(
+            CharVarcharCoercion charVarcharCoercion,
             boolean columnarFilterSubexpressionEvaluationEnabled,
             boolean isDebugOutputEnabled,
             boolean filterReorderingEnabled,
@@ -213,7 +219,7 @@ public sealed interface FilterEvaluator
         Expression value = let.value();
         if (value instanceof Reference) {
             Expression body = replaceExpression(let.body(), ImmutableMap.of(boundReference, value));
-            return createColumnarFilterEvaluator(columnarFilterSubexpressionEvaluationEnabled, isDebugOutputEnabled, filterReorderingEnabled, dynamicFilter, body, layout, compiler, pageFunctionCompiler, classNameSuffix);
+            return createColumnarFilterEvaluator(charVarcharCoercion, columnarFilterSubexpressionEvaluationEnabled, isDebugOutputEnabled, filterReorderingEnabled, dynamicFilter, body, layout, compiler, pageFunctionCompiler, classNameSuffix);
         }
         if (!columnarFilterSubexpressionEvaluationEnabled) {
             return Optional.empty();
@@ -222,13 +228,13 @@ public sealed interface FilterEvaluator
         if (!Sets.difference(SymbolsExtractor.extractUnique(let.body()), ImmutableSet.of(let.name())).isEmpty()) {
             return Optional.empty();
         }
-        Optional<Supplier<PageProjection>> projection = compileProjection(pageFunctionCompiler, value, layout, classNameSuffix);
+        Optional<Supplier<PageProjection>> projection = compileProjection(charVarcharCoercion, pageFunctionCompiler, value, layout, classNameSuffix);
         if (projection.isEmpty()) {
             return Optional.empty();
         }
         Symbol projectedSymbol = new Symbol(value.type(), "$projected_0");
         Expression rewrittenBody = replaceExpression(let.body(), ImmutableMap.of(boundReference, new Reference(projectedSymbol.type(), projectedSymbol.name())));
-        return createColumnarFilterEvaluator(true, isDebugOutputEnabled, filterReorderingEnabled, dynamicFilter, rewrittenBody, ImmutableMap.of(projectedSymbol, 0), compiler, pageFunctionCompiler, classNameSuffix)
+        return createColumnarFilterEvaluator(charVarcharCoercion, true, isDebugOutputEnabled, filterReorderingEnabled, dynamicFilter, rewrittenBody, ImmutableMap.of(projectedSymbol, 0), compiler, pageFunctionCompiler, classNameSuffix)
                 .map(supplier -> () -> new ColumnarFilterEvaluatorWithProjectedArguments(
                         new DebugContext(ImmutableList.of(value), layout, rewrittenBody.toString(), isDebugOutputEnabled),
                         ImmutableList.of(projection.get().get()),
@@ -236,6 +242,7 @@ public sealed interface FilterEvaluator
     }
 
     private static Optional<Supplier<FilterEvaluator>> createInExpressionEvaluator(
+            CharVarcharCoercion charVarcharCoercion,
             boolean columnarFilterSubexpressionEvaluationEnabled,
             boolean isDebugOutputEnabled,
             boolean dynamicFilter,
@@ -247,6 +254,7 @@ public sealed interface FilterEvaluator
     {
         checkArgument(!in.valueList().isEmpty(), "valueList must not be empty");
         return createReferenceValueFilterEvaluator(
+                charVarcharCoercion,
                 columnarFilterSubexpressionEvaluationEnabled,
                 isDebugOutputEnabled,
                 dynamicFilter,
@@ -259,6 +267,7 @@ public sealed interface FilterEvaluator
     }
 
     private static Optional<Supplier<FilterEvaluator>> createCallExpressionEvaluator(
+            CharVarcharCoercion charVarcharCoercion,
             boolean columnarFilterSubexpressionEvaluationEnabled,
             boolean isDebugOutputEnabled,
             boolean dynamicFilter,
@@ -272,16 +281,17 @@ public sealed interface FilterEvaluator
             // not supported
             return Optional.empty();
         }
-        Optional<ProjectedArguments> projected = projectFilterArguments(columnarFilterSubexpressionEvaluationEnabled, pageFunctionCompiler, call.arguments(), layout, classNameSuffix);
+        Optional<ProjectedArguments> projected = projectFilterArguments(charVarcharCoercion, columnarFilterSubexpressionEvaluationEnabled, pageFunctionCompiler, call.arguments(), layout, classNameSuffix);
         if (projected.isEmpty()) {
             return Optional.empty();
         }
         ProjectedArguments arguments = projected.get();
         Call rewrittenCall = new Call(call.function(), arguments.rewrittenArguments());
-        return toFilterEvaluator(compiler.generateFilter(rewrittenCall, arguments.rewrittenLayout(), dynamicFilter), arguments, isDeterministic(call), layout, rewrittenCall, isDebugOutputEnabled);
+        return toFilterEvaluator(compiler.generateFilter(charVarcharCoercion, rewrittenCall, arguments.rewrittenLayout(), dynamicFilter), arguments, isDeterministic(call), layout, rewrittenCall, isDebugOutputEnabled);
     }
 
     private static Optional<Supplier<FilterEvaluator>> createIsNotNullExpressionEvaluator(
+            CharVarcharCoercion charVarcharCoercion,
             boolean columnarFilterSubexpressionEvaluationEnabled,
             boolean isDebugOutputEnabled,
             boolean dynamicFilter,
@@ -297,6 +307,7 @@ public sealed interface FilterEvaluator
         Type argumentType = isNull.value().type();
         checkArgument(!argumentType.equals(UNKNOWN), "argumentType %s should not be UNKNOWN", argumentType);
         return createReferenceValueFilterEvaluator(
+                charVarcharCoercion,
                 columnarFilterSubexpressionEvaluationEnabled,
                 isDebugOutputEnabled,
                 dynamicFilter,
@@ -309,6 +320,7 @@ public sealed interface FilterEvaluator
     }
 
     private static Optional<Supplier<FilterEvaluator>> createIsNullExpressionEvaluator(
+            CharVarcharCoercion charVarcharCoercion,
             boolean columnarFilterSubexpressionEvaluationEnabled,
             boolean isDebugOutputEnabled,
             boolean dynamicFilter,
@@ -320,7 +332,7 @@ public sealed interface FilterEvaluator
     {
         Type argumentType = isNull.value().type();
         checkArgument(!argumentType.equals(UNKNOWN), "argumentType %s should not be UNKNOWN", argumentType);
-        return createReferenceValueFilterEvaluator(columnarFilterSubexpressionEvaluationEnabled, isDebugOutputEnabled, dynamicFilter, compiler, pageFunctionCompiler, isNull.value(), IsNull::new, layout, classNameSuffix);
+        return createReferenceValueFilterEvaluator(charVarcharCoercion, columnarFilterSubexpressionEvaluationEnabled, isDebugOutputEnabled, dynamicFilter, compiler, pageFunctionCompiler, isNull.value(), IsNull::new, layout, classNameSuffix);
     }
 
     private static FilterEvaluator createDictionaryAwareEvaluator(ColumnarFilter filter)
@@ -329,10 +341,10 @@ public sealed interface FilterEvaluator
         return new ColumnarFilterEvaluator(new DictionaryAwareColumnarFilter(filter));
     }
 
-    private static Optional<Supplier<PageProjection>> compileProjection(PageFunctionCompiler compiler, Expression expression, Map<Symbol, Integer> layout, Optional<String> classNameSuffix)
+    private static Optional<Supplier<PageProjection>> compileProjection(CharVarcharCoercion charVarcharCoercion, PageFunctionCompiler compiler, Expression expression, Map<Symbol, Integer> layout, Optional<String> classNameSuffix)
     {
         try {
-            return Optional.of(compiler.compileProjection(expression, layout, classNameSuffix));
+            return Optional.of(compiler.compileProjection(expression, layout, charVarcharCoercion, classNameSuffix));
         }
         catch (Throwable t) {
             if (getCausalChain(t).stream().anyMatch(cause -> cause instanceof UnsupportedOperationException)) {
@@ -369,6 +381,7 @@ public sealed interface FilterEvaluator
     }
 
     private static Optional<ProjectedArguments> projectFilterArguments(
+            CharVarcharCoercion charVarcharCoercion,
             boolean columnarFilterSubexpressionEvaluationEnabled,
             PageFunctionCompiler pageFunctionCompiler,
             List<Expression> arguments,
@@ -392,7 +405,7 @@ public sealed interface FilterEvaluator
                 // Constant is handled directly in the filter evaluation
                 continue;
             }
-            Optional<Supplier<PageProjection>> projection = compileProjection(pageFunctionCompiler, argument, layout, classNameSuffix);
+            Optional<Supplier<PageProjection>> projection = compileProjection(charVarcharCoercion, pageFunctionCompiler, argument, layout, classNameSuffix);
             if (projection.isEmpty()) {
                 return Optional.empty();
             }

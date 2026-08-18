@@ -23,6 +23,7 @@ import io.trino.sql.newir.Value;
 import io.trino.sql.planner.optimizations.ctereuse.CteReuse.TraversalState;
 import io.trino.sql.planner.optimizations.ctereuse.CteReuse.UnifiedStates;
 import io.trino.sql.planner.optimizations.ctereuse.SingleGroupMerger.SingleGroupMergeDecomposition;
+import io.trino.type.CharVarcharCoercion;
 
 import java.util.List;
 import java.util.Map;
@@ -69,7 +70,8 @@ public class DynamicFilterSourceMerger
             Map<Operation, Operation> operationToDownstream,
             ProgramBuilder.ValueNameAllocator nameAllocator,
             Map<Value, Operation> newOperations,
-            Metadata metadata)
+            Metadata metadata,
+            CharVarcharCoercion charVarcharCoercion)
     {
         // concatenate dynamic filter Ids lists from all branches
         List<String> unifiedDynamicFilterIds = branches.stream()

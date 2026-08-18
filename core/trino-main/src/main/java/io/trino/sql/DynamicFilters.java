@@ -42,6 +42,7 @@ import io.trino.sql.planner.BuiltinFunctionCallBuilder;
 import io.trino.sql.planner.DynamicFilterDomain;
 import io.trino.sql.planner.Symbol;
 import io.trino.sql.planner.plan.DynamicFilterId;
+import io.trino.type.CharVarcharCoercion;
 
 import java.util.List;
 import java.util.Objects;
@@ -72,28 +73,31 @@ public final class DynamicFilters
 
     public static Expression createDynamicFilterExpression(
             Metadata metadata,
+            CharVarcharCoercion charVarcharCoercion,
             DynamicFilterId id,
             Type inputType,
             Expression input,
             ComparisonOperator operator)
     {
-        return createDynamicFilterExpression(metadata, id, inputType, input, operator, false);
+        return createDynamicFilterExpression(metadata, charVarcharCoercion, id, inputType, input, operator, false);
     }
 
     public static Expression createDynamicFilterExpression(
             Metadata metadata,
+            CharVarcharCoercion charVarcharCoercion,
             DynamicFilterId id,
             Type inputType,
             Expression input,
             ComparisonOperator operator,
             boolean nullAllowed)
     {
-        return createDynamicFilterExpression(metadata, id, inputType, input, operator, nullAllowed, Optional.empty());
+        return createDynamicFilterExpression(metadata, charVarcharCoercion, id, inputType, input, operator, nullAllowed, Optional.empty());
     }
 
     @VisibleForTesting
     public static Expression createDynamicFilterExpression(
             Metadata metadata,
+            CharVarcharCoercion charVarcharCoercion,
             DynamicFilterId id,
             Type inputType,
             Expression input,
@@ -102,7 +106,7 @@ public final class DynamicFilters
             Optional<Long> minDynamicFilterTimeout)
     {
         Expression timeoutExpression = new Constant(IntegerType.INTEGER, minDynamicFilterTimeout.orElse(null));
-        return BuiltinFunctionCallBuilder.resolve(metadata)
+        return BuiltinFunctionCallBuilder.resolve(metadata, charVarcharCoercion)
                 .setName(nullAllowed ? NullableFunction.NAME : Function.NAME)
                 .addArgument(inputType, input)
                 .addArgument(new Constant(VarcharType.VARCHAR, Slices.utf8Slice(operator.toString())))
@@ -113,9 +117,9 @@ public final class DynamicFilters
     }
 
     @VisibleForTesting
-    public static Expression createDynamicFilterExpression(Metadata metadata, DynamicFilterId id, Type inputType, Expression input)
+    public static Expression createDynamicFilterExpression(Metadata metadata, CharVarcharCoercion charVarcharCoercion, DynamicFilterId id, Type inputType, Expression input)
     {
-        return createDynamicFilterExpression(metadata, id, inputType, input, EQUAL);
+        return createDynamicFilterExpression(metadata, charVarcharCoercion, id, inputType, input, EQUAL);
     }
 
     public static ExtractResult extractDynamicFilters(Expression expression)

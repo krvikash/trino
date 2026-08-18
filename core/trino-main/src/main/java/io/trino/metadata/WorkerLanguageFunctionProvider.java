@@ -87,7 +87,7 @@ public class WorkerLanguageFunctionProvider
         // Recompile every time this function is called as the function dependencies may have changed.
         // The caller caches, so this should not be a problem.
         IrRoutine routine = data.irRoutine().orElseThrow();
-        SpecializedSqlScalarFunction function = new SqlRoutineCompiler(functionManager, metadata, typeManager, maxMethodComplexity).compile(routine);
+        SpecializedSqlScalarFunction function = new SqlRoutineCompiler(functionManager, metadata, typeManager, maxMethodComplexity).compile(data.charVarcharCoercion(), routine);
         return function.getScalarFunctionImplementation(invocationConvention);
     }
 }

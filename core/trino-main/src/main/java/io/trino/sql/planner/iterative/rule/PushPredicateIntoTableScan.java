@@ -60,6 +60,7 @@ import java.util.function.Function;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Verify.verify;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
+import static io.trino.SystemSessionProperties.getCharVarcharCoercion;
 import static io.trino.SystemSessionProperties.isAllowPushdownIntoConnectors;
 import static io.trino.matching.Capture.newCapture;
 import static io.trino.sql.DynamicFilters.isDynamicFilter;
@@ -189,7 +190,7 @@ public class PushPredicateIntoTableScan
                     splitExpression.getDeterministicPredicate(),
                     // Simplify the tuple domain to avoid creating an expression with too many nodes,
                     // which would be expensive to evaluate in the call to isCandidate below.
-                    new DomainTranslator(plannerContext.getMetadata()).toPredicate(newDomain.simplify().transformKeys(assignments::get)));
+                    new DomainTranslator(plannerContext.getMetadata()).toPredicate(getCharVarcharCoercion(session), newDomain.simplify().transformKeys(assignments::get)));
             ConnectorExpression expression = ConnectorExpressions.and(
                     connectorExpression,
                     EngineExpressions.buildEngineExpression(predicate, plannerContext.getExpressionCodec()));
@@ -282,7 +283,7 @@ public class PushPredicateIntoTableScan
                     session,
                     symbolAllocator,
                     splitExpression.getDynamicFilter(),
-                    new DomainTranslator(plannerContext.getMetadata()).toPredicate(remainingFilter.transformKeys(assignments::get)),
+                    new DomainTranslator(plannerContext.getMetadata()).toPredicate(getCharVarcharCoercion(session), remainingFilter.transformKeys(assignments::get)),
                     splitExpression.getNonDeterministicPredicate(),
                     remainingDecomposedPredicate);
 

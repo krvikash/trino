@@ -63,6 +63,7 @@ import io.trino.sql.ir.Reference;
 import io.trino.sql.planner.InternalDynamicFilter;
 import io.trino.sql.planner.Symbol;
 import io.trino.testing.TestingSession;
+import io.trino.type.CharVarcharCoercion;
 import io.trino.type.LikePattern;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -76,6 +77,8 @@ import java.util.OptionalInt;
 import java.util.Random;
 import java.util.stream.Stream;
 
+import static io.trino.SessionTestUtils.TEST_SESSION;
+import static io.trino.SystemSessionProperties.getCharVarcharCoercion;
 import static io.trino.block.BlockAssertions.assertBlockEquals;
 import static io.trino.block.BlockAssertions.createLongSequenceBlock;
 import static io.trino.memory.context.AggregatedMemoryContext.newSimpleAggregatedMemoryContext;
@@ -112,6 +115,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 public class TestColumnarFilters
 {
+    private static final CharVarcharCoercion CHAR_VARCHAR_COERCION = getCharVarcharCoercion(TEST_SESSION);
     private static final Random RANDOM = new Random(5376453765L);
     private static final long CONSTANT = 64992484L;
     private static final int ROW_NUM_CHANNEL = 0;
@@ -654,7 +658,7 @@ public class TestColumnarFilters
                 100,
                 createLongSequenceBlock(0, 100),
                 createLongSequenceBlock(0, 100));
-        FilterEvaluator filterEvaluator = createColumnarFilterEvaluator(true, false, true, false, andFilter, layout, COMPILER, PAGE_FUNCTION_COMPILER, Optional.empty()).orElseThrow().get();
+        FilterEvaluator filterEvaluator = createColumnarFilterEvaluator(CHAR_VARCHAR_COERCION, true, false, true, false, andFilter, layout, COMPILER, PAGE_FUNCTION_COMPILER, Optional.empty()).orElseThrow().get();
         filterEvaluator.evaluate(FULL_CONNECTOR_SESSION, SelectedPositions.positionsRange(0, 100), testingPage);
 
         // col_b (channel 1) should not have been loaded because the first conjunct returned no positions
@@ -686,7 +690,7 @@ public class TestColumnarFilters
                 100,
                 createLongSequenceBlock(0, 100),
                 createLongSequenceBlock(0, 100));
-        FilterEvaluator filterEvaluator = createColumnarFilterEvaluator(true, false, true, false, orFilter, layout, COMPILER, PAGE_FUNCTION_COMPILER, Optional.empty()).orElseThrow().get();
+        FilterEvaluator filterEvaluator = createColumnarFilterEvaluator(CHAR_VARCHAR_COERCION, true, false, true, false, orFilter, layout, COMPILER, PAGE_FUNCTION_COMPILER, Optional.empty()).orElseThrow().get();
         filterEvaluator.evaluate(FULL_CONNECTOR_SESSION, SelectedPositions.positionsRange(0, 100), testingPage);
 
         // col_b (channel 1) should not have been loaded because the first conjunct selected all rows
@@ -1003,6 +1007,7 @@ public class TestColumnarFilters
     private static List<Page> processFilter(List<Page> inputPages, boolean columnarEvaluationEnabled, boolean filterReorderingEnabled, Expression filter)
     {
         PageProcessor compiledProcessor = FUNCTION_RESOLUTION.getExpressionCompiler().compilePageProcessor(
+                        CHAR_VARCHAR_COERCION,
                         columnarEvaluationEnabled,
                         true,
                         false,
@@ -1286,12 +1291,12 @@ public class TestColumnarFilters
 
     private static void assertThatColumnarFilterEvaluationIsSupported(Expression filterExpression)
     {
-        assertThat(createColumnarFilterEvaluator(true, false, true, false, filterExpression, LAYOUT, COMPILER, PAGE_FUNCTION_COMPILER, Optional.empty())).isPresent();
+        assertThat(createColumnarFilterEvaluator(CHAR_VARCHAR_COERCION, true, false, true, false, filterExpression, LAYOUT, COMPILER, PAGE_FUNCTION_COMPILER, Optional.empty())).isPresent();
     }
 
     private static void assertThatColumnarFilterEvaluationIsNotSupported(Expression filterExpression)
     {
-        assertThat(createColumnarFilterEvaluator(true, false, true, false, filterExpression, LAYOUT, COMPILER, PAGE_FUNCTION_COMPILER, Optional.empty())).isEmpty();
+        assertThat(createColumnarFilterEvaluator(CHAR_VARCHAR_COERCION, true, false, true, false, filterExpression, LAYOUT, COMPILER, PAGE_FUNCTION_COMPILER, Optional.empty())).isEmpty();
     }
 
     @ScalarFunction("custom_is_distinct_from")

@@ -64,6 +64,7 @@ import io.trino.sql.routine.ir.IrSet;
 import io.trino.sql.routine.ir.IrStatement;
 import io.trino.sql.routine.ir.IrVariable;
 import io.trino.sql.routine.ir.IrWhile;
+import io.trino.type.CharVarcharCoercion;
 import io.trino.util.Reflection;
 
 import java.lang.invoke.MethodHandle;
@@ -121,7 +122,7 @@ public final class SqlRoutineCompiler
         this.maxMethodComplexity = maxMethodComplexity;
     }
 
-    public SpecializedSqlScalarFunction compile(IrRoutine routine)
+    public SpecializedSqlScalarFunction compile(CharVarcharCoercion charVarcharCoercion, IrRoutine routine)
     {
         Type returnType = routine.returnType();
         List<Type> parameterTypes = routine.parameters().stream()
@@ -135,7 +136,7 @@ public final class SqlRoutineCompiler
                 true,
                 true);
 
-        Class<?> clazz = compileClass(routine);
+        Class<?> clazz = compileClass(charVarcharCoercion, routine);
 
         MethodHandle handle = stream(clazz.getMethods())
                 .filter(method -> method.getName().equals("run"))
@@ -162,7 +163,7 @@ public final class SqlRoutineCompiler
     }
 
     @VisibleForTesting
-    public Class<?> compileClass(IrRoutine routine)
+    public Class<?> compileClass(CharVarcharCoercion charVarcharCoercion, IrRoutine routine)
     {
         ClassDefinition classDefinition = new ClassDefinition(
                 a(PUBLIC, FINAL),
@@ -172,9 +173,9 @@ public final class SqlRoutineCompiler
         CallSiteBinder callSiteBinder = new CallSiteBinder();
         CachedInstanceBinder cachedInstanceBinder = new CachedInstanceBinder(classDefinition, callSiteBinder);
 
-        Map<Lambda, CompiledLambda> compiledLambdaMap = generateMethodsForLambda(classDefinition, cachedInstanceBinder, routine);
+        Map<Lambda, CompiledLambda> compiledLambdaMap = generateMethodsForLambda(classDefinition, cachedInstanceBinder, routine, charVarcharCoercion);
 
-        generateRunMethod(classDefinition, cachedInstanceBinder, compiledLambdaMap, routine);
+        generateRunMethod(classDefinition, cachedInstanceBinder, compiledLambdaMap, routine, charVarcharCoercion);
 
         declareConstructor(classDefinition, cachedInstanceBinder);
 
@@ -184,7 +185,8 @@ public final class SqlRoutineCompiler
     private Map<Lambda, CompiledLambda> generateMethodsForLambda(
             ClassDefinition containerClassDefinition,
             CachedInstanceBinder cachedInstanceBinder,
-            IrNode node)
+            IrNode node,
+            CharVarcharCoercion charVarcharCoercion)
     {
         Set<Lambda> lambdaExpressions = extractLambda(node);
         ImmutableMap.Builder<Lambda, CompiledLambda> compiledLambdaMap = ImmutableMap.builder();
@@ -200,7 +202,8 @@ public final class SqlRoutineCompiler
                     functionManager,
                     metadata,
                     typeManager,
-                    maxMethodComplexity);
+                    maxMethodComplexity,
+                    charVarcharCoercion);
             compiledLambdaMap.put(lambdaExpression, compiledLambda);
             counter++;
         }
@@ -211,7 +214,8 @@ public final class SqlRoutineCompiler
             ClassDefinition classDefinition,
             CachedInstanceBinder cachedInstanceBinder,
             Map<Lambda, CompiledLambda> compiledLambdaMap,
-            IrRoutine routine)
+            IrRoutine routine,
+            CharVarcharCoercion charVarcharCoercion)
     {
         ImmutableList.Builder<Parameter> parameterBuilder = ImmutableList.builder();
         parameterBuilder.add(arg("session", ConnectorSession.class));
@@ -236,7 +240,7 @@ public final class SqlRoutineCompiler
         Map<String, String> referenceNameToScopeName = variables.keySet().stream()
                 .collect(toImmutableMap(SqlRoutinePlanner::variableReferenceName, SqlRoutineCompiler::name));
 
-        BytecodeVisitor visitor = new BytecodeVisitor(classDefinition, cachedInstanceBinder, compiledLambdaMap, variables, referenceNameToScopeName);
+        BytecodeVisitor visitor = new BytecodeVisitor(classDefinition, cachedInstanceBinder, compiledLambdaMap, variables, referenceNameToScopeName, charVarcharCoercion);
         method.getBody().append(visitor.process(routine, scope));
     }
 
@@ -298,6 +302,7 @@ public final class SqlRoutineCompiler
         private final Map<Lambda, CompiledLambda> compiledLambdaMap;
         private final Map<Integer, Variable> variables;
         private final Map<String, String> referenceNameToScopeName;
+        private final CharVarcharCoercion charVarcharCoercion;
 
         private final Map<IrLabel, LabelNode> continueLabels = new HashMap<>();
         private final Map<IrLabel, LabelNode> breakLabels = new HashMap<>();
@@ -307,13 +312,15 @@ public final class SqlRoutineCompiler
                 CachedInstanceBinder cachedInstanceBinder,
                 Map<Lambda, CompiledLambda> compiledLambdaMap,
                 Map<Integer, Variable> variables,
-                Map<String, String> referenceNameToScopeName)
+                Map<String, String> referenceNameToScopeName,
+                CharVarcharCoercion charVarcharCoercion)
         {
             this.classDefinition = requireNonNull(classDefinition, "classDefinition is null");
             this.cachedInstanceBinder = requireNonNull(cachedInstanceBinder, "cachedInstanceBinder is null");
             this.compiledLambdaMap = requireNonNull(compiledLambdaMap, "compiledLambdaMap is null");
             this.variables = requireNonNull(variables, "variables is null");
             this.referenceNameToScopeName = requireNonNull(referenceNameToScopeName, "referenceNameToScopeName is null");
+            this.charVarcharCoercion = requireNonNull(charVarcharCoercion, "charVarcharCoercion is null");
         }
 
         @Override
@@ -495,6 +502,7 @@ public final class SqlRoutineCompiler
                     metadata,
                     typeManager,
                     maxMethodComplexity,
+                    charVarcharCoercion,
                     compiledLambdaMap,
                     ImmutableList.of(),
                     Optional.empty());

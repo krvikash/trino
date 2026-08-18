@@ -21,6 +21,7 @@ import io.trino.sql.gen.PageFunctionCompiler;
 import io.trino.sql.ir.Expression;
 import io.trino.sql.ir.Logical;
 import io.trino.sql.planner.Symbol;
+import io.trino.type.CharVarcharCoercion;
 
 import java.util.List;
 import java.util.Map;
@@ -35,6 +36,7 @@ public final class AndFilterEvaluator
         implements FilterEvaluator
 {
     public static Optional<Supplier<FilterEvaluator>> createAndExpressionEvaluator(
+            CharVarcharCoercion charVarcharCoercion,
             boolean columnarFilterSubexpressionEvaluationEnabled,
             boolean isDebugOutputEnabled,
             boolean filterReorderingEnabled,
@@ -53,6 +55,7 @@ public final class AndFilterEvaluator
         ImmutableList.Builder<Supplier<FilterEvaluator>> builder = ImmutableList.builderWithExpectedSize(terms.size());
         for (Expression expression : terms) {
             Optional<Supplier<FilterEvaluator>> subExpressionEvaluator = FilterEvaluator.createColumnarFilterEvaluator(
+                    charVarcharCoercion,
                     columnarFilterSubexpressionEvaluationEnabled,
                     isDebugOutputEnabled,
                     filterReorderingEnabled,
@@ -68,7 +71,7 @@ public final class AndFilterEvaluator
             builder.add(subExpressionEvaluator.get());
         }
         List<Supplier<FilterEvaluator>> subExpressionEvaluators = builder.build();
-        boolean reorderingSafe = filterReorderingEnabled && isReorderingSafe(compiler.getPlannerContext(), terms);
+        boolean reorderingSafe = filterReorderingEnabled && isReorderingSafe(compiler.getPlannerContext(), charVarcharCoercion, terms);
         return Optional.of(() -> {
             FilterEvaluator[] filterEvaluators = new FilterEvaluator[subExpressionEvaluators.size()];
             for (int i = 0; i < filterEvaluators.length; i++) {

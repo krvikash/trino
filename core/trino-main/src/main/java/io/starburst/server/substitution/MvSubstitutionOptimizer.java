@@ -61,6 +61,7 @@ import java.util.regex.Pattern;
 import static io.starburst.server.substitution.MaterializedViewSubstitutionSessionProperties.getMaterializedViewSubstitutionCandidatesRegexFilter;
 import static io.starburst.server.substitution.MaterializedViewSubstitutionSessionProperties.getMaterializedViewSubstitutionMaxStaleness;
 import static io.starburst.server.substitution.MaterializedViewSubstitutionSessionProperties.isMaterializedViewSubstitutionEnabled;
+import static io.trino.SystemSessionProperties.getCharVarcharCoercion;
 import static io.trino.cache.SafeCaches.buildNonEvictableCache;
 import static java.util.Objects.requireNonNull;
 
@@ -73,7 +74,7 @@ public class MvSubstitutionOptimizer
     private final MaterializationIndex materializationIndex;
     private final Metadata metadata;
     private final SubstitutionMetadata substitutionMetadata;
-    private final TypeCoercion typeCoercion;
+    private final TypeManager typeManager;
     private final AccessControl accessControl;
     private final NonEvictableLoadingCache<String, Pattern> compiledCandidatesRegexFilters;
 
@@ -87,7 +88,7 @@ public class MvSubstitutionOptimizer
         this.materializationIndex = requireNonNull(materializationIndex, "materializationIndex is null");
         this.metadata = requireNonNull(metadata, "metadata is null");
         this.substitutionMetadata = requireNonNull(substitutionMetadata, "substitutionMetadata is null");
-        this.typeCoercion = new TypeCoercion(typeManager::getType);
+        this.typeManager = typeManager;
         this.accessControl = requireNonNull(accessControl, "accessControl is null");
         this.compiledCandidatesRegexFilters = buildNonEvictableCache(
                 CacheBuilder.newBuilder().maximumSize(MAX_CACHED_PATTERNS),
@@ -106,7 +107,8 @@ public class MvSubstitutionOptimizer
         if (isRefreshMaterializedViewPlan(plan)) {
             return plan;
         }
-        return optimize(context, plan).orElse(plan);
+        TypeCoercion typeCoercion = new TypeCoercion(typeManager::getType, getCharVarcharCoercion(context.session()));
+        return optimize(context, plan, typeCoercion).orElse(plan);
     }
 
     private static boolean isRefreshMaterializedViewPlan(PlanNode plan)
@@ -117,22 +119,22 @@ public class MvSubstitutionOptimizer
                 .matches();
     }
 
-    private Optional<PlanNode> optimize(Context context, PlanNode root)
+    private Optional<PlanNode> optimize(Context context, PlanNode root, TypeCoercion typeCoercion)
     {
         Map<PlanNode, ComputationHash> computationHashes = calculateHashes(context.session(), root);
         if (computationHashes.isEmpty()) {
             return Optional.empty();
         }
-        return optimize(context, root, computationHashes);
+        return optimize(context, root, computationHashes, typeCoercion);
     }
 
-    private Optional<PlanNode> optimize(Context context, PlanNode planNode, Map<PlanNode, ComputationHash> computationHashes)
+    private Optional<PlanNode> optimize(Context context, PlanNode planNode, Map<PlanNode, ComputationHash> computationHashes, TypeCoercion typeCoercion)
     {
         ComputationHash hash = computationHashes.get(planNode);
         if (hash != null) {
             List<MaterializationDefinition> candidates = materializationIndex.getMaterializations(hash);
             for (MaterializationDefinition candidate : candidates) {
-                Optional<PlanNode> substitute = trySubstitute(context, planNode, candidate);
+                Optional<PlanNode> substitute = trySubstitute(context, planNode, candidate, typeCoercion);
                 if (substitute.isPresent()) {
                     return substitute;
                 }
@@ -142,7 +144,7 @@ public class MvSubstitutionOptimizer
         ImmutableList.Builder<PlanNode> newSources = ImmutableList.builder();
         boolean anySourceOptimized = false;
         for (PlanNode source : planNode.getSources()) {
-            Optional<PlanNode> optimized = optimize(context, source, computationHashes);
+            Optional<PlanNode> optimized = optimize(context, source, computationHashes, typeCoercion);
             anySourceOptimized |= optimized.isPresent();
             newSources.add(optimized.orElse(source));
         }
@@ -153,7 +155,7 @@ public class MvSubstitutionOptimizer
         return Optional.of(planNode.replaceChildren(newSources.build()));
     }
 
-    private Optional<PlanNode> trySubstitute(Context context, PlanNode planNode, MaterializationDefinition candidate)
+    private Optional<PlanNode> trySubstitute(Context context, PlanNode planNode, MaterializationDefinition candidate, TypeCoercion typeCoercion)
     {
         if (!(planNode instanceof TableScanNode queryTableScan && substitutionSupported(queryTableScan))) {
             return Optional.empty();

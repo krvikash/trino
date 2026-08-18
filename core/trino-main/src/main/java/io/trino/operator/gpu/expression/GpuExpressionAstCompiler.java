@@ -47,6 +47,7 @@ import io.trino.sql.ir.IsNull;
 import io.trino.sql.ir.Logical;
 import io.trino.sql.ir.Reference;
 import io.trino.sql.planner.Symbol;
+import io.trino.type.CharVarcharCoercion;
 import jakarta.annotation.Nullable;
 
 import java.util.ArrayDeque;
@@ -77,9 +78,9 @@ public final class GpuExpressionAstCompiler
     // The value picked arbitrarily
     private static final int MAX_IN_LIST_SIZE_FOR_OR_REWRITE = 20;
 
-    public static Optional<CudfAstExpression> compile(Metadata metadata, Expression filter)
+    public static Optional<CudfAstExpression> compile(Metadata metadata, Expression filter, CharVarcharCoercion charVarcharCoercion)
     {
-        return translate(filter, new Context(metadata));
+        return translate(filter, new Context(metadata, charVarcharCoercion));
     }
 
     private static Optional<CudfAstExpression> translate(Expression expression, Context context)
@@ -171,7 +172,7 @@ public final class GpuExpressionAstCompiler
         }
         ImmutableList.Builder<Expression> equals = ImmutableList.builderWithExpectedSize(valueList.size());
         for (Expression item : valueList) {
-            equals.add(comparison(context.metadata(), ComparisonOperator.EQUAL, in.value(), item));
+            equals.add(comparison(context.metadata(), context.charVarcharCoercion(), ComparisonOperator.EQUAL, in.value(), item));
         }
         List<Expression> terms = equals.build();
         Expression rewritten = terms.size() == 1
@@ -231,11 +232,11 @@ public final class GpuExpressionAstCompiler
         return expression instanceof Reference;
     }
 
-    private record Context(Metadata metadata, AtomicBoolean loggedUnsupportedLeaf)
+    private record Context(Metadata metadata, CharVarcharCoercion charVarcharCoercion, AtomicBoolean loggedUnsupportedLeaf)
     {
-        private Context(Metadata metadata)
+        private Context(Metadata metadata, CharVarcharCoercion charVarcharCoercion)
         {
-            this(metadata, new AtomicBoolean());
+            this(metadata, charVarcharCoercion, new AtomicBoolean());
         }
     }
 }

@@ -34,12 +34,14 @@ import io.trino.sql.planner.plan.AggregationNode.Aggregation;
 import io.trino.sql.planner.plan.Assignments;
 import io.trino.sql.planner.plan.PlanNode;
 import io.trino.sql.planner.plan.ProjectNode;
+import io.trino.type.CharVarcharCoercion;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
+import static io.trino.SystemSessionProperties.getCharVarcharCoercion;
 import static io.trino.SystemSessionProperties.isGpuExecutionEnabled;
 import static io.trino.metadata.GlobalFunctionCatalog.builtinFunctionName;
 import static io.trino.spi.type.BigintType.BIGINT;
@@ -124,8 +126,9 @@ public class RewriteAvgAsSumOverCount
 
             Optional<Symbol> mask = aggregation.getMask();
 
+            CharVarcharCoercion charVarcharCoercion = getCharVarcharCoercion(context.getSession());
             ResolvedFunction sumFunction = plannerContext.getMetadata()
-                    .resolveBuiltinFunction("sum", TypeDescriptorProvider.fromTypes(DOUBLE));
+                    .resolveBuiltinFunction(charVarcharCoercion, "sum", TypeDescriptorProvider.fromTypes(DOUBLE));
             Symbol sumSymbol = context.getSymbolAllocator().newSymbol("sum", sumFunction.signature().getReturnType());
             newAggregations.put(sumSymbol, new Aggregation(
                     sumFunction,
@@ -136,7 +139,7 @@ public class RewriteAvgAsSumOverCount
                     mask));
 
             ResolvedFunction countFunction = plannerContext.getMetadata()
-                    .resolveBuiltinFunction("count", TypeDescriptorProvider.fromTypes(DOUBLE));
+                    .resolveBuiltinFunction(charVarcharCoercion, "count", TypeDescriptorProvider.fromTypes(DOUBLE));
             Symbol countSymbol = context.getSymbolAllocator().newSymbol("count", countFunction.signature().getReturnType());
             newAggregations.put(countSymbol, new Aggregation(
                     countFunction,
@@ -149,7 +152,7 @@ public class RewriteAvgAsSumOverCount
             newAggregations.remove(outputSymbol);
 
             ResolvedFunction divide = plannerContext.getMetadata()
-                    .resolveOperator(OperatorType.DIVIDE, ImmutableList.of(DOUBLE, DOUBLE));
+                    .resolveOperator(charVarcharCoercion, OperatorType.DIVIDE, ImmutableList.of(DOUBLE, DOUBLE));
             Expression divisionResult = new Call(divide, ImmutableList.of(
                     sumSymbol.toSymbolReference(),
                     new Cast(countSymbol.toSymbolReference(), DOUBLE)));

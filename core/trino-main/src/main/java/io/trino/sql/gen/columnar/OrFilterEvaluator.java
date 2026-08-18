@@ -21,6 +21,7 @@ import io.trino.sql.gen.PageFunctionCompiler;
 import io.trino.sql.ir.Expression;
 import io.trino.sql.ir.Logical;
 import io.trino.sql.planner.Symbol;
+import io.trino.type.CharVarcharCoercion;
 
 import java.util.List;
 import java.util.Map;
@@ -35,6 +36,7 @@ public final class OrFilterEvaluator
         implements FilterEvaluator
 {
     public static Optional<Supplier<FilterEvaluator>> createOrExpressionEvaluator(
+            CharVarcharCoercion charVarcharCoercion,
             boolean columnarFilterSubexpressionEvaluationEnabled,
             boolean isDebugOutputEnabled,
             boolean filterReorderingEnabled,
@@ -51,6 +53,7 @@ public final class OrFilterEvaluator
         ImmutableList.Builder<Supplier<FilterEvaluator>> builder = ImmutableList.builder();
         for (Expression expression : logical.terms()) {
             Optional<Supplier<FilterEvaluator>> subExpressionEvaluator = FilterEvaluator.createColumnarFilterEvaluator(
+                    charVarcharCoercion,
                     columnarFilterSubexpressionEvaluationEnabled,
                     isDebugOutputEnabled,
                     filterReorderingEnabled,
@@ -66,7 +69,7 @@ public final class OrFilterEvaluator
             builder.add(subExpressionEvaluator.get());
         }
         List<Supplier<FilterEvaluator>> subExpressionEvaluators = builder.build();
-        boolean reorderingSafe = filterReorderingEnabled && isReorderingSafe(compiler.getPlannerContext(), logical.terms());
+        boolean reorderingSafe = filterReorderingEnabled && isReorderingSafe(compiler.getPlannerContext(), charVarcharCoercion, logical.terms());
         return Optional.of(() -> new OrFilterEvaluator(
                 subExpressionEvaluators.stream().map(Supplier::get).collect(toImmutableList()),
                 reorderingSafe));

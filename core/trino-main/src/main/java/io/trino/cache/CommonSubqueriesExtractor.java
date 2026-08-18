@@ -82,6 +82,7 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static com.google.common.collect.Streams.forEachPair;
 import static com.google.common.collect.Streams.zip;
+import static io.trino.SystemSessionProperties.getCharVarcharCoercion;
 import static io.trino.cache.CanonicalSubplanExtractor.canonicalExpressionToColumnId;
 import static io.trino.cache.CanonicalSubplanExtractor.canonicalSymbolToColumnId;
 import static io.trino.cache.CanonicalSubplanExtractor.columnIdToSymbol;
@@ -597,7 +598,7 @@ public final class CommonSubqueriesExtractor
                 .filter((columnId, _) -> !retainedColumnIds.contains(columnId));
         if (!remainingTupleDomain.isAll() || !extractionResult.getRemainingExpression().equals(TRUE)) {
             Expression remainingDomainExpression = new DomainTranslator(plannerContext.getMetadata()).toPredicate(
-                    remainingTupleDomain.transformKeys(id -> columnIdToSymbol(id, commonColumnIds.get(id).type())));
+                    getCharVarcharCoercion(session), remainingTupleDomain.transformKeys(id -> columnIdToSymbol(id, commonColumnIds.get(id).type())));
             signatureKey = combine(
                     signatureKey,
                     "filters=" + formatExpression(combineConjuncts(

@@ -377,6 +377,7 @@ import static com.google.common.collect.Iterables.getOnlyElement;
 import static com.google.common.collect.Range.closedOpen;
 import static io.trino.SystemSessionProperties.getAdaptivePartialAggregationUniqueRowsRatioThreshold;
 import static io.trino.SystemSessionProperties.getAggregationOperatorUnspillMemoryLimit;
+import static io.trino.SystemSessionProperties.getCharVarcharCoercion;
 import static io.trino.SystemSessionProperties.getDynamicRowFilterSelectivityThreshold;
 import static io.trino.SystemSessionProperties.getFilterAndProjectMinOutputPageRowCount;
 import static io.trino.SystemSessionProperties.getFilterAndProjectMinOutputPageSize;
@@ -1826,7 +1827,7 @@ public class LocalExecutionPlanner
             }
 
             // compile expression using input layout and input types
-            return pageFunctionCompiler.compileProjection(rewritten, inputLayout.buildOrThrow(), Optional.empty());
+            return pageFunctionCompiler.compileProjection(rewritten, inputLayout.buildOrThrow(), getCharVarcharCoercion(session), Optional.empty());
         }
 
         private ValueAccessors preparePhysicalValuePointers(
@@ -1972,7 +1973,7 @@ public class LocalExecutionPlanner
             }
 
             // compile expression using input layout and input types
-            return pageFunctionCompiler.compileProjection(argument, inputLayout.buildOrThrow(), Optional.empty());
+            return pageFunctionCompiler.compileProjection(argument, inputLayout.buildOrThrow(), getCharVarcharCoercion(session), Optional.empty());
         }
 
         @Override
@@ -2476,7 +2477,8 @@ public class LocalExecutionPlanner
                                     new DomainTranslator(metadata),
                                     dynamicFilter,
                                     ImmutableMap.copyOf(Maps.transformValues(columnHandleToSymbol, sourceLayout::get)),
-                                    sourceOutputTypes));
+                                    sourceOutputTypes,
+                                    getCharVarcharCoercion(context.getTaskContext().getSession())));
                         }
                         else {
                             gpuDynamicFilter = Optional.empty();
@@ -2525,6 +2527,7 @@ public class LocalExecutionPlanner
                             filterReorderingEnabled));
                 }
                 Function<InternalDynamicFilter, PageProcessor> pageProcessor = expressionCompiler.compilePageProcessor(
+                        getCharVarcharCoercion(session),
                         columnarFilterEvaluationEnabled,
                         columnarFilterSubexpressionEvaluationEnabled,
                         isDebugOutputEnabled,
@@ -2991,6 +2994,7 @@ public class LocalExecutionPlanner
                         nonLookupOutputChannels,
                         indexSource.getTypes(),
                         pageFunctionCompiler,
+                        getCharVarcharCoercion(session),
                         blockTypeOperators));
             }
 
@@ -3759,7 +3763,7 @@ public class LocalExecutionPlanner
         {
             Map<Symbol, Integer> joinSourcesLayout = createJoinSourcesLayout(buildLayout, probeLayout);
 
-            return joinFilterFunctionCompiler.compileJoinFilterFunction(filterExpression, joinSourcesLayout, buildLayout.size());
+            return joinFilterFunctionCompiler.compileJoinFilterFunction(filterExpression, joinSourcesLayout, buildLayout.size(), getCharVarcharCoercion(session));
         }
 
         private Map<Symbol, Integer> createJoinSourcesLayout(Map<Symbol, Integer> lookupSourceLayout, Map<Symbol, Integer> probeSourceLayout)
@@ -4692,7 +4696,7 @@ public class LocalExecutionPlanner
                     // the same mechanism in project and filter expression should be used here.
                     verify(lambdaExpression.arguments().size() == functionType.getArgumentTypes().size());
 
-                    Class<? extends Supplier<Object>> lambdaProviderClass = compileLambdaProvider(lambdaExpression, plannerContext.getFunctionManager(), metadata, plannerContext.getTypeManager(), maxMethodComplexity, lambdaInterfaces.get(i));
+                    Class<? extends Supplier<Object>> lambdaProviderClass = compileLambdaProvider(lambdaExpression, plannerContext.getFunctionManager(), metadata, plannerContext.getTypeManager(), maxMethodComplexity, getCharVarcharCoercion(session), lambdaInterfaces.get(i));
                     try {
                         lambdaProviders.add(lambdaProviderClass.getConstructor(ConnectorSession.class).newInstance(session.toConnectorSession()));
                     }
@@ -4839,7 +4843,7 @@ public class LocalExecutionPlanner
             Optional<CudfAstExpression> compiledFilter;
             if (node.getFilter().isPresent()) {
                 Expression filter = node.getFilter().get();
-                compiledFilter = GpuExpressionAstCompiler.compile(metadata, filter);
+                compiledFilter = GpuExpressionAstCompiler.compile(metadata, filter, getCharVarcharCoercion(session));
                 if (compiledFilter.isEmpty()) {
                     log.debug("Could not compile join filter for GPU execution for join type %s: %s", node.getType(), filter);
                     context.markAsGpuIneligible(node.getId(), "Unsupported join filter expression");

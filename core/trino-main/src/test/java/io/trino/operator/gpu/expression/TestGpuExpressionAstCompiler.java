@@ -72,6 +72,7 @@ import static io.trino.sql.analyzer.TypeDescriptorProvider.fromTypes;
 import static io.trino.sql.ir.TestingIr.between;
 import static io.trino.sql.ir.TestingIr.comparison;
 import static io.trino.sql.planner.TestingPlannerContext.PLANNER_CONTEXT;
+import static io.trino.type.CharVarcharCoercion.SQL_STANDARD;
 import static java.lang.Float.floatToIntBits;
 import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -478,6 +479,6 @@ class TestGpuExpressionAstCompiler
 
     private static Optional<CudfAstExpression> compile(Expression expression)
     {
-        return GpuExpressionAstCompiler.compile(PLANNER_CONTEXT.getMetadata(), expression);
+        return GpuExpressionAstCompiler.compile(PLANNER_CONTEXT.getMetadata(), expression, SQL_STANDARD);
     }
 }
