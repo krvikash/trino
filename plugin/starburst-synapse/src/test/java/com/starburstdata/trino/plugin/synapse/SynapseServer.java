@@ -41,7 +41,7 @@ public class SynapseServer
     private static final String DATABASE = System.getProperty("test.synapse.jdbc.sqlpool", "SQLPOOL2");
 
     private static final String TEST_SUFFIX = System.getProperty("test.synapse.suffix", randomNameSuffix());
-    static final String TEST_SCHEMA = "s_" + TEST_SUFFIX;
+    public static final String TEST_SCHEMA = "s_" + TEST_SUFFIX;
     private static final String TEST_USER = "u_" + TEST_SUFFIX;
 
     private static final String PORT = "1433";

@@ -20,6 +20,7 @@ import org.junit.jupiter.api.parallel.Execution;
 
 import static com.starburstdata.trino.plugin.synapse.SynapseQueryRunner.DEFAULT_CATALOG_NAME;
 import static com.starburstdata.trino.plugin.synapse.SynapseQueryRunner.createSynapseQueryRunner;
+import static com.starburstdata.trino.plugin.synapse.SynapseServer.TEST_SCHEMA;
 import static org.junit.jupiter.api.parallel.ExecutionMode.SAME_THREAD;
 
 /**
@@ -43,12 +44,14 @@ public class TestIcebergMvOnSynapseSourceSubstitution
                 ImmutableList.of());
     }
 
-    // Synapse uses a random per-run schema and installs its own tpch catalog; read the actual source
-    // schema from the runner session rather than assuming a fixed name.
+    // Synapse installs its own tpch catalog and uses a per-run random schema. TEST_SCHEMA is that
+    // schema -- createSynapseQueryRunner builds its session from the same constant -- and it is read
+    // directly rather than off the runner session because sourceSchema() runs before the runner
+    // exists: it supplies the session, and the base table name fields are initialized from it.
     @Override
-    protected String sourceSchemaName()
+    protected CatalogSchemaName sourceSchema()
     {
-        return getSession().getSchema().orElseThrow();
+        return new CatalogSchemaName(DEFAULT_CATALOG_NAME, TEST_SCHEMA);
     }
 
     @Override
