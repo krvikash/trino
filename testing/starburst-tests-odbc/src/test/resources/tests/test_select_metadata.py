@@ -49,6 +49,19 @@ def test_column_types(cursor):
         )
 
 
+def test_varchar_column_size_counts_characters_not_bytes(cursor):
+    # 17 characters, 20 bytes in UTF-8.
+    cursor.execute("select 'Łąka jest piękna.'")
+    assert _column_description(cursor)[4] == 17
+
+
+def test_decimal_column_size_and_scale(cursor):
+    cursor.execute("select DECIMAL '12345.54321'")  # decimal(10,5)
+    description = _column_description(cursor)
+    assert description[4] == 10
+    assert description[5] == 5
+
+
 def test_expression_values(cursor):
     for expression, _, expected in _expressions_and_types:
         actual = cursor.execute("select " + expression).fetchval()
