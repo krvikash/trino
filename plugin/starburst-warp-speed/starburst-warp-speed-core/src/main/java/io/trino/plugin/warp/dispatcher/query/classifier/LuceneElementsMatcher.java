@@ -75,7 +75,7 @@ final class LuceneElementsMatcher
                 continue;
             }
             Optional<WarmUpElement> basicWarmUpElement = basicWarmupElements.get(warpColumn).stream().filter(basicElement -> !basicElement.getWarpColumn().isTransformedColumn()).findFirst();
-            if (preferBasicWarm(predicateContext, basicWarmUpElement)) {
+            if (preferBasicWarm(predicateContext, basicWarmUpElement) || isInverseDomain(predicateContext)) {
                 remainingPredicateContext.put(predicateColumn.getKey(), predicateContext);
                 continue;
             }
@@ -103,6 +103,18 @@ final class LuceneElementsMatcher
                 predicateContext.getWarpExpressionData().getNativeExpressionOptional().isPresent() &&
                 (predicateContext.getWarpExpressionData().getNativeExpressionOptional().get().predicateType() == PredicateType.PREDICATE_TYPE_STRING_VALUES ||
                         predicateContext.getWarpExpressionData().getNativeExpressionOptional().get().predicateType() == PredicateType.PREDICATE_TYPE_INVERSE_STRING);
+    }
+
+    /**
+     * inverse string domains (col != 'value', NOT IN) retain most rows and read every chunk's
+     * postings under lucene, so a basic or external match is cheaper
+     */
+    private static boolean isInverseDomain(PredicateContext predicateContext)
+    {
+        Domain domain = predicateContext.getDomain();
+        return !domain.isAll() && !domain.isNone() &&
+                domain.getValues() instanceof SortedRangeSet sortedRangeSet &&
+                PredicateUtil.isInversePredicate(sortedRangeSet, predicateContext.getColumnType());
     }
 
     private Optional<LuceneQueryMatchData> convert(

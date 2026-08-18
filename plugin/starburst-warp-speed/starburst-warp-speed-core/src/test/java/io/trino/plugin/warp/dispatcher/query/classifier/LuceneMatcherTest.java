@@ -239,6 +239,44 @@ public class LuceneMatcherTest
     }
 
     @Test
+    public void testInverseDomainNotMatchedWithLucene()
+    {
+        String columnName = "col1";
+        ColumnHandle columnHandle = mockColumnHandle(columnName, varcharType, dispatcherProxiedConnectorTransformer);
+
+        List<ColumnHandle> columnHandles = List.of(columnHandle);
+        WarmedWarmupTypes warmUpElementByType = createColumnToWarmUpElementByType(columnHandles, WarmUpType.WARM_UP_TYPE_LUCENE);
+
+        Slice excludedValue = Slices.utf8Slice("");
+        Domain domain = Domain.create(ValueSet.of(varcharType, excludedValue).complement(), false);
+        Map<ColumnHandle, Domain> columnDomains = columnHandles
+                .stream().collect(Collectors.toMap(
+                        Function.identity(),
+                        _ -> domain));
+        TupleDomain<ColumnHandle> tupleDomain = TupleDomain.withColumnDomains(columnDomains);
+        when(dispatcherTableHandle.getFullPredicate()).thenReturn(tupleDomain);
+        PredicateContextData predicateContext = predicateContextFactory.create(session, DynamicFilter.EMPTY, dispatcherTableHandle);
+        Map<WarpColumn, PredicateContext> remainingPredicateContext = predicateContext.getLeaves()
+                .entrySet().stream().collect(Collectors.toMap(x -> x.getValue().getWarpColumn(), Map.Entry::getValue));
+        ClassifyArgs classifyArgs = new ClassifyArgs(
+                dispatcherTableHandle,
+                rowGroupData,
+                mock(PredicateContextData.class),
+                ImmutableMap.of(),
+                warmUpElementByType,
+                false,
+                true,
+                true,
+                false,
+                false);
+        MatchContext matchContext = new MatchContext(Collections.emptyList(), remainingPredicateContext, true);
+        MatchContext result = luceneElementsMatcher.match(classifyArgs, matchContext);
+
+        assertThat(result.matchDataList()).isEmpty();
+        assertThat(result.remainingPredicateContext().values().stream().map(PredicateContext::getDomain)).containsExactly(domain);
+    }
+
+    @Test
     public void testNonAsciiRangeShouldBeHandledByLucene()
     {
         String columnName = "col1";
