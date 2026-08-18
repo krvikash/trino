@@ -29,7 +29,7 @@ public class BufferNodeStateManager
             return;
         }
         checkState(targetState.canTransitionFrom(state), "can't transition from %s to %s".formatted(state, targetState));
-        log.info("Transition node state from %s to %s", state, targetState);
+        log.info("Transition buffer node state from %s to %s", state, targetState);
         state = targetState;
     }
 

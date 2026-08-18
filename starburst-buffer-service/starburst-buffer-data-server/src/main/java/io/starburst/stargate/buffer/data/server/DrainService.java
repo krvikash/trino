@@ -84,6 +84,7 @@ public class DrainService
 
     public synchronized void drain()
     {
+        log.info("Draining buffer node has been requested");
         if (bufferNodeStateManager.isDrainingStarted()) {
             return;
         }
@@ -95,6 +96,9 @@ public class DrainService
                 boolean success = waitNoInProgressAddDataPagesRequests();
                 if (!success) {
                     log.error("HACK: draining all chunks even though addDataPages in progress reported");
+                }
+                else {
+                    log.info("All in flight addData requests completed, proceeding to drain all chunks");
                 }
                 chunkManager.drainAllChunks();
             }
