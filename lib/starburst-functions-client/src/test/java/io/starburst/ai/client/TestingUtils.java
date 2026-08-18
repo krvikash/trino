@@ -13,6 +13,7 @@ import com.google.common.collect.ImmutableMap;
 import io.airlift.configuration.secrets.SecretsResolver;
 import io.airlift.configuration.secrets.env.EnvironmentVariableSecretProvider;
 import io.airlift.http.client.HttpClient;
+import io.airlift.http.client.jetty.JettyHttpClient;
 import io.airlift.http.client.testing.TestingHttpClient;
 import io.airlift.json.ObjectMapperProvider;
 import io.opentelemetry.api.OpenTelemetry;
@@ -309,14 +310,27 @@ public final class TestingUtils
 
     public static ModelClientProvider staticModelClientProvider(String modelSpecJson, ScheduledExecutorService reloadingExecutor, ExecutorService llmExecutor, TokenUsageListener tokenUsageListener)
     {
+        return staticModelClientProvider(modelSpecJson, reloadingExecutor, llmExecutor, tokenUsageListener, false);
+    }
+
+    // oauth2Enabled must be true whenever modelSpecJson contains an oauthConfig block: it both satisfies
+    // ReloadingModelClientProvider's clientCacheRefreshEnabled requirement and selects a real (rather than
+    // fake, always-throwing) OAuth2 HttpClient so the token fetch actually happens.
+    public static ModelClientProvider staticModelClientProvider(
+            String modelSpecJson,
+            ScheduledExecutorService reloadingExecutor,
+            ExecutorService llmExecutor,
+            TokenUsageListener tokenUsageListener,
+            boolean oauth2Enabled)
+    {
         File modelsFile = createModelConnectionSpecsFile(modelSpecJson);
-        return createModelClientProvider(modelsFile, false, reloadingExecutor, llmExecutor, tokenUsageListener);
+        return createModelClientProvider(modelsFile, oauth2Enabled, oauth2Enabled, reloadingExecutor, llmExecutor, tokenUsageListener);
     }
 
     public static ReloadingModelClientProvider reloadingModelClientProvider(File modelsFile, ScheduledExecutorService reloadingExecutor, ExecutorService llmExecutor)
     {
         ReloadingModelClientProvider reloadingModelClientProvider =
-                createModelClientProvider(modelsFile, true, reloadingExecutor, llmExecutor, TokenUsageListener.NOOP);
+                createModelClientProvider(modelsFile, true, false, reloadingExecutor, llmExecutor, TokenUsageListener.NOOP);
         reloadingModelClientProvider.start();
         return reloadingModelClientProvider;
     }
@@ -324,6 +338,7 @@ public final class TestingUtils
     private static ReloadingModelClientProvider createModelClientProvider(
             File modelsFile,
             boolean clientCacheRefreshEnabled,
+            boolean useRealOAuth2HttpClient,
             ScheduledExecutorService reloadingExecutor,
             ExecutorService llmExecutor,
             TokenUsageListener tokenUsageListener)
@@ -341,7 +356,9 @@ public final class TestingUtils
         AiClientConfig aiClientConfig = new AiClientConfig();
         Tracer tracer = OpenTelemetry.noop().getTracer("test");
         AwsBedrockClientFactory bedrockClientFactory = new AwsBedrockClientFactory(awsEmbeddingCodecFactories, secretsResolver, aiClientConfig, llmExecutor, tracer);
-        OAuth2TokenCache oauth2TokenCache = createTestOAuth2TokenCache(aiClientConfig);
+        OAuth2TokenCache oauth2TokenCache = useRealOAuth2HttpClient
+                ? new OAuth2TokenCache(Optional.of(new OAuth2TokenFetcher(new JettyHttpClient())), aiClientConfig)
+                : createTestOAuth2TokenCache(aiClientConfig);
         OpenAiClientFactory openAiClientFactory = new OpenAiClientFactory(secretsResolver, aiClientConfig, llmExecutor, new ObjectMapperProvider().get(), oauth2TokenCache, tracer);
         VertexAiClientFactory vertexAiClientFactory = new VertexAiClientFactory(secretsResolver, aiClientConfig, llmExecutor, tracer);
         return new ReloadingModelClientProvider(
@@ -352,7 +369,8 @@ public final class TestingUtils
                 vertexAiClientFactory,
                 oauth2TokenCache,
                 new AiClientConfig()
-                        .setClientCacheRefreshEnabled(clientCacheRefreshEnabled),
+                        .setClientCacheRefreshEnabled(clientCacheRefreshEnabled)
+                        .setOauth2Enabled(useRealOAuth2HttpClient),
                 secretsResolver,
                 reloadingExecutor,
                 tokenUsageListener);

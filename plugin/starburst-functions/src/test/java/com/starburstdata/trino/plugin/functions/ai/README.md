@@ -6,6 +6,17 @@
    - text-embedding-3-small
 Connection information including an API key can be accessed by clicking on the respective deployment.
 
+### Azure Entra ID OAuth2 (client credentials) test setup
+
+For testing OAuth2/Entra ID auth against the Responses API shape:
+
+- Created Entra ID app registration `sep-trino-azure-responses-oauth-test` (single-tenant, `starburstdata.onmicrosoft.com`), client-credentials flow only, no redirect URIs.
+- Assigned it the `Cognitive Services OpenAI User` RBAC role, scoped to the `ci-sep-galaxy` resource only.
+- Endpoint: `https://ci-sep-galaxy.openai.azure.com/openai/responses` (deployment name `o4-mini-deployment`)
+- Token URL: `https://login.microsoftonline.com/<tenant-id>/oauth2/v2.0/token`
+- Scope: `https://cognitiveservices.azure.com/.default`
+- Client ID and secret are stored as GitHub Actions secrets/variables on this repo.
+
 ## Gemini test setup
 
 Created https://console.cloud.google.com/apis/credentials/key/e2921eeb-f930-459a-9abd-f5303853d945?inv=1&invt=Ab3Czw&project=starburstdata-saas-development Gemini API key for tests

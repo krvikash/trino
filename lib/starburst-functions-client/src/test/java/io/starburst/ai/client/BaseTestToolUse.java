@@ -62,14 +62,23 @@ public abstract class BaseTestToolUse
         reloadingExecutor = newSingleThreadScheduledExecutor(daemonThreadsNamed("reloading-model-client-provider"));
         llmExecutor = createLlmExecutor();
 
-        modelClientProvider = staticModelClientProvider(getLanguageModelProviders(), reloadingExecutor, llmExecutor,
+        modelClientProvider = staticModelClientProvider(
+                getLanguageModelProviders(),
+                reloadingExecutor,
+                llmExecutor,
                 (ctx, usage) -> {
                     capturedContext.set(ctx);
                     capturedUsage.set(usage);
-                });
+                },
+                usesOAuth2());
     }
 
     protected abstract String getLanguageModelProviders();
+
+    protected boolean usesOAuth2()
+    {
+        return false;
+    }
 
     @AfterAll
     public void cleanup()

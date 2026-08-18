@@ -18,6 +18,9 @@ public class VendorTestModels
     public static final String EMBED_MODEL_ID = "embed_model";
     private static final String AZURE_OPEN_AI_LANGUAGE_ENDPOINT = requireEnv("AZURE_OPEN_AI_LANGUAGE_ENDPOINT");
     private static final String AZURE_OPEN_AI_EMBED_ENDPOINT = requireEnv("AZURE_OPEN_AI_EMBED_ENDPOINT");
+    private static final String AZURE_OPEN_AI_RESPONSES_ENDPOINT = requireEnv("AZURE_OPEN_AI_RESPONSES_ENDPOINT");
+    private static final String AZURE_ENTRA_TOKEN_URL = requireEnv("AZURE_ENTRA_TOKEN_URL");
+    private static final String AZURE_ENTRA_CLIENT_ID = requireEnv("AZURE_ENTRA_CLIENT_ID");
     private static final String VERTEX_LOCATION = requireEnv("VERTEX_LOCATION");
 
     public static final String AZURE_OPEN_AI_MODEL_PROVIDERS =
@@ -120,6 +123,58 @@ public class VendorTestModels
                 }
               ]
             }""".formatted(VERTEX_LOCATION);
+
+    public static final String AZURE_OPEN_AI_RESPONSES_API_MODEL_PROVIDERS =
+            """
+            {
+              "models": [
+                 {
+                    "id": "%s",
+                    "modelName": "o4-mini-deployment",
+                    "kind": "GENERATE",
+                    "connectionInfo": {
+                        "provider": "OPENAI",
+                        "endpoint": "%s",
+                        "oauthConfig": {
+                            "grantType": "CLIENT_CREDENTIALS",
+                            "tokenUrl": "%s",
+                            "clientId": "%s",
+                            "clientSecret": "${ENV:AZURE_ENTRA_CLIENT_SECRET}",
+                            "scope": "https://cognitiveservices.azure.com/.default"
+                        }
+                    },
+                    "useResponsesApi": "true"
+                },
+                {
+                    "id": "%s",
+                    "modelName": "o4-mini-deployment",
+                    "kind": "GENERATE",
+                    "connectionInfo": {
+                        "provider": "OPENAI",
+                        "endpoint": "%s",
+                        "oauthConfig": {
+                            "grantType": "CLIENT_CREDENTIALS",
+                            "tokenUrl": "%s",
+                            "clientId": "%s",
+                            "clientSecret": "${ENV:AZURE_ENTRA_CLIENT_SECRET}",
+                            "scope": "https://cognitiveservices.azure.com/.default"
+                        }
+                    },
+                    "useResponsesApi": "true",
+                    "traits": {
+                        "STREAMING_TOOL_CALL_SUPPORT": "STREAMING_TOOL_CALL_NOT_SUPPORTED"
+                    }
+                }
+              ]
+            }""".formatted(
+            LANGUAGE_MODEL_ID,
+            AZURE_OPEN_AI_RESPONSES_ENDPOINT,
+            AZURE_ENTRA_TOKEN_URL,
+            AZURE_ENTRA_CLIENT_ID,
+            LANGUAGE_MODEL_ID_NON_STREAMING,
+            AZURE_OPEN_AI_RESPONSES_ENDPOINT,
+            AZURE_ENTRA_TOKEN_URL,
+            AZURE_ENTRA_CLIENT_ID);
 
     private VendorTestModels() {}
 }
