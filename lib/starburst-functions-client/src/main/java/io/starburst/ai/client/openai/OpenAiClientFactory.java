@@ -11,11 +11,13 @@ package io.starburst.ai.client.openai;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ImmutableSet;
 import com.google.inject.Inject;
 import com.openai.azure.AzureOpenAIServiceVersion;
 import com.openai.azure.credential.AzureApiKeyCredential;
 import com.openai.client.OpenAIClient;
 import com.openai.client.okhttp.OpenAIOkHttpClient;
+import com.openai.credential.BearerTokenCredential;
 import com.openai.models.ReasoningEffort;
 import io.airlift.configuration.secrets.SecretsResolver;
 import io.airlift.log.Logger;
@@ -36,22 +38,19 @@ import io.trino.spi.TrinoException;
 
 import java.net.URI;
 import java.util.Arrays;
-import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.Executor;
 
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static io.starburst.ai.client.AiClientErrorCode.INVALID_MODEL_CONFIGURATION;
-import static io.starburst.ai.client.ModelSecretsResolver.DUMMY_API_KEY;
 import static io.starburst.ai.client.ModelSecretsResolver.resolveOAuth2Secrets;
 import static io.starburst.ai.client.ModelSecretsResolver.resolveOpenAiSecrets;
 import static io.starburst.ai.client.tracing.GenAiAttributes.PROVIDER_NAME_AZURE_OPENAI;
 import static io.starburst.ai.client.tracing.GenAiAttributes.PROVIDER_NAME_OPENAI;
 import static io.starburst.ai.model.LlmTrait.STREAMING_TOOL_CALL_SUPPORT;
 import static io.starburst.ai.model.StreamingToolCallSupportOption.STREAMING_TOOL_CALL_SUPPORTED;
-import static java.lang.String.format;
 import static java.util.Locale.ROOT;
 import static java.util.Objects.requireNonNull;
 
@@ -62,8 +61,12 @@ public class OpenAiClientFactory
     // It is assumed that the Azure OpenAI endpoint is of the following formats:
     // {baseUrl}/openai/deployments/{deploymentName}/chat/completions?api-version={version}
     // {baseUrl}/openai/deployments/{deploymentName}/embeddings?api-version={version}
+    // {baseUrl}/openai/responses?api-version={version}
     private static final String AZURE_OPENAI_ENDPOINT_IDENTIFIER = "/openai/deployments/";
+    private static final String AZURE_OPENAI_RESPONSES_ENDPOINT_PATH = "/openai/responses";
     private static final String AZURE_OPENAI_API_VERSION_QUERY_PARAM = "api-version";
+    // Copied from https://github.com/openai/openai-java/blob/71cf8abd87f4e7ea4ab658d813499f3e30aee632/openai-java-core/src/main/kotlin/com/openai/core/Utils.kt#L98-L100
+    private static final Set<String> AZURE_HOST_SUFFIXES = ImmutableSet.of(".openai.azure.com", ".azure-api.net", ".cognitiveservices.azure.com");
 
     private final SecretsResolver secretsResolver;
     private final Executor executor;
@@ -105,7 +108,9 @@ public class OpenAiClientFactory
                 .map(azureConnectionInfo -> new OpenAiConnectionInfo(Optional.of(azureConnectionInfo.endpoint()), connectionInfo.apiKey(), connectionInfo.additionalHeaders(), connectionInfo.oauthConfig()))
                 .orElse(connectionInfo);
         // Ideally model name should be correctly parsed and populated from UI
-        String modelName = azureOpenAiConnectionInfo.map(AzureOpenAiConnectionInfo::deployment).orElse(spec.modelName());
+        String modelName = azureOpenAiConnectionInfo.map(AzureOpenAiConnectionInfo::deployment)
+                .filter(deployment -> !deployment.isBlank())
+                .orElse(spec.modelName());
         boolean isStreamingToolCallSupported = spec.traits().getOrDefault(STREAMING_TOOL_CALL_SUPPORT, STREAMING_TOOL_CALL_SUPPORTED.name())
                 .equals(STREAMING_TOOL_CALL_SUPPORTED.name());
 
@@ -158,7 +163,9 @@ public class OpenAiClientFactory
         OpenAiConnectionInfo updatedConnectionInfo = azureOpenAiConnectionInfo
                 .map(azureConnectionInfo -> new OpenAiConnectionInfo(Optional.of(azureConnectionInfo.endpoint()), connectionInfo.apiKey(), connectionInfo.additionalHeaders(), connectionInfo.oauthConfig()))
                 .orElse(connectionInfo);
-        String modelName = azureOpenAiConnectionInfo.map(AzureOpenAiConnectionInfo::deployment).orElse(spec.modelName());
+        String modelName = azureOpenAiConnectionInfo.map(AzureOpenAiConnectionInfo::deployment)
+                .filter(deployment -> !deployment.isBlank())
+                .orElse(spec.modelName());
         return new OpenAiEmbeddingModelClient(modelName, spec.dimensions(), createOpenAiClient(spec.id(), updatedConnectionInfo, azureOpenAiConnectionInfo));
     }
 
@@ -181,19 +188,20 @@ public class OpenAiClientFactory
             }
         });
         if (connectionInfo.oauthConfig().isPresent()) {
-            if (azureOpenAiConnectionInfo.isPresent()) {
-                throw new TrinoException(INVALID_MODEL_CONFIGURATION, "OAuth2 is not supported for Azure OpenAI endpoints; use apiKey");
+            boolean oauthNotSupported = azureOpenAiConnectionInfo
+                    .map(info -> !info.isResponsesApiEndpoint())
+                    .orElse(false);
+            if (oauthNotSupported) {
+                throw new TrinoException(INVALID_MODEL_CONFIGURATION, "OAuth2 is not supported for Azure OpenAI deployment endpoints; use apiKey. OAuth2 is supported for the Azure Foundry Responses API endpoint shape.");
             }
             String bearer = oauth2TokenCache.accessToken(modelId, resolveOAuth2Secrets(connectionInfo.oauthConfig().get(), secretsResolver));
-            // OpenAI SDK requires a non-blank apiKey (see DUMMY_API_KEY reference in ModelSecretsResolver);
-            // the real credential is delivered via the Authorization header below.
-            builder.apiKey(DUMMY_API_KEY);
-            Map<String, List<String>> resolvedHeaders = connectionInfo.additionalHeaders().isEmpty()
-                    ? Map.of()
-                    : resolveOpenAiSecrets(connectionInfo, secretsResolver).additionalHeaders();
-            Map<String, List<String>> merged = new LinkedHashMap<>(resolvedHeaders);
-            merged.put("Authorization", List.of(format("Bearer %s", bearer)));
-            builder.putAllHeaders(merged);
+            // credential() sets the Authorization header; a header set via putAllHeaders() below would take
+            // precedence at build() time, but additionalHeaders() can never contain "Authorization" here
+            // (enforced by OpenAiConnectionInfo's compact constructor).
+            builder.credential(BearerTokenCredential.create(bearer));
+            if (!connectionInfo.additionalHeaders().isEmpty()) {
+                builder.putAllHeaders(resolveOpenAiSecrets(connectionInfo, secretsResolver).additionalHeaders());
+            }
             connectionInfo.endpoint().ifPresent(builder::baseUrl);
             return builder.build();
         }
@@ -221,22 +229,31 @@ public class OpenAiClientFactory
     {
         return openAiEndpoint
                 .map(endpoint -> endpoint.toLowerCase(ROOT))
-                .filter(endpoint -> endpoint.contains(AZURE_OPENAI_ENDPOINT_IDENTIFIER))
                 .flatMap(endpoint -> {
                     String defaultVersion = AzureOpenAIServiceVersion.latestPreviewVersion().value();
                     try {
                         URI uri = new URI(endpoint);
                         AzureOpenAiEndpointComponents azureOpenAiEndpointComponents;
                         boolean isCustomAzureOpenAiDeployment = false;
-                        // Copied from https://github.com/openai/openai-java/blob/71cf8abd87f4e7ea4ab658d813499f3e30aee632/openai-java-core/src/main/kotlin/com/openai/core/Utils.kt#L98-L100
-                        if (endpoint.contains(".openai.azure.com")
-                                || endpoint.contains(".azure-api.net")
-                                || endpoint.contains(".cognitiveservices.azure.com")) {
-                            azureOpenAiEndpointComponents = getOpenAiAzureEndpoint(endpoint);
+                        boolean isResponsesApiEndpoint = false;
+                        if (isKnownAzureHost(uri)) {
+                            if (isAzureResponsesApiPath(uri.getPath())) {
+                                azureOpenAiEndpointComponents = getAzureResponsesEndpoint(endpoint);
+                                isResponsesApiEndpoint = true;
+                            }
+                            else if (endpoint.contains(AZURE_OPENAI_ENDPOINT_IDENTIFIER)) {
+                                azureOpenAiEndpointComponents = getOpenAiAzureEndpoint(endpoint);
+                            }
+                            else {
+                                return Optional.empty();
+                            }
                         }
-                        else {
+                        else if (endpoint.contains(AZURE_OPENAI_ENDPOINT_IDENTIFIER)) {
                             azureOpenAiEndpointComponents = getCustomOpenAiAzureEndpoint(endpoint);
                             isCustomAzureOpenAiDeployment = true;
+                        }
+                        else {
+                            return Optional.empty();
                         }
 
                         String deploymentName = azureOpenAiEndpointComponents.deployment;
@@ -245,21 +262,46 @@ public class OpenAiClientFactory
                         String query = uri.getQuery();
                         if (query == null || query.isEmpty()) {
                             LOG.debug("Using default Azure OpenAI API version: '%s'", defaultVersion);
-                            return Optional.of(new AzureOpenAiConnectionInfo(baseUrl, deploymentName, defaultVersion, isCustomAzureOpenAiDeployment));
+                            return Optional.of(new AzureOpenAiConnectionInfo(baseUrl, deploymentName, defaultVersion, isCustomAzureOpenAiDeployment, isResponsesApiEndpoint));
                         }
                         Map<String, String> queryParams = Arrays.stream(query.split("&"))
                                 .map(param -> param.split("=", 2))
                                 .collect(toImmutableMap(a -> a[0], a -> a.length > 1 ? a[1] : ""));
                         if (!queryParams.containsKey(AZURE_OPENAI_API_VERSION_QUERY_PARAM)) {
                             LOG.debug("Using default Azure OpenAI API version: '%s'", defaultVersion);
-                            return Optional.of(new AzureOpenAiConnectionInfo(baseUrl, deploymentName, defaultVersion, isCustomAzureOpenAiDeployment));
+                            return Optional.of(new AzureOpenAiConnectionInfo(baseUrl, deploymentName, defaultVersion, isCustomAzureOpenAiDeployment, isResponsesApiEndpoint));
                         }
-                        return Optional.of(new AzureOpenAiConnectionInfo(baseUrl, deploymentName, queryParams.get(AZURE_OPENAI_API_VERSION_QUERY_PARAM), isCustomAzureOpenAiDeployment));
+                        return Optional.of(new AzureOpenAiConnectionInfo(baseUrl, deploymentName, queryParams.get(AZURE_OPENAI_API_VERSION_QUERY_PARAM), isCustomAzureOpenAiDeployment, isResponsesApiEndpoint));
                     }
                     catch (Exception e) {
                         throw new TrinoException(INVALID_MODEL_CONFIGURATION, e);
                     }
                 });
+    }
+
+    private static boolean isKnownAzureHost(URI uri)
+    {
+        String host = uri.getHost();
+        if (host == null) {
+            return false;
+        }
+        return AZURE_HOST_SUFFIXES.stream().anyMatch(host::endsWith);
+    }
+
+    private static boolean isAzureResponsesApiPath(String path)
+    {
+        if (path == null) {
+            return false;
+        }
+        String trimmedPath = path.endsWith("/") ? path.substring(0, path.length() - 1) : path;
+        return trimmedPath.equals(AZURE_OPENAI_RESPONSES_ENDPOINT_PATH);
+    }
+
+    private static AzureOpenAiEndpointComponents getAzureResponsesEndpoint(String endpoint)
+    {
+        int pathStartIndex = endpoint.indexOf(AZURE_OPENAI_RESPONSES_ENDPOINT_PATH);
+        String baseUrl = endpoint.substring(0, pathStartIndex);
+        return new AzureOpenAiEndpointComponents(baseUrl, "");
     }
 
     private static AzureOpenAiEndpointComponents getOpenAiAzureEndpoint(String endpoint)
@@ -299,7 +341,7 @@ public class OpenAiClientFactory
         }
     }
 
-    public record AzureOpenAiConnectionInfo(String endpoint, String deployment, String apiVersion, boolean isCustomAzureOpenAiDeployment)
+    public record AzureOpenAiConnectionInfo(String endpoint, String deployment, String apiVersion, boolean isCustomAzureOpenAiDeployment, boolean isResponsesApiEndpoint)
     {
         public AzureOpenAiConnectionInfo
         {
