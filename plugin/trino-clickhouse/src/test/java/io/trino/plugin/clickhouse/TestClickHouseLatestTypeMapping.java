@@ -27,4 +27,10 @@ public class TestClickHouseLatestTypeMapping
         clickhouseServer = closeAfterClass(new TestingClickHouseServer(CLICKHOUSE_LATEST_IMAGE));
         return ClickHouseQueryRunner.builder(clickhouseServer).build();
     }
+
+    @Override
+    protected String overflowDateTime64ErrorMessage()
+    {
+        return "Decimal math overflow: While executing WaitForAsyncInsert. (DECIMAL_OVERFLOW)";
+    }
 }

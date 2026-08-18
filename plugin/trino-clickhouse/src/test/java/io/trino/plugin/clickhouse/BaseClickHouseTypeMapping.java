@@ -1251,13 +1251,18 @@ public abstract class BaseClickHouseTypeMapping
         try (TestTable table = new TestTable(onRemoteDatabase(), "tpch.test_unsupported_timestamp_datetime64", "(dt datetime64(%s)) ENGINE=Log".formatted(precision))) {
             if (unsupportedTimestamp.equals("2262-04-11 23:47:17")) {
                 assertThatThrownBy(() -> onRemoteDatabase().execute(format("INSERT INTO %s VALUES ('%s')", table.getName(), unsupportedTimestamp)))
-                        .hasStackTraceContaining("Decimal math overflow: While executing ValuesBlockInputFormat. (DECIMAL_OVERFLOW)");
+                        .hasStackTraceContaining(overflowDateTime64ErrorMessage());
             }
             else {
                 onRemoteDatabase().execute(format("INSERT INTO %s VALUES ('%s')", table.getName(), unsupportedTimestamp));
                 assertQuery(format("SELECT dt <> TIMESTAMP '%s' FROM %s", unsupportedTimestamp, table.getName()), "SELECT true"); // Inserting an unsupported datetime in ClickHouse will turn it into another datetime
             }
         }
+    }
+
+    protected String overflowDateTime64ErrorMessage()
+    {
+        return "Decimal math overflow: While executing ValuesBlockInputFormat. (DECIMAL_OVERFLOW)";
     }
 
     @Test
