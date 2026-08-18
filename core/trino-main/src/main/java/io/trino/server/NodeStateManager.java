@@ -205,9 +205,11 @@ public class NodeStateManager
 
     private void requestTerminate()
     {
-        log.info("Immediate Shutdown requested");
-
-        shutdownHandler.schedule(this::terminate, 0, MILLISECONDS);
+        log.info("DRAINED worker node shutdown requested");
+        shutdownHandler.schedule(() -> {
+            preShutdownAction.ifPresent(Runnable::run);
+            terminate();
+        }, 0, MILLISECONDS);
     }
 
     private void requestGracefulShutdown()
