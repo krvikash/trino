@@ -67,7 +67,6 @@ public class TestStarburstOdbc
         return new ImageFromDockerfile()
                 .withFileFromClasspath("tests", "tests")
                 .withFileFromClasspath("Dockerfile", "Dockerfile")
-                .withBuildImageCmdModifier(buildImageCmd -> buildImageCmd.withPlatform("linux/amd64")) // Only x86 is supported for ODBC
                 .get();
     }
 
