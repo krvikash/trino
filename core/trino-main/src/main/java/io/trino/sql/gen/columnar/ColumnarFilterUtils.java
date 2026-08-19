@@ -17,7 +17,7 @@ import static io.trino.spi.block.Bitmap.getBits;
 import static io.trino.spi.block.Bitmap.isSet;
 import static java.lang.Math.min;
 
-final class ColumnarFilterUtils
+public final class ColumnarFilterUtils
 {
     private ColumnarFilterUtils() {}
 
@@ -26,7 +26,7 @@ final class ColumnarFilterUtils
         return isSet(validity, rawBitOffset, position);
     }
 
-    static int filterSetBitsRange(long[] validity, int rawBitOffset, int offset, int size, int[] outputPositions)
+    public static int filterSetBitsRange(long[] validity, int rawBitOffset, int offset, int size, int[] outputPositions)
     {
         int outputCount = 0;
         int end = offset + size;

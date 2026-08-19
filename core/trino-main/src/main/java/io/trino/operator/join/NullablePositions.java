@@ -22,6 +22,13 @@ import io.trino.spi.block.ValueBlock;
 import java.util.Arrays;
 import java.util.Optional;
 
+import static io.trino.spi.block.Bitmap.allocateWords;
+import static io.trino.spi.block.Bitmap.clear;
+import static io.trino.spi.block.Bitmap.getBits;
+import static io.trino.spi.block.Bitmap.isSet;
+import static io.trino.sql.gen.columnar.ColumnarFilterUtils.filterSetBitsRange;
+import static java.lang.Math.min;
+
 public final class NullablePositions
 {
     private NullablePositions() {}
@@ -37,7 +44,7 @@ public final class NullablePositions
             return Optional.empty();
         }
         if (nullableBlocksCount == 1) {
-            // Special case for a single nullable block to avoid the need for explicit `boolean[] isNull`
+            // Special case for a single nullable block to avoid the need for an explicit validity accumulator
             int[] outputPositions = new int[positionCount];
             int outputPositionsCount = getNonNullPositions(nullableBlocks[0], positionCount, outputPositions);
             if (outputPositionsCount == positionCount) {
@@ -46,15 +53,13 @@ public final class NullablePositions
             return Optional.of(Arrays.copyOf(outputPositions, outputPositionsCount));
         }
 
-        boolean[] isNull = new boolean[positionCount];
-        for (int i = 0; i < nullableBlocksCount - 1; i++) {
-            Block nullableBlock = nullableBlocks[i];
-            getNonNullPositions(nullableBlock, isNull);
+        long[] valueIsValid = allocateWords(positionCount, true);
+        for (int i = 0; i < nullableBlocksCount; i++) {
+            retainNonNullPositions(nullableBlocks[i], valueIsValid, positionCount);
         }
 
         int[] outputPositions = new int[positionCount];
-        // For the last nullable block, we need to fill outputPositions and count non-null positions
-        int outputPositionsCount = getNonNullPositionsLast(nullableBlocks[nullableBlocksCount - 1], isNull, outputPositions);
+        int outputPositionsCount = filterSetBitsRange(valueIsValid, 0, 0, positionCount, outputPositions);
         if (outputPositionsCount == positionCount) {
             return Optional.empty();
         }
@@ -77,7 +82,7 @@ public final class NullablePositions
                     long[] dictionaryIsValid = dictionaryValidity.get().getRawWords();
                     int validityOffset = dictionaryValidity.get().getRawBitOffset();
                     for (int position = 0; position < positionCount; position++) {
-                        boolean isNull = !Bitmap.isSet(dictionaryIsValid, validityOffset, dictionaryBlock.getId(position));
+                        boolean isNull = !isSet(dictionaryIsValid, validityOffset, dictionaryBlock.getId(position));
                         outputPositions[outputPositionCount] = position;
                         outputPositionCount += isNull ? 0 : 1;
                     }
@@ -87,14 +92,8 @@ public final class NullablePositions
             case ValueBlock valueBlock -> {
                 Optional<Bitmap> validity = valueBlock.getValidityBitmap();
                 if (validity.isPresent()) {
-                    int outputPositionCount = 0;
-                    long[] valueIsValid = validity.get().getRawWords();
-                    int validityOffset = validity.get().getRawBitOffset();
-                    for (int position = 0; position < positionCount; position++) {
-                        outputPositions[outputPositionCount] = position;
-                        outputPositionCount += !Bitmap.isSet(valueIsValid, validityOffset, position) ? 0 : 1;
-                    }
-                    return outputPositionCount;
+                    Bitmap bitmap = validity.get();
+                    return filterSetBitsRange(bitmap.getRawWords(), bitmap.getRawBitOffset(), 0, positionCount, outputPositions);
                 }
             }
         }
@@ -104,79 +103,40 @@ public final class NullablePositions
         return positionCount;
     }
 
-    private static void getNonNullPositions(Block nullableBlock, boolean[] isNull)
+    /**
+     * Clears the accumulator bits of positions that are null in {@code nullableBlock}, a word at a time.
+     */
+    private static void retainNonNullPositions(Block nullableBlock, long[] valueIsValid, int positionCount)
     {
         switch (nullableBlock) {
             case RunLengthEncodedBlock rleBlock -> {
                 if (rleBlock.isNull(0)) {
-                    Arrays.fill(isNull, true);
+                    Arrays.fill(valueIsValid, 0);
                 }
             }
             case DictionaryBlock dictionaryBlock -> {
-                ValueBlock dictionary = dictionaryBlock.getDictionary();
-                Optional<Bitmap> dictionaryValidity = dictionary.getValidityBitmap();
+                Optional<Bitmap> dictionaryValidity = dictionaryBlock.getDictionary().getValidityBitmap();
                 if (dictionaryValidity.isPresent()) {
                     long[] dictionaryIsValid = dictionaryValidity.get().getRawWords();
                     int validityOffset = dictionaryValidity.get().getRawBitOffset();
-                    for (int position = 0; position < isNull.length; position++) {
-                        isNull[position] |= !Bitmap.isSet(dictionaryIsValid, validityOffset, dictionaryBlock.getId(position));
+                    for (int position = 0; position < positionCount; position++) {
+                        if (!isSet(dictionaryIsValid, validityOffset, dictionaryBlock.getId(position))) {
+                            clear(valueIsValid, 0, position);
+                        }
                     }
                 }
             }
             case ValueBlock valueBlock -> {
                 Optional<Bitmap> validity = valueBlock.getValidityBitmap();
                 if (validity.isPresent()) {
-                    long[] valueIsValid = validity.get().getRawWords();
-                    int validityOffset = validity.get().getRawBitOffset();
-                    for (int position = 0; position < isNull.length; position++) {
-                        isNull[position] |= !Bitmap.isSet(valueIsValid, validityOffset, position);
+                    Bitmap bitmap = validity.get();
+                    long[] blockIsValid = bitmap.getRawWords();
+                    int rawBitOffset = bitmap.getRawBitOffset();
+                    for (int position = 0, word = 0; position < positionCount; position += Long.SIZE, word++) {
+                        valueIsValid[word] &= getBits(blockIsValid, rawBitOffset, position, min(Long.SIZE, positionCount - position));
                     }
                 }
             }
         }
-    }
-
-    private static int getNonNullPositionsLast(Block nullableBlock, boolean[] isNull, int[] outputPositions)
-    {
-        int outputPositionCount = 0;
-        switch (nullableBlock) {
-            case RunLengthEncodedBlock rleBlock -> {
-                if (rleBlock.isNull(0)) {
-                    return 0;
-                }
-            }
-            case DictionaryBlock dictionaryBlock -> {
-                ValueBlock dictionary = dictionaryBlock.getDictionary();
-                Optional<Bitmap> dictionaryValidity = dictionary.getValidityBitmap();
-                if (dictionaryValidity.isPresent()) {
-                    long[] dictionaryIsValid = dictionaryValidity.get().getRawWords();
-                    int validityOffset = dictionaryValidity.get().getRawBitOffset();
-                    for (int position = 0; position < isNull.length; position++) {
-                        isNull[position] |= !Bitmap.isSet(dictionaryIsValid, validityOffset, dictionaryBlock.getId(position));
-                        outputPositions[outputPositionCount] = position;
-                        outputPositionCount += isNull[position] ? 0 : 1;
-                    }
-                    return outputPositionCount;
-                }
-            }
-            case ValueBlock valueBlock -> {
-                Optional<Bitmap> validity = valueBlock.getValidityBitmap();
-                if (validity.isPresent()) {
-                    long[] valueIsValid = validity.get().getRawWords();
-                    int validityOffset = validity.get().getRawBitOffset();
-                    for (int position = 0; position < isNull.length; position++) {
-                        isNull[position] |= !Bitmap.isSet(valueIsValid, validityOffset, position);
-                        outputPositions[outputPositionCount] = position;
-                        outputPositionCount += isNull[position] ? 0 : 1;
-                    }
-                    return outputPositionCount;
-                }
-            }
-        }
-        for (int position = 0; position < isNull.length; position++) {
-            outputPositions[outputPositionCount] = position;
-            outputPositionCount += isNull[position] ? 0 : 1;
-        }
-        return outputPositionCount;
     }
 }
