@@ -23,8 +23,8 @@ import java.util.Arrays;
 import java.util.Optional;
 
 import static io.trino.spi.block.Bitmap.allocateWords;
-import static io.trino.spi.block.Bitmap.clear;
 import static io.trino.spi.block.Bitmap.getBits;
+import static io.trino.spi.block.Bitmap.hasUnsetBit;
 import static io.trino.spi.block.Bitmap.isSet;
 import static io.trino.sql.gen.columnar.ColumnarFilterUtils.filterSetBitsRange;
 import static java.lang.Math.min;
@@ -76,15 +76,29 @@ public final class NullablePositions
             }
             case DictionaryBlock dictionaryBlock -> {
                 ValueBlock dictionary = dictionaryBlock.getDictionary();
-                Optional<Bitmap> dictionaryValidity = dictionary.getValidityBitmap();
-                if (dictionaryValidity.isPresent()) {
+                if (hasNulls(dictionary)) {
                     int outputPositionCount = 0;
-                    long[] dictionaryIsValid = dictionaryValidity.get().getRawWords();
-                    int validityOffset = dictionaryValidity.get().getRawBitOffset();
-                    for (int position = 0; position < positionCount; position++) {
-                        boolean isNull = !isSet(dictionaryIsValid, validityOffset, dictionaryBlock.getId(position));
-                        outputPositions[outputPositionCount] = position;
-                        outputPositionCount += isNull ? 0 : 1;
+                    if (positionCount >= dictionary.getPositionCount()) {
+                        // The page dominates the dictionary, so the decode amortizes and the
+                        // gather is an id lookup plus a byte load
+                        byte[] dictionaryIsValid = decodeValidity(dictionary);
+                        for (int position = 0; position < positionCount; position++) {
+                            outputPositions[outputPositionCount] = position;
+                            outputPositionCount += dictionaryIsValid[dictionaryBlock.getId(position)];
+                        }
+                    }
+                    else {
+                        // The dictionary dominates the page, so read the bits directly instead of
+                        // paying a decode proportional to the dictionary size
+                        Bitmap validityBitmap = dictionary.getValidityBitmap().orElseThrow();
+                        long[] words = validityBitmap.getRawWords();
+                        int offset = validityBitmap.getRawBitOffset();
+                        for (int position = 0; position < positionCount; position++) {
+                            int bit = offset + dictionaryBlock.getId(position);
+                            outputPositions[outputPositionCount] = position;
+                            // Branchless: the validity bit is extracted as 0 or 1 and added directly
+                            outputPositionCount += (int) ((words[bit >>> 6] >>> (bit & 63)) & 1);
+                        }
                     }
                     return outputPositionCount;
                 }
@@ -115,13 +129,37 @@ public final class NullablePositions
                 }
             }
             case DictionaryBlock dictionaryBlock -> {
-                Optional<Bitmap> dictionaryValidity = dictionaryBlock.getDictionary().getValidityBitmap();
-                if (dictionaryValidity.isPresent()) {
-                    long[] dictionaryIsValid = dictionaryValidity.get().getRawWords();
-                    int validityOffset = dictionaryValidity.get().getRawBitOffset();
-                    for (int position = 0; position < positionCount; position++) {
-                        if (!isSet(dictionaryIsValid, validityOffset, dictionaryBlock.getId(position))) {
-                            clear(valueIsValid, 0, position);
+                ValueBlock dictionary = dictionaryBlock.getDictionary();
+                if (hasNulls(dictionary)) {
+                    if (positionCount >= dictionary.getPositionCount()) {
+                        // The page dominates the dictionary, so the decode amortizes and the
+                        // gather is an id lookup plus a byte load
+                        byte[] dictionaryIsValid = decodeValidity(dictionary);
+                        // Gather a whole word before writing, so the accumulator is written once per 64 positions
+                        for (int position = 0, word = 0; position < positionCount; position += Long.SIZE, word++) {
+                            int bitsInWord = min(Long.SIZE, positionCount - position);
+                            long bits = 0;
+                            for (int bit = 0; bit < bitsInWord; bit++) {
+                                // Branchless: the decoded byte is 0 or 1, so it can be shifted straight into place
+                                bits |= ((long) dictionaryIsValid[dictionaryBlock.getId(position + bit)]) << bit;
+                            }
+                            valueIsValid[word] &= bits;
+                        }
+                    }
+                    else {
+                        // The dictionary dominates the page, so read the bits directly instead of
+                        // paying a decode proportional to the dictionary size
+                        long[] words = dictionary.getValidityBitmap().orElseThrow().getRawWords();
+                        int offset = dictionary.getValidityBitmap().orElseThrow().getRawBitOffset();
+                        for (int position = 0, word = 0; position < positionCount; position += Long.SIZE, word++) {
+                            int bitsInWord = min(Long.SIZE, positionCount - position);
+                            long bits = 0;
+                            for (int bit = 0; bit < bitsInWord; bit++) {
+                                int validityBit = offset + dictionaryBlock.getId(position + bit);
+                                // Branchless: the validity bit is extracted as 0 or 1 and shifted into place
+                                bits |= ((words[validityBit >>> 6] >>> (validityBit & 63)) & 1L) << bit;
+                            }
+                            valueIsValid[word] &= bits;
                         }
                     }
                 }
@@ -138,5 +176,27 @@ public final class NullablePositions
                 }
             }
         }
+    }
+
+    /**
+     * Decodes validity into one byte per position holding 0 or 1, so gathers through dictionary ids stay
+     * branchless: the byte can be shifted or added directly instead of driving a conditional.
+     */
+    private static byte[] decodeValidity(ValueBlock block)
+    {
+        Bitmap bitmap = block.getValidityBitmap().orElseThrow();
+        long[] rawWords = bitmap.getRawWords();
+        int rawBitOffset = bitmap.getRawBitOffset();
+        byte[] valueIsValid = new byte[block.getPositionCount()];
+        for (int position = 0; position < valueIsValid.length; position++) {
+            valueIsValid[position] = (byte) (isSet(rawWords, rawBitOffset, position) ? 1 : 0);
+        }
+        return valueIsValid;
+    }
+
+    private static boolean hasNulls(ValueBlock block)
+    {
+        Optional<Bitmap> validity = block.getValidityBitmap();
+        return validity.isPresent() && hasUnsetBit(validity.get().getRawWords(), validity.get().getRawBitOffset(), block.getPositionCount());
     }
 }
