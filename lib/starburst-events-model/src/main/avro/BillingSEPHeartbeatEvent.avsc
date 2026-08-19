@@ -74,16 +74,16 @@
             "doc": "CPU cores available to this node during the interval."
         },
         {
-            "name": "cumulativecputimeseconds",
+            "name": "cumulativecputime",
             "type": ["null", "double"],
             "default": null,
-            "doc": "Cumulative process CPU time on this node since process start, in seconds."
+            "doc": "Cumulative process CPU time on this node since process start, in seconds. Matches legacy ClusterUsage.cumulativeCpuTime."
         },
         {
-            "name": "cumulativeavailablecputimeseconds",
+            "name": "cumulativeavailablecputime",
             "type": ["null", "double"],
             "default": null,
-            "doc": "Cumulative available CPU time (elapsed wall-clock multiplied by cores) since process start, in seconds."
+            "doc": "Cumulative available CPU time (elapsed wall-clock multiplied by cores) since process start, in seconds. Matches legacy ClusterUsage.cumulativeAvailableCpuTime."
         },
         {
             "name": "licenseowner",
