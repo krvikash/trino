@@ -29,14 +29,14 @@ import static org.junit.jupiter.api.parallel.ExecutionMode.CONCURRENT;
 public class TestStarburstOracleCastPushdown
         extends BaseOracleCastPushdownTest
 {
-    private SharedResource.Lease<TestingStarburstOracleServer> oracleServer;
+    private SharedResource.Lease<TestingStarburstOracleServer> starburstOracleServer;
 
     @Override
     protected QueryRunner createQueryRunner()
             throws Exception
     {
-        oracleServer = closeAfterClass(TestingStarburstOracleServer.getInstance());
-        QueryRunner queryRunner = OracleQueryRunner.builder(oracleServer)
+        starburstOracleServer = closeAfterClass(TestingStarburstOracleServer.getInstance());
+        QueryRunner queryRunner = OracleQueryRunner.builder(starburstOracleServer)
                 .withUnlockEnterpriseFeatures(true)
                 .withConnectorProperties(ImmutableMap.<String, String>builder()
                         .put("oracle.connection-pool.enabled", "false")
@@ -53,7 +53,7 @@ public class TestStarburstOracleCastPushdown
                 "oracle_number_mapped_to_varchar",
                 "oracle",
                 ImmutableMap.<String, String>builder()
-                        .put("connection-url", oracleServer.get().getJdbcUrl())
+                        .put("connection-url", starburstOracleServer.get().getJdbcUrl())
                         .put("connection-user", USER)
                         .put("connection-password", PASSWORD)
                         .put("unsupported-type-handling", "CONVERT_TO_VARCHAR")
@@ -65,7 +65,7 @@ public class TestStarburstOracleCastPushdown
     @Override
     protected SqlExecutor onRemoteDatabase()
     {
-        return oracleServer.get().getSqlExecutor();
+        return starburstOracleServer.get().getSqlExecutor();
     }
 
     @Test

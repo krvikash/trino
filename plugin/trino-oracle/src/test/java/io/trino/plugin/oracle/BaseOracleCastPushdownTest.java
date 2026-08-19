@@ -14,12 +14,10 @@
 package io.trino.plugin.oracle;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import io.trino.Session;
 import io.trino.plugin.jdbc.BaseJdbcCastPushdownTest;
 import io.trino.plugin.jdbc.CastDataTypeTestTable;
 import io.trino.sql.planner.plan.ProjectNode;
-import io.trino.testing.QueryRunner;
 import io.trino.testing.sql.SqlExecutor;
 import io.trino.testing.sql.TestTable;
 import org.junit.jupiter.api.BeforeAll;
@@ -29,8 +27,6 @@ import org.junit.jupiter.api.parallel.Execution;
 
 import java.util.List;
 
-import static io.trino.plugin.oracle.TestingOracleServer.TEST_PASS;
-import static io.trino.plugin.oracle.TestingOracleServer.TEST_USER;
 import static java.util.Arrays.asList;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
@@ -38,39 +34,12 @@ import static org.junit.jupiter.api.parallel.ExecutionMode.CONCURRENT;
 
 @TestInstance(PER_CLASS)
 @Execution(CONCURRENT)
-public class BaseOracleCastPushdownTest
+public abstract class BaseOracleCastPushdownTest
         extends BaseJdbcCastPushdownTest
 {
     private CastDataTypeTestTable left;
     private CastDataTypeTestTable right;
-    private TestingOracleServer oracleServer;
-
-    @Override
-    protected QueryRunner createQueryRunner()
-            throws Exception
-    {
-        oracleServer = closeAfterClass(new TestingOracleServer());
-        QueryRunner queryRunner = OracleQueryRunner.builder(oracleServer)
-                .addConnectorProperties(ImmutableMap.<String, String>builder()
-                        .put("jdbc-types-mapped-to-varchar", "interval year(2) to month, timestamp(6) with local time zone")
-                        .put("join-pushdown.enabled", "true")
-                        // Set oracle.number.default-scale=s to map Oracle NUMBER (without precision/scale) to DECIMAL(38, s)
-                        .put("oracle.number.default-scale", "2")
-                        .buildOrThrow())
-                .build();
-
-        queryRunner.createCatalog(
-                "oracle_number_mapped_to_varchar",
-                "oracle",
-                ImmutableMap.<String, String>builder()
-                        .put("connection-url", oracleServer.getJdbcUrl())
-                        .put("connection-user", TEST_USER)
-                        .put("connection-password", TEST_PASS)
-                        .put("unsupported-type-handling", "CONVERT_TO_VARCHAR")
-                        .put("join-pushdown.enabled", "true")
-                        .buildOrThrow());
-        return queryRunner;
-    }
+    protected TestingOracleServer oracleServer;
 
     @Override
     protected SqlExecutor onRemoteDatabase()
