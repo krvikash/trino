@@ -328,11 +328,11 @@ public class BigQueryClient
         }
     }
 
-    public TableInfo getCachedTable(ConnectorSession session, Duration viewExpiration, TableInfo remoteTableId, List<BigQueryColumnHandle> requiredColumns, Optional<String> filter)
+    public TableInfo getCachedTable(ConnectorSession session, Duration viewExpiration, TableId tableId, List<BigQueryColumnHandle> requiredColumns, Optional<String> filter)
     {
-        String query = selectSql(remoteTableId.getTableId(), requiredColumns, filter, OptionalLong.empty());
+        String query = selectSql(tableId, requiredColumns, filter, OptionalLong.empty());
         log.debug("query is %s", query);
-        return materializationCache.getCachedTable(session, this, query, viewExpiration, remoteTableId);
+        return materializationCache.getCachedTable(session, this, query, viewExpiration, tableId);
     }
 
     /**

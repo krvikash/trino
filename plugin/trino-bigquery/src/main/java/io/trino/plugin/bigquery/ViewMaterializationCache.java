@@ -62,9 +62,9 @@ public class ViewMaterializationCache
         this.bigQueryProjectInfoProvider = requireNonNull(bigQueryProjectInfoProvider, "bigQueryProjectInfoProvider is null");
     }
 
-    public TableInfo getCachedTable(ConnectorSession session, BigQueryClient client, String query, Duration viewExpiration, TableInfo remoteTableId)
+    public TableInfo getCachedTable(ConnectorSession session, BigQueryClient client, String query, Duration viewExpiration, TableId tableId)
     {
-        return uncheckedCacheGet(destinationTableCache, new ViewCacheKey(identityCacheMapping.getRemoteUserCacheKey(session), query), new DestinationTableBuilder(client, viewExpiration, query, buildDestinationTable(session, remoteTableId.getTableId())));
+        return uncheckedCacheGet(destinationTableCache, new ViewCacheKey(identityCacheMapping.getRemoteUserCacheKey(session), query), new DestinationTableBuilder(client, viewExpiration, query, buildDestinationTable(session, tableId)));
     }
 
     private TableId buildDestinationTable(ConnectorSession session, TableId remoteTableId)
