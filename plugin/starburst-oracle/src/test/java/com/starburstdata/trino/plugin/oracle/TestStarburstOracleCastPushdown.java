@@ -10,7 +10,7 @@
 package com.starburstdata.trino.plugin.oracle;
 
 import com.google.common.collect.ImmutableMap;
-import io.trino.plugin.oracle.TestOracleCastPushdown;
+import io.trino.plugin.oracle.BaseOracleCastPushdownTest;
 import io.trino.testing.QueryRunner;
 import io.trino.testing.SharedResource;
 import io.trino.testing.sql.SqlExecutor;
@@ -27,7 +27,7 @@ import static org.junit.jupiter.api.parallel.ExecutionMode.CONCURRENT;
 @TestInstance(PER_CLASS)
 @Execution(CONCURRENT)
 public class TestStarburstOracleCastPushdown
-        extends TestOracleCastPushdown
+        extends BaseOracleCastPushdownTest
 {
     private SharedResource.Lease<TestingStarburstOracleServer> oracleServer;
 

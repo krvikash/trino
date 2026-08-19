@@ -38,7 +38,7 @@ import static org.junit.jupiter.api.parallel.ExecutionMode.CONCURRENT;
 
 @TestInstance(PER_CLASS)
 @Execution(CONCURRENT)
-public class TestOracleCastPushdown
+public class BaseOracleCastPushdownTest
         extends BaseJdbcCastPushdownTest
 {
     private CastDataTypeTestTable left;
