@@ -50,6 +50,8 @@ public class TestIcebergAiFunctions
                       "kind": "EMBED",
                       "connectionInfo": {
                         "provider": "AWS_BEDROCK",
+                        "awsAccessKey": "${ENV:BEDROCK_ACCESS_KEY_ID}",
+                        "awsSecretKey": "${ENV:BEDROCK_SECRET_ACCESS_KEY}",
                         "region": "us-east-1"
                       }
                     },
