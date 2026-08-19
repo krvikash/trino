@@ -13,8 +13,16 @@
  */
 package io.trino.plugin.warp.dispatcher;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
+import io.trino.parquet.ParquetDataSource;
+import io.trino.parquet.ParquetReaderOptions;
+import io.trino.parquet.metadata.ParquetMetadata;
+import io.trino.parquet.reader.MetadataReader;
+import io.trino.parquet.reader.ParquetReader;
+import io.trino.parquet.reader.TestingParquetDataSource;
+import io.trino.parquet.writer.ParquetWriterOptions;
 import io.trino.plugin.warp.WarpErrorCode;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.config.SharedConfig;
@@ -55,6 +63,8 @@ import io.trino.spi.type.Type;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -65,6 +75,8 @@ import java.util.Optional;
 import java.util.stream.Stream;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static io.trino.parquet.ParquetTestUtils.createParquetReader;
+import static io.trino.parquet.ParquetTestUtils.writeParquetFile;
 import static io.trino.plugin.warp.storage.write.StorageWriterServiceTest.buildLongPage;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -797,6 +809,38 @@ public class DispatcherPageSourceTest
         assertThat(resultPage.getBlock(1)).isSameAs(proxiedPage.getBlock(0));
     }
 
+    @Test
+    public void testRepeatedSelectPositionsOnParquetProxiedPage()
+            throws IOException
+    {
+        // parquet reader batch sizes grow 1, 2, 4, 8, so 15 rows split into proxied pages [0,1), [1,3), [3,7), [7,15)
+        int rowCount = 15;
+        BlockBuilder column = BIGINT.createFixedSizeBlockBuilder(rowCount);
+        for (int row = 0; row < rowCount; row++) {
+            BIGINT.writeLong(column, row);
+        }
+        List<Type> types = ImmutableList.of(BIGINT);
+        List<String> columnNames = ImmutableList.of("columna");
+        ParquetDataSource dataSource = new TestingParquetDataSource(
+                writeParquetFile(ParquetWriterOptions.builder().build(), types, columnNames, ImmutableList.of(new Page(rowCount, column.build()))),
+                ParquetReaderOptions.defaultOptions());
+        ParquetMetadata parquetMetadata = MetadataReader.readFooter(dataSource, Optional.empty());
+        proxiedConnectorPageSource = new ParquetProxiedPageSource(createParquetReader(dataSource, parquetMetadata, types, columnNames));
+
+        // the first warp page resolves the 8-row parquet page partially with a gap at row 8, narrowing it with
+        // selectPositions; the second warp page finishes it with positions relative to the narrowed view
+        warpPageSource = new TestingWarpPageSource(List.of(
+                new TestPage(buildPageLong(new long[] {100, 101, 102, 103, 104, 105, 106, 107, 109}), createRowRanges(0, 8, 9, 10)),
+                new TestPage(buildPageLong(new long[] {110, 112, 113, 114}), createRowRanges(10, 11, 12, 15))));
+        DispatcherPageSource dispatcherPageSource = getDispatcherPageSource(2, proxiedCollectTypeByBlockIndex);
+
+        actAndAssert(
+                new long[] {100, 101, 102, 103, 104, 105, 106, 107, 109, 110, 112, 113, 114},
+                new long[] {0, 1, 2, 3, 4, 5, 6, 7, 9, 10, 12, 13, 14},
+                dispatcherPageSource);
+        dispatcherPageSource.close();
+    }
+
     private PrefilledQueryCollectData createPrefilledQueryCollectData(long singleValue)
     {
         return PrefilledQueryCollectData.builder()
@@ -958,6 +1002,59 @@ public class DispatcherPageSourceTest
             rowCount += upperExclusive[i] - lowInclusive[i];
         }
         return new RowRanges(lowInclusive, upperExclusive, rowCount);
+    }
+
+    private static class ParquetProxiedPageSource
+            implements ConnectorPageSource
+    {
+        private final ParquetReader parquetReader;
+        private boolean finished;
+
+        private ParquetProxiedPageSource(ParquetReader parquetReader)
+        {
+            this.parquetReader = parquetReader;
+        }
+
+        @Override
+        public SourcePage getNextSourcePage()
+        {
+            SourcePage page;
+            try {
+                page = parquetReader.nextPage();
+            }
+            catch (IOException e) {
+                throw new UncheckedIOException(e);
+            }
+            if (page == null) {
+                finished = true;
+            }
+            return page;
+        }
+
+        @Override
+        public boolean isFinished()
+        {
+            return finished;
+        }
+
+        @Override
+        public long getCompletedBytes()
+        {
+            return 0;
+        }
+
+        @Override
+        public long getReadTimeNanos()
+        {
+            return 0;
+        }
+
+        @Override
+        public void close()
+                throws IOException
+        {
+            parquetReader.close();
+        }
     }
 
     public static class TestPage
