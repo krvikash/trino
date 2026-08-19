@@ -34,10 +34,18 @@ public final class ColumnarFilterUtils
         while (position < end) {
             int bitsInWord = min(Long.SIZE, end - position);
             long bits = getBits(validity, rawBitOffset, position, bitsInWord);
-            while (bits != 0) {
-                int bit = Long.numberOfTrailingZeros(bits);
-                outputPositions[outputCount++] = position + bit;
-                bits &= bits - 1;
+            if (Long.bitCount(bits) == bitsInWord) {
+                // Dense case: emitting sequentially beats walking bits one at a time
+                for (int bit = 0; bit < bitsInWord; bit++) {
+                    outputPositions[outputCount++] = position + bit;
+                }
+            }
+            else {
+                while (bits != 0) {
+                    int bit = Long.numberOfTrailingZeros(bits);
+                    outputPositions[outputCount++] = position + bit;
+                    bits &= bits - 1;
+                }
             }
             position += bitsInWord;
         }
