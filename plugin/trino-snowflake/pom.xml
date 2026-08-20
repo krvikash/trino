@@ -259,7 +259,6 @@
                             <excludes>
                                 <exclude>**/TestSnowflakeConnectorTest.java</exclude>
                                 <exclude>**/TestSnowflakeTypeMapping.java</exclude>
-                                <exclude>**/TestIcebergMvOnSnowflakeSourceSubstitution.java</exclude>
                             </excludes>
                         </configuration>
                     </plugin>
@@ -282,7 +281,6 @@
                             <includes>
                                 <include>**/TestSnowflakeConnectorTest.java</include>
                                 <include>**/TestSnowflakeTypeMapping.java</include>
-                                <include>**/TestIcebergMvOnSnowflakeSourceSubstitution.java</include>
                             </includes>
                         </configuration>
                     </plugin>
