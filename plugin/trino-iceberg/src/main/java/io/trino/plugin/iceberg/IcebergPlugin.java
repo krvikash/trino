@@ -16,8 +16,11 @@ package io.trino.plugin.iceberg;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import io.trino.plugin.iceberg.aggregation.IcebergThetaSketchForStats;
+import io.trino.plugin.iceberg.profiler.rules.IcebergOverPartitionedTable;
+import io.trino.plugin.iceberg.profiler.rules.IcebergTooManyDeleteFiles;
 import io.trino.spi.Plugin;
 import io.trino.spi.connector.ConnectorFactory;
+import io.trino.spi.profiler.ConnectorQueryProfilerRule;
 
 import java.util.Set;
 
@@ -34,5 +37,13 @@ public class IcebergPlugin
     public Set<Class<?>> getFunctions()
     {
         return ImmutableSet.of(IcebergThetaSketchForStats.class);
+    }
+
+    @Override
+    public Iterable<ConnectorQueryProfilerRule> getConnectorQueryProfilerRules()
+    {
+        return ImmutableList.of(
+                new IcebergTooManyDeleteFiles(),
+                new IcebergOverPartitionedTable());
     }
 }

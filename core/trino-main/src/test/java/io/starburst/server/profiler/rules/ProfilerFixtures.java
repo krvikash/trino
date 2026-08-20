@@ -113,20 +113,9 @@ public final class ProfilerFixtures
             implements ConnectorTableHandle {}
 
     /**
-     * Connector table handle whose class name ends in {@code IcebergTableHandle}.
-     */
-    public static final class TestingIcebergTableHandle
-            implements ConnectorTableHandle {}
-
-    /**
      * Mirrors the record components the Hive rule reads reflectively from {@code connectorInfo}.
      */
     public record TestingHiveConnectorInfo(String tableDefaultFileFormat) {}
-
-    /**
-     * Mirrors the record components the Iceberg rules read reflectively from {@code connectorInfo}.
-     */
-    public record TestingIcebergConnectorInfo(List<String> partitionFields, long totalRecords, long totalDataFiles, long totalDeleteFiles) {}
 
     // ----- plan nodes -----
 
@@ -143,11 +132,6 @@ public final class ProfilerFixtures
     public static TableScanNode hiveScan(String id)
     {
         return scan(id, new TestingHiveTableHandle());
-    }
-
-    public static TableScanNode icebergScan(String id)
-    {
-        return scan(id, new TestingIcebergTableHandle());
     }
 
     public static TableScanNode scan(String id, ConnectorTableHandle connectorHandle)
