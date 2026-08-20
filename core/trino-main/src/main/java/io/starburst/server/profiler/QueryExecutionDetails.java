@@ -180,15 +180,46 @@ public final class QueryExecutionDetails
             double topOperatorsPercentage,
             int maxTopOperators,
             double topStagesPercentage,
-            int maxTopStages)
+            int maxTopStages,
+            double slowJdbcTableMinScheduledTimeRatio,
+            DataSize joinMaxBroadcastTableSize,
+            int smallFilesMinNumberOfSplits,
+            int smallFilesPositionsPerSplitThreshold,
+            DataSize minBigOutputSize,
+            double minOverlappingScanPercentage,
+            double minOverlappingColumns,
+            double crossJoinScalingFactor,
+            DataSize bigTableTextFileScanSize,
+            double bigTableQueryCpuPercentage,
+            double slowSplitDistributionPercentage,
+            double dynamicFilterJoinFilteringPercentage)
     {
+        public Thresholds
+        {
+            requireNonNull(joinMaxBroadcastTableSize, "joinMaxBroadcastTableSize is null");
+            requireNonNull(minBigOutputSize, "minBigOutputSize is null");
+            requireNonNull(bigTableTextFileScanSize, "bigTableTextFileScanSize is null");
+        }
+
         public static Thresholds from(QueryProfilerConfig config)
         {
             return new Thresholds(
                     config.getTopOperatorsPercentage(),
                     config.getMaxTopOperators(),
                     config.getTopStagesPercentage(),
-                    config.getMaxTopStages());
+                    config.getMaxTopStages(),
+                    config.getSlowJdbcTableMinScheduledTimeRatio(),
+                    config.getJoinMaxBroadcastTableSize(),
+                    config.getSmallFilesMinNumberOfSplits(),
+                    config.getSmallFilesPositionsPerSplitThreshold(),
+                    config.getMinBigOutputSize(),
+                    config.getMinOverlappingScanPercentage(),
+                    config.getMinOverlappingColumns(),
+                    config.getCrossJoinScalingFactor(),
+                    config.getBigTableTextFileScanSize(),
+                    config.getBigTableQueryCpuPercentage(),
+                    config.getSlowSplitDistributionPercentage(),
+                    config.getDynamicFilterJoinFilteringPercentage());
         }
     }
 
