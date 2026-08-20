@@ -151,6 +151,7 @@ public class TrinoRestCatalog
     private final Cache<Namespace, Namespace> remoteNamespaceMappingCache;
     private final Cache<TableIdentifier, TableIdentifier> remoteTableMappingCache;
     private final boolean viewEndpointsEnabled;
+    private final boolean globalMetastoreCacheEnabled;
     private final Executor metadataFetchingExecutor;
     private final boolean serverAssignedTableLocationEnabled;
 
@@ -173,6 +174,7 @@ public class TrinoRestCatalog
             Cache<Namespace, Namespace> remoteNamespaceMappingCache,
             Cache<TableIdentifier, TableIdentifier> remoteTableMappingCache,
             boolean viewEndpointsEnabled,
+            boolean globalMetastoreCacheEnabled,
             Executor metadataFetchingExecutor,
             boolean serverAssignedTableLocationEnabled)
     {
@@ -190,6 +192,7 @@ public class TrinoRestCatalog
         this.remoteNamespaceMappingCache = requireNonNull(remoteNamespaceMappingCache, "remoteNamespaceMappingCache is null");
         this.remoteTableMappingCache = requireNonNull(remoteTableMappingCache, "remoteTableMappingCache is null");
         this.viewEndpointsEnabled = viewEndpointsEnabled;
+        this.globalMetastoreCacheEnabled = globalMetastoreCacheEnabled;
         this.metadataFetchingExecutor = requireNonNull(metadataFetchingExecutor, "metadataFetchingExecutor is null");
         this.serverAssignedTableLocationEnabled = serverAssignedTableLocationEnabled;
     }
@@ -730,7 +733,7 @@ public class TrinoRestCatalog
                     () -> {
                         BaseTable baseTable;
                         try {
-                            baseTable = (BaseTable) restSessionCatalog.loadTable(convert(session), toRemoteObject(session, schemaTableName));
+                            baseTable = (BaseTable) restSessionCatalog.loadTable(convert(session), toRemoteObject(session, schemaTableName, globalMetastoreCacheEnabled));
                         }
                         catch (RESTException e) {
                             throw new TrinoException(ICEBERG_CATALOG_ERROR, "Failed to load table '%s'".formatted(schemaTableName.getTableName()), e);
@@ -746,11 +749,11 @@ public class TrinoRestCatalog
         }
     }
 
-    private TableIdentifier toRemoteObject(ConnectorSession session, SchemaTableName schemaTableName)
+    private TableIdentifier toRemoteObject(ConnectorSession session, SchemaTableName schemaTableName, boolean getCache)
     {
         TableIdentifier tableIdentifier = toIdentifier(schemaTableName);
-        return toRemoteTableIfExists(session, tableIdentifier, false)
-                .orElseGet(() -> toRemoteViewIfExists(session, tableIdentifier, false)
+        return toRemoteTableIfExists(session, tableIdentifier, getCache)
+                .orElseGet(() -> toRemoteViewIfExists(session, tableIdentifier, getCache)
                         .orElseGet(() -> toRemoteIdentifier(session, tableIdentifier)));
     }
 
@@ -939,7 +942,7 @@ public class TrinoRestCatalog
     @Override
     public Optional<ConnectorViewDefinition> getView(ConnectorSession session, SchemaTableName viewName)
     {
-        return getIcebergView(session, viewName, false).flatMap(view -> {
+        return getIcebergView(session, viewName, globalMetastoreCacheEnabled).flatMap(view -> {
             SQLViewRepresentation sqlView = view.sqlFor("trino");
             if (!sqlView.dialect().equalsIgnoreCase("trino")) {
                 throw new TrinoException(ICEBERG_UNSUPPORTED_VIEW_DIALECT, "Cannot read unsupported dialect '%s' for view '%s'".formatted(sqlView.dialect(), viewName));

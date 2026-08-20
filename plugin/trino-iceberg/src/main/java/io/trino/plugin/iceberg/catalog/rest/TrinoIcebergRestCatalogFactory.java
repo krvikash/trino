@@ -41,6 +41,7 @@ import org.weakref.jmx.Managed;
 import org.weakref.jmx.Nested;
 
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
@@ -71,6 +72,7 @@ public class TrinoIcebergRestCatalogFactory
     private final Cache<Namespace, Namespace> remoteNamespaceMappingCache;
     private final Cache<TableIdentifier, TableIdentifier> remoteTableMappingCache;
     private final Executor metadataFetchingExecutor;
+    private final boolean globalMetastoreCacheEnabled;
     private final RestClientFactory restClientFactory;
 
     @GuardedBy("this")
@@ -87,6 +89,7 @@ public class TrinoIcebergRestCatalogFactory
             IcebergConfig icebergConfig,
             TypeManager typeManager,
             NodeVersion nodeVersion,
+            Optional<RestResponseCache> restResponseCache,
             RestClientFactory restClientFactory,
             @ForIcebergMetadata ExecutorService metadataExecutorService)
     {
@@ -120,6 +123,7 @@ public class TrinoIcebergRestCatalogFactory
         else {
             this.metadataFetchingExecutor = new BoundedExecutor(metadataExecutorService, icebergConfig.getMetadataParallelism());
         }
+        this.globalMetastoreCacheEnabled = restResponseCache.isPresent();
         this.restClientFactory = requireNonNull(restClientFactory, "restClientFactory is null");
     }
 
@@ -164,6 +168,7 @@ public class TrinoIcebergRestCatalogFactory
                 remoteNamespaceMappingCache,
                 remoteTableMappingCache,
                 viewEndpointsEnabled,
+                globalMetastoreCacheEnabled,
                 metadataFetchingExecutor,
                 serverAssignedTableLocationEnabled);
     }
