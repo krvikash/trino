@@ -531,12 +531,6 @@
             </dependency>
 
             <dependency>
-                <groupId>com.google.genai</groupId>
-                <artifactId>google-genai</artifactId>
-                <version>1.65.0</version>
-            </dependency>
-
-            <dependency>
                 <groupId>com.google.guava</groupId>
                 <artifactId>failureaccess</artifactId>
                 <version>1.0.3</version>
