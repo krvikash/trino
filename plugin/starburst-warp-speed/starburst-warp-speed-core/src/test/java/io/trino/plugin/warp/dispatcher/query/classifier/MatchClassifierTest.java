@@ -23,6 +23,8 @@ import io.trino.plugin.warp.dispatcher.SimplifiedColumns;
 import io.trino.plugin.warp.dispatcher.model.RegularColumn;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
 import io.trino.plugin.warp.dispatcher.query.QueryContext;
+import io.trino.plugin.warp.dispatcher.query.data.match.BasicQueryMatchData;
+import io.trino.plugin.warp.dispatcher.query.data.match.NoneMatchData;
 import io.trino.plugin.warp.expression.NativeExpression;
 import io.trino.plugin.warp.expression.WarpCall;
 import io.trino.plugin.warp.expression.WarpExpression;
@@ -31,8 +33,10 @@ import io.trino.plugin.warp.expression.WarpPrimitiveConstant;
 import io.trino.plugin.warp.expression.WarpVariable;
 import io.trino.plugin.warp.gen.constants.FunctionType;
 import io.trino.plugin.warp.gen.constants.PredicateType;
+import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
 import io.trino.plugin.warp.log.ShapingLoggerFactory;
+import io.trino.plugin.warp.storage.write.WarmupElementStats;
 import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorSession;
@@ -41,6 +45,7 @@ import io.trino.spi.predicate.Domain;
 import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.type.IntegerType;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -143,6 +148,234 @@ class MatchClassifierTest
             actualMatchColumns = result.getMatchData().orElseThrow().getLeavesDFS().stream().map(x -> x.getWarpColumn().getName()).toList();
         }
         assertThat(actualMatchColumns).isEqualTo(expectedMatchColumns);
+    }
+
+    // AND with unmergeable predicates on the same column resolves to none when one side is out of range
+    @Test
+    public void testAndWithUnmergeablePredicatesOnSameColumnResolvesToNone()
+    {
+        RegularColumn regularColumnA = new RegularColumn("a");
+        RegularColumn regularColumnB = new RegularColumn("b");
+        WarpVariable warpVariableA = new WarpVariable(columns.get("a"), IntegerType.INTEGER);
+        WarpVariable warpVariableB = new WarpVariable(columns.get("b"), IntegerType.INTEGER);
+
+        // function-typed predicate on "a"
+        WarpCall functionLeafExpression = new WarpCall(
+                EQUAL_OPERATOR_FUNCTION_NAME.getName(),
+                List.of(warpVariableA, new WarpPrimitiveConstant(3L, IntegerType.INTEGER)),
+                BOOLEAN);
+        NativeExpression functionNativeExpression = NativeExpression.builder()
+                .domain(Domain.singleValue(IntegerType.INTEGER, 3L))
+                .collectNulls(false)
+                .functionType(FunctionType.FUNCTION_TYPE_DAY_OF_WEEK)
+                .predicateType(PredicateType.PREDICATE_TYPE_VALUES)
+                .build();
+        WarpExpressionData functionLeaf = new WarpExpressionData(
+                functionLeafExpression, IntegerType.INTEGER, false, Optional.of(functionNativeExpression), regularColumnA);
+
+        // plain domain predicate on "a", outside the warmed element's [1,100] min/max stats
+        WarpCall outOfRangeLeafExpression = new WarpCall(
+                EQUAL_OPERATOR_FUNCTION_NAME.getName(),
+                List.of(warpVariableA, new WarpPrimitiveConstant(0L, IntegerType.INTEGER)),
+                BOOLEAN);
+        NativeExpression outOfRangeNativeExpression = NativeExpression.builder()
+                .domain(Domain.singleValue(IntegerType.INTEGER, 0L))
+                .collectNulls(false)
+                .functionType(FunctionType.FUNCTION_TYPE_NONE)
+                .predicateType(PredicateType.PREDICATE_TYPE_VALUES)
+                .build();
+        WarpExpressionData outOfRangeLeaf = new WarpExpressionData(
+                outOfRangeLeafExpression, IntegerType.INTEGER, false, Optional.of(outOfRangeNativeExpression), regularColumnA);
+
+        // independently-matchable predicate on column "b"
+        WarpCall matchedLeafExpression = new WarpCall(
+                EQUAL_OPERATOR_FUNCTION_NAME.getName(),
+                List.of(warpVariableB, new WarpPrimitiveConstant(1L, IntegerType.INTEGER)),
+                BOOLEAN);
+        NativeExpression matchedNativeExpression = NativeExpression.builder()
+                .domain(Domain.singleValue(IntegerType.INTEGER, 1L))
+                .collectNulls(false)
+                .functionType(FunctionType.FUNCTION_TYPE_NONE)
+                .predicateType(PredicateType.PREDICATE_TYPE_VALUES)
+                .build();
+        WarpExpressionData matchedLeaf = new WarpExpressionData(
+                matchedLeafExpression, IntegerType.INTEGER, false, Optional.of(matchedNativeExpression), regularColumnB);
+
+        WarpCall rootExpression = new WarpCall(
+                AND_FUNCTION_NAME.getName(),
+                List.of(functionLeafExpression, outOfRangeLeafExpression, matchedLeafExpression),
+                BOOLEAN);
+        io.trino.plugin.warp.expression.rewrite.WarpExpression warpExpression = new io.trino.plugin.warp.expression.rewrite.WarpExpression(
+                rootExpression, List.of(functionLeaf, outOfRangeLeaf, matchedLeaf));
+
+        when(dispatcherTableHandle.getWarpExpression()).thenReturn(Optional.of(warpExpression));
+        when(dispatcherTableHandle.getSimplifiedColumns()).thenReturn(new SimplifiedColumns(Collections.emptySet()));
+        when(dispatcherTableHandle.getFullPredicate()).thenReturn(TupleDomain.all());
+        PredicateContextData predicateContextData = predicateContextFactory.create(session, DynamicFilter.EMPTY, dispatcherTableHandle);
+        QueryContext queryContext = new QueryContext(predicateContextData, ImmutableList.of(), false, "query-id");
+
+        WarmUpElement rangeWarmUpElement = mock(WarmUpElement.class);
+        when(rangeWarmUpElement.getRecTypeCode()).thenReturn(RecTypeCode.REC_TYPE_INTEGER);
+        when(rangeWarmUpElement.getWarpColumn()).thenReturn(regularColumnA);
+        when(rangeWarmUpElement.getWarmupElementStats()).thenReturn(new WarmupElementStats(0, 1, 100));
+        when(rangeWarmUpElement.getWarmUpType()).thenReturn(WarmUpType.WARM_UP_TYPE_BASIC);
+
+        WarmUpElement basicWarmUpElement = mock(WarmUpElement.class);
+        when(basicWarmUpElement.getRecTypeCode()).thenReturn(RecTypeCode.REC_TYPE_INTEGER);
+        when(basicWarmUpElement.getWarpColumn()).thenReturn(regularColumnB);
+        when(basicWarmUpElement.getWarmupElementStats()).thenReturn(new WarmupElementStats(0, 1, 100));
+        when(basicWarmUpElement.getWarmUpType()).thenReturn(WarmUpType.WARM_UP_TYPE_BASIC);
+
+        WarmedWarmupTypes.Builder warmedWarmupTypesBuilder = new WarmedWarmupTypes.Builder();
+        warmedWarmupTypesBuilder.add(rangeWarmUpElement);
+        warmedWarmupTypesBuilder.add(basicWarmUpElement);
+        WarmedWarmupTypes warmedWarmupTypes = warmedWarmupTypesBuilder.build();
+
+        ClassifyArgs classifyArgs = mock(ClassifyArgs.class);
+        when(classifyArgs.getDispatcherTableHandle()).thenReturn(dispatcherTableHandle);
+        when(classifyArgs.isMinMaxFilter()).thenReturn(true);
+        when(classifyArgs.getWarmedWarmupTypes()).thenReturn(warmedWarmupTypes);
+
+        MatchClassifier classifierUnderTest = new MatchClassifier(
+                List.of(new RangeMatcher(new ShapingLoggerFactory(new CatalogName("c"), new SharedConfig())), new BasicMatcher()),
+                new ShapingLoggerFactory(new CatalogName("c"), new SharedConfig()));
+
+        QueryContext result = classifierUnderTest.classify(classifyArgs, queryContext);
+
+        assertThat(result.isNoneOnly()).isTrue();
+        assertThat(result.getMatchData().orElseThrow()).isInstanceOf(NoneMatchData.class);
+    }
+
+    // OR with an unmergeable AND branch (with one side out of range) resolves to the independently matchable sibling
+    @Test
+    public void testOrWrappingUnmergeableAndResolvesToMatchableSibling()
+    {
+        RegularColumn regularColumnA = new RegularColumn("a");
+        RegularColumn regularColumnB = new RegularColumn("b");
+        RegularColumn regularColumnC = new RegularColumn("c");
+        WarpVariable warpVariableA = new WarpVariable(columns.get("a"), IntegerType.INTEGER);
+        WarpVariable warpVariableB = new WarpVariable(columns.get("b"), IntegerType.INTEGER);
+        WarpVariable warpVariableC = new WarpVariable(columns.get("c"), IntegerType.INTEGER);
+
+        // function-typed predicate on "a"
+        WarpCall functionLeafExpression = new WarpCall(
+                EQUAL_OPERATOR_FUNCTION_NAME.getName(),
+                List.of(warpVariableA, new WarpPrimitiveConstant(3L, IntegerType.INTEGER)),
+                BOOLEAN);
+        NativeExpression functionNativeExpression = NativeExpression.builder()
+                .domain(Domain.singleValue(IntegerType.INTEGER, 3L))
+                .collectNulls(false)
+                .functionType(FunctionType.FUNCTION_TYPE_DAY_OF_WEEK)
+                .predicateType(PredicateType.PREDICATE_TYPE_VALUES)
+                .build();
+        WarpExpressionData functionLeaf = new WarpExpressionData(
+                functionLeafExpression, IntegerType.INTEGER, false, Optional.of(functionNativeExpression), regularColumnA);
+
+        // plain domain predicate on "a", outside the warmed element's [1,100] min/max stats
+        WarpCall outOfRangeLeafExpression = new WarpCall(
+                EQUAL_OPERATOR_FUNCTION_NAME.getName(),
+                List.of(warpVariableA, new WarpPrimitiveConstant(0L, IntegerType.INTEGER)),
+                BOOLEAN);
+        NativeExpression outOfRangeNativeExpression = NativeExpression.builder()
+                .domain(Domain.singleValue(IntegerType.INTEGER, 0L))
+                .collectNulls(false)
+                .functionType(FunctionType.FUNCTION_TYPE_NONE)
+                .predicateType(PredicateType.PREDICATE_TYPE_VALUES)
+                .build();
+        WarpExpressionData outOfRangeLeaf = new WarpExpressionData(
+                outOfRangeLeafExpression, IntegerType.INTEGER, false, Optional.of(outOfRangeNativeExpression), regularColumnA);
+
+        // independently-matchable predicate on column "b", inside the AND
+        WarpCall matchedBLeafExpression = new WarpCall(
+                EQUAL_OPERATOR_FUNCTION_NAME.getName(),
+                List.of(warpVariableB, new WarpPrimitiveConstant(1L, IntegerType.INTEGER)),
+                BOOLEAN);
+        NativeExpression matchedBNativeExpression = NativeExpression.builder()
+                .domain(Domain.singleValue(IntegerType.INTEGER, 1L))
+                .collectNulls(false)
+                .functionType(FunctionType.FUNCTION_TYPE_NONE)
+                .predicateType(PredicateType.PREDICATE_TYPE_VALUES)
+                .build();
+        WarpExpressionData matchedBLeaf = new WarpExpressionData(
+                matchedBLeafExpression, IntegerType.INTEGER, false, Optional.of(matchedBNativeExpression), regularColumnB);
+
+        WarpCall andExpression = new WarpCall(
+                AND_FUNCTION_NAME.getName(),
+                List.of(functionLeafExpression, outOfRangeLeafExpression, matchedBLeafExpression),
+                BOOLEAN);
+
+        // independently-matchable predicate on column "c", sibling of the AND under the OR
+        WarpCall matchedCLeafExpression = new WarpCall(
+                EQUAL_OPERATOR_FUNCTION_NAME.getName(),
+                List.of(warpVariableC, new WarpPrimitiveConstant(1L, IntegerType.INTEGER)),
+                BOOLEAN);
+        NativeExpression matchedCNativeExpression = NativeExpression.builder()
+                .domain(Domain.singleValue(IntegerType.INTEGER, 1L))
+                .collectNulls(false)
+                .functionType(FunctionType.FUNCTION_TYPE_NONE)
+                .predicateType(PredicateType.PREDICATE_TYPE_VALUES)
+                .build();
+        WarpExpressionData matchedCLeaf = new WarpExpressionData(
+                matchedCLeafExpression, IntegerType.INTEGER, false, Optional.of(matchedCNativeExpression), regularColumnC);
+
+        WarpCall rootExpression = new WarpCall(
+                OR_FUNCTION_NAME.getName(),
+                List.of(andExpression, matchedCLeafExpression),
+                BOOLEAN);
+        io.trino.plugin.warp.expression.rewrite.WarpExpression warpExpression = new io.trino.plugin.warp.expression.rewrite.WarpExpression(
+                rootExpression, List.of(functionLeaf, outOfRangeLeaf, matchedBLeaf, matchedCLeaf));
+
+        when(dispatcherTableHandle.getWarpExpression()).thenReturn(Optional.of(warpExpression));
+        when(dispatcherTableHandle.getSimplifiedColumns()).thenReturn(new SimplifiedColumns(Collections.emptySet()));
+        when(dispatcherTableHandle.getFullPredicate()).thenReturn(TupleDomain.all());
+        PredicateContextData predicateContextData = predicateContextFactory.create(session, DynamicFilter.EMPTY, dispatcherTableHandle);
+        QueryContext queryContext = new QueryContext(predicateContextData, ImmutableList.of(), false, "query-id");
+
+        WarmUpElement rangeWarmUpElement = mock(WarmUpElement.class);
+        when(rangeWarmUpElement.getRecTypeCode()).thenReturn(RecTypeCode.REC_TYPE_INTEGER);
+        when(rangeWarmUpElement.getWarpColumn()).thenReturn(regularColumnA);
+        when(rangeWarmUpElement.getWarmupElementStats()).thenReturn(new WarmupElementStats(0, 1, 100));
+        when(rangeWarmUpElement.getWarmUpType()).thenReturn(WarmUpType.WARM_UP_TYPE_BASIC);
+
+        WarmUpElement bWarmUpElement = mock(WarmUpElement.class);
+        when(bWarmUpElement.getRecTypeCode()).thenReturn(RecTypeCode.REC_TYPE_INTEGER);
+        when(bWarmUpElement.getWarpColumn()).thenReturn(regularColumnB);
+        when(bWarmUpElement.getWarmupElementStats()).thenReturn(new WarmupElementStats(0, 1, 100));
+        when(bWarmUpElement.getWarmUpType()).thenReturn(WarmUpType.WARM_UP_TYPE_BASIC);
+
+        WarmUpElement cWarmUpElement = mock(WarmUpElement.class);
+        when(cWarmUpElement.getRecTypeCode()).thenReturn(RecTypeCode.REC_TYPE_INTEGER);
+        when(cWarmUpElement.getWarpColumn()).thenReturn(regularColumnC);
+        when(cWarmUpElement.getWarmupElementStats()).thenReturn(new WarmupElementStats(0, 1, 100));
+        when(cWarmUpElement.getWarmUpType()).thenReturn(WarmUpType.WARM_UP_TYPE_BASIC);
+
+        WarmedWarmupTypes.Builder warmedWarmupTypesBuilder = new WarmedWarmupTypes.Builder();
+        warmedWarmupTypesBuilder.add(rangeWarmUpElement);
+        warmedWarmupTypesBuilder.add(bWarmUpElement);
+        warmedWarmupTypesBuilder.add(cWarmUpElement);
+        WarmedWarmupTypes warmedWarmupTypes = warmedWarmupTypesBuilder.build();
+
+        ClassifyArgs classifyArgs = mock(ClassifyArgs.class);
+        when(classifyArgs.getDispatcherTableHandle()).thenReturn(dispatcherTableHandle);
+        when(classifyArgs.isMinMaxFilter()).thenReturn(true);
+        when(classifyArgs.getWarmedWarmupTypes()).thenReturn(warmedWarmupTypes);
+
+        MatchClassifier classifierUnderTest = new MatchClassifier(
+                List.of(new RangeMatcher(new ShapingLoggerFactory(new CatalogName("c"), new SharedConfig())), new BasicMatcher()),
+                new ShapingLoggerFactory(new CatalogName("c"), new SharedConfig()));
+
+        QueryContext result = classifierUnderTest.classify(classifyArgs, queryContext);
+
+        assertThat(result.isNoneOnly()).isFalse();
+        assertThat(result.getMatchData().orElseThrow()).isEqualTo(
+                BasicQueryMatchData.builder()
+                        .warmUpElement(cWarmUpElement)
+                        .type(IntegerType.INTEGER)
+                        .domain(Optional.of(matchedCNativeExpression.domain()))
+                        .simplifiedDomain(false)
+                        .nativeExpression(matchedCNativeExpression)
+                        .tightnessRequired(false)
+                        .build());
     }
 
     private io.trino.plugin.warp.expression.rewrite.WarpExpression createWrapExpression()

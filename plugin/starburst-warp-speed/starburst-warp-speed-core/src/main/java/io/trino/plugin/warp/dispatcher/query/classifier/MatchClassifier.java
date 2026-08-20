@@ -216,6 +216,9 @@ class MatchClassifier
                     }
                     else {
                         Optional<MatchData> matchData = handleFlatExpression(classifyArgs, leaves, warpExpression);
+                        if (matchData.isPresent() && matchData.get() instanceof NoneMatchData) {
+                            return new MatchResult(matchData, true);
+                        }
                         matchData.ifPresent(terms::add);
                     }
                 }
