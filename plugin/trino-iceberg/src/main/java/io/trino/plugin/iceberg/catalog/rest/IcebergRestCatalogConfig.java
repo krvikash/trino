@@ -17,7 +17,9 @@ import com.google.common.collect.ImmutableMap;
 import io.airlift.configuration.Config;
 import io.airlift.configuration.ConfigDescription;
 import io.airlift.configuration.DefunctConfig;
+import io.airlift.units.DataSize;
 import io.airlift.units.Duration;
+import io.airlift.units.MinDataSize;
 import io.airlift.units.MinDuration;
 import jakarta.validation.constraints.NotNull;
 import org.apache.iceberg.CatalogProperties;
@@ -28,6 +30,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
+import static io.airlift.units.DataSize.Unit.MEGABYTE;
 import static java.lang.String.format;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.MINUTES;
@@ -67,6 +70,9 @@ public class IcebergRestCatalogConfig
     private boolean caseInsensitiveNameMatching;
     private Map<String, String> httpHeaders = ImmutableMap.of();
     private Duration caseInsensitiveNameMatchingCacheTtl = new Duration(1, MINUTES);
+    private Duration metastoreCacheTtl = new Duration(0, MINUTES);
+    private DataSize metastoreCacheMaximumSize = DataSize.of(200, MEGABYTE);
+    private DataSize metastoreCacheMaximumEntrySize = DataSize.of(10, MEGABYTE);
 
     @NotNull
     public URI getBaseUri()
@@ -277,6 +283,51 @@ public class IcebergRestCatalogConfig
     public IcebergRestCatalogConfig setCaseInsensitiveNameMatchingCacheTtl(Duration caseInsensitiveNameMatchingCacheTtl)
     {
         this.caseInsensitiveNameMatchingCacheTtl = caseInsensitiveNameMatchingCacheTtl;
+        return this;
+    }
+
+    @NotNull
+    @MinDuration("0ms")
+    public Duration getMetastoreCacheTtl()
+    {
+        return metastoreCacheTtl;
+    }
+
+    @Config("iceberg.rest-catalog.metastore-cache.ttl")
+    @ConfigDescription("Duration to cache table metadata responses from the REST catalog server; set to 0 to disable")
+    public IcebergRestCatalogConfig setMetastoreCacheTtl(Duration metastoreCacheTtl)
+    {
+        this.metastoreCacheTtl = metastoreCacheTtl;
+        return this;
+    }
+
+    @NotNull
+    @MinDataSize("0B")
+    public DataSize getMetastoreCacheMaximumSize()
+    {
+        return metastoreCacheMaximumSize;
+    }
+
+    @Config("iceberg.rest-catalog.metastore-cache.maximum-size")
+    @ConfigDescription("Maximum size of the table metadata response cache")
+    public IcebergRestCatalogConfig setMetastoreCacheMaximumSize(DataSize metastoreCacheMaximumSize)
+    {
+        this.metastoreCacheMaximumSize = metastoreCacheMaximumSize;
+        return this;
+    }
+
+    @NotNull
+    @MinDataSize("0B")
+    public DataSize getMetastoreCacheMaximumEntrySize()
+    {
+        return metastoreCacheMaximumEntrySize;
+    }
+
+    @Config("iceberg.rest-catalog.metastore-cache.maximum-entry-size")
+    @ConfigDescription("Maximum size of a single cached table metadata response; responses larger than this are not cached")
+    public IcebergRestCatalogConfig setMetastoreCacheMaximumEntrySize(DataSize metastoreCacheMaximumEntrySize)
+    {
+        this.metastoreCacheMaximumEntrySize = metastoreCacheMaximumEntrySize;
         return this;
     }
 }

@@ -14,6 +14,7 @@
 package io.trino.plugin.iceberg.catalog.rest;
 
 import com.google.common.collect.ImmutableMap;
+import io.airlift.units.DataSize;
 import io.airlift.units.Duration;
 import org.apache.iceberg.CatalogProperties;
 import org.junit.jupiter.api.Test;
@@ -24,6 +25,7 @@ import java.util.Map;
 import static io.airlift.configuration.testing.ConfigAssertions.assertFullMapping;
 import static io.airlift.configuration.testing.ConfigAssertions.assertRecordedDefaults;
 import static io.airlift.configuration.testing.ConfigAssertions.recordDefaults;
+import static io.airlift.units.DataSize.Unit.MEGABYTE;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.MINUTES;
 import static java.util.concurrent.TimeUnit.SECONDS;
@@ -48,6 +50,9 @@ public class TestIcebergRestCatalogConfig
                 .setServerAssignedTableLocationEnabled(false)
                 .setCaseInsensitiveNameMatching(false)
                 .setCaseInsensitiveNameMatchingCacheTtl(new Duration(1, MINUTES))
+                .setMetastoreCacheTtl(new Duration(0, MINUTES))
+                .setMetastoreCacheMaximumSize(DataSize.of(200, MEGABYTE))
+                .setMetastoreCacheMaximumEntrySize(DataSize.of(10, MEGABYTE))
                 .setHttpHeaders(List.of()));
     }
 
@@ -69,6 +74,9 @@ public class TestIcebergRestCatalogConfig
                 .put("iceberg.rest-catalog.server-assigned-table-location-enabled", "true")
                 .put("iceberg.rest-catalog.case-insensitive-name-matching", "true")
                 .put("iceberg.rest-catalog.case-insensitive-name-matching.cache-ttl", "3m")
+                .put("iceberg.rest-catalog.metastore-cache.ttl", "5m")
+                .put("iceberg.rest-catalog.metastore-cache.maximum-size", "256MB")
+                .put("iceberg.rest-catalog.metastore-cache.maximum-entry-size", "5MB")
                 .put("iceberg.rest-catalog.http-headers", "Polaris-Realm: default-realm")
                 .buildOrThrow();
 
@@ -87,6 +95,9 @@ public class TestIcebergRestCatalogConfig
                 .setServerAssignedTableLocationEnabled(true)
                 .setCaseInsensitiveNameMatching(true)
                 .setCaseInsensitiveNameMatchingCacheTtl(new Duration(3, MINUTES))
+                .setMetastoreCacheTtl(new Duration(5, MINUTES))
+                .setMetastoreCacheMaximumSize(DataSize.of(256, MEGABYTE))
+                .setMetastoreCacheMaximumEntrySize(DataSize.of(5, MEGABYTE))
                 .setHttpHeaders(List.of("Polaris-Realm: default-realm"));
 
         assertFullMapping(properties, expected);

@@ -24,6 +24,7 @@ import io.trino.spi.TrinoException;
 import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
 import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.trino.spi.StandardErrorCode.NOT_SUPPORTED;
+import static org.weakref.jmx.guice.ExportBinder.newExporter;
 
 public class IcebergRestCatalogModule
         extends AbstractConfigurationAwareModule
@@ -41,7 +42,11 @@ public class IcebergRestCatalogModule
 
         binder.bind(IcebergRestCatalogPropertiesProvider.class).in(Scopes.SINGLETON);
         binder.bind(TrinoCatalogFactory.class).to(TrinoIcebergRestCatalogFactory.class).in(Scopes.SINGLETON);
+        binder.bind(TrinoIcebergRestCatalogFactory.class).in(Scopes.SINGLETON);
+        newExporter(binder).export(TrinoIcebergRestCatalogFactory.class).withGeneratedName();
         newOptionalBinder(binder, IcebergFileSystemFactory.class).setBinding().to(IcebergRestCatalogFileSystemFactory.class).in(Scopes.SINGLETON);
+
+        install(new RestClientModule());
 
         IcebergConfig icebergConfig = buildConfigObject(IcebergConfig.class);
         IcebergRestCatalogConfig restCatalogConfig = buildConfigObject(IcebergRestCatalogConfig.class);

@@ -37,6 +37,8 @@ import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.rest.HTTPClient;
 import org.apache.iceberg.rest.RESTSessionCatalog;
 import org.apache.iceberg.rest.RESTUtil;
+import org.weakref.jmx.Managed;
+import org.weakref.jmx.Nested;
 
 import java.util.Map;
 import java.util.Set;
@@ -69,6 +71,7 @@ public class TrinoIcebergRestCatalogFactory
     private final Cache<Namespace, Namespace> remoteNamespaceMappingCache;
     private final Cache<TableIdentifier, TableIdentifier> remoteTableMappingCache;
     private final Executor metadataFetchingExecutor;
+    private final RestClientFactory restClientFactory;
 
     @GuardedBy("this")
     private RESTSessionCatalog icebergCatalog;
@@ -84,6 +87,7 @@ public class TrinoIcebergRestCatalogFactory
             IcebergConfig icebergConfig,
             TypeManager typeManager,
             NodeVersion nodeVersion,
+            RestClientFactory restClientFactory,
             @ForIcebergMetadata ExecutorService metadataExecutorService)
     {
         this.fileSystemFactory = requireNonNull(fileSystemFactory, "fileSystemFactory is null");
@@ -116,6 +120,7 @@ public class TrinoIcebergRestCatalogFactory
         else {
             this.metadataFetchingExecutor = new BoundedExecutor(metadataExecutorService, icebergConfig.getMetadataParallelism());
         }
+        this.restClientFactory = requireNonNull(restClientFactory, "restClientFactory is null");
     }
 
     @Override
@@ -125,10 +130,10 @@ public class TrinoIcebergRestCatalogFactory
         // for authorization and config route
         if (icebergCatalog == null) {
             RESTSessionCatalog icebergCatalogInstance = new RESTSessionCatalog(
-                    config -> HTTPClient.builder(config)
-                            .uri(config.get(CatalogProperties.URI))
-                            .withHeaders(RESTUtil.configHeaders(config))
-                            .build(),
+                    config -> restClientFactory.create(HTTPClient.builder(config)
+                                    .uri(config.get(CatalogProperties.URI))
+                                    .withHeaders(RESTUtil.configHeaders(config)),
+                            config),
                     (context, config) -> {
                         ConnectorIdentity currentIdentity = (context.wrappedIdentity() != null)
                                 ? ((ConnectorIdentity) context.wrappedIdentity())
@@ -161,5 +166,12 @@ public class TrinoIcebergRestCatalogFactory
                 viewEndpointsEnabled,
                 metadataFetchingExecutor,
                 serverAssignedTableLocationEnabled);
+    }
+
+    @Managed
+    @Nested
+    public RestClientStats getRestClientStats()
+    {
+        return restClientFactory.stats();
     }
 }
