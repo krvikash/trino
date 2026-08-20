@@ -18,6 +18,7 @@ import com.google.inject.Scopes;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
 import io.trino.plugin.iceberg.IcebergConfig;
 import io.trino.plugin.iceberg.IcebergFileSystemFactory;
+import io.trino.plugin.iceberg.catalog.MetastoreCacheInvalidator;
 import io.trino.plugin.iceberg.catalog.TrinoCatalogFactory;
 import io.trino.spi.TrinoException;
 
@@ -47,6 +48,10 @@ public class IcebergRestCatalogModule
         newOptionalBinder(binder, IcebergFileSystemFactory.class).setBinding().to(IcebergRestCatalogFileSystemFactory.class).in(Scopes.SINGLETON);
 
         install(new RestClientModule());
+        newOptionalBinder(binder, MetastoreCacheInvalidator.class)
+                .setBinding()
+                .to(IcebergRestMetastoreCacheInvalidator.class)
+                .in(Scopes.SINGLETON);
 
         IcebergConfig icebergConfig = buildConfigObject(IcebergConfig.class);
         IcebergRestCatalogConfig restCatalogConfig = buildConfigObject(IcebergRestCatalogConfig.class);

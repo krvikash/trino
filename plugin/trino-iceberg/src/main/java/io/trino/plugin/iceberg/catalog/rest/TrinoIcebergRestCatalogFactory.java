@@ -72,7 +72,7 @@ public class TrinoIcebergRestCatalogFactory
     private final Cache<Namespace, Namespace> remoteNamespaceMappingCache;
     private final Cache<TableIdentifier, TableIdentifier> remoteTableMappingCache;
     private final Executor metadataFetchingExecutor;
-    private final boolean globalMetastoreCacheEnabled;
+    private final Optional<RestResponseCache> restResponseCache;
     private final RestClientFactory restClientFactory;
 
     @GuardedBy("this")
@@ -123,7 +123,7 @@ public class TrinoIcebergRestCatalogFactory
         else {
             this.metadataFetchingExecutor = new BoundedExecutor(metadataExecutorService, icebergConfig.getMetadataParallelism());
         }
-        this.globalMetastoreCacheEnabled = restResponseCache.isPresent();
+        this.restResponseCache = requireNonNull(restResponseCache, "restResponseCache is null");
         this.restClientFactory = requireNonNull(restClientFactory, "restClientFactory is null");
     }
 
@@ -168,7 +168,7 @@ public class TrinoIcebergRestCatalogFactory
                 remoteNamespaceMappingCache,
                 remoteTableMappingCache,
                 viewEndpointsEnabled,
-                globalMetastoreCacheEnabled,
+                restResponseCache.isPresent(),
                 metadataFetchingExecutor,
                 serverAssignedTableLocationEnabled);
     }
@@ -178,5 +178,12 @@ public class TrinoIcebergRestCatalogFactory
     public RestClientStats getRestClientStats()
     {
         return restClientFactory.stats();
+    }
+
+    public void flushMetadataCache()
+    {
+        restResponseCache.ifPresent(RestResponseCache::invalidateAll);
+        remoteNamespaceMappingCache.invalidateAll();
+        remoteTableMappingCache.invalidateAll();
     }
 }
