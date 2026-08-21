@@ -38,6 +38,7 @@ import org.intellij.lang.annotations.Language;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
@@ -45,6 +46,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.UnaryOperator;
 
+import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.trino.SessionTestUtils.TEST_SESSION;
 import static io.trino.type.InternalTypeManager.TESTING_TYPE_MANAGER;
@@ -80,9 +82,85 @@ public final class RuleTestSupport
             @Language("SQL") String sql,
             UnaryOperator<QueryProfilerConfig> configCustomizer)
     {
+        return analyze(rule, queryExecutionDetails(queryRunner, session, sql, configCustomizer));
+    }
+
+    /**
+     * Replays a {@link QueryInfo} JSON fixture captured from a real run
+     * instead of executing a query live.
+     */
+    public static List<RuleFinding> findings(
+            QueryProfilerRule rule,
+            String resourcePath,
+            UnaryOperator<QueryProfilerConfig> configCustomizer)
+    {
+        return analyze(rule, queryExecutionDetails(resourcePath, configCustomizer));
+    }
+
+    /**
+     * Analyzes a {@link QueryInfo} assembled in-test from characteristic parts (see
+     * {@link ProfilerFixtures}) for rules that cannot be provoked by a live TPCH query.
+     */
+    public static List<RuleFinding> findings(
+            QueryProfilerRule rule,
+            QueryInfo queryInfo,
+            UnaryOperator<QueryProfilerConfig> configCustomizer)
+    {
+        return analyze(rule, queryExecutionDetails(queryInfo, configCustomizer));
+    }
+
+    public static List<RuleFinding> findings(
+            Collection<QueryProfilerRule> rules,
+            StandaloneQueryRunner queryRunner,
+            Session session,
+            @Language("SQL") String sql,
+            UnaryOperator<QueryProfilerConfig> configCustomizer)
+    {
+        return analyze(rules, queryExecutionDetails(queryRunner, session, sql, configCustomizer));
+    }
+
+    public static List<RuleFinding> findings(
+            Collection<QueryProfilerRule> rules,
+            QueryInfo queryInfo,
+            UnaryOperator<QueryProfilerConfig> configCustomizer)
+    {
+        return analyze(rules, queryExecutionDetails(queryInfo, configCustomizer));
+    }
+
+    private static List<RuleFinding> analyze(QueryProfilerRule rule, QueryExecutionDetails details)
+    {
+        return rule.analyze(details);
+    }
+
+    private static List<RuleFinding> analyze(Collection<QueryProfilerRule> rules, QueryExecutionDetails details)
+    {
+        return rules.stream()
+                .flatMap(rule -> analyze(rule, details).stream())
+                .collect(toImmutableList());
+    }
+
+    private static QueryExecutionDetails queryExecutionDetails(
+            StandaloneQueryRunner queryRunner,
+            Session session,
+            @Language("SQL") String sql,
+            UnaryOperator<QueryProfilerConfig> configCustomizer)
+    {
         QueryId queryId = queryRunner.executeWithQueryId(session, sql).queryId();
-        QueryInfo queryInfo = getFinalQueryInfo(queryRunner, queryId);
-        return analyze(rule, queryInfo, configCustomizer);
+        return queryExecutionDetails(getFinalQueryInfo(queryRunner, queryId), configCustomizer);
+    }
+
+    private static QueryExecutionDetails queryExecutionDetails(
+            String resourcePath,
+            UnaryOperator<QueryProfilerConfig> configCustomizer)
+    {
+        return queryExecutionDetails(readQueryInfo(resourcePath), configCustomizer);
+    }
+
+    private static QueryExecutionDetails queryExecutionDetails(
+            QueryInfo queryInfo,
+            UnaryOperator<QueryProfilerConfig> configCustomizer)
+    {
+        return new QueryExecutionDetails(queryInfo, configCustomizer.apply(new QueryProfilerConfig()));
     }
 
     public static QueryInfo getFinalQueryInfo(StandaloneQueryRunner queryRunner, QueryId queryId)
@@ -103,36 +181,6 @@ public final class RuleTestSupport
             throw new RuntimeException(e);
         }
         return finalQueryInfo.get();
-    }
-
-    /**
-     * Replays a {@link QueryInfo} JSON fixture captured from a real run
-     * instead of executing a query live.
-     */
-    public static List<RuleFinding> findings(
-            QueryProfilerRule rule,
-            String resourcePath,
-            UnaryOperator<QueryProfilerConfig> configCustomizer)
-    {
-        return analyze(rule, readQueryInfo(resourcePath), configCustomizer);
-    }
-
-    /**
-     * Analyzes a {@link QueryInfo} assembled in-test from characteristic parts (see
-     * {@link ProfilerFixtures}) for rules that cannot be provoked by a live TPCH query.
-     */
-    public static List<RuleFinding> findings(
-            QueryProfilerRule rule,
-            QueryInfo queryInfo,
-            UnaryOperator<QueryProfilerConfig> configCustomizer)
-    {
-        return analyze(rule, queryInfo, configCustomizer);
-    }
-
-    private static List<RuleFinding> analyze(QueryProfilerRule rule, QueryInfo queryInfo, UnaryOperator<QueryProfilerConfig> configCustomizer)
-    {
-        QueryProfilerConfig config = configCustomizer.apply(new QueryProfilerConfig());
-        return rule.analyze(new QueryExecutionDetails(queryInfo, config));
     }
 
     private static QueryInfo readQueryInfo(String resourcePath)
