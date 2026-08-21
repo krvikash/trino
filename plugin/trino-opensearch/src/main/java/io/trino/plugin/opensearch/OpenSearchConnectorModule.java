@@ -19,6 +19,7 @@ import io.airlift.configuration.AbstractConfigurationAwareModule;
 import io.trino.plugin.base.session.SessionPropertiesProvider;
 import io.trino.plugin.opensearch.client.OpenSearchClient;
 import io.trino.plugin.opensearch.ptf.RawQuery;
+import io.trino.plugin.opensearch.substitution.OpenSearchSubstitutionMetadata;
 import io.trino.spi.function.table.ConnectorTableFunction;
 
 import java.util.Optional;
@@ -38,6 +39,7 @@ public class OpenSearchConnectorModule
     {
         binder.bind(OpenSearchConnector.class).in(Scopes.SINGLETON);
         binder.bind(OpenSearchMetadata.class).in(Scopes.SINGLETON);
+        binder.bind(OpenSearchSubstitutionMetadata.class).in(Scopes.SINGLETON);
         binder.bind(OpenSearchSplitManager.class).in(Scopes.SINGLETON);
         binder.bind(OpenSearchPageSourceProvider.class).in(Scopes.SINGLETON);
         binder.bind(OpenSearchClient.class).in(Scopes.SINGLETON);
