@@ -347,6 +347,32 @@ public class TestHudiSparkCompatibility
         }
     }
 
+    @Test(groups = {HUDI, PROFILE_SPECIFIC_TESTS})
+    public void testReadCopyOnWriteTableWithPendingClustering()
+    {
+        String tableName = "test_hudi_cow_pending_clustering_" + randomNameSuffix();
+
+        onHudi().executeQuery("CREATE TABLE default." + tableName +
+                "(id bigint, name string, ts bigint)" +
+                "USING hudi " +
+                "TBLPROPERTIES (" +
+                " type = 'cow'," +
+                " primaryKey = 'id'," +
+                " preCombineField = 'ts'," +
+                " hoodie.clustering.schedule.inline = 'true'," +
+                " hoodie.clustering.inline = 'false')" +
+                "LOCATION 's3://" + bucketName + "/" + tableName + "'");
+
+        try {
+            onHudi().executeQuery("INSERT INTO default." + tableName + " VALUES (1, 'a1', 1000), (2, 'a2', 2000)");
+            assertThat(onTrino().executeQuery("SELECT id, name FROM hudi.default." + tableName))
+                    .containsOnly(row(1L, "a1"), row(2L, "a2"));
+        }
+        finally {
+            onHudi().executeQuery("DROP TABLE default." + tableName);
+        }
+    }
+
     private void createNonPartitionedTable(String tableName, String tableType)
     {
         onHudi().executeQuery(format(
