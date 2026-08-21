@@ -55,5 +55,6 @@ public record QueryStatsSummary(
         requireNonNull(totalNetworkDataSize, "totalNetworkDataSize is null");
         requireNonNull(averageNetworkPerWorkerPerSecond, "averageNetworkPerWorkerPerSecond is null");
         requireNonNull(createTime, "createTime is null");
+        requireNonNull(endTime, "endTime is null");
     }
 }
