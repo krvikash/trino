@@ -30,6 +30,7 @@ import io.trino.plugin.pinot.client.PinotGrpcDataFetcher;
 import io.trino.plugin.pinot.client.PinotGrpcServerQueryClientConfig;
 import io.trino.plugin.pinot.client.PinotGrpcServerQueryClientTlsConfig;
 import io.trino.plugin.pinot.client.PinotHostMapper;
+import io.trino.plugin.pinot.substitution.PinotSubstitutionMetadata;
 import io.trino.spi.connector.ConnectorNodePartitioningProvider;
 import org.apache.pinot.common.response.broker.BrokerResponseNative;
 import org.apache.pinot.common.utils.DataSchema;
@@ -73,6 +74,7 @@ public class PinotModule
 
         binder.bind(PinotSessionProperties.class).in(Scopes.SINGLETON);
         binder.bind(PinotNodePartitioningProvider.class).in(Scopes.SINGLETON);
+        binder.bind(PinotSubstitutionMetadata.class).in(Scopes.SINGLETON);
         httpClientBinder(binder).bindHttpClient("pinot", ForPinot.class)
                 .withConfigDefaults(cfg -> {
                     cfg.setIdleTimeout(new Duration(300, SECONDS));

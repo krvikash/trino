@@ -16,6 +16,8 @@ package io.trino.plugin.pinot;
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Inject;
 import io.airlift.bootstrap.LifeCycleManager;
+import io.trino.plugin.base.classloader.ClassLoaderSafeConnectorSubstitutionMetadata;
+import io.trino.plugin.pinot.substitution.PinotSubstitutionMetadata;
 import io.trino.spi.connector.Connector;
 import io.trino.spi.connector.ConnectorMetadata;
 import io.trino.spi.connector.ConnectorNodePartitioningProvider;
@@ -23,6 +25,7 @@ import io.trino.spi.connector.ConnectorPageSourceProvider;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorSplitManager;
 import io.trino.spi.connector.ConnectorTransactionHandle;
+import io.trino.spi.connector.substitution.ConnectorSubstitutionMetadata;
 import io.trino.spi.session.PropertyMetadata;
 import io.trino.spi.transaction.IsolationLevel;
 
@@ -39,6 +42,7 @@ public class PinotConnector
     private final PinotPageSourceProvider pageSourceProvider;
     private final PinotNodePartitioningProvider partitioningProvider;
     private final PinotSessionProperties sessionProperties;
+    private final ConnectorSubstitutionMetadata substitutionMetadata;
 
     @Inject
     public PinotConnector(
@@ -47,7 +51,8 @@ public class PinotConnector
             PinotSplitManager splitManager,
             PinotPageSourceProvider pageSourceProvider,
             PinotNodePartitioningProvider partitioningProvider,
-            PinotSessionProperties pinotSessionProperties)
+            PinotSessionProperties pinotSessionProperties,
+            PinotSubstitutionMetadata substitutionMetadata)
     {
         this.lifeCycleManager = requireNonNull(lifeCycleManager, "lifeCycleManager is null");
         this.metadata = requireNonNull(metadata, "metadata is null");
@@ -55,6 +60,9 @@ public class PinotConnector
         this.pageSourceProvider = requireNonNull(pageSourceProvider, "pageSourceProvider is null");
         this.partitioningProvider = requireNonNull(partitioningProvider, "partitioningProvider is null");
         this.sessionProperties = requireNonNull(pinotSessionProperties, "pinotSessionProperties is null");
+        this.substitutionMetadata = new ClassLoaderSafeConnectorSubstitutionMetadata(
+                requireNonNull(substitutionMetadata, "substitutionMetadata is null"),
+                getClass().getClassLoader());
     }
 
     @Override
@@ -67,6 +75,12 @@ public class PinotConnector
     public ConnectorMetadata getMetadata(ConnectorSession session, ConnectorTransactionHandle transactionHandle)
     {
         return metadata;
+    }
+
+    @Override
+    public ConnectorSubstitutionMetadata getSubstitutionMetadata()
+    {
+        return substitutionMetadata;
     }
 
     @Override
