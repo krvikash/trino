@@ -76,6 +76,7 @@ import io.trino.node.InternalCoordinatorLocatorModule;
 import io.trino.node.InternalNode;
 import io.trino.node.InternalNodeManager;
 import io.trino.node.NodeManagerModule;
+import io.trino.profiler.ConnectorQueryProfilerRegistry;
 import io.trino.security.AccessControl;
 import io.trino.security.AccessControlConfig;
 import io.trino.security.AccessControlManager;
@@ -371,6 +372,7 @@ public class TestingTrinoServer
                     binder.bind(ProcedureTester.class).in(Scopes.SINGLETON);
                     binder.bind(ExchangeManagerRegistry.class).in(Scopes.SINGLETON);
                     binder.bind(CacheManagerRegistry.class).in(Scopes.SINGLETON);
+                    binder.bind(ConnectorQueryProfilerRegistry.class).in(Scopes.SINGLETON);
                     spanProcessor.ifPresent(processor -> newSetBinder(binder, SpanProcessor.class).addBinding().toInstance(processor));
 
                     newSetBinder(binder, SystemSessionPropertiesProvider.class)

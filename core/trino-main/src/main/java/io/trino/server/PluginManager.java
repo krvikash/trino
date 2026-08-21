@@ -31,6 +31,7 @@ import io.trino.metadata.InternalFunctionBundle;
 import io.trino.metadata.InternalFunctionBundle.InternalFunctionBundleBuilder;
 import io.trino.metadata.LanguageFunctionEngineManager;
 import io.trino.metadata.TypeRegistry;
+import io.trino.profiler.ConnectorQueryProfilerRegistry;
 import io.trino.security.AccessControlManager;
 import io.trino.security.GroupProviderManager;
 import io.trino.server.protocol.spooling.SpoolingManagerRegistry;
@@ -46,6 +47,7 @@ import io.trino.spi.connector.ConnectorFactory;
 import io.trino.spi.eventlistener.EventListenerFactory;
 import io.trino.spi.exchange.ExchangeManagerFactory;
 import io.trino.spi.function.LanguageFunctionEngine;
+import io.trino.spi.profiler.ConnectorQueryProfilerRule;
 import io.trino.spi.resourcegroups.ResourceGroupConfigurationManagerFactory;
 import io.trino.spi.security.CertificateAuthenticatorFactory;
 import io.trino.spi.security.GroupProviderFactory;
@@ -124,6 +126,7 @@ public class PluginManager
     private final TypeRegistry typeRegistry;
     private final BlockEncodingManager blockEncodingManager;
     private final HandleResolver handleResolver;
+    private final ConnectorQueryProfilerRegistry connectorQueryProfilerRegistry;
     private final AtomicBoolean pluginsLoading = new AtomicBoolean();
 
     @Inject
@@ -147,7 +150,8 @@ public class PluginManager
             ExchangeManagerRegistry exchangeManagerRegistry,
             SubqueryCacheManagerRegistry subqueryCacheManagerRegistry,
             SpoolingManagerRegistry spoolingManagerRegistry,
-            CacheManagerRegistry cacheManagerRegistry)
+            CacheManagerRegistry cacheManagerRegistry,
+            ConnectorQueryProfilerRegistry connectorQueryProfilerRegistry)
     {
         this.pluginsProvider = requireNonNull(pluginsProvider, "pluginsProvider is null");
         this.catalogStoreManager = requireNonNull(catalogStoreManager, "catalogStoreManager is null");
@@ -169,6 +173,7 @@ public class PluginManager
         this.subqueryCacheManagerRegistry = requireNonNull(subqueryCacheManagerRegistry, "subqueryCacheManagerRegistry is null");
         this.spoolingManagerRegistry = requireNonNull(spoolingManagerRegistry, "spoolingManagerRegistry is null");
         this.cacheManagerRegistry = requireNonNull(cacheManagerRegistry, "cacheManagerRegistry is null");
+        this.connectorQueryProfilerRegistry = requireNonNull(connectorQueryProfilerRegistry, "connectorQueryProfilerRegistry is null");
     }
 
     @Override
@@ -325,6 +330,14 @@ public class PluginManager
         for (BlobCacheManagerFactory factory : plugin.getBlobCacheManagerFactories()) {
             log.info("Registering blob cache manager %s", factory.getName());
             cacheManagerRegistry.addBlobCacheManagerFactory(factory);
+        }
+
+        List<ConnectorQueryProfilerRule> profilerRules = ImmutableList.copyOf(plugin.getConnectorQueryProfilerRules());
+        if (!profilerRules.isEmpty()) {
+            for (ConnectorQueryProfilerRule profilerRule : profilerRules) {
+                log.info("Registering connector query profiler rule %s for connector %s", profilerRule.getClass().getName(), profilerRule.getConnectorName());
+            }
+            connectorQueryProfilerRegistry.addConnectorQueryProfilerRules(profilerRules);
         }
     }
 

@@ -161,6 +161,7 @@ import io.trino.operator.scalar.json.JsonQueryFunction;
 import io.trino.operator.scalar.json.JsonValueFunction;
 import io.trino.operator.table.ExcludeColumnsFunction;
 import io.trino.plugin.base.security.AllowAllSystemAccessControl;
+import io.trino.profiler.ConnectorQueryProfilerRegistry;
 import io.trino.security.AllowAllAccessControl;
 import io.trino.security.GroupProviderManager;
 import io.trino.server.PluginManager;
@@ -656,7 +657,8 @@ public class PlanTester
                 exchangeManagerRegistry,
                 subqueryCacheManagerRegistry,
                 spoolingManagerRegistry,
-                cacheManagerRegistry);
+                cacheManagerRegistry,
+                new ConnectorQueryProfilerRegistry());
 
         catalogManager.registerGlobalSystemConnector(globalSystemConnector);
         languageFunctionManager.setPlannerContext(plannerContext);

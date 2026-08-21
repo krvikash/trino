@@ -20,6 +20,7 @@ import io.trino.spi.connector.ConnectorFactory;
 import io.trino.spi.eventlistener.EventListenerFactory;
 import io.trino.spi.exchange.ExchangeManagerFactory;
 import io.trino.spi.function.LanguageFunctionEngine;
+import io.trino.spi.profiler.ConnectorQueryProfilerRule;
 import io.trino.spi.resourcegroups.ResourceGroupConfigurationManagerFactory;
 import io.trino.spi.security.CertificateAuthenticatorFactory;
 import io.trino.spi.security.GroupProviderFactory;
@@ -130,6 +131,11 @@ public interface Plugin
     }
 
     default Iterable<BlobCacheManagerFactory> getBlobCacheManagerFactories()
+    {
+        return emptyList();
+    }
+
+    default Iterable<ConnectorQueryProfilerRule> getConnectorQueryProfilerRules()
     {
         return emptyList();
     }

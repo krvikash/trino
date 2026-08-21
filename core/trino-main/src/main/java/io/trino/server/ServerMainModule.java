@@ -114,6 +114,7 @@ import io.trino.operator.index.IndexManager;
 import io.trino.operator.scalar.json.JsonExistsFunction;
 import io.trino.operator.scalar.json.JsonQueryFunction;
 import io.trino.operator.scalar.json.JsonValueFunction;
+import io.trino.profiler.ConnectorQueryProfilerRegistry;
 import io.trino.server.PluginManager.PluginsProvider;
 import io.trino.server.SliceSerialization.SliceDeserializer;
 import io.trino.server.SliceSerialization.SliceSerializer;
@@ -539,6 +540,7 @@ public class ServerMainModule
         jaxrsBinder(binder).bind(StatusResource.class);
 
         // plugin manager
+        binder.bind(ConnectorQueryProfilerRegistry.class).in(Scopes.SINGLETON);
         newOptionalBinder(binder, PluginInstaller.class).setDefault()
                 .to(PluginManager.class).in(Scopes.SINGLETON);
         newOptionalBinder(binder, PluginsProvider.class).setDefault()
