@@ -22,6 +22,7 @@ import io.trino.memory.context.AggregatedMemoryContext;
 import io.trino.spi.connector.ConnectorPageSource;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.DynamicFilter;
+import io.trino.spi.connector.MemoryContext;
 import io.trino.spi.connector.SourcePage;
 import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.type.Type;
@@ -73,7 +74,7 @@ public final class PartitionStatisticsReader
     public PartitionStatsIterator readPartitionStats(ConnectorSession session, Table table, Schema schema, InputFile inputFile)
     {
         FileFormat fileFormat = FileFormat.fromFileName(inputFile.location());
-        IcebergPageSourceProvider pageSourceProvider = pageSourceProviderFactory.createPageSourceProvider();
+        IcebergPageSourceProvider pageSourceProvider = pageSourceProviderFactory.createPageSourceProvider(MemoryContext.NO_LIMIT);
         // IcebergUtil.getProjectedColumns method adds partition columns. It leads to failure when reading the page
         List<IcebergColumnHandle> projectedColumns = schema.columns().stream()
                 .map(column -> getColumnHandle(column, typeManager))

@@ -24,6 +24,7 @@ import io.airlift.units.Duration;
 import io.trino.Session;
 import io.trino.cache.CommonPlanAdaptation.PlanSignatureWithPredicate;
 import io.trino.execution.ScheduledSplit;
+import io.trino.memory.context.AggregatedMemoryContext;
 import io.trino.metadata.Split;
 import io.trino.metadata.TableHandle;
 import io.trino.operator.Driver;
@@ -119,7 +120,8 @@ public class CacheDriverFactory
         this.alternatives = requireNonNull(alternatives, "alternatives is null");
         this.cacheStats = requireNonNull(cacheStats, "cacheStats is null");
         this.cachePerformanceTracker = requireNonNull(cachePerformanceTracker, "cachePerformanceTracker is null");
-        this.pageSourceProvider = pageSourceProvider.createPageSourceProvider(originalTableHandle.catalogHandle());
+        // this provider only prunes predicates and never opens a page source, so it holds no shared state to account for
+        this.pageSourceProvider = pageSourceProvider.createPageSourceProvider(originalTableHandle.catalogHandle(), AggregatedMemoryContext.newSimpleAggregatedMemoryContext());
     }
 
     public Driver createDriver(DriverContext driverContext, ScheduledSplit split, Optional<CacheSplitId> cacheSplitIdOptional)

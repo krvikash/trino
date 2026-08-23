@@ -25,6 +25,7 @@ import io.trino.connector.CatalogHandle;
 import io.trino.execution.ScheduledSplit;
 import io.trino.memory.LocalMemoryManager;
 import io.trino.memory.NodeMemoryConfig;
+import io.trino.memory.context.AggregatedMemoryContext;
 import io.trino.metadata.BlockEncodingManager;
 import io.trino.metadata.InternalBlockEncodingSerde;
 import io.trino.metadata.Split;
@@ -366,7 +367,7 @@ public class TestCacheDataOperator
             implements PageSourceProviderFactory
     {
         @Override
-        public PageSourceProvider createPageSourceProvider(CatalogHandle catalogHandle)
+        public PageSourceProvider createPageSourceProvider(CatalogHandle catalogHandle, AggregatedMemoryContext memoryContext)
         {
             return new TestPageSourceProvider();
         }

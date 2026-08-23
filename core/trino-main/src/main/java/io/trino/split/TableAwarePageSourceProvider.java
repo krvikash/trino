@@ -57,8 +57,13 @@ public class TableAwarePageSourceProvider
     @Override
     public void close() {}
 
-    public long getMemoryUsage()
+    public void retain()
     {
-        return pageSourceProvider.getMemoryUsage();
+        pageSourceProvider.retain();
+    }
+
+    public void release()
+    {
+        pageSourceProvider.release();
     }
 }

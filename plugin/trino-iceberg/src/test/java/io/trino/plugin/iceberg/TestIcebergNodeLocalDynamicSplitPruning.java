@@ -627,7 +627,7 @@ public class TestIcebergNodeLocalDynamicSplitPruning
                 blocksHashFactory,
                 ParquetFooterCache.noop(),
                 ENCRYPTION_MANAGER_FACTORY);
-        return factory.createPageSourceProvider().createPageSource(
+        return factory.createPageSourceProvider(MemoryContext.NO_LIMIT).createPageSource(
                 transaction,
                 getSession(icebergConfig),
                 split,

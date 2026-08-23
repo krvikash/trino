@@ -110,12 +110,4 @@ public class ClassLoaderSafeConnectorPageSourceProvider
             return delegate.prunePredicate(session, split, table, predicate);
         }
     }
-
-    @Override
-    public long getMemoryUsage()
-    {
-        try (ThreadContextClassLoader _ = new ThreadContextClassLoader(classLoader)) {
-            return delegate.getMemoryUsage();
-        }
-    }
 }

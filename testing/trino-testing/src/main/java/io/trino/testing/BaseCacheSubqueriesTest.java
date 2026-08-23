@@ -37,6 +37,7 @@ import io.trino.spi.QueryId;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.Connector;
 import io.trino.spi.connector.ConnectorPageSourceProvider;
+import io.trino.spi.connector.ConnectorPageSourceProviderFactory;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorSplit;
 import io.trino.spi.connector.ConnectorTableHandle;
@@ -44,6 +45,7 @@ import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.connector.Constraint;
 import io.trino.spi.connector.ConstraintApplicationResult;
 import io.trino.spi.connector.DynamicFilter;
+import io.trino.spi.connector.MemoryContext;
 import io.trino.spi.connector.ProjectionApplicationResult;
 import io.trino.spi.expression.ConnectorExpression;
 import io.trino.spi.expression.Variable;
@@ -86,6 +88,7 @@ import static io.trino.SystemSessionProperties.SUBQUERY_CACHE_AGGREGATIONS_ENABL
 import static io.trino.SystemSessionProperties.SUBQUERY_CACHE_DATA_REDUCTION_THRESHOLD;
 import static io.trino.SystemSessionProperties.SUBQUERY_CACHE_PROJECTIONS_ENABLED;
 import static io.trino.cache.CacheDriverFactory.getDynamicRowFilteringUnenforcedPredicate;
+import static io.trino.memory.context.AggregatedMemoryContext.newSimpleAggregatedMemoryContext;
 import static io.trino.spi.connector.Constraint.alwaysTrue;
 import static io.trino.spi.predicate.Range.range;
 import static io.trino.spi.type.BigintType.BIGINT;
@@ -444,7 +447,8 @@ public abstract class BaseCacheSubqueriesTest
                     ColumnHandle dataColumn = metadata.getColumnHandles(transactionSession, handle).get("orderkey");
                     assertThat(dataColumn).isNotNull();
 
-                    ConnectorPageSourceProvider pageSourceProvider = worker.getConnector(catalogHandle).getPageSourceProviderFactory().createPageSourceProvider();
+                    ConnectorPageSourceProviderFactory pageSourceProviderFactory = worker.getConnector(catalogHandle).getPageSourceProviderFactory();
+                    ConnectorPageSourceProvider pageSourceProvider = pageSourceProviderFactory.createPageSourceProvider(MemoryContext.NO_LIMIT);
                     VarcharType type = VarcharType.createVarcharType(4);
 
                     // getUnenforcedPredicate and prunePredicate should return none if predicate is exclusive on partition column
@@ -460,7 +464,7 @@ public abstract class BaseCacheSubqueriesTest
                             TupleDomain.withColumnDomains(ImmutableMap.of(partitionColumn, nonPartitionDomain))))
                             .matches(TupleDomain::isNone);
                     assertThat(getUnenforcedPredicate(
-                            new PageSourceProviderInstance(pageSourceProvider, new DirectIoExecutor()),
+                            new PageSourceProviderInstance(pageSourceProviderFactory, new DirectIoExecutor(), newSimpleAggregatedMemoryContext().newLocalMemoryContext("test-cache")),
                             isDynamicRowFilteringEnabled,
                             session,
                             new Split(catalogHandle, split),
@@ -477,7 +481,7 @@ public abstract class BaseCacheSubqueriesTest
                             TupleDomain.withColumnDomains(ImmutableMap.of(partitionColumn, partitionDomain))))
                             .matches(TupleDomain::isAll);
                     assertThat(getUnenforcedPredicate(
-                            new PageSourceProviderInstance(pageSourceProvider, new DirectIoExecutor()),
+                            new PageSourceProviderInstance(pageSourceProviderFactory, new DirectIoExecutor(), newSimpleAggregatedMemoryContext().newLocalMemoryContext("test-cache")),
                             isDynamicRowFilteringEnabled,
                             session,
                             new Split(catalogHandle, split),
@@ -524,7 +528,7 @@ public abstract class BaseCacheSubqueriesTest
                     if (isDynamicRowFilteringEnabled || getUnenforcedPredicateIsPrune()) {
                         // getUnenforcedPredicate should not prune or simplify data column
                         assertThat(getUnenforcedPredicate(
-                                new PageSourceProviderInstance(pageSourceProvider, new DirectIoExecutor()),
+                                new PageSourceProviderInstance(pageSourceProviderFactory, new DirectIoExecutor(), newSimpleAggregatedMemoryContext().newLocalMemoryContext("test-cache")),
                                 isDynamicRowFilteringEnabled,
                                 session,
                                 new Split(catalogHandle, split),
@@ -621,7 +625,7 @@ public abstract class BaseCacheSubqueriesTest
     {
         ConnectorPageSourceProvider pageSourceProvider = null;
         try {
-            pageSourceProvider = workerConnector.getPageSourceProviderFactory().createPageSourceProvider();
+            pageSourceProvider = workerConnector.getPageSourceProviderFactory().createPageSourceProvider(MemoryContext.NO_LIMIT);
         }
         catch (UnsupportedOperationException ignored) {
         }

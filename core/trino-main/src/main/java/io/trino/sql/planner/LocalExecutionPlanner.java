@@ -405,6 +405,7 @@ import static io.trino.cache.StaticDynamicFilter.createStaticDynamicFilter;
 import static io.trino.cache.StaticDynamicFilter.createStaticDynamicFilterSupplier;
 import static io.trino.connector.CatalogHandle.createRootCatalogHandle;
 import static io.trino.execution.buffer.PagesSerdes.createExchangePagesSerdeFactory;
+import static io.trino.memory.context.AggregatedMemoryContext.newSimpleAggregatedMemoryContext;
 import static io.trino.metadata.GlobalFunctionCatalog.builtinFunctionName;
 import static io.trino.operator.HashArraySizeSupplier.incrementalLoadFactorHashArraySizeSupplier;
 import static io.trino.operator.OperatorFactories.join;
@@ -2440,7 +2441,8 @@ public class LocalExecutionPlanner
                             GpuOperator.SourceFactory gpuOperator = new GpuOperator.SourceFactory(
                                     context.getNextOperatorId(),
                                     sourceNode.getId(),
-                                    pageSourceManager.createPageSourceProvider(table.catalogHandle()),
+                                    // nothing releases the GPU page source provider, so its shared state is deliberately unaccounted
+                                    pageSourceManager.createPageSourceProvider(table.catalogHandle(), newSimpleAggregatedMemoryContext()),
                                     session,
                                     table,
                                     tableCredentials,
@@ -2552,7 +2554,8 @@ public class LocalExecutionPlanner
                             dynamicFilter,
                             getTypes(projections),
                             getFilterAndProjectMinOutputPageSize(session),
-                            getFilterAndProjectMinOutputPageRowCount(session));
+                            getFilterAndProjectMinOutputPageRowCount(session),
+                            context.getTaskContext().aggregateUserMemoryContext());
 
                     return new PhysicalOperation(operatorFactory, outputMappings);
                 }
@@ -2712,7 +2715,8 @@ public class LocalExecutionPlanner
                         OperatorFactory operatorFactory = new GpuOperator.SourceFactory(
                                 context.getNextOperatorId(),
                                 planNodeId,
-                                pageSourceManager.createPageSourceProvider(node.getTable().catalogHandle()),
+                                // nothing releases the GPU page source provider, so its shared state is deliberately unaccounted
+                                pageSourceManager.createPageSourceProvider(node.getTable().catalogHandle(), newSimpleAggregatedMemoryContext()),
                                 session,
                                 node.getTable(),
                                 tableCredentials,
@@ -2725,7 +2729,16 @@ public class LocalExecutionPlanner
                     context.markAsGpuIneligible(node.getId(), gpuPageSourceSupport.reason().orElseThrow());
                 }
             }
-            OperatorFactory operatorFactory = new TableScanOperatorFactory(context.getNextOperatorId(), planNodeId, node.getId(), pageSourceManager, node.getTable(), tableCredentials, columns.build(), columnTypes.build());
+            OperatorFactory operatorFactory = new TableScanOperatorFactory(
+                    context.getNextOperatorId(),
+                    planNodeId,
+                    node.getId(),
+                    pageSourceManager,
+                    node.getTable(),
+                    tableCredentials,
+                    columns.build(),
+                    columnTypes.build(),
+                    context.getTaskContext().aggregateUserMemoryContext());
             return new PhysicalOperation(operatorFactory, makeLayout(node));
         }
 

@@ -77,22 +77,22 @@ public class ObjectStorePageSourceProviderFactory
     }
 
     @Override
-    public ConnectorPageSourceProvider createPageSourceProvider()
+    public ConnectorPageSourceProvider createPageSourceProvider(MemoryContext memoryContext)
     {
-        return new ObjectStorePageSourceProvider();
+        return new ObjectStorePageSourceProvider(memoryContext);
     }
 
-    private PageSourceProvider forHandle(ConnectorSplit split, ConnectorTableHandle handle)
+    private PageSourceProvider forHandle(ConnectorSplit split, ConnectorTableHandle handle, MemoryContext memoryContext)
     {
         if (split instanceof FilesTableSplit) {
-            return new PageSourceProvider(ICEBERG, icebergPageSourceProviderFactory.createPageSourceProvider());
+            return new PageSourceProvider(ICEBERG, icebergPageSourceProviderFactory.createPageSourceProvider(memoryContext));
         }
 
         return switch (handle) {
-            case HiveTableHandle _ -> new PageSourceProvider(HIVE, hivePageSourceProviderFactory.createPageSourceProvider());
-            case IcebergTableHandle _ -> new PageSourceProvider(ICEBERG, icebergPageSourceProviderFactory.createPageSourceProvider());
-            case DeltaLakeTableHandle _ -> new PageSourceProvider(DELTA, deltaPageSourceProviderFactory.createPageSourceProvider());
-            case HudiTableHandle _ -> new PageSourceProvider(HUDI, hudiPageSourceProviderFactory.createPageSourceProvider());
+            case HiveTableHandle _ -> new PageSourceProvider(HIVE, hivePageSourceProviderFactory.createPageSourceProvider(memoryContext));
+            case IcebergTableHandle _ -> new PageSourceProvider(ICEBERG, icebergPageSourceProviderFactory.createPageSourceProvider(memoryContext));
+            case DeltaLakeTableHandle _ -> new PageSourceProvider(DELTA, deltaPageSourceProviderFactory.createPageSourceProvider(memoryContext));
+            case HudiTableHandle _ -> new PageSourceProvider(HUDI, hudiPageSourceProviderFactory.createPageSourceProvider(memoryContext));
             default -> throw new UnsupportedOperationException("Unsupported table handle " + handle.getClass() + " with split " + split.getClass());
         };
     }
@@ -122,6 +122,12 @@ public class ObjectStorePageSourceProviderFactory
         // createPageSourceProvider is called for each scan within a query
         // we hold on to ConnectorPageSourceProvider instance to allow IcebergPageSourceProvider to reuse equality deletes between splits of the same scan
         private volatile PageSourceProvider delegate;
+        private final MemoryContext memoryContext;
+
+        public ObjectStorePageSourceProvider(MemoryContext memoryContext)
+        {
+            this.memoryContext = requireNonNull(memoryContext, "memoryContext is null");
+        }
 
         @Override
         @SuppressWarnings("deprecation") // the method itself is deprecated
@@ -194,17 +200,6 @@ public class ObjectStorePageSourceProviderFactory
                     .prunePredicate(unwrap(pageSourceProvider.tableType(), session), split, table, predicate);
         }
 
-        @Override
-        public long getMemoryUsage()
-        {
-            PageSourceProvider provider = delegate;
-            if (provider == null) {
-                // No page source was created, so no memory is used
-                return 0;
-            }
-            return provider.pageSourceProvider().getMemoryUsage();
-        }
-
         private PageSourceProvider getPageSourceProvider(ConnectorSplit split, ConnectorTableHandle table)
         {
             PageSourceProvider result = delegate;
@@ -212,7 +207,7 @@ public class ObjectStorePageSourceProviderFactory
                 synchronized (this) {
                     result = delegate;
                     if (result == null) {
-                        result = forHandle(split, table);
+                        result = forHandle(split, table, memoryContext);
                         delegate = result;
                     }
                 }

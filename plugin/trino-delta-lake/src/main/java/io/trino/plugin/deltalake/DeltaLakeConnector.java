@@ -35,6 +35,7 @@ import io.trino.spi.connector.ConnectorSplitManager;
 import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.connector.GpuPageSourceSupport;
+import io.trino.spi.connector.MemoryContext;
 import io.trino.spi.connector.SystemTable;
 import io.trino.spi.connector.TableProcedureMetadata;
 import io.trino.spi.function.FunctionProvider;
@@ -160,7 +161,7 @@ public class DeltaLakeConnector
             }
 
             @Override
-            public ConnectorPageSourceProvider createPageSourceProvider()
+            public ConnectorPageSourceProvider createPageSourceProvider(MemoryContext memoryContext)
             {
                 return pageSourceProvider;
             }

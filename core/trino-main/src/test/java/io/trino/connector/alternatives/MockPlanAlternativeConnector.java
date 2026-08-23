@@ -26,6 +26,7 @@ import io.trino.spi.connector.ConnectorPageSourceProviderFactory;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorSplitManager;
 import io.trino.spi.connector.ConnectorTransactionHandle;
+import io.trino.spi.connector.MemoryContext;
 import io.trino.spi.connector.SystemTable;
 import io.trino.spi.connector.TableProcedureMetadata;
 import io.trino.spi.function.FunctionProvider;
@@ -84,7 +85,7 @@ public class MockPlanAlternativeConnector
     @Override
     public ConnectorPageSourceProviderFactory getPageSourceProviderFactory()
     {
-        return () -> new MockPlanAlternativeChooser.MockPlanAlternativePageSourceProvider(getDelegatePageSourceProvider());
+        return memoryContext -> new MockPlanAlternativeChooser.MockPlanAlternativePageSourceProvider(getDelegatePageSourceProvider(memoryContext));
     }
 
     @Override
@@ -93,10 +94,10 @@ public class MockPlanAlternativeConnector
         return new MockPlanAlternativeChooser();
     }
 
-    private ConnectorPageSourceProvider getDelegatePageSourceProvider()
+    private ConnectorPageSourceProvider getDelegatePageSourceProvider(MemoryContext memoryContext)
     {
         try {
-            return delegate.getPageSourceProviderFactory().createPageSourceProvider();
+            return delegate.getPageSourceProviderFactory().createPageSourceProvider(memoryContext);
         }
         catch (UnsupportedOperationException e) {
             return new RecordPageSourceProvider(delegate.getRecordSetProvider());

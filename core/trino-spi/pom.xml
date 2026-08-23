@@ -286,6 +286,15 @@
                                     <new>method java.util.Map&lt;java.lang.String, java.lang.Long&gt; io.trino.spi.connector.ConnectorMetadata::finishTableExecute(io.trino.spi.connector.ConnectorSession, io.trino.spi.connector.ConnectorTableExecuteHandle, java.util.Collection&lt;io.airlift.slice.Slice&gt;, java.util.List&lt;java.lang.Object&gt;)</new>
                                 </item>
                                 <item>
+                                    <code>java.method.removed</code>
+                                    <old>method long io.trino.spi.connector.ConnectorPageSourceProvider::getMemoryUsage()</old>
+                                </item>
+                                <item>
+                                    <code>java.method.numberOfParametersChanged</code>
+                                    <old>method io.trino.spi.connector.ConnectorPageSourceProvider io.trino.spi.connector.ConnectorPageSourceProviderFactory::createPageSourceProvider()</old>
+                                    <new>method io.trino.spi.connector.ConnectorPageSourceProvider io.trino.spi.connector.ConnectorPageSourceProviderFactory::createPageSourceProvider(io.trino.spi.connector.MemoryContext)</new>
+                                </item>
+                                <item>
                                     <code>java.method.visibilityIncreased</code>
                                     <old>method int io.trino.spi.block.ArrayBlock::getOffsetBase()</old>
                                 </item>

@@ -157,10 +157,4 @@ public class DispatcherPageSourceProvider
                 ((DispatcherTableHandle) table).getProxyConnectorTableHandle(),
                 predicate);
     }
-
-    @Override
-    public long getMemoryUsage()
-    {
-        return connectorPageSourceProvider.getMemoryUsage();
-    }
 }

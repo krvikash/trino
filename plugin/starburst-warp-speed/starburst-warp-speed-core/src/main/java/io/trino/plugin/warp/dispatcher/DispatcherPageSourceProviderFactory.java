@@ -21,6 +21,7 @@ import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.connector.ConnectorPageSourceProvider;
 import io.trino.spi.connector.ConnectorPageSourceProviderFactory;
+import io.trino.spi.connector.MemoryContext;
 
 import static java.util.Objects.requireNonNull;
 
@@ -50,10 +51,10 @@ public class DispatcherPageSourceProviderFactory
     }
 
     @Override
-    public ConnectorPageSourceProvider createPageSourceProvider()
+    public ConnectorPageSourceProvider createPageSourceProvider(MemoryContext memoryContext)
     {
         // one proxied provider per scan so cross-split memoization in the proxied connector spans the scan
-        ConnectorPageSourceProvider proxiedPageSourceProvider = connectorPageSourceProviderFactory.createPageSourceProvider();
+        ConnectorPageSourceProvider proxiedPageSourceProvider = connectorPageSourceProviderFactory.createPageSourceProvider(memoryContext);
         return new DispatcherPageSourceProvider(
                 proxiedPageSourceProvider,
                 pageSourceFactory,

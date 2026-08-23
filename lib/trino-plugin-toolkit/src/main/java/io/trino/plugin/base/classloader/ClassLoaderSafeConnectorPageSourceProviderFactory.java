@@ -20,6 +20,7 @@ import io.trino.spi.connector.ConnectorPageSourceProvider;
 import io.trino.spi.connector.ConnectorPageSourceProviderFactory;
 import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.GpuPageSourceSupport;
+import io.trino.spi.connector.MemoryContext;
 
 import java.util.List;
 
@@ -47,10 +48,10 @@ public class ClassLoaderSafeConnectorPageSourceProviderFactory
     }
 
     @Override
-    public ConnectorPageSourceProvider createPageSourceProvider()
+    public ConnectorPageSourceProvider createPageSourceProvider(MemoryContext memoryContext)
     {
         try (ThreadContextClassLoader ignored = new ThreadContextClassLoader(classLoader)) {
-            return new ClassLoaderSafeConnectorPageSourceProvider(delegate.createPageSourceProvider(), classLoader);
+            return new ClassLoaderSafeConnectorPageSourceProvider(delegate.createPageSourceProvider(memoryContext), classLoader);
         }
     }
 }

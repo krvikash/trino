@@ -29,6 +29,7 @@ import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorPageSourceProviderFactory;
 import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.GpuPageSourceSupport;
+import io.trino.spi.connector.MemoryContext;
 import io.trino.spi.type.TypeManager;
 import org.joda.time.DateTimeZone;
 
@@ -108,8 +109,8 @@ public class IcebergPageSourceProviderFactory
     }
 
     @Override
-    public IcebergPageSourceProvider createPageSourceProvider()
+    public IcebergPageSourceProvider createPageSourceProvider(MemoryContext memoryContext)
     {
-        return new IcebergPageSourceProvider(fileSystemFactory, fileIoFactory, fileFormatDataSourceStats, orcReaderOptions, parquetReaderOptions, dateTimeZone, typeManager, parquetFooterCache, blocksHashFactory, encryptionManagerFactory, gpuScanMaxPageSizeBytes);
+        return new IcebergPageSourceProvider(fileSystemFactory, fileIoFactory, fileFormatDataSourceStats, orcReaderOptions, parquetReaderOptions, dateTimeZone, typeManager, parquetFooterCache, blocksHashFactory, encryptionManagerFactory, gpuScanMaxPageSizeBytes, memoryContext);
     }
 }

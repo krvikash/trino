@@ -26,6 +26,7 @@ import io.trino.spi.connector.ConnectorPageSink;
 import io.trino.spi.connector.ConnectorPageSource;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.DynamicFilter;
+import io.trino.spi.connector.MemoryContext;
 import io.trino.spi.connector.SourcePage;
 import io.trino.spi.predicate.TupleDomain;
 import org.apache.iceberg.FileContent;
@@ -215,7 +216,7 @@ public class CopyOnWriteIcebergMergeSink
                 .map(DeleteFile::fromIceberg)
                 .map(deleteFile -> deleteFile.withDataSequenceNumber(dataSequenceNumbers.get(deleteFile.path())))
                 .forEach(deleteFiles::add);
-        IcebergPageSourceProvider icebergPageSourceProvider = pageSourceProviderFactory.createPageSourceProvider();
+        IcebergPageSourceProvider icebergPageSourceProvider = pageSourceProviderFactory.createPageSourceProvider(MemoryContext.NO_LIMIT);
         TrinoInputFile inputFile = fileSystem.newInputFile(path);
         long fileSize = inputFile.length();
         // TODO (https://github.com/trinodb/trino/issues/29958) memory usage reporting

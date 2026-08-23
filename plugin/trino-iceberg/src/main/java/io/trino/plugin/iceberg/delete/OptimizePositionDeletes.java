@@ -32,6 +32,7 @@ import io.trino.spi.NodeVersion;
 import io.trino.spi.TrinoException;
 import io.trino.spi.connector.ConnectorPageSource;
 import io.trino.spi.connector.ConnectorSession;
+import io.trino.spi.connector.MemoryContext;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.predicate.TupleDomain;
 import org.apache.iceberg.BaseTable;
@@ -346,7 +347,7 @@ public class OptimizePositionDeletes
 
         // TODO (https://github.com/trinodb/trino/issues/29958) memory usage reporting
         AggregatedMemoryContext memoryContext = newSimpleAggregatedMemoryContext();
-        return pageSourceProviderFactory.createPageSourceProvider().openDeleteFile(
+        return pageSourceProviderFactory.createPageSourceProvider(MemoryContext.NO_LIMIT).openDeleteFile(
                 session,
                 fileSystem,
                 fromIceberg(deleteFile),

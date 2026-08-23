@@ -281,6 +281,7 @@ public class IcebergPageSourceProvider
     private final Optional<BlocksHashFactory> blocksHashFactory;
     private final ParquetFooterCache parquetFooterCache;
     private final EncryptionManagerFactory encryptionManagerFactory;
+    private final MemoryContext sharedMemoryContext;
     private final DeleteManager unpartitionedTableDeleteManager;
     private final Map<Integer, Function<PartitionData, PartitionKey>> partitionKeyFactories = new ConcurrentHashMap<>();
     private final Map<PartitionKey, DeleteManager> partitionedDeleteManagers = new ConcurrentHashMap<>();
@@ -296,7 +297,8 @@ public class IcebergPageSourceProvider
             ParquetFooterCache parquetFooterCache,
             Optional<BlocksHashFactory> blocksHashFactory,
             EncryptionManagerFactory encryptionManagerFactory,
-            long gpuScanMaxPageSizeBytes)
+            long gpuScanMaxPageSizeBytes,
+            MemoryContext sharedMemoryContext)
     {
         this.fileSystemFactory = requireNonNull(fileSystemFactory, "fileSystemFactory is null");
         this.fileIoFactory = requireNonNull(fileIoFactory, "fileIoFactory is null");
@@ -312,8 +314,9 @@ public class IcebergPageSourceProvider
         this.typeManager = requireNonNull(typeManager, "typeManager is null");
         this.blocksHashFactory = requireNonNull(blocksHashFactory, "blocksHashFactory is null");
         this.encryptionManagerFactory = requireNonNull(encryptionManagerFactory, "encryptionManagerFactory is null");
-        this.unpartitionedTableDeleteManager = new DeleteManager(typeManager, blocksHashFactory);
         this.parquetFooterCache = requireNonNull(parquetFooterCache, "parquetFooterCache is null");
+        this.sharedMemoryContext = requireNonNull(sharedMemoryContext, "sharedMemoryContext is null");
+        this.unpartitionedTableDeleteManager = new DeleteManager(typeManager, blocksHashFactory, this::reportDeleteFilterMemoryUsage);
     }
 
     @Override
@@ -780,13 +783,16 @@ public class IcebergPageSourceProvider
         return pageSource;
     }
 
-    @Override
-    public long getMemoryUsage()
+    /**
+     * Delete filters are shared by all splits of the scan, so their size is reported at provider scope,
+     * after each delete file loads. The lock makes the reported value consistent with the filters held at that point.
+     */
+    private synchronized void reportDeleteFilterMemoryUsage()
     {
-        return unpartitionedTableDeleteManager.getEstimatedSizeInBytes() +
+        sharedMemoryContext.setBytes(unpartitionedTableDeleteManager.getEstimatedSizeInBytes() +
                 partitionedDeleteManagers.values().stream()
                         .mapToLong(DeleteManager::getEstimatedSizeInBytes)
-                        .sum();
+                        .sum());
     }
 
     private DeleteManager getDeleteManager(PartitionSpec partitionSpec, PartitionData partitionData)
@@ -806,7 +812,7 @@ public class IcebergPageSourceProvider
                         })
                 .apply(partitionData);
 
-        return partitionedDeleteManagers.computeIfAbsent(partitionKey, _ -> new DeleteManager(typeManager, blocksHashFactory));
+        return partitionedDeleteManagers.computeIfAbsent(partitionKey, _ -> new DeleteManager(typeManager, blocksHashFactory, this::reportDeleteFilterMemoryUsage));
     }
 
     private record PartitionKey(int specId, StructLikeWrapper partitionData) {}
