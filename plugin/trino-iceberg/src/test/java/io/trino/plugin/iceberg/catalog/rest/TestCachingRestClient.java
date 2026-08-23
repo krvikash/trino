@@ -105,10 +105,10 @@ final class TestCachingRestClient
             Endpoint.V1_DELETE_NAMESPACE,
             Endpoint.V1_COMMIT_TRANSACTION,
             Endpoint.V1_TABLE_REMOTE_SIGN,
+            // Ignored during invalidation
             Endpoint.V1_SUBMIT_TABLE_SCAN_PLAN,
             Endpoint.V1_CANCEL_TABLE_SCAN_PLAN,
             Endpoint.V1_FETCH_TABLE_SCAN_PLAN_TASKS,
-            // Ignored during invalidation
             Endpoint.V1_REPORT_METRICS);
 
     @Test
@@ -277,6 +277,15 @@ final class TestCachingRestClient
 
             for (TableIdentifier tableIdentifier : ImmutableList.of(table, caseSensitiveTable)) {
                 assertInteraction(properties, client -> client.post(paths.metrics(tableIdentifier), reportMetricsRequest(), null, ImmutableMap.of(), _ -> {}));
+                assertInteraction(
+                        properties,
+                        client -> client.post(paths.planTableScan(tableIdentifier), planTableScanRequest(), PlanTableScanResponse.class, ImmutableMap.of(), _ -> {}));
+                assertInteraction(
+                        properties,
+                        client -> client.delete(paths.plan(tableIdentifier, "planId"), null, ImmutableMap.of(), _ -> {}));
+                assertInteraction(
+                        properties,
+                        client -> client.post(paths.fetchScanTasks(tableIdentifier), fetchScanTasksRequest(), FetchScanTasksResponse.class, ImmutableMap.of(), _ -> {}));
             }
         }
 
@@ -305,18 +314,6 @@ final class TestCachingRestClient
                 client -> client.post(paths.commitTransaction(), commitTransactionRequest(), LoadTableResponse.class, ImmutableMap.of(), _ -> {}),
                 INVALIDATE_ALL);
         assertInteraction(properties, client -> client.post(paths.remoteSign(source), null, RemoteSignResponse.class, ImmutableMap.of(), _ -> {}), INVALIDATE_ALL);
-        assertInteraction(
-                properties,
-                client -> client.post(paths.planTableScan(source), planTableScanRequest(), PlanTableScanResponse.class, ImmutableMap.of(), _ -> {}),
-                INVALIDATE_ALL);
-        assertInteraction(
-                properties,
-                client -> client.delete(paths.plan(source, "planId"), null, ImmutableMap.of(), _ -> {}),
-                INVALIDATE_ALL);
-        assertInteraction(
-                properties,
-                client -> client.post(paths.fetchScanTasks(source), fetchScanTasksRequest(), FetchScanTasksResponse.class, ImmutableMap.of(), _ -> {}),
-                INVALIDATE_ALL);
     }
 
     @Test

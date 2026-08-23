@@ -75,6 +75,8 @@ class CachingRestClient
     private static final String REGISTER_TABLE_PATH_SEGMENT = "register";
     private static final String REGISTER_VIEW_PATH_SEGMENT = "register-view";
     private static final String METRICS_PATH_SEGMENT = "metrics";
+    private static final String PLAN_PATH_SEGMENT = "plan";
+    private static final String TASKS_PATH_SEGMENT = "tasks";
     private static final Set<String> KNOWN_LOAD_TABLE_QUERY_PARAMETERS = ImmutableSet.of("snapshots", "referenced-by");
     private static final Set<String> KNOWN_LOAD_VIEW_QUERY_PARAMETERS = ImmutableSet.of("referenced-by");
 
@@ -557,7 +559,7 @@ class CachingRestClient
                 cache.invalidate(rename.source());
                 cache.invalidate(rename.destination());
             }
-            case TableMetricsResource _ -> {
+            case TableMetricsResource _, TableScanResource _ -> {
                 // ignore
             }
             default -> {
@@ -644,6 +646,15 @@ class CachingRestClient
                 if (rest.size() == 2 && rest.get(1).equals(METRICS_PATH_SEGMENT)) {
                     // v1/{prefix}/namespaces/{namespace}/tables/{name}/metrics
                     yield new TableMetricsResource(path);
+                }
+                if (rest.size() >= 2 && rest.get(1).equals(PLAN_PATH_SEGMENT)) {
+                    // v1/{prefix}/namespaces/{namespace}/tables/{name}/plan
+                    // v1/{prefix}/namespaces/{namespace}/tables/{name}/plan/{plan-id}
+                    yield new TableScanResource(path);
+                }
+                if (rest.size() == 2 && rest.get(1).equals(TASKS_PATH_SEGMENT)) {
+                    // v1/{prefix}/namespaces/{namespace}/tables/{table}/tasks
+                    yield new TableScanResource(path);
                 }
                 if (rest.isEmpty() && request instanceof CreateTableRequest createTable) {
                     // v1/{prefix}/namespaces/{namespace}/tables
@@ -841,6 +852,15 @@ class CachingRestClient
             implements Resource
     {
         public TableMetricsResource
+        {
+            requireNonNull(path, "path is null");
+        }
+    }
+
+    private record TableScanResource(String path)
+            implements Resource
+    {
+        public TableScanResource
         {
             requireNonNull(path, "path is null");
         }

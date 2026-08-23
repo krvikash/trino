@@ -15,55 +15,36 @@ package io.trino.plugin.iceberg.catalog.rest;
 
 import com.google.common.collect.ImmutableMultiset;
 import com.google.common.collect.Multiset;
-import io.airlift.http.server.testing.TestingHttpServer;
 import io.trino.plugin.iceberg.IcebergQueryRunner;
 import io.trino.testing.AbstractTestQueryFramework;
 import io.trino.testing.QueryRunner;
 import io.trino.testing.sql.TestTable;
-import org.apache.iceberg.jdbc.JdbcCatalog;
-import org.apache.iceberg.rest.DelegatingRestSessionCatalog;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Execution;
 
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.List;
-import java.util.Optional;
 
 import static io.trino.plugin.iceberg.catalog.rest.RestCatalogEndpointInvocations.RestCatalogEndpoint.LOAD_TABLE;
 import static io.trino.plugin.iceberg.catalog.rest.RestCatalogEndpointInvocations.RestCatalogEndpoint.LOAD_VIEW;
 import static io.trino.plugin.iceberg.catalog.rest.RestCatalogEndpointInvocations.assertRestCatalogInvocations;
-import static io.trino.plugin.iceberg.catalog.rest.RestCatalogTestUtils.backendCatalog;
 import static io.trino.testing.TestingNames.randomNameSuffix;
 import static org.junit.jupiter.api.parallel.ExecutionMode.SAME_THREAD;
 
 @Execution(SAME_THREAD) // cache and stats are global
-final class TestIcebergRestCatalogMetastoreCache
+abstract class BaseIcebergRestCatalogMetastoreCacheTest
         extends AbstractTestQueryFramework
 {
     @Override
     protected QueryRunner createQueryRunner()
             throws Exception
     {
-        Path warehouseLocation = Files.createTempDirectory(null);
-        JdbcCatalog backend = closeAfterClass((JdbcCatalog) backendCatalog(warehouseLocation));
-
-        DelegatingRestSessionCatalog delegatingCatalog = DelegatingRestSessionCatalog.builder()
-                .delegate(backend)
-                .build();
-
-        TestingHttpServer testServer = delegatingCatalog.testServer();
-        testServer.start();
-        closeAfterClass(testServer::stop);
-
-        return IcebergQueryRunner.builder()
-                .addIcebergProperty("fs.hadoop.enabled", "true")
-                .setBaseDataDir(Optional.of(warehouseLocation))
-                .addIcebergProperty("iceberg.catalog.type", "rest")
-                .addIcebergProperty("iceberg.rest-catalog.uri", testServer.getBaseUrl().toString())
+        return configureQueryRunner()
                 .addIcebergProperty("iceberg.rest-catalog.metastore-cache.ttl", "10m")
                 .build();
     }
+
+    protected abstract IcebergQueryRunner.Builder configureQueryRunner()
+            throws Exception;
 
     @Test
     void testSelect()
