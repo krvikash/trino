@@ -23,6 +23,7 @@ import io.trino.Session;
 import io.trino.cache.CacheMetadata;
 import io.trino.connector.ConnectorServicesProvider;
 import io.trino.cost.StatsCalculator;
+import io.trino.exchange.ExchangeManagerRegistry;
 import io.trino.execution.FailureInjector.InjectedFailureType;
 import io.trino.execution.QueryManagerConfig;
 import io.trino.execution.warnings.WarningCollector;
@@ -104,6 +105,7 @@ public final class StandaloneQueryRunner
                 server.getQueryManager(),
                 server.getInstance(Key.get(QueryManagerConfig.class)),
                 server.getInstance(Key.get(DirectExchangeClientSupplier.class)),
+                server.getInstance(Key.get(ExchangeManagerRegistry.class)),
                 server.getInstance(Key.get(BlockEncodingSerde.class)));
     }
 
