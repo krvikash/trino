@@ -17,7 +17,6 @@ import io.airlift.slice.Slice;
 import jakarta.annotation.Nullable;
 
 import java.util.Arrays;
-import java.util.Optional;
 
 import static java.lang.Math.ceil;
 import static java.lang.Math.clamp;
@@ -258,17 +257,5 @@ final class BlockUtil
         }
 
         return buffer;
-    }
-
-    /**
-     * Ideally, the underlying nulls array in Block implementations should be a byte array instead of a boolean array.
-     * This method is used to perform that conversion until the Block implementations are changed.
-     */
-    static Optional<BooleanArrayBlock> getNulls(@Nullable long[] valueIsNull, int arrayOffset, int positionCount)
-    {
-        if (valueIsNull == null) {
-            return Optional.empty();
-        }
-        return Optional.of(new BooleanArrayBlock(arrayOffset, positionCount, null, valueIsNull));
     }
 }

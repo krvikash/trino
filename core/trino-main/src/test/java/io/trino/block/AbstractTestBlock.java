@@ -21,7 +21,6 @@ import io.trino.spi.block.Bitmap;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.block.BlockBuilderStatus;
-import io.trino.spi.block.BooleanArrayBlock;
 import io.trino.spi.block.DictionaryBlock;
 import io.trino.spi.block.DictionaryId;
 import io.trino.spi.block.MapHashTables;
@@ -54,13 +53,11 @@ public abstract class AbstractTestBlock
         assertRetainedSize(block);
 
         assertBlockPositions(block, expectedValues);
-        if (!(block instanceof BooleanArrayBlock)) {
-            assertBlockPositions(copyBlockViaBlockSerde(block), expectedValues);
+        assertBlockPositions(copyBlockViaBlockSerde(block), expectedValues);
 
-            Block blockWithNull = copyBlockViaBlockSerde(block).copyWithAppendedNull();
-            T[] expectedValuesWithNull = Arrays.copyOf(expectedValues, expectedValues.length + 1);
-            assertBlockPositions(blockWithNull, expectedValuesWithNull);
-        }
+        Block blockWithNull = copyBlockViaBlockSerde(block).copyWithAppendedNull();
+        T[] expectedValuesWithNull = Arrays.copyOf(expectedValues, expectedValues.length + 1);
+        assertBlockPositions(blockWithNull, expectedValuesWithNull);
 
         assertBlockSize(block);
         assertRetainedSize(block);
@@ -342,11 +339,9 @@ public abstract class AbstractTestBlock
         assertPositionValue(block.getRegion(0, position + 1), position, expectedValue);
         assertPositionValue(block.getRegion(position, block.getPositionCount() - position), 0, expectedValue);
 
-        if (!(block instanceof BooleanArrayBlock)) {
-            assertPositionValue(copyBlockViaBlockSerde(block.getRegion(position, 1)), 0, expectedValue);
-            assertPositionValue(copyBlockViaBlockSerde(block.getRegion(0, position + 1)), position, expectedValue);
-            assertPositionValue(copyBlockViaBlockSerde(block.getRegion(position, block.getPositionCount() - position)), 0, expectedValue);
-        }
+        assertPositionValue(copyBlockViaBlockSerde(block.getRegion(position, 1)), 0, expectedValue);
+        assertPositionValue(copyBlockViaBlockSerde(block.getRegion(0, position + 1)), position, expectedValue);
+        assertPositionValue(copyBlockViaBlockSerde(block.getRegion(position, block.getPositionCount() - position)), 0, expectedValue);
 
         assertPositionValue(block.copyRegion(position, 1), 0, expectedValue);
         assertPositionValue(block.copyRegion(0, position + 1), position, expectedValue);
