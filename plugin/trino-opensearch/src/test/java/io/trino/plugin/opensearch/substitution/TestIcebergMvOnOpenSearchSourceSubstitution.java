@@ -33,7 +33,6 @@ import org.opensearch.client.RestClient;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static io.trino.plugin.opensearch.OpenSearchServer.OPENSEARCH_IMAGE;
 import static java.lang.String.format;
 import static org.junit.jupiter.api.parallel.ExecutionMode.SAME_THREAD;
@@ -148,23 +147,16 @@ public class TestIcebergMvOnOpenSearchSourceSubstitution
         return indexName(sourceTable);
     }
 
-    /**
-     * The read-only OpenSearch source cannot execute SQL. The only source statement the inherited
-     * suite issues against it is {@code DROP TABLE [IF EXISTS] <index>} (table cleanup), which is
-     * translated to deleting the underlying index through the REST client.
-     */
     @Override
     protected SqlExecutor sourceSqlExecutor()
     {
-        return sql -> {
-            String normalized = sql.strip();
-            checkArgument(
-                    normalized.regionMatches(true, 0, "DROP TABLE", 0, "DROP TABLE".length()),
-                    "Read-only OpenSearch source supports only DROP TABLE, got: %s",
-                    sql);
-            String[] tokens = normalized.split("\\s+");
-            deleteIndex(tokens[tokens.length - 1]);
-        };
+        throw new UnsupportedOperationException("Opensearch connector is read-only");
+    }
+
+    @Override
+    protected void dropSourceTable(CatalogSchemaTableName sourceTable)
+    {
+        deleteIndex(sourceTable.getSchemaTableName().getTableName());
     }
 
     @Test

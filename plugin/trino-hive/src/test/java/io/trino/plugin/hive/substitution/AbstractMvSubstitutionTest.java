@@ -122,9 +122,14 @@ public abstract class AbstractMvSubstitutionTest
     @AfterAll
     public void tearDown()
     {
-        sourceSqlExecutor().execute("DROP TABLE IF EXISTS %s".formatted(sourceTableReference(ordersTable)));
-        sourceSqlExecutor().execute("DROP TABLE IF EXISTS %s".formatted(sourceTableReference(lineitemTable)));
-        sourceSqlExecutor().execute("DROP TABLE IF EXISTS %s".formatted(sourceTableReference(nestedTypeTable)));
+        dropSourceTable(ordersTable);
+        dropSourceTable(lineitemTable);
+        dropSourceTable(nestedTypeTable);
+    }
+
+    protected void dropSourceTable(CatalogSchemaTableName sourceTable)
+    {
+        sourceSqlExecutor().execute("DROP TABLE IF EXISTS %s".formatted(sourceTableReference(sourceTable)));
     }
 
     /**
@@ -907,7 +912,7 @@ public abstract class AbstractMvSubstitutionTest
         }
         finally {
             assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvName);
-            sourceSqlExecutor().execute("DROP TABLE IF EXISTS %s".formatted(sourceTableReference(tableName)));
+            dropSourceTable(tableName);
         }
     }
 
