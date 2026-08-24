@@ -23,6 +23,7 @@ import io.trino.server.protocol.spooling.QueryDataEncoder;
 import io.trino.server.protocol.spooling.encoding.ArrowCompressionFactory;
 import io.trino.server.protocol.spooling.encoding.ArrowQueryDataEncoder;
 import io.trino.spi.Page;
+import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.OutOfMemoryException;
@@ -37,7 +38,9 @@ import org.junit.jupiter.api.Test;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
 import static io.trino.spi.type.BigintType.BIGINT;
@@ -96,6 +99,46 @@ public class TestArrowEncodingDecoding
         assertThat(decoded).hasSize(rowCount);
         for (int i = 0; i < rowCount; i++) {
             assertThat(decoded.get(i).getFirst()).isEqualTo((long) i);
+        }
+    }
+
+    @Test
+    void testSlicedPageWithNulls()
+            throws IOException
+    {
+        // A validity bitmap carried by a Block.getRegion() slice starts at the slice's bit offset, not at
+        // bit zero, so a non-periodic null pattern is needed: an offset that happens to be a multiple of a
+        // periodic pattern's period would pass even if the encoder copied validity from the wrong bit offset.
+        int totalPositions = 200;
+        Random random = new Random(42);
+        List<Long> values = new ArrayList<>(totalPositions);
+        BlockBuilder blockBuilder = BIGINT.createBlockBuilder(null, totalPositions);
+        for (int position = 0; position < totalPositions; position++) {
+            if (random.nextInt(5) == 0) {
+                blockBuilder.appendNull();
+                values.add(null);
+            }
+            else {
+                BIGINT.writeLong(blockBuilder, position);
+                values.add((long) position);
+            }
+        }
+        Block block = blockBuilder.build();
+        List<TypedColumn> columns = ImmutableList.of(TypedColumn.typed("col0", BIGINT));
+
+        for (int[] range : new int[][] {{0, 200}, {5, 64}, {8, 50}, {37, 91}, {150, 50}}) {
+            int offset = range[0];
+            int length = range[1];
+            Page page = new Page(block.getRegion(offset, length));
+
+            List<List<Object>> decoded = roundTrip(columns, page);
+
+            assertThat(decoded).as("offset %d, length %d", offset, length).hasSize(length);
+            for (int position = 0; position < length; position++) {
+                assertThat(decoded.get(position).getFirst())
+                        .as("offset %d, position %d (source position %d)", offset, position, offset + position)
+                        .isEqualTo(values.get(offset + position));
+            }
         }
     }
 

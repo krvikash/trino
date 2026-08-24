@@ -14,13 +14,15 @@
 package io.trino.server.protocol.spooling.encoding.arrow;
 
 import io.airlift.slice.Slice;
-import io.trino.spi.block.Block;
+import io.trino.spi.block.Bitmap;
+import io.trino.spi.block.ValueBlock;
 import io.trino.spi.block.VariableWidthBlock;
 import org.apache.arrow.vector.BaseFixedWidthVector;
 import org.apache.arrow.vector.BaseVariableWidthVector;
 
 import java.lang.foreign.MemorySegment;
 import java.lang.foreign.ValueLayout;
+import java.util.Optional;
 
 /**
  * Bulk copies a Trino flat array block into an Arrow vector. For the columns where the Arrow value is the raw
@@ -66,12 +68,12 @@ final class ArrowBulkCopy
         }
     }
 
-    static void writeValidity(BaseFixedWidthVector vector, Block block, int positionCount)
+    static void writeValidity(BaseFixedWidthVector vector, ValueBlock block, int positionCount)
     {
         writeValidity(vector.getValidityBufferAddress(), block, positionCount);
     }
 
-    static void writeValidity(BaseVariableWidthVector vector, Block block, int positionCount)
+    static void writeValidity(BaseVariableWidthVector vector, ValueBlock block, int positionCount)
     {
         writeValidity(vector.getValidityBufferAddress(), block, positionCount);
     }
@@ -80,24 +82,29 @@ final class ArrowBulkCopy
      * Fills the validity buffer from the block's nulls: all-ones when the block has no nulls, otherwise a packed
      * bitmap where a set bit means the position is valid (Trino's null flag inverted).
      */
-    private static void writeValidity(long validityBufferAddress, Block block, int positionCount)
+    private static void writeValidity(long validityBufferAddress, ValueBlock block, int positionCount)
     {
         int byteCount = (positionCount + 7) / 8;
         MemorySegment validity = MemorySegment.ofAddress(validityBufferAddress).reinterpret(byteCount);
-        if (!block.mayHaveNull()) {
+        Optional<Bitmap> validityBitmap = block.getValidityBitmap();
+        if (validityBitmap.isEmpty()) {
             validity.fill((byte) 0xFF);
             return;
         }
+        long[] rawWords = validityBitmap.get().getRawWords();
+        int rawBitOffset = validityBitmap.get().getRawBitOffset();
+        if (rawBitOffset % 8 == 0) {
+            // Byte-aligned: the source bytes already line up with Arrow's own byte-packed layout
+            MemorySegment source = MemorySegment.ofArray(rawWords);
+            MemorySegment.copy(source, rawBitOffset / 8, validity, 0, byteCount);
+            return;
+        }
+        // A block sliced off a bit offset that isn't byte-aligned (e.g. Block#getRegion) needs each byte
+        // gathered from its true bit position instead of a raw copy
         for (int byteIndex = 0; byteIndex < byteCount; byteIndex++) {
-            int base = byteIndex << 3;
-            int limit = Math.min(8, positionCount - base);
-            int bits = 0;
-            for (int offset = 0; offset < limit; offset++) {
-                if (!block.isNull(base + offset)) {
-                    bits |= 1 << offset;
-                }
-            }
-            validity.set(ValueLayout.JAVA_BYTE, byteIndex, (byte) bits);
+            int position = byteIndex << 3;
+            int bitsInByte = Math.min(8, positionCount - position);
+            validity.set(ValueLayout.JAVA_BYTE, byteIndex, (byte) Bitmap.getBits(rawWords, rawBitOffset, position, bitsInByte));
         }
     }
 }
