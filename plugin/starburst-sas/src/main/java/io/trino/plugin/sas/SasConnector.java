@@ -15,12 +15,15 @@ package io.trino.plugin.sas;
 
 import com.google.inject.Inject;
 import io.airlift.bootstrap.LifeCycleManager;
+import io.trino.plugin.base.classloader.ClassLoaderSafeConnectorSubstitutionMetadata;
+import io.trino.plugin.sas.substitution.SasSubstitutionMetadata;
 import io.trino.spi.connector.Connector;
 import io.trino.spi.connector.ConnectorMetadata;
 import io.trino.spi.connector.ConnectorRecordSetProvider;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorSplitManager;
 import io.trino.spi.connector.ConnectorTransactionHandle;
+import io.trino.spi.connector.substitution.ConnectorSubstitutionMetadata;
 import io.trino.spi.transaction.IsolationLevel;
 
 import static io.trino.plugin.sas.SasTransactionHandle.INSTANCE;
@@ -33,18 +36,23 @@ public class SasConnector
     private final SasMetadata metadata;
     private final SasSplitManager splitManager;
     private final SasRecordSetProvider recordSetProvider;
+    private final ConnectorSubstitutionMetadata substitutionMetadata;
 
     @Inject
     public SasConnector(
             LifeCycleManager lifeCycleManager,
             SasMetadata metadata,
             SasSplitManager splitManager,
-            SasRecordSetProvider recordSetProvider)
+            SasRecordSetProvider recordSetProvider,
+            SasSubstitutionMetadata substitutionMetadata)
     {
         this.lifeCycleManager = requireNonNull(lifeCycleManager, "lifeCycleManager is null");
         this.metadata = requireNonNull(metadata, "metadata is null");
         this.splitManager = requireNonNull(splitManager, "splitManager is null");
         this.recordSetProvider = requireNonNull(recordSetProvider, "recordSetProvider is null");
+        this.substitutionMetadata = new ClassLoaderSafeConnectorSubstitutionMetadata(
+                requireNonNull(substitutionMetadata, "substitutionMetadata is null"),
+                getClass().getClassLoader());
     }
 
     @Override
@@ -69,6 +77,12 @@ public class SasConnector
     public ConnectorRecordSetProvider getRecordSetProvider()
     {
         return recordSetProvider;
+    }
+
+    @Override
+    public ConnectorSubstitutionMetadata getSubstitutionMetadata()
+    {
+        return substitutionMetadata;
     }
 
     @Override

@@ -42,7 +42,7 @@ import static io.trino.testing.TestingSession.testSessionBuilder;
 import static java.util.Objects.requireNonNull;
 
 public class SasTpchLoader
-        extends AbstractTestingTrinoClient<Void>
+        extends AbstractTestingTrinoClient<Integer>
 {
     // Days between SAS epoch (1960-01-01) and Java epoch (1970-01-01)
     private static final long SAS_EPOCH_OFFSET = -LocalDate.of(1960, 1, 1).toEpochDay();
@@ -58,13 +58,13 @@ public class SasTpchLoader
     }
 
     @Override
-    protected ResultsSession<Void> getResultSession(Session session)
+    protected ResultsSession<Integer> getResultSession(Session session)
     {
         return new SasLoadingSession(schemaDir, tableName);
     }
 
     private static final class SasLoadingSession
-            implements ResultsSession<Void>
+            implements ResultsSession<Integer>
     {
         private final Path schemaDir;
         private final String tableName;
@@ -89,7 +89,7 @@ public class SasTpchLoader
         }
 
         @Override
-        public Void build(Map<String, String> setSessionProperties, Set<String> resetSessionProperties)
+        public Integer build(Map<String, String> setSessionProperties, Set<String> resetSessionProperties)
         {
             List<Column> cols = requireNonNull(columns.get(), "No columns received from query");
             Sas7bdatMetadata metadata = Sas7bdatMetadata.builder()
@@ -103,7 +103,7 @@ public class SasTpchLoader
             catch (IOException e) {
                 throw new UncheckedIOException("Failed to write SAS7BDAT: " + outputFile, e);
             }
-            return null;
+            return rows.size();
         }
 
         private static List<Variable> buildVariables(List<Column> columns)

@@ -22,6 +22,7 @@ import io.airlift.configuration.AbstractConfigurationAwareModule;
 import io.trino.filesystem.Location;
 import io.trino.filesystem.TrinoFileSystemFactory;
 import io.trino.filesystem.local.LocalFileSystemFactory;
+import io.trino.plugin.sas.substitution.SasSubstitutionMetadata;
 
 import java.nio.file.Path;
 
@@ -41,6 +42,7 @@ public class SasModule
         binder.bind(SasMetadata.class).in(Scopes.SINGLETON);
         binder.bind(SasSplitManager.class).in(Scopes.SINGLETON);
         binder.bind(SasRecordSetProvider.class).in(Scopes.SINGLETON);
+        binder.bind(SasSubstitutionMetadata.class).in(Scopes.SINGLETON);
 
         configBinder(binder).bindConfig(SasConfig.class);
 
