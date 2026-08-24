@@ -54,6 +54,7 @@ import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.SourcePage;
 import io.trino.spi.function.BatchFunctionImplementation;
 import io.trino.spi.type.TypeManager;
+import io.trino.spi.type.TypeOperators;
 import io.trino.sql.gen.LambdaBytecodeGenerator.CompiledLambda;
 import io.trino.sql.ir.Call;
 import io.trino.sql.ir.Constant;
@@ -429,7 +430,7 @@ public class PageFunctionCompiler
                 thisVariable,
                 callSiteBinder,
                 cachedInstanceBinder,
-                fieldReferenceCompilerProjection(compactLayout, callSiteBinder),
+                fieldReferenceCompilerProjection(typeManager.getTypeOperators(), compactLayout, callSiteBinder),
                 functionManager,
                 metadata,
                 typeManager,
@@ -652,7 +653,7 @@ public class PageFunctionCompiler
                 method.getThis(),
                 callSiteBinder,
                 cachedInstanceBinder,
-                fieldReferenceCompiler(compactLayout, callSiteBinder, scope),
+                fieldReferenceCompiler(typeManager.getTypeOperators(), compactLayout, callSiteBinder, scope),
                 functionManager,
                 metadata,
                 typeManager,
@@ -706,11 +707,12 @@ public class PageFunctionCompiler
         }
     }
 
-    private static BiFunction<Reference, Scope, BytecodeNode> fieldReferenceCompilerProjection(Map<Symbol, Integer> compactLayout, CallSiteBinder callSiteBinder)
+    private static BiFunction<Reference, Scope, BytecodeNode> fieldReferenceCompilerProjection(TypeOperators typeOperators, Map<Symbol, Integer> compactLayout, CallSiteBinder callSiteBinder)
     {
         return (reference, scope) -> {
             int field = compactLayout.get(Symbol.from(reference));
             return generateInputReference(
+                    typeOperators,
                     callSiteBinder,
                     scope,
                     reference.type(),
@@ -719,7 +721,7 @@ public class PageFunctionCompiler
         };
     }
 
-    private static BiFunction<Reference, Scope, BytecodeNode> fieldReferenceCompiler(Map<Symbol, Integer> compactLayout, CallSiteBinder callSiteBinder, Scope filterScope)
+    private static BiFunction<Reference, Scope, BytecodeNode> fieldReferenceCompiler(TypeOperators typeOperators, Map<Symbol, Integer> compactLayout, CallSiteBinder callSiteBinder, Scope filterScope)
     {
         return (reference, scope) -> {
             int field = compactLayout.get(Symbol.from(reference));
@@ -728,6 +730,7 @@ public class PageFunctionCompiler
                     ? scope.getVariable("block_" + field)
                     : scope.getVariable("page").invoke("getBlock", Block.class, constantInt(field));
             return generateInputReference(
+                    typeOperators,
                     callSiteBinder,
                     scope,
                     reference.type(),
