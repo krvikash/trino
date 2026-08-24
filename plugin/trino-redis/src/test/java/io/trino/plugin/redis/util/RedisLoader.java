@@ -37,6 +37,7 @@ import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.spi.type.DateType.DATE;
 import static io.trino.spi.type.DoubleType.DOUBLE;
 import static io.trino.spi.type.IntegerType.INTEGER;
+import static io.trino.spi.type.SmallintType.SMALLINT;
 import static java.util.Objects.requireNonNull;
 
 public class RedisLoader
@@ -136,6 +137,9 @@ public class RedisLoader
                 return ((Number) value).longValue();
             }
             if (INTEGER.equals(type)) {
+                return ((Number) value).intValue();
+            }
+            if (SMALLINT.equals(type)) {
                 return ((Number) value).intValue();
             }
             if (DOUBLE.equals(type)) {

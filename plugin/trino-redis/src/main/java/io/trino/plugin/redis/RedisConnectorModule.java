@@ -16,6 +16,7 @@ package io.trino.plugin.redis;
 import com.google.inject.Binder;
 import com.google.inject.Scopes;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
+import io.trino.plugin.redis.substitution.RedisSubstitutionMetadata;
 import io.trino.plugin.redis.tls.RedisTlsModule;
 
 import static com.google.inject.multibindings.Multibinder.newSetBinder;
@@ -33,6 +34,7 @@ public class RedisConnectorModule
         binder.bind(RedisMetadata.class).in(Scopes.SINGLETON);
         binder.bind(RedisSplitManager.class).in(Scopes.SINGLETON);
         binder.bind(RedisRecordSetProvider.class).in(Scopes.SINGLETON);
+        binder.bind(RedisSubstitutionMetadata.class).in(Scopes.SINGLETON);
 
         binder.bind(RedisClientManager.class).in(Scopes.SINGLETON);
 

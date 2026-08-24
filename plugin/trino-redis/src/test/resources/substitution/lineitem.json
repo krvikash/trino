@@ -1,0 +1,44 @@
+{
+    "tableName": "lineitem",
+    "schemaName": "tpch",
+    "key": {
+        "dataFormat": "raw",
+        "fields": [
+            {
+                "name": "redis_key",
+                "type": "VARCHAR(64)",
+                "hidden": "true"
+            }
+        ]
+    },
+    "value": {
+        "dataFormat": "json",
+        "fields": [
+            {
+                "name": "orderkey",
+                "mapping": "orderkey",
+                "type": "BIGINT"
+            },
+            {
+                "name": "linenumber",
+                "mapping": "linenumber",
+                "type": "BIGINT"
+            },
+            {
+                "name": "quantity",
+                "mapping": "quantity",
+                "type": "DOUBLE"
+            },
+            {
+                "name": "extendedprice",
+                "mapping": "extendedprice",
+                "type": "DOUBLE"
+            },
+            {
+                "name": "shipdate",
+                "mapping": "shipdate",
+                "type": "VARCHAR"
+            }
+        ]
+    }
+}

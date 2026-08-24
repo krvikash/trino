@@ -1,0 +1,29 @@
+{
+    "tableName": "nested",
+    "schemaName": "tpch",
+    "key": {
+        "dataFormat": "raw",
+        "fields": [
+            {
+                "name": "redis_key",
+                "type": "VARCHAR(64)",
+                "hidden": "true"
+            }
+        ]
+    },
+    "value": {
+        "dataFormat": "json",
+        "fields": [
+            {
+                "name": "id",
+                "mapping": "id",
+                "type": "BIGINT"
+            },
+            {
+                "name": "info",
+                "mapping": "info",
+                "type": "VARCHAR"
+            }
+        ]
+    }
+}

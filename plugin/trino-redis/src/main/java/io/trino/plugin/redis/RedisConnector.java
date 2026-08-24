@@ -15,12 +15,15 @@ package io.trino.plugin.redis;
 
 import com.google.inject.Inject;
 import io.airlift.bootstrap.LifeCycleManager;
+import io.trino.plugin.base.classloader.ClassLoaderSafeConnectorSubstitutionMetadata;
+import io.trino.plugin.redis.substitution.RedisSubstitutionMetadata;
 import io.trino.spi.connector.Connector;
 import io.trino.spi.connector.ConnectorMetadata;
 import io.trino.spi.connector.ConnectorRecordSetProvider;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorSplitManager;
 import io.trino.spi.connector.ConnectorTransactionHandle;
+import io.trino.spi.connector.substitution.ConnectorSubstitutionMetadata;
 import io.trino.spi.transaction.IsolationLevel;
 
 import static io.trino.spi.transaction.IsolationLevel.READ_COMMITTED;
@@ -38,18 +41,23 @@ public class RedisConnector
 
     private final RedisSplitManager splitManager;
     private final RedisRecordSetProvider recordSetProvider;
+    private final ConnectorSubstitutionMetadata substitutionMetadata;
 
     @Inject
     public RedisConnector(
             LifeCycleManager lifeCycleManager,
             RedisMetadata metadata,
             RedisSplitManager splitManager,
-            RedisRecordSetProvider recordSetProvider)
+            RedisRecordSetProvider recordSetProvider,
+            RedisSubstitutionMetadata substitutionMetadata)
     {
         this.lifeCycleManager = requireNonNull(lifeCycleManager, "lifeCycleManager is null");
         this.metadata = requireNonNull(metadata, "metadata is null");
         this.splitManager = requireNonNull(splitManager, "splitManager is null");
         this.recordSetProvider = requireNonNull(recordSetProvider, "recordSetProvider is null");
+        this.substitutionMetadata = new ClassLoaderSafeConnectorSubstitutionMetadata(
+                requireNonNull(substitutionMetadata, "substitutionMetadata is null"),
+                getClass().getClassLoader());
     }
 
     @Override
@@ -63,6 +71,12 @@ public class RedisConnector
     public ConnectorMetadata getMetadata(ConnectorSession session, ConnectorTransactionHandle transaction)
     {
         return metadata;
+    }
+
+    @Override
+    public ConnectorSubstitutionMetadata getSubstitutionMetadata()
+    {
+        return substitutionMetadata;
     }
 
     @Override

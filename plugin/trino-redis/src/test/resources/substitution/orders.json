@@ -1,0 +1,44 @@
+{
+    "tableName": "orders",
+    "schemaName": "tpch",
+    "key": {
+        "dataFormat": "raw",
+        "fields": [
+            {
+                "name": "redis_key",
+                "type": "VARCHAR(64)",
+                "hidden": "true"
+            }
+        ]
+    },
+    "value": {
+        "dataFormat": "json",
+        "fields": [
+            {
+                "name": "orderkey",
+                "mapping": "orderkey",
+                "type": "BIGINT"
+            },
+            {
+                "name": "custkey",
+                "mapping": "custkey",
+                "type": "BIGINT"
+            },
+            {
+                "name": "orderdate",
+                "mapping": "orderdate",
+                "type": "VARCHAR"
+            },
+            {
+                "name": "totalprice",
+                "mapping": "totalprice",
+                "type": "DOUBLE"
+            },
+            {
+                "name": "orderstatus",
+                "mapping": "orderstatus",
+                "type": "VARCHAR"
+            }
+        ]
+    }
+}

@@ -1,0 +1,34 @@
+{
+    "tableName": "coercion",
+    "schemaName": "tpch",
+    "key": {
+        "dataFormat": "raw",
+        "fields": [
+            {
+                "name": "redis_key",
+                "type": "VARCHAR(64)",
+                "hidden": "true"
+            }
+        ]
+    },
+    "value": {
+        "dataFormat": "json",
+        "fields": [
+            {
+                "name": "id_col",
+                "mapping": "id_col",
+                "type": "BIGINT"
+            },
+            {
+                "name": "c_varchar",
+                "mapping": "c_varchar",
+                "type": "VARCHAR(20)"
+            },
+            {
+                "name": "c_smallint",
+                "mapping": "c_smallint",
+                "type": "SMALLINT"
+            }
+        ]
+    }
+}
