@@ -66,6 +66,9 @@ public abstract class AbstractMvSubstitutionTest
 
     protected final CatalogSchemaTableName lineitemTable = sourceTable("lineitem_" + randomNameSuffix());
 
+    // Table with a nested/sub-field column (see subFieldTestContext), used by the sub-field tests.
+    protected final CatalogSchemaTableName nestedTypeTable = sourceTable("customers_with_sub_fields_" + randomNameSuffix());
+
     @BeforeAll
     public void setUp()
     {
@@ -79,9 +82,14 @@ public abstract class AbstractMvSubstitutionTest
         // connectors, e.g. Cassandra, cannot DELETE by an arbitrary predicate). Each test stays
         // independent by capturing its own baseline count instead of relying on a global row
         // count; concrete tests run single-threaded (@Execution(SAME_THREAD)).
+        // All source tables are created once here; individual tests only reference them, never
+        // create their own. This lets read-only / static-schema connectors (e.g. Redis) provision
+        // and seed every table up front and leave the create hooks as no-ops.
         createOrdersTable();
 
         createLineItemTable();
+
+        createNestedTypeTable(nestedTypeTable);
     }
 
     protected void createOrdersTable()
@@ -116,6 +124,7 @@ public abstract class AbstractMvSubstitutionTest
     {
         sourceSqlExecutor().execute("DROP TABLE IF EXISTS %s".formatted(sourceTableReference(ordersTable)));
         sourceSqlExecutor().execute("DROP TABLE IF EXISTS %s".formatted(sourceTableReference(lineitemTable)));
+        sourceSqlExecutor().execute("DROP TABLE IF EXISTS %s".formatted(sourceTableReference(nestedTypeTable)));
     }
 
     /**
@@ -442,57 +451,49 @@ public abstract class AbstractMvSubstitutionTest
         // sub-fields. Substitution must fire because the TableScan sees the same base
         // column on both sides — the sub-field expression lives in a Project above the
         // scan and runs against the substituted MV storage.
-        CatalogSchemaTableName table = sourceTable("customers_with_sub_fields_" + randomNameSuffix());
         CatalogSchemaTableName mvName = mvName("mv_sub_field_");
         try {
-            createNestedTypeTable(table);
-
-            createSubstitutionMv(mvName, "SELECT id, info FROM " + table);
+            createSubstitutionMv(mvName, "SELECT id, info FROM " + nestedTypeTable);
 
             SubFieldTestContext context = subFieldTestContext();
             Session session = sessionWithSubstitution();
-            String nameQuery = "SELECT " + context.subFieldExpression("info", "name") + " FROM " + table;
-            assertSubstituted(session, nameQuery, table, mvName);
+            String nameQuery = "SELECT " + context.subFieldExpression("info", "name") + " FROM " + nestedTypeTable;
+            assertSubstituted(session, nameQuery, nestedTypeTable, mvName);
             assertSameResults(session, nameQuery);
 
-            String ageQuery = "SELECT " + context.subFieldExpression("info", "age") + " FROM " + table;
-            assertSubstituted(session, ageQuery, table, mvName);
+            String ageQuery = "SELECT " + context.subFieldExpression("info", "age") + " FROM " + nestedTypeTable;
+            assertSubstituted(session, ageQuery, nestedTypeTable, mvName);
             assertSameResults(session, ageQuery);
         }
         finally {
             assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvName);
-            sourceSqlExecutor().execute("DROP TABLE IF EXISTS %s".formatted(sourceTableReference(table)));
         }
     }
 
     @Test
     public void testSubFieldMaterializingMvDoesNotSubstitute()
     {
-        CatalogSchemaTableName tableName = sourceTable("sub_field_same_type_" + randomNameSuffix());
         CatalogSchemaTableName mvName = mvName("mv_sub_field_same_type_");
         try {
-            createNestedTypeTable(tableName);
-
             SubFieldTestContext context = subFieldTestContext();
-            createSubstitutionMv(mvName, "SELECT id, " + context.subFieldExpression("info", "name") + " AS a FROM " + tableName);
+            createSubstitutionMv(mvName, "SELECT id, " + context.subFieldExpression("info", "name") + " AS a FROM " + nestedTypeTable);
 
             Session session = sessionWithSubstitution();
-            String materializedFieldQuery = "SELECT " + context.subFieldExpression("info", "name") + " FROM " + tableName;
+            String materializedFieldQuery = "SELECT " + context.subFieldExpression("info", "name") + " FROM " + nestedTypeTable;
             // The MV materializes a single sub-field expression (info.name), not the whole struct, so its
             // defining query is not a bare table scan and cannot be indexed for substitution.
             // This will change to assertSubstituted when projections are supported
-            assertNotSubstituted(session, materializedFieldQuery, tableName);
+            assertNotSubstituted(session, materializedFieldQuery, nestedTypeTable);
             assertSameResults(session, materializedFieldQuery);
 
-            String siblingFieldQuery = "SELECT " + context.subFieldExpression("info", "gender") + " FROM " + tableName;
+            String siblingFieldQuery = "SELECT " + context.subFieldExpression("info", "gender") + " FROM " + nestedTypeTable;
             // We should not substitute a subfield if it is not materialized. This will test for invalid ConnectorColumnId implementations that only ontain the base column name,
             // once projection support is added
-            assertNotSubstituted(session, siblingFieldQuery, tableName);
+            assertNotSubstituted(session, siblingFieldQuery, nestedTypeTable);
             assertSameResults(session, siblingFieldQuery);
         }
         finally {
             assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvName);
-            sourceSqlExecutor().execute("DROP TABLE IF EXISTS %s".formatted(sourceTableReference(tableName)));
         }
     }
 
