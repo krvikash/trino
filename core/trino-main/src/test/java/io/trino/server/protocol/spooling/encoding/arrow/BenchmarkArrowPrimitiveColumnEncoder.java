@@ -42,6 +42,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
 import static io.trino.jmh.Benchmarks.benchmark;
@@ -87,6 +88,9 @@ public class BenchmarkArrowPrimitiveColumnEncoder
         @Param({"1024", "8192", "65536"})
         private int positionCount;
 
+        @Param({"0", "0.01", "0.5"})
+        private double nullRate;
+
         private BufferAllocator allocator;
         private List<OutputColumn> columns;
         private Schema schema;
@@ -95,13 +99,14 @@ public class BenchmarkArrowPrimitiveColumnEncoder
         @Setup
         public void setup()
         {
+            Random random = new Random(42);
             allocator = new RootAllocator();
             List<OutputColumn> outputColumns = new ArrayList<>(TYPES.size());
             Block[] blocks = new Block[TYPES.size()];
             for (int i = 0; i < TYPES.size(); i++) {
                 Type type = TYPES.get(i);
                 outputColumns.add(new OutputColumn(i, "col" + i, type));
-                blocks[i] = buildBlock(type, positionCount);
+                blocks[i] = buildBlock(random, type, nullRate, positionCount);
             }
             columns = List.copyOf(outputColumns);
             schema = toArrowSchema(columns);
@@ -115,10 +120,14 @@ public class BenchmarkArrowPrimitiveColumnEncoder
             allocator = null;
         }
 
-        private static Block buildBlock(Type type, int positionCount)
+        private static Block buildBlock(Random random, Type type, double nullRate, int positionCount)
         {
             BlockBuilder builder = type.createBlockBuilder(null, positionCount);
             for (int position = 0; position < positionCount; position++) {
+                if (nullRate > 0 && random.nextDouble() < nullRate) {
+                    builder.appendNull();
+                    continue;
+                }
                 if (type == BOOLEAN) {
                     BOOLEAN.writeBoolean(builder, (position & 1) == 0);
                 }
