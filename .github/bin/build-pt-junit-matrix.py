@@ -109,6 +109,9 @@ BUCKETS = [
     ("databricks-173", [
         ("SuiteDeltaLakeDatabricks173", LEGACY_COVERAGE_REMOVED),
     ]),
+    ("databricks-18", [
+        ("SuiteDeltaLakeDatabricks18", LEGACY_COVERAGE_REMOVED),
+    ]),
 ]
 
 
