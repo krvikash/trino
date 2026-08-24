@@ -988,5 +988,20 @@ public final class GpuTestUtils
         return builder.build();
     }
 
+    /// Builds a single VARCHAR block from the given values; {@code null} entries become SQL nulls.
+    public static Block varcharsBlock(List<String> values)
+    {
+        VariableWidthBlockBuilder builder = new VariableWidthBlockBuilder(null, values.size(), values.size() * 16);
+        for (String value : values) {
+            if (value == null) {
+                builder.appendNull();
+            }
+            else {
+                builder.writeEntry(Slices.utf8Slice(value));
+            }
+        }
+        return builder.build();
+    }
+
     public record PagePosition(Page page, int position) {}
 }
