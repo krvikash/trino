@@ -58,7 +58,7 @@ public class TestOAuth2TokenCache
             fetches.incrementAndGet();
             return new OAuth2TokenResponse("token-" + fetches.get(), 300L);
         });
-        OAuth2TokenCache cache = new OAuth2TokenCache(fetcher, new Duration(60, SECONDS), new Duration(60, SECONDS), 1000, clock);
+        OAuth2TokenCache cache = new OAuth2TokenCache(Optional.of(fetcher), new Duration(60, SECONDS), new Duration(60, SECONDS), 1000, clock);
 
         assertThat(cache.accessToken("model-a", CONFIG_A)).isEqualTo("token-1");
         assertThat(cache.accessToken("model-a", CONFIG_A)).isEqualTo("token-1");
@@ -88,7 +88,7 @@ public class TestOAuth2TokenCache
             }
             return new OAuth2TokenResponse("recovered", 600L);
         });
-        OAuth2TokenCache cache = new OAuth2TokenCache(fetcher, new Duration(60, SECONDS), new Duration(60, SECONDS), 1000, clock);
+        OAuth2TokenCache cache = new OAuth2TokenCache(Optional.of(fetcher), new Duration(60, SECONDS), new Duration(60, SECONDS), 1000, clock);
 
         assertThatThrownBy(() -> cache.accessToken("model-a", CONFIG_A))
                 .isInstanceOf(OAuth2TokenException.class)
@@ -107,7 +107,7 @@ public class TestOAuth2TokenCache
     {
         Clock clock = Clock.fixed(Instant.parse("2026-01-01T00:00:00Z"), ZoneOffset.UTC);
         OAuth2TokenFetcher fetcher = new TestFetcher(config -> new OAuth2TokenResponse("tok-" + config.clientId(), 600L));
-        OAuth2TokenCache cache = new OAuth2TokenCache(fetcher, new Duration(60, SECONDS), new Duration(60, SECONDS), 1000, clock);
+        OAuth2TokenCache cache = new OAuth2TokenCache(Optional.of(fetcher), new Duration(60, SECONDS), new Duration(60, SECONDS), 1000, clock);
 
         cache.accessToken("model-a", CONFIG_A);
         cache.accessToken("model-b", CONFIG_B);
@@ -125,7 +125,7 @@ public class TestOAuth2TokenCache
         Clock clock = Clock.fixed(Instant.parse("2026-01-01T00:00:00Z"), ZoneOffset.UTC);
         AtomicInteger fetches = new AtomicInteger();
         OAuth2TokenFetcher fetcher = new TestFetcher(_ -> new OAuth2TokenResponse("tok-" + fetches.incrementAndGet(), 600L));
-        OAuth2TokenCache cache = new OAuth2TokenCache(fetcher, new Duration(60, SECONDS), new Duration(60, SECONDS), 1000, clock);
+        OAuth2TokenCache cache = new OAuth2TokenCache(Optional.of(fetcher), new Duration(60, SECONDS), new Duration(60, SECONDS), 1000, clock);
 
         assertThat(cache.accessToken("model-a", CONFIG_A)).isEqualTo("tok-1");
         cache.retainKeys(Map.of());
@@ -143,7 +143,7 @@ public class TestOAuth2TokenCache
             fetches.incrementAndGet();
             return new OAuth2TokenResponse("stale", 1L);
         });
-        OAuth2TokenCache cache = new OAuth2TokenCache(fetcher, new Duration(60, SECONDS), new Duration(60, SECONDS), 1000, clock);
+        OAuth2TokenCache cache = new OAuth2TokenCache(Optional.of(fetcher), new Duration(60, SECONDS), new Duration(60, SECONDS), 1000, clock);
 
         assertThatThrownBy(() -> cache.accessToken("model-a", CONFIG_A))
                 .isInstanceOf(OAuth2TokenException.class)
@@ -160,7 +160,7 @@ public class TestOAuth2TokenCache
         OAuth2TokenFetcher fetcher = new TestFetcher(config -> new OAuth2TokenResponse("tok-" + config.clientId(), 3600L));
         // maximumSize=2 with three distinct configs must evict at least one of the first two.
         // Guava's size-based eviction is approximate LRU, so we only assert size <= 2 (not which key).
-        OAuth2TokenCache cache = new OAuth2TokenCache(fetcher, new Duration(60, SECONDS), new Duration(10, TimeUnit.MINUTES), 2, clock);
+        OAuth2TokenCache cache = new OAuth2TokenCache(Optional.of(fetcher), new Duration(60, SECONDS), new Duration(10, TimeUnit.MINUTES), 2, clock);
 
         ResolvedOAuth2Config configC = new ResolvedOAuth2Config(
                 OAuth2GrantType.CLIENT_CREDENTIALS,
@@ -197,7 +197,7 @@ public class TestOAuth2TokenCache
         Clock clock = Clock.fixed(Instant.parse("2026-01-01T00:00:00Z"), ZoneOffset.UTC);
         AtomicInteger fetches = new AtomicInteger();
         OAuth2TokenFetcher fetcher = new TestFetcher(_ -> new OAuth2TokenResponse("tok-" + fetches.incrementAndGet(), 600L));
-        OAuth2TokenCache cache = new OAuth2TokenCache(fetcher, new Duration(60, SECONDS), new Duration(60, SECONDS), 1000, clock);
+        OAuth2TokenCache cache = new OAuth2TokenCache(Optional.of(fetcher), new Duration(60, SECONDS), new Duration(60, SECONDS), 1000, clock);
 
         assertThat(cache.accessToken("model-a", CONFIG_A)).isEqualTo("tok-1");
         assertThat(cache.accessToken("model-b", CONFIG_A)).isEqualTo("tok-2");

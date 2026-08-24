@@ -11,10 +11,12 @@ package io.starburst.ai.client;
 
 import com.google.inject.Binder;
 import com.google.inject.Key;
+import com.google.inject.Module;
 import com.google.inject.Provides;
 import com.google.inject.Scopes;
 import com.google.inject.Singleton;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
+import io.airlift.http.client.HttpClient;
 import io.starburst.ai.client.bedrock.AwsBedrockClientFactory;
 import io.starburst.ai.client.bedrock.AwsBedrockEmbeddingCodecsModule;
 import io.starburst.ai.client.openai.OpenAiClientFactory;
@@ -24,6 +26,7 @@ import io.starburst.ai.client.openai.oauth.OAuth2TokenFetcher;
 import io.starburst.ai.client.vertexai.VertexAiClientFactory;
 import io.trino.spi.connector.ai.ModelConnectionSpecsLoader;
 
+import java.util.Optional;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
@@ -57,8 +60,6 @@ public class AiClientModule
         binder.bind(AwsBedrockClientFactory.class).in(Scopes.SINGLETON);
         binder.bind(OpenAiClientFactory.class).in(Scopes.SINGLETON);
         binder.bind(VertexAiClientFactory.class).in(Scopes.SINGLETON);
-        httpClientBinder(binder).bindHttpClient("oauth2", ForAiOAuth2.class);
-        binder.bind(OAuth2TokenFetcher.class).in(Scopes.SINGLETON);
         binder.bind(OAuth2TokenCache.class).in(Scopes.SINGLETON);
         binder.bind(PromptDao.class).to(StaticPromptDao.class).in(Scopes.SINGLETON);
         newOptionalBinder(binder, TokenUsageListener.class).setDefault().toInstance(TokenUsageListener.NOOP);
@@ -66,6 +67,14 @@ public class AiClientModule
         newExporter(binder).export(ReloadingModelClientProvider.class).withGeneratedName();
         binder.bind(ModelClientProviderWithDao.class).to(ReloadingModelClientProvider.class).in(Scopes.SINGLETON);
         AiClientConfig aiClientConfig = buildConfigObject(AiClientConfig.class);
+
+        // Token refresh rides on the client cache reload, hence the dependency on cache refresh
+        if (aiClientConfig.isOauth2Enabled() && aiClientConfig.isClientCacheRefreshEnabled()) {
+            install(new AiOAuth2EnabledModule());
+        }
+        else {
+            install(new AiOAuth2DisabledModule());
+        }
         switch (aiClientConfig.getStorageType()) {
             case NONE -> binder.bind(ModelConnectionSpecsLoader.class).toInstance(ModelConnectionSpecsLoader.EMPTY_LOADER);
             case FILE -> install(new FileBackedModelSpecModule());
@@ -107,5 +116,44 @@ public class AiClientModule
     public ExecutorService getLlmInvokerExecutorService()
     {
         return newCachedThreadPool(daemonThreadsNamed("llm-invoker-executor-%s"));
+    }
+
+    private static class AiOAuth2EnabledModule
+            implements Module
+    {
+        @Override
+        public void configure(Binder binder)
+        {
+            // Token fetches are infrequent and tiny, so keep the idle footprint of this client to a single
+            // selector thread.
+            httpClientBinder(binder).bindHttpClient("oauth2", ForAiOAuth2.class)
+                    .withConfigDefaults(config -> config
+                            .setMinThreads(1)
+                            .setSelectorCount(1));
+        }
+
+        @Provides
+        @Singleton
+        public Optional<OAuth2TokenFetcher> getOAuth2TokenFetcher(@ForAiOAuth2 HttpClient httpClient)
+        {
+            return Optional.of(new OAuth2TokenFetcher(httpClient));
+        }
+    }
+
+    private static class AiOAuth2DisabledModule
+            implements Module
+    {
+        @Override
+        public void configure(Binder binder)
+        {
+            // nothing
+        }
+
+        @Provides
+        @Singleton
+        public Optional<OAuth2TokenFetcher> getOAuth2TokenFetcher()
+        {
+            return Optional.empty();
+        }
     }
 }

@@ -70,6 +70,7 @@ public class ReloadingModelClientProvider
     private final long clientTtlMillis;
     private final long clientCacheRefreshIntervalMillis;
     private final boolean clientCacheRefreshEnabled;
+    private final boolean oauth2Enabled;
     private final AtomicReference<State> state = new AtomicReference<>(EMPTY_STATE);
     private final CounterStat refreshFailures = new CounterStat();
     private final CounterStat clientCreationFailures = new CounterStat();
@@ -113,9 +114,13 @@ public class ReloadingModelClientProvider
         this.clientTtlMillis = config.getClientCacheTtl().toMillis();
         this.clientCacheRefreshIntervalMillis = config.getClientCacheRefreshInterval().toMillis();
         this.clientCacheRefreshEnabled = config.isClientCacheRefreshEnabled();
+        this.oauth2Enabled = config.isOauth2Enabled();
         this.secretsResolver = requireNonNull(secretsResolver, "secretsResolver is null");
         this.reloadingExecutor = requireNonNull(reloadingExecutor, "reloadingExecutor is null");
         load();
+        if (!oauth2Enabled && anyOAuth2Spec()) {
+            throw new IllegalStateException("ai.client.oauth.enabled must be true when any model uses oauthConfig");
+        }
         if (!clientCacheRefreshEnabled && anyOAuth2Spec()) {
             throw new IllegalStateException("ai.client.cache.refresh.enabled must be true when any model uses oauthConfig");
         }

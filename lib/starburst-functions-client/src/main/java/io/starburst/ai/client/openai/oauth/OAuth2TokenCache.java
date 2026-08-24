@@ -20,6 +20,7 @@ import io.trino.cache.EvictableCacheBuilder;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 
@@ -31,18 +32,18 @@ import static java.util.Objects.requireNonNull;
 public class OAuth2TokenCache
 {
     private final Cache<Oauth2TokenKey, Token> cache;
-    private final OAuth2TokenFetcher fetcher;
+    private final Optional<OAuth2TokenFetcher> fetcher;
     private final Clock clock;
     private final Duration refreshSkew;
 
     @Inject
-    public OAuth2TokenCache(OAuth2TokenFetcher fetcher, AiClientConfig config)
+    public OAuth2TokenCache(Optional<OAuth2TokenFetcher> fetcher, AiClientConfig config)
     {
         this(fetcher, config.getOauth2RefreshSkew(), config.getOauthTokenCacheDuration(), config.getOauth2MaxCachedTokens(), Clock.systemUTC());
     }
 
     @VisibleForTesting
-    OAuth2TokenCache(OAuth2TokenFetcher fetcher, Duration refreshSkew, Duration expireAfterWrite, int maxCachedTokens, Clock clock)
+    OAuth2TokenCache(Optional<OAuth2TokenFetcher> fetcher, Duration refreshSkew, Duration expireAfterWrite, int maxCachedTokens, Clock clock)
     {
         this.fetcher = requireNonNull(fetcher, "fetcher is null");
         this.refreshSkew = requireNonNull(refreshSkew, "refreshSkew is null");
@@ -55,10 +56,12 @@ public class OAuth2TokenCache
 
     private Token loadOrFetch(String id, ResolvedOAuth2Config config)
     {
+        OAuth2TokenFetcher tokenFetcher = fetcher.orElseThrow(() -> new OAuth2TokenException(
+                "OAuth2 for AI models is not enabled; set ai.client.oauth.enabled and ai.client.cache.refresh.enabled to true"));
         Oauth2TokenKey tokenKey = new Oauth2TokenKey(id, config);
         try {
             return cache.get(tokenKey, () -> {
-                OAuth2TokenResponse response = fetcher.fetch(config);
+                OAuth2TokenResponse response = tokenFetcher.fetch(config);
                 checkArgument(response.accessToken() != null && !response.accessToken().isBlank(), "access_token was blank");
                 Instant expiresAt = clock.instant().plusSeconds(response.expiresInSeconds()).minus(refreshSkew.toJavaTime());
                 return new Token(response.accessToken(), expiresAt);

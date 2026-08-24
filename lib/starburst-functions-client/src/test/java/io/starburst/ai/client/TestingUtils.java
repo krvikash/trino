@@ -30,6 +30,7 @@ import java.io.UncheckedIOException;
 import java.io.Writer;
 import java.nio.file.Files;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 
@@ -358,7 +359,7 @@ public final class TestingUtils
         HttpClient httpClient = new TestingHttpClient(_ -> {
             throw new UnsupportedOperationException("OAuth2 HTTP client not configured for this test");
         });
-        return new OAuth2TokenCache(new OAuth2TokenFetcher(httpClient), config);
+        return new OAuth2TokenCache(Optional.of(new OAuth2TokenFetcher(httpClient)), config);
     }
 
     public static File createModelConnectionSpecsFile(String content)

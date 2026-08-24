@@ -34,6 +34,7 @@ public class AiClientConfig
     private Duration openAiTimeout = new Duration(3, TimeUnit.MINUTES);
     private Duration vertexAiTimeout = new Duration(3, TimeUnit.MINUTES);
     private int vertexAiMaxRetries = 2;
+    private boolean oauth2Enabled;
     private Duration oauth2RefreshSkew = new Duration(60, TimeUnit.SECONDS);
     private Duration oauthTokenCacheDuration = new Duration(30, TimeUnit.MINUTES);
     private int oauth2MaxCachedTokens = 1000;
@@ -200,6 +201,19 @@ public class AiClientConfig
     public AiClientConfig setVertexAiMaxRetries(int vertexAiMaxRetries)
     {
         this.vertexAiMaxRetries = vertexAiMaxRetries;
+        return this;
+    }
+
+    public boolean isOauth2Enabled()
+    {
+        return oauth2Enabled;
+    }
+
+    @Config("ai.client.oauth.enabled")
+    @ConfigDescription("Offer OAuth2 as a connectivity option for AI models. When disabled, OAuth2 connections to models will not work. Only turn off to save resources.")
+    public AiClientConfig setOauth2Enabled(boolean oauth2Enabled)
+    {
+        this.oauth2Enabled = oauth2Enabled;
         return this;
     }
 
