@@ -17,6 +17,7 @@ import com.google.inject.Binder;
 import com.google.inject.Module;
 import com.google.inject.Scopes;
 import io.trino.plugin.base.session.SessionPropertiesProvider;
+import io.trino.plugin.prometheus.substitution.PrometheusSubstitutionMetadata;
 
 import static com.google.inject.multibindings.Multibinder.newSetBinder;
 import static io.airlift.configuration.ConfigBinder.configBinder;
@@ -35,6 +36,7 @@ public class PrometheusModule
         binder.bind(PrometheusClock.class).in(Scopes.SINGLETON);
         binder.bind(PrometheusRecordSetProvider.class).in(Scopes.SINGLETON);
         binder.bind(PrometheusSessionProperties.class).in(Scopes.SINGLETON);
+        binder.bind(PrometheusSubstitutionMetadata.class).in(Scopes.SINGLETON);
         configBinder(binder).bindConfig(PrometheusConnectorConfig.class);
 
         newSetBinder(binder, SessionPropertiesProvider.class).addBinding().to(PrometheusSessionProperties.class).in(Scopes.SINGLETON);

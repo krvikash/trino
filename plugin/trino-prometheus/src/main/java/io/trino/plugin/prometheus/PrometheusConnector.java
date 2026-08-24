@@ -16,13 +16,16 @@ package io.trino.plugin.prometheus;
 import com.google.inject.Inject;
 import io.airlift.bootstrap.LifeCycleManager;
 import io.airlift.log.Logger;
+import io.trino.plugin.base.classloader.ClassLoaderSafeConnectorSubstitutionMetadata;
 import io.trino.plugin.base.session.SessionPropertiesProvider;
+import io.trino.plugin.prometheus.substitution.PrometheusSubstitutionMetadata;
 import io.trino.spi.connector.Connector;
 import io.trino.spi.connector.ConnectorMetadata;
 import io.trino.spi.connector.ConnectorRecordSetProvider;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorSplitManager;
 import io.trino.spi.connector.ConnectorTransactionHandle;
+import io.trino.spi.connector.substitution.ConnectorSubstitutionMetadata;
 import io.trino.spi.session.PropertyMetadata;
 import io.trino.spi.transaction.IsolationLevel;
 
@@ -43,6 +46,7 @@ public class PrometheusConnector
     private final PrometheusSplitManager splitManager;
     private final PrometheusRecordSetProvider recordSetProvider;
     private final List<PropertyMetadata<?>> sessionProperties;
+    private final ConnectorSubstitutionMetadata substitutionMetadata;
 
     @Inject
     public PrometheusConnector(
@@ -50,7 +54,8 @@ public class PrometheusConnector
             PrometheusMetadata metadata,
             PrometheusSplitManager splitManager,
             PrometheusRecordSetProvider recordSetProvider,
-            Set<SessionPropertiesProvider> sessionPropertiesProviders)
+            Set<SessionPropertiesProvider> sessionPropertiesProviders,
+            PrometheusSubstitutionMetadata substitutionMetadata)
     {
         this.lifeCycleManager = requireNonNull(lifeCycleManager, "lifeCycleManager is null");
         this.metadata = requireNonNull(metadata, "metadata is null");
@@ -59,6 +64,15 @@ public class PrometheusConnector
         this.sessionProperties = requireNonNull(sessionPropertiesProviders, "sessionPropertiesProviders is null").stream()
                 .flatMap(sessionPropertiesProvider -> sessionPropertiesProvider.getSessionProperties().stream())
                 .collect(toImmutableList());
+        this.substitutionMetadata = new ClassLoaderSafeConnectorSubstitutionMetadata(
+                requireNonNull(substitutionMetadata, "substitutionMetadata is null"),
+                getClass().getClassLoader());
+    }
+
+    @Override
+    public ConnectorSubstitutionMetadata getSubstitutionMetadata()
+    {
+        return substitutionMetadata;
     }
 
     @Override
