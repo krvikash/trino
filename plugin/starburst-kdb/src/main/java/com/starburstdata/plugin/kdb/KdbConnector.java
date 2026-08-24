@@ -14,12 +14,15 @@
 package com.starburstdata.plugin.kdb;
 
 import com.google.inject.Inject;
+import com.starburstdata.plugin.kdb.substitution.KdbSubstitutionMetadata;
+import io.trino.plugin.base.classloader.ClassLoaderSafeConnectorSubstitutionMetadata;
 import io.trino.spi.connector.Connector;
 import io.trino.spi.connector.ConnectorMetadata;
 import io.trino.spi.connector.ConnectorPageSourceProvider;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorSplitManager;
 import io.trino.spi.connector.ConnectorTransactionHandle;
+import io.trino.spi.connector.substitution.ConnectorSubstitutionMetadata;
 import io.trino.spi.transaction.IsolationLevel;
 
 import static io.trino.spi.transaction.IsolationLevel.READ_COMMITTED;
@@ -32,16 +35,21 @@ public class KdbConnector
     private final KdbMetadata metadata;
     private final KdbSplitManager splitManager;
     private final KdbPageSourceProvider pageSourceProvider;
+    private final ConnectorSubstitutionMetadata substitutionMetadata;
 
     @Inject
     public KdbConnector(
             KdbMetadata metadata,
             KdbSplitManager splitManager,
-            KdbPageSourceProvider pageSourceProvider)
+            KdbPageSourceProvider pageSourceProvider,
+            KdbSubstitutionMetadata substitutionMetadata)
     {
         this.metadata = requireNonNull(metadata, "metadata is null");
         this.splitManager = requireNonNull(splitManager, "splitManager is null");
         this.pageSourceProvider = requireNonNull(pageSourceProvider, "pageSourceProvider is null");
+        this.substitutionMetadata = new ClassLoaderSafeConnectorSubstitutionMetadata(
+                requireNonNull(substitutionMetadata, "substitutionMetadata is null"),
+                getClass().getClassLoader());
     }
 
     @Override
@@ -55,6 +63,12 @@ public class KdbConnector
     public ConnectorMetadata getMetadata(ConnectorSession session, ConnectorTransactionHandle transactionHandle)
     {
         return metadata;
+    }
+
+    @Override
+    public ConnectorSubstitutionMetadata getSubstitutionMetadata()
+    {
+        return substitutionMetadata;
     }
 
     @Override

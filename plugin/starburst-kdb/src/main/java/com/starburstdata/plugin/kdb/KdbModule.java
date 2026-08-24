@@ -16,6 +16,7 @@ package com.starburstdata.plugin.kdb;
 import com.google.inject.Binder;
 import com.google.inject.Module;
 import com.google.inject.Scopes;
+import com.starburstdata.plugin.kdb.substitution.KdbSubstitutionMetadata;
 
 import static io.airlift.configuration.ConfigBinder.configBinder;
 
@@ -33,5 +34,6 @@ public class KdbModule
         binder.bind(KdbPageSourceProvider.class).in(Scopes.SINGLETON);
         binder.bind(KdbClient.class).in(Scopes.SINGLETON);
         binder.bind(KdbConnectionFactory.class).in(Scopes.SINGLETON);
+        binder.bind(KdbSubstitutionMetadata.class).in(Scopes.SINGLETON);
     }
 }
