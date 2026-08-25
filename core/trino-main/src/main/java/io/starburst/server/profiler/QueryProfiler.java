@@ -57,18 +57,18 @@ public class QueryProfiler
         ImmutableList.Builder<StageFinding> stageFindings = ImmutableList.builder();
         ImmutableList.Builder<QueryFinding> queryFindings = ImmutableList.builder();
         for (QueryProfilerRule rule : rules) {
+            String name = rule.getClass().getSimpleName();
             try {
                 for (RuleFinding finding : rule.analyze(details)) {
                     switch (finding) {
-                        case PlanNodeFinding nodeFinding -> planNodeFindings.add(nodeFinding);
-                        case StageFinding stageFinding -> stageFindings.add(stageFinding);
-                        case QueryFinding queryFinding -> queryFindings.add(queryFinding);
-                        default -> throw new IllegalArgumentException("Illegal rule finding type");
+                        case RuleFinding.Node node -> planNodeFindings.add(new PlanNodeFinding(name, node.planNodeId(), node.description()));
+                        case RuleFinding.Stage stage -> stageFindings.add(new StageFinding(name, stage.stageId(), stage.description()));
+                        case RuleFinding.Query query -> queryFindings.add(new QueryFinding(name, query.description()));
                     }
                 }
             }
             catch (Exception e) {
-                log.warn(e, "Profiling rule %s failed for query %s", rule.getClass().getSimpleName(), queryId);
+                log.warn(e, "Profiling rule %s failed for query %s", name, queryId);
             }
         }
 

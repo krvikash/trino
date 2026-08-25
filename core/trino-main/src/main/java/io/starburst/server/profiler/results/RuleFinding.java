@@ -9,10 +9,41 @@
  */
 package io.starburst.server.profiler.results;
 
+import static java.util.Objects.requireNonNull;
+
 public sealed interface RuleFinding
-        permits PlanNodeFinding,
-                QueryFinding,
-                StageFinding
+        permits RuleFinding.Node,
+                RuleFinding.Query,
+                RuleFinding.Stage
 {
     String description();
+
+    record Node(String planNodeId, String description)
+            implements RuleFinding
+    {
+        public Node
+        {
+            requireNonNull(planNodeId, "planNodeId is null");
+            requireNonNull(description, "description is null");
+        }
+    }
+
+    record Stage(String stageId, String description)
+            implements RuleFinding
+    {
+        public Stage
+        {
+            requireNonNull(stageId, "stageId is null");
+            requireNonNull(description, "description is null");
+        }
+    }
+
+    record Query(String description)
+            implements RuleFinding
+    {
+        public Query
+        {
+            requireNonNull(description, "description is null");
+        }
+    }
 }

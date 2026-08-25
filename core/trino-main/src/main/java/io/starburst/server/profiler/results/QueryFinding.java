@@ -12,7 +12,6 @@ package io.starburst.server.profiler.results;
 import static java.util.Objects.requireNonNull;
 
 public record QueryFinding(String name, String description)
-        implements RuleFinding
 {
     public QueryFinding
     {

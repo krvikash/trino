@@ -20,10 +20,7 @@ import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.trace.Span;
 import io.starburst.server.profiler.QueryExecutionDetails;
 import io.starburst.server.profiler.QueryProfilerConfig;
-import io.starburst.server.profiler.results.PlanNodeFinding;
-import io.starburst.server.profiler.results.QueryFinding;
 import io.starburst.server.profiler.results.RuleFinding;
-import io.starburst.server.profiler.results.StageFinding;
 import io.trino.Session;
 import io.trino.execution.QueryInfo;
 import io.trino.plugin.tpch.TpchPlugin;
@@ -193,18 +190,18 @@ public final class RuleTestSupport
         }
     }
 
-    public static PlanNodeFinding onlyPlanNodeFinding(List<RuleFinding> findings)
+    public static RuleFinding.Node onlyPlanNodeFinding(List<RuleFinding> findings)
     {
-        return (PlanNodeFinding) getOnlyElement(findings);
+        return (RuleFinding.Node) getOnlyElement(findings);
     }
 
-    public static StageFinding onlyStageFinding(List<RuleFinding> findings)
+    public static RuleFinding.Stage onlyStageFinding(List<RuleFinding> findings)
     {
-        return (StageFinding) getOnlyElement(findings);
+        return (RuleFinding.Stage) getOnlyElement(findings);
     }
 
-    public static QueryFinding onlyQueryFinding(List<RuleFinding> findings)
+    public static RuleFinding.Query onlyQueryFinding(List<RuleFinding> findings)
     {
-        return (QueryFinding) getOnlyElement(findings);
+        return (RuleFinding.Query) getOnlyElement(findings);
     }
 }
