@@ -14,8 +14,6 @@
 package io.trino.server.starburst.accesscontrol;
 
 import io.airlift.http.client.HttpClient;
-import io.airlift.http.client.Request;
-import io.airlift.http.client.StringResponseHandler.StringResponse;
 import io.airlift.http.client.jetty.JettyHttpClient;
 import io.starburst.stargate.accesscontrol.client.testing.TestingAccountClient;
 import io.starburst.stargate.accesscontrol.client.testing.TestingAccountClient.GrantDetails;
@@ -34,14 +32,6 @@ import org.junit.jupiter.api.parallel.Execution;
 import java.util.Map;
 import java.util.function.BiConsumer;
 
-import static com.google.common.base.Verify.verify;
-import static io.airlift.http.client.HeaderNames.AUTHORIZATION;
-import static io.airlift.http.client.HeaderNames.CONTENT_TYPE;
-import static io.airlift.http.client.HttpUriBuilder.uriBuilderFrom;
-import static io.airlift.http.client.JsonBodyGenerator.jsonBodyGenerator;
-import static io.airlift.http.client.Request.Builder.preparePost;
-import static io.airlift.http.client.StringResponseHandler.createStringResponseHandler;
-import static io.airlift.json.JsonCodec.jsonCodec;
 import static io.starburst.stargate.accesscontrol.privilege.GrantKind.ALLOW;
 import static io.starburst.stargate.accesscontrol.privilege.Privilege.CREATE_CATALOG;
 import static io.starburst.stargate.accesscontrol.privilege.Privilege.CREATE_SCHEMA;
@@ -112,7 +102,7 @@ public class TestStacCatalogManagementAccessControl
                 .hasMessageMatching(deniedMessage);
 
         // A catalog privilege makes the catalog visible without granting ownership
-        grantUncontainedEntityPrivilege(new GrantDetails(CREATE_SCHEMA, lackeyRoleId, ALLOW, false, catalogId));
+        accountClient.grantUncontainedEntityPrivilege(new GrantDetails(CREATE_SCHEMA, lackeyRoleId, ALLOW, false, catalogId));
         try {
             // Direct grantee can show create catalog
             catalogManagementAccessControl.checkCanShowCreateCatalog(helper.context(lackeyRoleId), catalogName);
@@ -197,24 +187,5 @@ public class TestStacCatalogManagementAccessControl
         finally {
             accountClient.setEntityOwnership(adminRoleId, adminRoleId, catalogId);
         }
-    }
-
-    // TODO Temporary workaround: in the current stargate version, TestingAccountClient.grantUncontainedEntityPrivilege
-    //  POSTs to "uncontainedEntityPrivilege", but the testing resource registers the grant at "grantUncontainedPrivilege"
-    //  (that path only accepts DELETE, hence a 405). Revoke is consistent on both sides, so
-    //  accountClient.revokeUncontainedEntityPrivilege still works. Remove this once stargate is updated and pulled in.
-    private void grantUncontainedEntityPrivilege(GrantDetails grant)
-    {
-        Request request = preparePost()
-                .setUri(uriBuilderFrom(accountClient.getBaseUri()).appendPath("grantUncontainedPrivilege").build())
-                .addHeader(AUTHORIZATION, "X-Trino-Plane-Token " + accountClient.getAdminTrinoAccessToken())
-                .addHeader(CONTENT_TYPE, "application/json")
-                .setBodyGenerator(jsonBodyGenerator(jsonCodec(GrantDetails.class), grant))
-                .build();
-        StringResponse response = httpClient.execute(request, createStringResponseHandler());
-        verify(response.getStatusCode() == 200 || response.getStatusCode() == 204,
-                "Expected 200 OK or 204 NO_CONTENT, but got %s from %s",
-                response.getStatusCode(),
-                request);
     }
 }
