@@ -27,6 +27,8 @@ import io.airlift.configuration.AbstractConfigurationAwareModule;
 import io.airlift.http.server.HttpServerConfig;
 import io.airlift.units.DataSize;
 import io.airlift.units.Duration;
+import io.starburst.server.castleinsights.CastleInsightsConfig;
+import io.starburst.server.castleinsights.CastleInsightsModule;
 import io.trino.connector.DefaultNodeManager;
 import io.trino.connector.ThrowingManagedStatisticsClient;
 import io.trino.cost.CostCalculator;
@@ -222,6 +224,10 @@ public class CoordinatorModule
         jsonCodecBinder(binder).bindJsonCodec(StatsAndCosts.class);
         configBinder(binder).bindConfig(QueryMonitorConfig.class);
         binder.bind(QueryMonitor.class).in(Scopes.SINGLETON);
+
+        if (buildConfigObject(CastleInsightsConfig.class).isEnabled()) {
+            install(new CastleInsightsModule());
+        }
 
         // query manager
         jaxrsBinder(binder).bind(QueryResource.class);
