@@ -14,6 +14,7 @@
 package io.trino.sql.planner;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import io.trino.Session;
 import io.trino.execution.Column;
@@ -64,7 +65,7 @@ public class InputExtractor
         return new Column(columnMetadata.getName(), columnMetadata.getType().toString());
     }
 
-    private Input createInput(Session session, TableHandle table, Set<Column> columns, PlanFragmentId fragmentId, PlanNodeId planNodeId)
+    private Input createInput(Session session, TableHandle table, Set<Column> columns, Map<String, Column> columnsBySymbolName, PlanFragmentId fragmentId, PlanNodeId planNodeId)
     {
         CatalogSchemaTableName tableName = metadata.getTableName(session, table);
         SchemaTableName schemaTable = tableName.getSchemaTableName();
@@ -80,6 +81,7 @@ public class InputExtractor
                 schemaTable.getTableName(),
                 inputMetadata,
                 ImmutableList.copyOf(columns),
+                columnsBySymbolName,
                 fragmentId,
                 planNodeId);
     }
@@ -111,11 +113,14 @@ public class InputExtractor
         private void processScan(PlanFragmentId fragmentId, PlanNodeId planNodeId, TableHandle tableHandle, Map<Symbol, ColumnHandle> assignments)
         {
             Set<Column> columns = new HashSet<>();
-            for (ColumnHandle columnHandle : assignments.values()) {
-                columns.add(createColumn(metadata.getColumnMetadata(session, tableHandle, columnHandle)));
+            ImmutableMap.Builder<String, Column> columnsBySymbolName = ImmutableMap.builderWithExpectedSize(assignments.size());
+            for (Map.Entry<Symbol, ColumnHandle> assignment : assignments.entrySet()) {
+                Column column = createColumn(metadata.getColumnMetadata(session, tableHandle, assignment.getValue()));
+                columns.add(column);
+                columnsBySymbolName.put(assignment.getKey().name(), column);
             }
 
-            inputs.add(createInput(session, tableHandle, columns, fragmentId, planNodeId));
+            inputs.add(createInput(session, tableHandle, columns, columnsBySymbolName.buildOrThrow(), fragmentId, planNodeId));
         }
 
         @Override

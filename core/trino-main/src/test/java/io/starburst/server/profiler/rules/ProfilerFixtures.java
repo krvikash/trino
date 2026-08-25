@@ -214,6 +214,7 @@ public final class ProfilerFixtures
                 "test_table",
                 Optional.ofNullable(connectorInfo),
                 ImmutableList.of(new Column("col", "bigint")),
+                ImmutableMap.of("col", new Column("col", "bigint")),
                 FRAGMENT_ID,
                 new PlanNodeId(planNodeId));
     }

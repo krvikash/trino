@@ -14,11 +14,13 @@
 package io.trino.execution;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import io.trino.spi.connector.CatalogVersion;
 import io.trino.sql.planner.plan.PlanFragmentId;
 import io.trino.sql.planner.plan.PlanNodeId;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static java.util.Objects.requireNonNull;
@@ -31,6 +33,7 @@ public record Input(
         String table,
         Optional<Object> connectorInfo,
         List<Column> columns,
+        Map<String, Column> columnsBySymbolName,
         PlanFragmentId fragmentId,
         PlanNodeId planNodeId)
 {
@@ -43,6 +46,7 @@ public record Input(
         requireNonNull(table, "table is null");
         requireNonNull(connectorInfo, "connectorInfo is null");
         columns = ImmutableList.copyOf(columns);
+        columnsBySymbolName = ImmutableMap.copyOf(columnsBySymbolName);
         requireNonNull(fragmentId, "fragmentId is null");
         requireNonNull(planNodeId, "planNodeId is null");
     }

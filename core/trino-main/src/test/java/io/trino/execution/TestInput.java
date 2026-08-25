@@ -14,6 +14,7 @@
 package io.trino.execution;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import io.airlift.json.JsonCodec;
 import io.trino.spi.connector.CatalogVersion;
 import io.trino.sql.planner.plan.PlanFragmentId;
@@ -43,6 +44,10 @@ public class TestInput
                         new Column("column1", "string"),
                         new Column("column2", "string"),
                         new Column("column3", "string")),
+                ImmutableMap.of(
+                        "symbol1", new Column("column1", "string"),
+                        "symbol2", new Column("column2", "string"),
+                        "symbol3", new Column("column3", "string")),
                 new PlanFragmentId("fragment"),
                 new PlanNodeId("plan-node"));
 

@@ -118,6 +118,7 @@ public class TestQueryStateMachine
             "table",
             Optional.empty(),
             ImmutableList.of(new Column("a", "varchar")),
+            ImmutableMap.of("a", new Column("a", "varchar")),
             new PlanFragmentId("fragment"),
             new PlanNodeId("plan-node")));
     private static final Optional<Output> OUTPUT = Optional.empty();
