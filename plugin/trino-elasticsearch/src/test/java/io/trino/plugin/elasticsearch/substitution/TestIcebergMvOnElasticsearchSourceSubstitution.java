@@ -13,6 +13,7 @@
  */
 package io.trino.plugin.elasticsearch.substitution;
 
+import com.google.common.collect.ImmutableList;
 import io.trino.Session;
 import io.trino.plugin.elasticsearch.ElasticsearchQueryRunner;
 import io.trino.plugin.elasticsearch.ElasticsearchServer;
@@ -30,6 +31,7 @@ import org.junit.jupiter.api.parallel.Execution;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.util.List;
 
 import static io.trino.plugin.elasticsearch.ElasticsearchServer.ELASTICSEARCH_7_IMAGE;
 import static java.lang.String.format;
@@ -134,6 +136,24 @@ public class TestIcebergMvOnElasticsearchSourceSubstitution
     }
 
     @Override
+    protected List<CoercionColumn> coercionColumns()
+    {
+        return ImmutableList.of(new CoercionColumn("c_smallint", "smallint", "42", "abs(%s)"));
+    }
+
+    @Override
+    protected void createCoercionTable()
+    {
+        String index = indexName(coercionTable);
+        createIndex(index,
+                """
+                {"id_col":{"type":"long"}, "c_smallint":{"type":"short"}}""");
+        indexDocument(index, 20007,
+                """
+                {"id_col":%d,"c_smallint":"%d"}""".formatted(1, 42));
+    }
+
+    @Override
     protected SubFieldTestContext subFieldTestContext()
     {
         return SubFieldTestContext.ROW;
@@ -156,11 +176,6 @@ public class TestIcebergMvOnElasticsearchSourceSubstitution
     {
         deleteIndex(sourceTable.getSchemaTableName().getTableName());
     }
-
-    @Test
-    @Disabled("Elasticsearch is read-only: it never reports the bounded-varchar / smallint source types the storage-type coercion check relies on")
-    @Override
-    public void testFunctionProjectionCoercesStorageTypes() {}
 
     @Test
     @Disabled("Elasticsearch is read-only: CREATE TABLE AS SELECT and ALTER TABLE ADD COLUMN are not supported on the source")

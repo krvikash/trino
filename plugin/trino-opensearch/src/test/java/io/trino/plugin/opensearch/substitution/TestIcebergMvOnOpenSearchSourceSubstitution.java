@@ -13,6 +13,7 @@
  */
 package io.trino.plugin.opensearch.substitution;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.trino.Session;
 import io.trino.plugin.iceberg.substitution.AbstractIcebergMvSubstitutionTest;
@@ -32,6 +33,7 @@ import org.opensearch.client.RestClient;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.util.List;
 
 import static io.trino.plugin.opensearch.OpenSearchServer.OPENSEARCH_IMAGE;
 import static java.lang.String.format;
@@ -136,6 +138,24 @@ public class TestIcebergMvOnOpenSearchSourceSubstitution
     }
 
     @Override
+    protected List<CoercionColumn> coercionColumns()
+    {
+        return ImmutableList.of(new CoercionColumn("c_smallint", "smallint", "42", "abs(%s)"));
+    }
+
+    @Override
+    protected void createCoercionTable()
+    {
+        String index = indexName(coercionTable);
+        createIndex(index,
+                """
+                {"id_col":{"type":"long"}, "c_smallint":{"type":"short"}}""");
+        indexDocument(index, 20007,
+                """
+                {"id_col":%d,"c_smallint":"%d"}""".formatted(1, 42));
+    }
+
+    @Override
     protected SubFieldTestContext subFieldTestContext()
     {
         return SubFieldTestContext.ROW;
@@ -158,11 +178,6 @@ public class TestIcebergMvOnOpenSearchSourceSubstitution
     {
         deleteIndex(sourceTable.getSchemaTableName().getTableName());
     }
-
-    @Test
-    @Disabled("OpenSearch is read-only: it never reports the bounded-varchar / smallint source types the storage-type coercion check relies on")
-    @Override
-    public void testFunctionProjectionCoercesStorageTypes() {}
 
     @Test
     @Disabled("OpenSearch is read-only: CREATE TABLE AS SELECT and ALTER TABLE ADD COLUMN are not supported on the source")

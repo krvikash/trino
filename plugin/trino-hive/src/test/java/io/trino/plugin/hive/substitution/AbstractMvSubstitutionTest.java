@@ -25,7 +25,6 @@ import io.trino.testing.AbstractTestQueryFramework;
 import io.trino.testing.MaterializedResult;
 import io.trino.testing.QueryRunner.MaterializedResultWithPlan;
 import io.trino.testing.sql.SqlExecutor;
-import io.trino.testing.sql.TestTable;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Disabled;
@@ -69,6 +68,8 @@ public abstract class AbstractMvSubstitutionTest
     // Table with a nested/sub-field column (see subFieldTestContext), used by the sub-field tests.
     protected final CatalogSchemaTableName nestedTypeTable = sourceTable("customers_with_sub_fields_" + randomNameSuffix());
 
+    protected final CatalogSchemaTableName coercionTable = sourceTable("coercion_table_" + randomNameSuffix());
+
     @BeforeAll
     public void setUp()
     {
@@ -90,6 +91,8 @@ public abstract class AbstractMvSubstitutionTest
         createLineItemTable();
 
         createNestedTypeTable(nestedTypeTable);
+
+        createCoercionTable();
     }
 
     protected void createOrdersTable()
@@ -125,6 +128,7 @@ public abstract class AbstractMvSubstitutionTest
         dropSourceTable(ordersTable);
         dropSourceTable(lineitemTable);
         dropSourceTable(nestedTypeTable);
+        dropSourceTable(coercionTable);
     }
 
     protected void dropSourceTable(CatalogSchemaTableName sourceTable)
@@ -320,28 +324,17 @@ public abstract class AbstractMvSubstitutionTest
         // the storage column at its own type and cast it back up to the query type. Without the coercion
         // the substituted plan fails to type-check.
         List<CoercionColumn> columns = coercionColumns();
-        String columnDefinitions = columns.stream()
-                .map(column -> column.name() + " " + column.columnType())
-                .collect(joining(", "));
-        String values = columns.stream()
-                .map(CoercionColumn::insertValue)
-                .collect(joining(", "));
         String projectedColumns = columns.stream()
                 .map(CoercionColumn::name)
                 .collect(joining(", "));
         CatalogSchemaTableName mvName = mvName("mv_coercion_");
-        try (TestTable testTable = new TestTable(
-                sourceSqlExecutor(),
-                sourceSchemaName() + ".coercion_table_",
-                "(id_col BIGINT, " + columnDefinitions + ")",
-                List.of("1, " + values))) {
-            CatalogSchemaTableName table = sourceTable(testTable.getName().substring(sourceSchemaName().length() + 1));
-            createSubstitutionMv(mvName, "SELECT id_col, " + projectedColumns + " FROM " + table);
+        try {
+            createSubstitutionMv(mvName, "SELECT id_col, " + projectedColumns + " FROM " + coercionTable);
 
             Session session = sessionWithSubstitution();
             for (CoercionColumn column : columns) {
-                String query = "SELECT " + column.projection().formatted(column.name()) + " FROM " + table;
-                assertSubstituted(session, query, table, mvName);
+                String query = "SELECT " + column.projection().formatted(column.name()) + " FROM " + coercionTable;
+                assertSubstituted(session, query, coercionTable, mvName);
                 assertSameResults(session, query);
             }
         }
@@ -363,6 +356,19 @@ public abstract class AbstractMvSubstitutionTest
         return List.of(
                 new CoercionColumn("c_varchar", "varchar(20)", "'Alice'", "upper(%s)"),
                 new CoercionColumn("c_smallint", "smallint", "42", "abs(%s)"));
+    }
+
+    protected void createCoercionTable()
+    {
+        List<CoercionColumn> columns = coercionColumns();
+        String columnDefinitions = columns.stream()
+                .map(column -> column.name() + " " + column.columnType())
+                .collect(joining(", "));
+        String values = columns.stream()
+                .map(CoercionColumn::insertValue)
+                .collect(joining(", "));
+        sourceSqlExecutor().execute("CREATE TABLE %s (id_col BIGINT, %s)".formatted(sourceTableReference(coercionTable), columnDefinitions));
+        sourceSqlExecutor().execute("INSERT INTO %s VALUES (1, %s)".formatted(sourceTableReference(coercionTable), values));
     }
 
     @Test
