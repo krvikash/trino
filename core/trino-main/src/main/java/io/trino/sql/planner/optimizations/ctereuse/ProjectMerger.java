@@ -18,6 +18,7 @@ import com.google.common.collect.Sets;
 import io.trino.metadata.Metadata;
 import io.trino.spi.type.Type;
 import io.trino.sql.dialect.trino.ProgramBuilder;
+import io.trino.sql.dialect.trino.operation.Constant;
 import io.trino.sql.dialect.trino.operation.FieldReference;
 import io.trino.sql.dialect.trino.operation.Project;
 import io.trino.sql.dialect.trino.operation.Return;
@@ -138,6 +139,9 @@ public class ProjectMerger
         // the mapping to rebase the context: predicate to apply and enforced predicate from the recent unified operation onto the new unified Project operation
         Map<Integer, Integer> predicateIdentities = new HashMap<>();
 
+        // A checkpoint is useful only if the merged projection eliminates computation repeated across branches.
+        boolean requireCheckpoint = false;
+
         // iterate over all branches to build the unified projection
         for (TraversalState branch : branches) {
             Project project = (Project) branch.nextOperation().operation();
@@ -164,6 +168,7 @@ public class ProjectMerger
                         fieldMapping.put(i, j);
                         freeUnifiedIndexes.remove(j);
                         foundUnifiedAssignment = true;
+                        requireCheckpoint |= isNonTrivialComputation(currentAssignment);
                         break;
                     }
                 }
@@ -233,6 +238,13 @@ public class ProjectMerger
         return new UnifiedStatesAndCheckpointMapping(
                 new UnifiedStates(mergedProject, newTraversalStates.build()),
                 checkpoints,
-                branchToCheckpoint);
+                branchToCheckpoint,
+                requireCheckpoint);
+    }
+
+    private static boolean isNonTrivialComputation(Block assignment)
+    {
+        Operation resultOperation = assignment.operations().get(assignment.operations().size() - 2);
+        return !(resultOperation instanceof FieldReference) && !(resultOperation instanceof Constant);
     }
 }

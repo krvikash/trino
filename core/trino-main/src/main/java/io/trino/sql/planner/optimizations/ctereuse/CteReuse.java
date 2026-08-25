@@ -75,6 +75,7 @@ import io.trino.sql.planner.DomainTranslator;
 import io.trino.sql.planner.Plan;
 import io.trino.sql.planner.Symbol;
 import io.trino.sql.planner.SymbolAllocator;
+import io.trino.sql.planner.newirtoold.ToOldIrScalarRewriter;
 import io.trino.sql.planner.optimizations.ctereuse.BranchesToCheckpointsMapping.CheckpointReferences;
 import io.trino.sql.planner.optimizations.ctereuse.Checkpoint.BottomCheckpoint;
 import io.trino.sql.planner.optimizations.ctereuse.Checkpoint.IntermediateCheckpoint;
@@ -824,7 +825,7 @@ public class CteReuse
                 .collect(toImmutableList());
 
         // each branch is fully ingested. extract the common part of all branches, and add operations for it
-        UnifiedStatesAndCheckpointRequirement commonPartMergedAndCheckpointRequirement = outputCommonSemantics(ingestedStates, unifiedOperation, nameAllocator, newOperations);
+        UnifiedStatesAndCheckpointRequirement commonPartMergedAndCheckpointRequirement = outputCommonSemantics(ingestedStates, unifiedOperation, nameAllocator, newOperations, plannerContext, session);
         UnifiedStates commonPartMerged = commonPartMergedAndCheckpointRequirement.unifiedStates();
         setCheckpoint |= commonPartMergedAndCheckpointRequirement.requireCheckpoint();
 
@@ -849,6 +850,7 @@ public class CteReuse
             else {
                 List<Checkpoint> newCheckpoints = nextOperationMerged.checkpoints();
                 BranchesToCheckpointsMapping newBranchToCheckpoint = nextOperationMerged.branchToCheckpoint();
+                setCheckpoint |= nextOperationMerged.requireCheckpoint();
                 // if the merged operation is a remote exchange, it can be used as a checkpoint
                 if (setCheckpoint && nextOperationMerged.unifiedStates().unifiedOperation() instanceof Exchange exchange && EXCHANGE_SCOPE.getAttribute(exchange.attributes()).equals(REMOTE)) {
                     newCheckpoints = ImmutableList.of(new IntermediateCheckpoint(nextOperationMerged.unifiedStates()));
@@ -965,7 +967,13 @@ public class CteReuse
      * This method assumes that all provided states are based on baseUnifiedOperation, so they can be safely combined.
      * There must be at least two states provided.
      */
-    private static UnifiedStatesAndCheckpointRequirement outputCommonSemantics(List<TraversalState> states, Operation baseUnifiedOperation, ProgramBuilder.ValueNameAllocator nameAllocator, Map<Value, Operation> newOperations)
+    private static UnifiedStatesAndCheckpointRequirement outputCommonSemantics(
+            List<TraversalState> states,
+            Operation baseUnifiedOperation,
+            ProgramBuilder.ValueNameAllocator nameAllocator,
+            Map<Value, Operation> newOperations,
+            PlannerContext plannerContext,
+            Session session)
     {
         checkArgument(states.size() > 1, "at least two branches must be provided for unification");
 
@@ -987,6 +995,11 @@ public class CteReuse
         List<Block> staticPredicatesToApply = extractionResults.stream()
                 .map(DynamicFilterExtractionResult::staticPredicate)
                 .collect(toImmutableList());
+        boolean staticPredicatesPairwiseDisjoint = areStaticPredicatesPairwiseDisjoint(
+                staticPredicatesToApply,
+                relationRowType(trinoType(baseUnifiedOperation.result().type())),
+                plannerContext,
+                session);
 
         // build the unified predicate so that all dynamic filters are collected in one conjunct
         Block unifiedPredicateToApply = conjunction(
@@ -1035,7 +1048,7 @@ public class CteReuse
             // set checkpoint after Filter only if there are static predicates
             DynamicFilterExtractionResult extractionResult = extractDynamicConjunct(unifiedPredicateToApply, nameAllocator);
             if (!isTrue(extractionResult.staticPredicate())) {
-                checkpointRequirement = true;
+                checkpointRequirement = !staticPredicatesPairwiseDisjoint;
             }
             // don't bother about mapping, filter is passthrough
         }
@@ -1079,6 +1092,40 @@ public class CteReuse
         }
 
         return new UnifiedStatesAndCheckpointRequirement(new UnifiedStates(unifiedOperation, newStates.build()), checkpointRequirement);
+    }
+
+    /**
+     * Prove that every pair of static predicates is disjoint using domains extracted from the old expression IR.
+     * If a predicate cannot be translated or its overlap cannot be ruled out, return false to preserve the eager
+     * checkpoint behavior.
+     */
+    static boolean areStaticPredicatesPairwiseDisjoint(List<Block> staticPredicates, Type inputRowType, PlannerContext plannerContext, Session session)
+    {
+        SymbolAllocator symbolAllocator = new SymbolAllocator(ImmutableList.of());
+        List<Symbol> inputSymbols = inputRowType.getTypeParameters().stream()
+                .map(type -> symbolAllocator.newSymbol("cte_reuse_filter", type))
+                .collect(toImmutableList());
+        ToOldIrScalarRewriter scalarRewriter = new ToOldIrScalarRewriter(symbolAllocator);
+
+        List<TupleDomain<Symbol>> predicateDomains;
+        try {
+            predicateDomains = staticPredicates.stream()
+                    .map(predicate -> scalarRewriter.toOldIr(predicate, ImmutableList.of(inputSymbols)))
+                    .map(predicate -> DomainTranslator.getExtractionResult(plannerContext, session, predicate).getTupleDomain())
+                    .collect(toImmutableList());
+        }
+        catch (RuntimeException _) {
+            return false;
+        }
+
+        for (int first = 0; first < predicateDomains.size(); first++) {
+            for (int second = first + 1; second < predicateDomains.size(); second++) {
+                if (!predicateDomains.get(first).intersect(predicateDomains.get(second)).isNone()) {
+                    return false;
+                }
+            }
+        }
+        return true;
     }
 
     public static Block rebasePredicateAndPruneUnsupportedConjuncts(Block block, Operation baseOperation, FieldMapping fieldMapping, ProgramBuilder.ValueNameAllocator nameAllocator)
@@ -1239,12 +1286,13 @@ public class CteReuse
      * where the cost of spooling is big compared to the gain of merging plans. For example, it makes no sense
      * to set a checkpoint after merging just table scans.
      * <p>
-     * For now, we assume simple heuristics: we set a checkpoint after merging all kinds of operations except for
-     * table scan and pruning projection.
+     * For now, we assume simple heuristics: we set a checkpoint after merging all kinds of operations except for TableScan,
+     * Project and DynamicFilterSource. A computing Project reports a checkpoint requirement through its merge result
+     * only when it deduplicates non-trivial computation across branches.
      */
     private static boolean setCheckpointAfter(Operation operation)
     {
-        return !(operation instanceof Project project && project.isPruning()) &&
+        return !(operation instanceof Project) &&
                 !(operation instanceof DynamicFilterSource);
     }
 
@@ -1758,8 +1806,17 @@ public class CteReuse
         }
     }
 
-    public record UnifiedStatesAndCheckpointMapping(UnifiedStates unifiedStates, List<Checkpoint> checkpoints, BranchesToCheckpointsMapping branchToCheckpoint)
+    public record UnifiedStatesAndCheckpointMapping(
+            UnifiedStates unifiedStates,
+            List<Checkpoint> checkpoints,
+            BranchesToCheckpointsMapping branchToCheckpoint,
+            boolean requireCheckpoint)
     {
+        public UnifiedStatesAndCheckpointMapping(UnifiedStates unifiedStates, List<Checkpoint> checkpoints, BranchesToCheckpointsMapping branchToCheckpoint)
+        {
+            this(unifiedStates, checkpoints, branchToCheckpoint, false);
+        }
+
         public UnifiedStatesAndCheckpointMapping
         {
             requireNonNull(unifiedStates, "unifiedStates is null");

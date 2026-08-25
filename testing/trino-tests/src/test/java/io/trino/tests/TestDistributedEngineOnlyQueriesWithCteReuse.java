@@ -298,4 +298,57 @@ public class TestDistributedEngineOnlyQueriesWithCteReuse
                 .isNotNegative();
         assertQuerySucceeds(query);
     }
+
+    @Test
+    public void testEng22783ReluctantMerge()
+    {
+        assertUpdate(
+                """
+                CREATE TABLE cte_reuse_customer_objects AS
+                SELECT *
+                FROM (VALUES
+                    (BIGINT '1', BIGINT '2', INTEGER '9123850', ARRAY['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j']),
+                    (BIGINT '2', BIGINT '3', INTEGER '9123848', ARRAY['k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't']),
+                    (BIGINT '3', BIGINT '1', INTEGER '9123850', ARRAY['u', 'v', 'w', 'x', 'y', 'z', 'aa', 'ab', 'ac', 'ad'])
+                ) t(id, reference_id, custom_object, text_array1)
+                """,
+                3);
+        try {
+            // Reproduces the relevant portion of the customer plan from
+            // https://starburstdata.atlassian.net/browse/ENG-22783. The two object scans
+            // have provably disjoint filters and compute different array elements before their first
+            // remote exchanges, so neither operation makes a shared scan checkpoint worthwhile.
+            @Language("SQL") String query =
+                    """
+                    SELECT subsidiary.text_array1[10], subsidiary_base.text_array1[2]
+                    FROM orders anchor
+                    LEFT JOIN cte_reuse_customer_objects subsidiary
+                        ON anchor.orderkey = subsidiary.id
+                        AND subsidiary.custom_object = 9123850
+                    LEFT JOIN cte_reuse_customer_objects subsidiary_base
+                        ON subsidiary.reference_id = subsidiary_base.id
+                        AND subsidiary_base.custom_object = 9123848
+                    """;
+            Session session = Session.builder(getSession())
+                    .setSystemProperty("join_distribution_type", "PARTITIONED")
+                    .build();
+
+            String planWithCteReuse = getExplainPlan(session, query, DISTRIBUTED);
+            Session withoutCteReuse = Session.builder(session)
+                    .setSystemProperty("reuse_common_subqueries", "false")
+                    .build();
+            String planWithoutCteReuse = getExplainPlan(withoutCteReuse, query, DISTRIBUTED);
+
+            assertThat(planWithCteReuse.lines().filter(line -> line.startsWith("Fragment ")).count())
+                    .isEqualTo(planWithoutCteReuse.lines().filter(line -> line.startsWith("Fragment ")).count());
+            assertThat(planWithCteReuse.lines().filter(line -> line.contains("cte_reuse_customer_objects")).count())
+                    .as("the disjoint source scans should remain separate")
+                    .isEqualTo(2);
+            assertThat(computeActual(session, query).getMaterializedRows())
+                    .containsExactlyInAnyOrderElementsOf(computeActual(withoutCteReuse, query).getMaterializedRows());
+        }
+        finally {
+            assertUpdate("DROP TABLE cte_reuse_customer_objects");
+        }
+    }
 }
