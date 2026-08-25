@@ -76,7 +76,7 @@ public class TestOpenApiWithPagePaginationServer
     {
         assertThat(query(
                 """
-                SELECT id, name FROM TABLE(openapi.default.items_paged(per_page => 3))
+                SELECT id, name FROM TABLE(openapi.api.items_paged(per_page => 3))
                 CROSS JOIN UNNEST(items) AS t(id, name)
                 """))
                 .matches(
@@ -97,7 +97,7 @@ public class TestOpenApiWithPagePaginationServer
     {
         assertThat(query(
                 """
-                SELECT id, name FROM TABLE(openapi.default.items_paged(per_page => 2))
+                SELECT id, name FROM TABLE(openapi.api.items_paged(per_page => 2))
                 CROSS JOIN UNNEST(items) AS t(id, name)
                 LIMIT 3
                 """))
@@ -115,7 +115,7 @@ public class TestOpenApiWithPagePaginationServer
     {
         assertThat(query(
                 """
-                SELECT id, name FROM TABLE(openapi.default.items_paged(page => 1, per_page => 3))
+                SELECT id, name FROM TABLE(openapi.api.items_paged(page => 1, per_page => 3))
                 CROSS JOIN UNNEST(items) AS t(id, name)
                 """))
                 .matches(
@@ -127,7 +127,7 @@ public class TestOpenApiWithPagePaginationServer
                         """);
         assertThat(query(
                 """
-                SELECT id, name FROM TABLE(openapi.default.items_paged(page => 2, per_page => 3))
+                SELECT id, name FROM TABLE(openapi.api.items_paged(page => 2, per_page => 3))
                 CROSS JOIN UNNEST(items) AS t(id, name)
                 """))
                 .matches(
@@ -139,7 +139,7 @@ public class TestOpenApiWithPagePaginationServer
                         """);
         assertThat(query(
                 """
-                SELECT id, name FROM TABLE(openapi.default.items_paged(page => 3, per_page => 3))
+                SELECT id, name FROM TABLE(openapi.api.items_paged(page => 3, per_page => 3))
                 CROSS JOIN UNNEST(items) AS t(id, name)
                 """))
                 .matches("VALUES (BIGINT '7', CAST('item-7' AS VARCHAR))");
@@ -150,7 +150,7 @@ public class TestOpenApiWithPagePaginationServer
     {
         // The /items/all endpoint has no page parameter in the description — the PAGE_NUMBER strategy's
         // containsAll check fails so ReadOnce is used. All items are returned in one request.
-        assertThat(query("SELECT id, name FROM TABLE(openapi.default.items_all())"))
+        assertThat(query("SELECT id, name FROM TABLE(openapi.api.items_all())"))
                 .matches(
                         """
                         VALUES
@@ -167,14 +167,14 @@ public class TestOpenApiWithPagePaginationServer
     @Test
     public void testEmptyResultsImplicitPagination()
     {
-        assertThat(query("SELECT * FROM TABLE(openapi.default.items_empty())"))
+        assertThat(query("SELECT * FROM TABLE(openapi.api.items_empty())"))
                 .matches("VALUES (CAST(ARRAY[] AS array(row(\"id\" bigint, \"name\" varchar))), CAST(ROW(true) AS row(\"isLastPage\" boolean)))");
     }
 
     @Test
     public void testEmptyResultsExplicitPagination()
     {
-        assertThat(query("SELECT * FROM TABLE(openapi.default.items_empty(page => 1, per_page => 3))"))
+        assertThat(query("SELECT * FROM TABLE(openapi.api.items_empty(page => 1, per_page => 3))"))
                 .matches("VALUES (CAST(ARRAY[] AS array(row(\"id\" bigint, \"name\" varchar))), CAST(ROW(true) AS row(\"isLastPage\" boolean)))");
     }
 

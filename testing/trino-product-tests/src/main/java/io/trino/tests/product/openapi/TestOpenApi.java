@@ -28,7 +28,7 @@ public class TestOpenApi
     @Test(groups = {OPENAPI, PROFILE_SPECIFIC_TESTS})
     public void testSelectStaticRows()
     {
-        assertThat(onTrino().executeQuery("SELECT string FROM TABLE(starburst_openapi.default.static_rows())"))
+        assertThat(onTrino().executeQuery("SELECT string FROM TABLE(starburst_openapi.api.static_rows())"))
                 .containsOnly(
                         row("Hello World!"),
                         row("Goodbye World!"));
@@ -37,7 +37,7 @@ public class TestOpenApi
     @Test(groups = {OPENAPI, PROFILE_SPECIFIC_TESTS})
     public void testSelectPaginatedRows()
     {
-        assertThat(onTrino().executeQuery("SELECT number = 0 FROM TABLE(starburst_openapi.default.paginated_rows()) LIMIT 1"))
+        assertThat(onTrino().executeQuery("SELECT number = 0 FROM TABLE(starburst_openapi.api.paginated_rows()) LIMIT 1"))
                 .containsOnly(row(true));
     }
 }

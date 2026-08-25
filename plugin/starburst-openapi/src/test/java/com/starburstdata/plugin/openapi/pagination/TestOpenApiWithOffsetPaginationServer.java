@@ -74,7 +74,7 @@ public class TestOpenApiWithOffsetPaginationServer
     @Test
     public void testOffsetPaginationFetchesAllData()
     {
-        assertThat(query("SELECT id, name FROM TABLE(openapi.default.items_offset(per_page => 2))"))
+        assertThat(query("SELECT id, name FROM TABLE(openapi.api.items_offset(per_page => 2))"))
                 .matches(
                         """
                         VALUES
@@ -91,7 +91,7 @@ public class TestOpenApiWithOffsetPaginationServer
     @Test
     public void testOffsetPaginationWithLimit()
     {
-        assertThat(query("SELECT id, name FROM TABLE(openapi.default.items_offset(per_page => 2)) LIMIT 3"))
+        assertThat(query("SELECT id, name FROM TABLE(openapi.api.items_offset(per_page => 2)) LIMIT 3"))
                 .matches(
                         """
                         VALUES
@@ -104,7 +104,7 @@ public class TestOpenApiWithOffsetPaginationServer
     @Test
     public void testOffsetExplicitPagination()
     {
-        assertThat(query("SELECT id, name FROM TABLE(openapi.default.items_offset(offset => 0, per_page => 3))"))
+        assertThat(query("SELECT id, name FROM TABLE(openapi.api.items_offset(offset => 0, per_page => 3))"))
                 .matches(
                         """
                         VALUES
@@ -112,7 +112,7 @@ public class TestOpenApiWithOffsetPaginationServer
                             (BIGINT '2', CAST('item-2' AS VARCHAR)),
                             (BIGINT '3', CAST('item-3' AS VARCHAR))
                         """);
-        assertThat(query("SELECT id, name FROM TABLE(openapi.default.items_offset(offset => 3, per_page => 3))"))
+        assertThat(query("SELECT id, name FROM TABLE(openapi.api.items_offset(offset => 3, per_page => 3))"))
                 .matches(
                         """
                         VALUES
@@ -120,7 +120,7 @@ public class TestOpenApiWithOffsetPaginationServer
                             (BIGINT '5', CAST('item-5' AS VARCHAR)),
                             (BIGINT '6', CAST('item-6' AS VARCHAR))
                         """);
-        assertThat(query("SELECT id, name FROM TABLE(openapi.default.items_offset(offset => 6, per_page => 3))"))
+        assertThat(query("SELECT id, name FROM TABLE(openapi.api.items_offset(offset => 6, per_page => 3))"))
                 .matches("VALUES (BIGINT '7', CAST('item-7' AS VARCHAR))");
     }
 
@@ -129,7 +129,7 @@ public class TestOpenApiWithOffsetPaginationServer
     {
         // The /items/all endpoint has no offset/limit parameters in the description — the OFFSET strategy's
         // containsAll check fails so ReadOnce is used. All items are returned in one request.
-        assertThat(query("SELECT id, name FROM TABLE(openapi.default.items_all())"))
+        assertThat(query("SELECT id, name FROM TABLE(openapi.api.items_all())"))
                 .matches(
                         """
                         VALUES
@@ -146,14 +146,14 @@ public class TestOpenApiWithOffsetPaginationServer
     @Test
     public void testEmptyResultsImplicitPagination()
     {
-        assertThat(query("SELECT id, name FROM TABLE(openapi.default.items_empty())"))
+        assertThat(query("SELECT id, name FROM TABLE(openapi.api.items_empty())"))
                 .returnsEmptyResult();
     }
 
     @Test
     public void testEmptyResultsExplicitPagination()
     {
-        assertThat(query("SELECT id, name FROM TABLE(openapi.default.items_empty(offset => 0, per_page => 3))"))
+        assertThat(query("SELECT id, name FROM TABLE(openapi.api.items_empty(offset => 0, per_page => 3))"))
                 .returnsEmptyResult();
     }
 

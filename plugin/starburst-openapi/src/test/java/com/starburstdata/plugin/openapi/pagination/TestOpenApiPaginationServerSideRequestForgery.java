@@ -107,7 +107,7 @@ public class TestOpenApiPaginationServerSideRequestForgery
     @Test
     public void testOffHostLinkHeaderIsNotFollowed()
     {
-        assertThatThrownBy(() -> computeActual("SELECT id, name FROM TABLE(openapi.default.items_off_host_link())"))
+        assertThatThrownBy(() -> computeActual("SELECT id, name FROM TABLE(openapi.api.items_off_host_link())"))
                 .hasMessageContaining("Refusing to request");
         assertThat(INTERNAL_SERVER.requestCount()).isEqualTo(0);
     }
@@ -115,7 +115,7 @@ public class TestOpenApiPaginationServerSideRequestForgery
     @Test
     public void testOffHostLinkIsNotCheckedUntilItWouldBeRequested()
     {
-        assertThat(query("SELECT id FROM TABLE(openapi.default.items_off_host_link()) LIMIT 2"))
+        assertThat(query("SELECT id FROM TABLE(openapi.api.items_off_host_link()) LIMIT 2"))
                 .matches("VALUES BIGINT '1', BIGINT '2'");
         assertThat(INTERNAL_SERVER.requestCount()).isEqualTo(0);
     }
@@ -123,7 +123,7 @@ public class TestOpenApiPaginationServerSideRequestForgery
     @Test
     public void testOffHostRedirectIsNotFollowed()
     {
-        assertThatThrownBy(() -> computeActual("SELECT id, name FROM TABLE(openapi.default.items_off_host_redirect())"))
+        assertThatThrownBy(() -> computeActual("SELECT id, name FROM TABLE(openapi.api.items_off_host_redirect())"))
                 .hasMessageContaining("Refusing to request");
         assertThat(INTERNAL_SERVER.requestCount()).isEqualTo(0);
     }
@@ -131,7 +131,7 @@ public class TestOpenApiPaginationServerSideRequestForgery
     @Test
     public void testRedirectLoopIsCapped()
     {
-        assertThatThrownBy(() -> computeActual("SELECT id, name FROM TABLE(openapi.default.items_redirect_loop())"))
+        assertThatThrownBy(() -> computeActual("SELECT id, name FROM TABLE(openapi.api.items_redirect_loop())"))
                 .hasMessageContaining("Too many redirects");
         // The original request plus MAX_REDIRECTS hops, resulting in 9 hops total.
         assertThat(paginationServer.redirectLoopRequestCount()).isEqualTo(9);
@@ -140,7 +140,7 @@ public class TestOpenApiPaginationServerSideRequestForgery
     @Test
     public void testSameHostPaginationStillWorks()
     {
-        assertThat(query("SELECT id, name FROM TABLE(openapi.default.items_paged(per_page => 2))"))
+        assertThat(query("SELECT id, name FROM TABLE(openapi.api.items_paged(per_page => 2))"))
                 .matches(
                         """
                         VALUES
@@ -156,7 +156,7 @@ public class TestOpenApiPaginationServerSideRequestForgery
     @Test
     public void testSameHostRedirectIsFollowed()
     {
-        assertThat(query("SELECT id, name FROM TABLE(openapi.default.items_same_host_redirect())"))
+        assertThat(query("SELECT id, name FROM TABLE(openapi.api.items_same_host_redirect())"))
                 .matches(
                         """
                         VALUES

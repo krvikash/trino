@@ -72,7 +72,6 @@ public class OpenApiDescription
 
     private static final ReadOnceStrategy READ_ONCE_STRATEGY = new ReadOnceStrategy();
 
-    public static final String SCHEMA_NAME = "default";
     public static final String HTTP_OK = "200";
     public static final String MIME_JSON = "application/json";
 

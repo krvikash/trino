@@ -68,7 +68,7 @@ public class TestOpenApiWithApiKeyServer
     @Test
     public void testAuthenticated()
     {
-        assertThat(query("SELECT * FROM TABLE(openapi.default.authenticated())"))
+        assertThat(query("SELECT * FROM TABLE(openapi.api.authenticated())"))
                 .matches("VALUES TRUE");
     }
 
@@ -76,7 +76,7 @@ public class TestOpenApiWithApiKeyServer
     public void testUnauthorized()
     {
         assertQueryFails(
-                "SELECT * FROM TABLE(openapi.default.unauthorized())",
+                "SELECT * FROM TABLE(openapi.api.unauthorized())",
                 ".*Unauthorized \\(status 401\\).*");
     }
 
@@ -84,7 +84,7 @@ public class TestOpenApiWithApiKeyServer
     public void testForbidden()
     {
         assertQueryFails(
-                "SELECT * FROM TABLE(openapi.default.forbidden())",
+                "SELECT * FROM TABLE(openapi.api.forbidden())",
                 ".*Forbidden \\(status 403\\).*");
     }
 

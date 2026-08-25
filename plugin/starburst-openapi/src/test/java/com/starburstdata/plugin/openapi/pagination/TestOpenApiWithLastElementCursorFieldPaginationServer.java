@@ -74,7 +74,7 @@ public class TestOpenApiWithLastElementCursorFieldPaginationServer
     @Test
     public void testLastElementFieldCursorFetchesAllData()
     {
-        assertThat(query("SELECT id, name FROM TABLE(openapi.default.items_after(per_page => 2))"))
+        assertThat(query("SELECT id, name FROM TABLE(openapi.api.items_after(per_page => 2))"))
                 .matches(
                         """
                         VALUES
@@ -89,7 +89,7 @@ public class TestOpenApiWithLastElementCursorFieldPaginationServer
     @Test
     public void testLastElementFieldCursorRespectsLimit()
     {
-        assertThat(query("SELECT id, name FROM TABLE(openapi.default.items_after(per_page => 2)) LIMIT 3"))
+        assertThat(query("SELECT id, name FROM TABLE(openapi.api.items_after(per_page => 2)) LIMIT 3"))
                 .matches(
                         """
                         VALUES
@@ -104,7 +104,7 @@ public class TestOpenApiWithLastElementCursorFieldPaginationServer
     {
         // When the user explicitly provides the cursor parameter, the pagination strategy falls back
         // to ReadOnce — only the single page starting after that cursor position is returned.
-        assertThat(query("SELECT * FROM TABLE(openapi.default.items_after(starting_after => '1', per_page => 3))"))
+        assertThat(query("SELECT * FROM TABLE(openapi.api.items_after(starting_after => '1', per_page => 3))"))
                 .matches(
                         """
                         VALUES
@@ -119,7 +119,7 @@ public class TestOpenApiWithLastElementCursorFieldPaginationServer
     {
         // The /items/all endpoint has no starting_after/limit parameters in the description — the strategy's
         // containsAll check fails so ReadOnce is used. All items are returned in one request.
-        assertThat(query("SELECT id, name FROM TABLE(openapi.default.items_all())"))
+        assertThat(query("SELECT id, name FROM TABLE(openapi.api.items_all())"))
                 .matches(
                         """
                         VALUES

@@ -75,7 +75,7 @@ public class TestOpenApiWithLinkHeaderPaginationServer
     @Test
     public void testLinkHeaderFetchesAllData()
     {
-        assertThat(query("SELECT id, name FROM TABLE(openapi.default.items_paged(per_page => 2))"))
+        assertThat(query("SELECT id, name FROM TABLE(openapi.api.items_paged(per_page => 2))"))
                 .matches(
                         """
                         VALUES
@@ -90,7 +90,7 @@ public class TestOpenApiWithLinkHeaderPaginationServer
     @Test
     public void testLinkHeaderRespectsLimit()
     {
-        assertThat(query("SELECT id, name FROM TABLE(openapi.default.items_paged(per_page => 2)) LIMIT 3"))
+        assertThat(query("SELECT id, name FROM TABLE(openapi.api.items_paged(per_page => 2)) LIMIT 3"))
                 .matches(
                         """
                         VALUES
@@ -105,7 +105,7 @@ public class TestOpenApiWithLinkHeaderPaginationServer
     {
         // The /items/all endpoint never returns a Link header — the strategy finishes after
         // the first response and all items are returned in a single request.
-        assertThat(query("SELECT id, name FROM TABLE(openapi.default.items_all())"))
+        assertThat(query("SELECT id, name FROM TABLE(openapi.api.items_all())"))
                 .matches(
                         """
                         VALUES

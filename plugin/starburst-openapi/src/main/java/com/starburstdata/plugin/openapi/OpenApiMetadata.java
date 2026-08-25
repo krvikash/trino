@@ -34,7 +34,7 @@ import static java.util.Objects.requireNonNull;
 public class OpenApiMetadata
         implements ConnectorMetadata
 {
-    public static final String SCHEMA_NAME = "default";
+    public static final String SCHEMA_NAME = "api";
 
     private final OpenApiDescription description;
 

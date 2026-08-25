@@ -77,7 +77,7 @@ public class TestOpenApiWithNextUrlFieldPaginationServer
     {
         assertThat(query(
                 """
-                SELECT id, name FROM TABLE(openapi.default.items_paged(per_page => 2))
+                SELECT id, name FROM TABLE(openapi.api.items_paged(per_page => 2))
                 CROSS JOIN UNNEST(items) AS t(id, name)
                 """))
                 .matches(
@@ -98,7 +98,7 @@ public class TestOpenApiWithNextUrlFieldPaginationServer
         // requiredResponseColumnsPaths check fails so ReadOnce is used. All items are returned in one request.
         assertThat(query(
                 """
-                SELECT id, name FROM TABLE(openapi.default.items_paged(per_page => 2))
+                SELECT id, name FROM TABLE(openapi.api.items_paged(per_page => 2))
                 CROSS JOIN UNNEST(items) AS t(id, name)
                 LIMIT 3
                 """))
@@ -116,7 +116,7 @@ public class TestOpenApiWithNextUrlFieldPaginationServer
     {
         // The /items/all endpoint response has no next_url column — the strategy's
         // requiredResponseColumnsPaths check fails so ReadOnce is used. All items are returned in one request.
-        assertThat(query("SELECT id, name FROM TABLE(openapi.default.items_all())"))
+        assertThat(query("SELECT id, name FROM TABLE(openapi.api.items_all())"))
                 .matches(
                         """
                         VALUES

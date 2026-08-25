@@ -77,7 +77,7 @@ public class TestOpenApiWithLastElementCursorFieldAndDataFieldPaginationServer
     {
         assertThat(query(
                 """
-                SELECT id, name FROM TABLE(openapi.default.items_after(per_page => 2))
+                SELECT id, name FROM TABLE(openapi.api.items_after(per_page => 2))
                 CROSS JOIN UNNEST(data) AS t(id, name)
                 """))
                 .matches(
@@ -98,7 +98,7 @@ public class TestOpenApiWithLastElementCursorFieldAndDataFieldPaginationServer
         // to ReadOnce — only the single page starting after that cursor position is returned.
         assertThat(query(
                 """
-                SELECT id, name FROM TABLE(openapi.default.items_after(starting_after => '1', per_page => 3))
+                SELECT id, name FROM TABLE(openapi.api.items_after(starting_after => '1', per_page => 3))
                 CROSS JOIN UNNEST(data) AS t(id, name)
                 """))
                 .matches(
@@ -115,7 +115,7 @@ public class TestOpenApiWithLastElementCursorFieldAndDataFieldPaginationServer
     {
         // The /items/all endpoint has no starting_after/per_page parameters in the description — the strategy's
         // containsAll check fails so ReadOnce is used. All items are returned in one request.
-        assertThat(query("SELECT id, name FROM TABLE(openapi.default.items_all())"))
+        assertThat(query("SELECT id, name FROM TABLE(openapi.api.items_all())"))
                 .matches(
                         """
                         VALUES

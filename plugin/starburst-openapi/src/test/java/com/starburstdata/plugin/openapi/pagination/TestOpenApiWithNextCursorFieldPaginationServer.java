@@ -77,7 +77,7 @@ public class TestOpenApiWithNextCursorFieldPaginationServer
     {
         assertThat(query(
                 """
-                SELECT id, name FROM TABLE(openapi.default.items_cursor(per_page => 3))
+                SELECT id, name FROM TABLE(openapi.api.items_cursor(per_page => 3))
                 CROSS JOIN UNNEST(data) AS t(id, name)
                 """))
                 .matches(
@@ -96,7 +96,7 @@ public class TestOpenApiWithNextCursorFieldPaginationServer
     {
         assertThat(query(
                 """
-                SELECT id, name FROM TABLE(openapi.default.items_cursor(per_page => 3))
+                SELECT id, name FROM TABLE(openapi.api.items_cursor(per_page => 3))
                 CROSS JOIN UNNEST(data) AS t(id, name)
                 LIMIT 4
                 """))
@@ -113,7 +113,7 @@ public class TestOpenApiWithNextCursorFieldPaginationServer
     @Test
     public void testExplicitCursorParameterDisablesPagination()
     {
-        assertThat(query("SELECT * FROM TABLE(openapi.default.items_cursor(cursor => 'cursor-2', per_page => 3))"))
+        assertThat(query("SELECT * FROM TABLE(openapi.api.items_cursor(cursor => 'cursor-2', per_page => 3))"))
                 .matches(
                         """
                         VALUES (
@@ -132,7 +132,7 @@ public class TestOpenApiWithNextCursorFieldPaginationServer
     {
         // The /items/all endpoint has no cursor/limit parameters in the description — the strategy's
         // containsAll check fails so ReadOnce is used. All items are returned in one request.
-        assertThat(query("SELECT id, name FROM TABLE(openapi.default.items_all())"))
+        assertThat(query("SELECT id, name FROM TABLE(openapi.api.items_all())"))
                 .matches(
                         """
                         VALUES

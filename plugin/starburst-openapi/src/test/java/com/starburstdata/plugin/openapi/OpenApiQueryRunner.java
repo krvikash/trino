@@ -54,7 +54,7 @@ public final class OpenApiQueryRunner
         {
             super(testSessionBuilder()
                     .setCatalog("openapi")
-                    .setSchema("default")
+                    .setSchema("api")
                     .build());
         }
 

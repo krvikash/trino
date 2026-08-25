@@ -76,7 +76,7 @@ public class TestOpenApiWithOffsetAndDataFieldPaginationServer
     {
         assertThat(query(
                 """
-                SELECT id, name FROM TABLE(openapi.default.items_offset(per_page => 2))
+                SELECT id, name FROM TABLE(openapi.api.items_offset(per_page => 2))
                 CROSS JOIN UNNEST(data) AS t(id, name)
                 """))
                 .matches(
@@ -99,7 +99,7 @@ public class TestOpenApiWithOffsetAndDataFieldPaginationServer
         // to ReadOnce — only the single page starting after that cursor position is returned.
         assertThat(query(
                 """
-                SELECT id, name FROM TABLE(openapi.default.items_offset(offset => 1, per_page => 3))
+                SELECT id, name FROM TABLE(openapi.api.items_offset(offset => 1, per_page => 3))
                 CROSS JOIN UNNEST(data) AS t(id, name)
                 """))
                 .matches(
@@ -116,7 +116,7 @@ public class TestOpenApiWithOffsetAndDataFieldPaginationServer
     {
         // The /items/all endpoint has no starting_after/per_page parameters in the description — the strategy's
         // containsAll check fails so ReadOnce is used. All items are returned in one request.
-        assertThat(query("SELECT id, name FROM TABLE(openapi.default.items_all())"))
+        assertThat(query("SELECT id, name FROM TABLE(openapi.api.items_all())"))
                 .matches(
                         """
                         VALUES

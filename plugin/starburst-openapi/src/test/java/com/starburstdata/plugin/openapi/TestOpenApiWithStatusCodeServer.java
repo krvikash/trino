@@ -42,28 +42,28 @@ public class TestOpenApiWithStatusCodeServer
     @Test
     void testOkReturnsData()
     {
-        assertThat(query("SELECT id FROM TABLE(openapi.default.status_status_code(status_code => '200'))"))
+        assertThat(query("SELECT id FROM TABLE(openapi.api.status_status_code(status_code => '200'))"))
                 .matches("VALUES BIGINT '1'");
     }
 
     @Test
     void testNotFoundSurfacesError()
     {
-        assertThatThrownBy(() -> computeActual("SELECT id FROM TABLE(openapi.default.status_status_code(status_code => '404'))"))
+        assertThatThrownBy(() -> computeActual("SELECT id FROM TABLE(openapi.api.status_status_code(status_code => '404'))"))
                 .hasMessageContaining("Not found (status 404)");
     }
 
     @Test
     void testBadRequestSurfacesError()
     {
-        assertThatThrownBy(() -> computeActual("SELECT id FROM TABLE(openapi.default.status_status_code(status_code => '400'))"))
+        assertThatThrownBy(() -> computeActual("SELECT id FROM TABLE(openapi.api.status_status_code(status_code => '400'))"))
                 .hasMessageContaining("Bad request (status 400)");
     }
 
     @Test
     void testUnauthorizedSurfacesError()
     {
-        assertThatThrownBy(() -> computeActual("SELECT id FROM TABLE(openapi.default.status_status_code(status_code => '401'))"))
+        assertThatThrownBy(() -> computeActual("SELECT id FROM TABLE(openapi.api.status_status_code(status_code => '401'))"))
                 .hasMessageContaining("Unauthorized (status 401)")
                 .hasMessageContaining("WWW-Authenticate: Bearer realm=\"test\"");
     }
@@ -71,35 +71,35 @@ public class TestOpenApiWithStatusCodeServer
     @Test
     void testForbiddenSurfacesError()
     {
-        assertThatThrownBy(() -> computeActual("SELECT id FROM TABLE(openapi.default.status_status_code(status_code => '403'))"))
+        assertThatThrownBy(() -> computeActual("SELECT id FROM TABLE(openapi.api.status_status_code(status_code => '403'))"))
                 .hasMessageContaining("Forbidden (status 403)");
     }
 
     @Test
     void testTooManyRequestsRetriesAndSucceeds()
     {
-        assertThat(query("SELECT id FROM TABLE(openapi.default.status_status_code(status_code => '429'))"))
+        assertThat(query("SELECT id FROM TABLE(openapi.api.status_status_code(status_code => '429'))"))
                 .matches("VALUES BIGINT '1'");
     }
 
     @Test
     void testUnavailableRetriesAndSucceeds()
     {
-        assertThat(query("SELECT id FROM TABLE(openapi.default.status_status_code(status_code => '503'))"))
+        assertThat(query("SELECT id FROM TABLE(openapi.api.status_status_code(status_code => '503'))"))
                 .matches("VALUES BIGINT '1'");
     }
 
     @Test
     void testRedirectIsFollowed()
     {
-        assertThat(query("SELECT id FROM TABLE(openapi.default.status_status_code(status_code => '301'))"))
+        assertThat(query("SELECT id FROM TABLE(openapi.api.status_status_code(status_code => '301'))"))
                 .matches("VALUES BIGINT '1'");
     }
 
     @Test
     void testRedirectLoopSurfacesError()
     {
-        assertThatThrownBy(() -> computeActual("SELECT id FROM TABLE(openapi.default.status_status_code(status_code => 'redirect_loop'))"))
+        assertThatThrownBy(() -> computeActual("SELECT id FROM TABLE(openapi.api.status_status_code(status_code => 'redirect_loop'))"))
                 .hasMessageContaining("Too many redirects")
                 .hasMessageContaining("possible redirect loop");
     }

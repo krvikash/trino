@@ -43,7 +43,7 @@ import java.util.stream.Stream;
 
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static com.starburstdata.plugin.openapi.OpenApiConfig.CastPolicy.DROP;
-import static com.starburstdata.plugin.openapi.OpenApiDescription.SCHEMA_NAME;
+import static com.starburstdata.plugin.openapi.OpenApiMetadata.SCHEMA_NAME;
 import static io.trino.spi.StandardErrorCode.CONFIGURATION_INVALID;
 import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;

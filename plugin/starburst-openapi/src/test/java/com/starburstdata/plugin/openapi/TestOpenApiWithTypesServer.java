@@ -53,7 +53,7 @@ public class TestOpenApiWithTypesServer
     void testNullValues(String nullFunction)
     {
         assertThat(computeActual(
-                "SELECT * FROM TABLE(openapi.default.%s())".formatted(nullFunction))
+                "SELECT * FROM TABLE(openapi.api.%s())".formatted(nullFunction))
                 .getOnlyValue())
                 .isEqualTo(null);
     }
@@ -81,7 +81,7 @@ public class TestOpenApiWithTypesServer
     void testArrayNull()
     {
         assertQueryFails(
-                "SELECT * FROM TABLE(openapi.default.array_null())",
+                "SELECT * FROM TABLE(openapi.api.array_null())",
                 "Expected JSON ARRAY but was NULL");
     }
 
@@ -89,14 +89,14 @@ public class TestOpenApiWithTypesServer
     void testObjectRowNull()
     {
         assertQueryFails(
-                "SELECT * FROM TABLE(openapi.default.object_row_null())",
+                "SELECT * FROM TABLE(openapi.api.object_row_null())",
                 "Expected JSON OBJECT but was NULL");
     }
 
     @Test
     void testJsonNull()
     {
-        assertThat(query("SELECT * FROM TABLE(openapi.default.json_null())"))
+        assertThat(query("SELECT * FROM TABLE(openapi.api.json_null())"))
                 .matches("VALUES JSON_PARSE('null')");
     }
 
@@ -105,7 +105,7 @@ public class TestOpenApiWithTypesServer
     void testObjectError(String errorFunction)
     {
         assertQueryFails(
-                "SELECT * FROM TABLE(openapi.default.%s())".formatted(errorFunction),
+                "SELECT * FROM TABLE(openapi.api.%s())".formatted(errorFunction),
                 "Expected JSON \\w+ but was OBJECT");
     }
 
@@ -132,7 +132,7 @@ public class TestOpenApiWithTypesServer
     public void testRowUnexpectedArray()
     {
         assertQueryFails(
-                "SELECT * FROM TABLE(openapi.default.object_row_unexpectedarray())",
+                "SELECT * FROM TABLE(openapi.api.object_row_unexpectedarray())",
                 "Expected JSON OBJECT but was ARRAY");
     }
 
@@ -140,7 +140,7 @@ public class TestOpenApiWithTypesServer
     public void testMapUnexpectedArray()
     {
         assertQueryFails(
-                "SELECT * FROM TABLE(openapi.default.object_map_unexpectedarray())",
+                "SELECT * FROM TABLE(openapi.api.object_map_unexpectedarray())",
                 "Expected JSON OBJECT but was ARRAY");
     }
 
@@ -148,7 +148,7 @@ public class TestOpenApiWithTypesServer
     @MethodSource("primitiveValidValues")
     void testValidValues(String validFunction, String validValue)
     {
-        assertThat(query("SELECT * FROM TABLE(openapi.default.%s())".formatted(validFunction)))
+        assertThat(query("SELECT * FROM TABLE(openapi.api.%s())".formatted(validFunction)))
                 .matches("VALUES " + validValue);
     }
 
@@ -190,14 +190,14 @@ public class TestOpenApiWithTypesServer
     @Test
     public void testValidJson()
     {
-        assertQuerySucceeds("SELECT * FROM TABLE(openapi.default.\"json_value\"())");
+        assertQuerySucceeds("SELECT * FROM TABLE(openapi.api.\"json_value\"())");
     }
 
     @Test
     void testInvalidByte()
     {
         assertQueryFails(
-                "SELECT * FROM TABLE(openapi.default.string_byte_invalid())",
+                "SELECT * FROM TABLE(openapi.api.string_byte_invalid())",
                 "JSON STRING did not contain valid base64 encoded data");
     }
 
@@ -205,7 +205,7 @@ public class TestOpenApiWithTypesServer
     void testInvalidUuid()
     {
         assertQueryFails(
-                "SELECT * FROM TABLE(openapi.default.string_uuid_invalid())",
+                "SELECT * FROM TABLE(openapi.api.string_uuid_invalid())",
                 "String was not a valid UUID");
     }
 
@@ -213,7 +213,7 @@ public class TestOpenApiWithTypesServer
     void testNonStringInvalidDate()
     {
         assertQueryFails(
-                "SELECT * FROM TABLE(openapi.default.string_date_non_string_invalid())",
+                "SELECT * FROM TABLE(openapi.api.string_date_non_string_invalid())",
                 "Expected JSON STRING but was NUMBER");
     }
 
@@ -222,7 +222,7 @@ public class TestOpenApiWithTypesServer
     void testInvalidDate(String invalidFunction)
     {
         assertQueryFails(
-                "SELECT * FROM TABLE(openapi.default.%s())".formatted(invalidFunction),
+                "SELECT * FROM TABLE(openapi.api.%s())".formatted(invalidFunction),
                 "String .* was not a valid date");
     }
 
@@ -242,7 +242,7 @@ public class TestOpenApiWithTypesServer
     void testNonStringInvalidDateTime()
     {
         assertQueryFails(
-                "SELECT * FROM TABLE(openapi.default.string_date_time_non_string_invalid())",
+                "SELECT * FROM TABLE(openapi.api.string_date_time_non_string_invalid())",
                 "Expected JSON STRING but was NUMBER");
     }
 
@@ -251,7 +251,7 @@ public class TestOpenApiWithTypesServer
     void testInvalidDateTime(String invalidFunction)
     {
         assertQueryFails(
-                "SELECT * FROM TABLE(openapi.default.%s())".formatted(invalidFunction),
+                "SELECT * FROM TABLE(openapi.api.%s())".formatted(invalidFunction),
                 "The provided string is not in a valid RFC 3339 format.*");
     }
 
@@ -277,7 +277,7 @@ public class TestOpenApiWithTypesServer
     void testInvalidInteger()
     {
         assertQueryFails(
-                "SELECT * FROM TABLE(openapi.default.integer_none_invalid())",
+                "SELECT * FROM TABLE(openapi.api.integer_none_invalid())",
                 "Expected JSON NUMBER to be integral number");
     }
 
@@ -285,7 +285,7 @@ public class TestOpenApiWithTypesServer
     @MethodSource("inBoundNumbers")
     void testInBoundNumbers(String validFunction, Object value)
     {
-        assertThat(computeActual("SELECT * FROM TABLE(openapi.default.%s())".formatted(validFunction)).getOnlyValue())
+        assertThat(computeActual("SELECT * FROM TABLE(openapi.api.%s())".formatted(validFunction)).getOnlyValue())
                 .isEqualTo(value);
     }
 
@@ -312,7 +312,7 @@ public class TestOpenApiWithTypesServer
     @MethodSource("outOfBoundNumbers")
     void testOutOfBoundNumbers(String function, String error)
     {
-        assertQueryFails("SELECT * FROM TABLE(openapi.default.%s())".formatted(function), error);
+        assertQueryFails("SELECT * FROM TABLE(openapi.api.%s())".formatted(function), error);
     }
 
     public static Stream<Arguments> outOfBoundNumbers()
@@ -338,14 +338,14 @@ public class TestOpenApiWithTypesServer
     void testInvalidArray()
     {
         assertQueryFails(
-                "SELECT * FROM TABLE(openapi.default.array_invalid())",
+                "SELECT * FROM TABLE(openapi.api.array_invalid())",
                 "Expected JSON BOOLEAN but was NUMBER");
     }
 
     @Test
     void testValidArray()
     {
-        assertThat(query("SELECT * FROM TABLE(openapi.default.array_valid())"))
+        assertThat(query("SELECT * FROM TABLE(openapi.api.array_valid())"))
                 .matches("VALUES TRUE, FALSE, NULL");
     }
 
@@ -353,14 +353,14 @@ public class TestOpenApiWithTypesServer
     void testInvalidMap()
     {
         assertQueryFails(
-                "SELECT * FROM TABLE(openapi.default.object_map_invalid())",
+                "SELECT * FROM TABLE(openapi.api.object_map_invalid())",
                 "Expected JSON BOOLEAN but was NUMBER");
     }
 
     @Test
     void testValidMap()
     {
-        assertThat(query("SELECT * FROM TABLE(openapi.default.object_map_valid())"))
+        assertThat(query("SELECT * FROM TABLE(openapi.api.object_map_valid())"))
                 .matches(
                         """
                         VALUES MAP(CAST(ARRAY['valid', 'also_valid', 'also_also_valid'] AS ARRAY<VARCHAR>), ARRAY[TRUE, FALSE, NULL])""");
@@ -370,14 +370,14 @@ public class TestOpenApiWithTypesServer
     void testInvalidRow()
     {
         assertQueryFails(
-                "SELECT * FROM TABLE(openapi.default.object_row_invalid())",
+                "SELECT * FROM TABLE(openapi.api.object_row_invalid())",
                 "Expected JSON BOOLEAN but was NUMBER");
     }
 
     @Test
     void testValidRow()
     {
-        assertThat(query("SELECT * FROM TABLE(openapi.default.object_row_valid())"))
+        assertThat(query("SELECT * FROM TABLE(openapi.api.object_row_valid())"))
                 .result()
                 .hasColumnNames(ImmutableList.<String>builder()
                         .add("missing")
@@ -390,7 +390,7 @@ public class TestOpenApiWithTypesServer
                         .add(BOOLEAN)
                         .build());
 
-        assertThat(query("SELECT missing, \"null\", present FROM TABLE(openapi.default.object_row_valid())"))
+        assertThat(query("SELECT missing, \"null\", present FROM TABLE(openapi.api.object_row_valid())"))
                 .matches("VALUES (CAST(NULL AS BOOLEAN), CAST(NULL AS BOOLEAN), TRUE)");
     }
 }
