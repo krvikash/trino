@@ -18,6 +18,8 @@ import io.trino.filesystem.TrinoFileSystemFactory;
 import io.trino.filesystem.hdfs.HdfsFileSystemFactory;
 import io.trino.plugin.hive.LocationAccessControl;
 import io.trino.plugin.iceberg.CommitTaskData;
+import io.trino.plugin.iceberg.IcebergCommitQueue;
+import io.trino.plugin.iceberg.IcebergConfig;
 import io.trino.plugin.iceberg.IcebergMetadata;
 import io.trino.plugin.iceberg.NoopWorkScheduler;
 import io.trino.plugin.iceberg.TableStatisticsWriter;
@@ -250,7 +252,8 @@ public class TestTrinoNessieCatalog
                     0,
                     ZERO,
                     ConnectorExpressionEvaluator.NO_OP,
-                    false);
+                    false,
+                    new IcebergCommitQueue(new IcebergConfig()));
             assertThat(icebergMetadata.schemaExists(SESSION, namespace)).as("icebergMetadata.schemaExists(namespace)")
                     .isTrue();
             assertThat(icebergMetadata.schemaExists(SESSION, schema)).as("icebergMetadata.schemaExists(schema)")

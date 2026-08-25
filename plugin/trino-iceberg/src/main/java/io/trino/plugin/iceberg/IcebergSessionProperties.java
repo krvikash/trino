@@ -106,6 +106,7 @@ public final class IcebergSessionProperties
     public static final String REMOVE_ORPHAN_FILES_MIN_RETENTION = "remove_orphan_files_min_retention";
     private static final String MERGE_MANIFESTS_ON_WRITE = "merge_manifests_on_write";
     private static final String SORTED_WRITING_ENABLED = "sorted_writing_enabled";
+    private static final String COMMIT_QUEUE_ENABLED = "commit_queue_enabled";
     private static final String OPTIMIZE_PARTIAL_TOPN_ENABLED = "optimize_partial_topn_enabled";
     private static final String QUERY_PARTITION_FILTER_REQUIRED = "query_partition_filter_required";
     private static final String QUERY_PARTITION_FILTER_REQUIRED_SCHEMAS = "query_partition_filter_required_schemas";
@@ -376,6 +377,11 @@ public final class IcebergSessionProperties
                         SORTED_WRITING_ENABLED,
                         "Enable sorted writes",
                         icebergConfig.isSortedWritingEnabled(),
+                        false))
+                .add(booleanProperty(
+                        COMMIT_QUEUE_ENABLED,
+                        "Serialize commits to the same table through a coordinator-local queue",
+                        icebergConfig.isCommitQueueEnabled(),
                         false))
                 .add(booleanProperty(
                         OPTIMIZE_PARTIAL_TOPN_ENABLED,
@@ -684,6 +690,11 @@ public final class IcebergSessionProperties
     public static boolean isSortedWritingEnabled(ConnectorSession session)
     {
         return session.getProperty(SORTED_WRITING_ENABLED, Boolean.class);
+    }
+
+    public static boolean isCommitQueueEnabled(ConnectorSession session)
+    {
+        return session.getProperty(COMMIT_QUEUE_ENABLED, Boolean.class);
     }
 
     public static boolean isOptimizePartialTopNEnabled(ConnectorSession session)

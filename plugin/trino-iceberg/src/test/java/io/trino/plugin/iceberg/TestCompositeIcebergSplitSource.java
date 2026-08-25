@@ -159,7 +159,8 @@ final class TestCompositeIcebergSplitSource
                 0,
                 ZERO,
                 ConnectorExpressionEvaluator.NO_OP,
-                false);
+                false,
+                new IcebergCommitQueue(new IcebergConfig()));
 
         return queryRunner;
     }

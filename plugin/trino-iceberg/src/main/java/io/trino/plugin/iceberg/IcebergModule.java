@@ -153,6 +153,7 @@ public class IcebergModule
         binder.bind(DeletionVectorWriter.class).to(DefaultDeletionVectorWriter.class).in(Scopes.SINGLETON);
         binder.bind(OptimizePositionDeletes.class).in(Scopes.SINGLETON);
         binder.bind(IcebergMetadataFactory.class).in(Scopes.SINGLETON);
+        binder.bind(IcebergCommitQueue.class).in(Scopes.SINGLETON);
         newOptionalBinder(binder, Key.get(HiveMetastoreFactory.class, RawHiveMetastoreFactory.class));
 
         jsonCodecBinder(binder).bindJsonCodec(CommitTaskData.class);

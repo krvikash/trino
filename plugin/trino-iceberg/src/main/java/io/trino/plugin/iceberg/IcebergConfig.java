@@ -52,6 +52,7 @@ import static io.trino.plugin.iceberg.ParquetFooterCacheType.NONE;
 import static java.util.Locale.ENGLISH;
 import static java.util.concurrent.TimeUnit.DAYS;
 import static java.util.concurrent.TimeUnit.HOURS;
+import static java.util.concurrent.TimeUnit.MINUTES;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 @DefunctConfig({
@@ -120,6 +121,8 @@ public class IcebergConfig
     private boolean hideMaterializedViewStorageTable = true;
     private Optional<String> materializedViewsStorageSchema = Optional.empty();
     private boolean sortedWritingEnabled = true;
+    private boolean commitQueueEnabled;
+    private Duration commitQueueMaxWait = new Duration(5, MINUTES);
     private boolean optimizePartialTopNEnabled = true;
     private Optional<String> sortedWritingLocalStagingPath = Optional.empty();
     private boolean queryPartitionFilterRequired;
@@ -637,6 +640,33 @@ public class IcebergConfig
     public IcebergConfig setSortedWritingEnabled(boolean sortedWritingEnabled)
     {
         this.sortedWritingEnabled = sortedWritingEnabled;
+        return this;
+    }
+
+    public boolean isCommitQueueEnabled()
+    {
+        return commitQueueEnabled;
+    }
+
+    @Config("iceberg.commit-queue.enabled")
+    @ConfigDescription("Serialize commits to the same table through a coordinator-local queue")
+    public IcebergConfig setCommitQueueEnabled(boolean commitQueueEnabled)
+    {
+        this.commitQueueEnabled = commitQueueEnabled;
+        return this;
+    }
+
+    @NotNull
+    public Duration getCommitQueueMaxWait()
+    {
+        return commitQueueMaxWait;
+    }
+
+    @Config("iceberg.commit-queue.max-wait")
+    @ConfigDescription("Maximum time a commit waits for its turn before proceeding without serialization")
+    public IcebergConfig setCommitQueueMaxWait(Duration commitQueueMaxWait)
+    {
+        this.commitQueueMaxWait = commitQueueMaxWait;
         return this;
     }
 

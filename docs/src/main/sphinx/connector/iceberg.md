@@ -240,6 +240,17 @@ implementation is used:
   -  Enable [sorted writing](iceberg-sorted-files) to tables with a specified sort order. Equivalent
      session property is `sorted_writing_enabled`.
   -  `true` 
+* - `iceberg.commit-queue.enabled`
+  -  Serialize `INSERT`, `UPDATE`, `DELETE`, `MERGE` and `OPTIMIZE` commits to
+     the same table through a coordinator-local queue. Concurrent writers take turns
+     committing to the catalog instead of retrying compare-and-swap conflicts.
+     Equivalent session property is `commit_queue_enabled`.
+  -  `false`
+* - `iceberg.commit-queue.max-wait`
+  -  Maximum time a commit waits for its turn in the commit queue. A commit
+     that waits longer proceeds without serialization and relies on the
+     catalog's compare-and-swap retries.
+  -  `5m`
 * - `iceberg.optimize-partial-topn-enabled`
   -  Enable optimization of TopN queries on sorted tables. When enabled, the
      connector can replace a partial TopN with a limit for splits whose sort

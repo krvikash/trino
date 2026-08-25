@@ -22,6 +22,7 @@ import io.trino.plugin.hive.FlociS3AndGlue;
 import io.trino.plugin.hive.LocationAccessControl;
 import io.trino.plugin.hive.metastore.glue.GlueMetastoreStats;
 import io.trino.plugin.iceberg.CommitTaskData;
+import io.trino.plugin.iceberg.IcebergCommitQueue;
 import io.trino.plugin.iceberg.IcebergConfig;
 import io.trino.plugin.iceberg.IcebergIncrementalMvRefreshConfig;
 import io.trino.plugin.iceberg.IcebergMetadata;
@@ -204,7 +205,8 @@ public class TestTrinoGlueCatalog
                     0,
                     ZERO,
                     ConnectorExpressionEvaluator.NO_OP,
-                    false);
+                    false,
+                    new IcebergCommitQueue(new IcebergConfig()));
             assertThat(icebergMetadata.schemaExists(SESSION, databaseName)).as("icebergMetadata.schemaExists(databaseName)")
                     .isFalse();
             assertThat(icebergMetadata.schemaExists(SESSION, trinoSchemaName)).as("icebergMetadata.schemaExists(trinoSchemaName)")

@@ -20,6 +20,8 @@ import io.trino.metastore.TableInfo;
 import io.trino.plugin.hive.LocationAccessControl;
 import io.trino.plugin.iceberg.CommitTaskData;
 import io.trino.plugin.iceberg.DefaultIcebergFileSystemFactory;
+import io.trino.plugin.iceberg.IcebergCommitQueue;
+import io.trino.plugin.iceberg.IcebergConfig;
 import io.trino.plugin.iceberg.IcebergMetadata;
 import io.trino.plugin.iceberg.TableStatisticsWriter;
 import io.trino.plugin.iceberg.catalog.BaseTrinoCatalogTest;
@@ -196,7 +198,8 @@ public class TestTrinoRestCatalog
                     0,
                     ZERO,
                     ConnectorExpressionEvaluator.NO_OP,
-                    false);
+                    false,
+                    new IcebergCommitQueue(new IcebergConfig()));
             assertThat(icebergMetadata.schemaExists(SESSION, namespace)).as("icebergMetadata.schemaExists(namespace)")
                     .isTrue();
             assertThat(icebergMetadata.schemaExists(SESSION, schema)).as("icebergMetadata.schemaExists(schema)")

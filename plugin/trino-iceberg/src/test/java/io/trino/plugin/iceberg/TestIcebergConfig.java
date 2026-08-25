@@ -44,6 +44,7 @@ import static io.trino.plugin.iceberg.ParquetFooterCacheType.MEMORY;
 import static io.trino.plugin.iceberg.ParquetFooterCacheType.NONE;
 import static java.util.concurrent.TimeUnit.DAYS;
 import static java.util.concurrent.TimeUnit.HOURS;
+import static java.util.concurrent.TimeUnit.MINUTES;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 public class TestIcebergConfig
@@ -84,6 +85,8 @@ public class TestIcebergConfig
                 .setAddFilesProcedureEnabled(false)
                 .setSortedWritingEnabled(true)
                 .setSortedWritingLocalStagingPath(null)
+                .setCommitQueueEnabled(false)
+                .setCommitQueueMaxWait(new Duration(5, MINUTES))
                 .setOptimizePartialTopNEnabled(true)
                 .setQueryPartitionFilterRequired(false)
                 .setQueryPartitionFilterRequiredSchemas(ImmutableSet.of())
@@ -149,6 +152,8 @@ public class TestIcebergConfig
                 .put("iceberg.add-files-procedure.enabled", "true")
                 .put("iceberg.sorted-writing-enabled", "false")
                 .put("iceberg.sorted-writing.local-staging-path", "/tmp/trino")
+                .put("iceberg.commit-queue.enabled", "true")
+                .put("iceberg.commit-queue.max-wait", "10s")
                 .put("iceberg.optimize-partial-topn-enabled", "false")
                 .put("iceberg.query-partition-filter-required", "true")
                 .put("iceberg.query-partition-filter-required-schemas", "bronze,silver")
@@ -210,6 +215,8 @@ public class TestIcebergConfig
                 .setAddFilesProcedureEnabled(true)
                 .setSortedWritingEnabled(false)
                 .setSortedWritingLocalStagingPath("/tmp/trino")
+                .setCommitQueueEnabled(true)
+                .setCommitQueueMaxWait(new Duration(10, SECONDS))
                 .setOptimizePartialTopNEnabled(false)
                 .setQueryPartitionFilterRequired(true)
                 .setQueryPartitionFilterRequiredSchemas(ImmutableSet.of("bronze", "silver"))

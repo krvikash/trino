@@ -155,7 +155,8 @@ public class TestIcebergCacheIds
                 newDirectExecutorService(),
                 icebergConfig,
                 ConnectorExpressionEvaluator.NO_OP,
-                icebergIncrementalMvRefreshConfig);
+                icebergIncrementalMvRefreshConfig,
+                new IcebergCommitQueue(icebergConfig));
         icebergMetadata = new IcebergCacheMetadata(
                 createJsonCodec(IcebergCacheTableId.class),
                 createJsonCodec(IcebergColumnHandle.class));

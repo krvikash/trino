@@ -364,6 +364,7 @@ import static io.trino.plugin.iceberg.IcebergSessionProperties.getRemoteSplitsGe
 import static io.trino.plugin.iceberg.IcebergSessionProperties.getRemoveOrphanFilesMinRetention;
 import static io.trino.plugin.iceberg.IcebergSessionProperties.isBucketExecutionEnabled;
 import static io.trino.plugin.iceberg.IcebergSessionProperties.isCollectExtendedStatisticsOnWrite;
+import static io.trino.plugin.iceberg.IcebergSessionProperties.isCommitQueueEnabled;
 import static io.trino.plugin.iceberg.IcebergSessionProperties.isCompositeSplitsEnabled;
 import static io.trino.plugin.iceberg.IcebergSessionProperties.isIncrementalRefreshEnabled;
 import static io.trino.plugin.iceberg.IcebergSessionProperties.isMergeManifestsOnWrite;
@@ -621,6 +622,7 @@ public class IcebergMetadata
     private final RemoveDanglingDeleteFiles removeDanglingDeleteFiles;
     private final CreateChangelogView createChangelogView;
     private final ConnectorExpressionEvaluator evaluator;
+    private final IcebergCommitQueue commitQueue;
 
     // Staged creation of a new table. The catalog may stage it remotely, so it is kept from beginCreateTable until
     // finishCreateTable commits it.
@@ -659,7 +661,8 @@ public class IcebergMetadata
             int materializedViewRefreshMaxSnapshotsToExpire,
             Duration materializedViewRefreshSnapshotRetentionPeriod,
             ConnectorExpressionEvaluator evaluator,
-            boolean materializedViewIncrementalColumnRefreshEnabled)
+            boolean materializedViewIncrementalColumnRefreshEnabled,
+            IcebergCommitQueue commitQueue)
     {
         this.locationAccessControl = requireNonNull(locationAccessControl, "locationAccessControl is null");
         this.aiModelAccessControl = requireNonNull(aiModelAccessControl, "aiModelAccessControl is null");
@@ -690,6 +693,7 @@ public class IcebergMetadata
         this.createChangelogView = requireNonNull(createChangelogView, "createChangelogView is null");
         this.tableCredentialsProvider = new IcebergTableCredentialsProvider(catalog);
         this.evaluator = requireNonNull(evaluator, "evaluator is null");
+        this.commitQueue = requireNonNull(commitQueue, "commitQueue is null");
     }
 
     @Override
@@ -2051,7 +2055,7 @@ public class IcebergMetadata
         Transaction transaction = newWriteTransaction();
         stageInsert(session, transaction, table, fragments);
         stageStatistics(session, transaction, table, computedStatistics);
-        commitWriteTransaction(transaction, "insert");
+        commitSerially(session, table.name(), () -> commitWriteTransaction(transaction, "insert"));
         return outputMetadata(transaction.table());
     }
 
@@ -2737,7 +2741,7 @@ public class IcebergMetadata
                     .commit();
         });
 
-        commitWriteTransaction(transaction, "optimize");
+        commitSerially(session, executeHandle.schemaTableName(), () -> commitWriteTransaction(transaction, "optimize"));
 
         return new OptimizeResult(scannedDataFiles.size(), fullyAppliedDeleteFiles.size(), newFiles.size()).toMap();
     }
@@ -2834,6 +2838,16 @@ public class IcebergMetadata
         }
         catch (UncheckedIOException | ValidationException | CommitFailedException | CommitStateUnknownException | RESTException e) {
             throw new TrinoException(ICEBERG_COMMIT_ERROR, format("Failed to commit during %s: %s", operation, requireNonNullElse(e.getMessage(), e)), e);
+        }
+    }
+
+    private static void applyUpdate(SnapshotUpdate<?> update, String operation)
+    {
+        try {
+            update.apply();
+        }
+        catch (UncheckedIOException | ValidationException e) {
+            throw new TrinoException(ICEBERG_COMMIT_ERROR, format("Failed to apply %s: %s", operation, requireNonNullElse(e.getMessage(), e)), e);
         }
     }
 
@@ -4451,7 +4465,7 @@ public class IcebergMetadata
         }
 
         commitUpdate(rowDelta.unwrap(), session, "write");
-        commitWriteTransaction(transaction, "write");
+        commitSerially(session, table.getSchemaTableName(), () -> commitWriteTransaction(transaction, "write"));
     }
 
     /**
@@ -4594,7 +4608,9 @@ public class IcebergMetadata
             deleteFiles.toBranch(branch);
         });
 
-        commitUpdate(deleteFiles, session, "delete");
+        // filter manifests outside the commit queue; the queued commit reuses the cached result
+        applyUpdate(deleteFiles, "delete");
+        commitSerially(session, handle.getSchemaTableName(), () -> commitUpdate(deleteFiles, session, "delete"));
 
         Map<String, String> summary = icebergTable.currentSnapshot().summary();
         String deletedRowsStr = summary.get(DELETED_RECORDS_PROP);
@@ -5862,6 +5878,16 @@ public class IcebergMetadata
     {
         commitTransaction(transaction, operation);
         writeTable = null;
+    }
+
+    private void commitSerially(ConnectorSession session, SchemaTableName tableName, Runnable commitAction)
+    {
+        if (isCommitQueueEnabled(session)) {
+            commitQueue.commitSerially(tableName, commitAction);
+        }
+        else {
+            commitAction.run();
+        }
     }
 
     private void commitCreateTable(Transaction transaction)

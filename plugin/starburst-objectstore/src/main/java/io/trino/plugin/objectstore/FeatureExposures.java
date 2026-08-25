@@ -130,6 +130,7 @@ public final class FeatureExposures
                 .put(HIVE, "validate_bucketing", EXPOSED)
                 .put(ICEBERG, "bucket_execution_enabled", EXPOSED)
                 .put(ICEBERG, "collect_extended_statistics_on_write", EXPOSED)
+                .put(ICEBERG, "commit_queue_enabled", EXPOSED)
                 .put(ICEBERG, "compression_codec", EXPOSED)
                 .put(ICEBERG, "dynamic_filtering_wait_timeout", EXPOSED)
                 .put(ICEBERG, "dynamic_row_filtering_enabled", EXPOSED)

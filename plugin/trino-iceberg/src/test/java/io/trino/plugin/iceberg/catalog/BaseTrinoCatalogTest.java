@@ -25,6 +25,7 @@ import io.trino.plugin.hive.orc.OrcWriterConfig;
 import io.trino.plugin.hive.parquet.ParquetReaderConfig;
 import io.trino.plugin.hive.parquet.ParquetWriterConfig;
 import io.trino.plugin.iceberg.CommitTaskData;
+import io.trino.plugin.iceberg.IcebergCommitQueue;
 import io.trino.plugin.iceberg.IcebergConfig;
 import io.trino.plugin.iceberg.IcebergFileFormat;
 import io.trino.plugin.iceberg.IcebergMetadata;
@@ -183,7 +184,8 @@ public abstract class BaseTrinoCatalogTest
                     0,
                     ZERO,
                     ConnectorExpressionEvaluator.NO_OP,
-                    false);
+                    false,
+                    new IcebergCommitQueue(new IcebergConfig()));
             assertThat(icebergMetadata.schemaExists(SESSION, namespace)).as("icebergMetadata.schemaExists(namespace)")
                     .isFalse();
             assertThat(icebergMetadata.schemaExists(SESSION, schema)).as("icebergMetadata.schemaExists(schema)")
@@ -236,7 +238,8 @@ public abstract class BaseTrinoCatalogTest
                     0,
                     ZERO,
                     ConnectorExpressionEvaluator.NO_OP,
-                    false);
+                    false,
+                    new IcebergCommitQueue(new IcebergConfig()));
 
             assertThat(icebergMetadata.getSchemaProperties(SESSION, namespace))
                     .doesNotContainKey("invalid_property");

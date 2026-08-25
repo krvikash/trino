@@ -73,6 +73,7 @@ public class IcebergMetadataFactory
     private final RemoveDanglingDeleteFiles removeDanglingDeleteFiles;
     private final CreateChangelogView createChangelogView;
     private final ConnectorExpressionEvaluator evaluator;
+    private final IcebergCommitQueue commitQueue;
 
     @Inject
     public IcebergMetadataFactory(
@@ -97,7 +98,8 @@ public class IcebergMetadataFactory
             @ForIcebergFileDelete ExecutorService icebergFileDeleteExecutor,
             IcebergConfig config,
             ConnectorExpressionEvaluator evaluator,
-            IcebergIncrementalMvRefreshConfig icebergIncrementalMvRefreshConfig)
+            IcebergIncrementalMvRefreshConfig icebergIncrementalMvRefreshConfig,
+            IcebergCommitQueue commitQueue)
     {
         this.locationAccessControl = requireNonNull(locationAccessControl, "locationAccessControl is null");
         this.aiModelAccessControl = requireNonNull(aiModelAccessControl, "aiModelAccessControl is null");
@@ -138,6 +140,7 @@ public class IcebergMetadataFactory
         this.materializedViewRefreshSnapshotRetentionPeriod = config.getMaterializedViewRefreshSnapshotRetentionPeriod();
         this.evaluator = requireNonNull(evaluator, "evaluator is null");
         this.materializedViewIncrementalColumnRefreshEnabled = icebergIncrementalMvRefreshConfig.isMaterializedViewIncrementalColumnRefreshEnabled();
+        this.commitQueue = requireNonNull(commitQueue, "commitQueue is null");
     }
 
     public IcebergMetadata create(ConnectorIdentity identity)
@@ -170,6 +173,7 @@ public class IcebergMetadataFactory
                 materializedViewRefreshMaxSnapshotsToExpire,
                 materializedViewRefreshSnapshotRetentionPeriod,
                 evaluator,
-                materializedViewIncrementalColumnRefreshEnabled);
+                materializedViewIncrementalColumnRefreshEnabled,
+                commitQueue);
     }
 }
