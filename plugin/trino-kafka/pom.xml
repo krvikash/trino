@@ -225,6 +225,12 @@
         </dependency>
 
         <dependency>
+            <groupId>io.airlift</groupId>
+            <artifactId>jackson</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <dependency>
             <groupId>io.yokota</groupId>
             <artifactId>mbknor-jackson-jsonschema-java8</artifactId>
             <scope>runtime</scope>

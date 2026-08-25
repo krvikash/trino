@@ -86,6 +86,11 @@
 
         <dependency>
             <groupId>io.airlift</groupId>
+            <artifactId>jackson</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>io.airlift</groupId>
             <artifactId>json</artifactId>
         </dependency>
 
@@ -1023,6 +1028,9 @@
                     <artifactId>maven-dependency-plugin</artifactId>
                     <configuration>
                         <ignoredNonTestScopedDependencies>
+                            <!-- IcebergUtil resolves io.airlift.jackson.BaseJacksonProvider
+                                 only as an intermediate return type -->
+                            <ignoredNonTestScopedDependency>io.airlift:jackson</ignoredNonTestScopedDependency>
                             <ignoredNonTestScopedDependency>org.apache.parquet:parquet-common</ignoredNonTestScopedDependency>
                             <ignoredNonTestScopedDependency>software.amazon.awssdk:aws-core</ignoredNonTestScopedDependency>
                             <ignoredNonTestScopedDependency>software.amazon.awssdk:utils</ignoredNonTestScopedDependency>

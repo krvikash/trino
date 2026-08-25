@@ -77,6 +77,11 @@
 
         <dependency>
             <groupId>io.airlift</groupId>
+            <artifactId>jackson</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>io.airlift</groupId>
             <artifactId>json</artifactId>
         </dependency>
 
@@ -663,6 +668,9 @@
                 <artifactId>maven-dependency-plugin</artifactId>
                 <configuration>
                     <ignoredNonTestScopedDependencies>
+                        <!-- UnityHiveMetastore resolves io.airlift.jackson.BaseJacksonProvider
+                             only as an intermediate return type -->
+                        <ignoredNonTestScopedDependency>io.airlift:jackson</ignoredNonTestScopedDependency>
                         <ignoredNonTestScopedDependency>io.trino:trino-filesystem-s3</ignoredNonTestScopedDependency>
                         <ignoredNonTestScopedDependency>software.amazon.awssdk:utils</ignoredNonTestScopedDependency>
                     </ignoredNonTestScopedDependencies>
