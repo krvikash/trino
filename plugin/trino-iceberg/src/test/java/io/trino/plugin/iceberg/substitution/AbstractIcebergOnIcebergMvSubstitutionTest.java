@@ -64,7 +64,7 @@ public abstract class AbstractIcebergOnIcebergMvSubstitutionTest
 
             Session session = sessionWithSubstitution();
             // Current-snapshot query — substitution is fine here.
-            assertSubstituted(session, "SELECT * FROM " + tableName, tableName, mvName);
+            assertSubstituted("SELECT * FROM " + tableName, tableName, mvName);
 
             // FOR VERSION AS OF S1 must NOT substitute. The MV holds the current 3-row state;
             // the user asked for the historical 1-row state.

@@ -235,18 +235,33 @@ public abstract class AbstractMvSubstitutionTest
         return sourceTable.toString();
     }
 
-    protected MaterializedResultWithPlan assertSubstituted(Session session, String query, CatalogSchemaTableName baseTableName, CatalogSchemaTableName mvName, CatalogSchemaTableName... expectedNotSubstitutedTables)
+    protected MaterializedResultWithPlan assertSubstituted(String query, CatalogSchemaTableName baseTableName, CatalogSchemaTableName mvName, CatalogSchemaTableName... expectedNotSubstitutedTables)
     {
-        return assertSubstituted(session, query, baseTableName, Set.of(mvName), expectedNotSubstitutedTables);
+        return assertSubstituted(true, query, baseTableName, mvName, expectedNotSubstitutedTables);
+    }
+
+    protected MaterializedResultWithPlan assertSubstituted(boolean validateResults, String query, CatalogSchemaTableName baseTableName, CatalogSchemaTableName mvName, CatalogSchemaTableName... expectedNotSubstitutedTables)
+    {
+        return assertSubstituted(validateResults, query, baseTableName, Set.of(mvName), expectedNotSubstitutedTables);
     }
 
     protected MaterializedResultWithPlan assertSubstituted(
-            Session session,
             String query,
             CatalogSchemaTableName baseTableName,
             Set<CatalogSchemaTableName> materializedViews,
             CatalogSchemaTableName... expectedNotSubstitutedTables)
     {
+        return assertSubstituted(true, query, baseTableName, materializedViews, expectedNotSubstitutedTables);
+    }
+
+    protected MaterializedResultWithPlan assertSubstituted(
+            boolean validateResults,
+            String query,
+            CatalogSchemaTableName baseTableName,
+            Set<CatalogSchemaTableName> materializedViews,
+            CatalogSchemaTableName... expectedNotSubstitutedTables)
+    {
+        Session session = sessionWithSubstitution();
         MaterializedResultWithPlan result = getDistributedQueryRunner().executeWithPlan(session, query);
         List<CatalogSchemaTableName> scannedTableNames = getScannedTableNames(result);
 
@@ -275,6 +290,12 @@ public abstract class AbstractMvSubstitutionTest
                 .as("Expected at least one scan on MV storage table")
                 .containsAnyElementsOf(storageTableNames);
 
+        if (validateResults) {
+            MaterializedResult baseline = computeActual(sessionWithoutSubstitution(), query);
+            assertThat(result.result().getMaterializedRows())
+                    .as("Substituted query should return same results as base table query")
+                    .containsExactlyInAnyOrderElementsOf(baseline.getMaterializedRows());
+        }
         return result;
     }
 
@@ -331,11 +352,8 @@ public abstract class AbstractMvSubstitutionTest
         try {
             createSubstitutionMv(mvName, "SELECT id_col, " + projectedColumns + " FROM " + coercionTable);
 
-            Session session = sessionWithSubstitution();
             for (CoercionColumn column : columns) {
-                String query = "SELECT " + column.projection().formatted(column.name()) + " FROM " + coercionTable;
-                assertSubstituted(session, query, coercionTable, mvName);
-                assertSameResults(session, query);
+                assertSubstituted("SELECT " + column.projection().formatted(column.name()) + " FROM " + coercionTable, coercionTable, mvName);
             }
         }
         finally {
@@ -378,9 +396,7 @@ public abstract class AbstractMvSubstitutionTest
         try {
             createSubstitutionMv(mvName, "SELECT * FROM " + ordersTable);
 
-            Session session = sessionWithSubstitution();
-            assertSubstituted(session, "SELECT * FROM " + ordersTable, ordersTable, mvName);
-            assertSameResults(session, "SELECT * FROM " + ordersTable);
+            assertSubstituted("SELECT * FROM " + ordersTable, ordersTable, mvName);
         }
         finally {
             assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvName);
@@ -394,9 +410,7 @@ public abstract class AbstractMvSubstitutionTest
         try {
             createSubstitutionMv(mvName, "SELECT orderkey, custkey, totalprice FROM " + ordersTable);
 
-            Session session = sessionWithSubstitution();
-            assertSubstituted(session, "SELECT orderkey, totalprice FROM " + ordersTable, ordersTable, mvName);
-            assertSameResults(session, "SELECT orderkey, totalprice FROM " + ordersTable);
+            assertSubstituted("SELECT orderkey, totalprice FROM " + ordersTable, ordersTable, mvName);
         }
         finally {
             assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvName);
@@ -410,9 +424,7 @@ public abstract class AbstractMvSubstitutionTest
         try {
             createSubstitutionMv(mvName, "SELECT orderkey as o_key, custkey as c_key, totalprice as t_price FROM " + ordersTable);
 
-            Session session = sessionWithSubstitution();
-            assertSubstituted(session, "SELECT orderkey, custkey, totalprice FROM " + ordersTable, ordersTable, mvName);
-            assertSameResults(session, "SELECT orderkey, custkey, totalprice FROM " + ordersTable);
+            assertSubstituted("SELECT orderkey, custkey, totalprice FROM " + ordersTable, ordersTable, mvName);
         }
         finally {
             assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvName);
@@ -467,14 +479,11 @@ public abstract class AbstractMvSubstitutionTest
             createSubstitutionMv(mvName, "SELECT id, info FROM " + nestedTypeTable);
 
             SubFieldTestContext context = subFieldTestContext();
-            Session session = sessionWithSubstitution();
             String nameQuery = "SELECT " + context.subFieldExpression("info", "name") + " FROM " + nestedTypeTable;
-            assertSubstituted(session, nameQuery, nestedTypeTable, mvName);
-            assertSameResults(session, nameQuery);
+            assertSubstituted(nameQuery, nestedTypeTable, mvName);
 
             String ageQuery = "SELECT " + context.subFieldExpression("info", "age") + " FROM " + nestedTypeTable;
-            assertSubstituted(session, ageQuery, nestedTypeTable, mvName);
-            assertSameResults(session, ageQuery);
+            assertSubstituted(ageQuery, nestedTypeTable, mvName);
         }
         finally {
             assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvName);
@@ -522,10 +531,8 @@ public abstract class AbstractMvSubstitutionTest
         try {
             createSubstitutionMv(mvName, "SELECT * FROM " + ordersTable);
 
-            Session session = sessionWithSubstitution();
             String query = "SELECT * FROM " + ordersTable + " WHERE orderstatus = 'F'";
-            assertSubstituted(session, query, ordersTable, mvName);
-            assertSameResults(session, query);
+            assertSubstituted(query, ordersTable, mvName);
         }
         finally {
             assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvName);
@@ -539,10 +546,8 @@ public abstract class AbstractMvSubstitutionTest
         try {
             createSubstitutionMv(mvName, "SELECT * FROM " + ordersTable);
 
-            Session session = sessionWithSubstitution();
             String query = "SELECT count(*), sum(totalprice) FROM " + ordersTable + " WHERE orderdate > '1995-01-12'";
-            assertSubstituted(session, query, ordersTable, mvName);
-            assertSameResults(session, query);
+            assertSubstituted(query, ordersTable, mvName);
         }
         finally {
             assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvName);
@@ -570,7 +575,7 @@ public abstract class AbstractMvSubstitutionTest
         try {
             createSubstitutionMv(mvName, "SELECT * FROM " + ordersTable);
 
-            assertSubstituted(sessionWithSubstitution(), "SELECT * FROM " + ordersTable, ordersTable, mvName);
+            assertSubstituted("SELECT * FROM " + ordersTable, ordersTable, mvName);
         }
         finally {
             assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvName);
@@ -605,7 +610,7 @@ public abstract class AbstractMvSubstitutionTest
             insertIntoOrders(99990001);
 
             // We do not support detecting source table change, so the substitution relies on the grace-period, and stale MV will be used
-            assertSubstituted(sessionWithSubstitution(), "SELECT * FROM " + ordersTable, ordersTable, mvName);
+            assertSubstituted(false, "SELECT * FROM " + ordersTable, ordersTable, mvName);
         }
         finally {
             assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvName);
@@ -629,7 +634,7 @@ public abstract class AbstractMvSubstitutionTest
 
             // Re-refresh makes it fresh again
             getQueryRunner().execute("REFRESH MATERIALIZED VIEW " + mvName);
-            assertSubstituted(sessionWithSubstitution(), "SELECT * FROM " + ordersTable, ordersTable, mvName);
+            assertSubstituted("SELECT * FROM " + ordersTable, ordersTable, mvName);
 
             // Result correctness after re-refresh
             assertThat(computeActual(sessionWithSubstitution(), "SELECT count(*) FROM " + ordersTable).getOnlyValue()).isEqualTo(baseCount + 1);
@@ -655,7 +660,7 @@ public abstract class AbstractMvSubstitutionTest
             insertIntoOrders(99990003);
 
             // Within grace period — should still substitute
-            assertSubstituted(sessionWithSubstitution(), "SELECT * FROM " + ordersTable, ordersTable, mvName);
+            assertSubstituted(false, "SELECT * FROM " + ordersTable, ordersTable, mvName);
         }
         finally {
             assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvName);
@@ -728,7 +733,7 @@ public abstract class AbstractMvSubstitutionTest
         try {
             createSubstitutionMv(mvName, "SELECT * FROM " + ordersTable);
 
-            assertSubstituted(sessionWithSubstitution(), "SELECT * FROM " + ordersTable, ordersTable, mvName);
+            assertSubstituted("SELECT * FROM " + ordersTable, ordersTable, mvName);
         }
         finally {
             assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvName);
@@ -782,8 +787,7 @@ public abstract class AbstractMvSubstitutionTest
             // REFRESH should be required, because the storage table is already fresh.
             assertUpdate("ALTER MATERIALIZED VIEW " + mvName + " SET PROPERTIES substitution_enabled = true");
 
-            assertSubstituted(session, "SELECT * FROM " + ordersTable, ordersTable, mvName);
-            assertSameResults(session, "SELECT * FROM " + ordersTable);
+            assertSubstituted("SELECT * FROM " + ordersTable, ordersTable, mvName);
         }
         finally {
             assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvName);
@@ -799,10 +803,8 @@ public abstract class AbstractMvSubstitutionTest
             createSubstitutionMv(mvFull, "SELECT * FROM " + ordersTable);
             createSubstitutionMv(mvPartial, "SELECT orderkey, custkey FROM " + ordersTable);
 
-            Session session = sessionWithSubstitution();
             // Either MV could serve this query
-            assertSubstituted(session, "SELECT orderkey, custkey FROM " + ordersTable, ordersTable, ImmutableSet.of(mvFull, mvPartial));
-            assertSameResults(session, "SELECT orderkey, custkey FROM " + ordersTable);
+            assertSubstituted("SELECT orderkey, custkey FROM " + ordersTable, ordersTable, ImmutableSet.of(mvFull, mvPartial));
         }
         finally {
             assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvFull);
@@ -828,7 +830,7 @@ public abstract class AbstractMvSubstitutionTest
             createSubstitutionMv(mvFresh, "SELECT * FROM " + ordersTable);
 
             Session session = sessionWithSubstitution();
-            assertSubstituted(session, "SELECT * FROM " + ordersTable, ordersTable, mvFresh);
+            assertSubstituted("SELECT * FROM " + ordersTable, ordersTable, mvFresh);
             // Result should include the new row (from the fresh MV)
             assertThat(computeActual(session, "SELECT count(*) FROM " + ordersTable).getOnlyValue()).isEqualTo(baseCount + 1);
         }
@@ -863,15 +865,12 @@ public abstract class AbstractMvSubstitutionTest
         CatalogSchemaTableName mvName = mvName("mv_join_");
         try {
             createSubstitutionMv(mvName, "SELECT * FROM " + ordersTable);
-            Session session = sessionWithSubstitution();
 
             String query = "SELECT o.orderkey, l.quantity " +
                     "FROM " + ordersTable + " o JOIN " + lineitemTable + " l ON o.orderkey = l.orderkey";
 
             // orders scan should be substituted, lineitem scan should not
-            assertSubstituted(session, query, ordersTable, mvName, lineitemTable);
-
-            assertSameResults(session, query);
+            assertSubstituted(query, ordersTable, mvName, lineitemTable);
         }
         finally {
             assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvName);
@@ -911,10 +910,8 @@ public abstract class AbstractMvSubstitutionTest
 
             sourceSqlExecutor().execute("ALTER TABLE %s ADD COLUMN new_col CHAR(1)".formatted(sourceTableReference(tableName)));
 
-            Session session = sessionWithSubstitution();
             // Query for original columns — MV should still be usable
-            assertSubstituted(session, "SELECT orderkey, totalprice FROM " + tableName, tableName, mvName);
-            assertSameResults(session, "SELECT orderkey, totalprice FROM " + tableName);
+            assertSubstituted("SELECT orderkey, totalprice FROM " + tableName, tableName, mvName);
         }
         finally {
             assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvName);
@@ -928,7 +925,7 @@ public abstract class AbstractMvSubstitutionTest
         CatalogSchemaTableName mvName = mvName("mv_dropped_");
         try {
             createSubstitutionMv(mvName, "SELECT * FROM " + ordersTable);
-            assertSubstituted(sessionWithSubstitution(), "SELECT * FROM " + ordersTable, ordersTable, mvName);
+            assertSubstituted("SELECT * FROM " + ordersTable, ordersTable, mvName);
 
             assertUpdate("DROP MATERIALIZED VIEW " + mvName);
 
@@ -955,7 +952,7 @@ public abstract class AbstractMvSubstitutionTest
             insertIntoOrders(99990007);
 
             // Stale but within 1-hour grace period — substitution works
-            assertSubstituted(sessionWithSubstitution(), "SELECT * FROM " + ordersTable, ordersTable, mvName);
+            assertSubstituted(false, "SELECT * FROM " + ordersTable, ordersTable, mvName);
 
             // Replace MV without grace period (empty = Iceberg treats as infinite, so use zero)
             assertUpdate("CREATE OR REPLACE MATERIALIZED VIEW " + mvName +
@@ -1002,7 +999,7 @@ public abstract class AbstractMvSubstitutionTest
             insertIntoOrders(99990010);
 
             // Stale but within 1-hour grace period — substitution works now
-            MaterializedResultWithPlan result = assertSubstituted(sessionWithSubstitution(), "SELECT count(*) FROM " + ordersTable, ordersTable, mvName);
+            MaterializedResultWithPlan result = assertSubstituted(false, "SELECT count(*) FROM " + ordersTable, ordersTable, mvName);
             // MV was refreshed after the first insert but before the second insert — stale data has baseCount+1
             assertThat(result.result().getOnlyValue())
                     .as("MV is stale but within grace period — should return MV row count, missing the latest insert")
@@ -1019,7 +1016,7 @@ public abstract class AbstractMvSubstitutionTest
         CatalogSchemaTableName mvName = mvName("mv_query_changed_");
         try {
             createSubstitutionMv(mvName, "SELECT * FROM " + ordersTable);
-            assertSubstituted(sessionWithSubstitution(), "SELECT * FROM " + ordersTable, ordersTable, mvName);
+            assertSubstituted("SELECT * FROM " + ordersTable, ordersTable, mvName);
 
             // Replace MV with a different query (different source table)
             assertUpdate("CREATE OR REPLACE MATERIALIZED VIEW " + mvName +
@@ -1035,7 +1032,7 @@ public abstract class AbstractMvSubstitutionTest
             getQueryRunner().execute("REFRESH MATERIALIZED VIEW " + mvName);
 
             // After refresh — substitution works for the new query
-            assertSubstituted(sessionWithSubstitution(), "SELECT * FROM " + lineitemTable, lineitemTable, mvName);
+            assertSubstituted("SELECT * FROM " + lineitemTable, lineitemTable, mvName);
             assertSameResults(sessionWithSubstitution(), "SELECT * FROM " + lineitemTable);
             // Old query still not substituted (MV no longer covers orders)
             assertNotSubstituted(sessionWithSubstitution(), "SELECT * FROM " + ordersTable, ordersTable);
@@ -1052,12 +1049,12 @@ public abstract class AbstractMvSubstitutionTest
         CatalogSchemaTableName renamedMvName = mvName("mv_rename_new_");
         try {
             createSubstitutionMv(mvName, "SELECT * FROM " + ordersTable);
-            assertSubstituted(sessionWithSubstitution(), "SELECT * FROM " + ordersTable, ordersTable, mvName);
+            assertSubstituted("SELECT * FROM " + ordersTable, ordersTable, mvName);
 
             assertUpdate("ALTER MATERIALIZED VIEW " + mvName + " RENAME TO " + renamedMvName);
 
             // Substitution should still work after rename
-            assertSubstituted(sessionWithSubstitution(), "SELECT * FROM " + ordersTable, ordersTable, renamedMvName);
+            assertSubstituted("SELECT * FROM " + ordersTable, ordersTable, renamedMvName);
             assertSameResults(sessionWithSubstitution(), "SELECT * FROM " + ordersTable);
         }
         finally {
@@ -1078,19 +1075,17 @@ public abstract class AbstractMvSubstitutionTest
         try {
             // First incarnation: covers orders
             createSubstitutionMv(mvName, "SELECT * FROM " + ordersTable);
-            assertSubstituted(sessionWithSubstitution(), "SELECT * FROM " + ordersTable, ordersTable, mvName);
+            assertSubstituted("SELECT * FROM " + ordersTable, ordersTable, mvName);
 
             assertUpdate("DROP MATERIALIZED VIEW " + mvName);
 
             // Second incarnation under the same name: covers lineitem (different base table)
             createSubstitutionMv(mvName, "SELECT * FROM " + lineitemTable);
 
-            Session session = sessionWithSubstitution();
             // The old computation pattern must not be substituted by the new MV's storage
-            assertNotSubstituted(session, "SELECT * FROM " + ordersTable, ordersTable);
+            assertNotSubstituted(sessionWithSubstitution(), "SELECT * FROM " + ordersTable, ordersTable);
             // The new pattern is served by the new MV
-            assertSubstituted(session, "SELECT * FROM " + lineitemTable, lineitemTable, mvName);
-            assertSameResults(session, "SELECT * FROM " + lineitemTable);
+            assertSubstituted("SELECT * FROM " + lineitemTable, lineitemTable, mvName);
         }
         finally {
             assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvName);
@@ -1109,10 +1104,7 @@ public abstract class AbstractMvSubstitutionTest
                     " AS SELECT * FROM " + ordersTable);
             getQueryRunner().execute("REFRESH MATERIALIZED VIEW " + mvName);
 
-            Session session = sessionWithSubstitution();
-            String query = "SELECT * FROM " + ordersTable + " WHERE orderstatus = 'F'";
-            assertSubstituted(session, query, ordersTable, mvName);
-            assertSameResults(session, query);
+            assertSubstituted("SELECT * FROM " + ordersTable + " WHERE orderstatus = 'F'", ordersTable, mvName);
         }
         finally {
             assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvName);
@@ -1150,9 +1142,8 @@ public abstract class AbstractMvSubstitutionTest
             // MV has baseCount rows. Insert one more row into the base table.
             insertIntoOrders(99990011);
 
-            Session session = sessionWithSubstitution();
             // Within grace period: substitution uses MV, which does NOT have the new row
-            MaterializedResultWithPlan result = assertSubstituted(session, "SELECT count(*) FROM " + ordersTable, ordersTable, mvName);
+            MaterializedResultWithPlan result = assertSubstituted(false, "SELECT count(*) FROM " + ordersTable, ordersTable, mvName);
             assertThat(result.result().getOnlyValue())
                     .as("MV is stale but within grace period — should return MV data, not base table data")
                     .isEqualTo(baseCount);
@@ -1170,10 +1161,7 @@ public abstract class AbstractMvSubstitutionTest
         try {
             createSubstitutionMv(mvName, "SELECT orderkey, orderstatus, totalprice FROM " + ordersTable);
 
-            Session session = sessionWithSubstitution();
-            String query = "SELECT orderkey, orderstatus, totalprice FROM " + ordersTable;
-            assertSubstituted(session, query, ordersTable, mvName);
-            assertSameResults(session, query);
+            assertSubstituted("SELECT orderkey, orderstatus, totalprice FROM " + ordersTable, ordersTable, mvName);
         }
         finally {
             assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvName);
@@ -1188,10 +1176,7 @@ public abstract class AbstractMvSubstitutionTest
         try {
             createSubstitutionMv(mvName, "SELECT orderkey, custkey, orderstatus, totalprice FROM " + ordersTable);
 
-            Session session = sessionWithSubstitution();
-            String query = "SELECT orderkey, totalprice FROM " + ordersTable;
-            assertSubstituted(session, query, ordersTable, mvName);
-            assertSameResults(session, query);
+            assertSubstituted("SELECT orderkey, totalprice FROM " + ordersTable, ordersTable, mvName);
         }
         finally {
             assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvName);
@@ -1223,7 +1208,7 @@ public abstract class AbstractMvSubstitutionTest
             createSubstitutionMv(mvName, "SELECT * FROM " + ordersTable);
 
             // User has SELECT on both base table and MV storage table — substitution works
-            assertSubstituted(sessionWithSubstitution(), "SELECT * FROM " + ordersTable, ordersTable, mvName);
+            assertSubstituted("SELECT * FROM " + ordersTable, ordersTable, mvName);
         }
         finally {
             assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvName);
@@ -1266,7 +1251,7 @@ public abstract class AbstractMvSubstitutionTest
             getQueryRunner().getAccessControl().deny(privilege(mvName.getSchemaTableName().getTableName() + ".totalprice", SELECT_COLUMN));
             try {
                 // Reads only allowed columns — substituted
-                assertSubstituted(sessionWithSubstitution(), "SELECT orderkey, custkey FROM " + ordersTable, ordersTable, mvName);
+                assertSubstituted("SELECT orderkey, custkey FROM " + ordersTable, ordersTable, mvName);
                 // Reads the denied column — falls back to the base table
                 assertNotSubstituted(sessionWithSubstitution(), "SELECT totalprice FROM " + ordersTable, ordersTable);
             }
@@ -1327,7 +1312,7 @@ public abstract class AbstractMvSubstitutionTest
             assertUpdate("CREATE MATERIALIZED VIEW " + mvUnmarked + " AS SELECT * FROM " + ordersTable);
             getQueryRunner().execute("REFRESH MATERIALIZED VIEW " + mvUnmarked);
 
-            assertSubstituted(sessionWithSubstitution(), "SELECT * FROM " + ordersTable, ordersTable, mvMarked);
+            assertSubstituted("SELECT * FROM " + ordersTable, ordersTable, mvMarked);
         }
         finally {
             assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvMarked);
