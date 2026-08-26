@@ -13,9 +13,11 @@
  */
 package io.starburst.stargate.icehouse.catalog.glue;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import io.airlift.log.Logger;
 import io.starburst.stargate.icehouse.catalog.IcehouseCatalog;
+import io.starburst.stargate.icehouse.exception.CatalogAccessDeniedException;
 import io.starburst.stargate.icehouse.exception.RetryableIcehouseCatalogException;
 import io.starburst.stargate.icehouse.exception.TableNotFoundException;
 import io.starburst.stargate.icehouse.exception.TerminalIcehouseCatalogException;
@@ -200,9 +202,14 @@ public final class GlueIcehouseCatalog
      * Default to retryable for unknown Glue exceptions — conservative, since
      * unknown errors are safer to retry than to permanently fail.
      */
-    private static RuntimeException classifyGlueException(String operation, GlueException e)
+    @VisibleForTesting
+    static RuntimeException classifyGlueException(String operation, GlueException e)
     {
-        if (e instanceof AccessDeniedException || e instanceof EntityNotFoundException || e instanceof InvalidInputException) {
+        if (e instanceof AccessDeniedException) {
+            return new CatalogAccessDeniedException(
+                    "Access denied accessing glue metastore during %s: %s".formatted(operation, e.getMessage()), e);
+        }
+        if (e instanceof EntityNotFoundException || e instanceof InvalidInputException) {
             return new TerminalIcehouseCatalogException(
                     "Non retryable error accessing glue metastore during %s: %s".formatted(operation, e.getMessage()), e);
         }
