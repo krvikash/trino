@@ -16,6 +16,7 @@ package io.trino.plugin.tpcds;
 import com.google.inject.Binder;
 import com.google.inject.Module;
 import com.google.inject.Scopes;
+import io.trino.plugin.tpcds.substitution.TpcdsSubstitutionMetadata;
 
 import static io.airlift.configuration.ConfigBinder.configBinder;
 
@@ -31,6 +32,7 @@ public class TpcdsModule
         binder.bind(TpcdsSplitManager.class).in(Scopes.SINGLETON);
         binder.bind(TpcdsRecordSetProvider.class).in(Scopes.SINGLETON);
         binder.bind(TpcdsNodePartitioningProvider.class).in(Scopes.SINGLETON);
+        binder.bind(TpcdsSubstitutionMetadata.class).in(Scopes.SINGLETON);
         binder.bind(TpcdsConnector.class).in(Scopes.SINGLETON);
     }
 }

@@ -15,6 +15,8 @@ package io.trino.plugin.tpcds;
 
 import com.google.inject.Inject;
 import io.airlift.bootstrap.LifeCycleManager;
+import io.trino.plugin.base.classloader.ClassLoaderSafeConnectorSubstitutionMetadata;
+import io.trino.plugin.tpcds.substitution.TpcdsSubstitutionMetadata;
 import io.trino.spi.connector.Connector;
 import io.trino.spi.connector.ConnectorMetadata;
 import io.trino.spi.connector.ConnectorNodePartitioningProvider;
@@ -22,6 +24,7 @@ import io.trino.spi.connector.ConnectorRecordSetProvider;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorSplitManager;
 import io.trino.spi.connector.ConnectorTransactionHandle;
+import io.trino.spi.connector.substitution.ConnectorSubstitutionMetadata;
 import io.trino.spi.session.PropertyMetadata;
 import io.trino.spi.transaction.IsolationLevel;
 
@@ -38,6 +41,7 @@ public class TpcdsConnector
     private final TpcdsRecordSetProvider recordSetProvider;
     private final TpcdsNodePartitioningProvider nodePartitioningProvider;
     private final TpcdsSessionProperties sessionProperties;
+    private final ConnectorSubstitutionMetadata substitutionMetadata;
 
     @Inject
     public TpcdsConnector(
@@ -46,7 +50,8 @@ public class TpcdsConnector
             TpcdsSplitManager splitManager,
             TpcdsRecordSetProvider recordSetProvider,
             TpcdsNodePartitioningProvider nodePartitioningProvider,
-            TpcdsSessionProperties sessionProperties)
+            TpcdsSessionProperties sessionProperties,
+            TpcdsSubstitutionMetadata substitutionMetadata)
     {
         this.lifeCycleManager = requireNonNull(lifeCycleManager, "lifeCycleManager is null");
         this.metadata = requireNonNull(metadata, "metadata is null");
@@ -54,6 +59,15 @@ public class TpcdsConnector
         this.recordSetProvider = requireNonNull(recordSetProvider, "recordSetProvider is null");
         this.nodePartitioningProvider = requireNonNull(nodePartitioningProvider, "nodePartitioningProvider is null");
         this.sessionProperties = requireNonNull(sessionProperties, "sessionProperties is null");
+        this.substitutionMetadata = new ClassLoaderSafeConnectorSubstitutionMetadata(
+                requireNonNull(substitutionMetadata, "substitutionMetadata is null"),
+                getClass().getClassLoader());
+    }
+
+    @Override
+    public ConnectorSubstitutionMetadata getSubstitutionMetadata()
+    {
+        return substitutionMetadata;
     }
 
     @Override
