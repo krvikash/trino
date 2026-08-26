@@ -43,6 +43,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.OptionalLong;
+import java.util.function.LongConsumer;
 import java.util.function.ObjLongConsumer;
 import java.util.stream.IntStream;
 
@@ -79,6 +80,7 @@ public class DispatcherPageSource
     private final Deque<RowRange> proxiedPageRanges;
     private long proxiedPagePositionsRead;
     private SourcePage lastLoadRecordedProxiedPage;
+    private long lastLoadRecordedProxiedPageSizeInBytes;
     private SourcePage currentWarpSourcePage;
     private int currentWarpPagePosition; // Position upto which currentWarpPage has been consumed
     private Deque<RowRange> warpPageRanges;
@@ -268,7 +270,7 @@ public class DispatcherPageSource
                 currentWarpSourcePage,
                 warpIndexByOutputChannel,
                 currentWarpSourcePage.getPositionCount(),
-                () -> {});
+                _ -> {});
     }
 
     private void seekWarpPageSource(int rowsToSkip)
@@ -341,7 +343,10 @@ public class DispatcherPageSource
                 maskedProxiedPage,
                 proxiedIndexByOutputChannel,
                 positionCount,
-                () -> recordProxiedPageLoad(maskedProxiedPage));
+                loadNanos -> {
+                    stats.addproxied_loaded_pages_time(loadNanos);
+                    recordProxiedPageLoad(maskedProxiedPage);
+                });
     }
 
     /**
@@ -355,70 +360,66 @@ public class DispatcherPageSource
         RowRange proxiedPageRange = proxiedPageRanges.removeFirst();
         long pageStartInclusive = proxiedPageRange.minInclusive();
         long pageEndExclusive = proxiedPageRange.maxExclusive();
-        long start = System.nanoTime();
-        try {
-            int[] positions = new int[toIntExact(pageEndExclusive - pageStartInclusive)];
-            int positionCount = 0;
-            int warpRowsToSkip = 0;
-            long firstUnresolvedRow = pageStartInclusive;
-            boolean pageResolved = false;
-            while (!warpPageRanges.isEmpty()) {
-                RowRange warpRange = warpPageRanges.peekFirst();
-                if (warpRange.minInclusive() >= pageEndExclusive) {
-                    pageResolved = true;
-                    break;
-                }
-                warpPageRanges.removeFirst();
-                if (warpRange.maxExclusive() <= pageStartInclusive) {
-                    warpRowsToSkip += toIntExact(warpRange.getRowCount());
-                    continue;
-                }
-                warpRowsToSkip += toIntExact(Math.max(pageStartInclusive - warpRange.minInclusive(), 0));
-                long matchedStartInclusive = Math.max(warpRange.minInclusive(), pageStartInclusive);
-                long matchedEndExclusive = Math.min(warpRange.maxExclusive(), pageEndExclusive);
-                for (long row = matchedStartInclusive; row < matchedEndExclusive; row++) {
-                    positions[positionCount] = currentProxiedPagePosition + toIntExact(row - pageStartInclusive);
-                    positionCount++;
-                }
-                firstUnresolvedRow = matchedEndExclusive;
-                if (warpRange.maxExclusive() > pageEndExclusive) {
-                    warpPageRanges.addFirst(new RowRange(pageEndExclusive, warpRange.maxExclusive()));
-                    pageResolved = true;
-                    break;
-                }
+        int[] positions = new int[toIntExact(pageEndExclusive - pageStartInclusive)];
+        int positionCount = 0;
+        int warpRowsToSkip = 0;
+        long firstUnresolvedRow = pageStartInclusive;
+        boolean pageResolved = false;
+        while (!warpPageRanges.isEmpty()) {
+            RowRange warpRange = warpPageRanges.peekFirst();
+            if (warpRange.minInclusive() >= pageEndExclusive) {
+                pageResolved = true;
+                break;
             }
-            int warpPagePosition = currentWarpPagePosition + warpRowsToSkip;
-            if (!pageResolved && !warpPageSource.isFinished() && firstUnresolvedRow < pageEndExclusive) {
-                // Current warp page ended inside the proxied page; emit the resolved prefix and keep the
-                // unresolved tail selected so the next warp page can resolve it
-                int resolvedRowCount = positionCount;
-                for (long row = firstUnresolvedRow; row < pageEndExclusive; row++) {
-                    positions[positionCount] = currentProxiedPagePosition + toIntExact(row - pageStartInclusive);
-                    positionCount++;
-                }
-                maskCurrentProxiedPage(positions, positionCount);
-                // The head warp range overlaps this page, so at least one position is already resolved
-                Page resolvedProxiedPage = currentProxiedPage.getPage().getRegion(0, resolvedRowCount);
-                recordProxiedPageLoad(currentProxiedPage);
-                Page resolvedWarpPage = currentWarpSourcePage.getPage().getRegion(warpPagePosition, resolvedRowCount);
-                SourcePage mergedPage = buildMergedPage(resolvedProxiedPage, resolvedWarpPage, resolvedRowCount);
-                proxiedPageRanges.addFirst(new RowRange(firstUnresolvedRow, pageEndExclusive));
-                currentProxiedPagePosition = resolvedRowCount;
-                seekWarpPageSource(warpRowsToSkip + resolvedRowCount);
-                return mergedPage;
+            warpPageRanges.removeFirst();
+            if (warpRange.maxExclusive() <= pageStartInclusive) {
+                warpRowsToSkip += toIntExact(warpRange.getRowCount());
+                continue;
+            }
+            warpRowsToSkip += toIntExact(Math.max(pageStartInclusive - warpRange.minInclusive(), 0));
+            long matchedStartInclusive = Math.max(warpRange.minInclusive(), pageStartInclusive);
+            long matchedEndExclusive = Math.min(warpRange.maxExclusive(), pageEndExclusive);
+            for (long row = matchedStartInclusive; row < matchedEndExclusive; row++) {
+                positions[positionCount] = currentProxiedPagePosition + toIntExact(row - pageStartInclusive);
+                positionCount++;
+            }
+            firstUnresolvedRow = matchedEndExclusive;
+            if (warpRange.maxExclusive() > pageEndExclusive) {
+                warpPageRanges.addFirst(new RowRange(pageEndExclusive, warpRange.maxExclusive()));
+                pageResolved = true;
+                break;
+            }
+        }
+        int warpPagePosition = currentWarpPagePosition + warpRowsToSkip;
+        if (!pageResolved && !warpPageSource.isFinished() && firstUnresolvedRow < pageEndExclusive) {
+            // Current warp page ended inside the proxied page; emit the resolved prefix and keep the
+            // unresolved tail selected so the next warp page can resolve it
+            int resolvedRowCount = positionCount;
+            for (long row = firstUnresolvedRow; row < pageEndExclusive; row++) {
+                positions[positionCount] = currentProxiedPagePosition + toIntExact(row - pageStartInclusive);
+                positionCount++;
             }
             maskCurrentProxiedPage(positions, positionCount);
-            Page overlapWarpPage = currentWarpSourcePage.getPage().getRegion(warpPagePosition, positionCount);
-            SourcePage mergedPage = buildLazyMergedPage(currentProxiedPage, overlapWarpPage, positionCount);
-            seekWarpPageSource(warpRowsToSkip + positionCount);
-            // The merged page loads proxied channels on demand; the next proxied page is fetched lazily
-            // on the next call, after the engine has consumed this one
-            currentProxiedPage = null;
+            // The head warp range overlaps this page, so at least one position is already resolved
+            long loadStart = System.nanoTime();
+            Page resolvedProxiedPage = currentProxiedPage.getPage().getRegion(0, resolvedRowCount);
+            stats.addproxied_loaded_pages_time(System.nanoTime() - loadStart);
+            recordProxiedPageLoad(currentProxiedPage);
+            Page resolvedWarpPage = currentWarpSourcePage.getPage().getRegion(warpPagePosition, resolvedRowCount);
+            SourcePage mergedPage = buildMergedPage(resolvedProxiedPage, resolvedWarpPage, resolvedRowCount);
+            proxiedPageRanges.addFirst(new RowRange(firstUnresolvedRow, pageEndExclusive));
+            currentProxiedPagePosition = resolvedRowCount;
+            seekWarpPageSource(warpRowsToSkip + resolvedRowCount);
             return mergedPage;
         }
-        finally {
-            stats.addproxied_loaded_pages_time(System.nanoTime() - start);
-        }
+        maskCurrentProxiedPage(positions, positionCount);
+        Page overlapWarpPage = currentWarpSourcePage.getPage().getRegion(warpPagePosition, positionCount);
+        SourcePage mergedPage = buildLazyMergedPage(currentProxiedPage, overlapWarpPage, positionCount);
+        seekWarpPageSource(warpRowsToSkip + positionCount);
+        // The merged page loads proxied channels on demand; the next proxied page is fetched lazily
+        // on the next call, after the engine has consumed this one
+        currentProxiedPage = null;
+        return mergedPage;
     }
 
     /**
@@ -435,16 +436,19 @@ public class DispatcherPageSource
 
     /**
      * A lazy merged page can load its proxied blocks after the next proxied page was already fetched,
-     * so loads are deduplicated by page identity. {@link SourcePage#getSizeInBytes} covers only loaded
-     * blocks, so callers record after materializing.
+     * so page counts are deduplicated by page identity. {@link SourcePage#getSizeInBytes} covers only
+     * loaded blocks, so bytes are recorded as its growth since the previous load of the same page.
      */
     private void recordProxiedPageLoad(SourcePage proxiedPage)
     {
         if (!isSameSourcePage(lastLoadRecordedProxiedPage, proxiedPage)) {
             lastLoadRecordedProxiedPage = proxiedPage;
+            lastLoadRecordedProxiedPageSizeInBytes = 0;
             stats.incproxied_loaded_pages();
-            stats.addproxied_loaded_pages_bytes(proxiedPage.getSizeInBytes());
         }
+        long sizeInBytes = proxiedPage.getSizeInBytes();
+        stats.addproxied_loaded_pages_bytes(Math.max(0, sizeInBytes - lastLoadRecordedProxiedPageSizeInBytes));
+        lastLoadRecordedProxiedPageSizeInBytes = sizeInBytes;
     }
 
     @SuppressWarnings("ReferenceEquality")
@@ -681,22 +685,21 @@ public class DispatcherPageSource
         private final Block[] blocks;
         private final SourcePage backingPage;
         private final int[] backingIndexByOutputChannel;
-        private final Runnable firstBackingLoadListener;
+        private final LongConsumer backingLoadListener;
         private int positionCount;
-        private boolean backingLoaded;
 
         MergedSourcePage(
                 Block[] blocks,
                 SourcePage backingPage,
                 int[] backingIndexByOutputChannel,
                 int positionCount,
-                Runnable firstBackingLoadListener)
+                LongConsumer backingLoadListener)
         {
             this.blocks = blocks;
             this.backingPage = backingPage;
             this.backingIndexByOutputChannel = backingIndexByOutputChannel;
             this.positionCount = positionCount;
-            this.firstBackingLoadListener = firstBackingLoadListener;
+            this.backingLoadListener = backingLoadListener;
         }
 
         @Override
@@ -779,15 +782,13 @@ public class DispatcherPageSource
                 }
             }
             // Single getColumns call loads all missing blocks in one pass over the backing page
+            long loadStart = System.nanoTime();
             Page backingBlocks = backingPage.getColumns(backingChannels);
             for (int i = 0; i < missingCount; i++) {
                 blocks[missingChannels[i]] = backingBlocks.getBlock(i);
             }
-            if (!backingLoaded) {
-                backingLoaded = true;
-                // notified after the load so the listener sees the materialized bytes
-                firstBackingLoadListener.run();
-            }
+            // notified after the load so the listener sees the materialized bytes
+            backingLoadListener.accept(System.nanoTime() - loadStart);
         }
 
         @Override
