@@ -82,4 +82,19 @@ final class TestSigV4AwsProperties
                 .containsEntry(CLIENT_CREDENTIALS_PROVIDER, "io.trino.plugin.iceberg.StsAwsCredentialProvider")
                 .doesNotContainKeys(REST_ACCESS_KEY_ID, REST_SECRET_ACCESS_KEY);
     }
+
+    @Test
+    void testWebIdentityTokenCredentials()
+    {
+        Map<String, String> properties = new SigV4AwsProperties(
+                new IcebergRestCatalogSigV4Config(),
+                new S3FileSystemConfig()
+                        .setRegion("us-east-2")
+                        .setAuthType(S3FileSystemConfig.S3AuthType.WEB_IDENTITY))
+                .get();
+
+        assertThat(properties)
+                .containsEntry(CLIENT_CREDENTIALS_PROVIDER, "software.amazon.awssdk.auth.credentials.WebIdentityTokenFileCredentialsProvider")
+                .doesNotContainKeys(REST_ACCESS_KEY_ID, REST_SECRET_ACCESS_KEY);
+    }
 }

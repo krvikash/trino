@@ -17,6 +17,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
 import io.trino.filesystem.s3.S3FileSystemConfig;
 import io.trino.plugin.iceberg.StsAwsCredentialProvider;
+import software.amazon.awssdk.auth.credentials.WebIdentityTokenFileCredentialsProvider;
 
 import java.util.Map;
 import java.util.Optional;
@@ -63,7 +64,10 @@ public class SigV4AwsProperties
                 .put(REST_SIGNER_REGION, requireNonNull(s3Config.getRegion(), "s3.region is null"))
                 .put("rest-metrics-reporting-enabled", "false");
 
-        if (s3Config.getIamRole() != null) {
+        if (s3Config.getAuthType() == S3FileSystemConfig.S3AuthType.WEB_IDENTITY) {
+            builder.put(CLIENT_CREDENTIALS_PROVIDER, WebIdentityTokenFileCredentialsProvider.class.getName());
+        }
+        else if (s3Config.getIamRole() != null) {
             builder
                     .put(CLIENT_CREDENTIALS_PROVIDER, StsAwsCredentialProvider.class.getName())
                     .put(CLIENT_CREDENTIAL_AWS_IAM_ROLE, s3Config.getIamRole())
