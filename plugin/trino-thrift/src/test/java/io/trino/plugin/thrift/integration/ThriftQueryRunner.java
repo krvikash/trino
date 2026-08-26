@@ -59,7 +59,7 @@ public final class ThriftQueryRunner
         log.info("\n====\n%s\n====", queryRunner.getCoordinator().getBaseUrl());
     }
 
-    static StartedServers startThriftServers(int thriftServers, boolean enableIndexJoin)
+    public static StartedServers startThriftServers(int thriftServers, boolean enableIndexJoin)
     {
         List<DriftServer> servers = new ArrayList<>(thriftServers);
         List<AutoCloseable> resources = new ArrayList<>(thriftServers);

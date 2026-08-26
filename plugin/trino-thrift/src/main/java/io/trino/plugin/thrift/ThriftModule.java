@@ -23,6 +23,7 @@ import io.airlift.drift.client.ExceptionClassification.HostStatus;
 import io.trino.plugin.thrift.annotations.ForMetadataRefresh;
 import io.trino.plugin.thrift.api.TrinoThriftService;
 import io.trino.plugin.thrift.api.TrinoThriftServiceException;
+import io.trino.plugin.thrift.substitution.ThriftSubstitutionMetadata;
 
 import java.util.Optional;
 import java.util.concurrent.Executor;
@@ -51,6 +52,7 @@ public class ThriftModule
 
         binder.bind(ThriftConnector.class).in(Scopes.SINGLETON);
         binder.bind(ThriftMetadata.class).in(Scopes.SINGLETON);
+        binder.bind(ThriftSubstitutionMetadata.class).in(Scopes.SINGLETON);
         binder.bind(ThriftSplitManager.class).in(Scopes.SINGLETON);
         binder.bind(ThriftPageSourceProvider.class).in(Scopes.SINGLETON);
         configBinder(binder).bindConfig(ThriftConnectorConfig.class);

@@ -16,6 +16,8 @@ package io.trino.plugin.thrift;
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Inject;
 import io.airlift.bootstrap.LifeCycleManager;
+import io.trino.plugin.base.classloader.ClassLoaderSafeConnectorSubstitutionMetadata;
+import io.trino.plugin.thrift.substitution.ThriftSubstitutionMetadata;
 import io.trino.spi.connector.Connector;
 import io.trino.spi.connector.ConnectorIndexProvider;
 import io.trino.spi.connector.ConnectorMetadata;
@@ -23,6 +25,7 @@ import io.trino.spi.connector.ConnectorPageSourceProvider;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorSplitManager;
 import io.trino.spi.connector.ConnectorTransactionHandle;
+import io.trino.spi.connector.substitution.ConnectorSubstitutionMetadata;
 import io.trino.spi.session.PropertyMetadata;
 import io.trino.spi.transaction.IsolationLevel;
 
@@ -38,6 +41,7 @@ public class ThriftConnector
     private final ThriftSplitManager splitManager;
     private final ThriftPageSourceProvider pageSourceProvider;
     private final ThriftIndexProvider indexProvider;
+    private final ConnectorSubstitutionMetadata substitutionMetadata;
 
     @Inject
     public ThriftConnector(
@@ -45,13 +49,17 @@ public class ThriftConnector
             ThriftMetadata metadata,
             ThriftSplitManager splitManager,
             ThriftPageSourceProvider pageSourceProvider,
-            ThriftIndexProvider indexProvider)
+            ThriftIndexProvider indexProvider,
+            ThriftSubstitutionMetadata substitutionMetadata)
     {
         this.lifeCycleManager = requireNonNull(lifeCycleManager, "lifeCycleManager is null");
         this.metadata = requireNonNull(metadata, "metadata is null");
         this.splitManager = requireNonNull(splitManager, "splitManager is null");
         this.pageSourceProvider = requireNonNull(pageSourceProvider, "pageSourceProvider is null");
         this.indexProvider = requireNonNull(indexProvider, "indexProvider is null");
+        this.substitutionMetadata = new ClassLoaderSafeConnectorSubstitutionMetadata(
+                requireNonNull(substitutionMetadata, "substitutionMetadata is null"),
+                getClass().getClassLoader());
     }
 
     @Override
@@ -64,6 +72,12 @@ public class ThriftConnector
     public ConnectorMetadata getMetadata(ConnectorSession session, ConnectorTransactionHandle transactionHandle)
     {
         return metadata;
+    }
+
+    @Override
+    public ConnectorSubstitutionMetadata getSubstitutionMetadata()
+    {
+        return substitutionMetadata;
     }
 
     @Override
