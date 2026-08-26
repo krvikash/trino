@@ -263,7 +263,12 @@ public class DispatcherPageSource
         for (int channel : prefilledOutputChannels) {
             orderedBlocks[channel] = prefilledPageSource.createBlock(channel, currentWarpSourcePage.getPositionCount());
         }
-        return new DispatcherSourcePage(orderedBlocks, currentWarpSourcePage, warpIndexByOutputChannel);
+        return new MergedSourcePage(
+                orderedBlocks,
+                currentWarpSourcePage,
+                warpIndexByOutputChannel,
+                currentWarpSourcePage.getPositionCount(),
+                () -> {});
     }
 
     private void seekWarpPageSource(int rowsToSkip)
@@ -331,7 +336,7 @@ public class DispatcherPageSource
         for (int warpIndex = 0; warpIndex < warpOutputChannels.length; warpIndex++) {
             eagerBlocks[warpOutputChannels[warpIndex]] = overlapWarpPage.getBlock(warpIndex);
         }
-        return new LazyMixedSourcePage(
+        return new MergedSourcePage(
                 eagerBlocks,
                 maskedProxiedPage,
                 proxiedIndexByOutputChannel,
@@ -670,18 +675,34 @@ public class DispatcherPageSource
      * first access; a null entry in {@code blocks} loads from the backing page through
      * {@code backingIndexByOutputChannel}.
      */
-    private abstract static class MergedSourcePage
+    private static class MergedSourcePage
             implements SourcePage
     {
-        final Block[] blocks;
-        final SourcePage backingPage;
-        final int[] backingIndexByOutputChannel;
+        private final Block[] blocks;
+        private final SourcePage backingPage;
+        private final int[] backingIndexByOutputChannel;
+        private final Runnable firstBackingLoadListener;
+        private int positionCount;
+        private boolean backingLoaded;
 
-        MergedSourcePage(Block[] blocks, SourcePage backingPage, int[] backingIndexByOutputChannel)
+        MergedSourcePage(
+                Block[] blocks,
+                SourcePage backingPage,
+                int[] backingIndexByOutputChannel,
+                int positionCount,
+                Runnable firstBackingLoadListener)
         {
             this.blocks = blocks;
             this.backingPage = backingPage;
             this.backingIndexByOutputChannel = backingIndexByOutputChannel;
+            this.positionCount = positionCount;
+            this.firstBackingLoadListener = firstBackingLoadListener;
+        }
+
+        @Override
+        public int getPositionCount()
+        {
+            return positionCount;
         }
 
         @Override
@@ -694,6 +715,31 @@ public class DispatcherPageSource
                 }
             }
             return sizeInBytes;
+        }
+
+        @Override
+        public long getRetainedSizeInBytes()
+        {
+            // backingPage is retained even before any load; blocks loaded from it are views of the same memory
+            long retainedSizeInBytes = backingPage.getRetainedSizeInBytes();
+            for (int channel = 0; channel < blocks.length; channel++) {
+                if (blocks[channel] != null && backingIndexByOutputChannel[channel] < 0) {
+                    retainedSizeInBytes += blocks[channel].getRetainedSizeInBytes();
+                }
+            }
+            return retainedSizeInBytes;
+        }
+
+        @Override
+        public void retainedBytesForEachPart(ObjLongConsumer<Object> consumer)
+        {
+            // backingPage is retained even before any load; blocks loaded from it are views of the same memory
+            backingPage.retainedBytesForEachPart(consumer);
+            for (int channel = 0; channel < blocks.length; channel++) {
+                if (blocks[channel] != null && backingIndexByOutputChannel[channel] < 0) {
+                    blocks[channel].retainedBytesForEachPart(consumer);
+                }
+            }
         }
 
         @Override
@@ -737,10 +783,12 @@ public class DispatcherPageSource
             for (int i = 0; i < missingCount; i++) {
                 blocks[missingChannels[i]] = backingBlocks.getBlock(i);
             }
-            backingBlocksLoaded();
+            if (!backingLoaded) {
+                backingLoaded = true;
+                // notified after the load so the listener sees the materialized bytes
+                firstBackingLoadListener.run();
+            }
         }
-
-        void backingBlocksLoaded() {}
 
         @Override
         public Page getPage()
@@ -773,113 +821,6 @@ public class DispatcherPageSource
                 }
             }
             backingPage.selectPositions(positions, offset, size);
-        }
-    }
-
-    private static class DispatcherSourcePage
-            extends MergedSourcePage
-    {
-        DispatcherSourcePage(
-                Block[] blocks,
-                SourcePage warpSourcePage,
-                int[] warpIndexByOutputChannel)
-        {
-            super(blocks, warpSourcePage, warpIndexByOutputChannel);
-        }
-
-        @Override
-        public int getPositionCount()
-        {
-            return backingPage.getPositionCount();
-        }
-
-        @Override
-        public long getRetainedSizeInBytes()
-        {
-            long retainedSizeInBytes = 0;
-            for (Block block : blocks) {
-                if (block != null) {
-                    retainedSizeInBytes += block.getRetainedSizeInBytes();
-                }
-            }
-            return retainedSizeInBytes;
-        }
-
-        @Override
-        public void retainedBytesForEachPart(ObjLongConsumer<Object> consumer)
-        {
-            for (Block block : blocks) {
-                if (block != null) {
-                    block.retainedBytesForEachPart(consumer);
-                }
-            }
-        }
-    }
-
-    private static class LazyMixedSourcePage
-            extends MergedSourcePage
-    {
-        private final Runnable firstProxiedLoadListener;
-        private int positionCount;
-        private boolean proxiedLoaded;
-
-        LazyMixedSourcePage(
-                Block[] eagerBlocks,
-                SourcePage proxiedPage,
-                int[] proxiedIndexByOutputChannel,
-                int positionCount,
-                Runnable firstProxiedLoadListener)
-        {
-            super(eagerBlocks, proxiedPage, proxiedIndexByOutputChannel);
-            this.positionCount = positionCount;
-            this.firstProxiedLoadListener = firstProxiedLoadListener;
-        }
-
-        @Override
-        public int getPositionCount()
-        {
-            return positionCount;
-        }
-
-        @Override
-        void backingBlocksLoaded()
-        {
-            if (!proxiedLoaded) {
-                proxiedLoaded = true;
-                // notified after the load so the listener sees the materialized bytes
-                firstProxiedLoadListener.run();
-            }
-        }
-
-        @Override
-        public long getRetainedSizeInBytes()
-        {
-            // backingPage is retained even before any load; blocks loaded from it are views of the same memory
-            long retainedSizeInBytes = backingPage.getRetainedSizeInBytes();
-            for (int channel = 0; channel < blocks.length; channel++) {
-                if (blocks[channel] != null && backingIndexByOutputChannel[channel] < 0) {
-                    retainedSizeInBytes += blocks[channel].getRetainedSizeInBytes();
-                }
-            }
-            return retainedSizeInBytes;
-        }
-
-        @Override
-        public void retainedBytesForEachPart(ObjLongConsumer<Object> consumer)
-        {
-            // backingPage is retained even before any load; blocks loaded from it are views of the same memory
-            backingPage.retainedBytesForEachPart(consumer);
-            for (int channel = 0; channel < blocks.length; channel++) {
-                if (blocks[channel] != null && backingIndexByOutputChannel[channel] < 0) {
-                    blocks[channel].retainedBytesForEachPart(consumer);
-                }
-            }
-        }
-
-        @Override
-        public void selectPositions(int[] positions, int offset, int size)
-        {
-            super.selectPositions(positions, offset, size);
             positionCount = size;
         }
     }
