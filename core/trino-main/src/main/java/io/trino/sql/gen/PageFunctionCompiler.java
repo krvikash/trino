@@ -30,7 +30,6 @@ import io.airlift.bytecode.Scope;
 import io.airlift.bytecode.Variable;
 import io.airlift.bytecode.control.ForLoop;
 import io.airlift.bytecode.control.IfStatement;
-import io.airlift.bytecode.expression.BytecodeExpression;
 import io.trino.cache.CacheStatsMBean;
 import io.trino.cache.NonEvictableCache;
 import io.trino.metadata.FunctionManager;
@@ -645,15 +644,13 @@ public class PageFunctionCompiler
         Scope scope = method.getScope();
         BytecodeBlock body = method.getBody();
 
-        List<Variable> blockVariables = declareBlockVariables(filter, compactLayout, page, scope, body);
-
         Variable wasNullVariable = scope.declareVariable("wasNull", body, constantFalse());
         ExpressionBytecodeCompiler compiler = new ExpressionBytecodeCompiler(
                 classDefinition,
                 method.getThis(),
                 callSiteBinder,
                 cachedInstanceBinder,
-                fieldReferenceCompiler(typeManager.getTypeOperators(), compactLayout, callSiteBinder, scope),
+                fieldReferenceCompiler(typeManager.getTypeOperators(), compactLayout, callSiteBinder),
                 functionManager,
                 metadata,
                 typeManager,
@@ -661,12 +658,7 @@ public class PageFunctionCompiler
                 charVarcharCoercion,
                 compiledLambdaMap,
                 ImmutableList.of(session, page, position),
-                Optional.of(new ParentMethodContext(
-                        context,
-                        ImmutableList.<Variable>builder()
-                                .addAll(blockVariables)
-                                .add(wasNullVariable)
-                                .build())));
+                Optional.of(new ParentMethodContext(context, ImmutableList.of(wasNullVariable))));
 
         Variable result = scope.declareVariable(boolean.class, "result");
         body.append(compiler.compileWithExtraction(filter, scope))
@@ -674,16 +666,6 @@ public class PageFunctionCompiler
                 .putVariable(result)
                 .append(and(not(wasNullVariable), result).ret());
         return method;
-    }
-
-    private static List<Variable> declareBlockVariables(Expression expression, Map<Symbol, Integer> compactLayout, Parameter page, Scope scope, BytecodeBlock body)
-    {
-        ImmutableList.Builder<Variable> variables = ImmutableList.builder();
-        for (int channel : getInputChannels(expression, compactLayout)) {
-            Variable variable = scope.declareVariable("block_" + channel, body, page.invoke("getBlock", Block.class, constantInt(channel)));
-            variables.add(variable);
-        }
-        return variables.build();
     }
 
     private static Set<Integer> getInputChannels(Expression expression, Map<Symbol, Integer> compactLayout)
@@ -721,20 +703,17 @@ public class PageFunctionCompiler
         };
     }
 
-    private static BiFunction<Reference, Scope, BytecodeNode> fieldReferenceCompiler(TypeOperators typeOperators, Map<Symbol, Integer> compactLayout, CallSiteBinder callSiteBinder, Scope filterScope)
+    private static BiFunction<Reference, Scope, BytecodeNode> fieldReferenceCompiler(TypeOperators typeOperators, Map<Symbol, Integer> compactLayout, CallSiteBinder callSiteBinder)
     {
         return (reference, scope) -> {
             int field = compactLayout.get(Symbol.from(reference));
-            // Scope identity distinguishes the filter method from generated helpers, which cannot access block variables.
-            BytecodeExpression block = scope == filterScope
-                    ? scope.getVariable("block_" + field)
-                    : scope.getVariable("page").invoke("getBlock", Block.class, constantInt(field));
+            // Reads through SourcePage.getBlock at each use site so channels skipped by short-circuit evaluation are never loaded
             return generateInputReference(
                     typeOperators,
                     callSiteBinder,
                     scope,
                     reference.type(),
-                    block,
+                    scope.getVariable("page").invoke("getBlock", Block.class, constantInt(field)),
                     scope.getVariable("position"));
         };
     }
