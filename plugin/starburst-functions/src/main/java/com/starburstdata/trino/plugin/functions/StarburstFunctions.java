@@ -15,6 +15,7 @@ import com.google.inject.Inject;
 import com.starburstdata.trino.plugin.functions.ai.CachingAiModelAccessControl;
 import com.starburstdata.trino.plugin.functions.ai.embedding.GenerateEmbeddingsFunctionHandle;
 import com.starburstdata.trino.plugin.functions.ai.embedding.GenerateEmbeddingsTableFunction;
+import com.starburstdata.trino.plugin.functions.crypto.CryptoFunctions;
 import io.airlift.json.JsonCodec;
 import io.airlift.slice.Slice;
 import io.starburst.ai.client.ModelClientProvider;
@@ -238,6 +239,10 @@ public class StarburstFunctions
             FunctionDependencies functionDependencies,
             InvocationConvention invocationConvention)
     {
+        if (CryptoFunctions.isCryptoFunction(functionId)) {
+            return CryptoFunctions.getScalarFunctionImplementation(functionId, boundSignature, invocationConvention);
+        }
+
         String name = functionId.toString();
         MethodHandle handle = switch (name) {
             case "generate_embedding" -> GENERATE_EMBEDDING;

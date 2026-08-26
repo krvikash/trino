@@ -11,6 +11,8 @@ package com.starburstdata.trino.plugin.functions;
 
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Inject;
+import com.starburstdata.trino.plugin.functions.crypto.CryptoConfig;
+import com.starburstdata.trino.plugin.functions.crypto.CryptoFunctions;
 import com.starburstdata.trino.plugin.functions.io.functions.Load;
 import io.trino.plugin.hive.HiveColumnHandle;
 import io.trino.spi.connector.ColumnHandle;
@@ -33,9 +35,11 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Stream;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.starburstdata.trino.plugin.functions.ai.AiSessionPropertiesProvider.isBatchCallingEnabled;
+import static com.starburstdata.trino.plugin.functions.crypto.CryptoFunctions.CRYPTO_SCHEMA_NAME;
 import static io.trino.spi.function.FunctionKind.BATCH;
 import static io.trino.spi.function.FunctionKind.SCALAR;
 import static java.util.Objects.requireNonNull;
@@ -47,28 +51,35 @@ public class FunctionsMetadata
     public static final String AI_SCHEMA_NAME = "ai";
     public static final String IO_SCHEMA_NAME = "io";
 
-    private final List<FunctionMetadata> functions;
+    private final List<FunctionMetadata> aiFunctions;
+    private final boolean cryptoEnabled;
+    private final List<FunctionMetadata> cryptoFunctions;
 
+    // TODO Bind the functions per schema, with a MapBinder keyed by schema name that each module
+    //  contributes to, instead of the AI functions arriving through the unqualified
+    //  List<FunctionMetadata> binding while the crypto ones are read statically. listSchemaNames()
+    //  and functionsIn() would then derive from one source of truth instead of two that have to be
+    //  kept in step. Deferred because it changes AiModule's bindings, which the tests reachable
+    //  outside the 'ai' CI label do not cover. Can be done before GA of crypto functions.
     @Inject
-    public FunctionsMetadata(List<FunctionMetadata> functions)
+    public FunctionsMetadata(List<FunctionMetadata> aiFunctions, CryptoConfig cryptoConfig)
     {
-        this.functions = ImmutableList.copyOf(requireNonNull(functions, "functions is null"));
+        this.aiFunctions = ImmutableList.copyOf(requireNonNull(aiFunctions, "aiFunctions is null"));
+        this.cryptoEnabled = requireNonNull(cryptoConfig, "cryptoConfig is null").isEnabled();
+        this.cryptoFunctions = cryptoEnabled ? CryptoFunctions.getFunctions() : ImmutableList.of();
     }
 
     @Override
     public Collection<FunctionMetadata> listFunctions(ConnectorSession session, String schemaName)
     {
-        return schemaName.equals(AI_SCHEMA_NAME) ? functions : List.of();
+        return functionsIn(schemaName);
     }
 
     @Override
     public Collection<FunctionMetadata> getFunctions(ConnectorSession session, SchemaFunctionName name)
     {
-        if (!listSchemaNames(session).contains(name.schemaName())) {
-            return ImmutableList.of();
-        }
         boolean batchCallingEnabled = isBatchCallingEnabled(session);
-        Map<Signature, List<FunctionMetadata>> candidates = functions.stream()
+        Map<Signature, List<FunctionMetadata>> candidates = functionsIn(name.schemaName()).stream()
                 .filter(function -> function.getCanonicalName().equals(name.functionName()))
                 .collect(groupingBy(FunctionMetadata::getSignature));
         ImmutableList.Builder<FunctionMetadata> builder = ImmutableList.builder();
@@ -94,10 +105,23 @@ public class FunctionsMetadata
     @Override
     public FunctionMetadata getFunctionMetadata(ConnectorSession session, FunctionId functionId)
     {
-        return functions.stream()
+        return Stream.concat(aiFunctions.stream(), cryptoFunctions.stream())
                 .filter(function -> function.getFunctionId().equals(functionId))
                 .findFirst()
                 .orElseThrow();
+    }
+
+    /**
+     * Functions are addressable only through the schema that declares them, so that
+     * {@code starburst.crypto.aes_encrypt} resolves while {@code starburst.ai.aes_encrypt} does not.
+     */
+    private List<FunctionMetadata> functionsIn(String schemaName)
+    {
+        return switch (schemaName) {
+            case AI_SCHEMA_NAME -> aiFunctions;
+            case CRYPTO_SCHEMA_NAME -> cryptoFunctions;
+            default -> ImmutableList.of();
+        };
     }
 
     @Override
@@ -109,7 +133,13 @@ public class FunctionsMetadata
     @Override
     public List<String> listSchemaNames(ConnectorSession session)
     {
-        return ImmutableList.of(AI_SCHEMA_NAME, IO_SCHEMA_NAME);
+        ImmutableList.Builder<String> schemaNames = ImmutableList.<String>builder()
+                .add(AI_SCHEMA_NAME)
+                .add(IO_SCHEMA_NAME);
+        if (cryptoEnabled) {
+            schemaNames.add(CRYPTO_SCHEMA_NAME);
+        }
+        return schemaNames.build();
     }
 
     @Override

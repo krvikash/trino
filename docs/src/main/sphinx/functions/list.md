@@ -22,6 +22,8 @@
 
 - {func}`abs`
 - {func}`acos`
+- {func}`aes_decrypt`
+- {func}`aes_encrypt`
 - [ALL](quantified-comparison-predicates)
 - {func}`all_match`
 - [AND](logical-operators)

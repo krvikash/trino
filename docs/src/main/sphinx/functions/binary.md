@@ -202,3 +202,8 @@ Computes HMAC with SHA256 of `binary` with the given `key`.
 :::{function} hmac_sha512(binary, key) -> varbinary
 Computes HMAC with SHA512 of `binary` with the given `key`.
 :::
+
+## Encryption functions
+
+AES encryption and decryption are provided by the `starburst_functions` connector rather than as
+built-in functions, and are documented in [](/functions/crypto).

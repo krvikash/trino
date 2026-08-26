@@ -43,6 +43,7 @@ Conversion          <functions/conversion>
 DataSketches        <functions/datasketches>
 Date and time       <functions/datetime>
 Decimal             <functions/decimal>
+Encryption          <functions/crypto>
 Geospatial          <functions/geospatial>
 HyperLogLog         <functions/hyperloglog>
 IP Address          <functions/ipaddress>

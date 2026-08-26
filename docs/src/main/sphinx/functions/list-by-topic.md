@@ -93,6 +93,8 @@ For more details, see {doc}`array`
 
 For more details, see {doc}`binary`
 
+- {func}`aes_decrypt`
+- {func}`aes_encrypt`
 - `concat()`
 - {func}`crc32`
 - {func}`from_base32`

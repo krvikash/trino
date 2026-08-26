@@ -12,6 +12,7 @@ package com.starburstdata.trino.plugin.functions;
 import com.google.inject.Injector;
 import com.google.inject.Module;
 import com.starburstdata.trino.plugin.functions.ai.AiModule;
+import com.starburstdata.trino.plugin.functions.crypto.CryptoModule;
 import com.starburstdata.trino.plugin.functions.io.ResolvingFileSystemModule;
 import com.starburstdata.trino.plugin.functions.io.StorageModule;
 import io.airlift.bootstrap.Bootstrap;
@@ -57,6 +58,7 @@ public class FunctionsConnectorFactory
         Bootstrap app = new Bootstrap(
                 "io.trino.bootstrap.catalog." + catalogName,
                 new AiModule(context.getModelConnectionSpecsLoader()),
+                new CryptoModule(),
                 new JsonModule(),
                 new StorageModule(),
                 new ResolvingFileSystemModule(context.getOpenTelemetry()),
