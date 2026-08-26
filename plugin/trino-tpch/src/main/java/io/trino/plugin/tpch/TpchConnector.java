@@ -15,6 +15,8 @@ package io.trino.plugin.tpch;
 
 import com.google.inject.Inject;
 import io.airlift.bootstrap.LifeCycleManager;
+import io.trino.plugin.base.classloader.ClassLoaderSafeConnectorSubstitutionMetadata;
+import io.trino.plugin.tpch.substitution.TpchSubstitutionMetadata;
 import io.trino.spi.connector.Connector;
 import io.trino.spi.connector.ConnectorMetadata;
 import io.trino.spi.connector.ConnectorNodePartitioningProvider;
@@ -22,6 +24,7 @@ import io.trino.spi.connector.ConnectorPageSourceProvider;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorSplitManager;
 import io.trino.spi.connector.ConnectorTransactionHandle;
+import io.trino.spi.connector.substitution.ConnectorSubstitutionMetadata;
 import io.trino.spi.subquery.cache.ConnectorCacheMetadata;
 import io.trino.spi.transaction.IsolationLevel;
 
@@ -35,15 +38,31 @@ public class TpchConnector
     private final ConnectorSplitManager splitManager;
     private final ConnectorNodePartitioningProvider nodePartitioningProvider;
     private final ConnectorPageSourceProvider pageSourceProvider;
+    private final ConnectorSubstitutionMetadata substitutionMetadata;
 
     @Inject
-    public TpchConnector(LifeCycleManager lifeCycleManager, ConnectorMetadata metadata, ConnectorSplitManager splitManager, ConnectorNodePartitioningProvider nodePartitioningProvider, ConnectorPageSourceProvider pageSourceProvider)
+    public TpchConnector(
+            LifeCycleManager lifeCycleManager,
+            ConnectorMetadata metadata,
+            ConnectorSplitManager splitManager,
+            ConnectorNodePartitioningProvider nodePartitioningProvider,
+            ConnectorPageSourceProvider pageSourceProvider,
+            TpchSubstitutionMetadata substitutionMetadata)
     {
         this.lifeCycleManager = requireNonNull(lifeCycleManager, "lifeCycleManager is null");
         this.metadata = requireNonNull(metadata, "metadata is null");
         this.splitManager = requireNonNull(splitManager, "splitManager is null");
         this.nodePartitioningProvider = requireNonNull(nodePartitioningProvider, "nodePartitioningProvider is null");
         this.pageSourceProvider = requireNonNull(pageSourceProvider, "pageSourceProvider is null");
+        this.substitutionMetadata = new ClassLoaderSafeConnectorSubstitutionMetadata(
+                requireNonNull(substitutionMetadata, "substitutionMetadata is null"),
+                getClass().getClassLoader());
+    }
+
+    @Override
+    public ConnectorSubstitutionMetadata getSubstitutionMetadata()
+    {
+        return substitutionMetadata;
     }
 
     @Override
