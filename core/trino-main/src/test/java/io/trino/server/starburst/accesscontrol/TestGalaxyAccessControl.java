@@ -1044,7 +1044,7 @@ public abstract class TestGalaxyAccessControl
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"system", "ai", "functions"})
+    @ValueSource(strings = {"system", "ai", "crypto", "functions"})
     public void testTableFunctionPrivileges(String schema)
     {
         helper.getAccountClient().upsertAccountFeatureFlag("AI_FUNCTIONS", true);
@@ -1079,6 +1079,30 @@ public abstract class TestGalaxyAccessControl
         withGrantedFunctionPrivilege(adminContext(), PUBLIC, function, false, () -> {
             checkAccessMatching(message, allContexts(), ImmutableList.of(), checkFunction);
         });
+    }
+
+    /**
+     * The set of schemas functions may live in is defined by {@code FunctionSchemas} in
+     * stargate-ids, which {@link GalaxyAccessControl#hasWhitelistedFunctionSchema} delegates to.
+     * Pin the set here so that a stargate version bump changing it is caught by this test rather
+     * than at runtime.
+     */
+    @ParameterizedTest
+    @ValueSource(strings = {"system", "ai", "crypto", "functions"})
+    public void testFunctionSchemaIsAllowlisted(String schema)
+    {
+        // Reaches the privilege check, which denies for want of a grant rather than rejecting the schema
+        CatalogSchemaRoutineName function = new CatalogSchemaRoutineName(helper.getAnyCatalogName(), schema, "some_function");
+        assertThat(accessControl.canExecuteFunction(adminContext(), function)).isFalse();
+    }
+
+    @Test
+    public void testFunctionSchemaNotAllowlisted()
+    {
+        CatalogSchemaRoutineName function = new CatalogSchemaRoutineName(helper.getAnyCatalogName(), newSchemaName(), "some_function");
+        assertThatThrownBy(() -> accessControl.canExecuteFunction(adminContext(), function))
+                .isInstanceOf(TrinoException.class)
+                .hasMessageContaining("The schema name for function '%s' must be 'system', 'ai', 'crypto', or 'functions'".formatted(function));
     }
 
     @Test

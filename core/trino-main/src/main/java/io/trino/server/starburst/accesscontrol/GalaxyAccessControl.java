@@ -29,6 +29,7 @@ import io.starburst.stargate.id.CatalogId;
 import io.starburst.stargate.id.EntityId;
 import io.starburst.stargate.id.EntityKind;
 import io.starburst.stargate.id.FunctionId;
+import io.starburst.stargate.id.FunctionSchemas;
 import io.starburst.stargate.id.RoleId;
 import io.starburst.stargate.id.SchemaId;
 import io.starburst.stargate.id.SharedSchemaNameAndAccepted;
@@ -1536,15 +1537,13 @@ public class GalaxyAccessControl
     public static void validateFunctionSchema(CatalogSchemaRoutineName routineName)
     {
         if (!hasWhitelistedFunctionSchema(routineName)) {
-            throw new TrinoException(StandardErrorCode.FUNCTION_NOT_FOUND, "The schema name for function '%s' must be 'system', 'ai', or 'functions'".formatted(routineName));
+            throw new TrinoException(StandardErrorCode.FUNCTION_NOT_FOUND, "The schema name for function '%s' must be %s".formatted(routineName, FunctionSchemas.ALLOWED_DESCRIPTION));
         }
     }
 
     public static boolean hasWhitelistedFunctionSchema(CatalogSchemaRoutineName routineName)
     {
-        return routineName.getSchemaName().equals("system")
-                || routineName.getSchemaName().equals("functions")
-                || routineName.getSchemaName().equals("ai");
+        return FunctionSchemas.isAllowed(routineName.getSchemaName());
     }
 
     public boolean isIllegalSharedSchemaName(SystemSecurityContext context, String catalogName, String schemaName)
