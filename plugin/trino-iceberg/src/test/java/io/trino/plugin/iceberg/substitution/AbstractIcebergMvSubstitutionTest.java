@@ -14,7 +14,7 @@
 package io.trino.plugin.iceberg.substitution;
 
 import io.trino.Session;
-import io.trino.plugin.hive.substitution.AbstractMvSubstitutionTest;
+import io.trino.plugin.hive.substitution.AbstractMvSubstitutionFullTest;
 import io.trino.plugin.iceberg.TestingIcebergPlugin;
 import io.trino.plugin.tpch.TpchPlugin;
 import io.trino.spi.connector.CatalogSchemaName;
@@ -28,7 +28,7 @@ import static io.trino.plugin.iceberg.IcebergQueryRunner.ICEBERG_CATALOG;
 import static io.trino.testing.TestingSession.testSessionBuilder;
 
 public abstract class AbstractIcebergMvSubstitutionTest
-        extends AbstractMvSubstitutionTest
+        extends AbstractMvSubstitutionFullTest
 {
     @Override
     protected String partitionedByPropertyName()
