@@ -14,6 +14,7 @@
 package io.trino.sql.gen.columnar;
 
 import io.trino.operator.project.DictionaryAwarePageProjection;
+import io.trino.operator.project.InputPageProjection;
 import io.trino.operator.project.PageProjection;
 import io.trino.operator.project.SelectedPositions;
 import io.trino.spi.Page;
@@ -44,7 +45,8 @@ final class ColumnarFilterEvaluatorWithProjectedArguments
         this.debugContext = requireNonNull(debugContext, "debugContext is null");
         this.argumentProjections = argumentProjections.stream()
                 .map(argumentProjection -> {
-                    if (argumentProjection.isDeterministic() && argumentProjection.getInputChannels().size() == 1) {
+                    // input projections preserve the encoding of their input on their own
+                    if (argumentProjection.isDeterministic() && argumentProjection.getInputChannels().size() == 1 && !(argumentProjection instanceof InputPageProjection)) {
                         return new DictionaryAwarePageProjection(argumentProjection, _ -> randomDictionaryId());
                     }
                     return argumentProjection;
