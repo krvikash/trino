@@ -63,10 +63,9 @@ public class CollectTxService
             RecordIndexes recordIndexes,
             QueryArgs queryArgs,
             ThreadArena pageArena,
-            AggregatorArgs aggregatorArgs,
-            List<Integer> blocksToLoad)
+            AggregatorArgs aggregatorArgs)
     {
-        int numCollectElements = blocksToLoad.size();
+        int numCollectElements = queryArgs.queryParams().getNumCollectElements();
 
         Optional<MemorySegment> collectMemory = Optional.empty();
         recordIndexes.allocateRecordIndexesSegment(pageArena);
@@ -80,16 +79,12 @@ public class CollectTxService
             collectMemory = allocCollectBuffers(
                     aggregatorArgs.collectBuffersParams(),
                     pageArena,
-                    collectMetadataMemory.collectBuffersOpt().get(),
-                    blocksToLoad);
+                    collectMetadataMemory.collectBuffersOpt().get());
 
             MemorySegment collectParamsListMemory = collectMetadataMemory.collectParamsOpt().get();
-            MemorySegment elementCollectParamsMemory;
-            int collectIx = 0;
-            for (Integer blockIx : blocksToLoad) {
-                elementCollectParamsMemory = queryArgs.queryParams().getCollectElementsParamsList().get(blockIx).getMemory();
+            for (int collectIx = 0; collectIx < numCollectElements; collectIx++) {
+                MemorySegment elementCollectParamsMemory = queryArgs.queryParams().getCollectElementsParamsList().get(collectIx).getMemory();
                 collectParamsListMemory.setAtIndex(ValueLayout.ADDRESS, collectIx, elementCollectParamsMemory);
-                collectIx++;
             }
         }
         else {
@@ -194,13 +189,9 @@ public class CollectTxService
     private Optional<MemorySegment> allocCollectBuffers(
             CollectBuffersParams collectBuffersParams,
             ThreadArena pageArena,
-            MemorySegment collectBuffers,
-            List<Integer> blocksToLoad)
+            MemorySegment collectBuffers)
     {
         List<CollectBuffersParams.CollectBufAllocParams> allocParamsList = collectBuffersParams.collectAllocParams();
-        List<CollectBuffersParams.CollectBufAllocParams> preLoadedAllocParamsList = blocksToLoad.stream()
-                .map(allocParamsList::get)
-                .toList();
         final int pageSize = storageEngineConstants.getPageSize();
 
         // allocate total memory for records and nulls
@@ -217,7 +208,7 @@ public class CollectTxService
         int collectBufIx = 0;
         try {
             // perform actual allocation of record and null buffers and create the juffers
-            for (CollectBuffersParams.CollectBufAllocParams allocParams : preLoadedAllocParamsList) {
+            for (CollectBuffersParams.CollectBufAllocParams allocParams : allocParamsList) {
                 MemorySegment[] collectSegments = new MemorySegment[JbufType.JBUF_TYPE_QUERY_NUM_OF.ordinal()]; // used to create the juffers below
                 // record buffer size including the optional part which is calculated using the precentage and masked to page size
                 int recordBufferSize = bufferAllocator.calcWeRecordBufferSize(allocParams.requestedRecordBufferSize(), collectBuffersParams.satisfyPercentage());

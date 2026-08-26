@@ -90,7 +90,7 @@ public class WarpReader
     /**
      * prepare buffers for filling
      */
-    private void openPage(List<Integer> blocksToLoad, RecordIndexes recordIndexes)
+    private void openPage(RecordIndexes recordIndexes)
     {
         queryState.resetNumRecordsInCurPage();
         pageArena = workerMemoryManager.getThreadArena();
@@ -101,8 +101,7 @@ public class WarpReader
                 queryArgs,
                 pageArena,
                 aggregatorArgs,
-                queryState,
-                blocksToLoad);
+                queryState);
 
         matcherPageArgs = matcher.openPage(
                 recordIndexes,
@@ -115,7 +114,7 @@ public class WarpReader
     /**
      * collect rows from native, return true if something was collected, false otherwise
      */
-    private boolean prepareBlocks(List<Integer> blocksToLoad, RecordIndexes recordIndexes, List<ChunkProperties> pageChunksList)
+    private boolean prepareBlocks(RecordIndexes recordIndexes, List<ChunkProperties> pageChunksList)
     {
         if (aggregatorPageArgs == null) {
             throw new TrinoException(WARP_UNRECOVERABLE_COLLECT_FAILED, "no collect tx available, probably a secondary error");
@@ -135,8 +134,7 @@ public class WarpReader
                     queryArgs,
                     aggregatorArgs,
                     aggregatorPageArgs,
-                    queryState,
-                    blocksToLoad);
+                    queryState);
             pageChunksList.add(chunk.get());
             queryArgs.dispatcherPageSourceStats().addcached_read_rows(chunk.get().numRecordsInChunk());
         }
@@ -153,9 +151,8 @@ public class WarpReader
             WarpStoragePageSource.RowRanges ranges = WarpStoragePageSource.RowRanges.EMPTY;
             RecordIndexes recordIndexes = new RecordIndexes(queryArgs.chunkSize());
             List<ChunkProperties> pageChunksList = new ArrayList<>();
-            List<Integer> preLoadedBlocks = blocksAggregator.getPreLoadedBlocks(queryArgs);
-            openPage(preLoadedBlocks, recordIndexes);
-            if (prepareBlocks(preLoadedBlocks, recordIndexes, pageChunksList)) {
+            openPage(recordIndexes);
+            if (prepareBlocks(recordIndexes, pageChunksList)) {
                 if (queryState.getNumRecordsInCurPage() > rowsLimit - queryState.getTotalNumReadRecords()) {
                     shapingLogger.warn(
                             "numRecordsInCurPage is exceeding the limit. numRecordsInCurPage %d totalNumReadRecords %d rowsLimit %d page limit %d",
@@ -172,7 +169,6 @@ public class WarpReader
                         aggregatorPageArgs,
                         queryState,
                         pageChunksList,
-                        preLoadedBlocks,
                         blocks);
                 if (queryArgs.queryParams().isRangesRequired()) {
                     ranges = matcher.getRanges(matcherPageArgs);

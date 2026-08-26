@@ -38,8 +38,6 @@ import java.lang.foreign.ValueLayout;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_FD;
 import static io.trino.plugin.warp.gen.constants.FileCookieParams.FILE_COOKIE_PARAMS_FILE_HASH;
@@ -100,15 +98,13 @@ public class StorageCollectorService
             QueryArgs queryArgs,
             ThreadArena pageArena,
             AggregatorArgs aggregatorArgs,
-            WarpQueryState queryState,
-            List<Integer> blocksToLoad)
+            WarpQueryState queryState)
     {
         return collectTxService.collectOpenAndRestore(
                 recordIndexes,
                 queryArgs,
                 pageArena,
-                aggregatorArgs,
-                blocksToLoad);
+                aggregatorArgs);
     }
 
     void openChunk(
@@ -141,10 +137,9 @@ public class StorageCollectorService
             QueryArgs queryArgs,
             AggregatorArgs aggregatorArgs,
             AggregatorPageArgs aggregatorPageArgs,
-            WarpQueryState queryState,
-            List<Integer> blocksToLoad)
+            WarpQueryState queryState)
     {
-        if (!blocksToLoad.isEmpty()) {
+        if (queryArgs.queryParams().getNumCollectElements() > 0) {
             recordIndexes.setCurChunkProperties(chunk);
             openChunk(chunk.chunkIndex(), queryArgs, aggregatorPageArgs);
             try {
@@ -170,22 +165,19 @@ public class StorageCollectorService
             AggregatorPageArgs aggregatorPageArgs,
             WarpQueryState queryState,
             List<ChunkProperties> pageChunksList,
-            List<Integer> blocksToLoad,
             Block[] blocks)
     {
         List<WarmupElementCollectParams> collectElementsParamsList = queryArgs.queryParams().getCollectElementsParamsList();
         MemorySegment queryResultTypes = aggregatorPageArgs.queryResultTypes().orElse(MemorySegment.NULL);
         int rowsToFill = queryState.getNumRecordsInCurPage();
-        int preLoadedBlockIx = 0;
 
-        for (Integer weIx : blocksToLoad) {
+        for (int weIx = 0; weIx < collectElementsParamsList.size(); weIx++) {
             WarmupElementCollectParams collectParams = collectElementsParamsList.get(weIx);
             BlockFiller<?> blockFiller = aggregatorArgs.blockFillers().get(weIx);
-            ReadJuffersWarmUpElement readJuffersWarmUpElement = aggregatorArgs.collectBuffersParams().collectJuffersWE().get(preLoadedBlockIx);
-            QueryResultType queryResultType = QueryResultType.values()[queryResultTypes.getAtIndex(ValueLayout.JAVA_INT, preLoadedBlockIx)];
+            ReadJuffersWarmUpElement readJuffersWarmUpElement = aggregatorArgs.collectBuffersParams().collectJuffersWE().get(weIx);
+            QueryResultType queryResultType = QueryResultType.values()[queryResultTypes.getAtIndex(ValueLayout.JAVA_INT, weIx)];
             Block block = blockFiller.fillBlockWithRecords(collectParams, readJuffersWarmUpElement, rowsToFill, queryResultType, queryArgs.dispatcherPageSourceStats());
             blocks[collectParams.getBlockIndex()] = block;
-            preLoadedBlockIx++;
         }
         return blocks;
     }
@@ -218,16 +210,6 @@ public class StorageCollectorService
                 numChunks,
                 numChunksInRange,
                 storeMatchCollectMetadataBuff);
-    }
-
-    @Override
-    public List<Integer> getPreLoadedBlocks(QueryArgs queryArgs)
-    {
-        List<WarmupElementCollectParams> paramsList = queryArgs.queryParams().getCollectElementsParamsList();
-        return IntStream.range(0, paramsList.size())
-                .filter(i -> paramsList.get(i).hasMatchCollect())
-                .boxed()
-                .collect(Collectors.toList());
     }
 
     private AggregatorArgs getStorageCollectorArgs(QueryArgs queryArgs)

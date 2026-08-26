@@ -43,6 +43,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkState;
 import static io.trino.plugin.warp.dispatcher.query.MatchCollectUtils.findMatchForMatchCollect;
 import static io.trino.plugin.warp.dispatcher.query.classifier.QueryClassifier.INVALID_TOTAL_RECORDS;
 import static io.trino.plugin.warp.storage.read.WarpPageSource.INVALID_COL_IX;
@@ -296,7 +297,6 @@ public class QueryParamsConverter
 
             boolean isCollectNulls = collectDataWarmUpElement.getWarmupElementStats().getNullsCount() > 0;
             int blockIndex = nativeQueryCollectDataList.indexOf(nativeQueryCollectData);
-            int matchCollectIndex = INVALID_COL_IX;
             int currMatchCollectId = nativeQueryCollectData.getMatchCollectId();
             if (currMatchCollectId != matchCollectId) {
                 if (matchCollectId != MatchCollectIdService.INVALID_ID) {
@@ -305,17 +305,17 @@ public class QueryParamsConverter
                 matchCollectId = currMatchCollectId;
             }
             Optional<Block> valuesDictBlock = Optional.empty();
-            if (nativeQueryCollectData.getMatchCollectType() != MatchCollectUtils.MatchCollectType.DISABLED) {
-                QueryMatchData queryMatchData = findMatchForMatchCollect(nativeQueryCollectData, queryMatchDataLeaves)
-                        .orElseThrow(() -> new RuntimeException("Expected match-collect was not found"));
-                isCollectNulls &= queryMatchData.getWarmUpElement().getWarmupElementStats().getNullsCount() > 0 && queryMatchData.isCollectNulls();
-                matchCollectIndex = matchCollectElements.size();
-                boolean mappedMatchCollect = nativeQueryCollectData.getMatchCollectType() == MatchCollectUtils.MatchCollectType.MAPPED;
-                if (mappedMatchCollect) {
-                    valuesDictBlock = queryMatchData.getPredicateCacheData().getValuesDict();
-                }
-                matchCollectElements.add(new MatchCollectElement(queryMatchData, matchCollectIndex, mappedMatchCollect));
+            // the collect path fills buffers for every element, so each must be match-collect
+            checkState(nativeQueryCollectData.getMatchCollectType() != MatchCollectUtils.MatchCollectType.DISABLED, "collect element without match-collect");
+            QueryMatchData queryMatchData = findMatchForMatchCollect(nativeQueryCollectData, queryMatchDataLeaves)
+                    .orElseThrow(() -> new RuntimeException("Expected match-collect was not found"));
+            isCollectNulls &= queryMatchData.getWarmUpElement().getWarmupElementStats().getNullsCount() > 0 && queryMatchData.isCollectNulls();
+            int matchCollectIndex = matchCollectElements.size();
+            boolean mappedMatchCollect = nativeQueryCollectData.getMatchCollectType() == MatchCollectUtils.MatchCollectType.MAPPED;
+            if (mappedMatchCollect) {
+                valuesDictBlock = queryMatchData.getPredicateCacheData().getValuesDict();
             }
+            matchCollectElements.add(new MatchCollectElement(queryMatchData, matchCollectIndex, mappedMatchCollect));
 
             collectParamsList.add(
                     new WarmupElementCollectParams(
