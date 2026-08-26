@@ -13,7 +13,6 @@
  */
 package io.trino.plugin.hive.substitution;
 
-import com.google.common.collect.ImmutableList;
 import io.trino.Session;
 import io.trino.metadata.MaterializedViewDefinition;
 import io.trino.metadata.Metadata;
@@ -151,12 +150,11 @@ public abstract class AbstractMvSubstitutionTest
                 .isNotEmpty();
         assertThat(scannedTableNames)
                 .as("Expected no scan on base tables '%s' — should be substituted with MV storage table", baseTableName)
-                .doesNotContain(baseTableName)
-                .containsAll(ImmutableList.copyOf(expectedNotSubstitutedTables));
+                .doesNotContain(unquote(baseTableName));
         if (expectedNotSubstitutedTables.length > 0) {
             assertThat(scannedTableNames)
                     .as("Expected scan on base tables '%s' — should not be substituted with MV storage table", Arrays.toString(expectedNotSubstitutedTables))
-                    .contains(expectedNotSubstitutedTables);
+                    .containsAll(unquote(expectedNotSubstitutedTables));
         }
 
         List<String> storageTableNames = materializedViews.stream()
@@ -201,9 +199,24 @@ public abstract class AbstractMvSubstitutionTest
         List<CatalogSchemaTableName> scannedTableNames = getScannedTableNames(result);
         assertThat(scannedTableNames)
                 .as("Expected scan on base table '%s' — no substitution should happen", baseTable)
-                .contains(baseTable);
+                .contains(unquote(baseTable));
 
         return result;
+    }
+
+    private static List<CatalogSchemaTableName> unquote(CatalogSchemaTableName... baseTables)
+    {
+        return Arrays.stream(baseTables)
+                .map(AbstractMvSubstitutionTest::unquote)
+                .collect(toImmutableList());
+    }
+
+    private static CatalogSchemaTableName unquote(CatalogSchemaTableName baseTable)
+    {
+        return new CatalogSchemaTableName(
+                baseTable.getCatalogName().replaceAll("\"", ""),
+                baseTable.getSchemaTableName().getSchemaName().replaceAll("\"", ""),
+                baseTable.getSchemaTableName().getTableName().replaceAll("\"", ""));
     }
 
     private List<CatalogSchemaTableName> getScannedTableNames(QueryRunner.MaterializedResultWithPlan result)
