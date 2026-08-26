@@ -26,6 +26,7 @@ import io.trino.plugin.kafka.schema.confluent.ConfluentModule;
 import io.trino.plugin.kafka.schema.confluent.ConfluentSchemaRegistryTableDescriptionSupplier;
 import io.trino.plugin.kafka.schema.file.FileTableDescriptionSupplier;
 import io.trino.plugin.kafka.schema.file.FileTableDescriptionSupplierModule;
+import io.trino.plugin.kafka.substitution.KafkaSubstitutionMetadata;
 import io.trino.spi.connector.ConnectorMetadata;
 import io.trino.spi.connector.ConnectorPageSinkProvider;
 import io.trino.spi.connector.ConnectorRecordSetProvider;
@@ -51,6 +52,7 @@ public class KafkaConnectorModule
         binder.bind(ConnectorPageSinkProvider.class).annotatedWith(ForClassLoaderSafe.class).to(KafkaPageSinkProvider.class).in(Scopes.SINGLETON);
         binder.bind(ConnectorPageSinkProvider.class).to(ClassLoaderSafeConnectorPageSinkProvider.class).in(Scopes.SINGLETON);
         binder.bind(KafkaConnector.class).in(Scopes.SINGLETON);
+        binder.bind(KafkaSubstitutionMetadata.class).in(Scopes.SINGLETON);
         binder.bind(KafkaInternalFieldManager.class).in(Scopes.SINGLETON);
         binder.bind(KafkaSessionProperties.class).in(Scopes.SINGLETON);
         binder.bind(KafkaFilterManager.class).in(Scopes.SINGLETON);
