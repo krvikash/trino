@@ -22,14 +22,12 @@ import static java.util.Objects.requireNonNull;
  */
 public record CastleInsightsResult(
         String queryId,
-        String insightsVersion,
         String trinoVersion,
         List<CastleInsight> insights)
 {
     public CastleInsightsResult
     {
         requireNonNull(queryId, "queryId is null");
-        requireNonNull(insightsVersion, "insightsVersion is null");
         requireNonNull(trinoVersion, "trinoVersion is null");
         insights = ImmutableList.copyOf(insights);
     }
