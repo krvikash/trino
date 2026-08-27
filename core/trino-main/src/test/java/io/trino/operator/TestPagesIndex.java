@@ -14,10 +14,14 @@
 package io.trino.operator;
 
 import com.google.common.collect.ImmutableList;
+import io.airlift.slice.Slice;
+import io.airlift.slice.Slices;
 import io.trino.operator.join.JoinFilterFunction;
 import io.trino.operator.join.LookupSource;
 import io.trino.spi.Page;
 import io.trino.spi.block.Block;
+import io.trino.spi.block.BlockBuilder;
+import io.trino.spi.connector.SortOrder;
 import io.trino.spi.type.Type;
 import io.trino.sql.gen.JoinFilterFunctionCompiler;
 import org.junit.jupiter.api.Test;
@@ -169,6 +173,41 @@ public class TestPagesIndex
                 assertThat(estimatedAdditionalSize).isCloseTo(actualAdditionalSize, withPercentage(2));
             }
         }
+    }
+
+    @Test
+    public void testGetSortedPagesWithRowsLargerThanMaxPageSize()
+    {
+        List<Type> types = ImmutableList.of(BIGINT, VARCHAR);
+        PagesIndex pagesIndex = newPagesIndex(types, 100, false);
+        addSortTestRows(pagesIndex, 24, 40, 1_300_000);
+        addSortTestRows(pagesIndex, 64, 1000, 100);
+        addSortTestRows(pagesIndex, 0, 24, 100);
+
+        pagesIndex.sort(ImmutableList.of(0), ImmutableList.of(SortOrder.ASC_NULLS_LAST));
+
+        long expectedKey = 0;
+        Iterator<Page> sortedPages = pagesIndex.getSortedPages();
+        while (sortedPages.hasNext()) {
+            Page page = sortedPages.next();
+            for (int position = 0; position < page.getPositionCount(); position++) {
+                assertThat(BIGINT.getLong(page.getBlock(0), position)).isEqualTo(expectedKey);
+                expectedKey++;
+            }
+        }
+        assertThat(expectedKey).isEqualTo(1064);
+    }
+
+    private static void addSortTestRows(PagesIndex pagesIndex, long startKey, int rowCount, int valueBytes)
+    {
+        BlockBuilder keys = BIGINT.createBlockBuilder(null, rowCount);
+        BlockBuilder values = VARCHAR.createBlockBuilder(null, rowCount);
+        Slice value = Slices.utf8Slice("x".repeat(valueBytes));
+        for (int i = 0; i < rowCount; i++) {
+            BIGINT.writeLong(keys, startKey + i);
+            VARCHAR.writeSlice(values, value);
+        }
+        pagesIndex.addPage(new Page(keys.build(), values.build()));
     }
 
     private static PagesIndex newPagesIndex(List<Type> types, int expectedPositions, boolean eagerCompact)

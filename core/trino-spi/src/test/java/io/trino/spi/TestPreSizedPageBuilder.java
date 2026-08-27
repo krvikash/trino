@@ -13,6 +13,7 @@
  */
 package io.trino.spi;
 
+import io.airlift.slice.Slice;
 import io.airlift.slice.Slices;
 import org.junit.jupiter.api.Test;
 
@@ -278,6 +279,35 @@ final class TestPreSizedPageBuilder
         page = pageBuilder.build();
         assertThat(page.getPositionCount()).isEqualTo(2);
         assertThat(page.getSizeInBytes()).isLessThanOrEqualTo(DEFAULT_MAX_PAGE_SIZE_IN_BYTES);
+    }
+
+    @Test
+    void testRowsLargerThanMaxPageSize()
+    {
+        // Rows above the page byte budget pin capacity at one position per page; every row is still emitted.
+        PreSizedPageBuilder pageBuilder = new PreSizedPageBuilder(List.of(VARCHAR));
+        Slice value = Slices.utf8Slice("x".repeat(2 * DEFAULT_MAX_PAGE_SIZE_IN_BYTES));
+
+        int totalRows = 12;
+        int emittedRows = 0;
+        boolean firstPage = true;
+        for (int row = 0; row < totalRows; row++) {
+            VARCHAR.writeSlice(pageBuilder.getBlockBuilder(0), value);
+            pageBuilder.declarePosition();
+            if (pageBuilder.isFull()) {
+                Page page = pageBuilder.build();
+                if (!firstPage) {
+                    assertThat(page.getPositionCount()).isEqualTo(1);
+                }
+                firstPage = false;
+                emittedRows += page.getPositionCount();
+                pageBuilder.reset();
+            }
+        }
+        if (!pageBuilder.isEmpty()) {
+            emittedRows += pageBuilder.build().getPositionCount();
+        }
+        assertThat(emittedRows).isEqualTo(totalRows);
     }
 
     @Test
