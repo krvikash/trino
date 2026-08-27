@@ -38,6 +38,7 @@ import io.trino.plugin.deltalake.statistics.CachingExtendedStatisticsAccess.ForC
 import io.trino.plugin.deltalake.statistics.ExtendedStatistics;
 import io.trino.plugin.deltalake.statistics.ExtendedStatisticsAccess;
 import io.trino.plugin.deltalake.statistics.MetaDirStatisticsAccess;
+import io.trino.plugin.deltalake.substitution.DeltaLakeSubstitutionMetadata;
 import io.trino.plugin.deltalake.transactionlog.TransactionLogAccess;
 import io.trino.plugin.deltalake.transactionlog.checkpoint.CheckpointSchemaManager;
 import io.trino.plugin.deltalake.transactionlog.checkpoint.CheckpointWriterManager;
@@ -61,6 +62,7 @@ import io.trino.spi.connector.ConnectorPageSinkProvider;
 import io.trino.spi.connector.ConnectorPageSourceProvider;
 import io.trino.spi.connector.ConnectorSplitManager;
 import io.trino.spi.connector.TableProcedureMetadata;
+import io.trino.spi.connector.substitution.ConnectorSubstitutionMetadata;
 import io.trino.spi.function.FunctionProvider;
 import io.trino.spi.function.table.ConnectorTableFunction;
 import io.trino.spi.procedure.Procedure;
@@ -138,6 +140,8 @@ public class DeltaLakeModule
                 .as(generator -> generator.generatedNameOf(FileFormatDataSourceStats.class, catalogName.get().toString()));
 
         binder.bind(ConnectorCacheMetadata.class).to(DeltaLakeCacheMetadata.class).in(Scopes.SINGLETON);
+
+        binder.bind(ConnectorSubstitutionMetadata.class).to(DeltaLakeSubstitutionMetadata.class).in(Scopes.SINGLETON);
 
         // for table handle, column handle and split ids
         jsonCodecBinder(binder).bindJsonCodec(DeltaLakeCacheTableId.class);

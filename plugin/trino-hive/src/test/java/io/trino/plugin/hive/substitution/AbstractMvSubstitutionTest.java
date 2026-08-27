@@ -181,7 +181,7 @@ public abstract class AbstractMvSubstitutionTest
         return result;
     }
 
-    private MaterializedViewDefinition getMaterializedViewDefinition(Session session, CatalogSchemaTableName mvName)
+    protected MaterializedViewDefinition getMaterializedViewDefinition(Session session, CatalogSchemaTableName mvName)
     {
         Metadata metadata = getDistributedQueryRunner().getPlannerContext().getMetadata();
 
