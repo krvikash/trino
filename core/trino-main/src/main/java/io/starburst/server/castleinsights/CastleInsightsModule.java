@@ -17,6 +17,7 @@ import io.starburst.server.castleinsights.analyzer.CastleInsightAnalyzer;
 import io.starburst.server.castleinsights.analyzer.CastleInsightsExtractor;
 import io.starburst.server.castleinsights.analyzer.CastleInsightsStats;
 
+import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
 import static io.airlift.configuration.ConfigBinder.configBinder;
 import static org.weakref.jmx.guice.ExportBinder.newExporter;
 
@@ -33,5 +34,12 @@ public class CastleInsightsModule
         binder.bind(CastleInsightsExtractor.class).in(Scopes.SINGLETON);
         binder.bind(CastleInsightsStats.class).in(Scopes.SINGLETON);
         newExporter(binder).export(CastleInsightsStats.class).withGeneratedName();
+
+        // Cork has nowhere to ship insights; an integration overrides this with its own transport.
+        newOptionalBinder(binder, CastleInsightsResultSink.class)
+                .setDefault().to(DiscardingCastleInsightsResultSink.class).in(Scopes.SINGLETON);
+
+        // Nothing injects the listener, it registers itself, so it has to be created eagerly.
+        binder.bind(CastleInsightsListener.class).asEagerSingleton();
     }
 }

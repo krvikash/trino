@@ -19,6 +19,7 @@ public class CastleInsightsStats
     private final CounterStat successfulAnalyzers = new CounterStat();
     private final CounterStat failedAnalyzers = new CounterStat();
     private final CounterStat emittedInsights = new CounterStat();
+    private final CounterStat droppedQueries = new CounterStat();
 
     public void queryAnalyzed()
     {
@@ -38,6 +39,11 @@ public class CastleInsightsStats
     public void insightsEmitted(long count)
     {
         emittedInsights.update(count);
+    }
+
+    public void queryDropped()
+    {
+        droppedQueries.update(1);
     }
 
     @Managed
@@ -66,5 +72,12 @@ public class CastleInsightsStats
     public CounterStat getEmittedInsights()
     {
         return emittedInsights;
+    }
+
+    @Managed
+    @Nested
+    public CounterStat getDroppedQueries()
+    {
+        return droppedQueries;
     }
 }
