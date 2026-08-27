@@ -81,6 +81,7 @@
         <module>plugin/starburst-openapi</module>
         <module>plugin/starburst-oracle</module>
         <module>plugin/starburst-salesforce</module>
+        <module>plugin/starburst-salesforce-cdp</module>
         <module>plugin/starburst-sap-hana</module>
         <module>plugin/starburst-sas</module>
         <module>plugin/starburst-snowflake</module>

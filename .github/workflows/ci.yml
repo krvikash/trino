@@ -646,6 +646,7 @@ jobs:
             !:starburst-license,
             !:starburst-objectstore,
             !:starburst-oracle,
+            !:starburst-salesforce-cdp,
             !:starburst-salesforce,
             !:starburst-sap-hana,
             !:starburst-snowflake,
@@ -1399,6 +1400,23 @@ jobs:
             -Dsalesforce.test.basic.auth.user="${SALESFORCE_BASIC_AUTH_USER_USERNAME}" \
             -Dsalesforce.test.basic.auth.password="${SALESFORCE_BASIC_AUTH_USER_PASSWORD}" \
             -Dsalesforce.test.basic.auth.security-token="${SALESFORCE_BASIC_AUTH_USER_SECURITY_TOKEN}"
+      - name: Salesforce CDP Tests
+        id: tests-salesforce-cdp
+        if: >-
+          contains(matrix.modules, 'starburst-salesforce-cdp') &&
+          (env.CI_SKIP_SECRETS_PRESENCE_CHECKS != '' || env.SALESFORCE_CDP_BASIC_AUTH_PASSWORD != '' || env.SALESFORCE_CDP_OAUTH2_CLIENT_SECRET != '')
+        env:
+          SALESFORCE_CDP_BASIC_AUTH_USER: ${{ vars.SALESFORCE_CDP_BASIC_AUTH_USER }}
+          SALESFORCE_CDP_BASIC_AUTH_PASSWORD: ${{ secrets.SALESFORCE_CDP_BASIC_AUTH_PASSWORD }}
+          SALESFORCE_CDP_OAUTH2_CLIENT_ID: ${{ secrets.SALESFORCE_CDP_OAUTH2_CLIENT_ID }}
+          SALESFORCE_CDP_OAUTH2_CLIENT_SECRET: ${{ secrets.SALESFORCE_CDP_OAUTH2_CLIENT_SECRET }}
+        run: |
+          export MAVEN_OPTS="${MAVEN_INSTALL_OPTS}"
+          $MAVEN test ${MAVEN_TEST} -pl plugin/starburst-salesforce-cdp \
+            -Dsalesforce-cdp.test.basic.auth.user="${SALESFORCE_CDP_BASIC_AUTH_USER}" \
+            -Dsalesforce-cdp.test.basic.auth.password="${SALESFORCE_CDP_BASIC_AUTH_PASSWORD}" \
+            -Dsalesforce-cdp.test.oauth2.client-id="${SALESFORCE_CDP_OAUTH2_CLIENT_ID}" \
+            -Dsalesforce-cdp.test.oauth2.client-secret="${SALESFORCE_CDP_OAUTH2_CLIENT_SECRET}"
       - name: Sanitize artifact name
         if: always()
         run: |
@@ -1431,6 +1449,7 @@ jobs:
             || steps.tests-iceberg-biglake.outcome == 'failure'
             || steps.tests-redshift.outcome == 'failure'
             || steps.tests-salesforce.outcome == 'failure'
+            || steps.tests-salesforce-cdp.outcome == 'failure'
             || steps.tests-snowflake-aws.outcome == 'failure'
             || steps.tests-snowflake-azure.outcome == 'failure'
           )

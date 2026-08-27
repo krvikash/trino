@@ -1,0 +1,4 @@
+text;number;datetime;date;email;phone;url;percent;boolean
+val;1.5;06/14/2022 22:00:00.567 PDT;01-01-2023;test@test.com;+42 012 345 678;http://test.com;-6.37;true
+;2;;;;;;;
+null;3;null;null;null;null;null;null;null

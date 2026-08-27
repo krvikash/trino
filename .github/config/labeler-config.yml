@@ -173,6 +173,10 @@ salesforce:
   - changed-files:
     - any-glob-to-any-file: ['plugin/*salesforce/**']
 
+salesforce-cdp:
+  - changed-files:
+      - any-glob-to-any-file: ['plugin/starburst-salesforce-cdp/**']
+
 ui:
   - changed-files:
     - any-glob-to-any-file: 'core/trino-web-ui/**'

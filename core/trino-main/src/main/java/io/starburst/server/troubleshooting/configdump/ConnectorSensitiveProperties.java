@@ -526,6 +526,21 @@ public final class ConnectorSensitiveProperties
                             "s3.http-proxy.password",
                             "s3.sse.customer-key",
                             "vault.token"))
+            .put("salesforce_cdp",
+                    ImmutableSet.of(
+                            "aws.kms.secret-key",
+                            "connection-password",
+                            "http-client.http-proxy.password",
+                            "http-client.https.automatic-shared-secret",
+                            "http-client.key-store-password",
+                            "http-client.trust-store-password",
+                            "keystore-password",
+                            "ldap.ssl.keystore.password",
+                            "ldap.ssl.truststore.password",
+                            "salesforce-cdp.oauth2.client-id",
+                            "salesforce-cdp.oauth2.client-secret",
+                            "salesforce-cdp.password",
+                            "vault.token"))
             .put("sap_hana",
                     ImmutableSet.of(
                             "aws.kms.secret-key",

@@ -200,6 +200,12 @@
     scheduled: nightly
     labeled: [salesforce]
 - modules:
+    - plugin/starburst-salesforce-cdp
+  notify-channels:
+    - C09HT9ETS73 # team-connectors-notify
+  when:
+    scheduled: nightly
+- modules:
     - plugin/starburst-snowflake
   profiles:
     - smoke-tests

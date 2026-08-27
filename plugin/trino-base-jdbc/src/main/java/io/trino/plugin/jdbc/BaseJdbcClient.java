@@ -1894,7 +1894,7 @@ public abstract class BaseJdbcClient
         return name;
     }
 
-    private static RemoteTableName getRemoteTable(ResultSet resultSet)
+    protected RemoteTableName getRemoteTable(ResultSet resultSet)
             throws SQLException
     {
         return new RemoteTableName(

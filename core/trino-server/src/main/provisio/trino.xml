@@ -311,6 +311,12 @@
         </artifact>
     </artifactSet>
 
+    <artifactSet to="plugin/salesforce-cdp">
+        <artifact id="${project.groupId}:starburst-salesforce-cdp:zip:${project.version}">
+            <unpack />
+        </artifact>
+    </artifactSet>
+
     <artifactSet to="plugin/sap-hana">
         <artifact id="${project.groupId}:starburst-sap-hana:zip:${project.version}">
             <unpack />
