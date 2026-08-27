@@ -410,12 +410,8 @@ public class TaskInfoFetcher
         if (remoteInstanceId == 0) {
             return false;
         }
-        long expected = expectedTaskInstanceId.get();
-        if (expected == 0) {
-            expectedTaskInstanceId.compareAndSet(0, remoteInstanceId);
-            return false;
-        }
-        return expected != remoteInstanceId;
+        long witness = expectedTaskInstanceId.compareAndExchange(0, remoteInstanceId);
+        return witness != 0 && witness != remoteInstanceId;
     }
 
     private synchronized void cleanupRequest()
