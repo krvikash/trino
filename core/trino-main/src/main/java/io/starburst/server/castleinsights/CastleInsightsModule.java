@@ -11,8 +11,14 @@ package io.starburst.server.castleinsights;
 
 import com.google.inject.Binder;
 import com.google.inject.Module;
+import com.google.inject.Scopes;
+import com.google.inject.multibindings.Multibinder;
+import io.starburst.server.castleinsights.analyzer.CastleInsightAnalyzer;
+import io.starburst.server.castleinsights.analyzer.CastleInsightsExtractor;
+import io.starburst.server.castleinsights.analyzer.CastleInsightsStats;
 
 import static io.airlift.configuration.ConfigBinder.configBinder;
+import static org.weakref.jmx.guice.ExportBinder.newExporter;
 
 public class CastleInsightsModule
         implements Module
@@ -21,5 +27,11 @@ public class CastleInsightsModule
     public void configure(Binder binder)
     {
         configBinder(binder).bindConfig(CastleInsightsConfig.class);
+
+        Multibinder.newSetBinder(binder, CastleInsightAnalyzer.class);
+
+        binder.bind(CastleInsightsExtractor.class).in(Scopes.SINGLETON);
+        binder.bind(CastleInsightsStats.class).in(Scopes.SINGLETON);
+        newExporter(binder).export(CastleInsightsStats.class).withGeneratedName();
     }
 }
