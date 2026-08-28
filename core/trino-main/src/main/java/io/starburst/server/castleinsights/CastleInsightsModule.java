@@ -16,6 +16,7 @@ import com.google.inject.multibindings.Multibinder;
 import io.starburst.server.castleinsights.analyzer.CastleInsightAnalyzer;
 import io.starburst.server.castleinsights.analyzer.CastleInsightsExtractor;
 import io.starburst.server.castleinsights.analyzer.CastleInsightsStats;
+import io.starburst.server.castleinsights.analyzer.JoinAnalyzer;
 
 import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
 import static io.airlift.configuration.ConfigBinder.configBinder;
@@ -29,7 +30,8 @@ public class CastleInsightsModule
     {
         configBinder(binder).bindConfig(CastleInsightsConfig.class);
 
-        Multibinder.newSetBinder(binder, CastleInsightAnalyzer.class);
+        Multibinder.newSetBinder(binder, CastleInsightAnalyzer.class)
+                .addBinding().to(JoinAnalyzer.class).in(Scopes.SINGLETON);
 
         binder.bind(CastleInsightsExtractor.class).in(Scopes.SINGLETON);
         binder.bind(CastleInsightsStats.class).in(Scopes.SINGLETON);

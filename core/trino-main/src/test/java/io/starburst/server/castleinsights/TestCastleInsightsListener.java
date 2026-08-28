@@ -42,12 +42,17 @@ public class TestCastleInsightsListener
     @Language("SQL")
     private static final String JOIN_QUERY = "SELECT n.name FROM nation n JOIN region r ON n.regionkey = r.regionkey";
 
+    // A query with no join, so the bound JoinAnalyzer contributes nothing and these plumbing tests
+    // depend only on the analyzer they inject.
+    @Language("SQL")
+    private static final String NO_JOIN_QUERY = "SELECT count(*) FROM nation";
+
     @Test
     public void testInsightsReachTheSink()
     {
         CapturingSink sink = new CapturingSink();
         try (StandaloneQueryRunner queryRunner = createQueryRunner(sink, new FixedAnalyzer())) {
-            QueryId queryId = queryRunner.executeWithQueryId(TEST_SESSION, JOIN_QUERY).queryId();
+            QueryId queryId = queryRunner.executeWithQueryId(TEST_SESSION, NO_JOIN_QUERY).queryId();
 
             assertEventually(() -> assertThat(sink.results).containsKey(queryId.toString()));
 
@@ -57,11 +62,11 @@ public class TestCastleInsightsListener
     }
 
     @Test
-    public void testRunsWithoutAnyAnalyzerBound()
+    public void testDeliversResultWhenNoInsightsFound()
     {
         CapturingSink sink = new CapturingSink();
         try (StandaloneQueryRunner queryRunner = createQueryRunner(sink)) {
-            QueryId queryId = queryRunner.executeWithQueryId(TEST_SESSION, JOIN_QUERY).queryId();
+            QueryId queryId = queryRunner.executeWithQueryId(TEST_SESSION, NO_JOIN_QUERY).queryId();
 
             assertEventually(() -> assertThat(sink.results).containsKey(queryId.toString()));
             assertThat(sink.results.get(queryId.toString()).insights()).isEmpty();
@@ -76,7 +81,8 @@ public class TestCastleInsightsListener
             QueryId explainId = queryRunner.executeWithQueryId(TEST_SESSION, "EXPLAIN " + JOIN_QUERY).queryId();
             QueryId joinId = queryRunner.executeWithQueryId(TEST_SESSION, JOIN_QUERY).queryId();
 
-            // The later query arriving proves the earlier one was skipped rather than merely slow.
+            // Extraction is single threaded and FIFO, so the join result landing means an EXPLAIN
+            // task submitted before it would already have run.
             assertEventually(() -> assertThat(sink.results).containsKey(joinId.toString()));
             assertThat(sink.results).doesNotContainKey(explainId.toString());
         }
@@ -99,7 +105,11 @@ public class TestCastleInsightsListener
                                 }
                             }
                         })
-                        .setProperties(ImmutableMap.of("castle-insights.enabled", "true")));
+                        .setProperties(ImmutableMap.of(
+                                "castle-insights.enabled", "true",
+                                // One thread over a FIFO queue, so a query submitted earlier is always
+                                // extracted earlier, which is what lets the skip assertion below be exact.
+                                "castle-insights.thread-pool-size", "1")));
         queryRunner.installPlugin(new TpchPlugin());
         queryRunner.createCatalog(TEST_SESSION.getCatalog().orElseThrow(), "tpch", ImmutableMap.of());
         return queryRunner;
