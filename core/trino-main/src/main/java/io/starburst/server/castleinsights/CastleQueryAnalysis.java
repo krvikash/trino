@@ -11,6 +11,7 @@ package io.starburst.server.castleinsights;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ListMultimap;
 import io.starburst.server.castleinsights.model.TableRef;
 import io.trino.cost.PlanNodeStatsEstimate;
 import io.trino.execution.Input;
@@ -18,6 +19,7 @@ import io.trino.execution.QueryInfo;
 import io.trino.execution.StageInfo;
 import io.trino.execution.StagesInfo;
 import io.trino.execution.TableInfo;
+import io.trino.operator.OperatorStats;
 import io.trino.spi.connector.CatalogSchemaTableName;
 import io.trino.sql.planner.plan.FilterNode;
 import io.trino.sql.planner.plan.PlanFragmentId;
@@ -40,6 +42,7 @@ import java.util.function.Predicate;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static com.google.common.collect.ImmutableListMultimap.toImmutableListMultimap;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static java.util.Objects.requireNonNull;
 
@@ -60,6 +63,7 @@ public final class CastleQueryAnalysis
     private final Map<PlanNodeId, PlanNodeStatsEstimate> statsEstimates;
     private final Map<PlanNodeId, TableRef> tables;
     private final Map<PlanNodeId, Map<String, String>> columnNamesBySymbolName;
+    private final ListMultimap<PlanNodeId, OperatorStats> operatorStats;
 
     public CastleQueryAnalysis(QueryInfo queryInfo)
     {
@@ -67,6 +71,8 @@ public final class CastleQueryAnalysis
 
         this.queryId = queryInfo.getQueryId().toString();
         this.columnNamesBySymbolName = computeColumnNames(queryInfo.getInputs());
+        this.operatorStats = queryInfo.getQueryStats().getOperatorSummaries().stream()
+                .collect(toImmutableListMultimap(OperatorStats::getPlanNodeId, operator -> operator));
 
         Optional<StagesInfo> stages = queryInfo.getStages();
         if (stages.isEmpty()) {
@@ -153,6 +159,15 @@ public final class CastleQueryAnalysis
     {
         return Optional.ofNullable(columnNamesBySymbolName.get(planNodeId))
                 .map(columns -> columns.get(symbolName));
+    }
+
+    /**
+     * The merged operator stats a plan node produced, one entry per operator the node compiled into.
+     * Empty for a node that produced none, which also covers a node the engine never executed.
+     */
+    public List<OperatorStats> operatorStats(PlanNodeId planNodeId)
+    {
+        return operatorStats.get(planNodeId);
     }
 
     /**

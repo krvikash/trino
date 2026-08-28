@@ -10,6 +10,7 @@
 package io.starburst.server.castleinsights;
 
 import io.starburst.server.castleinsights.model.TableRef;
+import io.trino.operator.join.JoinOperatorInfo;
 import io.trino.spi.QueryId;
 import io.trino.sql.planner.Symbol;
 import io.trino.sql.planner.plan.JoinNode;
@@ -142,6 +143,17 @@ public class TestCastleQueryAnalysis
 
         assertThat(analysis.planNodes(TableScanNode.class::isInstance))
                 .containsExactlyInAnyOrderElementsOf(analysis.planNodes(TableScanNode.class));
+    }
+
+    @Test
+    public void testOperatorStatsReachableForJoinNode()
+    {
+        CastleQueryAnalysis analysis = analyze(JOIN_QUERY);
+        JoinNode join = onlyJoin(analysis);
+
+        assertThat(analysis.operatorStats(join.getId()))
+                .as("the join node carries operator stats, at least one being join operator info")
+                .anyMatch(operator -> operator.getInfo() instanceof JoinOperatorInfo);
     }
 
     private CastleQueryAnalysis analyze(@Language("SQL") String sql)
