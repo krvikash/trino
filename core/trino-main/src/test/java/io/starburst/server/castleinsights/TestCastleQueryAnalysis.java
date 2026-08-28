@@ -9,6 +9,8 @@
  */
 package io.starburst.server.castleinsights;
 
+import com.google.common.collect.ImmutableList;
+import io.starburst.server.castleinsights.CastleQueryAnalysis.ColumnRef;
 import io.starburst.server.castleinsights.model.TableRef;
 import io.trino.operator.join.JoinOperatorInfo;
 import io.trino.spi.QueryId;
@@ -143,6 +145,63 @@ public class TestCastleQueryAnalysis
 
         assertThat(analysis.planNodes(TableScanNode.class::isInstance))
                 .containsExactlyInAnyOrderElementsOf(analysis.planNodes(TableScanNode.class));
+    }
+
+    @Test
+    public void testTraceColumnResolvesJoinKeysThroughThePlan()
+    {
+        CastleQueryAnalysis analysis = analyze(JOIN_QUERY);
+        JoinNode join = onlyJoin(analysis);
+        EquiJoinClause clause = join.getCriteria().getFirst();
+
+        ColumnRef left = analysis.traceColumn(join.getLeft(), clause.getLeft()).orElseThrow();
+        ColumnRef right = analysis.traceColumn(join.getRight(), clause.getRight()).orElseThrow();
+
+        assertThat(left.column()).isEqualTo("regionkey");
+        assertThat(right.column()).isEqualTo("regionkey");
+        assertThat(left.table()).isNotEqualTo(right.table());
+        assertThat(ImmutableList.of(left.table(), right.table()))
+                .containsExactlyInAnyOrder(new TableRef("tpch", "tiny", "nation"), new TableRef("tpch", "tiny", "region"));
+    }
+
+    @Test
+    public void testTraceColumnFollowsACast()
+    {
+        CastleQueryAnalysis analysis = analyze("SELECT n.name FROM nation n JOIN region r ON CAST(n.regionkey AS bigint) = r.regionkey");
+        JoinNode join = onlyJoin(analysis);
+        EquiJoinClause clause = join.getCriteria().getFirst();
+
+        assertThat(analysis.traceColumn(join.getLeft(), clause.getLeft()).map(ColumnRef::column))
+                .as("the cast on the left key is traced through to the column")
+                .contains("regionkey");
+    }
+
+    @Test
+    public void testTraceColumnEmptyWhenFanInDisagrees()
+    {
+        // The left side of the join is a UNION of two different columns (nationkey and regionkey), so the
+        // joined symbol fans in to columns that disagree and must not be attributed to an arbitrary one.
+        CastleQueryAnalysis analysis = analyze(
+                "SELECT k FROM (SELECT nationkey AS k FROM nation UNION ALL SELECT regionkey AS k FROM nation) u " +
+                        "JOIN region r ON u.k = r.regionkey");
+        JoinNode join = onlyJoin(analysis);
+        EquiJoinClause clause = join.getCriteria().getFirst();
+
+        assertThat(analysis.traceColumn(join.getLeft(), clause.getLeft()))
+                .as("a join key fed by a union of different columns does not trace to a single column")
+                .isEmpty();
+    }
+
+    @Test
+    public void testTraceColumnEmptyForComputedExpression()
+    {
+        CastleQueryAnalysis analysis = analyze("SELECT n.name FROM nation n JOIN region r ON n.regionkey + 1 = r.regionkey");
+        JoinNode join = onlyJoin(analysis);
+        EquiJoinClause clause = join.getCriteria().getFirst();
+
+        assertThat(analysis.traceColumn(join.getLeft(), clause.getLeft()))
+                .as("a computed join key does not trace to a column")
+                .isEmpty();
     }
 
     @Test
