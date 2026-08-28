@@ -503,7 +503,8 @@ public class ObjectStoreConnector
                 new ObjectStoreSubstitutionMetadata(
                         icebergConnector.getSubstitutionMetadata(),
                         hiveConnector.getSubstitutionMetadata(),
-                        hudiConnector.getSubstitutionMetadata()),
+                        hudiConnector.getSubstitutionMetadata(),
+                        deltaConnector.getSubstitutionMetadata()),
                 getClass().getClassLoader());
     }
 

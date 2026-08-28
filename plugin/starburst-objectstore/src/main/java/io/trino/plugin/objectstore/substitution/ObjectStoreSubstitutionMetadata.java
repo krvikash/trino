@@ -14,6 +14,8 @@
 package io.trino.plugin.objectstore.substitution;
 
 import com.google.common.collect.ImmutableSet;
+import io.trino.plugin.deltalake.DeltaLakeColumnHandle;
+import io.trino.plugin.deltalake.DeltaLakeTableHandle;
 import io.trino.plugin.hive.HiveColumnHandle;
 import io.trino.plugin.hive.HiveTableHandle;
 import io.trino.plugin.hudi.HudiTableHandle;
@@ -35,10 +37,9 @@ import static java.util.Objects.requireNonNull;
 
 /**
  * ObjectStore substitution metadata. Materializations may be stored on Iceberg or, in SEP, Hive.
- * Source tables may be Iceberg, Hive or Hudi, so table/column identity is routed by handle type to
+ * Source tables may be Iceberg, Hive, Hudi, or Delta, so table/column identity is routed by handle type to
  * the matching delegate. Hudi represents columns with {@link HiveColumnHandle}, so its columns are
- * identified by the Hive delegate, which produces the same id as the Hudi connector does. Delta Lake
- * handles are reported as non-substitutable, since that connector provides no substitution identity yet.
+ * identified by the Hive delegate, which produces the same id as the Hudi connector does.
  */
 public class ObjectStoreSubstitutionMetadata
         implements ConnectorSubstitutionMetadata
@@ -46,12 +47,14 @@ public class ObjectStoreSubstitutionMetadata
     private final ConnectorSubstitutionMetadata icebergDelegate;
     private final ConnectorSubstitutionMetadata hiveDelegate;
     private final ConnectorSubstitutionMetadata hudiDelegate;
+    private final ConnectorSubstitutionMetadata deltaDelegate;
 
-    public ObjectStoreSubstitutionMetadata(ConnectorSubstitutionMetadata icebergDelegate, ConnectorSubstitutionMetadata hiveDelegate, ConnectorSubstitutionMetadata hudiDelegate)
+    public ObjectStoreSubstitutionMetadata(ConnectorSubstitutionMetadata icebergDelegate, ConnectorSubstitutionMetadata hiveDelegate, ConnectorSubstitutionMetadata hudiDelegate, ConnectorSubstitutionMetadata deltaDelegate)
     {
         this.icebergDelegate = requireNonNull(icebergDelegate, "icebergDelegate is null");
         this.hiveDelegate = requireNonNull(hiveDelegate, "hiveDelegate is null");
         this.hudiDelegate = requireNonNull(hudiDelegate, "hudiDelegate is null");
+        this.deltaDelegate = requireNonNull(deltaDelegate, "deltaDelegate is null");
     }
 
     @Override
@@ -87,6 +90,7 @@ public class ObjectStoreSubstitutionMetadata
                 .addAll(icebergDelegate.tableIdVersions())
                 .addAll(hiveDelegate.tableIdVersions())
                 .addAll(hudiDelegate.tableIdVersions())
+                .addAll(deltaDelegate.tableIdVersions())
                 .build();
     }
 
@@ -97,6 +101,7 @@ public class ObjectStoreSubstitutionMetadata
                 .addAll(icebergDelegate.columnIdVersions())
                 .addAll(hiveDelegate.columnIdVersions())
                 .addAll(hudiDelegate.columnIdVersions())
+                .addAll(deltaDelegate.columnIdVersions())
                 .build();
     }
 
@@ -106,7 +111,7 @@ public class ObjectStoreSubstitutionMetadata
             case IcebergTableHandle _ -> Optional.of(icebergDelegate);
             case HiveTableHandle _ -> Optional.of(hiveDelegate);
             case HudiTableHandle _ -> Optional.of(hudiDelegate);
-            // Delta Lake provides no substitution identity.
+            case DeltaLakeTableHandle _ -> Optional.of(deltaDelegate);
             default -> Optional.empty();
         };
     }
@@ -116,6 +121,7 @@ public class ObjectStoreSubstitutionMetadata
         return switch (column) {
             case IcebergColumnHandle _ -> Optional.of(icebergDelegate);
             case HiveColumnHandle _ -> Optional.of(hiveDelegate);
+            case DeltaLakeColumnHandle _ -> Optional.of(deltaDelegate);
             default -> Optional.empty();
         };
     }
