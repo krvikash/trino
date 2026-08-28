@@ -502,7 +502,8 @@ public class ObjectStoreConnector
         return new ClassLoaderSafeConnectorSubstitutionMetadata(
                 new ObjectStoreSubstitutionMetadata(
                         icebergConnector.getSubstitutionMetadata(),
-                        hiveConnector.getSubstitutionMetadata()),
+                        hiveConnector.getSubstitutionMetadata(),
+                        hudiConnector.getSubstitutionMetadata()),
                 getClass().getClassLoader());
     }
 
