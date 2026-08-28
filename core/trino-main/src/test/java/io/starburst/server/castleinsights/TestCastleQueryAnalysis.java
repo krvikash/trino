@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.starburst.server.castleinsights.CastleInsightsTestHelper.createTpchQueryRunner;
 import static io.starburst.server.castleinsights.CastleInsightsTestHelper.finalQueryInfo;
 import static io.trino.SessionTestUtils.TEST_SESSION;
@@ -70,11 +71,7 @@ public class TestCastleQueryAnalysis
     {
         CastleQueryAnalysis analysis = analyze(JOIN_QUERY);
 
-        JoinNode join = analysis.planNodes().stream()
-                .filter(JoinNode.class::isInstance)
-                .map(JoinNode.class::cast)
-                .findFirst()
-                .orElseThrow(() -> new AssertionError("no join node in plan"));
+        JoinNode join = onlyJoin(analysis);
 
         assertThat(join.getCriteria()).hasSize(1);
         EquiJoinClause clause = join.getCriteria().getFirst();
@@ -129,10 +126,33 @@ public class TestCastleQueryAnalysis
         assertThat(analysis.table(new PlanNodeId("0"))).isEmpty();
     }
 
+    @Test
+    public void testPlanNodesFilteredByType()
+    {
+        CastleQueryAnalysis analysis = analyze(JOIN_QUERY);
+
+        assertThat(analysis.planNodes(JoinNode.class)).hasSize(1);
+        assertThat(analysis.planNodes(TableScanNode.class)).hasSize(2);
+    }
+
+    @Test
+    public void testPlanNodesFilteredByPredicate()
+    {
+        CastleQueryAnalysis analysis = analyze(JOIN_QUERY);
+
+        assertThat(analysis.planNodes(TableScanNode.class::isInstance))
+                .containsExactlyInAnyOrderElementsOf(analysis.planNodes(TableScanNode.class));
+    }
+
     private CastleQueryAnalysis analyze(@Language("SQL") String sql)
     {
         QueryId queryId = queryRunner.executeWithQueryId(TEST_SESSION, sql).queryId();
         return new CastleQueryAnalysis(finalQueryInfo(queryRunner, queryId));
+    }
+
+    private static JoinNode onlyJoin(CastleQueryAnalysis analysis)
+    {
+        return getOnlyElement(analysis.planNodes(JoinNode.class));
     }
 
     private static Optional<String> columnBehind(CastleQueryAnalysis analysis, Symbol symbol)
@@ -145,10 +165,7 @@ public class TestCastleQueryAnalysis
 
     private static List<TableScanNode> scans(CastleQueryAnalysis analysis)
     {
-        return analysis.planNodes().stream()
-                .filter(TableScanNode.class::isInstance)
-                .map(TableScanNode.class::cast)
-                .collect(toImmutableList());
+        return analysis.planNodes(TableScanNode.class);
     }
 
     private static List<TableRef> scanTables(CastleQueryAnalysis analysis)

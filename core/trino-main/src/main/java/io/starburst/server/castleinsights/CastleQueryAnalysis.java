@@ -36,6 +36,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalDouble;
+import java.util.function.Predicate;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableList.toImmutableList;
@@ -106,6 +107,26 @@ public final class CastleQueryAnalysis
     public Collection<PlanNode> planNodes()
     {
         return planNodesById.values();
+    }
+
+    /**
+     * Every plan node matching the predicate.
+     */
+    public List<PlanNode> planNodes(Predicate<PlanNode> predicate)
+    {
+        return planNodesById.values().stream()
+                .filter(predicate)
+                .collect(toImmutableList());
+    }
+
+    /**
+     * Every plan node of the given type.
+     */
+    public <T extends PlanNode> List<T> planNodes(Class<T> type)
+    {
+        return planNodes(type::isInstance).stream()
+                .map(type::cast)
+                .collect(toImmutableList());
     }
 
     /**
