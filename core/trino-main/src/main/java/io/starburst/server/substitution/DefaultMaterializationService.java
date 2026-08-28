@@ -34,6 +34,7 @@ import java.util.Optional;
 import static io.trino.metadata.MaterializedViewPropertyManager.SUBSTITUTION_ENABLED;
 import static io.trino.metadata.MaterializedViewPropertyManager.isSubstitutionEnabled;
 import static io.trino.spi.StandardErrorCode.GENERIC_INTERNAL_ERROR;
+import static io.trino.spi.StandardErrorCode.INVALID_MATERIALIZED_VIEW_PROPERTY;
 import static io.trino.spi.connector.MaterializedViewFreshness.Freshness.FRESH;
 import static java.util.Objects.requireNonNull;
 
@@ -59,6 +60,16 @@ public class DefaultMaterializationService
         this.materializationIrExtractor = requireNonNull(materializationIrExtractor, "materializationIRExtractor is null");
         this.substitutionMetadata = requireNonNull(substitutionMetadata, "substitutionMetadata is null");
         this.materializationMetastore = requireNonNull(materializationMetastore, "materializationMetastore is null");
+    }
+
+    @Override
+    public void validateSubstitutionCandidate(Session session, QualifiedObjectName viewName, String originalSql)
+    {
+        if (extractIr(session, originalSql).isEmpty()) {
+            throw new TrinoException(
+                    INVALID_MATERIALIZED_VIEW_PROPERTY,
+                    "Materialized view '%s' cannot be enabled for substitution: its definition query is not supported by materialized view substitution".formatted(viewName));
+        }
     }
 
     @Override
@@ -140,16 +151,19 @@ public class DefaultMaterializationService
             return Optional.empty();
         }
 
-        PreparedQuery preparedQuery = queryPreparer.prepareQuery(session, definition.getOriginalSql());
-        Query query = (Query) preparedQuery.getStatement();
-        Optional<Output> extractedIr = materializationIrExtractor.extract(session, query, preparedQuery.getParameters());
-
-        return extractedIr.map(ir -> new MaterializationDefinition(
+        return extractIr(session, definition.getOriginalSql()).map(ir -> new MaterializationDefinition(
                 ir,
                 storageTableId.get(),
                 new MaterializedViewSource(mvName.asCatalogSchemaTableName()),
                 lastKnownFreshTime,
                 definition.getGracePeriod()));
+    }
+
+    private Optional<Output> extractIr(Session session, String originalSql)
+    {
+        PreparedQuery preparedQuery = queryPreparer.prepareQuery(session, originalSql);
+        Query query = (Query) preparedQuery.getStatement();
+        return materializationIrExtractor.extract(session, query, preparedQuery.getParameters());
     }
 
     @Override

@@ -299,12 +299,20 @@ public abstract class AbstractMvSubstitutionFullTest
         CatalogSchemaTableName mvName = mvName("mv_sub_field_same_type_");
         try {
             SubFieldTestContext context = subFieldTestContext();
-            createSubstitutionMv(mvName, "SELECT id, " + context.subFieldExpression("info", "name") + " AS a FROM " + nestedTypeTable);
+            String definition = "SELECT id, " + context.subFieldExpression("info", "name") + " AS a FROM " + nestedTypeTable;
+            // The MV materializes a single sub-field expression (info.name), not the whole struct, so its
+            // defining query is not a bare table scan and cannot be indexed for substitution. Enabling
+            // substitution is therefore rejected when the MV is created.
+            // This will change to a plain create when projections are supported
+            assertQueryFails(
+                    "CREATE MATERIALIZED VIEW %s WITH (substitution_enabled = true) AS %s".formatted(mvName, definition),
+                    ".*cannot be enabled for substitution: its definition query is not supported by materialized view substitution");
+
+            assertUpdate("CREATE MATERIALIZED VIEW %s AS %s".formatted(mvName, definition));
+            getQueryRunner().execute("REFRESH MATERIALIZED VIEW %s".formatted(mvName));
 
             Session session = sessionWithSubstitution();
             String materializedFieldQuery = "SELECT " + context.subFieldExpression("info", "name") + " FROM " + nestedTypeTable;
-            // The MV materializes a single sub-field expression (info.name), not the whole struct, so its
-            // defining query is not a bare table scan and cannot be indexed for substitution.
             // This will change to assertSubstituted when projections are supported
             assertNotSubstituted(session, materializedFieldQuery, nestedTypeTable);
             assertSameResults(session, materializedFieldQuery);

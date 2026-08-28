@@ -17,6 +17,15 @@ import java.util.Optional;
 
 public interface MaterializationService
 {
+    /**
+     * Verifies that a materialized view with the given definition query can be used as a substitution
+     * target, so that enabling {@code substitution_enabled} on a view that would never be indexed fails
+     * the DDL instead of silently leaving the property inert.
+     *
+     * @throws io.trino.spi.TrinoException if the definition query cannot drive substitution
+     */
+    void validateSubstitutionCandidate(Session session, QualifiedObjectName viewName, String originalSql);
+
     void setMaterializedViewProperties(Session session, QualifiedObjectName viewName, Map<String, Optional<Object>> properties);
 
     void finishRefreshMaterializedView(Session session, QualifiedObjectName materializedViewName);

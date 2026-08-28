@@ -19,6 +19,9 @@ public class NoopMaterializationService
         implements MaterializationService
 {
     @Override
+    public void validateSubstitutionCandidate(Session session, QualifiedObjectName viewName, String originalSql) {}
+
+    @Override
     public void setMaterializedViewProperties(Session session, QualifiedObjectName viewName, Map<String, Optional<Object>> properties) {}
 
     @Override

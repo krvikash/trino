@@ -173,6 +173,8 @@ import static io.trino.metadata.GlobalFunctionCatalog.BUILTIN_SCHEMA;
 import static io.trino.metadata.GlobalFunctionCatalog.isBuiltinFunctionName;
 import static io.trino.metadata.LanguageFunctionManager.isTrinoSqlLanguageFunction;
 import static io.trino.metadata.MaterializedViewDefinition.DEFAULT_WHEN_STALE_BEHAVIOR;
+import static io.trino.metadata.MaterializedViewPropertyManager.SUBSTITUTION_ENABLED;
+import static io.trino.metadata.MaterializedViewPropertyManager.isSubstitutionEnabled;
 import static io.trino.metadata.QualifiedObjectName.convertFromSchemaTableName;
 import static io.trino.metadata.RedirectionAwareTableHandle.noRedirection;
 import static io.trino.metadata.RedirectionAwareTableHandle.withRedirectionTo;
@@ -1771,6 +1773,10 @@ public final class MetadataManager
         CatalogHandle catalogHandle = catalogMetadata.getCatalogHandle();
         ConnectorMetadata metadata = catalogMetadata.getMetadata(session);
 
+        if (isSubstitutionEnabled(properties)) {
+            materializationService.get().validateSubstitutionCandidate(session, viewName, definition.getOriginalSql());
+        }
+
         metadata.createMaterializedView(
                 session.toConnectorSession(catalogHandle),
                 viewName.asSchemaTableName(),
@@ -1994,9 +2000,25 @@ public final class MetadataManager
         CatalogHandle catalogHandle = catalogMetadata.getCatalogHandle();
         ConnectorMetadata metadata = catalogMetadata.getMetadata(session);
 
+        if (isSubstitutionBeingEnabled(properties)) {
+            getMaterializedView(session, viewName).ifPresent(definition ->
+                    materializationService.get().validateSubstitutionCandidate(session, viewName, definition.getOriginalSql()));
+        }
+
         metadata.setMaterializedViewProperties(session.toConnectorSession(catalogHandle), viewName.asSchemaTableName(), properties);
 
         materializationService.get().setMaterializedViewProperties(session, viewName, properties);
+    }
+
+    /**
+     * Whether the property update turns substitution on. An absent value resets the property to its
+     * {@code false} default, so only an explicit {@code true} needs validating.
+     */
+    private static boolean isSubstitutionBeingEnabled(Map<String, Optional<Object>> properties)
+    {
+        return properties.getOrDefault(SUBSTITUTION_ENABLED, Optional.empty())
+                .map(Boolean.class::cast)
+                .orElse(false);
     }
 
     @Override
