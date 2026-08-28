@@ -32,6 +32,7 @@ import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorSplitManager;
 import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.connector.SystemTable;
+import io.trino.spi.connector.substitution.ConnectorSubstitutionMetadata;
 import io.trino.spi.session.PropertyMetadata;
 import io.trino.spi.transaction.IsolationLevel;
 
@@ -50,6 +51,7 @@ public class HudiConnector
     private final LifeCycleManager lifeCycleManager;
     private final HudiTransactionManager transactionManager;
     private final ConnectorSplitManager splitManager;
+    private final ConnectorSubstitutionMetadata substitutionMetadata;
     private final ConnectorPageSourceProvider pageSourceProvider;
     private final ConnectorNodePartitioningProvider nodePartitioningProvider;
     private final Set<SystemTable> systemTables;
@@ -61,6 +63,7 @@ public class HudiConnector
             LifeCycleManager lifeCycleManager,
             HudiTransactionManager transactionManager,
             ConnectorSplitManager splitManager,
+            ConnectorSubstitutionMetadata substitutionMetadata,
             ConnectorPageSourceProvider pageSourceProvider,
             ConnectorNodePartitioningProvider nodePartitioningProvider,
             Set<SystemTable> systemTables,
@@ -71,6 +74,7 @@ public class HudiConnector
         this.lifeCycleManager = requireNonNull(lifeCycleManager, "lifeCycleManager is null");
         this.transactionManager = requireNonNull(transactionManager, "transactionManager is null");
         this.splitManager = requireNonNull(splitManager, "splitManager is null");
+        this.substitutionMetadata = requireNonNull(substitutionMetadata, "substitutionMetadata is null");
         this.pageSourceProvider = requireNonNull(pageSourceProvider, "pageSourceProvider is null");
         this.nodePartitioningProvider = requireNonNull(nodePartitioningProvider, "nodePartitioningProvider is null");
         this.systemTables = ImmutableSet.copyOf(requireNonNull(systemTables, "systemTables is null"));
@@ -91,6 +95,12 @@ public class HudiConnector
     public ConnectorSplitManager getSplitManager()
     {
         return splitManager;
+    }
+
+    @Override
+    public ConnectorSubstitutionMetadata getSubstitutionMetadata()
+    {
+        return substitutionMetadata;
     }
 
     @Override

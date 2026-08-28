@@ -27,6 +27,7 @@ import io.trino.metastore.HiveMetastore;
 import io.trino.plugin.base.ConnectorContextModule;
 import io.trino.plugin.base.classloader.ClassLoaderSafeConnectorPageSourceProvider;
 import io.trino.plugin.base.classloader.ClassLoaderSafeConnectorSplitManager;
+import io.trino.plugin.base.classloader.ClassLoaderSafeConnectorSubstitutionMetadata;
 import io.trino.plugin.base.classloader.ClassLoaderSafeNodePartitioningProvider;
 import io.trino.plugin.base.jmx.MBeanServerModule;
 import io.trino.plugin.base.session.SessionPropertiesProvider;
@@ -38,6 +39,7 @@ import io.trino.spi.connector.ConnectorFactory;
 import io.trino.spi.connector.ConnectorNodePartitioningProvider;
 import io.trino.spi.connector.ConnectorPageSourceProvider;
 import io.trino.spi.connector.ConnectorSplitManager;
+import io.trino.spi.connector.substitution.ConnectorSubstitutionMetadata;
 import org.weakref.jmx.guice.MBeanModule;
 
 import java.util.Map;
@@ -112,6 +114,7 @@ public class HudiConnectorFactory
             LifeCycleManager lifeCycleManager = injector.getInstance(LifeCycleManager.class);
             HudiTransactionManager transactionManager = injector.getInstance(HudiTransactionManager.class);
             ConnectorSplitManager splitManager = injector.getInstance(ConnectorSplitManager.class);
+            ConnectorSubstitutionMetadata substitutionMetadata = injector.getInstance(ConnectorSubstitutionMetadata.class);
             ConnectorPageSourceProvider connectorPageSource = injector.getInstance(ConnectorPageSourceProvider.class);
             ConnectorNodePartitioningProvider connectorDistributionProvider = injector.getInstance(ConnectorNodePartitioningProvider.class);
             Set<SessionPropertiesProvider> sessionPropertiesProviders = injector.getInstance(new Key<>() {});
@@ -122,6 +125,7 @@ public class HudiConnectorFactory
                     lifeCycleManager,
                     transactionManager,
                     new ClassLoaderSafeConnectorSplitManager(splitManager, classLoader),
+                    new ClassLoaderSafeConnectorSubstitutionMetadata(substitutionMetadata, classLoader),
                     new ClassLoaderSafeConnectorPageSourceProvider(connectorPageSource, classLoader),
                     new ClassLoaderSafeNodePartitioningProvider(connectorDistributionProvider, classLoader),
                     ImmutableSet.of(),
