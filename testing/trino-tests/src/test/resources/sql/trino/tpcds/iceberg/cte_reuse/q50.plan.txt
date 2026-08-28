@@ -105,7 +105,7 @@ IR version = 1
                 %53 = return(%52) : ("empty row") -> "empty row" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
             })
-            {exchange:type = "REPARTITION", exchange:scope = "REMOTE", exchange:partitioning_handle = "HASH", exchange:constant_values = "[null,null,null]", exchange:replicate_nulls_and_any = "false", ir.has_side_effects = "false"}
+            {exchange:type = "REPARTITION", exchange:scope = "REMOTE", exchange:partitioning_handle = "HASH", exchange:constant_values = "[null,null,null]", exchange:replicate_nulls_and_any = "false", ir.has_side_effects = "false", ir.safe = "true"}
         %54 = table_scan() : () -> "multiset(row(bigint,bigint,bigint,bigint))" ()
             {table_scan:table_handle = "local:tpcds_sf1000_parquet_part.store_returns$data@4803221953065828720", table_scan:column_handles = "2:sr_item_sk:bigint, 3:sr_customer_sk:bigint, 9:sr_ticket_number:bigint, 20:sr_returned_date_sk:bigint", table_scan:constraint = "ALL", table_scan:update_target = "false", table_scan:use_connector_node_partitioning = "false", table_scan:row_type = "row(bigint,bigint,bigint,bigint)", ir.has_side_effects = "false", ir.safe = "true"}
         %55 = filter(%54) : ("multiset(row(bigint,bigint,bigint,bigint))") -> "multiset(row(bigint,bigint,bigint,bigint))" ({
@@ -134,19 +134,19 @@ IR version = 1
                 %68 = constant() : () -> "integer" ()
                     {constant:value = "[type=integer, value=8]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %69 = call(%67, %68) : ("integer", "integer") -> "boolean" ()
-                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$equal""},""returnType"":""boolean"",""argumentTypes"":[""integer"",""integer""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$equal<t:comparable>(t,t):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":true,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$equal""},""returnType"":""boolean"",""argumentTypes"":[""integer"",""integer""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$equal<t:comparable>(t,t):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":true,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %70 = field_reference(%66) : ("row(bigint,integer,integer)") -> "integer" ()
                     {field_reference:index = "1", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %71 = constant() : () -> "integer" ()
                     {constant:value = "[type=integer, value=2001]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %72 = call(%70, %71) : ("integer", "integer") -> "boolean" ()
-                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$equal""},""returnType"":""boolean"",""argumentTypes"":[""integer"",""integer""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$equal<t:comparable>(t,t):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":true,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$equal""},""returnType"":""boolean"",""argumentTypes"":[""integer"",""integer""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$equal<t:comparable>(t,t):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":true,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %73 = logical(%69, %72) : ("boolean", "boolean") -> "boolean" ()
-                    {logical:operator = "AND", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {logical:operator = "AND", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %74 = return(%73) : ("boolean") -> "boolean" ()
-                    {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.terminal = "true"}
+                    {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
             })
-            {ir.has_side_effects = "false"}
+            {ir.has_side_effects = "false", ir.safe = "true"}
         %75 = project(%65) : ("multiset(row(bigint,integer,integer))") -> "multiset(row(bigint))" ({
             ^assignments (%76 : "row(bigint,integer,integer)")
                 %77 = field_reference(%76) : ("row(bigint,integer,integer)") -> "bigint" ()
@@ -156,7 +156,7 @@ IR version = 1
                 %79 = return(%78) : ("row(bigint)") -> "row(bigint)" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
             })
-            {ir.has_side_effects = "false"}
+            {ir.has_side_effects = "false", ir.safe = "true"}
         %80 = exchange(%75) : ("multiset(row(bigint))") -> "multiset(row(bigint))" ({
             ^inputSelector (%81 : "row(bigint)")
                 %82 = field_reference(%81) : ("row(bigint)") -> "bigint" ()
@@ -178,7 +178,7 @@ IR version = 1
                 %90 = return(%89) : ("empty row") -> "empty row" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
             })
-            {exchange:type = "REPLICATE", exchange:scope = "REMOTE", exchange:partitioning_handle = "BROADCAST", exchange:constant_values = "[]", exchange:replicate_nulls_and_any = "false", ir.has_side_effects = "false"}
+            {exchange:type = "REPLICATE", exchange:scope = "REMOTE", exchange:partitioning_handle = "BROADCAST", exchange:constant_values = "[]", exchange:replicate_nulls_and_any = "false", ir.has_side_effects = "false", ir.safe = "true"}
         %91 = exchange(%80) : ("multiset(row(bigint))") -> "multiset(row(bigint))" ({
             ^inputSelector (%92 : "row(bigint)")
                 %93 = field_reference(%92) : ("row(bigint)") -> "bigint" ()
@@ -200,7 +200,7 @@ IR version = 1
                 %101 = return(%100) : ("empty row") -> "empty row" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
             })
-            {exchange:type = "GATHER", exchange:scope = "LOCAL", exchange:partitioning_handle = "SINGLE", exchange:constant_values = "[]", exchange:replicate_nulls_and_any = "false", ir.has_side_effects = "false"}
+            {exchange:type = "GATHER", exchange:scope = "LOCAL", exchange:partitioning_handle = "SINGLE", exchange:constant_values = "[]", exchange:replicate_nulls_and_any = "false", ir.has_side_effects = "false", ir.safe = "true"}
         %102 = join(%55, %91) : ("multiset(row(bigint,bigint,bigint,bigint))", "multiset(row(bigint))") -> "multiset(row(bigint,bigint,bigint,bigint))" ({
             ^leftCriteriaSelector (%103 : "row(bigint,bigint,bigint,bigint)")
                 %104 = field_reference(%103) : ("row(bigint,bigint,bigint,bigint)") -> "bigint" ()
@@ -285,7 +285,7 @@ IR version = 1
                 %145 = return(%144) : ("empty row") -> "empty row" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
             })
-            {exchange:type = "REPARTITION", exchange:scope = "REMOTE", exchange:partitioning_handle = "HASH", exchange:constant_values = "[null,null,null]", exchange:replicate_nulls_and_any = "false", ir.has_side_effects = "false"}
+            {exchange:type = "REPARTITION", exchange:scope = "REMOTE", exchange:partitioning_handle = "HASH", exchange:constant_values = "[null,null,null]", exchange:replicate_nulls_and_any = "false", ir.has_side_effects = "false", ir.safe = "true"}
         %146 = exchange(%129) : ("multiset(row(bigint,bigint,bigint,bigint))") -> "multiset(row(bigint,bigint,bigint,bigint))" ({
             ^inputSelector (%147 : "row(bigint,bigint,bigint,bigint)")
                 %148 = field_reference(%147) : ("row(bigint,bigint,bigint,bigint)") -> "bigint" ()
@@ -313,7 +313,7 @@ IR version = 1
                 %159 = return(%158) : ("empty row") -> "empty row" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
             })
-            {exchange:type = "GATHER", exchange:scope = "LOCAL", exchange:partitioning_handle = "SINGLE", exchange:constant_values = "[]", exchange:replicate_nulls_and_any = "false", ir.has_side_effects = "false"}
+            {exchange:type = "GATHER", exchange:scope = "LOCAL", exchange:partitioning_handle = "SINGLE", exchange:constant_values = "[]", exchange:replicate_nulls_and_any = "false", ir.has_side_effects = "false", ir.safe = "true"}
         %160 = join(%36, %146) : ("multiset(row(bigint,bigint,bigint,bigint,bigint))", "multiset(row(bigint,bigint,bigint,bigint))") -> "multiset(row(bigint,bigint,bigint))" ({
             ^leftCriteriaSelector (%161 : "row(bigint,bigint,bigint,bigint,bigint)")
                 %162 = field_reference(%161) : ("row(bigint,bigint,bigint,bigint,bigint)") -> "bigint" ()

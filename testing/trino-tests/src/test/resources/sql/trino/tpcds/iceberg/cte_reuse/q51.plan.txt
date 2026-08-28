@@ -864,29 +864,29 @@ IR version = 1
                 %468 = is_null(%467) : ("bigint") -> "boolean" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %469 = call(%468) : ("boolean") -> "boolean" ()
-                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$not""},""returnType"":""boolean"",""argumentTypes"":[""boolean""]},""catalogHandle"":""system:normal:system"",""functionId"":""$not(boolean):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":true,""functionNullability"":{""returnNullable"":false,""argumentNullable"":[false]},""typeDependencies"":{},""functionDependencies"":[]}", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$not""},""returnType"":""boolean"",""argumentTypes"":[""boolean""]},""catalogHandle"":""system:normal:system"",""functionId"":""$not(boolean):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":true,""functionNullability"":{""returnNullable"":false,""argumentNullable"":[false]},""typeDependencies"":{},""functionDependencies"":[]}", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %470 = field_reference(%464) : ("row(bigint,date,decimal(38,2),bigint,date,decimal(38,2))") -> "bigint" ()
                     {field_reference:index = "3", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %471 = field_reference(%464) : ("row(bigint,date,decimal(38,2),bigint,date,decimal(38,2))") -> "bigint" ()
                     {field_reference:index = "0", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %472 = case(%469, %470, %471) : ("boolean", "bigint", "bigint") -> "bigint" ()
-                    {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %473 = field_reference(%464) : ("row(bigint,date,decimal(38,2),bigint,date,decimal(38,2))") -> "date" ()
                     {field_reference:index = "4", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %474 = is_null(%473) : ("date") -> "boolean" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %475 = call(%474) : ("boolean") -> "boolean" ()
-                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$not""},""returnType"":""boolean"",""argumentTypes"":[""boolean""]},""catalogHandle"":""system:normal:system"",""functionId"":""$not(boolean):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":true,""functionNullability"":{""returnNullable"":false,""argumentNullable"":[false]},""typeDependencies"":{},""functionDependencies"":[]}", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$not""},""returnType"":""boolean"",""argumentTypes"":[""boolean""]},""catalogHandle"":""system:normal:system"",""functionId"":""$not(boolean):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":true,""functionNullability"":{""returnNullable"":false,""argumentNullable"":[false]},""typeDependencies"":{},""functionDependencies"":[]}", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %476 = field_reference(%464) : ("row(bigint,date,decimal(38,2),bigint,date,decimal(38,2))") -> "date" ()
                     {field_reference:index = "4", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %477 = field_reference(%464) : ("row(bigint,date,decimal(38,2),bigint,date,decimal(38,2))") -> "date" ()
                     {field_reference:index = "1", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %478 = case(%475, %476, %477) : ("boolean", "date", "date") -> "date" ()
-                    {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %479 = row(%465, %466, %472, %478) : ("decimal(38,2)", "decimal(38,2)", "bigint", "date") -> "row(decimal(38,2),decimal(38,2),bigint,date)" ()
-                    {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %480 = return(%479) : ("row(decimal(38,2),decimal(38,2),bigint,date)") -> "row(decimal(38,2),decimal(38,2),bigint,date)" ()
-                    {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.terminal = "true"}
+                    {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
             })
             {ir.has_side_effects = "false"}
         %481 = exchange(%463) : ("multiset(row(decimal(38,2),decimal(38,2),bigint,date))") -> "multiset(row(decimal(38,2),decimal(38,2),bigint,date))" ({
@@ -1058,9 +1058,9 @@ IR version = 1
                 %565 = field_reference(%563) : ("row(decimal(38,2),decimal(38,2),bigint,date,decimal(38,2),decimal(38,2))") -> "decimal(38,2)" ()
                     {field_reference:index = "4", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %566 = call(%564, %565) : ("decimal(38,2)", "decimal(38,2)") -> "boolean" ()
-                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$less_than""},""returnType"":""boolean"",""argumentTypes"":[""decimal(38,2)"",""decimal(38,2)""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$less_than<t:orderable>(t,t):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":true,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$less_than""},""returnType"":""boolean"",""argumentTypes"":[""decimal(38,2)"",""decimal(38,2)""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$less_than<t:orderable>(t,t):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":true,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %567 = return(%566) : ("boolean") -> "boolean" ()
-                    {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.terminal = "true"}
+                    {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
             })
             {ir.has_side_effects = "false"}
         %568 = top_n(%562) : ("multiset(row(decimal(38,2),decimal(38,2),bigint,date,decimal(38,2),decimal(38,2)))") -> "multiset(row(decimal(38,2),decimal(38,2),bigint,date,decimal(38,2),decimal(38,2)))" ({

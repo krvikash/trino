@@ -15,12 +15,17 @@ package io.trino.sql.dialect.ir;
 
 import com.google.common.collect.ImmutableSet;
 import io.trino.metadata.ResolvedFunction;
+import io.trino.spi.function.CatalogSchemaFunctionName;
 import io.trino.sql.newir.Attributes;
 import io.trino.sql.newir.Operation.AttributeKey;
 
 import java.util.List;
 import java.util.Set;
 
+import static io.trino.metadata.GlobalFunctionCatalog.isBuiltinFunctionName;
+import static io.trino.metadata.OperatorNameUtil.isOperatorName;
+import static io.trino.metadata.OperatorNameUtil.unmangleOperator;
+import static io.trino.sql.DynamicFilters.isDynamicFilterFunction;
 import static io.trino.sql.dialect.ir.IrAttributeUtils.deterministic;
 import static io.trino.sql.dialect.ir.IrAttributeUtils.hasNoSideEffects;
 import static io.trino.sql.dialect.ir.IrAttributeUtils.hasSideEffects;
@@ -69,9 +74,9 @@ public class IrAttributeDerivationUtils
             deterministic(derivedAttributes);
         }
 
-        // if any child is unknown safety, the function call is unknown safety
-        // if all children are known safe, the function call safety depends on the function itself
-        // TODO derive safety based on the ResolvedFunction metadata if all children are known safe
+        if (isLocallySafe(resolvedFunction) && childAttributes.stream().allMatch(IrAttributeUtils::isKnownSafe)) {
+            safe(derivedAttributes);
+        }
 
         if (childAttributes.stream().anyMatch(IrAttributeUtils::isKnownHasSideEffects)) {
             hasSideEffects(derivedAttributes);
@@ -82,6 +87,23 @@ public class IrAttributeDerivationUtils
         // we assume that the function itself has no side effects
 
         return derivedAttributes.buildOrThrow();
+    }
+
+    private static boolean isLocallySafe(ResolvedFunction resolvedFunction)
+    {
+        if (resolvedFunction.neverFails() || isDynamicFilterFunction(resolvedFunction.name())) {
+            return true;
+        }
+
+        CatalogSchemaFunctionName functionName = resolvedFunction.name();
+        if (!isBuiltinFunctionName(functionName) || !isOperatorName(functionName.functionName())) {
+            return false;
+        }
+
+        return switch (unmangleOperator(functionName.functionName())) {
+            case EQUAL, IDENTICAL, LESS_THAN, LESS_THAN_OR_EQUAL -> true;
+            default -> false;
+        };
     }
 
     public static Attributes defaultComposeIrLevelAttributes(List<Attributes> childAttributes)

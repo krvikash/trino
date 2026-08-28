@@ -16,10 +16,21 @@ package io.trino.sql.dialect.ir;
 import com.google.common.collect.ImmutableList;
 import io.trino.metadata.ResolvedFunction;
 import io.trino.metadata.TestingFunctionResolution;
+import io.trino.sql.DynamicFilters;
 import io.trino.sql.newir.Attributes;
 import io.trino.sql.newir.Operation.AttributeKey;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
+
+import static io.trino.spi.function.OperatorType.ADD;
+import static io.trino.spi.function.OperatorType.EQUAL;
+import static io.trino.spi.function.OperatorType.IDENTICAL;
+import static io.trino.spi.function.OperatorType.LESS_THAN;
+import static io.trino.spi.function.OperatorType.LESS_THAN_OR_EQUAL;
+import static io.trino.spi.type.BigintType.BIGINT;
+import static io.trino.spi.type.BooleanType.BOOLEAN;
+import static io.trino.spi.type.IntegerType.INTEGER;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.sql.analyzer.TypeDescriptorProvider.fromTypes;
 import static io.trino.sql.dialect.ir.IrAttributeDerivationUtils.defaultComposeIrLevelAttributes;
@@ -57,8 +68,30 @@ class TestIrAttributeDerivationUtils
             .buildOrThrow();
 
     private static final TestingFunctionResolution FUNCTIONS = new TestingFunctionResolution();
+    private static final ResolvedFunction ABS_BIGINT = FUNCTIONS.resolveFunction("abs", fromTypes(BIGINT));
+    private static final ResolvedFunction ADD_BIGINT = FUNCTIONS.resolveOperator(ADD, ImmutableList.of(BIGINT, BIGINT));
+    private static final List<ResolvedFunction> COMPARISONS_BIGINT = ImmutableList.of(
+            withoutNeverFails(FUNCTIONS.resolveOperator(EQUAL, ImmutableList.of(BIGINT, BIGINT))),
+            withoutNeverFails(FUNCTIONS.resolveOperator(IDENTICAL, ImmutableList.of(BIGINT, BIGINT))),
+            withoutNeverFails(FUNCTIONS.resolveOperator(LESS_THAN, ImmutableList.of(BIGINT, BIGINT))),
+            withoutNeverFails(FUNCTIONS.resolveOperator(LESS_THAN_OR_EQUAL, ImmutableList.of(BIGINT, BIGINT))));
+    private static final ResolvedFunction DYNAMIC_FILTER = FUNCTIONS.resolveFunction(DynamicFilters.Function.NAME, fromTypes(BOOLEAN, VARCHAR, VARCHAR, BOOLEAN, INTEGER));
     private static final ResolvedFunction RANDOM = FUNCTIONS.resolveFunction("random", fromTypes());
     private static final ResolvedFunction LOWER = FUNCTIONS.resolveFunction("lower", fromTypes(VARCHAR));
+
+    private static ResolvedFunction withoutNeverFails(ResolvedFunction function)
+    {
+        return new ResolvedFunction(
+                function.signature(),
+                function.catalogHandle(),
+                function.functionId(),
+                function.functionKind(),
+                function.deterministic(),
+                false,
+                function.functionNullability(),
+                function.typeDependencies(),
+                function.functionDependencies());
+    }
 
     private static Attributes attributes(Object... keyValues)
     {
@@ -119,7 +152,11 @@ class TestIrAttributeDerivationUtils
                 .isEqualTo(NON_DETERMINISTIC_ATTRIBUTES);
 
         assertThat(defaultDeriveFunctionCallIrLevelAttributes(RANDOM, ImmutableList.of(SAFE_ATTRIBUTES)))
-                .isEqualTo(NON_DETERMINISTIC_ATTRIBUTES);
+                .isEqualTo(attributes(
+                        new AttributeKey(IR, REPEATABILITY),
+                        NON_DETERMINISTIC,
+                        new AttributeKey(IR, SAFE),
+                        true));
 
         assertThat(defaultDeriveFunctionCallIrLevelAttributes(RANDOM, ImmutableList.of(HAS_NO_SIDE_EFFECTS_ATTRIBUTES)))
                 .isEqualTo(attributes(
@@ -148,6 +185,43 @@ class TestIrAttributeDerivationUtils
                 .isEqualTo(UNKNOWN_ATTRIBUTES);
 
         assertThat(defaultDeriveFunctionCallIrLevelAttributes(LOWER, ImmutableList.of(SAFE_ATTRIBUTES)))
+                .isEqualTo(SAFE_ATTRIBUTES);
+
+        assertThat(defaultDeriveFunctionCallIrLevelAttributes(LOWER, ImmutableList.of(KNOWN_ATTRIBUTES)))
+                .isEqualTo(KNOWN_ATTRIBUTES);
+
+        assertThat(defaultDeriveFunctionCallIrLevelAttributes(ABS_BIGINT, ImmutableList.of(KNOWN_ATTRIBUTES)))
+                .isEqualTo(attributes(
+                        new AttributeKey(IR, REPEATABILITY),
+                        DETERMINISTIC,
+                        new AttributeKey(IR, HAS_SIDE_EFFECTS),
+                        false));
+
+        assertThat(defaultDeriveFunctionCallIrLevelAttributes(DYNAMIC_FILTER, ImmutableList.of(
+                SAFE_ATTRIBUTES,
+                SAFE_ATTRIBUTES,
+                SAFE_ATTRIBUTES,
+                SAFE_ATTRIBUTES,
+                SAFE_ATTRIBUTES)))
+                .isEqualTo(SAFE_ATTRIBUTES);
+
+        assertThat(defaultDeriveFunctionCallIrLevelAttributes(DYNAMIC_FILTER, ImmutableList.of(
+                SAFE_ATTRIBUTES,
+                SAFE_ATTRIBUTES,
+                UNKNOWN_ATTRIBUTES,
+                SAFE_ATTRIBUTES,
+                SAFE_ATTRIBUTES)))
+                .isEqualTo(UNKNOWN_ATTRIBUTES);
+
+        for (ResolvedFunction comparison : COMPARISONS_BIGINT) {
+            assertThat(defaultDeriveFunctionCallIrLevelAttributes(comparison, ImmutableList.of(SAFE_ATTRIBUTES, SAFE_ATTRIBUTES)))
+                    .isEqualTo(SAFE_ATTRIBUTES);
+
+            assertThat(defaultDeriveFunctionCallIrLevelAttributes(comparison, ImmutableList.of(SAFE_ATTRIBUTES, UNKNOWN_ATTRIBUTES)))
+                    .isEqualTo(UNKNOWN_ATTRIBUTES);
+        }
+
+        assertThat(defaultDeriveFunctionCallIrLevelAttributes(ADD_BIGINT, ImmutableList.of(SAFE_ATTRIBUTES, SAFE_ATTRIBUTES)))
                 .isEqualTo(UNKNOWN_ATTRIBUTES);
 
         assertThat(defaultDeriveFunctionCallIrLevelAttributes(LOWER, ImmutableList.of(HAS_NO_SIDE_EFFECTS_ATTRIBUTES)))

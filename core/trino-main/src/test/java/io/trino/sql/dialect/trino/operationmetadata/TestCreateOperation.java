@@ -489,6 +489,8 @@ class TestCreateOperation
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
                         new AttributeKey(IR, "repeatability"),
                         DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
                         new AttributeKey(IR, "has_side_effects"),
                         false));
 
@@ -507,6 +509,8 @@ class TestCreateOperation
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
                         new AttributeKey(IR, "repeatability"),
                         DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
                         new AttributeKey(IR, "has_side_effects"),
                         false)))
                 .hasMessage("Array operation does not have regions");
@@ -521,6 +525,8 @@ class TestCreateOperation
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
                         new AttributeKey(IR, "repeatability"),
                         DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
                         new AttributeKey(IR, "has_side_effects"),
                         false)))
                 .hasMessage("elementType is null");
@@ -1852,6 +1858,8 @@ class TestCreateOperation
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
                         new AttributeKey(IR, "repeatability"),
                         DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
                         new AttributeKey(IR, "has_side_effects"),
                         false));
 
@@ -2625,6 +2633,8 @@ class TestCreateOperation
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
                         new AttributeKey(IR, "repeatability"),
                         DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
                         new AttributeKey(IR, "has_side_effects"),
                         false));
 
@@ -3078,6 +3088,8 @@ class TestCreateOperation
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
                         new AttributeKey(IR, "repeatability"),
                         DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
                         new AttributeKey(IR, "has_side_effects"),
                         false));
 
@@ -3607,6 +3619,8 @@ class TestCreateOperation
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
                         new AttributeKey(IR, "repeatability"),
                         DETERMINISTIC,
+                        new AttributeKey(IR, "safe"),
+                        true,
                         new AttributeKey(IR, "has_side_effects"),
                         false));
 

@@ -15,7 +15,6 @@ package io.trino.sql.dialect.trino.operationmetadata;
 
 import com.google.common.collect.ImmutableSet;
 import io.trino.spi.type.Type;
-import io.trino.sql.dialect.ir.IrAttributeUtils;
 import io.trino.sql.dialect.trino.operation.Array;
 import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.TrinoAttributeSignature;
 import io.trino.sql.newir.Attributes;
@@ -29,11 +28,7 @@ import java.util.function.BiFunction;
 import java.util.function.Function;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static io.trino.sql.dialect.ir.IrAttributeUtils.deterministic;
-import static io.trino.sql.dialect.ir.IrAttributeUtils.hasNoSideEffects;
-import static io.trino.sql.dialect.ir.IrAttributeUtils.hasSideEffects;
-import static io.trino.sql.dialect.ir.IrAttributeUtils.nonDeterministic;
-import static io.trino.sql.dialect.ir.IrAttributeUtils.nonIdempotent;
+import static io.trino.sql.dialect.ir.IrAttributeDerivationUtils.defaultComposeIrLevelAttributes;
 import static io.trino.sql.dialect.trino.operation.TrinoOperation.emptySourceAttributes;
 import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.prefixedName;
 import static java.util.Objects.requireNonNull;
@@ -93,33 +88,7 @@ public class ArrayOperationMetadata
 
     public static Attributes deriveAttributes(Attributes currentAttributes, List<Attributes> childAttributes)
     {
-        Attributes.Builder derivedAttributes = Attributes.builder();
-
-        if (childAttributes.stream().anyMatch(IrAttributeUtils::isUnknownRepeatability)) {
-            if (childAttributes.stream().anyMatch(IrAttributeUtils::isKnownNonDeterministic)) {
-                nonDeterministic(derivedAttributes);
-            }
-        }
-        else if (childAttributes.stream().anyMatch(IrAttributeUtils::isKnownNonDeterministic)) {
-            nonDeterministic(derivedAttributes);
-        }
-        else if (childAttributes.stream().anyMatch(IrAttributeUtils::isKnownNonIdempotent)) {
-            nonIdempotent(derivedAttributes);
-        }
-        else {
-            deterministic(derivedAttributes);
-        }
-
-        // if any child is unknown safety, the array constructor is unknown safety
-        // if all children are known safe, the array constructor safety depends on the array constructor itself: it might fail if too many elements are passed
-
-        if (childAttributes.stream().anyMatch(IrAttributeUtils::isKnownHasSideEffects)) {
-            hasSideEffects(derivedAttributes);
-        }
-        else if (childAttributes.stream().allMatch(IrAttributeUtils::isKnownHasNoSideEffects)) {
-            hasNoSideEffects(derivedAttributes);
-        }
-
-        return derivedAttributes.buildOrThrow();
+        Attributes derivedAttributes = defaultComposeIrLevelAttributes(childAttributes);
+        return derivedAttributes;
     }
 }

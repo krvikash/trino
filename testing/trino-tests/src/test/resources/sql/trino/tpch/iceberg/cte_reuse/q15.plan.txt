@@ -49,7 +49,7 @@ IR version = 1
                 %25 = return(%24) : ("empty row") -> "empty row" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
             })
-            {exchange:type = "REPARTITION", exchange:scope = "REMOTE", exchange:partitioning_handle = "HASH", exchange:constant_values = "[null]", exchange:replicate_nulls_and_any = "false", ir.has_side_effects = "false"}
+            {exchange:type = "REPARTITION", exchange:scope = "REMOTE", exchange:partitioning_handle = "HASH", exchange:constant_values = "[null]", exchange:replicate_nulls_and_any = "false", ir.has_side_effects = "false", ir.safe = "true"}
         %413 = table_scan() : () -> "multiset(row(bigint,decimal(12,2),decimal(12,2),date))" ()
             {table_scan:table_handle = "local:tpch_sf1000_parquet.lineitem$data@2010185327452057859", table_scan:column_handles = "3:suppkey:bigint, 6:extendedprice:decimal(12,2), 7:discount:decimal(12,2), 11:shipdate:date", table_scan:constraint = "ALL", table_scan:update_target = "false", table_scan:use_connector_node_partitioning = "false", table_scan:row_type = "row(bigint,decimal(12,2),decimal(12,2),date)", ir.has_side_effects = "false", ir.safe = "true"}
         %611 = filter(%413) : ("multiset(row(bigint,decimal(12,2),decimal(12,2),date))") -> "multiset(row(bigint,decimal(12,2),decimal(12,2),date))" ({

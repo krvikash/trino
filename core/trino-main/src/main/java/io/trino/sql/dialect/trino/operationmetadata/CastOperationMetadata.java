@@ -30,12 +30,15 @@ import java.util.function.Function;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.Iterables.getOnlyElement;
+import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.sql.dialect.ir.IrAttributeUtils.deterministic;
 import static io.trino.sql.dialect.ir.IrAttributeUtils.hasNoSideEffects;
 import static io.trino.sql.dialect.ir.IrAttributeUtils.hasSideEffects;
 import static io.trino.sql.dialect.ir.IrAttributeUtils.isKnownDeterministic;
 import static io.trino.sql.dialect.ir.IrAttributeUtils.isKnownHasNoSideEffects;
 import static io.trino.sql.dialect.ir.IrAttributeUtils.isKnownHasSideEffects;
+import static io.trino.sql.dialect.ir.IrAttributeUtils.isKnownSafe;
+import static io.trino.sql.dialect.ir.IrAttributeUtils.safe;
 import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.internalEnumAttributeMetadata;
 import static io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.prefixedName;
 import static java.util.Objects.requireNonNull;
@@ -113,8 +116,16 @@ public class CastOperationMetadata
             deterministic(derivedAttributes);
         }
 
-        // if the input is known safe, the cast safety depends on the cast itself
-        // TODO determine cast safety
+        // Context-free Cast safety:
+        // - REINTERPRET is a runtime no-op and is safe.
+        // - Casts to VARCHAR follow IrExpressions.mayFail and are safe.
+        // - Unlike IrExpressions.mayFail, implicit coercions and ResolvedFunction.neverFails() require planner context
+        //   and are not derived here.
+        if (isKnownSafe(inputAttributes) &&
+                (CAST_KIND.getAttribute(currentAttributes) == CastKind.REINTERPRET ||
+                        TO_TYPE.getAttribute(currentAttributes).equals(VARCHAR))) {
+            safe(derivedAttributes);
+        }
 
         if (isKnownHasSideEffects(inputAttributes)) {
             hasSideEffects(derivedAttributes);

@@ -61,7 +61,7 @@ IR version = 1
                 %31 = return(%30) : ("empty row") -> "empty row" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
             })
-            {exchange:type = "REPARTITION", exchange:scope = "REMOTE", exchange:partitioning_handle = "HASH", exchange:constant_values = "[null,null]", exchange:replicate_nulls_and_any = "false", ir.has_side_effects = "false"}
+            {exchange:type = "REPARTITION", exchange:scope = "REMOTE", exchange:partitioning_handle = "HASH", exchange:constant_values = "[null,null]", exchange:replicate_nulls_and_any = "false", ir.has_side_effects = "false", ir.safe = "true"}
         %32 = table_scan() : () -> "multiset(row(bigint,bigint,bigint,bigint,decimal(7,2)))" ()
             {table_scan:table_handle = "local:tpcds_sf1000_parquet_part.store_sales$data@5829085943537843612", table_scan:column_handles = "2:ss_item_sk:bigint, 3:ss_customer_sk:bigint, 7:ss_store_sk:bigint, 9:ss_ticket_number:bigint, 20:ss_net_paid:decimal(7,2)", table_scan:constraint = "ALL", table_scan:update_target = "false", table_scan:use_connector_node_partitioning = "false", table_scan:row_type = "row(bigint,bigint,bigint,bigint,decimal(7,2))", ir.has_side_effects = "false", ir.safe = "true"}
         %33 = filter(%32) : ("multiset(row(bigint,bigint,bigint,bigint,decimal(7,2)))") -> "multiset(row(bigint,bigint,bigint,bigint,decimal(7,2)))" ({
@@ -116,11 +116,11 @@ IR version = 1
                 %59 = constant() : () -> "varchar" ()
                     {constant:value = "[type=varchar, value=peach]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %60 = call(%58, %59) : ("varchar", "varchar") -> "boolean" ()
-                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$equal""},""returnType"":""boolean"",""argumentTypes"":[""varchar"",""varchar""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$equal<t:comparable>(t,t):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":true,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$equal""},""returnType"":""boolean"",""argumentTypes"":[""varchar"",""varchar""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$equal<t:comparable>(t,t):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":true,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %61 = return(%60) : ("boolean") -> "boolean" ()
-                    {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.terminal = "true"}
+                    {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
             })
-            {ir.has_side_effects = "false"}
+            {ir.has_side_effects = "false", ir.safe = "true"}
         %62 = exchange(%56) : ("multiset(row(bigint,decimal(7,2),varchar,varchar,varchar,integer))") -> "multiset(row(bigint,decimal(7,2),varchar,varchar,varchar,integer))" ({
             ^inputSelector (%63 : "row(bigint,decimal(7,2),varchar,varchar,varchar,integer)")
                 %64 = field_reference(%63) : ("row(bigint,decimal(7,2),varchar,varchar,varchar,integer)") -> "bigint" ()
@@ -152,7 +152,7 @@ IR version = 1
                 %77 = return(%76) : ("empty row") -> "empty row" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
             })
-            {exchange:type = "REPLICATE", exchange:scope = "REMOTE", exchange:partitioning_handle = "BROADCAST", exchange:constant_values = "[]", exchange:replicate_nulls_and_any = "false", ir.has_side_effects = "false"}
+            {exchange:type = "REPLICATE", exchange:scope = "REMOTE", exchange:partitioning_handle = "BROADCAST", exchange:constant_values = "[]", exchange:replicate_nulls_and_any = "false", ir.has_side_effects = "false", ir.safe = "true"}
         %78 = exchange(%62) : ("multiset(row(bigint,decimal(7,2),varchar,varchar,varchar,integer))") -> "multiset(row(bigint,decimal(7,2),varchar,varchar,varchar,integer))" ({
             ^inputSelector (%79 : "row(bigint,decimal(7,2),varchar,varchar,varchar,integer)")
                 %80 = field_reference(%79) : ("row(bigint,decimal(7,2),varchar,varchar,varchar,integer)") -> "bigint" ()
@@ -184,7 +184,7 @@ IR version = 1
                 %93 = return(%92) : ("empty row") -> "empty row" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
             })
-            {exchange:type = "GATHER", exchange:scope = "LOCAL", exchange:partitioning_handle = "SINGLE", exchange:constant_values = "[]", exchange:replicate_nulls_and_any = "false", ir.has_side_effects = "false"}
+            {exchange:type = "GATHER", exchange:scope = "LOCAL", exchange:partitioning_handle = "SINGLE", exchange:constant_values = "[]", exchange:replicate_nulls_and_any = "false", ir.has_side_effects = "false", ir.safe = "true"}
         %94 = join(%33, %78) : ("multiset(row(bigint,bigint,bigint,bigint,decimal(7,2)))", "multiset(row(bigint,decimal(7,2),varchar,varchar,varchar,integer))") -> "multiset(row(bigint,bigint,bigint,bigint,decimal(7,2),decimal(7,2),varchar,varchar,varchar,integer))" ({
             ^leftCriteriaSelector (%95 : "row(bigint,bigint,bigint,bigint,decimal(7,2))")
                 %96 = field_reference(%95) : ("row(bigint,bigint,bigint,bigint,decimal(7,2))") -> "bigint" ()
@@ -512,13 +512,13 @@ IR version = 1
                 %263 = field_reference(%261) : ("row(bigint,varchar,varchar,bigint,varchar,varchar)") -> "varchar" ()
                     {field_reference:index = "2", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %264 = call(%263) : ("varchar") -> "varchar" ()
-                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""upper""},""returnType"":""varchar"",""argumentTypes"":[""varchar""]},""catalogHandle"":""system:normal:system"",""functionId"":""upper(varchar(x)):varchar(x)"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":true,""functionNullability"":{""returnNullable"":false,""argumentNullable"":[false]},""typeDependencies"":{},""functionDependencies"":[]}", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""upper""},""returnType"":""varchar"",""argumentTypes"":[""varchar""]},""catalogHandle"":""system:normal:system"",""functionId"":""upper(varchar(x)):varchar(x)"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":true,""functionNullability"":{""returnNullable"":false,""argumentNullable"":[false]},""typeDependencies"":{},""functionDependencies"":[]}", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %265 = call(%262, %264) : ("varchar", "varchar") -> "boolean" ()
-                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$equal""},""returnType"":""boolean"",""argumentTypes"":[""varchar"",""varchar""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$equal<t:comparable>(t,t):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":true,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$operator$equal""},""returnType"":""boolean"",""argumentTypes"":[""varchar"",""varchar""]},""catalogHandle"":""system:normal:system"",""functionId"":""$operator$equal<t:comparable>(t,t):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":true,""functionNullability"":{""returnNullable"":true,""argumentNullable"":[false,false]},""typeDependencies"":{},""functionDependencies"":[]}", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %266 = call(%265) : ("boolean") -> "boolean" ()
-                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$not""},""returnType"":""boolean"",""argumentTypes"":[""boolean""]},""catalogHandle"":""system:normal:system"",""functionId"":""$not(boolean):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":true,""functionNullability"":{""returnNullable"":false,""argumentNullable"":[false]},""typeDependencies"":{},""functionDependencies"":[]}", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC"}
+                    {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$not""},""returnType"":""boolean"",""argumentTypes"":[""boolean""]},""catalogHandle"":""system:normal:system"",""functionId"":""$not(boolean):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":true,""functionNullability"":{""returnNullable"":false,""argumentNullable"":[false]},""typeDependencies"":{},""functionDependencies"":[]}", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %267 = return(%266) : ("boolean") -> "boolean" ()
-                    {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.terminal = "true"}
+                    {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
             }, {
             ^leftOutputSelector (%3126 : "row(bigint,bigint,varchar,varchar,varchar)")
                 %3127 = field_reference(%3126) : ("row(bigint,bigint,varchar,varchar,varchar)") -> "bigint" ()
@@ -746,7 +746,7 @@ IR version = 1
                 %382 = return(%381) : ("empty row") -> "empty row" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
             })
-            {exchange:type = "REPARTITION", exchange:scope = "REMOTE", exchange:partitioning_handle = "HASH", exchange:constant_values = "[null,null]", exchange:replicate_nulls_and_any = "false", ir.has_side_effects = "false"}
+            {exchange:type = "REPARTITION", exchange:scope = "REMOTE", exchange:partitioning_handle = "HASH", exchange:constant_values = "[null,null]", exchange:replicate_nulls_and_any = "false", ir.has_side_effects = "false", ir.safe = "true"}
         %383 = exchange(%358) : ("multiset(row(bigint,decimal(7,2),bigint,decimal(7,2),varchar,varchar,varchar,integer,varchar,varchar,varchar,varchar,varchar))") -> "multiset(row(bigint,decimal(7,2),bigint,decimal(7,2),varchar,varchar,varchar,integer,varchar,varchar,varchar,varchar,varchar))" ({
             ^inputSelector (%384 : "row(bigint,decimal(7,2),bigint,decimal(7,2),varchar,varchar,varchar,integer,varchar,varchar,varchar,varchar,varchar)")
                 %385 = field_reference(%384) : ("row(bigint,decimal(7,2),bigint,decimal(7,2),varchar,varchar,varchar,integer,varchar,varchar,varchar,varchar,varchar)") -> "bigint" ()
@@ -792,7 +792,7 @@ IR version = 1
                 %405 = return(%404) : ("empty row") -> "empty row" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
             })
-            {exchange:type = "GATHER", exchange:scope = "LOCAL", exchange:partitioning_handle = "SINGLE", exchange:constant_values = "[]", exchange:replicate_nulls_and_any = "false", ir.has_side_effects = "false"}
+            {exchange:type = "GATHER", exchange:scope = "LOCAL", exchange:partitioning_handle = "SINGLE", exchange:constant_values = "[]", exchange:replicate_nulls_and_any = "false", ir.has_side_effects = "false", ir.safe = "true"}
         %406 = join(%18, %383) : ("multiset(row(bigint,bigint))", "multiset(row(bigint,decimal(7,2),bigint,decimal(7,2),varchar,varchar,varchar,integer,varchar,varchar,varchar,varchar,varchar))") -> "multiset(row(decimal(7,2),decimal(7,2),varchar,varchar,varchar,integer,varchar,varchar,varchar,varchar,varchar))" ({
             ^leftCriteriaSelector (%407 : "row(bigint,bigint)")
                 %408 = field_reference(%407) : ("row(bigint,bigint)") -> "bigint" ()
@@ -1461,7 +1461,7 @@ IR version = 1
                 %918 = return(%917) : ("empty row") -> "empty row" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
             })
-            {exchange:type = "REPARTITION", exchange:scope = "REMOTE", exchange:partitioning_handle = "HASH", exchange:constant_values = "[null,null]", exchange:replicate_nulls_and_any = "false", ir.has_side_effects = "false"}
+            {exchange:type = "REPARTITION", exchange:scope = "REMOTE", exchange:partitioning_handle = "HASH", exchange:constant_values = "[null,null]", exchange:replicate_nulls_and_any = "false", ir.has_side_effects = "false", ir.safe = "true"}
         %919 = table_scan() : () -> "multiset(row(bigint,bigint))" ()
             {table_scan:table_handle = "local:tpcds_sf1000_parquet_part.store_returns$data@4803221953065828720", table_scan:column_handles = "2:sr_item_sk:bigint, 9:sr_ticket_number:bigint", table_scan:constraint = "ALL", table_scan:update_target = "false", table_scan:use_connector_node_partitioning = "false", table_scan:row_type = "row(bigint,bigint)", ir.has_side_effects = "false", ir.safe = "true"}
         %920 = filter(%919) : ("multiset(row(bigint,bigint))") -> "multiset(row(bigint,bigint))" ({
@@ -1641,7 +1641,7 @@ IR version = 1
                 %1010 = return(%1009) : ("empty row") -> "empty row" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
             })
-            {exchange:type = "REPARTITION", exchange:scope = "REMOTE", exchange:partitioning_handle = "HASH", exchange:constant_values = "[null,null]", exchange:replicate_nulls_and_any = "false", ir.has_side_effects = "false"}
+            {exchange:type = "REPARTITION", exchange:scope = "REMOTE", exchange:partitioning_handle = "HASH", exchange:constant_values = "[null,null]", exchange:replicate_nulls_and_any = "false", ir.has_side_effects = "false", ir.safe = "true"}
         %1011 = exchange(%992) : ("multiset(row(bigint,bigint,decimal(7,2),varchar,varchar,varchar,integer))") -> "multiset(row(bigint,bigint,decimal(7,2),varchar,varchar,varchar,integer))" ({
             ^inputSelector (%1012 : "row(bigint,bigint,decimal(7,2),varchar,varchar,varchar,integer)")
                 %1013 = field_reference(%1012) : ("row(bigint,bigint,decimal(7,2),varchar,varchar,varchar,integer)") -> "bigint" ()
@@ -1675,7 +1675,7 @@ IR version = 1
                 %1027 = return(%1026) : ("empty row") -> "empty row" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
             })
-            {exchange:type = "GATHER", exchange:scope = "LOCAL", exchange:partitioning_handle = "SINGLE", exchange:constant_values = "[]", exchange:replicate_nulls_and_any = "false", ir.has_side_effects = "false"}
+            {exchange:type = "GATHER", exchange:scope = "LOCAL", exchange:partitioning_handle = "SINGLE", exchange:constant_values = "[]", exchange:replicate_nulls_and_any = "false", ir.has_side_effects = "false", ir.safe = "true"}
         %1028 = join(%899, %1011) : ("multiset(row(bigint,bigint,decimal(7,2),varchar,varchar,varchar,varchar,varchar))", "multiset(row(bigint,bigint,decimal(7,2),varchar,varchar,varchar,integer))") -> "multiset(row(decimal(7,2),varchar,varchar,varchar,varchar,varchar,decimal(7,2),varchar,varchar,varchar,integer))" ({
             ^leftCriteriaSelector (%1029 : "row(bigint,bigint,decimal(7,2),varchar,varchar,varchar,varchar,varchar)")
                 %1030 = field_reference(%1029) : ("row(bigint,bigint,decimal(7,2),varchar,varchar,varchar,varchar,varchar)") -> "bigint" ()

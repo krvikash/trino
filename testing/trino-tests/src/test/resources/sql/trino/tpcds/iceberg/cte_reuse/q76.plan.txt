@@ -50,7 +50,7 @@ IR version = 1
                 %26 = return(%25) : ("row(bigint,decimal(7,2),bigint)") -> "row(bigint,decimal(7,2),bigint)" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
             })
-            {ir.has_side_effects = "false"}
+            {ir.has_side_effects = "false", ir.safe = "true"}
         %27 = project(%20) : ("multiset(row(bigint,decimal(7,2),bigint))") -> "multiset(row(varchar(7),varchar(19),decimal(7,2),bigint,bigint))" ({
             ^assignments (%28 : "row(bigint,decimal(7,2),bigint)")
                 %29 = constant() : () -> "varchar(7)" ()
@@ -68,7 +68,7 @@ IR version = 1
                 %35 = return(%34) : ("row(varchar(7),varchar(19),decimal(7,2),bigint,bigint)") -> "row(varchar(7),varchar(19),decimal(7,2),bigint,bigint)" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
             })
-            {ir.has_side_effects = "false"}
+            {ir.has_side_effects = "false", ir.safe = "true"}
         %36 = aggregation(%27) : ("multiset(row(varchar(7),varchar(19),decimal(7,2),bigint,bigint))") -> "multiset(row(varchar(7),varchar(19),bigint,bigint,bigint,varbinary))" ({
             ^aggregates (%37 : "multiset(row(varchar(7),varchar(19),decimal(7,2),bigint,bigint))")
                 %38 = aggregate_call(%37) : ("multiset(row(varchar(7),varchar(19),decimal(7,2),bigint,bigint))") -> "bigint" ({
@@ -556,7 +556,7 @@ IR version = 1
                 %283 = return(%282) : ("row(bigint,decimal(7,2),bigint)") -> "row(bigint,decimal(7,2),bigint)" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
             })
-            {ir.has_side_effects = "false"}
+            {ir.has_side_effects = "false", ir.safe = "true"}
         %284 = project(%277) : ("multiset(row(bigint,decimal(7,2),bigint))") -> "multiset(row(bigint,bigint,varchar(7),varchar(19),decimal(7,2)))" ({
             ^assignments (%285 : "row(bigint,decimal(7,2),bigint)")
                 %286 = field_reference(%285) : ("row(bigint,decimal(7,2),bigint)") -> "bigint" ()
@@ -574,7 +574,7 @@ IR version = 1
                 %292 = return(%291) : ("row(bigint,bigint,varchar(7),varchar(19),decimal(7,2))") -> "row(bigint,bigint,varchar(7),varchar(19),decimal(7,2))" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
             })
-            {ir.has_side_effects = "false"}
+            {ir.has_side_effects = "false", ir.safe = "true"}
         %293 = aggregation(%284) : ("multiset(row(bigint,bigint,varchar(7),varchar(19),decimal(7,2)))") -> "multiset(row(varchar(7),varchar(19),bigint,bigint,bigint,varbinary))" ({
             ^aggregates (%294 : "multiset(row(bigint,bigint,varchar(7),varchar(19),decimal(7,2)))")
                 %295 = aggregate_call(%294) : ("multiset(row(bigint,bigint,varchar(7),varchar(19),decimal(7,2)))") -> "bigint" ({
@@ -1264,7 +1264,7 @@ IR version = 1
                 %641 = return(%640) : ("row(bigint,decimal(7,2),bigint)") -> "row(bigint,decimal(7,2),bigint)" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
             })
-            {ir.has_side_effects = "false"}
+            {ir.has_side_effects = "false", ir.safe = "true"}
         %642 = project(%635) : ("multiset(row(bigint,decimal(7,2),bigint))") -> "multiset(row(varchar(7),varchar(19),decimal(7,2),bigint,bigint))" ({
             ^assignments (%643 : "row(bigint,decimal(7,2),bigint)")
                 %644 = constant() : () -> "varchar(7)" ()
@@ -1282,7 +1282,7 @@ IR version = 1
                 %650 = return(%649) : ("row(varchar(7),varchar(19),decimal(7,2),bigint,bigint)") -> "row(varchar(7),varchar(19),decimal(7,2),bigint,bigint)" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
             })
-            {ir.has_side_effects = "false"}
+            {ir.has_side_effects = "false", ir.safe = "true"}
         %651 = aggregation(%642) : ("multiset(row(varchar(7),varchar(19),decimal(7,2),bigint,bigint))") -> "multiset(row(varchar(7),varchar(19),bigint,bigint,bigint,varbinary))" ({
             ^aggregates (%652 : "multiset(row(varchar(7),varchar(19),decimal(7,2),bigint,bigint))")
                 %653 = aggregate_call(%652) : ("multiset(row(varchar(7),varchar(19),decimal(7,2),bigint,bigint))") -> "bigint" ({
