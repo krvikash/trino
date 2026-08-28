@@ -31,6 +31,7 @@ public class TestIcebergMvSubstitution
     {
         QueryRunner queryRunner = DistributedQueryRunner.builder(defaultSession)
                 .addExtraProperty("materialized-view-substitution.support.enabled", "true")
+                .addExtraProperty("optimizer.reuse-common-subqueries", "true")
                 .build();
 
         return queryRunner;

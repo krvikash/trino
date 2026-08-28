@@ -284,8 +284,6 @@ public class LogicalPlanner
 
     public PlanningResult plan(Analysis analysis, Stage stage, boolean collectPlanStatistics, boolean reuseCommonSubqueriesAllowed)
     {
-        checkState(reuseCommonSubqueriesAllowed || !isReuseCommonSubqueriesEnabled(session), "This context does not allow reuse_common_subqueries set to true.");
-
         boolean forceSingleNodeQuery = nodeExecutionStrategy.shouldBeExecutedOnSingleNode(session, analysis.getTables());
         PlanSanityChecker planSanityChecker = forceSingleNodeQuery ? SINGLE_NODE_PLAN_SANITY_CHECKER : DISTRIBUTED_PLAN_SANITY_CHECKER;
 
@@ -373,7 +371,7 @@ public class LogicalPlanner
 
         Plan plan = new Plan(root, statsAndCosts);
         Optional<Program> optimizedProgram = Optional.empty();
-        if (isReuseCommonSubqueriesEnabled(session)) {
+        if (reuseCommonSubqueriesAllowed && isReuseCommonSubqueriesEnabled(session)) {
             try (var _ = scopedSpan(plannerContext.getTracer(), "reuse-common-subqueries")) {
                 optimizedProgram = CteReuse.reuseCommonSubqueries(plan, plannerContext, session, formatOptions);
             }
