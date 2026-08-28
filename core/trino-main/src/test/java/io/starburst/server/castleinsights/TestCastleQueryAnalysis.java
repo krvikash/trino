@@ -9,10 +9,7 @@
  */
 package io.starburst.server.castleinsights;
 
-import com.google.common.collect.ImmutableMap;
 import io.starburst.server.castleinsights.model.TableRef;
-import io.trino.execution.QueryInfo;
-import io.trino.plugin.tpch.TpchPlugin;
 import io.trino.spi.QueryId;
 import io.trino.sql.planner.Symbol;
 import io.trino.sql.planner.plan.JoinNode;
@@ -28,11 +25,10 @@ import org.junit.jupiter.api.TestInstance;
 
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static io.starburst.server.castleinsights.CastleInsightsTestHelper.createTpchQueryRunner;
+import static io.starburst.server.castleinsights.CastleInsightsTestHelper.finalQueryInfo;
 import static io.trino.SessionTestUtils.TEST_SESSION;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
@@ -48,9 +44,7 @@ public class TestCastleQueryAnalysis
     @BeforeAll
     public void setUp()
     {
-        queryRunner = new StandaloneQueryRunner(TEST_SESSION);
-        queryRunner.installPlugin(new TpchPlugin());
-        queryRunner.createCatalog(TEST_SESSION.getCatalog().orElseThrow(), "tpch", ImmutableMap.of());
+        queryRunner = createTpchQueryRunner();
     }
 
     @AfterAll
@@ -138,7 +132,7 @@ public class TestCastleQueryAnalysis
     private CastleQueryAnalysis analyze(@Language("SQL") String sql)
     {
         QueryId queryId = queryRunner.executeWithQueryId(TEST_SESSION, sql).queryId();
-        return new CastleQueryAnalysis(finalQueryInfo(queryId));
+        return new CastleQueryAnalysis(finalQueryInfo(queryRunner, queryId));
     }
 
     private static Optional<String> columnBehind(CastleQueryAnalysis analysis, Symbol symbol)
@@ -163,25 +157,5 @@ public class TestCastleQueryAnalysis
                 .map(scan -> analysis.table(scan.getId()))
                 .flatMap(Optional::stream)
                 .collect(toImmutableList());
-    }
-
-    private QueryInfo finalQueryInfo(QueryId queryId)
-    {
-        CountDownLatch latch = new CountDownLatch(1);
-        AtomicReference<QueryInfo> queryInfo = new AtomicReference<>();
-        queryRunner.getCoordinator().addFinalQueryInfoListener(queryId, info -> {
-            queryInfo.set(info);
-            latch.countDown();
-        });
-        try {
-            if (!latch.await(30, TimeUnit.SECONDS)) {
-                throw new IllegalStateException("Timed out waiting for final query info for query " + queryId);
-            }
-        }
-        catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new RuntimeException(e);
-        }
-        return queryInfo.get();
     }
 }

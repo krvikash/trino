@@ -10,7 +10,6 @@
 package io.starburst.server.castleinsights.analyzer;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import io.starburst.server.castleinsights.CastleQueryAnalysis;
 import io.starburst.server.castleinsights.model.CastleInsight;
@@ -18,7 +17,6 @@ import io.starburst.server.castleinsights.model.CastleInsightsResult;
 import io.starburst.server.castleinsights.model.JoinInsight;
 import io.starburst.server.castleinsights.model.TableRef;
 import io.trino.execution.QueryInfo;
-import io.trino.plugin.tpch.TpchPlugin;
 import io.trino.spi.NodeVersion;
 import io.trino.spi.QueryId;
 import io.trino.testing.StandaloneQueryRunner;
@@ -29,10 +27,10 @@ import org.junit.jupiter.api.TestInstance;
 
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static io.starburst.server.castleinsights.CastleInsightsTestHelper.createTpchQueryRunner;
+import static io.starburst.server.castleinsights.CastleInsightsTestHelper.finalQueryInfo;
 import static io.starburst.server.castleinsights.model.JoinType.INNER;
 import static io.trino.SessionTestUtils.TEST_SESSION;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -49,9 +47,7 @@ public class TestCastleInsightsExtractor
     @BeforeAll
     public void setUp()
     {
-        queryRunner = new StandaloneQueryRunner(TEST_SESSION);
-        queryRunner.installPlugin(new TpchPlugin());
-        queryRunner.createCatalog(TEST_SESSION.getCatalog().orElseThrow(), "tpch", ImmutableMap.of());
+        queryRunner = createTpchQueryRunner();
         queryInfo = execute("SELECT n.name FROM nation n JOIN region r ON n.regionkey = r.regionkey");
     }
 
@@ -160,21 +156,6 @@ public class TestCastleInsightsExtractor
     private QueryInfo execute(String sql)
     {
         QueryId queryId = queryRunner.executeWithQueryId(TEST_SESSION, sql).queryId();
-        CountDownLatch latch = new CountDownLatch(1);
-        AtomicReference<QueryInfo> result = new AtomicReference<>();
-        queryRunner.getCoordinator().addFinalQueryInfoListener(queryId, info -> {
-            result.set(info);
-            latch.countDown();
-        });
-        try {
-            if (!latch.await(30, TimeUnit.SECONDS)) {
-                throw new IllegalStateException("Timed out waiting for final query info for query " + queryId);
-            }
-        }
-        catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new RuntimeException(e);
-        }
-        return result.get();
+        return finalQueryInfo(queryRunner, queryId);
     }
 }
