@@ -96,4 +96,10 @@ public class SigV4AwsProperties
     {
         return properties;
     }
+
+    @Override
+    public boolean variesByUser()
+    {
+        return false;
+    }
 }

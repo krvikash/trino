@@ -18,4 +18,7 @@ import java.util.Map;
 public interface SecurityProperties
 {
     Map<String, String> get();
+
+    /// Returns whether the security properties differ between users.
+    boolean variesByUser();
 }

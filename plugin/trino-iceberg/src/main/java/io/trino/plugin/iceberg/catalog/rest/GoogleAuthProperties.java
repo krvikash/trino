@@ -42,4 +42,10 @@ public class GoogleAuthProperties
     {
         return properties;
     }
+
+    @Override
+    public boolean variesByUser()
+    {
+        return false;
+    }
 }

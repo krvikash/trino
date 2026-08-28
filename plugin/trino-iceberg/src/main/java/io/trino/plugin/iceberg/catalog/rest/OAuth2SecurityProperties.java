@@ -57,6 +57,12 @@ public class OAuth2SecurityProperties
         return securityProperties;
     }
 
+    @Override
+    public boolean variesByUser()
+    {
+        return false;
+    }
+
     private static String resolveAuthType(IcebergRestCatalogConfig catalogConfig)
     {
         return switch (catalogConfig.getSessionType()) {

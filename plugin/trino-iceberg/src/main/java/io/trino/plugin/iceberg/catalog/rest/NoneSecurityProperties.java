@@ -25,4 +25,10 @@ public class NoneSecurityProperties
     {
         return ImmutableMap.of();
     }
+
+    @Override
+    public boolean variesByUser()
+    {
+        return false;
+    }
 }
