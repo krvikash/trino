@@ -129,8 +129,19 @@ public class DefaultMaterializationService
         MaterializedViewDefinition definition = maybeDefinition.get();
         Map<String, Object> properties = metadata.getMaterializedViewProperties(session, materializedViewName, definition);
         if (isSubstitutionEnabled(properties)) {
-            create(session, materializedViewName, definition, Instant.now())
-                    .ifPresent(materializationMetastore::createOrReplace);
+            // A view that asks for substitution but cannot be indexed would stay silently unusable for
+            // substitution until someone noticed the missing plan rewrite, so surface it on every refresh.
+            Optional<MaterializationDefinition> materialization = create(session, materializedViewName, definition, Instant.now());
+            if (materialization.isEmpty()) {
+                // Any entry from an earlier refresh describes the storage snapshot that refresh captured, which
+                // this one has already replaced, so it can never be substituted again. Drop it instead of
+                // leaving a dead candidate for the index to carry and every query to evaluate.
+                materializationMetastore.remove(materializedViewName.asCatalogSchemaTableName());
+                throw new TrinoException(
+                        INVALID_MATERIALIZED_VIEW_PROPERTY,
+                        "Materialized view '%s' has substitution_enabled = true but cannot be indexed for substitution".formatted(materializedViewName));
+            }
+            materializationMetastore.createOrReplace(materialization.get());
         }
     }
 

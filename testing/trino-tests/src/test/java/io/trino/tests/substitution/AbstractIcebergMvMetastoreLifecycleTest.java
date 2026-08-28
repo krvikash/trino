@@ -122,6 +122,40 @@ public abstract class AbstractIcebergMvMetastoreLifecycleTest
     }
 
     @Test
+    public void testFailedRefreshRemovesEntry()
+    {
+        // The materialized view reads a view, so replacing that view changes the plan shape of the MV's
+        // definition query after the MV was already indexed. The next refresh cannot re-index it, and the
+        // entry it left behind describes a storage snapshot that refresh has already replaced, so the failing
+        // refresh must drop it rather than leave a dead candidate in the metastore.
+        String source = "unindexable_src_" + randomNameSuffix();
+        String view = "%s.v_%s".formatted(getMvCatalogSchema(), randomNameSuffix());
+        String qualifiedSource = "%s.%s".formatted(getSourceCatalogSchema(), source);
+        assertUpdate("CREATE TABLE %s (order_key BIGINT)".formatted(source));
+        assertUpdate("INSERT INTO %s VALUES BIGINT '1'".formatted(source), 1);
+        assertUpdate("CREATE VIEW %s AS SELECT order_key FROM %s".formatted(view, qualifiedSource));
+        CatalogSchemaTableName mv = createMv("mv_refresh_unindexable_", "SELECT order_key FROM " + view, true);
+        try {
+            getQueryRunner().execute("REFRESH MATERIALIZED VIEW " + mv);
+            assertEntryPresent(mv);
+
+            assertUpdate("CREATE OR REPLACE VIEW %s AS SELECT random(BIGINT '100') AS order_key FROM %s".formatted(view, qualifiedSource));
+            // The insert makes the materialized view stale, so the refresh actually re-runs its query.
+            assertUpdate("INSERT INTO %s VALUES BIGINT '2'".formatted(source), 1);
+            assertQueryFails(
+                    "REFRESH MATERIALIZED VIEW " + mv,
+                    ".*has substitution_enabled = true but cannot be indexed for substitution");
+
+            assertEntryAbsent(mv);
+        }
+        finally {
+            assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mv);
+            assertUpdate("DROP VIEW IF EXISTS " + view);
+            assertUpdate("DROP TABLE IF EXISTS " + source);
+        }
+    }
+
+    @Test
     public void testRefreshOfNonRegisteredMvLeavesMetastoreEmpty()
     {
         CatalogSchemaTableName mv = createMv("mv_refresh_unregistered_", "SELECT * FROM orders", false);

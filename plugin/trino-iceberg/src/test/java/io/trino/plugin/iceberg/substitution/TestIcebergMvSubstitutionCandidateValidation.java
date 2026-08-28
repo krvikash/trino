@@ -13,17 +13,23 @@
  */
 package io.trino.plugin.iceberg.substitution;
 
+import io.trino.Session;
+import io.trino.execution.Input;
 import io.trino.plugin.iceberg.TestingIcebergPlugin;
 import io.trino.plugin.memory.MemoryPlugin;
 import io.trino.testing.AbstractTestQueryFramework;
 import io.trino.testing.DistributedQueryRunner;
 import io.trino.testing.QueryRunner;
+import io.trino.testing.QueryRunner.MaterializedResultWithPlan;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Execution;
 
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Map;
 
+import static com.google.common.collect.ImmutableList.toImmutableList;
+import static io.starburst.server.substitution.MaterializedViewSubstitutionSessionProperties.MATERIALIZED_VIEW_SUBSTITUTION_ENABLED;
 import static io.trino.plugin.base.util.Closables.closeAllSuppress;
 import static io.trino.plugin.iceberg.IcebergQueryRunner.ICEBERG_CATALOG;
 import static io.trino.testing.TestingSession.testSessionBuilder;
@@ -127,6 +133,70 @@ public class TestIcebergMvSubstitutionCandidateValidation
         finally {
             assertUpdate("DROP MATERIALIZED VIEW mv_replace");
         }
+    }
+
+    @Test
+    public void testRefreshFailsWhenViewCanNoLongerBeIndexed()
+    {
+        // Substitution is validated when the materialized view is created, but the plan shape of its definition
+        // query can change afterwards - here a view it reads is replaced by an unsupported one. The refresh can
+        // no longer index the materialized view and must fail rather than silently leave substitution unusable.
+        assertUpdate("CREATE TABLE refresh_src AS SELECT BIGINT '1' AS id", 1);
+        assertUpdate("CREATE VIEW refresh_view AS SELECT id FROM refresh_src");
+        try {
+            assertUpdate("CREATE MATERIALIZED VIEW mv_refresh WITH (substitution_enabled = true) AS SELECT id FROM refresh_view");
+            try {
+                assertUpdate("REFRESH MATERIALIZED VIEW mv_refresh", 1);
+
+                assertUpdate("CREATE OR REPLACE VIEW refresh_view AS SELECT random(BIGINT '100') AS id FROM refresh_src");
+                // The insert makes the materialized view stale, so the refresh actually re-runs its query.
+                assertUpdate("INSERT INTO refresh_src VALUES BIGINT '2'", 1);
+                assertQueryFails(
+                        "REFRESH MATERIALIZED VIEW mv_refresh",
+                        ".*has substitution_enabled = true but cannot be indexed for substitution");
+
+                // The connector committed the refresh before the indexing check ran, so the new data is there
+                // even though the statement failed: the view now yields a row per source row, and the insert
+                // above added one. The values themselves are random, so only the count is assertable.
+                assertThat(computeActual("SELECT count(*) FROM mv_refresh").getOnlyValue()).isEqualTo(2L);
+
+                // The candidate indexed by the earlier successful refresh pins the storage snapshot it captured,
+                // and the failed refresh advanced that snapshot, so the candidate can no longer substitute. Were
+                // it still to fire, this query would return the storage table's random values instead of the
+                // source rows.
+                MaterializedResultWithPlan sourceQuery = getDistributedQueryRunner().executeWithPlan(
+                        sessionWithSubstitution(),
+                        "SELECT id FROM refresh_src");
+                assertThat(scannedTableNames(sourceQuery))
+                        .as("Expected a scan on the source table, not on the materialized view storage")
+                        .contains("refresh_src");
+                assertThat(sourceQuery.result().getOnlyColumnAsSet()).containsExactlyInAnyOrder(1L, 2L);
+            }
+            finally {
+                assertUpdate("DROP MATERIALIZED VIEW mv_refresh");
+            }
+        }
+        finally {
+            assertUpdate("DROP VIEW refresh_view");
+            assertUpdate("DROP TABLE refresh_src");
+        }
+    }
+
+    private Session sessionWithSubstitution()
+    {
+        return Session.builder(getSession())
+                .setSystemProperty(MATERIALIZED_VIEW_SUBSTITUTION_ENABLED, "true")
+                .build();
+    }
+
+    private List<String> scannedTableNames(MaterializedResultWithPlan result)
+    {
+        return getDistributedQueryRunner().getCoordinator()
+                .getQueryManager()
+                .getFullQueryInfo(result.queryId())
+                .getInputs().stream()
+                .map(Input::table)
+                .collect(toImmutableList());
     }
 
     @Test
