@@ -26,11 +26,13 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static io.starburst.server.castleinsights.CastleInsightsTestHelper.createTpchQueryRunner;
 import static io.starburst.server.castleinsights.CastleInsightsTestHelper.finalQueryInfo;
+import static io.starburst.server.castleinsights.model.Cardinality.MANY_TO_ONE;
 import static io.starburst.server.castleinsights.model.JoinType.INNER;
 import static io.trino.SessionTestUtils.TEST_SESSION;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -148,9 +150,7 @@ public class TestCastleInsightsExtractor
                 new TableRef("tpch", "tiny", "customer"),
                 ImmutableList.of("custkey"),
                 INNER,
-                10,
-                5,
-                5);
+                Optional.of(MANY_TO_ONE));
     }
 
     private QueryInfo execute(String sql)

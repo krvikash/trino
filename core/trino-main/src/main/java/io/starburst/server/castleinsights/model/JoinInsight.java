@@ -12,6 +12,7 @@ package io.starburst.server.castleinsights.model;
 import com.google.common.collect.ImmutableList;
 
 import java.util.List;
+import java.util.Optional;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
@@ -21,11 +22,8 @@ import static java.util.Objects.requireNonNull;
  * {@code leftColumns.get(i)} is joined with {@code rightColumns.get(i)}.
  * <p>
  * The right side is the build side and the left side the probe side, following the plan the
- * engine settled on.
- * <p>
- * The row counts are what the join actually saw and emitted, not estimates: {@code leftRows} and
- * {@code rightRows} on the way in, {@code outputRows} on the way out. Together they give the
- * join's selectivity, and so the cardinality of the relationship between the two tables.
+ * engine settled on. {@code cardinality} is the relationship between them where it could be
+ * determined, empty otherwise.
  */
 public record JoinInsight(
         TableRef left,
@@ -33,9 +31,7 @@ public record JoinInsight(
         TableRef right,
         List<String> rightColumns,
         JoinType joinType,
-        long leftRows,
-        long rightRows,
-        long outputRows)
+        Optional<Cardinality> cardinality)
         implements CastleInsight
 {
     public JoinInsight
@@ -47,8 +43,6 @@ public record JoinInsight(
         checkArgument(!leftColumns.isEmpty(), "leftColumns is empty");
         checkArgument(leftColumns.size() == rightColumns.size(), "leftColumns and rightColumns have different sizes");
         requireNonNull(joinType, "joinType is null");
-        checkArgument(leftRows >= 0, "leftRows is negative");
-        checkArgument(rightRows >= 0, "rightRows is negative");
-        checkArgument(outputRows >= 0, "outputRows is negative");
+        requireNonNull(cardinality, "cardinality is null");
     }
 }

@@ -27,9 +27,11 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
+import static io.starburst.server.castleinsights.model.Cardinality.MANY_TO_ONE;
 import static io.starburst.server.castleinsights.model.JoinType.INNER;
 import static io.trino.SessionTestUtils.TEST_SESSION;
 import static io.trino.testing.assertions.Assert.assertEventually;
@@ -74,8 +76,7 @@ public class TestCastleInsightsListener
             QueryId explainId = queryRunner.executeWithQueryId(TEST_SESSION, "EXPLAIN " + JOIN_QUERY).queryId();
             QueryId joinId = queryRunner.executeWithQueryId(TEST_SESSION, JOIN_QUERY).queryId();
 
-            // Extraction is single threaded and FIFO, so the join result landing means an EXPLAIN
-            // task submitted before it would already have run.
+            // The later query arriving proves the earlier one was skipped rather than merely slow.
             assertEventually(() -> assertThat(sink.results).containsKey(joinId.toString()));
             assertThat(sink.results).doesNotContainKey(explainId.toString());
         }
@@ -98,11 +99,7 @@ public class TestCastleInsightsListener
                                 }
                             }
                         })
-                        .setProperties(ImmutableMap.of(
-                                "castle-insights.enabled", "true",
-                                // One thread over a FIFO queue, so a query submitted earlier is always
-                                // extracted earlier, which is what lets the skip assertion below be exact.
-                                "castle-insights.thread-pool-size", "1")));
+                        .setProperties(ImmutableMap.of("castle-insights.enabled", "true")));
         queryRunner.installPlugin(new TpchPlugin());
         queryRunner.createCatalog(TEST_SESSION.getCatalog().orElseThrow(), "tpch", ImmutableMap.of());
         return queryRunner;
@@ -132,9 +129,7 @@ public class TestCastleInsightsListener
                     new TableRef("tpch", "tiny", "region"),
                     ImmutableList.of("regionkey"),
                     INNER,
-                    25,
-                    5,
-                    25));
+                    Optional.of(MANY_TO_ONE)));
         }
     }
 }
