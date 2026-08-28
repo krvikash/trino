@@ -13,6 +13,7 @@
  */
 package io.trino.plugin.bigquery;
 
+import com.google.api.gax.retrying.RetrySettings;
 import com.google.cloud.bigquery.storage.v1.BigQueryWriteClient;
 import com.google.cloud.bigquery.storage.v1.TableName;
 import com.google.common.collect.ImmutableList;
@@ -46,6 +47,7 @@ public class BigQueryPageSink
 
     public BigQueryPageSink(
             BigQueryWriteClient client,
+            RetrySettings retrySettings,
             RemoteTableName remoteTableName,
             List<String> columnNames,
             List<Type> columnTypes,
@@ -54,6 +56,7 @@ public class BigQueryPageSink
             Optional<String> pageSinkIdColumnName,
             BigQueryWriteStreamType writeStreamType)
     {
+        requireNonNull(retrySettings, "retrySettings is null");
         requireNonNull(remoteTableName, "remoteTableName is null");
         this.columnNames = ImmutableList.copyOf(requireNonNull(columnNames, "columnNames is null"));
         this.columnTypes = ImmutableList.copyOf(requireNonNull(columnTypes, "columnTypes is null"));
@@ -68,8 +71,8 @@ public class BigQueryPageSink
                 .orElseGet(remoteTableName::toTableName);
 
         this.bigQueryWriter = switch (writeStreamType) {
-            case COMMITTED -> new BigQueryCommittedWriter(client, tableName.toString());
-            case PENDING -> new BigQueryPendingWriter(client, tableName.toString());
+            case COMMITTED -> new BigQueryCommittedWriter(client, retrySettings, tableName.toString());
+            case PENDING -> new BigQueryPendingWriter(client, retrySettings, tableName.toString());
         };
     }
 

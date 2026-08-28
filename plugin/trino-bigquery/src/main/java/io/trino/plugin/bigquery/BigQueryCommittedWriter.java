@@ -14,6 +14,7 @@
 package io.trino.plugin.bigquery;
 
 import com.google.api.core.ApiFuture;
+import com.google.api.gax.retrying.RetrySettings;
 import com.google.cloud.bigquery.storage.v1.AppendRowsResponse;
 import com.google.cloud.bigquery.storage.v1.BigQueryWriteClient;
 import com.google.cloud.bigquery.storage.v1.CreateWriteStreamRequest;
@@ -33,12 +34,14 @@ final class BigQueryCommittedWriter
         implements BigQueryWriter
 {
     private final BigQueryWriteClient client;
+    private final RetrySettings retrySettings;
     private final AtomicReference<WriteStream> writeStream = new AtomicReference<>();
     private final CreateWriteStreamRequest createWriteStreamRequest;
 
-    public BigQueryCommittedWriter(BigQueryWriteClient client, String tableName)
+    public BigQueryCommittedWriter(BigQueryWriteClient client, RetrySettings retrySettings, String tableName)
     {
         this.client = requireNonNull(client, "client is null");
+        this.retrySettings = requireNonNull(retrySettings, "retrySettings is null");
 
         WriteStream stream = WriteStream.newBuilder().setType(COMMITTED).build();
         this.createWriteStreamRequest = CreateWriteStreamRequest.newBuilder()
@@ -51,7 +54,7 @@ final class BigQueryCommittedWriter
     public void appendBatch(JSONArray batch)
     {
         WriteStream stream = writeStream.updateAndGet(this::getOrCreateWriteStream);
-        try (JsonStreamWriter writer = JsonStreamWriter.newBuilder(stream.getName(), stream.getTableSchema(), client).build()) {
+        try (JsonStreamWriter writer = JsonStreamWriter.newBuilder(stream.getName(), stream.getTableSchema(), client).setRetrySettings(retrySettings).build()) {
             ApiFuture<AppendRowsResponse> future = writer.append(batch);
             AppendRowsResponse response = future.get(); // Throw error
             if (response.hasError()) {

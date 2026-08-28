@@ -14,6 +14,7 @@
 package io.trino.plugin.bigquery;
 
 import com.google.api.core.ApiFuture;
+import com.google.api.gax.retrying.RetrySettings;
 import com.google.cloud.bigquery.BigQueryException;
 import com.google.cloud.bigquery.DatasetId;
 import com.google.cloud.bigquery.DatasetInfo;
@@ -175,6 +176,7 @@ public class BigQueryMetadata
 
     private final BigQueryClientFactory bigQueryClientFactory;
     private final BigQueryWriteClientFactory writeClientFactory;
+    private final RetrySettings writerRetrySettings;
     private final BigQueryTypeManager typeManager;
     private final AtomicReference<Runnable> rollbackAction = new AtomicReference<>();
     private final ListeningExecutorService executorService;
@@ -183,12 +185,14 @@ public class BigQueryMetadata
     public BigQueryMetadata(
             BigQueryClientFactory bigQueryClientFactory,
             BigQueryWriteClientFactory writeClientFactory,
+            RetrySettings writerRetrySettings,
             BigQueryTypeManager typeManager,
             ListeningExecutorService executorService,
             boolean isLegacyMetadataListing)
     {
         this.bigQueryClientFactory = requireNonNull(bigQueryClientFactory, "bigQueryClientFactory is null");
         this.writeClientFactory = requireNonNull(writeClientFactory, "writeClientFactory is null");
+        this.writerRetrySettings = requireNonNull(writerRetrySettings, "writerRetrySettings is null");
         this.typeManager = requireNonNull(typeManager, "typeManager is null");
         this.executorService = requireNonNull(executorService, "executorService is null");
         this.isLegacyMetadataListing = isLegacyMetadataListing;
@@ -836,7 +840,7 @@ public class BigQueryMetadata
             WriteStream stream = writeClient.createWriteStream(createWriteStreamRequest);
             JSONArray batch = new JSONArray();
             fragments.forEach(slice -> batch.put(ImmutableMap.of(pageSinkIdColumnName, slice.getLong(0))));
-            try (JsonStreamWriter writer = JsonStreamWriter.newBuilder(stream.getName(), stream.getTableSchema(), writeClient).build()) {
+            try (JsonStreamWriter writer = JsonStreamWriter.newBuilder(stream.getName(), stream.getTableSchema(), writeClient).setRetrySettings(writerRetrySettings).build()) {
                 ApiFuture<AppendRowsResponse> future = writer.append(batch);
                 AppendRowsResponse response = future.get();
                 if (response.hasError()) {

@@ -16,6 +16,7 @@ package io.trino.plugin.bigquery;
 import com.google.api.core.ApiFuture;
 import com.google.api.core.ApiFutureCallback;
 import com.google.api.core.ApiFutures;
+import com.google.api.gax.retrying.RetrySettings;
 import com.google.cloud.bigquery.storage.v1.AppendRowsResponse;
 import com.google.cloud.bigquery.storage.v1.BatchCommitWriteStreamsRequest;
 import com.google.cloud.bigquery.storage.v1.BatchCommitWriteStreamsResponse;
@@ -44,6 +45,7 @@ final class BigQueryPendingWriter
     private static final Executor CALLBACK_EXECUTOR = newSingleThreadExecutor(daemonThreadsNamed("bigquery-callback-listener-%s"));
 
     private final BigQueryWriteClient client;
+    private final RetrySettings retrySettings;
     private final AtomicReference<WriteStream> writeStream = new AtomicReference<>();
     private final CreateWriteStreamRequest createWriteStreamRequest;
 
@@ -54,9 +56,10 @@ final class BigQueryPendingWriter
     // Reuse writer (for better performance)
     private JsonStreamWriter jsonStreamWriter;
 
-    public BigQueryPendingWriter(BigQueryWriteClient client, String tableName)
+    public BigQueryPendingWriter(BigQueryWriteClient client, RetrySettings retrySettings, String tableName)
     {
         this.client = requireNonNull(client, "client is null");
+        this.retrySettings = requireNonNull(retrySettings, "retrySettings is null");
 
         WriteStream stream = WriteStream.newBuilder().setType(PENDING).build();
         this.createWriteStreamRequest = CreateWriteStreamRequest.newBuilder()
@@ -89,7 +92,7 @@ final class BigQueryPendingWriter
         if (jsonStreamWriter == null) {
             WriteStream stream = writeStream.updateAndGet(this::getOrCreateWriteStream);
             try {
-                jsonStreamWriter = JsonStreamWriter.newBuilder(stream.getName(), stream.getTableSchema(), client).build();
+                jsonStreamWriter = JsonStreamWriter.newBuilder(stream.getName(), stream.getTableSchema(), client).setRetrySettings(retrySettings).build();
             }
             catch (Exception e) {
                 throw new TrinoException(BIGQUERY_BAD_WRITE, "Failed to create json stream writer", e);

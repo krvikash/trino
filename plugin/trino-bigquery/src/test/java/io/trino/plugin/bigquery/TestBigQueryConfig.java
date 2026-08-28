@@ -32,6 +32,7 @@ import static java.util.concurrent.TimeUnit.DAYS;
 import static java.util.concurrent.TimeUnit.HOURS;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.MINUTES;
+import static java.util.concurrent.TimeUnit.SECONDS;
 
 public class TestBigQueryConfig
 {
@@ -64,6 +65,9 @@ public class TestBigQueryConfig
                 .setMetadataParallelism(Runtime.getRuntime().availableProcessors())
                 .setMaxParallelism(null)
                 .setWriteStreamType(PENDING)
+                .setWriteRetryMaxAttempts(5)
+                .setWriteRetryInitialDelay(new Duration(500, MILLISECONDS))
+                .setWriteRetryMaxDelay(new Duration(30, SECONDS))
                 .setAuthenticationType(STATIC_CREDENTIALS));
     }
 
@@ -96,6 +100,9 @@ public class TestBigQueryConfig
                 .put("bigquery.max-parallelism", "100")
                 .put("bigquery.projection-pushdown-enabled", "false")
                 .put("bigquery.write-stream-type", "COMMITTED")
+                .put("bigquery.write-retry-max-attempts", "8")
+                .put("bigquery.write-retry-initial-delay", "1s")
+                .put("bigquery.write-retry-max-delay", "1m")
                 .put("bigquery.authentication.type", "DYNAMIC_CONNECTION")
                 .buildOrThrow();
 
@@ -125,6 +132,9 @@ public class TestBigQueryConfig
                 .setMetadataParallelism(31)
                 .setMaxParallelism(100)
                 .setWriteStreamType(COMMITTED)
+                .setWriteRetryMaxAttempts(8)
+                .setWriteRetryInitialDelay(new Duration(1, SECONDS))
+                .setWriteRetryMaxDelay(new Duration(1, MINUTES))
                 .setAuthenticationType(DYNAMIC_CONNECTION);
 
         assertFullMapping(properties, expected);
