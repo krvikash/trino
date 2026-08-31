@@ -151,6 +151,22 @@ public final class GpuTestUtils
             Arrays.asList(Double.NaN, null, 42.0),
             // +Inf, -Inf, NaN
             List.of(Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY, Double.NaN),
+            // peer-heavy
+            Arrays.asList(
+                    null,
+                    null,
+                    Double.NEGATIVE_INFINITY,
+                    Double.NEGATIVE_INFINITY,
+                    -1.0,
+                    -1.0,
+                    0.0,
+                    -0.0,
+                    1.0,
+                    1.0,
+                    Double.POSITIVE_INFINITY,
+                    Double.POSITIVE_INFINITY,
+                    Double.NaN,
+                    Double.NaN),
             // -0.0, 0.0, NaN
             List.of(-0.0, 0.0, Double.NaN));
 

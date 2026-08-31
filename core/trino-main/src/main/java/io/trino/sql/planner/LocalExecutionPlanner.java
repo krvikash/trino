@@ -160,6 +160,7 @@ import io.trino.operator.gpu.join.GpuLookupJoin;
 import io.trino.operator.gpu.join.GpuSemiJoin;
 import io.trino.operator.gpu.join.GpuSemiJoinBuild;
 import io.trino.operator.gpu.join.GpuSemiJoinSetSupplier;
+import io.trino.operator.gpu.window.GpuWindowCompiler;
 import io.trino.operator.index.DynamicTupleFilterFactory;
 import io.trino.operator.index.FieldSetFilteringRecordSet;
 import io.trino.operator.index.IndexBuildDriverFactoryProvider;
@@ -1346,6 +1347,11 @@ public class LocalExecutionPlanner
         {
             PhysicalOperation source = node.getSource().accept(this, context);
 
+            Optional<PhysicalOperation> gpuResult = tryPlanGpuWindow(node, source, context);
+            if (gpuResult.isPresent()) {
+                return gpuResult.get();
+            }
+
             List<Symbol> partitionBySymbols = node.getPartitionBy();
             List<Integer> partitionChannels = ImmutableList.copyOf(getChannelsForSymbols(partitionBySymbols, source.getLayout()));
             List<Integer> preGroupedChannels = ImmutableList.copyOf(getChannelsForSymbols(ImmutableList.copyOf(node.getPrePartitionedInputs()), source.getLayout()));
@@ -2146,6 +2152,31 @@ public class LocalExecutionPlanner
                     source.getLayout(),
                     context,
                     node.getId()));
+        }
+
+        private Optional<PhysicalOperation> tryPlanGpuWindow(WindowNode node, PhysicalOperation source, LocalExecutionPlanContext context)
+        {
+            if (!isGpuExecutionEnabled(session)) {
+                return Optional.empty();
+            }
+
+            GpuWindowCompiler.CompileResult result = GpuWindowCompiler.compile(node, source.getLayout(), source.getTypes());
+            return switch (result) {
+                case GpuWindowCompiler.CompileResult.Failure(String reason) -> {
+                    context.markAsGpuIneligible(node.getId(), reason);
+                    yield Optional.empty();
+                }
+                case GpuWindowCompiler.CompileResult.Success(List<GpuOperation.Factory> stages, List<Type> outputTypes) -> {
+                    Map<Symbol, Integer> outputLayout = makeLayout(node);
+                    yield Optional.of(addGpuOperations(
+                            stages,
+                            outputTypes,
+                            source,
+                            outputLayout,
+                            context,
+                            node.getId()));
+                }
+            };
         }
 
         @Override

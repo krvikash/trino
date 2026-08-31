@@ -14,8 +14,8 @@
                           - JoinNode (GPU)
                             - FilterNode
                               - WindowNode
-                                - FilterNode
-                                  - WindowNode
+                                - FilterNode (GPU)
+                                  - WindowNode (GPU)
                                     - ExchangeNode LOCAL
                                       - ExchangeNode REMOTE
                                         - AggregationNode (GPU)
@@ -45,10 +45,10 @@
                                                     - ExchangeNode REMOTE
                                                       - FilterNode (GPU)
                                                         - TableScanNode call_center (GPU)
-                            - ExchangeNode LOCAL
-                              - ProjectNode
-                                - ProjectNode
-                                  - WindowNode
+                            - ExchangeNode LOCAL (GPU)
+                              - ProjectNode (GPU)
+                                - ProjectNode (GPU)
+                                  - WindowNode (GPU)
                                     - ExchangeNode LOCAL
                                       - ExchangeNode REMOTE
                                         - AggregationNode (GPU)
@@ -79,9 +79,9 @@
                                                       - FilterNode (GPU)
                                                         - TableScanNode call_center (GPU)
                         - ExchangeNode LOCAL
-                          - ProjectNode
-                            - ProjectNode
-                              - WindowNode
+                          - ProjectNode (GPU)
+                            - ProjectNode (GPU)
+                              - WindowNode (GPU)
                                 - ExchangeNode LOCAL
                                   - ExchangeNode REMOTE
                                     - AggregationNode (GPU)

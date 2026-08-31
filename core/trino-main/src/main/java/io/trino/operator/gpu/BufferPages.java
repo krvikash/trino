@@ -37,7 +37,7 @@ public class BufferPages
         implements GpuSourceOperation
 {
     @VisibleForTesting
-    static final int TARGET_ROW_COUNT = 100_000;
+    public static final int TARGET_ROW_COUNT = 100_000;
 
     private final GpuTaskMemoryContext taskMemoryContext;
     private final List<Page> bufferedPages = new ArrayList<>();

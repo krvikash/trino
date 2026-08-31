@@ -6,12 +6,12 @@
           - ExchangeNode LOCAL (GPU)
             - ProjectNode (GPU)
               - AggregationNode (GPU)
-                - ProjectNode
-                  - FilterNode
-                    - ProjectNode
-                      - ExchangeNode LOCAL
-                        - WindowNode
-                          - WindowNode
+                - ProjectNode (GPU)
+                  - FilterNode (GPU)
+                    - ProjectNode (GPU)
+                      - ExchangeNode LOCAL (GPU)
+                        - WindowNode (GPU)
+                          - WindowNode (GPU)
                             - ExchangeNode LOCAL
                               - ProjectNode
                                 - AggregationNode (GPU)
@@ -32,12 +32,12 @@
                                                     - TableScanNode date_dim (GPU)
             - ProjectNode (GPU)
               - AggregationNode (GPU)
-                - ProjectNode
-                  - FilterNode
-                    - ProjectNode
-                      - ExchangeNode LOCAL
-                        - WindowNode
-                          - WindowNode
+                - ProjectNode (GPU)
+                  - FilterNode (GPU)
+                    - ProjectNode (GPU)
+                      - ExchangeNode LOCAL (GPU)
+                        - WindowNode (GPU)
+                          - WindowNode (GPU)
                             - ExchangeNode LOCAL
                               - ProjectNode
                                 - AggregationNode (GPU)
@@ -58,12 +58,12 @@
                                                     - TableScanNode date_dim (GPU)
             - ProjectNode (GPU)
               - AggregationNode (GPU)
-                - ProjectNode
-                  - FilterNode
-                    - ProjectNode
-                      - ExchangeNode LOCAL
-                        - WindowNode
-                          - WindowNode
+                - ProjectNode (GPU)
+                  - FilterNode (GPU)
+                    - ProjectNode (GPU)
+                      - ExchangeNode LOCAL (GPU)
+                        - WindowNode (GPU)
+                          - WindowNode (GPU)
                             - ExchangeNode LOCAL
                               - ProjectNode
                                 - AggregationNode (GPU)

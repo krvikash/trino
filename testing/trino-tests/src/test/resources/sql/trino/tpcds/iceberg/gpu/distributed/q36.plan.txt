@@ -8,9 +8,9 @@
               - TopNNode (GPU)
                 - ExchangeNode LOCAL (GPU)
                   - TopNNode (GPU)
-                    - ProjectNode
-                      - ProjectNode
-                        - WindowNode
+                    - ProjectNode (GPU)
+                      - ProjectNode (GPU)
+                        - WindowNode (GPU)
                           - ExchangeNode LOCAL
                             - ExchangeNode REMOTE
                               - ProjectNode
