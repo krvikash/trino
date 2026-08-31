@@ -1096,5 +1096,20 @@ public final class GpuTestUtils
         return builder.build();
     }
 
+    public static Page mergePages(List<Page> pages, List<Type> types)
+    {
+        int channelCount = types.size();
+        int totalPositions = pages.stream().mapToInt(Page::getPositionCount).sum();
+        Block[] mergedBlocks = new Block[channelCount];
+        for (int channel = 0; channel < channelCount; channel++) {
+            BlockBuilder builder = types.get(channel).createBlockBuilder(null, totalPositions);
+            for (Page page : pages) {
+                builder.appendBlockRange(page.getBlock(channel), 0, page.getPositionCount());
+            }
+            mergedBlocks[channel] = builder.build();
+        }
+        return new Page(totalPositions, mergedBlocks);
+    }
+
     public record PagePosition(Page page, int position) {}
 }

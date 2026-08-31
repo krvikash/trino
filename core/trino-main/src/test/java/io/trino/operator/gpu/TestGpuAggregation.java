@@ -77,6 +77,7 @@ import static io.trino.operator.gpu.GpuTestUtils.createBigintBlock;
 import static io.trino.operator.gpu.GpuTestUtils.createBlock;
 import static io.trino.operator.gpu.GpuTestUtils.executeGpuOperation;
 import static io.trino.operator.gpu.GpuTestUtils.maybeSetGpuMemoryPoolForTests;
+import static io.trino.operator.gpu.GpuTestUtils.mergePages;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.spi.type.CharType.createCharType;
@@ -1378,21 +1379,6 @@ final class TestGpuAggregation
         aggregator.processPage(new Page(intermediate));
         Block finalBlock = AggregationTestUtils.getFinalBlock(function.getFinalType(), aggregator);
         return getOnlyValue(function.getFinalType(), finalBlock);
-    }
-
-    private static Page mergePages(List<Page> pages, List<Type> types)
-    {
-        int channelCount = types.size();
-        int totalPositions = pages.stream().mapToInt(Page::getPositionCount).sum();
-        Block[] mergedBlocks = new Block[channelCount];
-        for (int channel = 0; channel < channelCount; channel++) {
-            BlockBuilder builder = types.get(channel).createBlockBuilder(null, totalPositions);
-            for (Page page : pages) {
-                builder.appendBlockRange(page.getBlock(channel), 0, page.getPositionCount());
-            }
-            mergedBlocks[channel] = builder.build();
-        }
-        return new Page(totalPositions, mergedBlocks);
     }
 
     private static Block createMaskBlock(int positionCount)
