@@ -183,14 +183,7 @@ public final class GpuTopN
 
     private OrderByArg[] toOrderByArgs()
     {
-        OrderByArg[] args = new OrderByArg[sortChannels.length];
-        for (int i = 0; i < sortChannels.length; i++) {
-            SortOrder order = sortOrders.get(i);
-            args[i] = order.isAscending()
-                    ? OrderByArg.asc(sortChannels[i], order.isNullsFirst())
-                    : OrderByArg.desc(sortChannels[i], !order.isNullsFirst());
-        }
-        return args;
+        return GpuSortUtils.toOrderByArgs(sortChannels, sortOrders);
     }
 
     private static @Move Table applyLimit(@Borrow Table sorted, int limit)
