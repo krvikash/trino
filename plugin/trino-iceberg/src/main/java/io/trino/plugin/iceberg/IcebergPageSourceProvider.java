@@ -737,18 +737,23 @@ public class IcebergPageSourceProvider
 
         // filter out deleted rows
         if (!deletes.isEmpty()) {
-            Supplier<Optional<PageFilter>> deletePredicate = memoize(() -> getDeleteManager(partitionSpec, partitionData)
-                    .getDeletePageFilter(
-                            fileSystem,
-                            path,
-                            dataSequenceNumber,
-                            deletes,
-                            requiredColumns,
-                            tableSchema,
-                            readerPageSourceWithRowPositions.startRowPosition(),
-                            readerPageSourceWithRowPositions.endRowPosition(),
-                            deleteFile -> readDeletionVector(fileSystem, deleteFile),
-                            (deleteFile, deleteColumns, tupleDomain) -> openDeleteFile(session, fileSystem, deleteFile, deleteColumns, tupleDomain, formatVersion, memoryContext.newAggregatedMemoryContext())));
+            Supplier<Optional<PageFilter>> deletePredicate = memoize(() -> {
+                LocalMemoryContext deletionVectorMemoryContext = memoryContext.newLocalMemoryContext(DeletionVector.class.getSimpleName());
+                Optional<PageFilter> pageFilter = getDeleteManager(partitionSpec, partitionData)
+                        .getDeletePageFilter(
+                                fileSystem,
+                                path,
+                                dataSequenceNumber,
+                                deletes,
+                                requiredColumns,
+                                tableSchema,
+                                readerPageSourceWithRowPositions.startRowPosition(),
+                                readerPageSourceWithRowPositions.endRowPosition(),
+                                deleteFile -> readDeletionVector(fileSystem, deleteFile, memoryContext),
+                                (deleteFile, deleteColumns, tupleDomain) -> openDeleteFile(session, fileSystem, deleteFile, deleteColumns, tupleDomain, formatVersion, memoryContext.newAggregatedMemoryContext()),
+                                deletionVectorMemoryContext::setBytes);
+                return pageFilter;
+            });
             pageSource = TransformConnectorPageSource.create(pageSource, page -> {
                 try {
                     Optional<PageFilter> pageFilter = deletePredicate.get();
@@ -834,16 +839,22 @@ public class IcebergPageSourceProvider
         return requiredColumns.build();
     }
 
-    private static DeletionVector readDeletionVector(TrinoFileSystem fileSystem, DeleteFile delete)
+    private static DeletionVector readDeletionVector(TrinoFileSystem fileSystem, DeleteFile delete, AggregatedMemoryContext memoryContext)
     {
         verify(delete.isDeletionVector(), "Not a deletion vector: %s", delete);
         TrinoInputFile trinoInputFile = fileSystem.newInputFile(Location.of(delete.path()), delete.fileSizeInBytes());
+        LocalMemoryContext readBufferMemoryContext = memoryContext.newLocalMemoryContext(DeletionVector.class.getSimpleName());
         try (TrinoInput trinoInput = trinoInputFile.newInput()) {
-            Slice slice = trinoInput.readFully(delete.contentOffset().orElseThrow(), toIntExact(delete.contentSizeInBytes().orElseThrow()));
+            int contentSize = toIntExact(delete.contentSizeInBytes().orElseThrow());
+            readBufferMemoryContext.setBytes(contentSize);
+            Slice slice = trinoInput.readFully(delete.contentOffset().orElseThrow(), contentSize);
             return DeletionVector.builder().deserialize(slice).build().orElseThrow();
         }
         catch (IOException e) {
             throw new TrinoException(ICEBERG_CANNOT_OPEN_SPLIT, "Failed to read deletion vector file: " + delete.path(), e);
+        }
+        finally {
+            readBufferMemoryContext.close();
         }
     }
 

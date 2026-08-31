@@ -21,6 +21,7 @@ import io.trino.filesystem.TrinoFileSystem;
 import io.trino.plugin.iceberg.IcebergColumnHandle;
 import io.trino.spi.BlocksHashFactory;
 import io.trino.spi.TrinoException;
+import io.trino.spi.connector.MemoryContext;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.TypeManager;
 import org.apache.iceberg.Schema;
@@ -70,7 +71,8 @@ public class DeleteManager
             OptionalLong startRowPosition,
             OptionalLong endRowPosition,
             DeletionVectorReader deletionVectorReader,
-            DeletePageSourceProvider deletePageSourceProvider)
+            DeletePageSourceProvider deletePageSourceProvider,
+            MemoryContext memoryContext)
     {
         if (deleteFiles.isEmpty()) {
             return Optional.empty();
@@ -108,10 +110,13 @@ public class DeleteManager
                 endRowPosition,
                 deletePageSourceProvider,
                 fileSystem,
-                typeManager);
+                typeManager,
+                memoryContext);
         if (deletionVector.isPresent() && positionDeleteVector.isPresent()) {
             deletionVector = DeletionVector.builder().addAll(deletionVector.get()).addAll(positionDeleteVector.get()).build();
         }
+        // the vector is retained by the page filter until the page source memory context is closed
+        deletionVector.ifPresent(vector -> memoryContext.setBytes(vector.retainedSizeInBytes()));
 
         Optional<PageFilter> positionDeletes = deletionVector.or(() -> positionDeleteVector)
                 .map(vector -> {
