@@ -208,23 +208,23 @@ public final class GpuExpressionCompiler
             return switch (fromType) {
                 case TinyintType _ -> switch (toType) {
                     case SmallintType _, IntegerType _, BigintType _, RealType _, DoubleType _ -> Optional.of(new GpuCast(input, toDType));
-                    case DecimalType d when TINYINT_DECIMAL_DIGITS <= d.getPrecision() - d.getScale() -> Optional.of(new GpuCast(input, toDType));
-                    case VarcharType v when TINYINT_DECIMAL_DIGITS + 1 /*sign*/ <= v.getLength().orElse(Integer.MAX_VALUE) -> Optional.of(new GpuCast(input, toDType));
+                    case DecimalType d when canCastIntegerToDecimal(d, TINYINT_DECIMAL_DIGITS) -> Optional.of(new GpuCast(input, toDType));
+                    case VarcharType v when canCastIntegerToVarchar(v, TINYINT_DECIMAL_DIGITS) -> Optional.of(new GpuCast(input, toDType));
                     default -> Optional.empty();
                 };
                 case SmallintType _ -> switch (toType) {
                     case TinyintType _ -> Optional.of(new GpuNarrowingIntegerCast(input, DType.INT16, DType.INT8, "tinyint"));
                     case IntegerType _, BigintType _, RealType _, DoubleType _ -> Optional.of(new GpuCast(input, toDType));
-                    case DecimalType d when SMALLINT_DECIMAL_DIGITS <= d.getPrecision() - d.getScale() -> Optional.of(new GpuCast(input, toDType));
-                    case VarcharType v when SMALLINT_DECIMAL_DIGITS + 1 /*sign*/ <= v.getLength().orElse(Integer.MAX_VALUE) -> Optional.of(new GpuCast(input, toDType));
+                    case DecimalType d when canCastIntegerToDecimal(d, SMALLINT_DECIMAL_DIGITS) -> Optional.of(new GpuCast(input, toDType));
+                    case VarcharType v when canCastIntegerToVarchar(v, SMALLINT_DECIMAL_DIGITS) -> Optional.of(new GpuCast(input, toDType));
                     default -> Optional.empty();
                 };
                 case IntegerType _ -> switch (toType) {
                     case TinyintType _ -> Optional.of(new GpuNarrowingIntegerCast(input, DType.INT32, DType.INT8, "tinyint"));
                     case SmallintType _ -> Optional.of(new GpuNarrowingIntegerCast(input, DType.INT32, DType.INT16, "smallint"));
                     case BigintType _, RealType _, DoubleType _ -> Optional.of(new GpuCast(input, toDType));
-                    case DecimalType d when INTEGER_DECIMAL_DIGITS <= d.getPrecision() - d.getScale() -> Optional.of(new GpuCast(input, toDType));
-                    case VarcharType v when INTEGER_DECIMAL_DIGITS + 1 /*sign*/ <= v.getLength().orElse(Integer.MAX_VALUE) -> Optional.of(new GpuCast(input, toDType));
+                    case DecimalType d when canCastIntegerToDecimal(d, INTEGER_DECIMAL_DIGITS) -> Optional.of(new GpuCast(input, toDType));
+                    case VarcharType v when canCastIntegerToVarchar(v, INTEGER_DECIMAL_DIGITS) -> Optional.of(new GpuCast(input, toDType));
                     default -> Optional.empty();
                 };
                 case BigintType _ -> switch (toType) {
@@ -232,8 +232,8 @@ public final class GpuExpressionCompiler
                     case SmallintType _ -> Optional.of(new GpuNarrowingIntegerCast(input, DType.INT64, DType.INT16, "smallint"));
                     case IntegerType _ -> Optional.of(new GpuNarrowingIntegerCast(input, DType.INT64, DType.INT32, "integer"));
                     case RealType _, DoubleType _ -> Optional.of(new GpuCast(input, toDType));
-                    case DecimalType d when BIGINT_DECIMAL_DIGITS <= d.getPrecision() - d.getScale() -> Optional.of(new GpuCast(input, toDType));
-                    case VarcharType v when BIGINT_DECIMAL_DIGITS + 1 /*sign*/ <= v.getLength().orElse(Integer.MAX_VALUE) -> Optional.of(new GpuCast(input, toDType));
+                    case DecimalType d when canCastIntegerToDecimal(d, BIGINT_DECIMAL_DIGITS) -> Optional.of(new GpuCast(input, toDType));
+                    case VarcharType v when canCastIntegerToVarchar(v, BIGINT_DECIMAL_DIGITS) -> Optional.of(new GpuCast(input, toDType));
                     default -> Optional.empty();
                 };
                 case RealType _ -> switch (toType) {
@@ -288,6 +288,16 @@ public final class GpuExpressionCompiler
                 };
                 default -> Optional.empty();
             };
+        }
+
+        private static boolean canCastIntegerToDecimal(DecimalType type, int decimalDigits)
+        {
+            return decimalDigits <= type.getPrecision() - type.getScale();
+        }
+
+        private static boolean canCastIntegerToVarchar(VarcharType type, int decimalDigits)
+        {
+            return decimalDigits + 1 /*sign*/ <= type.getLength().orElse(Integer.MAX_VALUE);
         }
 
         @Override
