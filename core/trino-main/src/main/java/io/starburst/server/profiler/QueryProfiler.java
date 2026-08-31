@@ -39,7 +39,7 @@ import static java.util.Objects.requireNonNull;
 public class QueryProfiler
 {
     private static final Logger log = Logger.get(QueryProfiler.class);
-    private static final String PROFILER_VERSION = "1.0";
+    private static final String PROFILER_VERSION = "2.0";
 
     private final List<QueryProfilerRule> rules;
     private final QueryProfilerConfig config;

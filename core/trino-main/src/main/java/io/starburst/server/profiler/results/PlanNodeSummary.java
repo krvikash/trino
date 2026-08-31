@@ -18,6 +18,7 @@ import static java.util.Objects.requireNonNull;
 
 public record PlanNodeSummary(
         String planNodeId,
+        int stageId,
         String planNodeType,
         Duration cpu,
         Duration scheduledTime,

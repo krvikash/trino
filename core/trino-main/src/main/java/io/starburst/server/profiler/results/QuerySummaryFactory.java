@@ -294,6 +294,7 @@ public final class QuerySummaryFactory
         Optional<PlanNodeStats> stats = details.stats(node.getId());
         return new PlanNodeSummary(
                 node.getId().toString(),
+                details.stageId(node.getId()).orElseThrow().id(),
                 node.getClass().getSimpleName(),
                 details.cpuTime(node.getId()),
                 details.scheduledTime(node.getId()),

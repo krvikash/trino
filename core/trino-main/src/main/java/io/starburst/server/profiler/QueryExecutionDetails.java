@@ -17,6 +17,7 @@ import io.trino.cost.PlanNodeStatsEstimate;
 import io.trino.execution.Input;
 import io.trino.execution.QueryInfo;
 import io.trino.execution.QueryStats;
+import io.trino.execution.StageId;
 import io.trino.execution.StageInfo;
 import io.trino.execution.StagesInfo;
 import io.trino.execution.TableInfo;
@@ -51,6 +52,7 @@ public final class QueryExecutionDetails
     private final List<StageInfo> stageInfos;
     private final Map<PlanFragmentId, PlanNode> rootByFragmentId;
     private final Map<PlanNodeId, PlanNode> planNodesById;
+    private final Map<PlanNodeId, StageId> stageIdByPlanNode;
     private final Map<PlanNodeId, PlanNodeStats> statsByPlanNode;
     private final Optional<PlanNode> rootNode;
     private final Map<PlanNodeId, PlanNodeStatsEstimate> estimates;
@@ -72,6 +74,7 @@ public final class QueryExecutionDetails
             this.stageInfos = ImmutableList.of();
             this.rootByFragmentId = ImmutableMap.of();
             this.planNodesById = ImmutableMap.of();
+            this.stageIdByPlanNode = ImmutableMap.of();
             this.statsByPlanNode = ImmutableMap.of();
             this.rootNode = Optional.empty();
             this.estimates = ImmutableMap.of();
@@ -89,6 +92,7 @@ public final class QueryExecutionDetails
         this.stageInfos = ImmutableList.copyOf(stageInfos);
         this.rootByFragmentId = rootByFragmentId;
         this.planNodesById = planNodes.nodesById();
+        this.stageIdByPlanNode = computeStageIdByNode(stages.get());
         this.statsByPlanNode = planNodes.statsByNode();
         this.rootNode = Optional.ofNullable(planNodes.nodesById().get(root.getId()));
         this.estimates = computeEstimates(stageInfos);
@@ -128,6 +132,11 @@ public final class QueryExecutionDetails
     public List<PlanNode> children(PlanNode node)
     {
         return childrenOf(node, rootByFragmentId);
+    }
+
+    public Optional<StageId> stageId(PlanNodeId planNodeId)
+    {
+        return Optional.ofNullable(stageIdByPlanNode.get(planNodeId));
     }
 
     public Optional<PlanNodeStats> stats(PlanNodeId planNodeId)
@@ -280,6 +289,25 @@ public final class QueryExecutionDetails
         Map<PlanNodeId, PlanNodeStats> childStats = resolveChildStats(planNode, sources, currentStats);
         for (PlanNode source : sources) {
             collectNodes(source, rootByFragmentId, childStats, nodesById, statsByNode);
+        }
+    }
+
+    private static Map<PlanNodeId, StageId> computeStageIdByNode(StagesInfo stagesInfo)
+    {
+        ImmutableMap.Builder<PlanNodeId, StageId> stageIdByNode = ImmutableMap.builder();
+        for (StageInfo stage : stagesInfo.getStages()) {
+            if (stage.plan() != null) {
+                collectFragmentNodes(stage.plan().getRoot(), stage.stageId(), stageIdByNode);
+            }
+        }
+        return stageIdByNode.buildOrThrow();
+    }
+
+    private static void collectFragmentNodes(PlanNode planNode, StageId stageId, ImmutableMap.Builder<PlanNodeId, StageId> stageIdByNode)
+    {
+        stageIdByNode.put(planNode.getId(), stageId);
+        for (PlanNode source : planNode.getSources()) {
+            collectFragmentNodes(source, stageId, stageIdByNode);
         }
     }
 

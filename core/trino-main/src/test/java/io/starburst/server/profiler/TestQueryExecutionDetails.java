@@ -16,15 +16,19 @@ import io.starburst.server.profiler.results.QuerySummary;
 import io.starburst.server.profiler.results.StageSummary;
 import io.starburst.server.profiler.rules.RuleTestSupport;
 import io.trino.execution.QueryInfo;
+import io.trino.execution.StageInfo;
 import io.trino.spi.QueryId;
+import io.trino.sql.planner.optimizations.PlanNodeSearcher;
 import io.trino.testing.StandaloneQueryRunner;
 import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
+import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static io.trino.SessionTestUtils.TEST_SESSION;
 import static io.trino.testing.assertions.Assert.assertEventually;
@@ -49,6 +53,32 @@ public class TestQueryExecutionDetails
             assertThat(details.planNodesById().values())
                     .as("at least one plan node has stats attached")
                     .anyMatch(node -> details.stats(node.getId()).isPresent());
+        }
+    }
+
+    @Test
+    public void testAssignsEachPlanNodeToItsOwningStage()
+    {
+        try (StandaloneQueryRunner queryRunner = ProfilerQueryRunner.create(_ -> {})) {
+            QueryId queryId = queryRunner.executeWithQueryId(TEST_SESSION, JOIN_QUERY).queryId();
+            QueryInfo queryInfo = RuleTestSupport.getFinalQueryInfo(queryRunner, queryId);
+
+            QueryExecutionDetails details = new QueryExecutionDetails(queryInfo, new QueryProfilerConfig());
+
+            List<StageInfo> stages = details.stageInfos().stream()
+                    .filter(stage -> stage.plan() != null)
+                    .collect(toImmutableList());
+            assertThat(stages)
+                    .as("join query is split across multiple stages, so fragment boundaries are exercised")
+                    .hasSizeGreaterThan(1);
+
+            for (StageInfo stage : stages) {
+                PlanNodeSearcher.searchFrom(stage.plan().getRoot())
+                        .findAll()
+                        .forEach(node -> assertThat(details.stageId(node.getId()))
+                                .as("plan node %s belongs to the stage whose fragment contains it", node.getId())
+                                .hasValue(stage.stageId()));
+            }
         }
     }
 
