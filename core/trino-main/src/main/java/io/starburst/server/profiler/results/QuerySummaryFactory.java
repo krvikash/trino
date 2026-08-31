@@ -305,7 +305,7 @@ public final class QuerySummaryFactory
                 stats.map(PlanNodeStats::getPlanNodePhysicalInputDataSize).orElse(DataSize.ofBytes(0)),
                 drivers,
                 getColumnIndexUsage(operators),
-                node.getSources().stream().map(child -> child.getId().toString()).collect(toImmutableList()));
+                details.children(node).stream().map(child -> child.getId().toString()).collect(toImmutableList()));
     }
 
     private static List<ColumnIndexUsage> getColumnIndexUsage(List<OperatorStats> operators)

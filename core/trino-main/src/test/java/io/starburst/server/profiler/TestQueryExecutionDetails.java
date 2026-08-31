@@ -11,6 +11,7 @@ package io.starburst.server.profiler;
 
 import com.google.common.collect.ImmutableSet;
 import io.starburst.server.profiler.results.OperatorStatsSummary;
+import io.starburst.server.profiler.results.PlanNodeSummary;
 import io.starburst.server.profiler.results.QueryProfilerResult;
 import io.starburst.server.profiler.results.QuerySummary;
 import io.starburst.server.profiler.results.StageSummary;
@@ -29,6 +30,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static io.trino.SessionTestUtils.TEST_SESSION;
 import static io.trino.testing.assertions.Assert.assertEventually;
@@ -79,6 +81,37 @@ public class TestQueryExecutionDetails
                                 .as("plan node %s belongs to the stage whose fragment contains it", node.getId())
                                 .hasValue(stage.stageId()));
             }
+        }
+    }
+
+    @Test
+    public void testPlanNodeSummaryLinksChildrenAcrossFragments()
+    {
+        CapturingResultSink sink = new CapturingResultSink();
+        try (StandaloneQueryRunner queryRunner = ProfilerQueryRunner.create(sink)) {
+            QueryId queryId = queryRunner.executeWithQueryId(TEST_SESSION, JOIN_QUERY).queryId();
+
+            assertEventually(() -> assertThat(sink.results).containsKey(queryId.toString()));
+
+            QuerySummary summary = sink.results.get(queryId.toString()).querySummary();
+            Map<String, PlanNodeSummary> nodesById = summary.planNodes().stream()
+                    .collect(toImmutableMap(PlanNodeSummary::planNodeId, node -> node));
+
+            assertThat(summary.planNodes())
+                    .filteredOn(node -> node.planNodeType().equals("RemoteSourceNode"))
+                    .as("join query fans out across fragments via remote sources")
+                    .isNotEmpty()
+                    .allSatisfy(remoteSource -> {
+                        assertThat(remoteSource.childIds())
+                                .as("remote source links to the root of each fragment it reads from")
+                                .isNotEmpty();
+                        assertThat(remoteSource.childIds()).allSatisfy(childId -> {
+                            assertThat(nodesById).containsKey(childId);
+                            assertThat(nodesById.get(childId).stageId())
+                                    .as("a remote source's child lives in a different stage")
+                                    .isNotEqualTo(remoteSource.stageId());
+                        });
+                    });
         }
     }
 
