@@ -74,11 +74,7 @@ final class GpuGlobalAggregation
             return new Table(outputColumns);
         }
         finally {
-            for (ColumnVector column : outputColumns) {
-                if (column != null) {
-                    column.close();
-                }
-            }
+            closeColumns(outputColumns);
         }
     }
 
@@ -97,11 +93,7 @@ final class GpuGlobalAggregation
             return new Table(outputColumns);
         }
         finally {
-            for (ColumnVector column : outputColumns) {
-                if (column != null) {
-                    column.close();
-                }
-            }
+            closeColumns(outputColumns);
         }
     }
 

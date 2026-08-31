@@ -15,12 +15,14 @@ package io.trino.plugin.base.gpu;
 
 import ai.rapids.cudf.ColumnVector;
 import ai.rapids.cudf.Table;
+import io.trino.plugin.base.util.AutoCloseableCloser;
 import io.trino.spi.gpu.Column;
 import io.trino.spi.gpu.GpuPage;
 import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
 import io.trino.spi.gpu.borrow.Own;
 
+import static com.google.common.base.Throwables.throwIfUnchecked;
 import static java.lang.Math.toIntExact;
 
 public final class GpuUtils
@@ -38,6 +40,25 @@ public final class GpuUtils
                     closer.register(column);
                 }
             }
+        }
+    }
+
+    /**
+     * Closes all non-null columns in the array. Elements may be null.
+     */
+    public static void closeColumns(@Move ColumnVector[] columns)
+    {
+        try (var closer = AutoCloseableCloser.create()) {
+            for (ColumnVector column : columns) {
+                if (column != null) {
+                    closer.register(column);
+                }
+            }
+        }
+        catch (Exception e) {
+            throwIfUnchecked(e);
+            // Unreachable
+            throw new RuntimeException(e);
         }
     }
 

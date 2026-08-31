@@ -34,6 +34,7 @@ import java.util.List;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static io.trino.operator.gpu.memory.GpuMemoryUtils.getOrderByMemoryUsage;
+import static io.trino.plugin.base.gpu.GpuUtils.closeColumns;
 import static io.trino.plugin.base.gpu.GpuUtils.toGpuPage;
 import static io.trino.plugin.base.gpu.GpuUtils.toTable;
 import static java.lang.Math.min;
@@ -197,11 +198,7 @@ public final class GpuTopN
             return new Table(columns);
         }
         finally {
-            for (ColumnVector column : columns) {
-                if (column != null) {
-                    column.close();
-                }
-            }
+            closeColumns(columns);
         }
     }
 
