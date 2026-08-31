@@ -23,6 +23,7 @@ import io.trino.testing.AbstractTestQueryFramework;
 import io.trino.testing.MaterializedResult;
 import io.trino.testing.QueryRunner;
 import io.trino.testing.sql.SqlExecutor;
+import org.junit.jupiter.api.parallel.Execution;
 
 import java.util.Arrays;
 import java.util.List;
@@ -33,7 +34,9 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.trino.testing.TestingNames.randomNameSuffix;
 import static io.trino.testing.TransactionBuilder.transaction;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.parallel.ExecutionMode.SAME_THREAD;
 
+@Execution(SAME_THREAD)
 public abstract class AbstractMvSubstitutionTest
         extends AbstractTestQueryFramework
 {
