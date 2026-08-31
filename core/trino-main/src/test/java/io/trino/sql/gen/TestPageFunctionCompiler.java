@@ -153,10 +153,11 @@ public class TestPageFunctionCompiler
     public void testProjectionOverWrappedBlocks()
     {
         PageFunctionCompiler functionCompiler = FUNCTION_RESOLUTION.getPageFunctionCompiler();
-        PageProjection add10 = functionCompiler.compileProjection(ADD_10_EXPRESSION, LAYOUT, Optional.empty()).get();
+        PageProjection add10 = functionCompiler.compileProjection(ADD_10_EXPRESSION, LAYOUT, SQL_STANDARD, Optional.empty()).get();
         PageProjection coalesce = functionCompiler.compileProjection(
                         new Coalesce(new Reference(BIGINT, "$col_0"), new Constant(BIGINT, 42L)),
                         LAYOUT,
+                        SQL_STANDARD,
                         Optional.empty())
                 .get();
 
