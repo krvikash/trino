@@ -29,9 +29,11 @@ import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
 import io.trino.spi.gpu.borrow.Own;
 
+import java.util.Arrays;
 import java.util.List;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static io.trino.operator.gpu.memory.GpuMemoryUtils.getOrderByMemoryUsage;
 import static io.trino.plugin.base.gpu.GpuUtils.toGpuPage;
 import static io.trino.plugin.base.gpu.GpuUtils.toTable;
 import static java.lang.Math.min;
@@ -113,10 +115,7 @@ public final class GpuTopN
                     allocated.borrow().transferFrom(allocation);
                 }
                 long combinedBytes = allocated.borrow().amount().gpuDeviceBytes();
-                // Reserve enough to cover orderBy's peak. cuDF runs a radix sort or comparison sort
-                long workBytes = isRadixSortableSingleKey(page)
-                        ? 5 * combinedBytes
-                        : (5 * combinedBytes) / 2;
+                long workBytes = getOrderByMemoryUsage(getSortTypes(page), combinedBytes);
                 allocated.borrow().update(MemoryAmount.gpuDevice(workBytes));
                 try (page) {
                     accumulate(page);
@@ -137,13 +136,12 @@ public final class GpuTopN
         };
     }
 
-    private boolean isRadixSortableSingleKey(@Borrow GpuPage page)
+    private DType[] getSortTypes(@Borrow GpuPage page)
     {
-        if (sortChannels.length != 1) {
-            return false;
-        }
-        DType type = ((Column.DeviceMemory) page.column(sortChannels[0])).columnVector().getType();
-        return !type.isNestedType() && type.getTypeId() != DType.DTypeEnum.STRING;
+        return Arrays.stream(sortChannels)
+                .mapToObj(page::column)
+                .map(column -> ((Column.DeviceMemory) column).columnVector().getType())
+                .toArray(DType[]::new);
     }
 
     private void accumulate(@Borrow GpuPage page)

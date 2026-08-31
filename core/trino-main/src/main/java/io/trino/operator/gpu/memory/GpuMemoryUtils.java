@@ -189,4 +189,21 @@ public final class GpuMemoryUtils
         long gatherMapBytes = (long) input.positionCount() * Integer.BYTES;
         return estimatedOutputDeviceBytes + gatherMapBytes;
     }
+
+    public static long getOrderByMemoryUsage(DType[] sortTypes, long bytesToSort)
+    {
+        // Reserve enough to cover orderBy's peak. cuDF runs a radix sort or comparison sort
+        return isRadixSortableSingleKey(sortTypes)
+                ? 5 * bytesToSort
+                : (5 * bytesToSort) / 2;
+    }
+
+    private static boolean isRadixSortableSingleKey(DType[] sortTypes)
+    {
+        if (sortTypes.length != 1) {
+            return false;
+        }
+        DType type = sortTypes[0];
+        return !type.isNestedType() && type.getTypeId() != DType.DTypeEnum.STRING;
+    }
 }
