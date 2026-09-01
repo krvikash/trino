@@ -1,0 +1,198 @@
+# Install a YAML language server in your IDE to validate against the schema, or use a tool
+# like https://github.com/yaml-schema/yaml-schema
+# yaml-language-server: $schema=./schedule-config-schema.yml
+
+- modules:
+    - core/trino-main
+- modules:
+    - client/trino-jdbc
+    - core/trino-spi
+    - core/trino-web-ui
+    - plugin/starburst-base-jdbc
+- modules:
+    - plugin/trino-base-jdbc
+    - plugin/trino-faker
+    - plugin/trino-geospatial
+    - plugin/trino-memory
+    - plugin/trino-openlineage
+    - plugin/trino-thrift
+- modules:
+    - lib/trino-orc
+    - lib/trino-parquet
+- modules:
+    - lib/trino-filesystem
+    - lib/trino-filesystem-azure
+    - lib/trino-filesystem-gcs
+    - lib/trino-filesystem-manager
+    - lib/trino-filesystem-s3
+    - lib/trino-hdfs
+    - lib/trino-hive-formats
+    - plugin/trino-blob-cache-alluxio
+    - plugin/trino-blob-cache-memory
+- modules:
+    - plugin/starburst-warp-speed/starburst-warp-speed-core
+    - plugin/starburst-warp-speed/starburst-warp-speed-extensions
+    - plugin/starburst-warp-speed/starburst-warp-speed-plugin
+- modules:
+    - core/trino-main
+    - plugin/trino-hive
+    - plugin/trino-iceberg
+    - plugin/trino-delta-lake
+    - plugin/starburst-objectstore
+    - testing/trino-tests
+  profile: gpu
+  runners: [self-hosted, gha-fleet-ec2-1GPU-16CPU-64GB-amd64, latest]
+  when:
+    pushes: true
+    labeled: [gpu]
+- { modules: lib/trino-filesystem-azure, profile: cloud-tests }
+- { modules: lib/trino-filesystem-gcs, profile: cloud-tests }
+- { modules: lib/trino-filesystem-s3, profile: cloud-tests }
+- { modules: plugin/trino-exchange-filesystem, profile: cloud-tests }
+- { modules: starburst-buffer-service/starburst-buffer-data-server, profile: cloud-tests }
+- { modules: lib/starburst-functions-client }
+- { modules: plugin/starburst-functions }
+- { modules: plugin/starburst-objectstore, profile: "", runners: [self-hosted, gha-fleet-ec2-8cpu-64gb-amd64, latest] }
+- { modules: plugin/starburst-objectstore, profile: hive-tests, runners: [self-hosted, gha-fleet-ec2-8cpu-64gb-amd64, latest] }
+- { modules: plugin/starburst-objectstore, profile: iceberg-delta, runners: [self-hosted, gha-fleet-ec2-16cpu-64gb-amd64, latest] }
+- { modules: plugin/starburst-objectstore, profile: cloud-tests, runners: [self-hosted, gha-fleet-ec2-2cpu-8gb-amd64, latest] }
+- { modules: plugin/trino-delta-lake, runners: [self-hosted, gha-fleet-ec2-16cpu-64gb-amd64, latest] }
+- { modules: plugin/trino-delta-lake, profile: cloud-tests }
+- { modules: plugin/trino-delta-lake, profile: fte-tests }
+- { modules: starburst-buffer-service/starburst-buffer-exchange-tests, profile: "" }
+- { modules: starburst-buffer-service/starburst-buffer-exchange-tests, profile: test-buffer-exchange-failure-recovery }
+- { modules: plugin/trino-hive, runners: [self-hosted, gha-fleet-ec2-16cpu-64gb-amd64, latest] }
+- { modules: plugin/trino-hive, profile: cloud-tests }
+- { modules: plugin/trino-hive, profile: fte-tests }
+- { modules: plugin/trino-hive, profile: test-parquet }
+- { modules: plugin/trino-iceberg, runners: [self-hosted, gha-fleet-ec2-16cpu-64gb-amd64, latest] }
+- { modules: plugin/trino-iceberg, profile: cloud-tests }
+- { modules: plugin/trino-iceberg, profile: fte-tests }
+- { modules: plugin/trino-iceberg, profile: minio-and-avro }
+# biglake-tests runs on nightly schedule only
+- { modules: testing/trino-faulttolerant-tests, profile: default }
+- { modules: testing/trino-faulttolerant-tests, profile: test-fault-tolerant-delta }
+- { modules: testing/trino-faulttolerant-tests, profile: test-fault-tolerant-hive }
+- { modules: testing/trino-faulttolerant-tests, profile: test-fault-tolerant-iceberg }
+- modules:
+    - testing/trino-tests
+  runners: [self-hosted, gha-fleet-ec2-16cpu-64gb-amd64, latest]
+  matrix-properties:
+    buildAll: true # buildAll is needed to build and package plugins required by TestConnectorSensitiveProperties
+- { modules: plugin/trino-ignite }
+- { modules: plugin/trino-postgresql }
+- { modules: plugin/trino-redis }
+- { modules: plugin/trino-resource-group-managers }
+## Nightly
+- { modules: plugin/starburst-dynamodb, when: {scheduled: nightly} }
+- { modules: plugin/starburst-oracle, when: {scheduled: nightly} }
+- { modules: plugin/starburst-sap-hana, when: {scheduled: nightly} }
+- { modules: plugin/starburst-sqlserver, when: {scheduled: nightly} }
+- { modules: plugin/trino-elasticsearch, when: {scheduled: nightly} }
+- { modules: plugin/trino-clickhouse, when: {scheduled: nightly} }
+- { modules: plugin/trino-kafka, when: {scheduled: nightly} }
+- { modules: plugin/trino-mariadb, when: {scheduled: nightly} }
+- { modules: plugin/trino-mysql, when: {scheduled: nightly} }
+- { modules: plugin/trino-oracle, when: {scheduled: nightly} }
+- { modules: plugin/trino-sqlserver, when: {scheduled: nightly} }
+- { modules: plugin/trino-iceberg, profile: biglake-tests, notify-channels: [C09HT9ETS73], when: {scheduled: nightly, labeled: [iceberg:biglake]} } # team-connectors-notify
+- { modules: plugin/starburst-stargate, runners: [self-hosted, gha-fleet-ec2-2cpu-8gb-amd64, latest], when: {scheduled: nightly} }
+- { modules: plugin/starburst-stargate-parallel, runners: [self-hosted, gha-fleet-ec2-4cpu-16gb-amd64, latest], when: {scheduled: nightly} }
+- { modules: plugin/trino-mongodb, profile: cloud-tests, when: {scheduled: nightly} }
+- { modules: plugin/trino-pinot, runners: [self-hosted, gha-fleet-ec2-8cpu-64gb-amd64, latest], when: {scheduled: nightly} }
+- { modules: plugin/trino-bigquery, profile: default, notify-channels: [C09HT9ETS73], when: {scheduled: nightly, labeled: [bigquery]} } # team-connectors-notify
+- { modules: plugin/trino-bigquery, profile: cloud-tests-1, notify-channels: [C09HT9ETS73], when: {scheduled: nightly, labeled: [bigquery]} } # team-connectors-notify
+- { modules: plugin/trino-bigquery, profile: cloud-tests-2, notify-channels: [C09HT9ETS73], when: {scheduled: nightly, labeled: [bigquery]} } # team-connectors-notify
+- { modules: plugin/trino-google-sheets, profile: "", notify-channels: [C09HT9ETS73], when: {scheduled: nightly, labeled: [google-sheets]} } # team-connectors-notify
+- { modules: plugin/trino-google-sheets, profile: cloud-tests, notify-channels: [C09HT9ETS73], when: {scheduled: nightly, labeled: [google-sheets]} } # team-connectors-notify
+- { modules: plugin/trino-redshift, profile: "", notify-channels: [C09HT9ETS73], when: {scheduled: nightly, labeled: [redshift]} } # team-connectors-notify
+- { modules: plugin/trino-redshift, profile: cloud-tests, notify-channels: [C09HT9ETS73], when: {scheduled: nightly, labeled: [redshift]} } # team-connectors-notify
+- { modules: plugin/trino-redshift, profile: fte-tests, notify-channels: [C09HT9ETS73], when: {scheduled: nightly, labeled: [redshift]} } # team-connectors-notify
+- { modules: plugin/starburst-salesforce, notify-channels: [C09HT9ETS73], when: {scheduled: nightly, labeled: [salesforce]} } # team-connectors-notify
+- { modules: plugin/starburst-salesforce-cdp, notify-channels: [C09HT9ETS73], when: {scheduled: nightly} } # team-connectors-notify
+- modules:
+    - plugin/starburst-snowflake
+  profile: smoke-tests
+  matrix-properties:
+    cloud: amazon-web-service
+  notify-channels:
+    - C09HT9ETS73 # team-connectors-notify
+  when:
+    scheduled: nightly
+    labeled: [snowflake]
+    dispatches: false
+    impacted: false
+## Weekly
+- { modules: plugin/starburst-kdb, when: {scheduled: weekly} }
+- { modules: plugin/starburst-openapi, when: {scheduled: weekly} }
+- { modules: plugin/trino-hudi, when: {scheduled: weekly} }
+- { modules: plugin/trino-opensearch, when: {scheduled: weekly} }
+- { modules: plugin/trino-singlestore, when: {scheduled: weekly} }
+- { modules: plugin/trino-vertica, when: {scheduled: weekly} }
+- modules:
+    - plugin/starburst-snowflake
+  profile: default
+  matrix-properties:
+    cloud: amazon-web-service
+  notify-channels:
+    - C09HT9ETS73 # team-connectors-notify
+  when:
+    scheduled: weekly
+    labeled: [snowflake]
+    dispatches: false
+    impacted: false
+# - modules: plugin/starburst-snowflake, profile: smoke-tests # smoke-tests on AWS run nightly
+- modules:
+    - plugin/starburst-snowflake
+  profile: parallel-integration-tests
+  matrix-properties:
+    cloud: amazon-web-service
+  notify-channels:
+    - C09HT9ETS73 # team-connectors-notify
+  when:
+    scheduled: weekly
+    labeled: [snowflake]
+    dispatches: false
+    impacted: false
+- modules:
+    - plugin/starburst-snowflake
+  profile: fte-tests
+  matrix-properties:
+    cloud: amazon-web-service
+  notify-channels:
+    - C09HT9ETS73 # team-connectors-notify
+  when:
+    scheduled: weekly
+    labeled: [snowflake]
+    dispatches: false
+    impacted: false
+# only run "default" and "smoke-tests" profile tests on Azure
+- modules:
+    - plugin/starburst-snowflake
+  profile: default
+  matrix-properties:
+    cloud: azure
+  notify-channels:
+    - C09HT9ETS73 # team-connectors-notify
+  when:
+    scheduled: weekly
+    labeled: [snowflake]
+    dispatches: false
+    impacted: false
+- modules:
+    - plugin/starburst-snowflake
+  profile: smoke-tests
+  matrix-properties:
+    cloud: azure
+  notify-channels:
+    - C09HT9ETS73 # team-connectors-notify
+  when:
+    scheduled: weekly
+    labeled: [snowflake]
+    dispatches: false
+    impacted: false
+## Only if impacted
+- { modules: plugin/trino-cassandra, when: {scheduled: never}}
+- { modules: plugin/trino-druid, when: {scheduled: never}}
+- { modules: plugin/trino-duckdb, when: {scheduled: never}}
+- { modules: plugin/trino-exasol, when: {scheduled: never}}

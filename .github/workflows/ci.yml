@@ -874,7 +874,7 @@ jobs:
           # GIB doesn't run on master, so make sure the file always exist
           touch gib-impacted.log
           ./.github/bin/build-matrix-schedule-aware.py build \
-            --schedule-config ./.github/schedule-config.yaml \
+            --schedule-config ./.github/schedule-config.yml \
             --impacted gib-impacted.log \
             --event-name "$EVENT_NAME" \
             --event-schedule "$EVENT_SCHEDULE" \

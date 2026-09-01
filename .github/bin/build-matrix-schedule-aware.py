@@ -33,9 +33,9 @@ def main():
         "-c",
         "--schedule-config",
         type=Path,
-        default=".github/schedule-config.yaml",
+        default=".github/schedule-config.yml",
         help="A YAML file with the schedule config. Should match schema in "
-        ".github/schedule-config-schema.yaml",
+        ".github/schedule-config-schema.yml",
     )
     build_matrix_parser.add_argument(
         "-i",
@@ -99,7 +99,7 @@ class ScheduleFilter:
     """
     Definition for when a particular set of tests should run.
 
-    See .github/schedule-config-schema.yaml for attribute descriptions.
+    See .github/schedule-config-schema.yml for attribute descriptions.
     """
 
     pushes: bool = field(default=False, kw_only=True)
@@ -114,7 +114,7 @@ class ScheduleConfigItem:
     """
     One item in the schedule config YAML, defines a set of tests that run in the same conditions.
 
-    See .github/schedule-config-schema.yaml for attribute descriptions
+    See .github/schedule-config-schema.yml for attribute descriptions
     """
 
     module_sets: list[list[str]]
@@ -202,7 +202,10 @@ def load_schedule_configs(stream) -> list[ScheduleConfigItem]:
         module_sets = _expect_str_lists(item, "modules")
         if not module_sets:
             raise ValueError("modules should have at least one element")
-        profiles = _expect_str_list(item, "profiles")
+        profile = item.get("profile")
+        if profile is not None:
+            _require_type(profile, str, "profile")
+        profiles = [profile] if profile is not None else []
         runners = _expect_str_list(item, "runners")
         notify_channels = _expect_str_list(item, "notify-channels")
         when = (
@@ -327,7 +330,20 @@ def _expect_str_list(d: dict[str, Any], key: str) -> list[str]:
 
 
 def _expect_str_lists(d: dict[str, Any], key: str) -> list[list[str]]:
-    values = _require_type(d.get(key, []), list, key)
+    """
+    Parses a schedule config's "modules" field into a list of module sets (one matrix job each).
+
+    A single string, e.g. a, or a flat list of strings, e.g. [a, b], is shorthand for a single
+    module set (respectively [[a]] or [[a, b]]) that runs all its modules in one job. Nest lists
+    explicitly, e.g. [[a], [b, c]], to define multiple module sets that share the rest of the
+    schedule item's config (profiles, when, etc).
+    """
+    raw = d.get(key, [])
+    if isinstance(raw, str):
+        return [[raw]]
+    values = _require_type(raw, list, key)
+    if all(isinstance(value, str) for value in values):
+        return [values] if values else []
     sublists = []
     for value in values:
         if isinstance(value, str):
@@ -411,10 +427,11 @@ class TestBuild(unittest.TestCase):
 
     def test_load_schedule_configs(self):
         configs = textwrap.dedent("""
-                                 - { modules: [a], profiles: [b, c] }
+                                 - { modules: [a], profile: b }
+                                 - { modules: [a], profile: c }
                                  - modules: [[d, m, n], o]
                                  - modules: [e]
-                                   profiles: [f, g]
+                                   profile: f
                                    when:
                                      scheduled: nightly
                                  - modules: [h]
@@ -426,6 +443,8 @@ class TestBuild(unittest.TestCase):
                                    notify-channels: [foo]
                                    matrix-properties:
                                      bar: baz
+                                 - modules: [q, r, s]
+                                 - modules: t
                                 """)
         with tempfile.TemporaryFile("w+") as config_file:
             config_file.write(configs)
@@ -435,11 +454,12 @@ class TestBuild(unittest.TestCase):
         self.assertEqual(
             configs,
             [
-                ScheduleConfigItem([["a"]], profiles=["b", "c"]),
+                ScheduleConfigItem([["a"]], profiles=["b"]),
+                ScheduleConfigItem([["a"]], profiles=["c"]),
                 ScheduleConfigItem([["d", "m", "n"], ["o"]]),
                 ScheduleConfigItem(
                     [["e"]],
-                    profiles=["f", "g"],
+                    profiles=["f"],
                     when=ScheduleFilter(scheduled=Schedule.nightly),
                 ),
                 ScheduleConfigItem(
@@ -450,6 +470,8 @@ class TestBuild(unittest.TestCase):
                 ScheduleConfigItem(
                     [["p"]], notify_channels=["foo"], matrix_properties={"bar": "baz"}
                 ),
+                ScheduleConfigItem([["q", "r", "s"]]),
+                ScheduleConfigItem([["t"]]),
             ],
         )
 
