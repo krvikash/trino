@@ -64,6 +64,9 @@ abstract class AbstractUnityDeltaLakeTableCredentialsProvider
         else if (handle.managed()) {
             credentials = fromDeltaCredentials(unityMetastore.getTemporaryTableCredentials(handle.schemaTableName().orElseThrow(), READ), handle.tableLocation());
         }
+        else if (handle.tableId().isPresent()) {
+            credentials = fromTemporaryCredentials(unityMetastore.getTemporaryTableCredentials(handle.tableId().get(), TableOperation.READ_WRITE), handle.tableLocation());
+        }
         else {
             // TODO: migrate external tables off the legacy credential API when they are supported by DeltaTemporaryCredentialsApi
             credentials = fromTemporaryCredentials(unityMetastore.getTemporaryPathCredentials(handle.tableLocation(), PATH_READ_WRITE), handle.tableLocation());
