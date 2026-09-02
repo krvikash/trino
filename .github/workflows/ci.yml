@@ -1726,7 +1726,36 @@ jobs:
                     (env.CI_SKIP_SECRETS_PRESENCE_CHECKS == '' && secrets.DATABRICKS_TOKEN == '') }}
             - suite: suite-snowflake
               ignore exclusion if: >-
-                ${{ env.CI_SKIP_SECRETS_PRESENCE_CHECKS != '' || secrets.SNOWFLAKE_PASSWORD != '' || env.SNOWFLAKE_PRIVATE_KEY != '' }}
+                ${{ (github.event_name == 'schedule' && github.event.schedule == '0 0 * * *') ||
+                    (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'snowflake')) ||
+                    (github.event_name == 'workflow_dispatch') ||
+                    (env.CI_SKIP_SECRETS_PRESENCE_CHECKS == '' && secrets.SNOWFLAKE_PASSWORD == '' && env.SNOWFLAKE_PRIVATE_KEY == '' ) }}
+            - suite: suite-sap-hana
+              ignore exclusion if: >-
+                ${{ (github.event_name == 'schedule' && github.event.schedule == '0 0 * * *') ||
+                    (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'sap-hana')) ||
+                    (github.event_name == 'workflow_dispatch') }}
+            - suite: suite-stargate
+              ignore exclusion if: >-
+                ${{ (github.event_name == 'schedule' && github.event.schedule == '0 0 * * *') ||
+                    (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'stargate')) ||
+                    (github.event_name == 'workflow_dispatch') }}
+            # Weekly
+            - suite: suite-kdb
+              ignore exclusion if: >-
+                ${{ (github.event_name == 'schedule' && github.event.schedule == '0 0 * * 6') ||
+                    (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'kdb')) ||
+                    (github.event_name == 'workflow_dispatch') }}
+            - suite: suite-hudi
+              ignore exclusion if: >-
+                ${{ (github.event_name == 'schedule' && github.event.schedule == '0 0 * * 6') ||
+                    (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'hudi')) ||
+                    (github.event_name == 'workflow_dispatch') }}
+            - suite: suite-open-api
+              ignore exclusion if: >-
+                ${{ (github.event_name == 'schedule' && github.event.schedule == '0 0 * * 6') ||
+                    (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'openapi')) ||
+                    (github.event_name == 'workflow_dispatch') }}
 
           ignore exclusion if:
             # Do not use this property outside of the matrix configuration.
