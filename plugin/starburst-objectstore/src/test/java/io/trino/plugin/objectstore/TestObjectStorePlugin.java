@@ -29,8 +29,6 @@ public class TestObjectStorePlugin
     public void testCreateConnectorFailsWithUnusedConfig()
     {
         assertCreateConnectorFails("unused_config", "somevalue", "Configuration property 'unused_config' was not used");
-        assertCreateConnectorFails("unused_config", "somevalue", "Configuration property 'unused_config' was not used");
-        assertCreateConnectorFails("unused_config", "somevalue", "Configuration property 'unused_config' was not used");
     }
 
     @Test
