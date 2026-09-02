@@ -29,6 +29,7 @@ public final class ElasticsearchTableId
         implements ConnectorTableId
 {
     public static final ConnectorIdVersion VERSION = new ConnectorIdVersion("ElasticsearchTableId", 1);
+    private static final byte[] PATH_SEPARATOR = {0};
 
     private final String schema;
     private final String index;
@@ -41,7 +42,11 @@ public final class ElasticsearchTableId
     {
         this.schema = requireNonNull(schema, "schema is null");
         this.index = requireNonNull(index, "index is null");
-        this.hash = XxHash64.hash((schema + ":" + index).getBytes(UTF_8));
+        this.hash = new XxHash64()
+                .update(schema.getBytes(UTF_8))
+                .update(PATH_SEPARATOR)
+                .update(index.getBytes(UTF_8))
+                .hash();
     }
 
     @JsonProperty

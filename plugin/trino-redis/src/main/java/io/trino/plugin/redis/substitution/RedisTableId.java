@@ -29,6 +29,7 @@ public final class RedisTableId
         implements ConnectorTableId
 {
     public static final ConnectorIdVersion VERSION = new ConnectorIdVersion("RedisTableId", 1);
+    private static final byte[] PATH_SEPARATOR = {0};
 
     private final String schemaName;
     private final String tableName;
@@ -41,7 +42,11 @@ public final class RedisTableId
     {
         this.schemaName = requireNonNull(schemaName, "schemaName is null");
         this.tableName = requireNonNull(tableName, "tableName is null");
-        this.hash = XxHash64.hash((schemaName + ":" + tableName).getBytes(UTF_8));
+        this.hash = new XxHash64()
+                .update(schemaName.getBytes(UTF_8))
+                .update(PATH_SEPARATOR)
+                .update(tableName.getBytes(UTF_8))
+                .hash();
     }
 
     @JsonProperty
