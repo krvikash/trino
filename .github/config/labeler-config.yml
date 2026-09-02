@@ -85,6 +85,10 @@ kafka:
   - changed-files:
     - any-glob-to-any-file: 'plugin/trino-kafka/**'
 
+kdb:
+  - changed-files:
+    - any-glob-to-any-file: 'plugin/starburst-kdb/**'
+
 loki:
   - changed-files:
     - any-glob-to-any-file: 'plugin/trino-loki/**'
@@ -137,17 +141,25 @@ redshift:
   - changed-files:
     - any-glob-to-any-file: 'plugin/trino-redshift/**'
 
+sap-hana:
+  - changed-files:
+    - any-glob-to-any-file: 'plugin/starburst-sap-hana/**'
+
 singlestore:
   - changed-files:
     - any-glob-to-any-file: 'plugin/trino-singlestore/**'
 
 snowflake:
   - changed-files:
-    - any-glob-to-any-file: 'plugin/trino-snowflake/**'
+    - any-glob-to-any-file: ['plugin/trino-snowflake/**', 'plugin/starburst-snowflake/**']
 
 sqlserver:
   - changed-files:
     - any-glob-to-any-file: 'plugin/trino-sqlserver/**'
+
+stargate:
+  - changed-files:
+    - any-glob-to-any-file: ['plugin/starburst-stargate/**', 'plugin/starburst-stargate-parallel/**']
 
 synapse:
   - changed-files:
