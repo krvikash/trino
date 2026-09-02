@@ -62,7 +62,7 @@ public class EnvSinglenodeSparkHive
     public void extendEnvironment(Environment.Builder builder)
     {
         builder.configureContainer(HADOOP, dockerContainer -> {
-            dockerContainer.setDockerImageName(HADOOP_BASE_IMAGE);
+            dockerContainer.setDockerImageName(HADOOP_BASE_IMAGE + ":" + hadoopImagesVersion);
             dockerContainer.withCopyFileToContainer(
                     forHostPath(dockerFiles.getDockerFilesHostPath("conf/environment/singlenode-hive-acid/apply-hive-config.sh")),
                     CONTAINER_HADOOP_INIT_D + "apply-hive-config.sh");

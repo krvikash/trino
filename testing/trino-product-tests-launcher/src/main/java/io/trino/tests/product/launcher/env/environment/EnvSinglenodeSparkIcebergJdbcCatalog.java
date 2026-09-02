@@ -50,6 +50,7 @@ public class EnvSinglenodeSparkIcebergJdbcCatalog
     private final DockerFiles dockerFiles;
     private final PortBinder portBinder;
     private final String imagesVersion;
+    private final String hadoopImagesVersion;
 
     @Inject
     public EnvSinglenodeSparkIcebergJdbcCatalog(Standard standard, Hadoop hadoop, DockerFiles dockerFiles, EnvironmentConfig config, PortBinder portBinder)
@@ -57,14 +58,16 @@ public class EnvSinglenodeSparkIcebergJdbcCatalog
         super(ImmutableList.of(standard, hadoop));
         this.dockerFiles = requireNonNull(dockerFiles, "dockerFiles is null");
         this.portBinder = requireNonNull(portBinder, "portBinder is null");
-        this.imagesVersion = requireNonNull(config, "config is null").getImagesVersion();
+        requireNonNull(config, "config is null");
+        this.imagesVersion = config.getImagesVersion();
+        this.hadoopImagesVersion = config.getHadoopImagesVersion();
     }
 
     @Override
     public void extendEnvironment(Environment.Builder builder)
     {
         builder.configureContainer(HADOOP, container -> {
-            container.setDockerImageName(HADOOP_BASE_IMAGE);
+            container.setDockerImageName(HADOOP_BASE_IMAGE + ":" + hadoopImagesVersion);
             container.withCopyFileToContainer(
                     forHostPath(dockerFiles.getDockerFilesHostPath("conf/environment/singlenode-spark-iceberg/apply-hive-config-for-iceberg.sh")),
                     CONTAINER_HADOOP_INIT_D + "/apply-hive-config-for-iceberg.sh");

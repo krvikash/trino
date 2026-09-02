@@ -71,7 +71,7 @@ public class EnvSinglenodeSparkIceberg
     public void extendEnvironment(Environment.Builder builder)
     {
         builder.configureContainer(HADOOP, container -> {
-            container.setDockerImageName(HADOOP_BASE_IMAGE);
+            container.setDockerImageName(HADOOP_BASE_IMAGE + ":" + hadoopImagesVersion);
             container.withCopyFileToContainer(
                     forHostPath(dockerFiles.getDockerFilesHostPath("conf/environment/singlenode-spark-iceberg/apply-hive-config-for-iceberg.sh")),
                     CONTAINER_HADOOP_INIT_D + "/apply-hive-config-for-iceberg.sh");
