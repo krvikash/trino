@@ -85,35 +85,32 @@ public class TestObjectStorePlugin
 
         // Invalid hive.metastore property
         assertThatThrownBy(() -> factory.create(
-                        "test",
-                        ImmutableMap.<String, String>builder()
-                                .put("hive.metastore", "invalid")
-                                .buildOrThrow(),
-                        new TestingConnectorContext())
-                .shutdown())
+                "test",
+                ImmutableMap.<String, String>builder()
+                        .put("hive.metastore", "invalid")
+                        .buildOrThrow(),
+                new TestingConnectorContext()))
                 .hasMessage("Invalid value 'invalid' for 'hive.metastore' configuration property. Supported values are: [THRIFT, FILE, GLUE, UNITY]");
 
         // Unsupported iceberg.catalog.type property
         assertThatThrownBy(() -> factory.create(
-                        "test",
-                        ImmutableMap.<String, String>builder()
-                                .put("hive.metastore", "thrift")
-                                .put("hive.metastore.uri", "thrift://foo:1234")
-                                .put("iceberg.catalog.type", "glue")
-                                .buildOrThrow(),
-                        new TestingConnectorContext())
-                .shutdown())
+                "test",
+                ImmutableMap.<String, String>builder()
+                        .put("hive.metastore", "thrift")
+                        .put("hive.metastore.uri", "thrift://foo:1234")
+                        .put("iceberg.catalog.type", "glue")
+                        .buildOrThrow(),
+                new TestingConnectorContext()))
                 .hasMessageContaining("Configuration property 'iceberg.catalog.type' is not supported. Use 'hive.metastore' instead");
 
         // Unused config property
         assertThatThrownBy(() -> factory.create(
-                        "test",
-                        ImmutableMap.<String, String>builder()
-                                .put("hive.metastore.uri", "thrift://foo:1234")
-                                .put("unused_config", "somevalue")
-                                .buildOrThrow(),
-                        new TestingConnectorContext())
-                .shutdown())
+                "test",
+                ImmutableMap.<String, String>builder()
+                        .put("hive.metastore.uri", "thrift://foo:1234")
+                        .put("unused_config", "somevalue")
+                        .buildOrThrow(),
+                new TestingConnectorContext()))
                 .hasMessageContaining("Configuration property 'unused_config' was not used");
     }
 
