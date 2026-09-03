@@ -16,6 +16,7 @@ package io.trino.operator.gpu;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Streams;
 import io.airlift.slice.Slices;
@@ -33,6 +34,7 @@ import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.block.VariableWidthBlockBuilder;
 import io.trino.spi.function.OperatorType;
 import io.trino.spi.type.DecimalType;
+import io.trino.spi.type.Int128;
 import io.trino.spi.type.LongTimestamp;
 import io.trino.spi.type.TimestampType;
 import io.trino.spi.type.Timestamps;
@@ -60,6 +62,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.MethodSource;
 
@@ -118,6 +121,8 @@ import static io.trino.spi.type.VarcharType.createVarcharType;
 import static io.trino.sql.analyzer.TypeDescriptorProvider.fromTypes;
 import static io.trino.sql.ir.TestingIr.between;
 import static io.trino.sql.ir.TestingIr.comparison;
+import static io.trino.sql.ir.TestingIr.nullIf;
+import static io.trino.sql.planner.TestingSymbolAllocator.emptySymbolAllocator;
 import static io.trino.testing.assertions.TrinoExceptionAssert.assertTrinoExceptionThrownBy;
 import static io.trino.type.LikePatternType.LIKE_PATTERN;
 import static java.lang.Math.clamp;
@@ -127,6 +132,7 @@ import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.junit.jupiter.api.parallel.ExecutionMode.CONCURRENT;
+import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 @TestInstance(PER_CLASS)
 @Execution(CONCURRENT)
@@ -1311,6 +1317,163 @@ public class TestGpuExpressions
                 new Constant(BIGINT, 42L));
 
         assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelB));
+    }
+
+    @ParameterizedTest
+    @MethodSource("nullIfTestCases")
+    public void testNullIf(Type type, List<Object> values, NullsProvider nullsProvider)
+    {
+        int channelA = 0;
+        int channelB = 1;
+        List<Type> inputTypes = List.of(type, type);
+        int positionsCount = 64;
+        // Both operands cycle through the same few values, the second one advancing a value only
+        // once the first has cycled through all of them. That walks every pair, so the operands are
+        // equal on a quarter of the rows. The shared block generators would not do: each reseeds
+        // Random with the same constant, so two columns come out identical and every row takes the
+        // NULL branch, leaving the pass-through branch unexercised.
+        List<Page> inputPages = List.of(new Page(
+                positionsCount,
+                createRepeatingValuesBlock(type, positionsCount, nullsProvider, values, 1),
+                createRepeatingValuesBlock(type, positionsCount, nullsProvider, values, values.size())));
+
+        // NULLIF(a, b)
+        Expression expression = nullIf(emptySymbolAllocator(), field(channelA, type), field(channelB, type));
+
+        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA, channelB));
+    }
+
+    public static Stream<Arguments> nullIfTestCases()
+    {
+        Map<Type, List<Object>> valuesByType = ImmutableMap.of(
+                BIGINT, ImmutableList.of(-1L, 0L, 7L, 42L),
+                INTEGER, ImmutableList.of(-1L, 0L, 7L, 42L),
+                DATE, ImmutableList.of(-1L, 0L, 7L, 42L),
+                createDecimalType(10, 2), ImmutableList.of(-1L, 0L, 7L, 42L),
+                DOUBLE, ImmutableList.of(-1.5, 0.0, 7.25, 42.5),
+                VARCHAR, ImmutableList.of(Slices.utf8Slice(""), Slices.utf8Slice("alpha"), Slices.utf8Slice("beta"), Slices.utf8Slice("\u0141\u0105ka")));
+        return valuesByType.entrySet().stream()
+                .flatMap(entry -> Stream.of(NullsProvider.values())
+                        .map(nullsProvider -> arguments(entry.getKey(), entry.getValue(), nullsProvider)));
+    }
+
+    @ParameterizedTest
+    @EnumSource(NullsProvider.class)
+    public void testNullIfWithNullSecondOperand(NullsProvider nullsProvider)
+    {
+        int channelA = 0;
+        List<Type> inputTypes = List.of(BIGINT);
+        int positionsCount = 64;
+        List<Page> inputPages = List.of(new Page(
+                positionsCount,
+                createBigintBlock(positionsCount, nullsProvider, -100, 100)));
+
+        // NULLIF(a, NULL): the equality is NULL on every row, so the CASE must fall through to its
+        // default and yield `a` — a NULL condition is not-matched, neither a match nor a NULL result.
+        // Unlike the plain IF tests, the branches differ on every non-null row here, so treating the
+        // NULL condition as a match would show up as a wrongly NULLed-out result.
+        Expression expression = nullIf(emptySymbolAllocator(), field(channelA, BIGINT), new Constant(BIGINT, null));
+
+        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA));
+    }
+
+    @ParameterizedTest
+    @EnumSource(NullsProvider.class)
+    public void testNullIfWithNonTrivialValue(NullsProvider nullsProvider)
+    {
+        int channelA = 0;
+        int channelB = 1;
+        List<Type> inputTypes = List.of(BIGINT, BIGINT);
+        int positionsCount = 64;
+        List<Page> inputPages = List.of(new Page(
+                positionsCount,
+                createBigintBlock(positionsCount, nullsProvider, -3, 3),
+                createBigintBlock(positionsCount, nullsProvider, -3, 3)));
+
+        // NULLIF(a + b, 0) — the non-trivial first operand is bound with a Let so it is evaluated once
+        Expression expression = nullIf(
+                emptySymbolAllocator(),
+                add(field(channelA, BIGINT), field(channelB, BIGINT)),
+                new Constant(BIGINT, 0L));
+        assertThat(expression).isInstanceOf(Let.class);
+
+        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA, channelB));
+    }
+
+    @ParameterizedTest
+    @MethodSource("nullIfWithIntegerZeroTestCases")
+    public void testNullIfWithIntegerZero(Type type, List<Object> values, NullsProvider nullsProvider)
+    {
+        int channelA = 0;
+        List<Type> inputTypes = List.of(type);
+        int positionsCount = 64;
+        // A quarter of the values are zero, so the NULL-producing branch is actually taken.
+        List<Page> inputPages = List.of(new Page(
+                positionsCount,
+                createRepeatingValuesBlock(type, positionsCount, nullsProvider, values, 1)));
+
+        // NULLIF(a, integer 0), the divide-by-zero guard in `x / NULLIF(y, 0)`: the integer zero is
+        // cast to the column type inside the comparison, while the result keeps the column type.
+        Expression expression = nullIf(emptySymbolAllocator(), field(channelA, type), new Constant(INTEGER, 0L), type);
+        assertThat(expression.type()).isEqualTo(type);
+
+        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA));
+    }
+
+    public static Stream<Arguments> nullIfWithIntegerZeroTestCases()
+    {
+        // decimal(38,4) is a long decimal, carried on cuDF's DECIMAL128 rather than the INT64 that
+        // short decimals use, so it exercises a different code path than the decimal in testNullIf.
+        Map<Type, List<Object>> valuesByType = ImmutableMap.of(
+                BIGINT, ImmutableList.of(0L, 1L, -7L, 42L),
+                createDecimalType(38, 4), ImmutableList.of(
+                        Int128.ZERO,
+                        Int128.valueOf(1),
+                        Int128.valueOf(-70000),
+                        Int128.valueOf("12345678901234567890123456789012345678")));
+        return valuesByType.entrySet().stream()
+                .flatMap(entry -> Stream.of(NullsProvider.values())
+                        .map(nullsProvider -> arguments(entry.getKey(), entry.getValue(), nullsProvider)));
+    }
+
+    @ParameterizedTest
+    @EnumSource(NullsProvider.class)
+    public void testNullIfWithMixedOperandTypes(NullsProvider nullsProvider)
+    {
+        int channelA = 0;
+        int channelB = 1;
+        List<Type> inputTypes = List.of(INTEGER, BIGINT);
+        int positionsCount = 64;
+        // Few enough values that the operands are equal on a quarter of the rows — see testNullIf.
+        List<Object> values = ImmutableList.of(-1L, 0L, 7L, 42L);
+        List<Page> inputPages = List.of(new Page(
+                positionsCount,
+                createRepeatingValuesBlock(INTEGER, positionsCount, nullsProvider, values, 1),
+                createRepeatingValuesBlock(BIGINT, positionsCount, nullsProvider, values, values.size())));
+
+        // NULLIF(a, b) over an integer and a bigint operand: the equality is performed at bigint, so a
+        // Cast appears inside the condition, while the result keeps the integer type of the first operand.
+        Expression expression = nullIf(emptySymbolAllocator(), field(channelA, INTEGER), field(channelB, BIGINT), BIGINT);
+        assertThat(expression.type()).isEqualTo(INTEGER);
+
+        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA, channelB));
+    }
+
+    /// Builds a block repeating each of `values` `repeats` times in turn, cycling until
+    /// `positionsCount` positions are filled, with NULLs wherever `nullsProvider` asks for one.
+    private static Block createRepeatingValuesBlock(Type type, int positionsCount, NullsProvider nullsProvider, List<Object> values, int repeats)
+    {
+        boolean[] nulls = nullsProvider.getNulls(positionsCount).orElse(new boolean[positionsCount]);
+        BlockBuilder builder = type.createBlockBuilder(null, positionsCount);
+        for (int i = 0; i < positionsCount; i++) {
+            if (nulls[i]) {
+                builder.appendNull();
+            }
+            else {
+                writeNativeValue(type, builder, values.get((i / repeats) % values.size()));
+            }
+        }
+        return builder.build();
     }
 
     @ParameterizedTest
