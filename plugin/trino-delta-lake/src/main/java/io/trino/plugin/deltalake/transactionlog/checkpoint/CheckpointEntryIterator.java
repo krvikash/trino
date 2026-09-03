@@ -462,7 +462,7 @@ public class CheckpointEntryIterator
             return null;
         }
         RowType type = removeType.orElseThrow();
-        int removeFields = 4;
+        int removeFields = 5;
         SqlRow removeEntryRow = getRow(block, pagePosition);
         log.debug("Block %s has %s fields", block, removeEntryRow.getFieldCount());
         if (removeEntryRow.getFieldCount() != removeFields) {
@@ -471,11 +471,8 @@ public class CheckpointEntryIterator
                     format("Expected block %s to have %d children, but found %s", block, removeFields, removeEntryRow.getFieldCount()));
         }
         CheckpointFieldReader remove = new CheckpointFieldReader(removeEntryRow, type);
-        Optional<DeletionVectorEntry> deletionVector = Optional.empty();
-        if (deletionVectorsEnabled) {
-            deletionVector = Optional.ofNullable(remove.getRow("deletionVector"))
-                    .map(row -> parseDeletionVectorFromParquet(row, removeDeletionVectorType.orElseThrow()));
-        }
+        Optional<DeletionVectorEntry> deletionVector = Optional.ofNullable(remove.getRow("deletionVector"))
+                .map(row -> parseDeletionVectorFromParquet(row, removeDeletionVectorType.orElseThrow()));
         RemoveFileEntry result = new RemoveFileEntry(
                 remove.getString("path"),
                 remove.getMap(stringMap, "partitionValues"),
