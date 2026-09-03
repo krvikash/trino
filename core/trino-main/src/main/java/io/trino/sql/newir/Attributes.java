@@ -26,7 +26,7 @@ public final class Attributes
 {
     public static final Attributes EMPTY = new Attributes(ImmutableMap.of());
 
-    private final ImmutableMap<AttributeKey, Object> values;
+    private final Map<AttributeKey, Object> values;
 
     private Attributes(Map<AttributeKey, Object> values)
     {
