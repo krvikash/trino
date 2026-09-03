@@ -18,6 +18,7 @@ import io.trino.execution.QueryStats;
 import io.trino.filesystem.Location;
 import io.trino.operator.OperatorStats;
 import io.trino.plugin.base.metrics.LongCount;
+import io.trino.plugin.hive.metastore.unity.DatabricksSqlExecutor;
 import io.trino.plugin.iceberg.BaseIcebergConnectorSmokeTest;
 import io.trino.plugin.iceberg.IcebergConfig;
 import io.trino.plugin.iceberg.IcebergQueryRunner;
@@ -30,10 +31,6 @@ import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Stream;
@@ -52,6 +49,8 @@ final class TestIcebergDatabricksUnityScanPlanningConnectorSmokeTest
     private static final String DATABRICKS_HOST = requireEnv("DATABRICKS_HOST");
     private static final String DATABRICKS_TOKEN = requireEnv("DATABRICKS_TOKEN");
     private static final String DATABRICKS_AWS_REGION = requireEnv("DATABRICKS_AWS_REGION");
+
+    private static final DatabricksSqlExecutor DATABRICKS = new DatabricksSqlExecutor(DATABRICKS_UNITY_JDBC_URL, "token", DATABRICKS_TOKEN);
 
     private String testSchema;
 
@@ -77,7 +76,7 @@ final class TestIcebergDatabricksUnityScanPlanningConnectorSmokeTest
     {
         testSchema = "test_scan_planning_" + randomNameSuffix();
         populateFineGrainAccessControlTables();
-        closeAfterClass(() -> executeOnDatabricks("DROP SCHEMA IF EXISTS main.%s CASCADE".formatted(testSchema)));
+        closeAfterClass(() -> DATABRICKS.execute("DROP SCHEMA IF EXISTS main.%s CASCADE".formatted(testSchema)));
 
         return IcebergQueryRunner.builder()
                 .amendSession(sessionBuilder -> sessionBuilder.setSchema(testSchema))
@@ -98,52 +97,41 @@ final class TestIcebergDatabricksUnityScanPlanningConnectorSmokeTest
     private void populateFineGrainAccessControlTables()
     {
         String qualifiedSchema = "main.%s".formatted(testSchema);
-        executeOnDatabricks("CREATE SCHEMA " + qualifiedSchema);
+        DATABRICKS.execute("CREATE SCHEMA IF NOT EXISTS " + qualifiedSchema);
 
-        executeOnDatabricks((
-                "CREATE TABLE %s.region USING ICEBERG " +
+        DATABRICKS.execute((
+                "CREATE OR REPLACE TABLE %s.region USING ICEBERG " +
                         "TBLPROPERTIES ('delta.feature.catalogManaged' = 'supported') AS " +
                         "SELECT r_regionkey AS regionkey, r_name AS name, r_comment AS comment FROM samples.tpch.region")
                 .formatted(qualifiedSchema));
-        executeOnDatabricks((
-                "CREATE TABLE %s.nation USING ICEBERG " +
+        DATABRICKS.execute((
+                "CREATE OR REPLACE TABLE %s.nation USING ICEBERG " +
                         "TBLPROPERTIES ('delta.feature.catalogManaged' = 'supported') AS " +
                         "SELECT n_nationkey AS nationkey, n_name AS name, n_regionkey AS regionkey, n_comment AS comment FROM samples.tpch.nation")
                 .formatted(qualifiedSchema));
 
         // Add passthrough column masks to enable server-side scan planning without affecting data
-        executeOnDatabricks("CREATE OR REPLACE FUNCTION %s.passthrough_string(s STRING) RETURN s".formatted(qualifiedSchema));
-        executeOnDatabricks("ALTER TABLE %s.region ALTER COLUMN comment SET MASK %s.passthrough_string".formatted(qualifiedSchema, qualifiedSchema));
-        executeOnDatabricks("ALTER TABLE %s.nation ALTER COLUMN comment SET MASK %s.passthrough_string".formatted(qualifiedSchema, qualifiedSchema));
+        DATABRICKS.execute("CREATE OR REPLACE FUNCTION %s.passthrough_string(s STRING) RETURN s".formatted(qualifiedSchema));
+        DATABRICKS.execute("ALTER TABLE %s.region ALTER COLUMN comment SET MASK %s.passthrough_string".formatted(qualifiedSchema, qualifiedSchema));
+        DATABRICKS.execute("ALTER TABLE %s.nation ALTER COLUMN comment SET MASK %s.passthrough_string".formatted(qualifiedSchema, qualifiedSchema));
 
         // Add non-trivial column mask redacting `comment` to '***'
-        executeOnDatabricks((
-                "CREATE TABLE %s.nation_with_mask USING ICEBERG " +
+        DATABRICKS.execute((
+                "CREATE OR REPLACE TABLE %s.nation_with_mask USING ICEBERG " +
                         "TBLPROPERTIES ('delta.feature.catalogManaged' = 'supported') AS " +
                         "SELECT * FROM %s.nation")
                 .formatted(qualifiedSchema, qualifiedSchema));
-        executeOnDatabricks("CREATE OR REPLACE FUNCTION %s.redact_string(s STRING) RETURN '***'".formatted(qualifiedSchema));
-        executeOnDatabricks("ALTER TABLE %s.nation_with_mask ALTER COLUMN comment SET MASK %s.redact_string".formatted(qualifiedSchema, qualifiedSchema));
+        DATABRICKS.execute("CREATE OR REPLACE FUNCTION %s.redact_string(s STRING) RETURN '***'".formatted(qualifiedSchema));
+        DATABRICKS.execute("ALTER TABLE %s.nation_with_mask ALTER COLUMN comment SET MASK %s.redact_string".formatted(qualifiedSchema, qualifiedSchema));
 
         // Add row filter limiting visible rows to nationkey < 10
-        executeOnDatabricks((
-                "CREATE TABLE %s.nation_with_filter USING ICEBERG " +
+        DATABRICKS.execute((
+                "CREATE OR REPLACE TABLE %s.nation_with_filter USING ICEBERG " +
                         "TBLPROPERTIES ('delta.feature.catalogManaged' = 'supported') AS " +
                         "SELECT * FROM %s.nation")
                 .formatted(qualifiedSchema, qualifiedSchema));
-        executeOnDatabricks("CREATE OR REPLACE FUNCTION %s.nationkey_lt_ten(k BIGINT) RETURN k < 10".formatted(qualifiedSchema));
-        executeOnDatabricks("ALTER TABLE %s.nation_with_filter SET ROW FILTER %s.nationkey_lt_ten ON (nationkey)".formatted(qualifiedSchema, qualifiedSchema));
-    }
-
-    private void executeOnDatabricks(String sql)
-    {
-        try (Connection connection = DriverManager.getConnection(DATABRICKS_UNITY_JDBC_URL, "token", DATABRICKS_TOKEN);
-                Statement statement = connection.createStatement()) {
-            statement.execute(sql);
-        }
-        catch (SQLException e) {
-            throw new RuntimeException("Failed to execute on Databricks: " + sql, e);
-        }
+        DATABRICKS.execute("CREATE OR REPLACE FUNCTION %s.nationkey_lt_ten(k BIGINT) RETURN k < 10".formatted(qualifiedSchema));
+        DATABRICKS.execute("ALTER TABLE %s.nation_with_filter SET ROW FILTER %s.nationkey_lt_ten ON (nationkey)".formatted(qualifiedSchema, qualifiedSchema));
     }
 
     @Override

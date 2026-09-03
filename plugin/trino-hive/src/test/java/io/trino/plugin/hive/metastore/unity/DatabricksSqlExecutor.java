@@ -66,7 +66,7 @@ public final class DatabricksSqlExecutor
             statement.execute(sql);
         }
         catch (SQLException e) {
-            throw new RuntimeException(e);
+            throw new RuntimeException("Failed to execute on Databricks: " + sql, e);
         }
     }
 
