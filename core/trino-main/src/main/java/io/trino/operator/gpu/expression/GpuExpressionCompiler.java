@@ -355,6 +355,10 @@ public final class GpuExpressionCompiler
                 return compileDivideRoundToScale(call, context);
             }
 
+            if (name.equals("least") && call.arguments().size() >= 2) {
+                return compileLeast(call, context);
+            }
+
             return Optional.empty();
         }
 
@@ -375,6 +379,31 @@ public final class GpuExpressionCompiler
                 return Optional.empty();
             }
             return Optional.of(new GpuDivideRoundToScale(dividendCompiled.get(), divisorCompiled.get()));
+        }
+
+        private Optional<GpuExpression> compileLeast(Call call, Void context)
+        {
+            // TODO support real and double: Trino orders NaN last, so least(1.0, NaN) is 1.0, while
+            //  cudf NULL_MIN yields NaN because NaN compares false against everything.
+            switch (call.type()) {
+                case BooleanType _,
+                     TinyintType _, SmallintType _, IntegerType _, BigintType _,
+                     DecimalType _,
+                     CharType _, VarcharType _, DateType _ -> {
+                    // cudf NULL_MIN semantics for carrier DType match those of Trino Type
+                }
+                case TimestampType timestampType when timestampType.getPrecision() <= 9 -> {
+                    // cudf NULL_MIN semantics for carrier DType match those of Trino Type
+                }
+                default -> {
+                    return Optional.empty();
+                }
+            }
+            Optional<DType> outputType = toDType(call.type());
+            if (outputType.isEmpty()) {
+                return Optional.empty();
+            }
+            return compileNary(call.arguments(), operands -> new GpuLeast(operands, outputType.get()), context);
         }
 
         private Optional<GpuExpression> compileComparison(IrExpressions.Comparison comparison, Void context)

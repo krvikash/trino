@@ -98,6 +98,7 @@ import static io.trino.spi.StandardErrorCode.NUMERIC_VALUE_OUT_OF_RANGE;
 import static io.trino.spi.gpu.GpuTypeConversion.isConvertible;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
+import static io.trino.spi.type.CharType.createCharType;
 import static io.trino.spi.type.DateType.DATE;
 import static io.trino.spi.type.DecimalType.createDecimalType;
 import static io.trino.spi.type.DoubleType.DOUBLE;
@@ -1091,6 +1092,95 @@ public class TestGpuExpressions
         Expression expression = new Coalesce(ImmutableList.of(field(channelA, BIGINT), field(channelB, BIGINT)));
 
         assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA, channelB));
+    }
+
+    @ParameterizedTest
+    @MethodSource("leastTestCases")
+    public void testLeast(Type type, NullsProvider nullsProvider)
+    {
+        int channelA = 0;
+        int channelB = 1;
+        List<Type> inputTypes = List.of(type, type);
+        int positionsCount = 64;
+        List<Page> inputPages = List.of(new Page(
+                positionsCount,
+                createBlock(type, positionsCount, nullsProvider),
+                createBlock(type, positionsCount, nullsProvider)));
+
+        Expression expression = new Call(
+                FUNCTION_RESOLUTION.resolveFunction("least", fromTypes(type, type)),
+                ImmutableList.of(field(channelA, type), field(channelB, type)));
+
+        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA, channelB));
+    }
+
+    public static Stream<Object[]> leastTestCases()
+    {
+        return Lists.cartesianProduct(
+                        List.of(
+                                BOOLEAN,
+                                TINYINT,
+                                SMALLINT,
+                                INTEGER,
+                                BIGINT,
+                                createDecimalType(3, 0),
+                                createDecimalType(13, 0),
+                                createDecimalType(27, 0),
+                                createDecimalType(27, 5),
+                                createDecimalType(38),
+                                createCharType(8),
+                                VARCHAR,
+                                createVarcharType(20),
+                                DATE,
+                                createTimestampType(0),
+                                createTimestampType(3),
+                                createTimestampType(6),
+                                createTimestampType(9)),
+                        ImmutableList.copyOf(NullsProvider.values()))
+                .stream()
+                .map(List::toArray);
+    }
+
+    @ParameterizedTest
+    @EnumSource(NullsProvider.class)
+    public void testLeastManyArguments(NullsProvider nullsProvider)
+    {
+        int channelA = 0;
+        int channelB = 1;
+        int channelC = 2;
+        int channelD = 3;
+        List<Type> inputTypes = List.of(BIGINT, BIGINT, BIGINT, BIGINT);
+        int positionsCount = 64;
+        List<Page> inputPages = List.of(new Page(
+                positionsCount,
+                createBigintBlock(positionsCount, nullsProvider, -100, 100),
+                createBigintBlock(positionsCount, nullsProvider, -100, 100),
+                createBigintBlock(positionsCount, nullsProvider, -100, 100),
+                createBigintBlock(positionsCount, nullsProvider, -100, 100)));
+
+        Expression expression = new Call(
+                FUNCTION_RESOLUTION.resolveFunction("least", fromTypes(BIGINT, BIGINT, BIGINT, BIGINT)),
+                ImmutableList.of(field(channelA, BIGINT), field(channelB, BIGINT), field(channelC, BIGINT), field(channelD, BIGINT)));
+
+        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA, channelB, channelC, channelD));
+    }
+
+    @Test
+    public void testLeastWithNullConstant()
+    {
+        // A NULL operand makes every row NULL, regardless of the other operands.
+        int channelA = 0;
+        List<Type> inputTypes = List.of(BIGINT);
+        int positionsCount = 64;
+        List<Page> inputPages = List.of(new Page(
+                positionsCount,
+                createBigintBlock(positionsCount, NullsProvider.NO_NULLS, -100, 100)));
+
+        Expression expression = new Call(
+                FUNCTION_RESOLUTION.resolveFunction("least", fromTypes(BIGINT, BIGINT)),
+                ImmutableList.of(field(channelA, BIGINT), new Constant(BIGINT, null)));
+
+        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA));
     }
 
     @ParameterizedTest
