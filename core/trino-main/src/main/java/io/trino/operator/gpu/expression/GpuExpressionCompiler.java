@@ -357,6 +357,10 @@ public final class GpuExpressionCompiler
                 return compileSubstring(call, context);
             }
 
+            if (name.equals("concat")) {
+                return compileConcat(call, context);
+            }
+
             if (name.equals("regexp_replace")) {
                 return compileRegexpReplace(call, context);
             }
@@ -731,6 +735,28 @@ public final class GpuExpressionCompiler
             }
 
             return Optional.of(new GpuSubstring(sourceCompiled.get(), startCompiled.get(), lengthExpression));
+        }
+
+        private Optional<GpuExpression> compileConcat(Call call, Void context)
+        {
+            List<Expression> arguments = call.arguments();
+            // defensive check: concat is variadic with at least 2 arguments
+            if (arguments.size() < 2) {
+                return Optional.empty();
+            }
+
+            if (arguments.stream().allMatch(argument -> argument.type() instanceof VarcharType)) {
+                return compileNary(arguments, GpuVarcharConcat::new, context);
+            }
+
+            if (arguments.size() == 2 &&
+                    arguments.get(0).type() instanceof CharType leftType &&
+                    arguments.get(1).type() instanceof CharType) {
+                return compileNary(arguments, compiled -> new GpuCharConcat(compiled.get(0), compiled.get(1), leftType.getLength()), context);
+            }
+
+            // The remaining overloads take varbinary (carried as LIST<INT8> on the GPU), array or map arguments
+            return Optional.empty();
         }
 
         private Optional<GpuExpression> compileRegexpReplace(Call call, Void context)

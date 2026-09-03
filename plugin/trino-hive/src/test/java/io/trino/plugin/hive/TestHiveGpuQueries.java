@@ -204,6 +204,42 @@ public class TestHiveGpuQueries
     }
 
     @Test
+    public void testConcat()
+    {
+        assertUpdate(
+                """
+                CREATE TABLE test_concat(a_char, b_char, a_varchar) AS (VALUES
+                    (CHAR 'ab', CHAR 'cd', VARCHAR 'ef'),
+                    (CHAR '', CHAR '', VARCHAR ''),
+                    (CHAR 'x', NULL, NULL))
+                """,
+                3);
+
+        // Trino defines only a two-argument char concat. How an expression reaches it is decided by the
+        // analyzer, outside the expression compiler, so assert it here rather than over hand-built IR.
+        assertThat(query("SELECT concat(a_char, b_char) FROM test_concat"))
+                .executesWithGpu(ProjectNode.class);
+        // Each || is its own two-argument call, so a chain of them stays on the char overload
+        assertThat(query("SELECT a_char || b_char || a_char FROM test_concat"))
+                .executesWithGpu(ProjectNode.class);
+        // A three-argument call has no char overload to bind to: it resolves to the variadic varchar one,
+        // and the char -> varchar coercions it adds are casts the GPU cast compiler does not support
+        assertThat(query("SELECT concat(a_char, b_char, a_char) FROM test_concat"))
+                .executesWithoutGpu();
+
+        assertThat(query("SELECT concat(a_varchar, a_varchar, a_varchar, a_varchar) FROM test_concat"))
+                .executesWithGpu(ProjectNode.class);
+        assertThat(query("SELECT a_varchar || a_varchar FROM test_concat"))
+                .executesWithGpu(ProjectNode.class);
+
+        // char and varchar arguments meet only through a char -> varchar cast, which the GPU cast compiler does not support
+        assertThat(query("SELECT concat(a_char, a_varchar) FROM test_concat"))
+                .executesWithoutGpu();
+
+        assertUpdate("DROP TABLE test_concat");
+    }
+
+    @Test
     public void testTimestampNanosecondPrecision()
     {
         String catalog = getSession().getCatalog().orElseThrow();

@@ -87,6 +87,7 @@ import java.util.stream.Stream;
 
 import static com.google.common.base.Verify.verify;
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.trino.operator.gpu.GpuTestUtils.FUNCTION_RESOLUTION;
 import static io.trino.operator.gpu.GpuTestUtils.TESTED_GPU_TYPES;
@@ -103,6 +104,7 @@ import static io.trino.operator.gpu.GpuTestUtils.layoutFor;
 import static io.trino.operator.gpu.GpuTestUtils.maybeSetGpuMemoryPoolForTests;
 import static io.trino.operator.gpu.expression.GpuExpressionCompiler.compileExpression;
 import static io.trino.spi.StandardErrorCode.INVALID_CAST_ARGUMENT;
+import static io.trino.spi.StandardErrorCode.INVALID_FUNCTION_ARGUMENT;
 import static io.trino.spi.StandardErrorCode.NUMERIC_VALUE_OUT_OF_RANGE;
 import static io.trino.spi.gpu.GpuTypeConversion.isConvertible;
 import static io.trino.spi.type.BigintType.BIGINT;
@@ -137,6 +139,7 @@ import static java.lang.Math.clamp;
 import static java.lang.Math.floorDiv;
 import static java.lang.Math.floorMod;
 import static java.lang.Math.min;
+import static java.util.Arrays.asList;
 import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.joining;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -2542,6 +2545,149 @@ public class TestGpuExpressions
 
     @ParameterizedTest
     @EnumSource(NullsProvider.class)
+    public void testConcat(NullsProvider nullsProvider)
+    {
+        testConcat(2, nullsProvider);
+        testConcat(4, nullsProvider);
+
+        // concat is also defined for varbinary, which the GPU carries as LIST<INT8> rather than as strings
+        assertThat(compileExpression(
+                new Call(
+                        FUNCTION_RESOLUTION.resolveFunction("concat", fromTypes(VARBINARY, VARBINARY)),
+                        ImmutableList.of(field(0, VARBINARY), field(1, VARBINARY))),
+                layoutFor(List.of(VARBINARY, VARBINARY))))
+                .isEmpty();
+    }
+
+    private void testConcat(int argumentCount, NullsProvider nullsProvider)
+    {
+        int positionsCount = 64;
+        List<Type> inputTypes = Collections.nCopies(argumentCount, VARCHAR);
+
+        Block[] randomBlocks = new Block[argumentCount];
+        Block[] edgeCaseBlocks = new Block[argumentCount];
+        ImmutableList.Builder<Expression> concatArguments = ImmutableList.builder();
+        for (int channel = 0; channel < argumentCount; channel++) {
+            randomBlocks[channel] = createBlock(VARCHAR, positionsCount, nullsProvider);
+
+            // Rows the random data does not cover: empty strings, values that differ between arguments
+            // (so that argument order is verified), multi-byte UTF-8, and a null in every argument position
+            List<String> values = new ArrayList<>();
+            values.add("");
+            values.add("argument" + channel);
+            values.add("Łania ワルシャワ Слава " + channel);
+            for (int nullChannel = 0; nullChannel < argumentCount; nullChannel++) {
+                values.add(nullChannel == channel ? null : "argument" + channel);
+            }
+            edgeCaseBlocks[channel] = createStringBlock(values);
+
+            concatArguments.add(field(channel, VARCHAR));
+        }
+
+        List<Page> inputPages = List.of(
+                new Page(positionsCount, randomBlocks),
+                new Page(edgeCaseBlocks));
+
+        Expression expression = new Call(
+                FUNCTION_RESOLUTION.resolveFunction("concat", fromTypes(inputTypes)),
+                concatArguments.build());
+
+        assertGpuMatchesCpu(inputPages, inputTypes, expression, IntStream.range(0, argumentCount).boxed().collect(toImmutableSet()));
+    }
+
+    @ParameterizedTest
+    @EnumSource(NullsProvider.class)
+    public void testCharConcat(NullsProvider nullsProvider)
+    {
+        CharType leftType = createCharType(5);
+        CharType rightType = createCharType(7);
+        int positionsCount = 64;
+        List<Type> inputTypes = List.of(leftType, rightType);
+
+        // Rows the random data does not cover: values shorter than the declared length, an empty right
+        // argument (the only case where the result keeps no padding), multi-byte UTF-8, and nulls
+        List<String> leftValues = Arrays.asList("", "", "ab", "abcde", "Łania", "ワル", null, "x");
+        List<String> rightValues = Arrays.asList("", "xyz", "", "cd", "ワルシャワ", "Слава", "z", null);
+
+        List<Page> inputPages = List.of(
+                new Page(
+                        positionsCount,
+                        createBlock(leftType, positionsCount, nullsProvider),
+                        createBlock(rightType, positionsCount, nullsProvider)),
+                new Page(leftValues.size(), createStringBlock(leftValues), createStringBlock(rightValues)));
+
+        Expression expression = new Call(
+                FUNCTION_RESOLUTION.resolveFunction("concat", fromTypes(leftType, rightType)),
+                ImmutableList.of(field(0, leftType), field(1, rightType)));
+
+        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(0, 1));
+    }
+
+    @Test
+    public void testConcatOutputLengthLimit()
+    {
+        List<Type> inputTypes = List.of(VARCHAR, VARCHAR);
+        Expression expression = new Call(
+                FUNCTION_RESOLUTION.resolveFunction("concat", fromTypes(VARCHAR, VARCHAR)),
+                ImmutableList.of(field(0, VARCHAR), field(1, VARCHAR)));
+        Set<Integer> inputChannels = Set.of(0, 1);
+
+        int maxOutputLength = 1024 * 1024;
+        String ascii = "a".repeat(maxOutputLength);
+        // Pin where the limit is, which comparing GPU against CPU cannot do on its own: it passes when
+        // neither engine rejects anything, so a wrong maxOutputLength would go unnoticed
+        assertConcatOnCpuSucceeds(twoStringPage(ascii, ""), inputTypes, expression, maxOutputLength);
+        assertTrinoExceptionThrownBy(() -> executeWithCpu(
+                List.of(twoStringPage(ascii, "a")),
+                List.of(expression),
+                layoutFor(inputTypes)))
+                .hasErrorCode(INVALID_FUNCTION_ARGUMENT);
+
+        assertGpuMatchesCpu(List.of(twoStringPage(ascii.substring(1), "")), inputTypes, expression, inputChannels);
+        assertGpuMatchesCpu(List.of(twoStringPage(ascii, "")), inputTypes, expression, inputChannels);
+        assertGpuMatchesCpu(List.of(twoStringPage(ascii, "a")), inputTypes, expression, inputChannels);
+
+        // The cap counts bytes, not characters: this value is 3 bytes per character, so a character
+        // count would stay far below the cap and let the oversized case through.
+        String multiByte = "ワ".repeat(maxOutputLength / 3);
+        assertGpuMatchesCpu(List.of(twoStringPage(multiByte, "")), inputTypes, expression, inputChannels);
+        assertGpuMatchesCpu(List.of(twoStringPage(multiByte, "ワ")), inputTypes, expression, inputChannels);
+
+        // Values that would overflow concat limit, except they are paired with a NULL entry
+        List<Type> threeInputTypes = List.of(VARCHAR, VARCHAR, VARCHAR);
+        Expression threeArgs = new Call(
+                FUNCTION_RESOLUTION.resolveFunction("concat", fromTypes(VARCHAR, VARCHAR, VARCHAR)),
+                ImmutableList.of(field(0, VARCHAR), field(1, VARCHAR), field(2, VARCHAR)));
+        Set<Integer> threeChannels = Set.of(0, 1, 2);
+        String half = "a".repeat(maxOutputLength / 2 + 1);
+        for (int nullChannel = 0; nullChannel < 3; nullChannel++) {
+            List<String> values = new ArrayList<>(List.of(half, half, half));
+            values.set(nullChannel, null);
+            assertGpuMatchesCpu(
+                    List.of(new Page(
+                            1,
+                            createStringBlock(asList(values.get(0))),
+                            createStringBlock(asList(values.get(1))),
+                            createStringBlock(asList(values.get(2))))),
+                    threeInputTypes,
+                    threeArgs,
+                    threeChannels);
+        }
+    }
+
+    private static void assertConcatOnCpuSucceeds(Page page, List<Type> inputTypes, Expression expression, int expectedLength)
+    {
+        List<Page> results = executeWithCpu(List.of(page), List.of(expression), layoutFor(inputTypes));
+        assertThat(VARCHAR.getSlice(getOnlyElement(results).getBlock(0), 0).length()).isEqualTo(expectedLength);
+    }
+
+    private static Page twoStringPage(String first, String second)
+    {
+        return new Page(1, createStringBlock(asList(first)), createStringBlock(asList(second)));
+    }
+
+    @ParameterizedTest
+    @EnumSource(NullsProvider.class)
     public void testIn(NullsProvider nullsProvider)
     {
         testIn(BIGINT, List.of(-50L, 0L, 25L, 50L, 75L), nullsProvider);
@@ -2712,6 +2858,20 @@ public class TestGpuExpressions
         Random random = new Random(42); // Fixed seed for reproducibility
         return IntStream.generate(() -> random.nextInt(minInclusive, maxExclusive))
                 .boxed();
+    }
+
+    private static Block createStringBlock(List<String> values)
+    {
+        VariableWidthBlockBuilder builder = new VariableWidthBlockBuilder(null, values.size(), values.size() * 10);
+        for (String value : values) {
+            if (value == null) {
+                builder.appendNull();
+            }
+            else {
+                builder.writeEntry(Slices.utf8Slice(value));
+            }
+        }
+        return builder.build();
     }
 
     private static Block booleanBlock(Boolean[] values)

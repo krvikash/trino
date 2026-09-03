@@ -13,8 +13,8 @@
                         - ExchangeNode REMOTE
                           - AggregationNode
                             - GroupIdNode (GPU)
-                              - ExchangeNode LOCAL
-                                - ProjectNode
+                              - ExchangeNode LOCAL (GPU)
+                                - ProjectNode (GPU)
                                   - AggregationNode (GPU)
                                     - ExchangeNode LOCAL
                                       - ExchangeNode REMOTE
@@ -55,7 +55,7 @@
                                             - ExchangeNode LOCAL
                                               - ExchangeNode REMOTE
                                                 - TableScanNode store (GPU)
-                                - ProjectNode
+                                - ProjectNode (GPU)
                                   - AggregationNode (GPU)
                                     - ExchangeNode LOCAL
                                       - ExchangeNode REMOTE
@@ -95,7 +95,7 @@
                                               - ExchangeNode LOCAL
                                                 - ExchangeNode REMOTE
                                                   - TableScanNode catalog_page (GPU)
-                                - ProjectNode
+                                - ProjectNode (GPU)
                                   - AggregationNode (GPU)
                                     - ExchangeNode LOCAL
                                       - ExchangeNode REMOTE

@@ -7,8 +7,8 @@
             - ExchangeNode LOCAL
               - AggregationNode
                 - GroupIdNode (GPU)
-                  - ExchangeNode LOCAL
-                    - ProjectNode
+                  - ExchangeNode LOCAL (GPU)
+                    - ProjectNode (GPU)
                       - AggregationNode (GPU)
                         - ExchangeNode LOCAL
                           - AggregationNode
@@ -38,7 +38,7 @@
                                           - TableScanNode promotion (GPU)
                               - ExchangeNode LOCAL (GPU)
                                 - TableScanNode store (GPU)
-                    - ProjectNode
+                    - ProjectNode (GPU)
                       - AggregationNode (GPU)
                         - ExchangeNode LOCAL (GPU)
                           - AggregationNode (GPU)
@@ -67,7 +67,7 @@
                                         - TableScanNode promotion (GPU)
                                 - ExchangeNode LOCAL (GPU)
                                   - TableScanNode catalog_page (GPU)
-                    - ProjectNode
+                    - ProjectNode (GPU)
                       - AggregationNode (GPU)
                         - ExchangeNode LOCAL
                           - AggregationNode
