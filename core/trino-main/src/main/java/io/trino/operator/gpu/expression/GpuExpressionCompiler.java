@@ -61,6 +61,7 @@ import io.trino.sql.ir.Reference;
 import io.trino.sql.ir.Row;
 import io.trino.sql.ir.WhenClause;
 import io.trino.sql.planner.Symbol;
+import io.trino.type.CodePointsType;
 import io.trino.type.JoniRegexp;
 import io.trino.type.LikePattern;
 
@@ -93,6 +94,8 @@ import static io.trino.type.IntervalYearMonthType.INTERVAL_YEAR_MONTH;
 import static io.trino.type.JoniRegexpType.JONI_REGEXP;
 import static io.trino.type.LikeFunctions.LIKE_FUNCTION_NAME;
 import static io.trino.type.LikePatternType.LIKE_PATTERN;
+import static java.lang.Character.MAX_SURROGATE;
+import static java.lang.Character.MIN_SURROGATE;
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -359,6 +362,18 @@ public final class GpuExpressionCompiler
 
             if (name.equals("replace")) {
                 return compileReplace(call, context);
+            }
+
+            if (name.equals("trim")) {
+                return compileTrim(call, GpuTrim.Side.BOTH, context);
+            }
+
+            if (name.equals("ltrim")) {
+                return compileTrim(call, GpuTrim.Side.LEADING, context);
+            }
+
+            if (name.equals("rtrim")) {
+                return compileTrim(call, GpuTrim.Side.TRAILING, context);
             }
 
             if (name.equals("date_trunc") && call.arguments().size() == 2) {
@@ -803,6 +818,61 @@ public final class GpuExpressionCompiler
             return Optional.empty();
         }
 
+        private Optional<GpuExpression> compileTrim(Call call, GpuTrim.Side side, Void context)
+        {
+            List<Expression> arguments = call.arguments();
+            // defensive check: trim, ltrim and rtrim have only 1-arg (whitespace) and 2-arg (given code points) overloads
+            if (arguments.isEmpty() || arguments.size() > 2) {
+                return Optional.empty();
+            }
+
+            Type sourceType = arguments.getFirst().type();
+            if (!(sourceType instanceof VarcharType) && !(sourceType instanceof CharType)) {
+                return Optional.empty();
+            }
+
+            Optional<GpuExpression> source = arguments.getFirst().accept(this, context);
+            if (source.isEmpty()) {
+                return Optional.empty();
+            }
+
+            if (arguments.size() == 1) {
+                return Optional.of(new GpuTrim(source.get(), GpuTrim.WHITESPACE_CODE_POINTS, side, false));
+            }
+
+            // The analyzer wraps the trim characters in a cast to CodePoints, which the optimizer folds
+            // when they are constant. Anything else, including a null, has to run on the CPU.
+            if (!(arguments.get(1) instanceof Constant(CodePointsType _, Object codePointsValue))
+                    || codePointsValue == null) {
+                return Optional.empty();
+            }
+
+            int[] codePoints = (int[]) codePointsValue;
+            for (int codePoint : codePoints) {
+                // new String(int[], int, int) throws on a code point above the Unicode range, and silently
+                // encodes a surrogate as '?', which would hand cuDF the wrong set. NUL is excluded because
+                // cuDF has mishandled it elsewhere and it is not covered by a test here.
+                if (codePoint == 0 || !Character.isValidCodePoint(codePoint) || isSurrogate(codePoint)) {
+                    return Optional.empty();
+                }
+            }
+            if (codePoints.length == 0) {
+                // Removing no code points leaves a varchar unchanged. For char(x) the CPU still applies
+                // Chars.trimTrailingSpaces, but a char(x) value is stored without trailing spaces, so that
+                // is a no-op too. See the trailing space note below: this rests on behavior upstream
+                // considers a bug, so testTrimCodePoints pins it for both types.
+                return source;
+            }
+
+            // char(x) trim and rtrim additionally strip trailing spaces, because StringFunctions.charTrim
+            // and charRightTrim apply Chars.trimTrailingSpaces after removing the code points. That is not
+            // a consequence of the result type, which is varchar(x); we do it only to match the CPU, whose
+            // own rationale is unclear and which upstream reports as wrong in
+            // https://github.com/trinodb/trino/issues/31004. charLeftTrim does not do it, and neither do we.
+            boolean removeTrailingSpaces = sourceType instanceof CharType && side != GpuTrim.Side.LEADING;
+            return Optional.of(new GpuTrim(source.get(), new String(codePoints, 0, codePoints.length), side, removeTrailingSpaces));
+        }
+
         private static Optional<String> extractPatternString(Type patternType, Object patternValue)
         {
             if (patternType == JONI_REGEXP && patternValue instanceof JoniRegexp joniRegexp) {
@@ -980,5 +1050,10 @@ public final class GpuExpressionCompiler
                 type instanceof TimestampWithTimeZoneType ||
                 type.equals(INTERVAL_DAY_TIME) ||
                 type.equals(INTERVAL_YEAR_MONTH);
+    }
+
+    private static boolean isSurrogate(int codePoint)
+    {
+        return MIN_SURROGATE <= codePoint && codePoint <= MAX_SURROGATE;
     }
 }

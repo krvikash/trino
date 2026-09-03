@@ -95,6 +95,7 @@ import static io.trino.spi.type.TimestampType.createTimestampType;
 import static io.trino.spi.type.Timestamps.MICROSECONDS_PER_DAY;
 import static io.trino.spi.type.Timestamps.NANOSECONDS_PER_MICROSECOND;
 import static io.trino.spi.type.TinyintType.TINYINT;
+import static io.trino.spi.type.TypeUtils.readNativeValue;
 import static io.trino.spi.type.VarbinaryType.VARBINARY;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.spi.type.VarcharType.createVarcharType;
@@ -934,6 +935,18 @@ public final class GpuTestUtils
     public static Reference field(int channel, Type type)
     {
         return new Reference(type, "ref" + channel);
+    }
+
+    /// The values of the single column of each page, in order, read as `type`'s native representation.
+    public static <T> Iterator<T> getOnlyColumn(List<Page> pages, Type type)
+    {
+        return pages.stream()
+                .flatMap(page -> {
+                    assertThat(page.getChannelCount()).isEqualTo(1);
+                    return IntStream.range(0, page.getPositionCount())
+                            .mapToObj(position -> (T) readNativeValue(type, page.getBlock(0), position));
+                })
+                .iterator();
     }
 
     public static Map<Symbol, Integer> layoutFor(List<Type> inputTypes)
