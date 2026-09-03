@@ -931,6 +931,13 @@ public final class GpuExpressionCompiler
         @Override
         protected Optional<GpuExpression> visitCoalesce(Coalesce coalesce, Void context)
         {
+            // All operands share the Coalesce type, so gating on the result type gates every operand.
+            // cudf replaceNulls handles every flat carrier DType, but has no specialization for nested
+            // ones, such as the LIST<UINT8> carrying varbinary.
+            Optional<DType> cudfType = toDType(coalesce.type());
+            if (cudfType.isEmpty() || cudfType.get().isNestedType()) {
+                return Optional.empty();
+            }
             return compileNary(coalesce.operands(), GpuCoalesce::new, context);
         }
 

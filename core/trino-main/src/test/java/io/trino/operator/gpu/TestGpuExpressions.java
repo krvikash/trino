@@ -86,6 +86,7 @@ import static com.google.common.base.Verify.verify;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.trino.operator.gpu.GpuTestUtils.FUNCTION_RESOLUTION;
+import static io.trino.operator.gpu.GpuTestUtils.TESTED_GPU_TYPES;
 import static io.trino.operator.gpu.GpuTestUtils.assertGpuMatchesCpu;
 import static io.trino.operator.gpu.GpuTestUtils.assertSameDataInOrder;
 import static io.trino.operator.gpu.GpuTestUtils.compileCpuExpression;
@@ -117,6 +118,7 @@ import static io.trino.spi.type.Timestamps.PICOSECONDS_PER_NANOSECOND;
 import static io.trino.spi.type.TinyintType.TINYINT;
 import static io.trino.spi.type.TypeUtils.readNativeValue;
 import static io.trino.spi.type.TypeUtils.writeNativeValue;
+import static io.trino.spi.type.VarbinaryType.VARBINARY;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.spi.type.VarcharType.createVarcharType;
 import static io.trino.sql.analyzer.TypeDescriptorProvider.fromTypes;
@@ -1116,21 +1118,127 @@ public class TestGpuExpressions
     }
 
     @ParameterizedTest
-    @EnumSource(NullsProvider.class)
-    public void testCoalesce(NullsProvider nullsProvider)
+    @MethodSource("coalesceTestCases")
+    public void testCoalesce(Type type, NullsProvider nullsProvider)
     {
         int channelA = 0;
         int channelB = 1;
-        List<Type> inputTypes = List.of(BIGINT, BIGINT);
+        List<Type> inputTypes = List.of(type, type);
+        int positionsCount = 64;
+        List<Page> inputPages = List.of(new Page(
+                positionsCount,
+                createBlock(type, positionsCount, nullsProvider),
+                createBlock(type, positionsCount, nullsProvider)));
+
+        Expression expression = new Coalesce(ImmutableList.of(field(channelA, type), field(channelB, type)));
+
+        if (type == VARBINARY) {
+            // cudf replaceNulls has no implementation for the LIST<UINT8> column carrying varbinary
+            assertThat(compileExpression(expression, layoutFor(inputTypes))).isEmpty();
+            return;
+        }
+        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA, channelB));
+    }
+
+    public static Stream<Object[]> coalesceTestCases()
+    {
+        return Lists.cartesianProduct(TESTED_GPU_TYPES, ImmutableList.copyOf(NullsProvider.values()))
+                .stream()
+                .map(List::toArray);
+    }
+
+    @ParameterizedTest
+    @EnumSource(NullsProvider.class)
+    public void testCoalesceManyOperands(NullsProvider nullsProvider)
+    {
+        List<Type> inputTypes = List.of(BIGINT, BIGINT, BIGINT, BIGINT);
         int positionsCount = 64;
         List<Page> inputPages = List.of(new Page(
                 positionsCount,
                 createBigintBlock(positionsCount, nullsProvider, -100, 100),
+                createBigintBlock(positionsCount, nullsProvider, -100, 100),
+                createBigintBlock(positionsCount, nullsProvider, -100, 100),
                 createBigintBlock(positionsCount, nullsProvider, -100, 100)));
 
-        Expression expression = new Coalesce(ImmutableList.of(field(channelA, BIGINT), field(channelB, BIGINT)));
+        // The trailing constant is never NULL, so with ALL_NULLS inputs the last operand is the one selected.
+        Expression expression = new Coalesce(ImmutableList.of(
+                field(0, BIGINT),
+                field(1, BIGINT),
+                field(2, BIGINT),
+                field(3, BIGINT),
+                new Constant(BIGINT, 42L)));
+
+        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(0, 1, 2, 3));
+    }
+
+    @ParameterizedTest
+    @EnumSource(NullsProvider.class)
+    public void testCoalesceWithCoercedOperand(NullsProvider nullsProvider)
+    {
+        // COALESCE(bigint, integer) is coerced by the analyzer, so the IR carries a Cast operand.
+        int channelA = 0;
+        int channelB = 1;
+        List<Type> inputTypes = List.of(BIGINT, INTEGER);
+        int positionsCount = 64;
+        List<Page> inputPages = List.of(new Page(
+                positionsCount,
+                createBlock(BIGINT, positionsCount, nullsProvider),
+                createBlock(INTEGER, positionsCount, nullsProvider)));
+
+        Expression expression = new Coalesce(ImmutableList.of(
+                field(channelA, BIGINT),
+                new Cast(field(channelB, INTEGER), BIGINT)));
 
         assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA, channelB));
+    }
+
+    @Test
+    public void testCoalesceSelectsFirstNonNullOperand()
+    {
+        int positionsCount = 60;
+        List<Type> inputTypes = List.of(BIGINT, BIGINT);
+        BlockBuilder aBuilder = BIGINT.createBlockBuilder(null, positionsCount);
+        BlockBuilder bBuilder = BIGINT.createBlockBuilder(null, positionsCount);
+        int firstSelected = 0;
+        int secondSelected = 0;
+        int neitherSelected = 0;
+        for (int i = 0; i < positionsCount; i++) {
+            boolean aIsNull = i % 3 == 0;
+            boolean bIsNull = i % 2 == 0;
+            if (aIsNull) {
+                aBuilder.appendNull();
+            }
+            else {
+                BIGINT.writeLong(aBuilder, i);
+            }
+            if (bIsNull) {
+                bBuilder.appendNull();
+            }
+            else {
+                BIGINT.writeLong(bBuilder, 1000 + i);
+            }
+            if (!aIsNull) {
+                firstSelected++;
+            }
+            else if (!bIsNull) {
+                secondSelected++;
+            }
+            else {
+                neitherSelected++;
+            }
+        }
+        List<Page> inputPages = List.of(new Page(positionsCount, aBuilder.build(), bBuilder.build()));
+
+        // test's self-test: the NULL pattern above has to make COALESCE pick the first operand on some
+        // rows, the second operand on others, and neither on the rest. Without all three outcomes the
+        // assertion below would still pass while never exercising operands past the first.
+        assertThat(firstSelected).as("rows taking the first operand").isEqualTo(40);
+        assertThat(secondSelected).as("rows taking the second operand").isEqualTo(10);
+        assertThat(neitherSelected).as("rows where both operands are NULL").isEqualTo(10);
+
+        Expression expression = new Coalesce(ImmutableList.of(field(0, BIGINT), field(1, BIGINT)));
+
+        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(0, 1));
     }
 
     @ParameterizedTest
