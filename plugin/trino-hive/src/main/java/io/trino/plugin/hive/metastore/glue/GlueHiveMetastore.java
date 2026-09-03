@@ -908,7 +908,7 @@ public class GlueHiveMetastore
                     .filter(entry -> !updateColumnStatistics.containsKey(entry.getValue()))
                     .map(Entry::getKey)
                     .collect(Collectors.toSet());
-            case UNDO_MERGE_INCREMENTAL, CLEAR_ALL -> columns.keySet();
+            case CLEAR_ALL -> columns.keySet();
         };
 
         return new BasicTableStatisticsResult(updateColumnStatistics, removeColumnStatistics);
@@ -1456,7 +1456,7 @@ public class GlueHiveMetastore
                     .filter(entry -> !statisticsByColumn.containsKey(entry.getValue()))
                     .map(Entry::getKey)
                     .collect(Collectors.toSet());
-            case UNDO_MERGE_INCREMENTAL, CLEAR_ALL -> columns.keySet();
+            case CLEAR_ALL -> columns.keySet();
         };
 
         ImmutableList.Builder<Callable<Void>> tasks = ImmutableList.builder();

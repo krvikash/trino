@@ -266,7 +266,6 @@ final class RestMetastoreUtils
             case OVERWRITE_ALL -> io.starburst.stargate.metastore.client.StatisticsUpdateMode.OVERWRITE_ALL;
             case OVERWRITE_SOME_COLUMNS -> io.starburst.stargate.metastore.client.StatisticsUpdateMode.OVERWRITE_SOME_COLUMNS;
             case MERGE_INCREMENTAL -> io.starburst.stargate.metastore.client.StatisticsUpdateMode.MERGE_INCREMENTAL;
-            case UNDO_MERGE_INCREMENTAL -> io.starburst.stargate.metastore.client.StatisticsUpdateMode.UNDO_MERGE_INCREMENTAL;
             case CLEAR_ALL -> io.starburst.stargate.metastore.client.StatisticsUpdateMode.CLEAR_ALL;
         };
     }
