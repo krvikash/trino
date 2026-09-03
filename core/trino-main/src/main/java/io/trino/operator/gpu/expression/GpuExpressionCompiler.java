@@ -420,6 +420,10 @@ public final class GpuExpressionCompiler
                 return compileDateTrunc(call, context);
             }
 
+            if (name.equals("date_add") && call.arguments().size() == 3) {
+                return compileDateAdd(call, context);
+            }
+
             if (name.equals(DivideRoundToScale.NAME) && call.arguments().size() == 2) {
                 return compileDivideRoundToScale(call, context);
             }
@@ -784,6 +788,45 @@ public final class GpuExpressionCompiler
 
             return timestampArgument.accept(this, context)
                     .map(compiled -> new GpuDateTrunc(compiled, field.get()));
+        }
+
+        private Optional<GpuExpression> compileDateAdd(Call call, Void context)
+        {
+            // date_add(unit, value, date_time)
+            if (!(call.arguments().get(0) instanceof Constant(Type unitType, Object unitValue)) ||
+                    !(unitType instanceof VarcharType) ||
+                    unitValue == null) {
+                return Optional.empty();
+            }
+            Optional<GpuDateAdd.Unit> unit = GpuDateAdd.Unit.forTrinoDateAddUnit(((Slice) unitValue).toStringUtf8());
+            if (unit.isEmpty()) {
+                return Optional.empty();
+            }
+
+            // Only a constant shift is supported, so that the range of inputs the GPU and the CPU
+            // implementations agree on can be determined at compile time.
+            if (!(call.arguments().get(1) instanceof Constant(Type valueType, Object valueObject)) ||
+                    valueType != BIGINT ||
+                    valueObject == null) {
+                return Optional.empty();
+            }
+            long value = (Long) valueObject;
+
+            Expression dateTimeArgument = call.arguments().get(2);
+            Type dateTimeType = dateTimeArgument.type();
+            if (!dateTimeType.equals(DATE) && !(dateTimeType instanceof TimestampType)) {
+                return Optional.empty();
+            }
+            if (dateTimeType instanceof TimestampType timestampType &&
+                    timestampType.getPrecision() < 3 &&
+                    unit.get() == GpuDateAdd.Unit.MILLISECOND) {
+                // The CPU implementation rounds the result to the type's precision, which a plain shift does not reproduce
+                return Optional.empty();
+            }
+
+            return toDType(dateTimeType).flatMap(dType ->
+                    dateTimeArgument.accept(this, context).flatMap(compiled ->
+                            GpuDateAdd.create(compiled, dType, unit.get(), value)));
         }
 
         private Optional<GpuExpression> compileSubstring(Call call, Void context)
