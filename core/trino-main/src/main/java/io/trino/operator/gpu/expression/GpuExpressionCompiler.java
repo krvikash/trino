@@ -347,6 +347,10 @@ public final class GpuExpressionCompiler
                 return compileRegexpReplace(call, context);
             }
 
+            if (name.equals("replace")) {
+                return compileReplace(call, context);
+            }
+
             if (name.equals("date_trunc") && call.arguments().size() == 2) {
                 return compileDateTrunc(call, context);
             }
@@ -737,6 +741,56 @@ public final class GpuExpressionCompiler
             GpuRegexTranspiler.TranspileResult result = transpiled.get();
             return call.arguments().getFirst().accept(this, context)
                     .map(source -> new GpuRegexpReplace(source, result.pattern(), result.replacement(), result.hasBackreferences()));
+        }
+
+        private Optional<GpuExpression> compileReplace(Call call, Void context)
+        {
+            int argCount = call.arguments().size();
+            // defensive check: replace has only 2- and 3-arg overloads
+            if (argCount < 2 || argCount > 3) {
+                return Optional.empty();
+            }
+
+            // defensive check: replace is declared over varchar only
+            if (!(call.arguments().getFirst().type() instanceof VarcharType)) {
+                return Optional.empty();
+            }
+
+            // cuDF only offers a scalar target for literal replacement, so the search string must be known upfront
+            Optional<String> searchConstant = extractVarcharConstant(call.arguments().get(1));
+            if (searchConstant.isEmpty()) {
+                return Optional.empty();
+            }
+            String search = searchConstant.get();
+            // Trino inserts the replacement around every code point when the search string is empty,
+            // which is not a substring replacement at all; cuDF rejects an empty target outright
+            if (search.isEmpty()) {
+                return Optional.empty();
+            }
+
+            // 2-arg overload removes all occurrences, equivalent to replacing with an empty string
+            String replacement = "";
+            if (argCount == 3) {
+                Optional<String> replacementConstant = extractVarcharConstant(call.arguments().get(2));
+                if (replacementConstant.isEmpty()) {
+                    return Optional.empty();
+                }
+                replacement = replacementConstant.get();
+            }
+
+            Optional<GpuExpression> source = call.arguments().getFirst().accept(this, context);
+            if (source.isEmpty()) {
+                return Optional.empty();
+            }
+            return Optional.of(new GpuReplace(source.get(), search, replacement));
+        }
+
+        private static Optional<String> extractVarcharConstant(Expression expression)
+        {
+            if (expression instanceof Constant(VarcharType _, Object value) && value != null) {
+                return Optional.of(((Slice) value).toStringUtf8());
+            }
+            return Optional.empty();
         }
 
         private static Optional<String> extractPatternString(Type patternType, Object patternValue)

@@ -136,6 +136,38 @@ public class TestGpuExpressions
     private static final Boolean[] TRUTH_TABLE_LEFT = {true, true, true, false, false, false, null, null, null};
     private static final Boolean[] TRUTH_TABLE_RIGHT = {true, false, null, true, false, null, true, false, null};
 
+    /// Search strings for `replace`, chosen to occur in `testStrings` and in `REPLACE_EDGE_CASE_STRINGS`:
+    /// single and multi character, ASCII and multi-byte, plus an empty and a never-matching one.
+    private static final List<String> REPLACE_SEARCH_STRINGS = ImmutableList.of(
+            "", "a", "b", "z", "ab", "aa", "papa", "abcdefghij", "%", "test", "ą", "łąką", "ワ", "а", "no such substring");
+
+    /// Values covering `replace` edge cases the generated input may not hit: no match, a whole-string
+    /// match, adjacent and overlapping candidates, matches at the very start and end, and an empty value.
+    private static final List<String> REPLACE_EDGE_CASE_STRINGS = ImmutableList.of(
+            "",
+            "a",
+            "b",
+            "aa",
+            "aaa",
+            "aaaa",
+            "aaaaa",
+            "ab",
+            "abab",
+            "ababab",
+            "abcdefghij",
+            "xa",
+            "ax",
+            "xax",
+            "banana",
+            "papapapaya",
+            "%test%",
+            "test at start",
+            "ends with test",
+            "no match at all",
+            "Łania szła piękną łąką pod Warszawą",
+            "ワルシャワ近郊の美しい草原を雌鹿が歩いていた。",
+            "Слава Україні");
+
     /**
      * Useful test strings, including interesting inputs and patterns for LIKE testing.
      */
@@ -1527,6 +1559,82 @@ public class TestGpuExpressions
                 ImmutableList.of(field(varcharChannel, VARCHAR), field(startChannel, BIGINT), field(lengthChannel, BIGINT)));
 
         assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(varcharChannel, startChannel, lengthChannel));
+    }
+
+    @ParameterizedTest
+    @EnumSource(NullsProvider.class)
+    public void testReplace(NullsProvider nullsProvider)
+    {
+        for (String search : REPLACE_SEARCH_STRINGS) {
+            testReplace(nullsProvider, search, Optional.empty());
+        }
+    }
+
+    @ParameterizedTest
+    @EnumSource(NullsProvider.class)
+    public void testReplaceWithReplacement(NullsProvider nullsProvider)
+    {
+        for (String search : REPLACE_SEARCH_STRINGS) {
+            for (String replacement : List.of("", "X", "ab", "aa", "łąka", "ワ")) {
+                testReplace(nullsProvider, search, Optional.of(replacement));
+            }
+        }
+    }
+
+    @Test
+    public void testReplaceWithNonConstantArgument()
+    {
+        // cuDF's literal string replace takes a scalar target and replacement, so both must be constants
+        List<Type> inputTypes = List.of(VARCHAR, VARCHAR);
+
+        Expression nonConstantSearch = new Call(
+                FUNCTION_RESOLUTION.resolveFunction("replace", fromTypes(VARCHAR, VARCHAR)),
+                ImmutableList.of(field(0, VARCHAR), field(1, VARCHAR)));
+        assertThat(compileExpression(nonConstantSearch, layoutFor(inputTypes))).isEmpty();
+
+        Expression nonConstantReplacement = new Call(
+                FUNCTION_RESOLUTION.resolveFunction("replace", fromTypes(VARCHAR, VARCHAR, VARCHAR)),
+                ImmutableList.of(field(0, VARCHAR), new Constant(VARCHAR, Slices.utf8Slice("a")), field(1, VARCHAR)));
+        assertThat(compileExpression(nonConstantReplacement, layoutFor(inputTypes))).isEmpty();
+    }
+
+    private void testReplace(NullsProvider nullsProvider, String search, Optional<String> replacement)
+    {
+        int varcharChannel = 0;
+        List<Type> inputTypes = List.of(VARCHAR);
+        List<Page> inputPages = ImmutableList.<Page>builder()
+                .addAll(createVarcharPages(List.of(64), nullsProvider))
+                // A null-free page of hand-picked values guarantees the search string really occurs,
+                // whatever nulls the provider injects into the generated page
+                .add(varcharPage(REPLACE_EDGE_CASE_STRINGS))
+                .build();
+
+        ImmutableList.Builder<Expression> arguments = ImmutableList.builder();
+        arguments.add(field(varcharChannel, VARCHAR));
+        arguments.add(new Constant(VARCHAR, Slices.utf8Slice(search)));
+        replacement.ifPresent(value -> arguments.add(new Constant(VARCHAR, Slices.utf8Slice(value))));
+        List<Type> argumentTypes = Collections.nCopies(replacement.isPresent() ? 3 : 2, VARCHAR);
+
+        Expression expression = new Call(
+                FUNCTION_RESOLUTION.resolveFunction("replace", fromTypes(argumentTypes)),
+                arguments.build());
+
+        if (search.isEmpty()) {
+            // Trino wraps every code point in the replacement rather than replacing a substring,
+            // and cuDF rejects an empty target outright
+            assertThat(compileExpression(expression, layoutFor(inputTypes))).isEmpty();
+            return;
+        }
+        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(varcharChannel));
+    }
+
+    private static Page varcharPage(List<String> values)
+    {
+        VariableWidthBlockBuilder builder = new VariableWidthBlockBuilder(null, values.size(), values.size() * 16);
+        for (String value : values) {
+            builder.writeEntry(Slices.utf8Slice(value));
+        }
+        return new Page(values.size(), builder.build());
     }
 
     @ParameterizedTest
