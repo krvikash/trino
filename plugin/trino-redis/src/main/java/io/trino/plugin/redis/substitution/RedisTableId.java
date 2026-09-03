@@ -21,6 +21,7 @@ import io.trino.spi.connector.substitution.ConnectorIdVersion;
 import io.trino.spi.connector.substitution.ConnectorTableId;
 
 import java.util.Objects;
+import java.util.Optional;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
@@ -33,20 +34,27 @@ public final class RedisTableId
 
     private final String schemaName;
     private final String tableName;
+    private final Optional<String> keyName;
     private final long hash;
 
     @JsonCreator
     public RedisTableId(
             @JsonProperty("schemaName") String schemaName,
-            @JsonProperty("tableName") String tableName)
+            @JsonProperty("tableName") String tableName,
+            @JsonProperty("keyName") Optional<String> keyName)
     {
         this.schemaName = requireNonNull(schemaName, "schemaName is null");
         this.tableName = requireNonNull(tableName, "tableName is null");
-        this.hash = new XxHash64()
+        this.keyName = requireNonNull(keyName, "keyName is null");
+        XxHash64 hash = new XxHash64()
                 .update(schemaName.getBytes(UTF_8))
                 .update(PATH_SEPARATOR)
-                .update(tableName.getBytes(UTF_8))
-                .hash();
+                .update(tableName.getBytes(UTF_8));
+        keyName.ifPresent(key -> {
+            hash.update(PATH_SEPARATOR);
+            hash.update(key.getBytes(UTF_8));
+        });
+        this.hash = hash.hash();
     }
 
     @JsonProperty
@@ -59,6 +67,12 @@ public final class RedisTableId
     public String getTableName()
     {
         return tableName;
+    }
+
+    @JsonProperty
+    public Optional<String> getKeyName()
+    {
+        return keyName;
     }
 
     @JsonIgnore
@@ -83,12 +97,14 @@ public final class RedisTableId
         if (!(o instanceof RedisTableId that)) {
             return false;
         }
-        return schemaName.equals(that.schemaName) && tableName.equals(that.tableName);
+        return schemaName.equals(that.schemaName)
+                && tableName.equals(that.tableName)
+                && keyName.equals(that.keyName);
     }
 
     @Override
     public int hashCode()
     {
-        return Objects.hash(schemaName, tableName);
+        return Objects.hash(schemaName, tableName, keyName);
     }
 }

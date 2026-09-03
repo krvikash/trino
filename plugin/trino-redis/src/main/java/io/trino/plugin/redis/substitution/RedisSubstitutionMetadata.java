@@ -38,7 +38,9 @@ public class RedisSubstitutionMetadata
             return false;
         }
         return substitutionCandidate(handle)
-                .map(candidate -> candidate.schemaName().equals(candidateId.getSchemaName()) && candidate.tableName().equals(candidateId.getTableName()))
+                .map(candidate -> candidate.schemaName().equals(candidateId.getSchemaName())
+                        && candidate.tableName().equals(candidateId.getTableName())
+                        && Optional.ofNullable(candidate.keyName()).equals(candidateId.getKeyName()))
                 .orElse(false);
     }
 
@@ -46,7 +48,7 @@ public class RedisSubstitutionMetadata
     public Optional<ConnectorTableId> getTableId(ConnectorSession session, ConnectorTableHandle handle)
     {
         return substitutionCandidate((RedisTableHandle) handle)
-                .map(candidate -> new RedisTableId(candidate.schemaName(), candidate.tableName()));
+                .map(candidate -> new RedisTableId(candidate.schemaName(), candidate.tableName(), Optional.ofNullable(candidate.keyName())));
     }
 
     private static Optional<RedisTableHandle> substitutionCandidate(RedisTableHandle handle)
