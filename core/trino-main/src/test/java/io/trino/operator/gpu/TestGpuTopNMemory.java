@@ -68,6 +68,12 @@ class TestGpuTopNMemory
     }
 
     @Test
+    void testSingleSortKeyMultipleColumns()
+    {
+        testTopN(List.of(BIGINT, BIGINT, BIGINT), SMALL_LIMIT, new int[] {0}, List.of(ASC_NULLS_LAST));
+    }
+
+    @Test
     void testMultipleColumns()
     {
         testTopN(List.of(BIGINT, VARCHAR, BIGINT), SMALL_LIMIT, new int[] {0, 1}, List.of(ASC_NULLS_LAST, ASC_NULLS_LAST));

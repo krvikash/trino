@@ -115,7 +115,8 @@ public final class GpuTopN
                     allocated.borrow().transferFrom(allocation);
                 }
                 long combinedBytes = allocated.borrow().amount().gpuDeviceBytes();
-                long workBytes = getOrderByMemoryUsage(getSortTypes(page), combinedBytes);
+                long sortKeyBytes = getSortKeyBytes(page);
+                long workBytes = getOrderByMemoryUsage(getSortTypes(page), sortKeyBytes, combinedBytes);
                 allocated.borrow().update(MemoryAmount.gpuDevice(workBytes));
                 try (page) {
                     accumulate(page);
@@ -142,6 +143,18 @@ public final class GpuTopN
                 .mapToObj(page::column)
                 .map(column -> ((Column.DeviceMemory) column).columnVector().getType())
                 .toArray(DType[]::new);
+    }
+
+    private long getSortKeyBytes(@Borrow GpuPage page)
+    {
+        long bytes = 0;
+        for (int channel : sortChannels) {
+            if (!buffered.isEmpty()) {
+                bytes += buffered.borrow().getColumn(channel).getDeviceMemorySize();
+            }
+            bytes += page.column(channel).retainedDeviceMemoryBytes();
+        }
+        return bytes;
     }
 
     private void accumulate(@Borrow GpuPage page)
