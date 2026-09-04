@@ -19,6 +19,7 @@ package io.starburst.materialization.metastore.server.db;
 public enum DatabaseType
 {
     POSTGRESQL,
+    COCKROACHDB,
     MYSQL,
     ORACLE,
 }

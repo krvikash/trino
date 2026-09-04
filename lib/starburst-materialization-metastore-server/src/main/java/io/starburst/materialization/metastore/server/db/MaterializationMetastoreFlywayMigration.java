@@ -74,6 +74,7 @@ public final class MaterializationMetastoreFlywayMigration
         }
         return switch (databaseType) {
             case POSTGRESQL -> directory + "postgresql";
+            case COCKROACHDB -> directory + "cockroachdb";
             case MYSQL -> directory + "mysql";
             case ORACLE -> directory + "oracle";
         };

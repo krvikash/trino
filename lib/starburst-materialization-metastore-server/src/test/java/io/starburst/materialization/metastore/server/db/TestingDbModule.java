@@ -13,6 +13,7 @@
  */
 package io.starburst.materialization.metastore.server.db;
 
+import com.google.inject.AbstractModule;
 import com.google.inject.Binder;
 import com.google.inject.Key;
 import com.google.inject.Provides;
@@ -38,19 +39,37 @@ public class TestingDbModule
     {
         configBinder(binder).bindConfig(TestingDbConfig.class);
         TestingDbConfig testingDbConfig = buildConfigObject(TestingDbConfig.class);
-        if (testingDbConfig.isPostgreSqlUrl()) {
-            install(new PostgreSqlModule());
-        }
-
-        if (testingDbConfig.isOracleUrl()) {
-            install(new OracleModule());
-        }
-
-        if (testingDbConfig.isMySqlUrl()) {
-            install(new MySqlModule());
-        }
+        DatabaseType databaseType = databaseType(testingDbConfig);
+        install(switch (databaseType) {
+            // CockroachDB is accessed through the PostgreSQL driver
+            case POSTGRESQL, COCKROACHDB -> new PostgreSqlModule();
+            case MYSQL -> new MySqlModule();
+            case ORACLE -> new OracleModule();
+        });
+        binder.bind(DatabaseType.class).toInstance(databaseType);
         binder.bind(Key.get(DataSource.class, ForMaterializationMetastore.class)).to(DataSource.class);
         binder.bind(Key.get(Jdbi.class, ForMaterializationMetastore.class)).to(Jdbi.class);
+    }
+
+    /**
+     * Infers the dialect from the JDBC URL unless {@code metastore.db.type} is set, which is
+     * required for CockroachDB as it shares the PostgreSQL JDBC URL prefix.
+     */
+    private static DatabaseType databaseType(TestingDbConfig config)
+    {
+        return config.getDatabaseType().orElseGet(() -> {
+            String jdbcUrl = config.getJdbcUrl();
+            if (jdbcUrl.startsWith("jdbc:postgresql")) {
+                return DatabaseType.POSTGRESQL;
+            }
+            if (jdbcUrl.startsWith("jdbc:mysql")) {
+                return DatabaseType.MYSQL;
+            }
+            if (jdbcUrl.startsWith("jdbc:oracle")) {
+                return DatabaseType.ORACLE;
+            }
+            throw new IllegalArgumentException("Cannot infer database type from JDBC URL: " + jdbcUrl);
+        });
     }
 
     @Singleton
@@ -63,14 +82,8 @@ public class TestingDbModule
     }
 
     private static class PostgreSqlModule
-            extends AbstractConfigurationAwareModule
+            extends AbstractModule
     {
-        @Override
-        protected void setup(Binder binder)
-        {
-            binder.bind(DatabaseType.class).toInstance(DatabaseType.POSTGRESQL);
-        }
-
         @Singleton
         @Provides
         public DataSource createConnectionFactory(TestingDbConfig config)
@@ -84,14 +97,8 @@ public class TestingDbModule
     }
 
     private static class MySqlModule
-            extends AbstractConfigurationAwareModule
+            extends AbstractModule
     {
-        @Override
-        protected void setup(Binder binder)
-        {
-            binder.bind(DatabaseType.class).toInstance(DatabaseType.MYSQL);
-        }
-
         @Singleton
         @Provides
         public DataSource createConnectionFactory(TestingDbConfig config)
@@ -105,14 +112,8 @@ public class TestingDbModule
     }
 
     private static class OracleModule
-            extends AbstractConfigurationAwareModule
+            extends AbstractModule
     {
-        @Override
-        protected void setup(Binder binder)
-        {
-            binder.bind(DatabaseType.class).toInstance(DatabaseType.ORACLE);
-        }
-
         @Singleton
         @Provides
         public DataSource createConnectionFactory(TestingDbConfig config)

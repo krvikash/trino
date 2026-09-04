@@ -43,7 +43,8 @@ public class MaterializationMetastoreDbModule
         // Depend on the migration so the schema is migrated before the DAO (and any query through it) is created.
         requireNonNull(migration, "migration is null");
         return switch (databaseType) {
-            case POSTGRESQL -> jdbi.onDemand(PostgreSqlMaterializationDao.class);
+            // CockroachDB speaks the PostgreSQL dialect, including ON CONFLICT ... DO UPDATE
+            case POSTGRESQL, COCKROACHDB -> jdbi.onDemand(PostgreSqlMaterializationDao.class);
             case MYSQL -> jdbi.onDemand(MySqlMaterializationDao.class);
             case ORACLE -> jdbi.onDemand(OracleMaterializationDao.class);
         };

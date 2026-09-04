@@ -41,6 +41,7 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -66,7 +67,7 @@ public abstract class AbstractRawMaterializationMetastoreTest
         afterClassCloser = AutoCloseableCloser.create();
         JdbcDatabaseContainer<?> container = afterClassCloser.register(createDbContainer());
         container.start();
-        server = afterClassCloser.register(new TestingMaterializationMetastoreServer(container.getJdbcUrl(), container.getUsername(), container.getPassword()));
+        server = afterClassCloser.register(new TestingMaterializationMetastoreServer(container.getJdbcUrl(), container.getUsername(), container.getPassword(), serverProperties()));
         jdbi = server.getInjector().getInstance(Key.get(Jdbi.class, ForMaterializationMetastore.class));
         dbMaterializationMetastore = server.getInjector().getInstance(DbRawMaterializationMetastore.class);
     }
@@ -79,6 +80,11 @@ public abstract class AbstractRawMaterializationMetastoreTest
     }
 
     protected abstract JdbcDatabaseContainer<?> createDbContainer();
+
+    protected Map<String, String> serverProperties()
+    {
+        return ImmutableMap.of();
+    }
 
     @BeforeEach
     public void cleanTable()

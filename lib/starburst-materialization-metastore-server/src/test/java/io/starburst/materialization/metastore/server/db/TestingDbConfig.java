@@ -18,11 +18,14 @@ import io.airlift.configuration.ConfigDescription;
 import io.airlift.configuration.ConfigSecuritySensitive;
 import jakarta.validation.constraints.NotNull;
 
+import java.util.Optional;
+
 public class TestingDbConfig
 {
     private String jdbcUrl;
     private String jdbcUser;
     private String jdbcPassword;
+    private Optional<DatabaseType> databaseType = Optional.empty();
 
     @NotNull
     public String getJdbcUrl()
@@ -65,18 +68,16 @@ public class TestingDbConfig
         return this;
     }
 
-    public boolean isPostgreSqlUrl()
+    public Optional<DatabaseType> getDatabaseType()
     {
-        return jdbcUrl.startsWith("jdbc:postgresql");
+        return databaseType;
     }
 
-    public boolean isOracleUrl()
+    @Config("metastore.db.type")
+    @ConfigDescription("Database dialect; inferred from the JDBC URL when not set")
+    public TestingDbConfig setDatabaseType(DatabaseType databaseType)
     {
-        return jdbcUrl.startsWith("jdbc:oracle");
-    }
-
-    public boolean isMySqlUrl()
-    {
-        return jdbcUrl.startsWith("jdbc:mysql");
+        this.databaseType = Optional.ofNullable(databaseType);
+        return this;
     }
 }
