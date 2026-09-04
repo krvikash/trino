@@ -14,7 +14,6 @@
 package io.trino.plugin.iceberg.catalog.rest;
 
 import io.opentelemetry.api.OpenTelemetry;
-import io.trino.Session;
 import io.trino.filesystem.Location;
 import io.trino.filesystem.s3.S3FileSystemConfig;
 import io.trino.filesystem.s3.S3FileSystemFactory;
@@ -28,7 +27,6 @@ import io.trino.plugin.iceberg.catalog.TrinoCatalogFactory;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.testing.QueryRunner;
 import io.trino.testing.TestingConnectorBehavior;
-import io.trino.testing.sql.TestTable;
 import org.apache.iceberg.BaseTable;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -39,7 +37,6 @@ import java.nio.file.Path;
 
 import static com.google.common.io.MoreFiles.deleteRecursively;
 import static com.google.common.io.RecursiveDeleteOption.ALLOW_INSECURE;
-import static io.trino.plugin.iceberg.IcebergSessionProperties.COLLECT_EXTENDED_STATISTICS_ON_WRITE;
 import static io.trino.plugin.iceberg.IcebergTestUtils.checkParquetFileSorting;
 import static io.trino.testing.SystemEnvironmentUtils.requireEnv;
 import static io.trino.testing.TestingConnectorSession.SESSION;
@@ -225,24 +222,6 @@ final class TestIcebergDatabricksUnityRestCatalogConnectorSmokeTest
         assertThat(getTableLocation(tableName)).isNotEqualTo(tableLocationWithTrailingSpace);
 
         assertUpdate("DROP TABLE " + tableName);
-    }
-
-    @Test
-    @Override // TODO Investigate why SHOW STATS returns incorrect NDV
-    public void testAnalyze()
-    {
-        Session noStatsOnWrite = Session.builder(getSession())
-                .setCatalogSessionProperty("iceberg", COLLECT_EXTENDED_STATISTICS_ON_WRITE, "false")
-                .build();
-
-        try (TestTable table = newTrinoTable("test_analyze", "(id int)")) {
-            assertUpdate(noStatsOnWrite, "INSERT INTO " + table.getName() + " VALUES 1, 2, 3", 3);
-
-            assertUpdate("ANALYZE " + table.getName());
-            assertThat(query("SHOW STATS FOR " + table.getName())).result()
-                    .projected("column_name", "distinct_values_count")
-                    .matches("VALUES (VARCHAR 'id', CAST(null AS double)), (null, null)");
-        }
     }
 
     @Test
