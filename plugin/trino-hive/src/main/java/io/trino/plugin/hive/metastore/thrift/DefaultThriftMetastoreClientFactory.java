@@ -60,6 +60,7 @@ public class DefaultThriftMetastoreClientFactory
     private final AtomicInteger chosenTableParamAlternative = new AtomicInteger(Integer.MAX_VALUE);
     private final AtomicInteger chosenAlterTransactionalTableAlternative = new AtomicInteger(Integer.MAX_VALUE);
     private final AtomicInteger chosenAlterPartitionsAlternative = new AtomicInteger(Integer.MAX_VALUE);
+    private final AtomicInteger chosenSetPartitionsColumnStatisticsAlternative = new AtomicInteger(Integer.MAX_VALUE);
 
     /**
      * Constructor with SSH tunnel support, for use by icehouse-common's GalaxyHmsClientFactory.
@@ -167,7 +168,8 @@ public class DefaultThriftMetastoreClientFactory
                 chosenGetTablesByNamesAlternative,
                 chosenTableParamAlternative,
                 chosenAlterTransactionalTableAlternative,
-                chosenAlterPartitionsAlternative);
+                chosenAlterPartitionsAlternative,
+                chosenSetPartitionsColumnStatisticsAlternative);
     }
 
     private TTransport createTransport(HostAndPort address, Optional<String> delegationToken)
