@@ -28,6 +28,9 @@ import com.google.genai.types.Part;
 import com.google.genai.types.Schema;
 import com.google.genai.types.Tool;
 import io.airlift.json.ObjectMapperProvider;
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.api.trace.SpanKind;
+import io.opentelemetry.api.trace.Tracer;
 import io.starburst.ai.client.AbstractLanguageModelClient;
 import io.starburst.ai.client.LlmMessage;
 import io.starburst.ai.client.ModelBackend;
@@ -38,6 +41,7 @@ import io.starburst.ai.client.TokenUsageContext;
 import io.starburst.ai.client.TokenUsageListener;
 import io.starburst.ai.client.ToolDefinition;
 import io.starburst.ai.client.ToolUseResponse;
+import io.starburst.ai.client.tracing.AiTracing;
 import io.trino.spi.TrinoException;
 
 import java.util.List;
@@ -52,6 +56,11 @@ import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static io.starburst.ai.client.AiClientErrorCode.AI_CLIENT_ERROR;
 import static io.starburst.ai.client.MessageRole.ASSISTANT;
 import static io.starburst.ai.client.MessageRole.USER;
+import static io.starburst.ai.client.tracing.GenAiAttributes.GEN_AI_OPERATION_NAME;
+import static io.starburst.ai.client.tracing.GenAiAttributes.GEN_AI_PROVIDER_NAME;
+import static io.starburst.ai.client.tracing.GenAiAttributes.GEN_AI_REQUEST_MODEL;
+import static io.starburst.ai.client.tracing.GenAiAttributes.OPERATION_NAME_CHAT;
+import static io.starburst.ai.client.tracing.GenAiAttributes.PROVIDER_NAME_VERTEX_AI;
 import static java.util.Objects.requireNonNull;
 
 public class VertexAiLanguageModelClient
@@ -64,6 +73,7 @@ public class VertexAiLanguageModelClient
     private final Optional<Float> temperature;
     private final Optional<Float> topP;
     private final Client client;
+    private final Tracer tracer;
 
     public VertexAiLanguageModelClient(
             String modelName,
@@ -74,6 +84,7 @@ public class VertexAiLanguageModelClient
             Executor executor,
             int batchParallelism,
             Client client,
+            Tracer tracer,
             TokenUsageListener tokenUsageListener)
     {
         super(promptDao, executor, batchParallelism, tokenUsageListener);
@@ -82,6 +93,7 @@ public class VertexAiLanguageModelClient
         this.temperature = requireNonNull(temperature, "temperature is null");
         this.topP = requireNonNull(topP, "topP is null");
         this.client = requireNonNull(client, "client is null");
+        this.tracer = requireNonNull(tracer, "tracer is null");
     }
 
     @Override
@@ -94,8 +106,7 @@ public class VertexAiLanguageModelClient
     protected String generateCompletion(List<String> systemPrompts, List<LlmMessage> messages, TokenUsageContext context)
     {
         GenerateContentConfig config = buildConfig(systemPrompts, maxTokens, temperature, topP);
-        GenerateContentResponse response = client.models.generateContent(modelName, toContents(messages), config);
-        response.usageMetadata().ifPresent(usage -> reportTokenUsage(context, toTokenUsage(usage, modelName)));
+        GenerateContentResponse response = generateContent(toContents(messages), config, context);
         String text = response.text();
         if (text == null) {
             throw new TrinoException(AI_CLIENT_ERROR, "No response from Vertex AI model %s".formatted(modelName));
@@ -108,8 +119,7 @@ public class VertexAiLanguageModelClient
     {
         GenerateContentConfig config = buildConfig(systemPrompts, maxTokens, temperature, topP, toTools(tools));
         try {
-            GenerateContentResponse response = client.models.generateContent(modelName, toContents(messages), config);
-            response.usageMetadata().ifPresent(usage -> reportTokenUsage(context, toTokenUsage(usage, modelName)));
+            GenerateContentResponse response = generateContent(toContents(messages), config, context);
             return parseToolResponse(response);
         }
         catch (TrinoException e) {
@@ -118,6 +128,25 @@ public class VertexAiLanguageModelClient
         catch (RuntimeException e) {
             throw new TrinoException(AI_CLIENT_ERROR, "Failed to execute Vertex AI tool-calling request for model %s".formatted(modelName), e);
         }
+    }
+
+    private GenerateContentResponse generateContent(List<Content> contents, GenerateContentConfig config, TokenUsageContext context)
+    {
+        Span span = tracer.spanBuilder(OPERATION_NAME_CHAT + " " + modelName)
+                .setAttribute(GEN_AI_OPERATION_NAME, OPERATION_NAME_CHAT)
+                .setAttribute(GEN_AI_PROVIDER_NAME, PROVIDER_NAME_VERTEX_AI)
+                .setAttribute(GEN_AI_REQUEST_MODEL, modelName)
+                .setSpanKind(SpanKind.CLIENT)
+                .startSpan();
+        return AiTracing.withTracing(span, () -> {
+            GenerateContentResponse response = client.models.generateContent(modelName, contents, config);
+            response.usageMetadata().ifPresent(usage -> {
+                TokenUsage tokenUsage = toTokenUsage(usage, modelName);
+                AiTracing.recordUsage(span, tokenUsage);
+                reportTokenUsage(context, tokenUsage);
+            });
+            return response;
+        });
     }
 
     @Override

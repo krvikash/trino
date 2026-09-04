@@ -29,6 +29,7 @@ import com.openai.models.chat.completions.ChatCompletionStreamOptions;
 import com.openai.models.chat.completions.ChatCompletionTool;
 import com.openai.models.chat.completions.ChatCompletionToolMessageParam;
 import com.openai.models.completions.CompletionUsage;
+import io.opentelemetry.api.trace.Tracer;
 import io.starburst.ai.client.LlmMessage;
 import io.starburst.ai.client.ModelBackend;
 import io.starburst.ai.client.ModelType;
@@ -74,9 +75,10 @@ public class OpenAiLanguageModelClient
             int batchParallelism,
             OpenAIClient client,
             boolean isToolStreamingSupported,
+            Tracer tracer,
             TokenUsageListener tokenUsageListener)
     {
-        super(promptDao, executor, batchParallelism, isToolStreamingSupported, tokenUsageListener);
+        super(promptDao, executor, batchParallelism, isToolStreamingSupported, tracer, tokenUsageListener);
         this.temperature = requireNonNull(temperature, "temperature is null");
         this.maxTokens = requireNonNull(maxTokens, "maxTokens is null");
         this.topP = requireNonNull(topP, "topP is null");
@@ -85,6 +87,12 @@ public class OpenAiLanguageModelClient
         this.endpoint = requireNonNull(endpoint, "endpoint is null");
         this.client = requireNonNull(client, "client is null");
         this.objectMapper = requireNonNull(objectMapper, "objectMapper is null");
+    }
+
+    @Override
+    protected String modelName()
+    {
+        return modelName;
     }
 
     @Override

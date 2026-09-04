@@ -20,6 +20,7 @@ import com.google.genai.types.HttpRetryOptions;
 import com.google.inject.Inject;
 import io.airlift.configuration.secrets.SecretsResolver;
 import io.airlift.units.Duration;
+import io.opentelemetry.api.trace.Tracer;
 import io.starburst.ai.client.AiClientConfig;
 import io.starburst.ai.client.EmbeddingModelClient;
 import io.starburst.ai.client.ForAiClient;
@@ -55,15 +56,17 @@ public class VertexAiClientFactory
     private final int batchParallelism;
     private final Duration apiTimeout;
     private final int maxRetries;
+    private final Tracer tracer;
 
     @Inject
-    public VertexAiClientFactory(SecretsResolver secretsResolver, AiClientConfig config, @ForAiClient Executor executor)
+    public VertexAiClientFactory(SecretsResolver secretsResolver, AiClientConfig config, @ForAiClient Executor executor, Tracer tracer)
     {
         this.secretsResolver = requireNonNull(secretsResolver, "secretsResolver is null");
         this.executor = requireNonNull(executor, "executor is null");
         batchParallelism = config.getBatchParallelism();
         apiTimeout = config.getVertexAiTimeout();
         maxRetries = config.getVertexAiMaxRetries();
+        this.tracer = requireNonNull(tracer, "tracer is null");
     }
 
     @VisibleForTesting
@@ -86,6 +89,7 @@ public class VertexAiClientFactory
                 executor,
                 batchParallelism,
                 createClient(connectionInfo),
+                tracer,
                 tokenUsageListener);
     }
 

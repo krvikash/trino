@@ -18,6 +18,9 @@ import com.openai.errors.RateLimitException;
 import com.openai.errors.UnauthorizedException;
 import dev.failsafe.Failsafe;
 import dev.failsafe.RetryPolicy;
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.api.trace.SpanKind;
+import io.opentelemetry.api.trace.Tracer;
 import io.starburst.ai.client.AbstractLanguageModelClient;
 import io.starburst.ai.client.LlmMessage;
 import io.starburst.ai.client.PromptDao;
@@ -26,6 +29,7 @@ import io.starburst.ai.client.TokenUsageContext;
 import io.starburst.ai.client.TokenUsageListener;
 import io.starburst.ai.client.ToolDefinition;
 import io.starburst.ai.client.ToolUseResponse;
+import io.starburst.ai.client.tracing.AiTracing;
 import io.trino.spi.TrinoException;
 
 import java.time.Duration;
@@ -38,12 +42,19 @@ import java.util.function.Supplier;
 import static io.starburst.ai.client.AiClientErrorCode.AI_CLIENT_ERROR;
 import static io.starburst.ai.client.AiClientErrorCode.INVALID_MODEL_CONFIGURATION;
 import static io.starburst.ai.client.MessageRole.USER;
+import static io.starburst.ai.client.tracing.GenAiAttributes.GEN_AI_OPERATION_NAME;
+import static io.starburst.ai.client.tracing.GenAiAttributes.GEN_AI_PROVIDER_NAME;
+import static io.starburst.ai.client.tracing.GenAiAttributes.GEN_AI_REQUEST_MODEL;
+import static io.starburst.ai.client.tracing.GenAiAttributes.OPERATION_NAME_CHAT;
+import static io.starburst.ai.client.tracing.GenAiAttributes.PROVIDER_NAME_OPENAI;
 import static io.trino.spi.StandardErrorCode.PERMISSION_DENIED;
+import static java.util.Objects.requireNonNull;
 
 public abstract class AbstractOpenAiClient<ResponseType>
         extends AbstractLanguageModelClient
 {
     private final boolean isToolStreamingSupported;
+    private final Tracer tracer;
     private final RetryPolicy<ResponseType> retryPolicy = RetryPolicy.<ResponseType>builder()
             .handleIf(AbstractOpenAiClient::isRetryable)
             .withMaxRetries(4)
@@ -56,10 +67,12 @@ public abstract class AbstractOpenAiClient<ResponseType>
             Executor executor,
             int batchParallelism,
             boolean isToolStreamingSupported,
+            Tracer tracer,
             TokenUsageListener tokenUsageListener)
     {
         super(promptDao, executor, batchParallelism, tokenUsageListener);
         this.isToolStreamingSupported = isToolStreamingSupported;
+        this.tracer = requireNonNull(tracer, "tracer is null");
     }
 
     @Override
@@ -97,17 +110,30 @@ public abstract class AbstractOpenAiClient<ResponseType>
 
     protected final ResponseType execute(Supplier<ResponseType> call, TokenUsageContext context)
     {
-        try {
-            ResponseType response = Failsafe.with(retryPolicy).get(call::get);
-            if (response != null) {
-                extractTokenUsage(response).ifPresent(usage -> reportTokenUsage(context, usage));
+        Span span = tracer.spanBuilder(OPERATION_NAME_CHAT + " " + modelName())
+                .setAttribute(GEN_AI_OPERATION_NAME, OPERATION_NAME_CHAT)
+                .setAttribute(GEN_AI_PROVIDER_NAME, PROVIDER_NAME_OPENAI)
+                .setAttribute(GEN_AI_REQUEST_MODEL, modelName())
+                .setSpanKind(SpanKind.CLIENT)
+                .startSpan();
+        return AiTracing.withTracing(span, () -> {
+            try {
+                ResponseType response = Failsafe.with(retryPolicy).get(call::get);
+                if (response != null) {
+                    extractTokenUsage(response).ifPresent(usage -> {
+                        AiTracing.recordUsage(span, usage);
+                        reportTokenUsage(context, usage);
+                    });
+                }
+                return response;
             }
-            return response;
-        }
-        catch (RuntimeException e) {
-            throw toTrinoException(e);
-        }
+            catch (RuntimeException e) {
+                throw toTrinoException(e);
+            }
+        });
     }
+
+    protected abstract String modelName();
 
     protected abstract Optional<TokenUsage> extractTokenUsage(ResponseType response);
 

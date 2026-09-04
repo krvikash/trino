@@ -15,6 +15,8 @@ import io.airlift.configuration.secrets.env.EnvironmentVariableSecretProvider;
 import io.airlift.http.client.HttpClient;
 import io.airlift.http.client.testing.TestingHttpClient;
 import io.airlift.json.ObjectMapperProvider;
+import io.opentelemetry.api.OpenTelemetry;
+import io.opentelemetry.api.trace.Tracer;
 import io.starburst.ai.client.bedrock.AwsBedrockClientFactory;
 import io.starburst.ai.client.bedrock.AwsEmbeddingCodec;
 import io.starburst.ai.client.bedrock.CohereEmbedMultilingualV3Codec;
@@ -337,10 +339,11 @@ public final class TestingUtils
 
         SecretsResolver secretsResolver = new SecretsResolver(ImmutableMap.of("env", new EnvironmentVariableSecretProvider()));
         AiClientConfig aiClientConfig = new AiClientConfig();
-        AwsBedrockClientFactory bedrockClientFactory = new AwsBedrockClientFactory(awsEmbeddingCodecFactories, secretsResolver, aiClientConfig, llmExecutor);
+        Tracer tracer = OpenTelemetry.noop().getTracer("test");
+        AwsBedrockClientFactory bedrockClientFactory = new AwsBedrockClientFactory(awsEmbeddingCodecFactories, secretsResolver, aiClientConfig, llmExecutor, tracer);
         OAuth2TokenCache oauth2TokenCache = createTestOAuth2TokenCache(aiClientConfig);
-        OpenAiClientFactory openAiClientFactory = new OpenAiClientFactory(secretsResolver, aiClientConfig, llmExecutor, new ObjectMapperProvider().get(), oauth2TokenCache);
-        VertexAiClientFactory vertexAiClientFactory = new VertexAiClientFactory(secretsResolver, aiClientConfig, llmExecutor);
+        OpenAiClientFactory openAiClientFactory = new OpenAiClientFactory(secretsResolver, aiClientConfig, llmExecutor, new ObjectMapperProvider().get(), oauth2TokenCache, tracer);
+        VertexAiClientFactory vertexAiClientFactory = new VertexAiClientFactory(secretsResolver, aiClientConfig, llmExecutor, tracer);
         return new ReloadingModelClientProvider(
                 promptDao,
                 modelSpecsLoader,

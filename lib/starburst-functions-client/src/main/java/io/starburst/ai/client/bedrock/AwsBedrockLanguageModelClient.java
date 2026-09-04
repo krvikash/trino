@@ -17,6 +17,9 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import io.airlift.json.ObjectMapperProvider;
 import io.airlift.log.Logger;
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.api.trace.SpanKind;
+import io.opentelemetry.api.trace.Tracer;
 import io.starburst.ai.client.AbstractLanguageModelClient;
 import io.starburst.ai.client.LlmMessage;
 import io.starburst.ai.client.ModelBackend;
@@ -27,6 +30,7 @@ import io.starburst.ai.client.TokenUsageContext;
 import io.starburst.ai.client.TokenUsageListener;
 import io.starburst.ai.client.ToolDefinition;
 import io.starburst.ai.client.ToolUseResponse;
+import io.starburst.ai.client.tracing.AiTracing;
 import io.trino.spi.TrinoException;
 import software.amazon.awssdk.core.document.Document;
 import software.amazon.awssdk.protocols.json.internal.unmarshall.document.DocumentUnmarshaller;
@@ -85,6 +89,11 @@ import static io.starburst.ai.client.AiClientErrorCode.AI_CLIENT_ERROR;
 import static io.starburst.ai.client.AiClientErrorCode.INVALID_MODEL_CONFIGURATION;
 import static io.starburst.ai.client.MessageRole.TOOL_RESPONSE;
 import static io.starburst.ai.client.MessageRole.USER;
+import static io.starburst.ai.client.tracing.GenAiAttributes.GEN_AI_OPERATION_NAME;
+import static io.starburst.ai.client.tracing.GenAiAttributes.GEN_AI_PROVIDER_NAME;
+import static io.starburst.ai.client.tracing.GenAiAttributes.GEN_AI_REQUEST_MODEL;
+import static io.starburst.ai.client.tracing.GenAiAttributes.OPERATION_NAME_CHAT;
+import static io.starburst.ai.client.tracing.GenAiAttributes.PROVIDER_NAME_AWS_BEDROCK;
 import static io.trino.spi.StandardErrorCode.PERMISSION_DENIED;
 import static java.util.Objects.requireNonNull;
 
@@ -115,6 +124,7 @@ public class AwsBedrockLanguageModelClient
     private final BedrockRuntimeAsyncClient asyncClient;
     private final boolean isToolStreamingSupported;
     private final boolean isPromptCachingSupported;
+    private final Tracer tracer;
 
     public AwsBedrockLanguageModelClient(
             String modelName,
@@ -129,6 +139,7 @@ public class AwsBedrockLanguageModelClient
             BedrockRuntimeAsyncClient asyncClient,
             boolean isToolStreamingSupported,
             boolean isPromptCachingSupported,
+            Tracer tracer,
             TokenUsageListener tokenUsageListener)
     {
         super(promptDao, executor, batchParallelism, tokenUsageListener);
@@ -141,6 +152,7 @@ public class AwsBedrockLanguageModelClient
         this.asyncClient = requireNonNull(asyncClient, "asyncClient is null");
         this.isToolStreamingSupported = isToolStreamingSupported;
         this.isPromptCachingSupported = isPromptCachingSupported;
+        this.tracer = requireNonNull(tracer, "tracer is null");
     }
 
     @Override
@@ -284,23 +296,33 @@ public class AwsBedrockLanguageModelClient
             Supplier<ConverseResponse> getBedrockResponse,
             TokenUsageContext context)
     {
-        try {
-            ConverseResponse response = getBedrockResponse.get();
-            reportTokenUsage(context, new TokenUsage(
-                    usageField(response, usage -> usage.inputTokens()),
-                    usageField(response, usage -> usage.outputTokens()),
-                    usageField(response, usage -> usage.cacheReadInputTokens()),
-                    usageField(response, usage -> usage.cacheWriteInputTokens()),
-                    0L,
-                    modelName,
-                    endpoint,
-                    ModelType.LANGUAGE,
-                    ModelBackend.AWS_BEDROCK));
-            return response;
-        }
-        catch (RuntimeException e) {
-            throw toTrinoException(e);
-        }
+        Span span = tracer.spanBuilder(OPERATION_NAME_CHAT + " " + modelName)
+                .setAttribute(GEN_AI_OPERATION_NAME, OPERATION_NAME_CHAT)
+                .setAttribute(GEN_AI_PROVIDER_NAME, PROVIDER_NAME_AWS_BEDROCK)
+                .setAttribute(GEN_AI_REQUEST_MODEL, modelName)
+                .setSpanKind(SpanKind.CLIENT)
+                .startSpan();
+        return AiTracing.withTracing(span, () -> {
+            try {
+                ConverseResponse response = getBedrockResponse.get();
+                TokenUsage tokenUsage = new TokenUsage(
+                        usageField(response, usage -> usage.inputTokens()),
+                        usageField(response, usage -> usage.outputTokens()),
+                        usageField(response, usage -> usage.cacheReadInputTokens()),
+                        usageField(response, usage -> usage.cacheWriteInputTokens()),
+                        0L,
+                        modelName,
+                        endpoint,
+                        ModelType.LANGUAGE,
+                        ModelBackend.AWS_BEDROCK);
+                AiTracing.recordUsage(span, tokenUsage);
+                reportTokenUsage(context, tokenUsage);
+                return response;
+            }
+            catch (RuntimeException e) {
+                throw toTrinoException(e);
+            }
+        });
     }
 
     private static int usageField(ConverseResponse response, Function<software.amazon.awssdk.services.bedrockruntime.model.TokenUsage, Integer> extractor)

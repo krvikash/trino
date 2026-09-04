@@ -30,6 +30,7 @@ import com.openai.models.responses.ResponseOutputRefusal;
 import com.openai.models.responses.ResponseOutputText;
 import com.openai.models.responses.ResponseStreamEvent;
 import io.airlift.log.Logger;
+import io.opentelemetry.api.trace.Tracer;
 import io.starburst.ai.client.LlmMessage;
 import io.starburst.ai.client.ModelBackend;
 import io.starburst.ai.client.ModelType;
@@ -82,9 +83,10 @@ public class OpenAiResponsesLanguageModelClient
             OpenAIClient client,
             boolean isToolStreamingSupported,
             Optional<ReasoningEffort> reasoningEffort,
+            Tracer tracer,
             TokenUsageListener tokenUsageListener)
     {
-        super(promptDao, executor, batchParallelism, isToolStreamingSupported, tokenUsageListener);
+        super(promptDao, executor, batchParallelism, isToolStreamingSupported, tracer, tokenUsageListener);
         this.temperature = requireNonNull(temperature, "temperature is null");
         this.maxTokens = requireNonNull(maxTokens, "maxTokens is null");
         this.topP = requireNonNull(topP, "topP is null");
@@ -94,6 +96,12 @@ public class OpenAiResponsesLanguageModelClient
         this.client = requireNonNull(client, "client is null");
         this.reasoningEffort = requireNonNull(reasoningEffort, "reasoningEffort is null");
         this.objectMapper = requireNonNull(objectMapper, "objectMapper is null");
+    }
+
+    @Override
+    protected String modelName()
+    {
+        return modelName;
     }
 
     @Override

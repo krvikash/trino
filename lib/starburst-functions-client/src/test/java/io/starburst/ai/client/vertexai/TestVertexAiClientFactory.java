@@ -16,6 +16,8 @@ import com.google.genai.Client;
 import com.google.genai.types.HttpOptions;
 import io.airlift.configuration.secrets.SecretsResolver;
 import io.airlift.units.Duration;
+import io.opentelemetry.api.OpenTelemetry;
+import io.opentelemetry.api.trace.Tracer;
 import io.starburst.ai.client.AiClientConfig;
 import io.starburst.ai.model.ConnectionInfo.VertexAiConnectionInfo;
 import io.trino.spi.TrinoException;
@@ -37,12 +39,14 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class TestVertexAiClientFactory
 {
+    private static final Tracer TRACER = OpenTelemetry.noop().getTracer("test");
+
     private static VertexAiClientFactory factory;
 
     @BeforeAll
     static void setUp()
     {
-        factory = new VertexAiClientFactory(new SecretsResolver(ImmutableMap.of()), new AiClientConfig(), directExecutor());
+        factory = new VertexAiClientFactory(new SecretsResolver(ImmutableMap.of()), new AiClientConfig(), directExecutor(), TRACER);
     }
 
     @Test
@@ -137,7 +141,7 @@ public class TestVertexAiClientFactory
         AiClientConfig config = new AiClientConfig()
                 .setVertexAiTimeout(new Duration(6, TimeUnit.MINUTES))
                 .setVertexAiMaxRetries(7);
-        VertexAiClientFactory customFactory = new VertexAiClientFactory(new SecretsResolver(ImmutableMap.of()), config, directExecutor());
+        VertexAiClientFactory customFactory = new VertexAiClientFactory(new SecretsResolver(ImmutableMap.of()), config, directExecutor(), TRACER);
 
         HttpOptions httpOptions = customFactory.httpOptions();
         assertThat(httpOptions.timeout().orElseThrow()).isEqualTo(360_000);

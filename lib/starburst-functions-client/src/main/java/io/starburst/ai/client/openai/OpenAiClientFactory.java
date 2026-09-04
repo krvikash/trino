@@ -20,6 +20,7 @@ import com.openai.models.ReasoningEffort;
 import io.airlift.configuration.secrets.SecretsResolver;
 import io.airlift.log.Logger;
 import io.airlift.units.Duration;
+import io.opentelemetry.api.trace.Tracer;
 import io.starburst.ai.client.AiClientConfig;
 import io.starburst.ai.client.EmbeddingModelClient;
 import io.starburst.ai.client.ForAiClient;
@@ -69,6 +70,7 @@ public class OpenAiClientFactory
     private final Duration timeout;
     private final ObjectMapper objectMapper;
     private final OAuth2TokenCache oauth2TokenCache;
+    private final Tracer tracer;
 
     @Inject
     public OpenAiClientFactory(
@@ -76,7 +78,8 @@ public class OpenAiClientFactory
             AiClientConfig config,
             @ForAiClient Executor executor,
             ObjectMapper objectMapper,
-            OAuth2TokenCache oauth2TokenCache)
+            OAuth2TokenCache oauth2TokenCache,
+            Tracer tracer)
     {
         this.secretsResolver = requireNonNull(secretsResolver, "secretsResolver is null");
         this.executor = requireNonNull(executor, "executor is null");
@@ -85,6 +88,7 @@ public class OpenAiClientFactory
         timeout = config.getOpenAiTimeout();
         this.objectMapper = requireNonNull(objectMapper, "objectMapper is null");
         this.oauth2TokenCache = requireNonNull(oauth2TokenCache, "oauth2TokenCache is null");
+        this.tracer = requireNonNull(tracer, "tracer is null");
     }
 
     @Override
@@ -117,6 +121,7 @@ public class OpenAiClientFactory
                     openAiClient,
                     isStreamingToolCallSupported,
                     spec.reasoningEffort().map(Enum::name).map(ReasoningEffort::of),
+                    tracer,
                     tokenUsageListener);
         }
         return new OpenAiLanguageModelClient(
@@ -132,6 +137,7 @@ public class OpenAiClientFactory
                 batchParallelism,
                 openAiClient,
                 isStreamingToolCallSupported,
+                tracer,
                 tokenUsageListener);
     }
 

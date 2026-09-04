@@ -13,6 +13,7 @@ import com.google.inject.Inject;
 import io.airlift.configuration.secrets.SecretsResolver;
 import io.airlift.log.Logger;
 import io.airlift.units.Duration;
+import io.opentelemetry.api.trace.Tracer;
 import io.starburst.ai.client.AiClientConfig;
 import io.starburst.ai.client.EmbeddingModelClient;
 import io.starburst.ai.client.ForAiClient;
@@ -71,9 +72,10 @@ public class AwsBedrockClientFactory
     private final Duration socketTimeout;
     private final Duration apiTimeout;
     private final int maxRetries;
+    private final Tracer tracer;
 
     @Inject
-    public AwsBedrockClientFactory(Map<String, AwsEmbeddingCodec.Factory> awsEmbeddingCodecFactories, SecretsResolver secretsResolver, AiClientConfig config, @ForAiClient Executor executor)
+    public AwsBedrockClientFactory(Map<String, AwsEmbeddingCodec.Factory> awsEmbeddingCodecFactories, SecretsResolver secretsResolver, AiClientConfig config, @ForAiClient Executor executor, Tracer tracer)
     {
         this.awsEmbeddingCodecFactories = requireNonNull(awsEmbeddingCodecFactories, "awsEmbeddingCodecFactories is null");
         this.secretsResolver = requireNonNull(secretsResolver, "secretsResolver is null");
@@ -82,6 +84,7 @@ public class AwsBedrockClientFactory
         socketTimeout = config.getBedrockSocketTimeout();
         apiTimeout = config.getBedrockApiTimeout();
         maxRetries = config.getBedrockMaxRetries();
+        this.tracer = requireNonNull(tracer, "tracer is null");
     }
 
     @Override
@@ -105,6 +108,7 @@ public class AwsBedrockClientFactory
                 createBedrockAsyncClient(connectionInfo),
                 isStreamingToolCallSupported,
                 isPromptCachingSupported,
+                tracer,
                 tokenUsageListener);
     }
 
