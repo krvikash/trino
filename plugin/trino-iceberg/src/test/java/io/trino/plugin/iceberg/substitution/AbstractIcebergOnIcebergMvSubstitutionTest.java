@@ -79,4 +79,18 @@ public abstract class AbstractIcebergOnIcebergMvSubstitutionTest
             assertUpdate("DROP TABLE IF EXISTS " + tableName);
         }
     }
+
+    @Test
+    public void testMetadataColumnProjection()
+    {
+        CatalogSchemaTableName mvName = mvName("mv_path_");
+        try {
+            createSubstitutionMv(mvName, "SELECT \"$path\" FROM " + ordersTable);
+
+            assertSubstituted("SELECT \"$path\" FROM " + ordersTable, ordersTable, mvName);
+        }
+        finally {
+            assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvName);
+        }
+    }
 }

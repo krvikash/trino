@@ -20,7 +20,9 @@ import io.trino.plugin.hive.s3.S3HiveQueryRunner;
 import io.trino.plugin.iceberg.IcebergPlugin;
 import io.trino.plugin.iceberg.substitution.AbstractIcebergMvSubstitutionTest;
 import io.trino.spi.connector.CatalogSchemaName;
+import io.trino.spi.connector.CatalogSchemaTableName;
 import io.trino.testing.QueryRunner;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Execution;
 
 import static io.trino.plugin.base.util.Closables.closeAllSuppress;
@@ -117,5 +119,19 @@ public class TestIcebergMvOnHiveSourceSubstitution
     protected SubFieldTestContext subFieldTestContext()
     {
         return SubFieldTestContext.ROW;
+    }
+
+    @Test
+    public void testMetadataColumnProjection()
+    {
+        CatalogSchemaTableName mvName = mvName("mv_path_");
+        try {
+            createSubstitutionMv(mvName, "SELECT \"$path\" FROM " + ordersTable);
+
+            assertSubstituted("SELECT \"$path\" FROM " + ordersTable, ordersTable, mvName);
+        }
+        finally {
+            assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvName);
+        }
     }
 }
