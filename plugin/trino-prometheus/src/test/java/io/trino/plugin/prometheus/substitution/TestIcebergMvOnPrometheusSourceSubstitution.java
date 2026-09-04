@@ -18,6 +18,9 @@ import io.trino.plugin.prometheus.PrometheusQueryRunner;
 import io.trino.plugin.prometheus.PrometheusServer;
 import io.trino.spi.connector.CatalogSchemaTableName;
 import io.trino.testing.QueryRunner;
+import io.trino.testing.QueryRunner.MaterializedResultWithPlan;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * MV substitution over a Prometheus source. Prometheus is read-only and fixed-schema: its tables are
@@ -66,5 +69,24 @@ public class TestIcebergMvOnPrometheusSourceSubstitution
     protected String nonMaterializedColumn()
     {
         return "labels";
+    }
+
+    /**
+     * Prometheus scrapes itself every scrape interval, so {@code up} gains a row while the test runs.
+     * The MV holds a snapshot taken before the query, while
+     * {@link io.trino.plugin.hive.substitution.AbstractMvSubstitutionTest} reads its comparison baseline
+     * from the base table afterwards, so the two legitimately differ by whatever was scraped in between.
+     * This override therefore asserts containment rather than equality.
+     */
+    @Override
+    protected MaterializedResultWithPlan assertSubstituted(String query, CatalogSchemaTableName baseTableName, CatalogSchemaTableName mvName, CatalogSchemaTableName... expectedNotSubstitutedTables)
+    {
+        MaterializedResultWithPlan substituted = assertSubstituted(false, query, baseTableName, mvName, expectedNotSubstitutedTables);
+        assertThat(substituted.result().getMaterializedRows())
+                .as("Substituted query should return a non-empty subset of the base table query results")
+                .isNotEmpty()
+                .isSubsetOf(computeActual(sessionWithoutSubstitution(), query).getMaterializedRows());
+
+        return substituted;
     }
 }
