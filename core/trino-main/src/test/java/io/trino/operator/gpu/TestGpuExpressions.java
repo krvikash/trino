@@ -1757,6 +1757,14 @@ public class TestGpuExpressions
         assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA));
     }
 
+    @Test
+    public void testDateTruncWithUnitInDifferentCases()
+    {
+        for (String unit : List.of("minute", "MINUTE", "MiNuTe")) {
+            testDateTrunc(unit, createTimestampType(6), NullsProvider.RANDOM_NULLS);
+        }
+    }
+
     @ParameterizedTest
     @EnumSource(NullsProvider.class)
     public void testStringLength(NullsProvider nullsProvider)

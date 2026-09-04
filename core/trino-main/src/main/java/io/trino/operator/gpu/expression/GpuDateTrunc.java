@@ -22,6 +22,7 @@ import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -157,7 +158,8 @@ public final class GpuDateTrunc
 
         public static Optional<Field> forTrinoDateTruncUnit(String trinoDateTruncUnit)
         {
-            return Optional.ofNullable(BY_UNIT.get(trinoDateTruncUnit));
+            // Trino matches the unit case-insensitively over ASCII letters
+            return Optional.ofNullable(BY_UNIT.get(trinoDateTruncUnit.toLowerCase(Locale.ENGLISH)));
         }
     }
 }
