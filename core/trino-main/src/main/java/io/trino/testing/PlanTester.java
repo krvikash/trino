@@ -51,7 +51,6 @@ import io.trino.cache.CacheStats;
 import io.trino.cache.SubqueryCacheManagerRegistry;
 import io.trino.connector.CatalogFactory;
 import io.trino.connector.CatalogHandle;
-import io.trino.connector.CatalogServiceProvider;
 import io.trino.connector.CatalogServiceProviderModule;
 import io.trino.connector.ConnectorServicesProvider;
 import io.trino.connector.CoordinatorDynamicCatalogManager;
@@ -316,7 +315,6 @@ import static io.trino.connector.CatalogServiceProviderModule.createViewProperty
 import static io.trino.execution.ParameterExtractor.bindParameters;
 import static io.trino.execution.querystats.PlanOptimizersStatsCollector.createPlanOptimizersStatsCollector;
 import static io.trino.execution.warnings.WarningCollector.NOOP;
-import static io.trino.metadata.CatalogManager.NO_CATALOGS;
 import static io.trino.node.TestingInternalNodeManager.CURRENT_NODE;
 import static io.trino.spi.connector.Constraint.alwaysTrue;
 import static io.trino.spi.connector.DynamicFilter.EMPTY;
@@ -582,9 +580,7 @@ public class PlanTester
 
         this.materializationIndex = new MaterializationIndex(new VersionAwareMaterializationMetastore(
                 new InMemoryRawMaterializationMetastore(),
-                new JsonCodecFactory(mapper).jsonCodec(io.starburst.materialization.ir.Output.class),
-                new SubstitutionMetadataManager(CatalogServiceProvider.fail()),
-                NO_CATALOGS),
+                new JsonCodecFactory(mapper).jsonCodec(io.starburst.materialization.ir.Output.class)),
                 new MaterializedViewSubstitutionConfig());
         this.substitutionMetadata = new SubstitutionMetadataManager(createSubstitutionMetadata(catalogManager));
         this.pageFunctionCompiler = new PageFunctionCompiler(functionManager, metadata, typeManager, 0);

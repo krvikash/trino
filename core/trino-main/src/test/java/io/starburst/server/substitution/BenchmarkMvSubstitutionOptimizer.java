@@ -315,7 +315,7 @@ public class BenchmarkMvSubstitutionOptimizer
 
             SubstitutionMetadata substitutionMetadata = new SubstitutionMetadataManager(
                     createSubstitutionMetadata((ConnectorServicesProvider) planTester.getCatalogManager()));
-            MaterializationIndex index = buildIndex(substitutionMetadata);
+            MaterializationIndex index = buildIndex();
             populateIndex(index);
             optimizer = new MvSubstitutionOptimizer(index, metadata, substitutionMetadata, planTester.getPlannerContext().getTypeManager(), new AllowAllAccessControl());
 
@@ -330,7 +330,7 @@ public class BenchmarkMvSubstitutionOptimizer
             }
         }
 
-        private MaterializationIndex buildIndex(SubstitutionMetadata substitutionMetadata)
+        private MaterializationIndex buildIndex()
         {
             TypeManager typeManager = planTester.getPlannerContext().getTypeManager();
             JsonCodec<Output> irJsonCodec = new JsonCodecFactory(new JsonMapperProvider()
@@ -340,9 +340,7 @@ public class BenchmarkMvSubstitutionOptimizer
             return new MaterializationIndex(
                     new VersionAwareMaterializationMetastore(
                             new InMemoryRawMaterializationMetastore(),
-                            irJsonCodec,
-                            substitutionMetadata,
-                            planTester.getCatalogManager()),
+                            irJsonCodec),
                     new MaterializedViewSubstitutionConfig());
         }
 

@@ -457,9 +457,7 @@ public class TestMvSubstitutionOptimizer
                 .jsonCodec(Output.class);
         MaterializationIndex index = new MaterializationIndex(new VersionAwareMaterializationMetastore(
                 new InMemoryRawMaterializationMetastore(),
-                irJsonCodec,
-                substitutionMetadata,
-                planTester.getCatalogManager()),
+                irJsonCodec),
                 new MaterializedViewSubstitutionConfig());
         index.createOrReplace(materialization);
         return new MvSubstitutionOptimizer(

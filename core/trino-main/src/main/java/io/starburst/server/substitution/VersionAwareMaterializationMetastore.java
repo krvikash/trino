@@ -23,10 +23,6 @@ import io.starburst.materialization.metastore.RawMaterializationDefinition;
 import io.starburst.materialization.metastore.RawMaterializationDefinition.ConnectorIdVersions;
 import io.starburst.materialization.metastore.RawMaterializationMetastore;
 import io.starburst.materialization.metastore.StorageTableId;
-import io.trino.connector.CatalogHandle;
-import io.trino.metadata.Catalog;
-import io.trino.metadata.CatalogManager;
-import io.trino.spi.TrinoException;
 import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.connector.CatalogSchemaTableName;
 import io.trino.spi.connector.substitution.ConnectorColumnId;
@@ -38,8 +34,6 @@ import java.util.Map;
 import java.util.Optional;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
-import static io.trino.spi.StandardErrorCode.CATALOG_NOT_FOUND;
-import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
 public class VersionAwareMaterializationMetastore
@@ -49,20 +43,14 @@ public class VersionAwareMaterializationMetastore
 
     private final RawMaterializationMetastore raw;
     private final JsonCodec<Output> irJsonCodec;
-    private final SubstitutionMetadata substitutionMetadata;
-    private final CatalogManager catalogManager;
 
     @Inject
     public VersionAwareMaterializationMetastore(
             RawMaterializationMetastore raw,
-            JsonCodec<Output> irJsonCodec,
-            SubstitutionMetadata substitutionMetadata,
-            CatalogManager catalogManager)
+            JsonCodec<Output> irJsonCodec)
     {
         this.raw = requireNonNull(raw, "raw is null");
         this.irJsonCodec = requireNonNull(irJsonCodec, "irJsonCodec is null");
-        this.substitutionMetadata = requireNonNull(substitutionMetadata, "substitutionMetadata is null");
-        this.catalogManager = requireNonNull(catalogManager, "catalogManager is null");
     }
 
     @Override
@@ -78,13 +66,11 @@ public class VersionAwareMaterializationMetastore
     public void createOrReplace(MaterializationDefinition def)
     {
         Output typed = def.computationPlanRoot();
-        Map<String, Integer> versionMap = new HashMap<>();
-        Map<CatalogName, ConnectorIdVersions> catalogVersions = new HashMap<>();
-        collectVersions(typed, versionMap, catalogVersions);
+        IrVersions versions = collectVersions(typed);
         String irJson = irJsonCodec.toJson(typed);
         raw.createOrReplace(new RawMaterializationDefinition(
-                ImmutableMap.copyOf(versionMap),
-                ImmutableMap.copyOf(catalogVersions),
+                versions.irVersions(),
+                versions.catalogIrVersions(),
                 irJson,
                 def.storageTableId(),
                 def.source(),
@@ -106,14 +92,37 @@ public class VersionAwareMaterializationMetastore
 
     private Optional<MaterializationDefinition> toTyped(RawMaterializationDefinition rawDefinition)
     {
-        if (!isCompatible(rawDefinition)) {
-            log.info("Skipping materialization %s — stored version map %s does not match engine supported %s",
+        if (!isIrCompatible(rawDefinition)) {
+            log.debug(
+                    "Skipping materialization %s — stored version map %s does not match engine supported %s",
                     rawDefinition.source(),
                     rawDefinition.irVersions(),
                     Operation.SUPPORTED);
             return Optional.empty();
         }
-        Output typed = irJsonCodec.fromJson(rawDefinition.computationPlanRootJson());
+        // The connector identity classes are resolved through the handle resolver, so a connector that was
+        // uninstalled, or whose identity classes changed shape, fails to deserialize rather than yielding a
+        // usable plan. Such a materialization is by definition incompatible with the connectors running here.
+        Output typed;
+        try {
+            typed = irJsonCodec.fromJson(rawDefinition.computationPlanRootJson());
+        }
+        catch (RuntimeException e) {
+            log.debug("Skipping materialization %s — stored computation plan cannot be read by the installed connectors: %s", rawDefinition.source(), e);
+            return Optional.empty();
+        }
+        // A connector identity's version is a constant of the connector code, so re-collecting the versions from
+        // the deserialized plan yields what the installed connectors produce today. Stored versions that differ
+        // mean the identity format changed since this materialization was written.
+        Map<CatalogName, ConnectorIdVersions> currentVersions = collectVersions(typed).catalogIrVersions();
+        if (!currentVersions.equals(rawDefinition.catalogIrVersions())) {
+            log.debug(
+                    "Skipping materialization %s — stored connector id versions %s do not match the versions the installed connectors produce %s",
+                    rawDefinition.source(),
+                    rawDefinition.catalogIrVersions(),
+                    currentVersions);
+            return Optional.empty();
+        }
         return Optional.of(new MaterializationDefinition(
                 typed,
                 rawDefinition.storageTableId(),
@@ -122,7 +131,7 @@ public class VersionAwareMaterializationMetastore
                 rawDefinition.gracePeriod()));
     }
 
-    private boolean isCompatible(RawMaterializationDefinition definition)
+    private static boolean isIrCompatible(RawMaterializationDefinition definition)
     {
         for (Map.Entry<String, Integer> e : definition.irVersions().entrySet()) {
             Integer expected = Operation.SUPPORTED.get(e.getKey());
@@ -130,47 +139,37 @@ public class VersionAwareMaterializationMetastore
                 return false;
             }
         }
-        for (Map.Entry<CatalogName, ConnectorIdVersions> entry : definition.catalogIrVersions().entrySet()) {
-            Optional<Catalog> catalog = catalogManager.getCatalog(entry.getKey());
-            if (catalog.isEmpty()) {
-                return false;
-            }
-            CatalogHandle catalogHandle = catalog.get().getCatalogHandle();
-            if (!substitutionMetadata.tableIdVersions(catalogHandle).containsAll(entry.getValue().tableIdVersions())) {
-                return false;
-            }
-            if (!substitutionMetadata.columnIdVersions(catalogHandle).containsAll(entry.getValue().columnIdVersions())) {
-                return false;
-            }
-        }
         return true;
     }
 
-    private void collectVersions(Operation node, Map<String, Integer> versionMap, Map<CatalogName, ConnectorIdVersions> catalogVersions)
+    private static IrVersions collectVersions(Output computationPlanRoot)
+    {
+        Map<String, Integer> versionMap = new HashMap<>();
+        Map<CatalogName, ConnectorIdVersions> catalogVersions = new HashMap<>();
+        collectVersions(computationPlanRoot, versionMap, catalogVersions);
+        return new IrVersions(ImmutableMap.copyOf(versionMap), ImmutableMap.copyOf(catalogVersions));
+    }
+
+    private static void collectVersions(Operation node, Map<String, Integer> versionMap, Map<CatalogName, ConnectorIdVersions> catalogVersions)
     {
         versionMap.put(node.name(), node.version());
         switch (node) {
             case Output output -> collectVersions(output.source(), versionMap, catalogVersions);
-            case TableScan tableScan -> {
-                catalogVersions.compute(tableScan.table().catalogName(), (catalogName, currentVersions) -> {
-                    Optional<Catalog> catalog = catalogManager.getCatalog(catalogName);
-                    if (catalog.isEmpty()) {
-                        throw new TrinoException(CATALOG_NOT_FOUND, format("Catalog '%s' not found", catalogName));
-                    }
-
-                    ConnectorIdVersion tableIdVersion = tableScan.table().connectorId().version();
-                    Optional<ConnectorIdVersion> columnIdVersion = tableScan.assignments().keySet()
-                            .stream()
-                            .findAny()
-                            .map(ConnectorColumnId::version);
-                    if (currentVersions == null) {
-                        return new ConnectorIdVersions(ImmutableSet.of(tableIdVersion), columnIdVersion.map(ImmutableSet::of).orElse(ImmutableSet.of()));
-                    }
-                    else {
-                        return currentVersions.add(tableIdVersion, columnIdVersion);
-                    }
-                });
-            }
+            case TableScan tableScan -> catalogVersions.compute(tableScan.table().catalogName(), (_, currentVersions) -> {
+                ConnectorIdVersion tableIdVersion = tableScan.table().connectorId().version();
+                Optional<ConnectorIdVersion> columnIdVersion = tableScan.assignments().keySet()
+                        .stream()
+                        .findAny()
+                        .map(ConnectorColumnId::version);
+                if (currentVersions == null) {
+                    return new ConnectorIdVersions(ImmutableSet.of(tableIdVersion), columnIdVersion.map(ImmutableSet::of).orElse(ImmutableSet.of()));
+                }
+                else {
+                    return currentVersions.add(tableIdVersion, columnIdVersion);
+                }
+            });
         }
     }
+
+    private record IrVersions(Map<String, Integer> irVersions, Map<CatalogName, ConnectorIdVersions> catalogIrVersions) {}
 }
