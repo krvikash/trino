@@ -1464,10 +1464,10 @@ public class TestGpuExpressions
     /// `positionsCount` positions are filled, with NULLs wherever `nullsProvider` asks for one.
     private static Block createRepeatingValuesBlock(Type type, int positionsCount, NullsProvider nullsProvider, List<Object> values, int repeats)
     {
-        boolean[] nulls = nullsProvider.getNulls(positionsCount).orElse(new boolean[positionsCount]);
+        Optional<long[]> validity = nullsProvider.getValidityWords(positionsCount);
         BlockBuilder builder = type.createBlockBuilder(null, positionsCount);
         for (int i = 0; i < positionsCount; i++) {
-            if (nulls[i]) {
+            if (validity.isPresent() && !Bitmap.isSet(validity.get(), 0, i)) {
                 builder.appendNull();
             }
             else {
