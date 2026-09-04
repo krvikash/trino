@@ -128,7 +128,7 @@ public abstract class BaseObjectStoreConnectorTest
 
             queryRunner.installPlugin(new IcebergPlugin());
             queryRunner.installPlugin(new ObjectStorePlugin());
-            queryRunner.createCatalog("objectstore", STARBURST_OBJECTSTORE, ImmutableMap.<String, String>builder()
+            ImmutableMap.Builder<String, String> objectStoreProperties = ImmutableMap.<String, String>builder()
                     .put("great-lakes.table-type", tableType.name())
                     .put("hive.metastore.uri", hiveMinio.hiveMetastoreEndpoint().toString())
                     .put("hive.non-managed-table-writes-enabled", "true")
@@ -138,8 +138,15 @@ public abstract class BaseObjectStoreConnectorTest
                     .put("iceberg.format-version", "3")
                     .put("iceberg.register-table-procedure.enabled", "true")
                     .put("delta.enable-non-concurrent-writes", "true")
-                    .put("delta.register-table-procedure.enabled", "true")
-                    .buildOrThrow());
+                    .put("delta.register-table-procedure.enabled", "true");
+            if (tableType == TableType.HIVE) {
+                // New Hive tables default to PARQUET, but the Hive connector test suite assumes ORC: column rename
+                // preserving data (ORC reads by index, Parquet by name), dereference pushdown behavior (see
+                // supportsPhysicalPushdown), and SHOW CREATE TABLE default-format output.
+                // TODO exercise the default (PARQUET) format here, overriding only the tests that genuinely require ORC
+                objectStoreProperties.put("hive.storage-format", "ORC");
+            }
+            queryRunner.createCatalog("objectstore", STARBURST_OBJECTSTORE, objectStoreProperties.buildOrThrow());
             queryRunner.execute("CREATE SCHEMA objectstore.tpch WITH (location = 's3://" + bucketName + "/tpch')");
 
             queryRunner.installPlugin(buildMockConnectorPlugin());

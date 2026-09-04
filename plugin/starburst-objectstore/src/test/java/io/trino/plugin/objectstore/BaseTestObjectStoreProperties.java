@@ -91,7 +91,7 @@ public abstract class BaseTestObjectStoreProperties
                         ('objectstore.extended_statistics_collect_on_write', 'true', 'boolean'),
                         ('objectstore.extended_statistics_enabled', 'true', 'boolean'),
                         ('objectstore.force_local_scheduling', 'false', 'boolean'),
-                        ('objectstore.hive_storage_format', 'ORC', 'varchar'),
+                        ('objectstore.hive_storage_format', 'PARQUET', 'varchar'),
                         ('objectstore.hive_views_legacy_translation', 'false', 'boolean'),
                         ('objectstore.ignore_absent_partitions', 'false', 'boolean'),
                         ('objectstore.ignore_corrupted_statistics', 'false', 'boolean'),

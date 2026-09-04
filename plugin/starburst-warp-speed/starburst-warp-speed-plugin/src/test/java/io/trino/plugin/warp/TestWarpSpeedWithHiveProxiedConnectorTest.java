@@ -63,7 +63,9 @@ public class TestWarpSpeedWithHiveProxiedConnectorTest
                         USE_HTTP_SERVER_PORT, "false",
                         "node.environment", "warp",
                         PROXIED_CONNECTOR, HIVE_CONNECTOR_NAME,
-                        PASS_THROUGH_DISPATCHER, HIVE_CONNECTOR_NAME),  // so the results would be correct
+                        PASS_THROUGH_DISPATCHER, HIVE_CONNECTOR_NAME,  // so the results would be correct
+                        // New Hive tables default to PARQUET, but BaseConnectorTest here assumes ORC (column rename preserving data, dereference pushdown)
+                        "hive.storage-format", "ORC"),
                 hiveDir,
                 DispatcherConnectorFactory.DISPATCHER_CONNECTOR_NAME,
                 CATALOG_NAME,

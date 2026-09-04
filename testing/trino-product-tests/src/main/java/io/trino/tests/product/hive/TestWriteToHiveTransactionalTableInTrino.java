@@ -30,7 +30,7 @@ public class TestWriteToHiveTransactionalTableInTrino
     public void testInsertIntoUnpartitionedTable()
     {
         String tableName = "unpartitioned_transactional_insert";
-        onTrino().executeQuery(format("CREATE TABLE %s (column1 INT) WITH (transactional = true)", tableName));
+        onTrino().executeQuery(format("CREATE TABLE %s (column1 INT) WITH (transactional = true, format = 'ORC')", tableName));
         onTrino().executeQuery(format("INSERT INTO %s VALUES (11)", tableName));
         assertThat(onTrino().executeQuery(format("SELECT * FROM %s", tableName))).containsOnly(row(11));
         onTrino().executeQuery(format("DROP TABLE %s", tableName));
@@ -40,7 +40,7 @@ public class TestWriteToHiveTransactionalTableInTrino
     public void testInsertIntoPartitionedTable()
     {
         String tableName = "partitioned_transactional_insert";
-        onTrino().executeQuery(format("CREATE TABLE %s (column1 INT, column2 INT) WITH (transactional = true, partitioned_by = ARRAY['column2'])", tableName));
+        onTrino().executeQuery(format("CREATE TABLE %s (column1 INT, column2 INT) WITH (transactional = true, format = 'ORC', partitioned_by = ARRAY['column2'])", tableName));
         onTrino().executeQuery(format("INSERT INTO %s VALUES (11, 12), (111, 121)", tableName));
         assertThat(onTrino().executeQuery(format("SELECT * FROM %s", tableName))).containsOnly(row(11, 12), row(111, 121));
         onTrino().executeQuery(format("DROP TABLE %s", tableName));
@@ -50,7 +50,7 @@ public class TestWriteToHiveTransactionalTableInTrino
     public void testInsertIntoNonPartitionedTable()
     {
         String tableName = "non_partitioned_transactional_insert";
-        onTrino().executeQuery(format("CREATE TABLE %s (column1 INT, column2 INT) WITH (transactional = true)", tableName));
+        onTrino().executeQuery(format("CREATE TABLE %s (column1 INT, column2 INT) WITH (transactional = true, format = 'ORC')", tableName));
         onTrino().executeQuery(format("INSERT INTO %s VALUES (11, 12), (111, 121)", tableName));
         assertThat(onTrino().executeQuery(format("SELECT * FROM %s", tableName))).containsOnly(row(11, 12), row(111, 121));
         onTrino().executeQuery(format("DROP TABLE %s", tableName));
@@ -60,7 +60,7 @@ public class TestWriteToHiveTransactionalTableInTrino
     public void testUpdateOnUnpartitionedTable()
     {
         String tableName = "unpartitioned_transactional_update";
-        onTrino().executeQuery(format("CREATE TABLE %s (column1 INT) WITH (transactional = true)", tableName));
+        onTrino().executeQuery(format("CREATE TABLE %s (column1 INT) WITH (transactional = true, format = 'ORC')", tableName));
         onTrino().executeQuery(format("INSERT INTO %s VALUES (11)", tableName));
         assertThat(onTrino().executeQuery(format("SELECT * FROM %s", tableName))).containsOnly(row(11));
         onTrino().executeQuery(format("UPDATE %s SET column1 = 999", tableName));
@@ -72,7 +72,7 @@ public class TestWriteToHiveTransactionalTableInTrino
     public void testUpdateOnPartitionedTable()
     {
         String tableName = "partitioned_transactional_update";
-        onTrino().executeQuery(format("CREATE TABLE %s (column1 INT, column2 INT) WITH (transactional = true, partitioned_by = ARRAY['column2'])", tableName));
+        onTrino().executeQuery(format("CREATE TABLE %s (column1 INT, column2 INT) WITH (transactional = true, format = 'ORC', partitioned_by = ARRAY['column2'])", tableName));
         onTrino().executeQuery(format("INSERT INTO %s VALUES (11, 12), (111, 121)", tableName));
         assertThat(onTrino().executeQuery(format("SELECT * FROM %s", tableName))).containsOnly(row(11, 12), row(111, 121));
         onTrino().executeQuery(format("UPDATE %s SET column1 = 999", tableName));
@@ -86,7 +86,7 @@ public class TestWriteToHiveTransactionalTableInTrino
     public void testDeleteOnUnpartitionedTable()
     {
         String tableName = "unpartitioned_transactional_delete";
-        onTrino().executeQuery(format("CREATE TABLE %s (column1 INT) WITH (transactional = true)", tableName));
+        onTrino().executeQuery(format("CREATE TABLE %s (column1 INT) WITH (transactional = true, format = 'ORC')", tableName));
         onTrino().executeQuery(format("INSERT INTO %s VALUES (11)", tableName));
         assertThat(onTrino().executeQuery(format("SELECT * FROM %s", tableName))).containsOnly(row(11));
         onTrino().executeQuery(format("DELETE FROM %s", tableName));
@@ -98,7 +98,7 @@ public class TestWriteToHiveTransactionalTableInTrino
     public void testDeleteOnPartitionedTable()
     {
         String tableName = "partitioned_transactional_delete";
-        onTrino().executeQuery(format("CREATE TABLE %s (column1 INT, column2 INT) WITH (transactional = true, partitioned_by = ARRAY['column2'])", tableName));
+        onTrino().executeQuery(format("CREATE TABLE %s (column1 INT, column2 INT) WITH (transactional = true, format = 'ORC', partitioned_by = ARRAY['column2'])", tableName));
         onTrino().executeQuery(format("INSERT INTO %s VALUES (11, 12), (111, 121)", tableName));
         assertThat(onTrino().executeQuery(format("SELECT * FROM %s", tableName))).containsOnly(row(11, 12), row(111, 121));
         onTrino().executeQuery(format("DELETE FROM %s WHERE column2 = 121", tableName));

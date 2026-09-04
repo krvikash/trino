@@ -25,6 +25,10 @@ public class TestStarburstObjectStoreHiveFeaturesConnectorTest
         super(STARBURST_OBJECTSTORE, ImmutableMap.<String, String>builder()
                 // Hive setting synced from BaseHiveConnectorTest
                 .put("hive.allow-register-partition-procedure", "true")
+                // New Hive tables default to PARQUET, but this suite assumes ORC (column rename preserving data,
+                // dereference pushdown, and SHOW CREATE TABLE default-format output); synced from BaseHiveConnectorTest.
+                // TODO exercise the default (PARQUET) format here, overriding only the tests that genuinely require ORC
+                .put("hive.storage-format", "ORC")
                 // Reduce writer sort buffer size to ensure SortingFileWriter gets used
                 .put("hive.writer-sort-buffer-size", "1MB")
                 // Make weighted split scheduling more conservative to avoid OOMs in test

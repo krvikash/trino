@@ -48,5 +48,8 @@ public class EnvSinglenodeHiveAcid
                     forHostPath(dockerFiles.getDockerFilesHostPath("conf/environment/singlenode-hive-acid/apply-hive-config.sh")),
                     CONTAINER_HADOOP_INIT_D + "apply-hive-config.sh");
         });
+
+        // New Hive tables default to PARQUET, but ACID tables must be ORC, so pin ORC for this environment.
+        builder.addConnector("hive", forHostPath(dockerFiles.getDockerFilesHostPath("conf/environment/singlenode-hive-acid/hive.properties")));
     }
 }

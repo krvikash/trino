@@ -860,7 +860,7 @@ public class TestStarburstIcebergV3
         String path = (String) computeScalar("SELECT \"$path\" FROM hive.tpch." + hiveTableName);
         String directory = Location.of(path).parentDirectory().toString();
 
-        assertUpdate("ALTER TABLE " + icebergTableName + " EXECUTE add_files('" + directory + "', 'ORC')");
+        assertUpdate("ALTER TABLE " + icebergTableName + " EXECUTE add_files('" + directory + "', 'PARQUET')");
 
         assertThat(query("SELECT \"$row_id\", \"$last_updated_sequence_number\", * FROM " + icebergTableName))
                 .matches("VALUES (BIGINT '0', BIGINT '1', 1), (1, 2, 2)");
@@ -935,7 +935,8 @@ public class TestStarburstIcebergV3
         String icebergTableName = "test_add_files_from_table_pre_existing_" + randomNameSuffix();
 
         assertUpdate("CREATE TABLE iceberg.tpch." + icebergTableName + " AS SELECT 1 x", 1);
-        assertUpdate("CREATE TABLE hive.tpch." + hiveTableName + " AS SELECT 3 x, 2 _row_id", 1);
+        // ORC keeps the dropped _row_id column physically present in the data file (Parquet reads by name), which this test relies on
+        assertUpdate("CREATE TABLE hive.tpch." + hiveTableName + " WITH (format = 'ORC') AS SELECT 3 x, 2 _row_id", 1);
         // make sure _row_id column physically presents in iceberg table
         assertUpdate("UPDATE " + icebergTableName + " SET x = 4 WHERE x = 1", 1);
 
@@ -958,7 +959,8 @@ public class TestStarburstIcebergV3
         String icebergTableName = "test_add_files_pre_existing_" + randomNameSuffix();
 
         assertUpdate("CREATE TABLE iceberg.tpch." + icebergTableName + " AS SELECT 1 x", 1);
-        assertUpdate("CREATE TABLE hive.tpch." + hiveTableName + " AS SELECT 3 x, 2 _row_id", 1);
+        // ORC keeps the dropped _row_id column physically present in the data file (Parquet reads by name), which this test relies on
+        assertUpdate("CREATE TABLE hive.tpch." + hiveTableName + " WITH (format = 'ORC') AS SELECT 3 x, 2 _row_id", 1);
         // make sure _row_id column physically presents in iceberg table
         assertUpdate("UPDATE " + icebergTableName + " SET x = 4 WHERE x = 1", 1);
 

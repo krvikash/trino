@@ -129,7 +129,7 @@ final class TestIcebergAddFilesProcedure
 
         String path = (String) computeScalar("SELECT \"$path\" FROM hive.tpch." + hiveTableName);
         assertQueryFails(
-                "ALTER TABLE " + icebergTableName + " EXECUTE add_files('" + path + "', 'ORC')",
+                "ALTER TABLE " + icebergTableName + " EXECUTE add_files('" + path + "', 'PARQUET')",
                 ".*NULL value not allowed for NOT NULL column: x");
         assertQueryFails(
                 "ALTER TABLE " + icebergTableName + " EXECUTE add_files_from_table('tpch', '" + hiveTableName + "')",
@@ -472,7 +472,7 @@ final class TestIcebergAddFilesProcedure
         String path = (String) computeScalar("SELECT \"$path\" FROM hive.tpch." + hiveTableName);
         String directory = Location.of(path).parentDirectory().toString();
 
-        assertUpdate("ALTER TABLE " + icebergTableName + " EXECUTE add_files('" + directory + "', 'ORC')");
+        assertUpdate("ALTER TABLE " + icebergTableName + " EXECUTE add_files('" + directory + "', 'PARQUET')");
 
         assertQuery("SELECT * FROM " + icebergTableName, "VALUES 1, 2");
 
@@ -492,7 +492,7 @@ final class TestIcebergAddFilesProcedure
         String path = (String) computeScalar("SELECT \"$path\" FROM hive.tpch." + hiveTableName);
         String directory = Location.of(path).parentDirectory().toString();
 
-        assertUpdate("ALTER TABLE " + icebergTableName + " EXECUTE add_files('" + directory + "', 'ORC')");
+        assertUpdate("ALTER TABLE " + icebergTableName + " EXECUTE add_files('" + directory + "', 'PARQUET')");
 
         assertThat(query("SELECT \"$row_id\" FROM " + icebergTableName)).failure().hasStackTraceContaining("Column '$row_id' cannot be resolved");
         assertThat(query("SELECT \"$last_updated_sequence_number\" FROM " + icebergTableName)).failure().hasStackTraceContaining("Column '$last_updated_sequence_number' cannot be resolved");
@@ -534,7 +534,7 @@ final class TestIcebergAddFilesProcedure
         String path = (String) computeScalar("SELECT \"$path\" FROM hive.tpch." + hiveTableName);
 
         assertUpdate(
-                "ALTER TABLE " + icebergTableName + " EXECUTE add_files('" + path + "', 'ORC')",
+                "ALTER TABLE " + icebergTableName + " EXECUTE add_files('" + path + "', 'PARQUET')",
                 "VALUES ('added_data_files', 1)");
 
         assertQuery("SELECT * FROM iceberg.tpch." + icebergTableName, "VALUES 1, 2");
@@ -556,7 +556,7 @@ final class TestIcebergAddFilesProcedure
         String directory = Location.of(path).parentDirectory().toString();
 
         assertQueryFails(
-                "ALTER TABLE " + icebergTableName + " EXECUTE add_files('" + directory + "', 'ORC')",
+                "ALTER TABLE " + icebergTableName + " EXECUTE add_files('" + directory + "', 'PARQUET')",
                 "Failed to add files: Invalid partition location, expected path with partitions defined as 'part=value':.*");
 
         assertUpdate("DROP TABLE " + hiveTableName);
@@ -576,7 +576,7 @@ final class TestIcebergAddFilesProcedure
         String directory = Location.of(path).parentDirectory().toString();
 
         assertQueryFails(
-                "ALTER TABLE " + icebergTableName + " EXECUTE add_files('" + directory + "', 'ORC')",
+                "ALTER TABLE " + icebergTableName + " EXECUTE add_files('" + directory + "', 'PARQUET')",
                 "Failed to add files: Invalid partition.*");
 
         assertUpdate("DROP TABLE " + hiveTableName);
@@ -618,7 +618,7 @@ final class TestIcebergAddFilesProcedure
 
         String path = (String) computeScalar("SELECT \"$path\" FROM " + hiveTableName);
 
-        assertQueryFails("ALTER TABLE " + icebergTableName + " EXECUTE add_files('" + path + "', 'ORC')",
+        assertQueryFails("ALTER TABLE " + icebergTableName + " EXECUTE add_files('" + path + "', 'PARQUET')",
                 "Failed to add files: Invalid partition location, expected partition key 'part1' but was 'part2':.*");
 
         assertUpdate("DROP TABLE " + hiveTableName);
@@ -636,7 +636,7 @@ final class TestIcebergAddFilesProcedure
 
         String path = (String) computeScalar("SELECT \"$path\" FROM " + hiveTableName);
 
-        assertQueryFails("ALTER TABLE " + icebergTableName + " EXECUTE add_files('" + path + "', 'ORC')",
+        assertQueryFails("ALTER TABLE " + icebergTableName + " EXECUTE add_files('" + path + "', 'PARQUET')",
                 "Failed to add files: Invalid partition location, expected partition key 'part1' but was 'part2':.*");
 
         assertUpdate("DROP TABLE " + hiveTableName);
@@ -654,7 +654,7 @@ final class TestIcebergAddFilesProcedure
 
         String path = (String) computeScalar("SELECT \"$path\" FROM " + hiveTableName);
 
-        assertQueryFails("ALTER TABLE " + icebergTableName + " EXECUTE add_files('" + path + "', 'ORC')",
+        assertQueryFails("ALTER TABLE " + icebergTableName + " EXECUTE add_files('" + path + "', 'PARQUET')",
                 "Failed to add files: Invalid partition location, expected path with partitions defined as 'part1=value/part2=value':.*");
 
         assertUpdate("DROP TABLE " + hiveTableName);
@@ -672,7 +672,7 @@ final class TestIcebergAddFilesProcedure
 
         String path = (String) computeScalar("SELECT \"$path\" FROM " + hiveTableName);
 
-        assertQueryFails("ALTER TABLE " + icebergTableName + " EXECUTE add_files('" + path + "', 'ORC')",
+        assertQueryFails("ALTER TABLE " + icebergTableName + " EXECUTE add_files('" + path + "', 'PARQUET')",
                 "Failed to add files: Invalid partition location, expected partition key 'part_bucket' but was 'part':.*");
 
         assertUpdate("DROP TABLE " + hiveTableName);
@@ -941,13 +941,13 @@ final class TestIcebergAddFilesProcedure
         assertUpdate("CREATE TABLE iceberg.tpch." + icebergTableName + " AS SELECT 2 x", 1);
         String path = (String) computeScalar("SELECT \"$path\" FROM hive.tpch." + hiveTableName);
 
-        assertUpdate("ALTER TABLE " + icebergTableName + " EXECUTE add_files('" + path + "', 'ORC')");
+        assertUpdate("ALTER TABLE " + icebergTableName + " EXECUTE add_files('" + path + "', 'PARQUET')");
 
         assertQueryFails(
-                "ALTER TABLE " + icebergTableName + " EXECUTE add_files('" + path + "', 'ORC')",
+                "ALTER TABLE " + icebergTableName + " EXECUTE add_files('" + path + "', 'PARQUET')",
                 ".*File already exists.*");
         assertQueryFails(
-                "ALTER TABLE " + icebergTableName + " EXECUTE add_files(location=>'" + path + "', format=>'ORC')",
+                "ALTER TABLE " + icebergTableName + " EXECUTE add_files(location=>'" + path + "', format=>'PARQUET')",
                 ".*File already exists.*");
         assertQuery("SELECT * FROM iceberg.tpch." + icebergTableName, "VALUES 1, 2");
 

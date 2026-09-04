@@ -334,7 +334,8 @@ public class TestIcebergProcedureCalls
         String hiveTableName = "hive.default." + tableName;
         String icebergTableName = "iceberg.default." + tableName;
 
-        onTrino().executeQuery("CREATE TABLE " + hiveTableName + " WITH (transactional = true) AS SELECT 1 x");
+        // New Hive tables default to PARQUET, but transactional (ACID) tables must be ORC
+        onTrino().executeQuery("CREATE TABLE " + hiveTableName + " WITH (transactional = true, format = 'ORC') AS SELECT 1 x");
 
         assertThatThrownBy(() -> onTrino().executeQuery("CALL iceberg.system.migrate('default', '" + tableName + "')"))
                 .hasMessageContaining("Migrating transactional tables is unsupported");

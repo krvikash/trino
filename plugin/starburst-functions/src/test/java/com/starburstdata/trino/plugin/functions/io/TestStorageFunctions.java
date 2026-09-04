@@ -121,7 +121,7 @@ final class TestStorageFunctions
     {
         try (TestTable table = newTrinoTable(
                 "test_partitioned",
-                "(id int, part varchar) WITH (partitioned_by = ARRAY['part'])",
+                "(id int, part varchar) WITH (partitioned_by = ARRAY['part'], format = 'ORC')",
                 List.of("1, 'part1'", "2, 'part1'", "3, 'part2'", "4, 'part2'"))) {
             String tableLocation = loadTableLocation(table.getName());
 

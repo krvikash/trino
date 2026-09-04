@@ -99,7 +99,7 @@ final class TestHiveOzoneS3GatewayConnectorSmokeTest
                            comment varchar(152)
                         )
                         WITH (
-                           format = 'ORC'
+                           format = 'PARQUET'
                         )""");
     }
 

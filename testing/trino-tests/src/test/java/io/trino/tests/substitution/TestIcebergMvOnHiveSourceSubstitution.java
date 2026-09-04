@@ -111,8 +111,8 @@ public class TestIcebergMvOnHiveSourceSubstitution
     protected String sourceTablePropertiesClause()
     {
         // Row-level DELETE/INSERT used by the staleness tests to age the MV are supported by Hive
-        // only on ACID (transactional) tables.
-        return "WITH (transactional = true) ";
+        // only on ACID (transactional) tables, which must be stored as ORC.
+        return "WITH (transactional = true, format = 'ORC') ";
     }
 
     @Override

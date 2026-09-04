@@ -604,7 +604,9 @@ public class TestIcebergRedirectionToHive
     {
         onTrino().executeQuery(
                 "CREATE TABLE " + tableName + " " +
-                        (partitioned ? "WITH (partitioned_by = ARRAY['regionkey']) " : "") +
+                        // New Hive tables default to PARQUET, but these tests rename/alter columns and read the data back;
+                        // ORC accesses columns by index (Parquet reads by name, so a rename orphans existing data).
+                        "WITH (format = 'ORC'" + (partitioned ? ", partitioned_by = ARRAY['regionkey']" : "") + ") " +
                         " AS " +
                         "SELECT nationkey, name, comment, regionkey FROM tpch.tiny.nation " +
                         (withData ? "WITH DATA" : "WITH NO DATA"));

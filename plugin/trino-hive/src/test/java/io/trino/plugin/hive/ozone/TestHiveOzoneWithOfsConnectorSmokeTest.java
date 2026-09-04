@@ -146,7 +146,7 @@ final class TestHiveOzoneWithOfsConnectorSmokeTest
                            comment varchar(152)
                         )
                         WITH (
-                           format = 'ORC'
+                           format = 'PARQUET'
                         )""");
     }
 
