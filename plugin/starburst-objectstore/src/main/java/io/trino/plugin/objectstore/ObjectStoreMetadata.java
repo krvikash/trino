@@ -149,6 +149,7 @@ import static io.airlift.concurrent.MoreFutures.getFutureValue;
 import static io.trino.metastore.Table.TABLE_COMMENT;
 import static io.trino.plugin.hive.HiveErrorCode.HIVE_UNSUPPORTED_FORMAT;
 import static io.trino.plugin.hive.HiveMetadata.MODIFYING_NON_TRANSACTIONAL_TABLE_MESSAGE;
+import static io.trino.plugin.hive.HiveSessionProperties.getHiveStorageFormat;
 import static io.trino.plugin.hive.ViewReaderUtil.isHiveView;
 import static io.trino.plugin.hive.ViewReaderUtil.isTrinoMaterializedView;
 import static io.trino.plugin.hive.ViewReaderUtil.isTrinoView;
@@ -1025,7 +1026,7 @@ public class ObjectStoreMetadata
         if ((tableType != ICEBERG) && tableMetadata.getColumns().stream().anyMatch(column -> column.getDefaultValue().isPresent())) {
             throw new TrinoException(NOT_SUPPORTED, "%s tables do not support DEFAULT columns".formatted(tableType.displayName()));
         }
-        tableMetadata = unwrap(tableType, tableMetadata);
+        tableMetadata = unwrap(session, tableType, tableMetadata);
         delegate(tableType).createTable(unwrap(tableType, session), tableMetadata, saveMode);
         relationTypeCache.record(tableMetadata.getTableSchema().getTable(), tableType);
         flushMetadataCache(session, tableMetadata.getTable());
@@ -1080,7 +1081,7 @@ public class ObjectStoreMetadata
 
         Map<String, Object> nullableProperties = properties.entrySet().stream()
                 .collect(HashMap::new, (accumulator, entry) -> accumulator.put(entry.getKey(), entry.getValue().orElse(null)), HashMap::putAll);
-        nullableProperties = unwrap(tableType, nullableProperties);
+        nullableProperties = unwrap(session, tableType, nullableProperties);
         properties = nullableProperties.entrySet().stream()
                 .collect(toImmutableMap(Map.Entry::getKey, entry -> Optional.ofNullable(entry.getValue())));
         delegate(tableType).setTableProperties(unwrap(tableType, session), tableHandle, properties);
@@ -1267,7 +1268,7 @@ public class ObjectStoreMetadata
     public Optional<ConnectorTableLayout> getNewTableLayout(ConnectorSession session, ConnectorTableMetadata tableMetadata)
     {
         TableType tableType = tableType(tableMetadata);
-        tableMetadata = unwrap(tableType, tableMetadata);
+        tableMetadata = unwrap(session, tableType, tableMetadata);
         return delegate(tableType).getNewTableLayout(unwrap(tableType, session), tableMetadata);
     }
 
@@ -1278,7 +1279,7 @@ public class ObjectStoreMetadata
         if (tableType == HUDI) {
             return Optional.empty();
         }
-        tableProperties = unwrap(tableType, tableProperties);
+        tableProperties = unwrap(session, tableType, tableProperties);
         return delegate(tableType).getSupportedType(unwrap(tableType, session), tableProperties, type);
     }
 
@@ -1293,7 +1294,7 @@ public class ObjectStoreMetadata
     public TableStatisticsMetadata getStatisticsCollectionMetadataForWrite(ConnectorSession session, ConnectorTableMetadata tableMetadata, boolean tableReplace)
     {
         TableType tableType = tableType(tableMetadata);
-        tableMetadata = unwrap(tableType, tableMetadata);
+        tableMetadata = unwrap(session, tableType, tableMetadata);
         return delegate(tableType).getStatisticsCollectionMetadataForWrite(unwrap(tableType, session), tableMetadata, tableReplace);
     }
 
@@ -1318,7 +1319,7 @@ public class ObjectStoreMetadata
         if (tableType == HUDI) {
             throw new TrinoException(NOT_SUPPORTED, "Table creation is not supported for Hudi");
         }
-        tableMetadata = unwrap(tableType, tableMetadata);
+        tableMetadata = unwrap(session, tableType, tableMetadata);
         return delegate(tableType).beginCreateTable(unwrap(tableType, session), tableMetadata, layout, retryMode, replace);
     }
 
@@ -1677,7 +1678,7 @@ public class ObjectStoreMetadata
     public WriterScalingOptions getNewTableWriterScalingOptions(ConnectorSession session, SchemaTableName tableName, Map<String, Object> tableProperties)
     {
         TableType tableType = tableType(tableProperties);
-        return delegate(tableType).getNewTableWriterScalingOptions(unwrap(tableType, session), tableName, unwrap(tableType, tableProperties));
+        return delegate(tableType).getNewTableWriterScalingOptions(unwrap(tableType, session), tableName, unwrap(session, tableType, tableProperties));
     }
 
     @Override
@@ -1943,23 +1944,25 @@ public class ObjectStoreMetadata
         return sessionProperties.unwrap(tableType, session);
     }
 
-    private ConnectorTableMetadata unwrap(TableType tableType, ConnectorTableMetadata metadata)
+    private ConnectorTableMetadata unwrap(ConnectorSession session, TableType tableType, ConnectorTableMetadata metadata)
     {
-        Map<String, Object> tableProperties = unwrap(tableType, metadata.getProperties());
+        Map<String, Object> tableProperties = unwrap(session, tableType, metadata.getProperties());
         validateColumnProperties(tableType, metadata.getColumns());
         return withProperties(metadata, tableProperties);
     }
 
-    private Map<String, Object> unwrap(TableType tableType, Map<String, Object> tableProperties)
+    private Map<String, Object> unwrap(ConnectorSession session, TableType tableType, Map<String, Object> tableProperties)
     {
         Map<String, Object> properties = new HashMap<>(tableProperties);
         switch (tableType) {
             case HIVE -> {
                 Optional.ofNullable(properties.get("format")).ifPresent(value -> {
                     if (value.equals("DEFAULT")) {
-                        value = "ORC";
+                        properties.put("format", getHiveStorageFormat(unwrap(HIVE, session)));
                     }
-                    properties.put("format", decodeProperty(hiveFormatProperty, value));
+                    else {
+                        properties.put("format", decodeProperty(hiveFormatProperty, value));
+                    }
                 });
                 Optional.ofNullable(properties.get("sorted_by")).ifPresent(value ->
                         properties.put("sorted_by", decodeProperty(hiveSortedByProperty, value)));
