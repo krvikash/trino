@@ -19,7 +19,7 @@ import io.airlift.configuration.DefunctConfig;
 import java.time.Duration;
 import java.util.Objects;
 
-@DefunctConfig("warp-speed.enable.fs-cache-mode")
+@DefunctConfig({"warp-speed.enable.fs-cache-mode", "warp-speed.debug.warming"})
 public class SharedConfig
 {
     public static final String CONFIG_IS_SINGLE = "warp-speed.config.is-single";
@@ -34,7 +34,6 @@ public class SharedConfig
     private Duration shapingLoggerDuration = Duration.ofSeconds(60);
     private int shapingLoggerNumberOfSamples = 3;
 
-    private boolean debugWarming;
     private boolean debugFailureGenerator;
 
     public boolean getIsSingle()
@@ -114,17 +113,6 @@ public class SharedConfig
         this.shapingLoggerNumberOfSamples = shapingLoggerNumberOfSamples;
     }
 
-    public boolean getDebugWarming()
-    {
-        return debugWarming;
-    }
-
-    @Config("warp-speed.debug.warming")
-    public void setDebugWarming(boolean debugWarming)
-    {
-        this.debugWarming = debugWarming;
-    }
-
     public boolean isFailureGeneratorEnabled()
     {
         return debugFailureGenerator;
@@ -174,7 +162,6 @@ public class SharedConfig
                 ", shapingLoggerThreshold=" + shapingLoggerThreshold +
                 ", shapingLoggerDuration=" + shapingLoggerDuration +
                 ", shapingLoggerNumberOfSamples=" + shapingLoggerNumberOfSamples +
-                ", debugWarming=" + debugWarming +
                 ", debugFailureGenerator=" + debugFailureGenerator +
                 '}';
     }

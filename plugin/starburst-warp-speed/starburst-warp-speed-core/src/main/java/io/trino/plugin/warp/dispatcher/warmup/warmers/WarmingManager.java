@@ -137,8 +137,7 @@ public class WarmingManager
                             newWarmupElements,
                             requiredWarmUpTypeMap,
                             skipWait,
-                            (rowGroupData != null) ? rowGroupData.getNextOffset() : 0,
-                            globalConfig.getDebugWarming());
+                            (rowGroupData != null) ? rowGroupData.getNextOffset() : 0);
                     stopWatch.stop();
                     warmupImportServiceStats.addhiveWarmTime(stopWatch.getNanoTime());
                 }

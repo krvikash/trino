@@ -64,7 +64,6 @@ public class GlobalConfig
     private int shapingLoggerNumberOfSamples = 3;
 
     private boolean debugWarmingSingleThreaded;
-    private boolean debugWarming;
     private boolean debugNoPredicateBuffer;
     private boolean debugFailureGenerator;
     private boolean enableImportExport;
@@ -275,17 +274,6 @@ public class GlobalConfig
         this.maxWarmupIterationsPerQuery = maxWarmupIterationsPerQuery;
     }
 
-    public boolean getDebugWarming()
-    {
-        return debugWarming;
-    }
-
-    @Config("warp-speed.debug.warming")
-    public void setDebugWarming(boolean debugWarming)
-    {
-        this.debugWarming = debugWarming;
-    }
-
     public boolean isDebugWarmingSingleThreaded()
     {
         return debugWarmingSingleThreaded;
@@ -411,7 +399,6 @@ public class GlobalConfig
                 ", shapingLoggerThreshold=" + shapingLoggerThreshold +
                 ", shapingLoggerDuration=" + shapingLoggerDuration +
                 ", shapingLoggerNumberOfSamplings=" + shapingLoggerNumberOfSamples +
-                ", debugWarming=" + debugWarming +
                 ", debugWarmingSingleThreaded=" + debugWarmingSingleThreaded +
                 ", debugNoPredicateBuffer=" + debugNoPredicateBuffer +
                 ", emptyPageIterations=" + emptyPageIterations +

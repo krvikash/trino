@@ -109,11 +109,6 @@ public interface StorageEngine
         throw new UnsupportedOperationException();
     }
 
-    default void warmupVerifyQueryOffset(MemorySegment warmUpState)
-    {
-        throw new UnsupportedOperationException();
-    }
-
     default void warmupChunk(MemorySegment warmUpState, MemorySegment recordBufferParams, MemorySegment compressionState)
     {
         throw new UnsupportedOperationException();

@@ -42,7 +42,6 @@ import io.trino.plugin.warp.storage.engine.ExceptionThrower;
 import io.trino.plugin.warp.storage.write.PageSink;
 import io.trino.plugin.warp.storage.write.StorageWriterService;
 import io.trino.plugin.warp.storage.write.StorageWriterSplitConfig;
-import io.trino.plugin.warp.storage.write.WarmUpState;
 import io.trino.plugin.warp.storage.write.WarpPageSinkFactory;
 import io.trino.plugin.warp.tools.CatalogNameProvider;
 import io.trino.plugin.warp.tools.util.Pair;
@@ -133,8 +132,7 @@ public class WarpProxiedWarmer
             List<WarmUpElement> proxiedWarmupElements,
             SetMultimap<WarpColumn, WarmupProperties> requiredWarmUpTypeMap,
             boolean skipWait,
-            int firstOffset,
-            boolean extraDebug)
+            int firstOffset)
     {
         try (WarpMDCContext _ = new WarpMDCContext(catalogNameProvider.get(), Optional.of("WARMING"))) {
             SetMultimap<WarpColumn, WarmUpElement> proxiedWarmupElementsMultimap = proxiedWarmupElements.stream()
@@ -253,12 +251,6 @@ public class WarpProxiedWarmer
                     }
                 }
                 storageWarmerService.fileClose(fileCookieParams, Optional.of(rowGroupData));
-            }
-
-            if (extraDebug &&
-                    ((storageWriterSplitConfig != null) && storageWriterSplitConfig.warmUpStateOpt().isPresent())) {
-                WarmUpState warmUpState = storageWriterSplitConfig.warmUpStateOpt().get();
-                storageWarmerService.verifyQueryOffsets(rowGroupKey, rowGroupData.getValidWarmUpElements(), warmUpState);
             }
             return rowGroupData;
         }

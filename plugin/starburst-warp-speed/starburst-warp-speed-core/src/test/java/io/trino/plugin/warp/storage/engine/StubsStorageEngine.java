@@ -110,9 +110,6 @@ public class StubsStorageEngine
     }
 
     @Override
-    public void warmupVerifyQueryOffset(MemorySegment warmUpState) {}
-
-    @Override
     public void warmupChunk(MemorySegment warmUpState, MemorySegment recordBufferParams, MemorySegment compressionState)
     {
         long chunkHeaderAddress = warmUpState.get(ValueLayout.JAVA_LONG, WarmUpState.WARMUP_STATE_OFFSET_CHUNK_HEADER);

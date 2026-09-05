@@ -34,13 +34,11 @@ import io.trino.plugin.warp.storage.engine.nativeimpl.NativeStorageStateHandler;
 import io.trino.plugin.warp.storage.flows.FlowType;
 import io.trino.plugin.warp.storage.flows.FlowsSequencer;
 import io.trino.plugin.warp.storage.write.PageSink;
-import io.trino.plugin.warp.storage.write.WarmUpState;
 import io.trino.plugin.warp.util.StorageUtils;
 import org.apache.commons.io.FileUtils;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -188,36 +186,6 @@ public class StorageWarmerService
             rowGroupDataService.deleteData(rowGroupData.get(), true);
             String rowGroupFilePath = rowGroupData.get().getRowGroupKey().stringFileNameRepresentation(globalConfig.getLocalStorePath());
             shapingLogger.error("failed to open file %s", rowGroupFilePath);
-        }
-    }
-
-    public void verifyQueryOffsets(RowGroupKey rowGroupKey, List<WarmUpElement> validWarmUpElements, WarmUpState warmUpState)
-    {
-        long[] fileCookieParams = new long[FILE_COOKIE_PARAMS_NUM_OF.ordinal()];
-        fileCookieParams[FILE_COOKIE_PARAMS_FD.ordinal()] = INVALID_FILE_COOKIE_FD;
-        try {
-            if (!validWarmUpElements.isEmpty() && (validWarmUpElements.getFirst().getTotalRecords() < 32 * 1024)) {
-                fileCookieParams = fileOpen(rowGroupKey);
-                warmUpState.setFileCookie(
-                        (int) fileCookieParams[FILE_COOKIE_PARAMS_FD.ordinal()],
-                        fileCookieParams[FILE_COOKIE_PARAMS_FILE_HASH.ordinal()],
-                        fileCookieParams[FILE_COOKIE_PARAMS_FILE_MOD_TIME.ordinal()]);
-                for (WarmUpElement warmUpElement : validWarmUpElements) {
-                    int queryOffset = warmUpElement.getQueryOffset();
-                    if (queryOffset > 0) { // @TODO there are issues with offset zero should be investigated
-                        logger.debug("verifying offset %d WE %s", queryOffset, warmUpElement);
-                        warmUpState.setStartOffset(queryOffset);
-                        storageEngine.warmupVerifyQueryOffset(warmUpState.getMemory());
-                    }
-                }
-            }
-        }
-        catch (Exception e) {
-            shapingLogger.error(e, "failed to verify query offsets for %s", validWarmUpElements);
-            throw new RuntimeException(e);
-        }
-        finally {
-            fileClose(fileCookieParams, Optional.empty());
         }
     }
 

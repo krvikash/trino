@@ -101,7 +101,6 @@ public class NativeStorageEngine
     // warmup API
     private final MethodHandle mWarmupElementOpen;
     private final MethodHandle mWarmupElementClose;
-    private final MethodHandle mWarmupVerifyQueryOffset;
     private final MethodHandle mWarmupChunk;
     // match API
     private final MethodHandle mMatchOpen;
@@ -251,9 +250,6 @@ public class NativeStorageEngine
             mWarmupElementClose = linker.downcallHandle(
                     libraryHandle.find("warp_speed_warmup_element_close").orElseThrow(),
                     FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.ADDRESS, ValueLayout.JAVA_INT));
-            mWarmupVerifyQueryOffset = linker.downcallHandle(
-                    libraryHandle.find("warp_speed_warmup_verify_query_offset").orElseThrow(),
-                    FunctionDescriptor.ofVoid(ValueLayout.ADDRESS, ValueLayout.JAVA_INT));
             mWarmupChunk = linker.downcallHandle(
                     libraryHandle.find("warp_speed_warmup_chunk").orElseThrow(),
                     FunctionDescriptor.ofVoid(ValueLayout.ADDRESS, ValueLayout.ADDRESS, ValueLayout.ADDRESS, ValueLayout.JAVA_INT));
@@ -625,21 +621,6 @@ public class NativeStorageEngine
             }
             shapingLogger.error(t, "failed to warmupElementClose");
             throw new TrinoException(WarpErrorCode.WARP_GENERIC, "failed to close warm up element", t);
-        }
-    }
-
-    @Override
-    public void warmupVerifyQueryOffset(MemorySegment warmUpState)
-    {
-        try (NativeLogger.LogId logId = nativeLogger.getLogId(exceptionThrower)) {
-            mWarmupVerifyQueryOffset.invokeExact(warmUpState, logId.id());
-        }
-        catch (Throwable t) {
-            if (t instanceof TrinoException te) {
-                throw te;
-            }
-            shapingLogger.error(t, "failed to warmupVerifyQueryOffset");
-            throw new TrinoException(WarpErrorCode.WARP_GENERIC, "failed to warmup verify query offset", t);
         }
     }
 
