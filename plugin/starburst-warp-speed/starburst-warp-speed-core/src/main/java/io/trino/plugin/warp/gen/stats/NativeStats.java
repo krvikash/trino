@@ -38,6 +38,7 @@ public final class NativeStats
     private final LongAdder read_cache_md_nulls_misses = new LongAdder();
     private final LongAdder read_cache_index_hits = new LongAdder();
     private final LongAdder read_cache_index_misses = new LongAdder();
+    private final LongAdder read_uncached_pages = new LongAdder();
     private final LongAdder read_time_wait_nanos = new LongAdder();
 
     @JsonCreator
@@ -232,6 +233,29 @@ public final class NativeStats
 
     @JsonIgnore
     @Managed
+    public long getread_uncached_pages()
+    {
+        return read_uncached_pages.longValue();
+    }
+
+    public void incread_uncached_pages()
+    {
+        read_uncached_pages.increment();
+    }
+
+    public void addread_uncached_pages(long val)
+    {
+        read_uncached_pages.add(val);
+    }
+
+    public void setread_uncached_pages(long val)
+    {
+        read_uncached_pages.reset();
+        addread_uncached_pages(val);
+    }
+
+    @JsonIgnore
+    @Managed
     public long getread_time_wait_nanos()
     {
         return read_time_wait_nanos.longValue();
@@ -275,6 +299,7 @@ public final class NativeStats
         ret.put("read_cache_md_nulls_misses", read_cache_md_nulls_misses);
         ret.put("read_cache_index_hits", read_cache_index_hits);
         ret.put("read_cache_index_misses", read_cache_index_misses);
+        ret.put("read_uncached_pages", read_uncached_pages);
         ret.put("read_time_wait_nanos", read_time_wait_nanos);
 
         return ret;
@@ -295,6 +320,7 @@ public final class NativeStats
         this.read_cache_md_nulls_misses.add(other.read_cache_md_nulls_misses.longValue());
         this.read_cache_index_hits.add(other.read_cache_index_hits.longValue());
         this.read_cache_index_misses.add(other.read_cache_index_misses.longValue());
+        this.read_uncached_pages.add(other.read_uncached_pages.longValue());
         this.read_time_wait_nanos.add(other.read_time_wait_nanos.longValue());
     }
 
@@ -309,6 +335,7 @@ public final class NativeStats
         read_cache_md_nulls_misses.reset();
         read_cache_index_hits.reset();
         read_cache_index_misses.reset();
+        read_uncached_pages.reset();
         read_time_wait_nanos.reset();
     }
 
@@ -339,6 +366,9 @@ public final class NativeStats
         }
         if (read_cache_index_misses.longValue() > 0) {
             res.put("native:read_cache_index_misses", read_cache_index_misses.longValue());
+        }
+        if (read_uncached_pages.longValue() > 0) {
+            res.put("native:read_uncached_pages", read_uncached_pages.longValue());
         }
         res.put("native:read_time_wait_nanos", read_time_wait_nanos.longValue());
         return res;

@@ -33,6 +33,7 @@ public class ReadStats
     private static final long READ_STATS_OFFSET_CACHE_MD_NULLS_MISSES;
     private static final long READ_STATS_OFFSET_CACHE_INDEX_HITS;
     private static final long READ_STATS_OFFSET_CACHE_INDEX_MISSES;
+    private static final long READ_STATS_OFFSET_UNCACHED_PAGES;
     private static final long READ_STATS_OFFSET_READ_TIME_WAIT_NANOS;
 
     private MemorySegment readStats;
@@ -47,6 +48,7 @@ public class ReadStats
                 ValueLayout.JAVA_LONG.withName("cache_md_nulls_misses"),
                 ValueLayout.JAVA_LONG.withName("cache_index_hits"),
                 ValueLayout.JAVA_LONG.withName("cache_index_misses"),
+                ValueLayout.JAVA_LONG.withName("uncached_pages"),
                 ValueLayout.JAVA_LONG.withName("read_time_wait_nanos")).withName("storage_read_stats_t");
         READ_STATS_OFFSET_CACHE_MD_CHUNK_HITS = READ_STATS_LAYOUT.byteOffset(PathElement.groupElement("cache_md_chunk_hits"));
         READ_STATS_OFFSET_CACHE_MD_CHUNK_MISSES = READ_STATS_LAYOUT.byteOffset(PathElement.groupElement("cache_md_chunk_misses"));
@@ -56,6 +58,7 @@ public class ReadStats
         READ_STATS_OFFSET_CACHE_MD_NULLS_MISSES = READ_STATS_LAYOUT.byteOffset(PathElement.groupElement("cache_md_nulls_misses"));
         READ_STATS_OFFSET_CACHE_INDEX_HITS = READ_STATS_LAYOUT.byteOffset(PathElement.groupElement("cache_index_hits"));
         READ_STATS_OFFSET_CACHE_INDEX_MISSES = READ_STATS_LAYOUT.byteOffset(PathElement.groupElement("cache_index_misses"));
+        READ_STATS_OFFSET_UNCACHED_PAGES = READ_STATS_LAYOUT.byteOffset(PathElement.groupElement("uncached_pages"));
         READ_STATS_OFFSET_READ_TIME_WAIT_NANOS = READ_STATS_LAYOUT.byteOffset(PathElement.groupElement("read_time_wait_nanos"));
     }
 
@@ -96,6 +99,10 @@ public class ReadStats
         misses = readStats.get(ValueLayout.JAVA_LONG, READ_STATS_OFFSET_CACHE_INDEX_MISSES);
         nativeStats.addread_cache_index_misses(misses);
         totalReadPages += (int) misses;
+
+        long uncachedPages = readStats.get(ValueLayout.JAVA_LONG, READ_STATS_OFFSET_UNCACHED_PAGES);
+        nativeStats.addread_uncached_pages(uncachedPages);
+        totalReadPages += (int) uncachedPages;
 
         nativeStats.addread_time_wait_nanos(readStats.get(ValueLayout.JAVA_LONG, READ_STATS_OFFSET_READ_TIME_WAIT_NANOS));
 
