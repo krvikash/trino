@@ -18,11 +18,17 @@ import io.starburst.materialization.metastore.RawMaterializationDefinition.Conne
 import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.connector.substitution.ConnectorIdVersion;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.Map;
+import java.util.function.UnaryOperator;
+import java.util.stream.Stream;
 
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.starburst.server.substitution.TestUtils.CATALOG;
+import static io.starburst.server.substitution.TestUtils.copyWithIrJson;
 import static io.starburst.server.substitution.TestUtils.materialization;
 import static io.starburst.server.substitution.TestUtils.versionAwareMetastore;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -59,6 +65,21 @@ class TestVersionAwareMaterializationMetastore
     }
 
     @Test
+    void testSkipsMaterializationWithIncompatibleIrVersion()
+    {
+        InMemoryRawMaterializationMetastore raw = new InMemoryRawMaterializationMetastore();
+        VersionAwareMaterializationMetastore metastore = versionAwareMetastore(raw);
+        metastore.createOrReplace(materialization("mv", "source"));
+
+        // stand in for the row having been written by a build whose IR node version this engine does not support
+        RawMaterializationDefinition stored = getOnlyElement(raw.listMaterializations());
+        raw.createOrReplace(withIrVersions(stored, ImmutableMap.of("TableScan", 99)));
+
+        assertThat(metastore.listMaterializations()).isEmpty();
+        assertThat(metastore.getSkippedCount().getTotalCount()).isEqualTo(1);
+    }
+
+    @Test
     void testSkipsMaterializationWithIncompatibleConnectorVersion()
     {
         InMemoryRawMaterializationMetastore raw = new InMemoryRawMaterializationMetastore();
@@ -73,27 +94,64 @@ class TestVersionAwareMaterializationMetastore
                         ImmutableSet.of(new ConnectorIdVersion("TestColumnId", 1)))));
 
         assertThat(metastore.listMaterializations()).isEmpty();
+        assertThat(metastore.getSkippedCount().getTotalCount()).isEqualTo(1);
     }
 
-    @Test
-    void testSkipsMaterializationThatCannotBeDeserialized()
+    /**
+     * Parameterized: all three failure modes below hit {@code toTyped}'s {@code catch (RuntimeException e)} and
+     * are expected to skip and count identically, so one test body covers them.
+     */
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("deserializationFailures")
+    void testSkipsMaterializationThatCannotBeDeserialized(String scenario, UnaryOperator<String> corruptIrJson)
     {
         InMemoryRawMaterializationMetastore raw = new InMemoryRawMaterializationMetastore();
         VersionAwareMaterializationMetastore metastore = versionAwareMetastore(raw);
-        metastore.createOrReplace(materialization("mv", "source"));
+        MaterializationDefinition good = materialization("mv", "source");
+        metastore.createOrReplace(good);
 
-        // stand in for the connector that wrote this materialization no longer being installed
         RawMaterializationDefinition stored = getOnlyElement(raw.listMaterializations());
-        raw.createOrReplace(new RawMaterializationDefinition(
-                stored.irVersions(),
-                stored.catalogIrVersions(),
-                stored.computationPlanRootJson().replace("SupportedTableId", "LongGoneTableId"),
-                stored.storageTableId(),
-                stored.source(),
-                stored.lastKnownFreshTime(),
-                stored.gracePeriod()));
+        raw.createOrReplace(copyWithIrJson(stored, "unreadable", corruptIrJson.apply(stored.computationPlanRootJson())));
 
-        assertThat(metastore.listMaterializations()).isEmpty();
+        assertThat(metastore.listMaterializations()).containsExactly(good);
+        assertThat(metastore.getSkippedCount().getTotalCount()).isEqualTo(1);
+    }
+
+    private static Stream<Arguments> deserializationFailures()
+    {
+        return Stream.of(
+                Arguments.of("malformed JSON", malformedJson()),
+                Arguments.of("unresolvable connector identity", replacingToken("SupportedTableId", "LongGoneTableId")),
+                Arguments.of("unresolvable type", replacingToken("varchar", "no_such_type")));
+    }
+
+    private static UnaryOperator<String> malformedJson()
+    {
+        return _ -> "{ this is not json";
+    }
+
+    /**
+     * Replaces every {@code token} in the IR JSON with {@code replacement}, asserting {@code token} is present
+     * first so a fixture change can't silently turn this into a no-op.
+     */
+    private static UnaryOperator<String> replacingToken(String token, String replacement)
+    {
+        return json -> {
+            assertThat(json).contains(token);
+            return json.replace(token, replacement);
+        };
+    }
+
+    private static RawMaterializationDefinition withIrVersions(RawMaterializationDefinition definition, Map<String, Integer> irVersions)
+    {
+        return new RawMaterializationDefinition(
+                irVersions,
+                definition.catalogIrVersions(),
+                definition.computationPlanRootJson(),
+                definition.storageTableId(),
+                definition.source(),
+                definition.lastKnownFreshTime(),
+                definition.gracePeriod());
     }
 
     private static RawMaterializationDefinition withCatalogIrVersions(RawMaterializationDefinition definition, ConnectorIdVersions versions)

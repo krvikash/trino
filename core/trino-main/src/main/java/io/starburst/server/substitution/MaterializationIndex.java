@@ -167,6 +167,18 @@ public class MaterializationIndex
         return refreshStats;
     }
 
+    /**
+     * Count of skip events (not distinct rows) from unreadable stored rows: unsupported IR version, an
+     * undeserializable connector identity, or stale connector id versions. An unreadable row is counted again on
+     * every refresh, so this grows unbounded. Compare against {@link RefreshStats#getListedCount()} for skip rate.
+     */
+    @Managed
+    @Nested
+    public CounterStat getSkippedCount()
+    {
+        return materializationMetastore.getSkippedCount();
+    }
+
     @Override
     public List<MaterializationDefinition> listMaterializations()
     {

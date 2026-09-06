@@ -22,6 +22,7 @@ import io.starburst.materialization.ir.TableScan;
 import io.starburst.materialization.metastore.InMemoryRawMaterializationMetastore;
 import io.starburst.materialization.metastore.MaterializationDefinition;
 import io.starburst.materialization.metastore.MaterializationSource;
+import io.starburst.materialization.metastore.RawMaterializationDefinition;
 import io.starburst.materialization.metastore.RawMaterializationMetastore;
 import io.starburst.materialization.metastore.StorageTableId;
 import io.trino.metadata.AbstractTypedJacksonModule;
@@ -134,6 +135,21 @@ public class TestUtils
                 new TableScan(
                         new TableId(new CatalogName(CATALOG), sourceTable),
                         ImmutableMap.of(sourceColumn, nameSymbol)));
+    }
+
+    /**
+     * Copies {@code definition} under a new name with {@code irJson} as its IR; version stamps are unchanged.
+     */
+    public static RawMaterializationDefinition copyWithIrJson(RawMaterializationDefinition definition, String name, String irJson)
+    {
+        return new RawMaterializationDefinition(
+                definition.irVersions(),
+                definition.catalogIrVersions(),
+                irJson,
+                definition.storageTableId(),
+                new MaterializationSource.MaterializedViewSource(mvName(name)),
+                definition.lastKnownFreshTime(),
+                definition.gracePeriod());
     }
 
     public static CatalogSchemaTableName mvName(String name)

@@ -12,6 +12,7 @@ package io.starburst.server.substitution;
 import com.google.common.collect.ImmutableList;
 import io.starburst.materialization.ir.Output;
 import io.starburst.materialization.ir.Symbol;
+import io.starburst.materialization.metastore.InMemoryRawMaterializationMetastore;
 import io.starburst.materialization.metastore.MaterializationDefinition;
 import io.starburst.materialization.metastore.MaterializationSource.MaterializedViewSource;
 import io.starburst.materialization.metastore.StorageTableId;
@@ -26,9 +27,11 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.starburst.server.substitution.MaterializationIndex.computeHash;
 import static io.starburst.server.substitution.TestUtils.CATALOG;
 import static io.starburst.server.substitution.TestUtils.SCHEMA;
+import static io.starburst.server.substitution.TestUtils.copyWithIrJson;
 import static io.starburst.server.substitution.TestUtils.materialization;
 import static io.starburst.server.substitution.TestUtils.mvName;
 import static io.starburst.server.substitution.TestUtils.simpleTableScan;
@@ -394,6 +397,33 @@ class TestMaterializationIndex
         index.stop();
 
         assertThat(index.getMaterializations(hash(materialization("x", "source")))).isEmpty();
+    }
+
+    @Test
+    void testRefreshSkipsUnreadableRowAndKeepsIndexingTheRest()
+    {
+        InMemoryRawMaterializationMetastore raw = new InMemoryRawMaterializationMetastore();
+        VersionAwareMaterializationMetastore underlying = versionAwareMetastore(raw);
+        MaterializationIndex index = new MaterializationIndex(underlying, new MaterializedViewSubstitutionConfig());
+
+        MaterializationDefinition mv = materialization("mv", "source");
+        underlying.createOrReplace(mv);
+        // Another cluster wrote a row this engine cannot deserialize.
+        raw.createOrReplace(copyWithIrJson(getOnlyElement(raw.listMaterializations()), "unreadable", "{ this is not json"));
+
+        index.refresh();
+
+        assertThat(index.getMaterializations(hash(mv))).containsExactly(mv);
+        assertThat(index.getSkippedCount().getTotalCount()).isEqualTo(1);
+
+        // Subsequent refreshes still pick up other clusters' changes while the unreadable row is present, and
+        // count it as skipped again since it is still there.
+        MaterializationDefinition later = materialization("later", "other_source");
+        underlying.createOrReplace(later);
+        index.refresh();
+
+        assertThat(index.getMaterializations(hash(later))).containsExactly(later);
+        assertThat(index.getSkippedCount().getTotalCount()).isEqualTo(2);
     }
 
     private static ComputationHash hash(MaterializationDefinition materialization)

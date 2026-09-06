@@ -14,6 +14,7 @@ import com.google.common.collect.ImmutableSet;
 import com.google.inject.Inject;
 import io.airlift.json.JsonCodec;
 import io.airlift.log.Logger;
+import io.airlift.stats.CounterStat;
 import io.starburst.materialization.ir.Operation;
 import io.starburst.materialization.ir.Output;
 import io.starburst.materialization.ir.TableScan;
@@ -43,6 +44,7 @@ public class VersionAwareMaterializationMetastore
 
     private final RawMaterializationMetastore raw;
     private final JsonCodec<Output> irJsonCodec;
+    private final CounterStat skippedCount = new CounterStat();
 
     @Inject
     public VersionAwareMaterializationMetastore(
@@ -90,6 +92,11 @@ public class VersionAwareMaterializationMetastore
         raw.renameIfExists(source, target, targetStorageTableId);
     }
 
+    /**
+     * Reads one stored row, or returns empty and counts it as skipped if this engine cannot read it: unsupported
+     * IR version, an undeserializable connector identity, or stale connector id versions. A metastore shared by
+     * engines of different versions legitimately holds such rows.
+     */
     private Optional<MaterializationDefinition> toTyped(RawMaterializationDefinition rawDefinition)
     {
         if (!isIrCompatible(rawDefinition)) {
@@ -98,6 +105,7 @@ public class VersionAwareMaterializationMetastore
                     rawDefinition.source(),
                     rawDefinition.irVersions(),
                     Operation.SUPPORTED);
+            skippedCount.update(1);
             return Optional.empty();
         }
         // The connector identity classes are resolved through the handle resolver, so a connector that was
@@ -108,7 +116,9 @@ public class VersionAwareMaterializationMetastore
             typed = irJsonCodec.fromJson(rawDefinition.computationPlanRootJson());
         }
         catch (RuntimeException e) {
+            // The IR JSON is deliberately not logged: it can be large and carries customer schema details.
             log.debug("Skipping materialization %s — stored computation plan cannot be read by the installed connectors: %s", rawDefinition.source(), e);
+            skippedCount.update(1);
             return Optional.empty();
         }
         // A connector identity's version is a constant of the connector code, so re-collecting the versions from
@@ -121,6 +131,7 @@ public class VersionAwareMaterializationMetastore
                     rawDefinition.source(),
                     rawDefinition.catalogIrVersions(),
                     currentVersions);
+            skippedCount.update(1);
             return Optional.empty();
         }
         return Optional.of(new MaterializationDefinition(
@@ -129,6 +140,11 @@ public class VersionAwareMaterializationMetastore
                 rawDefinition.source(),
                 rawDefinition.lastKnownFreshTime(),
                 rawDefinition.gracePeriod()));
+    }
+
+    CounterStat getSkippedCount()
+    {
+        return skippedCount;
     }
 
     private static boolean isIrCompatible(RawMaterializationDefinition definition)
