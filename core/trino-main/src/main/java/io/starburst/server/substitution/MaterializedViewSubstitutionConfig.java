@@ -27,6 +27,7 @@ public class MaterializedViewSubstitutionConfig
     private Duration materializedViewSubstitutionMetastoreRefreshInterval = new Duration(1, MINUTES);
     private Optional<Duration> materializedViewSubstitutionMaxStaleness = Optional.empty();
     private Optional<String> materializedViewSubstitutionCandidatesRegexFilter = Optional.empty();
+    private boolean materializedViewSubstitutionCandidateValidationEnabled = true;
 
     public boolean isMaterializedViewSubstitutionSupportEnabled()
     {
@@ -97,6 +98,19 @@ public class MaterializedViewSubstitutionConfig
             Pattern.compile(pattern);
             return pattern;
         });
+        return this;
+    }
+
+    public boolean isMaterializedViewSubstitutionCandidateValidationEnabled()
+    {
+        return materializedViewSubstitutionCandidateValidationEnabled;
+    }
+
+    @Config("materialized-view-substitution.candidate-validation.enabled")
+    @ConfigDescription("Reject enabling substitution_enabled on a materialized view that cannot be used for substitution, instead of accepting it and never indexing the view")
+    public MaterializedViewSubstitutionConfig setMaterializedViewSubstitutionCandidateValidationEnabled(boolean value)
+    {
+        this.materializedViewSubstitutionCandidateValidationEnabled = value;
         return this;
     }
 }

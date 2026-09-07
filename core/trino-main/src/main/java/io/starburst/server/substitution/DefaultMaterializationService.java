@@ -31,6 +31,7 @@ import java.time.Instant;
 import java.util.Map;
 import java.util.Optional;
 
+import static io.starburst.server.substitution.MaterializedViewSubstitutionSessionProperties.isMaterializedViewSubstitutionCandidateValidationEnabled;
 import static io.trino.metadata.MaterializedViewPropertyManager.SUBSTITUTION_ENABLED;
 import static io.trino.metadata.MaterializedViewPropertyManager.isSubstitutionEnabled;
 import static io.trino.spi.StandardErrorCode.GENERIC_INTERNAL_ERROR;
@@ -65,6 +66,9 @@ public class DefaultMaterializationService
     @Override
     public void validateSubstitutionCandidate(Session session, QualifiedObjectName viewName, String originalSql)
     {
+        if (!isMaterializedViewSubstitutionCandidateValidationEnabled(session)) {
+            return;
+        }
         if (extractIr(session, originalSql).isEmpty()) {
             throw new TrinoException(
                     INVALID_MATERIALIZED_VIEW_PROPERTY,
@@ -137,9 +141,12 @@ public class DefaultMaterializationService
                 // this one has already replaced, so it can never be substituted again. Drop it instead of
                 // leaving a dead candidate for the index to carry and every query to evaluate.
                 materializationMetastore.remove(materializedViewName.asCatalogSchemaTableName());
-                throw new TrinoException(
-                        INVALID_MATERIALIZED_VIEW_PROPERTY,
-                        "Materialized view '%s' has substitution_enabled = true but cannot be indexed for substitution".formatted(materializedViewName));
+                if (isMaterializedViewSubstitutionCandidateValidationEnabled(session)) {
+                    throw new TrinoException(
+                            INVALID_MATERIALIZED_VIEW_PROPERTY,
+                            "Materialized view '%s' has substitution_enabled = true but cannot be indexed for substitution".formatted(materializedViewName));
+                }
+                return;
             }
             materializationMetastore.createOrReplace(materialization.get());
         }

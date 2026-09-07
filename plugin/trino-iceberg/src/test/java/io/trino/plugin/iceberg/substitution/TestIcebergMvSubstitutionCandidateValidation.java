@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.Map;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static io.starburst.server.substitution.MaterializedViewSubstitutionSessionProperties.MATERIALIZED_VIEW_SUBSTITUTION_CANDIDATE_VALIDATION_ENABLED;
 import static io.starburst.server.substitution.MaterializedViewSubstitutionSessionProperties.MATERIALIZED_VIEW_SUBSTITUTION_ENABLED;
 import static io.trino.plugin.base.util.Closables.closeAllSuppress;
 import static io.trino.plugin.iceberg.IcebergQueryRunner.ICEBERG_CATALOG;
@@ -118,6 +119,38 @@ public class TestIcebergMvSubstitutionCandidateValidation
     }
 
     @Test
+    public void testCandidateValidationCanBeDisabled()
+    {
+        // With validation off the pre-validation behaviour is restored: the property is accepted and the view
+        // is simply never indexed, so neither the create nor the refresh fails.
+        Session session = sessionWithoutCandidateValidation();
+        assertUpdate(session, "CREATE MATERIALIZED VIEW mv_validation_disabled WITH (substitution_enabled = true) AS SELECT id FROM memory.default.unsupported_src");
+        try {
+            assertThat((String) computeScalar("SHOW CREATE MATERIALIZED VIEW mv_validation_disabled"))
+                    .contains("substitution_enabled = true");
+            assertUpdate(session, "REFRESH MATERIALIZED VIEW mv_validation_disabled", 1);
+        }
+        finally {
+            assertUpdate("DROP MATERIALIZED VIEW mv_validation_disabled");
+        }
+    }
+
+    @Test
+    public void testSetPropertiesEnablingSubstitutionWithValidationDisabled()
+    {
+        Session session = sessionWithoutCandidateValidation();
+        assertUpdate("CREATE MATERIALIZED VIEW mv_alter_validation_disabled WITH (substitution_enabled = false) AS SELECT id FROM memory.default.unsupported_src");
+        try {
+            assertUpdate(session, "ALTER MATERIALIZED VIEW mv_alter_validation_disabled SET PROPERTIES substitution_enabled = true");
+            assertThat((String) computeScalar("SHOW CREATE MATERIALIZED VIEW mv_alter_validation_disabled"))
+                    .contains("substitution_enabled = true");
+        }
+        finally {
+            assertUpdate("DROP MATERIALIZED VIEW mv_alter_validation_disabled");
+        }
+    }
+
+    @Test
     public void testCreateOrReplaceWithUnsupportedPlanShapeFails()
     {
         assertUpdate("CREATE MATERIALIZED VIEW mv_replace WITH (substitution_enabled = true) AS SELECT id FROM base_table");
@@ -180,6 +213,13 @@ public class TestIcebergMvSubstitutionCandidateValidation
             assertUpdate("DROP VIEW refresh_view");
             assertUpdate("DROP TABLE refresh_src");
         }
+    }
+
+    private Session sessionWithoutCandidateValidation()
+    {
+        return Session.builder(getSession())
+                .setSystemProperty(MATERIALIZED_VIEW_SUBSTITUTION_CANDIDATE_VALIDATION_ENABLED, "false")
+                .build();
     }
 
     private Session sessionWithSubstitution()

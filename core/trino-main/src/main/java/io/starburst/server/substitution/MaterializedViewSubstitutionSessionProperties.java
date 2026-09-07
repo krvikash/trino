@@ -31,6 +31,7 @@ public final class MaterializedViewSubstitutionSessionProperties
     public static final String MATERIALIZED_VIEW_SUBSTITUTION_ENABLED = "materialized_view_substitution_enabled";
     public static final String MATERIALIZED_VIEW_SUBSTITUTION_MAX_STALENESS = "materialized_view_substitution_max_staleness";
     public static final String MATERIALIZED_VIEW_SUBSTITUTION_CANDIDATES_REGEX_FILTER = "materialized_view_substitution_candidates_regex_filter";
+    public static final String MATERIALIZED_VIEW_SUBSTITUTION_CANDIDATE_VALIDATION_ENABLED = "materialized_view_substitution_candidate_validation_enabled";
 
     private final List<PropertyMetadata<?>> sessionProperties;
 
@@ -59,6 +60,11 @@ public final class MaterializedViewSubstitutionSessionProperties
                         "Regular expression matched against the fully qualified materialized view name (catalog.schema.table); unset means all materialized views are eligible for substitution",
                         config.getMaterializedViewSubstitutionCandidatesRegexFilter().orElse(null),
                         MaterializedViewSubstitutionSessionProperties::validatePattern,
+                        false),
+                booleanProperty(
+                        MATERIALIZED_VIEW_SUBSTITUTION_CANDIDATE_VALIDATION_ENABLED,
+                        "Reject enabling substitution_enabled on a materialized view that cannot be used for substitution, instead of accepting it and never indexing the view",
+                        config.isMaterializedViewSubstitutionCandidateValidationEnabled(),
                         false));
     }
 
@@ -81,6 +87,11 @@ public final class MaterializedViewSubstitutionSessionProperties
     public static Optional<String> getMaterializedViewSubstitutionCandidatesRegexFilter(Session session)
     {
         return Optional.ofNullable(session.getSystemProperty(MATERIALIZED_VIEW_SUBSTITUTION_CANDIDATES_REGEX_FILTER, String.class));
+    }
+
+    public static boolean isMaterializedViewSubstitutionCandidateValidationEnabled(Session session)
+    {
+        return session.getSystemProperty(MATERIALIZED_VIEW_SUBSTITUTION_CANDIDATE_VALIDATION_ENABLED, Boolean.class);
     }
 
     private static void validatePattern(String pattern)
