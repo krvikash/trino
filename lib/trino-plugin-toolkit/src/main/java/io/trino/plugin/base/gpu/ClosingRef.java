@@ -91,6 +91,29 @@ public final class ClosingRef<T extends AutoCloseable>
         value = newValue;
     }
 
+    /// Replaces the current value with {@code newValue}, closing the old value.
+    /// If closing the old value throws, the new value is still retained.
+    ///
+    /// @throws IllegalStateException if this ref is already closed (in which case {@code newValue}
+    ///         is closed before the exception is thrown)
+    public void replace(@Move T newValue)
+    {
+        requireNonNull(newValue, "newValue is null");
+        if (closed) {
+            IllegalStateException error = new IllegalStateException("Already closed");
+            closeAllSuppress(error, newValue);
+            throw error;
+        }
+        try {
+            if (value != null) {
+                closeUnchecked(value);
+            }
+        }
+        finally {
+            value = newValue;
+        }
+    }
+
     @Override
     public void close()
     {

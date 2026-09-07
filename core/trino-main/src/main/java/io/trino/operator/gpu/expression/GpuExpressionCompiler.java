@@ -82,6 +82,7 @@ import static io.trino.spi.gpu.GpuTypeConversion.isConvertible;
 import static io.trino.spi.gpu.GpuTypeConversion.toDType;
 import static io.trino.spi.gpu.GpuTypeConversion.toGpuMapping;
 import static io.trino.spi.type.BigintType.BIGINT;
+import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.spi.type.DateType.DATE;
 import static io.trino.spi.type.DoubleType.DOUBLE;
 import static io.trino.spi.type.IntegerType.INTEGER;
@@ -979,16 +980,41 @@ public final class GpuExpressionCompiler
         @Override
         protected Optional<GpuExpression> visitCase(Case caseExpression, Void context)
         {
-            // Only the IF-equivalent shape (single WhenClause + default) is supported. Multi-branch CASE
-            // needs first-class GPU support and is left to a follow-up.
-            if (caseExpression.whenClauses().size() != 1) {
+            if (caseExpression.whenClauses().size() == 1) {
+                WhenClause when = caseExpression.whenClauses().getFirst();
+                return compileNary(
+                        ImmutableList.of(when.getOperand(), when.getResult(), caseExpression.defaultValue()),
+                        args -> new GpuIf(args.get(0), args.get(1), args.get(2)),
+                        context);
+            }
+
+            Optional<DType> outputType = toDType(caseExpression.type());
+            if (outputType.isEmpty()) {
                 return Optional.empty();
             }
-            WhenClause when = caseExpression.whenClauses().getFirst();
-            return compileNary(
-                    ImmutableList.of(when.getOperand(), when.getResult(), caseExpression.defaultValue()),
-                    args -> new GpuIf(args.get(0), args.get(1), args.get(2)),
-                    context);
+            DType outputDType = outputType.get();
+
+            ImmutableList.Builder<Expression> allExpressions = ImmutableList.builder();
+            for (WhenClause when : caseExpression.whenClauses()) {
+                allExpressions.add(when.getOperand());
+                allExpressions.add(when.getResult());
+            }
+            allExpressions.add(caseExpression.defaultValue());
+            int branchCount = caseExpression.whenClauses().size();
+            return compileNary(allExpressions.build(), args -> {
+                ImmutableList.Builder<GpuExpression> conditions = ImmutableList.builder();
+                ImmutableList.Builder<GpuExpression> results = ImmutableList.builder();
+                for (int i = 0; i < branchCount; i++) {
+                    conditions.add(args.get(2 * i));
+                    results.add(args.get(2 * i + 1));
+                }
+
+                // default branch
+                conditions.add(new GpuConstant(BOOLEAN, Optional.of(true)));
+                results.add(args.getLast());
+
+                return new GpuCase(conditions.build(), results.build(), outputDType);
+            }, context);
         }
 
         @Override
