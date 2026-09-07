@@ -45,7 +45,7 @@
               - AggregationNode (GPU)
                 - ProjectNode
                   - FilterNode
-                    - JoinNode
+                    - JoinNode (GPU)
                       - AggregationNode (GPU)
                         - ExchangeNode LOCAL (GPU)
                           - JoinNode (GPU)
@@ -126,7 +126,7 @@
               - AggregationNode (GPU)
                 - ProjectNode
                   - FilterNode
-                    - JoinNode
+                    - JoinNode (GPU)
                       - AggregationNode (GPU)
                         - ExchangeNode LOCAL (GPU)
                           - JoinNode (GPU)

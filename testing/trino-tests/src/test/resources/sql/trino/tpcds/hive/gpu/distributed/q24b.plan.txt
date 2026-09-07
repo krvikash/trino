@@ -5,7 +5,7 @@
         - ExchangeNode REMOTE
           - ProjectNode
             - FilterNode
-              - JoinNode
+              - JoinNode (GPU)
                 - AggregationNode (GPU)
                   - ExchangeNode LOCAL
                     - ExchangeNode REMOTE

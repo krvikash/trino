@@ -51,7 +51,7 @@
                                             - ExchangeNode REMOTE
                                               - TableScanNode store (GPU)
                                 - ProjectNode
-                                  - JoinNode
+                                  - JoinNode (GPU)
                                     - AggregationNode (GPU)
                                       - ExchangeNode LOCAL
                                         - ExchangeNode REMOTE

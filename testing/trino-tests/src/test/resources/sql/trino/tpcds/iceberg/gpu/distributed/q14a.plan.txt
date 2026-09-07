@@ -13,11 +13,11 @@
                         - ExchangeNode REMOTE
                           - AggregationNode
                             - GroupIdNode (GPU)
-                              - ExchangeNode LOCAL
-                                - ProjectNode
-                                  - ProjectNode
-                                    - FilterNode
-                                      - JoinNode
+                              - ExchangeNode LOCAL (GPU)
+                                - ProjectNode (GPU)
+                                  - ProjectNode (GPU)
+                                    - FilterNode (GPU)
+                                      - JoinNode (GPU)
                                         - AggregationNode (GPU)
                                           - ExchangeNode LOCAL
                                             - ExchangeNode REMOTE
@@ -154,10 +154,10 @@
                                                             - ProjectNode (GPU)
                                                               - FilterNode (GPU)
                                                                 - TableScanNode date_dim (GPU)
-                                - ProjectNode
-                                  - ProjectNode
-                                    - FilterNode
-                                      - JoinNode
+                                - ProjectNode (GPU)
+                                  - ProjectNode (GPU)
+                                    - FilterNode (GPU)
+                                      - JoinNode (GPU)
                                         - AggregationNode (GPU)
                                           - ExchangeNode LOCAL
                                             - ExchangeNode REMOTE
@@ -294,10 +294,10 @@
                                                             - ProjectNode (GPU)
                                                               - FilterNode (GPU)
                                                                 - TableScanNode date_dim (GPU)
-                                - ProjectNode
-                                  - ProjectNode
-                                    - FilterNode
-                                      - JoinNode
+                                - ProjectNode (GPU)
+                                  - ProjectNode (GPU)
+                                    - FilterNode (GPU)
+                                      - JoinNode (GPU)
                                         - AggregationNode (GPU)
                                           - ExchangeNode LOCAL
                                             - ExchangeNode REMOTE

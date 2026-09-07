@@ -1,11 +1,11 @@
 - OutputNode
-  - JoinNode
-    - JoinNode
-      - JoinNode
-        - JoinNode
-          - JoinNode
-            - JoinNode
-              - JoinNode
+  - JoinNode (GPU)
+    - JoinNode (GPU)
+      - JoinNode (GPU)
+        - JoinNode (GPU)
+          - JoinNode (GPU)
+            - JoinNode (GPU)
+              - JoinNode (GPU)
                 - ExchangeNode LOCAL (GPU)
                   - AggregationNode (GPU)
                     - ExchangeNode LOCAL

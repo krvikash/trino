@@ -8,10 +8,10 @@
               - ProjectNode
                 - ExchangeNode LOCAL
                   - TopNRankingNode
-                    - ExchangeNode LOCAL
-                      - ProjectNode
-                        - FilterNode
-                          - JoinNode
+                    - ExchangeNode LOCAL (GPU)
+                      - ProjectNode (GPU)
+                        - FilterNode (GPU)
+                          - JoinNode (GPU)
                             - AggregationNode
                               - ExchangeNode LOCAL (GPU)
                                 - AggregationNode (GPU)
@@ -33,10 +33,10 @@
               - ExchangeNode LOCAL
                 - ProjectNode
                   - TopNRankingNode
-                    - ExchangeNode LOCAL
-                      - ProjectNode
-                        - FilterNode
-                          - JoinNode
+                    - ExchangeNode LOCAL (GPU)
+                      - ProjectNode (GPU)
+                        - FilterNode (GPU)
+                          - JoinNode (GPU)
                             - AggregationNode
                               - ExchangeNode LOCAL (GPU)
                                 - AggregationNode (GPU)

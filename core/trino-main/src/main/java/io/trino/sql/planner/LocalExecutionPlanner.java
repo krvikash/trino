@@ -153,6 +153,9 @@ import io.trino.operator.gpu.expression.CompiledExpression;
 import io.trino.operator.gpu.expression.GpuExpressionAstCompiler;
 import io.trino.operator.gpu.expression.GpuExpressionCompiler;
 import io.trino.operator.gpu.join.CudfAstExpression;
+import io.trino.operator.gpu.join.GpuCrossJoin;
+import io.trino.operator.gpu.join.GpuCrossJoinBuild;
+import io.trino.operator.gpu.join.GpuCrossJoinBuildSideSupplier;
 import io.trino.operator.gpu.join.GpuDynamicFilterCollector;
 import io.trino.operator.gpu.join.GpuJoinBridgeManager;
 import io.trino.operator.gpu.join.GpuJoinBuild;
@@ -3281,6 +3284,12 @@ public class LocalExecutionPlanner
             PhysicalOperation probeSource = node.getLeft().accept(this, context);
 
             LocalExecutionPlanContext buildContext = context.createSubContext();
+
+            Optional<PhysicalOperation> gpuOperation = tryPlanGpuCrossJoin(node, probeSource, context, buildContext);
+            if (gpuOperation.isPresent()) {
+                return gpuOperation.get();
+            }
+
             PhysicalOperation buildSource = node.getRight().accept(this, buildContext);
 
             checkArgument(node.getType() == INNER, "NestedLoopJoin is only used for inner join");
@@ -4838,6 +4847,69 @@ public class LocalExecutionPlanner
                             node.getId()));
                 }
             }
+        }
+
+        private Optional<PhysicalOperation> tryPlanGpuCrossJoin(
+                JoinNode node,
+                PhysicalOperation probeSource,
+                LocalExecutionPlanContext context,
+                LocalExecutionPlanContext buildContext)
+        {
+            if (!isGpuExecutionEnabled(session)) {
+                return Optional.empty();
+            }
+
+            if (!node.getDynamicFilters().isEmpty()) {
+                log.debug("Could not plan cross join for GPU execution: dynamic filters are not supported");
+                context.markAsGpuIneligible(node.getId(), "Unsupported cross join: dynamic filters");
+                return Optional.empty();
+            }
+
+            // Every probe and build column must be GPU-convertible (CopyToDevice copies all of them).
+            Set<Type> unsupportedTypes = Stream.concat(node.getLeft().getOutputSymbols().stream(), node.getRight().getOutputSymbols().stream())
+                    .map(Symbol::type)
+                    .filter(not(GpuTypeConversion::isConvertible))
+                    .collect(toImmutableSet());
+            if (!unsupportedTypes.isEmpty()) {
+                context.markAsGpuIneligible(node.getId(), "Unsupported column types: %s".formatted(unsupportedTypes));
+                return Optional.empty();
+            }
+
+            List<Integer> probeOutputChannels = ImmutableList.copyOf(getChannelsForSymbols(node.getLeftOutputSymbols(), probeSource.getLayout()));
+            // Force single build driver: GPU handles build-side parallelism internally.
+            buildContext.setDriverInstanceCount(1);
+            PhysicalOperation buildSource = node.getRight().accept(this, buildContext);
+            List<Integer> buildOutputChannels = ImmutableList.copyOf(getChannelsForSymbols(node.getRightOutputSymbols(), buildSource.getLayout()));
+
+            GpuCrossJoinBuildSideSupplier buildSideSupplier = new GpuCrossJoinBuildSideSupplier();
+
+            PhysicalOperation joinBuild = addGpuOperation(
+                    new GpuCrossJoinBuild.Factory(buildSideSupplier, Ints.toArray(buildOutputChannels)),
+                    ImmutableList.of(),
+                    buildSource,
+                    ImmutableMap.of(),
+                    buildContext,
+                    node.getId());
+
+            // For the last operator, Driver does not call getOutput(), only addInput() (guarded by needsInput()) and finish() (when input exhausted).
+            // This means that the sink operator can never declare "I temporarily do not want more input", which is incompatible with GPU's operations
+            // contract such as BufferPages. We're a dummy operator so that Driver calls getOutput() allowing the build side to do its work.
+            joinBuild = new PhysicalOperation(new SentinelSinkOperator.Factory(buildContext.getNextOperatorId(), node.getId()), ImmutableMap.of(), joinBuild);
+
+            context.addDriverFactory(false, joinBuild, buildContext);
+
+            List<Type> joinOutputTypes = ImmutableList.<Type>builder()
+                    .addAll(probeOutputChannels.stream().map(probeSource.getTypes()::get).collect(toImmutableList()))
+                    .addAll(buildOutputChannels.stream().map(buildSource.getTypes()::get).collect(toImmutableList()))
+                    .build();
+
+            return Optional.of(addGpuOperation(
+                    new GpuCrossJoin.Factory(buildSideSupplier, Ints.toArray(probeOutputChannels)),
+                    joinOutputTypes,
+                    probeSource,
+                    makeLayout(node),
+                    context,
+                    node.getId()));
         }
 
         private Optional<GpuJoinPlanClosure> tryPlanGpuLookupJoin(JoinNode node, LocalExecutionPlanContext context)

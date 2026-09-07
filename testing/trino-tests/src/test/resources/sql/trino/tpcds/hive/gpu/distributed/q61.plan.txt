@@ -3,7 +3,7 @@
     - TopNNode (GPU)
       - ExchangeNode LOCAL (GPU)
         - TopNNode (GPU)
-          - JoinNode
+          - JoinNode (GPU)
             - ExchangeNode LOCAL (GPU)
               - AggregationNode (GPU)
                 - ExchangeNode LOCAL

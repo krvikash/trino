@@ -74,4 +74,34 @@ public abstract class BaseGpuJoinQueriesTest
         // by "LookupJoinOperator" which the GPU path never produces — skip the test.
         abort("GPU join does not implement isMaySkipOutputDuplicates");
     }
+
+    @Test
+    public void testGpuCrossJoin()
+    {
+        assertThat(query("SELECT n.name, r.name FROM nation n CROSS JOIN region r"))
+                .executesWithGpu(JoinNode.class);
+
+        // Neither side contributes output columns
+        assertThat(query("SELECT count(*) FROM nation CROSS JOIN region"))
+                .executesWithGpu(JoinNode.class);
+
+        // Only the build side contributes output columns
+        assertThat(query("SELECT r.name FROM nation n CROSS JOIN region r"))
+                .executesWithGpu(JoinNode.class);
+
+        // Only the probe side contributes output columns
+        assertThat(query("SELECT n.name FROM nation n CROSS JOIN region r"))
+                .executesWithGpu(JoinNode.class);
+
+        // Empty build side
+        assertThat(query("SELECT n.name, r.name FROM nation n CROSS JOIN (SELECT * FROM region WHERE regionkey < 0) r"))
+                .executesWithGpu(JoinNode.class);
+    }
+
+    @Test
+    public void testGpuCrossJoinWithScalarSubquery()
+    {
+        assertThat(query("SELECT n.name, (SELECT count(*) FROM region) FROM nation n"))
+                .executesWithGpu(JoinNode.class);
+    }
 }

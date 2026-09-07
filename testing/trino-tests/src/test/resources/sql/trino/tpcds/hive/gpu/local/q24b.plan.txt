@@ -3,7 +3,7 @@
     - SortNode
       - ProjectNode
         - FilterNode
-          - JoinNode
+          - JoinNode (GPU)
             - AggregationNode
               - ProjectNode (GPU)
                 - AggregationNode (GPU)

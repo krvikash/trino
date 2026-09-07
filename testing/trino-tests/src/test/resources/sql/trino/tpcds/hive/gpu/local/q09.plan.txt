@@ -1,20 +1,20 @@
 - OutputNode
-  - ProjectNode
-    - JoinNode
-      - JoinNode
-        - JoinNode
-          - JoinNode
-            - JoinNode
-              - JoinNode
-                - JoinNode
-                  - JoinNode
-                    - JoinNode
-                      - JoinNode
-                        - JoinNode
-                          - JoinNode
-                            - JoinNode
-                              - JoinNode
-                                - JoinNode
+  - ProjectNode (GPU)
+    - JoinNode (GPU)
+      - JoinNode (GPU)
+        - JoinNode (GPU)
+          - JoinNode (GPU)
+            - JoinNode (GPU)
+              - JoinNode (GPU)
+                - JoinNode (GPU)
+                  - JoinNode (GPU)
+                    - JoinNode (GPU)
+                      - JoinNode (GPU)
+                        - JoinNode (GPU)
+                          - JoinNode (GPU)
+                            - JoinNode (GPU)
+                              - JoinNode (GPU)
+                                - JoinNode (GPU)
                                   - ProjectNode (GPU)
                                     - FilterNode (GPU)
                                       - TableScanNode reason (GPU)

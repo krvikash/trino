@@ -37,7 +37,7 @@
                               - ExchangeNode LOCAL (GPU)
                                 - TableScanNode store (GPU)
                     - ProjectNode
-                      - JoinNode
+                      - JoinNode (GPU)
                         - AggregationNode (GPU)
                           - ExchangeNode LOCAL (GPU)
                             - AggregationNode (GPU)

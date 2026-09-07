@@ -3,10 +3,10 @@
     - ExchangeNode LOCAL (GPU)
       - TopNNode (GPU)
         - JoinNode (GPU)
-          - ProjectNode
-            - ProjectNode
-              - FilterNode
-                - JoinNode
+          - ProjectNode (GPU)
+            - ProjectNode (GPU)
+              - FilterNode (GPU)
+                - JoinNode (GPU)
                   - AggregationNode (GPU)
                     - ExchangeNode LOCAL (GPU)
                       - AggregationNode (GPU)
@@ -118,10 +118,10 @@
                                     - ProjectNode (GPU)
                                       - FilterNode (GPU)
                                         - TableScanNode date_dim (GPU)
-          - ProjectNode
-            - ProjectNode
-              - FilterNode
-                - JoinNode
+          - ProjectNode (GPU)
+            - ProjectNode (GPU)
+              - FilterNode (GPU)
+                - JoinNode (GPU)
                   - AggregationNode (GPU)
                     - ExchangeNode LOCAL (GPU)
                       - AggregationNode (GPU)

@@ -19,9 +19,9 @@
                                     - ExchangeNode LOCAL
                                       - ExchangeNode REMOTE
                                         - TopNRankingNode
-                                          - ProjectNode
-                                            - FilterNode
-                                              - JoinNode
+                                          - ProjectNode (GPU)
+                                            - FilterNode (GPU)
+                                              - JoinNode (GPU)
                                                 - AggregationNode
                                                   - ExchangeNode LOCAL
                                                     - ExchangeNode REMOTE
@@ -51,9 +51,9 @@
                                       - ExchangeNode LOCAL
                                         - ExchangeNode REMOTE
                                           - TopNRankingNode
-                                            - ProjectNode
-                                              - FilterNode
-                                                - JoinNode
+                                            - ProjectNode (GPU)
+                                              - FilterNode (GPU)
+                                                - JoinNode (GPU)
                                                   - AggregationNode
                                                     - ExchangeNode LOCAL
                                                       - ExchangeNode REMOTE
