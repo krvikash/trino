@@ -180,7 +180,8 @@ public class Load
                                     .defaultValue(null)
                                     .build())
                             .build(),
-                    GENERIC_TABLE);
+                    GENERIC_TABLE,
+                    "Read data from external storage locations directly into queries");
         }
 
         @Override

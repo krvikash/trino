@@ -94,7 +94,8 @@ public class GenerateEmbeddingsTableFunction
                                 .name(MODEL_ID_ARGUMENT_NAME)
                                 .type(VarcharType.VARCHAR)
                                 .build()),
-                GENERIC_TABLE);
+                GENERIC_TABLE,
+                "Generate and populate embeddings for an entire column in an Iceberg table");
         this.aiModelAccessControl = requireNonNull(aiModelAccessControl, "aiModelAccessControl is null");
     }
 

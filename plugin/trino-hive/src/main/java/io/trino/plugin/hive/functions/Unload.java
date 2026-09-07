@@ -187,7 +187,8 @@ public class Unload
                                     .type(VARCHAR)
                                     .defaultValue(utf8Slice("CHECK"))
                                     .build()),
-                    new ReturnTypeSpecification.DescribedTable(descriptor(ImmutableList.of("path", "count"), ImmutableList.of(VARCHAR, BIGINT))));
+                    new ReturnTypeSpecification.DescribedTable(descriptor(ImmutableList.of("path", "count"), ImmutableList.of(VARCHAR, BIGINT))),
+                    "Export query results directly to external storage locations");
             this.locationAccessControl = requireNonNull(locationAccessControl, "locationAccessControl is null");
             this.fileSystemFactory = requireNonNull(fileSystemFactory, "fileSystemFactory is null");
         }
