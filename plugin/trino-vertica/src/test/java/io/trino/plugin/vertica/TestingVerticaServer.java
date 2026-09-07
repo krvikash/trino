@@ -13,6 +13,8 @@
  */
 package io.trino.plugin.vertica;
 
+import com.github.dockerjava.api.model.Ulimit;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import io.trino.plugin.base.util.AutoCloseableCloser;
 import io.trino.testing.ResourcePresence;
@@ -95,6 +97,13 @@ public class TestingVerticaServer
         withCopyFileToContainer(MountableFile.forClasspathResource("vmart_define_schema.sql"), "/opt/vertica/examples/VMart_Schema");
         withCopyFileToContainer(MountableFile.forClasspathResource("vmart_load_data.sql"), "/opt/vertica/examples/VMart_Schema");
         setStartupAttempts(3);
+
+        // Vertica bootstrap (admintools create_db) needs raised nofile/nproc limits, else it hangs
+        withCreateContainerCmdModifier(cmd -> requireNonNull(cmd.getHostConfig())
+                .withUlimits(ImmutableList.<Ulimit>builder()
+                        .add(new Ulimit("nofile", 65536L, 65536L))
+                        .add(new Ulimit("nproc", -1L, -1L))
+                        .build()));
     }
 
     @Override
