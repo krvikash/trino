@@ -64,6 +64,14 @@ import static org.junit.jupiter.api.Assumptions.abort;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 /**
+ * Tests here assert which types and shapes the compiler accepts, independently of execution.
+ * <p>
+ * Do not add a compile-only test for an expression that has an execution test:
+ * {@code assertGpuMatchesCpu} already fails when compilation returns empty, so the coverage would
+ * be duplicated. A negative assertion that some combination deliberately does <em>not</em> compile
+ * and so falls back to the CPU cannot be covered by {@code assertGpuMatchesCpu}; put the explicit
+ * assertion in the corresponding execution test instead.
+ *
  * @see io.trino.operator.gpu.TestGpuExpressions for tests covering expression execution
  */
 class TestGpuExpressionCompiler
