@@ -277,28 +277,28 @@ public class TestParallelSnowflakeCastPushdown
                 testCase.sourceColumn(),
                 testCase.targetColumn(),
                 testCase.castType())))
-                .isFullyPushedDown();
+                .joinIsNotFullyPushedDown();
         assertThat(query("SELECT l.id FROM %s l RIGHT JOIN %s r ON l.%s = CAST(r.%s AS %s)".formatted(
                 leftTable(),
                 rightTable(),
                 testCase.sourceColumn(),
                 testCase.targetColumn(),
                 testCase.castType())))
-                .isFullyPushedDown();
+                .joinIsNotFullyPushedDown();
         assertThat(query("SELECT l.id FROM %s l INNER JOIN %s r ON l.%s = CAST(r.%s AS %s)".formatted(
                 leftTable(),
                 rightTable(),
                 testCase.sourceColumn(),
                 testCase.targetColumn(),
                 testCase.castType())))
-                .isFullyPushedDown();
+                .joinIsNotFullyPushedDown();
         assertThat(query("SELECT l.id FROM %s l FULL JOIN %s r ON l.%s = CAST(r.%s AS %s)".formatted(
                 leftTable(),
                 rightTable(),
                 testCase.sourceColumn(),
                 testCase.targetColumn(),
                 testCase.castType())))
-                .isFullyPushedDown();
+                .joinIsNotFullyPushedDown();
 
         testCase = new CastTestCase("c_varchar_10", "varchar(200)", "c_varchar_50");
         assertThat(query("SELECT l.id FROM %s l LEFT JOIN %s r ON CAST(l.%3$s AS %4$s) = CAST(r.%5$s AS %4$s)".formatted(
@@ -395,6 +395,25 @@ public class TestParallelSnowflakeCastPushdown
     }
 
     @Test
+    public void testCastWithStringTruncation()
+    {
+        try (TestTable table = new TestTable(
+                onRemoteDatabase(),
+                getSession().getSchema().orElseThrow() + ".varchar_truncation",
+                "(id INT, c_char_5 CHAR(5), c_varchar_5 VARCHAR(5))",
+                List.of(
+                        "1, 'abcde', 'abcde'",
+                        "2, 'abc', 'abc'",
+                        "3, '', ''",
+                        "4, NULL, NULL"))) {
+            assertThat(query("SELECT id, CAST(c_char_5 AS VARCHAR(1)) FROM %s".formatted(table.getName())))
+                    .hasCorrectResultsRegardlessOfPushdown();
+            assertThat(query("SELECT id, CAST(c_varchar_5 AS VARCHAR(1)) FROM %s".formatted(table.getName())))
+                    .hasCorrectResultsRegardlessOfPushdown();
+        }
+    }
+
+    @Test
     public void testCastPushdownOfIntegralsWrittenWithTrino()
     {
         try (TestTable table = new TestTable(
@@ -468,7 +487,6 @@ public class TestParallelSnowflakeCastPushdown
                 new CastTestCase("c_char_5_unicode", "varchar(50)", "c_varchar_50_unicode"),
                 new CastTestCase("c_varchar_10", "varchar(50)", "c_varchar_50"),
                 new CastTestCase("c_varchar_5_unicode", "varchar(50)", "c_varchar_50_unicode"),
-                new CastTestCase("c_varchar_50", "varchar(10)", "c_varchar_10"),
 
                 new CastTestCase("c_decimal_3_0", "decimal(38, 5)", "c_decimal_38_5"),
                 new CastTestCase("c_numeric_3_0", "decimal(38, 37)", "c_decimal_38_37"),
@@ -513,6 +531,10 @@ public class TestParallelSnowflakeCastPushdown
                 new CastTestCase("c_date", "timestamp(9)", "c_timestamp_9"),
                 new CastTestCase("c_time", "varchar(50)", "c_varchar_50"),
                 new CastTestCase("c_timestamp_9", "varchar(50)", "c_varchar_50"),
+                // char/varchar downcast are not pushed down: Snowflake's CAST raises an error
+                // when the value would be truncated, while Trino's CAST truncates silently
+                new CastTestCase("c_char_10", "varchar(3)", "c_varchar_10"),
+                new CastTestCase("c_varchar_50", "varchar(10)", "c_varchar_10"),
                 new CastTestCase("c_timestamp_6", "timestamp(3)", "c_timestamp_3"),
                 new CastTestCase("c_timestamp_9", "timestamp(3)", "c_timestamp_3"),
                 new CastTestCase("c_timestamp_9", "timestamp(6)", "c_timestamp_6"),

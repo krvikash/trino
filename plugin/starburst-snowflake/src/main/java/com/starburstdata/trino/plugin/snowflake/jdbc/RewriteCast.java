@@ -98,6 +98,10 @@ public class RewriteCast
                     if (varcharType.isUnbounded()) {
                         yield false;
                     }
+                    // downcast not supported because Snowflake's CAST raises an error when the actual value would be truncated
+                    if (varcharType.getBoundedLength() < sourceType.requiredColumnSize()) {
+                        yield false;
+                    }
                     yield sourceType.jdbcTypeName().map(name -> name.equals("CHAR") || name.equals("VARCHAR")).orElse(false);
                 }
                 default -> false;
