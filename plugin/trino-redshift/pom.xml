@@ -376,6 +376,7 @@
                         <configuration>
                             <excludes>
                                 <exclude>**/TestIcebergMvOnRedshiftSourceSubstitution.java</exclude>
+                                <exclude>**/TestIcebergMvOnRedshiftUnloadSourceSubstitution.java</exclude>
                                 <exclude>**/TestRedshiftAutomaticJoinPushdown.java</exclude>
                                 <exclude>**/TestRedshiftCastPushdown.java</exclude>
                                 <exclude>**/TestRedshiftConnectorTest.java</exclude>
@@ -407,6 +408,7 @@
                         <configuration>
                             <includes>
                                 <include>**/TestIcebergMvOnRedshiftSourceSubstitution.java</include>
+                                <include>**/TestIcebergMvOnRedshiftUnloadSourceSubstitution.java</include>
                                 <include>**/TestRedshiftAutomaticJoinPushdown.java</include>
                                 <include>**/TestRedshiftConnectorTest.java</include>
                                 <!-- Don't run smoke test because connector test should be enough -->

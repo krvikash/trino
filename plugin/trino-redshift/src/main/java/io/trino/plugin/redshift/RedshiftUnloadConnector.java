@@ -19,10 +19,12 @@ import io.airlift.bootstrap.LifeCycleManager;
 import io.trino.filesystem.TrinoFileSystemFactory;
 import io.trino.filesystem.s3.FileSystemS3;
 import io.trino.plugin.base.classloader.ClassLoaderSafeConnectorMetadata;
+import io.trino.plugin.base.classloader.ClassLoaderSafeConnectorSubstitutionMetadata;
 import io.trino.plugin.base.metrics.FileFormatDataSourceStats;
 import io.trino.plugin.base.session.SessionPropertiesProvider;
 import io.trino.plugin.jdbc.JdbcTransactionManager;
 import io.trino.plugin.jdbc.TablePropertiesProvider;
+import io.trino.plugin.jdbc.substitution.JdbcSubstitutionMetadata;
 import io.trino.spi.connector.Connector;
 import io.trino.spi.connector.ConnectorAccessControl;
 import io.trino.spi.connector.ConnectorCapabilities;
@@ -33,6 +35,7 @@ import io.trino.spi.connector.ConnectorRecordSetProvider;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorSplitManager;
 import io.trino.spi.connector.ConnectorTransactionHandle;
+import io.trino.spi.connector.substitution.ConnectorSubstitutionMetadata;
 import io.trino.spi.function.table.ConnectorTableFunction;
 import io.trino.spi.procedure.Procedure;
 import io.trino.spi.session.PropertyMetadata;
@@ -60,6 +63,7 @@ public class RedshiftUnloadConnector
     private final List<PropertyMetadata<?>> tableProperties;
     private final JdbcTransactionManager transactionManager;
     private final RedshiftPageSourceProvider pageSourceProvider;
+    private final ConnectorSubstitutionMetadata substitutionMetadata;
 
     @Inject
     public RedshiftUnloadConnector(
@@ -74,7 +78,8 @@ public class RedshiftUnloadConnector
             Set<TablePropertiesProvider> tableProperties,
             JdbcTransactionManager transactionManager,
             @FileSystemS3 TrinoFileSystemFactory fileSystemFactory,
-            FileFormatDataSourceStats fileFormatDataSourceStats)
+            FileFormatDataSourceStats fileFormatDataSourceStats,
+            JdbcSubstitutionMetadata substitutionMetadata)
     {
         this.lifeCycleManager = requireNonNull(lifeCycleManager, "lifeCycleManager is null");
         this.jdbcSplitManager = requireNonNull(jdbcSplitManager, "jdbcSplitManager is null");
@@ -90,6 +95,9 @@ public class RedshiftUnloadConnector
                 .collect(toImmutableList());
         this.transactionManager = requireNonNull(transactionManager, "transactionManager is null");
         this.pageSourceProvider = new RedshiftPageSourceProvider(jdbcPageSourceProvider, fileSystemFactory, fileFormatDataSourceStats);
+        this.substitutionMetadata = new ClassLoaderSafeConnectorSubstitutionMetadata(
+                requireNonNull(substitutionMetadata, "substitutionMetadata is null"),
+                getClass().getClassLoader());
     }
 
     @Override
@@ -102,6 +110,12 @@ public class RedshiftUnloadConnector
     public ConnectorMetadata getMetadata(ConnectorSession session, ConnectorTransactionHandle transaction)
     {
         return new ClassLoaderSafeConnectorMetadata(transactionManager.getMetadata(transaction), getClass().getClassLoader());
+    }
+
+    @Override
+    public ConnectorSubstitutionMetadata getSubstitutionMetadata()
+    {
+        return substitutionMetadata;
     }
 
     @Override
