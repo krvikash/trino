@@ -13,8 +13,8 @@
                         - AggregationNode
                           - JoinNode (GPU)
                             - ExchangeNode REMOTE
-                              - FilterNode
-                                - TableScanNode item
+                              - FilterNode (GPU)
+                                - TableScanNode item (GPU)
                             - ExchangeNode LOCAL
                               - ExchangeNode REMOTE
                                 - AggregationNode (GPU)

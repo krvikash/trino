@@ -192,7 +192,7 @@ public class TestHiveGpuQueries
         assertThat(query("SELECT a_char FROM test_char_trimming"))
                 .executesWithGpu(TableScanNode.class);
         assertThat(query("SELECT CAST(a_char AS varchar) FROM test_char_trimming"))
-                .executesWithoutGpu();
+                .executesWithGpu(ProjectNode.class);
         assertThat(query("SELECT length(a_char) FROM test_char_trimming"))
                 .executesWithGpu(ProjectNode.class);
         assertThat(query("SELECT substring(a_char, 1, 3) FROM test_char_trimming"))
@@ -223,18 +223,18 @@ public class TestHiveGpuQueries
         assertThat(query("SELECT a_char || b_char || a_char FROM test_concat"))
                 .executesWithGpu(ProjectNode.class);
         // A three-argument call has no char overload to bind to: it resolves to the variadic varchar one,
-        // and the char -> varchar coercions it adds are casts the GPU cast compiler does not support
+        // over the char -> varchar coercions it adds
         assertThat(query("SELECT concat(a_char, b_char, a_char) FROM test_concat"))
-                .executesWithoutGpu();
+                .executesWithGpu(ProjectNode.class);
 
         assertThat(query("SELECT concat(a_varchar, a_varchar, a_varchar, a_varchar) FROM test_concat"))
                 .executesWithGpu(ProjectNode.class);
         assertThat(query("SELECT a_varchar || a_varchar FROM test_concat"))
                 .executesWithGpu(ProjectNode.class);
 
-        // char and varchar arguments meet only through a char -> varchar cast, which the GPU cast compiler does not support
+        // char and varchar arguments meet through a char -> varchar cast
         assertThat(query("SELECT concat(a_char, a_varchar) FROM test_concat"))
-                .executesWithoutGpu();
+                .executesWithGpu(ProjectNode.class);
 
         assertUpdate("DROP TABLE test_concat");
     }

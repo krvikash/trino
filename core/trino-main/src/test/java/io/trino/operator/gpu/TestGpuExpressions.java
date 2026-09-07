@@ -62,6 +62,7 @@ import io.trino.sql.ir.Logical;
 import io.trino.sql.ir.Reference;
 import io.trino.sql.ir.WhenClause;
 import io.trino.sql.planner.Symbol;
+import io.trino.type.CharVarcharCoercion;
 import io.trino.type.LikePattern;
 import org.jetbrains.annotations.Nullable;
 import org.junit.jupiter.api.BeforeAll;
@@ -120,6 +121,7 @@ import static io.trino.spi.gpu.GpuTypeConversion.isConvertible;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.spi.type.CharType.createCharType;
+import static io.trino.spi.type.Chars.truncateToLengthAndTrimSpaces;
 import static io.trino.spi.type.DateType.DATE;
 import static io.trino.spi.type.DecimalType.createDecimalType;
 import static io.trino.spi.type.DoubleType.DOUBLE;
@@ -144,6 +146,7 @@ import static io.trino.sql.ir.TestingIr.comparison;
 import static io.trino.sql.ir.TestingIr.nullIf;
 import static io.trino.sql.planner.TestingSymbolAllocator.emptySymbolAllocator;
 import static io.trino.testing.assertions.TrinoExceptionAssert.assertTrinoExceptionThrownBy;
+import static io.trino.type.CharVarcharCoercion.SQL_STANDARD;
 import static io.trino.type.CodePointsType.CODE_POINTS;
 import static io.trino.type.LikePatternType.LIKE_PATTERN;
 import static java.lang.Math.clamp;
@@ -343,6 +346,18 @@ public class TestGpuExpressions
         return codePoints;
     }
 
+    private static final CharType CHAR_CAST_SOURCE_TYPE = createCharType(8);
+
+    /// `char(8)` values in Trino's representation, which strips trailing spaces: empty and all-space
+    /// values, leading and interior spaces, lengths on either side of the tested target lengths, and
+    /// `testStrings` cut to the char length, contributing multi-byte characters.
+    private final List<Object> charCastValues = Stream.concat(
+                    Stream.of("", " ", "        ", "a", "ab ", "abc", "abcdefgh", " abc", "a b c"),
+                    testStrings.stream())
+            .map(value -> (Object) truncateToLengthAndTrimSpaces(Slices.utf8Slice(value), CHAR_CAST_SOURCE_TYPE))
+            .distinct()
+            .collect(toImmutableList());
+
     @BeforeAll
     public static void maybeSetGpuMemoryPool()
     {
@@ -492,7 +507,7 @@ public class TestGpuExpressions
 
         Expression expression = new Cast(field(0, REAL), INTEGER);
         Map<Symbol, Integer> layout = layoutFor(List.of(REAL));
-        CompiledExpression compiledGpu = compileExpression(expression, layout).orElseThrow();
+        CompiledExpression compiledGpu = compileExpression(expression, layout, SQL_STANDARD).orElseThrow();
         PageProcessor cpuProcessor = compileCpuExpression(expression, layout);
 
         for (int value : values) {
@@ -599,7 +614,7 @@ public class TestGpuExpressions
 
                 Expression expression = buildUnaryOperatorExpression(operator, function, field(0, coerced));
                 Map<Symbol, Integer> layout = layoutFor(List.of(coerced));
-                Optional<CompiledExpression> gpuExpression = compileExpression(expression, layout);
+                Optional<CompiledExpression> gpuExpression = compileExpression(expression, layout, SQL_STANDARD);
                 if (gpuExpression.isEmpty()) {
                     // Not supported for GPU execution
                     continue;
@@ -643,7 +658,7 @@ public class TestGpuExpressions
 
                 Expression expression = new Cast(field(0, fromType), toType);
                 Map<Symbol, Integer> layout = layoutFor(List.of(fromType));
-                Optional<CompiledExpression> gpuExpression = compileExpression(expression, layout);
+                Optional<CompiledExpression> gpuExpression = compileExpression(expression, layout, SQL_STANDARD);
                 if (gpuExpression.isEmpty()) {
                     continue;
                 }
@@ -723,7 +738,7 @@ public class TestGpuExpressions
 
                     Expression expression = new Call(function, ImmutableList.of(field(0, leftCoerced), field(1, rightCoerced)));
                     Map<Symbol, Integer> layout = layoutFor(List.of(leftCoerced, rightCoerced));
-                    Optional<CompiledExpression> gpuExpression = compileExpression(expression, layout);
+                    Optional<CompiledExpression> gpuExpression = compileExpression(expression, layout, SQL_STANDARD);
                     if (gpuExpression.isEmpty()) {
                         // Not supported for GPU execution
                         continue;
@@ -1064,7 +1079,7 @@ public class TestGpuExpressions
         // rescaled dividend nor the long-division intermediates fit in DECIMAL128
         DecimalType dividendType = createDecimalType(30, 0);
         DecimalType divisorType = createDecimalType(20, 10);
-        assertThat(compileExpression(divide(dividendType, divisorType), layoutFor(List.of(dividendType, divisorType))))
+        assertThat(compileExpression(divide(dividendType, divisorType), layoutFor(List.of(dividendType, divisorType)), SQL_STANDARD))
                 .isEmpty();
     }
 
@@ -1243,7 +1258,7 @@ public class TestGpuExpressions
 
         if (operator == ComparisonOperator.IDENTICAL && (type == REAL || type == DOUBLE)) {
             // operator currently not supported
-            assertThat(compileExpression(expression, layoutFor(inputTypes)))
+            assertThat(compileExpression(expression, layoutFor(inputTypes), SQL_STANDARD))
                     .isEmpty();
             return;
         }
@@ -1516,7 +1531,7 @@ public class TestGpuExpressions
 
         if (type == VARBINARY) {
             // cudf replaceNulls has no implementation for the LIST<UINT8> column carrying varbinary
-            assertThat(compileExpression(expression, layoutFor(inputTypes))).isEmpty();
+            assertThat(compileExpression(expression, layoutFor(inputTypes), SQL_STANDARD)).isEmpty();
             return;
         }
         assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA, channelB));
@@ -2288,6 +2303,33 @@ public class TestGpuExpressions
     }
 
     @ParameterizedTest
+    @MethodSource("charToVarcharCastTestCases")
+    public void testCastCharToVarchar(Type targetType, CharVarcharCoercion charVarcharCoercion, NullsProvider nullsProvider)
+    {
+        int channelA = 0;
+        List<Type> inputTypes = List.of(CHAR_CAST_SOURCE_TYPE);
+        int positionsCount = 256;
+        List<Page> inputPages = List.of(new Page(
+                positionsCount,
+                createRepeatingValuesBlock(CHAR_CAST_SOURCE_TYPE, positionsCount, nullsProvider, charCastValues, 1)));
+
+        Expression expression = new Cast(field(channelA, CHAR_CAST_SOURCE_TYPE), targetType);
+
+        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA), charVarcharCoercion);
+    }
+
+    public static Stream<Object[]> charToVarcharCastTestCases()
+    {
+        return Lists.cartesianProduct(
+                        // Target lengths above, at and below the source char length, plus unbounded varchar
+                        List.of(VARCHAR, createVarcharType(20), createVarcharType(9), createVarcharType(8), createVarcharType(7), createVarcharType(3), createVarcharType(1), createVarcharType(0)),
+                        ImmutableList.copyOf(CharVarcharCoercion.values()),
+                        ImmutableList.copyOf(NullsProvider.values()))
+                .stream()
+                .map(List::toArray);
+    }
+
+    @ParameterizedTest
     @EnumSource(NullsProvider.class)
     public void testTypeOnlyCast(NullsProvider nullsProvider)
     {
@@ -2360,7 +2402,7 @@ public class TestGpuExpressions
                 FUNCTION_RESOLUTION.resolveFunction("year", fromTypes(type)),
                 ImmutableList.of(field(channelA, type)));
 
-        CompiledExpression gpuExpression = compileExpression(expression, layoutFor(List.of(type)))
+        CompiledExpression gpuExpression = compileExpression(expression, layoutFor(List.of(type)), SQL_STANDARD)
                 .orElseThrow(() -> new AssertionError("GPU expression compile failed for: " + expression));
         assertTrinoExceptionThrownBy(() -> executeWithGpu(inputPages, List.of(type), expression, gpuExpression))
                 .hasErrorCode(NUMERIC_VALUE_OUT_OF_RANGE)
@@ -2489,7 +2531,7 @@ public class TestGpuExpressions
         for (int codePoint : UNSUPPORTED_CODE_POINTS) {
             List<Page> inputPages = List.of(new Page(writeNativeValue(type, Slices.utf8Slice(new String(Character.toChars(codePoint))))));
             Expression expression = createLowerExpression(type);
-            CompiledExpression gpuExpression = compileExpression(expression, layoutFor(List.of(type)))
+            CompiledExpression gpuExpression = compileExpression(expression, layoutFor(List.of(type)), SQL_STANDARD)
                     .orElseThrow(() -> new AssertionError("GPU expression compile failed for: " + expression));
             assertTrinoExceptionThrownBy(() -> executeWithGpu(inputPages, List.of(type), expression, gpuExpression))
                     .describedAs("U+%04X", codePoint)
@@ -2633,7 +2675,7 @@ public class TestGpuExpressions
                 FUNCTION_RESOLUTION.resolveFunction("last_day_of_month", fromTypes(type)),
                 ImmutableList.of(field(channelA, type)));
 
-        CompiledExpression gpuExpression = compileExpression(expression, layoutFor(List.of(type)))
+        CompiledExpression gpuExpression = compileExpression(expression, layoutFor(List.of(type)), SQL_STANDARD)
                 .orElseThrow(() -> new AssertionError("GPU expression compile failed for: " + expression));
         assertTrinoExceptionThrownBy(() -> executeWithGpu(inputPages, List.of(type), expression, gpuExpression))
                 .hasErrorCode(NUMERIC_VALUE_OUT_OF_RANGE)
@@ -2745,12 +2787,12 @@ public class TestGpuExpressions
         Expression nonConstantSearch = new Call(
                 FUNCTION_RESOLUTION.resolveFunction("replace", fromTypes(VARCHAR, VARCHAR)),
                 ImmutableList.of(field(0, VARCHAR), field(1, VARCHAR)));
-        assertThat(compileExpression(nonConstantSearch, layoutFor(inputTypes))).isEmpty();
+        assertThat(compileExpression(nonConstantSearch, layoutFor(inputTypes), SQL_STANDARD)).isEmpty();
 
         Expression nonConstantReplacement = new Call(
                 FUNCTION_RESOLUTION.resolveFunction("replace", fromTypes(VARCHAR, VARCHAR, VARCHAR)),
                 ImmutableList.of(field(0, VARCHAR), new Constant(VARCHAR, Slices.utf8Slice("a")), field(1, VARCHAR)));
-        assertThat(compileExpression(nonConstantReplacement, layoutFor(inputTypes))).isEmpty();
+        assertThat(compileExpression(nonConstantReplacement, layoutFor(inputTypes), SQL_STANDARD)).isEmpty();
     }
 
     private void testReplace(NullsProvider nullsProvider, String search, Optional<String> replacement)
@@ -2777,7 +2819,7 @@ public class TestGpuExpressions
         if (search.isEmpty()) {
             // Trino wraps every code point in the replacement rather than replacing a substring,
             // and cuDF rejects an empty target outright
-            assertThat(compileExpression(expression, layoutFor(inputTypes))).isEmpty();
+            assertThat(compileExpression(expression, layoutFor(inputTypes), SQL_STANDARD)).isEmpty();
             return;
         }
         assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(varcharChannel));
@@ -2840,7 +2882,7 @@ public class TestGpuExpressions
                 FUNCTION_RESOLUTION.resolveFunction("trim", fromTypes(VARCHAR, CODE_POINTS)),
                 ImmutableList.of(field(0, VARCHAR), nonConstantCodePoints));
 
-        assertThat(compileExpression(expression, layoutFor(inputTypes)))
+        assertThat(compileExpression(expression, layoutFor(inputTypes), SQL_STANDARD))
                 .isEmpty();
     }
 
@@ -2853,7 +2895,7 @@ public class TestGpuExpressions
                 FUNCTION_RESOLUTION.resolveFunction("trim", fromTypes(VARCHAR, CODE_POINTS)),
                 ImmutableList.of(field(0, VARCHAR), new Constant(CODE_POINTS, null)));
 
-        assertThat(compileExpression(expression, layoutFor(inputTypes)))
+        assertThat(compileExpression(expression, layoutFor(inputTypes), SQL_STANDARD))
                 .isEmpty();
     }
 
@@ -2877,7 +2919,7 @@ public class TestGpuExpressions
                 FUNCTION_RESOLUTION.resolveFunction(functionName, fromTypes(VARCHAR)),
                 ImmutableList.of(field(0, VARCHAR)));
         Map<Symbol, Integer> layout = layoutFor(inputTypes);
-        CompiledExpression gpuExpression = compileExpression(expression, layout)
+        CompiledExpression gpuExpression = compileExpression(expression, layout, SQL_STANDARD)
                 .orElseThrow(() -> new AssertionError("GPU expression compile failed for: " + expression));
 
         List<Page> cpuResults = executeWithCpu(compileCpuExpression(expression, layout), inputPages);
@@ -2984,7 +3026,8 @@ public class TestGpuExpressions
                 new Call(
                         FUNCTION_RESOLUTION.resolveFunction("concat", fromTypes(VARBINARY, VARBINARY)),
                         ImmutableList.of(field(0, VARBINARY), field(1, VARBINARY))),
-                layoutFor(List.of(VARBINARY, VARBINARY))))
+                layoutFor(List.of(VARBINARY, VARBINARY)),
+                SQL_STANDARD))
                 .isEmpty();
     }
 
@@ -3189,7 +3232,7 @@ public class TestGpuExpressions
                 positionsCount,
                 createBigintBlock(positionsCount, NullsProvider.NO_NULLS, 0, 100)));
 
-        CompiledExpression gpuExpression = compileExpression(constantExpression, layoutFor(List.of()))
+        CompiledExpression gpuExpression = compileExpression(constantExpression, layoutFor(List.of()), SQL_STANDARD)
                 .orElseThrow(() -> new AssertionError("GPU expression compile failed for: " + constantExpression));
         assertThat(gpuExpression.inputChannels().getInputChannels()).isEmpty();
 

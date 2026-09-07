@@ -5,9 +5,9 @@
         - ExchangeNode LOCAL (GPU)
           - AggregationNode (GPU)
             - JoinNode (GPU)
-              - ProjectNode
-                - FilterNode
-                  - TableScanNode time_dim
+              - ProjectNode (GPU)
+                - FilterNode (GPU)
+                  - TableScanNode time_dim (GPU)
               - JoinNode (GPU)
                 - ExchangeNode LOCAL (GPU)
                   - JoinNode (GPU)

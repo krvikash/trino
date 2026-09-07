@@ -30,10 +30,10 @@
                                   - JoinNode (GPU)
                                     - FilterNode (GPU)
                                       - TableScanNode customer (GPU)
-                                    - ExchangeNode LOCAL
-                                      - ProjectNode
-                                        - FilterNode
-                                          - TableScanNode customer_address
+                                    - ExchangeNode LOCAL (GPU)
+                                      - ProjectNode (GPU)
+                                        - FilterNode (GPU)
+                                          - TableScanNode customer_address (GPU)
                           - ProjectNode (GPU)
                             - AggregationNode (GPU)
                               - ExchangeNode LOCAL (GPU)

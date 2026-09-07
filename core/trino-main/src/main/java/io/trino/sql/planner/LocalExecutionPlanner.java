@@ -2608,7 +2608,7 @@ public class LocalExecutionPlanner
                 PlanNodeId planNodeId,
                 LocalExecutionPlanContext context)
         {
-            Optional<CompiledExpression> compiledExpression = GpuExpressionCompiler.compileExpression(expression, sourceLayout);
+            Optional<CompiledExpression> compiledExpression = GpuExpressionCompiler.compileExpression(expression, sourceLayout, getCharVarcharCoercion(context.getTaskContext().getSession()));
             if (compiledExpression.isEmpty()) {
                 context.markAsGpuIneligible(planNodeId, "Unsupported expression: %s".formatted(formatExpression(expression)));
             }

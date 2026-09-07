@@ -59,6 +59,7 @@ import static io.trino.spi.type.VarcharType.createVarcharType;
 import static io.trino.sql.ir.TestingIr.between;
 import static io.trino.sql.ir.TestingIr.comparison;
 import static io.trino.testing.InterfaceTestUtils.assertAllMethodsOverridden;
+import static io.trino.type.CharVarcharCoercion.SQL_STANDARD;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assumptions.abort;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
@@ -94,7 +95,7 @@ class TestGpuExpressionCompiler
         Map<Symbol, Integer> layout = ImmutableMap.of(
                 new Symbol(type, "a"), 0,
                 new Symbol(type, "b"), 1);
-        assertThat(compileExpression(comparison(ComparisonOperator.EQUAL, left, right), layout).isPresent())
+        assertThat(compileExpression(comparison(ComparisonOperator.EQUAL, left, right), layout, SQL_STANDARD).isPresent())
                 .as("Comparison on %s", type)
                 .isEqualTo(expectGpuCompile);
     }
@@ -109,7 +110,7 @@ class TestGpuExpressionCompiler
                 new Symbol(type, "a"), 0,
                 new Symbol(type, "b"), 1);
         boolean expectIdenticalCompile = expectGpuCompile && type != REAL && type != DOUBLE;
-        assertThat(compileExpression(comparison(ComparisonOperator.IDENTICAL, left, right), layout).isPresent())
+        assertThat(compileExpression(comparison(ComparisonOperator.IDENTICAL, left, right), layout, SQL_STANDARD).isPresent())
                 .as("IS NOT DISTINCT FROM on %s", type)
                 .isEqualTo(expectIdenticalCompile);
     }
@@ -129,7 +130,7 @@ class TestGpuExpressionCompiler
                 new Symbol(type, "a"), 0,
                 new Symbol(type, "b"), 1,
                 new Symbol(type, "c"), 2);
-        assertThat(compileExpression(between(value, min, max), layout).isPresent())
+        assertThat(compileExpression(between(value, min, max), layout, SQL_STANDARD).isPresent())
                 .as("Between on %s", type)
                 .isEqualTo(expectGpuCompile);
     }
@@ -141,7 +142,7 @@ class TestGpuExpressionCompiler
         Reference value = new Reference(type, "a");
         Map<Symbol, Integer> layout = ImmutableMap.of(new Symbol(type, "a"), 0);
         List<Expression> valueList = ImmutableList.of(new Constant(type, null));
-        assertThat(compileExpression(new In(value, valueList), layout).isPresent())
+        assertThat(compileExpression(new In(value, valueList), layout, SQL_STANDARD).isPresent())
                 .as("In on %s", type)
                 .isEqualTo(expectGpuCompile);
     }

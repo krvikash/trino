@@ -8,8 +8,8 @@
               - ExchangeNode LOCAL (GPU)
                 - AggregationNode (GPU)
                   - JoinNode (GPU)
-                    - FilterNode
-                      - TableScanNode item
+                    - FilterNode (GPU)
+                      - TableScanNode item (GPU)
                     - ExchangeNode LOCAL (GPU)
                       - JoinNode (GPU)
                         - FilterNode (GPU)

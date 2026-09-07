@@ -76,6 +76,7 @@ import static io.trino.spi.type.TypeUtils.writeNativeValue;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.spi.type.VarcharType.createVarcharType;
 import static io.trino.testing.TestingSession.testSessionBuilder;
+import static io.trino.type.CharVarcharCoercion.SQL_STANDARD;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -495,13 +496,13 @@ public class TestGpuCasts
         assertThat(gpuCast(char5Type, createCharType(1))).isNotSupported();
 
         // to VARCHAR no-op
-        assertThat(gpuCast(char5Type, createVarcharType(5))).isNotSupported();
+        assertCastSucceedsForAll(char5Type, createVarcharType(5), char5Values);
         // to VARCHAR widening
-        assertThat(gpuCast(char5Type, createVarcharType(6))).isNotSupported();
-        assertThat(gpuCast(char5Type, VARCHAR)).isNotSupported();
+        assertCastSucceedsForAll(char5Type, createVarcharType(6), char5Values);
+        assertCastSucceedsForAll(char5Type, VARCHAR, char5Values);
         // to VARCHAR narrowing
-        assertThat(gpuCast(char5Type, createVarcharType(4))).isNotSupported();
-        assertThat(gpuCast(char5Type, createVarcharType(1))).isNotSupported();
+        assertCastSucceedsForAll(char5Type, createVarcharType(4), char5Values);
+        assertCastSucceedsForAll(char5Type, createVarcharType(1), char5Values);
 
         // CHAR -> non-string targets: not supported on GPU
         assertThat(gpuCast(char5Type, BOOLEAN)).isNotSupported();
@@ -594,7 +595,7 @@ public class TestGpuCasts
             this.to = to;
             this.castExpression = new Cast(new Reference(from, "ref0"), to);
             this.layout = ImmutableMap.of(new Symbol(from, "ref0"), 0);
-            this.compiled = Suppliers.memoize(() -> compileExpression(castExpression, layout));
+            this.compiled = Suppliers.memoize(() -> compileExpression(castExpression, layout, SQL_STANDARD));
         }
 
         /**

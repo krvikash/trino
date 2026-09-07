@@ -9,9 +9,9 @@
                 - AggregationNode (GPU)
                   - JoinNode (GPU)
                     - ExchangeNode REMOTE
-                      - ProjectNode
-                        - FilterNode
-                          - TableScanNode time_dim
+                      - ProjectNode (GPU)
+                        - FilterNode (GPU)
+                          - TableScanNode time_dim (GPU)
                     - ExchangeNode LOCAL
                       - ExchangeNode REMOTE
                         - JoinNode (GPU)

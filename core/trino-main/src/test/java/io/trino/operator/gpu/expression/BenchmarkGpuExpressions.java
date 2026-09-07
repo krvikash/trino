@@ -54,6 +54,7 @@ import static io.trino.operator.gpu.expression.GpuExpressionCompiler.compileExpr
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.sql.ir.TestingIr.between;
 import static io.trino.sql.ir.TestingIr.comparison;
+import static io.trino.type.CharVarcharCoercion.SQL_STANDARD;
 import static java.util.concurrent.TimeUnit.MICROSECONDS;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.openjdk.jmh.annotations.Mode.AverageTime;
@@ -135,7 +136,7 @@ public class BenchmarkGpuExpressions
 
         private static GpuExpression compile(Expression expression)
         {
-            return compileExpression(expression, layout(BIGINT))
+            return compileExpression(expression, layout(BIGINT), SQL_STANDARD)
                     .orElseThrow(() -> new IllegalStateException("Expression is not GPU-compilable: " + expression))
                     .expression();
         }

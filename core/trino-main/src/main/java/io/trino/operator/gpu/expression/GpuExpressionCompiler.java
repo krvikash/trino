@@ -61,6 +61,7 @@ import io.trino.sql.ir.Reference;
 import io.trino.sql.ir.Row;
 import io.trino.sql.ir.WhenClause;
 import io.trino.sql.planner.Symbol;
+import io.trino.type.CharVarcharCoercion;
 import io.trino.type.CodePointsType;
 import io.trino.type.JoniRegexp;
 import io.trino.type.LikePattern;
@@ -98,6 +99,7 @@ import static io.trino.type.LikeFunctions.LIKE_FUNCTION_NAME;
 import static io.trino.type.LikePatternType.LIKE_PATTERN;
 import static java.lang.Character.MAX_SURROGATE;
 import static java.lang.Character.MIN_SURROGATE;
+import static java.lang.Math.min;
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -114,9 +116,9 @@ public final class GpuExpressionCompiler
     private static final int INTEGER_DECIMAL_DIGITS = 10;
     private static final int BIGINT_DECIMAL_DIGITS = 19;
 
-    public static Optional<CompiledExpression> compileExpression(Expression expression, Map<Symbol, Integer> layout)
+    public static Optional<CompiledExpression> compileExpression(Expression expression, Map<Symbol, Integer> layout, CharVarcharCoercion charVarcharCoercion)
     {
-        CompilationVisitor visitor = new CompilationVisitor(layout);
+        CompilationVisitor visitor = new CompilationVisitor(layout, charVarcharCoercion);
         Optional<CompiledExpression> compiled = expression.accept(visitor, null)
                 .map(result -> new CompiledExpression(result, new InputChannels(ImmutableList.copyOf(visitor.inputChannels))));
         if (compiled.isEmpty()) {
@@ -130,6 +132,7 @@ public final class GpuExpressionCompiler
             extends IrVisitor<Optional<GpuExpression>, Void>
     {
         private final Map<Symbol, Integer> sourceLayout;
+        private final CharVarcharCoercion charVarcharCoercion;
         // Maps each referenced Symbol to a compact, consecutive index (0, 1, 2, ...).
         // GPU operators use this index to look up the corresponding input column in
         // the materialized list of device-resident columns.
@@ -138,9 +141,10 @@ public final class GpuExpressionCompiler
         // Symbols bound by enclosing Lets, in binding order (innermost last).
         private final List<Symbol> bindingStack = new ArrayList<>();
 
-        private CompilationVisitor(Map<Symbol, Integer> sourceLayout)
+        private CompilationVisitor(Map<Symbol, Integer> sourceLayout, CharVarcharCoercion charVarcharCoercion)
         {
             this.sourceLayout = requireNonNull(sourceLayout, "sourceLayout is null");
+            this.charVarcharCoercion = requireNonNull(charVarcharCoercion, "charVarcharCoercion is null");
         }
 
         @Override
@@ -205,7 +209,7 @@ public final class GpuExpressionCompiler
                                     compileCast(compiledArgument, cast.expression().type(), fromDType, cast.type(), toDType))));
         }
 
-        private static Optional<GpuExpression> compileCast(GpuExpression input, Type fromType, DType fromDType, Type toType, DType toDType)
+        private Optional<GpuExpression> compileCast(GpuExpression input, Type fromType, DType fromDType, Type toType, DType toDType)
         {
             if (fromType.equals(toType)) {
                 return Optional.of(input);
@@ -280,6 +284,10 @@ public final class GpuExpressionCompiler
                         verify(DType.STRING.equals(fromDType) && DType.STRING.equals(toDType), "Unexpected from/to DTypes: %s, %s", fromDType, toDType);
                         yield Optional.of(input);
                     }
+                    case VarcharType to -> {
+                        verify(DType.STRING.equals(fromDType) && DType.STRING.equals(toDType), "Unexpected from/to DTypes: %s, %s", fromDType, toDType);
+                        yield Optional.of(compileCharToVarcharCast(input, from, to));
+                    }
                     default -> Optional.empty();
                 };
                 case VarcharType from -> switch (toType) {
@@ -293,6 +301,21 @@ public final class GpuExpressionCompiler
                 };
                 default -> Optional.empty();
             };
+        }
+
+        /// See [io.trino.operator.scalar.CharToVarcharCast], the CPU counterpart.
+        private GpuExpression compileCharToVarcharCast(GpuExpression input, CharType from, VarcharType to)
+        {
+            int targetLength = to.getLength().orElse(Integer.MAX_VALUE);
+            GpuExpression result = input;
+            if (targetLength < from.getLength()) {
+                result = new GpuTruncateToLength(result, targetLength);
+            }
+            if (charVarcharCoercion == CharVarcharCoercion.LEGACY) {
+                // The GPU carries char(n) without trailing spaces, so the legacy cast has to restore them
+                result = new GpuPadSpaces(result, min(from.getLength(), targetLength));
+            }
+            return result;
         }
 
         private static boolean canCastIntegerToDecimal(DecimalType type, int decimalDigits)

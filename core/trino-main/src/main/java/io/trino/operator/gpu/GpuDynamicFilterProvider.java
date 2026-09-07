@@ -266,7 +266,7 @@ public class GpuDynamicFilterProvider
 
         Symbol symbol = new Symbol(handleType.get(handle), "synthetic");
         Expression expression = domainTranslator.toPredicate(charVarcharCoercion, domain, symbol.toSymbolReference());
-        Optional<GpuExpression> compiled = compileExpression(expression, ImmutableMap.of(symbol, 0))
+        Optional<GpuExpression> compiled = compileExpression(expression, ImmutableMap.of(symbol, 0), charVarcharCoercion)
                 .map(CompiledExpression::expression);
         if (compiled.isEmpty()) {
             log.debug("Could not convert Domain to GPU expression: %s", domain);

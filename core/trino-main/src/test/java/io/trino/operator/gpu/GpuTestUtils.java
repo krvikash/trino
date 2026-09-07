@@ -60,6 +60,7 @@ import io.trino.testing.MaterializedResult;
 import io.trino.testing.TestingSession;
 import io.trino.type.BlockTypeOperators;
 import io.trino.type.BlockTypeOperators.BlockPositionIsIdentical;
+import io.trino.type.CharVarcharCoercion;
 
 import java.math.BigInteger;
 import java.util.ArrayList;
@@ -80,6 +81,7 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static com.google.common.collect.Streams.stream;
 import static io.airlift.testing.Closeables.closeAllSuppress;
+import static io.trino.SystemSessionProperties.LEGACY_VARCHAR_TO_CHAR_COERCION;
 import static io.trino.memory.context.AggregatedMemoryContext.newSimpleAggregatedMemoryContext;
 import static io.trino.operator.gpu.expression.GpuExpressionCompiler.compileExpression;
 import static io.trino.spi.type.BigintType.BIGINT;
@@ -100,6 +102,7 @@ import static io.trino.spi.type.VarbinaryType.VARBINARY;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.spi.type.VarcharType.createVarcharType;
 import static io.trino.testing.assertions.TrinoExceptionAssert.assertTrinoExceptionThrownBy;
+import static io.trino.type.CharVarcharCoercion.LEGACY;
 import static io.trino.type.CharVarcharCoercion.SQL_STANDARD;
 import static java.lang.Math.clamp;
 import static java.lang.Math.min;
@@ -137,9 +140,25 @@ public final class GpuTestUtils
 
     private static final BlockTypeOperators BLOCK_TYPE_OPERATORS = new BlockTypeOperators();
 
-    public static final FullConnectorSession FULL_CONNECTOR_SESSION = new FullConnectorSession(
-            TestingSession.testSessionBuilder().build(),
-            ConnectorIdentity.ofUser("test"));
+    public static final FullConnectorSession FULL_CONNECTOR_SESSION = createFullConnectorSession(SQL_STANDARD);
+    private static final FullConnectorSession LEGACY_COERCION_CONNECTOR_SESSION = createFullConnectorSession(LEGACY);
+
+    private static FullConnectorSession createFullConnectorSession(CharVarcharCoercion charVarcharCoercion)
+    {
+        return new FullConnectorSession(
+                TestingSession.testSessionBuilder()
+                        .setSystemProperty(LEGACY_VARCHAR_TO_CHAR_COERCION, Boolean.toString(charVarcharCoercion == LEGACY))
+                        .build(),
+                ConnectorIdentity.ofUser("test"));
+    }
+
+    public static FullConnectorSession fullConnectorSession(CharVarcharCoercion charVarcharCoercion)
+    {
+        return switch (charVarcharCoercion) {
+            case SQL_STANDARD -> FULL_CONNECTOR_SESSION;
+            case LEGACY -> LEGACY_COERCION_CONNECTOR_SESSION;
+        };
+    }
 
     public static final TestingFunctionResolution FUNCTION_RESOLUTION = new TestingFunctionResolution();
 
@@ -667,13 +686,23 @@ public final class GpuTestUtils
 
     public static PageProcessor compileCpuExpression(Expression expression, Map<Symbol, Integer> layout)
     {
-        return compileCpuExpressions(List.of(expression), layout);
+        return compileCpuExpression(expression, layout, SQL_STANDARD);
+    }
+
+    public static PageProcessor compileCpuExpression(Expression expression, Map<Symbol, Integer> layout, CharVarcharCoercion charVarcharCoercion)
+    {
+        return compileCpuExpressions(List.of(expression), layout, charVarcharCoercion);
     }
 
     public static PageProcessor compileCpuExpressions(List<Expression> expressions, Map<Symbol, Integer> layout)
     {
+        return compileCpuExpressions(expressions, layout, SQL_STANDARD);
+    }
+
+    public static PageProcessor compileCpuExpressions(List<Expression> expressions, Map<Symbol, Integer> layout, CharVarcharCoercion charVarcharCoercion)
+    {
         return FUNCTION_RESOLUTION.getExpressionCompiler().compilePageProcessor(
-                        SQL_STANDARD,
+                        charVarcharCoercion,
                         false,
                         true,
                         false,
@@ -689,10 +718,15 @@ public final class GpuTestUtils
 
     public static List<Page> executeWithCpu(PageProcessor compiledProcessor, List<Page> inputPages)
     {
+        return executeWithCpu(compiledProcessor, inputPages, FULL_CONNECTOR_SESSION);
+    }
+
+    public static List<Page> executeWithCpu(PageProcessor compiledProcessor, List<Page> inputPages, FullConnectorSession session)
+    {
         LocalMemoryContext context = newSimpleAggregatedMemoryContext().newLocalMemoryContext(PageProcessor.class.getSimpleName());
         ImmutableList.Builder<Page> outputPages = ImmutableList.builder();
         for (Page inputPage : inputPages) {
-            Iterator<Optional<Page>> processed = compiledProcessor.process(FULL_CONNECTOR_SESSION, context, SourcePage.create(inputPage));
+            Iterator<Optional<Page>> processed = compiledProcessor.process(session, context, SourcePage.create(inputPage));
             stream(processed)
                     .flatMap(Optional::stream)
                     .forEachOrdered(outputPages::add);
@@ -862,17 +896,33 @@ public final class GpuTestUtils
         assertGpuMatchesCpu(inputPages, inputTypes, expression, expectedInputChannels, false);
     }
 
+    public static void assertGpuMatchesCpu(List<Page> inputPages, List<Type> inputTypes, Expression expression, Set<Integer> expectedInputChannels, CharVarcharCoercion charVarcharCoercion)
+    {
+        assertGpuMatchesCpu(inputPages, inputTypes, expression, expectedInputChannels, false, charVarcharCoercion);
+    }
+
     public static void assertGpuMatchesCpu(List<Page> inputPages, List<Type> inputTypes, Expression expression, Set<Integer> expectedInputChannels, boolean allowMultipleInputsForExceptionTesting)
     {
+        assertGpuMatchesCpu(inputPages, inputTypes, expression, expectedInputChannels, allowMultipleInputsForExceptionTesting, SQL_STANDARD);
+    }
+
+    private static void assertGpuMatchesCpu(
+            List<Page> inputPages,
+            List<Type> inputTypes,
+            Expression expression,
+            Set<Integer> expectedInputChannels,
+            boolean allowMultipleInputsForExceptionTesting,
+            CharVarcharCoercion charVarcharCoercion)
+    {
         Map<Symbol, Integer> layout = layoutFor(inputTypes);
-        PageProcessor pageProcessor = compileCpuExpression(expression, layout);
-        CompiledExpression gpuExpression = compileExpression(expression, layout)
+        PageProcessor pageProcessor = compileCpuExpression(expression, layout, charVarcharCoercion);
+        CompiledExpression gpuExpression = compileExpression(expression, layout, charVarcharCoercion)
                 .orElseThrow(() -> new AssertionError("GPU expression compile failed for: " + expression));
 
         assertThat(gpuExpression.inputChannels().getInputChannels())
                 .containsExactlyInAnyOrderElementsOf(expectedInputChannels);
 
-        assertGpuMatchesCpu(inputPages, inputTypes, expression, pageProcessor, gpuExpression, allowMultipleInputsForExceptionTesting);
+        assertGpuMatchesCpu(inputPages, inputTypes, expression, pageProcessor, gpuExpression, allowMultipleInputsForExceptionTesting, charVarcharCoercion);
     }
 
     /**
@@ -884,16 +934,28 @@ public final class GpuTestUtils
     {
         Map<Symbol, Integer> layout = layoutFor(inputTypes);
         PageProcessor cpuProcessor = compileCpuExpression(expression, layout);
-        CompiledExpression gpuExpression = compileExpression(expression, layout)
+        CompiledExpression gpuExpression = compileExpression(expression, layout, SQL_STANDARD)
                 .orElseThrow(() -> new AssertionError("GPU expression compile failed for: " + expression));
         assertGpuMatchesCpu(inputPages, inputTypes, expression, cpuProcessor, gpuExpression, false);
     }
 
     public static void assertGpuMatchesCpu(List<Page> inputPages, List<Type> inputTypes, Expression expression, PageProcessor cpuProcessor, CompiledExpression gpuExpression, boolean allowMultipleInputsForExceptionTesting)
     {
+        assertGpuMatchesCpu(inputPages, inputTypes, expression, cpuProcessor, gpuExpression, allowMultipleInputsForExceptionTesting, SQL_STANDARD);
+    }
+
+    private static void assertGpuMatchesCpu(
+            List<Page> inputPages,
+            List<Type> inputTypes,
+            Expression expression,
+            PageProcessor cpuProcessor,
+            CompiledExpression gpuExpression,
+            boolean allowMultipleInputsForExceptionTesting,
+            CharVarcharCoercion charVarcharCoercion)
+    {
         List<Page> cpuResults;
         try {
-            cpuResults = executeWithCpu(cpuProcessor, inputPages);
+            cpuResults = executeWithCpu(cpuProcessor, inputPages, fullConnectorSession(charVarcharCoercion));
         }
         catch (TrinoException cpuExecutionException) {
             // The boolean flag is a safety mechanism not to nullify test coverage over large input data set when one of the rows triggers execution exception
