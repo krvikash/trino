@@ -11,7 +11,7 @@
                     - ExchangeNode LOCAL (GPU)
                       - ProjectNode (GPU)
                         - AggregationNode (GPU)
-                          - ProjectNode
+                          - ProjectNode (GPU)
                             - AggregationNode (GPU)
                               - ExchangeNode LOCAL
                                 - ExchangeNode REMOTE
@@ -53,7 +53,7 @@
                                                     - TableScanNode warehouse (GPU)
                       - ProjectNode (GPU)
                         - AggregationNode (GPU)
-                          - ProjectNode
+                          - ProjectNode (GPU)
                             - AggregationNode (GPU)
                               - ExchangeNode LOCAL
                                 - ExchangeNode REMOTE

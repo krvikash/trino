@@ -84,6 +84,7 @@ import static io.trino.spi.gpu.GpuTypeConversion.toGpuMapping;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.spi.type.DateType.DATE;
+import static io.trino.spi.type.Decimals.MAX_PRECISION;
 import static io.trino.spi.type.DoubleType.DOUBLE;
 import static io.trino.spi.type.IntegerType.INTEGER;
 import static io.trino.spi.type.RealType.REAL;
@@ -629,6 +630,14 @@ public final class GpuExpressionCompiler
                     if (leftType == DOUBLE && rightType == DOUBLE) {
                         yield Optional.of(new GpuBinaryExpression(left, right, BinaryOp.DIV, outputType));
                     }
+                    if (leftType instanceof DecimalType dividendType && rightType instanceof DecimalType divisorType
+                            && call.type() instanceof DecimalType resultDecimal) {
+                        // Same rescaling the CPU applies to the dividend, see DecimalOperators.divideRescaleFactor
+                        int rescaleFactor = resultDecimal.getScale() - dividendType.getScale() + divisorType.getScale();
+                        if (decimalDivideFitsInDecimal128(dividendType.getPrecision(), rescaleFactor)) {
+                            yield Optional.of(new GpuDecimalDivide(left, right, dividendType.getPrecision(), divisorType.getPrecision(), rescaleFactor, outputType));
+                        }
+                    }
                     yield Optional.empty();
                 }
                 case MODULO -> {
@@ -654,6 +663,15 @@ public final class GpuExpressionCompiler
                 }
                 default -> Optional.empty();
             };
+        }
+
+        // Checks whether decimal divide can be carried out in DECIMAL128. GpuDecimalDivide either rescales
+        // the dividend up front, which needs dividendPrecision + rescaleFactor digits, or divides first and
+        // rescales the remainder, which needs 3 * rescaleFactor digits.
+        private static boolean decimalDivideFitsInDecimal128(int dividendPrecision, int rescaleFactor)
+        {
+            return rescaleFactor >= 0
+                    && (dividendPrecision + rescaleFactor <= MAX_PRECISION || 3 * rescaleFactor <= MAX_PRECISION);
         }
 
         // Checks whether the raw result precision for decimal add/subtract (before capping at 38)

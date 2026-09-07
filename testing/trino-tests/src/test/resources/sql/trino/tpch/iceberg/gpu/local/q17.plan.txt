@@ -1,5 +1,5 @@
 - OutputNode
-  - ProjectNode
+  - ProjectNode (GPU)
     - ExchangeNode LOCAL (GPU)
       - AggregationNode (GPU)
         - ExchangeNode LOCAL (GPU)

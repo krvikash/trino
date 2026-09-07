@@ -3,7 +3,7 @@
     - ExchangeNode LOCAL
       - SortNode
         - ExchangeNode REMOTE
-          - ProjectNode
+          - ProjectNode (GPU)
             - AggregationNode (GPU)
               - ExchangeNode LOCAL
                 - ExchangeNode REMOTE

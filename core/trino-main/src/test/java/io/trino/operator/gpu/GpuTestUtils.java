@@ -953,6 +953,29 @@ public final class GpuTestUtils
         return builder.buildOrThrow();
     }
 
+    public static Block decimalBlock(DecimalType type, List<BigInteger> unscaledValues)
+    {
+        return decimalBlock(type, unscaledValues, NullsProvider.NO_NULLS);
+    }
+
+    public static Block decimalBlock(DecimalType type, List<BigInteger> unscaledValues, NullsProvider nullsProvider)
+    {
+        Optional<long[]> isValid = nullsProvider.getValidityWords(unscaledValues.size());
+        BlockBuilder builder = type.createBlockBuilder(null, unscaledValues.size());
+        for (int position = 0; position < unscaledValues.size(); position++) {
+            if (isValid.isPresent() && !Bitmap.isSet(isValid.get(), 0, position)) {
+                builder.appendNull();
+            }
+            else if (type.isShort()) {
+                type.writeLong(builder, unscaledValues.get(position).longValueExact());
+            }
+            else {
+                type.writeObject(builder, Int128.valueOf(unscaledValues.get(position)));
+            }
+        }
+        return builder.build();
+    }
+
     public static Block longDecimalBlock(DecimalType type, Long... unscaledValues)
     {
         BlockBuilder builder = type.createBlockBuilder(null, unscaledValues.length);

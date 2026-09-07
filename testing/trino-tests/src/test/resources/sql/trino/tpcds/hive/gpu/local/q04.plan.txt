@@ -11,9 +11,9 @@
                     - JoinNode (GPU)
                       - JoinNode (GPU)
                         - AggregationNode (GPU)
-                          - ProjectNode
-                            - FilterNode
-                              - TableScanNode store_sales
+                          - ProjectNode (GPU)
+                            - FilterNode (GPU)
+                              - TableScanNode store_sales (GPU)
                         - ExchangeNode LOCAL (GPU)
                           - FilterNode (GPU)
                             - TableScanNode date_dim (GPU)
@@ -30,9 +30,9 @@
                           - JoinNode (GPU)
                             - JoinNode (GPU)
                               - AggregationNode (GPU)
-                                - ProjectNode
-                                  - FilterNode
-                                    - TableScanNode catalog_sales
+                                - ProjectNode (GPU)
+                                  - FilterNode (GPU)
+                                    - TableScanNode catalog_sales (GPU)
                               - ExchangeNode LOCAL (GPU)
                                 - FilterNode (GPU)
                                   - TableScanNode date_dim (GPU)
@@ -53,9 +53,9 @@
                                   - AggregationNode
                                     - JoinNode (GPU)
                                       - AggregationNode (GPU)
-                                        - ProjectNode
-                                          - FilterNode
-                                            - TableScanNode web_sales
+                                        - ProjectNode (GPU)
+                                          - FilterNode (GPU)
+                                            - TableScanNode web_sales (GPU)
                                       - ProjectNode (GPU)
                                         - ExchangeNode LOCAL (GPU)
                                           - FilterNode (GPU)
@@ -70,9 +70,9 @@
                         - JoinNode (GPU)
                           - JoinNode (GPU)
                             - AggregationNode (GPU)
-                              - ProjectNode
-                                - FilterNode
-                                  - TableScanNode catalog_sales
+                              - ProjectNode (GPU)
+                                - FilterNode (GPU)
+                                  - TableScanNode catalog_sales (GPU)
                             - ExchangeNode LOCAL (GPU)
                               - FilterNode (GPU)
                                 - TableScanNode date_dim (GPU)
@@ -92,9 +92,9 @@
                                 - AggregationNode
                                   - JoinNode (GPU)
                                     - AggregationNode (GPU)
-                                      - ProjectNode
-                                        - FilterNode
-                                          - TableScanNode web_sales
+                                      - ProjectNode (GPU)
+                                        - FilterNode (GPU)
+                                          - TableScanNode web_sales (GPU)
                                     - ProjectNode (GPU)
                                       - ExchangeNode LOCAL (GPU)
                                         - FilterNode (GPU)
@@ -108,9 +108,9 @@
                           - JoinNode (GPU)
                             - JoinNode (GPU)
                               - AggregationNode (GPU)
-                                - ProjectNode
-                                  - FilterNode
-                                    - TableScanNode store_sales
+                                - ProjectNode (GPU)
+                                  - FilterNode (GPU)
+                                    - TableScanNode store_sales (GPU)
                               - ExchangeNode LOCAL (GPU)
                                 - FilterNode (GPU)
                                   - TableScanNode date_dim (GPU)
