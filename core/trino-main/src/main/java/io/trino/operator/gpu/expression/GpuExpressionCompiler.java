@@ -344,6 +344,9 @@ public final class GpuExpressionCompiler
                         // This is a date/time extract function
                         return compileDateTimeExtract(name, getOnlyElement(call.arguments()), call.type(), context);
                     }
+                    case "last_day_of_month" -> {
+                        return compileLastDayOfMonth(getOnlyElement(call.arguments()), context);
+                    }
                 }
             }
 
@@ -680,6 +683,15 @@ public final class GpuExpressionCompiler
                 return toDType(resultType).flatMap(resultDType ->
                         argument.accept(this, context).map(compiled ->
                                 new GpuCast(new GpuDateTimeExtract(compiled, dateTimeField), resultDType)));
+            }
+            return Optional.empty();
+        }
+
+        private Optional<GpuExpression> compileLastDayOfMonth(Expression argument, Void context)
+        {
+            Type argumentType = argument.type();
+            if (argumentType == DATE || argumentType instanceof TimestampType) {
+                return argument.accept(this, context).map(GpuLastDayOfMonth::new);
             }
             return Optional.empty();
         }
