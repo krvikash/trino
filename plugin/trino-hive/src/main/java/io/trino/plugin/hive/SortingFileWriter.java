@@ -174,11 +174,9 @@ public final class SortingFileWriter
 
     private static RollbackAction createRollbackAction(TrinoFileSystem fileSystem, Queue<TempFile> tempFiles)
     {
-        return () -> {
-            for (TempFile file : tempFiles) {
-                cleanupFile(fileSystem, file.location());
-            }
-        };
+        return () -> cleanupFiles(fileSystem, tempFiles.stream()
+                .map(TempFile::location)
+                .collect(toImmutableList()));
     }
 
     @Override
@@ -236,9 +234,9 @@ public final class SortingFileWriter
             new MergingPageIterator(iterators, types, sortFields, sortOrders, typeOperators)
                     .forEachRemaining(consumer);
 
-            for (TempFile tempFile : files) {
-                fileSystem.deleteFile(tempFile.location());
-            }
+            fileSystem.deleteFiles(files.stream()
+                    .map(TempFile::location)
+                    .collect(toImmutableList()));
         }
         catch (IOException e) {
             throw new UncheckedIOException(e);
@@ -256,18 +254,26 @@ public final class SortingFileWriter
             tempFilesWrittenBytes += sortTempFileFactory.estimateWrittenBytesToOutputFile(writer.getWrittenBytes());
         }
         catch (IOException | UncheckedIOException e) {
-            cleanupFile(fileSystem, tempFile);
+            cleanupFiles(fileSystem, ImmutableList.of(tempFile));
             throw new TrinoException(HIVE_WRITER_DATA_ERROR, "Failed to write temporary file: " + tempFile, e);
         }
     }
 
-    private static void cleanupFile(TrinoFileSystem fileSystem, Location location)
+    private static void cleanupFiles(TrinoFileSystem fileSystem, List<Location> locations)
     {
         try {
-            fileSystem.deleteFile(location);
+            fileSystem.deleteFiles(locations);
         }
         catch (IOException e) {
-            log.warn(e, "Failed to delete temporary file: %s", location);
+            log.warn(e, "Failed to bulk delete %s temporary files, deleting one at a time", locations.size());
+            for (Location location : locations) {
+                try {
+                    fileSystem.deleteFile(location);
+                }
+                catch (IOException fileException) {
+                    log.warn(fileException, "Failed to delete temporary file: %s", location);
+                }
+            }
         }
     }
 
