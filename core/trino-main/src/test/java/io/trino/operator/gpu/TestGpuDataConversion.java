@@ -36,7 +36,6 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
-import org.junit.jupiter.params.provider.ValueSource;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
@@ -50,6 +49,7 @@ import java.util.stream.Stream;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
+import static io.trino.operator.gpu.GpuTestUtils.MAX_GPU_TIMESTAMP_PRECISION;
 import static io.trino.operator.gpu.GpuTestUtils.TESTED_GPU_TYPES;
 import static io.trino.operator.gpu.GpuTestUtils.assertSameDataInOrder;
 import static io.trino.operator.gpu.GpuTestUtils.createBlock;
@@ -370,9 +370,15 @@ public class TestGpuDataConversion
         }
     }
 
-    @ParameterizedTest
-    @ValueSource(ints = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9})
-    public void testTimestampPrecisionRoundTrip(int precision)
+    @Test
+    public void testTimestampPrecisionRoundTrip()
+    {
+        for (int precision = 0; precision <= MAX_GPU_TIMESTAMP_PRECISION; precision++) {
+            testTimestampPrecisionRoundTrip(precision);
+        }
+    }
+
+    private void testTimestampPrecisionRoundTrip(int precision)
     {
         TimestampType type = TimestampType.createTimestampType(precision);
         BlockBuilder builder = type.createBlockBuilder(null, 4);

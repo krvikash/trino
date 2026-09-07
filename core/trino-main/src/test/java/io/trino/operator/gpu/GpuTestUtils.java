@@ -110,6 +110,8 @@ public final class GpuTestUtils
 {
     private GpuTestUtils() {}
 
+    public static final int MAX_GPU_TIMESTAMP_PRECISION = 9;
+
     public static final List<Type> TESTED_GPU_TYPES = ImmutableList.<Type>builder()
             .add(BOOLEAN)
             .add(TINYINT)
@@ -119,16 +121,9 @@ public final class GpuTestUtils
             .add(BIGINT)
             .add(REAL)
             .add(DOUBLE)
-            .add(createTimestampType(0))
-            .add(createTimestampType(1))
-            .add(createTimestampType(2))
-            .add(createTimestampType(3))
-            .add(createTimestampType(4))
-            .add(createTimestampType(5))
-            .add(createTimestampType(6))
-            .add(createTimestampType(7))
-            .add(createTimestampType(8))
-            .add(createTimestampType(9))
+            .addAll(IntStream.rangeClosed(0, MAX_GPU_TIMESTAMP_PRECISION)
+                    .mapToObj(TimestampType::createTimestampType)
+                    .collect(toImmutableList()))
             .add(createDecimalType(9, 2))
             .add(createDecimalType(18, 6))
             .add(createDecimalType(27, 4))

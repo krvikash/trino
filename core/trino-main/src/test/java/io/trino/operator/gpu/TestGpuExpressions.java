@@ -90,6 +90,7 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.trino.operator.gpu.GpuTestUtils.FUNCTION_RESOLUTION;
+import static io.trino.operator.gpu.GpuTestUtils.MAX_GPU_TIMESTAMP_PRECISION;
 import static io.trino.operator.gpu.GpuTestUtils.TESTED_GPU_TYPES;
 import static io.trino.operator.gpu.GpuTestUtils.assertGpuMatchesCpu;
 import static io.trino.operator.gpu.GpuTestUtils.assertSameDataInOrder;
@@ -2053,7 +2054,7 @@ public class TestGpuExpressions
     public void testDateTimeExtract(NullsProvider nullsProvider)
     {
         for (String functionName : List.of("day", "hour", "minute", "second")) {
-            for (int precision = 0; precision <= 9; precision++) {
+            for (int precision = 0; precision <= MAX_GPU_TIMESTAMP_PRECISION; precision++) {
                 testDateTimeExtract(functionName, createTimestampType(precision), nullsProvider);
             }
         }
@@ -2070,7 +2071,7 @@ public class TestGpuExpressions
         // realistic range. The GPU compiler does not statically constrain the input range — callers
         // are responsible for ensuring values fit, which is the case for all production data sets.
         testYearExtract(DATE, nullsProvider);
-        for (int precision = 0; precision <= 9; precision++) {
+        for (int precision = 0; precision <= MAX_GPU_TIMESTAMP_PRECISION; precision++) {
             testYearExtract(createTimestampType(precision), nullsProvider);
         }
     }
@@ -2173,7 +2174,7 @@ public class TestGpuExpressions
     public void testDateTrunc(NullsProvider nullsProvider)
     {
         for (String unit : Arrays.stream(Field.values()).map(Field::trinoDateTruncUnit).toList()) {
-            for (int precision = 0; precision <= 9; precision++) {
+            for (int precision = 0; precision <= MAX_GPU_TIMESTAMP_PRECISION; precision++) {
                 try {
                     testDateTrunc(unit, createTimestampType(precision), nullsProvider);
                 }
