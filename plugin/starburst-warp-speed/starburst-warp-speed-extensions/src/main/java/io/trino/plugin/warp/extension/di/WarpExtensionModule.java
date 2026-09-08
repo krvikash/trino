@@ -72,7 +72,7 @@ public class WarpExtensionModule
 
         ImmutableSet.Builder<Class<? extends BooleanSupplier>> booleanSuppliers = ImmutableSet.builder();
         boolean isCoordinator = connectorContext.getCurrentNode().isCoordinator();
-        boolean isWorker = WarpBaseModule.isSingle(config) || !isCoordinator;
+        boolean isWorker = WarpBaseModule.isWorker(connectorContext);
         if (isCoordinator) {
             booleanSuppliers.add(ClusterReadyTaskExecutionIsAllowedSupplier.class);
         }
@@ -88,11 +88,9 @@ public class WarpExtensionModule
             install(new HttpServerModule());
             install(new JsonModule());
 
-            boolean isCoordinator1 = connectorContext.getCurrentNode().isCoordinator();
-            boolean isWorker1 = WarpBaseModule.isSingle(config) || !isCoordinator1;
             WarpJaxrsModule module = new WarpJaxrsModule(
-                    isCoordinator1,
-                    isWorker1);
+                    isCoordinator,
+                    isWorker);
 
             install(module);
             install(binder1 -> binder1.bind(HttpServerLifeCycleHandler.class));

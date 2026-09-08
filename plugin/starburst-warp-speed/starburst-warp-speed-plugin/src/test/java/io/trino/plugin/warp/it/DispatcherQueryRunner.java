@@ -42,7 +42,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import static io.trino.plugin.warp.config.GlobalConfig.CONFIG_IS_SINGLE;
 import static io.trino.plugin.warp.config.GlobalConfig.FAILURE_GENERATOR_ENABLED;
 import static io.trino.plugin.warp.extension.config.WarpExtensionConfig.CLUSTER_UUID;
 import static io.trino.testing.QueryAssertions.copyTpchTables;
@@ -82,7 +81,6 @@ public class DispatcherQueryRunner
                 // replace this config with the other 3 when you want to use a real thrift meta-store (E.g. local docker)
 //          .put("hive.metastore.uri", "thrift://localhost:9083").build();
 //                .put("testMode", "true")
-                .put(CONFIG_IS_SINGLE, String.valueOf(numOfNodes == 1))
                 .put("warp-speed.config.bundle-size-mb", "128")
                 .put(CloudVendorConfig.STORE_PATH, "file:/" + localStorePath.toAbsolutePath())
                 .put(CLUSTER_UUID, "some-uuid")

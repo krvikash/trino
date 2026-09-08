@@ -30,6 +30,7 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
 
+import static io.trino.plugin.warp.cloudvendors.config.CloudVendorConfig.STORE_PATH;
 import static io.trino.plugin.warp.config.ProxiedConnectorConfig.ICEBERG_CONNECTOR_NAME;
 import static io.trino.plugin.warp.config.ProxiedConnectorConfig.PROXIED_CONNECTOR;
 import static io.trino.plugin.warp.extension.config.WarpExtensionConfig.USE_HTTP_SERVER_PORT;
@@ -74,6 +75,7 @@ public class TestIcebergProxiedConnectorIntegrationSmokeIT
     public void testDynamicCatalog()
     {
         String catalogDir = "\"hive.metastore.catalog.dir\"='file://" + hiveDir.toAbsolutePath() + "'";
+        String storePath = "\"" + STORE_PATH + "\"='file:/" + hiveDir.toAbsolutePath() + "'";
         String createCatalogSql =
                 """
                 CREATE CATALOG IF NOT EXISTS iceberg_read_warp USING warp_speed
@@ -89,7 +91,7 @@ public class TestIcebergProxiedConnectorIntegrationSmokeIT
                 "hive.metastore"='file',
                 "iceberg.catalog.type"='TESTING_FILE_METASTORE',
                 """;
-        createCatalogSql += catalogDir + ")";
+        createCatalogSql += storePath + ",\n" + catalogDir + ")";
         computeActual(createCatalogSql);
         Session catalogSession = Session.builder(getSession())
                 .setCatalog("iceberg_read_warp")

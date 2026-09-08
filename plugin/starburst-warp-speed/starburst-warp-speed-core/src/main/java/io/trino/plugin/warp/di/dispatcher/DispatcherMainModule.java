@@ -65,19 +65,15 @@ import io.trino.plugin.warp.storage.write.appenders.BlockAppenderFactory;
 import io.trino.plugin.warp.util.FailureGeneratorInvocationHandler;
 import io.trino.spi.catalog.CatalogName;
 
-import java.util.Map;
-
 public class DispatcherMainModule
         implements ExtraModule
 {
     private final String catalogName;
     private WarpConnectorContext context;
-    private Map<String, String> config;
 
-    public DispatcherMainModule(String catalogName, Map<String, String> config, WarpConnectorContext context)
+    public DispatcherMainModule(String catalogName, WarpConnectorContext context)
     {
         this.catalogName = catalogName;
-        this.config = config;
         this.context = context;
     }
 
@@ -85,7 +81,8 @@ public class DispatcherMainModule
     public void configure(Binder binder)
     {
         binder.bind(FailureGeneratorInvocationHandler.class);
-        boolean isWorker = WarpBaseModule.isSingle(config) || !context.getCurrentNode().isCoordinator();
+        boolean isCoordinator = context.getCurrentNode().isCoordinator();
+        boolean isWorker = WarpBaseModule.isWorker(context);
         if (isWorker) {
             binder.bind(BlockAppenderFactory.class);
             binder.bind(BlockFillersFactory.class);
@@ -123,12 +120,12 @@ public class DispatcherMainModule
             binder.bind(WorkerTaskExecutorService.class);
             binder.bind(WorkerWarmingService.class);
         }
-        if (WarpBaseModule.isSingle(config)) {
+        if (isCoordinator && isWorker) {
             binder.bind(CoordinatorDispatcherConnector.class);
             binder.bind(DispatcherConnectorBase.class).to(SingleDispatcherConnector.class);
             binder.bind(WorkerDispatcherConnector.class);
         }
-        else if (context.getCurrentNode().isCoordinator()) {
+        else if (isCoordinator) {
             binder.bind(DispatcherConnectorBase.class).to(CoordinatorDispatcherConnector.class);
         }
         else {
@@ -138,13 +135,6 @@ public class DispatcherMainModule
         binder.bind(DispatcherTableHandleBuilderProvider.class);
         binder.bind(CatalogName.class).toInstance(new CatalogName(catalogName));
         binder.bindInterceptor(Matchers.any(), Matchers.annotatedWith(NativeInterrupt.class), new NativeInterruptInterceptor());
-    }
-
-    @Override
-    public DispatcherMainModule withConfig(Map<String, String> config)
-    {
-        this.config = config;
-        return this;
     }
 
     @Override

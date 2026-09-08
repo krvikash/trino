@@ -33,15 +33,14 @@ import java.util.stream.Collectors;
         "warp-speed.max-collect-columns-skip-default-warming",
         "warp-speed.data-only-warming",
         "warp-speed.enable.lazy-for-selective",
+        "warp-speed.config.is-single",
 })
 public class GlobalConfig
 {
-    public static final String CONFIG_IS_SINGLE = "warp-speed.config.is-single";
     public static final String LOCAL_STORE_PATH = "warp-speed.local-store.path";
     public static final String FAILURE_GENERATOR_ENABLED = "warp-speed.config.failure-generator-enabled";
     public static final int MAX_NUMBER_OF_MAPPED_MATCH_COLLECT_ELEMENTS = 1 << Byte.SIZE; // 256
 
-    private boolean isSingle;
     private Set<String> unsupportedFunctions = Collections.emptySet();
     private long clusterUpTime;
     private int exportDelayInSeconds;
@@ -71,17 +70,6 @@ public class GlobalConfig
     private boolean enableOrPushdown = true;
     private boolean enableRangeFilter = true;
     private boolean enableInverseWithNulls;
-
-    public boolean getIsSingle()
-    {
-        return isSingle;
-    }
-
-    @Config(CONFIG_IS_SINGLE)
-    public void setIsSingle(boolean isSingle)
-    {
-        this.isSingle = isSingle;
-    }
 
     public boolean getEnableImportExport()
     {
@@ -377,8 +365,7 @@ public class GlobalConfig
     public String toString()
     {
         return "GlobalConfig{" +
-                "isSingle=" + isSingle +
-                ", cardinalityBuckets='" + cardinalityBuckets + '\'' +
+                "cardinalityBuckets='" + cardinalityBuckets + '\'' +
                 ", unsupportedFunctions=" + unsupportedFunctions +
                 ", clusterUpTime=" + clusterUpTime +
                 ", enableDefaultWarming=" + enableDefaultWarming +

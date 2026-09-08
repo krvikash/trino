@@ -58,11 +58,10 @@ import io.trino.plugin.warp.warmup.WarmupRuleService;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.TypeManager;
 
-import java.util.Map;
 import java.util.Optional;
 
 import static io.airlift.configuration.ConfigBinder.configBinder;
-import static io.trino.plugin.warp.di.WarpBaseModule.isSingle;
+import static io.trino.plugin.warp.di.WarpBaseModule.isWorker;
 import static java.util.Objects.requireNonNull;
 
 public class WarpMainModule
@@ -70,13 +69,11 @@ public class WarpMainModule
 {
     private final WarpConnectorContext context;
     private final String catalogName;
-    private final Map<String, String> config;
 
-    WarpMainModule(WarpConnectorContext context, String catalogName, Map<String, String> config)
+    WarpMainModule(WarpConnectorContext context, String catalogName)
     {
         this.context = requireNonNull(context);
         this.catalogName = requireNonNull(catalogName);
-        this.config = requireNonNull(config);
     }
 
     @Override
@@ -86,8 +83,7 @@ public class WarpMainModule
         if (isCoordinator) {
             configureCoordinator(binder);
         }
-        boolean isWorker = isSingle(config) || !isCoordinator;
-        if (isWorker) {
+        if (isWorker(context)) {
             configureWorker(binder);
         }
         configureCommon(binder);

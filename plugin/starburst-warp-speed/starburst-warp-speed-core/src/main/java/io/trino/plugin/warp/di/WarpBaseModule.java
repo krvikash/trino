@@ -15,10 +15,11 @@ package io.trino.plugin.warp.di;
 
 import com.google.inject.Module;
 import io.trino.plugin.warp.dispatcher.WarpConnectorContext;
+import io.trino.spi.Node;
+import io.trino.spi.NodeManager;
+import io.trino.spi.connector.ConnectorContext;
 
 import java.util.Map;
-
-import static io.trino.plugin.warp.config.GlobalConfig.CONFIG_IS_SINGLE;
 
 public interface WarpBaseModule
         extends Module
@@ -33,9 +34,19 @@ public interface WarpBaseModule
         return this;
     }
 
-    static boolean isSingle(Map<String, String> config)
+    /**
+     * True when the current node runs splits. The engine already folds
+     * {@code node-scheduler.include-coordinator} into the worker node set.
+     */
+    static boolean isWorker(ConnectorContext context)
     {
-        return Boolean.parseBoolean(config.getOrDefault(CONFIG_IS_SINGLE, "false"));
+        NodeManager nodeManager = context.getNodeManager();
+        Node currentNode = nodeManager.getCurrentNode();
+        if (!currentNode.isCoordinator()) {
+            return true;
+        }
+        // the worker node set is only listable on the coordinator
+        return nodeManager.getWorkerNodes().contains(currentNode);
     }
 
     default boolean shouldInstall()

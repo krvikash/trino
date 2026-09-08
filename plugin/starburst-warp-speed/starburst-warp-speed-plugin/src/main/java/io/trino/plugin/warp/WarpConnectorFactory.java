@@ -16,6 +16,7 @@ package io.trino.plugin.warp;
 import com.starburstdata.trino.plugin.license.LicenseVerifier;
 import io.airlift.configuration.ConfigurationFactory;
 import io.trino.plugin.warp.config.ProxiedConnectorConfig;
+import io.trino.plugin.warp.di.WarpBaseModule;
 import io.trino.plugin.warp.dispatcher.DispatcherConnectorFactory;
 import io.trino.plugin.warp.dispatcher.WarpConnectorContext;
 import io.trino.plugin.warp.dispatcher.WarpPluginSharedInstancesFactory;
@@ -77,7 +78,7 @@ public class WarpConnectorFactory
 
         WarpConnectorContext warpConnectorContext = new WarpConnectorContext(
                 context,
-                warpPluginSharedInstancesFactory.create("io.trino.bootstrap.catalog." + catalogName, context.getCurrentNode().isCoordinator(), configMap));
+                warpPluginSharedInstancesFactory.create("io.trino.bootstrap.catalog." + catalogName, WarpBaseModule.isWorker(context), configMap));
 
         return new StarburstWarpConnector(dispatcherConnectorFactory.create(
                 catalogName,

@@ -29,7 +29,6 @@ import io.trino.plugin.warp.tools.CatalogNameProvider;
 import io.trino.plugin.warp.util.FailureGeneratorInvocationHandler;
 import io.trino.spi.catalog.CatalogName;
 
-import java.util.Map;
 import java.util.Optional;
 
 import static io.airlift.configuration.ConfigBinder.configBinder;
@@ -41,14 +40,12 @@ public class WarpSharedInstancesModule
     private static final String WARP_SHARED = "warp-shared";
 
     private final Optional<Module> storageEngineModule;
-    private final boolean isCoordinator;
-    private final Map<String, String> config;
+    private final boolean isWorker;
 
-    public WarpSharedInstancesModule(Module storageEngineModule, boolean isCoordinator, Map<String, String> config)
+    public WarpSharedInstancesModule(Module storageEngineModule, boolean isWorker)
     {
         this.storageEngineModule = Optional.ofNullable(storageEngineModule);
-        this.isCoordinator = isCoordinator;
-        this.config = config;
+        this.isWorker = isWorker;
     }
 
     @Override
@@ -69,7 +66,7 @@ public class WarpSharedInstancesModule
         binder.bind(ScheduledMetricsHandler.class).asEagerSingleton();
 
         binder.bind(NativeLogger.class);
-        binder.install(storageEngineModule.orElseGet(() -> new WarpNativeStorageEngineModule(isCoordinator, config)));
+        binder.install(storageEngineModule.orElseGet(() -> new WarpNativeStorageEngineModule(isWorker)));
 
         binder.bind(MatchCollectIdService.class);
 

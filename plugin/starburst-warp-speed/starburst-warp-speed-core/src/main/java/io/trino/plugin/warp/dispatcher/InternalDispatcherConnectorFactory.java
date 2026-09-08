@@ -89,7 +89,7 @@ public class InternalDispatcherConnectorFactory
                 new WarpModules(catalogName, warpConfig, warpConnectorContext),
                 new MBeanServerModule(),
                 new MBeanModule(),
-                new DispatcherMainModule(catalogName, warpConfig, warpConnectorContext),
+                new DispatcherMainModule(catalogName, warpConnectorContext),
                 new DispatcherCoordinatorModule(warpConfig, warpConnectorContext),
                 binder -> {
                     binder.bind(TypeManager.class).toInstance(warpConnectorContext.getTypeManager());

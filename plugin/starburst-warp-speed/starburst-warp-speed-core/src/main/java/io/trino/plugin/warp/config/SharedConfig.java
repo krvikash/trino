@@ -19,13 +19,15 @@ import io.airlift.configuration.DefunctConfig;
 import java.time.Duration;
 import java.util.Objects;
 
-@DefunctConfig({"warp-speed.enable.fs-cache-mode", "warp-speed.debug.warming"})
+@DefunctConfig({
+        "warp-speed.enable.fs-cache-mode",
+        "warp-speed.debug.warming",
+        "warp-speed.config.is-single",
+})
 public class SharedConfig
 {
-    public static final String CONFIG_IS_SINGLE = "warp-speed.config.is-single";
     public static final String FAILURE_GENERATOR_ENABLED = "warp-speed.config.failure-generator-enabled";
 
-    private boolean isSingle;
     private boolean enableMatchCollect = true;
     private boolean enableMappedMatchCollect = true;
     private boolean enableVarcharMappedMatchCollect = true;
@@ -35,17 +37,6 @@ public class SharedConfig
     private int shapingLoggerNumberOfSamples = 3;
 
     private boolean debugFailureGenerator;
-
-    public boolean getIsSingle()
-    {
-        return isSingle;
-    }
-
-    @Config(CONFIG_IS_SINGLE)
-    public void setIsSingle(boolean isSingle)
-    {
-        this.isSingle = isSingle;
-    }
 
     public boolean getEnableMatchCollect()
     {
@@ -131,8 +122,7 @@ public class SharedConfig
             return false;
         }
         SharedConfig that = (SharedConfig) object;
-        return (isSingle == that.isSingle) &&
-                (enableMatchCollect == that.enableMatchCollect) &&
+        return (enableMatchCollect == that.enableMatchCollect) &&
                 (enableMappedMatchCollect == that.enableMappedMatchCollect) &&
                 (enableVarcharMappedMatchCollect == that.enableVarcharMappedMatchCollect) &&
                 (shapingLoggerThreshold == that.shapingLoggerThreshold) &&
@@ -144,7 +134,6 @@ public class SharedConfig
     public int hashCode()
     {
         return Objects.hash(
-                isSingle,
                 enableMatchCollect,
                 enableMappedMatchCollect,
                 enableVarcharMappedMatchCollect,
@@ -157,8 +146,7 @@ public class SharedConfig
     public String toString()
     {
         return "SharedConfig{" +
-                "isSingle=" + isSingle +
-                ", enableMatchCollect=" + enableMatchCollect +
+                "enableMatchCollect=" + enableMatchCollect +
                 ", shapingLoggerThreshold=" + shapingLoggerThreshold +
                 ", shapingLoggerDuration=" + shapingLoggerDuration +
                 ", shapingLoggerNumberOfSamples=" + shapingLoggerNumberOfSamples +

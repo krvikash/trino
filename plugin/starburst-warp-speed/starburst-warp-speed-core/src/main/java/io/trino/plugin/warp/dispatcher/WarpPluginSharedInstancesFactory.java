@@ -50,7 +50,7 @@ public class WarpPluginSharedInstancesFactory
         this.storageEngineModule = storageEngineModule;
     }
 
-    public synchronized WarpPluginSharedInstances create(String contextName, boolean isCoordinator, Map<String, String> config)
+    public synchronized WarpPluginSharedInstances create(String contextName, boolean isWorker, Map<String, String> config)
     {
         Map<String, String> warpConfig = getWarpConfig(config);
 
@@ -59,7 +59,7 @@ public class WarpPluginSharedInstancesFactory
                     contextName,
                     new MBeanServerModule(),
                     new MBeanModule(),
-                    new WarpSharedInstancesModule(storageEngineModule, isCoordinator, config));
+                    new WarpSharedInstancesModule(storageEngineModule, isWorker));
 
             Injector injector = app
                     .doNotInitializeLogging()

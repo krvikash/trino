@@ -25,7 +25,6 @@ import io.airlift.http.client.JsonBodyGenerator;
 import io.airlift.http.client.Request;
 import io.airlift.json.JsonCodec;
 import io.trino.plugin.warp.annotation.Audit;
-import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.execution.WarpClient;
 import io.trino.plugin.warp.extension.execution.TaskResource;
 import io.trino.plugin.warp.extension.execution.TaskResourceMarker;
@@ -39,6 +38,7 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -61,17 +61,14 @@ public class CallAllHomesResource
     private static final JsonCodec<CallHomeData> callHomeDataJsonCodec = JsonCodec.jsonCodec(CallHomeData.class);
 
     private final CoordinatorNodeManager coordinatorNodeManager;
-    private final GlobalConfig globalConfig;
     private final WarpClient warpClient;
 
     @Inject
     public CallAllHomesResource(
             CoordinatorNodeManager coordinatorNodeManager,
-            GlobalConfig globalConfig,
             WarpClient warpClient)
     {
         this.coordinatorNodeManager = requireNonNull(coordinatorNodeManager);
-        this.globalConfig = requireNonNull(globalConfig);
         this.warpClient = requireNonNull(warpClient);
     }
 
@@ -80,9 +77,14 @@ public class CallAllHomesResource
     // @ApiOperation(value = "call-all-homes", extensions = {@Extension(properties = @ExtensionProperty(name = "exposing-level", value = "PRODUCTION"))})
     public void executeCallAllHomes(CallHomeData callHomeData)
     {
-        List<Node> workerNodes = coordinatorNodeManager.getWorkerNodes();
+        // the coordinator is already a worker node on a single node cluster
+        Map<String, Node> targetNodes = new LinkedHashMap<>();
+        coordinatorNodeManager.getWorkerNodes().forEach(node -> targetNodes.put(node.getNodeIdentifier(), node));
+        Node coordinatorNode = coordinatorNodeManager.getCoordinatorNode();
+        targetNodes.putIfAbsent(coordinatorNode.getNodeIdentifier(), coordinatorNode);
+
         Map<String, HttpResponseFuture<JsonResponse<Void>>> allFutures = new HashMap<>();
-        workerNodes.forEach(node -> {
+        targetNodes.forEach((nodeIdentifier, node) -> {
             HttpUriBuilder uriBuilder = warpClient.getRestEndpoint(UriUtils.getHttpUri(node));
             uriBuilder.appendPath(CALL_HOME_PATH);
 
@@ -91,20 +93,8 @@ public class CallAllHomesResource
                     .setHeader(CONTENT_TYPE, "application/json")
                     .setBodyGenerator(JsonBodyGenerator.jsonBodyGenerator(callHomeDataJsonCodec, callHomeData))
                     .build();
-            allFutures.put(node.getNodeIdentifier(), warpClient.executeAsync(request, FullJsonResponseHandler.createFullJsonResponseHandler(WarpClient.VOID_RESULTS_CODEC)));
+            allFutures.put(nodeIdentifier, warpClient.executeAsync(request, FullJsonResponseHandler.createFullJsonResponseHandler(WarpClient.VOID_RESULTS_CODEC)));
         });
-
-        if (!globalConfig.getIsSingle()) {
-            HttpUriBuilder uriBuilder = warpClient.getRestEndpoint(UriUtils.getHttpUri(coordinatorNodeManager.getCoordinatorNode()));
-            uriBuilder.appendPath(CALL_HOME_PATH);
-
-            Request request = Request.Builder.preparePost()
-                    .setUri(uriBuilder.build())
-                    .setHeader(CONTENT_TYPE, "application/json")
-                    .setBodyGenerator(JsonBodyGenerator.jsonBodyGenerator(callHomeDataJsonCodec, callHomeData))
-                    .build();
-            allFutures.put(coordinatorNodeManager.getCoordinatorNode().getNodeIdentifier(), warpClient.executeAsync(request, FullJsonResponseHandler.createFullJsonResponseHandler(WarpClient.VOID_RESULTS_CODEC)));
-        }
 
         ListenableFuture<List<JsonResponse<Void>>> waitingFuture = Futures.allAsList(allFutures.values());
         try {

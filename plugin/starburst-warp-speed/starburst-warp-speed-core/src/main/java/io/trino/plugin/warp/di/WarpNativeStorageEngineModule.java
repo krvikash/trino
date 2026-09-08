@@ -33,7 +33,6 @@ import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Map;
 
 /**
  * Module for binding {@link NativeStorageEngine} to {@link StorageEngine}.
@@ -46,13 +45,11 @@ public class WarpNativeStorageEngineModule
     private static final boolean SKIP_SVE = true;
     private static final Logger logger = Logger.get(WarpNativeStorageEngineModule.class);
     private static final String baseNativeLibName = "presto-varada-jni";
-    private final boolean isSingle;
     private final boolean isWorker;
 
-    public WarpNativeStorageEngineModule(boolean isCoordinator, Map<String, String> config)
+    public WarpNativeStorageEngineModule(boolean isWorker)
     {
-        this.isSingle = WarpBaseModule.isSingle(config);
-        this.isWorker = isSingle || !isCoordinator;
+        this.isWorker = isWorker;
     }
 
     private static void loadLibrary(Path absoluteLibraryPath)
@@ -117,12 +114,7 @@ public class WarpNativeStorageEngineModule
             binder.bind(StorageEngine.class).toProvider(WorkerStorageEngineProvider.class);
         }
         else {
-            if (isSingle) {
-                binder.bind(StorageEngine.class).toProvider(WorkerStorageEngineProvider.class);
-            }
-            else {
-                binder.bind(StorageEngine.class).toProvider(CoordinatorStorageEngineProvider.class);
-            }
+            binder.bind(StorageEngine.class).toProvider(CoordinatorStorageEngineProvider.class);
         }
         binder.bind(RangeFillerService.class).to(NativeRangeFillerService.class);
         binder.bind(StorageEngineConstants.class).to(NativeStorageEngineConstants.class);

@@ -31,7 +31,7 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 import static io.airlift.configuration.ConfigBinder.configBinder;
-import static io.trino.plugin.warp.di.WarpBaseModule.isSingle;
+import static io.trino.plugin.warp.di.WarpBaseModule.isWorker;
 import static java.util.Objects.requireNonNull;
 
 public class WarmupCloudFetcherModule
@@ -69,8 +69,7 @@ public class WarmupCloudFetcherModule
 
         ConfigurationFactory configFactory = new ConfigurationFactory(config);
         WarmupRuleCloudFetcherConfig warmupRuleCloudFetcherConfig = configFactory.build(WarmupRuleCloudFetcherConfig.class);
-        boolean isWorker = isSingle(config) || !context.getCurrentNode().isCoordinator();
-        if (isWorker && !StringUtils.isEmpty(warmupRuleCloudFetcherConfig.getStorePath())) {
+        if (isWorker(context) && !StringUtils.isEmpty(warmupRuleCloudFetcherConfig.getStorePath())) {
             binder.install(
                     CloudVendorModule.getModule(
                             context,
