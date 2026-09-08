@@ -34,7 +34,7 @@
         <air.license.header-file>${starburst-license.header-file}</air.license.header-file>
 
         <dep.univocity-parsers.version>2.9.1</dep.univocity-parsers.version>
-        <dep.flatten-maven-plugin.version>1.2.7</dep.flatten-maven-plugin.version>
+        <dep.flatten-maven-plugin.version>1.8.0</dep.flatten-maven-plugin.version>
     </properties>
 
     <dependencyManagement>
