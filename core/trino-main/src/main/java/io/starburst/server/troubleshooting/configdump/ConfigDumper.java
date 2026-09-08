@@ -9,7 +9,6 @@
  */
 package io.starburst.server.troubleshooting.configdump;
 
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
 import io.airlift.configuration.ConfigurationFactory;
@@ -65,7 +64,7 @@ public class ConfigDumper
             InternalNode currentNode,
             CatalogConfigProvider catalogConfigProvider,
             @ForResourceGroupConfigDump Path resourceGroupsConfigFile,
-            @ForAccessControlConfigDump Path defaultAccessControlConfigFile,
+            @ForAccessControlConfigDump List<Path> defaultAccessControlConfigFiles,
             AccessControlConfig accessControlConfig,
             Set<BuiltInFeatureConfigDumper> builtInFeatureConfigDumpers,
             @ForTroubleshooting Map<String, Set<String>> sensitivePropertiesPerConnector)
@@ -76,17 +75,17 @@ public class ConfigDumper
         this.resourceGroupsConfigFile = requireNonNull(resourceGroupsConfigFile, "resourceGroupsConfigFile is null");
         this.sensitivePropertiesPerConnector = requireNonNull(sensitivePropertiesPerConnector, "sensitivePropertiesPerConnector is null");
         requireNonNull(accessControlConfig, "accessControlConfig is null");
-        this.accessControlConfigFiles = resolveConfigFiles(accessControlConfig.getAccessControlFiles(), defaultAccessControlConfigFile);
+        this.accessControlConfigFiles = resolveConfigFiles(accessControlConfig.getAccessControlFiles(), defaultAccessControlConfigFiles);
         this.builtInFeatureConfigDumpers = requireNonNull(builtInFeatureConfigDumpers, "builtInFeatureConfigDumpers is null");
     }
 
-    private static List<Path> resolveConfigFiles(List<File> configFiles, Path defaultConfigFile)
+    private static List<Path> resolveConfigFiles(List<File> configFiles, List<Path> defaultConfigFiles)
     {
-        requireNonNull(defaultConfigFile, "defaultConfigFile is null");
+        requireNonNull(defaultConfigFiles, "defaultConfigFiles is null");
         if (configFiles.isEmpty()) {
-            if (Files.exists(defaultConfigFile)) {
-                return ImmutableList.of(defaultConfigFile);
-            }
+            return defaultConfigFiles.stream()
+                    .filter(Files::exists)
+                    .collect(toImmutableList());
         }
         return configFiles.stream().map(File::toPath).collect(toImmutableList());
     }

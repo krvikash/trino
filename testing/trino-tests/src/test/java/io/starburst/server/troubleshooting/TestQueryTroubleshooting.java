@@ -14,6 +14,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.inject.Binder;
 import com.google.inject.Key;
+import com.google.inject.TypeLiteral;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
 import io.starburst.server.troubleshooting.TroubleshootingTestHelper.Unzipped;
 import io.starburst.server.troubleshooting.configdump.ForAccessControlConfigDump;
@@ -80,9 +81,9 @@ public class TestQueryTroubleshooting
                     @Override
                     protected void setup(Binder binder)
                     {
-                        newOptionalBinder(binder, Key.get(Path.class, ForAccessControlConfigDump.class))
+                        newOptionalBinder(binder, Key.get(new TypeLiteral<List<Path>>() {}, ForAccessControlConfigDump.class))
                                 .setBinding()
-                                .toInstance(accessControlPropertiesFile);
+                                .toInstance(ImmutableList.of(accessControlPropertiesFile));
                         binder.bind(TroubleshootingAccessControl.class)
                                 .toInstance(identity -> AUTHORIZED_USER.equals(identity.getUser()) || identity.getGroups().contains(AUTHORIZED_GROUP));
                         install(new TroubleshootingModule());

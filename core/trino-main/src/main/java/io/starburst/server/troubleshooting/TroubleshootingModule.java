@@ -9,6 +9,7 @@
  */
 package io.starburst.server.troubleshooting;
 
+import com.google.common.collect.ImmutableList;
 import com.google.inject.Binder;
 import com.google.inject.Key;
 import com.google.inject.Scopes;
@@ -49,6 +50,7 @@ import io.trino.server.ServerConfig;
 import jdk.jfr.FlightRecorder;
 
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ScheduledExecutorService;
@@ -85,13 +87,13 @@ public class TroubleshootingModule
         binder.bind(ConfigDumper.class).in(Scopes.SINGLETON);
         jaxrsBinder(binder).bind(ConfigDumpResource.class);
 
-        // The purpose of injecting this file that way is to enable providing its location in tests.
+        // The purpose of injecting these files that way is to enable providing their locations in tests.
         // The TestingTrinoServer binds AccessControlConfig as a regular singleton rather than a configuration
         // class. If this were not the case, we could leverage the 'access-control.config-files' property to
-        // pass the file's location in tests.
-        newOptionalBinder(binder, Key.get(Path.class, ForAccessControlConfigDump.class))
+        // pass the file locations in tests.
+        newOptionalBinder(binder, Key.get(new TypeLiteral<List<Path>>() {}, ForAccessControlConfigDump.class))
                 .setDefault()
-                .toInstance(Path.of("etc", "access-control.properties"));
+                .toInstance(ImmutableList.of(Path.of("etc", "access-control.properties")));
         // The location of this file is not configurable - it is always set to etc/resource-groups.properties
         // in the InternalResourceGroupManager. The purpose of injecting this file that way is to enable
         // providing its location in tests.
