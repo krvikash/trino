@@ -193,7 +193,9 @@ public abstract class BaseCacheSubqueriesTest
 
         // Verify the second run reads only from cache. Split placement is best-effort
         // (CacheDriverFactory falls back to the non-cached plan when Split#isSplitAddressEnforced()
-        // is false), so under load the query may miss the cached node; retry until it hits.
+        // is false), so under load the query may miss the cached node; retry until it hits. A failed
+        // attempt never writes cache data (the fallback plan bypasses caching entirely), so retrying
+        // the identical query can't let a failed attempt satisfy a later one.
         assertEventually(new Duration(10, SECONDS), () -> {
             MaterializedResultWithPlan result = executeWithPlan(withCacheEnabled(), selectQuery);
             // make sure data was read from cache as data should be cached across queries
@@ -257,18 +259,20 @@ public abstract class BaseCacheSubqueriesTest
         assertThat(getCacheDataOperatorInputPositions(resultWithCache.queryId())).isPositive();
         assertThat(getScanSplitsWithDynamicFiltersApplied(resultWithCache.queryId())).isPositive();
 
-        @Language("SQL") String secondQuery =
-                """
-                SELECT partkey FROM lineitem l JOIN
-                 (SELECT suppkey, orderkey FROM (VALUES (2, 17125), (3, 60000), (4, 60001)) t(suppkey, orderkey)) o
-                ON l.suppkey = o.suppkey AND l.orderkey <= o.orderkey
-                """;
         // Verify the second query reads only from cache because dynamic filters for
         // "l.orderkey < o.orderkey" should evaluate to TRUE for both queries since the highest
         // lineitem "orderkey" value is 60000. Split placement is best-effort (CacheDriverFactory
         // falls back to the non-cached plan when Split#isSplitAddressEnforced() is false), so under
-        // load the query may miss the cached node; retry until it hits.
+        // load the query may miss the cached node; retry until it hits. Each attempt uses a distinct
+        // bound so a failed attempt can't satisfy a later retry via its own leftover cached data.
+        AtomicLong secondQueryBound = new AtomicLong(60001);
         assertEventually(new Duration(10, SECONDS), () -> {
+            @Language("SQL") String secondQuery =
+                    """
+                    SELECT partkey FROM lineitem l JOIN
+                     (SELECT suppkey, orderkey FROM (VALUES (2, 17125), (3, 60000), (4, %d)) t(suppkey, orderkey)) o
+                    ON l.suppkey = o.suppkey AND l.orderkey <= o.orderkey
+                    """.formatted(secondQueryBound.getAndIncrement());
             MaterializedResultWithPlan result = executeWithPlan(withCacheEnabled(), secondQuery);
             assertThat(getLoadCachedDataOperatorInputPositions(result.queryId())).isPositive();
             assertThat(getScanOperatorInputPositions(result.queryId())).isZero();
@@ -305,13 +309,6 @@ public abstract class BaseCacheSubqueriesTest
                 union all
                 select count(orderkey) from %1$s o join (select * from (values 0, 1, 2, 3) t(custkey)) t on o.custkey = t.custkey
                 """.formatted(tableName);
-        @Language("SQL") String thirdJoinQuery =
-                """
-                select count(orderkey) from %1$s o join (select * from (values 0, 1) t(custkey)) t on o.custkey = t.custkey
-                union all
-                select count(orderkey) from %1$s o join (select * from (values 0, 1) t(custkey)) t on o.custkey = t.custkey
-                """.formatted(tableName);
-
         Session cacheSubqueriesEnabled = withDynamicRowFiltering(withCacheEnabled(), isDynamicRowFilteringEnabled);
         Session cacheSubqueriesDisabled = withDynamicRowFiltering(withCacheDisabled(), isDynamicRowFilteringEnabled);
         MaterializedResultWithPlan totalScanOrdersExecution = executeWithPlan(cacheSubqueriesDisabled, totalScanOrdersQuery);
@@ -326,9 +323,19 @@ public abstract class BaseCacheSubqueriesTest
         // Verify the second run of firstJoinQuery reads only from cache. Split placement is
         // best-effort (CacheDriverFactory falls back to the non-cached plan when
         // Split#isSplitAddressEnforced() is false), so under load the query may miss the cached
-        // node; retry until it hits.
+        // node; retry until it hits. Each attempt joins against an extra custkey value outside the
+        // partitioned table's 0-9 range, so it can't match any row (leaving the result and dynamic
+        // filter unaffected) while still varying the query so a failed attempt can't satisfy a later
+        // retry via its own leftover cached data.
+        AtomicLong firstJoinRetryDummyCustkey = new AtomicLong(100);
         assertEventually(new Duration(10, SECONDS), () -> {
-            MaterializedResultWithPlan result = executeWithPlan(cacheSubqueriesEnabled, firstJoinQuery);
+            @Language("SQL") String retryQuery =
+                    """
+                    select count(orderkey) from %1$s o join (select * from (values 0, 1, 2, %2$d) t(custkey)) t on o.custkey = t.custkey
+                    union all
+                    select count(orderkey) from %1$s o join (select * from (values 0, 1, 2, %2$d) t(custkey)) t on o.custkey = t.custkey
+                    """.formatted(tableName, firstJoinRetryDummyCustkey.getAndIncrement());
+            MaterializedResultWithPlan result = executeWithPlan(cacheSubqueriesEnabled, retryQuery);
             assertThat(getScanOperatorInputPositions(result.queryId())).isZero();
             assertThat(getLoadCachedDataOperatorInputPositions(result.queryId())).isPositive();
         });
@@ -340,7 +347,16 @@ public abstract class BaseCacheSubqueriesTest
         assertThat(getScanOperatorInputPositions(secondJoinExecution.queryId())).isPositive();
 
         // Verify thirdJoinQuery reads only from cache; same best-effort placement race as above.
+        // Each attempt joins against an extra out-of-range custkey value for the same reason as the
+        // firstJoinQuery retry above.
+        AtomicLong thirdJoinRetryDummyCustkey = new AtomicLong(100);
         assertEventually(new Duration(10, SECONDS), () -> {
+            @Language("SQL") String thirdJoinQuery =
+                    """
+                    select count(orderkey) from %1$s o join (select * from (values 0, 1, %2$d) t(custkey)) t on o.custkey = t.custkey
+                    union all
+                    select count(orderkey) from %1$s o join (select * from (values 0, 1, %2$d) t(custkey)) t on o.custkey = t.custkey
+                    """.formatted(tableName, thirdJoinRetryDummyCustkey.getAndIncrement());
             MaterializedResultWithPlan result = executeWithPlan(cacheSubqueriesEnabled, thirdJoinQuery);
             assertThat(getLoadCachedDataOperatorInputPositions(result.queryId())).isPositive();
             assertThat(getScanOperatorInputPositions(result.queryId())).isZero();

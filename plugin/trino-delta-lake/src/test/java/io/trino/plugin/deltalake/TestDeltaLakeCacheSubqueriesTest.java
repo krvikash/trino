@@ -103,7 +103,9 @@ public class TestDeltaLakeCacheSubqueriesTest
 
             // Verify the third run reads only from cache. Split placement is best-effort
             // (CacheDriverFactory falls back to the non-cached plan when Split#isSplitAddressEnforced()
-            // is false), so under load the query may miss the cached node; retry until it hits.
+            // is false), so under load the query may miss the cached node; retry until it hits. A
+            // failed attempt never writes cache data (the fallback plan bypasses caching entirely), so
+            // retrying the identical query can't let a failed attempt satisfy a later one.
             assertEventually(new Duration(10, SECONDS), () -> {
                 MaterializedResultWithPlan thirdRun = executeWithPlan(withCacheEnabled(), selectQuery);
                 assertThat(getLoadCachedDataOperatorInputPositions(thirdRun.queryId())).isEqualTo(6);
@@ -151,7 +153,9 @@ public class TestDeltaLakeCacheSubqueriesTest
 
         // Verify the second run uses only cache. Split placement is best-effort (CacheDriverFactory
         // falls back to the non-cached plan when Split#isSplitAddressEnforced() is false), so under
-        // load the query may miss the cached node; retry until it hits.
+        // load the query may miss the cached node; retry until it hits. A failed attempt never writes
+        // cache data (the fallback plan bypasses caching entirely), so retrying the identical query
+        // can't let a failed attempt satisfy a later one.
         assertEventually(new Duration(10, SECONDS), () -> {
             MaterializedResultWithPlan cacheOnlyResult = executeWithPlan(withCacheEnabled(), query);
             assertThat(cacheOnlyResult.result().getRowCount()).isEqualTo(4);
