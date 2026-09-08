@@ -34,6 +34,7 @@ import io.airlift.units.Duration;
 import io.opentelemetry.api.trace.Span;
 import io.starburst.stargate.buffer.BufferNodeInfo;
 import io.starburst.stargate.buffer.data.client.spooling.SpooledChunk;
+import io.starburst.stargate.buffer.data.client.spooling.SpooledChunkNotFoundException;
 import io.starburst.stargate.buffer.data.client.spooling.SpooledChunkReader;
 
 import java.io.BufferedReader;
@@ -68,6 +69,7 @@ import static io.airlift.http.client.StringResponseHandler.createStringResponseH
 import static io.airlift.json.JsonCodec.jsonCodec;
 import static io.airlift.slice.SizeOf.SIZE_OF_INT;
 import static io.starburst.stargate.buffer.data.client.DataClientHeaders.MAX_WAIT_HEADER;
+import static io.starburst.stargate.buffer.data.client.ErrorCode.CHUNK_NOT_FOUND;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.INTERNAL_ERROR;
 import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.NO_CHECKSUM;
 import static io.starburst.stargate.buffer.data.client.TrinoMediaTypes.TRINO_CHUNK_DATA_TYPE;
@@ -383,9 +385,20 @@ public class HttpDataClient
                 return immediateFuture(new DataApi.ChunkDataResponse(chunkDataResponse.getPages().get(), false));
             }
             verify(chunkDataResponse.getSpooledChunk().isPresent(), "Either pages or spooledChunk should be present");
-            return transform(
-                    spooledChunkReader.getDataPages(chunkDataResponse.getSpooledChunk().get()),
+            SpooledChunk spooledChunk = chunkDataResponse.getSpooledChunk().get();
+            ListenableFuture<DataApi.ChunkDataResponse> dataPagesFuture = transform(
+                    spooledChunkReader.getDataPages(spooledChunk),
                     dataPages -> new DataApi.ChunkDataResponse(dataPages, true),
+                    directExecutor());
+            // The chunk metadata still points at spooled data which no longer exists, so re-reading it can never succeed.
+            // Report it as a missing chunk to give callers the same signal they get when the buffer node lost the chunk itself.
+            return catchingAsync(
+                    dataPagesFuture,
+                    SpooledChunkNotFoundException.class,
+                    e -> immediateFailedFuture(new DataApiException(
+                            CHUNK_NOT_FOUND,
+                            requestErrorMessage(request, "spooled chunk %s not found while reading chunk %s/%s/%s/%s".formatted(spooledChunk.location(), bufferNodeId, exchangeId, partitionId, chunkId)),
+                            e)),
                     directExecutor());
         }, directExecutor());
     }

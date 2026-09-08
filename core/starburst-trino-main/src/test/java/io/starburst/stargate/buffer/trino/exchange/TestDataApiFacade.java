@@ -11,6 +11,7 @@ package io.starburst.stargate.buffer.trino.exchange;
 
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.ArrayListMultimap;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableListMultimap;
 import com.google.common.collect.ListMultimap;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -139,6 +140,47 @@ public class TestDataApiFacade
                 .withCauseInstanceOf(DataApiException.class)
                 .withMessageContaining("blah3");
         assertThat(dataApiDelegate.getAddDataPagesCallCount(EXCHANGE_0, 0, 0, 0)).isEqualTo(3);
+    }
+
+    @Test
+    public void testGetChunkDataNotRetriedWhenChunkNotFound()
+    {
+        TestingDataApi dataApiDelegate = new TestingDataApi();
+        DataApiFacade dataApiFacade = createDataApiFacade(
+                dataApiDelegate,
+                BufferNodeState.ACTIVE,
+                new RetryExecutorConfig(2, Duration.valueOf("1ms"), Duration.valueOf("2ms"), 2.0, 0.0, 10, 5, Duration.valueOf("30s")),
+                new RetryExecutorConfig(2, Duration.valueOf("1ms"), Duration.valueOf("2ms"), 2.0, 0.0, 10, 5, Duration.valueOf("30s")),
+                16);
+
+        // the chunk is gone for good, so the read must fail on the first attempt instead of spending the whole retry budget on it
+        dataApiDelegate.recordGetChunkData(TestingDataApi.NODE_ID, EXCHANGE_0, 0, 0, immediateFailedFuture(new DataApiException(ErrorCode.CHUNK_NOT_FOUND, "chunk 0 not found")));
+
+        assertThat(dataApiFacade.getChunkData(TestingDataApi.NODE_ID, EXCHANGE_0, 0, 0, TestingDataApi.NODE_ID))
+                .failsWithin(5, SECONDS)
+                .withThrowableOfType(ExecutionException.class)
+                .matches(e -> ((DataApiException) e.getCause()).getErrorCode().equals(ErrorCode.CHUNK_NOT_FOUND))
+                .withMessageContaining("chunk 0 not found");
+        assertThat(dataApiDelegate.getChunkDataCallCount(TestingDataApi.NODE_ID, EXCHANGE_0, 0, 0)).isEqualTo(1);
+    }
+
+    @Test
+    public void testGetChunkDataRetries()
+    {
+        TestingDataApi dataApiDelegate = new TestingDataApi();
+        DataApiFacade dataApiFacade = createDataApiFacade(
+                dataApiDelegate,
+                BufferNodeState.ACTIVE,
+                new RetryExecutorConfig(2, Duration.valueOf("1ms"), Duration.valueOf("2ms"), 2.0, 0.0, 10, 5, Duration.valueOf("30s")),
+                new RetryExecutorConfig(2, Duration.valueOf("1ms"), Duration.valueOf("2ms"), 2.0, 0.0, 10, 5, Duration.valueOf("30s")),
+                16);
+
+        dataApiDelegate.recordGetChunkData(TestingDataApi.NODE_ID, EXCHANGE_0, 0, 0, immediateFailedFuture(new DataApiException(ErrorCode.INTERNAL_ERROR, "blah")));
+        dataApiDelegate.recordGetChunkData(TestingDataApi.NODE_ID, EXCHANGE_0, 0, 0, immediateFuture(new DataApi.ChunkDataResponse(ImmutableList.of(), false)));
+
+        assertThat(dataApiFacade.getChunkData(TestingDataApi.NODE_ID, EXCHANGE_0, 0, 0, TestingDataApi.NODE_ID))
+                .succeedsWithin(5, SECONDS);
+        assertThat(dataApiDelegate.getChunkDataCallCount(TestingDataApi.NODE_ID, EXCHANGE_0, 0, 0)).isEqualTo(2);
     }
 
     @Test
@@ -485,6 +527,48 @@ public class TestDataApiFacade
     }
 
     @Test
+    public void testKnownNodeLeavingClusterFailsFast()
+    {
+        TestingDataApi dataApiDelegate = new TestingDataApi();
+        TestingBufferNodeDiscoveryManager discoveryManager = new TestingBufferNodeDiscoveryManager();
+        discoveryManager.setBufferNodes(builder -> builder.putNode(TestingDataApi.NODE_ID, BufferNodeState.ACTIVE));
+        TestingApiFactory apiFactory = new TestingApiFactory();
+        apiFactory.setDataApi(TestingDataApi.NODE_ID, dataApiDelegate);
+        // a retry budget large enough that retrying a dead node would take longer than the test allows
+        RetryExecutorConfig retryExecutorConfig = new RetryExecutorConfig(10, Duration.valueOf("1s"), Duration.valueOf("10s"), 2.0, 0.0, 10, 5, Duration.valueOf("30s"));
+        DataApiFacade dataApiFacade = new DataApiFacade(discoveryManager, apiFactory, retryExecutorConfig, retryExecutorConfig, 16, executor);
+
+        dataApiDelegate.recordListClosedChunks(EXCHANGE_0, OptionalLong.empty(), immediateFuture(new ChunkList(ImmutableList.of(), OptionalLong.empty())));
+        assertThat(dataApiFacade.listClosedChunks(TestingDataApi.NODE_ID, EXCHANGE_0, OptionalLong.empty())).succeedsWithin(5, SECONDS);
+
+        // the node dies without draining: discovery simply stops listing it
+        discoveryManager.setBufferNodes(_ -> {});
+
+        assertThat(dataApiFacade.listClosedChunks(TestingDataApi.NODE_ID, EXCHANGE_0, OptionalLong.empty()))
+                .failsWithin(500, MILLISECONDS)
+                .withThrowableOfType(ExecutionException.class)
+                .matches(e -> ((DataApiException) e.getCause()).getErrorCode().equals(ErrorCode.BUFFER_NODE_GONE))
+                .withMessageContaining("left the cluster without draining");
+        // no request was sent to the dead node
+        assertThat(dataApiDelegate.getListClosedChunksCallCount(EXCHANGE_0, OptionalLong.empty())).isEqualTo(1);
+    }
+
+    @Test
+    public void testUnknownNodeIsRetriedAsNotFound()
+    {
+        // a node this facade never talked to may simply not have been discovered yet, so it keeps the retried NOT_FOUND
+        TestingBufferNodeDiscoveryManager discoveryManager = new TestingBufferNodeDiscoveryManager();
+        discoveryManager.setBufferNodes(_ -> {});
+        RetryExecutorConfig retryExecutorConfig = new RetryExecutorConfig(1, Duration.valueOf("1ms"), Duration.valueOf("2ms"), 2.0, 0.0, 10, 5, Duration.valueOf("30s"));
+        DataApiFacade dataApiFacade = new DataApiFacade(discoveryManager, new TestingApiFactory(), retryExecutorConfig, retryExecutorConfig, 16, executor);
+
+        assertThat(dataApiFacade.listClosedChunks(42, EXCHANGE_0, OptionalLong.empty()))
+                .failsWithin(5, SECONDS)
+                .withThrowableOfType(ExecutionException.class)
+                .matches(e -> ((DataApiException) e.getCause()).getErrorCode().equals(ErrorCode.BUFFER_NODE_NOT_FOUND));
+    }
+
+    @Test
     public void testInFlightRequestCompletesOnCleanUp()
             throws Exception
     {
@@ -647,10 +731,14 @@ public class TestDataApiFacade
 
         private record AddDataPagesKey(String exchangeId, int taskId, int attemptId, long dataPagesId) {}
 
+        private record GetChunkDataKey(long bufferNodeId, String exchangeId, int partitionId, long chunkId) {}
+
         private final ListMultimap<ListClosedChunksKey, ListenableFuture<ChunkList>> listClosedChunksResponses = ArrayListMultimap.create();
         private final Map<ListClosedChunksKey, AtomicLong> listClosedChunksCounters = new HashMap<>();
         private final ListMultimap<AddDataPagesKey, ListenableFuture<Optional<RateLimitInfo>>> addDataPagesResponses = ArrayListMultimap.create();
         private final Map<AddDataPagesKey, AtomicLong> addDataPagesCounters = new HashMap<>();
+        private final ListMultimap<GetChunkDataKey, ListenableFuture<ChunkDataResponse>> getChunkDataResponses = ArrayListMultimap.create();
+        private final Map<GetChunkDataKey, AtomicLong> getChunkDataCounters = new HashMap<>();
 
         @Override
         public BufferNodeInfo getInfo()
@@ -668,6 +756,16 @@ public class TestDataApiFacade
             }
             listClosedChunksCounters.computeIfAbsent(key, _ -> new AtomicLong()).incrementAndGet();
             return responses.remove(0);
+        }
+
+        public synchronized void recordListClosedChunks(String exchangeId, OptionalLong pagingId, ListenableFuture<ChunkList> result)
+        {
+            listClosedChunksResponses.put(new ListClosedChunksKey(exchangeId, pagingId), result);
+        }
+
+        public synchronized long getListClosedChunksCallCount(String exchangeId, OptionalLong pagingId)
+        {
+            return listClosedChunksCounters.computeIfAbsent(new ListClosedChunksKey(exchangeId, pagingId), _ -> new AtomicLong()).get();
         }
 
         @Override
@@ -731,7 +829,23 @@ public class TestDataApiFacade
         @Override
         public synchronized ListenableFuture<DataApi.ChunkDataResponse> getChunkData(long bufferNodeId, String exchangeId, int partitionId, long chunkId)
         {
-            throw new RuntimeException("not implemented");
+            GetChunkDataKey key = new GetChunkDataKey(bufferNodeId, exchangeId, partitionId, chunkId);
+            List<ListenableFuture<ChunkDataResponse>> responses = getChunkDataResponses.get(key);
+            if (responses.isEmpty()) {
+                throw new IllegalStateException("no response recorded for " + key);
+            }
+            getChunkDataCounters.computeIfAbsent(key, _ -> new AtomicLong()).incrementAndGet();
+            return responses.remove(0);
+        }
+
+        public synchronized void recordGetChunkData(long bufferNodeId, String exchangeId, int partitionId, long chunkId, ListenableFuture<ChunkDataResponse> result)
+        {
+            getChunkDataResponses.put(new GetChunkDataKey(bufferNodeId, exchangeId, partitionId, chunkId), result);
+        }
+
+        public synchronized long getChunkDataCallCount(long bufferNodeId, String exchangeId, int partitionId, long chunkId)
+        {
+            return getChunkDataCounters.computeIfAbsent(new GetChunkDataKey(bufferNodeId, exchangeId, partitionId, chunkId), _ -> new AtomicLong()).get();
         }
     }
 

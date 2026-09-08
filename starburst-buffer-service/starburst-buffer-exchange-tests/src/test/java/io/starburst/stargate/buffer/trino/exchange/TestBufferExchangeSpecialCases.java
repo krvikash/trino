@@ -20,6 +20,7 @@ import io.trino.sql.query.QueryAssertions.QueryAssert;
 import io.trino.testing.FaultTolerantExecutionConnectorTestHelper;
 import io.trino.testing.QueryRunner;
 import io.trino.testing.assertions.Assert;
+import io.trino.testing.assertions.TrinoExceptionAssert;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -38,6 +39,7 @@ import static io.starburst.stargate.buffer.mocking.MockDataNodeStats.Key.FAILED_
 import static io.starburst.stargate.buffer.mocking.MockDataNodeStats.Key.FAILED_GET_CHUNK_DATA_NOT_FOUND_IN_DRAINED_STORAGE_REQUEST_COUNT;
 import static io.starburst.stargate.buffer.mocking.MockDataNodeStats.Key.SUCCESSFUL_ADD_DATA_PAGES_REQUEST_COUNT;
 import static io.starburst.stargate.buffer.mocking.MockDataNodeStats.Key.SUCCESSFUL_GET_CHUNK_DATA_FROM_DRAINED_STORAGE_REQUEST_COUNT;
+import static io.trino.spi.StandardErrorCode.EXCHANGE_DATA_UNRECOVERABLE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 
@@ -45,6 +47,13 @@ import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 public class TestBufferExchangeSpecialCases
 {
     private final ExecutorService executor = Executors.newCachedThreadPool();
+
+    // long-running query which writes reasonably sized output (not too small, not too big) to an exchange
+    private static final String LONG_RUNNING_QUERY =
+            """
+            WITH big        AS (SELECT custkey k FROM tpch.sf10.orders),
+                 small AS (SELECT custkey AS k FROM tpch.tiny.customer WHERE acctbal < 10)
+            SELECT count(*) FROM small,big WHERE small.k = big.k""";
 
     @Test
     public void testDrainingWhileLongRunningQuery()
@@ -127,6 +136,53 @@ public class TestBufferExchangeSpecialCases
         }
     }
 
+    @Test
+    public void testNodeGoneWhileLongRunningQuery()
+            throws Exception
+    {
+        try (TestSetup testSetup = new TestSetup()) {
+            MockBufferService mockBufferService = testSetup.getMockBufferService();
+
+            Future<TrinoExceptionAssert> queryFuture = executor.submit(() -> testSetup.queryFailure(LONG_RUNNING_QUERY));
+
+            int nodeToBeLost = 1;
+            waitUntilDataWrittenTo(mockBufferService, nodeToBeLost);
+            // the node vanishes without draining, like a worker killed by the OOM killer; its chunks are gone for good
+            mockBufferService.markNodeGone(nodeToBeLost);
+
+            // task retries cannot bring the chunks back, so the loss is reported as unrecoverable instead of as a generic failure
+            queryFuture.get().hasErrorCode(EXCHANGE_DATA_UNRECOVERABLE);
+        }
+    }
+
+    @Test
+    public void testNodeGoneWhileLongRunningQueryRestartsQuery()
+            throws Exception
+    {
+        try (TestSetup testSetup = new TestSetup(ImmutableMap.of(
+                "fault-tolerant-execution-query-retry-enabled", "true",
+                "retry-initial-delay", "1s"))) {
+            MockBufferService mockBufferService = testSetup.getMockBufferService();
+
+            Future<QueryAssert> queryFuture = executor.submit(() -> testSetup.query(LONG_RUNNING_QUERY));
+
+            int nodeToBeLost = 1;
+            waitUntilDataWrittenTo(mockBufferService, nodeToBeLost);
+            mockBufferService.markNodeGone(nodeToBeLost);
+
+            // the query is restarted on the remaining nodes and still produces the right answer
+            queryFuture.get().matches("VALUES (BIGINT '1480')");
+        }
+    }
+
+    private static void waitUntilDataWrittenTo(MockBufferService mockBufferService, long nodeId)
+    {
+        Assert.assertEventually(Duration.valueOf("2m"), () -> {
+            MockDataNodeStats stats = mockBufferService.getNodeStats(nodeId);
+            assertThat(stats.get(SUCCESSFUL_ADD_DATA_PAGES_REQUEST_COUNT)).isGreaterThan(0);
+        });
+    }
+
     private static class TestSetup
             implements Closeable
     {
@@ -135,6 +191,12 @@ public class TestBufferExchangeSpecialCases
         private final QueryAssertions assertions;
 
         public TestSetup()
+                throws Exception
+        {
+            this(ImmutableMap.of());
+        }
+
+        public TestSetup(Map<String, String> additionalExtraProperties)
                 throws Exception
         {
             mockBufferService = new MockBufferService(3);
@@ -156,6 +218,7 @@ public class TestBufferExchangeSpecialCases
             extraProperties.put("optimizer.join-reordering-strategy", "NONE");
             extraProperties.put("join-distribution-type", "PARTITIONED");
             extraProperties.put("enable-dynamic-filtering", "false");
+            extraProperties.putAll(additionalExtraProperties);
 
             queryRunner = MemoryQueryRunner.builder()
                     .setExtraProperties(extraProperties)
@@ -175,6 +238,11 @@ public class TestBufferExchangeSpecialCases
             return assertThat(assertions.query(query))
                     // The test requires that query is started before this method returns
                     .succeeds();
+        }
+
+        public TrinoExceptionAssert queryFailure(String query)
+        {
+            return assertThat(assertions.query(query)).failure();
         }
 
         public MockBufferService getMockBufferService()

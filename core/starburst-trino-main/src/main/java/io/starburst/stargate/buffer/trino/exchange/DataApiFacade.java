@@ -94,6 +94,8 @@ public class DataApiFacade
     private final BufferNodeDiscoveryManager discoveryManager;
     private final ApiFactory apiFactory;
     private final Map<Long, DataApi> dataApiClients = new ConcurrentHashMap<>();
+    // ids of every buffer node a client was ever created for; lets a node that vanished from discovery be told apart from one not discovered yet
+    private final Set<Long> seenBufferNodes = ConcurrentHashMap.newKeySet();
     private final Map<Long, FailsafeExecutor<Object>> defaultRetryExecutors = new ConcurrentHashMap<>();
     private final Map<Long, FailsafeExecutor<Object>> addDataPagesRetryExecutors = new ConcurrentHashMap<>();
     private final RetryExecutorConfig defaultRetryExecutorConfig;
@@ -703,7 +705,7 @@ public class DataApiFacade
         }
 
         return switch (dataApiException.getErrorCode()) {
-            case DRAINING, USER_ERROR, BUFFER_NODE_NOT_FOUND, EXCHANGE_NOT_FOUND, CHUNK_NOT_FOUND, OVERLOADED, EXCHANGE_FINISHED, EXCHANGE_CORRUPTED, DRAINING_ON_RETRY, DRAINED -> false;
+            case DRAINING, USER_ERROR, BUFFER_NODE_NOT_FOUND, BUFFER_NODE_GONE, EXCHANGE_NOT_FOUND, CHUNK_NOT_FOUND, OVERLOADED, EXCHANGE_FINISHED, EXCHANGE_CORRUPTED, DRAINING_ON_RETRY, DRAINED -> false;
             case INTERNAL_ERROR -> true;
         };
     }
@@ -894,6 +896,12 @@ public class DataApiFacade
     {
         BufferNodeDiscoveryManager.BufferNodesState bufferNodes = discoveryManager.getBufferNodes();
         BufferNodeInfo bufferNodeInfo = bufferNodes.getAllBufferNodes().get(bufferNodeId);
+        if (bufferNodeInfo == null && seenBufferNodes.contains(bufferNodeId)) {
+            // The node was part of the cluster when we first talked to it and discovery has since dropped it without
+            // ever reporting it DRAINED, so it died. Retrying against it would only burn the whole retry budget
+            // (minutes with the default backoff) before the caller learns that the node, and the data it held, are gone.
+            throw new DataApiException(ErrorCode.BUFFER_NODE_GONE, format("Buffer node %s left the cluster without draining", bufferNodeId));
+        }
         if (bufferNodeInfo != null && bufferNodeInfo.state() == BufferNodeState.DRAINED) {
             // Node already DRAINED according to DiscoveryService. Short-circuiting error code.
             throw new DataApiException(ErrorCode.DRAINED, format("Node %s (%s) already DRAINED", bufferNodeId, bufferNodeInfo.uri()));
@@ -914,6 +922,7 @@ public class DataApiFacade
             // todo: for created clients periodically check if node is still around
             throw new DataApiException(ErrorCode.BUFFER_NODE_NOT_FOUND, "Buffer node " + bufferNodeId + " not found");
         }
+        seenBufferNodes.add(bufferNodeId);
         return createDataApi(bufferNodeInfo);
     }
 

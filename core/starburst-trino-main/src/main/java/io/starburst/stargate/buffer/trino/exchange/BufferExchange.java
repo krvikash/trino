@@ -527,6 +527,7 @@ public class BufferExchange
                 dataApiException -> {
                     if (dataApiException.getErrorCode() == ErrorCode.EXCHANGE_NOT_FOUND
                             || dataApiException.getErrorCode() == ErrorCode.BUFFER_NODE_NOT_FOUND
+                            || dataApiException.getErrorCode() == ErrorCode.BUFFER_NODE_GONE
                             || dataApiException.getErrorCode() == ErrorCode.DRAINED) {
                         // ignore
                         return null;

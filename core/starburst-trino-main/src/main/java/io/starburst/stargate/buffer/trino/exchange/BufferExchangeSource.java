@@ -25,6 +25,7 @@ import io.starburst.stargate.buffer.data.client.DataPage;
 import io.starburst.stargate.buffer.trino.exchange.DataApiFacade.ChunkDataResponse;
 import io.starburst.stargate.buffer.trino.exchange.MetricsBuilder.CounterMetricBuilder;
 import io.starburst.stargate.buffer.trino.exchange.MetricsBuilder.DistributionMetricBuilder;
+import io.trino.spi.TrinoException;
 import io.trino.spi.exchange.ExchangeId;
 import io.trino.spi.exchange.ExchangeSource;
 import io.trino.spi.exchange.ExchangeSourceHandle;
@@ -53,6 +54,7 @@ import static com.google.common.base.Verify.verify;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.airlift.slice.SizeOf.estimatedSizeOf;
 import static io.airlift.slice.SizeOf.instanceSize;
+import static io.trino.spi.StandardErrorCode.EXCHANGE_DATA_UNRECOVERABLE;
 import static java.util.Collections.emptySet;
 import static java.util.Comparator.comparing;
 import static java.util.Objects.requireNonNull;
@@ -556,7 +558,10 @@ public class BufferExchangeSource
                 long sourceBufferNodeId = sourceChunk.bufferNodeId();
                 Map<Long, BufferNodeInfo> bufferNodes = discoveryManager.getBufferNodes().getAllBufferNodes();
                 BufferNodeInfo sourceBufferNodeInfo = bufferNodes.get(sourceBufferNodeId);
-                if (sourceBufferNodeInfo != null && sourceBufferNodeInfo.state() == BufferNodeState.DRAINED) {
+                if (sourceBufferNodeInfo == null || sourceBufferNodeInfo.state() == BufferNodeState.DRAINED) {
+                    // A DRAINED node handed its chunks over to spooling storage, which any running node can read.
+                    // A node unknown to discovery either drained and was already forgotten, or died without draining;
+                    // the fallback node tells the two apart: it serves the chunk or answers CHUNK_NOT_FOUND.
                     sourceBufferNodeId = selectFallbackRunningBufferNode(sourceBufferNodeId);
                 }
                 scheduleReadUsingNode(sourceBufferNodeId);
@@ -624,17 +629,24 @@ public class BufferExchangeSource
                         }
 
                         switch (dataApiException.getErrorCode()) {
-                            case DRAINED -> {
-                                // we need to reach out to different buffer node
-                                excludedNodes.add(sourceBufferNodeId);
-                                long newBufferNodeId = selectFallbackRunningBufferNodeExcluding(sourceBufferNodeId, excludedNodes);
-                                scheduleReadUsingNode(newBufferNodeId);
-                            }
+                            // the node left the cluster; another node serves its chunk from spooling storage or reports it as lost
+                            case DRAINED, BUFFER_NODE_NOT_FOUND, BUFFER_NODE_GONE -> readFromFallbackNode(sourceBufferNodeId);
                             case CHUNK_NOT_FOUND -> {
-                                setFailed(new RuntimeException("chunk " + sourceChunk + " not found; reading from " + sourceBufferNodeId));
+                                // the buffer node no longer has this chunk (e.g. evicted after a crash/drain); retrying the same read cannot recover it
+                                setFailed(new TrinoException(EXCHANGE_DATA_UNRECOVERABLE, "chunk " + sourceChunk + " not found; reading from " + sourceBufferNodeId));
+                                finish();
+                            }
+                            case EXCHANGE_NOT_FOUND, EXCHANGE_CORRUPTED -> {
+                                // the exchange is no longer known to the buffer node or its data is corrupted; the query cannot recover without a restart
+                                setFailed(new TrinoException(EXCHANGE_DATA_UNRECOVERABLE, "exchange data unavailable while reading from " + sourceBufferNodeId + ": " + dataApiException.getErrorCode()));
                                 finish();
                             }
                             default -> {
+                                if (isBufferNodeGone(sourceBufferNodeId)) {
+                                    // the request failed while the node disappeared from discovery, so this failure is about the node, not the chunk
+                                    readFromFallbackNode(sourceBufferNodeId);
+                                    return;
+                                }
                                 setFailed(t);
                                 finish();
                             }
@@ -649,6 +661,18 @@ public class BufferExchangeSource
                     }
                 }
             }, executor);
+        }
+
+        private void readFromFallbackNode(long unavailableBufferNodeId)
+        {
+            excludedNodes.add(unavailableBufferNodeId);
+            long newBufferNodeId = selectFallbackRunningBufferNodeExcluding(unavailableBufferNodeId, excludedNodes);
+            scheduleReadUsingNode(newBufferNodeId);
+        }
+
+        private boolean isBufferNodeGone(long bufferNodeId)
+        {
+            return !discoveryManager.getBufferNodes().getAllBufferNodes().containsKey(bufferNodeId);
         }
 
         private void finish()
