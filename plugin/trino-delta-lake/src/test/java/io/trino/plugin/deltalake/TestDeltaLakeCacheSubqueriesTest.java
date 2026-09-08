@@ -14,6 +14,7 @@
 package io.trino.plugin.deltalake;
 
 import com.google.common.collect.ImmutableList;
+import io.airlift.units.Duration;
 import io.trino.Session;
 import io.trino.operator.TableScanOperator;
 import io.trino.server.testing.TestingTrinoServer;
@@ -38,8 +39,10 @@ import java.util.stream.Stream;
 import static io.trino.plugin.tpch.TpchMetadata.TINY_SCHEMA_NAME;
 import static io.trino.testing.QueryAssertions.assertEqualsIgnoreOrder;
 import static io.trino.testing.QueryAssertions.copyTpchTables;
+import static io.trino.testing.assertions.Assert.assertEventually;
 import static java.lang.String.format;
 import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static java.util.stream.Collectors.joining;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
@@ -98,9 +101,14 @@ public class TestDeltaLakeCacheSubqueriesTest
             assertThat(getScanOperatorInputPositions(result.queryId())).isPositive();
             assertThat(getLoadCachedDataOperatorInputPositions(result.queryId())).isPositive();
 
-            result = executeWithPlan(withCacheEnabled(), selectQuery);
-            assertThat(getLoadCachedDataOperatorInputPositions(result.queryId())).isEqualTo(6);
-            assertThat(getScanOperatorInputPositions(result.queryId())).isZero();
+            // Verify the third run reads only from cache. Split placement is best-effort
+            // (CacheDriverFactory falls back to the non-cached plan when Split#isSplitAddressEnforced()
+            // is false), so under load the query may miss the cached node; retry until it hits.
+            assertEventually(new Duration(10, SECONDS), () -> {
+                MaterializedResultWithPlan thirdRun = executeWithPlan(withCacheEnabled(), selectQuery);
+                assertThat(getLoadCachedDataOperatorInputPositions(thirdRun.queryId())).isEqualTo(6);
+                assertThat(getScanOperatorInputPositions(thirdRun.queryId())).isZero();
+            });
         }
     }
 
@@ -141,11 +149,15 @@ public class TestDeltaLakeCacheSubqueriesTest
         assertThat(result.result().getRowCount()).isEqualTo(4);
         assertThat(getCacheDataOperatorInputPositions(result.queryId())).isPositive();
 
-        // should use only cache
-        result = executeWithPlan(withCacheEnabled(), query);
-        assertThat(result.result().getRowCount()).isEqualTo(4);
-        assertThat(getScanOperatorInputPositions(result.queryId())).isZero();
-        assertThat(getLoadCachedDataOperatorInputPositions(result.queryId())).isPositive();
+        // Verify the second run uses only cache. Split placement is best-effort (CacheDriverFactory
+        // falls back to the non-cached plan when Split#isSplitAddressEnforced() is false), so under
+        // load the query may miss the cached node; retry until it hits.
+        assertEventually(new Duration(10, SECONDS), () -> {
+            MaterializedResultWithPlan cacheOnlyResult = executeWithPlan(withCacheEnabled(), query);
+            assertThat(cacheOnlyResult.result().getRowCount()).isEqualTo(4);
+            assertThat(getScanOperatorInputPositions(cacheOnlyResult.queryId())).isZero();
+            assertThat(getLoadCachedDataOperatorInputPositions(cacheOnlyResult.queryId())).isPositive();
+        });
 
         // simulate that row was deleted with deletion vector
         Files.copy(

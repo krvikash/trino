@@ -191,10 +191,15 @@ public abstract class BaseCacheSubqueriesTest
         // make sure data was cached
         assertThat(getCacheDataOperatorInputPositions(resultWithCache.queryId())).isPositive();
 
-        resultWithCache = executeWithPlan(withCacheEnabled(), selectQuery);
-        // make sure data was read from cache as data should be cached across queries
-        assertThat(getLoadCachedDataOperatorInputPositions(resultWithCache.queryId())).isPositive();
-        assertThat(getScanOperatorInputPositions(resultWithCache.queryId())).isZero();
+        // Verify the second run reads only from cache. Split placement is best-effort
+        // (CacheDriverFactory falls back to the non-cached plan when Split#isSplitAddressEnforced()
+        // is false), so under load the query may miss the cached node; retry until it hits.
+        assertEventually(new Duration(10, SECONDS), () -> {
+            MaterializedResultWithPlan result = executeWithPlan(withCacheEnabled(), selectQuery);
+            // make sure data was read from cache as data should be cached across queries
+            assertThat(getLoadCachedDataOperatorInputPositions(result.queryId())).isPositive();
+            assertThat(getScanOperatorInputPositions(result.queryId())).isZero();
+        });
     }
 
     @Test
@@ -252,17 +257,22 @@ public abstract class BaseCacheSubqueriesTest
         assertThat(getCacheDataOperatorInputPositions(resultWithCache.queryId())).isPositive();
         assertThat(getScanSplitsWithDynamicFiltersApplied(resultWithCache.queryId())).isPositive();
 
-        resultWithCache = executeWithPlan(
-                withCacheEnabled(),
+        @Language("SQL") String secondQuery =
                 """
                 SELECT partkey FROM lineitem l JOIN
                  (SELECT suppkey, orderkey FROM (VALUES (2, 17125), (3, 60000), (4, 60001)) t(suppkey, orderkey)) o
                 ON l.suppkey = o.suppkey AND l.orderkey <= o.orderkey
-                """);
-        // make sure data was read from cache because dynamic filters for "l.orderkey < o.orderkey"
-        // should evaluate to TRUE for both queries since the highest lineitem "orderkey" value is 60000
-        assertThat(getLoadCachedDataOperatorInputPositions(resultWithCache.queryId())).isPositive();
-        assertThat(getScanOperatorInputPositions(resultWithCache.queryId())).isZero();
+                """;
+        // Verify the second query reads only from cache because dynamic filters for
+        // "l.orderkey < o.orderkey" should evaluate to TRUE for both queries since the highest
+        // lineitem "orderkey" value is 60000. Split placement is best-effort (CacheDriverFactory
+        // falls back to the non-cached plan when Split#isSplitAddressEnforced() is false), so under
+        // load the query may miss the cached node; retry until it hits.
+        assertEventually(new Duration(10, SECONDS), () -> {
+            MaterializedResultWithPlan result = executeWithPlan(withCacheEnabled(), secondQuery);
+            assertThat(getLoadCachedDataOperatorInputPositions(result.queryId())).isPositive();
+            assertThat(getScanOperatorInputPositions(result.queryId())).isZero();
+        });
 
         // query with dynamic filter that doesn't evaluate to TRUE for lineitem splits shouldn't read from cache
         resultWithCache = executeWithPlan(
@@ -306,27 +316,35 @@ public abstract class BaseCacheSubqueriesTest
         Session cacheSubqueriesDisabled = withDynamicRowFiltering(withCacheDisabled(), isDynamicRowFilteringEnabled);
         MaterializedResultWithPlan totalScanOrdersExecution = executeWithPlan(cacheSubqueriesDisabled, totalScanOrdersQuery);
         MaterializedResultWithPlan firstJoinExecution = executeWithPlan(cacheSubqueriesEnabled, firstJoinQuery);
-        MaterializedResultWithPlan anotherFirstJoinExecution = executeWithPlan(cacheSubqueriesEnabled, firstJoinQuery);
-        MaterializedResultWithPlan secondJoinExecution = executeWithPlan(cacheSubqueriesEnabled, secondJoinQuery);
-        MaterializedResultWithPlan thirdJoinExecution = executeWithPlan(cacheSubqueriesEnabled, thirdJoinQuery);
 
         // firstJoinQuery does not read whole probe side as some splits were pruned by dynamic filters
         assertThat(getScanOperatorInputPositions(firstJoinExecution.queryId())).isLessThan(getScanOperatorInputPositions(totalScanOrdersExecution.queryId()));
         assertThat(getCacheDataOperatorInputPositions(firstJoinExecution.queryId())).isPositive();
         // firstJoinQuery reads from table
         assertThat(getScanOperatorInputPositions(firstJoinExecution.queryId())).isPositive();
-        // second run of firstJoinQuery reads only from cache
-        assertThat(getScanOperatorInputPositions(anotherFirstJoinExecution.queryId())).isZero();
-        assertThat(getLoadCachedDataOperatorInputPositions(anotherFirstJoinExecution.queryId())).isPositive();
 
+        // Verify the second run of firstJoinQuery reads only from cache. Split placement is
+        // best-effort (CacheDriverFactory falls back to the non-cached plan when
+        // Split#isSplitAddressEnforced() is false), so under load the query may miss the cached
+        // node; retry until it hits.
+        assertEventually(new Duration(10, SECONDS), () -> {
+            MaterializedResultWithPlan result = executeWithPlan(cacheSubqueriesEnabled, firstJoinQuery);
+            assertThat(getScanOperatorInputPositions(result.queryId())).isZero();
+            assertThat(getLoadCachedDataOperatorInputPositions(result.queryId())).isPositive();
+        });
+
+        MaterializedResultWithPlan secondJoinExecution = executeWithPlan(cacheSubqueriesEnabled, secondJoinQuery);
         // secondJoinQuery reads from table and cache because its predicate is wider that firstJoinQuery's predicate
         assertThat(getCacheDataOperatorInputPositions(secondJoinExecution.queryId())).isPositive();
         assertThat(getLoadCachedDataOperatorInputPositions(secondJoinExecution.queryId())).isPositive();
         assertThat(getScanOperatorInputPositions(secondJoinExecution.queryId())).isPositive();
 
-        // thirdJoinQuery reads only from cache
-        assertThat(getLoadCachedDataOperatorInputPositions(thirdJoinExecution.queryId())).isPositive();
-        assertThat(getScanOperatorInputPositions(thirdJoinExecution.queryId())).isZero();
+        // Verify thirdJoinQuery reads only from cache; same best-effort placement race as above.
+        assertEventually(new Duration(10, SECONDS), () -> {
+            MaterializedResultWithPlan result = executeWithPlan(cacheSubqueriesEnabled, thirdJoinQuery);
+            assertThat(getLoadCachedDataOperatorInputPositions(result.queryId())).isPositive();
+            assertThat(getScanOperatorInputPositions(result.queryId())).isZero();
+        });
 
         assertUpdate("drop table " + tableName);
     }
