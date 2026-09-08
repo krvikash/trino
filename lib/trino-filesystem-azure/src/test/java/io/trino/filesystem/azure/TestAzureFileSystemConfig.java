@@ -14,6 +14,7 @@
 package io.trino.filesystem.azure;
 
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import io.airlift.units.DataSize;
 import io.airlift.units.DataSize.Unit;
 import io.airlift.units.Duration;
@@ -22,6 +23,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Map;
 
+import static io.airlift.configuration.testing.ConfigAssertions.assertDeprecatedEquivalence;
 import static io.airlift.configuration.testing.ConfigAssertions.assertFullMapping;
 import static io.airlift.configuration.testing.ConfigAssertions.assertRecordedDefaults;
 import static io.airlift.configuration.testing.ConfigAssertions.recordDefaults;
@@ -35,7 +37,7 @@ class TestAzureFileSystemConfig
     {
         assertRecordedDefaults(recordDefaults(AzureFileSystemConfig.class)
                 .setAuthType(AuthType.DEFAULT)
-                .setEndpoint("core.windows.net")
+                .setEndpoints(ImmutableSet.of("core.windows.net"))
                 .setReadBlockSize(DataSize.of(4, Unit.MEGABYTE))
                 .setWriteBlockSize(DataSize.of(4, Unit.MEGABYTE))
                 .setMaxWriteConcurrency(8)
@@ -54,7 +56,7 @@ class TestAzureFileSystemConfig
     {
         Map<String, String> properties = ImmutableMap.<String, String>builder()
                 .put("azure.auth-type", "oauth")
-                .put("azure.endpoint", "core.usgovcloudapi.net")
+                .put("azure.endpoints", "core.usgovcloudapi.net,fabric.microsoft.com")
                 .put("azure.read-block-size", "3MB")
                 .put("azure.write-block-size", "5MB")
                 .put("azure.max-write-concurrency", "7")
@@ -70,7 +72,7 @@ class TestAzureFileSystemConfig
 
         AzureFileSystemConfig expected = new AzureFileSystemConfig()
                 .setAuthType(AuthType.OAUTH)
-                .setEndpoint("core.usgovcloudapi.net")
+                .setEndpoints(ImmutableSet.of("core.usgovcloudapi.net", "fabric.microsoft.com"))
                 .setReadBlockSize(DataSize.of(3, Unit.MEGABYTE))
                 .setWriteBlockSize(DataSize.of(5, Unit.MEGABYTE))
                 .setMaxWriteConcurrency(7)
@@ -84,5 +86,14 @@ class TestAzureFileSystemConfig
                 .setTestingEndpointOverride("http://127.0.0.1:10000/devstoreaccount1");
 
         assertFullMapping(properties, expected);
+    }
+
+    @Test
+    void testDeprecatedEquivalence()
+    {
+        assertDeprecatedEquivalence(
+                AzureFileSystemConfig.class,
+                ImmutableMap.of("azure.endpoints", "core.usgovcloudapi.net"),
+                ImmutableMap.of("azure.endpoint", "core.usgovcloudapi.net"));
     }
 }

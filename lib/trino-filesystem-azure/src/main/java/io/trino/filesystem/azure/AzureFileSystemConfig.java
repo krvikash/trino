@@ -13,9 +13,11 @@
  */
 package io.trino.filesystem.azure;
 
+import com.google.common.collect.ImmutableSet;
 import io.airlift.configuration.Config;
 import io.airlift.configuration.ConfigDescription;
 import io.airlift.configuration.ConfigHidden;
+import io.airlift.configuration.LegacyConfig;
 import io.airlift.units.DataSize;
 import io.airlift.units.DataSize.Unit;
 import io.airlift.units.Duration;
@@ -25,6 +27,7 @@ import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import static java.lang.Math.max;
@@ -39,7 +42,7 @@ public class AzureFileSystemConfig
     }
 
     private AuthType authType = AuthType.DEFAULT;
-    private String endpoint = "core.windows.net";
+    private Set<String> endpoints = ImmutableSet.of("core.windows.net");
     private DataSize readBlockSize = DataSize.of(4, Unit.MEGABYTE);
     private DataSize writeBlockSize = DataSize.of(4, Unit.MEGABYTE);
     private int maxWriteConcurrency = 8;
@@ -69,16 +72,24 @@ public class AzureFileSystemConfig
     }
 
     @NotEmpty
-    public String getEndpoint()
+    public Set<@NotEmpty String> getEndpoints()
     {
-        return endpoint;
+        return endpoints;
     }
 
-    @Config("azure.endpoint")
+    @Config("azure.endpoints")
+    @ConfigDescription("Hostname suffixes of the Azure storage endpoints that locations are allowed to reference")
+    public AzureFileSystemConfig setEndpoints(Set<String> endpoints)
+    {
+        this.endpoints = ImmutableSet.copyOf(endpoints);
+        return this;
+    }
+
+    @Deprecated
+    @LegacyConfig(value = "azure.endpoint", replacedBy = "azure.endpoints")
     public AzureFileSystemConfig setEndpoint(String endpoint)
     {
-        this.endpoint = endpoint;
-        return this;
+        return setEndpoints(ImmutableSet.of(endpoint));
     }
 
     @NotNull

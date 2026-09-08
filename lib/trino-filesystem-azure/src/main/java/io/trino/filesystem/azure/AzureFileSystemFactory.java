@@ -19,6 +19,7 @@ import com.azure.core.http.policy.HttpPipelinePolicy;
 import com.azure.core.tracing.opentelemetry.OpenTelemetryTracingOptions;
 import com.azure.core.util.HttpClientOptions;
 import com.azure.core.util.TracingOptions;
+import com.google.common.collect.ImmutableSet;
 import com.google.inject.Inject;
 import io.airlift.units.DataSize;
 import io.airlift.units.Duration;
@@ -35,6 +36,7 @@ import reactor.netty.resources.ConnectionProvider;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 
@@ -51,7 +53,7 @@ public class AzureFileSystemFactory
     private final ExecutorService uploadExecutor = newCachedThreadPool(daemonThreadsNamed("azure-upload-%s"));
 
     private final AzureAuth auth;
-    private final String endpoint;
+    private final Set<String> endpoints;
     private final DataSize readBlockSize;
     private final DataSize writeBlockSize;
     private final int maxWriteConcurrency;
@@ -79,7 +81,7 @@ public class AzureFileSystemFactory
     {
         this(openTelemetry,
                 azureAuth,
-                config.getEndpoint(),
+                config.getEndpoints(),
                 config.getReadBlockSize(),
                 config.getWriteBlockSize(),
                 config.getMaxWriteConcurrency(),
@@ -97,7 +99,7 @@ public class AzureFileSystemFactory
     public AzureFileSystemFactory(
             OpenTelemetry openTelemetry,
             AzureAuth azureAuth,
-            String endpoint,
+            Set<String> endpoints,
             DataSize readBlockSize,
             DataSize writeBlockSize,
             int maxWriteConcurrency,
@@ -112,7 +114,7 @@ public class AzureFileSystemFactory
             Optional<AzureHierarchicalNamespaceChecker> hierarchicalNamespaceCheckerOverride)
     {
         this.auth = requireNonNull(azureAuth, "azureAuth is null");
-        this.endpoint = requireNonNull(endpoint, "endpoint is null");
+        this.endpoints = ImmutableSet.copyOf(requireNonNull(endpoints, "endpoints is null"));
         this.testingEndpointOverride = requireNonNull(testingEndpointOverride, "testingEndpointOverride is null");
         this.hierarchicalNamespaceCheckerOverride = requireNonNull(hierarchicalNamespaceCheckerOverride, "hierarchicalNamespaceCheckerOverride is null");
         this.readBlockSize = requireNonNull(readBlockSize, "readBlockSize is null");
@@ -165,7 +167,7 @@ public class AzureFileSystemFactory
     public TrinoFileSystem create(ConnectorIdentity identity)
     {
         AzureAuth effectiveAuth = getEffectiveAuth(identity);
-        return new AzureFileSystem(httpClient, concurrencyPolicy, uploadExecutor, tracingOptions, effectiveAuth, endpoint, readBlockSize, writeBlockSize, maxWriteConcurrency, maxSingleUploadSize, multipart, testingEndpointOverride, hierarchicalNamespaceCheckerOverride);
+        return new AzureFileSystem(httpClient, concurrencyPolicy, uploadExecutor, tracingOptions, effectiveAuth, endpoints, readBlockSize, writeBlockSize, maxWriteConcurrency, maxSingleUploadSize, multipart, testingEndpointOverride, hierarchicalNamespaceCheckerOverride);
     }
 
     private AzureAuth getEffectiveAuth(ConnectorIdentity identity)

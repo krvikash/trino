@@ -154,7 +154,7 @@ public class TestSpoolingStorageModule
         createBootstrap(Optional.of("buffer"), Map.of(
                 "buffer.spooling.directory", "abfs://container@account.dfs.core.windows.net/spool",
                 "buffer.spooling.storage-driver", "TRINO_FS",
-                "buffer.spooling.azure.endpoint", "core.windows.net"));
+                "buffer.spooling.azure.endpoints", "core.windows.net"));
     }
 
     private static void createBootstrap(Map<String, String> properties)

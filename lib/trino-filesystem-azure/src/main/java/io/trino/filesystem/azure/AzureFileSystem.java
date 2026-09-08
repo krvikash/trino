@@ -87,7 +87,7 @@ public class AzureFileSystem
     private final ExecutorService uploadExecutor;
     private final TracingOptions tracingOptions;
     private final AzureAuth azureAuth;
-    private final String endpoint;
+    private final Set<String> endpoints;
     private final int readBlockSizeBytes;
     private final long writeBlockSizeBytes;
     private final int maxWriteConcurrency;
@@ -102,7 +102,7 @@ public class AzureFileSystem
             ExecutorService uploadExecutor,
             TracingOptions tracingOptions,
             AzureAuth azureAuth,
-            String endpoint,
+            Set<String> endpoints,
             DataSize readBlockSize,
             DataSize writeBlockSize,
             int maxWriteConcurrency,
@@ -116,7 +116,7 @@ public class AzureFileSystem
         this.uploadExecutor = requireNonNull(uploadExecutor, "uploadExecutor is null");
         this.tracingOptions = requireNonNull(tracingOptions, "tracingOptions is null");
         this.azureAuth = requireNonNull(azureAuth, "azureAuth is null");
-        this.endpoint = requireNonNull(endpoint, "endpoint is null");
+        this.endpoints = ImmutableSet.copyOf(requireNonNull(endpoints, "endpoints is null"));
         this.readBlockSizeBytes = toIntExact(readBlockSize.toBytes());
         this.writeBlockSizeBytes = writeBlockSize.toBytes();
         checkArgument(maxWriteConcurrency >= 0, "maxWriteConcurrency is negative");
@@ -687,8 +687,8 @@ public class AzureFileSystem
 
     private String validatedEndpoint(AzureLocation location)
     {
-        if (!location.endpoint().equals(endpoint)) {
-            throw new IllegalArgumentException("Location does not match configured Azure endpoint: " + location);
+        if (!endpoints.contains(location.endpoint())) {
+            throw new IllegalArgumentException("Location does not match any configured Azure endpoint %s: %s".formatted(endpoints, location));
         }
         return location.endpoint();
     }
