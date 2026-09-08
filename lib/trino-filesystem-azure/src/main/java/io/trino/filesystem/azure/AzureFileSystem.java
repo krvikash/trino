@@ -660,6 +660,11 @@ public class AzureFileSystem
                     .isHierarchicalNamespaceEnabled(location, createBlobContainerClient(location, Optional.empty()));
         }
 
+        // OneLake is always hierarchical
+        if (location.isOneLake()) {
+            return true;
+        }
+
         try {
             // Normalize consecutive slashes: the Azure DataLake getAccessControl API returns HTTP 400
             // for paths containing "//", while other APIs like listPaths silently canonicalize them

@@ -29,6 +29,9 @@ class TestAzureLocation
         assertValid("abfs://container@account.dfs.core.windows.net/some/path/file", "account", "container", "some/path/file", "abfs", "core.windows.net");
         assertValid("abfss://container@account.dfs.core.windows.net/some/path/file", "account", "container", "some/path/file", "abfss", "core.windows.net");
         assertValid("abfss://container@account-onelake.dfs.fabric.microsoft.com/some/path/file", "account-onelake", "container", "some/path/file", "abfss", "fabric.microsoft.com");
+        assertValid("abfss://workspace@onelake.dfs.fabric.microsoft.com/item.lakehouse/Files/file", "onelake", "workspace", "item.lakehouse/Files/file", "abfss", "fabric.microsoft.com");
+        assertValid("abfss://workspace@1111aaaa2222bbbb3333cccc4444dddd.z54.dfs.fabric.microsoft.com/item.lakehouse/Files/file", "1111aaaa2222bbbb3333cccc4444dddd.z54", "workspace", "item.lakehouse/Files/file", "abfss", "fabric.microsoft.com");
+        assertValid("abfs://container@account.extra.label.dfs.core.windows.net/some/path/file", "account.extra.label", "container", "some/path/file", "abfs", "core.windows.net");
         assertValid("wasb://container@account.blob.core.windows.net/some/path/file", "account", "container", "some/path/file", "wasb", "core.windows.net");
         assertValid("wasbs://container@account.blob.core.windows.net/some/path/file", "account", "container", "some/path/file", "wasbs", "core.windows.net");
 
@@ -74,13 +77,28 @@ class TestAzureLocation
         assertInvalid("abfs://con---tainer@account.dfs.core.windows.net/some/path/file");
         assertInvalid("abfs://con--tainer@account.dfs.core.windows.net/some/path/file");
 
-        // account is only a-z, 0-9 and -
+        // account labels are only a-z, 0-9 and -, and cannot be empty
         assertInvalid("abfs://container@ac_count.dfs.core.windows.net/some/path/file");
         assertInvalid("abfs://container@ac$count.dfs.core.windows.net/some/path/file");
+        assertInvalid("abfs://container@.dfs.core.windows.net/some/path/file");
+        assertInvalid("abfs://container@account..dfs.core.windows.net/some/path/file");
+        assertInvalid("abfs://container@account.z_54.dfs.core.windows.net/some/path/file");
 
         // host must contain .dfs. after account
         assertInvalid("abfs://container@account.example.com/some/path/file");
-        assertInvalid("abfs://container@account.fake.dfs.core.windows.net/some/path/file");
+    }
+
+    @Test
+    void testIsOneLake()
+    {
+        assertOneLake("abfss://workspace@onelake.dfs.fabric.microsoft.com/item.lakehouse/Files/file", true);
+        assertOneLake("abfss://workspace@eastus-onelake.dfs.fabric.microsoft.com/item.lakehouse/Files/file", true);
+        assertOneLake("abfss://workspace@1111aaaa2222bbbb3333cccc4444dddd.z54.dfs.fabric.microsoft.com/item.lakehouse/Files/file", true);
+        assertOneLake("wasbs://workspace@onelake.blob.fabric.microsoft.com/item.lakehouse/Files/file", true);
+
+        assertOneLake("abfss://container@account.dfs.core.windows.net/some/path/file", false);
+        assertOneLake("abfss://container@account.dfs.core.usgovcloudapi.net/some/path/file", false);
+        assertOneLake("abfss://container@onelake.dfs.core.windows.net/some/path/file", false);
     }
 
     private static void assertValid(String uri, String expectedAccount, String expectedContainer, String expectedPath, String expectedScheme, String expectedEndpoint)
@@ -101,5 +119,12 @@ class TestAzureLocation
         assertThatThrownBy(() -> new AzureLocation(location))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining(uri);
+    }
+
+    private static void assertOneLake(String uri, boolean expected)
+    {
+        assertThat(new AzureLocation(Location.of(uri)).isOneLake())
+                .as("%s is OneLake", uri)
+                .isEqualTo(expected);
     }
 }

@@ -14,6 +14,7 @@
 package io.trino.filesystem.azure;
 
 import com.google.common.base.CharMatcher;
+import com.google.common.base.Splitter;
 import io.trino.filesystem.Location;
 
 import java.util.Optional;
@@ -26,12 +27,17 @@ class AzureLocation
     private static final String INVALID_ABFS_LOCATION_MESSAGE = "Invalid Azure ABFS location. Expected form is 'abfs[s]://[<containerName>@]<accountName>.dfs.<endpoint>/<filePath>': %s";
     private static final String INVALID_WASB_LOCATION_MESSAGE = "Invalid Azure WASB location. Expected form is 'wasb[s]://[<containerName>@]<accountName>.blob.<endpoint>/<filePath>': %s";
 
+    // Microsoft Fabric serves OneLake from its own endpoint rather than core.windows.net
+    // https://learn.microsoft.com/en-us/fabric/onelake/onelake-access-api
+    private static final String ONELAKE_ENDPOINT = "fabric.microsoft.com";
+
     // https://learn.microsoft.com/en-us/azure/azure-resource-manager/management/resource-name-rules
     private static final CharMatcher CONTAINER_VALID_CHARACTERS = CharMatcher.inRange('a', 'z').or(CharMatcher.inRange('0', '9')).or(CharMatcher.is('-'));
     private static final CharMatcher STORAGE_ACCOUNT_VALID_CHARACTERS = CharMatcher.inRange('a', 'z').or(CharMatcher.inRange('0', '9')).or(CharMatcher.is('-'));
 
     private final Location location;
     private final String scheme;
+    private final String serviceLabel;
     private final String account;
     private final String endpoint;
 
@@ -48,11 +54,14 @@ class AzureLocation
         // wasb and wasbs are also supported but not documented
         scheme = location.scheme().orElseThrow(() -> new IllegalArgumentException(String.format(INVALID_ABFS_LOCATION_MESSAGE, location)));
         String invalidLocationMessage;
+        // abfs[s] hosts address the dfs service, wasb[s] hosts address the blob service
         if ("abfs".equals(scheme) || "abfss".equals(scheme)) {
             invalidLocationMessage = INVALID_ABFS_LOCATION_MESSAGE;
+            this.serviceLabel = "dfs";
         }
         else if ("wasb".equals(scheme) || "wasbs".equals(scheme)) {
             invalidLocationMessage = INVALID_WASB_LOCATION_MESSAGE;
+            this.serviceLabel = "blob";
         }
         else {
             // only mention abfs in error message as the other forms are deprecated
@@ -76,33 +85,24 @@ class AzureLocation
                     location);
         });
 
-        // storage account is the first label of the host
         checkArgument(location.host().isPresent(), invalidLocationMessage, location);
         String host = location.host().get();
-        int accountSplit = host.indexOf('.');
-        checkArgument(
-                accountSplit > 0,
-                invalidLocationMessage,
-                this.location);
-        this.account = host.substring(0, accountSplit);
+        String serviceSeparator = ".%s.".formatted(serviceLabel);
+        int serviceSplit = host.indexOf(serviceSeparator);
+        checkArgument(serviceSplit > 0, invalidLocationMessage, location);
 
-        // abfs[s] host must contain ".dfs.", and wasb[s] host must contain ".blob." before endpoint
-        if (scheme.equals("abfs") || scheme.equals("abfss")) {
-            checkArgument(host.substring(accountSplit).startsWith(".dfs."), invalidLocationMessage, location);
-            // endpoint does not include dfs
-            this.endpoint = host.substring(accountSplit + ".dfs.".length());
-        }
-        else {
-            checkArgument(host.substring(accountSplit).startsWith(".blob."), invalidLocationMessage, location);
-            // endpoint does not include blob
-            this.endpoint = host.substring(accountSplit + ".blob.".length());
-        }
+        this.account = host.substring(0, serviceSplit);
+        // endpoint does not include the service label
+        this.endpoint = host.substring(serviceSplit + serviceSeparator.length());
         checkArgument(!endpoint.isEmpty(), invalidLocationMessage, location);
 
-        // storage account is interpolated into URL host name, so perform extra checks
-        checkArgument(STORAGE_ACCOUNT_VALID_CHARACTERS.matchesAllOf(account),
-                "Invalid Azure storage account name. Valid characters are 'a-z' and '0-9': %s",
-                location);
+        // storage account is interpolated into URL host name, so perform extra checks. OneLake
+        // workspace FQDNs may contain more than one label ahead of the service label.
+        for (String label : Splitter.on('.').split(account)) {
+            checkArgument(!label.isEmpty() && STORAGE_ACCOUNT_VALID_CHARACTERS.matchesAllOf(label),
+                    "Invalid Azure storage account name. Valid characters are 'a-z' and '0-9': %s",
+                    location);
+        }
     }
 
     public Location location()
@@ -147,10 +147,16 @@ class AzureLocation
 
     public Location baseLocation()
     {
-        return Location.of("%s://%s%s.dfs.%s/".formatted(
+        return Location.of("%s://%s%s.%s.%s/".formatted(
                 scheme,
                 container().map(container -> container + "@").orElse(""),
                 account(),
+                serviceLabel,
                 endpoint));
+    }
+
+    public boolean isOneLake()
+    {
+        return ONELAKE_ENDPOINT.equals(endpoint);
     }
 }
