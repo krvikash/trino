@@ -36,9 +36,14 @@ public final class GenAiAttributes
     public static final AttributeKey<Long> GEN_AI_USAGE_CACHE_READ_INPUT_TOKENS = longKey("gen_ai.usage.cache_read_input_tokens");
     public static final AttributeKey<Long> GEN_AI_USAGE_CACHE_CREATION_INPUT_TOKENS = longKey("gen_ai.usage.cache_creation_input_tokens");
     public static final AttributeKey<Long> GEN_AI_USAGE_REASONING_OUTPUT_TOKENS = longKey("gen_ai.usage.reasoning_output_tokens");
+    public static final AttributeKey<String> GEN_AI_PROMPT = stringKey("gen_ai.prompt");
+    public static final AttributeKey<String> GEN_AI_COMPLETION = stringKey("gen_ai.completion");
 
     public static final String OPERATION_NAME_CHAT = "chat";
     public static final String PROVIDER_NAME_OPENAI = "openai";
     public static final String PROVIDER_NAME_AWS_BEDROCK = "aws.bedrock";
     public static final String PROVIDER_NAME_VERTEX_AI = "gcp.vertex_ai";
+
+    public static final String EVENT_NAME_PROMPT = "gen_ai.content.prompt";
+    public static final String EVENT_NAME_COMPLETION = "gen_ai.content.completion";
 }

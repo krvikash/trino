@@ -38,6 +38,7 @@ public class AiClientConfig
     private Duration oauth2RefreshSkew = new Duration(60, TimeUnit.SECONDS);
     private Duration oauthTokenCacheDuration = new Duration(30, TimeUnit.MINUTES);
     private int oauth2MaxCachedTokens = 1000;
+    private boolean tracingIncludeMessagesEnabled;
 
     @NotNull
     public StorageType getStorageType()
@@ -260,6 +261,20 @@ public class AiClientConfig
     public AiClientConfig setOauth2MaxCachedTokens(int oauth2MaxCachedTokens)
     {
         this.oauth2MaxCachedTokens = oauth2MaxCachedTokens;
+        return this;
+    }
+
+    public boolean isTracingIncludeMessagesEnabled()
+    {
+        return tracingIncludeMessagesEnabled;
+    }
+
+    @Config("ai.client.tracing.include-messages")
+    @ConfigDescription("Include full LLM request/response message content (including tool calls) as OpenTelemetry span events. " +
+            "Off by default: message content can contain customer PII or other sensitive data that would then flow to your tracing backend.")
+    public AiClientConfig setTracingIncludeMessagesEnabled(boolean tracingIncludeMessagesEnabled)
+    {
+        this.tracingIncludeMessagesEnabled = tracingIncludeMessagesEnabled;
         return this;
     }
 

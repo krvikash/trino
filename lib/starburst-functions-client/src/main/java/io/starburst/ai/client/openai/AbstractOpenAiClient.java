@@ -55,6 +55,7 @@ public abstract class AbstractOpenAiClient<ResponseType>
 {
     private final boolean isToolStreamingSupported;
     private final Tracer tracer;
+    private final boolean includeMessagesInTracing;
     private final RetryPolicy<ResponseType> retryPolicy = RetryPolicy.<ResponseType>builder()
             .handleIf(AbstractOpenAiClient::isRetryable)
             .withMaxRetries(4)
@@ -68,11 +69,13 @@ public abstract class AbstractOpenAiClient<ResponseType>
             int batchParallelism,
             boolean isToolStreamingSupported,
             Tracer tracer,
+            boolean includeMessagesInTracing,
             TokenUsageListener tokenUsageListener)
     {
         super(promptDao, executor, batchParallelism, tokenUsageListener);
         this.isToolStreamingSupported = isToolStreamingSupported;
         this.tracer = requireNonNull(tracer, "tracer is null");
+        this.includeMessagesInTracing = includeMessagesInTracing;
     }
 
     @Override
@@ -94,7 +97,7 @@ public abstract class AbstractOpenAiClient<ResponseType>
             streamedText.append(chunk);
             output.accept(chunk);
         };
-        ResponseType response = execute(() -> streamToolResponse(systemPrompts, messages, tools, trackingOutput, isCancelled), context);
+        ResponseType response = execute(systemPrompts, messages, () -> streamToolResponse(systemPrompts, messages, tools, trackingOutput, isCancelled), context);
         if (response == null) {
             return new ToolUseResponse("", ImmutableList.of());
         }
@@ -108,7 +111,7 @@ public abstract class AbstractOpenAiClient<ResponseType>
 
     protected abstract ResponseType streamToolResponse(List<String> systemPrompts, List<LlmMessage> messages, List<ToolDefinition<?>> tools, Consumer<String> output, Supplier<Boolean> isCancelled);
 
-    protected final ResponseType execute(Supplier<ResponseType> call, TokenUsageContext context)
+    protected final ResponseType execute(List<String> systemPrompts, List<LlmMessage> messages, Supplier<ResponseType> call, TokenUsageContext context)
     {
         Span span = tracer.spanBuilder(OPERATION_NAME_CHAT + " " + modelName())
                 .setAttribute(GEN_AI_OPERATION_NAME, OPERATION_NAME_CHAT)
@@ -124,6 +127,16 @@ public abstract class AbstractOpenAiClient<ResponseType>
                         AiTracing.recordUsage(span, usage);
                         reportTokenUsage(context, usage);
                     });
+                    if (includeMessagesInTracing) {
+                        try {
+                            // generateCompletion() never calls parseToolResponse, so a parse
+                            // failure must not fail an otherwise-successful response.
+                            AiTracing.recordMessages(span, systemPrompts, messages, parseToolResponse(response));
+                        }
+                        catch (RuntimeException e) {
+                            log.warn(e, "Failed to record AI messages in trace");
+                        }
+                    }
                 }
                 return response;
             }

@@ -57,6 +57,7 @@ public class VertexAiClientFactory
     private final Duration apiTimeout;
     private final int maxRetries;
     private final Tracer tracer;
+    private final boolean includeMessagesInTracing;
 
     @Inject
     public VertexAiClientFactory(SecretsResolver secretsResolver, AiClientConfig config, @ForAiClient Executor executor, Tracer tracer)
@@ -67,6 +68,7 @@ public class VertexAiClientFactory
         apiTimeout = config.getVertexAiTimeout();
         maxRetries = config.getVertexAiMaxRetries();
         this.tracer = requireNonNull(tracer, "tracer is null");
+        this.includeMessagesInTracing = config.isTracingIncludeMessagesEnabled();
     }
 
     @VisibleForTesting
@@ -90,6 +92,7 @@ public class VertexAiClientFactory
                 batchParallelism,
                 createClient(connectionInfo),
                 tracer,
+                includeMessagesInTracing,
                 tokenUsageListener);
     }
 

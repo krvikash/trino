@@ -125,6 +125,7 @@ public class AwsBedrockLanguageModelClient
     private final boolean isToolStreamingSupported;
     private final boolean isPromptCachingSupported;
     private final Tracer tracer;
+    private final boolean includeMessagesInTracing;
 
     public AwsBedrockLanguageModelClient(
             String modelName,
@@ -140,6 +141,7 @@ public class AwsBedrockLanguageModelClient
             boolean isToolStreamingSupported,
             boolean isPromptCachingSupported,
             Tracer tracer,
+            boolean includeMessagesInTracing,
             TokenUsageListener tokenUsageListener)
     {
         super(promptDao, executor, batchParallelism, tokenUsageListener);
@@ -153,6 +155,7 @@ public class AwsBedrockLanguageModelClient
         this.isToolStreamingSupported = isToolStreamingSupported;
         this.isPromptCachingSupported = isPromptCachingSupported;
         this.tracer = requireNonNull(tracer, "tracer is null");
+        this.includeMessagesInTracing = includeMessagesInTracing;
     }
 
     @Override
@@ -170,6 +173,8 @@ public class AwsBedrockLanguageModelClient
 
         ConverseResponse response = getConverseResponse(
                 modelName,
+                systemPrompts,
+                messages,
                 () -> client.converse(request -> initializeConverseRequestBuilder(
                         request,
                         systemContentBlocks,
@@ -203,6 +208,8 @@ public class AwsBedrockLanguageModelClient
 
         ConverseResponse response = getConverseResponse(
                 modelName,
+                systemPrompts,
+                messages,
                 () -> client.converse(request -> initializeConverseRequestBuilder(
                         request,
                         systemContentBlocks,
@@ -242,6 +249,8 @@ public class AwsBedrockLanguageModelClient
 
         ConverseResponse response = getConverseResponse(
                 modelName,
+                systemPrompts,
+                messages,
                 () -> {
                     ConverseResponse.Builder builder = ConverseResponse.builder();
 
@@ -293,6 +302,8 @@ public class AwsBedrockLanguageModelClient
 
     private ConverseResponse getConverseResponse(
             String modelName,
+            List<String> systemPrompts,
+            List<LlmMessage> messages,
             Supplier<ConverseResponse> getBedrockResponse,
             TokenUsageContext context)
     {
@@ -317,6 +328,12 @@ public class AwsBedrockLanguageModelClient
                         ModelBackend.AWS_BEDROCK);
                 AiTracing.recordUsage(span, tokenUsage);
                 reportTokenUsage(context, tokenUsage);
+                if (includeMessagesInTracing) {
+                    // this is intentionally not guarded against parseBedrockToolResponse failures because
+                    // every Bedrock completion path, already calls parseBedrockToolResponse unconditionally outside
+                    // tracing, so a parse failure already fails the request regardless of this call.
+                    AiTracing.recordMessages(span, systemPrompts, messages, parseBedrockToolResponse(response));
+                }
                 return response;
             }
             catch (RuntimeException e) {

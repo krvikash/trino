@@ -73,6 +73,7 @@ public class AwsBedrockClientFactory
     private final Duration apiTimeout;
     private final int maxRetries;
     private final Tracer tracer;
+    private final boolean includeMessagesInTracing;
 
     @Inject
     public AwsBedrockClientFactory(Map<String, AwsEmbeddingCodec.Factory> awsEmbeddingCodecFactories, SecretsResolver secretsResolver, AiClientConfig config, @ForAiClient Executor executor, Tracer tracer)
@@ -85,6 +86,7 @@ public class AwsBedrockClientFactory
         apiTimeout = config.getBedrockApiTimeout();
         maxRetries = config.getBedrockMaxRetries();
         this.tracer = requireNonNull(tracer, "tracer is null");
+        this.includeMessagesInTracing = config.isTracingIncludeMessagesEnabled();
     }
 
     @Override
@@ -109,6 +111,7 @@ public class AwsBedrockClientFactory
                 isStreamingToolCallSupported,
                 isPromptCachingSupported,
                 tracer,
+                includeMessagesInTracing,
                 tokenUsageListener);
     }
 

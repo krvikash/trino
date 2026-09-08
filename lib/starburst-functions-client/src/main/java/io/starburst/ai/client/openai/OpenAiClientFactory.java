@@ -71,6 +71,7 @@ public class OpenAiClientFactory
     private final ObjectMapper objectMapper;
     private final OAuth2TokenCache oauth2TokenCache;
     private final Tracer tracer;
+    private final boolean includeMessagesInTracing;
 
     @Inject
     public OpenAiClientFactory(
@@ -89,6 +90,7 @@ public class OpenAiClientFactory
         this.objectMapper = requireNonNull(objectMapper, "objectMapper is null");
         this.oauth2TokenCache = requireNonNull(oauth2TokenCache, "oauth2TokenCache is null");
         this.tracer = requireNonNull(tracer, "tracer is null");
+        this.includeMessagesInTracing = config.isTracingIncludeMessagesEnabled();
     }
 
     @Override
@@ -122,6 +124,7 @@ public class OpenAiClientFactory
                     isStreamingToolCallSupported,
                     spec.reasoningEffort().map(Enum::name).map(ReasoningEffort::of),
                     tracer,
+                    includeMessagesInTracing,
                     tokenUsageListener);
         }
         return new OpenAiLanguageModelClient(
@@ -138,6 +141,7 @@ public class OpenAiClientFactory
                 openAiClient,
                 isStreamingToolCallSupported,
                 tracer,
+                includeMessagesInTracing,
                 tokenUsageListener);
     }
 

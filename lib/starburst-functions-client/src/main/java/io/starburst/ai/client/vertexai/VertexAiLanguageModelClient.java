@@ -74,6 +74,7 @@ public class VertexAiLanguageModelClient
     private final Optional<Float> topP;
     private final Client client;
     private final Tracer tracer;
+    private final boolean includeMessagesInTracing;
 
     public VertexAiLanguageModelClient(
             String modelName,
@@ -85,6 +86,7 @@ public class VertexAiLanguageModelClient
             int batchParallelism,
             Client client,
             Tracer tracer,
+            boolean includeMessagesInTracing,
             TokenUsageListener tokenUsageListener)
     {
         super(promptDao, executor, batchParallelism, tokenUsageListener);
@@ -94,6 +96,7 @@ public class VertexAiLanguageModelClient
         this.topP = requireNonNull(topP, "topP is null");
         this.client = requireNonNull(client, "client is null");
         this.tracer = requireNonNull(tracer, "tracer is null");
+        this.includeMessagesInTracing = includeMessagesInTracing;
     }
 
     @Override
@@ -106,7 +109,7 @@ public class VertexAiLanguageModelClient
     protected String generateCompletion(List<String> systemPrompts, List<LlmMessage> messages, TokenUsageContext context)
     {
         GenerateContentConfig config = buildConfig(systemPrompts, maxTokens, temperature, topP);
-        GenerateContentResponse response = generateContent(toContents(messages), config, context);
+        GenerateContentResponse response = generateContent(systemPrompts, messages, config, context);
         String text = response.text();
         if (text == null) {
             throw new TrinoException(AI_CLIENT_ERROR, "No response from Vertex AI model %s".formatted(modelName));
@@ -119,7 +122,7 @@ public class VertexAiLanguageModelClient
     {
         GenerateContentConfig config = buildConfig(systemPrompts, maxTokens, temperature, topP, toTools(tools));
         try {
-            GenerateContentResponse response = generateContent(toContents(messages), config, context);
+            GenerateContentResponse response = generateContent(systemPrompts, messages, config, context);
             return parseToolResponse(response);
         }
         catch (TrinoException e) {
@@ -130,7 +133,7 @@ public class VertexAiLanguageModelClient
         }
     }
 
-    private GenerateContentResponse generateContent(List<Content> contents, GenerateContentConfig config, TokenUsageContext context)
+    private GenerateContentResponse generateContent(List<String> systemPrompts, List<LlmMessage> messages, GenerateContentConfig config, TokenUsageContext context)
     {
         Span span = tracer.spanBuilder(OPERATION_NAME_CHAT + " " + modelName)
                 .setAttribute(GEN_AI_OPERATION_NAME, OPERATION_NAME_CHAT)
@@ -139,12 +142,22 @@ public class VertexAiLanguageModelClient
                 .setSpanKind(SpanKind.CLIENT)
                 .startSpan();
         return AiTracing.withTracing(span, () -> {
-            GenerateContentResponse response = client.models.generateContent(modelName, contents, config);
+            GenerateContentResponse response = client.models.generateContent(modelName, toContents(messages), config);
             response.usageMetadata().ifPresent(usage -> {
                 TokenUsage tokenUsage = toTokenUsage(usage, modelName);
                 AiTracing.recordUsage(span, tokenUsage);
                 reportTokenUsage(context, tokenUsage);
             });
+            if (includeMessagesInTracing) {
+                try {
+                    // generateCompletion() never calls parseToolResponse, so a parse
+                    // failure must not fail an otherwise-successful response.
+                    AiTracing.recordMessages(span, systemPrompts, messages, parseToolResponse(response));
+                }
+                catch (RuntimeException e) {
+                    log.warn(e, "Failed to record AI messages in trace");
+                }
+            }
             return response;
         });
     }

@@ -84,9 +84,10 @@ public class OpenAiResponsesLanguageModelClient
             boolean isToolStreamingSupported,
             Optional<ReasoningEffort> reasoningEffort,
             Tracer tracer,
+            boolean includeMessagesInTracing,
             TokenUsageListener tokenUsageListener)
     {
-        super(promptDao, executor, batchParallelism, isToolStreamingSupported, tracer, tokenUsageListener);
+        super(promptDao, executor, batchParallelism, isToolStreamingSupported, tracer, includeMessagesInTracing, tokenUsageListener);
         this.temperature = requireNonNull(temperature, "temperature is null");
         this.maxTokens = requireNonNull(maxTokens, "maxTokens is null");
         this.topP = requireNonNull(topP, "topP is null");
@@ -107,7 +108,7 @@ public class OpenAiResponsesLanguageModelClient
     @Override
     protected String generateCompletion(List<String> systemPrompts, List<LlmMessage> llmMessages, TokenUsageContext context)
     {
-        Response response = execute(() -> client.responses().create(buildResponseCreateParams(systemPrompts, llmMessages).build()), context);
+        Response response = execute(systemPrompts, llmMessages, () -> client.responses().create(buildResponseCreateParams(systemPrompts, llmMessages).build()), context);
         checkResponseStatus(response);
 
         List<ResponseOutputMessage.Content> contents = response.output().stream()
@@ -132,7 +133,7 @@ public class OpenAiResponsesLanguageModelClient
         ResponseCreateParams.Builder builder = buildResponseCreateParams(systemPrompts, messages);
         tools.forEach(tool -> builder.addTool(toOpenAiTool(tool)));
 
-        Response response = execute(() -> client.responses().create(builder.build()), context);
+        Response response = execute(systemPrompts, messages, () -> client.responses().create(builder.build()), context);
 
         return parseToolResponse(response);
     }

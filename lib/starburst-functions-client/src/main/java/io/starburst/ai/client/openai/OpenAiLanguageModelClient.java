@@ -76,9 +76,10 @@ public class OpenAiLanguageModelClient
             OpenAIClient client,
             boolean isToolStreamingSupported,
             Tracer tracer,
+            boolean includeMessagesInTracing,
             TokenUsageListener tokenUsageListener)
     {
-        super(promptDao, executor, batchParallelism, isToolStreamingSupported, tracer, tokenUsageListener);
+        super(promptDao, executor, batchParallelism, isToolStreamingSupported, tracer, includeMessagesInTracing, tokenUsageListener);
         this.temperature = requireNonNull(temperature, "temperature is null");
         this.maxTokens = requireNonNull(maxTokens, "maxTokens is null");
         this.topP = requireNonNull(topP, "topP is null");
@@ -98,7 +99,7 @@ public class OpenAiLanguageModelClient
     @Override
     protected String generateCompletion(List<String> systemPrompts, List<LlmMessage> llmMessages, TokenUsageContext context)
     {
-        ChatCompletion response = execute(() -> client.chat().completions().create(buildChatCompletionCreateParams(systemPrompts, llmMessages).build()), context);
+        ChatCompletion response = execute(systemPrompts, llmMessages, () -> client.chat().completions().create(buildChatCompletionCreateParams(systemPrompts, llmMessages).build()), context);
         ChatCompletion.Choice choice = response.choices().stream()
                 .findFirst()
                 .orElseThrow(() -> new TrinoException(AI_CLIENT_ERROR, "No response from AI model"));
@@ -122,7 +123,7 @@ public class OpenAiLanguageModelClient
         ChatCompletionCreateParams.Builder builder = buildChatCompletionCreateParams(systemPrompts, messages);
         tools.forEach(tool -> builder.addTool(toOpenAiTool(tool)));
 
-        ChatCompletion response = execute(() -> client.chat().completions().create(builder.build()), context);
+        ChatCompletion response = execute(systemPrompts, messages, () -> client.chat().completions().create(builder.build()), context);
 
         return parseToolResponse(response);
     }
