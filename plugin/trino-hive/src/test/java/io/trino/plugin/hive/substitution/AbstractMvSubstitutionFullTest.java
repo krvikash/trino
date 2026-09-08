@@ -13,19 +13,22 @@
  */
 package io.trino.plugin.hive.substitution;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import io.trino.Session;
 import io.trino.spi.connector.CatalogSchemaTableName;
 import io.trino.testing.QueryRunner.MaterializedResultWithPlan;
+import io.trino.testing.sql.TestMaterializedView;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
-import java.util.OptionalLong;
+import java.util.Map;
 
 import static io.trino.testing.TestingAccessControlManager.TestingPrivilegeType.SELECT_COLUMN;
 import static io.trino.testing.TestingAccessControlManager.privilege;
@@ -151,16 +154,10 @@ public abstract class AbstractMvSubstitutionFullTest
         String projectedColumns = columns.stream()
                 .map(CoercionColumn::name)
                 .collect(joining(", "));
-        CatalogSchemaTableName mvName = mvName("mv_coercion_");
-        try {
-            createSubstitutionMv(mvName, "SELECT id_col, " + projectedColumns + " FROM " + coercionTable);
-
+        try (TestMaterializedView materializedView = createSubstitutionMv("mv_coercion_", "SELECT id_col, " + projectedColumns + " FROM " + coercionTable)) {
             for (CoercionColumn column : columns) {
-                assertSubstituted("SELECT " + column.projection().formatted(column.name()) + " FROM " + coercionTable, coercionTable, mvName);
+                assertSubstituted("SELECT " + column.projection().formatted(column.name()) + " FROM " + coercionTable, coercionTable, materializedView.mvName());
             }
-        }
-        finally {
-            assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvName);
         }
     }
 
@@ -195,59 +192,35 @@ public abstract class AbstractMvSubstitutionFullTest
     @Test
     public void testScanOnlySubstitution()
     {
-        CatalogSchemaTableName mvName = mvName("mv_scan_");
-        try {
-            createSubstitutionMv(mvName, "SELECT * FROM " + ordersTable);
-
-            assertSubstituted("SELECT * FROM " + ordersTable, ordersTable, mvName);
-        }
-        finally {
-            assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvName);
+        try (TestMaterializedView materializedView = createSubstitutionMv("mv_scan_", "SELECT * FROM " + ordersTable)) {
+            assertSubstituted("SELECT * FROM " + ordersTable, ordersTable, materializedView.mvName());
         }
     }
 
     @Test
     public void testScanOnlySubstitutionWithColumnA()
     {
-        CatalogSchemaTableName mvName = mvName("mv_col_subset_");
-        try {
-            createSubstitutionMv(mvName, "SELECT orderkey, custkey, totalprice FROM " + ordersTable);
-
-            assertSubstituted("SELECT orderkey, totalprice FROM " + ordersTable, ordersTable, mvName);
-        }
-        finally {
-            assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvName);
+        try (TestMaterializedView materializedView = createSubstitutionMv("mv_col_subset_", "SELECT orderkey, custkey, totalprice FROM " + ordersTable)) {
+            assertSubstituted("SELECT orderkey, totalprice FROM " + ordersTable, ordersTable, materializedView.mvName());
         }
     }
 
     @Test
     public void testScanOnlySubstitutionWithColumnAlias()
     {
-        CatalogSchemaTableName mvName = mvName("mv_col_subset_");
-        try {
-            createSubstitutionMv(mvName, "SELECT orderkey as o_key, custkey as c_key, totalprice as t_price FROM " + ordersTable);
-
-            assertSubstituted("SELECT orderkey, custkey, totalprice FROM " + ordersTable, ordersTable, mvName);
-        }
-        finally {
-            assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvName);
+        try (TestMaterializedView materializedView = createSubstitutionMv("mv_col_subset_", "SELECT orderkey as o_key, custkey as c_key, totalprice as t_price FROM " + ordersTable)) {
+            assertSubstituted("SELECT orderkey, custkey, totalprice FROM " + ordersTable, ordersTable, materializedView.mvName());
         }
     }
 
     @Test
     public void testScanOnlySubstitutionColumnMissing()
     {
-        CatalogSchemaTableName mvName = mvName("mv_col_missing_");
-        try {
-            createSubstitutionMv(mvName, "SELECT orderkey, custkey FROM " + ordersTable);
-
+        try (var _ = createSubstitutionMv("mv_col_missing_", "SELECT orderkey, custkey FROM " + ordersTable)) {
             Session session = sessionWithSubstitution();
             // Query needs totalprice which MV does not have — should NOT substitute
             assertNotSubstituted(session, "SELECT orderkey, totalprice FROM " + ordersTable, ordersTable);
             assertSameResults(session, "SELECT orderkey, totalprice FROM " + ordersTable);
-        }
-        finally {
-            assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvName);
         }
     }
 
@@ -257,16 +230,10 @@ public abstract class AbstractMvSubstitutionFullTest
         // SELECT * leaves IcebergTableHandle.projectedColumns empty (PruneTableScanColumns
         // does not fire when every output is referenced), so canSubstitute cannot reject
         // on column coverage alone — the per-column null check in MatchingVisitor must.
-        CatalogSchemaTableName mvName = mvName("mv_col_missing_star_");
-        try {
-            createSubstitutionMv(mvName, "SELECT orderkey, custkey FROM " + ordersTable);
-
+        try (var _ = createSubstitutionMv("mv_col_missing_star_", "SELECT orderkey, custkey FROM " + ordersTable)) {
             Session session = sessionWithSubstitution();
             assertNotSubstituted(session, "SELECT * FROM " + ordersTable, ordersTable);
             assertSameResults(session, "SELECT * FROM " + ordersTable);
-        }
-        finally {
-            assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvName);
         }
     }
 
@@ -277,40 +244,30 @@ public abstract class AbstractMvSubstitutionFullTest
         // sub-fields. Substitution must fire because the TableScan sees the same base
         // column on both sides — the sub-field expression lives in a Project above the
         // scan and runs against the substituted MV storage.
-        CatalogSchemaTableName mvName = mvName("mv_sub_field_");
-        try {
-            createSubstitutionMv(mvName, "SELECT id, info FROM " + nestedTypeTable);
-
+        try (TestMaterializedView materializedView = createSubstitutionMv("mv_sub_field_", "SELECT id, info FROM " + nestedTypeTable)) {
             SubFieldTestContext context = subFieldTestContext();
             String nameQuery = "SELECT " + context.subFieldExpression("info", "name") + " FROM " + nestedTypeTable;
-            assertSubstituted(nameQuery, nestedTypeTable, mvName);
+            assertSubstituted(nameQuery, nestedTypeTable, materializedView.mvName());
 
             String ageQuery = "SELECT " + context.subFieldExpression("info", "age") + " FROM " + nestedTypeTable;
-            assertSubstituted(ageQuery, nestedTypeTable, mvName);
-        }
-        finally {
-            assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvName);
+            assertSubstituted(ageQuery, nestedTypeTable, materializedView.mvName());
         }
     }
 
     @Test
     public void testSubFieldMaterializingMvDoesNotSubstitute()
     {
-        CatalogSchemaTableName mvName = mvName("mv_sub_field_same_type_");
-        try {
-            SubFieldTestContext context = subFieldTestContext();
-            String definition = "SELECT id, " + context.subFieldExpression("info", "name") + " AS a FROM " + nestedTypeTable;
-            // The MV materializes a single sub-field expression (info.name), not the whole struct, so its
-            // defining query is not a bare table scan and cannot be indexed for substitution. Enabling
-            // substitution is therefore rejected when the MV is created.
-            // This will change to a plain create when projections are supported
-            assertQueryFails(
-                    "CREATE MATERIALIZED VIEW %s WITH (substitution_enabled = true) AS %s".formatted(mvName, definition),
-                    ".*cannot be enabled for substitution: its definition query is not supported by materialized view substitution");
+        SubFieldTestContext context = subFieldTestContext();
+        String definition = "SELECT id, " + context.subFieldExpression("info", "name") + " AS a FROM " + nestedTypeTable;
+        // The MV materializes a single sub-field expression (info.name), not the whole struct, so its
+        // defining query is not a bare table scan and cannot be indexed for substitution. Enabling
+        // substitution is therefore rejected when the MV is created.
+        // This will change to a plain create when projections are supported
+        assertQueryFails(
+                "CREATE MATERIALIZED VIEW %s WITH (substitution_enabled = true) AS %s".formatted(mvName("mv_sub_field_same_type_"), definition),
+                ".*cannot be enabled for substitution: its definition query is not supported by materialized view substitution");
 
-            assertUpdate("CREATE MATERIALIZED VIEW %s AS %s".formatted(mvName, definition));
-            getQueryRunner().execute("REFRESH MATERIALIZED VIEW %s".formatted(mvName));
-
+        try (var _ = createFreshMv("mv_sub_field_same_type_", definition)) {
             Session session = sessionWithSubstitution();
             String materializedFieldQuery = "SELECT " + context.subFieldExpression("info", "name") + " FROM " + nestedTypeTable;
             // This will change to assertSubstituted when projections are supported
@@ -322,9 +279,6 @@ public abstract class AbstractMvSubstitutionFullTest
             // once projection support is added
             assertNotSubstituted(session, siblingFieldQuery, nestedTypeTable);
             assertSameResults(session, siblingFieldQuery);
-        }
-        finally {
-            assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvName);
         }
     }
 
@@ -338,74 +292,43 @@ public abstract class AbstractMvSubstitutionFullTest
     @Test
     public void testScanWithWhereClauseOnSubstitutedScan()
     {
-        CatalogSchemaTableName mvName = mvName("mv_scan_where_");
-        try {
-            createSubstitutionMv(mvName, "SELECT * FROM " + ordersTable);
-
+        try (TestMaterializedView materializedView = createSubstitutionMv("mv_scan_where_", "SELECT * FROM " + ordersTable)) {
             String query = "SELECT * FROM " + ordersTable + " WHERE orderstatus = 'F'";
-            assertSubstituted(query, ordersTable, mvName);
-        }
-        finally {
-            assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvName);
+            assertSubstituted(query, ordersTable, materializedView.mvName());
         }
     }
 
     @Test
     public void testScanWithAggregationOnSubstitutedScan()
     {
-        CatalogSchemaTableName mvName = mvName("mv_scan_agg_");
-        try {
-            createSubstitutionMv(mvName, "SELECT * FROM " + ordersTable);
-
+        try (TestMaterializedView materializedView = createSubstitutionMv("mv_scan_agg_", "SELECT * FROM " + ordersTable)) {
             String query = "SELECT count(*), sum(totalprice) FROM " + ordersTable + " WHERE orderdate > '1995-01-12'";
-            assertSubstituted(query, ordersTable, mvName);
-        }
-        finally {
-            assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvName);
+            assertSubstituted(query, ordersTable, materializedView.mvName());
         }
     }
 
     @Test
     public void testSubstitutionDisabledBySessionProperty()
     {
-        CatalogSchemaTableName mvName = mvName("mv_disabled_session_");
-        try {
-            createSubstitutionMv(mvName, "SELECT * FROM " + ordersTable);
-
+        try (var _ = createSubstitutionMv("mv_disabled_session_", "SELECT * FROM " + ordersTable)) {
             assertNotSubstituted(sessionWithoutSubstitution(), "SELECT * FROM " + ordersTable, ordersTable);
-        }
-        finally {
-            assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvName);
         }
     }
 
     @Test
     public void testSubstitutionEnabledBySessionProperty()
     {
-        CatalogSchemaTableName mvName = mvName("mv_enabled_session_");
-        try {
-            createSubstitutionMv(mvName, "SELECT * FROM " + ordersTable);
-
-            assertSubstituted("SELECT * FROM " + ordersTable, ordersTable, mvName);
-        }
-        finally {
-            assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvName);
+        try (TestMaterializedView materializedView = createSubstitutionMv("mv_enabled_session_", "SELECT * FROM " + ordersTable)) {
+            assertSubstituted("SELECT * FROM " + ordersTable, ordersTable, materializedView.mvName());
         }
     }
 
     @Test
     public void testStaleUnrefreshedMvNotSubstituted()
     {
-        CatalogSchemaTableName mvName = mvName("mv_unrefreshed_");
-        try {
-            // Create but do NOT refresh
-            assertUpdate("CREATE MATERIALIZED VIEW " + mvName +
-                    " WITH (substitution_enabled = true) AS SELECT * FROM " + ordersTable);
-
+        // Create but do NOT refresh
+        try (var _ = createMvWithoutRefresh("mv_unrefreshed_", "SELECT * FROM " + ordersTable, SUBSTITUTION_ENABLED)) {
             assertNotSubstituted(sessionWithSubstitution(), "SELECT * FROM " + ordersTable, ordersTable);
-        }
-        finally {
-            assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvName);
         }
     }
 
@@ -413,18 +336,12 @@ public abstract class AbstractMvSubstitutionFullTest
     public void testStaleMvAfterBaseTableInsert()
     {
         assumeTrue(sourceSupportsRowLevelDelete(), "source does not support row-level DELETE");
-        CatalogSchemaTableName mvName = mvName("mv_stale_insert_");
-        try {
-            createSubstitutionMv(mvName, "SELECT * FROM " + ordersTable, OptionalLong.empty());
-
+        try (TestMaterializedView materializedView = createSubstitutionMv("mv_stale_insert_", "SELECT * FROM " + ordersTable)) {
             // Make MV stale by inserting into base table
             insertIntoOrders(99990001);
 
             // We do not support detecting source table change, so the substitution relies on the grace-period, and stale MV will be used
-            assertSubstituted(false, "SELECT * FROM " + ordersTable, ordersTable, mvName);
-        }
-        finally {
-            assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvName);
+            assertSubstituted(false, "SELECT * FROM " + ordersTable, ordersTable, materializedView.mvName());
         }
     }
 
@@ -432,10 +349,8 @@ public abstract class AbstractMvSubstitutionFullTest
     public void testRefreshedMvBecomesSubstitutableAgain()
     {
         assumeTrue(sourceSupportsRowLevelDelete(), "source does not support row-level DELETE");
-        CatalogSchemaTableName mvName = mvName("mv_rerefresh_");
-        try {
-            long baseCount = (long) computeActual("SELECT count(*) FROM " + ordersTable).getOnlyValue();
-            createSubstitutionMv(mvName, "SELECT * FROM " + ordersTable, OptionalLong.of(3600));
+        long baseCount = (long) computeActual("SELECT count(*) FROM " + ordersTable).getOnlyValue();
+        try (TestMaterializedView materializedView = createSubstitutionMv("mv_rerefresh_", "SELECT * FROM " + ordersTable, Duration.ofHours(1))) {
             insertIntoOrders(99990002);
             // Session start time past the grace period so the stale MV is not used.
             Session expiredSession = Session.builder(sessionWithSubstitution())
@@ -444,14 +359,11 @@ public abstract class AbstractMvSubstitutionFullTest
             assertNotSubstituted(expiredSession, "SELECT * FROM " + ordersTable, ordersTable);
 
             // Re-refresh makes it fresh again
-            getQueryRunner().execute("REFRESH MATERIALIZED VIEW " + mvName);
-            assertSubstituted("SELECT * FROM " + ordersTable, ordersTable, mvName);
+            getQueryRunner().execute("REFRESH MATERIALIZED VIEW " + materializedView.mvName());
+            assertSubstituted("SELECT * FROM " + ordersTable, ordersTable, materializedView.mvName());
 
             // Result correctness after re-refresh
             assertThat(computeActual(sessionWithSubstitution(), "SELECT count(*) FROM " + ordersTable).getOnlyValue()).isEqualTo(baseCount + 1);
-        }
-        finally {
-            assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvName);
         }
     }
 
@@ -459,22 +371,12 @@ public abstract class AbstractMvSubstitutionFullTest
     public void testMvWithGracePeriodUsedWhenWithinWindow()
     {
         assumeTrue(sourceSupportsRowLevelDelete(), "source does not support row-level DELETE");
-        CatalogSchemaTableName mvName = mvName("mv_grace_within_");
-        try {
-            assertUpdate("CREATE MATERIALIZED VIEW " + mvName +
-                    " GRACE PERIOD INTERVAL '1' HOUR" +
-                    " WITH (substitution_enabled = true)" +
-                    " AS SELECT * FROM " + ordersTable);
-            getQueryRunner().execute("REFRESH MATERIALIZED VIEW " + mvName);
-
+        try (TestMaterializedView materializedView = createSubstitutionMv("mv_grace_within_", "SELECT * FROM " + ordersTable, Duration.ofHours(1))) {
             // Insert to make it technically stale
             insertIntoOrders(99990003);
 
             // Within grace period — should still substitute
-            assertSubstituted(false, "SELECT * FROM " + ordersTable, ordersTable, mvName);
-        }
-        finally {
-            assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvName);
+            assertSubstituted(false, "SELECT * FROM " + ordersTable, ordersTable, materializedView.mvName());
         }
     }
 
@@ -482,14 +384,7 @@ public abstract class AbstractMvSubstitutionFullTest
     public void testMvWithGracePeriodNotUsedWhenExpired()
     {
         assumeTrue(sourceSupportsRowLevelDelete(), "source does not support row-level DELETE");
-        CatalogSchemaTableName mvName = mvName("mv_grace_expired_");
-        try {
-            assertUpdate("CREATE MATERIALIZED VIEW " + mvName +
-                    " GRACE PERIOD INTERVAL '1' SECOND" +
-                    " WITH (substitution_enabled = true)" +
-                    " AS SELECT * FROM " + ordersTable);
-            getQueryRunner().execute("REFRESH MATERIALIZED VIEW " + mvName);
-
+        try (var _ = createSubstitutionMv("mv_grace_expired_", "SELECT * FROM " + ordersTable, Duration.ofSeconds(1))) {
             // Insert to make it stale
             insertIntoOrders(99990004);
 
@@ -500,54 +395,30 @@ public abstract class AbstractMvSubstitutionFullTest
 
             assertNotSubstituted(futureSession, "SELECT * FROM " + ordersTable, ordersTable);
         }
-        finally {
-            assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvName);
-        }
     }
 
     @Test
     public void testMvWithoutSubstitutionPropertyNotUsed()
     {
-        CatalogSchemaTableName mvName = mvName("mv_no_prop_");
-        try {
-            // No substitution_enabled property — default is false
-            assertUpdate("CREATE MATERIALIZED VIEW " + mvName + " AS SELECT * FROM " + ordersTable);
-            getQueryRunner().execute("REFRESH MATERIALIZED VIEW " + mvName);
-
+        // No substitution_enabled property — default is false
+        try (var _ = createFreshMv("mv_no_prop_", "SELECT * FROM " + ordersTable)) {
             assertNotSubstituted(sessionWithSubstitution(), "SELECT * FROM " + ordersTable, ordersTable);
-        }
-        finally {
-            assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvName);
         }
     }
 
     @Test
     public void testMvWithSubstitutionDisabledNotUsed()
     {
-        CatalogSchemaTableName mvName = mvName("mv_sub_false_");
-        try {
-            assertUpdate("CREATE MATERIALIZED VIEW " + mvName +
-                    " WITH (substitution_enabled = false) AS SELECT * FROM " + ordersTable);
-            getQueryRunner().execute("REFRESH MATERIALIZED VIEW " + mvName);
-
+        try (var _ = createFreshMv("mv_sub_false_", "SELECT * FROM " + ordersTable, SUBSTITUTION_DISABLED)) {
             assertNotSubstituted(sessionWithSubstitution(), "SELECT * FROM " + ordersTable, ordersTable);
-        }
-        finally {
-            assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvName);
         }
     }
 
     @Test
     public void testMvWithSubstitutionEnabledUsed()
     {
-        CatalogSchemaTableName mvName = mvName("mv_sub_true_");
-        try {
-            createSubstitutionMv(mvName, "SELECT * FROM " + ordersTable);
-
-            assertSubstituted("SELECT * FROM " + ordersTable, ordersTable, mvName);
-        }
-        finally {
-            assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvName);
+        try (TestMaterializedView materializedView = createSubstitutionMv("mv_sub_true_", "SELECT * FROM " + ordersTable)) {
+            assertSubstituted("SELECT * FROM " + ordersTable, ordersTable, materializedView.mvName());
         }
     }
 
@@ -559,22 +430,16 @@ public abstract class AbstractMvSubstitutionFullTest
         // rewrite the scan to read the empty storage table and silently return zero rows.
         // The contract: enable substitution_enabled, then REFRESH; substitution only kicks in
         // after a real refresh stamps a true lastKnownFreshTime.
-        CatalogSchemaTableName mvName = mvName("mv_alter_no_refresh_");
-        try {
-            // Create without refresh — storage table is empty.
-            assertUpdate("CREATE MATERIALIZED VIEW " + mvName + " AS SELECT * FROM " + ordersTable);
-
+        // Create without refresh — storage table is empty.
+        try (TestMaterializedView materializedView = createMvWithoutRefresh("mv_alter_no_refresh_", "SELECT * FROM " + ordersTable, ImmutableMap.of())) {
             // Flip substitution on. Currently this stamps Instant.now() as lastKnownFreshTime
             // and indexes the (empty) storage anyway.
-            assertUpdate("ALTER MATERIALIZED VIEW " + mvName + " SET PROPERTIES substitution_enabled = true");
+            assertUpdate("ALTER MATERIALIZED VIEW " + materializedView.mvName() + " SET PROPERTIES substitution_enabled = true");
 
             Session session = sessionWithSubstitution();
             // Substitution must NOT fire — storage is empty and serving 0 rows would be wrong.
             assertNotSubstituted(session, "SELECT * FROM " + ordersTable, ordersTable);
             assertSameResults(session, "SELECT * FROM " + ordersTable);
-        }
-        finally {
-            assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvName);
         }
     }
 
@@ -585,41 +450,26 @@ public abstract class AbstractMvSubstitutionFullTest
         // indexed in the MaterializationIndex. ALTER ... SET PROPERTIES then turns substitution
         // on; the subsequent REFRESH must observe the flipped property and index the
         // materialization so the optimizer can substitute.
-        CatalogSchemaTableName mvName = mvName("mv_alter_enable_");
-        try {
-            assertUpdate("CREATE MATERIALIZED VIEW " + mvName + " AS SELECT * FROM " + ordersTable);
-            getQueryRunner().execute("REFRESH MATERIALIZED VIEW " + mvName);
-
+        try (TestMaterializedView materializedView = createFreshMv("mv_alter_enable_", "SELECT * FROM " + ordersTable)) {
             Session session = sessionWithSubstitution();
             // Before ALTER: substitution_enabled is false (default), so no index entry exists.
             assertNotSubstituted(session, "SELECT * FROM " + ordersTable, ordersTable);
 
             // Flipping substitution_enabled via ALTER must take effect immediately — no extra
             // REFRESH should be required, because the storage table is already fresh.
-            assertUpdate("ALTER MATERIALIZED VIEW " + mvName + " SET PROPERTIES substitution_enabled = true");
+            assertUpdate("ALTER MATERIALIZED VIEW " + materializedView.mvName() + " SET PROPERTIES substitution_enabled = true");
 
-            assertSubstituted("SELECT * FROM " + ordersTable, ordersTable, mvName);
-        }
-        finally {
-            assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvName);
+            assertSubstituted("SELECT * FROM " + ordersTable, ordersTable, materializedView.mvName());
         }
     }
 
     @Test
     public void testMultipleMvsOnSameTable()
     {
-        CatalogSchemaTableName mvFull = mvName("mv_full_");
-        CatalogSchemaTableName mvPartial = mvName("mv_partial_");
-        try {
-            createSubstitutionMv(mvFull, "SELECT * FROM " + ordersTable);
-            createSubstitutionMv(mvPartial, "SELECT orderkey, custkey FROM " + ordersTable);
-
+        try (TestMaterializedView mvFull = createSubstitutionMv("mv_full_", "SELECT * FROM " + ordersTable);
+                TestMaterializedView mvPartial = createSubstitutionMv("mv_partial_", "SELECT orderkey, custkey FROM " + ordersTable)) {
             // Either MV could serve this query
-            assertSubstituted("SELECT orderkey, custkey FROM " + ordersTable, ordersTable, ImmutableSet.of(mvFull, mvPartial));
-        }
-        finally {
-            assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvFull);
-            assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvPartial);
+            assertSubstituted("SELECT orderkey, custkey FROM " + ordersTable, ordersTable, ImmutableSet.of(mvFull.mvName(), mvPartial.mvName()));
         }
     }
 
@@ -628,35 +478,25 @@ public abstract class AbstractMvSubstitutionFullTest
     public void testStaleAndFreshMvPicksFresh()
     {
         assumeTrue(sourceSupportsRowLevelDelete(), "source does not support row-level DELETE");
-        CatalogSchemaTableName mvStale = mvName("mv_stale_");
-        CatalogSchemaTableName mvFresh = mvName("mv_fresh_");
-        try {
-            long baseCount = (long) computeActual("SELECT count(*) FROM " + ordersTable).getOnlyValue();
-            createSubstitutionMv(mvStale, "SELECT * FROM " + ordersTable);
-
+        long baseCount = (long) computeActual("SELECT count(*) FROM " + ordersTable).getOnlyValue();
+        try (var _ = createSubstitutionMv("mv_stale_", "SELECT * FROM " + ordersTable)) {
             // Make mvStale stale
             insertIntoOrders(99990005);
 
             // Create a fresh MV after the insert
-            createSubstitutionMv(mvFresh, "SELECT * FROM " + ordersTable);
-
-            Session session = sessionWithSubstitution();
-            assertSubstituted("SELECT * FROM " + ordersTable, ordersTable, mvFresh);
-            // Result should include the new row (from the fresh MV)
-            assertThat(computeActual(session, "SELECT count(*) FROM " + ordersTable).getOnlyValue()).isEqualTo(baseCount + 1);
-        }
-        finally {
-            assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvStale);
-            assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvFresh);
+            try (TestMaterializedView mvFresh = createSubstitutionMv("mv_fresh_", "SELECT * FROM " + ordersTable)) {
+                Session session = sessionWithSubstitution();
+                assertSubstituted("SELECT * FROM " + ordersTable, ordersTable, mvFresh.mvName());
+                // Result should include the new row (from the fresh MV)
+                assertThat(computeActual(session, "SELECT count(*) FROM " + ordersTable).getOnlyValue()).isEqualTo(baseCount + 1);
+            }
         }
     }
 
     @Test
     public void testSubstitutedQueryReturnsCorrectResults()
     {
-        CatalogSchemaTableName mvName = mvName("mv_correctness_");
-        try {
-            createSubstitutionMv(mvName, "SELECT * FROM " + ordersTable);
+        try (var _ = createSubstitutionMv("mv_correctness_", "SELECT * FROM " + ordersTable)) {
             Session session = sessionWithSubstitution();
 
             assertSameResults(session, "SELECT * FROM " + ordersTable);
@@ -665,26 +505,17 @@ public abstract class AbstractMvSubstitutionFullTest
             assertSameResults(session, "SELECT count(*) FROM " + ordersTable);
             assertSameResults(session, "SELECT custkey, sum(totalprice) FROM " + ordersTable + " GROUP BY custkey");
         }
-        finally {
-            assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvName);
-        }
     }
 
     @Test
     public void testSubstitutedQueryWithJoin()
     {
-        CatalogSchemaTableName mvName = mvName("mv_join_");
-        try {
-            createSubstitutionMv(mvName, "SELECT * FROM " + ordersTable);
-
+        try (TestMaterializedView materializedView = createSubstitutionMv("mv_join_", "SELECT * FROM " + ordersTable)) {
             String query = "SELECT o.orderkey, l.quantity " +
                     "FROM " + ordersTable + " o JOIN " + lineitemTable + " l ON o.orderkey = l.orderkey";
 
             // orders scan should be substituted, lineitem scan should not
-            assertSubstituted(query, ordersTable, mvName, lineitemTable);
-        }
-        finally {
-            assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvName);
+            assertSubstituted(query, ordersTable, materializedView.mvName(), lineitemTable);
         }
     }
 
@@ -692,21 +523,15 @@ public abstract class AbstractMvSubstitutionFullTest
     public void testRefreshReadsFromBaseTableNotMv()
     {
         assumeTrue(sourceSupportsRowLevelDelete(), "source does not support row-level DELETE");
-        CatalogSchemaTableName mvName = mvName("mv_refresh_norecurse_");
-        try {
-            createSubstitutionMv(mvName, "SELECT * FROM " + ordersTable);
-
+        try (TestMaterializedView materializedView = createSubstitutionMv("mv_refresh_norecurse_", "SELECT * FROM " + ordersTable)) {
             // Change the base table so we can detect it was used during the refresh
             insertIntoOrders(99990006);
 
             // The refresh itself should read from base table, not from the MV
-            getQueryRunner().execute(sessionWithSubstitution(), "REFRESH MATERIALIZED VIEW " + mvName);
+            getQueryRunner().execute(sessionWithSubstitution(), "REFRESH MATERIALIZED VIEW " + materializedView.mvName());
 
             // Verify mv is refreshed from the base table
-            assertSameResults(getSession(), "SELECT * FROM " + mvName, "SELECT * FROM " + ordersTable);
-        }
-        finally {
-            assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvName);
+            assertSameResults(getSession(), "SELECT * FROM " + materializedView.mvName(), "SELECT * FROM " + ordersTable);
         }
     }
 
@@ -714,18 +539,16 @@ public abstract class AbstractMvSubstitutionFullTest
     public void testSubstitutionAfterAddColumnToBaseTable()
     {
         CatalogSchemaTableName tableName = sourceTable("orders_evolve_" + randomNameSuffix());
-        CatalogSchemaTableName mvName = mvName("mv_evolve_");
         try {
             sourceSqlExecutor().execute("CREATE TABLE %s AS SELECT orderkey, totalprice FROM %s".formatted(sourceTableReference(tableName), sourceTableReference(ordersTable)));
-            createSubstitutionMv(mvName, "SELECT orderkey, totalprice FROM " + tableName);
+            try (TestMaterializedView materializedView = createSubstitutionMv("mv_evolve_", "SELECT orderkey, totalprice FROM " + tableName)) {
+                sourceSqlExecutor().execute("ALTER TABLE %s ADD COLUMN new_col CHAR(1)".formatted(sourceTableReference(tableName)));
 
-            sourceSqlExecutor().execute("ALTER TABLE %s ADD COLUMN new_col CHAR(1)".formatted(sourceTableReference(tableName)));
-
-            // Query for original columns — MV should still be usable
-            assertSubstituted("SELECT orderkey, totalprice FROM " + tableName, tableName, mvName);
+                // Query for original columns — MV should still be usable
+                assertSubstituted("SELECT orderkey, totalprice FROM " + tableName, tableName, materializedView.mvName());
+            }
         }
         finally {
-            assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvName);
             dropSourceTable(tableName);
         }
     }
@@ -733,9 +556,8 @@ public abstract class AbstractMvSubstitutionFullTest
     @Test
     public void testSubstitutionAfterDropMv()
     {
-        CatalogSchemaTableName mvName = mvName("mv_dropped_");
+        CatalogSchemaTableName mvName = createSubstitutionMv("mv_dropped_", "SELECT * FROM " + ordersTable).mvName();
         try {
-            createSubstitutionMv(mvName, "SELECT * FROM " + ordersTable);
             assertSubstituted("SELECT * FROM " + ordersTable, ordersTable, mvName);
 
             assertUpdate("DROP MATERIALIZED VIEW " + mvName);
@@ -752,33 +574,23 @@ public abstract class AbstractMvSubstitutionFullTest
     public void testSubstitutionStopsWhenGracePeriodRemoved()
     {
         assumeTrue(sourceSupportsRowLevelDelete(), "source does not support row-level DELETE");
-        CatalogSchemaTableName mvName = mvName("mv_grace_removed_");
-        try {
-            assertUpdate("CREATE MATERIALIZED VIEW " + mvName +
-                    " GRACE PERIOD INTERVAL '1' HOUR" +
-                    " WITH (substitution_enabled = true)" +
-                    " AS SELECT * FROM " + ordersTable);
-            getQueryRunner().execute("REFRESH MATERIALIZED VIEW " + mvName);
-
+        try (TestMaterializedView materializedView = createSubstitutionMv("mv_grace_removed_", "SELECT * FROM " + ordersTable, Duration.ofHours(1))) {
             insertIntoOrders(99990007);
 
             // Stale but within 1-hour grace period — substitution works
-            assertSubstituted(false, "SELECT * FROM " + ordersTable, ordersTable, mvName);
+            assertSubstituted(false, "SELECT * FROM " + ordersTable, ordersTable, materializedView.mvName());
 
             // Replace MV without grace period (empty = Iceberg treats as infinite, so use zero)
-            assertUpdate("CREATE OR REPLACE MATERIALIZED VIEW " + mvName +
+            assertUpdate("CREATE OR REPLACE MATERIALIZED VIEW " + materializedView.mvName() +
                     " GRACE PERIOD INTERVAL '0' SECOND" +
                     " WITH (substitution_enabled = true)" +
                     " AS SELECT * FROM " + ordersTable);
-            getQueryRunner().execute("REFRESH MATERIALIZED VIEW " + mvName);
+            getQueryRunner().execute("REFRESH MATERIALIZED VIEW " + materializedView.mvName());
 
             insertIntoOrders(99990008);
 
             // Stale with zero grace period — substitution must not happen
             assertNotSubstituted(sessionWithSubstitution(), "SELECT * FROM " + ordersTable, ordersTable);
-        }
-        finally {
-            assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvName);
         }
     }
 
@@ -786,51 +598,39 @@ public abstract class AbstractMvSubstitutionFullTest
     public void testSubstitutionStartsWhenGracePeriodAdded()
     {
         assumeTrue(sourceSupportsRowLevelDelete(), "source does not support row-level DELETE");
-        CatalogSchemaTableName mvName = mvName("mv_grace_added_");
-        try {
-            long baseCount = (long) computeActual("SELECT count(*) FROM " + ordersTable).getOnlyValue();
-            assertUpdate("CREATE MATERIALIZED VIEW " + mvName +
-                    " GRACE PERIOD INTERVAL '0' SECOND" +
-                    " WITH (substitution_enabled = true)" +
-                    " AS SELECT * FROM " + ordersTable);
-            getQueryRunner().execute("REFRESH MATERIALIZED VIEW " + mvName);
-
+        long baseCount = (long) computeActual("SELECT count(*) FROM " + ordersTable).getOnlyValue();
+        try (TestMaterializedView materializedView = createSubstitutionMv("mv_grace_added_", "SELECT * FROM " + ordersTable, Duration.ZERO)) {
             insertIntoOrders(99990009);
 
             // Stale with zero grace period — substitution does not work
             assertNotSubstituted(sessionWithSubstitution(), "SELECT * FROM " + ordersTable, ordersTable);
 
             // Replace MV with a generous grace period
-            assertUpdate("CREATE OR REPLACE MATERIALIZED VIEW " + mvName +
+            assertUpdate("CREATE OR REPLACE MATERIALIZED VIEW " + materializedView.mvName() +
                     " GRACE PERIOD INTERVAL '1' HOUR" +
                     " WITH (substitution_enabled = true)" +
                     " AS SELECT * FROM " + ordersTable);
-            getQueryRunner().execute("REFRESH MATERIALIZED VIEW " + mvName);
+            getQueryRunner().execute("REFRESH MATERIALIZED VIEW " + materializedView.mvName());
 
             insertIntoOrders(99990010);
 
             // Stale but within 1-hour grace period — substitution works now
-            MaterializedResultWithPlan result = assertSubstituted(false, "SELECT count(*) FROM " + ordersTable, ordersTable, mvName);
+            MaterializedResultWithPlan result = assertSubstituted(false, "SELECT count(*) FROM " + ordersTable, ordersTable, materializedView.mvName());
             // MV was refreshed after the first insert but before the second insert — stale data has baseCount+1
             assertThat(result.result().getOnlyValue())
                     .as("MV is stale but within grace period — should return MV row count, missing the latest insert")
                     .isEqualTo(baseCount + 1);
-        }
-        finally {
-            assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvName);
         }
     }
 
     @Test
     public void testSubstitutionAfterMvQueryTextChanged()
     {
-        CatalogSchemaTableName mvName = mvName("mv_query_changed_");
-        try {
-            createSubstitutionMv(mvName, "SELECT * FROM " + ordersTable);
-            assertSubstituted("SELECT * FROM " + ordersTable, ordersTable, mvName);
+        try (TestMaterializedView materializedView = createSubstitutionMv("mv_query_changed_", "SELECT * FROM " + ordersTable)) {
+            assertSubstituted("SELECT * FROM " + ordersTable, ordersTable, materializedView.mvName());
 
             // Replace MV with a different query (different source table)
-            assertUpdate("CREATE OR REPLACE MATERIALIZED VIEW " + mvName +
+            assertUpdate("CREATE OR REPLACE MATERIALIZED VIEW " + materializedView.mvName() +
                     " WITH (substitution_enabled = true)" +
                     " AS SELECT * FROM " + lineitemTable);
 
@@ -840,26 +640,22 @@ public abstract class AbstractMvSubstitutionFullTest
             assertNotSubstituted(sessionWithSubstitution(), "SELECT * FROM " + ordersTable, ordersTable);
 
             // Refresh with the new definition
-            getQueryRunner().execute("REFRESH MATERIALIZED VIEW " + mvName);
+            getQueryRunner().execute("REFRESH MATERIALIZED VIEW " + materializedView.mvName());
 
             // After refresh — substitution works for the new query
-            assertSubstituted("SELECT * FROM " + lineitemTable, lineitemTable, mvName);
+            assertSubstituted("SELECT * FROM " + lineitemTable, lineitemTable, materializedView.mvName());
             assertSameResults(sessionWithSubstitution(), "SELECT * FROM " + lineitemTable);
             // Old query still not substituted (MV no longer covers orders)
             assertNotSubstituted(sessionWithSubstitution(), "SELECT * FROM " + ordersTable, ordersTable);
-        }
-        finally {
-            assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvName);
         }
     }
 
     @Test
     public void testSubstitutionAfterRenameMv()
     {
-        CatalogSchemaTableName mvName = mvName("mv_rename_orig_");
         CatalogSchemaTableName renamedMvName = mvName("mv_rename_new_");
+        CatalogSchemaTableName mvName = createSubstitutionMv("mv_rename_orig_", "SELECT * FROM " + ordersTable).mvName();
         try {
-            createSubstitutionMv(mvName, "SELECT * FROM " + ordersTable);
             assertSubstituted("SELECT * FROM " + ordersTable, ordersTable, mvName);
 
             assertUpdate("ALTER MATERIALIZED VIEW " + mvName + " RENAME TO " + renamedMvName);
@@ -882,16 +678,17 @@ public abstract class AbstractMvSubstitutionFullTest
         // the new MV reuses the logical storage name but the physical Iceberg table
         // (tableLocation) is freshly created. Substitution must serve the new MV's data —
         // never the old MV's data via a stale cached mapping.
-        CatalogSchemaTableName mvName = mvName("mv_recreate_");
+        // First incarnation: covers orders
+        CatalogSchemaTableName mvName = createSubstitutionMv("mv_recreate_", "SELECT * FROM " + ordersTable).mvName();
         try {
-            // First incarnation: covers orders
-            createSubstitutionMv(mvName, "SELECT * FROM " + ordersTable);
             assertSubstituted("SELECT * FROM " + ordersTable, ordersTable, mvName);
 
             assertUpdate("DROP MATERIALIZED VIEW " + mvName);
 
-            // Second incarnation under the same name: covers lineitem (different base table)
-            createSubstitutionMv(mvName, "SELECT * FROM " + lineitemTable);
+            // Second incarnation under the same name: covers lineitem (different base table).
+            // Written out rather than via createSubstitutionMv, which would append a fresh name suffix.
+            assertUpdate("CREATE MATERIALIZED VIEW " + mvName + " WITH (substitution_enabled = true) AS SELECT * FROM " + lineitemTable);
+            getQueryRunner().execute("REFRESH MATERIALIZED VIEW " + mvName);
 
             // The old computation pattern must not be substituted by the new MV's storage
             assertNotSubstituted(sessionWithSubstitution(), "SELECT * FROM " + ordersTable, ordersTable);
@@ -908,32 +705,21 @@ public abstract class AbstractMvSubstitutionFullTest
     {
         // Partition by orderstatus (3 distinct values) instead of a high-cardinality column —
         // the test just verifies substitution works against a partitioned MV.
-        CatalogSchemaTableName mvName = mvName("mv_partitioned_");
-        try {
-            assertUpdate("CREATE MATERIALIZED VIEW " + mvName +
-                    " WITH (substitution_enabled = true, " + partitionedByPropertyName() + " = ARRAY['orderstatus'])" +
-                    " AS SELECT * FROM " + ordersTable);
-            getQueryRunner().execute("REFRESH MATERIALIZED VIEW " + mvName);
-
-            assertSubstituted("SELECT * FROM " + ordersTable + " WHERE orderstatus = 'F'", ordersTable, mvName);
-        }
-        finally {
-            assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvName);
+        Map<String, String> properties = ImmutableMap.<String, String>builder()
+                .putAll(SUBSTITUTION_ENABLED)
+                .put(partitionedByPropertyName(), "ARRAY['orderstatus']")
+                .buildOrThrow();
+        try (TestMaterializedView materializedView = createFreshMv("mv_partitioned_", "SELECT * FROM " + ordersTable, properties)) {
+            assertSubstituted("SELECT * FROM " + ordersTable + " WHERE orderstatus = 'F'", ordersTable, materializedView.mvName());
         }
     }
 
     @Test
     public void testNoSubstitutionForDifferentTable()
     {
-        CatalogSchemaTableName mvName = mvName("mv_wrong_table_");
-        try {
-            createSubstitutionMv(mvName, "SELECT * FROM " + ordersTable);
-
+        try (var _ = createSubstitutionMv("mv_wrong_table_", "SELECT * FROM " + ordersTable)) {
             // Query on lineitem should NOT be substituted by an orders MV
             assertNotSubstituted(sessionWithSubstitution(), "SELECT * FROM " + lineitemTable, lineitemTable);
-        }
-        finally {
-            assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvName);
         }
     }
 
@@ -941,26 +727,16 @@ public abstract class AbstractMvSubstitutionFullTest
     public void testGracePeriodMvReturnsStaleData()
     {
         assumeTrue(sourceSupportsRowLevelDelete(), "source does not support row-level DELETE");
-        CatalogSchemaTableName mvName = mvName("mv_stale_data_");
-        try {
-            long baseCount = (long) computeActual("SELECT count(*) FROM " + ordersTable).getOnlyValue();
-            assertUpdate("CREATE MATERIALIZED VIEW " + mvName +
-                    " GRACE PERIOD INTERVAL '1' HOUR" +
-                    " WITH (substitution_enabled = true)" +
-                    " AS SELECT * FROM " + ordersTable);
-            getQueryRunner().execute("REFRESH MATERIALIZED VIEW " + mvName);
-
+        long baseCount = (long) computeActual("SELECT count(*) FROM " + ordersTable).getOnlyValue();
+        try (TestMaterializedView materializedView = createSubstitutionMv("mv_stale_data_", "SELECT * FROM " + ordersTable, Duration.ofHours(1))) {
             // MV has baseCount rows. Insert one more row into the base table.
             insertIntoOrders(99990011);
 
             // Within grace period: substitution uses MV, which does NOT have the new row
-            MaterializedResultWithPlan result = assertSubstituted(false, "SELECT count(*) FROM " + ordersTable, ordersTable, mvName);
+            MaterializedResultWithPlan result = assertSubstituted(false, "SELECT count(*) FROM " + ordersTable, ordersTable, materializedView.mvName());
             assertThat(result.result().getOnlyValue())
                     .as("MV is stale but within grace period — should return MV data, not base table data")
                     .isEqualTo(baseCount);
-        }
-        finally {
-            assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvName);
         }
     }
 
@@ -968,14 +744,8 @@ public abstract class AbstractMvSubstitutionFullTest
     public void testMvProjectionExactMatchSubstitutes()
     {
         // MV projects exactly the columns the query needs
-        CatalogSchemaTableName mvName = mvName("mv_proj_exact_");
-        try {
-            createSubstitutionMv(mvName, "SELECT orderkey, orderstatus, totalprice FROM " + ordersTable);
-
-            assertSubstituted("SELECT orderkey, orderstatus, totalprice FROM " + ordersTable, ordersTable, mvName);
-        }
-        finally {
-            assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvName);
+        try (TestMaterializedView materializedView = createSubstitutionMv("mv_proj_exact_", "SELECT orderkey, orderstatus, totalprice FROM " + ordersTable)) {
+            assertSubstituted("SELECT orderkey, orderstatus, totalprice FROM " + ordersTable, ordersTable, materializedView.mvName());
         }
     }
 
@@ -983,14 +753,8 @@ public abstract class AbstractMvSubstitutionFullTest
     public void testMvProjectionSupersetSubstitutes()
     {
         // MV has more columns than the query needs — query can still use MV
-        CatalogSchemaTableName mvName = mvName("mv_proj_superset_");
-        try {
-            createSubstitutionMv(mvName, "SELECT orderkey, custkey, orderstatus, totalprice FROM " + ordersTable);
-
-            assertSubstituted("SELECT orderkey, totalprice FROM " + ordersTable, ordersTable, mvName);
-        }
-        finally {
-            assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvName);
+        try (TestMaterializedView materializedView = createSubstitutionMv("mv_proj_superset_", "SELECT orderkey, custkey, orderstatus, totalprice FROM " + ordersTable)) {
+            assertSubstituted("SELECT orderkey, totalprice FROM " + ordersTable, ordersTable, materializedView.mvName());
         }
     }
 
@@ -998,31 +762,19 @@ public abstract class AbstractMvSubstitutionFullTest
     public void testMvProjectionMissingColumnDoesNotSubstitute()
     {
         // MV lacks a column the query needs — cannot substitute
-        CatalogSchemaTableName mvName = mvName("mv_proj_missing_");
-        try {
-            createSubstitutionMv(mvName, "SELECT orderkey, custkey FROM " + ordersTable);
-
+        try (var _ = createSubstitutionMv("mv_proj_missing_", "SELECT orderkey, custkey FROM " + ordersTable)) {
             Session session = sessionWithSubstitution();
             String query = "SELECT orderkey, orderstatus FROM " + ordersTable;
             assertNotSubstituted(session, query, ordersTable);
-        }
-        finally {
-            assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvName);
         }
     }
 
     @Test
     public void testSubstitutionWorksWithFullAccess()
     {
-        CatalogSchemaTableName mvName = mvName("mv_acl_ok_");
-        try {
-            createSubstitutionMv(mvName, "SELECT * FROM " + ordersTable);
-
+        try (TestMaterializedView materializedView = createSubstitutionMv("mv_acl_ok_", "SELECT * FROM " + ordersTable)) {
             // User has SELECT on both base table and MV storage table — substitution works
-            assertSubstituted("SELECT * FROM " + ordersTable, ordersTable, mvName);
-        }
-        finally {
-            assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvName);
+            assertSubstituted("SELECT * FROM " + ordersTable, ordersTable, materializedView.mvName());
         }
     }
 
@@ -1032,20 +784,14 @@ public abstract class AbstractMvSubstitutionFullTest
         // The user can read the base table but is denied access to the MV marked for substitution.
         // Substitution must not silently redirect the scan to the MV's storage table; it should fall
         // back to scanning the base table, which stays correct because base-table access is allowed.
-        CatalogSchemaTableName mvName = mvName("mv_acl_mv_denied_");
-        try {
-            createSubstitutionMv(mvName, "SELECT * FROM " + ordersTable);
-
-            getQueryRunner().getAccessControl().deny(privilege(mvName.getSchemaTableName().getTableName(), SELECT_COLUMN));
+        try (TestMaterializedView materializedView = createSubstitutionMv("mv_acl_mv_denied_", "SELECT * FROM " + ordersTable)) {
+            getQueryRunner().getAccessControl().deny(privilege(materializedView.mvName().getSchemaTableName().getTableName(), SELECT_COLUMN));
             try {
                 assertNotSubstituted(sessionWithSubstitution(), "SELECT * FROM " + ordersTable, ordersTable);
             }
             finally {
                 getQueryRunner().getAccessControl().reset();
             }
-        }
-        finally {
-            assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvName);
         }
     }
 
@@ -1055,14 +801,11 @@ public abstract class AbstractMvSubstitutionFullTest
         // The user has SELECT on some MV columns but not others (here totalprice is denied).
         // Substitution applies only to queries that read the allowed columns; a query that reads
         // the denied column falls back to the base table (which the user can read in full).
-        CatalogSchemaTableName mvName = mvName("mv_acl_col_");
-        try {
-            createSubstitutionMv(mvName, "SELECT * FROM " + ordersTable);
-
-            getQueryRunner().getAccessControl().deny(privilege(mvName.getSchemaTableName().getTableName() + ".totalprice", SELECT_COLUMN));
+        try (TestMaterializedView materializedView = createSubstitutionMv("mv_acl_col_", "SELECT * FROM " + ordersTable)) {
+            getQueryRunner().getAccessControl().deny(privilege(materializedView.mvName().getSchemaTableName().getTableName() + ".totalprice", SELECT_COLUMN));
             try {
                 // Reads only allowed columns — substituted
-                assertSubstituted("SELECT orderkey, custkey FROM " + ordersTable, ordersTable, mvName);
+                assertSubstituted("SELECT orderkey, custkey FROM " + ordersTable, ordersTable, materializedView.mvName());
                 // Reads the denied column — falls back to the base table
                 assertNotSubstituted(sessionWithSubstitution(), "SELECT totalprice FROM " + ordersTable, ordersTable);
             }
@@ -1070,45 +813,27 @@ public abstract class AbstractMvSubstitutionFullTest
                 getQueryRunner().getAccessControl().reset();
             }
         }
-        finally {
-            assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvName);
-        }
     }
 
     @Test
     public void testMvNotMarkedForSubstitutionIsIgnored()
     {
-        CatalogSchemaTableName mvName = mvName("mv_not_marked_");
-        try {
-            long baseCount = (long) computeActual("SELECT count(*) FROM " + ordersTable).getOnlyValue();
-            // Create MV WITHOUT substitution_enabled — default is false
-            assertUpdate("CREATE MATERIALIZED VIEW " + mvName + " AS SELECT * FROM " + ordersTable);
-            getQueryRunner().execute("REFRESH MATERIALIZED VIEW " + mvName);
-
+        long baseCount = (long) computeActual("SELECT count(*) FROM " + ordersTable).getOnlyValue();
+        // Create MV WITHOUT substitution_enabled — default is false
+        try (var _ = createFreshMv("mv_not_marked_", "SELECT * FROM " + ordersTable)) {
             // Even with session property enabled, this MV should not be used
             assertNotSubstituted(sessionWithSubstitution(), "SELECT * FROM " + ordersTable, ordersTable);
 
             // Verify the query still returns correct data from the base table
             assertThat(computeActual(sessionWithSubstitution(), "SELECT count(*) FROM " + ordersTable).getOnlyValue()).isEqualTo(baseCount);
         }
-        finally {
-            assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvName);
-        }
     }
 
     @Test
     public void testMvExplicitlyDisabledForSubstitutionIsIgnored()
     {
-        CatalogSchemaTableName mvName = mvName("mv_disabled_");
-        try {
-            assertUpdate("CREATE MATERIALIZED VIEW " + mvName +
-                    " WITH (substitution_enabled = false) AS SELECT * FROM " + ordersTable);
-            getQueryRunner().execute("REFRESH MATERIALIZED VIEW " + mvName);
-
+        try (var _ = createFreshMv("mv_disabled_", "SELECT * FROM " + ordersTable, SUBSTITUTION_DISABLED)) {
             assertNotSubstituted(sessionWithSubstitution(), "SELECT * FROM " + ordersTable, ordersTable);
-        }
-        finally {
-            assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvName);
         }
     }
 
@@ -1116,18 +841,9 @@ public abstract class AbstractMvSubstitutionFullTest
     public void testMvMarkedForSubstitutionCoexistsWithUnmarked()
     {
         // Two MVs exist: one marked, one not. Only the marked one should be used.
-        CatalogSchemaTableName mvMarked = mvName("mv_marked_");
-        CatalogSchemaTableName mvUnmarked = mvName("mv_unmarked_");
-        try {
-            createSubstitutionMv(mvMarked, "SELECT * FROM " + ordersTable);
-            assertUpdate("CREATE MATERIALIZED VIEW " + mvUnmarked + " AS SELECT * FROM " + ordersTable);
-            getQueryRunner().execute("REFRESH MATERIALIZED VIEW " + mvUnmarked);
-
-            assertSubstituted("SELECT * FROM " + ordersTable, ordersTable, mvMarked);
-        }
-        finally {
-            assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvMarked);
-            assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvUnmarked);
+        try (TestMaterializedView mvMarked = createSubstitutionMv("mv_marked_", "SELECT * FROM " + ordersTable);
+                var _ = createFreshMv("mv_unmarked_", "SELECT * FROM " + ordersTable)) {
+            assertSubstituted("SELECT * FROM " + ordersTable, ordersTable, mvMarked.mvName());
         }
     }
 

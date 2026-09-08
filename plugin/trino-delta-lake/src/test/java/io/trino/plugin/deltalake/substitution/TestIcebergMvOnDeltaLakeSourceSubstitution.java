@@ -17,8 +17,8 @@ import io.trino.Session;
 import io.trino.plugin.deltalake.DeltaLakeQueryRunner;
 import io.trino.plugin.iceberg.substitution.AbstractIcebergMvSubstitutionTest;
 import io.trino.spi.connector.CatalogSchemaName;
-import io.trino.spi.connector.CatalogSchemaTableName;
 import io.trino.testing.QueryRunner;
+import io.trino.testing.sql.TestMaterializedView;
 import org.junit.jupiter.api.Test;
 
 import static io.trino.plugin.deltalake.DeltaLakeQueryRunner.DELTA_CATALOG;
@@ -66,14 +66,8 @@ public class TestIcebergMvOnDeltaLakeSourceSubstitution
     @Test
     public void testMetadataColumnProjection()
     {
-        CatalogSchemaTableName mvName = mvName("mv_path_");
-        try {
-            createSubstitutionMv(mvName, "SELECT \"$path\" FROM " + ordersTable);
-
-            assertSubstituted("SELECT \"$path\" FROM " + ordersTable, ordersTable, mvName);
-        }
-        finally {
-            assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvName);
+        try (TestMaterializedView materializedView = createSubstitutionMv("mv_path_", "SELECT \"$path\" FROM " + ordersTable)) {
+            assertSubstituted("SELECT \"$path\" FROM " + ordersTable, ordersTable, materializedView.mvName());
         }
     }
 }

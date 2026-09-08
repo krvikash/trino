@@ -18,6 +18,7 @@ import io.trino.plugin.iceberg.TestingIcebergPlugin;
 import io.trino.spi.connector.CatalogSchemaName;
 import io.trino.spi.connector.CatalogSchemaTableName;
 import io.trino.testing.QueryRunner;
+import io.trino.testing.sql.TestMaterializedView;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Execution;
 
@@ -112,75 +113,45 @@ public abstract class AbstractIcebergReadOnlyMvSubstitutionTest
     @Test
     public void testTableScanSubstituted()
     {
-        CatalogSchemaTableName mvName = mvName("mv_scan_");
-        try {
-            createSubstitutionMv(mvName, "SELECT " + materializedColumn() + " FROM " + substitutedTable());
-
-            assertSubstituted("SELECT " + materializedColumn() + " FROM " + substitutedTable(), substitutedTable(), mvName);
-        }
-        finally {
-            assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvName);
+        try (TestMaterializedView materializedView = createSubstitutionMv("mv_scan_", "SELECT " + materializedColumn() + " FROM " + substitutedTable())) {
+            assertSubstituted("SELECT " + materializedColumn() + " FROM " + substitutedTable(), substitutedTable(), materializedView.mvName());
         }
     }
 
     @Test
     public void testMaterializedColumnSubstituted()
     {
-        CatalogSchemaTableName mvName = mvName("mv_column_");
-        try {
-            createSubstitutionMv(mvName, "SELECT " + materializedColumn() + " FROM " + substitutedTable());
-
-            assertSubstituted("SELECT " + materializedColumn() + " FROM " + substitutedTable(), substitutedTable(), mvName);
-        }
-        finally {
-            assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvName);
+        try (TestMaterializedView materializedView = createSubstitutionMv("mv_column_", "SELECT " + materializedColumn() + " FROM " + substitutedTable())) {
+            assertSubstituted("SELECT " + materializedColumn() + " FROM " + substitutedTable(), substitutedTable(), materializedView.mvName());
         }
     }
 
     @Test
     public void testNonMaterializedColumnNotSubstituted()
     {
-        CatalogSchemaTableName mvName = mvName("mv_column_missing_");
-        try {
-            createSubstitutionMv(mvName, "SELECT " + materializedColumn() + " FROM " + substitutedTable());
-
+        try (var _ = createSubstitutionMv("mv_column_missing_", "SELECT " + materializedColumn() + " FROM " + substitutedTable())) {
             // The query needs a column the MV does not materialize — no substitution.
             assertNotSubstituted(sessionWithSubstitution(), "SELECT " + nonMaterializedColumn() + " FROM " + substitutedTable(), substitutedTable());
-        }
-        finally {
-            assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvName);
         }
     }
 
     @Test
     public void testFilteredScanSubstituted()
     {
-        CatalogSchemaTableName mvName = mvName("mv_scan_where_");
-        try {
-            createSubstitutionMv(mvName, "SELECT " + materializedColumn() + " FROM " + substitutedTable());
-
+        try (TestMaterializedView materializedView = createSubstitutionMv("mv_scan_where_", "SELECT " + materializedColumn() + " FROM " + substitutedTable())) {
             // The base scan is a plain scan when substitution runs; the WHERE filter applies on top of
             // the substituted MV storage table.
-            assertSubstituted("SELECT " + materializedColumn() + " FROM " + substitutedTable() + " WHERE " + materializedColumn() + " IS NOT NULL", substitutedTable(), mvName);
-        }
-        finally {
-            assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvName);
+            assertSubstituted("SELECT " + materializedColumn() + " FROM " + substitutedTable() + " WHERE " + materializedColumn() + " IS NOT NULL", substitutedTable(), materializedView.mvName());
         }
     }
 
     @Test
     public void testDifferentTableNotSubstituted()
     {
-        CatalogSchemaTableName mvName = mvName("mv_wrong_table_");
-        try {
-            createSubstitutionMv(mvName, "SELECT " + materializedColumn() + " FROM " + substitutedTable());
-
+        try (var _ = createSubstitutionMv("mv_wrong_table_", "SELECT " + materializedColumn() + " FROM " + substitutedTable())) {
             // A query on a different table must not be substituted by the substitutedTable() MV.
             // count(*) avoids assuming otherTable() shares any column name with substitutedTable().
             assertNotSubstituted(sessionWithSubstitution(), "SELECT count(*) FROM " + otherTable(), otherTable());
-        }
-        finally {
-            assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvName);
         }
     }
 }

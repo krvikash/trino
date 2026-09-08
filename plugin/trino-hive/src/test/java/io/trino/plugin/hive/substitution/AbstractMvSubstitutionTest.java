@@ -13,6 +13,7 @@
  */
 package io.trino.plugin.hive.substitution;
 
+import com.google.common.collect.ImmutableMap;
 import io.trino.Session;
 import io.trino.metadata.MaterializedViewDefinition;
 import io.trino.metadata.Metadata;
@@ -23,11 +24,15 @@ import io.trino.testing.AbstractTestQueryFramework;
 import io.trino.testing.MaterializedResult;
 import io.trino.testing.QueryRunner;
 import io.trino.testing.sql.SqlExecutor;
+import io.trino.testing.sql.TestMaterializedView;
+import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.parallel.Execution;
 
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
-import java.util.OptionalLong;
+import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
@@ -41,6 +46,8 @@ public abstract class AbstractMvSubstitutionTest
         extends AbstractTestQueryFramework
 {
     private static final String MV_SUBSTITUTION_ENABLED = "materialized_view_substitution_enabled";
+    protected static final Map<String, String> SUBSTITUTION_ENABLED = ImmutableMap.of("substitution_enabled", "true");
+    protected static final Map<String, String> SUBSTITUTION_DISABLED = ImmutableMap.of("substitution_enabled", "false");
 
     protected void dropSourceTable(CatalogSchemaTableName sourceTable)
     {
@@ -84,16 +91,44 @@ public abstract class AbstractMvSubstitutionTest
                 .containsExactlyInAnyOrderElementsOf(expectedResults.getMaterializedRows());
     }
 
-    protected void createSubstitutionMv(CatalogSchemaTableName mvName, String sql)
+    protected TestMaterializedView createFreshMv(String namePrefix, @Language("SQL") String sql)
     {
-        createSubstitutionMv(mvName, sql, OptionalLong.empty());
+        return createFreshMv(namePrefix, sql, ImmutableMap.of());
     }
 
-    protected void createSubstitutionMv(CatalogSchemaTableName mvName, String sql, OptionalLong gracePeriodSeconds)
+    protected TestMaterializedView createFreshMv(String namePrefix, @Language("SQL") String sql, Map<String, String> properties)
     {
-        String gracePeriod = gracePeriodSeconds.isPresent() ? " GRACE PERIOD INTERVAL '%s' SECOND".formatted(gracePeriodSeconds.orElseThrow()) : "";
-        assertUpdate("CREATE MATERIALIZED VIEW %s%s WITH (substitution_enabled = true) AS %s".formatted(mvName, gracePeriod, sql));
-        getQueryRunner().execute("REFRESH MATERIALIZED VIEW %s".formatted(mvName));
+        return createFreshMv(namePrefix, sql, properties, Optional.empty());
+    }
+
+    protected TestMaterializedView createMvWithoutRefresh(String namePrefix, @Language("SQL") String sql, Map<String, String> properties)
+    {
+        return new TestMaterializedView(getQueryRunner()::execute, mvName(namePrefix), sql, properties);
+    }
+
+    protected TestMaterializedView createSubstitutionMv(String namePrefix, @Language("SQL") String sql)
+    {
+        return createFreshMv(namePrefix, sql, SUBSTITUTION_ENABLED, Optional.empty());
+    }
+
+    protected TestMaterializedView createSubstitutionMv(String namePrefix, @Language("SQL") String sql, Duration gracePeriod)
+    {
+        return createFreshMv(namePrefix, sql, SUBSTITUTION_ENABLED, Optional.of(gracePeriod));
+    }
+
+    protected TestMaterializedView createFreshMv(String namePrefix, @Language("SQL") String sql, Map<String, String> properties, Optional<Duration> gracePeriod)
+    {
+        TestMaterializedView materializedView = new TestMaterializedView(getQueryRunner()::execute, mvName(namePrefix), sql, properties, gracePeriod);
+        try {
+            getQueryRunner().execute("REFRESH MATERIALIZED VIEW " + materializedView.mvName());
+        }
+        catch (Exception e) {
+            // drop the materialized view if refresh fails
+            try (TestMaterializedView ignored = materializedView) {
+                throw e;
+            }
+        }
+        return materializedView;
     }
 
     protected abstract CatalogSchemaName mvSchema();

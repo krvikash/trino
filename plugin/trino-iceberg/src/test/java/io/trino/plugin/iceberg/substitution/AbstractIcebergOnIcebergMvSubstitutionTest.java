@@ -16,6 +16,7 @@ package io.trino.plugin.iceberg.substitution;
 import io.trino.Session;
 import io.trino.spi.connector.CatalogSchemaName;
 import io.trino.spi.connector.CatalogSchemaTableName;
+import io.trino.testing.sql.TestMaterializedView;
 import org.junit.jupiter.api.Test;
 
 import static io.trino.plugin.iceberg.IcebergQueryRunner.ICEBERG_CATALOG;
@@ -44,7 +45,6 @@ public abstract class AbstractIcebergOnIcebergMvSubstitutionTest
         // The MV holds the current data — substituting would silently drop the user's
         // intended version and return current data instead.
         CatalogSchemaTableName tableName = sourceTable("src_time_travel_" + randomNameSuffix());
-        CatalogSchemaTableName mvName = mvName("mv_time_travel_");
         try {
             assertUpdate("CREATE TABLE " + tableName + " AS SELECT 1 AS id", 1);
             // Snapshot S1: one row
@@ -58,24 +58,23 @@ public abstract class AbstractIcebergOnIcebergMvSubstitutionTest
             assertUpdate("INSERT INTO " + tableName + " VALUES 3", 1);
             // Now the table has 3 rows; S1 still references the 1-row snapshot.
 
-            assertUpdate("CREATE MATERIALIZED VIEW " + mvName +
-                    " WITH (substitution_enabled = true) AS SELECT * FROM " + tableName);
-            assertUpdate("REFRESH MATERIALIZED VIEW " + mvName, 3);
+            try (TestMaterializedView materializedView = createMvWithoutRefresh("mv_time_travel_", "SELECT * FROM " + tableName, SUBSTITUTION_ENABLED)) {
+                assertUpdate("REFRESH MATERIALIZED VIEW " + materializedView.mvName(), 3);
 
-            Session session = sessionWithSubstitution();
-            // Current-snapshot query — substitution is fine here.
-            assertSubstituted("SELECT * FROM " + tableName, tableName, mvName);
+                Session session = sessionWithSubstitution();
+                // Current-snapshot query — substitution is fine here.
+                assertSubstituted("SELECT * FROM " + tableName, tableName, materializedView.mvName());
 
-            // FOR VERSION AS OF S1 must NOT substitute. The MV holds the current 3-row state;
-            // the user asked for the historical 1-row state.
-            String versionedQuery = "SELECT * FROM " + tableName + " FOR VERSION AS OF " + snapshotS1;
-            assertNotSubstituted(session, versionedQuery, tableName);
-            assertThat(computeActual(session, "SELECT count(*) FROM " + tableName + " FOR VERSION AS OF " + snapshotS1).getOnlyValue())
-                    .as("Versioned query must return the historical snapshot's data, not the MV's current data")
-                    .isEqualTo(1L);
+                // FOR VERSION AS OF S1 must NOT substitute. The MV holds the current 3-row state;
+                // the user asked for the historical 1-row state.
+                String versionedQuery = "SELECT * FROM " + tableName + " FOR VERSION AS OF " + snapshotS1;
+                assertNotSubstituted(session, versionedQuery, tableName);
+                assertThat(computeActual(session, "SELECT count(*) FROM " + tableName + " FOR VERSION AS OF " + snapshotS1).getOnlyValue())
+                        .as("Versioned query must return the historical snapshot's data, not the MV's current data")
+                        .isEqualTo(1L);
+            }
         }
         finally {
-            assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvName);
             assertUpdate("DROP TABLE IF EXISTS " + tableName);
         }
     }
@@ -83,14 +82,8 @@ public abstract class AbstractIcebergOnIcebergMvSubstitutionTest
     @Test
     public void testMetadataColumnProjection()
     {
-        CatalogSchemaTableName mvName = mvName("mv_path_");
-        try {
-            createSubstitutionMv(mvName, "SELECT \"$path\" FROM " + ordersTable);
-
-            assertSubstituted("SELECT \"$path\" FROM " + ordersTable, ordersTable, mvName);
-        }
-        finally {
-            assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvName);
+        try (TestMaterializedView materializedView = createSubstitutionMv("mv_path_", "SELECT \"$path\" FROM " + ordersTable)) {
+            assertSubstituted("SELECT \"$path\" FROM " + ordersTable, ordersTable, materializedView.mvName());
         }
     }
 }
