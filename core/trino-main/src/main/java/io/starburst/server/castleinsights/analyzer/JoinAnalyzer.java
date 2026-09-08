@@ -19,15 +19,20 @@ import io.starburst.server.castleinsights.model.JoinType;
 import io.starburst.server.castleinsights.model.TableRef;
 import io.trino.operator.OperatorStats;
 import io.trino.operator.join.JoinOperatorInfo;
+import io.trino.operator.join.LookupOuterOperator;
 import io.trino.sql.planner.plan.JoinNode;
 import io.trino.sql.planner.plan.JoinNode.EquiJoinClause;
 
 import java.util.List;
 import java.util.Optional;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.starburst.server.castleinsights.model.Cardinality.MANY_TO_MANY;
 import static io.starburst.server.castleinsights.model.Cardinality.MANY_TO_ONE;
+import static io.starburst.server.castleinsights.model.Cardinality.ONE_TO_MANY;
+import static io.starburst.server.castleinsights.model.Cardinality.ONE_TO_ONE;
+import static java.util.Arrays.stream;
 
 /**
  * Emits a {@link JoinInsight} for every equi-join between two tables, tracing each join key back to
@@ -36,6 +41,8 @@ import static io.starburst.server.castleinsights.model.Cardinality.MANY_TO_ONE;
 public class JoinAnalyzer
         implements CastleInsightAnalyzer
 {
+    private static final String LOOKUP_OUTER_OPERATOR = LookupOuterOperator.class.getSimpleName();
+
     @Override
     public List<CastleInsight> analyze(CastleQueryAnalysis analysis)
     {
@@ -88,18 +95,9 @@ public class JoinAnalyzer
     /**
      * Classifies the relationship from the join's match histogram and measured row counts.
      * <p>
-     * The histogram records, per probe (left) row, how many build (right) rows it matched, so it
-     * tells us whether the right side is unique on the join key. A probe row matching two or more
-     * build rows proves it is not. The output-vs-build row comparison then proves whether the left
-     * side is non-unique too: more output rows than build rows means a build row was matched by
-     * several probe rows.
-     * <p>
-     * That row comparison only holds for an inner join. An outer join's output also carries the
-     * unmatched preserved rows, so more output than build rows says nothing about matching; for a
-     * non-unique right side we cannot then prove the left side, and the cardinality is absent.
-     * <p>
-     * {@code ONE_TO_MANY} needs the left side's uniqueness, which nothing measures cheaply, so the
-     * right-non-unique / left-not-proven case is absent rather than a guess.
+     * The histogram records, per probe (left) row, how many build (right) rows it matched, so a probe
+     * row matching two or more build rows proves the right side is not unique on the join key. The left
+     * side is decided by {@link #leftUniqueness}, and the two together name the relationship.
      */
     private static Optional<Cardinality> cardinality(CastleQueryAnalysis analysis, JoinNode join)
     {
@@ -108,30 +106,76 @@ public class JoinAnalyzer
             return Optional.empty();
         }
         long[] probesByMatchCount = joinInfo.get().getLogHistogramProbes();
-        long recordedProbes = sum(probesByMatchCount);
-        if (recordedProbes == 0) {
+        if (sum(probesByMatchCount) == 0) {
             return Optional.empty();
         }
-        if (joinInfo.get().getRleProbes() > recordedProbes) {
-            // Too much of the probe side went through the run-length fast path, which does not record
-            // per-row match counts, to trust the histogram.
-            return Optional.empty();
+        // A probe row that took the run-length fast path is only recorded once for its whole run, and only
+        // ever when it matched no or one build row, so buckets two and up stay faithful.
+        boolean rightUnique = sumFrom(probesByMatchCount, 2) == 0;
+
+        return switch (leftUniqueness(analysis, join, joinInfo.get())) {
+            case UNIQUE -> Optional.of(rightUnique ? ONE_TO_ONE : ONE_TO_MANY);
+            case NON_UNIQUE -> Optional.of(rightUnique ? MANY_TO_ONE : MANY_TO_MANY);
+            case UNKNOWN -> Optional.empty();
+        };
+    }
+
+    /**
+     * Whether the left side is unique on the join key, which nothing measures directly: the histogram
+     * counts matches per probe row, not per build row.
+     * <p>
+     * A right or full join answers it exactly all the same. Such a join has to emit the build rows nothing
+     * matched, so the engine tracks which build rows were matched and a {@code LookupOuterOperator} turns
+     * the rest into output rows. Subtracting those from both the join's output and the build side leaves
+     * the number of matches and the number of build rows that took part in one; the left side is unique
+     * exactly when they are equal.
+     * <p>
+     * An inner or left join has no such operator, so a unique left side cannot be told from a non-unique
+     * one. Only more matches than build rows still proves non-unique, because some build row must then
+     * have been matched by several probe rows.
+     */
+    private static Uniqueness leftUniqueness(CastleQueryAnalysis analysis, JoinNode join, JoinOperatorInfo joinInfo)
+    {
+        long buildRows = analysis.outputRowCount(join.getRight().getId());
+        long outputRows = analysis.outputRowCount(join.getId());
+        JoinType type = joinType(join.getType());
+
+        long preservedProbeRows = 0;
+        if (type == JoinType.LEFT || type == JoinType.FULL) {
+            if (joinInfo.getRleProbes() > 0) {
+                // The unmatched probe rows are read off the histogram's first bucket, which the run-length
+                // fast path undercounts: it records one probe for a whole run of equal keys.
+                return Uniqueness.UNKNOWN;
+            }
+            preservedProbeRows = joinInfo.getLogHistogramProbes()[0];
         }
 
-        boolean rightNonUnique = sumFrom(probesByMatchCount, 2) > 0;
-        if (!rightNonUnique) {
-            return Optional.of(MANY_TO_ONE);
+        if (type == JoinType.RIGHT || type == JoinType.FULL) {
+            Optional<Long> unmatchedBuildRows = unmatchedBuildRows(analysis, join);
+            if (unmatchedBuildRows.isEmpty()) {
+                return Uniqueness.UNKNOWN;
+            }
+            long matches = outputRows - preservedProbeRows - unmatchedBuildRows.get();
+            long matchedBuildRows = buildRows - unmatchedBuildRows.get();
+            return matches == matchedBuildRows ? Uniqueness.UNIQUE : Uniqueness.NON_UNIQUE;
         }
-        // More output rows than build rows means a build row was matched by several probe rows, which
-        // is only possible when the probe (left) side is not unique on the join key either. Only sound
-        // for an inner join, whose every output row is a match; an outer join's preserved unmatched
-        // rows would break the comparison.
-        boolean leftNonUnique = join.getType() == io.trino.sql.planner.plan.JoinType.INNER
-                && analysis.outputRowCount(join.getId()) > analysis.outputRowCount(join.getRight().getId());
-        if (leftNonUnique) {
-            return Optional.of(MANY_TO_MANY);
+        return outputRows - preservedProbeRows > buildRows ? Uniqueness.NON_UNIQUE : Uniqueness.UNKNOWN;
+    }
+
+    /**
+     * The rows a right or full join emitted for build rows nothing matched, reported by the separate
+     * {@code LookupOuterOperator} the engine runs under the join's own plan node id. Empty when that
+     * operator reported nothing, leaving the matched build rows unknown.
+     */
+    private static Optional<Long> unmatchedBuildRows(CastleQueryAnalysis analysis, JoinNode join)
+    {
+        Long unmatched = null;
+        for (OperatorStats operator : analysis.operatorStats(join.getId())) {
+            if (operator.getOperatorType().equals(LOOKUP_OUTER_OPERATOR)) {
+                unmatched = (unmatched == null ? 0L : unmatched) + operator.getOutputPositions();
+            }
         }
-        return Optional.empty();
+        return Optional.ofNullable(unmatched);
     }
 
     private static Optional<JoinOperatorInfo> joinOperatorInfo(CastleQueryAnalysis analysis, JoinNode join)
@@ -147,6 +191,7 @@ public class JoinAnalyzer
 
     private static Optional<TableRef> singleTable(List<ColumnRef> columns)
     {
+        checkArgument(!columns.isEmpty(), "columns is empty");
         TableRef table = columns.getFirst().table();
         for (ColumnRef column : columns) {
             if (!column.table().equals(table)) {
@@ -170,11 +215,7 @@ public class JoinAnalyzer
 
     private static long sumFrom(long[] values, int fromIndex)
     {
-        long total = 0;
-        for (int i = fromIndex; i < values.length; i++) {
-            total += values[i];
-        }
-        return total;
+        return stream(values).skip(fromIndex).sum();
     }
 
     private static JoinType joinType(io.trino.sql.planner.plan.JoinType type)
@@ -185,5 +226,15 @@ public class JoinAnalyzer
             case RIGHT -> JoinType.RIGHT;
             case FULL -> JoinType.FULL;
         };
+    }
+
+    /**
+     * Whether a join side holds at most one row per join key, as far as the recorded stats can prove.
+     */
+    private enum Uniqueness
+    {
+        UNIQUE,
+        NON_UNIQUE,
+        UNKNOWN,
     }
 }

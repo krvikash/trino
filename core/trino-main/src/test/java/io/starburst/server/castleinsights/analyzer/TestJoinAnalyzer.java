@@ -12,6 +12,7 @@ package io.starburst.server.castleinsights.analyzer;
 import io.starburst.server.castleinsights.CastleQueryAnalysis;
 import io.starburst.server.castleinsights.model.CastleInsight;
 import io.starburst.server.castleinsights.model.JoinInsight;
+import io.trino.Session;
 import io.trino.spi.QueryId;
 import io.trino.testing.StandaloneQueryRunner;
 import org.intellij.lang.annotations.Language;
@@ -27,6 +28,8 @@ import static io.starburst.server.castleinsights.CastleInsightsTestHelper.create
 import static io.starburst.server.castleinsights.CastleInsightsTestHelper.finalQueryInfo;
 import static io.starburst.server.castleinsights.model.Cardinality.MANY_TO_MANY;
 import static io.starburst.server.castleinsights.model.Cardinality.MANY_TO_ONE;
+import static io.starburst.server.castleinsights.model.Cardinality.ONE_TO_MANY;
+import static io.starburst.server.castleinsights.model.Cardinality.ONE_TO_ONE;
 import static io.starburst.server.castleinsights.model.JoinType.INNER;
 import static io.trino.SessionTestUtils.TEST_SESSION;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -34,6 +37,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class TestJoinAnalyzer
 {
+    // A right join over two small tables is otherwise flipped into a left join over swapped children, which
+    // is a different shape than these tests mean to cover.
+    private static final Session SESSION = Session.builder(TEST_SESSION)
+            .setSystemProperty("join_distribution_type", "PARTITIONED")
+            .setSystemProperty("join_reordering_strategy", "NONE")
+            .build();
+
     private final JoinAnalyzer analyzer = new JoinAnalyzer();
     private StandaloneQueryRunner queryRunner;
 
@@ -84,6 +94,47 @@ public class TestJoinAnalyzer
     }
 
     @Test
+    public void testRightJoinDetectsOneToOne()
+    {
+        // A right join has to emit the build rows nothing matched, so the engine tracks which build rows
+        // were matched and a unique left side becomes provable rather than merely unrefuted. Joining
+        // customer to itself on its key makes both sides unique.
+        JoinInsight insight = getJoinInsight("SELECT c1.name FROM customer c1 RIGHT JOIN customer c2 ON c1.custkey = c2.custkey");
+
+        assertThat(insight.cardinality()).contains(ONE_TO_ONE);
+    }
+
+    @Test
+    public void testRightJoinDetectsOneToMany()
+    {
+        // region is unique on regionkey and nation is not: one region to many nations. Only a right join
+        // can prove the left side unique, so this is the shape that yields ONE_TO_MANY.
+        JoinInsight insight = getJoinInsight("SELECT n.name FROM region r RIGHT JOIN nation n ON r.regionkey = n.regionkey");
+
+        assertThat(insight.cardinality()).contains(ONE_TO_MANY);
+    }
+
+    @Test
+    public void testRightJoinWithUnmatchedBuildRowsDetectsManyToOne()
+    {
+        // Customers without orders are preserved by the right join, so the unmatched build rows have to be
+        // discounted on both sides of the comparison before the left side can be judged non-unique.
+        JoinInsight insight = getJoinInsight("SELECT c.name FROM orders o RIGHT JOIN customer c ON o.custkey = c.custkey");
+
+        assertThat(insight.cardinality()).contains(MANY_TO_ONE);
+    }
+
+    @Test
+    public void testInnerJoinCannotProveOneToOne()
+    {
+        // The same self-join as an inner join: nothing measures how many build rows were matched, so a
+        // unique left side cannot be told from a non-unique one and no cardinality is reported.
+        JoinInsight insight = getJoinInsight("SELECT c1.name FROM customer c1 JOIN customer c2 ON c1.custkey = c2.custkey");
+
+        assertThat(insight.cardinality()).isEmpty();
+    }
+
+    @Test
     public void testColumnNamesSurviveAProjection()
     {
         // Casting the join key forces a projection between the scan and the join; the column name must
@@ -121,7 +172,7 @@ public class TestJoinAnalyzer
 
     private List<CastleInsight> analyze(@Language("SQL") String sql)
     {
-        QueryId queryId = queryRunner.executeWithQueryId(TEST_SESSION, sql).queryId();
+        QueryId queryId = queryRunner.executeWithQueryId(SESSION, sql).queryId();
         return analyzer.analyze(new CastleQueryAnalysis(finalQueryInfo(queryRunner, queryId)));
     }
 }
