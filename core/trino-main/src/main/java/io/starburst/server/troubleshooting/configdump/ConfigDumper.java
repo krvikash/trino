@@ -9,6 +9,7 @@
  */
 package io.starburst.server.troubleshooting.configdump;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
 import io.airlift.configuration.ConfigurationFactory;
@@ -30,14 +31,13 @@ import java.lang.management.ManagementFactory;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
-import static com.google.common.base.Preconditions.checkState;
-import static com.google.common.base.Strings.isNullOrEmpty;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.airlift.configuration.ConfigurationLoader.loadPropertiesFrom;
 import static java.nio.charset.StandardCharsets.ISO_8859_1;
@@ -46,7 +46,6 @@ import static java.util.Objects.requireNonNull;
 
 public class ConfigDumper
 {
-    private static final String ACCESS_CONTROL_NAME_PROPERTY = "access-control.name";
     private static final Path JVM_CONFIG_FILE = Path.of("etc", "jvm.config");
     private static final byte[] SECURITY_SENSITIVE_PROPERTY_VALUE = "[REDACTED]".getBytes(ISO_8859_1);
 
@@ -207,18 +206,46 @@ public class ConfigDumper
 
     private void dumpFileBasedAccessControlConfig(ZipOutputStream outputStream, String directoryName)
     {
+        String accessControlDirectory = directoryName + "/access_control";
+        Set<String> usedNames = new HashSet<>();
         for (Path configFile : accessControlConfigFiles) {
             Map<String, String> properties = loadProperties(configFile);
 
-            String name = properties.get(ACCESS_CONTROL_NAME_PROPERTY);
-            checkState(!isNullOrEmpty(name), "Configuration file '%s' does not contain property '%s'", configFile, ACCESS_CONTROL_NAME_PROPERTY);
-
-            dumpProperties(properties, "%s_access_control.properties".formatted(name), outputStream, directoryName);
+            dumpProperties(properties, generateUniqueFileName(usedNames, configFile), outputStream, accessControlDirectory);
             String configFilePath = properties.get("security.config-file");
             if (configFilePath != null) {
-                dumpFileIfExists(Path.of(configFilePath), "%s_access_control_rules.json".formatted(name), outputStream, directoryName);
+                Path path = Path.of(configFilePath);
+                dumpFileIfExists(path, generateUniqueFileName(usedNames, path), outputStream, accessControlDirectory);
             }
         }
+    }
+
+    @VisibleForTesting
+    static String generateUniqueFileName(Set<String> usedNames, Path path)
+    {
+        String fileName = path.getFileName().toString();
+        if (usedNames.add(fileName)) {
+            return fileName;
+        }
+        String baseName;
+        String extension;
+        int dotIndex = fileName.lastIndexOf('.');
+        if (dotIndex == -1) {
+            baseName = fileName;
+            extension = "";
+        }
+        else {
+            baseName = fileName.substring(0, dotIndex);
+            extension = fileName.substring(dotIndex);
+        }
+        int counter = 2;
+        String candidate;
+        do {
+            candidate = "%s_%d%s".formatted(baseName, counter, extension);
+            counter++;
+        }
+        while (!usedNames.add(candidate));
+        return candidate;
     }
 
     private void dumpBuiltInFeatureConfigs(ZipOutputStream outputStream, String directoryName)

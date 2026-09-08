@@ -26,6 +26,7 @@ import io.trino.testing.DistributedQueryRunner;
 import io.trino.testing.QueryRunner;
 import io.trino.tests.tpch.TpchQueryRunner;
 
+import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -35,7 +36,6 @@ import java.util.Set;
 
 import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
 import static io.starburst.server.troubleshooting.TroubleshootingTestHelper.assertPropertyExists;
-import static io.trino.testing.FileUtils.createTempFileForTesting;
 import static java.nio.charset.StandardCharsets.ISO_8859_1;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -52,25 +52,22 @@ public class TestQueryTroubleshooting
             USER_WITHIN_AUTHORIZED_GROUP, ImmutableSet.of(AUTHORIZED_GROUP),
             USER_WITHIN_UNAUTHORIZED_GROUP, ImmutableSet.of(UNAUTHORIZED_GROUP));
 
-    private Path accessControlPropertiesFile;
-    private Path accessControlRulesFile;
-    private byte[] rulesFileContent;
+    private Path accessControlRulesFile1;
+    private Path accessControlRulesFile2;
+    private byte[] rulesFileContent1;
+    private byte[] rulesFileContent2;
 
     @Override
     protected QueryRunner createQueryRunner()
             throws Exception
     {
-        accessControlRulesFile = Path.of(TestQueryTroubleshooting.class.getClassLoader().getResource("file-access/access-control-rules.json").toURI());
-        accessControlPropertiesFile = createTempFileForTesting();
-        rulesFileContent = Files.readAllBytes(accessControlRulesFile);
-        try (OutputStream outputStream = Files.newOutputStream(accessControlPropertiesFile)) {
-            outputStream.write("access-control.name=file".getBytes(ISO_8859_1));
-            outputStream.write('\n');
-            outputStream.write("security.config-file".getBytes(ISO_8859_1));
-            outputStream.write('=');
-            outputStream.write(accessControlRulesFile.toString().getBytes(ISO_8859_1));
-            outputStream.write('\n');
-        }
+        accessControlRulesFile1 = Path.of(TestQueryTroubleshooting.class.getClassLoader().getResource("file-access/access-control-rules.json").toURI());
+        accessControlRulesFile2 = Path.of(TestQueryTroubleshooting.class.getClassLoader().getResource("file-access/access-control-rules-2.json").toURI());
+        rulesFileContent1 = Files.readAllBytes(accessControlRulesFile1);
+        rulesFileContent2 = Files.readAllBytes(accessControlRulesFile2);
+
+        Path accessControlPropertiesFile1 = writeAccessControlProperties(createTempDirectoryForTesting(), accessControlRulesFile1);
+        Path accessControlPropertiesFile2 = writeAccessControlProperties(createTempDirectoryForTesting(), accessControlRulesFile2);
 
         DistributedQueryRunner queryRunner = TpchQueryRunner.builder()
                 .addExtraProperty("troubleshooting.jfr.max-recording-size", "8MB")
@@ -83,7 +80,7 @@ public class TestQueryTroubleshooting
                     {
                         newOptionalBinder(binder, Key.get(new TypeLiteral<List<Path>>() {}, ForAccessControlConfigDump.class))
                                 .setBinding()
-                                .toInstance(ImmutableList.of(accessControlPropertiesFile));
+                                .toInstance(ImmutableList.of(accessControlPropertiesFile1, accessControlPropertiesFile2));
                         binder.bind(TroubleshootingAccessControl.class)
                                 .toInstance(identity -> AUTHORIZED_USER.equals(identity.getUser()) || identity.getGroups().contains(AUTHORIZED_GROUP));
                         install(new TroubleshootingModule());
@@ -99,6 +96,29 @@ public class TestQueryTroubleshooting
         queryRunner.getGroupProvider().setConfiguredGroupProvider(groupProvider);
 
         return queryRunner;
+    }
+
+    private static Path writeAccessControlProperties(Path directory, Path rulesFile)
+            throws Exception
+    {
+        Path propertiesFile = directory.resolve("access-control.properties");
+        try (OutputStream outputStream = Files.newOutputStream(propertiesFile)) {
+            outputStream.write("access-control.name=file".getBytes(ISO_8859_1));
+            outputStream.write('\n');
+            outputStream.write("security.config-file".getBytes(ISO_8859_1));
+            outputStream.write('=');
+            outputStream.write(rulesFile.toString().getBytes(ISO_8859_1));
+            outputStream.write('\n');
+        }
+        return propertiesFile;
+    }
+
+    private static Path createTempDirectoryForTesting()
+            throws IOException
+    {
+        Path directory = Files.createTempDirectory(null);
+        directory.toFile().deleteOnExit();
+        return directory;
     }
 
     @Override
@@ -124,10 +144,16 @@ public class TestQueryTroubleshooting
     {
         assertThat(coordinatorConfig.contents())
                 .hasEntrySatisfying(
-                        "coordinator/file_access_control.properties",
-                        value -> assertPropertyExists(value, "security.config-file=%s".formatted(accessControlRulesFile)))
+                        "coordinator/access_control/access-control.properties",
+                        value -> assertPropertyExists(value, "security.config-file=%s".formatted(accessControlRulesFile1)))
                 .hasEntrySatisfying(
-                        "coordinator/file_access_control_rules.json",
-                        value -> assertThat(value).isEqualTo(rulesFileContent));
+                        "coordinator/access_control/access-control-rules.json",
+                        value -> assertThat(value).isEqualTo(rulesFileContent1))
+                .hasEntrySatisfying(
+                        "coordinator/access_control/access-control_2.properties",
+                        value -> assertPropertyExists(value, "security.config-file=%s".formatted(accessControlRulesFile2)))
+                .hasEntrySatisfying(
+                        "coordinator/access_control/access-control-rules-2.json",
+                        value -> assertThat(value).isEqualTo(rulesFileContent2));
     }
 }
