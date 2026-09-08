@@ -58,8 +58,16 @@ public interface Workload
 
     /**
      * Build a query runner with all benchmark tables registered, applying mode-specific extras.
+     * A warp index directory adds a warp_speed catalog proxying the workload's own connector;
+     * benchmark queries then run against that catalog while setup and ANALYZE stay on the
+     * workload's catalog.
      */
-    DistributedQueryRunner createRunner(String dataLocation, BenchmarkRunner.ExecutionMode mode, boolean bind8080, Optional<Path> fsCacheDirectory)
+    DistributedQueryRunner createRunner(
+            String dataLocation,
+            BenchmarkRunner.ExecutionMode mode,
+            boolean bind8080,
+            Optional<Path> fsCacheDirectory,
+            Optional<Path> warpIndexDirectory)
             throws Exception;
 
     /**

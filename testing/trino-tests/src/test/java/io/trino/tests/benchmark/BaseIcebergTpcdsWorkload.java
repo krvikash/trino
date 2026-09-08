@@ -36,6 +36,8 @@ import static io.trino.testing.containers.Minio.MINIO_ROOT_PASSWORD;
 import static io.trino.testing.containers.Minio.MINIO_ROOT_USER;
 import static io.trino.tests.benchmark.BenchmarkRunner.isRemote;
 import static io.trino.tests.benchmark.IcebergTablesUtil.registerTables;
+import static io.trino.tests.benchmark.WarpIndexSupport.WARP_CATALOG;
+import static io.trino.tests.benchmark.WarpIndexSupport.createWarpCatalog;
 import static java.util.Locale.ENGLISH;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -53,6 +55,8 @@ public abstract class BaseIcebergTpcdsWorkload
             .collect(toImmutableList());
 
     protected final int scaleFactor;
+
+    private String benchmarkCatalog = "iceberg";
 
     protected BaseIcebergTpcdsWorkload(int scaleFactor)
     {
@@ -80,7 +84,7 @@ public abstract class BaseIcebergTpcdsWorkload
     @Override
     public String readQuery(String query)
     {
-        return Tpcds.readQuery(query, "iceberg", "tpcds");
+        return Tpcds.readQuery(query, benchmarkCatalog, "tpcds");
     }
 
     @Override
@@ -90,7 +94,12 @@ public abstract class BaseIcebergTpcdsWorkload
     }
 
     @Override
-    public DistributedQueryRunner createRunner(String dataLocation, BenchmarkRunner.ExecutionMode mode, boolean bind8080, Optional<Path> fsCacheDirectory)
+    public DistributedQueryRunner createRunner(
+            String dataLocation,
+            BenchmarkRunner.ExecutionMode mode,
+            boolean bind8080,
+            Optional<Path> fsCacheDirectory,
+            Optional<Path> warpIndexDirectory)
             throws Exception
     {
         if (isRemote(dataLocation)) {
@@ -103,36 +112,42 @@ public abstract class BaseIcebergTpcdsWorkload
         minio.mountDataDirectory(minioDataDir.toString());
         minio.start();
 
+        Map<String, String> icebergProperties = new HashMap<>();
+        icebergProperties.put("iceberg.register-table-procedure.enabled", "true");
+        icebergProperties.put("fs.s3.enabled", "true");
+        icebergProperties.put("s3.aws-access-key", MINIO_ROOT_USER);
+        icebergProperties.put("s3.aws-secret-key", MINIO_ROOT_PASSWORD);
+        icebergProperties.put("s3.region", MINIO_REGION);
+        icebergProperties.put("s3.endpoint", minio.getMinioAddress());
+        icebergProperties.put("s3.path-style-access", "true");
+
         IcebergQueryRunner.Builder builder = IcebergQueryRunner.builder()
                 .setMetastoreDirectory(Path.of(dataLocation).toFile())
                 .setWorkerCount(0)
                 .disableSchemaInitializer()
                 .setTpcdsCatalogEnabled(true)
-                .addIcebergProperty("iceberg.register-table-procedure.enabled", "true")
-                .addIcebergProperty("fs.s3.enabled", "true")
-                .addIcebergProperty("s3.aws-access-key", MINIO_ROOT_USER)
-                .addIcebergProperty("s3.aws-secret-key", MINIO_ROOT_PASSWORD)
-                .addIcebergProperty("s3.region", MINIO_REGION)
-                .addIcebergProperty("s3.endpoint", minio.getMinioAddress())
-                .addIcebergProperty("s3.path-style-access", "true")
                 .registerResource(minio);
         BenchmarkRunner.configureQueryRunner(builder, mode, bind8080);
-
-        Map<String, String> fsCacheProperties = new HashMap<>();
-        BenchmarkRunner.applyFilesystemCache(builder, fsCacheProperties, fsCacheDirectory);
-        fsCacheProperties.forEach(builder::addIcebergProperty);
+        BenchmarkRunner.applyFilesystemCache(builder, icebergProperties, fsCacheDirectory);
 
         if (mode == BenchmarkRunner.ExecutionMode.GPU) {
-            builder.addIcebergProperty("iceberg.max-split-size", "512MB")
-                    .addIcebergProperty("iceberg.experimental.composite-splits.enabled", "true");
+            icebergProperties.put("iceberg.max-split-size", "512MB");
+            icebergProperties.put("iceberg.experimental.composite-splits.enabled", "true");
         }
-        DistributedQueryRunner runner = builder.build();
+        DistributedQueryRunner runner = builder.addIcebergProperties(icebergProperties).build();
         runner.execute("CREATE SCHEMA IF NOT EXISTS iceberg.tpcds");
 
         HiveMetastore hiveMetastore = ((IcebergConnector) runner.getCoordinator().getConnector("iceberg")).getInjector()
                 .getInstance(HiveMetastoreFactory.class)
                 .createMetastore(Optional.empty());
         registerTables(minio, hiveMetastore, "starburst-benchmarks-data", dataLocation, "tpcds", TABLES, "iceberg-tpcds-sf%d-parquet".formatted(scaleFactor));
+
+        if (warpIndexDirectory.isPresent()) {
+            Map<String, String> warpProxiedProperties = new HashMap<>(icebergProperties);
+            warpProxiedProperties.put("iceberg.catalog.type", "TESTING_FILE_METASTORE");
+            createWarpCatalog(runner, "iceberg", warpProxiedProperties, Path.of(dataLocation), Path.of(dataLocation, "iceberg"), warpIndexDirectory.get());
+            benchmarkCatalog = WARP_CATALOG;
+        }
 
         return runner;
     }

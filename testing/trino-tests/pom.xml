@@ -197,6 +197,20 @@
 
         <dependency>
             <groupId>io.trino</groupId>
+            <artifactId>starburst-warp-speed-core</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>io.trino</groupId>
+            <artifactId>starburst-warp-speed-plugin</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>io.trino</groupId>
             <artifactId>trino-base-jdbc</artifactId>
             <scope>test</scope>
         </dependency>

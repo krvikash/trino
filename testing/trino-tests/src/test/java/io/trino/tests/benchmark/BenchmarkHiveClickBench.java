@@ -31,6 +31,8 @@ import java.util.Optional;
 import static io.trino.testing.TestingSession.testSessionBuilder;
 import static io.trino.tests.benchmark.BenchmarkRunner.applyDataGenerationConfiguration;
 import static io.trino.tests.benchmark.BenchmarkRunner.isRemote;
+import static io.trino.tests.benchmark.WarpIndexSupport.WARP_CATALOG;
+import static io.trino.tests.benchmark.WarpIndexSupport.createWarpCatalog;
 import static java.lang.String.format;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -161,6 +163,8 @@ public final class BenchmarkHiveClickBench
     static final class ClickBenchWorkload
             implements Workload
     {
+        private String benchmarkCatalog = "hive";
+
         @Override
         public DataSize jvmHeapSize()
         {
@@ -188,7 +192,7 @@ public final class BenchmarkHiveClickBench
         @Override
         public String readQuery(String query)
         {
-            return ClickBench.readQuery(query, "hive", "clickbench");
+            return ClickBench.readQuery(query, benchmarkCatalog, "clickbench");
         }
 
         @Override
@@ -223,9 +227,17 @@ public final class BenchmarkHiveClickBench
         }
 
         @Override
-        public DistributedQueryRunner createRunner(String dataLocation, BenchmarkRunner.ExecutionMode mode, boolean bind8080, Optional<Path> fsCacheDirectory)
+        public DistributedQueryRunner createRunner(
+                String dataLocation,
+                BenchmarkRunner.ExecutionMode mode,
+                boolean bind8080,
+                Optional<Path> fsCacheDirectory,
+                Optional<Path> warpIndexDirectory)
                 throws Exception
         {
+            if (warpIndexDirectory.isPresent() && !isRemote(dataLocation)) {
+                throw new IllegalArgumentException("--warp-index requires a remote --data location");
+            }
             DistributedQueryRunner.Builder<?> builder = DistributedQueryRunner.builder(testSessionBuilder().build());
 
             builder.setWorkerCount(0); // single-node
@@ -268,6 +280,12 @@ public final class BenchmarkHiveClickBench
                     HITS_COLUMNS,
                     hitsLocation));
 
+            if (warpIndexDirectory.isPresent()) {
+                Map<String, String> warpProxiedProperties = new HashMap<>(hiveProperties);
+                warpProxiedProperties.put("hive.metastore", "file");
+                createWarpCatalog(queryRunner, "hive", warpProxiedProperties, dataDir, dataDir.resolve("hive"), warpIndexDirectory.get());
+                benchmarkCatalog = WARP_CATALOG;
+            }
             return queryRunner;
         }
 

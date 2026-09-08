@@ -344,8 +344,11 @@ public final class BenchmarkRunner
         @Option(names = "--data", description = "Data directory or URI (e.g. s3://bucket/prefix). Default: workload-specific.")
         String dataLocation;
 
-        @Option(names = "--fs-cache", description = "Directory backing an OS-local filesystem cache for remote reads. When set, the workload enables fs.cache.* against this directory; reads are uncached when unset.")
+        @Option(names = "--fs-cache", description = "Directory backing an OS-local filesystem cache for remote reads. When set, the workload enables fs.cache.* against this directory; reads are uncached when unset. Defaults to a sibling of --warp-index when that is set.")
         String fsCacheDirectory;
+
+        @Option(names = "--warp-index", description = "Directory backing a Warp Speed local store. Queries run through the warp_speed connector proxying the workload's own connector, warp indexes the columns they read, and the filesystem cache is enabled.")
+        String warpIndexDirectory;
 
         @Option(names = "--debug", description = "Enable debug logging")
         boolean debug;
@@ -448,7 +451,19 @@ public final class BenchmarkRunner
 
             log.info("Per-iteration EXPLAIN ANALYZE plans will be written under %s", explainOutputDir.toAbsolutePath());
 
-            try (DistributedQueryRunner runner = workload.createRunner(data, mode, /*bind8080*/ false, Optional.ofNullable(fsCacheDirectory).map(Path::of));
+            Optional<Path> warpIndex = Optional.ofNullable(warpIndexDirectory).map(Path::of);
+            // production pairs the warp index with the filesystem cache, so the arm gets one either way
+            Optional<Path> fsCache = Optional.ofNullable(fsCacheDirectory)
+                    .map(Path::of)
+                    .or(() -> warpIndex.map(directory -> directory.resolveSibling(directory.getFileName() + "-fs-cache")));
+            fsCache.ifPresent(directory -> log.info("Filesystem cache directory: %s", directory.toAbsolutePath()));
+
+            try (DistributedQueryRunner runner = workload.createRunner(
+                    data,
+                    mode,
+                    /*bind8080*/ false,
+                    fsCache,
+                    warpIndex);
                     ListeningExecutorService executor = concurrency == 1 ? newDirectExecutorService() : listeningDecorator(newFixedThreadPool(concurrency))) {
                 ProfileSession session = ProfileSession.of(profileEvent, workload, profileOutputDir);
 
@@ -811,7 +826,7 @@ public final class BenchmarkRunner
             enableDebugLogging();
             String data = canonicalize(workload.defaultDataLocation());
             workload.validateDataLocation(data);
-            try (DistributedQueryRunner queryRunner = workload.createRunner(data, mode, /*bind8080*/ true, Optional.empty())) {
+            try (DistributedQueryRunner queryRunner = workload.createRunner(data, mode, /*bind8080*/ true, Optional.empty(), Optional.empty())) {
                 log.info("======== SERVER STARTED (%s) ========", mode);
                 log.info("\n====\n%s\n====", queryRunner.getCoordinator().getBaseUrl());
                 verifyTableStatistics(queryRunner, workload);
@@ -893,7 +908,7 @@ public final class BenchmarkRunner
             if (dataLocation == null) {
                 workload.validateDataLocation(data);
             }
-            try (DistributedQueryRunner runner = workload.createRunner(data, ExecutionMode.CPU, /*bind8080*/ false, Optional.empty())) {
+            try (DistributedQueryRunner runner = workload.createRunner(data, ExecutionMode.CPU, /*bind8080*/ false, Optional.empty(), Optional.empty())) {
                 if (dataLocation != null) {
                     workload.verifyDataset(runner);
                 }

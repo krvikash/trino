@@ -36,6 +36,8 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.trino.testing.TestingSession.testSessionBuilder;
 import static io.trino.tests.benchmark.BenchmarkRunner.applyDataGenerationConfiguration;
 import static io.trino.tests.benchmark.BenchmarkRunner.isRemote;
+import static io.trino.tests.benchmark.WarpIndexSupport.WARP_CATALOG;
+import static io.trino.tests.benchmark.WarpIndexSupport.createWarpCatalog;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -53,6 +55,8 @@ public abstract class BaseHiveTpchWorkload
     private static final Pattern EXTERNAL_LOCATION_PATTERN = Pattern.compile("external_location\\s*=\\s*'([^']+)'");
 
     protected final int scaleFactor;
+
+    private String benchmarkCatalog = "hive";
 
     protected BaseHiveTpchWorkload(int scaleFactor)
     {
@@ -80,7 +84,7 @@ public abstract class BaseHiveTpchWorkload
     @Override
     public String readQuery(String query)
     {
-        return Tpch.readQuery(query, "hive", "tpch", scaleFactor);
+        return Tpch.readQuery(query, benchmarkCatalog, "tpch", scaleFactor);
     }
 
     @Override
@@ -107,9 +111,17 @@ public abstract class BaseHiveTpchWorkload
     }
 
     @Override
-    public DistributedQueryRunner createRunner(String dataLocation, BenchmarkRunner.ExecutionMode mode, boolean bind8080, Optional<Path> fsCacheDirectory)
+    public DistributedQueryRunner createRunner(
+            String dataLocation,
+            BenchmarkRunner.ExecutionMode mode,
+            boolean bind8080,
+            Optional<Path> fsCacheDirectory,
+            Optional<Path> warpIndexDirectory)
             throws Exception
     {
+        if (warpIndexDirectory.isPresent() && !isRemote(dataLocation)) {
+            throw new IllegalArgumentException("--warp-index requires a remote --data location");
+        }
         // Persist the in-process FileHiveMetastore (and therefore ANALYZE-collected stats)
         // across runs so the harness doesn't re-ANALYZE every invocation.
         // Wipe the directory if the underlying parquet files change.
@@ -159,6 +171,13 @@ public abstract class BaseHiveTpchWorkload
         runner.execute("CREATE SCHEMA IF NOT EXISTS hive.tpch");
         for (String table : TABLES) {
             createExternalTable(runner, dataLocation, table);
+        }
+
+        if (warpIndexDirectory.isPresent()) {
+            Map<String, String> warpProxiedProperties = new HashMap<>(hiveProperties);
+            warpProxiedProperties.put("hive.metastore", "file");
+            createWarpCatalog(runner, "hive", warpProxiedProperties, localFileSystemRoot, localFileSystemRoot.resolve("hive"), warpIndexDirectory.get());
+            benchmarkCatalog = WARP_CATALOG;
         }
         return runner;
     }
