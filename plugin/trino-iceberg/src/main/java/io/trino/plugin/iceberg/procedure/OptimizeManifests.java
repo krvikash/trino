@@ -111,7 +111,7 @@ public final class OptimizeManifests
                     return clusteredPartitionValues.get(value);
                 })
                 .scanManifestsWith(icebergScanExecutor);
-        carryForwardMaterializedViewDependencies(snapshot, rewriteManifests);
+        carryForwardMaterializedViewDependencies(rewriteManifests);
         rewriteManifests.commit();
 
         CommitReport report = reporter.commitReport();
