@@ -175,7 +175,8 @@ public class PlanFragmenter
                 activeCatalogs,
                 languageFunctionManager.serializeFunctionsForWorkers(session),
                 idAllocator,
-                unchangedSubPlans);
+                unchangedSubPlans,
+                forceSingleNode);
         FragmentProperties properties = new FragmentProperties(outputPartitioningScheme);
         if (forceSingleNode || isForceSingleNodeOutput(session)) {
             properties = properties.setSingleNodeDistribution();
@@ -229,7 +230,7 @@ public class PlanFragmenter
         // TODO We should assign a PlanNodeId to each relational operation in the rewritten plan, calculate stats and cost for those operations, and make the StatsAndCosts map.
         NewIrFragmenter fragmenter = new NewIrFragmenter(session, metadata, functionManager, activeCatalogs, languageFunctionManager.serializeFunctionsForWorkers(session));
 
-        SubPlan subPlan = fragmenter.fragmentProgram(program, properties);
+        SubPlan subPlan = fragmenter.fragmentProgram(program, properties, forceSingleNode);
         Optional<SubPlan> reassignedSubPlan = reassignPartitioningHandleIfNecessary(session, subPlan);
         if (reassignedSubPlan.isEmpty()) {
             return Optional.empty();
@@ -410,6 +411,7 @@ public class PlanFragmenter
         private final PlanFragmentIdAllocator idAllocator;
         private final Map<ExchangeSourceId, SubPlan> unchangedSubPlans;
         private final PlanFragmentId rootFragmentID;
+        private final boolean forceSingleNode;
 
         public Fragmenter(
                 Session session,
@@ -419,7 +421,8 @@ public class PlanFragmenter
                 List<CatalogProperties> activeCatalogs,
                 Map<FunctionId, LanguageFunctionData> languageFunctions,
                 PlanFragmentIdAllocator idAllocator,
-                Map<ExchangeSourceId, SubPlan> unchangedSubPlans)
+                Map<ExchangeSourceId, SubPlan> unchangedSubPlans,
+                boolean forceSingleNode)
         {
             this.session = requireNonNull(session, "session is null");
             this.metadata = requireNonNull(metadata, "metadata is null");
@@ -430,6 +433,7 @@ public class PlanFragmenter
             this.idAllocator = requireNonNull(idAllocator, "idAllocator is null");
             this.unchangedSubPlans = ImmutableMap.copyOf(requireNonNull(unchangedSubPlans, "unchangedSubPlans is null"));
             this.rootFragmentID = idAllocator.getNextId();
+            this.forceSingleNode = forceSingleNode;
         }
 
         public SubPlan buildRootFragment(PlanNode root, FragmentProperties properties)
@@ -700,6 +704,10 @@ public class PlanFragmenter
             ImmutableList.Builder<SubPlan> childrenBuilder = ImmutableList.builder();
             for (int sourceIndex = 0; sourceIndex < exchange.getSources().size(); sourceIndex++) {
                 FragmentProperties childProperties = new FragmentProperties(partitioningScheme.translateOutputLayout(exchange.getInputs().get(sourceIndex)));
+                if (forceSingleNode) {
+                    // The whole query must be executed on a single node, not only its root fragment.
+                    childProperties.setSingleNodeDistribution();
+                }
                 childrenProperties.add(childProperties);
                 childrenBuilder.add(buildSubPlan(
                         exchange.getSources().get(sourceIndex),

@@ -1076,29 +1076,30 @@ public class PlanTester
 
     public Plan createPlan(Session session, @Language("SQL") String sql)
     {
-        return createPlan(session, sql, getPlanOptimizers(), getAlternativeOptimizers(), OPTIMIZED_AND_VALIDATED, true, NOOP, createPlanOptimizersStatsCollector());
+        return createPlan(session, sql, getPlanOptimizers(true), getAlternativeOptimizers(), OPTIMIZED_AND_VALIDATED, true, NOOP, createPlanOptimizersStatsCollector());
     }
 
     public Plan createPlan(Session session, @Language("SQL") String sql, LogicalPlanner.Stage stage, boolean forceSingleNode, WarningCollector warningCollector, PlanOptimizersStatsCollector planOptimizersStatsCollector)
     {
-        return createPlan(session, sql, getPlanOptimizers(), getAlternativeOptimizers(), stage, forceSingleNode, warningCollector, planOptimizersStatsCollector);
+        return createPlan(session, sql, getPlanOptimizers(forceSingleNode), getAlternativeOptimizers(), stage, forceSingleNode, warningCollector, planOptimizersStatsCollector);
     }
 
-    public List<PlanOptimizer> getPlanOptimizers()
+    public List<PlanOptimizer> getPlanOptimizers(boolean forceSingleNode)
     {
-        return getPlanOptimizersFactory().getPlanOptimizers();
+        return getPlanOptimizersFactory(forceSingleNode).getPlanOptimizers();
     }
 
     public List<AdaptivePlanOptimizer> getAdaptivePlanOptimizers()
     {
-        return getPlanOptimizersFactory().getAdaptivePlanOptimizers();
+        return getPlanOptimizersFactory(false).getAdaptivePlanOptimizers();
     }
 
-    public PlanOptimizersFactory getPlanOptimizersFactory()
+    public PlanOptimizersFactory getPlanOptimizersFactory(boolean forceSingleNode)
     {
         return new PlanOptimizers(
                 plannerContext,
                 taskManagerConfig,
+                forceSingleNode,
                 splitManager,
                 pageSourceManager,
                 statsCalculator,

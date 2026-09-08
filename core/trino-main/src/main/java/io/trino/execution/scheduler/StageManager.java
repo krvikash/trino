@@ -69,7 +69,6 @@ class StageManager
     static StageManager create(
             QueryStateMachine queryStateMachine,
             Metadata metadata,
-            boolean forceSingleNodeQuery,
             RemoteTaskFactory taskFactory,
             NodeTaskMap nodeTaskMap,
             Tracer tracer,
@@ -107,7 +106,7 @@ class StageManager
             StageId stageId = stage.getStageId();
             stages.put(stageId, stage);
             stagesInTopologicalOrder.add(stage);
-            if (!forceSingleNodeQuery && fragment.getPartitioning().isCoordinatorOnly()) {
+            if (fragment.getPartitioning().isCoordinatorOnly()) {
                 coordinatorStagesInTopologicalOrder.add(stage);
             }
             else {

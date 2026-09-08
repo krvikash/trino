@@ -71,7 +71,7 @@ public class TestInputExtractor
             Plan plan = planTester.createPlan(
                     session,
                     sql,
-                    planTester.getPlanOptimizers(),
+                    planTester.getPlanOptimizers(false),
                     planTester.getAlternativeOptimizers(),
                     OPTIMIZED_AND_VALIDATED,
                     false,

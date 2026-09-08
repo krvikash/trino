@@ -73,6 +73,7 @@ import io.trino.sql.planner.plan.ProjectNode;
 import io.trino.sql.planner.plan.RefreshMaterializedViewNode;
 import io.trino.sql.planner.plan.RowNumberNode;
 import io.trino.sql.planner.plan.SemiJoinNode;
+import io.trino.sql.planner.plan.SimplePlanRewriter;
 import io.trino.sql.planner.plan.SimpleTableExecuteNode;
 import io.trino.sql.planner.plan.SortNode;
 import io.trino.sql.planner.plan.SpatialJoinNode;
@@ -161,10 +162,52 @@ public class AddExchanges
     @Override
     public PlanNode optimize(PlanNode plan, Context context)
     {
+        if (context.forceSingleNodeQuery()) {
+            return SimplePlanRewriter.rewriteWith(new ForceSingleNodeQueryRewriter(context.idAllocator()), plan);
+        }
+
         PlanWithProperties result = plan.accept(
                 new Rewriter(context.idAllocator(), context.symbolAllocator(), context.session(), context.tableStatsProvider()),
                 PreferredProperties.any());
         return result.getNode();
+    }
+
+    /// A single node query needs no exchange to satisfy partitioning requirements. It still needs one for every plan
+    /// node that must run on the coordinator, so that the node gets a stage of its own instead of pulling the whole
+    /// query into a coordinator only stage.
+    private static class ForceSingleNodeQueryRewriter
+            extends SimplePlanRewriter<Void>
+    {
+        private final PlanNodeIdAllocator idAllocator;
+
+        public ForceSingleNodeQueryRewriter(PlanNodeIdAllocator idAllocator)
+        {
+            this.idAllocator = requireNonNull(idAllocator, "idAllocator is null");
+        }
+
+        @Override
+        public PlanNode visitExplainAnalyze(ExplainAnalyzeNode node, RewriteContext<Void> context)
+        {
+            return gatherSource(node, context);
+        }
+
+        @Override
+        public PlanNode visitStatisticsWriterNode(StatisticsWriterNode node, RewriteContext<Void> context)
+        {
+            return gatherSource(node, context);
+        }
+
+        @Override
+        public PlanNode visitTableFinish(TableFinishNode node, RewriteContext<Void> context)
+        {
+            return gatherSource(node, context);
+        }
+
+        private PlanNode gatherSource(PlanNode node, RewriteContext<Void> context)
+        {
+            PlanNode source = context.rewrite(getOnlyElement(node.getSources()));
+            return node.replaceChildren(ImmutableList.of(gatheringExchange(idAllocator.getNextId(), REMOTE, source)));
+        }
     }
 
     private class Rewriter

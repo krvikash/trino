@@ -145,7 +145,7 @@ public class BasePlanTest
 
     protected void assertPlan(@Language("SQL") String sql, LogicalPlanner.Stage stage, PlanMatchPattern pattern)
     {
-        List<PlanOptimizer> optimizers = planTester.getPlanOptimizers();
+        List<PlanOptimizer> optimizers = planTester.getPlanOptimizers(true);
 
         assertPlan(sql, stage, pattern, optimizers, true);
     }
@@ -157,7 +157,7 @@ public class BasePlanTest
 
     protected void assertPlan(@Language("SQL") String sql, LogicalPlanner.Stage stage, PlanMatchPattern pattern, Predicate<PlanOptimizer> optimizerPredicate)
     {
-        List<PlanOptimizer> optimizers = planTester.getPlanOptimizers().stream()
+        List<PlanOptimizer> optimizers = planTester.getPlanOptimizers(true).stream()
                 .filter(optimizerPredicate)
                 .collect(toList());
 
@@ -225,7 +225,7 @@ public class BasePlanTest
                 Plan actualPlan = planTester.createPlan(
                         transactionSession,
                         sql,
-                        planTester.getPlanOptimizers(),
+                        planTester.getPlanOptimizers(forceSingleNode),
                         planTester.getAlternativeOptimizers(),
                         OPTIMIZED_AND_VALIDATED,
                         forceSingleNode,
@@ -248,7 +248,7 @@ public class BasePlanTest
                 Plan actualPlan = planTester.createPlan(
                         transactionSession,
                         sql,
-                        planTester.getPlanOptimizers(),
+                        planTester.getPlanOptimizers(forceSingleNode),
                         planTester.getAlternativeOptimizers(),
                         OPTIMIZED_AND_VALIDATED,
                         forceSingleNode,
@@ -292,7 +292,7 @@ public class BasePlanTest
                     planTester.createPlan(
                             transactionSession,
                             sql,
-                            planTester.getPlanOptimizers(),
+                            planTester.getPlanOptimizers(forceSingleNode),
                             planTester.getAlternativeOptimizers(),
                             stage,
                             forceSingleNode,
@@ -316,7 +316,7 @@ public class BasePlanTest
                 Plan plan = planTester.createPlan(
                         transactionSession,
                         sql,
-                        planTester.getPlanOptimizers(),
+                        planTester.getPlanOptimizers(forceSingleNode),
                         planTester.getAlternativeOptimizers(),
                         stage,
                         forceSingleNode,
@@ -339,7 +339,7 @@ public class BasePlanTest
     {
         try {
             planTester.inTransaction(session, transactionSession -> {
-                Plan plan = planTester.createPlan(transactionSession, sql, planTester.getPlanOptimizers(), planTester.getAlternativeOptimizers(), OPTIMIZED_AND_VALIDATED, false, WarningCollector.NOOP, createPlanOptimizersStatsCollector());
+                Plan plan = planTester.createPlan(transactionSession, sql, planTester.getPlanOptimizers(false), planTester.getAlternativeOptimizers(), OPTIMIZED_AND_VALIDATED, false, WarningCollector.NOOP, createPlanOptimizersStatsCollector());
                 SubPlan subPlan = planTester.createSubPlans(transactionSession, plan, false);
                 SubPlan adaptivePlan = planTester.createAdaptivePlan(transactionSession, subPlan, optimizers, WarningCollector.NOOP, createPlanOptimizersStatsCollector(), createRuntimeInfoProvider(subPlan, completeStageStats));
                 String formattedPlan = textDistributedPlan(adaptivePlan, planTester.getPlannerContext().getMetadata(), planTester.getPlannerContext().getFunctionManager(), transactionSession, false, UNKNOWN);

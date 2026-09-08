@@ -155,7 +155,7 @@ public class NewIrFragmenter
         this.symbolAllocator = new SymbolAllocator(ImmutableList.of());
     }
 
-    public SubPlan fragmentProgram(Program program, FragmentProperties rootProperties)
+    public SubPlan fragmentProgram(Program program, FragmentProperties rootProperties, boolean forceSingleNode)
     {
         Block mainBlock = ((Query) program.root()).query();
 
@@ -173,7 +173,8 @@ public class NewIrFragmenter
                 planFragmentIdAllocator,
                 planNodeIdAllocator,
                 symbolAllocator,
-                initializeNameAllocator(program));
+                initializeNameAllocator(program),
+                forceSingleNode);
 
         PlanNode root = ((Output) mainBlock.getTerminalOperation()).accept(fragmenter, rootProperties);
 
@@ -200,6 +201,7 @@ public class NewIrFragmenter
         // a remote exchange is rewritten into RemoteSourceNode. This is a map of original exchange operation result to the created RemoteSourceNode
         // and its children. It helps us to avoid repetition and reuse the upstream plan.
         private final Map<Value, ProcessedRemoteExchange> processedRemoteExchanges;
+        private final boolean forceSingleNode;
 
         public Fragmenter(
                 Map<Value, TrinoOperation> resultToOperation,
@@ -211,7 +213,8 @@ public class NewIrFragmenter
                 PlanFragmentIdAllocator planFragmentIdAllocator,
                 PlanNodeIdAllocator planNodeIdAllocator,
                 SymbolAllocator symbolAllocator,
-                ProgramBuilder.ValueNameAllocator nameAllocator)
+                ProgramBuilder.ValueNameAllocator nameAllocator,
+                boolean forceSingleNode)
         {
             this.resultToOperation = ImmutableMap.copyOf(resultToOperation);
             this.session = requireNonNull(session, "session is null");
@@ -227,6 +230,7 @@ public class NewIrFragmenter
             this.scalarRewriter = new ToOldIrScalarRewriter(symbolAllocator);
             this.relationalRewriter = new ToOldIrRelationalRewriter(planNodeIdAllocator, symbolAllocator, scalarRewriter, session, metadata);
             this.processedRemoteExchanges = new HashMap<>();
+            this.forceSingleNode = forceSingleNode;
         }
 
         @Override
@@ -341,6 +345,10 @@ public class NewIrFragmenter
                         partitioningScheme.partitionCount());
 
                 FragmentProperties childProperties = new FragmentProperties(newPartitioningScheme);
+                if (forceSingleNode) {
+                    // The whole query must be executed on a single node, not only its root fragment.
+                    childProperties.setSingleNodeDistribution();
+                }
                 childrenPropertiesBuilder.add(childProperties);
                 PlanFragmentId planFragmentId = planFragmentIdAllocator.getNextId();
                 PlanNode child = source.accept(this, childProperties);

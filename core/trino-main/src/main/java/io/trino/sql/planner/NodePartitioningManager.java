@@ -211,10 +211,9 @@ public class NodePartitioningManager
     public BucketNodeMap getBucketNodeMap(Session session, PartitioningHandle partitioningHandle, boolean forceSingleNodeQuery, int partitionCount)
     {
         if (forceSingleNodeQuery && partitioningHandle.getConnectorHandle() instanceof SystemPartitioningHandle) {
-            // In single-node-query mode every plan is a single fragment and may have a SystemPartitioningHandle
-            // (typically SINGLE) reaching this method together with split sources. System partitionings have no
-            // connector bucketing, so collapse all splits into a single bucket pinned to the node returned by
-            // systemBucketToNode.
+            // In single-node-query mode the fragment reading the splits is a system partitioning (typically SINGLE),
+            // which has no connector bucketing. Collapse all splits into a single bucket so that the whole fragment
+            // runs on the one node systemBucketToNode picks.
             List<InternalNode> nodes = systemBucketToNode(session, partitioningHandle, new AtomicReference<>(), partitionCount);
             return new BucketNodeMap(_ -> 0, ImmutableList.of(nodes.get(0)));
         }

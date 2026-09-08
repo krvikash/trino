@@ -261,7 +261,6 @@ public class PipelinedQueryScheduler
         stageManager = StageManager.create(
                 queryStateMachine,
                 metadata,
-                forceSingleNodeQuery,
                 remoteTaskFactory,
                 nodeTaskMap,
                 tracer,
