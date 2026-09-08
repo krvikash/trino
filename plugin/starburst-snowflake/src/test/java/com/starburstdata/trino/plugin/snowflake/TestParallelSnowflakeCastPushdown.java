@@ -181,6 +181,7 @@ public class TestParallelSnowflakeCastPushdown
                 // C_CHARACTER_10     -> VARCHAR(10)
                 // C_NCHAR_10         -> VARCHAR(10)
                 // etc.
+                .addColumn("c_varchar_2", "varchar(2)", asList("'In'", "'Fr'", null))
                 .addColumn("c_varchar_10", "varchar(10)", asList("'India'", "'France'", null))
                 .addColumn("c_varchar_20", "varchar(20)", asList("'India'", "'France'", null))
                 .addColumn("c_varchar_50", "varchar(50)", asList("'India'", "'France'", null))
@@ -192,6 +193,7 @@ public class TestParallelSnowflakeCastPushdown
                 .addColumn("c_text", "text", asList("'India'", "'France'", null))
                 .addColumn("c_string", "string", asList("'India'", "'France'", null))
 
+                .addColumn("c_char_2", "char(2)", asList("'In'", "'Fr'", null))
                 .addColumn("c_char_10", "char(10)", asList("'India'", "'France'", null))
                 .addColumn("c_char_50", "char(50)", asList("'India'", "'France'", null))
                 .addColumn("c_char_16777216", "char(16777216)", asList("'India'", "'France'", null)) // Snowflake MAX_VARCHAR
@@ -403,7 +405,9 @@ public class TestParallelSnowflakeCastPushdown
                 "(id INT, c_char_5 CHAR(5), c_varchar_5 VARCHAR(5))",
                 List.of(
                         "1, 'abcde', 'abcde'",
+                        "2, 'abc  ', 'abc  '",
                         "2, 'abc', 'abc'",
+                        "2, '   ', '   '",
                         "3, '', ''",
                         "4, NULL, NULL"))) {
             assertThat(query("SELECT id, CAST(c_char_5 AS VARCHAR(1)) FROM %s".formatted(table.getName())))
@@ -534,7 +538,9 @@ public class TestParallelSnowflakeCastPushdown
                 // char/varchar downcast are not pushed down: Snowflake's CAST raises an error
                 // when the value would be truncated, while Trino's CAST truncates silently
                 new CastTestCase("c_char_10", "varchar(3)", "c_varchar_10"),
+                new CastTestCase("c_char_10", "varchar(2)", "c_varchar_2"),
                 new CastTestCase("c_varchar_50", "varchar(10)", "c_varchar_10"),
+                new CastTestCase("c_varchar_10", "varchar(2)", "c_varchar_2"),
                 new CastTestCase("c_timestamp_6", "timestamp(3)", "c_timestamp_3"),
                 new CastTestCase("c_timestamp_9", "timestamp(3)", "c_timestamp_3"),
                 new CastTestCase("c_timestamp_9", "timestamp(6)", "c_timestamp_6"),
