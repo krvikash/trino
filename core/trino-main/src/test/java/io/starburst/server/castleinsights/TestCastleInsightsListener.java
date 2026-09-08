@@ -139,7 +139,8 @@ public class TestCastleInsightsListener
                     new TableRef("tpch", "tiny", "region"),
                     ImmutableList.of("regionkey"),
                     INNER,
-                    Optional.of(MANY_TO_ONE)));
+                    Optional.of(MANY_TO_ONE),
+                    Optional.of(1.0)));
         }
     }
 }

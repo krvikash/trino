@@ -24,6 +24,10 @@ import static java.util.Objects.requireNonNull;
  * The right side is the build side and the left side the probe side, following the plan the
  * engine settled on. {@code cardinality} is the relationship between them where it could be
  * determined, empty otherwise.
+ * <p>
+ * {@code outputExpansionRatio} is the join's output row count over its probe (left) input row count:
+ * below one where the join filters the probe stream down, above one where it fans it out. Empty where
+ * it could not be measured with confidence.
  */
 public record JoinInsight(
         TableRef left,
@@ -31,7 +35,8 @@ public record JoinInsight(
         TableRef right,
         List<String> rightColumns,
         JoinType joinType,
-        Optional<Cardinality> cardinality)
+        Optional<Cardinality> cardinality,
+        Optional<Double> outputExpansionRatio)
         implements CastleInsight
 {
     public JoinInsight
@@ -44,5 +49,8 @@ public record JoinInsight(
         checkArgument(leftColumns.size() == rightColumns.size(), "leftColumns and rightColumns have different sizes");
         requireNonNull(joinType, "joinType is null");
         requireNonNull(cardinality, "cardinality is null");
+        requireNonNull(outputExpansionRatio, "outputExpansionRatio is null");
+        outputExpansionRatio.ifPresent(ratio ->
+                checkArgument(Double.isFinite(ratio) && ratio >= 0, "outputExpansionRatio must be finite and non-negative, got %s", ratio));
     }
 }

@@ -83,13 +83,38 @@ public class JoinAnalyzer
             return Optional.empty();
         }
 
+        Optional<JoinOperatorInfo> joinInfo = joinOperatorInfo(analysis, join);
         return Optional.of(new JoinInsight(
                 leftTable.get(),
                 columnNames(left),
                 rightTable.get(),
                 columnNames(right),
                 joinType(join.getType()),
-                cardinality(analysis, join)));
+                cardinality(analysis, join, joinInfo),
+                outputExpansionRatio(analysis, join, joinInfo)));
+    }
+
+    /**
+     * How the join resizes the probe stream: its output row count over its probe (left) input row count.
+     * Empty unless the join ran and processed probe rows, so a join the engine never executed or one whose
+     * probe side was empty reports nothing rather than a misleading zero.
+     * <p>
+     * This is a probe-relative measure on purpose: the build side is a hash table looked up once per probe
+     * row, not a second stream that flows through, so a foreign-key join reads as ratio one and a fan-out
+     * join as greater than one. A dynamic filter that trims the probe closer to its source is not accounted
+     * for here and inflates the ratio toward one; see the follow-up work.
+     */
+    private static Optional<Double> outputExpansionRatio(CastleQueryAnalysis analysis, JoinNode join, Optional<JoinOperatorInfo> joinInfo)
+    {
+        if (joinInfo.isEmpty() || sum(joinInfo.get().getLogHistogramProbes()) == 0) {
+            return Optional.empty();
+        }
+        long probeRows = analysis.outputRowCount(join.getLeft().getId());
+        if (probeRows == 0) {
+            return Optional.empty();
+        }
+        long outputRows = analysis.outputRowCount(join.getId());
+        return Optional.of((double) outputRows / probeRows);
     }
 
     /**
@@ -99,9 +124,8 @@ public class JoinAnalyzer
      * row matching two or more build rows proves the right side is not unique on the join key. The left
      * side is decided by {@link #leftUniqueness}, and the two together name the relationship.
      */
-    private static Optional<Cardinality> cardinality(CastleQueryAnalysis analysis, JoinNode join)
+    private static Optional<Cardinality> cardinality(CastleQueryAnalysis analysis, JoinNode join, Optional<JoinOperatorInfo> joinInfo)
     {
-        Optional<JoinOperatorInfo> joinInfo = joinOperatorInfo(analysis, join);
         if (joinInfo.isEmpty()) {
             return Optional.empty();
         }

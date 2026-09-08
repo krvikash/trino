@@ -75,6 +75,26 @@ public class TestJoinAnalyzer
     }
 
     @Test
+    public void testOutputExpansionRatioIsOneForForeignKeyJoin()
+    {
+        // Every order matches exactly one customer, so the join emits one output row per probe (orders) row
+        // and neither shrinks nor expands the probe stream.
+        JoinInsight insight = getJoinInsight("SELECT o.orderkey FROM orders o JOIN customer c ON o.custkey = c.custkey");
+
+        assertThat(insight.outputExpansionRatio()).contains(1.0);
+    }
+
+    @Test
+    public void testOutputExpansionRatioExceedsOneForFanOutJoin()
+    {
+        // Each of the 5 regions (probe) matches its 5 nations, so the 5-row probe stream fans out to the
+        // 25 nation rows: a five-fold expansion.
+        JoinInsight insight = getJoinInsight("SELECT n.name FROM region r JOIN nation n ON r.regionkey = n.regionkey");
+
+        assertThat(insight.outputExpansionRatio()).contains(5.0);
+    }
+
+    @Test
     public void testManyToManyJoinOnNonUniqueKeys()
     {
         // nationkey is non-unique on both sides: many customers per nation, many suppliers per nation.
