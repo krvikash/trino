@@ -583,7 +583,8 @@ public class IcebergMetadata
             OPTIMIZE,
             OPTIMIZE_MANIFESTS,
             EXPIRE_SNAPSHOTS,
-            REMOVE_ORPHAN_FILES);
+            REMOVE_ORPHAN_FILES,
+            DROP_EXTENDED_STATS);
 
     private final LocationAccessControl locationAccessControl;
     private final AiModelAccessControl aiModelAccessControl;
