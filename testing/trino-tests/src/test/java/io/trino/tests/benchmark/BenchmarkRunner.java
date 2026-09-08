@@ -503,6 +503,17 @@ public final class BenchmarkRunner
                     }
                 }
 
+                if (warpIndex.isPresent()) {
+                    WarpWarmup warpWarmup = new WarpWarmup(runner);
+                    for (String query : queriesRun) {
+                        if (skipped.contains(query)) {
+                            log.debug("Warp warmup %s: skipped (--skip-query)", query);
+                            continue;
+                        }
+                        warpWarmup.warmQuery(query, workload.readQuery(query));
+                    }
+                }
+
                 session.writeRunMetadata(queriesRun, warmup, runs);
 
                 Map<String, List<Measurement>> measurementsByQuery = new LinkedHashMap<>();

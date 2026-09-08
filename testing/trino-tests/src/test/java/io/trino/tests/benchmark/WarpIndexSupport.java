@@ -15,6 +15,7 @@ package io.trino.tests.benchmark;
 
 import com.google.common.collect.ImmutableMap;
 import io.airlift.log.Logger;
+import io.trino.plugin.jmx.JmxPlugin;
 import io.trino.plugin.warp.WarpPlugin;
 import io.trino.plugin.warp.config.SharedConfig;
 import io.trino.testing.DistributedQueryRunner;
@@ -82,6 +83,9 @@ final class WarpIndexSupport
         installNativeLibraries();
         runner.installPlugin(new WarpPlugin());
         runner.createCatalog(WARP_CATALOG, "warp_speed", catalogProperties);
+        // the warm-up stage reads warp's warming counters over jmx
+        runner.installPlugin(new JmxPlugin());
+        runner.createCatalog("jmx", "jmx", ImmutableMap.of());
     }
 
     /**
