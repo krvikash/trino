@@ -19,7 +19,9 @@ import io.trino.plugin.jdbc.JdbcColumnHandle;
 import io.trino.plugin.jdbc.JdbcExpression;
 import io.trino.plugin.jdbc.JdbcMetadataConfig;
 import io.trino.plugin.jdbc.JdbcStatisticsConfig;
+import io.trino.plugin.jdbc.JdbcTableHandle;
 import io.trino.plugin.jdbc.JdbcTypeHandle;
+import io.trino.plugin.jdbc.RemoteTableName;
 import io.trino.plugin.jdbc.TypeHandlingJdbcConfig;
 import io.trino.plugin.jdbc.TypeHandlingJdbcSessionProperties;
 import io.trino.plugin.jdbc.logging.RemoteQueryModifier;
@@ -28,15 +30,23 @@ import io.trino.plugin.oracle.OracleSessionProperties;
 import io.trino.spi.connector.AggregateFunction;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorSession;
+import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.expression.ConnectorExpression;
 import io.trino.spi.expression.Variable;
+import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.session.PropertyMetadata;
 import io.trino.spi.type.DecimalType;
+import io.trino.testing.SharedResource.Lease;
 import io.trino.testing.TestingConnectorSession;
+import io.trino.testing.sql.TestTable;
 import oracle.jdbc.OracleTypes;
 import org.junit.jupiter.api.Test;
 
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 
@@ -171,6 +181,42 @@ public class TestStarburstOracleClient
                 new AggregateFunction("sum", decimalSumType, List.of(decimalVariable), List.of(), false, filter),
                 Map.of(decimalVariable.getName(), DECIMAL_COLUMN),
                 Optional.empty()); // filter not supported
+    }
+
+    @Test
+    public void testBuildSqlSetsFetchSizeBasedOnColumnCount()
+            throws Exception
+    {
+        try (Lease<TestingStarburstOracleServer> oracleServer = TestingStarburstOracleServer.getInstance();
+                Connection connection = DriverManager.getConnection(oracleServer.get().getJdbcUrl(), OracleTestUsers.USER, OracleTestUsers.PASSWORD);
+                TestTable table = new TestTable(oracleServer.get().getSqlExecutor(), "test_fetch_size", "(c1 NUMBER, c2 NUMBER, c3 NUMBER, c4 NUMBER)")) {
+            List<JdbcColumnHandle> columns = List.of(
+                    numberColumn("C1"),
+                    numberColumn("C2"),
+                    numberColumn("C3"),
+                    numberColumn("C4"));
+
+            String schema = connection.getMetaData().getUserName();
+            JdbcTableHandle tableHandle = new JdbcTableHandle(
+                    new SchemaTableName(OracleTestUsers.USER, table.getName()),
+                    new RemoteTableName(Optional.empty(), Optional.of(schema), table.getName().toUpperCase(Locale.ROOT)),
+                    Optional.empty());
+
+            OracleSplit split = new OracleSplit(Optional.empty(), Optional.empty(), TupleDomain.all());
+
+            try (PreparedStatement statement = jdbcClient.buildSql(SESSION, connection, split, tableHandle, columns)) {
+                assertThat(statement.getFetchSize()).isEqualTo(25_000);
+            }
+        }
+    }
+
+    private static JdbcColumnHandle numberColumn(String name)
+    {
+        return JdbcColumnHandle.builder()
+                .setColumnName(name)
+                .setColumnType(BIGINT)
+                .setJdbcTypeHandle(new JdbcTypeHandle(OracleTypes.NUMBER, Optional.of("NUMBER"), Optional.of(10), Optional.of(0), Optional.empty(), Optional.empty()))
+                .build();
     }
 
     private void testImplementAggregation(AggregateFunction aggregateFunction, Map<String, ColumnHandle> assignments, Optional<String> expectedExpression)

@@ -143,7 +143,7 @@ public class StarburstOracleClient
                 table.getConstraint(),
                 getAdditionalPredicate(table.getConstraintExpressions(), split.getAdditionalPredicate()));
         preparedQuery = applyQueryTransformations(table, preparedQuery);
-        return queryBuilder.prepareStatement(this, session, connection, preparedQuery, Optional.empty());
+        return queryBuilder.prepareStatement(this, session, connection, preparedQuery, Optional.of(columns.size()));
     }
 
     @Override
