@@ -33,7 +33,6 @@ import io.trino.plugin.warp.gen.constants.WarmUpType;
 import io.trino.plugin.warp.gen.stats.WarmupExportServiceStats;
 import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.spi.catalog.CatalogName;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -128,7 +127,7 @@ public class WeGroupCloudExporterTaskTest
         verify(workerTaskExecutorService, times(1)).taskFinished(eq(rowGroupKey));
         verify(rowGroupDataService, times(1)).save(rowGroupDataCaptor.capture());
 
-        Assertions.assertEquals(FastWarmingState.EXPORTED, rowGroupDataCaptor.getValue().getFastWarmingState());
+        assertThat(rowGroupDataCaptor.getValue().getFastWarmingState()).isEqualTo(FastWarmingState.EXPORTED);
     }
 
     @Test

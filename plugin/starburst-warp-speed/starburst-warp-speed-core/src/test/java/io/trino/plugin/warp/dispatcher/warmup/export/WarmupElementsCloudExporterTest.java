@@ -24,13 +24,13 @@ import io.trino.plugin.warp.dispatcher.services.RowGroupDataService;
 import io.trino.plugin.warp.gen.stats.WarmupExportServiceStats;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.io.File;
 import java.time.Instant;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
@@ -87,7 +87,7 @@ public class WarmupElementsCloudExporterTest
         WarmupElementsCloudExporter.ExportFileResults exportFileResults =
                 warmupElementsCloudExporter.exportFile(rowGroupData, cloudImportExportPath);
 
-        Assertions.assertTrue(exportFileResults.isExportDone());
+        assertThat(exportFileResults.isExportDone()).isTrue();
     }
 
     @Test
@@ -107,7 +107,7 @@ public class WarmupElementsCloudExporterTest
         WarmupElementsCloudExporter.ExportFileResults exportFileResults =
                 warmupElementsCloudExporter.exportFile(rowGroupData, cloudImportExportPath);
 
-        Assertions.assertFalse(exportFileResults.isExportDone());
+        assertThat(exportFileResults.isExportDone()).isFalse();
     }
 
     @Test
@@ -132,7 +132,7 @@ public class WarmupElementsCloudExporterTest
         WarmupElementsCloudExporter.ExportFileResults exportFileResults =
                 warmupElementsCloudExporter.exportFile(rowGroupData, cloudImportExportPath);
 
-        Assertions.assertTrue(exportFileResults.isExportDone());
+        assertThat(exportFileResults.isExportDone()).isTrue();
     }
 
     @Test
@@ -156,8 +156,8 @@ public class WarmupElementsCloudExporterTest
         WarmupElementsCloudExporter.ExportFileResults exportFileResults =
                 warmupElementsCloudExporter.exportFile(rowGroupData, cloudImportExportPath);
 
-        Assertions.assertFalse(exportFileResults.isExportDone());
-        Assertions.assertEquals(1, warmupExportServiceStats.getexport_row_group_1st_footer_validation());
+        assertThat(exportFileResults.isExportDone()).isFalse();
+        assertThat(warmupExportServiceStats.getexport_row_group_1st_footer_validation()).isEqualTo(1);
     }
 
     @Test
@@ -182,7 +182,7 @@ public class WarmupElementsCloudExporterTest
         WarmupElementsCloudExporter.ExportFileResults exportFileResults =
                 warmupElementsCloudExporter.exportFile(rowGroupData, cloudImportExportPath);
 
-        Assertions.assertFalse(exportFileResults.isExportDone());
-        Assertions.assertEquals(1, warmupExportServiceStats.getexport_row_group_2nd_footer_validation());
+        assertThat(exportFileResults.isExportDone()).isFalse();
+        assertThat(warmupExportServiceStats.getexport_row_group_2nd_footer_validation()).isEqualTo(1);
     }
 }

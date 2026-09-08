@@ -16,7 +16,6 @@ package io.trino.plugin.warp.storage.lucene;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import org.apache.commons.io.FileUtils;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -25,6 +24,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -71,28 +71,28 @@ public class ChunkStateHandlerTest
         }
 
         int sizeInPages = chunkStateHandler.save(chunkStatesIn);
-        Assertions.assertEquals(2, sizeInPages);
+        assertThat(sizeInPages).isEqualTo(2);
 
         List<ChunkState> chunkStatesOut = chunkStateHandler.load(0);
-        Assertions.assertEquals(341, chunkStatesOut.size());
+        assertThat(chunkStatesOut).hasSize(341);
         for (int i = 0; i < 341; i++) {
             ChunkState chunkStateIn = chunkStatesIn.get(i);
             ChunkState chunkStateOut = chunkStatesOut.get(i);
 
-            Assertions.assertEquals(chunkStateIn.startOffset(), chunkStateOut.startOffset());
-            Assertions.assertEquals(chunkStateIn.readSize(), chunkStateOut.readSize());
-            Assertions.assertArrayEquals(chunkStateIn.filesLength(), chunkStateOut.filesLength());
+            assertThat(chunkStateOut.startOffset()).isEqualTo(chunkStateIn.startOffset());
+            assertThat(chunkStateOut.readSize()).isEqualTo(chunkStateIn.readSize());
+            assertThat(chunkStateOut.filesLength()).isEqualTo(chunkStateIn.filesLength());
         }
 
         chunkStatesOut = chunkStateHandler.load(1);
-        Assertions.assertEquals(500 - 341, chunkStatesOut.size());
+        assertThat(chunkStatesOut).hasSize(500 - 341);
         for (int i = 0; i < 500 - 341; i++) {
             ChunkState chunkStateIn = chunkStatesIn.get(341 + i);
             ChunkState chunkStateOut = chunkStatesOut.get(i);
 
-            Assertions.assertEquals(chunkStateIn.startOffset(), chunkStateOut.startOffset());
-            Assertions.assertEquals(chunkStateIn.readSize(), chunkStateOut.readSize());
-            Assertions.assertArrayEquals(chunkStateIn.filesLength(), chunkStateOut.filesLength());
+            assertThat(chunkStateOut.startOffset()).isEqualTo(chunkStateIn.startOffset());
+            assertThat(chunkStateOut.readSize()).isEqualTo(chunkStateIn.readSize());
+            assertThat(chunkStateOut.filesLength()).isEqualTo(chunkStateIn.filesLength());
         }
     }
 }

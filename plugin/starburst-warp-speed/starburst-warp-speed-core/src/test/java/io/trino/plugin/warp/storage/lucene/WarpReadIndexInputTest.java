@@ -16,7 +16,6 @@ package io.trino.plugin.warp.storage.lucene;
 import io.trino.plugin.warp.gen.stats.LucenePageCacheStats;
 import io.trino.plugin.warp.storage.engine.StorageEngineConstants;
 import org.apache.lucene.store.IndexInput;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -252,9 +251,9 @@ public class WarpReadIndexInputTest
         LucenePageCacheKey keyOut = new LucenePageCacheKey(-1, LuceneFileType.SI, 0);
         Optional<ByteBuffer> valueOut = warpReadIndexInput.get(keyOut);
 
-        Assertions.assertTrue(valueOut.isPresent());
-        Assertions.assertEquals(valueIn, valueOut.get());
-        Assertions.assertEquals(0, valueOut.get().position());
-        Assertions.assertEquals(1, lucenePageCacheStats.getlucene_page_cache_small_file_hit());
+        assertThat(valueOut).isPresent();
+        assertThat(valueOut.get()).isEqualTo(valueIn);
+        assertThat(valueOut.get().position()).isEqualTo(0);
+        assertThat(lucenePageCacheStats.getlucene_page_cache_small_file_hit()).isEqualTo(1);
     }
 }

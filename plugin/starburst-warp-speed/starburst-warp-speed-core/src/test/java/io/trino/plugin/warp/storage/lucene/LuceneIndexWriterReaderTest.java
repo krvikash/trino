@@ -23,7 +23,6 @@ import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.IOContext;
 import org.apache.lucene.store.IndexInput;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -34,6 +33,7 @@ import java.util.Arrays;
 import java.util.Optional;
 import java.util.Random;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -120,46 +120,46 @@ class LuceneIndexWriterReaderTest
     {
         Optional<ChunkState> chunkState = luceneIndexWriter.saveLuceneIndex(0);
 
-        Assertions.assertTrue(chunkState.isPresent());
-        Assertions.assertEquals(0, chunkState.get().startOffset());
-        Assertions.assertEquals(3, chunkState.get().readSize());
+        assertThat(chunkState).isPresent();
+        assertThat(chunkState.get().startOffset()).isEqualTo(0);
+        assertThat(chunkState.get().readSize()).isEqualTo(3);
         int[] filesLength = {1000, 1000, 1000, 10000};
-        Assertions.assertArrayEquals(filesLength, chunkState.get().filesLength());
+        assertThat(chunkState.get().filesLength()).isEqualTo(filesLength);
 
         LuceneIndexReader luceneIndexReader = new LuceneIndexReader(storageEngineConstants, rowGroupFilePath, chunkState.get());
 
         ByteBuffer smallFile = luceneIndexReader.loadSmallFile(LuceneFileType.SI);
-        Assertions.assertEquals(0, smallFile.position());
-        Assertions.assertEquals(1000, smallFile.limit());
-        Assertions.assertEquals(1000, smallFile.capacity());
+        assertThat(smallFile.position()).isEqualTo(0);
+        assertThat(smallFile.limit()).isEqualTo(1000);
+        assertThat(smallFile.capacity()).isEqualTo(1000);
         // for (int i = 0; i < 1000; i++) {
         //    Assertions.assertEquals(99, smallFile.get(i));
         // }
 
         smallFile = luceneIndexReader.loadSmallFile(LuceneFileType.CFE);
-        Assertions.assertEquals(0, smallFile.position());
-        Assertions.assertEquals(1000, smallFile.limit());
-        Assertions.assertEquals(1000, smallFile.capacity());
+        assertThat(smallFile.position()).isEqualTo(0);
+        assertThat(smallFile.limit()).isEqualTo(1000);
+        assertThat(smallFile.capacity()).isEqualTo(1000);
         // for (int i = 0; i < 1000; i++) {
         //    Assertions.assertEquals(88, smallFile.get(i));
         // }
 
         smallFile = luceneIndexReader.loadSmallFile(LuceneFileType.SEGMENTS);
-        Assertions.assertEquals(0, smallFile.position());
-        Assertions.assertEquals(1000, smallFile.limit());
-        Assertions.assertEquals(1000, smallFile.capacity());
+        assertThat(smallFile.position()).isEqualTo(0);
+        assertThat(smallFile.limit()).isEqualTo(1000);
+        assertThat(smallFile.capacity()).isEqualTo(1000);
         // for (int i = 0; i < 1000; i++) {
         //    Assertions.assertEquals(77, smallFile.get(i));
         // }
 
         ByteBuffer bigFile = luceneIndexReader.loadBigFilePage(0);
-        Assertions.assertEquals(0, bigFile.position());
-        Assertions.assertEquals(8192, bigFile.limit());
-        Assertions.assertEquals(8192, bigFile.capacity());
+        assertThat(bigFile.position()).isEqualTo(0);
+        assertThat(bigFile.limit()).isEqualTo(8192);
+        assertThat(bigFile.capacity()).isEqualTo(8192);
 
         bigFile = luceneIndexReader.loadBigFilePage(1);
-        Assertions.assertEquals(0, bigFile.position());
-        Assertions.assertEquals(10000 - 8192, bigFile.limit());
-        Assertions.assertEquals(10000 - 8192, bigFile.capacity());
+        assertThat(bigFile.position()).isEqualTo(0);
+        assertThat(bigFile.limit()).isEqualTo(10000 - 8192);
+        assertThat(bigFile.capacity()).isEqualTo(10000 - 8192);
     }
 }

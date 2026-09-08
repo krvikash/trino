@@ -16,7 +16,6 @@ package io.trino.plugin.warp.cloudstorage;
 import io.trino.filesystem.FileIterator;
 import io.trino.filesystem.Location;
 import io.trino.filesystem.TrinoInputFile;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import java.io.File;
@@ -27,6 +26,8 @@ import java.nio.file.Files;
 import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 public abstract class CloudStorageAbstractTest
 {
@@ -65,8 +66,8 @@ public abstract class CloudStorageAbstractTest
         cloudStorage.uploadFile(source, target);
 
         TrinoInputFile inputFile = cloudStorage.newInputFile(target);
-        Assertions.assertTrue(inputFile.exists());
-        Assertions.assertEquals(localFile.length(), inputFile.length());
+        assertThat(inputFile.exists()).isTrue();
+        assertThat(inputFile.length()).isEqualTo(localFile.length());
 
         boolean _ = localFile.delete();
         cloudStorage.deleteFile(target);
@@ -85,8 +86,7 @@ public abstract class CloudStorageAbstractTest
         cloudStorage.downloadFile(source, target);
 
         File targetFile = new File(target.toString());
-        Assertions.assertTrue(targetFile.exists());
-        Assertions.assertEquals(localFile.length(), targetFile.length());
+        assertThat(targetFile).exists().hasSize(localFile.length());
 
         localFile.delete();
         targetFile.delete();
@@ -106,12 +106,12 @@ public abstract class CloudStorageAbstractTest
         cloudStorage.copyFile(source, destination);
 
         TrinoInputFile sourceFile = cloudStorage.newInputFile(source);
-        Assertions.assertTrue(sourceFile.exists());
-        Assertions.assertEquals(localFile.length(), sourceFile.length());
+        assertThat(sourceFile.exists()).isTrue();
+        assertThat(sourceFile.length()).isEqualTo(localFile.length());
 
         TrinoInputFile destinationFile = cloudStorage.newInputFile(destination);
-        Assertions.assertTrue(destinationFile.exists());
-        Assertions.assertEquals(sourceFile.length(), destinationFile.length());
+        assertThat(destinationFile.exists()).isTrue();
+        assertThat(destinationFile.length()).isEqualTo(sourceFile.length());
 
         boolean _ = localFile.delete();
         cloudStorage.deleteFile(source);
@@ -135,12 +135,12 @@ public abstract class CloudStorageAbstractTest
         cloudStorage.copyFileReplaceTail(source, destination, new CloudObjectMetadata(), position, buffer);
 
         TrinoInputFile sourceFile = cloudStorage.newInputFile(source);
-        Assertions.assertTrue(sourceFile.exists());
-        Assertions.assertEquals(localFile.length(), sourceFile.length());
+        assertThat(sourceFile.exists()).isTrue();
+        assertThat(sourceFile.length()).isEqualTo(localFile.length());
 
         TrinoInputFile destinationFile = cloudStorage.newInputFile(destination);
-        Assertions.assertTrue(destinationFile.exists());
-        Assertions.assertEquals(19 * MB, destinationFile.length());
+        assertThat(destinationFile.exists()).isTrue();
+        assertThat(destinationFile.length()).isEqualTo(19 * MB);
 
         boolean _ = localFile.delete();
         cloudStorage.deleteFile(source);
@@ -160,11 +160,11 @@ public abstract class CloudStorageAbstractTest
         cloudStorage.renameFile(source, target);
 
         TrinoInputFile sourceFile = cloudStorage.newInputFile(source);
-        Assertions.assertFalse(sourceFile.exists());
+        assertThat(sourceFile.exists()).isFalse();
 
         TrinoInputFile targetFile = cloudStorage.newInputFile(target);
-        Assertions.assertTrue(targetFile.exists());
-        Assertions.assertEquals(localFile.length(), targetFile.length());
+        assertThat(targetFile.exists()).isTrue();
+        assertThat(targetFile.length()).isEqualTo(localFile.length());
 
         boolean _ = localFile.delete();
         cloudStorage.deleteFile(target);
@@ -176,11 +176,11 @@ public abstract class CloudStorageAbstractTest
     {
         Location location = Location.of(getBucket());
         FileIterator fileIterator = cloudStorage.listFiles(location);
-        Assertions.assertTrue(fileIterator.hasNext());
+        assertThat(fileIterator.hasNext()).isTrue();
 
         location = Location.of(getEmptyBucket());
         fileIterator = cloudStorage.listFiles(location);
-        Assertions.assertFalse(fileIterator.hasNext());
+        assertThat(fileIterator.hasNext()).isFalse();
     }
 
     @Test
@@ -189,15 +189,15 @@ public abstract class CloudStorageAbstractTest
     {
         Location location = Location.of(getBucket());
         Optional<Boolean> optional = cloudStorage.directoryExists(location);
-        Assertions.assertTrue(optional.orElseThrow());
+        assertThat(optional).hasValue(true);
 
         location = Location.of(getEmptyBucket());
         optional = cloudStorage.directoryExists(location);
-        Assertions.assertTrue(optional.orElseThrow());
+        assertThat(optional).hasValue(true);
 
         location = Location.of(getNotExistBucket());
         optional = cloudStorage.directoryExists(location);
-        Assertions.assertFalse(optional.orElseThrow());
+        assertThat(optional).hasValue(false);
     }
 
     @Test
@@ -206,10 +206,10 @@ public abstract class CloudStorageAbstractTest
     {
         Location location = Location.of(getBucket());
         Set<Location> locations = cloudStorage.listDirectories(location);
-        Assertions.assertNotNull(locations);
+        assertThat(locations).isNotNull();
 
         location = Location.of(getEmptyBucket());
         locations = cloudStorage.listDirectories(location);
-        Assertions.assertTrue(locations.isEmpty());
+        assertThat(locations).isEmpty();
     }
 }

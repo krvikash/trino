@@ -38,7 +38,6 @@ import io.trino.plugin.warp.tools.util.CompressionUtil;
 import io.trino.spi.catalog.CatalogName;
 import org.apache.commons.io.FileUtils;
 import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -59,6 +58,7 @@ import java.util.Random;
 
 import static com.google.common.io.MoreFiles.deleteRecursively;
 import static com.google.common.io.RecursiveDeleteOption.ALLOW_INSECURE;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -157,9 +157,9 @@ public class WeGroupWarmerTest
         when(rowGroupDataService.get(eq(rowGroupKey))).thenReturn(rowGroupData);
 
         WeGroupWarmer.IsNeedDownloadResults isNeedDownloadResults = weGroupWarmer.isNeedDownload(rowGroupKey, path);
-        Assertions.assertTrue(isNeedDownloadResults.isNeedDownload());
-        Assertions.assertEquals(storageObjectMetadata.getLastModified().orElseThrow(), isNeedDownloadResults.dataValidation().fileModifiedTime());
-        Assertions.assertEquals(storageObjectMetadata.getContentLength().orElseThrow(), isNeedDownloadResults.dataValidation().fileContentLength());
+        assertThat(isNeedDownloadResults.isNeedDownload()).isTrue();
+        assertThat(isNeedDownloadResults.dataValidation().fileModifiedTime()).isEqualTo(storageObjectMetadata.getLastModified().orElseThrow());
+        assertThat(isNeedDownloadResults.dataValidation().fileContentLength()).isEqualTo(storageObjectMetadata.getContentLength().orElseThrow());
     }
 
     @Test
@@ -178,7 +178,7 @@ public class WeGroupWarmerTest
         when(rowGroupDataService.get(eq(rowGroupKey))).thenReturn(rowGroupData);
 
         WeGroupWarmer.IsNeedDownloadResults isNeedDownloadResults = weGroupWarmer.isNeedDownload(rowGroupKey, path);
-        Assertions.assertFalse(isNeedDownloadResults.isNeedDownload());
+        assertThat(isNeedDownloadResults.isNeedDownload()).isFalse();
     }
 
     @Test
@@ -191,7 +191,7 @@ public class WeGroupWarmerTest
         when(cloudVendorService.getObjectMetadata(eq(path))).thenReturn(storageObjectMetadata);
 
         WeGroupWarmer.IsNeedDownloadResults isNeedDownloadResults = weGroupWarmer.isNeedDownload(rowGroupKey, path);
-        Assertions.assertFalse(isNeedDownloadResults.isNeedDownload());
+        assertThat(isNeedDownloadResults.isNeedDownload()).isFalse();
     }
 
     @Test
@@ -204,7 +204,7 @@ public class WeGroupWarmerTest
 
         Optional<RowGroupData> rowGroupData = weGroupWarmer.importWeGroup(null, rowGroupKey);
 
-        Assertions.assertTrue(rowGroupData.isEmpty());
+        assertThat(rowGroupData).isEmpty();
     }
 
     @Test
@@ -225,10 +225,10 @@ public class WeGroupWarmerTest
 
         Optional<RowGroupData> optionalRowGroupData = weGroupWarmer.importWeGroup(null, rowGroupKey);
 
-        Assertions.assertTrue(optionalRowGroupData.isEmpty());
-        Assertions.assertEquals(1, warmupImportServiceStats.getimport_we_group_download_started());
-        Assertions.assertEquals(1, warmupImportServiceStats.getimport_we_group_download_failed());
-        Assertions.assertEquals(1, warmupImportServiceStats.getimport_we_group_download_accomplished());
+        assertThat(optionalRowGroupData).isEmpty();
+        assertThat(warmupImportServiceStats.getimport_we_group_download_started()).isEqualTo(1);
+        assertThat(warmupImportServiceStats.getimport_we_group_download_failed()).isEqualTo(1);
+        assertThat(warmupImportServiceStats.getimport_we_group_download_accomplished()).isEqualTo(1);
     }
 
     @Test
@@ -264,16 +264,16 @@ public class WeGroupWarmerTest
 
         Optional<RowGroupData> optionalRowGroupData = weGroupWarmer.importWeGroup(null, rowGroupKey);
 
-        Assertions.assertTrue(optionalRowGroupData.isPresent());
-        Assertions.assertEquals(1, warmupImportServiceStats.getimport_we_group_download_started());
-        Assertions.assertEquals(0, warmupImportServiceStats.getimport_we_group_download_failed());
-        Assertions.assertEquals(1, warmupImportServiceStats.getimport_we_group_download_accomplished());
+        assertThat(optionalRowGroupData).isPresent();
+        assertThat(warmupImportServiceStats.getimport_we_group_download_started()).isEqualTo(1);
+        assertThat(warmupImportServiceStats.getimport_we_group_download_failed()).isEqualTo(0);
+        assertThat(warmupImportServiceStats.getimport_we_group_download_accomplished()).isEqualTo(1);
 
         String localSaveFileName = localFileName + ".save";
         File localSaveFile = new File(localSaveFileName);
-        Assertions.assertFalse(localSaveFile.exists());
+        assertThat(localSaveFile).doesNotExist();
 
-        Assertions.assertTrue(localFile.exists());
+        assertThat(localFile).exists();
         localFile.delete();
         localTmpFile.delete();
     }
@@ -310,16 +310,16 @@ public class WeGroupWarmerTest
 
         Optional<RowGroupData> optionalRowGroupData = weGroupWarmer.importWeGroup(null, rowGroupKey);
 
-        Assertions.assertTrue(optionalRowGroupData.isPresent());
-        Assertions.assertEquals(1, warmupImportServiceStats.getimport_we_group_download_started());
-        Assertions.assertEquals(0, warmupImportServiceStats.getimport_we_group_download_failed());
-        Assertions.assertEquals(1, warmupImportServiceStats.getimport_we_group_download_accomplished());
+        assertThat(optionalRowGroupData).isPresent();
+        assertThat(warmupImportServiceStats.getimport_we_group_download_started()).isEqualTo(1);
+        assertThat(warmupImportServiceStats.getimport_we_group_download_failed()).isEqualTo(0);
+        assertThat(warmupImportServiceStats.getimport_we_group_download_accomplished()).isEqualTo(1);
 
         String localSaveFileName = localFileName + ".save";
         File localSaveFile = new File(localSaveFileName);
-        Assertions.assertFalse(localSaveFile.exists());
+        assertThat(localSaveFile).doesNotExist();
 
-        Assertions.assertTrue(localFile.exists());
+        assertThat(localFile).exists();
         localFile.delete();
         localTmpFile.delete();
     }
@@ -359,16 +359,16 @@ public class WeGroupWarmerTest
 
         Optional<RowGroupData> optionalRowGroupData = weGroupWarmer.importWeGroup(null, rowGroupKey);
 
-        Assertions.assertTrue(optionalRowGroupData.isPresent());
-        Assertions.assertEquals(1, warmupImportServiceStats.getimport_we_group_download_started());
-        Assertions.assertEquals(0, warmupImportServiceStats.getimport_we_group_download_failed());
-        Assertions.assertEquals(1, warmupImportServiceStats.getimport_we_group_download_accomplished());
+        assertThat(optionalRowGroupData).isPresent();
+        assertThat(warmupImportServiceStats.getimport_we_group_download_started()).isEqualTo(1);
+        assertThat(warmupImportServiceStats.getimport_we_group_download_failed()).isEqualTo(0);
+        assertThat(warmupImportServiceStats.getimport_we_group_download_accomplished()).isEqualTo(1);
 
         String localSaveFileName = localFileName + ".save";
         File localSaveFile = new File(localSaveFileName);
-        Assertions.assertFalse(localSaveFile.exists());
+        assertThat(localSaveFile).doesNotExist();
 
-        Assertions.assertTrue(localFile.exists());
+        assertThat(localFile).exists();
         localFile.delete();
         localTmpFile.delete();
     }
@@ -462,21 +462,21 @@ public class WeGroupWarmerTest
         ArgumentCaptor<RowGroupData> argumentCaptor2 = ArgumentCaptor.forClass(RowGroupData.class);
 
         Optional<RowGroupData> optionalRowGroupData = weGroupWarmer.importWarmUpElements(null, rowGroupKey, results.warmWarmUpElements);
-        Assertions.assertTrue(optionalRowGroupData.isPresent());
+        assertThat(optionalRowGroupData).isPresent();
 
         RowGroupData returnedRowGroupData = optionalRowGroupData.orElseThrow();
-        Assertions.assertEquals(4, returnedRowGroupData.getWarmUpElements().stream().filter(warmUpElement -> WarmState.HOT.equals(warmUpElement.getWarmState())).count());
-        Assertions.assertEquals(0, returnedRowGroupData.getWarmUpElements().stream().filter(warmUpElement -> WarmState.WARM.equals(warmUpElement.getWarmState())).count());
+        assertThat(returnedRowGroupData.getWarmUpElements().stream().filter(warmUpElement -> WarmState.HOT.equals(warmUpElement.getWarmState())).count()).isEqualTo(4);
+        assertThat(returnedRowGroupData.getWarmUpElements().stream().filter(warmUpElement -> WarmState.WARM.equals(warmUpElement.getWarmState())).count()).isEqualTo(0);
 
-        Assertions.assertEquals(2, warmupImportServiceStats.getimport_elements_started());
-        Assertions.assertEquals(0, warmupImportServiceStats.getimport_elements_failed());
-        Assertions.assertEquals(2, warmupImportServiceStats.getimport_elements_accomplished());
+        assertThat(warmupImportServiceStats.getimport_elements_started()).isEqualTo(2);
+        assertThat(warmupImportServiceStats.getimport_elements_failed()).isEqualTo(0);
+        assertThat(warmupImportServiceStats.getimport_elements_accomplished()).isEqualTo(2);
 
         verify(rowGroupDataService, times(1)).flush(argumentCaptor1.capture());
         verify(rowGroupDataService, times(1)).save(argumentCaptor2.capture());
         RowGroupData savedRowGroupData = argumentCaptor2.getValue();
-        Assertions.assertEquals(4, savedRowGroupData.getWarmUpElements().stream().filter(warmUpElement -> WarmState.HOT.equals(warmUpElement.getWarmState())).count());
-        Assertions.assertEquals(0, savedRowGroupData.getWarmUpElements().stream().filter(warmUpElement -> WarmState.WARM.equals(warmUpElement.getWarmState())).count());
+        assertThat(savedRowGroupData.getWarmUpElements().stream().filter(warmUpElement -> WarmState.HOT.equals(warmUpElement.getWarmState())).count()).isEqualTo(4);
+        assertThat(savedRowGroupData.getWarmUpElements().stream().filter(warmUpElement -> WarmState.WARM.equals(warmUpElement.getWarmState())).count()).isEqualTo(0);
 
         boolean _ = results.localFile.delete();
     }
@@ -500,16 +500,16 @@ public class WeGroupWarmerTest
         ArgumentCaptor<RowGroupData> argumentCaptor2 = ArgumentCaptor.forClass(RowGroupData.class);
 
         Optional<RowGroupData> optionalRowGroupData = weGroupWarmer.importWarmUpElements(null, rowGroupKey, results.warmWarmUpElements);
-        Assertions.assertTrue(optionalRowGroupData.isPresent());
+        assertThat(optionalRowGroupData).isPresent();
 
         RowGroupData returnedRowGroupData = optionalRowGroupData.orElseThrow();
-        Assertions.assertEquals(results.rowGroupData.getWarmUpElements(), returnedRowGroupData.getWarmUpElements());
-        Assertions.assertEquals(2, returnedRowGroupData.getWarmUpElements().stream().filter(warmUpElement -> WarmState.HOT.equals(warmUpElement.getWarmState())).count());
-        Assertions.assertEquals(2, returnedRowGroupData.getWarmUpElements().stream().filter(warmUpElement -> WarmState.WARM.equals(warmUpElement.getWarmState())).count());
+        assertThat(returnedRowGroupData.getWarmUpElements()).isEqualTo(results.rowGroupData.getWarmUpElements());
+        assertThat(returnedRowGroupData.getWarmUpElements().stream().filter(warmUpElement -> WarmState.HOT.equals(warmUpElement.getWarmState())).count()).isEqualTo(2);
+        assertThat(returnedRowGroupData.getWarmUpElements().stream().filter(warmUpElement -> WarmState.WARM.equals(warmUpElement.getWarmState())).count()).isEqualTo(2);
 
-        Assertions.assertEquals(2, warmupImportServiceStats.getimport_elements_started());
-        Assertions.assertEquals(2, warmupImportServiceStats.getimport_elements_failed());
-        Assertions.assertEquals(2, warmupImportServiceStats.getimport_elements_accomplished());
+        assertThat(warmupImportServiceStats.getimport_elements_started()).isEqualTo(2);
+        assertThat(warmupImportServiceStats.getimport_elements_failed()).isEqualTo(2);
+        assertThat(warmupImportServiceStats.getimport_elements_accomplished()).isEqualTo(2);
 
         verify(rowGroupDataService, times(0)).flush(argumentCaptor1.capture());
         verify(rowGroupDataService, times(0)).save(argumentCaptor2.capture());
@@ -537,21 +537,21 @@ public class WeGroupWarmerTest
         ArgumentCaptor<RowGroupData> argumentCaptor2 = ArgumentCaptor.forClass(RowGroupData.class);
 
         Optional<RowGroupData> optionalRowGroupData = weGroupWarmer.importWarmUpElements(null, rowGroupKey, results.warmWarmUpElements);
-        Assertions.assertTrue(optionalRowGroupData.isPresent());
+        assertThat(optionalRowGroupData).isPresent();
 
         RowGroupData returnedRowGroupData = optionalRowGroupData.orElseThrow();
-        Assertions.assertEquals(3, returnedRowGroupData.getWarmUpElements().stream().filter(warmUpElement -> WarmState.HOT.equals(warmUpElement.getWarmState())).count());
-        Assertions.assertEquals(1, returnedRowGroupData.getWarmUpElements().stream().filter(warmUpElement -> WarmState.WARM.equals(warmUpElement.getWarmState())).count());
+        assertThat(returnedRowGroupData.getWarmUpElements().stream().filter(warmUpElement -> WarmState.HOT.equals(warmUpElement.getWarmState())).count()).isEqualTo(3);
+        assertThat(returnedRowGroupData.getWarmUpElements().stream().filter(warmUpElement -> WarmState.WARM.equals(warmUpElement.getWarmState())).count()).isEqualTo(1);
 
-        Assertions.assertEquals(2, warmupImportServiceStats.getimport_elements_started());
-        Assertions.assertEquals(1, warmupImportServiceStats.getimport_elements_failed());
-        Assertions.assertEquals(2, warmupImportServiceStats.getimport_elements_accomplished());
+        assertThat(warmupImportServiceStats.getimport_elements_started()).isEqualTo(2);
+        assertThat(warmupImportServiceStats.getimport_elements_failed()).isEqualTo(1);
+        assertThat(warmupImportServiceStats.getimport_elements_accomplished()).isEqualTo(2);
 
         verify(rowGroupDataService, times(1)).flush(argumentCaptor1.capture());
         verify(rowGroupDataService, times(1)).save(argumentCaptor2.capture());
         RowGroupData savedRowGroupData = argumentCaptor2.getValue();
-        Assertions.assertEquals(3, savedRowGroupData.getWarmUpElements().stream().filter(warmUpElement -> WarmState.HOT.equals(warmUpElement.getWarmState())).count());
-        Assertions.assertEquals(1, savedRowGroupData.getWarmUpElements().stream().filter(warmUpElement -> WarmState.WARM.equals(warmUpElement.getWarmState())).count());
+        assertThat(savedRowGroupData.getWarmUpElements().stream().filter(warmUpElement -> WarmState.HOT.equals(warmUpElement.getWarmState())).count()).isEqualTo(3);
+        assertThat(savedRowGroupData.getWarmUpElements().stream().filter(warmUpElement -> WarmState.WARM.equals(warmUpElement.getWarmState())).count()).isEqualTo(1);
 
         boolean _ = results.localFile.delete();
     }
@@ -577,8 +577,8 @@ public class WeGroupWarmerTest
 
         Optional<RowGroupData> optionalRowGroupData = weGroupWarmer.importWarmUpElements(null, rowGroupKey, results.warmWarmUpElements);
 
-        Assertions.assertTrue(optionalRowGroupData.isEmpty());
-        Assertions.assertEquals(0, warmupImportServiceStats.getimport_elements_started());
+        assertThat(optionalRowGroupData).isEmpty();
+        assertThat(warmupImportServiceStats.getimport_elements_started()).isEqualTo(0);
 
         boolean _ = results.localFile.delete();
     }
@@ -618,10 +618,10 @@ public class WeGroupWarmerTest
 
         Optional<RowGroupData> optionalRowGroupData = weGroupWarmer.importWarmUpElements(null, rowGroupKey, results.warmWarmUpElements);
 
-        Assertions.assertTrue(optionalRowGroupData.isEmpty());
-        Assertions.assertEquals(1, warmupImportServiceStats.getimport_elements_started());
-        Assertions.assertEquals(1, warmupImportServiceStats.getimport_elements_failed());
-        Assertions.assertEquals(1, warmupImportServiceStats.getimport_elements_accomplished());
+        assertThat(optionalRowGroupData).isEmpty();
+        assertThat(warmupImportServiceStats.getimport_elements_started()).isEqualTo(1);
+        assertThat(warmupImportServiceStats.getimport_elements_failed()).isEqualTo(1);
+        assertThat(warmupImportServiceStats.getimport_elements_accomplished()).isEqualTo(1);
 
         boolean _ = results.localFile.delete();
     }

@@ -60,7 +60,6 @@ import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.connector.DynamicFilter;
 import io.trino.spi.type.IntegerType;
 import io.trino.spi.type.VarcharType;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
@@ -79,6 +78,7 @@ import static io.trino.plugin.warp.util.NodeUtils.mockNodeManager;
 import static io.trino.spi.StandardErrorCode.NOT_SUPPORTED;
 import static java.lang.String.format;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
@@ -303,7 +303,7 @@ public class WarpProxiedWarmerTest
     @Test
     public void testWarpWarmerWarmFailed()
     {
-        Assertions.assertThrows(RuntimeException.class, () -> {
+        assertThatThrownBy(() -> {
             WarpProxiedWarmer warpProxiedWarmer = createWarpProxiedWarmer();
 
             Pair<DispatcherSplit, RowGroupKey> dispatcherSplitRowGroupKeyPair = mockConnectorSplit();
@@ -324,14 +324,14 @@ public class WarpProxiedWarmerTest
                 verify(connectorPageSource, times(1)).close();
                 throw e;
             }
-        });
+        }).isInstanceOf(RuntimeException.class);
     }
 
     @Test
     @SuppressWarnings("removal")
     public void testWarpWarmerWarmFailedDuringWarm()
     {
-        Assertions.assertThrows(RuntimeException.class, () -> {
+        assertThatThrownBy(() -> {
             WarpProxiedWarmer warpProxiedWarmer = createWarpProxiedWarmer();
 
             Pair<DispatcherSplit, RowGroupKey> dispatcherSplitRowGroupKeyPair = mockConnectorSplit();
@@ -353,7 +353,7 @@ public class WarpProxiedWarmerTest
                 verify(connectorPageSource, times(1)).close();
                 throw e;
             }
-        });
+        }).isInstanceOf(RuntimeException.class);
     }
 
     @Test
@@ -378,10 +378,10 @@ public class WarpProxiedWarmerTest
 
         RowGroupData rowGroupData = act(warpProxiedWarmer, dispatcherSplitRowGroupKeyPair, columnsToWarm, warmupElements, requiredWarmUpTypeMap);
 
-        Assertions.assertEquals(1, rowGroupData.getWarmUpElements().size());
+        assertThat(rowGroupData.getWarmUpElements().size()).isEqualTo(1);
 
         WarmUpElement warmUpElement = rowGroupData.getWarmUpElements().stream().findAny().get();
-        Assertions.assertEquals(WarmUpElementState.FAILED_PERMANENTLY, warmUpElement.getState());
+        assertThat(warmUpElement.getState()).isEqualTo(WarmUpElementState.FAILED_PERMANENTLY);
     }
 
     private RowGroupData act(

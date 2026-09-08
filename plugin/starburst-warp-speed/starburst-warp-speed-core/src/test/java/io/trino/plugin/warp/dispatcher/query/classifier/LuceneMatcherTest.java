@@ -50,7 +50,6 @@ import org.apache.lucene.search.BooleanClause;
 import org.apache.lucene.search.BooleanQuery;
 import org.apache.lucene.search.MatchAllDocsQuery;
 import org.apache.lucene.search.Query;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -75,6 +74,7 @@ import static io.trino.plugin.warp.storage.lucene.LuceneQueryUtils.createPrefixQ
 import static io.trino.plugin.warp.storage.lucene.LuceneQueryUtils.createRangeQuery;
 import static io.trino.spi.expression.StandardFunctions.LIKE_FUNCTION_NAME;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatNoException;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -750,6 +750,6 @@ public class LuceneMatcherTest
                 .entrySet().stream().collect(Collectors.toMap(x -> x.getValue().getWarpColumn(), Map.Entry::getValue));
         MatchContext matchContext = new MatchContext(Collections.emptyList(), remainingPredicateContext, true);
 
-        Assertions.assertDoesNotThrow(() -> luceneElementsMatcher.match(classifyArgs, matchContext));
+        assertThatNoException().isThrownBy(() -> luceneElementsMatcher.match(classifyArgs, matchContext));
     }
 }

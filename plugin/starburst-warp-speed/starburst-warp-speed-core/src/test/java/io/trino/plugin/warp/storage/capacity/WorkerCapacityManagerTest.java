@@ -24,7 +24,6 @@ import io.trino.plugin.warp.storage.engine.nativeimpl.NativeStorageStateHandler;
 import io.trino.plugin.warp.tools.CatalogNameProvider;
 import io.trino.plugin.warp.tools.util.PathUtils;
 import org.apache.commons.io.FileUtils;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -105,7 +104,7 @@ public class WorkerCapacityManagerTest
                             .withDelay(Duration.ofMillis(10))
                             .withMaxRetries(10)
                             .build())
-                    .run(() -> Assertions.assertEquals(1, requireNonNull(catalogLocalStore.list()).length));
+                    .run(() -> assertThat(requireNonNull(catalogLocalStore.list()).length).isEqualTo(1));
 
             workerCapacityManager.initWorker();
 
@@ -119,7 +118,7 @@ public class WorkerCapacityManagerTest
                         assertThat(workerCapacityManager.getTotalCapacity()).isGreaterThan(0);
                     });
 
-            Assertions.assertEquals(0, requireNonNull(catalogLocalStore.list()).length);
+            assertThat(requireNonNull(catalogLocalStore.list()).length).isEqualTo(0);
         }
         catch (IOException e) {
             throw new RuntimeException(e);

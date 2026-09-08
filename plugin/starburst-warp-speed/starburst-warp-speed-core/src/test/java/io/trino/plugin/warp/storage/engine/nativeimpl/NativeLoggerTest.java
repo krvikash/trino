@@ -21,7 +21,6 @@ import io.trino.plugin.warp.storage.engine.ExceptionThrower;
 import io.trino.spi.TrinoException;
 import io.trino.spi.catalog.CatalogName;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Execution;
@@ -41,6 +40,7 @@ import static io.trino.plugin.warp.WarpErrorCode.WARP_NATIVE_ERROR;
 import static io.trino.plugin.warp.storage.engine.nativeimpl.NativeLogger.LOGGER_LOG_OFFSET_LENGTH;
 import static io.trino.plugin.warp.storage.engine.nativeimpl.NativeLogger.LOGGER_LOG_OFFSET_STRING;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.catchThrowableOfType;
 import static org.mockito.Mockito.mock;
 
 @Execution(ExecutionMode.SAME_THREAD) // Ensures tests run sequentially
@@ -109,8 +109,8 @@ public class NativeLoggerTest
             setLog(logId.id(), 1, errMsg);
         }
         LogRecord log = logHandler.popLast();
-        assertThat(log.getMessage().contains(errMsg)).isTrue();
-        assertThat(log.getLevel().equals(Level.SEVERE)).isTrue();
+        assertThat(log.getMessage()).contains(errMsg);
+        assertThat(log.getLevel()).isEqualTo(Level.SEVERE);
         assertThat(logHandler.isEmpty()).isTrue();
     }
 
@@ -123,8 +123,8 @@ public class NativeLoggerTest
             setLog(logId.id(), 2, infoMsg);
         }
         LogRecord log = logHandler.popLast();
-        assertThat(log.getMessage().contains(infoMsg)).isTrue();
-        assertThat(log.getLevel().equals(Level.INFO)).isTrue();
+        assertThat(log.getMessage()).contains(infoMsg);
+        assertThat(log.getLevel()).isEqualTo(Level.INFO);
         assertThat(logHandler.isEmpty()).isTrue();
     }
 
@@ -134,11 +134,11 @@ public class NativeLoggerTest
         String panicMsg = "test panic";
         NativeLogger.LogId logId = nativeLogger.getLogId(Optional.of(exceptionThrower));
         setLog(logId.id(), -1, panicMsg);
-        TrinoException exception = Assertions.assertThrows(TrinoException.class, logId::close);
-        assertThat(exception.getErrorCode().equals(WARP_NATIVE_ERROR.toErrorCode())).isTrue();
+        TrinoException exception = catchThrowableOfType(TrinoException.class, logId::close);
+        assertThat(exception.getErrorCode()).isEqualTo(WARP_NATIVE_ERROR.toErrorCode());
         LogRecord log = logHandler.popLast();
-        assertThat(log.getMessage().contains(panicMsg)).isTrue();
-        assertThat(log.getLevel().equals(Level.SEVERE)).isTrue();
+        assertThat(log.getMessage()).contains(panicMsg);
+        assertThat(log.getLevel()).isEqualTo(Level.SEVERE);
         assertThat(logHandler.isEmpty()).isTrue();
     }
 
@@ -151,11 +151,11 @@ public class NativeLoggerTest
         NativeLogger.LogId logId2 = nativeLogger.getLogId(Optional.of(exceptionThrower));
         setLog(logId1.id(), -1, panicMsg);
         logId2.close();
-        TrinoException exception = Assertions.assertThrows(TrinoException.class, logId1::close);
-        assertThat(exception.getErrorCode().equals(WARP_NATIVE_ERROR.toErrorCode())).isTrue();
+        TrinoException exception = catchThrowableOfType(TrinoException.class, logId1::close);
+        assertThat(exception.getErrorCode()).isEqualTo(WARP_NATIVE_ERROR.toErrorCode());
         LogRecord log = logHandler.popLast();
-        assertThat(log.getMessage().contains(panicMsg)).isTrue();
-        assertThat(log.getLevel().equals(Level.SEVERE)).isTrue();
+        assertThat(log.getMessage()).contains(panicMsg);
+        assertThat(log.getLevel()).isEqualTo(Level.SEVERE);
         assertThat(logHandler.isEmpty()).isTrue();
     }
 
@@ -170,20 +170,18 @@ public class NativeLoggerTest
         setLog(logId2.id(), -2, panicMsg2);
 
         // first call to checkForLogs will print all set logs, while the exception should be thrown from every failed call
-        TrinoException exception = Assertions.assertThrows(TrinoException.class, logId1::close);
-        assertThat(exception.getErrorCode().equals(WARP_NATIVE_ERROR.toErrorCode())).isTrue();
+        TrinoException exception = catchThrowableOfType(TrinoException.class, logId1::close);
+        assertThat(exception.getErrorCode()).isEqualTo(WARP_NATIVE_ERROR.toErrorCode());
         LogRecord log = logHandler.popLast();
-        assertThat(log.getMessage().contains(panicMsg1)).isTrue();
-        assertThat(log.getMessage().contains(panicMsg2)).isTrue();
-        assertThat(log.getLevel().equals(Level.SEVERE)).isTrue();
+        assertThat(log.getMessage()).contains(panicMsg1, panicMsg2);
+        assertThat(log.getLevel()).isEqualTo(Level.SEVERE);
         assertThat(logHandler.isEmpty()).isTrue();
 
-        exception = Assertions.assertThrows(TrinoException.class, logId2::close);
-        assertThat(exception.getErrorCode().equals(WARP_NATIVE_ERROR.toErrorCode())).isTrue();
+        exception = catchThrowableOfType(TrinoException.class, logId2::close);
+        assertThat(exception.getErrorCode()).isEqualTo(WARP_NATIVE_ERROR.toErrorCode());
         log = logHandler.popLast();
-        assertThat(log.getMessage().contains(panicMsg1)).isFalse();
-        assertThat(log.getMessage().contains(panicMsg2)).isFalse();
-        assertThat(log.getLevel().equals(Level.SEVERE)).isTrue();
+        assertThat(log.getMessage()).doesNotContain(panicMsg1, panicMsg2);
+        assertThat(log.getLevel()).isEqualTo(Level.SEVERE);
         assertThat(logHandler.isEmpty()).isTrue();
     }
 

@@ -23,7 +23,6 @@ import io.trino.plugin.warp.config.SharedConfig;
 import io.trino.plugin.warp.log.ShapingLoggerFactory;
 import io.trino.plugin.warp.tools.util.CompressionUtil;
 import io.trino.spi.catalog.CatalogName;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -42,6 +41,8 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Stream;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -82,7 +83,7 @@ public class CloudVendorStorageServiceTest
 
         Optional<String> result = cloudVendorStorageService.downloadCompressedFromCloud("s3://bucket/key", false);
 
-        Assertions.assertEquals(expected, result.orElseThrow());
+        assertThat(result).hasValue(expected);
     }
 
     @Test
@@ -105,8 +106,8 @@ public class CloudVendorStorageServiceTest
         }).when(trinoInput).readFully(anyLong(), any(), anyInt(), anyInt());
 
         try (InputStream inputStream = cloudVendorStorageService.downloadRangeFromCloud("s3://bucket/key", 100, asBytes.length)) {
-            Assertions.assertEquals(asBytes.length, inputStream.available());
-            Assertions.assertArrayEquals(asBytes, inputStream.readAllBytes());
+            assertThat(inputStream.available()).isEqualTo(asBytes.length);
+            assertThat(inputStream.readAllBytes()).isEqualTo(asBytes);
         }
     }
 
@@ -119,7 +120,7 @@ public class CloudVendorStorageServiceTest
 
         List<String> paths = cloudVendorStorageService.listPath("s3://bucket/dir", true);
 
-        Assertions.assertTrue(paths.isEmpty());
+        assertThat(paths).isEmpty();
 
         directories.add(Location.of("s3://bucket/dir/path1"));
         directories.add(Location.of("s3://bucket/dir/path2"));
@@ -129,9 +130,9 @@ public class CloudVendorStorageServiceTest
 
         paths = cloudVendorStorageService.listPath("s3://bucket/dir", true);
 
-        Assertions.assertEquals(directories.size(), paths.size());
+        assertThat(paths).hasSameSizeAs(directories);
         List<String> finalPaths = paths;
-        directories.forEach(location -> Assertions.assertTrue(finalPaths.contains(location.toString())));
+        assertThat(directories).allSatisfy(location -> assertThat(finalPaths).contains(location.toString()));
     }
 
     @Test
@@ -142,14 +143,14 @@ public class CloudVendorStorageServiceTest
 
         List<String> paths = cloudVendorStorageService.listPath("s3://bucket/dir", false);
 
-        Assertions.assertTrue(paths.isEmpty());
+        assertThat(paths).isEmpty();
 
         List<String> expected = List.of("s3://bucket/dir/path1", "s3://bucket/dir/path2", "s3://bucket/dir/path3");
         Mockito.when(cloudStorage.listFiles(any(Location.class))).thenReturn(new TestingFileIterator(expected));
 
         paths = cloudVendorStorageService.listPath("s3://bucket/dir", false);
 
-        Assertions.assertEquals(expected, paths);
+        assertThat(paths).isEqualTo(expected);
     }
 
     @Test
@@ -159,15 +160,11 @@ public class CloudVendorStorageServiceTest
         Mockito.when(cloudStorage.directoryExists(any(Location.class))).thenReturn(Optional.of(false)).thenThrow(new IOException("test"));
 
         boolean isExist = cloudVendorStorageService.directoryExists("s3://bucketName");
-        Assertions.assertFalse(isExist);
+        assertThat(isExist).isFalse();
 
-        try {
-            cloudVendorStorageService.directoryExists("s3://bucketName");
-            Assertions.fail();
-        }
-        catch (RuntimeException e) {
-            Assertions.assertEquals("directoryExists [s3://bucketName/] failed exception: java.io.IOException: test cause: null", e.getMessage());
-        }
+        assertThatThrownBy(() -> cloudVendorStorageService.directoryExists("s3://bucketName"))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessage("directoryExists [s3://bucketName/] failed exception: java.io.IOException: test cause: null");
     }
 
     static class TestingFileIterator

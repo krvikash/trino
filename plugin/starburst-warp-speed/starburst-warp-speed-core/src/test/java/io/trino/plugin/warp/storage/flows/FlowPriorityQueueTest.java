@@ -13,7 +13,6 @@
  */
 package io.trino.plugin.warp.storage.flows;
 
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -23,6 +22,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.stream.IntStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class FlowPriorityQueueTest
 {
@@ -45,10 +45,10 @@ public class FlowPriorityQueueTest
     public void testDuplicateKeyShouldThrow()
     {
         CompletableFuture<Long> booleanCompletableFuture1 = flowPriorityQueue.addFlow(FlowType.WARMUP, 1, Optional.empty());
-        Assertions.assertThrows(RuntimeException.class, () -> {
+        assertThatThrownBy(() -> {
             CompletableFuture<Long> unused = flowPriorityQueue.addFlow(FlowType.WARMUP, 1, Optional.empty());
             finalizeJobs(unused);
-        });
+        }).isInstanceOf(RuntimeException.class);
         finalizeJobs(booleanCompletableFuture1);
     }
 
