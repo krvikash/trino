@@ -44,6 +44,19 @@ public class RewriteCast
     }
 
     @Override
+    protected String buildCast(@SuppressWarnings("unused") ConnectorSession session, JdbcTypeHandle sourceTypeJdbcHandle, @SuppressWarnings("unused") Type sourceType, Type targetType, String expression, String castType)
+    {
+        if (targetType instanceof VarcharType varcharType
+                && !varcharType.isUnbounded()
+                && varcharType.getBoundedLength() < sourceTypeJdbcHandle.requiredColumnSize()) {
+            // Snowflake's CAST raises an error when the value would be truncated, while Trino's CAST truncates
+            // quietly, so SUBSTR is used to keep behaviors consistent
+            return "SUBSTR(%s, 1, %s)".formatted(expression, varcharType.getBoundedLength());
+        }
+        return super.buildCast(session, sourceTypeJdbcHandle, sourceType, targetType, expression, castType);
+    }
+
+    @Override
     protected Optional<JdbcTypeHandle> toJdbcTypeHandle(@SuppressWarnings("unused") ConnectorSession session, JdbcTypeHandle sourceTypeHandle, Type sourceType, Type targetType)
     {
         if (!pushdownSupported(sourceTypeHandle, targetType)) {
@@ -96,10 +109,6 @@ public class RewriteCast
             case VarcharType varcharType -> switch (sourceType.jdbcType()) {
                 case CHAR, VARCHAR -> {
                     if (varcharType.isUnbounded()) {
-                        yield false;
-                    }
-                    // downcast not supported because Snowflake's CAST raises an error when the actual value would be truncated
-                    if (varcharType.getBoundedLength() < sourceType.requiredColumnSize()) {
                         yield false;
                     }
                     yield sourceType.jdbcTypeName().map(name -> name.equals("CHAR") || name.equals("VARCHAR")).orElse(false);
