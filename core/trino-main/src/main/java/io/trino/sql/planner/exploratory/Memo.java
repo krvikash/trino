@@ -268,6 +268,7 @@ public class Memo
                 });
 
         // identify and enqueue operations that need to be updated
+        // TODO consider scanning only the removed group's parents instead of the surviving group's parents.
         // in a cyclic memo, parents of firstGroupId might include the same group
         // in such a case, we will correctly enqueue the current group's operations for update
         groupToParents.get(firstGroupId).stream()
