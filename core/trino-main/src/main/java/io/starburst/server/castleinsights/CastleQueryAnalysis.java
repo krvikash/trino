@@ -21,11 +21,13 @@ import io.trino.execution.StageInfo;
 import io.trino.execution.StagesInfo;
 import io.trino.execution.TableInfo;
 import io.trino.operator.OperatorStats;
+import io.trino.server.DynamicFilterService.DynamicFilterDomainStats;
 import io.trino.spi.connector.CatalogSchemaTableName;
 import io.trino.sql.ir.Cast;
 import io.trino.sql.ir.Expression;
 import io.trino.sql.ir.Reference;
 import io.trino.sql.planner.Symbol;
+import io.trino.sql.planner.plan.DynamicFilterId;
 import io.trino.sql.planner.plan.ExchangeNode;
 import io.trino.sql.planner.plan.FilterNode;
 import io.trino.sql.planner.plan.PlanFragmentId;
@@ -52,6 +54,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableListMultimap.toImmutableListMultimap;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
+import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static java.util.Objects.requireNonNull;
 import static java.util.function.Function.identity;
@@ -75,6 +78,7 @@ public final class CastleQueryAnalysis
     private final Map<PlanNodeId, Map<String, String>> columnNamesBySymbolName;
     private final ListMultimap<PlanNodeId, OperatorStats> operatorStats;
     private final Map<PlanFragmentId, List<Symbol>> fragmentOutputLayouts;
+    private final Set<DynamicFilterId> narrowingDynamicFilters;
 
     public CastleQueryAnalysis(QueryInfo queryInfo)
     {
@@ -84,6 +88,7 @@ public final class CastleQueryAnalysis
         this.columnNamesBySymbolName = computeColumnNames(queryInfo.getInputs());
         this.operatorStats = queryInfo.getQueryStats().getOperatorSummaries().stream()
                 .collect(toImmutableListMultimap(OperatorStats::getPlanNodeId, identity()));
+        this.narrowingDynamicFilters = computeNarrowingDynamicFilters(queryInfo);
 
         Optional<StagesInfo> stages = queryInfo.getStages();
         if (stages.isEmpty()) {
@@ -177,6 +182,18 @@ public final class CastleQueryAnalysis
     public List<OperatorStats> operatorStats(PlanNodeId planNodeId)
     {
         return operatorStats.get(planNodeId);
+    }
+
+    /**
+     * The dynamic filters whose collected domain constrained the probe key space, i.e. was anything other
+     * than {@code ALL}. Such a filter may have removed probe rows before they reached the join that drove
+     * it. It only <em>may</em> have: a domain covering every key the probe holds is still not {@code ALL}
+     * yet removes nothing, so this over-reports rather than under-reports, which suits a caller that would
+     * rather withhold a measurement than trust a biased one.
+     */
+    public Set<DynamicFilterId> narrowingDynamicFilters()
+    {
+        return narrowingDynamicFilters;
     }
 
     /**
@@ -324,6 +341,17 @@ public final class CastleQueryAnalysis
             return OptionalDouble.empty();
         }
         return OptionalDouble.of(value);
+    }
+
+    // The string a Domain collapses to when it matches everything; see Domain.toString(int).
+    private static final String ALL_DOMAIN = "ALL";
+
+    private static Set<DynamicFilterId> computeNarrowingDynamicFilters(QueryInfo queryInfo)
+    {
+        return queryInfo.getQueryStats().getDynamicFiltersStats().getDynamicFilterDomainStats().stream()
+                .filter(stats -> !stats.getSimplifiedDomain().equals(ALL_DOMAIN))
+                .map(DynamicFilterDomainStats::getDynamicFilterId)
+                .collect(toImmutableSet());
     }
 
     private static Map<PlanNodeId, Map<String, String>> computeColumnNames(Collection<Input> inputs)

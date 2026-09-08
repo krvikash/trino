@@ -44,6 +44,12 @@ public class TestJoinAnalyzer
             .setSystemProperty("join_reordering_strategy", "NONE")
             .build();
 
+    // Any equi-join collects a dynamic filter over the build keys, which the analyzer treats as possibly
+    // narrowing and so suppresses the expansion ratio. Turn it off where a test asserts a ratio value.
+    private static final Session NO_DYNAMIC_FILTERING = Session.builder(SESSION)
+            .setSystemProperty("enable_dynamic_filtering", "false")
+            .build();
+
     private final JoinAnalyzer analyzer = new JoinAnalyzer();
     private StandaloneQueryRunner queryRunner;
 
@@ -79,7 +85,7 @@ public class TestJoinAnalyzer
     {
         // Every order matches exactly one customer, so the join emits one output row per probe (orders) row
         // and neither shrinks nor expands the probe stream.
-        JoinInsight insight = getJoinInsight("SELECT o.orderkey FROM orders o JOIN customer c ON o.custkey = c.custkey");
+        JoinInsight insight = getJoinInsight(NO_DYNAMIC_FILTERING, "SELECT o.orderkey FROM orders o JOIN customer c ON o.custkey = c.custkey");
 
         assertThat(insight.outputExpansionRatio()).contains(1.0);
     }
@@ -89,9 +95,20 @@ public class TestJoinAnalyzer
     {
         // Each of the 5 regions (probe) matches its 5 nations, so the 5-row probe stream fans out to the
         // 25 nation rows: a five-fold expansion.
-        JoinInsight insight = getJoinInsight("SELECT n.name FROM region r JOIN nation n ON r.regionkey = n.regionkey");
+        JoinInsight insight = getJoinInsight(NO_DYNAMIC_FILTERING, "SELECT n.name FROM region r JOIN nation n ON r.regionkey = n.regionkey");
 
         assertThat(insight.outputExpansionRatio()).contains(5.0);
+    }
+
+    @Test
+    public void testOutputExpansionRatioSuppressedWhenDynamicFilterNarrowsProbe()
+    {
+        // The same fan-out join with dynamic filtering left on: the join collects a dynamic filter over the
+        // region keys and pushes it onto the nation probe, so the measured probe input no longer reflects
+        // everything the join consumed and the ratio is withheld.
+        JoinInsight insight = getJoinInsight(SESSION, "SELECT n.name FROM region r JOIN nation n ON r.regionkey = n.regionkey");
+
+        assertThat(insight.outputExpansionRatio()).isEmpty();
     }
 
     @Test
@@ -187,12 +204,22 @@ public class TestJoinAnalyzer
 
     private JoinInsight getJoinInsight(@Language("SQL") String sql)
     {
-        return (JoinInsight) analyze(sql).stream().collect(onlyElement());
+        return getJoinInsight(SESSION, sql);
+    }
+
+    private JoinInsight getJoinInsight(Session session, @Language("SQL") String sql)
+    {
+        return (JoinInsight) analyze(session, sql).stream().collect(onlyElement());
     }
 
     private List<CastleInsight> analyze(@Language("SQL") String sql)
     {
-        QueryId queryId = queryRunner.executeWithQueryId(SESSION, sql).queryId();
+        return analyze(SESSION, sql);
+    }
+
+    private List<CastleInsight> analyze(Session session, @Language("SQL") String sql)
+    {
+        QueryId queryId = queryRunner.executeWithQueryId(session, sql).queryId();
         return analyzer.analyze(new CastleQueryAnalysis(finalQueryInfo(queryRunner, queryId)));
     }
 }

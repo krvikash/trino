@@ -20,11 +20,13 @@ import io.starburst.server.castleinsights.model.TableRef;
 import io.trino.operator.OperatorStats;
 import io.trino.operator.join.JoinOperatorInfo;
 import io.trino.operator.join.LookupOuterOperator;
+import io.trino.sql.planner.plan.DynamicFilterId;
 import io.trino.sql.planner.plan.JoinNode;
 import io.trino.sql.planner.plan.JoinNode.EquiJoinClause;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableList.toImmutableList;
@@ -101,12 +103,21 @@ public class JoinAnalyzer
      * <p>
      * This is a probe-relative measure on purpose: the build side is a hash table looked up once per probe
      * row, not a second stream that flows through, so a foreign-key join reads as ratio one and a fan-out
-     * join as greater than one. A dynamic filter that trims the probe closer to its source is not accounted
-     * for here and inflates the ratio toward one; see the follow-up work.
+     * join as greater than one.
+     * <p>
+     * Empty as well when a dynamic filter this join drove narrowed the probe closer to its source: the rows
+     * that filter removed never reach the probe input we measure, so the ratio would read too close to one
+     * and understate how much the join filters. That test is deliberately conservative -- a filter whose
+     * domain happens to cover every probe key removes nothing yet still suppresses the ratio -- because
+     * withholding a measurement beats reporting a biased one. Attributing those removed rows back to the
+     * join, rather than only detecting them, is left to follow-up work.
      */
     private static Optional<Double> outputExpansionRatio(CastleQueryAnalysis analysis, JoinNode join, Optional<JoinOperatorInfo> joinInfo)
     {
         if (joinInfo.isEmpty() || sum(joinInfo.get().getLogHistogramProbes()) == 0) {
+            return Optional.empty();
+        }
+        if (probeNarrowedByDynamicFilter(analysis, join)) {
             return Optional.empty();
         }
         long probeRows = analysis.outputRowCount(join.getLeft().getId());
@@ -115,6 +126,12 @@ public class JoinAnalyzer
         }
         long outputRows = analysis.outputRowCount(join.getId());
         return Optional.of((double) outputRows / probeRows);
+    }
+
+    private static boolean probeNarrowedByDynamicFilter(CastleQueryAnalysis analysis, JoinNode join)
+    {
+        Set<DynamicFilterId> narrowing = analysis.narrowingDynamicFilters();
+        return join.getDynamicFilters().keySet().stream().anyMatch(narrowing::contains);
     }
 
     /**
