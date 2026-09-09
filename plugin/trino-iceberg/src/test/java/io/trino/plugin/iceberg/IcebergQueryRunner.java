@@ -582,6 +582,41 @@ public final class IcebergQueryRunner
         }
     }
 
+    public static final class IcebergSnowflakePolarisAzureQueryRunnerMain
+    {
+        private IcebergSnowflakePolarisAzureQueryRunnerMain() {}
+
+        static void main()
+                throws Exception
+        {
+            Builder builder = icebergQueryRunnerMainBuilder()
+                    .addIcebergProperty("iceberg.catalog.type", "rest")
+                    .addIcebergProperty("iceberg.rest-catalog.uri", "https://%s/polaris/api/catalog".formatted(requireEnv("SNOWFLAKE_POLARIS_HOST")))
+                    .addIcebergProperty("iceberg.rest-catalog.warehouse", requireEnv("SNOWFLAKE_POLARIS_CATALOG"))
+                    .addIcebergProperty("iceberg.rest-catalog.security", "OAUTH2")
+                    .addIcebergProperty("iceberg.rest-catalog.oauth2.credential", "%s:%s".formatted(requireEnv("SNOWFLAKE_POLARIS_CLIENT_ID"), requireEnv("SNOWFLAKE_POLARIS_CLIENT_SECRET")))
+                    .addIcebergProperty("iceberg.rest-catalog.oauth2.scope", "PRINCIPAL_ROLE:ALL")
+                    .addIcebergProperty("iceberg.rest-catalog.nested-namespace-enabled", "true")
+                    .addIcebergProperty("iceberg.rest-catalog.case-insensitive-name-matching", "true")
+                    .addIcebergProperty("fs.azure.enabled", "true");
+
+            if (Boolean.parseBoolean(System.getenv("VENDED_CREDENTIALS"))) {
+                builder.addIcebergProperty("iceberg.rest-catalog.vended-credentials-enabled", "true");
+            }
+            else {
+                builder.addIcebergProperty("azure.auth-type", "ACCESS_KEY")
+                        .addIcebergProperty("azure.access-key", requireEnv("AZURE_ACCESS_KEY"));
+            }
+
+            @SuppressWarnings("resource")
+            QueryRunner queryRunner = builder.build();
+
+            Logger log = Logger.get(IcebergSnowflakePolarisAzureQueryRunnerMain.class);
+            log.info("======== SERVER STARTED ========");
+            log.info("\n====\n%s\n====", queryRunner.getCoordinator().getBaseUrl());
+        }
+    }
+
     public static final class IcebergS3TablesQueryRunnerMain
     {
         private IcebergS3TablesQueryRunnerMain() {}
