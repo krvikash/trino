@@ -20,6 +20,7 @@ import io.trino.matching.Capture;
 import io.trino.matching.Captures;
 import io.trino.matching.Pattern;
 import io.trino.metadata.ResolvedFunction;
+import io.trino.operator.UpdateMemory;
 import io.trino.operator.aggregation.Accumulator;
 import io.trino.operator.aggregation.AccumulatorFactory;
 import io.trino.operator.aggregation.AggregationMask;
@@ -170,7 +171,7 @@ public class PushAggregationIntoValues
 
         Type resultType = resolvedFunction.signature().getReturnType();
         BlockBuilder resultBuilder = resultType.createBlockBuilder(null, 1);
-        accumulator.evaluateFinal(resultBuilder);
+        accumulator.evaluateFinal(resultBuilder, UpdateMemory.NOOP);
         Block resultBlock = resultBuilder.build();
         return new Constant(resultType, readNativeValue(resultType, resultBlock, 0));
     }

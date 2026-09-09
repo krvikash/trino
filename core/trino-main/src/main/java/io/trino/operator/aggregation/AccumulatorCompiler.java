@@ -221,7 +221,7 @@ public final class AccumulatorCompiler
             generateGroupedEvaluateFinal(definition, stateFields, implementation.getOutputFunction(), callSiteBinder);
         }
         else {
-            generateEvaluateFinal(definition, "evaluateFinal", stateFields, implementation.getOutputFunction(), callSiteBinder);
+            generateEvaluateFinal(definition, "evaluateFinal", true, stateFields, implementation.getOutputFunction(), callSiteBinder);
         }
 
         if (grouped) {
@@ -306,7 +306,7 @@ public final class AccumulatorCompiler
                 implementation.getInputFunction(),
                 callSiteBinder);
 
-        generateEvaluateFinal(definition, "output", stateFields, implementation.getOutputFunction(), callSiteBinder);
+        generateEvaluateFinal(definition, "output", false, stateFields, implementation.getOutputFunction(), callSiteBinder);
         generateGetEstimatedSize(definition, stateFields);
 
         Class<? extends WindowAccumulator> windowAccumulatorClass = defineClass(definition, WindowAccumulator.class, callSiteBinder.getBindings(), classLoader);
@@ -944,16 +944,23 @@ public final class AccumulatorCompiler
     private static void generateEvaluateFinal(
             ClassDefinition definition,
             String methodName,
+            boolean acceptUpdateMemory,
             List<FieldDefinition> stateFields,
             MethodHandle outputFunction,
             CallSiteBinder callSiteBinder)
     {
         Parameter out = arg("out", BlockBuilder.class);
+        List<Parameter> parameters = new ArrayList<>();
+        parameters.add(out);
+        if (acceptUpdateMemory) {
+            // the callback is only used by accumulators that move data while producing final output
+            parameters.add(arg("updateMemory", UpdateMemory.class));
+        }
         MethodDefinition method = definition.declareMethod(
                 a(PUBLIC),
                 methodName,
                 type(void.class),
-                out);
+                parameters);
 
         BytecodeBlock body = method.getBody();
         Variable thisVariable = method.getThis();
