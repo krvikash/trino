@@ -177,9 +177,17 @@ queries/tasks are no longer retried in the event of repeated failures:
   - Retry policy
 * - `query-retry-attempts`
   - Maximum number of times Trino may attempt to retry a query before declaring
-    the query as failed.
+    the query as failed. Under the `TASK` policy this also limits the restarts
+    performed by `fault-tolerant-execution-query-retry-enabled`.
   - `4`
-  - Only `QUERY`
+  - `QUERY` and `TASK`
+* - `fault-tolerant-execution-query-retry-enabled`
+  - When set to `true`, restarts the whole query on unrecoverable exchange data
+    loss, up to `query-retry-attempts` times. See [query restart on exchange data loss](query-restart-on-exchange-data-loss).
+    May be overridden with the `fault_tolerant_execution_query_retry_enabled`
+    [session property](session-properties-definition).
+  - `false`
+  - Only `TASK`
 * - `task-retry-attempts-per-task`
   - Maximum number of times Trino may attempt to retry a single task before
     declaring the query as failed.
@@ -205,6 +213,41 @@ queries/tasks are no longer retried in the event of repeated failures:
   - `2.0`
   - `QUERY` and `TASK`
 :::
+
+(query-restart-on-exchange-data-loss)=
+### Query restart on exchange data loss
+
+Retrying a task cannot recover data that is no longer in exchange storage, for
+example when spooled exchange files are deleted before the query completes.
+Such a failure is reported with the `EXCHANGE_DATA_UNRECOVERABLE` error code.
+The task is retried once, in case the data is missing only temporarily, and
+then the query fails, without spending the rest of the task retry budget on
+attempts that cannot succeed.
+
+Setting `fault-tolerant-execution-query-retry-enabled` to `true` makes Trino
+restart the whole query instead. All stages and their spooled exchange data are
+torn down and the query re-executes from scratch, up to `query-retry-attempts`
+times. Restarts are delayed by `retry-initial-delay`, growing with
+`retry-delay-scale-factor` up to `retry-max-delay`, because a restart re-runs
+work that had already succeeded. The delay is randomized by up to 25% in either
+direction, so that the queries affected by the same event do not all restart
+at the same moment.
+
+Queries that write data are restarted as well. Nothing is committed before the
+root stage finishes, and the connector discards the output of a failed attempt
+the same way it discards the output of a failed task attempt.
+
+The following restrictions apply:
+
+- A query is not restarted once its output has been published to the client,
+  which happens as soon as the root stage finishes.
+- Data loss reported outside a stage failure, such as while the coordinator is
+  collecting the output of the root stage, fails the query rather than
+  restarting it.
+- Query information reports the stages of the current attempt only. Counters
+  that accumulate over the life of the query, such as CPU time and input bytes,
+  do include the work of discarded attempts while the query is running, so
+  `query-max-cpu-time` and resource group limits still apply across restarts.
 
 ### Task sizing
 

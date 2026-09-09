@@ -282,6 +282,17 @@ public class TaskDescriptorStorage
         }
     }
 
+    public synchronized void reset(QueryId queryId)
+    {
+        TaskDescriptors storage = storages.get(queryId);
+        if (storage == null) {
+            // query has been terminated
+            return;
+        }
+        destroy(queryId);
+        initialize(queryId);
+    }
+
     @GuardedBy("this")
     private void updateCompressingFlag()
     {

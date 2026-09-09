@@ -151,6 +151,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -172,12 +173,14 @@ import static io.trino.SystemSessionProperties.getFaultTolerantExecutionTaskSpli
 import static io.trino.SystemSessionProperties.getFaultTolerantExecutionTaskSplitMemoryThreshold;
 import static io.trino.SystemSessionProperties.getMaxTasksWaitingForExecutionPerQuery;
 import static io.trino.SystemSessionProperties.getMaxTasksWaitingForNodePerQuery;
+import static io.trino.SystemSessionProperties.getQueryRetryAttempts;
 import static io.trino.SystemSessionProperties.getRetryDelayScaleFactor;
 import static io.trino.SystemSessionProperties.getRetryInitialDelay;
 import static io.trino.SystemSessionProperties.getRetryMaxDelay;
 import static io.trino.SystemSessionProperties.getRetryPolicy;
 import static io.trino.SystemSessionProperties.getTaskRetryAttemptsPerTask;
 import static io.trino.SystemSessionProperties.isFaultTolerantExecutionAdaptiveQueryPlanningEnabled;
+import static io.trino.SystemSessionProperties.isFaultTolerantExecutionQueryRetryEnabled;
 import static io.trino.SystemSessionProperties.isFaultTolerantExecutionStageEstimationForEagerParentEnabled;
 import static io.trino.execution.BasicStageStats.aggregateFaultTolerantBasicStageStats;
 import static io.trino.execution.StageState.ABORTED;
@@ -188,6 +191,7 @@ import static io.trino.execution.scheduler.Exchanges.getAllSourceHandles;
 import static io.trino.execution.scheduler.SchedulingUtils.canStream;
 import static io.trino.execution.scheduler.faulttolerant.ExchangeFailureClassifier.ExchangeFailureKind.TRANSIENT;
 import static io.trino.execution.scheduler.faulttolerant.ExchangeFailureClassifier.classify;
+import static io.trino.execution.scheduler.faulttolerant.QueryRestartDelay.restartDelay;
 import static io.trino.execution.scheduler.faulttolerant.TaskExecutionClass.EAGER_SPECULATIVE;
 import static io.trino.execution.scheduler.faulttolerant.TaskExecutionClass.SPECULATIVE;
 import static io.trino.execution.scheduler.faulttolerant.TaskExecutionClass.STANDARD;
@@ -218,6 +222,7 @@ import static java.util.Map.Entry.comparingByKey;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.MINUTES;
+import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 public class EventDrivenFaultTolerantQueryScheduler
@@ -250,6 +255,7 @@ public class EventDrivenFaultTolerantQueryScheduler
     private final TaskExecutionStats taskExecutionStats;
     private final Optional<AdaptivePlanner> adaptivePlanner;
     private final StageExecutionStats stageExecutionStats;
+    private final FaultTolerantQueryRestartStats queryRestartStats;
     private final SubPlan originalPlan;
     private final boolean stageEstimationForEagerParentEnabled;
 
@@ -283,6 +289,7 @@ public class EventDrivenFaultTolerantQueryScheduler
             TaskExecutionStats taskExecutionStats,
             AdaptivePlanner adaptivePlanner,
             StageExecutionStats stageExecutionStats,
+            FaultTolerantQueryRestartStats queryRestartStats,
             SubPlan originalPlan)
     {
         this.queryStateMachine = requireNonNull(queryStateMachine, "queryStateMachine is null");
@@ -312,6 +319,7 @@ public class EventDrivenFaultTolerantQueryScheduler
                 Optional.empty();
         this.originalPlan = requireNonNull(originalPlan, "originalPlan is null");
         this.stageExecutionStats = requireNonNull(stageExecutionStats, "stageExecutionStats is null");
+        this.queryRestartStats = requireNonNull(queryRestartStats, "queryRestartStats is null");
 
         this.stageEstimationForEagerParentEnabled = isFaultTolerantExecutionStageEstimationForEagerParentEnabled(queryStateMachine.getSession());
 
@@ -351,12 +359,12 @@ public class EventDrivenFaultTolerantQueryScheduler
             queryStateMachine.updateQueryInfo(Optional.ofNullable(stageRegistry.getStages()));
         });
 
-        startAttempt();
+        startAttempt(0);
     }
 
-    private synchronized void startAttempt()
+    private synchronized void startAttempt(int attempt)
     {
-        log.debug("Starting fault tolerant query scheduler for query %s", queryStateMachine.getQueryId());
+        log.debug("Starting fault tolerant query scheduler for query %s, attempt %s", queryStateMachine.getQueryId(), attempt);
         Session session = queryStateMachine.getSession();
         int maxPartitionCount = getFaultTolerantExecutionMaxPartitionCount(session);
         FaultTolerantPartitioningSchemeFactory partitioningSchemeFactory = new FaultTolerantPartitioningSchemeFactory(
@@ -391,6 +399,7 @@ public class EventDrivenFaultTolerantQueryScheduler
                     stageRegistry,
                     taskExecutionStats,
                     stageExecutionStats,
+                    queryRestartStats,
                     dynamicFilterService,
                     new SchedulingDelayer(
                             getRetryInitialDelay(session),
@@ -403,7 +412,11 @@ public class EventDrivenFaultTolerantQueryScheduler
                     getFaultTolerantExecutionTaskSplitFactor(session),
                     stageEstimationForEagerParentEnabled,
                     adaptivePlanner,
-                    nodePartitioningManager::getBucketCount);
+                    nodePartitioningManager::getBucketCount,
+                    attempt,
+                    isFaultTolerantExecutionQueryRetryEnabled(session)
+                            ? Optional.of(this::requestQueryRestart)
+                            : Optional.empty());
             queryExecutor.submit(scheduler::run);
         }
         catch (Throwable t) {
@@ -424,6 +437,58 @@ public class EventDrivenFaultTolerantQueryScheduler
     {
         throw new UnsupportedOperationException("partial cancel is not supported in fault tolerant mode");
     }
+
+    synchronized boolean requestQueryRestart(Throwable exchangeFailure, int completedAttempt)
+    {
+        log.debug(exchangeFailure, "Query %s: exchange failure after completed attempt %d, deciding whether to restart", queryStateMachine.getQueryId(), completedAttempt);
+        if (queryStateMachine.isDone()) {
+            return false;
+        }
+        Session session = queryStateMachine.getSession();
+        int maxRetries = getQueryRetryAttempts(session);
+        if (completedAttempt >= maxRetries) {
+            log.warn("Query %s: exchange data unrecoverable after attempt %d (%s), not restarting because all %d query retry attempt(s) are used",
+                    queryStateMachine.getQueryId(),
+                    completedAttempt,
+                    toFailure(exchangeFailure).errorCode(),
+                    maxRetries);
+            return false;
+        }
+        int nextAttempt = completedAttempt + 1;
+        Duration delay = restartDelay(getRetryInitialDelay(session), getRetryMaxDelay(session), getRetryDelayScaleFactor(session), completedAttempt, ThreadLocalRandom.current().nextDouble());
+        log.info(
+                "Query %s: exchange data unrecoverable after attempt %d (%s), restarting as attempt %d in %s",
+                queryStateMachine.getQueryId(),
+                completedAttempt,
+                toFailure(exchangeFailure).errorCode(),
+                nextAttempt,
+                delay);
+        scheduledExecutorService.schedule(() -> queryExecutor.execute(() -> restartQuery(exchangeFailure, nextAttempt)), delay.toMillis(), MILLISECONDS);
+        return true;
+    }
+
+    private synchronized void restartQuery(Throwable exchangeFailure, int nextAttempt)
+    {
+        if (queryStateMachine.isDone()) {
+            return;
+        }
+        try {
+            stageRegistry.initializeRestart(originalPlan);
+            // the storage lives as long as the query does (see start()); the new attempt only needs it empty
+            taskDescriptorStorage.reset(queryStateMachine.getQueryId());
+            dynamicFilterService.registerQueryRetry(queryStateMachine.getQueryId(), nextAttempt);
+            startAttempt(nextAttempt);
+        }
+        catch (Throwable t) {
+            log.error(t, "Query %s: failed to start attempt %d", queryStateMachine.getQueryId(), nextAttempt);
+            if (t != exchangeFailure) {
+                exchangeFailure.addSuppressed(t);
+            }
+            queryStateMachine.transitionToFailed(exchangeFailure);
+        }
+    }
+
+    private record QueryRestartRequest(Throwable failure) {}
 
     @Override
     public void failTask(TaskId taskId, Throwable failureCause)
@@ -468,11 +533,13 @@ public class EventDrivenFaultTolerantQueryScheduler
     }
 
     @ThreadSafe
-    private static class StageRegistry
+    static class StageRegistry
     {
         private final QueryStateMachine queryStateMachine;
         private final AtomicReference<SubPlan> plan;
         private final Map<StageId, SqlStage> stages = new ConcurrentHashMap<>();
+        @GuardedBy("this")
+        private final Set<TaskId> discardedTaskIds = new HashSet<>();
 
         public StageRegistry(QueryStateMachine queryStateMachine, SubPlan plan)
         {
@@ -483,6 +550,17 @@ public class EventDrivenFaultTolerantQueryScheduler
         public void add(SqlStage stage)
         {
             verify(stages.putIfAbsent(stage.getStageId(), stage) == null, "stage %s is already present", stage.getStageId());
+        }
+
+        public synchronized void initializeRestart(SubPlan newPlan)
+        {
+            for (SqlStage stage : stages.values()) {
+                for (RemoteTask task : stage.getAllTasks()) {
+                    discardedTaskIds.add(task.getTaskId());
+                }
+            }
+            stages.clear();
+            updatePlan(newPlan);
         }
 
         public void updatePlan(SubPlan plan)
@@ -588,8 +666,13 @@ public class EventDrivenFaultTolerantQueryScheduler
             return new Duration(millis, MILLISECONDS);
         }
 
-        public void failTaskRemotely(TaskId taskId, Throwable failureCause)
+        public synchronized void failTaskRemotely(TaskId taskId, Throwable failureCause)
         {
+            if (discardedTaskIds.contains(taskId)) {
+                // this is reachable from outside the scheduler, so a task of an attempt discarded by a query restart can still report a failure
+                log.debug(failureCause, "Ignoring remote failure of task %s: it belongs to a discarded query attempt", taskId);
+                return;
+            }
             SqlStage sqlStage = requireNonNull(stages.get(taskId.stageId()), () -> "stage not found: %s" + taskId.stageId());
             sqlStage.failTaskRemotely(taskId, failureCause);
         }
@@ -739,11 +822,26 @@ public class EventDrivenFaultTolerantQueryScheduler
         }
     }
 
-    private static class Scheduler
+    @FunctionalInterface
+    interface QueryRestartRequestHandler
+    {
+        /**
+         * Requests a query restart after {@code completedAttempt} finished with {@code failure}.
+         *
+         * @return {@code true} if a restart was scheduled and the current attempt should be discarded without failing
+         *         the query; {@code false} if no restart will happen and the query should fail with {@code failure}.
+         */
+        boolean requestRestart(Throwable failure, int completedAttempt);
+    }
+
+    @VisibleForTesting
+    static class Scheduler
             implements EventListener<Void>
     {
         private static final int EVENT_BUFFER_CAPACITY = 100;
         private static final long EVENT_PROCESSING_ENFORCED_FREQUENCY_MILLIS = MINUTES.toMillis(1);
+        private static final Duration TASK_TERMINATION_TIMEOUT = new Duration(30, SECONDS);
+        private static final long TASK_TERMINATION_POLL_MILLIS = 50;
         // If scheduler is stalled for SCHEDULER_STALLED_DURATION_THRESHOLD debug log will be emitted.
         // If situation persists event logs will be emitted at SCHEDULER_MAX_DEBUG_INFO_FREQUENCY.
         // SCHEDULER_STALLED_DURATION_THRESHOLD must be larger than EVENT_PROCESSING_ENFORCED_FREQUENCY as prerequiste for processing is
@@ -781,11 +879,14 @@ public class EventDrivenFaultTolerantQueryScheduler
         private final StageRegistry stageRegistry;
         private final TaskExecutionStats taskExecutionStats;
         private final StageExecutionStats stageExecutionStats;
+        private final FaultTolerantQueryRestartStats queryRestartStats;
         private final DynamicFilterService dynamicFilterService;
         private final int maxPartitionCount;
         private final DataSize taskSplitMemoryThreshold;
         private final int taskSplitFactor;
         private final boolean stageEstimationForEagerParentEnabled;
+        private final int attempt;
+        private final Optional<QueryRestartRequestHandler> queryRestartRequestHandler;
 
         private final BlockingQueue<Event> eventQueue = new LinkedBlockingQueue<>();
         private final List<Event> eventBuffer = new ArrayList<>(EVENT_BUFFER_CAPACITY);
@@ -795,6 +896,7 @@ public class EventDrivenFaultTolerantQueryScheduler
         private final Queue<Entry<TaskId, RuntimeException>> taskFailures = new ArrayDeque<>(TASK_FAILURES_LOG_SIZE);
 
         private boolean started;
+        private Optional<QueryRestartRequest> pendingRestart = Optional.empty();
 
         private SubPlan plan;
         private List<SubPlan> planInTopologicalOrder;
@@ -840,6 +942,7 @@ public class EventDrivenFaultTolerantQueryScheduler
                 StageRegistry stageRegistry,
                 TaskExecutionStats taskExecutionStats,
                 StageExecutionStats stageExecutionStats,
+                FaultTolerantQueryRestartStats queryRestartStats,
                 DynamicFilterService dynamicFilterService,
                 SchedulingDelayer schedulingDelayer,
                 SubPlan plan,
@@ -848,8 +951,12 @@ public class EventDrivenFaultTolerantQueryScheduler
                 int taskSplitFactor,
                 boolean stageEstimationForEagerParentEnabled,
                 Optional<AdaptivePlanner> adaptivePlanner,
-                LocalExchangeBucketCountProvider bucketCountProvider)
+                LocalExchangeBucketCountProvider bucketCountProvider,
+                int attempt,
+                Optional<QueryRestartRequestHandler> queryRestartRequestHandler)
         {
+            this.attempt = attempt;
+            this.queryRestartRequestHandler = requireNonNull(queryRestartRequestHandler, "queryRestartRequestHandler is null");
             this.queryStateMachine = requireNonNull(queryStateMachine, "queryStateMachine is null");
             this.metadata = requireNonNull(metadata, "metadata is null");
             this.remoteTaskFactory = requireNonNull(remoteTaskFactory, "remoteTaskFactory is null");
@@ -875,6 +982,7 @@ public class EventDrivenFaultTolerantQueryScheduler
             this.stageRegistry = requireNonNull(stageRegistry, "stageRegistry is null");
             this.taskExecutionStats = requireNonNull(taskExecutionStats, "taskExecutionStats is null");
             this.stageExecutionStats = requireNonNull(stageExecutionStats, "stageExecutionStats is null");
+            this.queryRestartStats = requireNonNull(queryRestartStats, "queryRestartStats is null");
             this.dynamicFilterService = requireNonNull(dynamicFilterService, "dynamicFilterService is null");
             this.schedulingDelayer = requireNonNull(schedulingDelayer, "schedulingDelayer is null");
             this.plan = requireNonNull(plan, "plan is null");
@@ -930,8 +1038,15 @@ public class EventDrivenFaultTolerantQueryScheduler
             }
             catch (Throwable t) {
                 failure = Optional.of(t);
+                // An exchange that already knows its data is gone rethrows that failure from every call the scheduler makes
+                // on it (e.g. when a sink finishes), so the loss surfaces here rather than as a failed stage. It deserves
+                // the same restart.
+                if (isRestartable(toFailure(t))) {
+                    pendingRestart = Optional.of(new QueryRestartRequest(t));
+                }
             }
 
+            // tear down the failed attempt: stages terminate, node leases go back, the allocator closes
             for (StageExecution execution : stageExecutions.values()) {
                 failure = closeAndAddSuppressed(failure, execution::abort);
             }
@@ -941,11 +1056,84 @@ public class EventDrivenFaultTolerantQueryScheduler
             preSchedulingTaskContexts.clear();
             failure = closeAndAddSuppressed(failure, nodeAllocator);
 
-            failure.ifPresent(fail -> {
-                queryStateMachine.transitionToFailed(fail);
-                schedulerSpan.addEvent("scheduler_failure", Attributes.of(FAILURE_MESSAGE, fail.getMessage()));
-            });
+            // the next attempt resets the stage registry and the task descriptor storage, so it must not start
+            // before this attempt released its tasks and node leases above
+            boolean restartScheduled = false;
+            if (pendingRestart.isPresent()) {
+                QueryRestartRequest request = pendingRestart.get();
+                try {
+                    awaitTasksTerminated();
+                    restartScheduled = queryRestartRequestHandler.orElseThrow().requestRestart(request.failure(), attempt);
+                }
+                catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    request.failure().addSuppressed(e);
+                }
+                if (restartScheduled) {
+                    schedulerSpan.addEvent("query_restart", Attributes.of(TrinoAttributes.QUERY_ID, queryStateMachine.getQueryId().toString()));
+                    queryRestartStats.recordQueryRestartDueToExchangeDataLoss();
+                }
+                else if (failure.isEmpty()) {
+                    // the restart was refused (e.g. retries exhausted) or interrupted; a failed stage does not fail the query on its own
+                    failure = Optional.of(request.failure());
+                }
+            }
+
+            if (!restartScheduled) {
+                Optional<Throwable> queryFailure = failure;
+                queryFailure.ifPresent(fail -> {
+                    queryStateMachine.transitionToFailed(fail);
+                    schedulerSpan.addEvent("scheduler_failure", Attributes.of(FAILURE_MESSAGE, fail.getMessage()));
+                });
+            }
             schedulerSpan.end();
+        }
+
+        private boolean isRestartable(ExecutionFailureInfo failureCause)
+        {
+            if (queryRestartRequestHandler.isEmpty() || failureCause == null || failureCause.errorCode() == null) {
+                return false;
+            }
+            if (classify(failureCause.errorCode()) != ExchangeFailureKind.EXCHANGE_DATA_UNRECOVERABLE) {
+                log.debug("Stage failure classified as not restartable for error code %s", failureCause.errorCode());
+                return false;
+            }
+            if (queryOutputSet) {
+                log.info("Query %s: exchange data unrecoverable in attempt %d (%s), not restarting because the query output is already exposed to the client",
+                        queryStateMachine.getQueryId(),
+                        attempt,
+                        failureCause.errorCode());
+                return false;
+            }
+            return true;
+        }
+
+        /**
+         * Waits up to {@link #TASK_TERMINATION_TIMEOUT} for the tasks of this attempt to reach a terminal state, so the next attempt
+         * does not reset the stage registry and the task descriptor storage while they still run. Gives up after the timeout: tasks
+         * that are still running cannot leak data into the next attempt, because exchange ids include the query attempt.
+         */
+        private void awaitTasksTerminated()
+                throws InterruptedException
+        {
+            long deadline = System.nanoTime() + TASK_TERMINATION_TIMEOUT.roundTo(NANOSECONDS);
+            while (System.nanoTime() < deadline) {
+                boolean allDone = true;
+                for (StageExecution execution : stageExecutions.values()) {
+                    if (!execution.allTasksDone()) {
+                        allDone = false;
+                        break;
+                    }
+                }
+                if (allDone) {
+                    return;
+                }
+                Thread.sleep(TASK_TERMINATION_POLL_MILLIS);
+            }
+            log.warn("Query %s: not all tasks of attempt %s reached terminal state within %s; proceeding to restart anyway",
+                    queryStateMachine.getQueryId(),
+                    attempt,
+                    TASK_TERMINATION_TIMEOUT);
         }
 
         private Optional<Throwable> closeAndAddSuppressed(Optional<Throwable> existingFailure, Closeable closeable)
@@ -1120,6 +1308,13 @@ public class EventDrivenFaultTolerantQueryScheduler
 
                     taskFailures.forEach(taskFailure -> failure.addSuppressed(new RuntimeException("Task " + taskFailure.getKey() + " failed", taskFailure.getValue())));
 
+                    if (isRestartable(failureCause)) {
+                        pendingRestart = Optional.of(new QueryRestartRequest(failure));
+                        // stop this scheduler: schedule() only short-circuits when checkComplete() is true, otherwise it would
+                        // keep scheduling against the stale failed plan and re-request a restart on every subsequent cycle
+                        return true;
+                    }
+
                     queryStateMachine.transitionToFailed(failure);
                     return true;
                 }
@@ -1140,6 +1335,9 @@ public class EventDrivenFaultTolerantQueryScheduler
                     public void onSuccess(List<ExchangeSourceHandle> handles)
                     {
                         try {
+                            if (attempt > 0) {
+                                log.info("Query %s: restarted attempt %d succeeded", queryStateMachine.getQueryId(), attempt);
+                            }
                             queryStateMachine.updateInputsForQueryResults(
                                     ImmutableList.of(new SpoolingExchangeInput(handles, Optional.of(rootStageExecution.getSinkOutputSelector()))),
                                     true);
@@ -1548,7 +1746,7 @@ public class EventDrivenFaultTolerantQueryScheduler
                 QueryId queryId = queryStateMachine.getQueryId();
                 ExchangeContext exchangeContext = new ExchangeContextInstance(
                         queryId,
-                        new ExchangeId("external-exchange-" + stage.getStageId().id()),
+                        new ExchangeId("external-exchange-" + attempt + "-" + stage.getStageId().id()),
                         schedulerSpan);
 
                 boolean preserveOrderWithinPartition = rootFragment && stage.getFragment().getPartitioning().equals(SINGLE_DISTRIBUTION);
@@ -1586,6 +1784,7 @@ public class EventDrivenFaultTolerantQueryScheduler
                         schedulingQueue,
                         // do not retry coordinator only tasks
                         shouldRetry(stage) ? maxTaskExecutionAttempts : 1,
+                        attempt,
                         schedulingPriority,
                         eager,
                         taskSplitMemoryThreshold,
@@ -2120,6 +2319,7 @@ public class EventDrivenFaultTolerantQueryScheduler
         private final OutputStatsEstimator outputStatsEstimator;
         private final SchedulingQueue schedulingQueue;
         private final int maxTaskExecutionAttempts;
+        private final int taskAttemptOffset;
         private final int schedulingPriority;
         private final boolean eager;
         private boolean speculative;
@@ -2167,6 +2367,7 @@ public class EventDrivenFaultTolerantQueryScheduler
                 OutputStatsEstimator outputStatsEstimator,
                 SchedulingQueue schedulingQueue,
                 int maxTaskExecutionAttempts,
+                int queryAttempt,
                 int schedulingPriority,
                 boolean eager,
                 DataSize taskSplitMemoryThreshold,
@@ -2186,6 +2387,8 @@ public class EventDrivenFaultTolerantQueryScheduler
             this.outputStatsEstimator = requireNonNull(outputStatsEstimator, "outputStatsEstimator is null");
             this.schedulingQueue = requireNonNull(schedulingQueue, "schedulingQueue is null");
             this.maxTaskExecutionAttempts = maxTaskExecutionAttempts;
+            // Task ids must not collide with tasks created by earlier query attempts that may still be cached on workers.
+            this.taskAttemptOffset = queryAttempt * maxTaskExecutionAttempts;
             this.schedulingPriority = schedulingPriority;
             this.eager = eager;
             this.taskSplitMemoryThreshold = requireNonNull(taskSplitMemoryThreshold, "taskSplitMemoryThreshold is null");
@@ -2253,6 +2456,11 @@ public class EventDrivenFaultTolerantQueryScheduler
         public StageState getState()
         {
             return stage.getState();
+        }
+
+        public boolean allTasksDone()
+        {
+            return stage.allTasksDone();
         }
 
         public StageInfo getStageInfo()
@@ -2397,7 +2605,7 @@ public class EventDrivenFaultTolerantQueryScheduler
                 return Optional.empty();
             }
 
-            int attempt = maxTaskExecutionAttempts - partition.getRemainingAttempts();
+            int attempt = taskAttemptOffset + maxTaskExecutionAttempts - partition.getRemainingAttempts();
             return Optional.of(new GetExchangeSinkInstanceHandleResult(
                     exchange.instantiateSink(partition.getExchangeSinkHandle(), attempt, Optional.of(taskNode)),
                     attempt));

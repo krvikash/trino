@@ -175,6 +175,7 @@ public final class SystemSessionProperties
     public static final String RETRY_POLICY = "retry_policy";
     public static final String DIRECT_TRINO_CLIENT_FAULT_TOLERANT_EXECUTION_ENABLED = "direct_trino_client_fault_tolerant_execution_enabled";
     public static final String QUERY_RETRY_ATTEMPTS = "query_retry_attempts";
+    public static final String FAULT_TOLERANT_EXECUTION_QUERY_RETRY_ENABLED = "fault_tolerant_execution_query_retry_enabled";
     public static final String TASK_RETRY_ATTEMPTS_PER_TASK = "task_retry_attempts_per_task";
     public static final String MAX_TASKS_WAITING_FOR_EXECUTION_PER_QUERY = "max_tasks_waiting_for_execution_per_query";
     public static final String MAX_TASKS_WAITING_FOR_NODE_PER_QUERY = "max_tasks_waiting_for_node_per_query";
@@ -895,6 +896,11 @@ public final class SystemSessionProperties
                         DIRECT_TRINO_CLIENT_FAULT_TOLERANT_EXECUTION_ENABLED,
                         "Allow DirectTrinoClient to consume results of queries running under fault-tolerant execution; when disabled such queries are forced to retry_policy=NONE",
                         queryManagerConfig.isDirectTrinoClientFaultTolerantExecutionEnabled(),
+                        false),
+                booleanProperty(
+                        FAULT_TOLERANT_EXECUTION_QUERY_RETRY_ENABLED,
+                        "Retry the whole query when exchange data is unrecoverable, up to query_retry_attempts",
+                        queryManagerConfig.isFaultTolerantExecutionQueryRetryEnabled(),
                         false),
                 integerProperty(
                         QUERY_RETRY_ATTEMPTS,
@@ -2026,6 +2032,11 @@ public final class SystemSessionProperties
     public static boolean isDirectTrinoClientFaultTolerantExecutionEnabled(Session session)
     {
         return session.getSystemProperty(DIRECT_TRINO_CLIENT_FAULT_TOLERANT_EXECUTION_ENABLED, Boolean.class);
+    }
+
+    public static boolean isFaultTolerantExecutionQueryRetryEnabled(Session session)
+    {
+        return session.getSystemProperty(FAULT_TOLERANT_EXECUTION_QUERY_RETRY_ENABLED, Boolean.class);
     }
 
     public static int getQueryRetryAttempts(Session session)

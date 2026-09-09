@@ -41,6 +41,7 @@ import io.trino.sql.planner.plan.PlanNodeId;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 
+import java.util.NoSuchElementException;
 import java.util.Optional;
 
 import static io.airlift.json.JsonCodec.jsonCodec;
@@ -145,6 +146,36 @@ public class TestTaskDescriptorStorage
         assertThat(manager.get(QUERY_1_STAGE_1, 0)).isEmpty();
         assertThat(manager.get(QUERY_2_STAGE_1, 0)).isEmpty();
         assertThat(manager.getReservedUncompressedBytes()).isEqualTo(0);
+    }
+
+    @Test
+    public void testReset()
+    {
+        // disable compression to get expected memory usage
+        TaskDescriptorStorage manager = new TaskDescriptorStorage(DataSize.of(5, KILOBYTE), DataSize.of(10, KILOBYTE), DataSize.of(10, KILOBYTE), jsonCodec(TaskDescriptor.class));
+        manager.initialize(QUERY_1);
+        manager.initialize(QUERY_2);
+        manager.put(QUERY_1_STAGE_1, createTaskDescriptor(0, DataSize.of(1, KILOBYTE)));
+        manager.put(QUERY_2_STAGE_1, createTaskDescriptor(0, DataSize.of(1, KILOBYTE)));
+
+        // a restarted query starts with an empty storage but stays registered
+        manager.reset(QUERY_1);
+        assertThatThrownBy(() -> manager.get(QUERY_1_STAGE_1, 0)).isInstanceOf(NoSuchElementException.class);
+        assertThat(manager.get(QUERY_2_STAGE_1, 0)).isPresent();
+        assertThat(manager.getReservedUncompressedBytes())
+                .isGreaterThanOrEqualTo(toBytes(1, KILOBYTE))
+                .isLessThanOrEqualTo(toBytes(2, KILOBYTE));
+        manager.put(QUERY_1_STAGE_1, createTaskDescriptor(0, DataSize.of(1, KILOBYTE)));
+        assertThat(manager.get(QUERY_1_STAGE_1, 0)).isPresent();
+
+        // a reset after the query finished must not bring the storage back
+        manager.destroy(QUERY_1);
+        manager.reset(QUERY_1);
+        manager.put(QUERY_1_STAGE_1, createTaskDescriptor(0, DataSize.of(1, KILOBYTE)));
+        assertThat(manager.get(QUERY_1_STAGE_1, 0)).isEmpty();
+        assertThat(manager.getReservedUncompressedBytes())
+                .isGreaterThanOrEqualTo(toBytes(1, KILOBYTE))
+                .isLessThanOrEqualTo(toBytes(2, KILOBYTE));
     }
 
     @Test

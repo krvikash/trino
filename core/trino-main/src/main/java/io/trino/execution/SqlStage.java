@@ -13,6 +13,7 @@
  */
 package io.trino.execution;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Multimap;
 import com.google.errorprone.annotations.ThreadSafe;
@@ -198,6 +199,16 @@ public final class SqlStage
         }
     }
 
+    public boolean allTasksDone()
+    {
+        for (RemoteTask task : tasks.values()) {
+            if (!task.getTaskStatus().state().isDone()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     public synchronized void fail(Throwable throwable)
     {
         requireNonNull(throwable, "throwable is null");
@@ -266,6 +277,11 @@ public final class SqlStage
         return tasks.values().stream()
                 .map(RemoteTask::getTaskInfo)
                 .collect(toImmutableList());
+    }
+
+    public List<RemoteTask> getAllTasks()
+    {
+        return ImmutableList.copyOf(tasks.values());
     }
 
     public synchronized Optional<RemoteTask> createTask(

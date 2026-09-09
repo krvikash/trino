@@ -177,6 +177,7 @@ public class QueryManagerConfig
     // TODO: Consider the cost of restarting the stage as part of adaptive planning.
     private DataSize faultTolerantExecutionAdaptiveJoinReorderingMinSizeThreshold = DataSize.of(5, GIGABYTE);
     private boolean faultTolerantExecutionDebugAdaptivePlanner;
+    private boolean faultTolerantExecutionQueryRetryEnabled;
     private boolean sourcePagesValidationEnabled = true;
     private int remoteSplitsGenerationBatchSize = 10_000;
 
@@ -1328,6 +1329,19 @@ public class QueryManagerConfig
     public QueryManagerConfig setFaultTolerantExecutionDebugAdaptivePlanner(boolean faultTolerantExecutionDebugAdaptivePlanner)
     {
         this.faultTolerantExecutionDebugAdaptivePlanner = faultTolerantExecutionDebugAdaptivePlanner;
+        return this;
+    }
+
+    public boolean isFaultTolerantExecutionQueryRetryEnabled()
+    {
+        return faultTolerantExecutionQueryRetryEnabled;
+    }
+
+    @Config("fault-tolerant-execution-query-retry-enabled")
+    @ConfigDescription("Retry the whole query when exchange data is unrecoverable, up to query-retry-attempts")
+    public QueryManagerConfig setFaultTolerantExecutionQueryRetryEnabled(boolean faultTolerantExecutionQueryRetryEnabled)
+    {
+        this.faultTolerantExecutionQueryRetryEnabled = faultTolerantExecutionQueryRetryEnabled;
         return this;
     }
 

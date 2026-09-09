@@ -91,6 +91,7 @@ import io.trino.execution.scheduler.faulttolerant.ByTaskProgressOutputStatsEstim
 import io.trino.execution.scheduler.faulttolerant.CompositeOutputStatsEstimator;
 import io.trino.execution.scheduler.faulttolerant.EventDrivenTaskSourceFactory;
 import io.trino.execution.scheduler.faulttolerant.ExponentialGrowthPartitionMemoryEstimator;
+import io.trino.execution.scheduler.faulttolerant.FaultTolerantQueryRestartStats;
 import io.trino.execution.scheduler.faulttolerant.NoMemoryAwarePartitionMemoryEstimator;
 import io.trino.execution.scheduler.faulttolerant.NoMemoryAwarePartitionMemoryEstimator.ForNoMemoryAwarePartitionMemoryEstimator;
 import io.trino.execution.scheduler.faulttolerant.NodeAllocatorService;
@@ -461,6 +462,8 @@ public class CoordinatorModule
         newExporter(binder).export(TaskExecutionStats.class).withGeneratedName();
         binder.bind(StageExecutionStats.class).in(Scopes.SINGLETON);
         newExporter(binder).export(StageExecutionStats.class).withGeneratedName();
+        binder.bind(FaultTolerantQueryRestartStats.class).in(Scopes.SINGLETON);
+        newExporter(binder).export(FaultTolerantQueryRestartStats.class).withGeneratedName();
 
         MapBinder<String, ExecutionPolicy> executionPolicyBinder = newMapBinder(binder, String.class, ExecutionPolicy.class);
         executionPolicyBinder.addBinding("all-at-once").to(AllAtOnceExecutionPolicy.class);
