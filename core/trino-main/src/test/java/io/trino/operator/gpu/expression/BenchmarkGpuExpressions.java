@@ -24,6 +24,7 @@ import io.trino.spi.gpu.GpuTypeConversion;
 import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.type.Type;
 import io.trino.sql.gen.TestColumnarFilters.NullsProvider;
+import io.trino.sql.ir.Cast;
 import io.trino.sql.ir.ComparisonOperator;
 import io.trino.sql.ir.Constant;
 import io.trino.sql.ir.Expression;
@@ -48,10 +49,12 @@ import java.util.List;
 import java.util.Map;
 
 import static io.trino.jmh.Benchmarks.benchmark;
+import static io.trino.operator.gpu.GpuTestUtils.createBigintBlock;
 import static io.trino.operator.gpu.GpuTestUtils.createBlock;
 import static io.trino.operator.gpu.GpuTestUtils.maybeSetGpuMemoryPoolForTests;
 import static io.trino.operator.gpu.expression.GpuExpressionCompiler.compileExpression;
 import static io.trino.spi.type.BigintType.BIGINT;
+import static io.trino.spi.type.IntegerType.INTEGER;
 import static io.trino.sql.ir.TestingIr.between;
 import static io.trino.sql.ir.TestingIr.comparison;
 import static io.trino.type.CharVarcharCoercion.SQL_STANDARD;
@@ -77,6 +80,13 @@ public class BenchmarkGpuExpressions
     public long betweenBigintConstantBounds(BenchmarkData data)
     {
         return evaluate(data.betweenBigintConstantBounds, data.positionCount, ImmutableList.of(data.bigints));
+    }
+
+    @Benchmark
+    @OperationsPerInvocation(REPETITIONS)
+    public long betweenCastToIntegerConstantBounds(BenchmarkData data)
+    {
+        return evaluate(data.betweenCastToIntegerConstantBounds, data.positionCount, ImmutableList.of(data.bigintsWithinIntRange));
     }
 
     @Benchmark
@@ -109,8 +119,10 @@ public class BenchmarkGpuExpressions
         private final UncheckedCloser closer = UncheckedCloser.create();
 
         private @Borrow ColumnVector bigints;
+        private @Borrow ColumnVector bigintsWithinIntRange;
 
         private GpuExpression betweenBigintConstantBounds;
+        private GpuExpression betweenCastToIntegerConstantBounds;
         private GpuExpression greaterThanOrEqualBigintConstant;
 
         @Setup(Level.Trial)
@@ -120,10 +132,15 @@ public class BenchmarkGpuExpressions
 
             bigints = bigintColumn(positionCount);
             closer.register(bigints::close);
+            bigintsWithinIntRange = bigintColumnWithinIntRange(positionCount);
+            closer.register(bigintsWithinIntRange::close);
 
             Reference value = new Reference(BIGINT, "ref0");
             betweenBigintConstantBounds = compile(
                     between(value, new Constant(BIGINT, 10L), new Constant(BIGINT, 50L)));
+            // A narrowing (overflow-checked) cast cannot lower to a cudf AST node, unlike the constant bounds.
+            betweenCastToIntegerConstantBounds = compile(
+                    between(new Cast(value, INTEGER), new Constant(INTEGER, 10L), new Constant(INTEGER, 50L)));
             greaterThanOrEqualBigintConstant = compile(
                     comparison(ComparisonOperator.GREATER_THAN_OR_EQUAL, value, new Constant(BIGINT, 10L)));
         }
@@ -148,6 +165,13 @@ public class BenchmarkGpuExpressions
                     .toColumn().copyToDevice(new Blocks(ImmutableList.of(block)));
         }
 
+        private static ColumnVector bigintColumnWithinIntRange(int positionCount)
+        {
+            Block block = createBigintBlock(positionCount, NullsProvider.NO_NULLS, Integer.MIN_VALUE, Integer.MAX_VALUE);
+            return GpuTypeConversion.toGpuMapping(BIGINT).orElseThrow()
+                    .toColumn().copyToDevice(new Blocks(ImmutableList.of(block)));
+        }
+
         private static Map<Symbol, Integer> layout(Type type)
         {
             return ImmutableMap.of(new Symbol(type, "ref0"), 0);
@@ -162,6 +186,7 @@ public class BenchmarkGpuExpressions
         try {
             BenchmarkGpuExpressions benchmark = new BenchmarkGpuExpressions();
             benchmark.betweenBigintConstantBounds(data);
+            benchmark.betweenCastToIntegerConstantBounds(data);
             benchmark.greaterThanOrEqualBigintConstant(data);
         }
         finally {
