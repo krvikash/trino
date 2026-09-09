@@ -27,7 +27,9 @@ import io.trino.spi.metrics.Metric;
 import io.trino.testing.QueryRunner;
 import io.trino.testing.QueryRunner.MaterializedResultWithPlan;
 import io.trino.testing.TestingConnectorBehavior;
+import io.trino.testing.services.junit.Flaky;
 import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
+import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
@@ -49,6 +51,11 @@ final class TestIcebergDatabricksUnityScanPlanningConnectorSmokeTest
     private static final String DATABRICKS_HOST = requireEnv("DATABRICKS_HOST");
     private static final String DATABRICKS_TOKEN = requireEnv("DATABRICKS_TOKEN");
     private static final String DATABRICKS_AWS_REGION = requireEnv("DATABRICKS_AWS_REGION");
+
+    // Databricks Unity REST scan planning transiently fails with these; see ENG-23853 and its many linked duplicates
+    private static final String SCAN_PLANNING_FLAKE_ISSUE = "https://starburstdata.atlassian.net/browse/ENG-23853";
+    @Language("RegExp")
+    private static final String SCAN_PLANNING_FLAKE_MATCH = "ErrorCode: 40(06|10)|DEADLINE_EXCEEDED";
 
     private static final DatabricksSqlExecutor DATABRICKS = new DatabricksSqlExecutor(DATABRICKS_UNITY_JDBC_URL, "token", DATABRICKS_TOKEN);
 
@@ -142,6 +149,63 @@ final class TestIcebergDatabricksUnityScanPlanningConnectorSmokeTest
     }
 
     @Test
+    @Override
+    @Flaky(issue = SCAN_PLANNING_FLAKE_ISSUE, match = SCAN_PLANNING_FLAKE_MATCH)
+    public void testSelect()
+    {
+        super.testSelect();
+    }
+
+    @Test
+    @Override
+    @Flaky(issue = SCAN_PLANNING_FLAKE_ISSUE, match = SCAN_PLANNING_FLAKE_MATCH)
+    public void testPredicate()
+    {
+        super.testPredicate();
+    }
+
+    @Test
+    @Override
+    @Flaky(issue = SCAN_PLANNING_FLAKE_ISSUE, match = SCAN_PLANNING_FLAKE_MATCH)
+    public void testLimit()
+    {
+        super.testLimit();
+    }
+
+    @Test
+    @Override
+    @Flaky(issue = SCAN_PLANNING_FLAKE_ISSUE, match = SCAN_PLANNING_FLAKE_MATCH)
+    public void testTopN()
+    {
+        super.testTopN();
+    }
+
+    @Test
+    @Override
+    @Flaky(issue = SCAN_PLANNING_FLAKE_ISSUE, match = SCAN_PLANNING_FLAKE_MATCH)
+    public void testAggregation()
+    {
+        super.testAggregation();
+    }
+
+    @Test
+    @Override
+    @Flaky(issue = SCAN_PLANNING_FLAKE_ISSUE, match = SCAN_PLANNING_FLAKE_MATCH)
+    public void testHaving()
+    {
+        super.testHaving();
+    }
+
+    @Test
+    @Override
+    @Flaky(issue = SCAN_PLANNING_FLAKE_ISSUE, match = SCAN_PLANNING_FLAKE_MATCH)
+    public void testJoin()
+    {
+        super.testJoin();
+    }
+
+    @Test
+    @Flaky(issue = SCAN_PLANNING_FLAKE_ISSUE, match = SCAN_PLANNING_FLAKE_MATCH)
     public void testServerSideScanPlanningUsed()
     {
         MaterializedResultWithPlan regionResult = getDistributedQueryRunner().executeWithPlan(getSession(), "SELECT count(*) FROM region");
@@ -152,6 +216,7 @@ final class TestIcebergDatabricksUnityScanPlanningConnectorSmokeTest
     }
 
     @Test
+    @Flaky(issue = SCAN_PLANNING_FLAKE_ISSUE, match = SCAN_PLANNING_FLAKE_MATCH)
     public void testColumnMaskingApplied()
     {
         MaterializedResultWithPlan result = getDistributedQueryRunner().executeWithPlan(getSession(), "SELECT DISTINCT comment FROM nation_with_mask");
@@ -160,6 +225,7 @@ final class TestIcebergDatabricksUnityScanPlanningConnectorSmokeTest
     }
 
     @Test
+    @Flaky(issue = SCAN_PLANNING_FLAKE_ISSUE, match = SCAN_PLANNING_FLAKE_MATCH)
     public void testRowFilteringApplied()
     {
         MaterializedResultWithPlan result = getDistributedQueryRunner().executeWithPlan(getSession(), "SELECT MAX(nationkey) FROM nation_with_filter");
@@ -168,6 +234,7 @@ final class TestIcebergDatabricksUnityScanPlanningConnectorSmokeTest
     }
 
     @Test
+    @Flaky(issue = SCAN_PLANNING_FLAKE_ISSUE, match = SCAN_PLANNING_FLAKE_MATCH)
     public void testHiddenColumnFilePath()
     {
         assertThat(query("SELECT count(DISTINCT \"$path\"), count(*) FROM region")).result()
@@ -177,6 +244,7 @@ final class TestIcebergDatabricksUnityScanPlanningConnectorSmokeTest
     }
 
     @Test
+    @Flaky(issue = SCAN_PLANNING_FLAKE_ISSUE, match = SCAN_PLANNING_FLAKE_MATCH)
     public void testHiddenColumnFileModifiedTime()
     {
         assertThat(query("SELECT count(DISTINCT \"$file_modified_time\"), count(*) FROM region")).result()
