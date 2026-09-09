@@ -428,13 +428,90 @@ public class SnowflakeClient
             return getSnowflakeSystemDatabaseTables(connection, databaseSchema.get(), remoteTableName.get());
         }
 
+        Optional<String> actualCaseCatalog = databaseSchema.map(schema -> resolveActualCaseCatalogName(connection, schema.getDatabaseName()).orElse(schema.getDatabaseName()));
+
+        return getTablesWithExactCaseResolution(
+                connection,
+                actualCaseCatalog.orElse(null),
+                databaseSchema.map(DatabaseSchemaName::getSchemaName),
+                remoteTableName);
+    }
+
+    /**
+     * Trino's identifier mapping uppercases remote schema/table names by default, but
+     * catalog-linked databases (CLDBs) store objects in their original, often lowercase, case.
+     */
+    private ResultSet getTablesWithExactCaseResolution(Connection connection, String catalog, Optional<String> schemaName, Optional<String> tableName)
+            throws SQLException
+    {
         DatabaseMetaData metadata = connection.getMetaData();
 
+        Optional<String> schemaPattern = schemaName.map(name -> resolveActualCaseSchemaName(connection, catalog, name).orElse(""));
+
+        Optional<String> actualCaseTableName = Optional.empty();
+        if (tableName.isPresent() && schemaPattern.isPresent() && !schemaPattern.get().isEmpty()) {
+            actualCaseTableName = resolveActualCaseTableName(
+                    connection,
+                    catalog,
+                    escapeObjectNameForMetadataQuery(schemaPattern, metadata.getSearchStringEscape()).orElseThrow(),
+                    tableName.get());
+        }
+
         return metadata.getTables(
-                databaseSchema.map(DatabaseSchemaName::getDatabaseName).orElse(null),
-                escapeObjectNameForMetadataQuery(databaseSchema.map(DatabaseSchemaName::getSchemaName), metadata.getSearchStringEscape()).orElse(null),
-                escapeObjectNameForMetadataQuery(remoteTableName, metadata.getSearchStringEscape()).orElse(null),
+                catalog,
+                escapeObjectNameForMetadataQuery(schemaPattern, metadata.getSearchStringEscape()).orElse(null),
+                escapeObjectNameForMetadataQuery(actualCaseTableName.or(() -> tableName), metadata.getSearchStringEscape()).orElse(null),
                 getTableTypes().map(types -> types.toArray(String[]::new)).orElse(null));
+    }
+
+    private Optional<String> resolveActualCaseCatalogName(Connection connection, String catalog)
+    {
+        try (ResultSet resultSet = connection.getMetaData().getCatalogs()) {
+            return resolveActualCaseName(catalog, resultSet, "TABLE_CAT");
+        }
+        catch (SQLException e) {
+            throw new TrinoException(JDBC_ERROR, e);
+        }
+    }
+
+    private Optional<String> resolveActualCaseSchemaName(Connection connection, String catalog, String schemaName)
+    {
+        try (ResultSet resultSet = connection.getMetaData().getSchemas(catalog, null)) {
+            return resolveActualCaseName(schemaName, resultSet, "TABLE_SCHEM");
+        }
+        catch (SQLException e) {
+            throw new TrinoException(JDBC_ERROR, e);
+        }
+    }
+
+    private Optional<String> resolveActualCaseTableName(Connection connection, String catalog, String schemaName, String tableName)
+    {
+        try (ResultSet resultSet = connection.getMetaData().getTables(catalog, schemaName, null, getTableTypes().map(types -> types.toArray(String[]::new)).orElse(null))) {
+            return resolveActualCaseName(tableName, resultSet, "TABLE_NAME");
+        }
+        catch (SQLException e) {
+            throw new TrinoException(JDBC_ERROR, e);
+        }
+    }
+
+    private static Optional<String> resolveActualCaseName(String targetName, ResultSet resultSet, String columnLabel)
+            throws SQLException
+    {
+        Optional<String> match = Optional.empty();
+        while (resultSet.next()) {
+            String actualName = resultSet.getString(columnLabel);
+            if (actualName.equalsIgnoreCase(targetName)) {
+                if (match.isPresent() && !match.get().equals(actualName)) {
+                    throw new TrinoException(JDBC_ERROR, format(
+                            "Multiple names matching '%s' found: '%s' and '%s'",
+                            targetName,
+                            match.get(),
+                            actualName));
+                }
+                match = Optional.of(actualName);
+            }
+        }
+        return match;
     }
 
     private ResultSet getSnowflakeSystemDatabaseTables(Connection connection, DatabaseSchemaName databaseSchema, String remoteTableName)
@@ -465,10 +542,32 @@ public class SnowflakeClient
     protected ResultSet getAllTableColumns(Connection connection, Optional<String> remoteSchemaName)
             throws SQLException
     {
+        if (!databasePrefixForSchemaEnabled) {
+            DatabaseMetaData metadata = connection.getMetaData();
+            return metadata.getColumns(
+                    connection.getCatalog(),
+                    escapeObjectNameForMetadataQuery(remoteSchemaName, metadata.getSearchStringEscape()).orElse(null),
+                    null,
+                    null);
+        }
+
+        Optional<DatabaseSchemaName> requestedSchema = remoteSchemaName.map(DatabaseSchemaName::parseDatabaseSchemaName);
+        Optional<String> actualCaseCatalog = requestedSchema.map(schema -> resolveActualCaseCatalogName(connection, schema.getDatabaseName()).orElse(schema.getDatabaseName()));
+        return getColumnsWithExactCaseResolution(
+                connection,
+                actualCaseCatalog.orElse(null),
+                requestedSchema.map(DatabaseSchemaName::getSchemaName));
+    }
+
+    private ResultSet getColumnsWithExactCaseResolution(Connection connection, String catalog, Optional<String> schemaName)
+            throws SQLException
+    {
         DatabaseMetaData metadata = connection.getMetaData();
+        Optional<String> schemaPattern = schemaName.map(name -> resolveActualCaseSchemaName(connection, catalog, name).orElse(""));
+
         return metadata.getColumns(
-                metadata.getConnection().getCatalog(),
-                escapeObjectNameForMetadataQuery(remoteSchemaName, metadata.getSearchStringEscape()).orElse(null),
+                catalog,
+                escapeObjectNameForMetadataQuery(schemaPattern, metadata.getSearchStringEscape()).orElse(null),
                 null,
                 null);
     }

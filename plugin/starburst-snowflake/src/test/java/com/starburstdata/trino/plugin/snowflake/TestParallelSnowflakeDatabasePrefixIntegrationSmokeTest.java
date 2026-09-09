@@ -148,6 +148,38 @@ public class TestParallelSnowflakeDatabasePrefixIntegrationSmokeTest
     }
 
     @Test
+    public void testInformationSchemaColumnsTable()
+    {
+        // Regression test for https://starburstdata.atlassian.net/browse/ENG-20718
+        try (TestTable table = new TestTable(getQueryRunner()::execute, databaseSchemaTableName(normalizedDatabaseName, "public", "test_information_schema_columns"), "(a VARCHAR, b VARCHAR)")) {
+            String tableName = table.getName().split("\\.")[2];
+            String availableSchema = normalizedDatabaseName + ".public";
+            assertQuery(
+                    format("SELECT column_name FROM information_schema.columns WHERE table_schema = '%s' AND table_name = '%s'", availableSchema, tableName),
+                    "VALUES ('a'), ('b')");
+        }
+    }
+
+    @Test
+    public void testSelectFromTableWithLowerCaseStoredName()
+    {
+        // Regression test for https://starburstdata.atlassian.net/browse/ENG-20718: the default
+        // identifier mapping always uppercases the remote table name (Snowflake reports
+        // storesUpperCaseIdentifiers()), since Trino's own SchemaTableName is always lowercase
+        // regardless of how the table was referenced.
+        String tableName = "test_lower_case_table_" + randomNameSuffix();
+        snowflakeExecutor.execute(format("CREATE TABLE public.\"%s\" AS SELECT 'value-1' AS a", tableName));
+        try {
+            assertQuery(
+                    "SELECT * FROM " + databaseSchemaTableName(normalizedDatabaseName, "public", tableName),
+                    "VALUES 'value-1'");
+        }
+        finally {
+            snowflakeExecutor.execute(format("DROP TABLE public.\"%s\"", tableName));
+        }
+    }
+
+    @Test
     public void testOnSchemaWithSingleIdentifier()
     {
         assertThat(query("CREATE SCHEMA test_schema_create_"))
