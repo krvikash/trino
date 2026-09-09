@@ -42,6 +42,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
+import java.util.OptionalDouble;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -162,14 +163,67 @@ public class PushPartialAggregationThroughJoin
             return Result.empty();
         }
 
-        if (allAggregationsOn(aggregationNode.getAggregations(), joinNode.getLeft().getOutputSymbols())) {
-            return pushPartialToLeftChild(aggregationNode, joinNode, context).map(Result::ofPlanNode).orElse(Result.empty());
+        boolean aggregationsFitLeft = allAggregationsOn(aggregationNode.getAggregations(), joinNode.getLeft().getOutputSymbols());
+        boolean aggregationsFitRight = allAggregationsOn(aggregationNode.getAggregations(), joinNode.getRight().getOutputSymbols());
+
+        Optional<AggregationNode> pushedToLeft = Optional.empty();
+        if (aggregationsFitLeft) {
+            pushedToLeft = getPushedAggregation(aggregationNode, joinNode, joinNode.getLeft(), context);
         }
-        if (allAggregationsOn(aggregationNode.getAggregations(), joinNode.getRight().getOutputSymbols())) {
-            return pushPartialToRightChild(aggregationNode, joinNode, context).map(Result::ofPlanNode).orElse(Result.empty());
+        Optional<AggregationNode> pushedToRight = Optional.empty();
+        if (aggregationsFitRight) {
+            pushedToRight = getPushedAggregation(aggregationNode, joinNode, joinNode.getRight(), context);
+        }
+
+        // An aggregation reading no input symbols, count(*) being the common one, fits either side. Grouping a side
+        // on the join key divides the join output by that side's collapse factor, so the larger factor wins.
+        boolean pushToRight = pushedToRight.isPresent();
+        if (pushedToLeft.isPresent() && pushedToRight.isPresent()) {
+            pushToRight = collapsesMoreRows(pushedToRight.get(), pushedToLeft.get(), context);
+        }
+
+        if (pushToRight) {
+            return Result.ofPlanNode(replaceJoin(aggregationNode, pushedToRight.get(), joinNode, joinNode.getLeft(), pushedToRight.get(), context));
+        }
+        if (pushedToLeft.isPresent()) {
+            return Result.ofPlanNode(replaceJoin(aggregationNode, pushedToLeft.get(), joinNode, pushedToLeft.get(), joinNode.getRight(), context));
         }
 
         return Result.empty();
+    }
+
+    private static boolean collapsesMoreRows(AggregationNode candidate, AggregationNode incumbent, Context context)
+    {
+        OptionalDouble candidateRatio = estimateCollapseRatio(candidate, context);
+        OptionalDouble incumbentRatio = estimateCollapseRatio(incumbent, context);
+        if (candidateRatio.isEmpty() || incumbentRatio.isEmpty()) {
+            return false;
+        }
+        return candidateRatio.orElseThrow() > incumbentRatio.orElseThrow();
+    }
+
+    // Rows the join reads from a side shrink by this factor once the aggregation groups them. Grouping sets wider
+    // than one symbol have no ratio: stats treat grouping symbols as uncorrelated, so multiplying their distinct
+    // value counts overstates the group count and understates the collapse.
+    private static OptionalDouble estimateCollapseRatio(AggregationNode pushedAggregation, Context context)
+    {
+        List<Symbol> groupingKeys = pushedAggregation.getGroupingKeys();
+        if (groupingKeys.size() > 1) {
+            return OptionalDouble.empty();
+        }
+        PlanNodeStatsEstimate sourceStats = context.getStatsProvider().getStats(pushedAggregation.getSource());
+        double sourceRowCount = sourceStats.getOutputRowCount();
+        if (isNaN(sourceRowCount)) {
+            return OptionalDouble.empty();
+        }
+        if (groupingKeys.isEmpty()) {
+            return OptionalDouble.of(sourceRowCount);
+        }
+        double distinctValues = sourceStats.getSymbolStatistics(getOnlyElement(groupingKeys)).getDistinctValuesCount();
+        if (isNaN(distinctValues) || distinctValues <= 0) {
+            return OptionalDouble.empty();
+        }
+        return OptionalDouble.of(sourceRowCount / distinctValues);
     }
 
     private static boolean allAggregationsOn(Map<Symbol, Aggregation> aggregations, List<Symbol> symbols)
@@ -179,18 +233,6 @@ public class PushPartialAggregationThroughJoin
                 .flatMap(List::stream)
                 .collect(toImmutableSet());
         return symbols.containsAll(inputs);
-    }
-
-    private Optional<PlanNode> pushPartialToLeftChild(AggregationNode node, JoinNode child, Context context)
-    {
-        return getPushedAggregation(node, child, child.getLeft(), context)
-                .map(pushedAggregation -> replaceJoin(node, pushedAggregation, child, pushedAggregation, child.getRight(), context));
-    }
-
-    private Optional<PlanNode> pushPartialToRightChild(AggregationNode node, JoinNode child, Context context)
-    {
-        return getPushedAggregation(node, child, child.getRight(), context)
-                .map(pushedAggregation -> replaceJoin(node, pushedAggregation, child, child.getLeft(), pushedAggregation, context));
     }
 
     private Optional<AggregationNode> getPushedAggregation(AggregationNode node, JoinNode child, PlanNode joinSource, Context context)
