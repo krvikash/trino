@@ -270,6 +270,8 @@ class TestGpuMemoryUtils
                 Table probeSourceTable = toTable(probePage, 0, 1);
                 CompiledExpression filter = Literal.ofBoolean(true).compile()) {
             long memoryBefore = Rmm.getTotalBytesAllocated();
+            long peakMemory;
+            long gatherMapBytes;
             Rmm.resetScopedMaximumBytesAllocated(memoryBefore);
             GatherMap[] maps = switch (joinType) {
                 case INNER -> Table.mixedInnerJoinGatherMaps(
@@ -287,14 +289,13 @@ class TestGpuMemoryUtils
                         filter,
                         NullEquality.UNEQUAL);
             };
-            long peakMemory = Rmm.getScopedMaximumBytesAllocated();
-
-            long gatherMapBytes = 0;
-            for (GatherMap map : maps) {
-                gatherMapBytes += map.getBufferLength();
-            }
-            for (GatherMap map : maps) {
-                map.close();
+            try (var _ = maps[0]; var _ = maps[1]) {
+                assertThat(maps).hasSize(2);
+                peakMemory = Rmm.getScopedMaximumBytesAllocated();
+                gatherMapBytes = 0;
+                for (GatherMap map : maps) {
+                    gatherMapBytes += map.getBufferLength();
+                }
             }
 
             long actual = peakMemory - memoryBefore - gatherMapBytes;
