@@ -64,6 +64,7 @@ import io.trino.server.security.oauth2.OAuth2Client;
 import io.trino.server.starburst.GalaxyEnabledConfig;
 import io.trino.server.starburst.accesscontrol.PassthroughStarburstAnalyzerHelperModule;
 import io.trino.spi.NodeVersion;
+import io.trino.tracing.TracingScopesModule;
 import io.trino.transaction.TransactionManagerModule;
 import io.trino.util.EmbedVersion;
 import org.weakref.jmx.guice.MBeanModule;
@@ -111,6 +112,7 @@ public class Server
                 new JmxOpenMetricsModule(),
                 new LogJmxModule(),
                 new TracingModule("trino", trinoVersion),
+                new TracingScopesModule(),
                 new ServerSecurityModule(),
                 new AccessControlModule(),
                 new EventListenerModule(),

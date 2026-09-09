@@ -76,7 +76,7 @@ public class AwsBedrockClientFactory
     private final boolean includeMessagesInTracing;
 
     @Inject
-    public AwsBedrockClientFactory(Map<String, AwsEmbeddingCodec.Factory> awsEmbeddingCodecFactories, SecretsResolver secretsResolver, AiClientConfig config, @ForAiClient Executor executor, Tracer tracer)
+    public AwsBedrockClientFactory(Map<String, AwsEmbeddingCodec.Factory> awsEmbeddingCodecFactories, SecretsResolver secretsResolver, AiClientConfig config, @ForAiClient Executor executor, @ForAiClient Tracer tracer)
     {
         this.awsEmbeddingCodecFactories = requireNonNull(awsEmbeddingCodecFactories, "awsEmbeddingCodecFactories is null");
         this.secretsResolver = requireNonNull(secretsResolver, "secretsResolver is null");

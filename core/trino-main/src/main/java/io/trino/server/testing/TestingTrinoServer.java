@@ -131,6 +131,7 @@ import io.trino.testing.TestingGroupProviderManager;
 import io.trino.testing.TestingWarningCollectorModule;
 import io.trino.tracing.ForTracing;
 import io.trino.tracing.TracingAccessControl;
+import io.trino.tracing.TracingScopesModule;
 import io.trino.transaction.TransactionManager;
 import io.trino.transaction.TransactionManagerModule;
 import jakarta.servlet.Filter;
@@ -337,6 +338,7 @@ public class TestingTrinoServer
                 .add(new TestingJmxModule())
                 .add(new JmxOpenMetricsModule())
                 .add(new TracingModule("trino", VERSION))
+                .add(new TracingScopesModule())
                 .add(new ServerSecurityModule())
                 .add(new StarburstDataframeModule())
                 .add(new CatalogManagerModule())

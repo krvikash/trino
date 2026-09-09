@@ -60,7 +60,7 @@ public class VertexAiClientFactory
     private final boolean includeMessagesInTracing;
 
     @Inject
-    public VertexAiClientFactory(SecretsResolver secretsResolver, AiClientConfig config, @ForAiClient Executor executor, Tracer tracer)
+    public VertexAiClientFactory(SecretsResolver secretsResolver, AiClientConfig config, @ForAiClient Executor executor, @ForAiClient Tracer tracer)
     {
         this.secretsResolver = requireNonNull(secretsResolver, "secretsResolver is null");
         this.executor = requireNonNull(executor, "executor is null");

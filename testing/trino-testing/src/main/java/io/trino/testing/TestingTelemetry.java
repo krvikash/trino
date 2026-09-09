@@ -14,11 +14,14 @@
 package io.trino.testing;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.inject.Binder;
+import com.google.inject.Injector;
 import io.airlift.bootstrap.Bootstrap;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
 import io.airlift.node.NodeInfo;
 import io.airlift.tracing.TracingModule;
+import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.trace.Span;
@@ -28,8 +31,10 @@ import io.opentelemetry.sdk.testing.exporter.InMemorySpanExporter;
 import io.opentelemetry.sdk.trace.SpanProcessor;
 import io.opentelemetry.sdk.trace.data.SpanData;
 import io.opentelemetry.sdk.trace.export.SimpleSpanProcessor;
+import io.trino.tracing.TracingScopesModule;
 
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.locks.ReentrantLock;
 
 import static com.google.inject.multibindings.Multibinder.newSetBinder;
@@ -41,29 +46,45 @@ public class TestingTelemetry
     public static final AttributeKey<Boolean> EXCEPTION_ESCAPED = booleanKey("exception.escaped");
 
     private final Tracer tracer;
+    private final OpenTelemetry openTelemetry;
     private final InMemorySpanExporter spanExporter;
     private final ReentrantLock lock = new ReentrantLock();
 
     private TestingTelemetry(String name)
     {
+        this(name, ImmutableMap.of());
+    }
+
+    private TestingTelemetry(String name, Map<String, String> properties)
+    {
         this.spanExporter = InMemorySpanExporter.create();
-        this.tracer = new Bootstrap(new AbstractConfigurationAwareModule()
+        Bootstrap bootstrap = new Bootstrap(new AbstractConfigurationAwareModule()
         {
             @Override
             protected void setup(Binder binder)
             {
                 install(new TracingModule(name, "test-version"));
+                install(new TracingScopesModule());
                 newSetBinder(binder, SpanProcessor.class).addBinding().toInstance(SimpleSpanProcessor.create(spanExporter));
                 binder.bind(NodeInfo.class).toInstance(new NodeInfo("development"));
             }
-        })
-                .initialize()
-                .getInstance(Tracer.class);
+        });
+        if (!properties.isEmpty()) {
+            bootstrap.setRequiredConfigurationProperties(properties);
+        }
+        Injector injector = bootstrap.initialize();
+        this.tracer = injector.getInstance(Tracer.class);
+        this.openTelemetry = injector.getInstance(OpenTelemetry.class);
     }
 
     public Tracer getTracer()
     {
         return tracer;
+    }
+
+    public Tracer getTracer(String scopeName)
+    {
+        return openTelemetry.getTracer(scopeName);
     }
 
     public <R extends Exception> List<SpanData> captureSpans(CheckedRunnable<R> runnable)
@@ -109,5 +130,10 @@ public class TestingTelemetry
     public static TestingTelemetry create(String name)
     {
         return new TestingTelemetry(name);
+    }
+
+    public static TestingTelemetry create(String name, Map<String, String> properties)
+    {
+        return new TestingTelemetry(name, properties);
     }
 }

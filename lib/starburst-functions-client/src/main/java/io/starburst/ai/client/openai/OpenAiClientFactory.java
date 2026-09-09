@@ -80,7 +80,7 @@ public class OpenAiClientFactory
             @ForAiClient Executor executor,
             ObjectMapper objectMapper,
             OAuth2TokenCache oauth2TokenCache,
-            Tracer tracer)
+            @ForAiClient Tracer tracer)
     {
         this.secretsResolver = requireNonNull(secretsResolver, "secretsResolver is null");
         this.executor = requireNonNull(executor, "executor is null");

@@ -17,6 +17,8 @@ import com.google.inject.Scopes;
 import com.google.inject.Singleton;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
 import io.airlift.http.client.HttpClient;
+import io.opentelemetry.api.OpenTelemetry;
+import io.opentelemetry.api.trace.Tracer;
 import io.starburst.ai.client.bedrock.AwsBedrockClientFactory;
 import io.starburst.ai.client.bedrock.AwsBedrockEmbeddingCodecsModule;
 import io.starburst.ai.client.openai.OpenAiClientFactory;
@@ -37,6 +39,7 @@ import static io.airlift.bootstrap.ClosingBinder.closingBinder;
 import static io.airlift.concurrent.Threads.daemonThreadsNamed;
 import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.airlift.http.client.HttpClientBinder.httpClientBinder;
+import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.Executors.newCachedThreadPool;
 import static java.util.concurrent.Executors.newSingleThreadScheduledExecutor;
 import static org.weakref.jmx.guice.ExportBinder.newExporter;
@@ -45,10 +48,22 @@ public class AiClientModule
         extends AbstractConfigurationAwareModule
 {
     private final ModelConnectionSpecsLoader externalModelConnectionSpecsLoader;
+    private final Optional<String> tracingScope;
 
     public AiClientModule(ModelConnectionSpecsLoader externalModelConnectionSpecsLoader)
     {
-        this.externalModelConnectionSpecsLoader = externalModelConnectionSpecsLoader;
+        this(externalModelConnectionSpecsLoader, Optional.empty());
+    }
+
+    public AiClientModule(ModelConnectionSpecsLoader externalModelConnectionSpecsLoader, String tracingScope)
+    {
+        this(externalModelConnectionSpecsLoader, Optional.of(tracingScope));
+    }
+
+    private AiClientModule(ModelConnectionSpecsLoader externalModelConnectionSpecsLoader, Optional<String> tracingScope)
+    {
+        this.externalModelConnectionSpecsLoader = requireNonNull(externalModelConnectionSpecsLoader, "externalModelConnectionSpecsLoader is null");
+        this.tracingScope = requireNonNull(tracingScope, "tracingScope is null");
     }
 
     @Override
@@ -116,6 +131,16 @@ public class AiClientModule
     public ExecutorService getLlmInvokerExecutorService()
     {
         return newCachedThreadPool(daemonThreadsNamed("llm-invoker-executor-%s"));
+    }
+
+    @Provides
+    @Singleton
+    @ForAiClient
+    public Tracer createAiClientTracer(OpenTelemetry openTelemetry, Tracer tracer)
+    {
+        return tracingScope
+                .map(openTelemetry::getTracer)
+                .orElse(tracer);
     }
 
     private static class AiOAuth2EnabledModule
