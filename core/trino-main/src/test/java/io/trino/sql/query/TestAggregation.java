@@ -14,6 +14,9 @@
 package io.trino.sql.query;
 
 import io.trino.Session;
+import io.trino.sql.planner.plan.AggregationNode;
+import io.trino.sql.planner.plan.JoinNode;
+import io.trino.sql.planner.plan.ValuesNode;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -24,6 +27,8 @@ import java.time.ZonedDateTime;
 
 import static io.trino.SystemSessionProperties.PUSH_PARTIAL_AGGREGATION_THROUGH_JOIN;
 import static io.trino.server.testing.TestingTrinoServer.SESSION_START_TIME_PROPERTY;
+import static io.trino.sql.planner.assertions.PlanMatchPattern.anyTree;
+import static io.trino.sql.planner.assertions.PlanMatchPattern.node;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.junit.jupiter.api.parallel.ExecutionMode.CONCURRENT;
@@ -141,6 +146,24 @@ public class TestAggregation
                             (2, DECIMAL '44444444444444444444.2469135780', DECIMAL '22222222222222222222.1234567890'),
                             (3, DECIMAL '130303030303030303029.6666666633', DECIMAL '21717171717171717171.6111111106')) t(i, s, v)
                         """);
+    }
+
+    @Test
+    public void testCountPushedThroughJoinToCollapsingSide()
+    {
+        Session session = Session.builder(assertions.getDefaultSession())
+                .setSystemProperty(PUSH_PARTIAL_AGGREGATION_THROUGH_JOIN, "true")
+                .build();
+        assertThat(assertions.query(session,
+                """
+                SELECT count(*)
+                FROM (VALUES 1, 2, 3) l(k)
+                JOIN (VALUES 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2) r(k) ON l.k = r.k
+                """))
+                .matches(anyTree(node(JoinNode.class,
+                        node(AggregationNode.class, anyTree(node(ValuesNode.class))),
+                        anyTree(node(ValuesNode.class)))))
+                .matches("VALUES BIGINT '22'");
     }
 
     @Test

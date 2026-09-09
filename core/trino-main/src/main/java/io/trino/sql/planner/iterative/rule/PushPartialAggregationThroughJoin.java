@@ -47,6 +47,7 @@ import java.util.stream.Collectors;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
+import static com.google.common.collect.Iterables.getOnlyElement;
 import static com.google.common.collect.Sets.intersection;
 import static io.trino.SystemSessionProperties.isPushPartialAggregationThroughExpandingJoin;
 import static io.trino.SystemSessionProperties.isPushPartialAggregationThroughJoin;
@@ -63,6 +64,10 @@ import static java.lang.Double.isNaN;
 
 public class PushPartialAggregationThroughJoin
 {
+    // Pushing the aggregation adds a hash aggregation, so require the collapsed relation to be an order of
+    // magnitude smaller than the join input it replaces.
+    private static final double JOIN_INPUT_COLLAPSE_RATIO = 10;
+
     private static boolean isSupportedAggregationNode(AggregationNode aggregationNode)
     {
         // Don't split streaming aggregations
@@ -218,9 +223,25 @@ public class PushPartialAggregationThroughJoin
 
         // For an expanding cross join , only reason 2 applies. Adaptive shutdown caps the downside,
         // while pushdown can be a large win when the aggregation reduces rows well below the Cartesian product size.
-        if (isNaN(sourceRowCount)
-                || isNaN(joinRowCount)
-                || (joinRowCount > 1.1 * sourceRowCount && !(isPushPartialAggregationThroughExpandingJoin(context.getSession()) && join.isCrossJoin()))) {
+        if (isNaN(sourceRowCount) || isNaN(joinRowCount)) {
+            return true;
+        }
+
+        // Grouping a join input on its own join key leaves one row per key, so the join reads the collapsed
+        // relation. A single grouping symbol keeps the group count exact, so wider grouping sets are excluded.
+        Set<Symbol> pushedGroupingKeys = ImmutableSet.copyOf(pushedAggregation.getGroupingKeys());
+        Set<Symbol> sourceJoinKeys = intersection(
+                getJoinRequiredSymbols(join),
+                ImmutableSet.copyOf(pushedAggregation.getSource().getOutputSymbols()));
+        boolean collapsesJoinInputOnJoinKey = false;
+        if (pushedGroupingKeys.size() == 1 && pushedGroupingKeys.equals(sourceJoinKeys)) {
+            double joinKeyDistinctValues = sourceStats.getSymbolStatistics(getOnlyElement(pushedGroupingKeys)).getDistinctValuesCount();
+            collapsesJoinInputOnJoinKey = !isNaN(joinKeyDistinctValues) && joinKeyDistinctValues > 0 && joinKeyDistinctValues * JOIN_INPUT_COLLAPSE_RATIO <= sourceRowCount;
+        }
+
+        if (joinRowCount > 1.1 * sourceRowCount
+                && !collapsesJoinInputOnJoinKey
+                && !(isPushPartialAggregationThroughExpandingJoin(context.getSession()) && join.isCrossJoin())) {
             return true;
         }
 
@@ -231,8 +252,10 @@ public class PushPartialAggregationThroughJoin
         //
         // In such case partial aggregation on date_dim.year can be pushed
         // below join with grouping key of "date_id". This can greatly reduce number
-        // of rows before join operator.
-        if (ImmutableSet.copyOf(originalAggregation.getGroupingKeys()).size() < ImmutableSet.copyOf(pushedAggregation.getGroupingKeys()).size()) {
+        // of rows before join operator. A grouping set that collapses the join input is exempt, since it shrinks
+        // that input whatever its size.
+        if (!collapsesJoinInputOnJoinKey
+                && ImmutableSet.copyOf(originalAggregation.getGroupingKeys()).size() < ImmutableSet.copyOf(pushedAggregation.getGroupingKeys()).size()) {
             return true;
         }
 

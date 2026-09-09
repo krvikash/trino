@@ -25,8 +25,10 @@ import io.trino.sql.ir.Reference;
 import io.trino.sql.planner.Symbol;
 import io.trino.sql.planner.assertions.PlanMatchPattern;
 import io.trino.sql.planner.iterative.rule.test.BaseRuleTest;
+import io.trino.sql.planner.iterative.rule.test.PlanBuilder;
 import io.trino.sql.planner.plan.Assignments;
 import io.trino.sql.planner.plan.JoinNode.EquiJoinClause;
+import io.trino.sql.planner.plan.PlanNode;
 import io.trino.sql.planner.plan.PlanNodeId;
 import org.junit.jupiter.api.Test;
 
@@ -42,6 +44,7 @@ import static io.trino.sql.planner.assertions.PlanMatchPattern.aggregationFuncti
 import static io.trino.sql.planner.assertions.PlanMatchPattern.join;
 import static io.trino.sql.planner.assertions.PlanMatchPattern.project;
 import static io.trino.sql.planner.assertions.PlanMatchPattern.singleGroupingSet;
+import static io.trino.sql.planner.assertions.PlanMatchPattern.strictProject;
 import static io.trino.sql.planner.assertions.PlanMatchPattern.values;
 import static io.trino.sql.planner.iterative.rule.test.PlanBuilder.aggregation;
 import static io.trino.sql.planner.plan.AggregationNode.Step.INTERMEDIATE;
@@ -56,6 +59,10 @@ public class TestPushPartialAggregationThroughJoin
     private static final PlanNodeId CHILD_ID = new PlanNodeId("child_id");
 
     private static final TestingFunctionResolution FUNCTIONS = new TestingFunctionResolution();
+    private static final double SOURCE_ROWS = 100_000;
+    private static final double JOIN_KEY_NDV = 5005;
+    private static final double EXPANDING_JOIN_ROWS = 799_520_288;
+
     private static final ResolvedFunction ADD_BIGINT = FUNCTIONS.resolveOperator(OperatorType.ADD, ImmutableList.of(BIGINT, BIGINT));
 
     @Test
@@ -477,5 +484,169 @@ public class TestPushPartialAggregationThroughJoin
                                 .right(
                                         project(
                                                 values("RIGHT_EQUI", "RIGHT_NON_EQUI"))))));
+    }
+
+    @Test
+    public void testPushesGlobalPartialAggregationThroughExpandingJoinOnSingleJoinKey()
+    {
+        tester().assertThat(new PushPartialAggregationThroughJoin().pushPartialAggregationThroughJoinWithoutProjection())
+                .overrideStats(CHILD_ID.toString(), reducingJoinKeyStats())
+                .overrideStats(JOIN_ID.toString(), new PlanNodeStatsEstimate(EXPANDING_JOIN_ROWS, ImmutableMap.of()))
+                .on(p -> p.aggregation(ab -> ab
+                        .source(singleKeyJoin(p))
+                        .addAggregation(p.symbol("COUNT", BIGINT), aggregation("count", ImmutableList.of()), ImmutableList.of())
+                        .globalGrouping()
+                        .step(PARTIAL)))
+                .matches(pushedGlobalCountOnLeftJoinKey());
+    }
+
+    @Test
+    public void testPushesPartialAggregationGroupedOnJoinKeyThroughExpandingJoin()
+    {
+        tester().assertThat(new PushPartialAggregationThroughJoin().pushPartialAggregationThroughJoinWithoutProjection())
+                .overrideStats(CHILD_ID.toString(), reducingJoinKeyStats())
+                .overrideStats(JOIN_ID.toString(), new PlanNodeStatsEstimate(EXPANDING_JOIN_ROWS, ImmutableMap.of()))
+                .on(p -> p.aggregation(ab -> ab
+                        .source(singleKeyJoin(p))
+                        .addAggregation(p.symbol("COUNT", BIGINT), aggregation("count", ImmutableList.of()), ImmutableList.of())
+                        .singleGroupingSet(p.symbol("LEFT_EQUI"))
+                        .step(PARTIAL)))
+                .matches(pushedCountGroupedOnLeftJoinKey());
+    }
+
+    @Test
+    public void testDoesNotPushGlobalPartialAggregationWhenJoinKeyDoesNotReduceRows()
+    {
+        tester().assertThat(new PushPartialAggregationThroughJoin().pushPartialAggregationThroughJoinWithoutProjection())
+                .overrideStats(CHILD_ID.toString(), new PlanNodeStatsEstimate(SOURCE_ROWS, ImmutableMap.of(
+                        new Symbol(BIGINT, "LEFT_EQUI"), new SymbolStatsEstimate(NaN, NaN, 0.0, NaN, SOURCE_ROWS))))
+                .overrideStats(JOIN_ID.toString(), new PlanNodeStatsEstimate(EXPANDING_JOIN_ROWS, ImmutableMap.of()))
+                .on(p -> p.aggregation(ab -> ab
+                        .source(singleKeyJoin(p))
+                        .addAggregation(p.symbol("COUNT", BIGINT), aggregation("count", ImmutableList.of()), ImmutableList.of())
+                        .globalGrouping()
+                        .step(PARTIAL)))
+                .doesNotFire();
+    }
+
+    @Test
+    public void testDoesNotPushGlobalPartialAggregationWhenGroupingSetExceedsJoinKey()
+    {
+        tester().assertThat(new PushPartialAggregationThroughJoin().pushPartialAggregationThroughJoinWithoutProjection())
+                .overrideStats(CHILD_ID.toString(), reducingJoinKeyStats())
+                .overrideStats(JOIN_ID.toString(), new PlanNodeStatsEstimate(EXPANDING_JOIN_ROWS, ImmutableMap.of()))
+                .on(p -> p.aggregation(ab -> ab
+                        .source(singleKeyJoin(p))
+                        .addAggregation(p.symbol("COUNT", BIGINT), aggregation("count", ImmutableList.of()), ImmutableList.of())
+                        .singleGroupingSet(p.symbol("LEFT_OTHER"))
+                        .step(PARTIAL)))
+                .doesNotFire();
+    }
+
+    @Test
+    public void testDoesNotPushGlobalPartialAggregationThroughJoinOnTwoKeys()
+    {
+        tester().assertThat(new PushPartialAggregationThroughJoin().pushPartialAggregationThroughJoinWithoutProjection())
+                .overrideStats(CHILD_ID.toString(), reducingJoinKeyStats())
+                .overrideStats(JOIN_ID.toString(), new PlanNodeStatsEstimate(EXPANDING_JOIN_ROWS, ImmutableMap.of()))
+                .on(p -> p.aggregation(ab -> ab
+                        .source(p.join(
+                                JOIN_ID,
+                                INNER,
+                                p.values(CHILD_ID, p.symbol("LEFT_EQUI"), p.symbol("LEFT_OTHER")),
+                                p.values(p.symbol("RIGHT_EQUI"), p.symbol("RIGHT_OTHER")),
+                                ImmutableList.of(
+                                        new EquiJoinClause(p.symbol("LEFT_EQUI"), p.symbol("RIGHT_EQUI")),
+                                        new EquiJoinClause(p.symbol("LEFT_OTHER"), p.symbol("RIGHT_OTHER"))),
+                                ImmutableList.of(p.symbol("LEFT_EQUI"), p.symbol("LEFT_OTHER")),
+                                ImmutableList.of(p.symbol("RIGHT_EQUI"), p.symbol("RIGHT_OTHER")),
+                                Optional.empty(),
+                                Optional.empty(),
+                                ImmutableMap.of()))
+                        .addAggregation(p.symbol("COUNT", BIGINT), aggregation("count", ImmutableList.of()), ImmutableList.of())
+                        .globalGrouping()
+                        .step(PARTIAL)))
+                .doesNotFire();
+    }
+
+    private static PlanMatchPattern pushedGlobalCountOnLeftJoinKey()
+    {
+        return strictProject(
+                ImmutableMap.of("COUNT", PlanMatchPattern.expression(new Reference(BIGINT, "COUNT"))),
+                countPushedToLeftJoinKey());
+    }
+
+    private static PlanMatchPattern pushedCountGroupedOnLeftJoinKey()
+    {
+        return strictProject(
+                ImmutableMap.of(
+                        "LEFT_EQUI", PlanMatchPattern.expression(new Reference(BIGINT, "LEFT_EQUI")),
+                        "COUNT", PlanMatchPattern.expression(new Reference(BIGINT, "COUNT"))),
+                countPushedToLeftJoinKey());
+    }
+
+    private static PlanMatchPattern countPushedToLeftJoinKey()
+    {
+        return join(INNER, builder -> builder
+                .equiCriteria("LEFT_EQUI", "RIGHT_EQUI")
+                .left(aggregation(
+                        singleGroupingSet("LEFT_EQUI"),
+                        ImmutableMap.of(Optional.of("COUNT"), aggregationFunction("count", ImmutableList.of())),
+                        Optional.empty(),
+                        PARTIAL,
+                        values("LEFT_EQUI", "LEFT_OTHER")))
+                .right(values("RIGHT_EQUI")));
+    }
+
+    @Test
+    public void testDoesNotPushGlobalPartialAggregationWhenJoinInputBarelyCollapses()
+    {
+        tester().assertThat(new PushPartialAggregationThroughJoin().pushPartialAggregationThroughJoinWithoutProjection())
+                .overrideStats(CHILD_ID.toString(), new PlanNodeStatsEstimate(SOURCE_ROWS, ImmutableMap.of(
+                        new Symbol(BIGINT, "LEFT_EQUI"), new SymbolStatsEstimate(NaN, NaN, 0.0, NaN, SOURCE_ROWS / 10 + 1))))
+                .overrideStats(JOIN_ID.toString(), new PlanNodeStatsEstimate(EXPANDING_JOIN_ROWS, ImmutableMap.of()))
+                .on(p -> p.aggregation(ab -> ab
+                        .source(singleKeyJoin(p))
+                        .addAggregation(p.symbol("COUNT", BIGINT), aggregation("count", ImmutableList.of()), ImmutableList.of())
+                        .globalGrouping()
+                        .step(PARTIAL)))
+                .doesNotFire();
+    }
+
+    @Test
+    public void testDoesNotPushGlobalPartialAggregationWhenJoinKeyHasNoDistinctValues()
+    {
+        tester().assertThat(new PushPartialAggregationThroughJoin().pushPartialAggregationThroughJoinWithoutProjection())
+                .overrideStats(CHILD_ID.toString(), new PlanNodeStatsEstimate(0, ImmutableMap.of(
+                        new Symbol(BIGINT, "LEFT_EQUI"), new SymbolStatsEstimate(NaN, NaN, 0.0, NaN, 0))))
+                .overrideStats(JOIN_ID.toString(), new PlanNodeStatsEstimate(EXPANDING_JOIN_ROWS, ImmutableMap.of()))
+                .on(p -> p.aggregation(ab -> ab
+                        .source(singleKeyJoin(p))
+                        .addAggregation(p.symbol("COUNT", BIGINT), aggregation("count", ImmutableList.of()), ImmutableList.of())
+                        .globalGrouping()
+                        .step(PARTIAL)))
+                .doesNotFire();
+    }
+
+    private static PlanNodeStatsEstimate reducingJoinKeyStats()
+    {
+        return new PlanNodeStatsEstimate(SOURCE_ROWS, ImmutableMap.of(
+                new Symbol(BIGINT, "LEFT_EQUI"), new SymbolStatsEstimate(NaN, NaN, 0.0, NaN, JOIN_KEY_NDV),
+                new Symbol(BIGINT, "LEFT_OTHER"), new SymbolStatsEstimate(NaN, NaN, 0.0, NaN, JOIN_KEY_NDV)));
+    }
+
+    private static PlanNode singleKeyJoin(PlanBuilder p)
+    {
+        return p.join(
+                JOIN_ID,
+                INNER,
+                p.values(CHILD_ID, p.symbol("LEFT_EQUI"), p.symbol("LEFT_OTHER")),
+                p.values(p.symbol("RIGHT_EQUI")),
+                ImmutableList.of(new EquiJoinClause(p.symbol("LEFT_EQUI"), p.symbol("RIGHT_EQUI"))),
+                ImmutableList.of(p.symbol("LEFT_EQUI"), p.symbol("LEFT_OTHER")),
+                ImmutableList.of(p.symbol("RIGHT_EQUI")),
+                Optional.empty(),
+                Optional.empty(),
+                ImmutableMap.of());
     }
 }

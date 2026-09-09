@@ -2,32 +2,33 @@ cross join:
     final aggregation over ()
         local exchange (GATHER, SINGLE, [])
             remote exchange (GATHER, SINGLE, [])
-                partial aggregation over ()
+                intermediate aggregation over ()
                     join (INNER, REPLICATED):
-                        join (INNER, PARTITIONED):
-                            remote exchange (REPARTITION, HASH, [ss_customer_sk])
-                                join (INNER, REPLICATED):
+                        partial aggregation over (ss_promo_sk)
+                            join (INNER, PARTITIONED):
+                                remote exchange (REPARTITION, HASH, [ss_customer_sk])
                                     join (INNER, REPLICATED):
                                         join (INNER, REPLICATED):
-                                            dynamic filter ([ss_customer_sk::EQUAL, ss_item_sk::EQUAL], await [ss_promo_sk::EQUAL, ss_store_sk::EQUAL, ss_sold_date_sk::EQUAL])
-                                                scan store_sales
+                                            join (INNER, REPLICATED):
+                                                dynamic filter ([ss_customer_sk::EQUAL, ss_item_sk::EQUAL], await [ss_promo_sk::EQUAL, ss_store_sk::EQUAL, ss_sold_date_sk::EQUAL])
+                                                    scan store_sales
+                                                local exchange (GATHER, SINGLE, [])
+                                                    remote exchange (REPLICATE, BROADCAST, [])
+                                                        scan date_dim
                                             local exchange (GATHER, SINGLE, [])
                                                 remote exchange (REPLICATE, BROADCAST, [])
-                                                    scan date_dim
+                                                    scan item
                                         local exchange (GATHER, SINGLE, [])
                                             remote exchange (REPLICATE, BROADCAST, [])
-                                                scan item
-                                    local exchange (GATHER, SINGLE, [])
-                                        remote exchange (REPLICATE, BROADCAST, [])
-                                            scan store
-                            local exchange (GATHER, SINGLE, [])
-                                remote exchange (REPARTITION, HASH, [c_customer_sk])
-                                    join (INNER, REPLICATED):
-                                        dynamic filter ([c_current_addr_sk::EQUAL])
-                                            scan customer
-                                        local exchange (GATHER, SINGLE, [])
-                                            remote exchange (REPLICATE, BROADCAST, [])
-                                                scan customer_address
+                                                scan store
+                                local exchange (GATHER, SINGLE, [])
+                                    remote exchange (REPARTITION, HASH, [c_customer_sk])
+                                        join (INNER, REPLICATED):
+                                            dynamic filter ([c_current_addr_sk::EQUAL])
+                                                scan customer
+                                            local exchange (GATHER, SINGLE, [])
+                                                remote exchange (REPLICATE, BROADCAST, [])
+                                                    scan customer_address
                         local exchange (GATHER, SINGLE, [])
                             remote exchange (REPLICATE, BROADCAST, [])
                                 scan promotion
