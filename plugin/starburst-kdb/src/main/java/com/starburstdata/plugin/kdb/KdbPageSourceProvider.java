@@ -59,6 +59,6 @@ public class KdbPageSourceProvider
                 .map(KdbColumnHandle.class::cast)
                 .collect(toImmutableList());
 
-        return new KdbPageSource(client, kdbTableHandle.schemaTableName(), kdbColumns, kdbTableHandle.limit());
+        return new KdbPageSource(client, session, kdbTableHandle.schemaTableName(), kdbColumns, kdbTableHandle.limit());
     }
 }

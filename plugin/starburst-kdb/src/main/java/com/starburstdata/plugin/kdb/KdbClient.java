@@ -20,6 +20,7 @@ import com.kx.c;
 import com.kx.c.Flip;
 import io.airlift.log.Logger;
 import io.trino.spi.TrinoException;
+import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.SchemaTableName;
 
 import java.io.IOException;
@@ -52,10 +53,10 @@ public class KdbClient
         this.connectionFactory = requireNonNull(connectionFactory, "connectionFactory is null");
     }
 
-    public Object execute(String query)
+    public Object execute(ConnectorSession session, String query)
     {
         log.debug("Executing KDB query: %s", query);
-        c connection = connectionFactory.openConnection();
+        c connection = connectionFactory.openConnection(session);
         try {
             return connection.k(query);
         }
@@ -83,9 +84,9 @@ public class KdbClient
      * valid namespaces and throw for non-namespace names; protected eval
      * turns errors into a short null (type -5h != 11h).
      */
-    public List<String> listSchemas()
+    public List<String> listSchemas(ConnectorSession session)
     {
-        Object result = execute("{x where{11h=type @[tables;` sv `,' x;{0Nh}]}each x} key `");
+        Object result = execute(session, "{x where{11h=type @[tables;` sv `,' x;{0Nh}]}each x} key `");
         if (!(result instanceof String[] namespaces)) {
             throw new TrinoException(GENERIC_USER_ERROR, "Unexpected result type listing KDB+ namespaces: " + result.getClass().getName());
         }
@@ -102,11 +103,11 @@ public class KdbClient
         return schemas.build();
     }
 
-    public List<SchemaTableName> listTables(Optional<String> schemaName)
+    public List<SchemaTableName> listTables(ConnectorSession session, Optional<String> schemaName)
     {
         List<String> schemas = schemaName
                 .<List<String>>map(ImmutableList::of)
-                .orElseGet(this::listSchemas);
+                .orElseGet(() -> listSchemas(session));
 
         ImmutableList.Builder<SchemaTableName> tables = ImmutableList.builder();
 
@@ -122,7 +123,7 @@ public class KdbClient
                     query = "tables[`.%s]".formatted(schema);
                 }
 
-                Object result = execute(query);
+                Object result = execute(session, query);
                 String[] tableNames;
                 if (result instanceof String[] array) {
                     tableNames = array;
@@ -147,7 +148,7 @@ public class KdbClient
         return tables.build();
     }
 
-    public List<KdbColumnHandle> loadColumns(SchemaTableName tableName)
+    public List<KdbColumnHandle> loadColumns(ConnectorSession session, SchemaTableName tableName)
     {
         validateIdentifier(tableName.getSchemaName(), "schema");
         validateIdentifier(tableName.getTableName(), "table");
@@ -155,7 +156,7 @@ public class KdbClient
 
         try {
             String query = "0!meta %s".formatted(fullTableName);
-            Object result = execute(query);
+            Object result = execute(session, query);
 
             if (!(result instanceof Flip flip)) {
                 throw new TrinoException(NOT_FOUND, "Table not found or invalid: %s".formatted(tableName));
@@ -223,9 +224,9 @@ public class KdbClient
         return ".%s.%s".formatted(tableName.getSchemaName(), tableName.getTableName());
     }
 
-    public KdbQueryResult fetchData(String query)
+    public KdbQueryResult fetchData(ConnectorSession session, String query)
     {
-        Object result = execute(query);
+        Object result = execute(session, query);
 
         if (!(result instanceof Flip flip)) {
             throw new TrinoException(GENERIC_USER_ERROR, "Expected table result from KDB query");
@@ -246,7 +247,7 @@ public class KdbClient
         }
     }
 
-    public boolean tableExists(SchemaTableName tableName)
+    public boolean tableExists(ConnectorSession session, SchemaTableName tableName)
     {
         validateIdentifier(tableName.getSchemaName(), "schema");
         validateIdentifier(tableName.getTableName(), "table");
@@ -257,7 +258,7 @@ public class KdbClient
         String query = schema.equals("default")
                 ? "`%s in tables[]".formatted(table)
                 : "`%s in tables[`.%s]".formatted(table, schema);
-        Object result = execute(query);
+        Object result = execute(session, query);
         return result instanceof Boolean b && b;
     }
 

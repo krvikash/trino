@@ -13,10 +13,13 @@
  */
 package com.starburstdata.plugin.kdb;
 
+import io.trino.spi.connector.ConnectorSession;
+import io.trino.spi.security.ConnectorIdentity;
 import io.trino.testing.BaseConnectorTest;
 import io.trino.testing.MaterializedResult;
 import io.trino.testing.QueryRunner;
 import io.trino.testing.TestingConnectorBehavior;
+import io.trino.testing.TestingConnectorSession;
 import org.junit.jupiter.api.Test;
 
 import static io.trino.spi.type.VarcharType.VARCHAR;
@@ -26,6 +29,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 class TestKdbConnectorTest
         extends BaseConnectorTest
 {
+    private static final ConnectorSession SESSION = TestingConnectorSession.builder()
+            .setIdentity(ConnectorIdentity.ofUser("kdb-connector-test"))
+            .build();
+
     private KdbClient client;
 
     @Override
@@ -170,8 +177,8 @@ class TestKdbConnectorTest
     void testReservedColumnName()
     {
         try (KdbTemporaryTable table = new KdbTemporaryTable(client, "test_reserved_column_name")) {
-            client.execute("%s: flip (enlist `key) ! enlist `long$()".formatted(table.getName()));
-            client.execute("`%s insert 1".formatted(table.getName()));
+            client.execute(SESSION, "%s: flip (enlist `key) ! enlist `long$()".formatted(table.getName()));
+            client.execute(SESSION, "`%s insert 1".formatted(table.getName()));
 
             assertThat(query("TABLE test_reserved_column_name"))
                     .matches("VALUES BIGINT '1'");
@@ -182,8 +189,8 @@ class TestKdbConnectorTest
     void testReservedColumnNames()
     {
         try (KdbTemporaryTable table = new KdbTemporaryTable(client, "test_reserved_column_names")) {
-            client.execute("%s: flip `key`value ! (`long$(); `long$())".formatted(table.getName()));
-            client.execute("`%s insert 1, 100".formatted(table.getName()));
+            client.execute(SESSION, "%s: flip `key`value ! (`long$(); `long$())".formatted(table.getName()));
+            client.execute(SESSION, "`%s insert 1, 100".formatted(table.getName()));
 
             assertThat(query("TABLE test_reserved_column_names"))
                     .matches("VALUES (BIGINT '1', BIGINT '100')");
@@ -194,8 +201,8 @@ class TestKdbConnectorTest
     void testUnsupportedColumnType()
     {
         try (KdbTemporaryTable table = new KdbTemporaryTable(client, "test_unsupported_column_type")) {
-            client.execute("%s: flip `col1`col2`col3 ! (`long$(); ([] x:`long$()); `long$())".formatted(table.getName()));
-            client.execute("`%s insert (1; ([] x: enlist 999); 10)".formatted(table.getName()));
+            client.execute(SESSION, "%s: flip `col1`col2`col3 ! (`long$(); ([] x:`long$()); `long$())".formatted(table.getName()));
+            client.execute(SESSION, "`%s insert (1; ([] x: enlist 999); 10)".formatted(table.getName()));
 
             assertThat(query("DESC " + table.getName())).skippingTypesCheck()
                     .matches("VALUES ('col1', 'bigint', '', ''), ('col3', 'bigint', '', '')");

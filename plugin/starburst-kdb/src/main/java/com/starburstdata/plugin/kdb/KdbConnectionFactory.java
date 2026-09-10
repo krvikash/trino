@@ -15,32 +15,35 @@ package com.starburstdata.plugin.kdb;
 
 import com.google.inject.Inject;
 import com.kx.c;
+import io.trino.plugin.jdbc.credential.CredentialProvider;
 import io.trino.spi.TrinoException;
+import io.trino.spi.connector.ConnectorSession;
 
 import java.io.IOException;
 import java.util.Optional;
 
 import static com.starburstdata.plugin.kdb.KdbErrorCode.KDB_CONNECTION_ERROR;
 import static io.trino.spi.StandardErrorCode.PERMISSION_DENIED;
+import static java.util.Objects.requireNonNull;
 
 public class KdbConnectionFactory
 {
     private final String host;
     private final int port;
-    private final Optional<String> user;
-    private final Optional<String> password;
+    private final CredentialProvider credentialProvider;
 
     @Inject
-    public KdbConnectionFactory(KdbConfig config, KdbCredentialConfig credentialConfig)
+    public KdbConnectionFactory(CredentialProvider credentialProvider, KdbConfig config)
     {
         host = config.getHost();
         port = config.getPort();
-        user = credentialConfig.getUser();
-        password = credentialConfig.getPassword();
+        this.credentialProvider = requireNonNull(credentialProvider, "credentialProvider is null");
     }
 
-    public c openConnection()
+    public c openConnection(ConnectorSession session)
     {
+        Optional<String> user = credentialProvider.getConnectionUser(Optional.of(session.getIdentity()));
+        Optional<String> password = credentialProvider.getConnectionPassword(Optional.of(session.getIdentity()));
         try {
             if (user.isPresent()) {
                 return new c(host, port, "%s:%s".formatted(user.orElse(""), password.orElse("")));

@@ -60,7 +60,7 @@ public class KdbMetadata
     @Override
     public List<String> listSchemaNames(ConnectorSession session)
     {
-        return client.listSchemas();
+        return client.listSchemas(session);
     }
 
     @Override
@@ -80,7 +80,7 @@ public class KdbMetadata
 
         // Use a lightweight tables[] membership check rather than fetching full column
         // metadata here — getColumnHandles() will call getColumns() shortly after.
-        if (!client.tableExists(tableName)) {
+        if (!client.tableExists(session, tableName)) {
             return null;
         }
         return new KdbTableHandle(tableName, OptionalLong.empty());
@@ -103,7 +103,7 @@ public class KdbMetadata
     @Override
     public List<SchemaTableName> listTables(ConnectorSession session, Optional<String> schemaName)
     {
-        return client.listTables(schemaName);
+        return client.listTables(session, schemaName);
     }
 
     @Override
@@ -112,7 +112,7 @@ public class KdbMetadata
         KdbTableHandle kdbTableHandle = (KdbTableHandle) tableHandle;
         SchemaTableName tableName = kdbTableHandle.schemaTableName();
 
-        List<KdbColumnHandle> columns = client.loadColumns(tableName);
+        List<KdbColumnHandle> columns = client.loadColumns(session, tableName);
         if (columns.isEmpty()) {
             throw new TableNotFoundException(tableName);
         }

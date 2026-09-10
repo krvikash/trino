@@ -13,6 +13,9 @@
  */
 package com.starburstdata.plugin.kdb;
 
+import io.trino.spi.connector.ConnectorSession;
+import io.trino.spi.security.ConnectorIdentity;
+import io.trino.testing.TestingConnectorSession;
 import io.trino.tpch.TpchColumn;
 import io.trino.tpch.TpchColumnType;
 import io.trino.tpch.TpchEntity;
@@ -25,6 +28,9 @@ import java.util.stream.Collectors;
 public final class KdbTpchLoader
 {
     private static final int TPCH_BATCH_SIZE = 500;
+    private static final ConnectorSession SESSION = TestingConnectorSession.builder()
+            .setIdentity(ConnectorIdentity.ofUser("kdb-tpch-loader"))
+            .build();
 
     private KdbTpchLoader() {}
 
@@ -58,12 +64,12 @@ public final class KdbTpchLoader
                 rows.add(row);
             }
 
-            client.execute(buildEmptyTableExpr(tableName, columns));
+            client.execute(SESSION, buildEmptyTableExpr(tableName, columns));
 
             int total = rows.size();
             for (int start = 0; start < total; start += TPCH_BATCH_SIZE) {
                 int end = Math.min(start + TPCH_BATCH_SIZE, total);
-                client.execute(buildUpsertExpr(tableName, columns, rows.subList(start, end)));
+                client.execute(SESSION, buildUpsertExpr(tableName, columns, rows.subList(start, end)));
             }
         }
     }

@@ -13,11 +13,18 @@
  */
 package com.starburstdata.plugin.kdb;
 
+import io.trino.spi.connector.ConnectorSession;
+import io.trino.spi.security.ConnectorIdentity;
+import io.trino.testing.TestingConnectorSession;
 import io.trino.testing.sql.TemporaryRelation;
 
 public class KdbTemporaryTable
         implements TemporaryRelation
 {
+    private static final ConnectorSession SESSION = TestingConnectorSession.builder()
+            .setIdentity(ConnectorIdentity.ofUser("kdb-temporary-table"))
+            .build();
+
     private final KdbClient kdbClient;
     private final String name;
 
@@ -37,7 +44,7 @@ public class KdbTemporaryTable
     public void close()
     {
         try {
-            kdbClient.execute("delete " + name + " from `.");
+            kdbClient.execute(SESSION, "delete " + name + " from `.");
         }
         catch (Exception ignored) {
             // cleanup failed

@@ -27,7 +27,6 @@ public class KdbModule
     public void configure(Binder binder)
     {
         configBinder(binder).bindConfig(KdbConfig.class);
-        configBinder(binder).bindConfig(KdbCredentialConfig.class);
         binder.bind(KdbConnector.class).in(Scopes.SINGLETON);
         binder.bind(KdbMetadata.class).in(Scopes.SINGLETON);
         binder.bind(KdbSplitManager.class).in(Scopes.SINGLETON);

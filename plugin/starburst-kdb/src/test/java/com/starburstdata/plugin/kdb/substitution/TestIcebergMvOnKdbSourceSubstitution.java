@@ -20,7 +20,10 @@ import io.trino.Session;
 import io.trino.plugin.iceberg.substitution.AbstractIcebergMvSubstitutionTest;
 import io.trino.spi.connector.CatalogSchemaName;
 import io.trino.spi.connector.CatalogSchemaTableName;
+import io.trino.spi.connector.ConnectorSession;
+import io.trino.spi.security.ConnectorIdentity;
 import io.trino.testing.QueryRunner;
+import io.trino.testing.TestingConnectorSession;
 import io.trino.testing.sql.SqlExecutor;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
@@ -39,6 +42,10 @@ import static org.junit.jupiter.api.parallel.ExecutionMode.SAME_THREAD;
 public class TestIcebergMvOnKdbSourceSubstitution
         extends AbstractIcebergMvSubstitutionTest
 {
+    private static final ConnectorSession SESSION = TestingConnectorSession.builder()
+            .setIdentity(ConnectorIdentity.ofUser("kdb-mv-substitution-test"))
+            .build();
+
     private KdbClient kdbClient;
 
     @Override
@@ -78,7 +85,7 @@ public class TestIcebergMvOnKdbSourceSubstitution
     {
         // orderstatus is a simple char column (one char per row); orderdate is a list of char
         // vectors (strings). Both map to Trino VARCHAR.
-        kdbClient.execute(("%s:([]" +
+        kdbClient.execute(SESSION, ("%s:([]" +
                 "orderkey:20000 20001 20002 20003 20004 20005 20006 20007j; " +
                 "custkey:100 101 102 103 104 105 106 107j; " +
                 "orderdate:(\"1995-01-05\";\"1995-01-10\";\"1995-01-15\";\"1995-01-15\";\"1995-01-20\";\"1995-01-25\";\"1995-01-30\";\"1995-02-01\"); " +
@@ -90,7 +97,7 @@ public class TestIcebergMvOnKdbSourceSubstitution
     @Override
     protected void createLineItemTable()
     {
-        kdbClient.execute(("%s:([]" +
+        kdbClient.execute(SESSION, ("%s:([]" +
                 "orderkey:20000 20000 20001 20002j; " +
                 "linenumber:1 2 1 1j; " +
                 "quantity:10 5 7 3f; " +
@@ -103,7 +110,7 @@ public class TestIcebergMvOnKdbSourceSubstitution
     protected void insertIntoOrders(long id)
     {
         // `t upsert (...) amends the global table in place.
-        kdbClient.execute("`%s upsert (%sj; 400j; \"1995-02-01\"; 99.99; \"N\")".formatted(tableName(ordersTable), id));
+        kdbClient.execute(SESSION, "`%s upsert (%sj; 400j; \"1995-02-01\"; 99.99; \"N\")".formatted(tableName(ordersTable), id));
     }
 
     @Override
@@ -111,7 +118,7 @@ public class TestIcebergMvOnKdbSourceSubstitution
     {
         // kdb+ has no native struct/JSON type; the sub-field column holds JSON as VARCHAR (see
         // subFieldTestContext()). Each info value is a list of chars (a string) -> Trino VARCHAR.
-        kdbClient.execute("%s:([]id:1 2 3j; info:(%s;%s;%s))".formatted(
+        kdbClient.execute(SESSION, "%s:([]id:1 2 3j; info:(%s;%s;%s))".formatted(
                 tableName(table),
                 qString("{\"name\":\"Alice\",\"age\":30, \"gender\":\"W\"}"),
                 qString("{\"name\":\"Bob\",\"age\":25, \"gender\":\"M\"}"),
@@ -123,7 +130,7 @@ public class TestIcebergMvOnKdbSourceSubstitution
     {
         // enlist keeps "Alice" a single string (one row of VARCHAR) rather than a 5-row char column;
         // 42h is a q short so c_smallint maps to SMALLINT (exercises the SMALLINT->INTEGER coercion).
-        kdbClient.execute(("%s:([]" +
+        kdbClient.execute(SESSION, ("%s:([]" +
                 "id_col:1j; " +
                 "c_varchar:enlist \"Alice\"; " +
                 "c_smallint:42h)")
@@ -139,9 +146,9 @@ public class TestIcebergMvOnKdbSourceSubstitution
     @Override
     protected void dropSourceTable(CatalogSchemaTableName sourceTable)
     {
-        if (kdbClient.tableExists(sourceTable.getSchemaTableName())) {
+        if (kdbClient.tableExists(SESSION, sourceTable.getSchemaTableName())) {
             // delete <name> from `. removes the global variable from the root namespace.
-            kdbClient.execute("delete %s from `.".formatted(tableName(sourceTable)));
+            kdbClient.execute(SESSION, "delete %s from `.".formatted(tableName(sourceTable)));
         }
     }
 

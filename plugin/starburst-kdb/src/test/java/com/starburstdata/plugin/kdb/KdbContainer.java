@@ -13,6 +13,7 @@
  */
 package com.starburstdata.plugin.kdb;
 
+import io.trino.plugin.jdbc.credential.StaticCredentialProvider;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.images.builder.Transferable;
 
@@ -22,8 +23,8 @@ public final class KdbContainer
         implements Closeable
 {
     private static final int KDB_PORT = 5000;
-    static final String USER = "admin";
-    static final String PASSWORD = "password";
+    public static final String USER = "admin";
+    public static final String PASSWORD = "password";
     private static final String PASSWORD_FILE = "/opt/kdb/users";
 
     private final GenericContainer<?> container;
@@ -52,12 +53,10 @@ public final class KdbContainer
     public KdbClient client()
     {
         return new KdbClient(new KdbConnectionFactory(
+                StaticCredentialProvider.of(USER, PASSWORD),
                 new KdbConfig()
                         .setHost(host())
-                        .setPort(port()),
-                new KdbCredentialConfig()
-                        .setUser(USER)
-                        .setPassword(PASSWORD)));
+                        .setPort(port())));
     }
 
     @Override

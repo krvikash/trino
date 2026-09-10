@@ -43,6 +43,7 @@ public class KdbConnectorFactory
                 "io.trino.bootstrap.catalog." + catalogName,
                 new JsonModule(),
                 new ConnectorContextModule(catalogName, context),
+                new KdbAuthenticationModule(),
                 new KdbModule());
 
         Injector injector = app

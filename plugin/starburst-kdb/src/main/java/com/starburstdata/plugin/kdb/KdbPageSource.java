@@ -22,6 +22,7 @@ import io.trino.spi.TrinoException;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.connector.ConnectorPageSource;
+import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.connector.SourcePage;
 import io.trino.spi.type.Type;
@@ -42,6 +43,7 @@ public class KdbPageSource
     private static final int ROWS_PER_PAGE = 4096;
 
     private final KdbClient client;
+    private final ConnectorSession session;
     private final SchemaTableName schemaTableName;
     private final List<KdbColumnHandle> columns;
     private final OptionalLong limit;
@@ -55,11 +57,13 @@ public class KdbPageSource
 
     public KdbPageSource(
             KdbClient client,
+            ConnectorSession session,
             SchemaTableName schemaTableName,
             List<KdbColumnHandle> columns,
             OptionalLong limit)
     {
         this.client = requireNonNull(client, "client is null");
+        this.session = requireNonNull(session, "session is null");
         this.schemaTableName = requireNonNull(schemaTableName, "schemaTableName is null");
         this.columns = ImmutableList.copyOf(columns);
         this.limit = requireNonNull(limit, "limit is null");
@@ -74,7 +78,7 @@ public class KdbPageSource
         try {
             log.debug("Loading data for table: %s", schemaTableName);
             long start = System.nanoTime();
-            queryResult = client.fetchData(buildQuery(schemaTableName, columns, limit));
+            queryResult = client.fetchData(session, buildQuery(schemaTableName, columns, limit));
             readTimeNanos = System.nanoTime() - start;
             log.debug("Loaded %d rows in %d ms", queryResult.rowCount(), readTimeNanos / 1_000_000);
 

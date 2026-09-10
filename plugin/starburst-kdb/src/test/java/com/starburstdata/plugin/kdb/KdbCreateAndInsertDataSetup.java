@@ -13,6 +13,9 @@
  */
 package com.starburstdata.plugin.kdb;
 
+import io.trino.spi.connector.ConnectorSession;
+import io.trino.spi.security.ConnectorIdentity;
+import io.trino.testing.TestingConnectorSession;
 import io.trino.testing.datatype.ColumnSetup;
 import io.trino.testing.datatype.DataSetup;
 import io.trino.testing.sql.TemporaryRelation;
@@ -29,6 +32,10 @@ import static java.util.Objects.requireNonNull;
 final class KdbCreateAndInsertDataSetup
         implements DataSetup
 {
+    private static final ConnectorSession SESSION = TestingConnectorSession.builder()
+            .setIdentity(ConnectorIdentity.ofUser("kdb-data-setup"))
+            .build();
+
     private final KdbClient kdbClient;
     private final String tableNamePrefix;
 
@@ -53,7 +60,7 @@ final class KdbCreateAndInsertDataSetup
         }
         q.append(")");
 
-        kdbClient.execute(q.toString());
+        kdbClient.execute(SESSION, q.toString());
 
         return new KdbTemporaryTable(kdbClient, tableName);
     }
