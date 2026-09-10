@@ -2128,14 +2128,16 @@ public class LocalExecutionPlanner
 
             int[] sortChannels = new int[orderBySymbols.size()];
             ImmutableList.Builder<SortOrder> sortOrders = ImmutableList.builder();
+            ImmutableList.Builder<Type> sortTypes = ImmutableList.builder();
 
             for (int i = 0; i < orderBySymbols.size(); i++) {
                 Symbol symbol = orderBySymbols.get(i);
                 sortChannels[i] = sourceLayout.get(symbol);
                 sortOrders.add(node.getOrderingScheme().ordering(symbol));
+                sortTypes.add(symbol.type());
             }
 
-            GpuTopN.Factory gpuTopN = new GpuTopN.Factory(toIntExact(node.getCount()), sortChannels, sortOrders.build());
+            GpuTopN.Factory gpuTopN = new GpuTopN.Factory(toIntExact(node.getCount()), sortChannels, sortOrders.build(), sortTypes.build());
 
             return Optional.of(addGpuOperation(
                     gpuTopN,

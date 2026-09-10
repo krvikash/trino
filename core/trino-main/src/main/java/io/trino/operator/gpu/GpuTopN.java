@@ -15,7 +15,6 @@ package io.trino.operator.gpu;
 
 import ai.rapids.cudf.ColumnVector;
 import ai.rapids.cudf.DType;
-import ai.rapids.cudf.OrderByArg;
 import ai.rapids.cudf.Table;
 import com.google.common.collect.ImmutableList;
 import io.trino.operator.gpu.memory.AllocatedMemory;
@@ -28,12 +27,13 @@ import io.trino.spi.gpu.MemoryAmount;
 import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
 import io.trino.spi.gpu.borrow.Own;
+import io.trino.spi.type.Type;
 
 import java.util.Arrays;
 import java.util.List;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static io.trino.operator.gpu.memory.GpuMemoryUtils.getOrderByMemoryUsage;
+import static io.trino.operator.gpu.GpuSortUtils.estimateOrderByMemoryUsage;
 import static io.trino.plugin.base.gpu.GpuUtils.closeColumns;
 import static io.trino.plugin.base.gpu.GpuUtils.toGpuPage;
 import static io.trino.plugin.base.gpu.GpuUtils.toTable;
@@ -55,25 +55,28 @@ public final class GpuTopN
         private final int limit;
         private final int[] sortChannels;
         private final List<SortOrder> sortOrders;
+        private final List<Type> sortTypes;
 
-        public Factory(int limit, int[] sortChannels, List<SortOrder> sortOrders)
+        public Factory(int limit, int[] sortChannels, List<SortOrder> sortOrders, List<Type> sortTypes)
         {
             checkArgument(sortChannels.length == sortOrders.size(), "sortChannels and sortOrders sizes do not match");
+            checkArgument(sortChannels.length == sortTypes.size(), "sortChannels and sortTypes sizes do not match");
             this.limit = limit;
             this.sortChannels = sortChannels.clone();
             this.sortOrders = ImmutableList.copyOf(requireNonNull(sortOrders, "sortOrders is null"));
+            this.sortTypes = ImmutableList.copyOf(requireNonNull(sortTypes, "sortTypes is null"));
         }
 
         @Override
         public Factory duplicate()
         {
-            return new Factory(limit, sortChannels, sortOrders);
+            return new Factory(limit, sortChannels, sortOrders, sortTypes);
         }
 
         @Override
         public GpuOperation create(Context context, GpuOperation source)
         {
-            return new GpuTopN(context, source, limit, sortChannels, sortOrders);
+            return new GpuTopN(context, source, limit, sortChannels, sortOrders, sortTypes);
         }
 
         @Override
@@ -84,18 +87,20 @@ public final class GpuTopN
     private final int limit;
     private final int[] sortChannels;
     private final List<SortOrder> sortOrders;
+    private final List<Type> sortTypes;
 
     // Partial Top N data. Temporarily unsorted when handing new input.
     private final ClosingRef<Table> buffered = ClosingRef.empty();
     private final ClosingRef<AllocatedMemory> allocated;
     private boolean finished;
 
-    private GpuTopN(Context context, GpuOperation source, int limit, int[] sortChannels, List<SortOrder> sortOrders)
+    private GpuTopN(Context context, GpuOperation source, int limit, int[] sortChannels, List<SortOrder> sortOrders, List<Type> sortTypes)
     {
         this.source = requireNonNull(source, "source is null");
         this.limit = limit;
         this.sortChannels = requireNonNull(sortChannels, "sortChannels is null");
         this.sortOrders = ImmutableList.copyOf(requireNonNull(sortOrders, "sortOrders is null"));
+        this.sortTypes = ImmutableList.copyOf(requireNonNull(sortTypes, "sortTypes is null"));
         allocated = ClosingRef.own(context.taskMemoryContext().allocate(getClass().getSimpleName(), MemoryAmount.ZERO));
     }
 
@@ -117,7 +122,8 @@ public final class GpuTopN
                 }
                 long combinedBytes = allocated.borrow().amount().gpuDeviceBytes();
                 long sortKeyBytes = getSortKeyBytes(page);
-                long workBytes = getOrderByMemoryUsage(getSortTypes(page), sortKeyBytes, combinedBytes);
+                long rowCount = (buffered.isEmpty() ? 0 : buffered.borrow().getRowCount()) + page.positionCount();
+                long workBytes = estimateOrderByMemoryUsage(getSortDTypes(page), sortTypes, sortOrders, sortKeyBytes, combinedBytes, rowCount);
                 allocated.borrow().update(MemoryAmount.gpuDevice(workBytes));
                 try (page) {
                     accumulate(page);
@@ -138,7 +144,7 @@ public final class GpuTopN
         };
     }
 
-    private DType[] getSortTypes(@Borrow GpuPage page)
+    private DType[] getSortDTypes(@Borrow GpuPage page)
     {
         return Arrays.stream(sortChannels)
                 .mapToObj(page::column)
@@ -174,17 +180,10 @@ public final class GpuTopN
 
     private void sortAndTruncate()
     {
-        try (Table unsorted = buffered.take()) {
-            buffered.set(unsorted.orderBy(toOrderByArgs()));
-        }
-        try (Table sorted = buffered.take()) {
+        try (Table unsorted = buffered.take();
+                Table sorted = GpuSortUtils.orderBy(unsorted, sortChannels, sortOrders, sortTypes)) {
             buffered.set(applyLimit(sorted, limit));
         }
-    }
-
-    private OrderByArg[] toOrderByArgs()
-    {
-        return GpuSortUtils.toOrderByArgs(sortChannels, sortOrders);
     }
 
     private static @Move Table applyLimit(@Borrow Table sorted, int limit)

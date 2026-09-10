@@ -29,13 +29,16 @@ import org.junit.jupiter.api.parallel.Isolated;
 
 import java.util.Iterator;
 import java.util.List;
+import java.util.stream.IntStream;
 
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.trino.operator.gpu.GpuTestUtils.copyToDevice;
 import static io.trino.operator.gpu.GpuTestUtils.createPages;
 import static io.trino.operator.gpu.GpuTestUtils.maybeSetGpuMemoryPoolForTests;
+import static io.trino.spi.connector.SortOrder.ASC_NULLS_FIRST;
 import static io.trino.spi.connector.SortOrder.ASC_NULLS_LAST;
 import static io.trino.spi.type.BigintType.BIGINT;
+import static io.trino.spi.type.DoubleType.DOUBLE;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.sql.gen.TestColumnarFilters.NullsProvider.NO_NULLS;
 import static org.junit.jupiter.api.parallel.ExecutionMode.SAME_THREAD;
@@ -80,6 +83,13 @@ class TestGpuTopNMemory
     }
 
     @Test
+    void testFloatSortKeyWithNullsFirst()
+    {
+        List<Type> types = List.of(DOUBLE, BIGINT);
+        testTopN(types, SMALL_LIMIT, new int[] {0}, List.of(ASC_NULLS_FIRST));
+    }
+
+    @Test
     void testLimitGreaterThanInput()
     {
         // No row is ever truncated; buffered grows with each input page.
@@ -89,17 +99,18 @@ class TestGpuTopNMemory
     private void testTopN(List<Type> types, int limit, int[] sortChannels, List<SortOrder> sortOrders)
     {
         // pageCount=1 exercises the single-batch path; MULTIPLE_PAGES exercises accumulate+sortAndTruncate per batch.
-        testTopN(types, limit, sortChannels, sortOrders, 1);
-        testTopN(types, limit, sortChannels, sortOrders, MULTIPLE_PAGES);
+        testTopN(types, limit, sortChannels, sortOrders, createPages(types, NO_NULLS, 1, ROWS_PER_PAGE, true));
+        testTopN(types, limit, sortChannels, sortOrders, createPages(types, NO_NULLS, MULTIPLE_PAGES, ROWS_PER_PAGE, true));
     }
 
-    private void testTopN(List<Type> types, int limit, int[] sortChannels, List<SortOrder> sortOrders, int pageCount)
+    private void testTopN(List<Type> types, int limit, int[] sortChannels, List<SortOrder> sortOrders, Iterator<Page> inputPages)
     {
+        List<Type> sortTypes = IntStream.of(sortChannels)
+                .mapToObj(types::get)
+                .toList();
         TestingGpuOperationContext context = new TestingGpuOperationContext();
         try (GpuDeviceMemoryUsageValidation memoryValidation = GpuDeviceMemoryUsageValidation.createAndRegister(context, 1024 * 1024)) {
-            Iterator<Page> inputPages = createPages(types, NO_NULLS, pageCount, ROWS_PER_PAGE, true);
-
-            GpuTopN.Factory factory = new GpuTopN.Factory(limit, sortChannels, sortOrders);
+            GpuTopN.Factory factory = new GpuTopN.Factory(limit, sortChannels, sortOrders, sortTypes);
             try (var source = new SettableGpuOperation();
                     GpuOperation topN = factory.create(context, source)) {
                 boolean finished = false;

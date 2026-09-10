@@ -406,6 +406,9 @@ public final class GpuTestUtils
                         if (isValid.isPresent() && !Bitmap.isSet(isValid.get(), 0, i)) {
                             builder.appendNull();
                         }
+                        else if (random.nextInt(100) == 0) {
+                            REAL.writeFloat(builder, Float.NaN);
+                        }
                         else {
                             REAL.writeFloat(builder, random.nextFloat() * 1000 - 500); // -500 to 500
                         }
@@ -425,6 +428,9 @@ public final class GpuTestUtils
                     for (int i = 0; i < positionsCount; i++) {
                         if (isValid.isPresent() && !Bitmap.isSet(isValid.get(), 0, i)) {
                             builder.appendNull();
+                        }
+                        else if (random.nextInt(100) == 0) {
+                            DOUBLE.writeDouble(builder, Double.NaN);
                         }
                         else {
                             DOUBLE.writeDouble(builder, random.nextDouble() * 1000 - 500); // -500 to 500

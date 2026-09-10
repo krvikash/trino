@@ -19,6 +19,7 @@ import io.trino.operator.SimplePageWithPositionComparator;
 import io.trino.operator.TopNProcessor;
 import io.trino.spi.Page;
 import io.trino.spi.block.Block;
+import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.connector.SortOrder;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.TypeOperators;
@@ -27,6 +28,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.FieldSource;
 import org.junit.jupiter.params.provider.MethodSource;
 
@@ -43,6 +45,8 @@ import static io.trino.operator.gpu.GpuTestUtils.executeGpuOperation;
 import static io.trino.operator.gpu.GpuTestUtils.maybeSetGpuMemoryPoolForTests;
 import static io.trino.spi.connector.SortOrder.ASC_NULLS_LAST;
 import static io.trino.spi.type.BigintType.BIGINT;
+import static io.trino.spi.type.DoubleType.DOUBLE;
+import static io.trino.spi.type.RealType.REAL;
 import static io.trino.sql.gen.TestColumnarFilters.NullsProvider.NO_NULLS;
 
 final class TestGpuTopN
@@ -148,6 +152,102 @@ final class TestGpuTopN
     }
 
     @ParameterizedTest
+    @EnumSource(SortOrder.class)
+    void testFloatingPointEdgeCases(SortOrder sortOrder)
+    {
+        // cuDF sorts NaN after all real values. Trino uses COMPARISON_UNORDERED_FIRST for
+        // NULLS_FIRST sort orders, placing NaN before real values (right after null).
+        // NaN bit patterns don't matter here: DoubleType.writeDouble uses doubleToLongBits
+        // which normalizes all NaN representations to canonical NaN before they reach the GPU.
+        BlockBuilder doubleBuilder = DOUBLE.createFixedSizeBlockBuilder(8);
+        DOUBLE.writeDouble(doubleBuilder, -0.0);
+        DOUBLE.writeDouble(doubleBuilder, 0.0);
+        DOUBLE.writeDouble(doubleBuilder, Double.NaN);
+        DOUBLE.writeDouble(doubleBuilder, Double.NaN);
+        DOUBLE.writeDouble(doubleBuilder, 1.0);
+        DOUBLE.writeDouble(doubleBuilder, Double.NEGATIVE_INFINITY);
+        DOUBLE.writeDouble(doubleBuilder, Double.POSITIVE_INFINITY);
+        doubleBuilder.appendNull();
+        Page doublePage = new Page(doubleBuilder.buildValueBlock());
+        // limit=8 exercises full sort; limit=5 exercises truncation interacting with NaN position
+        for (int limit : List.of(5, 8)) {
+            assertGpuTopNMatchesCpu(
+                    doublePage,
+                    List.of(DOUBLE),
+                    limit,
+                    new int[] {0},
+                    List.of(sortOrder));
+        }
+
+        BlockBuilder realBuilder = REAL.createFixedSizeBlockBuilder(8);
+        REAL.writeFloat(realBuilder, -0.0f);
+        REAL.writeFloat(realBuilder, 0.0f);
+        REAL.writeFloat(realBuilder, Float.NaN);
+        REAL.writeFloat(realBuilder, Float.NaN);
+        REAL.writeFloat(realBuilder, 1.0f);
+        REAL.writeFloat(realBuilder, Float.NEGATIVE_INFINITY);
+        REAL.writeFloat(realBuilder, Float.POSITIVE_INFINITY);
+        realBuilder.appendNull();
+        Page realPage = new Page(realBuilder.buildValueBlock());
+        for (int limit : List.of(5, 8)) {
+            assertGpuTopNMatchesCpu(
+                    realPage,
+                    List.of(REAL),
+                    limit,
+                    new int[] {0},
+                    List.of(sortOrder));
+        }
+    }
+
+    @ParameterizedTest
+    @EnumSource(SortOrder.class)
+    void testFloatingPointNanAcrossMultipleBatches(SortOrder sortOrder)
+    {
+        // NaN values spread across separate pages exercise the sort-and-truncate loop:
+        // intermediate truncation must not discard NaN values that belong in the final result.
+        List<Page> inputPages = List.of(
+                new Page(createBlock(DOUBLE, TARGET_ROW_COUNT, NO_NULLS)),
+                new Page(createBlock(DOUBLE, TARGET_ROW_COUNT, NO_NULLS)),
+                new Page(createBlock(DOUBLE, TARGET_ROW_COUNT, NO_NULLS)));
+        assertGpuTopNMatchesCpu(
+                inputPages,
+                List.of(DOUBLE),
+                10,
+                new int[] {0},
+                List.of(sortOrder));
+    }
+
+    @ParameterizedTest
+    @EnumSource(SortOrder.class)
+    void testFloatingPointNanAsSecondarySortKey(SortOrder sortOrder)
+    {
+        // Float sort key as secondary column exercises the channel index mapping
+        // in the NaN flag insertion logic (flags must be placed before their float column,
+        // not before the first sort key).
+        BlockBuilder bigintBuilder = BIGINT.createBlockBuilder(null, 10);
+        BlockBuilder doubleBuilder = DOUBLE.createBlockBuilder(null, 10);
+        // Two groups of BIGINT=1 and BIGINT=2, with NaN/null in both groups
+        for (long group : new long[] {1, 2}) {
+            BIGINT.writeLong(bigintBuilder, group);
+            DOUBLE.writeDouble(doubleBuilder, Double.NaN);
+            BIGINT.writeLong(bigintBuilder, group);
+            DOUBLE.writeDouble(doubleBuilder, 3.0);
+            BIGINT.writeLong(bigintBuilder, group);
+            DOUBLE.writeDouble(doubleBuilder, -1.0);
+            BIGINT.writeLong(bigintBuilder, group);
+            doubleBuilder.appendNull();
+            BIGINT.writeLong(bigintBuilder, group);
+            DOUBLE.writeDouble(doubleBuilder, Double.POSITIVE_INFINITY);
+        }
+        assertGpuTopNMatchesCpu(
+                new Page(bigintBuilder.build(), doubleBuilder.build()),
+                List.of(BIGINT, DOUBLE),
+                7,
+                new int[] {0, 1},
+                List.of(SortOrder.ASC_NULLS_FIRST, sortOrder));
+    }
+
+    @ParameterizedTest
     @FieldSource("io.trino.operator.gpu.GpuTestUtils#TESTED_GPU_TYPES")
     void testAllTypes(Type type)
     {
@@ -226,12 +326,15 @@ final class TestGpuTopN
 
     private static List<Page> executeGpuTopN(List<Page> inputPages, List<Type> types, int limit, int[] sortChannels, List<SortOrder> sortOrders)
     {
+        List<Type> sortTypes = IntStream.of(sortChannels)
+                .mapToObj(types::get)
+                .toList();
         return executeGpuOperation(
                 inputPages,
                 types,
                 types,
                 (context, copyToDevice) -> {
-                    GpuTopN.Factory factory = new GpuTopN.Factory(limit, sortChannels, sortOrders);
+                    GpuTopN.Factory factory = new GpuTopN.Factory(limit, sortChannels, sortOrders, sortTypes);
                     return factory.create(context, copyToDevice);
                 });
     }
