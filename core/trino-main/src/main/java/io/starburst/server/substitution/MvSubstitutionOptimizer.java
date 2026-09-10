@@ -84,6 +84,7 @@ import static io.trino.spi.eventlistener.MaterializedViewSubstitutionOutcome.STO
 import static io.trino.spi.eventlistener.MaterializedViewSubstitutionOutcome.STORAGE_TABLE_CHANGED;
 import static io.trino.spi.eventlistener.MaterializedViewSubstitutionOutcome.STORAGE_TABLE_NOT_FOUND;
 import static io.trino.spi.eventlistener.MaterializedViewSubstitutionOutcome.STORAGE_TYPE_NOT_COERCIBLE;
+import static io.trino.spi.eventlistener.MaterializedViewSubstitutionOutcome.SUBSTITUTED;
 import static java.util.Objects.requireNonNull;
 
 public class MvSubstitutionOptimizer
@@ -97,6 +98,8 @@ public class MvSubstitutionOptimizer
     private final SubstitutionMetadata substitutionMetadata;
     private final TypeManager typeManager;
     private final AccessControl accessControl;
+    private final MvSubstitutionStats mvSubstitutionStats;
+    private final MvSubstitutionUsageMetrics mvSubstitutionUsageMetrics;
     private final NonEvictableLoadingCache<String, Pattern> compiledCandidatesRegexFilters;
 
     public MvSubstitutionOptimizer(
@@ -104,13 +107,17 @@ public class MvSubstitutionOptimizer
             Metadata metadata,
             SubstitutionMetadata substitutionMetadata,
             TypeManager typeManager,
-            AccessControl accessControl)
+            AccessControl accessControl,
+            MvSubstitutionStats mvSubstitutionStats,
+            MvSubstitutionUsageMetrics mvSubstitutionUsageMetrics)
     {
         this.materializationIndex = requireNonNull(materializationIndex, "materializationIndex is null");
         this.metadata = requireNonNull(metadata, "metadata is null");
         this.substitutionMetadata = requireNonNull(substitutionMetadata, "substitutionMetadata is null");
         this.typeManager = typeManager;
         this.accessControl = requireNonNull(accessControl, "accessControl is null");
+        this.mvSubstitutionStats = requireNonNull(mvSubstitutionStats, "mvSubstitutionStats is null");
+        this.mvSubstitutionUsageMetrics = requireNonNull(mvSubstitutionUsageMetrics, "mvSubstitutionUsageMetrics is null");
         this.compiledCandidatesRegexFilters = buildNonEvictableCache(
                 CacheBuilder.newBuilder().maximumSize(MAX_CACHED_PATTERNS),
                 CacheLoader.from(Pattern::compile));
@@ -208,6 +215,7 @@ public class MvSubstitutionOptimizer
     {
         ReplacedPlan replacedPlan = new ReplacedPlan(queryTableScan, captureTableInfos(session, queryTableScan));
         collector.recordSubstituted(substituted.materializedView(), substituted.storageTable(), substituted.lastRefreshTime(), replacedPlan);
+        recordOutcome(SUBSTITUTED);
     }
 
     private Map<PlanNodeId, TableInfo> captureTableInfos(Session session, PlanNode subtree)
@@ -223,15 +231,24 @@ public class MvSubstitutionOptimizer
 
     private void recordRejectedCandidate(MvSubstitutionCollector collector, CatalogSchemaTableName candidateMvName, MaterializedViewSubstitutionOutcome outcome)
     {
-        // Naming the MV in an ACCESS_DENIED row would disclose an object the user cannot read.
-        // Every other outcome is reached only after the user passed the table-level access check.
+        // Naming the MV in an ACCESS_DENIED row would disclose an object the user cannot read at all.
+        // Every other outcome, COLUMN_ACCESS_DENIED included, is reached only after the user passed
+        // that table-level access check, so the name is safe to record there.
         Optional<CatalogSchemaTableName> recordedMvName = outcome == ACCESS_DENIED ? Optional.empty() : Optional.of(candidateMvName);
         collector.recordRejected(recordedMvName, outcome);
+        recordOutcome(outcome);
     }
 
     private void recordRejectedScanLevel(MvSubstitutionCollector collector, MaterializedViewSubstitutionOutcome outcome)
     {
         collector.recordRejected(Optional.empty(), outcome);
+        recordOutcome(outcome);
+    }
+
+    private void recordOutcome(MaterializedViewSubstitutionOutcome outcome)
+    {
+        mvSubstitutionStats.increment(outcome);
+        mvSubstitutionUsageMetrics.recordAttempt(outcome);
     }
 
     private static CatalogSchemaTableName materializedViewName(MaterializationDefinition candidate)
@@ -343,7 +360,9 @@ public class MvSubstitutionOptimizer
 
         // Substitution must not let the user read the materialized view's data without SELECT access to the
         // columns it reads. When access is denied, skip this candidate so the query falls back to other
-        // matching MVs, or to the base table (which the user can read).
+        // matching MVs, or to the base table (which the user can read). Recorded as a distinct outcome
+        // from the table-level check above: the user already passed that check, so naming the MV here
+        // discloses nothing they couldn't already see.
         if (!canSelectFromMaterializedView(session, candidate, readMvColumns.build())) {
             return new SubstitutionAttempt.Rejected(COLUMN_ACCESS_DENIED);
         }

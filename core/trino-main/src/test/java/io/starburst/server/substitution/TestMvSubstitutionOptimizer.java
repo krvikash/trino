@@ -15,6 +15,8 @@ import com.google.common.collect.ImmutableSet;
 import io.airlift.json.JsonCodec;
 import io.airlift.json.JsonCodecFactory;
 import io.airlift.json.JsonMapperProvider;
+import io.airlift.stats.CounterStat;
+import io.opentelemetry.api.metrics.MeterProvider;
 import io.starburst.materialization.ir.Output;
 import io.starburst.materialization.ir.Symbol;
 import io.starburst.materialization.ir.TableId;
@@ -84,7 +86,9 @@ import io.trino.testing.PlanTester;
 import io.trino.type.TypeDeserializer;
 import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.Test;
+import org.weakref.jmx.Managed;
 
+import java.lang.reflect.Method;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -92,6 +96,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
+import static com.google.common.base.CaseFormat.UPPER_CAMEL;
+import static com.google.common.base.CaseFormat.UPPER_UNDERSCORE;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.starburst.server.substitution.MaterializedViewSubstitutionSessionProperties.MATERIALIZED_VIEW_SUBSTITUTION_CANDIDATES_REGEX_FILTER;
 import static io.starburst.server.substitution.MaterializedViewSubstitutionSessionProperties.MATERIALIZED_VIEW_SUBSTITUTION_ENABLED;
@@ -447,6 +453,16 @@ public class TestMvSubstitutionOptimizer
     }
 
     @Test
+    public void testColumnAccessDeniedRecordsMaterializedViewName()
+    {
+        // the user can see the MV (table-level check passes) but lacks SELECT on the column it would read
+        MvSubstitutionOptimizer optimizer = optimizerWith(materialization().build(), new DenySelectOnMaterializedViewColumnsAccessControl());
+        List<MaterializedViewSubstitution> substitutions = assertPlanAndSubstitutions(session(true), "SELECT name FROM source", optimizer, anyTree(tableScan("source")));
+        assertOutcomes(substitutions, MaterializedViewSubstitutionOutcome.COLUMN_ACCESS_DENIED);
+        assertThat(substitutions.get(0).materializedView()).contains(new CatalogSchemaTableName(CATALOG, SCHEMA, "test_mv"));
+    }
+
+    @Test
     public void testNonSubstitutableScanIsRecordedOnlyWhenACandidateCoversIt()
     {
         PlanTester planTester = getPlanTester();
@@ -510,6 +526,39 @@ public class TestMvSubstitutionOptimizer
                 .hasSize(1);
     }
 
+    @Test
+    public void testEveryOutcomeHasManagedCounter()
+            throws Exception
+    {
+        MvSubstitutionStats stats = new MvSubstitutionStats();
+        for (MaterializedViewSubstitutionOutcome outcome : MaterializedViewSubstitutionOutcome.values()) {
+            Method getter = MvSubstitutionStats.class.getMethod("get" + UPPER_UNDERSCORE.to(UPPER_CAMEL, outcome.name()));
+            assertThat(getter.isAnnotationPresent(Managed.class)).isTrue();
+            CounterStat counter = (CounterStat) getter.invoke(stats);
+            stats.increment(outcome);
+            assertThat(counter.getTotalCount()).isEqualTo(1);
+        }
+    }
+
+    @Test
+    public void testStatsRecordSubstitutionOutcomes()
+    {
+        // MvSubstitutionStats exposes live per-outcome counters via JMX; assert they actually increment
+        MvSubstitutionStats stats = new MvSubstitutionStats();
+        MvSubstitutionOptimizer substituting = optimizerWith(ImmutableList.of(materialization().build()), getPlanTester().getAccessControl(), stats);
+        assertPlanAndSubstitutions(session(true), "SELECT name FROM source", substituting, anyTree(tableScan("storage")));
+        assertThat(stats.getSubstituted().getTotalCount()).isEqualTo(1);
+        assertThat(stats.getStale().getTotalCount()).isEqualTo(0);
+
+        MvSubstitutionOptimizer rejecting = optimizerWith(
+                ImmutableList.of(materialization().gracePeriod(Duration.ofMinutes(5)).lastKnownFreshTime(Instant.now().minus(Duration.ofDays(1))).build()),
+                getPlanTester().getAccessControl(),
+                stats);
+        assertPlanAndSubstitutions(session(true), "SELECT name FROM source", rejecting, anyTree(tableScan("source")));
+        assertThat(stats.getStale().getTotalCount()).isEqualTo(1);
+        assertThat(stats.getSubstituted().getTotalCount()).isEqualTo(1);
+    }
+
     private static class DenySelectOnMaterializedViewAccessControl
             extends AllowAllAccessControl
     {
@@ -518,6 +567,20 @@ public class TestMvSubstitutionOptimizer
         {
             if (tableName.objectName().equals("test_mv")) {
                 throw new AccessDeniedException("Cannot select from " + tableName);
+            }
+        }
+    }
+
+    private static class DenySelectOnMaterializedViewColumnsAccessControl
+            extends AllowAllAccessControl
+    {
+        @Override
+        public void checkCanSelectFromColumns(SecurityContext context, QualifiedObjectName tableName, Optional<String> branch, Set<String> columnNames)
+        {
+            // the table-level check (called with an empty column set) passes; only a non-empty,
+            // column-specific check is denied
+            if (tableName.objectName().equals("test_mv") && !columnNames.isEmpty()) {
+                throw new AccessDeniedException("Cannot select columns " + columnNames + " from " + tableName);
             }
         }
     }
@@ -625,6 +688,11 @@ public class TestMvSubstitutionOptimizer
 
     private MvSubstitutionOptimizer optimizerWith(List<MaterializationDefinition> materializations, AccessControl accessControl)
     {
+        return optimizerWith(materializations, accessControl, new MvSubstitutionStats());
+    }
+
+    private MvSubstitutionOptimizer optimizerWith(List<MaterializationDefinition> materializations, AccessControl accessControl, MvSubstitutionStats stats)
+    {
         PlanTester planTester = getPlanTester();
         SubstitutionMetadata substitutionMetadata = new SubstitutionMetadataManager(
                 createSubstitutionMetadata((ConnectorServicesProvider) planTester.getCatalogManager()));
@@ -643,7 +711,9 @@ public class TestMvSubstitutionOptimizer
                 planTester.getPlannerContext().getMetadata(),
                 substitutionMetadata,
                 planTester.getPlannerContext().getTypeManager(),
-                accessControl);
+                accessControl,
+                stats,
+                new MvSubstitutionUsageMetrics(MeterProvider.noop().get("noop")));
     }
 
     private TableScanNode updateTargetScan(Session session, String tableName)

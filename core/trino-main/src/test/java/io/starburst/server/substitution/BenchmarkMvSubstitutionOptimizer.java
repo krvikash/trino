@@ -15,6 +15,7 @@ import com.google.common.collect.ImmutableSet;
 import io.airlift.json.JsonCodec;
 import io.airlift.json.JsonCodecFactory;
 import io.airlift.json.JsonMapperProvider;
+import io.opentelemetry.api.metrics.MeterProvider;
 import io.starburst.materialization.ir.Output;
 import io.starburst.materialization.ir.Symbol;
 import io.starburst.materialization.ir.TableId;
@@ -318,7 +319,14 @@ public class BenchmarkMvSubstitutionOptimizer
                     createSubstitutionMetadata((ConnectorServicesProvider) planTester.getCatalogManager()));
             MaterializationIndex index = buildIndex();
             populateIndex(index);
-            optimizer = new MvSubstitutionOptimizer(index, metadata, substitutionMetadata, planTester.getPlannerContext().getTypeManager(), new AllowAllAccessControl());
+            optimizer = new MvSubstitutionOptimizer(
+                    index,
+                    metadata,
+                    substitutionMetadata,
+                    planTester.getPlannerContext().getTypeManager(),
+                    new AllowAllAccessControl(),
+                    new MvSubstitutionStats(),
+                    new MvSubstitutionUsageMetrics(MeterProvider.noop().get("noop")));
 
             transactionManager = planTester.getTransactionManager();
         }

@@ -28,6 +28,7 @@ import io.airlift.log.Level;
 import io.airlift.log.Logging;
 import io.airlift.node.NodeInfo;
 import io.airlift.units.Duration;
+import io.opentelemetry.api.metrics.MeterProvider;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.Tracer;
 import io.starburst.materialization.metastore.InMemoryRawMaterializationMetastore;
@@ -35,6 +36,8 @@ import io.starburst.server.substitution.MaterializationIndex;
 import io.starburst.server.substitution.MaterializedViewSubstitutionConfig;
 import io.starburst.server.substitution.MaterializedViewSubstitutionSessionProperties;
 import io.starburst.server.substitution.MvSubstitutionCollector;
+import io.starburst.server.substitution.MvSubstitutionStats;
+import io.starburst.server.substitution.MvSubstitutionUsageMetrics;
 import io.starburst.server.substitution.SubstitutionMetadata;
 import io.starburst.server.substitution.SubstitutionMetadataManager;
 import io.starburst.server.substitution.VersionAwareMaterializationMetastore;
@@ -1112,6 +1115,8 @@ public class PlanTester
                 Optional.of(materializationIndex),
                 substitutionMetadata,
                 accessControl,
+                new MvSubstitutionStats(),
+                new MvSubstitutionUsageMetrics(MeterProvider.noop().get("noop")),
                 nodePartitioningManager,
                 new RuleStatsRecorder());
     }

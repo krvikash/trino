@@ -49,6 +49,9 @@ public class MvSubstitutionModule
         newSetBinder(binder, SystemSessionPropertiesProvider.class).addBinding().to(MaterializedViewSubstitutionSessionProperties.class);
         binder.bind(NoopMaterializationService.class).in(Scopes.SINGLETON);
 
+        binder.bind(MvSubstitutionStats.class).in(Scopes.SINGLETON);
+        binder.bind(MvSubstitutionUsageMetrics.class).in(Scopes.SINGLETON);
+
         // Materialization DDL only runs on the coordinator and the real service depends on coordinator-only
         // planner components, so the feature is wired solely there. Whether it is actually enabled is decided
         // at injection time inside CoordinatorMaterializationModule (see below), not by the node role.

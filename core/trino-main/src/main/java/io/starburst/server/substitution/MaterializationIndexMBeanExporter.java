@@ -15,6 +15,8 @@ import jakarta.annotation.PreDestroy;
 import org.weakref.jmx.MBeanExport;
 import org.weakref.jmx.MBeanExporter;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
 import static java.util.Objects.requireNonNull;
@@ -28,27 +30,30 @@ public class MaterializationIndexMBeanExporter
 {
     private final MBeanExporter exporter;
     private final Optional<MaterializationIndex> materializationIndex;
-    private MBeanExport export;
+    private final MvSubstitutionStats mvSubstitutionStats;
+    private final List<MBeanExport> mbeanExports = new ArrayList<>();
 
     @Inject
-    public MaterializationIndexMBeanExporter(MBeanExporter exporter, Optional<MaterializationIndex> materializationIndex)
+    public MaterializationIndexMBeanExporter(MBeanExporter exporter, Optional<MaterializationIndex> materializationIndex, MvSubstitutionStats mvSubstitutionStats)
     {
         this.exporter = requireNonNull(exporter, "exporter is null");
         this.materializationIndex = requireNonNull(materializationIndex, "materializationIndex is null");
+        this.mvSubstitutionStats = requireNonNull(mvSubstitutionStats, "mvSubstitutionStats is null");
     }
 
     @PostConstruct
     public void start()
     {
-        materializationIndex.ifPresent(index -> export = exporter.exportWithGeneratedName(index, MaterializationIndex.class));
+        materializationIndex.ifPresent(index -> {
+            mbeanExports.add(exporter.exportWithGeneratedName(index, MaterializationIndex.class));
+            mbeanExports.add(exporter.exportWithGeneratedName(mvSubstitutionStats, MvSubstitutionStats.class));
+        });
     }
 
     @PreDestroy
     public void stop()
     {
-        if (export != null) {
-            export.unexport();
-            export = null;
-        }
+        mbeanExports.forEach(MBeanExport::unexport);
+        mbeanExports.clear();
     }
 }

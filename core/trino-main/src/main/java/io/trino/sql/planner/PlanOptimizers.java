@@ -20,6 +20,8 @@ import com.google.common.collect.ImmutableSet;
 import com.google.inject.Inject;
 import io.starburst.server.substitution.MaterializationIndex;
 import io.starburst.server.substitution.MvSubstitutionOptimizer;
+import io.starburst.server.substitution.MvSubstitutionStats;
+import io.starburst.server.substitution.MvSubstitutionUsageMetrics;
 import io.starburst.server.substitution.SubstitutionMetadata;
 import io.trino.SystemSessionProperties;
 import io.trino.cache.NonEvictableCache;
@@ -314,6 +316,8 @@ public class PlanOptimizers
             Optional<MaterializationIndex> materializationIndex,
             SubstitutionMetadata substitutionMetadata,
             AccessControl accessControl,
+            MvSubstitutionStats mvSubstitutionStats,
+            MvSubstitutionUsageMetrics mvSubstitutionUsageMetrics,
             NodePartitioningManager nodePartitioningManager,
             RuleStatsRecorder ruleStats)
     {
@@ -331,6 +335,8 @@ public class PlanOptimizers
                 materializationIndex,
                 substitutionMetadata,
                 accessControl,
+                mvSubstitutionStats,
+                mvSubstitutionUsageMetrics,
                 nodePartitioningManager,
                 ruleStats);
     }
@@ -353,6 +359,8 @@ public class PlanOptimizers
             Optional<MaterializationIndex> materializationIndex,
             SubstitutionMetadata substitutionMetadata,
             AccessControl accessControl,
+            MvSubstitutionStats mvSubstitutionStats,
+            MvSubstitutionUsageMetrics mvSubstitutionUsageMetrics,
             NodePartitioningManager nodePartitioningManager,
             RuleStatsRecorder ruleStats)
     {
@@ -648,7 +656,7 @@ public class PlanOptimizers
         // and FilterNodes are preserved above the scan for the substituted storage table.
         // When the MV substitution feature is disabled the index isn't bound, so the rule is skipped entirely.
         materializationIndex.ifPresent(index ->
-                builder.add(new MvSubstitutionOptimizer(index, plannerContext.getMetadata(), substitutionMetadata, plannerContext.getTypeManager(), accessControl)));
+                builder.add(new MvSubstitutionOptimizer(index, plannerContext.getMetadata(), substitutionMetadata, plannerContext.getTypeManager(), accessControl, mvSubstitutionStats, mvSubstitutionUsageMetrics)));
 
         // Perform redirection before CBO rules to ensure stats from destination connector are used
         // Perform redirection before agg, topN, limit, sample etc. push down into table scan as the destination connector may support a different set of push downs
