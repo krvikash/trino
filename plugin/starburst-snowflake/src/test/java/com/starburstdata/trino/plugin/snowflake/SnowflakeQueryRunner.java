@@ -27,7 +27,7 @@ import java.util.Optional;
 
 import static com.google.common.base.Verify.verify;
 import static com.starburstdata.trino.plugin.snowflake.SnowflakeServer.JDBC_URL;
-import static com.starburstdata.trino.plugin.snowflake.SnowflakeServer.PASSWORD;
+import static com.starburstdata.trino.plugin.snowflake.SnowflakeServer.PRIVATE_KEY;
 import static com.starburstdata.trino.plugin.snowflake.SnowflakeServer.ROLE;
 import static com.starburstdata.trino.plugin.snowflake.SnowflakeServer.TEST_DATABASE;
 import static com.starburstdata.trino.plugin.snowflake.SnowflakeServer.TEST_WAREHOUSE;
@@ -84,9 +84,11 @@ public class SnowflakeQueryRunner
     {
         private Optional<String> warehouseName = Optional.of(TEST_WAREHOUSE);
         private Optional<String> databaseName = Optional.of(TEST_DATABASE);
-        private Optional<String> privateKey = Optional.empty();
+        // Defaults to key-pair auth rather than USER/PASSWORD: Snowflake's MFA rollout blocks password auth for
+        // non-human/service accounts entirely (https://docs.snowflake.com/en/user-guide/security-mfa-rollout).
+        private Optional<String> privateKey = Optional.of(PRIVATE_KEY);
         private Optional<String> privateKeyPassphrase = Optional.empty();
-        private Optional<String> password = Optional.of(PASSWORD);
+        private Optional<String> password = Optional.empty();
         private String catalogName = SNOWFLAKE_CATALOG;
         private Optional<String> schemaName = Optional.empty();
         private final ImmutableMap.Builder<String, String> connectorProperties = ImmutableMap.builder();

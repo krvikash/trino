@@ -16,6 +16,7 @@ import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.Properties;
 import java.util.function.Consumer;
 
 import static java.lang.String.format;
@@ -116,9 +117,15 @@ public final class SnowflakeServer
         }
     }
 
+    // Uses key-pair auth rather than USER/PASSWORD: Snowflake's MFA rollout blocks password auth for
+    // non-human/service accounts entirely (https://docs.snowflake.com/en/user-guide/security-mfa-rollout),
+    // so the test account can no longer authenticate this way.
     public static Connection getConnection()
             throws SQLException
     {
-        return DriverManager.getConnection(JDBC_URL, USER, PASSWORD);
+        Properties properties = new Properties();
+        properties.setProperty("user", USER);
+        properties.setProperty("private_key_base64", PRIVATE_KEY);
+        return DriverManager.getConnection(JDBC_URL, properties);
     }
 }
