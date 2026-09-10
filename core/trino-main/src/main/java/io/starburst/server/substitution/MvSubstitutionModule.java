@@ -65,8 +65,8 @@ public class MvSubstitutionModule
     }
 
     /**
-     * We decide to enable or not substitution at injection time (as oposed to guice setup) using {@code @Provider} methods below
-     * becuase only then config default values updated using {@code bindConfigDefaults()} are available.
+     * We decide to enable or not substitution at injection time (as opposed to guice setup) using {@code @Provider} methods below
+     * because only then config default values updated using {@code bindConfigDefaults()} are available.
      * SEP will configure substitution using {@code bindConfigDefaults()} based on materialization metastore (part of the portal) configuration.
      *
      * <p>
