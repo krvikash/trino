@@ -32,6 +32,7 @@ import io.trino.spi.connector.CatalogSchemaTableName;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.TableNotFoundException;
 import io.trino.spi.connector.substitution.ConnectorColumnId;
+import io.trino.spi.eventlistener.MaterializedViewSubstitutionOutcome;
 import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.security.AccessDeniedException;
 import io.trino.spi.type.CharType;
@@ -58,11 +59,23 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Pattern;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static io.starburst.server.substitution.MaterializedViewSubstitutionSessionProperties.getMaterializedViewSubstitutionCandidatesRegexFilter;
 import static io.starburst.server.substitution.MaterializedViewSubstitutionSessionProperties.getMaterializedViewSubstitutionMaxStaleness;
 import static io.starburst.server.substitution.MaterializedViewSubstitutionSessionProperties.isMaterializedViewSubstitutionEnabled;
 import static io.trino.SystemSessionProperties.getCharVarcharCoercion;
 import static io.trino.cache.SafeCaches.buildNonEvictableCache;
+import static io.trino.spi.eventlistener.MaterializedViewSubstitutionOutcome.COLUMN_ACCESS_DENIED;
+import static io.trino.spi.eventlistener.MaterializedViewSubstitutionOutcome.COLUMN_NOT_IN_MATERIALIZED_VIEW;
+import static io.trino.spi.eventlistener.MaterializedViewSubstitutionOutcome.COLUMN_TYPE_MISMATCH;
+import static io.trino.spi.eventlistener.MaterializedViewSubstitutionOutcome.COMPUTATION_MISMATCH;
+import static io.trino.spi.eventlistener.MaterializedViewSubstitutionOutcome.EXCLUDED_BY_FILTER;
+import static io.trino.spi.eventlistener.MaterializedViewSubstitutionOutcome.MAX_STALENESS_EXCEEDED;
+import static io.trino.spi.eventlistener.MaterializedViewSubstitutionOutcome.STALE;
+import static io.trino.spi.eventlistener.MaterializedViewSubstitutionOutcome.STORAGE_COLUMN_MISSING;
+import static io.trino.spi.eventlistener.MaterializedViewSubstitutionOutcome.STORAGE_TABLE_CHANGED;
+import static io.trino.spi.eventlistener.MaterializedViewSubstitutionOutcome.STORAGE_TABLE_NOT_FOUND;
+import static io.trino.spi.eventlistener.MaterializedViewSubstitutionOutcome.STORAGE_TYPE_NOT_COERCIBLE;
 import static java.util.Objects.requireNonNull;
 
 public class MvSubstitutionOptimizer
@@ -131,13 +144,10 @@ public class MvSubstitutionOptimizer
     private Optional<PlanNode> optimize(Context context, PlanNode planNode, Map<PlanNode, ComputationHash> computationHashes, TypeCoercion typeCoercion)
     {
         ComputationHash hash = computationHashes.get(planNode);
-        if (hash != null) {
-            List<MaterializationDefinition> candidates = materializationIndex.getMaterializations(hash);
-            for (MaterializationDefinition candidate : candidates) {
-                Optional<PlanNode> substitute = trySubstitute(context, planNode, candidate, typeCoercion);
-                if (substitute.isPresent()) {
-                    return substitute;
-                }
+        if (hash != null && planNode instanceof TableScanNode queryTableScan) {
+            Optional<PlanNode> substituted = trySubstituteAgainstCandidates(context, queryTableScan, hash, typeCoercion);
+            if (substituted.isPresent()) {
+                return substituted;
             }
         }
 
@@ -155,25 +165,50 @@ public class MvSubstitutionOptimizer
         return Optional.of(planNode.replaceChildren(newSources.build()));
     }
 
-    private Optional<PlanNode> trySubstitute(Context context, PlanNode planNode, MaterializationDefinition candidate, TypeCoercion typeCoercion)
+    private Optional<PlanNode> trySubstituteAgainstCandidates(Context context, TableScanNode queryTableScan, ComputationHash hash, TypeCoercion typeCoercion)
     {
-        if (!(planNode instanceof TableScanNode queryTableScan && substitutionSupported(queryTableScan))) {
+        if (!substitutionSupported(queryTableScan)) {
             return Optional.empty();
         }
 
+        List<MaterializationDefinition> candidates = materializationIndex.getMaterializations(hash);
+        for (MaterializationDefinition candidate : candidates) {
+            SubstitutionAttempt attempt = trySubstitute(context, queryTableScan, candidate, typeCoercion);
+            switch (attempt) {
+                case SubstitutionAttempt.Substituted substituted -> {
+                    return Optional.of(substituted.node());
+                }
+                case SubstitutionAttempt.Rejected _ -> {}
+            }
+        }
+        return Optional.empty();
+    }
+
+    private static CatalogSchemaTableName materializedViewName(MaterializationDefinition candidate)
+    {
+        return ((MaterializedViewSource) candidate.source()).materializedViewName();
+    }
+
+    private SubstitutionAttempt trySubstitute(Context context, TableScanNode queryTableScan, MaterializationDefinition candidate, TypeCoercion typeCoercion)
+    {
         Session session = context.session();
-        if (!isFreshEnough(session, candidate)) {
-            return Optional.empty();
+        if (!isWithinGracePeriod(session, candidate)) {
+            return new SubstitutionAttempt.Rejected(STALE);
+        }
+
+        if (!isWithinMaxStaleness(session, candidate)) {
+            return new SubstitutionAttempt.Rejected(MAX_STALENESS_EXCEEDED);
         }
 
         if (!matchesCandidatesRegexFilter(session, candidate)) {
-            return Optional.empty();
+            return new SubstitutionAttempt.Rejected(EXCLUDED_BY_FILTER);
         }
 
-        Optional<MatchingResult> matchingResult = tryMatch(session, planNode, candidate.computationPlanRoot().source());
-        if (matchingResult.isEmpty()) {
-            return Optional.empty();
+        MatchOutcome matchOutcome = tryMatch(session, queryTableScan, candidate.computationPlanRoot().source());
+        if (matchOutcome.result().isEmpty()) {
+            return new SubstitutionAttempt.Rejected(matchOutcome.rejectionReason().orElseThrow());
         }
+        MatchingResult matchingResult = matchOutcome.result().get();
 
         CatalogSchemaTableName storageTable = candidate.storageTableId().tableName();
         Optional<TableHandle> storageTableHandle;
@@ -185,10 +220,10 @@ public class MvSubstitutionOptimizer
         }
         catch (TableNotFoundException e) {
             // Iceberg throws an error if mv does not exist when we ask for the storage table handle.
-            return Optional.empty();
+            return new SubstitutionAttempt.Rejected(STORAGE_TABLE_NOT_FOUND);
         }
         if (storageTableHandle.isEmpty()) {
-            return Optional.empty();
+            return new SubstitutionAttempt.Rejected(STORAGE_TABLE_NOT_FOUND);
         }
 
         Optional<StorageTableId> currentStorageTableId = substitutionMetadata.getStorageTableId(session, storageTableHandle.get());
@@ -196,12 +231,12 @@ public class MvSubstitutionOptimizer
             // The storage table that resolves by name today does not report the same id that was captured
             // when this materialization was indexed: its snapshot advanced via a divergent refresh, or the
             // MV was dropped and recreated.
-            return Optional.empty();
+            return new SubstitutionAttempt.Rejected(STORAGE_TABLE_CHANGED);
         }
 
         Map<String, ColumnHandle> storageColumnHandles = metadata.getColumnHandles(session, storageTableHandle.get());
 
-        Map<io.trino.sql.planner.Symbol, Symbol> querySymbolToMvSymbolMapping = matchingResult.get().querySymbolToMvSymbolMapping();
+        Map<io.trino.sql.planner.Symbol, Symbol> querySymbolToMvSymbolMapping = matchingResult.querySymbolToMvSymbolMapping();
         ImmutableList.Builder<io.trino.sql.planner.Symbol> outputs = ImmutableList.builder();
         ImmutableMap.Builder<io.trino.sql.planner.Symbol, ColumnHandle> assignments = ImmutableMap.builder();
         Output candidateOutput = candidate.computationPlanRoot();
@@ -219,7 +254,7 @@ public class MvSubstitutionOptimizer
             String mvColumnName = candidateColumnNames.get(computationSymbol);
             ColumnHandle storageColumnHandle = storageColumnHandles.get(mvColumnName);
             if (storageColumnHandle == null) {
-                return Optional.empty();
+                return new SubstitutionAttempt.Rejected(STORAGE_COLUMN_MISSING);
             }
             readMvColumns.add(mvColumnName);
 
@@ -228,7 +263,7 @@ public class MvSubstitutionOptimizer
             // VARCHAR is not strictly coercible to CHAR, but in this we can safely do it
             // as the source of the data was CHAR in the first place
                     storageType instanceof VarcharType && symbol.type() instanceof CharType))) {
-                return Optional.empty();
+                return new SubstitutionAttempt.Rejected(STORAGE_TYPE_NOT_COERCIBLE);
             }
 
             if (storageType.equals(symbol.type())) {
@@ -249,15 +284,15 @@ public class MvSubstitutionOptimizer
             }
         }
 
-        // Substitution must not let the user read the materialized view's data without SELECT access to the MV.
-        // When access is denied, skip this candidate so the query falls back to other matching MVs,
-        // or to the base table (which the user can read).
+        // Substitution must not let the user read the materialized view's data without SELECT access to the
+        // columns it reads. When access is denied, skip this candidate so the query falls back to other
+        // matching MVs, or to the base table (which the user can read).
         if (!canSelectFromMaterializedView(session, candidate, readMvColumns.build())) {
-            return Optional.empty();
+            return new SubstitutionAttempt.Rejected(COLUMN_ACCESS_DENIED);
         }
 
         TableScanNode storageScan = new TableScanNode(
-                needsCoercion ? context.idAllocator().getNextId() : planNode.getId(),
+                needsCoercion ? context.idAllocator().getNextId() : queryTableScan.getId(),
                 storageTableHandle.get(),
                 outputs.build(),
                 assignments.buildOrThrow(),
@@ -265,15 +300,16 @@ public class MvSubstitutionOptimizer
                 Optional.empty(),
                 false,
                 Optional.empty());
-        if (!needsCoercion) {
-            return Optional.of(storageScan);
+        PlanNode resultNode = storageScan;
+        if (needsCoercion) {
+            resultNode = new ProjectNode(queryTableScan.getId(), storageScan, projections.build());
         }
-        return Optional.of(new ProjectNode(planNode.getId(), storageScan, projections.build()));
+        return new SubstitutionAttempt.Substituted(resultNode);
     }
 
     private boolean canSelectFromMaterializedView(Session session, MaterializationDefinition candidate, Set<String> readMvColumns)
     {
-        CatalogSchemaTableName mvName = ((MaterializedViewSource) candidate.source()).materializedViewName();
+        CatalogSchemaTableName mvName = materializedViewName(candidate);
         QualifiedObjectName materializedView = new QualifiedObjectName(
                 mvName.getCatalogName(),
                 mvName.getSchemaTableName().getSchemaName(),
@@ -287,24 +323,28 @@ public class MvSubstitutionOptimizer
         }
     }
 
-    private Optional<MatchingResult> tryMatch(Session session, PlanNode planNode, Operation operation)
+    private MatchOutcome tryMatch(Session session, PlanNode planNode, Operation operation)
     {
         MatchingVisitor visitor = new MatchingVisitor(substitutionMetadata, session);
         if (!planNode.accept(visitor, operation)) {
-            return Optional.empty();
+            return new MatchOutcome(Optional.empty(), Optional.of(visitor.outcome()));
         }
-        return Optional.of(new MatchingResult(visitor.buildQuerySymbolToMvSymbolMapping()));
+        return new MatchOutcome(Optional.of(new MatchingResult(visitor.buildQuerySymbolToMvSymbolMapping())), Optional.empty());
     }
 
-    private static boolean isFreshEnough(Session session, MaterializationDefinition candidate)
+    private static boolean isWithinGracePeriod(Session session, MaterializationDefinition candidate)
     {
         Duration sinceRefresh = Duration.between(candidate.lastKnownFreshTime(), session.getStart());
-        boolean withinGracePeriod = candidate.gracePeriod().isEmpty()
+        return candidate.gracePeriod().isEmpty()
                 || sinceRefresh.compareTo(candidate.gracePeriod().get()) <= 0;
-        boolean withinMaxStaleness = getMaterializedViewSubstitutionMaxStaleness(session)
+    }
+
+    private static boolean isWithinMaxStaleness(Session session, MaterializationDefinition candidate)
+    {
+        Duration sinceRefresh = Duration.between(candidate.lastKnownFreshTime(), session.getStart());
+        return getMaterializedViewSubstitutionMaxStaleness(session)
                 .map(maxStaleness -> sinceRefresh.compareTo(maxStaleness.toJavaTime()) <= 0)
                 .orElse(true);
-        return withinGracePeriod && withinMaxStaleness;
     }
 
     private boolean matchesCandidatesRegexFilter(Session session, MaterializationDefinition candidate)
@@ -314,7 +354,7 @@ public class MvSubstitutionOptimizer
             return true;
         }
         Pattern pattern = compiledCandidatesRegexFilters.getUnchecked(candidatesRegexFilter.get());
-        CatalogSchemaTableName materializedViewName = ((MaterializedViewSource) candidate.source()).materializedViewName();
+        CatalogSchemaTableName materializedViewName = materializedViewName(candidate);
         return pattern.matcher(materializedViewName.toString()).matches();
     }
 
@@ -367,6 +407,7 @@ public class MvSubstitutionOptimizer
         private final SubstitutionMetadata substitutionMetadata;
         private final Session session;
         private final ImmutableMap.Builder<io.trino.sql.planner.Symbol, Symbol> querySymbolToMvSymbolMapping = ImmutableMap.builder();
+        private MaterializedViewSubstitutionOutcome outcome = COMPUTATION_MISMATCH;
 
         private MatchingVisitor(SubstitutionMetadata substitutionMetadata, Session session)
         {
@@ -398,7 +439,12 @@ public class MvSubstitutionOptimizer
                     return false;
                 }
                 Symbol mvSymbol = mvAssignments.get(columnId.get());
-                if (mvSymbol == null || !mvSymbol.type().equals(entry.getKey().type())) {
+                if (mvSymbol == null) {
+                    outcome = COLUMN_NOT_IN_MATERIALIZED_VIEW;
+                    return false;
+                }
+                if (!mvSymbol.type().equals(entry.getKey().type())) {
+                    outcome = COLUMN_TYPE_MISMATCH;
                     return false;
                 }
                 querySymbolToMvSymbolMapping.put(entry.getKey(), mvSymbol);
@@ -410,7 +456,29 @@ public class MvSubstitutionOptimizer
         {
             return querySymbolToMvSymbolMapping.buildOrThrow();
         }
+
+        private MaterializedViewSubstitutionOutcome outcome()
+        {
+            return outcome;
+        }
     }
 
-    record MatchingResult(Map<io.trino.sql.planner.Symbol, Symbol> querySymbolToMvSymbolMapping) {}
+    private record MatchingResult(Map<io.trino.sql.planner.Symbol, Symbol> querySymbolToMvSymbolMapping) {}
+
+    private record MatchOutcome(Optional<MatchingResult> result, Optional<MaterializedViewSubstitutionOutcome> rejectionReason)
+    {
+        MatchOutcome
+        {
+            checkArgument(result.isPresent() != rejectionReason.isPresent(), "exactly one of result or rejectionReason must be present");
+        }
+    }
+
+    sealed interface SubstitutionAttempt
+    {
+        record Substituted(PlanNode node)
+                implements SubstitutionAttempt {}
+
+        record Rejected(MaterializedViewSubstitutionOutcome reason)
+                implements SubstitutionAttempt {}
+    }
 }
