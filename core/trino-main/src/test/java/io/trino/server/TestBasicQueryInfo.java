@@ -137,6 +137,7 @@ public class TestBasicQueryInfo
                                 ImmutableMap.of(),
                                 ImmutableMap.of(),
                                 ImmutableList.of(),
+                                ImmutableList.of(),
                                 ImmutableList.of()),
                         Optional.empty(),
                         Optional.empty(),

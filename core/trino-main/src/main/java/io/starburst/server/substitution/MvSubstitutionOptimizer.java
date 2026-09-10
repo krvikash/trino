@@ -22,8 +22,10 @@ import io.starburst.materialization.ir.TableScan;
 import io.starburst.materialization.metastore.MaterializationDefinition;
 import io.starburst.materialization.metastore.MaterializationSource.MaterializedViewSource;
 import io.starburst.materialization.metastore.StorageTableId;
+import io.starburst.server.substitution.MaterializedViewSubstitution.ReplacedPlan;
 import io.trino.Session;
 import io.trino.cache.NonEvictableLoadingCache;
+import io.trino.execution.TableInfo;
 import io.trino.metadata.Metadata;
 import io.trino.metadata.QualifiedObjectName;
 import io.trino.metadata.TableHandle;
@@ -44,14 +46,17 @@ import io.trino.sql.planner.optimizations.PlanNodeSearcher;
 import io.trino.sql.planner.optimizations.PlanOptimizer;
 import io.trino.sql.planner.plan.Assignments;
 import io.trino.sql.planner.plan.PlanNode;
+import io.trino.sql.planner.plan.PlanNodeId;
 import io.trino.sql.planner.plan.PlanVisitor;
 import io.trino.sql.planner.plan.ProjectNode;
 import io.trino.sql.planner.plan.TableScanNode;
 import io.trino.sql.planner.plan.TableWriterNode;
 import io.trino.sql.planner.plan.TableWriterNode.RefreshMaterializedViewReference;
+import io.trino.sql.planner.planprinter.TableInfoSupplier;
 import io.trino.type.TypeCoercion;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -60,17 +65,20 @@ import java.util.Set;
 import java.util.regex.Pattern;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static io.starburst.server.substitution.MaterializedViewSubstitutionSessionProperties.getMaterializedViewSubstitutionCandidatesRegexFilter;
 import static io.starburst.server.substitution.MaterializedViewSubstitutionSessionProperties.getMaterializedViewSubstitutionMaxStaleness;
 import static io.starburst.server.substitution.MaterializedViewSubstitutionSessionProperties.isMaterializedViewSubstitutionEnabled;
 import static io.trino.SystemSessionProperties.getCharVarcharCoercion;
 import static io.trino.cache.SafeCaches.buildNonEvictableCache;
+import static io.trino.spi.eventlistener.MaterializedViewSubstitutionOutcome.ACCESS_DENIED;
 import static io.trino.spi.eventlistener.MaterializedViewSubstitutionOutcome.COLUMN_ACCESS_DENIED;
 import static io.trino.spi.eventlistener.MaterializedViewSubstitutionOutcome.COLUMN_NOT_IN_MATERIALIZED_VIEW;
 import static io.trino.spi.eventlistener.MaterializedViewSubstitutionOutcome.COLUMN_TYPE_MISMATCH;
 import static io.trino.spi.eventlistener.MaterializedViewSubstitutionOutcome.COMPUTATION_MISMATCH;
 import static io.trino.spi.eventlistener.MaterializedViewSubstitutionOutcome.EXCLUDED_BY_FILTER;
 import static io.trino.spi.eventlistener.MaterializedViewSubstitutionOutcome.MAX_STALENESS_EXCEEDED;
+import static io.trino.spi.eventlistener.MaterializedViewSubstitutionOutcome.SCAN_NOT_SUBSTITUTABLE;
 import static io.trino.spi.eventlistener.MaterializedViewSubstitutionOutcome.STALE;
 import static io.trino.spi.eventlistener.MaterializedViewSubstitutionOutcome.STORAGE_COLUMN_MISSING;
 import static io.trino.spi.eventlistener.MaterializedViewSubstitutionOutcome.STORAGE_TABLE_CHANGED;
@@ -167,21 +175,63 @@ public class MvSubstitutionOptimizer
 
     private Optional<PlanNode> trySubstituteAgainstCandidates(Context context, TableScanNode queryTableScan, ComputationHash hash, TypeCoercion typeCoercion)
     {
-        if (!substitutionSupported(queryTableScan)) {
+        MvSubstitutionCollector collector = context.mvSubstitutionCollector();
+        Session session = context.session();
+
+        List<MaterializationDefinition> candidates = materializationIndex.getMaterializations(hash);
+        if (candidates.isEmpty()) {
             return Optional.empty();
         }
 
-        List<MaterializationDefinition> candidates = materializationIndex.getMaterializations(hash);
+        // SCAN_NOT_SUBSTITUTABLE is a near miss only where a materialization covers this computation: a scan
+        // no MV materializes could never have been substituted, so it is neither recorded nor counted.
+        if (!substitutionSupported(queryTableScan)) {
+            recordRejectedScanLevel(collector, SCAN_NOT_SUBSTITUTABLE);
+            return Optional.empty();
+        }
+
         for (MaterializationDefinition candidate : candidates) {
             SubstitutionAttempt attempt = trySubstitute(context, queryTableScan, candidate, typeCoercion);
+            CatalogSchemaTableName candidateMvName = materializedViewName(candidate);
             switch (attempt) {
                 case SubstitutionAttempt.Substituted substituted -> {
+                    recordSubstituted(collector, session, queryTableScan, substituted);
                     return Optional.of(substituted.node());
                 }
-                case SubstitutionAttempt.Rejected _ -> {}
+                case SubstitutionAttempt.Rejected rejected -> recordRejectedCandidate(collector, candidateMvName, rejected.reason());
             }
         }
         return Optional.empty();
+    }
+
+    private void recordSubstituted(MvSubstitutionCollector collector, Session session, TableScanNode queryTableScan, SubstitutionAttempt.Substituted substituted)
+    {
+        ReplacedPlan replacedPlan = new ReplacedPlan(queryTableScan, captureTableInfos(session, queryTableScan));
+        collector.recordSubstituted(substituted.materializedView(), substituted.storageTable(), substituted.lastRefreshTime(), replacedPlan);
+    }
+
+    private Map<PlanNodeId, TableInfo> captureTableInfos(Session session, PlanNode subtree)
+    {
+        TableInfoSupplier tableInfoSupplier = new TableInfoSupplier(metadata, session);
+        return PlanNodeSearcher.searchFrom(subtree)
+                .where(TableScanNode.class::isInstance)
+                .findAll()
+                .stream()
+                .map(TableScanNode.class::cast)
+                .collect(toImmutableMap(TableScanNode::getId, tableInfoSupplier));
+    }
+
+    private void recordRejectedCandidate(MvSubstitutionCollector collector, CatalogSchemaTableName candidateMvName, MaterializedViewSubstitutionOutcome outcome)
+    {
+        // Naming the MV in an ACCESS_DENIED row would disclose an object the user cannot read.
+        // Every other outcome is reached only after the user passed the table-level access check.
+        Optional<CatalogSchemaTableName> recordedMvName = outcome == ACCESS_DENIED ? Optional.empty() : Optional.of(candidateMvName);
+        collector.recordRejected(recordedMvName, outcome);
+    }
+
+    private void recordRejectedScanLevel(MvSubstitutionCollector collector, MaterializedViewSubstitutionOutcome outcome)
+    {
+        collector.recordRejected(Optional.empty(), outcome);
     }
 
     private static CatalogSchemaTableName materializedViewName(MaterializationDefinition candidate)
@@ -192,6 +242,13 @@ public class MvSubstitutionOptimizer
     private SubstitutionAttempt trySubstitute(Context context, TableScanNode queryTableScan, MaterializationDefinition candidate, TypeCoercion typeCoercion)
     {
         Session session = context.session();
+        // A rejection records the candidate's name, so the table-level access check comes before every other
+        // rejection reason: a user who cannot read the MV must not learn from their query's recorded rows that
+        // it exists and matches their query. The column-level check follows once the read columns are known.
+        if (!canSelectFromMaterializedView(session, candidate, ImmutableSet.of())) {
+            return new SubstitutionAttempt.Rejected(ACCESS_DENIED);
+        }
+
         if (!isWithinGracePeriod(session, candidate)) {
             return new SubstitutionAttempt.Rejected(STALE);
         }
@@ -304,7 +361,11 @@ public class MvSubstitutionOptimizer
         if (needsCoercion) {
             resultNode = new ProjectNode(queryTableScan.getId(), storageScan, projections.build());
         }
-        return new SubstitutionAttempt.Substituted(resultNode);
+        return new SubstitutionAttempt.Substituted(
+                resultNode,
+                materializedViewName(candidate),
+                storageTable,
+                candidate.lastKnownFreshTime());
     }
 
     private boolean canSelectFromMaterializedView(Session session, MaterializationDefinition candidate, Set<String> readMvColumns)
@@ -475,7 +536,7 @@ public class MvSubstitutionOptimizer
 
     sealed interface SubstitutionAttempt
     {
-        record Substituted(PlanNode node)
+        record Substituted(PlanNode node, CatalogSchemaTableName materializedView, CatalogSchemaTableName storageTable, Instant lastRefreshTime)
                 implements SubstitutionAttempt {}
 
         record Rejected(MaterializedViewSubstitutionOutcome reason)

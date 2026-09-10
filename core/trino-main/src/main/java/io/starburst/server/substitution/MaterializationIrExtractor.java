@@ -133,7 +133,8 @@ public class MaterializationIrExtractor
                 WarningCollector.NOOP,
                 new PlanOptimizersStatsCollector(MAX_VALUE),
                 new CachingTableStatsProvider(plannerContext.getMetadata(), session, () -> false),
-                FormatOptions.TESTING_FORMAT_OPTIONS);
+                FormatOptions.TESTING_FORMAT_OPTIONS,
+                MvSubstitutionCollector.NOOP);
         return logicalPlanner.plan(analysis, OPTIMIZED, false, false);
     }
 

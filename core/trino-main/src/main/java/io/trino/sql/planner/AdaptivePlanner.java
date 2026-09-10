@@ -19,6 +19,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.graph.Traverser;
 import io.airlift.log.Logger;
+import io.starburst.server.substitution.MvSubstitutionCollector;
 import io.trino.Session;
 import io.trino.cost.CachingTableStatsProvider;
 import io.trino.cost.RuntimeInfoProvider;
@@ -267,7 +268,10 @@ public class AdaptivePlanner
                             warningCollector,
                             planOptimizersStatsCollector,
                             tableStatsProvider,
-                            runtimeInfoProvider));
+                            runtimeInfoProvider,
+                            // Adaptive re-planning never records substitution outcomes: MvSubstitutionOptimizer
+                            // implements PlanOptimizer, not AdaptivePlanOptimizer, so it never runs in this loop.
+                            MvSubstitutionCollector.NOOP));
             changedPlanNodes.addAll(result.changedPlanNodes());
         }
         return new AdaptivePlanOptimizer.Result(result.plan(), changedPlanNodes.build());

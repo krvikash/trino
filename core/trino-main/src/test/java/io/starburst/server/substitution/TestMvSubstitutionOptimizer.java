@@ -30,11 +30,16 @@ import io.trino.connector.MockConnectorFactory;
 import io.trino.connector.MockConnectorTableHandle;
 import io.trino.cost.CachingTableStatsProvider;
 import io.trino.cost.RuntimeInfoProvider;
+import io.trino.cost.StatsAndCosts;
+import io.trino.execution.TableInfo;
 import io.trino.execution.warnings.WarningCollector;
 import io.trino.metadata.Metadata;
 import io.trino.metadata.QualifiedObjectName;
 import io.trino.metadata.TableHandle;
 import io.trino.plugin.base.ForwardingConnector;
+import io.trino.security.AccessControl;
+import io.trino.security.AllowAllAccessControl;
+import io.trino.security.SecurityContext;
 import io.trino.spi.RefreshType;
 import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.connector.CatalogSchemaTableName;
@@ -51,6 +56,9 @@ import io.trino.spi.connector.substitution.ConnectorIdVersion;
 import io.trino.spi.connector.substitution.ConnectorStorageTableId;
 import io.trino.spi.connector.substitution.ConnectorSubstitutionMetadata;
 import io.trino.spi.connector.substitution.ConnectorTableId;
+import io.trino.spi.eventlistener.MaterializedViewSubstitutionOutcome;
+import io.trino.spi.predicate.TupleDomain;
+import io.trino.spi.security.AccessDeniedException;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.TypeManager;
 import io.trino.sql.ir.Cast;
@@ -68,8 +76,10 @@ import io.trino.sql.planner.optimizations.PlanOptimizer;
 import io.trino.sql.planner.optimizations.UnaliasSymbolReferences;
 import io.trino.sql.planner.plan.PlanNode;
 import io.trino.sql.planner.plan.PlanNodeId;
+import io.trino.sql.planner.plan.TableScanNode;
 import io.trino.sql.planner.plan.TableWriterNode;
 import io.trino.sql.planner.plan.TableWriterNode.RefreshMaterializedViewReference;
+import io.trino.sql.planner.plan.ValuesNode;
 import io.trino.testing.PlanTester;
 import io.trino.type.TypeDeserializer;
 import org.intellij.lang.annotations.Language;
@@ -128,6 +138,7 @@ public class TestMvSubstitutionOptimizer
     private static final Map<String, List<String>> TABLE_COLUMNS = ImmutableMap.of(
             "source", ImmutableList.of("name", "comment"),
             "storage", ImmutableList.of("name", "opaque"),
+            "storage2", ImmutableList.of("name", "opaque"),
             "unidentified_source", ImmutableList.of("name"),
             "unidentified_storage", ImmutableList.of("name"),
             "opaque_source", ImmutableList.of("opaque"),
@@ -148,14 +159,43 @@ public class TestMvSubstitutionOptimizer
     public void testSubstitutesScanWithStorageTable()
     {
         MvSubstitutionOptimizer optimizer = optimizerWith(materialization().build());
-        assertPlan(session(true), "SELECT name FROM source", optimizer, anyTree(tableScan("storage")));
+        List<MaterializedViewSubstitution> substitutions = assertPlanAndSubstitutions(session(true), "SELECT name FROM source", optimizer, anyTree(tableScan("storage")));
+        assertOutcomes(substitutions, MaterializedViewSubstitutionOutcome.SUBSTITUTED);
+        assertThat(substitutions.get(0).materializedView()).contains(new CatalogSchemaTableName(CATALOG, SCHEMA, "test_mv"));
+    }
+
+    @Test
+    public void testSubstitutedRowCarriesReplacedPlan()
+    {
+        MvSubstitutionOptimizer optimizer = optimizerWith(materialization().build());
+        List<MaterializedViewSubstitution> substitutions = assertPlanAndSubstitutions(session(true), "SELECT name FROM source", optimizer, anyTree(tableScan("storage")));
+        MaterializedViewSubstitution substituted = substitutions.get(0);
+        assertOutcomes(substitutions, MaterializedViewSubstitutionOutcome.SUBSTITUTED);
+
+        MaterializedViewSubstitution.ReplacedPlan replacedPlan = substituted.replacedPlan().orElseThrow();
+        assertThat(replacedPlan.root()).isInstanceOf(TableScanNode.class);
+        TableScanNode replacedScan = (TableScanNode) replacedPlan.root();
+        TableInfo tableInfo = replacedPlan.tableInfos().get(replacedScan.getId());
+        assertThat(tableInfo).isNotNull();
+        assertThat(tableInfo.tableName()).isEqualTo(new QualifiedObjectName(CATALOG, SCHEMA, "source"));
+    }
+
+    @Test
+    public void testRejectedRowHasNoReplacedPlan()
+    {
+        MvSubstitutionOptimizer optimizer = optimizerWith(materialization().gracePeriod(Duration.ofMinutes(5)).lastKnownFreshTime(Instant.now().minus(Duration.ofDays(1))).build());
+        List<MaterializedViewSubstitution> substitutions = assertPlanAndSubstitutions(session(true), "SELECT name FROM source", optimizer, anyTree(tableScan("source")));
+        assertOutcomes(substitutions, MaterializedViewSubstitutionOutcome.STALE);
+        assertThat(substitutions.get(0).replacedPlan()).isEmpty();
     }
 
     @Test
     public void testNoSubstitutionWhenDisabled()
     {
+        // the global disabled gate is not a near-miss and is not recorded
         MvSubstitutionOptimizer optimizer = optimizerWith(materialization().build());
-        assertPlan(session(false), "SELECT name FROM source", optimizer, anyTree(tableScan("source")));
+        List<MaterializedViewSubstitution> substitutions = assertPlanAndSubstitutions(session(false), "SELECT name FROM source", optimizer, anyTree(tableScan("source")));
+        assertThat(substitutions).isEmpty();
     }
 
     @Test
@@ -163,7 +203,8 @@ public class TestMvSubstitutionOptimizer
     {
         // grace period of 5 minutes, last refreshed a day ago => stale
         MvSubstitutionOptimizer optimizer = optimizerWith(materialization().gracePeriod(Duration.ofMinutes(5)).lastKnownFreshTime(Instant.now().minus(Duration.ofDays(1))).build());
-        assertPlan(session(true), "SELECT name FROM source", optimizer, anyTree(tableScan("source")));
+        List<MaterializedViewSubstitution> substitutions = assertPlanAndSubstitutions(session(true), "SELECT name FROM source", optimizer, anyTree(tableScan("source")));
+        assertOutcomes(substitutions, MaterializedViewSubstitutionOutcome.STALE);
     }
 
     @Test
@@ -171,7 +212,8 @@ public class TestMvSubstitutionOptimizer
     {
         // the indexed storage id ("v2") no longer matches what the storage table reports today ("v1")
         MvSubstitutionOptimizer optimizer = optimizerWith(materialization().storageUniqueId("v2").build());
-        assertPlan(session(true), "SELECT name FROM source", optimizer, anyTree(tableScan("source")));
+        List<MaterializedViewSubstitution> substitutions = assertPlanAndSubstitutions(session(true), "SELECT name FROM source", optimizer, anyTree(tableScan("source")));
+        assertOutcomes(substitutions, MaterializedViewSubstitutionOutcome.STORAGE_TABLE_CHANGED);
     }
 
     @Test
@@ -179,7 +221,8 @@ public class TestMvSubstitutionOptimizer
     {
         // grace period of 1 hour, refreshed just now => fresh
         MvSubstitutionOptimizer optimizer = optimizerWith(materialization().gracePeriod(Duration.ofHours(1)).build());
-        assertPlan(session(true), "SELECT name FROM source", optimizer, anyTree(tableScan("storage")));
+        List<MaterializedViewSubstitution> substitutions = assertPlanAndSubstitutions(session(true), "SELECT name FROM source", optimizer, anyTree(tableScan("storage")));
+        assertOutcomes(substitutions, MaterializedViewSubstitutionOutcome.SUBSTITUTED);
     }
 
     @Test
@@ -187,7 +230,8 @@ public class TestMvSubstitutionOptimizer
     {
         // within the MV's 1-day grace period, but refreshed 30 minutes ago while the session max staleness is 5 minutes => rejected
         MvSubstitutionOptimizer optimizer = optimizerWith(materialization().gracePeriod(Duration.ofDays(1)).lastKnownFreshTime(Instant.now().minus(Duration.ofMinutes(30))).build());
-        assertPlan(sessionWithMaxStaleness("5m"), "SELECT name FROM source", optimizer, anyTree(tableScan("source")));
+        List<MaterializedViewSubstitution> substitutions = assertPlanAndSubstitutions(sessionWithMaxStaleness("5m"), "SELECT name FROM source", optimizer, anyTree(tableScan("source")));
+        assertOutcomes(substitutions, MaterializedViewSubstitutionOutcome.MAX_STALENESS_EXCEEDED);
     }
 
     @Test
@@ -195,7 +239,8 @@ public class TestMvSubstitutionOptimizer
     {
         // unlimited grace period, refreshed a day ago, but the session max staleness is 1 hour => rejected
         MvSubstitutionOptimizer optimizer = optimizerWith(materialization().lastKnownFreshTime(Instant.now().minus(Duration.ofDays(1))).build());
-        assertPlan(sessionWithMaxStaleness("1h"), "SELECT name FROM source", optimizer, anyTree(tableScan("source")));
+        List<MaterializedViewSubstitution> substitutions = assertPlanAndSubstitutions(sessionWithMaxStaleness("1h"), "SELECT name FROM source", optimizer, anyTree(tableScan("source")));
+        assertOutcomes(substitutions, MaterializedViewSubstitutionOutcome.MAX_STALENESS_EXCEEDED);
     }
 
     @Test
@@ -203,7 +248,8 @@ public class TestMvSubstitutionOptimizer
     {
         // unlimited grace period, refreshed just now, session max staleness of 1 hour => fresh
         MvSubstitutionOptimizer optimizer = optimizerWith(materialization().build());
-        assertPlan(sessionWithMaxStaleness("1h"), "SELECT name FROM source", optimizer, anyTree(tableScan("storage")));
+        List<MaterializedViewSubstitution> substitutions = assertPlanAndSubstitutions(sessionWithMaxStaleness("1h"), "SELECT name FROM source", optimizer, anyTree(tableScan("storage")));
+        assertOutcomes(substitutions, MaterializedViewSubstitutionOutcome.SUBSTITUTED);
     }
 
     @Test
@@ -211,7 +257,8 @@ public class TestMvSubstitutionOptimizer
     {
         // the MV is mock.default.test_mv and the pattern matches its fully qualified name
         MvSubstitutionOptimizer optimizer = optimizerWith(materialization().build());
-        assertPlan(sessionWithCandidatesRegexFilter("mock\\.default\\..*"), "SELECT name FROM source", optimizer, anyTree(tableScan("storage")));
+        List<MaterializedViewSubstitution> substitutions = assertPlanAndSubstitutions(sessionWithCandidatesRegexFilter("mock\\.default\\..*"), "SELECT name FROM source", optimizer, anyTree(tableScan("storage")));
+        assertOutcomes(substitutions, MaterializedViewSubstitutionOutcome.SUBSTITUTED);
     }
 
     @Test
@@ -219,7 +266,8 @@ public class TestMvSubstitutionOptimizer
     {
         // the pattern targets a different catalog, so mock.default.test_mv is not eligible
         MvSubstitutionOptimizer optimizer = optimizerWith(materialization().build());
-        assertPlan(sessionWithCandidatesRegexFilter("other_catalog\\..*"), "SELECT name FROM source", optimizer, anyTree(tableScan("source")));
+        List<MaterializedViewSubstitution> substitutions = assertPlanAndSubstitutions(sessionWithCandidatesRegexFilter("other_catalog\\..*"), "SELECT name FROM source", optimizer, anyTree(tableScan("source")));
+        assertOutcomes(substitutions, MaterializedViewSubstitutionOutcome.EXCLUDED_BY_FILTER);
     }
 
     @Test
@@ -227,7 +275,8 @@ public class TestMvSubstitutionOptimizer
     {
         // full-match semantics: a pattern matching just the catalog does not match the whole name
         MvSubstitutionOptimizer optimizer = optimizerWith(materialization().build());
-        assertPlan(sessionWithCandidatesRegexFilter("mock"), "SELECT name FROM source", optimizer, anyTree(tableScan("source")));
+        List<MaterializedViewSubstitution> substitutions = assertPlanAndSubstitutions(sessionWithCandidatesRegexFilter("mock"), "SELECT name FROM source", optimizer, anyTree(tableScan("source")));
+        assertOutcomes(substitutions, MaterializedViewSubstitutionOutcome.EXCLUDED_BY_FILTER);
     }
 
     @Test
@@ -235,7 +284,8 @@ public class TestMvSubstitutionOptimizer
     {
         // a catch-all pattern makes every materialized view eligible
         MvSubstitutionOptimizer optimizer = optimizerWith(materialization().build());
-        assertPlan(sessionWithCandidatesRegexFilter(".*"), "SELECT name FROM source", optimizer, anyTree(tableScan("storage")));
+        List<MaterializedViewSubstitution> substitutions = assertPlanAndSubstitutions(sessionWithCandidatesRegexFilter(".*"), "SELECT name FROM source", optimizer, anyTree(tableScan("storage")));
+        assertOutcomes(substitutions, MaterializedViewSubstitutionOutcome.SUBSTITUTED);
     }
 
     @Test
@@ -243,15 +293,17 @@ public class TestMvSubstitutionOptimizer
     {
         // a pattern that can never match excludes every materialized view
         MvSubstitutionOptimizer optimizer = optimizerWith(materialization().build());
-        assertPlan(sessionWithCandidatesRegexFilter("(?!)"), "SELECT name FROM source", optimizer, anyTree(tableScan("source")));
+        List<MaterializedViewSubstitution> substitutions = assertPlanAndSubstitutions(sessionWithCandidatesRegexFilter("(?!)"), "SELECT name FROM source", optimizer, anyTree(tableScan("source")));
+        assertOutcomes(substitutions, MaterializedViewSubstitutionOutcome.EXCLUDED_BY_FILTER);
     }
 
     @Test
     public void testNoSubstitutionWhenSourceTableHasNoId()
     {
-        // the connector cannot identify the queried table, so no computation hash is produced
+        // the connector cannot identify the queried table, so no computation hash is produced and nothing is recorded
         MvSubstitutionOptimizer optimizer = optimizerWith(materialization().sourceTable("unidentified_source").build());
-        assertPlan(session(true), "SELECT name FROM unidentified_source", optimizer, anyTree(tableScan("unidentified_source")));
+        List<MaterializedViewSubstitution> substitutions = assertPlanAndSubstitutions(session(true), "SELECT name FROM unidentified_source", optimizer, anyTree(tableScan("unidentified_source")));
+        assertThat(substitutions).isEmpty();
     }
 
     @Test
@@ -259,7 +311,8 @@ public class TestMvSubstitutionOptimizer
     {
         // the indexed storage table no longer resolves to a handle
         MvSubstitutionOptimizer optimizer = optimizerWith(materialization().storageTable("does_not_exist").build());
-        assertPlan(session(true), "SELECT name FROM source", optimizer, anyTree(tableScan("source")));
+        List<MaterializedViewSubstitution> substitutions = assertPlanAndSubstitutions(session(true), "SELECT name FROM source", optimizer, anyTree(tableScan("source")));
+        assertOutcomes(substitutions, MaterializedViewSubstitutionOutcome.STORAGE_TABLE_NOT_FOUND);
     }
 
     @Test
@@ -267,7 +320,8 @@ public class TestMvSubstitutionOptimizer
     {
         // the storage table can no longer be tagged with a stable id
         MvSubstitutionOptimizer optimizer = optimizerWith(materialization().storageTable("unidentified_storage").build());
-        assertPlan(session(true), "SELECT name FROM source", optimizer, anyTree(tableScan("source")));
+        List<MaterializedViewSubstitution> substitutions = assertPlanAndSubstitutions(session(true), "SELECT name FROM source", optimizer, anyTree(tableScan("source")));
+        assertOutcomes(substitutions, MaterializedViewSubstitutionOutcome.STORAGE_TABLE_CHANGED);
     }
 
     @Test
@@ -275,7 +329,8 @@ public class TestMvSubstitutionOptimizer
     {
         // the MV output column has no matching column in the storage table
         MvSubstitutionOptimizer optimizer = optimizerWith(materialization().outputColumnName("missing_column").build());
-        assertPlan(session(true), "SELECT name FROM source", optimizer, anyTree(tableScan("source")));
+        List<MaterializedViewSubstitution> substitutions = assertPlanAndSubstitutions(session(true), "SELECT name FROM source", optimizer, anyTree(tableScan("source")));
+        assertOutcomes(substitutions, MaterializedViewSubstitutionOutcome.STORAGE_COLUMN_MISSING);
     }
 
     @Test
@@ -283,7 +338,8 @@ public class TestMvSubstitutionOptimizer
     {
         // the MV scan exposes a different column than the query references
         MvSubstitutionOptimizer optimizer = optimizerWith(materialization().sourceColumnId("other").build());
-        assertPlan(session(true), "SELECT name FROM source", optimizer, anyTree(tableScan("source")));
+        List<MaterializedViewSubstitution> substitutions = assertPlanAndSubstitutions(session(true), "SELECT name FROM source", optimizer, anyTree(tableScan("source")));
+        assertOutcomes(substitutions, MaterializedViewSubstitutionOutcome.COLUMN_NOT_IN_MATERIALIZED_VIEW);
     }
 
     @Test
@@ -291,7 +347,8 @@ public class TestMvSubstitutionOptimizer
     {
         // the connector cannot identify the queried column
         MvSubstitutionOptimizer optimizer = optimizerWith(materialization().sourceTable("opaque_source").outputColumnName("opaque").sourceColumnId("opaque").build());
-        assertPlan(session(true), "SELECT opaque FROM opaque_source", optimizer, anyTree(tableScan("opaque_source")));
+        List<MaterializedViewSubstitution> substitutions = assertPlanAndSubstitutions(session(true), "SELECT opaque FROM opaque_source", optimizer, anyTree(tableScan("opaque_source")));
+        assertOutcomes(substitutions, MaterializedViewSubstitutionOutcome.COMPUTATION_MISMATCH);
     }
 
     @Test
@@ -299,7 +356,8 @@ public class TestMvSubstitutionOptimizer
     {
         // the query references a column the MV does not expose
         MvSubstitutionOptimizer optimizer = optimizerWith(materialization().build());
-        assertPlan(session(true), "SELECT comment FROM source", optimizer, anyTree(tableScan("source")));
+        List<MaterializedViewSubstitution> substitutions = assertPlanAndSubstitutions(session(true), "SELECT comment FROM source", optimizer, anyTree(tableScan("source")));
+        assertOutcomes(substitutions, MaterializedViewSubstitutionOutcome.COLUMN_NOT_IN_MATERIALIZED_VIEW);
     }
 
     @Test
@@ -307,13 +365,14 @@ public class TestMvSubstitutionOptimizer
     {
         MvSubstitutionOptimizer optimizer = optimizerWith(materialization().sourceTable("coercion_source")
                 .nameSymbol(new Symbol(createVarcharType(10), "name")).build());
-        assertPlan(
+        List<MaterializedViewSubstitution> substitutions = assertPlanAndSubstitutions(
                 session(true),
                 "SELECT name FROM coercion_source",
                 optimizer,
                 anyTree(project(
                         ImmutableMap.of("coerced", expression(new Cast(new Reference(VARCHAR, "storage_name"), createVarcharType(10)))),
                         tableScan("storage", ImmutableMap.of("storage_name", "name")))));
+        assertOutcomes(substitutions, MaterializedViewSubstitutionOutcome.SUBSTITUTED);
     }
 
     @Test
@@ -356,9 +415,111 @@ public class TestMvSubstitutionOptimizer
                     Optional.empty(),
                     Optional.empty());
 
-            assertThat(optimizer.optimize(refreshPlan, context(transactionSession))).isSameAs(refreshPlan);
+            MvSubstitutionCollector collector = new MvSubstitutionCollector();
+            assertThat(optimizer.optimize(refreshPlan, context(transactionSession, collector))).isSameAs(refreshPlan);
+            // the refresh-plan gate is not a near-miss and is not recorded
+            assertThat(collector.getSubstitutions()).isEmpty();
             return null;
         });
+    }
+
+    @Test
+    public void testAccessDeniedRedactsMaterializedViewName()
+    {
+        // the MV name is redacted from the recorded row because naming it would disclose an object
+        // the user was just denied access to
+        MvSubstitutionOptimizer optimizer = optimizerWith(materialization().build(), new DenySelectOnMaterializedViewAccessControl());
+        List<MaterializedViewSubstitution> substitutions = assertPlanAndSubstitutions(session(true), "SELECT name FROM source", optimizer, anyTree(tableScan("source")));
+        assertOutcomes(substitutions, MaterializedViewSubstitutionOutcome.ACCESS_DENIED);
+        assertThat(substitutions.get(0).materializedView()).isEmpty();
+    }
+
+    @Test
+    public void testAccessDeniedTakesPrecedenceOverOtherRejectionReasons()
+    {
+        // a candidate that is both stale and inaccessible is recorded as ACCESS_DENIED, without its name
+        MvSubstitutionOptimizer optimizer = optimizerWith(
+                materialization().gracePeriod(Duration.ofMinutes(5)).lastKnownFreshTime(Instant.now().minus(Duration.ofDays(1))).build(),
+                new DenySelectOnMaterializedViewAccessControl());
+        List<MaterializedViewSubstitution> substitutions = assertPlanAndSubstitutions(session(true), "SELECT name FROM source", optimizer, anyTree(tableScan("source")));
+        assertOutcomes(substitutions, MaterializedViewSubstitutionOutcome.ACCESS_DENIED);
+        assertThat(substitutions.get(0).materializedView()).isEmpty();
+    }
+
+    @Test
+    public void testNonSubstitutableScanIsRecordedOnlyWhenACandidateCoversIt()
+    {
+        PlanTester planTester = getPlanTester();
+        MvSubstitutionOptimizer optimizer = optimizerWith(materialization().build());
+        Session session = session(true);
+        planTester.inTransaction(session, transactionSession -> {
+            // the materialization covers this computation, so a scan that cannot be substituted is a near miss
+            MvSubstitutionCollector covered = new MvSubstitutionCollector();
+            optimizer.optimize(updateTargetScan(transactionSession, "source"), context(transactionSession, covered));
+            assertOutcomes(covered.getSubstitutions(), MaterializedViewSubstitutionOutcome.SCAN_NOT_SUBSTITUTABLE);
+
+            // no materialization covers this computation, so there is nothing to record
+            MvSubstitutionCollector uncovered = new MvSubstitutionCollector();
+            optimizer.optimize(updateTargetScan(transactionSession, "storage"), context(transactionSession, uncovered));
+            assertThat(uncovered.getSubstitutions()).isEmpty();
+            return null;
+        });
+    }
+
+    @Test
+    public void testFallsBackToSecondCandidateWhenFirstIsAccessDenied()
+    {
+        // two MVs materialize the same computation; the first is access-denied so the optimizer
+        // falls back to the second candidate rather than giving up on the base table
+        MvSubstitutionOptimizer optimizer = optimizerWith(
+                ImmutableList.of(
+                        materialization().build(),
+                        materialization().materializedViewName("test_mv_2").storageTable("storage2").build()),
+                new DenySelectOnMaterializedViewAccessControl());
+        List<MaterializedViewSubstitution> substitutions = assertPlanAndSubstitutions(session(true), "SELECT name FROM source", optimizer, anyTree(tableScan("storage2")));
+        assertOutcomes(substitutions, MaterializedViewSubstitutionOutcome.ACCESS_DENIED, MaterializedViewSubstitutionOutcome.SUBSTITUTED);
+        assertThat(substitutions.get(0).materializedView()).isEmpty();
+        assertThat(substitutions.get(1).materializedView()).contains(new CatalogSchemaTableName(CATALOG, SCHEMA, "test_mv_2"));
+    }
+
+    @Test
+    public void testRecordedSubstitutionsAreCapped()
+    {
+        // MAX_RECORDED_ROWS_PER_KIND caps rejections per kind, so a query with many candidate MVs cannot grow the payload unbounded
+        MvSubstitutionCollector collector = new MvSubstitutionCollector();
+        for (int i = 0; i < 150; i++) {
+            collector.recordRejected(Optional.empty(), MaterializedViewSubstitutionOutcome.SCAN_NOT_SUBSTITUTABLE);
+        }
+        assertThat(collector.getSubstitutions()).hasSize(100);
+    }
+
+    @Test
+    public void testSubstitutionIsRecordedAfterTheRejectionBudgetIsExhausted()
+    {
+        MvSubstitutionCollector collector = new MvSubstitutionCollector();
+        for (int i = 0; i < 150; i++) {
+            collector.recordRejected(Optional.empty(), MaterializedViewSubstitutionOutcome.SCAN_NOT_SUBSTITUTABLE);
+        }
+        collector.recordSubstituted(
+                new CatalogSchemaTableName(CATALOG, SCHEMA, "test_mv"),
+                new CatalogSchemaTableName(CATALOG, SCHEMA, "storage"),
+                Instant.now(),
+                new MaterializedViewSubstitution.ReplacedPlan(new ValuesNode(new PlanNodeId("scan-substituted"), 0), ImmutableMap.of()));
+        assertThat(collector.getSubstitutions())
+                .filteredOn(info -> info.outcome() == MaterializedViewSubstitutionOutcome.SUBSTITUTED)
+                .hasSize(1);
+    }
+
+    private static class DenySelectOnMaterializedViewAccessControl
+            extends AllowAllAccessControl
+    {
+        @Override
+        public void checkCanSelectFromColumns(SecurityContext context, QualifiedObjectName tableName, Optional<String> branch, Set<String> columnNames)
+        {
+            if (tableName.objectName().equals("test_mv")) {
+                throw new AccessDeniedException("Cannot select from " + tableName);
+            }
+        }
     }
 
     private static MaterializationBuilder materialization()
@@ -376,6 +537,7 @@ public class TestMvSubstitutionOptimizer
         private String outputColumnName = "name";
         private String sourceColumnId = "name";
         private Symbol nameSymbol = NAME_SYMBOL;
+        private String materializedViewName = "test_mv";
 
         MaterializationBuilder sourceTable(String sourceTable)
         {
@@ -425,6 +587,12 @@ public class TestMvSubstitutionOptimizer
             return this;
         }
 
+        MaterializationBuilder materializedViewName(String materializedViewName)
+        {
+            this.materializedViewName = materializedViewName;
+            return this;
+        }
+
         MaterializationDefinition build()
         {
             Output computation = new Output(
@@ -439,13 +607,23 @@ public class TestMvSubstitutionOptimizer
             return new MaterializationDefinition(
                     computation,
                     storageTableId,
-                    new MaterializedViewSource(new CatalogSchemaTableName(CATALOG, SCHEMA, "test_mv")),
+                    new MaterializedViewSource(new CatalogSchemaTableName(CATALOG, SCHEMA, materializedViewName)),
                     lastKnownFreshTime,
                     gracePeriod);
         }
     }
 
     private MvSubstitutionOptimizer optimizerWith(MaterializationDefinition materialization)
+    {
+        return optimizerWith(ImmutableList.of(materialization), getPlanTester().getAccessControl());
+    }
+
+    private MvSubstitutionOptimizer optimizerWith(MaterializationDefinition materialization, AccessControl accessControl)
+    {
+        return optimizerWith(ImmutableList.of(materialization), accessControl);
+    }
+
+    private MvSubstitutionOptimizer optimizerWith(List<MaterializationDefinition> materializations, AccessControl accessControl)
     {
         PlanTester planTester = getPlanTester();
         SubstitutionMetadata substitutionMetadata = new SubstitutionMetadataManager(
@@ -459,13 +637,36 @@ public class TestMvSubstitutionOptimizer
                 new InMemoryRawMaterializationMetastore(),
                 irJsonCodec),
                 new MaterializedViewSubstitutionConfig());
-        index.createOrReplace(materialization);
+        materializations.forEach(index::createOrReplace);
         return new MvSubstitutionOptimizer(
                 index,
                 planTester.getPlannerContext().getMetadata(),
                 substitutionMetadata,
                 planTester.getPlannerContext().getTypeManager(),
-                planTester.getAccessControl());
+                accessControl);
+    }
+
+    private TableScanNode updateTargetScan(Session session, String tableName)
+    {
+        Metadata metadata = getPlanTester().getPlannerContext().getMetadata();
+        TableHandle table = metadata.getTableHandle(session, new QualifiedObjectName(CATALOG, SCHEMA, tableName)).orElseThrow();
+        ColumnHandle nameColumn = metadata.getColumnHandles(session, table).get("name");
+        io.trino.sql.planner.Symbol name = new io.trino.sql.planner.Symbol(VARCHAR, "name");
+        return new TableScanNode(
+                new PlanNodeId("scan"),
+                table,
+                ImmutableList.of(name),
+                ImmutableMap.of(name, nameColumn),
+                TupleDomain.all(),
+                Optional.empty(),
+                true,
+                Optional.empty());
+    }
+
+    private static void assertOutcomes(List<MaterializedViewSubstitution> substitutions, MaterializedViewSubstitutionOutcome... expected)
+    {
+        assertThat(substitutions.stream().map(MaterializedViewSubstitution::outcome))
+                .containsExactly(expected);
     }
 
     private Session session(boolean substitutionEnabled)
@@ -491,22 +692,27 @@ public class TestMvSubstitutionOptimizer
                 .build();
     }
 
-    private void assertPlan(Session session, @Language("SQL") String sql, PlanOptimizer optimizer, PlanMatchPattern pattern)
+    /**
+     * Plans {@code sql} with the cleanup optimizers, then runs {@code optimizer} directly against a
+     * fresh {@link MvSubstitutionCollector} (rather than folding it into the {@code PlanTester}-driven
+     * optimizer list, which always plans against the shared no-op collector) so the recorded outcomes
+     * can be asserted on.
+     */
+    private List<MaterializedViewSubstitution> assertPlanAndSubstitutions(Session session, @Language("SQL") String sql, MvSubstitutionOptimizer optimizer, PlanMatchPattern pattern)
     {
         PlanTester planTester = getPlanTester();
-        List<PlanOptimizer> optimizers = ImmutableList.<PlanOptimizer>builder()
-                .addAll(cleanupOptimizers())
-                .add(optimizer)
-                .build();
+        MvSubstitutionCollector collector = new MvSubstitutionCollector();
         planTester.inTransaction(session, transactionSession -> {
-            Plan actualPlan = planTester.createPlan(
+            PlanNode initialPlan = planTester.createPlan(
                     transactionSession,
                     sql,
-                    optimizers,
+                    cleanupOptimizers(),
                     ImmutableList.of(),
                     OPTIMIZED,
                     WarningCollector.NOOP,
-                    createPlanOptimizersStatsCollector());
+                    createPlanOptimizersStatsCollector()).getRoot();
+            PlanNode optimizedRoot = optimizer.optimize(initialPlan, context(transactionSession, collector));
+            Plan actualPlan = new Plan(optimizedRoot, StatsAndCosts.empty());
             PlanAssert.assertPlan(
                     transactionSession,
                     planTester.getPlannerContext().getMetadata(),
@@ -516,6 +722,7 @@ public class TestMvSubstitutionOptimizer
                     pattern);
             return null;
         });
+        return collector.getSubstitutions();
     }
 
     /**
@@ -542,6 +749,11 @@ public class TestMvSubstitutionOptimizer
 
     private PlanOptimizer.Context context(Session session)
     {
+        return context(session, new MvSubstitutionCollector());
+    }
+
+    private PlanOptimizer.Context context(Session session, MvSubstitutionCollector mvSubstitutionCollector)
+    {
         Metadata metadata = getPlanTester().getPlannerContext().getMetadata();
         return new PlanOptimizer.Context(
                 session,
@@ -551,7 +763,8 @@ public class TestMvSubstitutionOptimizer
                 WarningCollector.NOOP,
                 createPlanOptimizersStatsCollector(),
                 new CachingTableStatsProvider(metadata, session, () -> false),
-                RuntimeInfoProvider.noImplementation());
+                RuntimeInfoProvider.noImplementation(),
+                mvSubstitutionCollector);
     }
 
     private static Type columnType(String tableName, String columnName)

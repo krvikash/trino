@@ -34,6 +34,7 @@ import io.starburst.materialization.metastore.InMemoryRawMaterializationMetastor
 import io.starburst.server.substitution.MaterializationIndex;
 import io.starburst.server.substitution.MaterializedViewSubstitutionConfig;
 import io.starburst.server.substitution.MaterializedViewSubstitutionSessionProperties;
+import io.starburst.server.substitution.MvSubstitutionCollector;
 import io.starburst.server.substitution.SubstitutionMetadata;
 import io.starburst.server.substitution.SubstitutionMetadataManager;
 import io.starburst.server.substitution.VersionAwareMaterializationMetastore;
@@ -1179,7 +1180,8 @@ public class PlanTester
                 warningCollector,
                 planOptimizersStatsCollector,
                 new CachingTableStatsProvider(getPlannerContext().getMetadata(), session, () -> false),
-                formatOptions);
+                formatOptions,
+                MvSubstitutionCollector.NOOP);
 
         Analysis analysis = analyzer.analyze(preparedQuery.getStatement());
         // make PlanTester always compute plan statistics for test purposes

@@ -19,14 +19,18 @@ import com.google.common.collect.ImmutableSet;
 import io.airlift.json.JsonCodec;
 import io.airlift.units.DataSize;
 import io.airlift.units.Duration;
+import io.starburst.server.substitution.MaterializedViewSubstitution;
 import io.trino.operator.FilterAndProjectOperator;
 import io.trino.operator.OperatorStats;
 import io.trino.operator.TableWriterOperator;
 import io.trino.server.DynamicFilterService.DynamicFiltersStats;
+import io.trino.spi.connector.CatalogSchemaTableName;
+import io.trino.spi.eventlistener.MaterializedViewSubstitutionOutcome;
 import io.trino.spi.eventlistener.QueryPlanOptimizerStatistics;
 import io.trino.spi.eventlistener.StageGcStatistics;
 import io.trino.spi.metrics.Metrics;
 import io.trino.sql.planner.plan.PlanNodeId;
+import io.trino.sql.planner.plan.ValuesNode;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
@@ -181,6 +185,14 @@ public class TestQueryStats
                     499,
                     0));
 
+    private static final List<MaterializedViewSubstitution> materializedViewSubstitutions = ImmutableList.of(
+            new MaterializedViewSubstitution(
+                    Optional.of(new CatalogSchemaTableName("iceberg", "sales", "daily_totals")),
+                    MaterializedViewSubstitutionOutcome.SUBSTITUTED,
+                    Optional.of(new CatalogSchemaTableName("iceberg", "sales", "daily_totals$data")),
+                    Optional.of(Instant.ofEpochMilli(5)),
+                    Optional.of(new MaterializedViewSubstitution.ReplacedPlan(new ValuesNode(new PlanNodeId("42"), 0), ImmutableMap.of()))));
+
     public static final QueryStats EXPECTED = new QueryStats(
             Instant.ofEpochMilli(1),
             Instant.ofEpochMilli(2),
@@ -277,7 +289,8 @@ public class TestQueryStats
             ImmutableMap.of(),
             ImmutableMap.of(),
             operatorSummaries,
-            optimizerRulesSummaries);
+            optimizerRulesSummaries,
+            materializedViewSubstitutions);
 
     @Test
     public void testJson()
@@ -394,6 +407,14 @@ public class TestQueryStats
             assertThat(actualRule.totalTime()).isEqualTo(expectedRule.totalTime());
             assertThat(actualRule.invocations()).isEqualTo(expectedRule.invocations());
             assertThat(actualRule.failures()).isEqualTo(expectedRule.failures());
+        }
+
+        assertThat(actual.getMaterializedViewSubstitutions()).hasSize(materializedViewSubstitutions.size());
+        for (int i = 0, end = materializedViewSubstitutions.size(); i < end; i++) {
+            MaterializedViewSubstitution actualRow = actual.getMaterializedViewSubstitutions().get(i);
+            MaterializedViewSubstitution expectedRow = materializedViewSubstitutions.get(i);
+            // PlanNode has no equals/hashCode, so compare the round-tripped row structurally.
+            assertThat(actualRow).usingRecursiveComparison().isEqualTo(expectedRow);
         }
     }
 }

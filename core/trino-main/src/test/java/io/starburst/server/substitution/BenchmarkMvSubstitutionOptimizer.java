@@ -224,7 +224,8 @@ public class BenchmarkMvSubstitutionOptimizer
                     WarningCollector.NOOP,
                     createPlanOptimizersStatsCollector(),
                     new CachingTableStatsProvider(benchmarkData.metadata, transactionSession, () -> false),
-                    RuntimeInfoProvider.noImplementation());
+                    RuntimeInfoProvider.noImplementation(),
+                    new MvSubstitutionCollector());
         }
 
         @TearDown(Level.Trial)

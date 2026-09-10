@@ -21,6 +21,7 @@ import io.airlift.slice.Slices;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.SpanBuilder;
 import io.opentelemetry.context.Context;
+import io.starburst.server.substitution.MvSubstitutionCollector;
 import io.trino.Session;
 import io.trino.cache.CacheCommonSubqueries;
 import io.trino.cache.CacheController;
@@ -219,6 +220,7 @@ public class LogicalPlanner
     private final PlanOptimizersStatsCollector planOptimizersStatsCollector;
     private final CachingTableStatsProvider tableStatsProvider;
     private final FormatOptions formatOptions;
+    private final MvSubstitutionCollector mvSubstitutionCollector;
 
     public LogicalPlanner(
             Session session,
@@ -231,9 +233,10 @@ public class LogicalPlanner
             WarningCollector warningCollector,
             PlanOptimizersStatsCollector planOptimizersStatsCollector,
             CachingTableStatsProvider tableStatsProvider,
-            FormatOptions formatOptions)
+            FormatOptions formatOptions,
+            MvSubstitutionCollector mvSubstitutionCollector)
     {
-        this(session, planOptimizers, alternativeOptimizers, DISTRIBUTED_EXECUTION, idAllocator, plannerContext, statsCalculator, costCalculator, warningCollector, planOptimizersStatsCollector, tableStatsProvider, formatOptions);
+        this(session, planOptimizers, alternativeOptimizers, DISTRIBUTED_EXECUTION, idAllocator, plannerContext, statsCalculator, costCalculator, warningCollector, planOptimizersStatsCollector, tableStatsProvider, formatOptions, mvSubstitutionCollector);
     }
 
     public LogicalPlanner(
@@ -248,7 +251,8 @@ public class LogicalPlanner
             WarningCollector warningCollector,
             PlanOptimizersStatsCollector planOptimizersStatsCollector,
             CachingTableStatsProvider tableStatsProvider,
-            FormatOptions formatOptions)
+            FormatOptions formatOptions,
+            MvSubstitutionCollector mvSubstitutionCollector)
     {
         this.session = requireNonNull(session, "session is null");
         this.planOptimizers = requireNonNull(planOptimizers, "planOptimizers is null");
@@ -271,6 +275,7 @@ public class LogicalPlanner
         this.planOptimizersStatsCollector = requireNonNull(planOptimizersStatsCollector, "planOptimizersStatsCollector is null");
         this.tableStatsProvider = requireNonNull(tableStatsProvider, "tableStatsProvider is null");
         this.formatOptions = requireNonNull(formatOptions, "formatOptions is null");
+        this.mvSubstitutionCollector = requireNonNull(mvSubstitutionCollector, "mvSubstitutionCollector is null");
     }
 
     public PlanningResult plan(Analysis analysis)
@@ -387,7 +392,7 @@ public class LogicalPlanner
     {
         PlanNode result;
         try (var _ = optimizerSpan(optimizer)) {
-            result = optimizer.optimize(root, new PlanOptimizer.Context(session, forceSingleNode, symbolAllocator, idAllocator, warningCollector, planOptimizersStatsCollector, tableStatsProvider, RuntimeInfoProvider.noImplementation()));
+            result = optimizer.optimize(root, new PlanOptimizer.Context(session, forceSingleNode, symbolAllocator, idAllocator, warningCollector, planOptimizersStatsCollector, tableStatsProvider, RuntimeInfoProvider.noImplementation(), mvSubstitutionCollector));
         }
         if (result == null) {
             throw new NullPointerException(optimizer.getClass().getName() + " returned a null plan");

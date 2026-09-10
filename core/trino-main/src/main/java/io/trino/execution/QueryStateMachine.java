@@ -29,6 +29,7 @@ import io.airlift.units.Duration;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.StatusCode;
+import io.starburst.server.substitution.MaterializedViewSubstitution;
 import io.trino.NotInTransactionException;
 import io.trino.Session;
 import io.trino.exchange.ExchangeInput;
@@ -95,6 +96,7 @@ import java.util.function.Supplier;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Strings.nullToEmpty;
+import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 import static io.airlift.units.DataSize.succinctBytes;
@@ -192,6 +194,7 @@ public class QueryStateMachine
     private final AtomicReference<Optional<List<ColumnLineageInfo>>> selectColumnsLineageInfo = new AtomicReference<>(Optional.empty());
     private final AtomicReference<List<TableInfo>> referencedTables = new AtomicReference<>(ImmutableList.of());
     private final AtomicReference<List<RoutineInfo>> routines = new AtomicReference<>(ImmutableList.of());
+    private final AtomicReference<List<MaterializedViewSubstitution>> materializedViewSubstitutions = new AtomicReference<>(ImmutableList.of());
     private final AtomicReference<Map<String, Metrics>> catalogMetadataMetrics = new AtomicReference<>(ImmutableMap.of());
     private final AtomicReference<Map<String, Metrics>> exchangeMetrics = new AtomicReference<>(ImmutableMap.of());
     private final StateMachine<Optional<QueryInfo>> finalQueryInfo;
@@ -1032,7 +1035,8 @@ public class QueryStateMachine
                 catalogMetadataMetrics.get(),
                 exchangeMetrics.get(),
                 operatorStatsSummary.build(),
-                planOptimizersStatsCollector.getTopRuleStats());
+                planOptimizersStatsCollector.getTopRuleStats(),
+                materializedViewSubstitutions.get());
     }
 
     public void setOutputInfoListener(Consumer<QueryOutputInfo> listener)
@@ -1088,6 +1092,12 @@ public class QueryStateMachine
     {
         requireNonNull(routines, "routines is null");
         this.routines.set(ImmutableList.copyOf(routines));
+    }
+
+    public void setMaterializedViewSubstitutions(List<MaterializedViewSubstitution> materializedViewSubstitutions)
+    {
+        requireNonNull(materializedViewSubstitutions, "materializedViewSubstitutions is null");
+        this.materializedViewSubstitutions.set(ImmutableList.copyOf(materializedViewSubstitutions));
     }
 
     private DynamicFiltersStats getDynamicFiltersStats()
@@ -1656,7 +1666,11 @@ public class QueryStateMachine
                 ImmutableMap.of(),
                 ImmutableMap.of(),
                 ImmutableList.of(), // Remove the operator summaries as OperatorInfo (especially DirectExchangeClientStatus) can hold onto a large amount of memory
-                ImmutableList.of());
+                ImmutableList.of(),
+                // Pruned query info carries flat rows only: the replaced PlanNode is not retained in history.
+                queryStats.getMaterializedViewSubstitutions().stream()
+                        .map(MaterializedViewSubstitution::withoutReplacedPlan)
+                        .collect(toImmutableList()));
     }
 
     public boolean isQueryInfoPruned()

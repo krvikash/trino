@@ -14,12 +14,14 @@
 package io.trino.testing.substitution;
 
 import com.google.common.collect.ImmutableMap;
+import io.starburst.server.substitution.MaterializedViewSubstitution;
 import io.trino.Session;
 import io.trino.metadata.MaterializedViewDefinition;
 import io.trino.metadata.Metadata;
 import io.trino.metadata.QualifiedObjectName;
 import io.trino.spi.connector.CatalogSchemaName;
 import io.trino.spi.connector.CatalogSchemaTableName;
+import io.trino.spi.eventlistener.MaterializedViewSubstitutionOutcome;
 import io.trino.testing.AbstractTestQueryFramework;
 import io.trino.testing.MaterializedResult;
 import io.trino.testing.QueryRunner;
@@ -207,6 +209,18 @@ public abstract class AbstractMvSubstitutionTest
                 .as("Expected at least one scan on MV storage table")
                 .containsAnyElementsOf(storageTableNames);
 
+        List<MaterializedViewSubstitution> substitutions = getMaterializedViewSubstitutions(result);
+        assertThat(substitutions)
+                .as("Expected a SUBSTITUTED row naming one of '%s' for base table '%s'", materializedViews, baseTableName)
+                .anyMatch(info -> info.outcome() == MaterializedViewSubstitutionOutcome.SUBSTITUTED
+                        && info.materializedView().map(materializedViews::contains).orElse(false));
+
+        // The live (unpruned) query info retains the replaced query-side plan for every SUBSTITUTED row.
+        assertThat(substitutions)
+                .filteredOn(info -> info.outcome() == MaterializedViewSubstitutionOutcome.SUBSTITUTED)
+                .as("Expected every SUBSTITUTED row to carry its replaced plan before the query info is pruned")
+                .allMatch(info -> info.replacedPlan().isPresent());
+
         if (validateResults) {
             MaterializedResult baseline = computeActual(sessionWithoutSubstitution(), query);
             assertThat(result.result().getMaterializedRows())
@@ -239,6 +253,10 @@ public abstract class AbstractMvSubstitutionTest
                 .as("Expected scan on base table '%s' — no substitution should happen", baseTable)
                 .contains(unquote(baseTable));
 
+        assertThat(getMaterializedViewSubstitutions(result))
+                .as("No SUBSTITUTED row should be recorded for base table '%s'", baseTable)
+                .noneMatch(info -> info.outcome() == MaterializedViewSubstitutionOutcome.SUBSTITUTED);
+
         return result;
     }
 
@@ -257,6 +275,17 @@ public abstract class AbstractMvSubstitutionTest
                 baseTable.getSchemaTableName().getTableName().replaceAll("\"", ""));
     }
 
+    /**
+     * Asserts that a materialized-view candidate for the given base table was evaluated and
+     * rejected with the given outcome, as opposed to no candidate existing at all.
+     */
+    protected void assertRejectedWithOutcome(QueryRunner.MaterializedResultWithPlan result, CatalogSchemaTableName baseTable, MaterializedViewSubstitutionOutcome expectedOutcome)
+    {
+        assertThat(getMaterializedViewSubstitutions(result))
+                .as("Expected a '%s' row for base table '%s'", expectedOutcome, baseTable)
+                .anyMatch(info -> info.outcome() == expectedOutcome);
+    }
+
     private List<CatalogSchemaTableName> getScannedTableNames(QueryRunner.MaterializedResultWithPlan result)
     {
         return getDistributedQueryRunner().getCoordinator()
@@ -265,6 +294,15 @@ public abstract class AbstractMvSubstitutionTest
                 .getInputs().stream()
                 .map(input -> new CatalogSchemaTableName(input.catalogName(), input.schema(), input.table()))
                 .collect(toImmutableList());
+    }
+
+    protected List<MaterializedViewSubstitution> getMaterializedViewSubstitutions(QueryRunner.MaterializedResultWithPlan result)
+    {
+        return getDistributedQueryRunner().getCoordinator()
+                .getQueryManager()
+                .getFullQueryInfo(result.queryId())
+                .getQueryStats()
+                .getMaterializedViewSubstitutions();
     }
 
     protected CatalogSchemaTableName mvName(String mvName)

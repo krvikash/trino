@@ -380,6 +380,7 @@ public final class ProfilerFixtures
                 ImmutableMap.of(),
                 ImmutableMap.of(),
                 operatorSummaries,
+                ImmutableList.of(),
                 ImmutableList.of());
     }
 

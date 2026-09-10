@@ -15,6 +15,7 @@ package io.trino.sql.planner.optimizations;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import io.starburst.server.substitution.MvSubstitutionCollector;
 import io.trino.Session;
 import io.trino.cost.CachingTableStatsProvider;
 import io.trino.cost.RuntimeInfoProvider;
@@ -163,7 +164,8 @@ public class TestUnaliasSymbolReferences
                             WarningCollector.NOOP,
                             createPlanOptimizersStatsCollector(),
                             new CachingTableStatsProvider(metadata, session, () -> false),
-                            RuntimeInfoProvider.noImplementation()));
+                            RuntimeInfoProvider.noImplementation(),
+                            new MvSubstitutionCollector()));
 
             Plan actual = new Plan(optimized, StatsAndCosts.empty());
             PlanAssert.assertPlan(session, planTester.getPlannerContext().getMetadata(), planTester.getPlannerContext().getFunctionManager(), planTester.getStatsCalculator(), actual, pattern);

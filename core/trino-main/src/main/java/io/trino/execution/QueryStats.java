@@ -19,6 +19,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import io.airlift.units.DataSize;
 import io.airlift.units.Duration;
+import io.starburst.server.substitution.MaterializedViewSubstitution;
 import io.trino.operator.BlockedReason;
 import io.trino.operator.MergeWriterOperator;
 import io.trino.operator.OperatorStats;
@@ -135,6 +136,7 @@ public class QueryStats
     private final Map<String, Metrics> exchangeMetrics;
     private final List<OperatorStats> operatorSummaries;
     private final List<QueryPlanOptimizerStatistics> optimizerRulesSummaries;
+    private final List<MaterializedViewSubstitution> materializedViewSubstitutions;
 
     @JsonCreator
     public QueryStats(
@@ -227,7 +229,8 @@ public class QueryStats
             @JsonProperty("catalogMetadataMetrics") Map<String, Metrics> catalogMetadataMetrics,
             @JsonProperty("exchangeMetrics") Map<String, Metrics> exchangeMetrics,
             @JsonProperty("operatorSummaries") List<OperatorStats> operatorSummaries,
-            @JsonProperty("optimizerRulesSummaries") List<QueryPlanOptimizerStatistics> optimizerRulesSummaries)
+            @JsonProperty("optimizerRulesSummaries") List<QueryPlanOptimizerStatistics> optimizerRulesSummaries,
+            @JsonProperty("materializedViewSubstitutions") List<MaterializedViewSubstitution> materializedViewSubstitutions)
     {
         this.createTime = requireNonNull(createTime, "createTime is null");
         this.executionStartTime = executionStartTime;
@@ -334,6 +337,7 @@ public class QueryStats
         this.exchangeMetrics = requireNonNull(exchangeMetrics, "exchangeMetrics is null");
         this.operatorSummaries = ImmutableList.copyOf(operatorSummaries);
         this.optimizerRulesSummaries = ImmutableList.copyOf(requireNonNull(optimizerRulesSummaries, "optimizerRulesSummaries is null"));
+        this.materializedViewSubstitutions = ImmutableList.copyOf(requireNonNull(materializedViewSubstitutions, "materializedViewSubstitutions is null"));
     }
 
     @JsonProperty
@@ -798,6 +802,12 @@ public class QueryStats
     public List<QueryPlanOptimizerStatistics> getOptimizerRulesSummaries()
     {
         return optimizerRulesSummaries;
+    }
+
+    @JsonProperty
+    public List<MaterializedViewSubstitution> getMaterializedViewSubstitutions()
+    {
+        return materializedViewSubstitutions;
     }
 
     @JsonProperty

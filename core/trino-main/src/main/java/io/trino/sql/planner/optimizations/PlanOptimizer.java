@@ -13,6 +13,7 @@
  */
 package io.trino.sql.planner.optimizations;
 
+import io.starburst.server.substitution.MvSubstitutionCollector;
 import io.trino.Session;
 import io.trino.cost.RuntimeInfoProvider;
 import io.trino.cost.TableStatsProvider;
@@ -36,7 +37,8 @@ public interface PlanOptimizer
             WarningCollector warningCollector,
             PlanOptimizersStatsCollector planOptimizersStatsCollector,
             TableStatsProvider tableStatsProvider,
-            RuntimeInfoProvider runtimeInfoProvider)
+            RuntimeInfoProvider runtimeInfoProvider,
+            MvSubstitutionCollector mvSubstitutionCollector)
     {
         public Context(
                 Session session,
@@ -46,7 +48,8 @@ public interface PlanOptimizer
                 WarningCollector warningCollector,
                 PlanOptimizersStatsCollector planOptimizersStatsCollector,
                 TableStatsProvider tableStatsProvider,
-                RuntimeInfoProvider runtimeInfoProvider)
+                RuntimeInfoProvider runtimeInfoProvider,
+                MvSubstitutionCollector mvSubstitutionCollector)
         {
             this.session = requireNonNull(session, "session is null");
             this.forceSingleNodeQuery = forceSingleNodeQuery;
@@ -56,6 +59,7 @@ public interface PlanOptimizer
             this.tableStatsProvider = requireNonNull(tableStatsProvider, "tableStatsProvider is null");
             this.planOptimizersStatsCollector = requireNonNull(planOptimizersStatsCollector, "planOptimizersStatsCollector is null");
             this.runtimeInfoProvider = requireNonNull(runtimeInfoProvider, "runtimeInfoProvider is null");
+            this.mvSubstitutionCollector = requireNonNull(mvSubstitutionCollector, "mvSubstitutionCollector is null");
         }
     }
 }

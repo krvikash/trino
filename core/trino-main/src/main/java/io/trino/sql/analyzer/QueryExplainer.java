@@ -13,6 +13,7 @@
  */
 package io.trino.sql.analyzer;
 
+import io.starburst.server.substitution.MvSubstitutionCollector;
 import io.trino.Session;
 import io.trino.cost.CachingTableStatsProvider;
 import io.trino.cost.CostCalculator;
@@ -220,7 +221,8 @@ public class QueryExplainer
                 warningCollector,
                 planOptimizersStatsCollector,
                 new CachingTableStatsProvider(plannerContext.getMetadata(), session, () -> false),
-                formatOptions);
+                formatOptions,
+                MvSubstitutionCollector.NOOP);
         return logicalPlanner.plan(analysis, OPTIMIZED_AND_VALIDATED, true, true);
     }
 

@@ -157,6 +157,7 @@ public class TestQueryJsonProvider
                 ImmutableMap.of(),
                 ImmutableMap.of(),
                 ImmutableList.of(),
+                ImmutableList.of(),
                 ImmutableList.of());
 
         ConnectorPartitioningHandle connectorPartitioningHandle = new TpchPartitioningHandle("t", 1L);

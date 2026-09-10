@@ -24,6 +24,7 @@ import io.airlift.units.Duration;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.Tracer;
 import io.opentelemetry.context.Context;
+import io.starburst.server.substitution.MvSubstitutionCollector;
 import io.trino.Session;
 import io.trino.SystemSessionProperties;
 import io.trino.cost.CachingTableStatsProvider;
@@ -509,6 +510,7 @@ public class SqlQueryExecution
     {
         // plan query
         PlanNodeIdAllocator idAllocator = new PlanNodeIdAllocator();
+        MvSubstitutionCollector mvSubstitutionCollector = new MvSubstitutionCollector();
 
         LogicalPlanner logicalPlanner = new LogicalPlanner(
                 stateMachine.getSession(),
@@ -522,8 +524,16 @@ public class SqlQueryExecution
                 stateMachine.getWarningCollector(),
                 planOptimizersStatsCollector,
                 tableStatsProvider,
-                formatOptions);
-        PlanningResult planningResult = logicalPlanner.plan(analysis);
+                formatOptions,
+                mvSubstitutionCollector);
+        PlanningResult planningResult;
+        try {
+            planningResult = logicalPlanner.plan(analysis);
+        }
+        finally {
+            // Use finally so outcomes recorded before a planning failure are still surfaced.
+            stateMachine.setMaterializedViewSubstitutions(mvSubstitutionCollector.getSubstitutions());
+        }
         boolean forceSingleNodeQuery = planningResult.forceSingleNodeQuery();
 
         // fragment the plan

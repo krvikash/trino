@@ -16,6 +16,7 @@ package io.trino.sql.planner;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import io.starburst.server.substitution.MvSubstitutionCollector;
 import io.trino.Session;
 import io.trino.cache.CommonPlanAdaptation.PlanSignatureWithPredicate;
 import io.trino.cost.CachingTableStatsProvider;
@@ -305,7 +306,8 @@ public class TestAlternativesOptimizer
                         WarningCollector.NOOP,
                         createPlanOptimizersStatsCollector(),
                         new CachingTableStatsProvider(getPlanTester().getPlannerContext().getMetadata(), session, () -> false),
-                        new StaticRuntimeInfoProvider(ImmutableMap.of(), ImmutableMap.of())));
+                        new StaticRuntimeInfoProvider(ImmutableMap.of(), ImmutableMap.of()),
+                        new MvSubstitutionCollector()));
     }
 
     private void assertPlan(PlanNode actual, PlanMatchPattern pattern)

@@ -17,6 +17,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import io.trino.Session;
 import io.trino.spi.connector.CatalogSchemaTableName;
+import io.trino.spi.eventlistener.MaterializedViewSubstitutionOutcome;
 import io.trino.testing.QueryRunner.MaterializedResultWithPlan;
 import io.trino.testing.sql.TestMaterializedView;
 import org.junit.jupiter.api.AfterAll;
@@ -393,7 +394,8 @@ public abstract class AbstractMvSubstitutionFullTest
                     .setSystemProperty("session_start_time", Instant.now().plus(1, ChronoUnit.DAYS).toString())
                     .build();
 
-            assertNotSubstituted(futureSession, "SELECT * FROM " + ordersTable, ordersTable);
+            MaterializedResultWithPlan result = assertNotSubstituted(futureSession, "SELECT * FROM " + ordersTable, ordersTable);
+            assertRejectedWithOutcome(result, ordersTable, MaterializedViewSubstitutionOutcome.STALE);
         }
     }
 
@@ -765,7 +767,8 @@ public abstract class AbstractMvSubstitutionFullTest
         try (var _ = createSubstitutionMv("mv_proj_missing_", "SELECT orderkey, custkey FROM " + ordersTable)) {
             Session session = sessionWithSubstitution();
             String query = "SELECT orderkey, orderstatus FROM " + ordersTable;
-            assertNotSubstituted(session, query, ordersTable);
+            MaterializedResultWithPlan result = assertNotSubstituted(session, query, ordersTable);
+            assertRejectedWithOutcome(result, ordersTable, MaterializedViewSubstitutionOutcome.COLUMN_NOT_IN_MATERIALIZED_VIEW);
         }
     }
 
@@ -787,7 +790,12 @@ public abstract class AbstractMvSubstitutionFullTest
         try (TestMaterializedView materializedView = createSubstitutionMv("mv_acl_mv_denied_", "SELECT * FROM " + ordersTable)) {
             getQueryRunner().getAccessControl().deny(privilege(materializedView.mvName().getSchemaTableName().getTableName(), SELECT_COLUMN));
             try {
-                assertNotSubstituted(sessionWithSubstitution(), "SELECT * FROM " + ordersTable, ordersTable);
+                MaterializedResultWithPlan result = assertNotSubstituted(sessionWithSubstitution(), "SELECT * FROM " + ordersTable, ordersTable);
+                assertRejectedWithOutcome(result, ordersTable, MaterializedViewSubstitutionOutcome.ACCESS_DENIED);
+                assertThat(getMaterializedViewSubstitutions(result))
+                        .filteredOn(info -> info.outcome() == MaterializedViewSubstitutionOutcome.ACCESS_DENIED)
+                        .as("ACCESS_DENIED row must redact the materialized view name")
+                        .allSatisfy(info -> assertThat(info.materializedView()).isEmpty());
             }
             finally {
                 getQueryRunner().getAccessControl().reset();

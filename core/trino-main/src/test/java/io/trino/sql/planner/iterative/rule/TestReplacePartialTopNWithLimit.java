@@ -16,6 +16,7 @@ package io.trino.sql.planner.iterative.rule;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import io.starburst.server.substitution.MvSubstitutionCollector;
 import io.trino.Session;
 import io.trino.connector.MockConnectorColumnHandle;
 import io.trino.connector.MockConnectorFactory;
@@ -435,7 +436,8 @@ final class TestReplacePartialTopNWithLimit
                             WarningCollector.NOOP,
                             createPlanOptimizersStatsCollector(),
                             new CachingTableStatsProvider(plannerContext.getMetadata(), session, () -> false),
-                            new StaticRuntimeInfoProvider(ImmutableMap.of(), ImmutableMap.of())));
+                            new StaticRuntimeInfoProvider(ImmutableMap.of(), ImmutableMap.of()),
+                            new MvSubstitutionCollector()));
         });
     }
 

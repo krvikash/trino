@@ -341,6 +341,7 @@ public class FailedDispatchQuery
                 ImmutableMap.of(),
                 ImmutableMap.of(),
                 ImmutableList.of(),
+                ImmutableList.of(),
                 ImmutableList.of());
     }
 }

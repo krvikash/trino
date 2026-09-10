@@ -15,6 +15,7 @@ package io.trino.sql.planner.optimizations;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import io.starburst.server.substitution.MvSubstitutionCollector;
 import io.trino.connector.CatalogHandle;
 import io.trino.cost.CachingTableStatsProvider;
 import io.trino.cost.RuntimeInfoProvider;
@@ -520,7 +521,8 @@ public class TestRemoveUnsupportedDynamicFilters
                             WarningCollector.NOOP,
                             createPlanOptimizersStatsCollector(),
                             new CachingTableStatsProvider(metadata, session, () -> false),
-                            RuntimeInfoProvider.noImplementation()));
+                            RuntimeInfoProvider.noImplementation(),
+                            new MvSubstitutionCollector()));
             new DynamicFiltersChecker().validate(
                     rewrittenPlan,
                     session,
