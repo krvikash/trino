@@ -138,6 +138,8 @@ public final class GpuTestUtils
             .add(VARBINARY)
             .build();
 
+    public static final List<Type> TESTED_GPU_FLOATING_POINT_TYPES = List.of(DOUBLE, REAL);
+
     private static final BlockTypeOperators BLOCK_TYPE_OPERATORS = new BlockTypeOperators();
 
     public static final FullConnectorSession FULL_CONNECTOR_SESSION = createFullConnectorSession(SQL_STANDARD);

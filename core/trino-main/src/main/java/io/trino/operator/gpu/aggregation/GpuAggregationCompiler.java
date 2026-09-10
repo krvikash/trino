@@ -32,7 +32,10 @@ import io.trino.operator.gpu.expression.GpuDecimal128AsVarbinary;
 import io.trino.operator.gpu.expression.GpuExpression;
 import io.trino.operator.gpu.expression.GpuExtractDecimalStateChunk;
 import io.trino.operator.gpu.expression.GpuExtractInt32Chunk;
+import io.trino.operator.gpu.expression.GpuIsNan;
+import io.trino.operator.gpu.expression.GpuNansToNulls;
 import io.trino.operator.gpu.expression.GpuPackAvgDecimalState;
+import io.trino.operator.gpu.expression.GpuRestoreNan;
 import io.trino.operator.project.InputChannels;
 import io.trino.spi.function.BoundSignature;
 import io.trino.spi.gpu.borrow.Borrow;
@@ -470,9 +473,27 @@ public final class GpuAggregationCompiler
                         GpuExpression input = maskChannel.isPresent()
                                 ? maskExpression(maskChannel.orElseThrow(), column.channel())
                                 : new GetColumn(column.channel());
+                        if (column.type() instanceof RealType || column.type() instanceof DoubleType) {
+                            return compileFloatingPointMinMax(returnType, dType, input, factory);
+                        }
                         return AggregateCompilation.single(returnType, input, channel -> factory.create(channel, returnType, dType));
                     });
                 });
+    }
+
+    private static AggregateCompilation compileFloatingPointMinMax(Type returnType, DType dType, GpuExpression input, MinMaxFactory factory)
+    {
+        // cuDF's min/max returns NaN if any input is NaN, while Trino treats NaN as never winning.
+        // Replace NaN with null before aggregation and track NaN presence with a companion max(isNan)
+        // slot, restoring NaN in a post-projection step for all-NaN groups.
+        return new AggregateCompilation(
+                returnType,
+                ImmutableList.of(
+                        AggregateSlot.of(new GpuNansToNulls(input), channel -> factory.create(channel, returnType, dType)),
+                        AggregateSlot.of(new GpuIsNan(input), channel -> new GpuMax(channel, BooleanType.BOOLEAN, DType.BOOL8))),
+                Optional.of(new PostProjection(channels -> new CompiledExpression(
+                        new GpuRestoreNan(dType),
+                        new InputChannels(List.of(channels[0], channels[1]))))));
     }
 
     private static Optional<AggregateCompilation> compileAnyValue(
