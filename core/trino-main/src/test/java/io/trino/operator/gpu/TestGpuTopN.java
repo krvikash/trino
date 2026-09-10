@@ -45,7 +45,7 @@ import static io.trino.spi.connector.SortOrder.ASC_NULLS_LAST;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.sql.gen.TestColumnarFilters.NullsProvider.NO_NULLS;
 
-final class TestGpuTopNOperator
+final class TestGpuTopN
 {
     private static final TypeOperators TYPE_OPERATORS = new TypeOperators();
 
