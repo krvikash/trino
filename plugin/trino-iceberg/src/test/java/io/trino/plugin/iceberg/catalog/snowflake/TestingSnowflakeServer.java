@@ -38,7 +38,11 @@ public class TestingSnowflakeServer
 
     public static final String SNOWFLAKE_JDBC_URI = requiredNonEmptySystemProperty("testing.snowflake.catalog.account-url");
     public static final String SNOWFLAKE_USER = requiredNonEmptySystemProperty("testing.snowflake.catalog.user");
+    // Password auth is validated here so it's ready to switch back if ever needed, but the connection below uses
+    // key-pair auth: Snowflake's MFA rollout blocks password auth for non-human/service accounts entirely
+    // (https://docs.snowflake.com/en/user-guide/security-mfa-rollout).
     public static final String SNOWFLAKE_PASSWORD = requiredNonEmptySystemProperty("testing.snowflake.catalog.password");
+    public static final String SNOWFLAKE_PRIVATE_KEY = requiredNonEmptySystemProperty("testing.snowflake.catalog.private-key");
     public static final String SNOWFLAKE_ROLE = requiredNonEmptySystemProperty("testing.snowflake.catalog.role");
     public static final String SNOWFLAKE_WAREHOUSE = requiredNonEmptySystemProperty("testing.snowflake.catalog.warehouse");
     public static final String SNOWFLAKE_TEST_DATABASE = requiredNonEmptySystemProperty("testing.snowflake.catalog.database");
@@ -71,7 +75,7 @@ public class TestingSnowflakeServer
     {
         Properties properties = new Properties();
         properties.put("user", SNOWFLAKE_USER);
-        properties.put("password", SNOWFLAKE_PASSWORD);
+        properties.put("private_key_base64", SNOWFLAKE_PRIVATE_KEY);
         properties.put("role", SNOWFLAKE_ROLE);
         properties.put("warehouse", SNOWFLAKE_WAREHOUSE);
         properties.put("db", SNOWFLAKE_TEST_DATABASE);
