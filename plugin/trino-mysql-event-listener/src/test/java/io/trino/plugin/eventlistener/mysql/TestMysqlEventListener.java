@@ -142,6 +142,8 @@ final class TestMysqlEventListener
             // not stored
             Collections.emptyList(),
             // not stored
+            Collections.emptyList(),
+            // not stored
             ImmutableMap.of(),
             // not stored
             ImmutableMap.of(),
@@ -308,6 +310,7 @@ final class TestMysqlEventListener
             // not stored
             Collections.emptyList(),
             // not stored
+            Collections.emptyList(),
             Collections.emptyList(),
             Collections.emptyList(),
             Collections.emptyList(),

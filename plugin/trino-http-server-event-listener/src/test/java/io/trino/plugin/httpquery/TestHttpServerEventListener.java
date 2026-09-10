@@ -170,6 +170,7 @@ final class TestHttpServerEventListener
                 Collections.emptyList(),
                 Collections.emptyList(),
                 Collections.emptyList(),
+                Collections.emptyList(),
                 ImmutableMap.of(),
                 ImmutableMap.of(),
                 Optional.empty());

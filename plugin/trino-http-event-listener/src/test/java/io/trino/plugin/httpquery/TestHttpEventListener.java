@@ -19,8 +19,11 @@ import com.google.common.collect.ImmutableMap;
 import io.airlift.json.JsonCodec;
 import io.trino.operator.RetryPolicy;
 import io.trino.plugin.base.eventlistener.testing.TestingEventListenerContext;
+import io.trino.spi.connector.CatalogSchemaTableName;
 import io.trino.spi.eventlistener.EventListener;
 import io.trino.spi.eventlistener.EventListenerFactory;
+import io.trino.spi.eventlistener.MaterializedViewSubstitutionInfo;
+import io.trino.spi.eventlistener.MaterializedViewSubstitutionOutcome;
 import io.trino.spi.eventlistener.QueryCompletedEvent;
 import io.trino.spi.eventlistener.QueryContext;
 import io.trino.spi.eventlistener.QueryCreatedEvent;
@@ -82,6 +85,7 @@ final class TestHttpEventListener
 
     private static final JsonCodec<QueryCompletedEvent> queryCompleteEventJsonCodec = jsonCodec(QueryCompletedEvent.class);
     private static final JsonCodec<QueryCreatedEvent> queryCreateEventJsonCodec = jsonCodec(QueryCreatedEvent.class);
+    private static final JsonCodec<QueryStatistics> queryStatisticsJsonCodec = jsonCodec(QueryStatistics.class);
 
     private static final QueryIOMetadata queryIOMetadata;
     private static final QueryContext queryContext;
@@ -137,7 +141,32 @@ final class TestHttpEventListener
                 Optional.empty(),
                 Optional.empty());
 
-        queryStatistics = new QueryStatistics(
+        queryStatistics = queryStatisticsWithMaterializedViewSubstitutions(Collections.emptyList());
+
+        queryCreatedEvent = new QueryCreatedEvent(
+                Instant.now(),
+                queryContext,
+                queryMetadata);
+
+        queryCompleteEvent = new QueryCompletedEvent(
+                queryMetadata,
+                queryStatistics,
+                queryContext,
+                queryIOMetadata,
+                Optional.empty(),
+                Optional.empty(),
+                Collections.emptyList(),
+                Instant.now(),
+                Instant.now(),
+                Instant.now());
+
+        queryCompleteEventJson = queryCompleteEventJsonCodec.toJson(queryCompleteEvent);
+        queryCreatedEventJson = queryCreateEventJsonCodec.toJson(queryCreatedEvent);
+    }
+
+    private static QueryStatistics queryStatisticsWithMaterializedViewSubstitutions(List<MaterializedViewSubstitutionInfo> materializedViewSubstitutions)
+    {
+        return new QueryStatistics(
                 ofSeconds(1),
                 ofSeconds(1),
                 ofSeconds(1),
@@ -182,29 +211,10 @@ final class TestHttpEventListener
                 Collections.emptyList(),
                 Collections.emptyList(),
                 Collections.emptyList(),
+                materializedViewSubstitutions,
                 ImmutableMap.of(),
                 ImmutableMap.of(),
                 Optional.empty());
-
-        queryCreatedEvent = new QueryCreatedEvent(
-                Instant.now(),
-                queryContext,
-                queryMetadata);
-
-        queryCompleteEvent = new QueryCompletedEvent(
-                queryMetadata,
-                queryStatistics,
-                queryContext,
-                queryIOMetadata,
-                Optional.empty(),
-                Optional.empty(),
-                Collections.emptyList(),
-                Instant.now(),
-                Instant.now(),
-                Instant.now());
-
-        queryCompleteEventJson = queryCompleteEventJsonCodec.toJson(queryCompleteEvent);
-        queryCreatedEventJson = queryCreateEventJsonCodec.toJson(queryCreatedEvent);
     }
 
     /**
@@ -416,6 +426,30 @@ final class TestHttpEventListener
                 .isTrue();
 
         checkRequest(server.takeRequest(5, TimeUnit.SECONDS), queryCompleteEventJson);
+    }
+
+    /**
+     * An event listener that serializes the whole {@code QueryCompletedEvent} with an airlift
+     * {@code JsonCodec} picks up a new field from nothing more than a {@code @JsonProperty} getter on
+     * {@code QueryStatistics}. Verify the materialized-view substitution field is present in the
+     * serialized form and round-trips back correctly.
+     */
+    @Test
+    void testMaterializedViewSubstitutionsPresentInSerializedQueryStatistics()
+    {
+        MaterializedViewSubstitutionInfo substitution = new MaterializedViewSubstitutionInfo(
+                Optional.of(new CatalogSchemaTableName("iceberg", "sales", "daily_totals")),
+                MaterializedViewSubstitutionOutcome.SUBSTITUTED,
+                Optional.of(new CatalogSchemaTableName("iceberg", "sales", "daily_totals$materialized_view_storage")),
+                Optional.of(Instant.parse("2026-08-23T10:00:00Z")),
+                Optional.empty());
+        QueryStatistics statisticsWithSubstitution = queryStatisticsWithMaterializedViewSubstitutions(List.of(substitution));
+
+        String json = queryStatisticsJsonCodec.toJson(statisticsWithSubstitution);
+        assertThat(json).contains("materializedViewSubstitutions");
+
+        QueryStatistics roundTripped = queryStatisticsJsonCodec.fromJson(json);
+        assertThat(roundTripped.getMaterializedViewSubstitutions()).containsExactly(substitution);
     }
 
     private static void checkRequest(RecordedRequest recordedRequest, String eventJson)

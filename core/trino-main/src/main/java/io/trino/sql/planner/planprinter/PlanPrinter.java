@@ -25,6 +25,7 @@ import io.airlift.json.JsonCodec;
 import io.airlift.stats.TDigest;
 import io.airlift.units.DataSize;
 import io.airlift.units.Duration;
+import io.starburst.server.substitution.MaterializedViewSubstitution;
 import io.trino.Session;
 import io.trino.cost.PlanCostEstimate;
 import io.trino.cost.PlanNodeStatsAndCostSummary;
@@ -556,6 +557,24 @@ public class PlanPrinter
         }
 
         return builder.toString();
+    }
+
+    public static String renderReplacedPlan(MaterializedViewSubstitution.ReplacedPlan replacedPlan, ValuePrinter valuePrinter, Anonymizer anonymizer, boolean verbose)
+    {
+        Function<TableScanNode, TableInfo> tableInfoSupplier = scan -> replacedPlan.tableInfos().get(scan.getId());
+        return new PlanPrinter(
+                replacedPlan.root(),
+                tableInfoSupplier,
+                ImmutableMap.of(),
+                valuePrinter,
+                StatsAndCosts.empty(),
+                Optional.empty(),
+                Optional.empty(),
+                ImmutableMap.of(),
+                ImmutableMap.of(),
+                anonymizer,
+                verbose)
+                .toText(verbose, 3);
     }
 
     private static String formatFragment(

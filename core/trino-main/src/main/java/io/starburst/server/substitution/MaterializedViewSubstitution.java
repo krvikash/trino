@@ -19,6 +19,9 @@ import io.trino.spi.eventlistener.MaterializedViewSubstitutionInfo;
 import io.trino.spi.eventlistener.MaterializedViewSubstitutionOutcome;
 import io.trino.sql.planner.plan.PlanNode;
 import io.trino.sql.planner.plan.PlanNodeId;
+import io.trino.sql.planner.planprinter.Anonymizer;
+import io.trino.sql.planner.planprinter.PlanPrinter;
+import io.trino.sql.planner.planprinter.ValuePrinter;
 
 import java.time.Instant;
 import java.util.Map;
@@ -30,9 +33,9 @@ import static java.util.Objects.requireNonNull;
 
 /**
  * Trino-main's internal representation of a materialized-view substitution candidate, from which
- * {@link #toEventInfo()} derives the {@link MaterializedViewSubstitutionInfo} surfaced to the event
- * listener. Carries the same flat fields as the SPI record, plus (for a {@code SUBSTITUTED} row) the
- * query-side {@link PlanNode} subtree the materialized view replaced.
+ * {@link #toEventInfo(ValuePrinter, Anonymizer)} derives the {@link MaterializedViewSubstitutionInfo}
+ * surfaced to the event listener. Carries the same flat fields as the SPI record, plus (for a
+ * {@code SUBSTITUTED} row) the query-side {@link PlanNode} subtree the materialized view replaced.
  * Unlike the SPI record, which renders that subtree to opaque text, {@code replacedPlan} is included
  * as-is in this class's JSON (e.g. via {@code GET /v1/query/{queryId}}), same as {@link StageInfo}.
  */
@@ -80,9 +83,10 @@ public record MaterializedViewSubstitution(
         return new MaterializedViewSubstitution(materializedView, outcome, storageTable, lastRefreshTime, replacedPlan);
     }
 
-    public MaterializedViewSubstitutionInfo toEventInfo()
+    public MaterializedViewSubstitutionInfo toEventInfo(ValuePrinter valuePrinter, Anonymizer anonymizer)
     {
-        return new MaterializedViewSubstitutionInfo(materializedView, outcome, storageTable, lastRefreshTime, Optional.empty());
+        Optional<String> replacedPlanText = replacedPlan.map(plan -> PlanPrinter.renderReplacedPlan(plan, valuePrinter, anonymizer, false));
+        return new MaterializedViewSubstitutionInfo(materializedView, outcome, storageTable, lastRefreshTime, replacedPlanText);
     }
 
     public MaterializedViewSubstitution withoutReplacedPlan()

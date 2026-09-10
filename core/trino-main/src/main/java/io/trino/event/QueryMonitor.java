@@ -245,6 +245,7 @@ public class QueryMonitor
                         ImmutableList.of(),
                         ImmutableList.of(),
                         ImmutableList.of(),
+                        ImmutableList.of(),
                         ImmutableMap.of(),
                         ImmutableMap.of(),
                         Optional.empty()),
@@ -274,7 +275,7 @@ public class QueryMonitor
             if (queryCompletedEvent == null) {
                 queryCompletedEvent = new QueryCompletedEvent(
                         createQueryMetadata(queryInfo, requiresAnonymizedPlan),
-                        createQueryStatistics(queryInfo),
+                        createQueryStatistics(queryInfo, requiresAnonymizedPlan),
                         createQueryContext(
                                 queryInfo.getSession(),
                                 queryInfo.getResourceGroupId(),
@@ -313,12 +314,15 @@ public class QueryMonitor
                 memoize(() -> queryInfo.getStages().map(StagesInfo::pruneCatalogProperties).flatMap(stages -> stagesInfoCodec.toJsonWithLengthLimit(stages, maxJsonLimit))));
     }
 
-    private QueryStatistics createQueryStatistics(QueryInfo queryInfo)
+    private QueryStatistics createQueryStatistics(QueryInfo queryInfo, boolean requiresAnonymizedPlan)
     {
         List<OperatorStats> operatorStats = queryInfo.getQueryStats().getOperatorSummaries();
 
         Optional<StatsAndCosts> planNodeStatsAndCosts = queryInfo.getStages().map(StatsAndCosts::create);
         Optional<String> serializedPlanNodeStatsAndCosts = planNodeStatsAndCosts.map(statsAndCostsCodec::toJson);
+
+        Anonymizer anonymizer = requiresAnonymizedPlan ? new CounterBasedAnonymizer() : new NoOpAnonymizer();
+        ValuePrinter valuePrinter = new ValuePrinter(metadata, functionManager, queryInfo.getSession().toSession(sessionPropertyManager));
 
         QueryStats queryStats = queryInfo.getQueryStats();
         return new QueryStatistics(
@@ -366,6 +370,9 @@ public class QueryMonitor
                 getDynamicFilterDomainStats(queryInfo),
                 memoize(() -> operatorStats.stream().map(operatorStatsCodec::toJson).toList()),
                 ImmutableList.copyOf(queryInfo.getQueryStats().getOptimizerRulesSummaries()),
+                queryInfo.getQueryStats().getMaterializedViewSubstitutions().stream()
+                        .map(row -> row.toEventInfo(valuePrinter, anonymizer))
+                        .collect(toImmutableList()),
                 ImmutableMap.copyOf(queryInfo.getQueryStats().getCatalogMetadataMetrics()),
                 ImmutableMap.copyOf(queryInfo.getQueryStats().getExchangeMetrics()),
                 serializedPlanNodeStatsAndCosts);

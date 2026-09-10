@@ -85,6 +85,7 @@ public class QueryStatistics
      */
     private final Supplier<List<String>> operatorSummariesProvider;
     private final List<QueryPlanOptimizerStatistics> optimizerRulesSummaries;
+    private final List<MaterializedViewSubstitutionInfo> materializedViewSubstitutions;
     private final Map<String, Metrics> catalogMetadataMetrics;
     private final Map<String, Metrics> exchangeMetrics;
     /**
@@ -140,6 +141,7 @@ public class QueryStatistics
             List<DynamicFilterDomainStatistics> dynamicFilterDomainStatistics,
             List<String> operatorSummaries,
             List<QueryPlanOptimizerStatistics> optimizerRulesSummaries,
+            List<MaterializedViewSubstitutionInfo> materializedViewSubstitutions,
             Map<String, Metrics> catalogMetadataMetrics,
             Map<String, Metrics> exchangeMetrics,
             Optional<String> planNodeStatsAndCosts)
@@ -188,6 +190,7 @@ public class QueryStatistics
                 dynamicFilterDomainStatistics,
                 () -> operatorSummaries,
                 optimizerRulesSummaries,
+                materializedViewSubstitutions,
                 catalogMetadataMetrics,
                 exchangeMetrics,
                 planNodeStatsAndCosts);
@@ -238,6 +241,7 @@ public class QueryStatistics
             List<DynamicFilterDomainStatistics> dynamicFilterDomainStatistics,
             Supplier<List<String>> operatorSummariesProvider,
             List<QueryPlanOptimizerStatistics> optimizerRulesSummaries,
+            List<MaterializedViewSubstitutionInfo> materializedViewSubstitutions,
             Map<String, Metrics> catalogMetadataMetrics,
             Map<String, Metrics> exchangeMetrics,
             Optional<String> planNodeStatsAndCosts)
@@ -286,6 +290,7 @@ public class QueryStatistics
         this.dynamicFilterDomainStatistics = requireNonNull(dynamicFilterDomainStatistics, "dynamicFilterDomainStatistics is null");
         this.operatorSummariesProvider = requireNonNull(operatorSummariesProvider, "operatorSummariesProvider is null");
         this.optimizerRulesSummaries = requireNonNull(optimizerRulesSummaries, "optimizerRulesSummaries is null");
+        this.materializedViewSubstitutions = requireNonNull(materializedViewSubstitutions, "materializedViewSubstitutions is null");
         this.catalogMetadataMetrics = requireNonNull(catalogMetadataMetrics, "catalogMetadataMetrics is null");
         this.exchangeMetrics = requireNonNull(exchangeMetrics, "exchangeMetrics is null");
         this.planNodeStatsAndCosts = requireNonNull(planNodeStatsAndCosts, "planNodeStatsAndCosts is null");
@@ -553,6 +558,12 @@ public class QueryStatistics
     public List<QueryPlanOptimizerStatistics> getOptimizerRulesSummaries()
     {
         return optimizerRulesSummaries;
+    }
+
+    @JsonProperty
+    public List<MaterializedViewSubstitutionInfo> getMaterializedViewSubstitutions()
+    {
+        return materializedViewSubstitutions;
     }
 
     @JsonProperty
