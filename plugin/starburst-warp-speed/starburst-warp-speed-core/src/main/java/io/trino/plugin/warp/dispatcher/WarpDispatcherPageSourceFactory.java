@@ -234,9 +234,14 @@ public class WarpDispatcherPageSourceFactory
             return new PrefilledPageSource(emptyMap(), dispatcherPageSourceStats, rowGroupData, totalRecords, Optional.empty());
         }
 
-        if (PageSourceDecision.UNKNOWN.equals(pageSourceDecision) && !admitFiltering(filteringStats, dispatcherPageSourceStats)) {
-            logger.debug("filtering with the warp index does not pay off for this scan, reading from proxy");
-            pageSourceDecision = PageSourceDecision.PROXY;
+        // an admitted split holds a sampling slot until the warp page source reports its sample
+        boolean samplingSlotHeld = false;
+        if (PageSourceDecision.UNKNOWN.equals(pageSourceDecision)) {
+            samplingSlotHeld = admitFiltering(filteringStats, dispatcherPageSourceStats);
+            if (!samplingSlotHeld) {
+                logger.debug("filtering with the warp index does not pay off for this scan, reading from proxy");
+                pageSourceDecision = PageSourceDecision.PROXY;
+            }
         }
 
         // important to keep this lock here after the basic decisions are made
@@ -357,6 +362,8 @@ public class WarpDispatcherPageSourceFactory
                             customStatsContext,
                             closeHandler);
 
+                    // the warp page source reports the sample and frees the slot
+                    samplingSlotHeld = false;
                     return mixedPageSource;
                 }
                 catch (Exception e) {
@@ -395,6 +402,11 @@ public class WarpDispatcherPageSourceFactory
                 closeHandler.accept(afterLockRowGroupData, "exception-factory", shapingLogger);
             }
             throw e;
+        }
+        finally {
+            if (samplingSlotHeld) {
+                filteringStats.ifPresent(FilteringStats::releaseSamplingSlot);
+            }
         }
     }
 

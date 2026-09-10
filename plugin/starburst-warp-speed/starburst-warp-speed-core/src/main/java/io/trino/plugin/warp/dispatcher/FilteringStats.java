@@ -21,8 +21,10 @@ import static com.google.common.base.Preconditions.checkArgument;
  * split when its page source is created and does not change within the split. Filtering stays on
  * while the scan is sampled. Once enough rows and splits are sampled, it is turned off for later
  * splits when the index skips too few chunks to pay for the match work and too many rows survive
- * for downstream savings to pay for it instead. After enough proxied splits the sample is reset
- * and filtering is retried, so selectivity that varies across a table is picked up.
+ * for downstream savings to pay for it instead. Only a bounded number of splits sample at once, so
+ * the cost of a wrong guess does not scale with how many splits the workers start in parallel.
+ * After enough proxied splits the sample is reset and filtering is retried, so selectivity that
+ * varies across a table is picked up.
  */
 public class FilteringStats
 {
@@ -31,6 +33,10 @@ public class FilteringStats
      */
     private static final long MIN_SAMPLE_ROWS = 2047;
     private static final int MIN_SAMPLE_SPLITS = 2;
+    /**
+     * Caps how many splits filter at once before the first verdict lands.
+     */
+    private static final int MAX_SAMPLING_SPLITS = 8;
     /**
      * Retry filtering periodically in case index selectivity improves in later regions of the table.
      */
@@ -45,6 +51,8 @@ public class FilteringStats
     private long totalChunks;
     private long matchedChunks;
     private int sampledSplits;
+    private int samplingSplitsInFlight;
+    private int samplingAdmissionLimit = MAX_SAMPLING_SPLITS;
     private int proxiedSplitsSinceDisabled;
 
     public FilteringStats(double lowSelectivityThreshold, double chunkSkipThreshold)
@@ -61,11 +69,19 @@ public class FilteringStats
     public synchronized boolean tryAdmitFiltering()
     {
         return switch (mode) {
-            case SAMPLING, ENABLED -> true;
+            case SAMPLING -> {
+                if (samplingSplitsInFlight >= samplingAdmissionLimit) {
+                    yield false;
+                }
+                samplingSplitsInFlight++;
+                yield true;
+            }
+            case ENABLED -> true;
             case DISABLED -> {
                 proxiedSplitsSinceDisabled++;
                 if (proxiedSplitsSinceDisabled >= RESAMPLE_AFTER_PROXIED_SPLITS) {
                     resetSample();
+                    samplingSplitsInFlight++;
                     yield true;
                 }
                 else {
@@ -73,6 +89,16 @@ public class FilteringStats
                 }
             }
         };
+    }
+
+    /**
+     * Frees the admission slot of a split that filters but never reports a sample.
+     */
+    public synchronized void releaseSamplingSlot()
+    {
+        if (mode == FilteringMode.SAMPLING && samplingSplitsInFlight > 0) {
+            samplingSplitsInFlight--;
+        }
     }
 
     public synchronized void recordProcessed(long totalRows, long rowsAfterFiltering, long totalChunks, long matchedChunks)
@@ -85,6 +111,7 @@ public class FilteringStats
                 "Total chunks %s is expected to be greater or equals to the number of matched chunks %s",
                 totalChunks,
                 matchedChunks);
+        releaseSamplingSlot();
         if (totalRows == 0) {
             // empty splits carry no selectivity signal
             return;
@@ -130,6 +157,9 @@ public class FilteringStats
         totalChunks = 0;
         matchedChunks = 0;
         sampledSplits = 0;
+        samplingSplitsInFlight = 0;
+        // a retry is speculative, so let fewer splits filter at once than in the first sample
+        samplingAdmissionLimit = MIN_SAMPLE_SPLITS;
         proxiedSplitsSinceDisabled = 0;
     }
 
@@ -143,6 +173,7 @@ public class FilteringStats
                 .add("totalChunks", totalChunks)
                 .add("matchedChunks", matchedChunks)
                 .add("sampledSplits", sampledSplits)
+                .add("samplingSplitsInFlight", samplingSplitsInFlight)
                 .add("proxiedSplitsSinceDisabled", proxiedSplitsSinceDisabled)
                 .toString();
     }

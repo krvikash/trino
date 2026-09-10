@@ -25,6 +25,8 @@ public class FilteringStatsTest
     private static final long ROWS_PER_SPLIT = 4096;
     private static final long CHUNKS_PER_SPLIT = 100;
     private static final int RESAMPLE_AFTER_PROXIED_SPLITS = 32;
+    private static final int MAX_SAMPLING_SPLITS = 8;
+    private static final int MIN_SAMPLE_SPLITS = 2;
 
     @Test
     public void testFilteringAdmittedWhileSampling()
@@ -100,6 +102,65 @@ public class FilteringStatsTest
         }
         assertThat(filteringStats.tryAdmitFiltering()).isTrue();
         assertThat(filteringStats.tryAdmitFiltering()).isTrue();
+    }
+
+    @Test
+    public void testSamplingAdmitsABoundedNumberOfSplitsAtOnce()
+    {
+        FilteringStats filteringStats = new FilteringStats(LOW_SELECTIVITY_THRESHOLD, CHUNK_SKIP_THRESHOLD);
+        for (int split = 0; split < MAX_SAMPLING_SPLITS; split++) {
+            assertThat(filteringStats.tryAdmitFiltering()).isTrue();
+        }
+        assertThat(filteringStats.tryAdmitFiltering()).isFalse();
+    }
+
+    @Test
+    public void testSampledSplitFreesItsSamplingSlot()
+    {
+        FilteringStats filteringStats = new FilteringStats(LOW_SELECTIVITY_THRESHOLD, CHUNK_SKIP_THRESHOLD);
+        for (int split = 0; split < MAX_SAMPLING_SPLITS; split++) {
+            assertThat(filteringStats.tryAdmitFiltering()).isTrue();
+        }
+        recordSplit(filteringStats, 1, CHUNKS_PER_SPLIT);
+        assertThat(filteringStats.tryAdmitFiltering()).isTrue();
+    }
+
+    @Test
+    public void testSplitWithoutASampleFreesItsSamplingSlot()
+    {
+        FilteringStats filteringStats = new FilteringStats(LOW_SELECTIVITY_THRESHOLD, CHUNK_SKIP_THRESHOLD);
+        for (int split = 0; split < MAX_SAMPLING_SPLITS; split++) {
+            assertThat(filteringStats.tryAdmitFiltering()).isTrue();
+        }
+        filteringStats.releaseSamplingSlot();
+        assertThat(filteringStats.tryAdmitFiltering()).isTrue();
+        assertThat(filteringStats.tryAdmitFiltering()).isFalse();
+    }
+
+    @Test
+    public void testEnabledFilteringIgnoresTheSamplingBound()
+    {
+        FilteringStats filteringStats = new FilteringStats(LOW_SELECTIVITY_THRESHOLD, CHUNK_SKIP_THRESHOLD);
+        recordSplit(filteringStats, 1, CHUNKS_PER_SPLIT);
+        recordSplit(filteringStats, 1, CHUNKS_PER_SPLIT);
+        for (int split = 0; split < MAX_SAMPLING_SPLITS + 1; split++) {
+            assertThat(filteringStats.tryAdmitFiltering()).isTrue();
+        }
+    }
+
+    @Test
+    public void testRetryAfterDisabledSamplesFewerSplitsAtOnce()
+    {
+        FilteringStats filteringStats = new FilteringStats(LOW_SELECTIVITY_THRESHOLD, CHUNK_SKIP_THRESHOLD);
+        recordSplit(filteringStats, ROWS_PER_SPLIT, CHUNKS_PER_SPLIT);
+        recordSplit(filteringStats, ROWS_PER_SPLIT, CHUNKS_PER_SPLIT);
+        for (int split = 0; split < RESAMPLE_AFTER_PROXIED_SPLITS - 1; split++) {
+            assertThat(filteringStats.tryAdmitFiltering()).isFalse();
+        }
+        for (int split = 0; split < MIN_SAMPLE_SPLITS; split++) {
+            assertThat(filteringStats.tryAdmitFiltering()).isTrue();
+        }
+        assertThat(filteringStats.tryAdmitFiltering()).isFalse();
     }
 
     @Test
