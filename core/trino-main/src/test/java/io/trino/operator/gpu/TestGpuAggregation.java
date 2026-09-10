@@ -87,7 +87,7 @@ import static io.trino.sql.planner.plan.AggregationNode.Step.PARTIAL;
 import static io.trino.sql.planner.plan.AggregationNode.Step.SINGLE;
 import static org.assertj.core.api.Assertions.assertThat;
 
-final class TestGpuAggregationOperator
+final class TestGpuAggregation
 {
     private static final TestingFunctionResolution FUNCTION_RESOLUTION = new TestingFunctionResolution();
     private static final int GROUP_KEY_CHANNEL = 0;
