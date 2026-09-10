@@ -21,6 +21,7 @@ import io.trino.plugin.deltalake.DeltaLakeQueryRunner;
 import io.trino.testing.BaseConnectorSmokeTest;
 import io.trino.testing.QueryRunner;
 import io.trino.testing.TestingConnectorBehavior;
+import io.trino.testing.services.junit.Flaky;
 import io.trino.testing.sql.SqlExecutor;
 import io.trino.tpch.TpchTable;
 import org.intellij.lang.annotations.Language;
@@ -256,6 +257,7 @@ abstract class BaseUnityMetastoreDeltaConnectorSmokeTest
     }
 
     @Test
+    @Flaky(issue = "https://starburstdata.atlassian.net/browse/ENG-12193", match = "HTTP request failed by code: 500")
     void testExternalTableReadWriteTimestampNtz()
     {
         String tableName = "external_read_write_timestamp_ntz_" + randomNameSuffix();
