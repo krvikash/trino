@@ -24,7 +24,8 @@ import static com.google.common.base.Preconditions.checkArgument;
  * for downstream savings to pay for it instead. Only a bounded number of splits sample at once, so
  * the cost of a wrong guess does not scale with how many splits the workers start in parallel.
  * After enough proxied splits the sample is reset and filtering is retried, so selectivity that
- * varies across a table is picked up.
+ * varies across a table is picked up. Each retry that confirms the verdict doubles the wait before
+ * the next one.
  */
 public class FilteringStats
 {
@@ -40,7 +41,8 @@ public class FilteringStats
     /**
      * Retry filtering periodically in case index selectivity improves in later regions of the table.
      */
-    private static final int RESAMPLE_AFTER_PROXIED_SPLITS = 32;
+    private static final int INITIAL_RESAMPLE_AFTER_PROXIED_SPLITS = 32;
+    private static final int MAX_RESAMPLE_AFTER_PROXIED_SPLITS = 512;
 
     private final double lowSelectivityThreshold;
     private final double chunkSkipThreshold;
@@ -54,6 +56,8 @@ public class FilteringStats
     private int samplingSplitsInFlight;
     private int samplingAdmissionLimit = MAX_SAMPLING_SPLITS;
     private int proxiedSplitsSinceDisabled;
+    private int resampleAfterProxiedSplits = INITIAL_RESAMPLE_AFTER_PROXIED_SPLITS;
+    private boolean retryingAfterDisabled;
 
     public FilteringStats(double lowSelectivityThreshold, double chunkSkipThreshold)
     {
@@ -79,7 +83,7 @@ public class FilteringStats
             case ENABLED -> true;
             case DISABLED -> {
                 proxiedSplitsSinceDisabled++;
-                if (proxiedSplitsSinceDisabled >= RESAMPLE_AFTER_PROXIED_SPLITS) {
+                if (proxiedSplitsSinceDisabled >= resampleAfterProxiedSplits) {
                     resetSample();
                     samplingSplitsInFlight++;
                     yield true;
@@ -128,12 +132,18 @@ public class FilteringStats
 
         if (isInefficient()) {
             if (mode != FilteringMode.DISABLED) {
+                if (retryingAfterDisabled) {
+                    // the retry confirmed the verdict, so wait longer before spending splits on the next one
+                    resampleAfterProxiedSplits = Math.min(resampleAfterProxiedSplits * 2, MAX_RESAMPLE_AFTER_PROXIED_SPLITS);
+                }
                 mode = FilteringMode.DISABLED;
                 proxiedSplitsSinceDisabled = 0;
             }
         }
         else {
             mode = FilteringMode.ENABLED;
+            retryingAfterDisabled = false;
+            resampleAfterProxiedSplits = INITIAL_RESAMPLE_AFTER_PROXIED_SPLITS;
         }
     }
 
@@ -161,6 +171,7 @@ public class FilteringStats
         // a retry is speculative, so let fewer splits filter at once than in the first sample
         samplingAdmissionLimit = MIN_SAMPLE_SPLITS;
         proxiedSplitsSinceDisabled = 0;
+        retryingAfterDisabled = true;
     }
 
     @Override
@@ -175,6 +186,7 @@ public class FilteringStats
                 .add("sampledSplits", sampledSplits)
                 .add("samplingSplitsInFlight", samplingSplitsInFlight)
                 .add("proxiedSplitsSinceDisabled", proxiedSplitsSinceDisabled)
+                .add("resampleAfterProxiedSplits", resampleAfterProxiedSplits)
                 .toString();
     }
 

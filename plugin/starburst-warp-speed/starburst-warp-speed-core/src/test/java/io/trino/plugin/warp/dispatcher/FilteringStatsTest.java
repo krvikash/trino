@@ -24,7 +24,8 @@ public class FilteringStatsTest
     private static final double CHUNK_SKIP_THRESHOLD = 0.05;
     private static final long ROWS_PER_SPLIT = 4096;
     private static final long CHUNKS_PER_SPLIT = 100;
-    private static final int RESAMPLE_AFTER_PROXIED_SPLITS = 32;
+    private static final int INITIAL_RESAMPLE_AFTER_PROXIED_SPLITS = 32;
+    private static final int MAX_RESAMPLE_AFTER_PROXIED_SPLITS = 512;
     private static final int MAX_SAMPLING_SPLITS = 8;
     private static final int MIN_SAMPLE_SPLITS = 2;
 
@@ -97,7 +98,7 @@ public class FilteringStatsTest
         FilteringStats filteringStats = new FilteringStats(LOW_SELECTIVITY_THRESHOLD, CHUNK_SKIP_THRESHOLD);
         recordSplit(filteringStats, ROWS_PER_SPLIT, CHUNKS_PER_SPLIT);
         recordSplit(filteringStats, ROWS_PER_SPLIT, CHUNKS_PER_SPLIT);
-        for (int split = 0; split < RESAMPLE_AFTER_PROXIED_SPLITS - 1; split++) {
+        for (int split = 0; split < INITIAL_RESAMPLE_AFTER_PROXIED_SPLITS - 1; split++) {
             assertThat(filteringStats.tryAdmitFiltering()).isFalse();
         }
         assertThat(filteringStats.tryAdmitFiltering()).isTrue();
@@ -154,13 +155,47 @@ public class FilteringStatsTest
         FilteringStats filteringStats = new FilteringStats(LOW_SELECTIVITY_THRESHOLD, CHUNK_SKIP_THRESHOLD);
         recordSplit(filteringStats, ROWS_PER_SPLIT, CHUNKS_PER_SPLIT);
         recordSplit(filteringStats, ROWS_PER_SPLIT, CHUNKS_PER_SPLIT);
-        for (int split = 0; split < RESAMPLE_AFTER_PROXIED_SPLITS - 1; split++) {
+        for (int split = 0; split < INITIAL_RESAMPLE_AFTER_PROXIED_SPLITS - 1; split++) {
             assertThat(filteringStats.tryAdmitFiltering()).isFalse();
         }
         for (int split = 0; split < MIN_SAMPLE_SPLITS; split++) {
             assertThat(filteringStats.tryAdmitFiltering()).isTrue();
         }
         assertThat(filteringStats.tryAdmitFiltering()).isFalse();
+    }
+
+    @Test
+    public void testResampleWaitDoublesWhenARetryConfirmsInefficiency()
+    {
+        FilteringStats filteringStats = new FilteringStats(LOW_SELECTIVITY_THRESHOLD, CHUNK_SKIP_THRESHOLD);
+        disableFiltering(filteringStats);
+        proxySplitsUntilRetry(filteringStats, INITIAL_RESAMPLE_AFTER_PROXIED_SPLITS);
+        disableFiltering(filteringStats);
+        proxySplitsUntilRetry(filteringStats, 2 * INITIAL_RESAMPLE_AFTER_PROXIED_SPLITS);
+    }
+
+    @Test
+    public void testResampleWaitStopsGrowingAtItsMaximum()
+    {
+        FilteringStats filteringStats = new FilteringStats(LOW_SELECTIVITY_THRESHOLD, CHUNK_SKIP_THRESHOLD);
+        disableFiltering(filteringStats);
+        for (int proxiedSplits = INITIAL_RESAMPLE_AFTER_PROXIED_SPLITS; proxiedSplits <= MAX_RESAMPLE_AFTER_PROXIED_SPLITS; proxiedSplits *= 2) {
+            proxySplitsUntilRetry(filteringStats, proxiedSplits);
+            disableFiltering(filteringStats);
+        }
+        proxySplitsUntilRetry(filteringStats, MAX_RESAMPLE_AFTER_PROXIED_SPLITS);
+    }
+
+    @Test
+    public void testResampleWaitResetsWhenFilteringBecomesEfficient()
+    {
+        FilteringStats filteringStats = new FilteringStats(LOW_SELECTIVITY_THRESHOLD, CHUNK_SKIP_THRESHOLD);
+        disableFiltering(filteringStats);
+        proxySplitsUntilRetry(filteringStats, INITIAL_RESAMPLE_AFTER_PROXIED_SPLITS);
+        recordSplit(filteringStats, 1, CHUNKS_PER_SPLIT);
+        recordSplit(filteringStats, 1, CHUNKS_PER_SPLIT);
+        disableFiltering(filteringStats);
+        proxySplitsUntilRetry(filteringStats, INITIAL_RESAMPLE_AFTER_PROXIED_SPLITS);
     }
 
     @Test
@@ -191,5 +226,21 @@ public class FilteringStatsTest
     private static void recordSplit(FilteringStats filteringStats, long rowsAfterFiltering, long matchedChunks)
     {
         filteringStats.recordProcessed(ROWS_PER_SPLIT, rowsAfterFiltering, CHUNKS_PER_SPLIT, matchedChunks);
+    }
+
+    private static void disableFiltering(FilteringStats filteringStats)
+    {
+        recordSplit(filteringStats, ROWS_PER_SPLIT, CHUNKS_PER_SPLIT);
+        recordSplit(filteringStats, ROWS_PER_SPLIT, CHUNKS_PER_SPLIT);
+        assertThat(filteringStats.tryAdmitFiltering()).isFalse();
+    }
+
+    private static void proxySplitsUntilRetry(FilteringStats filteringStats, int proxiedSplits)
+    {
+        // the denied split in disableFiltering already counts towards the wait
+        for (int split = 0; split < proxiedSplits - 2; split++) {
+            assertThat(filteringStats.tryAdmitFiltering()).isFalse();
+        }
+        assertThat(filteringStats.tryAdmitFiltering()).isTrue();
     }
 }
