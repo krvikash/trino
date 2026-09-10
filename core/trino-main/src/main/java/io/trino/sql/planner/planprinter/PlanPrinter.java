@@ -39,12 +39,15 @@ import io.trino.execution.TableInfo;
 import io.trino.execution.TaskInfo;
 import io.trino.metadata.FunctionManager;
 import io.trino.metadata.Metadata;
+import io.trino.metadata.QualifiedObjectName;
 import io.trino.metadata.ResolvedFunction;
 import io.trino.metadata.TableHandle;
 import io.trino.plugin.base.metrics.DistributionSnapshot;
 import io.trino.server.DynamicFilterService.DynamicFilterDomainStats;
 import io.trino.spi.NodeVersion;
+import io.trino.spi.connector.CatalogSchemaTableName;
 import io.trino.spi.connector.ColumnHandle;
+import io.trino.spi.eventlistener.MaterializedViewSubstitutionOutcome;
 import io.trino.spi.expression.FunctionName;
 import io.trino.spi.function.CatalogSchemaFunctionName;
 import io.trino.spi.function.table.Argument;
@@ -510,6 +513,7 @@ public class PlanPrinter
                 .collect(toImmutableMap(DynamicFilterDomainStats::getDynamicFilterId, identity()));
 
         builder.append(format("Trino version: %s\n", version));
+        appendMvSubstitutionBlock(builder, queryStats.getMaterializedViewSubstitutions(), valuePrinter, anonymizer, verbose);
         builder.append(format(
                 "Queued: %s, Analysis: %s, Planning: %s, Execution: %s, Finishing: %s\n",
                 queryStats.getQueuedTime().convertToMostSuccinctTimeUnit(),
@@ -539,10 +543,23 @@ public class PlanPrinter
 
     public static String textDistributedPlan(SubPlan plan, Metadata metadata, FunctionManager functionManager, Session session, boolean verbose, NodeVersion version)
     {
+        return textDistributedPlan(plan, metadata, functionManager, session, verbose, version, ImmutableList.of());
+    }
+
+    public static String textDistributedPlan(
+            SubPlan plan,
+            Metadata metadata,
+            FunctionManager functionManager,
+            Session session,
+            boolean verbose,
+            NodeVersion version,
+            List<MaterializedViewSubstitution> mvSubstitutionRows)
+    {
         TableInfoSupplier tableInfoSupplier = new TableInfoSupplier(metadata, session);
         ValuePrinter valuePrinter = new ValuePrinter(metadata, functionManager, session);
         StringBuilder builder = new StringBuilder();
         builder.append(format("Trino version: %s\n", version));
+        appendMvSubstitutionBlock(builder, mvSubstitutionRows, valuePrinter, new NoOpAnonymizer(), verbose);
         for (PlanFragment fragment : plan.getAllFragments()) {
             builder.append(formatFragment(
                     tableInfoSupplier,
@@ -557,6 +574,39 @@ public class PlanPrinter
         }
 
         return builder.toString();
+    }
+
+    /**
+     * Appends a plan-level "Substituted materialized views:" block: for each {@code SUBSTITUTED} row, the
+     * summary line plus the replaced query-side subtree indented beneath it. Blocks are deduplicated and
+     * ordered by their full rendered text, so multiple scans of the same substitution with identical
+     * subtrees collapse into one, deterministic entry, while scans whose subtrees differ (e.g. different
+     * projected columns) legitimately render as separate entries. Omitted entirely when there are no
+     * {@code SUBSTITUTED} rows.
+     */
+    @VisibleForTesting
+    static void appendMvSubstitutionBlock(StringBuilder builder, List<MaterializedViewSubstitution> substitutions, ValuePrinter valuePrinter, Anonymizer anonymizer, boolean verbose)
+    {
+        List<String> blocks = substitutions.stream()
+                .filter(row -> row.outcome() == MaterializedViewSubstitutionOutcome.SUBSTITUTED)
+                .map(row -> {
+                    String summaryLine = format(
+                            "%s%s (refreshed %s)\n",
+                            indentString(1),
+                            anonymizer.anonymize(toQualifiedObjectName(row.materializedView().orElseThrow(() -> new IllegalStateException("Substituted row missing materializedView: " + row)))),
+                            row.lastRefreshTime().orElseThrow(() -> new IllegalStateException("Substituted row missing lastRefreshTime: " + row)));
+                    return row.replacedPlan()
+                            .map(replacedPlan -> summaryLine + indentString(2) + "replaced plan:\n" + renderReplacedPlan(replacedPlan, valuePrinter, anonymizer, verbose))
+                            .orElse(summaryLine);
+                })
+                .distinct()
+                .sorted()
+                .collect(toImmutableList());
+        if (blocks.isEmpty()) {
+            return;
+        }
+        builder.append("Substituted materialized views:\n");
+        blocks.forEach(builder::append);
     }
 
     public static String renderReplacedPlan(MaterializedViewSubstitution.ReplacedPlan replacedPlan, ValuePrinter valuePrinter, Anonymizer anonymizer, boolean verbose)
@@ -575,6 +625,11 @@ public class PlanPrinter
                 anonymizer,
                 verbose)
                 .toText(verbose, 3);
+    }
+
+    private static QualifiedObjectName toQualifiedObjectName(CatalogSchemaTableName table)
+    {
+        return new QualifiedObjectName(table.getCatalogName(), table.getSchemaTableName().getSchemaName(), table.getSchemaTableName().getTableName());
     }
 
     private static String formatFragment(

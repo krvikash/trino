@@ -135,13 +135,19 @@ public class QueryExplainer
 
     private String textDistributedPlan(Session session, Statement statement, List<Expression> parameters, WarningCollector warningCollector, PlanOptimizersStatsCollector planOptimizersStatsCollector)
     {
+        // Fresh per-invocation collector: this planning run belongs to EXPLAIN itself, not to the outer
+        // query's QueryStateMachine, so rejections are not surfaced anywhere beyond this text. Rows are
+        // passed through unfiltered; PlanPrinter itself keeps only the SUBSTITUTED ones when rendering.
+        MvSubstitutionCollector mvSubstitutionCollector = new MvSubstitutionCollector();
+        SubPlan distributedPlan = getDistributedPlan(session, statement, parameters, warningCollector, planOptimizersStatsCollector, mvSubstitutionCollector);
         return PlanPrinter.textDistributedPlan(
-                getDistributedPlan(session, statement, parameters, warningCollector, planOptimizersStatsCollector),
+                distributedPlan,
                 plannerContext.getMetadata(),
                 plannerContext.getFunctionManager(),
                 session,
                 false,
-                version);
+                version,
+                mvSubstitutionCollector.getSubstitutions());
     }
 
     public String getGraphvizPlan(Session session, Statement statement, Type planType, List<Expression> parameters, WarningCollector warningCollector, PlanOptimizersStatsCollector planOptimizersStatsCollector)
@@ -203,6 +209,17 @@ public class QueryExplainer
 
     public PlanningResult getLogicalPlan(Session session, Statement statement, List<Expression> parameters, WarningCollector warningCollector, PlanOptimizersStatsCollector planOptimizersStatsCollector)
     {
+        return getLogicalPlan(session, statement, parameters, warningCollector, planOptimizersStatsCollector, MvSubstitutionCollector.NOOP);
+    }
+
+    private PlanningResult getLogicalPlan(
+            Session session,
+            Statement statement,
+            List<Expression> parameters,
+            WarningCollector warningCollector,
+            PlanOptimizersStatsCollector planOptimizersStatsCollector,
+            MvSubstitutionCollector mvSubstitutionCollector)
+    {
         // analyze statement
         Analysis analysis = analyze(session, statement, parameters, warningCollector, planOptimizersStatsCollector);
 
@@ -222,7 +239,7 @@ public class QueryExplainer
                 planOptimizersStatsCollector,
                 new CachingTableStatsProvider(plannerContext.getMetadata(), session, () -> false),
                 formatOptions,
-                MvSubstitutionCollector.NOOP);
+                mvSubstitutionCollector);
         return logicalPlanner.plan(analysis, OPTIMIZED_AND_VALIDATED, true, true);
     }
 
@@ -234,7 +251,18 @@ public class QueryExplainer
 
     private SubPlan getDistributedPlan(Session session, Statement statement, List<Expression> parameters, WarningCollector warningCollector, PlanOptimizersStatsCollector planOptimizersStatsCollector)
     {
-        PlanningResult planningResult = getLogicalPlan(session, statement, parameters, warningCollector, planOptimizersStatsCollector);
+        return getDistributedPlan(session, statement, parameters, warningCollector, planOptimizersStatsCollector, MvSubstitutionCollector.NOOP);
+    }
+
+    private SubPlan getDistributedPlan(
+            Session session,
+            Statement statement,
+            List<Expression> parameters,
+            WarningCollector warningCollector,
+            PlanOptimizersStatsCollector planOptimizersStatsCollector,
+            MvSubstitutionCollector mvSubstitutionCollector)
+    {
+        PlanningResult planningResult = getLogicalPlan(session, statement, parameters, warningCollector, planOptimizersStatsCollector, mvSubstitutionCollector);
         boolean forceSingleNodeQuery = planningResult.forceSingleNodeQuery();
 
         Optional<Program> optimizedProgram = planningResult.newIrProgram();

@@ -17,8 +17,11 @@ import io.trino.Session;
 import io.trino.plugin.iceberg.TestingIcebergPlugin;
 import io.trino.plugin.tpch.TpchPlugin;
 import io.trino.spi.connector.CatalogSchemaName;
+import io.trino.spi.connector.CatalogSchemaTableName;
+import io.trino.sql.tree.ExplainType;
 import io.trino.testing.QueryRunner;
 import io.trino.testing.substitution.AbstractMvSubstitutionFullTest;
+import org.junit.jupiter.api.Test;
 
 import java.nio.file.Path;
 import java.util.Map;
@@ -26,6 +29,7 @@ import java.util.Map;
 import static io.trino.plugin.base.util.Closables.closeAllSuppress;
 import static io.trino.plugin.iceberg.IcebergQueryRunner.ICEBERG_CATALOG;
 import static io.trino.testing.TestingSession.testSessionBuilder;
+import static org.assertj.core.api.Assertions.assertThat;
 
 public abstract class AbstractIcebergMvSubstitutionTest
         extends AbstractMvSubstitutionFullTest
@@ -98,5 +102,120 @@ public abstract class AbstractIcebergMvSubstitutionTest
     protected boolean createSourceSchema()
     {
         return true;
+    }
+
+    @Test
+    public void testExplainShowsSubstitutedMaterializedView()
+    {
+        CatalogSchemaTableName mvName = mvName("mv_explain_substituted_");
+        try {
+            assertUpdate("CREATE MATERIALIZED VIEW " + mvName + " WITH (substitution_enabled = true) AS SELECT * FROM " + ordersTable);
+            getQueryRunner().execute("REFRESH MATERIALIZED VIEW " + mvName);
+
+            Session session = sessionWithSubstitution();
+            String substitutedExplain = getExplainPlan(session, "SELECT * FROM " + ordersTable, ExplainType.Type.DISTRIBUTED);
+            assertThat(substitutedExplain)
+                    .contains("Substituted materialized views:")
+                    .contains(mvName + " (refreshed ")
+                    .contains("replaced plan:")
+                    .contains("TableScan");
+
+            String nonSubstitutedExplain = getExplainPlan(session, "SELECT * FROM " + lineitemTable, ExplainType.Type.DISTRIBUTED);
+            assertThat(nonSubstitutedExplain).doesNotContain("Substituted materialized views");
+        }
+        finally {
+            assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvName);
+        }
+    }
+
+    @Test
+    public void testExplainAnalyzeShowsSubstitutedMaterializedView()
+    {
+        // EXPLAIN ANALYZE renders substitutions from QueryStats rather than replanning via QueryExplainer.
+        CatalogSchemaTableName mvName = mvName("mv_explain_analyze_substituted_");
+        try {
+            assertUpdate("CREATE MATERIALIZED VIEW " + mvName + " WITH (substitution_enabled = true) AS SELECT * FROM " + ordersTable);
+            getQueryRunner().execute("REFRESH MATERIALIZED VIEW " + mvName);
+
+            Session session = sessionWithSubstitution();
+            String explainAnalyze = (String) computeActual(session, "EXPLAIN ANALYZE SELECT * FROM " + ordersTable).getOnlyValue();
+            assertThat(explainAnalyze)
+                    .contains("Substituted materialized views:")
+                    .contains(mvName + " (refreshed ")
+                    .contains("replaced plan:")
+                    .contains("TableScan");
+        }
+        finally {
+            assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvName);
+        }
+    }
+
+    @Test
+    public void testExplainShowsSubstitutedMaterializedViewWithFilterAndProject()
+    {
+        CatalogSchemaTableName mvName = mvName("mv_explain_filter_project_");
+        try {
+            assertUpdate("CREATE MATERIALIZED VIEW " + mvName + " WITH (substitution_enabled = true) AS SELECT orderkey, custkey, orderstatus, totalprice FROM " + ordersTable);
+            getQueryRunner().execute("REFRESH MATERIALIZED VIEW " + mvName);
+
+            Session session = sessionWithSubstitution();
+            String explain = getExplainPlan(session, "SELECT orderkey, totalprice FROM " + ordersTable + " WHERE orderstatus = 'F'", ExplainType.Type.DISTRIBUTED);
+            assertThat(explain)
+                    .contains(mvName + " (refreshed ")
+                    .contains("replaced plan:")
+                    .contains("TableScan");
+        }
+        finally {
+            assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvName);
+        }
+    }
+
+    @Test
+    public void testExplainByteIdenticalWhenNoSubstitutionOccurs()
+    {
+        // A candidate MV that is rejected during matching (a near-miss, not just the absence of any
+        // MV) must still leave the rendered EXPLAIN text unchanged: only SUBSTITUTED outcomes render
+        // the header, so the text must be identical whether the session-level feature is on or off.
+        CatalogSchemaTableName mvName = mvName("mv_explain_near_miss_");
+        try {
+            assertUpdate("CREATE MATERIALIZED VIEW " + mvName + " WITH (substitution_enabled = true) AS SELECT orderkey, custkey FROM " + ordersTable);
+            getQueryRunner().execute("REFRESH MATERIALIZED VIEW " + mvName);
+
+            String query = "SELECT orderkey, totalprice FROM " + ordersTable;
+            assertNotSubstituted(sessionWithSubstitution(), query, ordersTable);
+
+            String withFeatureOn = getExplainPlan(sessionWithSubstitution(), query, ExplainType.Type.DISTRIBUTED);
+            String withFeatureOff = getExplainPlan(sessionWithoutSubstitution(), query, ExplainType.Type.DISTRIBUTED);
+            assertThat(withFeatureOn)
+                    .doesNotContain("Substituted materialized views")
+                    .isEqualTo(withFeatureOff);
+        }
+        finally {
+            assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvName);
+        }
+    }
+
+    @Test
+    public void testExplainSelfJoinSubstitutionRendersOneEntryPerDistinctReplacedPlan()
+    {
+        // A self-join substitutes each occurrence of the base table independently, producing two
+        // SUBSTITUTED rows for the same (materialized view, base table, refresh time) triple. The block
+        // collapses two such rows into a single entry only when their replaced subtrees render
+        // identically; every occurrence of the base table must still be represented by some entry.
+        CatalogSchemaTableName mvName = mvName("mv_explain_self_join_");
+        try {
+            assertUpdate("CREATE MATERIALIZED VIEW " + mvName + " WITH (substitution_enabled = true) AS SELECT * FROM " + ordersTable);
+            getQueryRunner().execute("REFRESH MATERIALIZED VIEW " + mvName);
+
+            String query = "SELECT a.orderkey FROM " + ordersTable + " a JOIN " + ordersTable + " b ON a.orderkey = b.orderkey";
+            String explain = getExplainPlan(sessionWithSubstitution(), query, ExplainType.Type.DISTRIBUTED);
+            long headerLines = explain.lines().filter(line -> line.contains(mvName + " (refreshed ")).count();
+            long replacedPlanBlocks = explain.lines().filter(line -> line.contains("replaced plan:")).count();
+            assertThat(headerLines).isBetween(1L, 2L);
+            assertThat(replacedPlanBlocks).isEqualTo(headerLines);
+        }
+        finally {
+            assertUpdate("DROP MATERIALIZED VIEW IF EXISTS " + mvName);
+        }
     }
 }

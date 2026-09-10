@@ -16,6 +16,8 @@ package io.trino.sql.planner.planprinter;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.airlift.json.JsonCodec;
+import io.starburst.server.substitution.MaterializedViewSubstitution;
+import io.starburst.server.substitution.MaterializedViewSubstitution.ReplacedPlan;
 import io.trino.connector.TestingColumnHandle;
 import io.trino.cost.StatsAndCosts;
 import io.trino.execution.TableInfo;
@@ -24,7 +26,9 @@ import io.trino.metadata.TableHandle;
 import io.trino.plugin.tpch.TpchPlugin;
 import io.trino.plugin.tpch.TpchTableHandle;
 import io.trino.plugin.tpch.TpchTransactionHandle;
+import io.trino.spi.connector.CatalogSchemaTableName;
 import io.trino.spi.connector.ColumnHandle;
+import io.trino.spi.eventlistener.MaterializedViewSubstitutionOutcome;
 import io.trino.spi.predicate.Domain;
 import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.predicate.ValueSet;
@@ -35,6 +39,7 @@ import io.trino.sql.planner.iterative.rule.test.PlanBuilder;
 import io.trino.sql.planner.plan.DynamicFilterId;
 import io.trino.sql.planner.plan.JoinNode;
 import io.trino.sql.planner.plan.PlanNode;
+import io.trino.sql.planner.plan.TableScanNode;
 import io.trino.sql.planner.planprinter.JsonRenderer.JsonRenderedNode;
 import io.trino.testing.QueryRunner;
 import io.trino.testing.StandaloneQueryRunner;
@@ -44,6 +49,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.parallel.Execution;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
@@ -200,6 +206,50 @@ public class TestAnonymizeJsonRepresentation
                                 "symbol_4 := column_4"),
                         ImmutableList.of(),
                         ImmutableList.of()));
+    }
+
+    @Test
+    public void testMvSubstitutionBlockNamesAnonymized()
+    {
+        queryRunner.inTransaction(session -> {
+            PlanBuilder planBuilder = new PlanBuilder(new PlanNodeIdAllocator(), queryRunner.getPlannerContext(), session);
+            TableScanNode replacedScan = planBuilder.tableScan(
+                    new TableHandle(
+                            queryRunner.getPlannerContext().getMetadata().getCatalogHandle(session, "tpch").orElseThrow(),
+                            new TpchTableHandle(TINY_SCHEMA_NAME, "orders", TINY_SCALE_FACTOR),
+                            TpchTransactionHandle.INSTANCE),
+                    ImmutableList.of(planBuilder.symbol("orderkey", BIGINT)),
+                    ImmutableMap.of(planBuilder.symbol("orderkey", BIGINT), TEST_COLUMN_HANDLE_A));
+            ReplacedPlan replacedPlan = new ReplacedPlan(replacedScan, ImmutableMap.of(replacedScan.getId(), TABLE_INFO));
+
+            List<MaterializedViewSubstitution> mvSubstitutions = ImmutableList.of(new MaterializedViewSubstitution(
+                    Optional.of(new CatalogSchemaTableName("mv_catalog", "mv_schema", "mv_view_name")),
+                    MaterializedViewSubstitutionOutcome.SUBSTITUTED,
+                    Optional.of(new CatalogSchemaTableName("mv_catalog", "mv_schema", "mv_view_name$data")),
+                    Optional.of(Instant.parse("2026-08-23T10:00:00Z")),
+                    Optional.of(replacedPlan)));
+            ValuePrinter valuePrinter = new ValuePrinter(queryRunner.getPlannerContext().getMetadata(), queryRunner.getPlannerContext().getFunctionManager(), session);
+
+            StringBuilder noOpBlock = new StringBuilder();
+            PlanPrinter.appendMvSubstitutionBlock(noOpBlock, mvSubstitutions, valuePrinter, new NoOpAnonymizer(), false);
+            assertThat(noOpBlock.toString())
+                    .contains("Substituted materialized views:")
+                    .contains("mv_catalog.mv_schema.mv_view_name (refreshed 2026-08-23T10:00:00Z)")
+                    .contains("replaced plan:")
+                    .contains("TableScan");
+
+            StringBuilder anonymizedBlock = new StringBuilder();
+            PlanPrinter.appendMvSubstitutionBlock(anonymizedBlock, mvSubstitutions, valuePrinter, new CounterBasedAnonymizer(), false);
+            assertThat(anonymizedBlock.toString())
+                    .contains("Substituted materialized views:")
+                    .contains("replaced plan:")
+                    .contains("TableScan")
+                    .doesNotContain("mv_catalog")
+                    .doesNotContain("mv_schema")
+                    .doesNotContain("mv_view_name")
+                    .doesNotContain("orders");
+            return null;
+        });
     }
 
     @Test
