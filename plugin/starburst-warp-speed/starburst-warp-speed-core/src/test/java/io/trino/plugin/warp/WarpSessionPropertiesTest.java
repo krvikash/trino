@@ -23,11 +23,15 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.Set;
 
+import static com.google.common.collect.MoreCollectors.onlyElement;
+import static io.trino.plugin.warp.WarpSessionProperties.FILTERING_CHUNK_SKIP_THRESHOLD;
+import static io.trino.plugin.warp.WarpSessionProperties.FILTERING_LOW_SELECTIVITY_THRESHOLD;
 import static io.trino.plugin.warp.WarpSessionProperties.PREDICATE_SIMPLIFY_THRESHOLD;
 import static io.trino.plugin.warp.WarpSessionProperties.UNSUPPORTED_FUNCTIONS;
 import static io.trino.plugin.warp.WarpSessionProperties.UNSUPPORTED_NATIVE_FUNCTIONS;
 import static io.trino.spi.expression.StandardFunctions.LIKE_FUNCTION_NAME;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -44,6 +48,21 @@ public class WarpSessionPropertiesTest
         WarpSessionProperties warpSessionProperties = new WarpSessionProperties(new SharedConfig(), new GlobalConfig());
         List<PropertyMetadata<?>> sessionProperties = warpSessionProperties.getSessionProperties();
         sessionProperties.stream().filter(sessionProperty -> !allowedNullProps.contains(sessionProperty.getName())).forEach(property -> assertThat(property.getDefaultValue()).isNotNull());
+    }
+
+    @Test
+    public void testFilteringThresholdsOutsideTheUnitRangeAreRejected()
+    {
+        List<PropertyMetadata<?>> sessionProperties = new WarpSessionProperties(new SharedConfig(), new GlobalConfig()).getSessionProperties();
+        for (String name : List.of(FILTERING_LOW_SELECTIVITY_THRESHOLD, FILTERING_CHUNK_SKIP_THRESHOLD)) {
+            PropertyMetadata<?> property = sessionProperties.stream()
+                    .filter(sessionProperty -> sessionProperty.getName().equals(name))
+                    .collect(onlyElement());
+            assertThatThrownBy(() -> property.decode(1.5))
+                    .hasMessageContaining(name + " must be in range [0, 1]");
+            assertThatThrownBy(() -> property.decode(Double.NaN))
+                    .hasMessageContaining(name + " must be in range [0, 1]");
+        }
     }
 
     @Test

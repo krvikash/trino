@@ -82,6 +82,16 @@ public class WarpReader
         return readTimeNanos;
     }
 
+    int getTotalNumChunks()
+    {
+        return matcherArgs.chunksQueue().getTotalNumChunks();
+    }
+
+    int getMatchedNumChunks()
+    {
+        return matcherArgs.chunksQueue().getMatchedNumChunks();
+    }
+
     void close()
     {
         blocksAggregator.close(queryArgs);

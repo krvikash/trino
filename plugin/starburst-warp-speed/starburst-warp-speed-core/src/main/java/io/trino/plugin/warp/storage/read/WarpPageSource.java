@@ -98,7 +98,11 @@ public class WarpPageSource
     public void close()
     {
         if (!closed) {
-            filteringStats.ifPresent(stats -> stats.recordProcessed(queryParams.getTotalNumRecords(), completedPositions));
+            filteringStats.ifPresent(stats -> stats.recordProcessed(
+                    queryParams.getTotalNumRecords(),
+                    completedPositions,
+                    reader.getTotalNumChunks(),
+                    reader.getMatchedNumChunks()));
             closed = true;
             if (reader != null) {
                 reader.close();

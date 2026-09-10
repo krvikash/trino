@@ -16,6 +16,7 @@ package io.trino.plugin.warp.dispatcher;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.trino.plugin.warp.annotation.ForWarp;
+import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.juffer.StorageEngineTxService;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.spi.catalog.CatalogName;
@@ -33,6 +34,7 @@ public class DispatcherPageSourceProviderFactory
     private final WarpDispatcherPageSourceFactory pageSourceFactory;
     private final StorageEngineTxService txService;
     private final MetricsManager metricsManager;
+    private final GlobalConfig globalConfig;
     private final String catalogName;
 
     @Inject
@@ -41,12 +43,14 @@ public class DispatcherPageSourceProviderFactory
             WarpDispatcherPageSourceFactory pageSourceFactory,
             StorageEngineTxService txService,
             MetricsManager metricsManager,
+            GlobalConfig globalConfig,
             CatalogName catalogName)
     {
         this.connectorPageSourceProviderFactory = requireNonNull(connectorPageSourceProviderFactory);
         this.pageSourceFactory = requireNonNull(pageSourceFactory);
         this.txService = requireNonNull(txService);
         this.metricsManager = requireNonNull(metricsManager);
+        this.globalConfig = requireNonNull(globalConfig);
         this.catalogName = requireNonNull(catalogName).toString();
     }
 
@@ -60,6 +64,7 @@ public class DispatcherPageSourceProviderFactory
                 pageSourceFactory,
                 txService,
                 metricsManager,
+                globalConfig,
                 catalogName);
     }
 }

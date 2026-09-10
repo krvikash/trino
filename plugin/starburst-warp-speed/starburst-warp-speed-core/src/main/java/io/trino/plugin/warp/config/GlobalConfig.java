@@ -14,8 +14,11 @@
 package io.trino.plugin.warp.config;
 
 import io.airlift.configuration.Config;
+import io.airlift.configuration.ConfigDescription;
 import io.airlift.configuration.DefunctConfig;
 import io.airlift.units.DataSize;
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 
@@ -46,6 +49,8 @@ public class GlobalConfig
     private int exportDelayInSeconds;
     private String localStorePath = "/opt/data/INDEX-CACHE";
     private int predicateSimplifyThreshold = 1_000_000;
+    private double filteringLowSelectivityThreshold = 0.01;
+    private double filteringChunkSkipThreshold = 0.05;
     private long reservationUsageForSingleTxInBytes = 1024L * 1024 * 128;
     private long emptyPageIterations = 5000;
     private int cloudExecutorPoolSize = Runtime.getRuntime().availableProcessors() * 100;
@@ -229,6 +234,34 @@ public class GlobalConfig
         this.predicateSimplifyThreshold = predicateSimplifyThreshold;
     }
 
+    @DecimalMin("0.0")
+    @DecimalMax("1.0")
+    public double getFilteringLowSelectivityThreshold()
+    {
+        return filteringLowSelectivityThreshold;
+    }
+
+    @Config("warp-speed.config.filtering-low-selectivity-threshold")
+    @ConfigDescription("Keep filtering with the warp index regardless of chunk skipping when the fraction of rows selected is below this threshold")
+    public void setFilteringLowSelectivityThreshold(double filteringLowSelectivityThreshold)
+    {
+        this.filteringLowSelectivityThreshold = filteringLowSelectivityThreshold;
+    }
+
+    @DecimalMin("0.0")
+    @DecimalMax("1.0")
+    public double getFilteringChunkSkipThreshold()
+    {
+        return filteringChunkSkipThreshold;
+    }
+
+    @Config("warp-speed.config.filtering-chunk-skip-threshold")
+    @ConfigDescription("Avoid filtering with the warp index when the fraction of chunks skipped is below this threshold and the fraction of rows selected is not below the low selectivity threshold")
+    public void setFilteringChunkSkipThreshold(double filteringChunkSkipThreshold)
+    {
+        this.filteringChunkSkipThreshold = filteringChunkSkipThreshold;
+    }
+
     public int getMaxWarmRetries()
     {
         return maxWarmRetries;
@@ -373,6 +406,8 @@ public class GlobalConfig
                 ", exportDelayInSeconds=" + exportDelayInSeconds +
                 ", localStorePath='" + localStorePath + '\'' +
                 ", predicateSimplifyThreshold=" + predicateSimplifyThreshold +
+                ", filteringLowSelectivityThreshold=" + filteringLowSelectivityThreshold +
+                ", filteringChunkSkipThreshold=" + filteringChunkSkipThreshold +
                 ", reservationUsageForSingleTxInBytes=" + reservationUsageForSingleTxInBytes +
                 ", maxWarmRetries=" + maxWarmRetries +
                 ", warmRetryBackoffFactorInMillis=" + warmRetryBackoffFactorInMillis +

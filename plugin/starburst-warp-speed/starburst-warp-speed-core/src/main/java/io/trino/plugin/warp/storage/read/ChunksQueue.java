@@ -36,6 +36,7 @@ public class ChunksQueue
     private Optional<ChunkProperties> loadedChunkOpt;
 
     private int totalNumChunks; // in case queue is empty we return the total number of chunks
+    private int matchedNumChunks;
     private Optional<List<MemorySegment>> rootBitmapsDescriptors;
     private Optional<MemorySegment> rootBitmaps;
 
@@ -71,6 +72,7 @@ public class ChunksQueue
             int bitmapResetPoint = (int) bitmapDescriptor.get(ValueLayout.JAVA_INT, MATCH_BITMAP_DESC_OFFSET_RESET_POINT);
             if (bitmapResetPoint > 0) {
                 matchedChunks.add(new MatchChunkState(totalNumChunks, Optional.of(bitmapDescriptor)));
+                matchedNumChunks++;
             }
             totalNumChunks++;
         }
@@ -88,6 +90,7 @@ public class ChunksQueue
             matchedChunks.add(new MatchChunkState(chunkIndex, Optional.empty()));
         }
         this.totalNumChunks = endChunkIndex;
+        this.matchedNumChunks += endChunkIndex - startChunkIndex;
         return false;
     }
 
@@ -212,6 +215,18 @@ public class ChunksQueue
     int getChunkIndexForMatch()
     {
         return totalNumChunks;
+    }
+
+    // number of chunks the match phase went over, including the ones it skipped
+    int getTotalNumChunks()
+    {
+        return totalNumChunks;
+    }
+
+    // number of chunks the match phase kept for collect
+    int getMatchedNumChunks()
+    {
+        return matchedNumChunks;
     }
 
     boolean matchedChunksCompleted()

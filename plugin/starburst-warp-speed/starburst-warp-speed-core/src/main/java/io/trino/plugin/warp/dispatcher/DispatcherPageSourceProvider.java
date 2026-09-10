@@ -14,6 +14,8 @@
 package io.trino.plugin.warp.dispatcher;
 
 import io.airlift.log.Logger;
+import io.trino.plugin.warp.WarpSessionProperties;
+import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
 import io.trino.plugin.warp.juffer.StorageEngineTxService;
 import io.trino.plugin.warp.metrics.CustomStatsContext;
@@ -32,6 +34,7 @@ import io.trino.spi.predicate.TupleDomain;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static java.util.Objects.requireNonNull;
 
@@ -44,20 +47,24 @@ public class DispatcherPageSourceProvider
     private final WarpDispatcherPageSourceFactory pageSourceFactory;
     private final StorageEngineTxService txService;
     private final MetricsManager metricsManager;
+    private final GlobalConfig globalConfig;
     private final String catalogName;
-    private final FilteringStats filteringStats = new FilteringStats();
+    // one gate per scan, shared by the splits this provider serves
+    private final AtomicReference<FilteringStats> filteringStats = new AtomicReference<>();
 
     public DispatcherPageSourceProvider(
             ConnectorPageSourceProvider connectorPageSourceProvider,
             WarpDispatcherPageSourceFactory pageSourceFactory,
             StorageEngineTxService txService,
             MetricsManager metricsManager,
+            GlobalConfig globalConfig,
             String catalogName)
     {
         this.connectorPageSourceProvider = requireNonNull(connectorPageSourceProvider);
         this.pageSourceFactory = requireNonNull(pageSourceFactory);
         this.txService = requireNonNull(txService);
         this.metricsManager = requireNonNull(metricsManager);
+        this.globalConfig = requireNonNull(globalConfig);
         this.catalogName = requireNonNull(catalogName);
     }
 
@@ -112,9 +119,32 @@ public class DispatcherPageSourceProvider
                     tableCredentials,
                     columns,
                     dynamicFilter,
-                    filteringStats,
+                    () -> getFilteringStats(session, dispatcherTableHandle, dynamicFilter.getCurrentPredicate()),
                     catalogName);
         }
+    }
+
+    /**
+     * Returns the gate of this scan, or empty when the scan has nothing for the warp index to filter on.
+     */
+    private Optional<FilteringStats> getFilteringStats(
+            ConnectorSession session,
+            DispatcherTableHandle dispatcherTableHandle,
+            TupleDomain<ColumnHandle> dynamicFilterPredicate)
+    {
+        if (dispatcherTableHandle.getFullPredicate().isAll() &&
+                dynamicFilterPredicate.isAll() &&
+                dispatcherTableHandle.getWarpExpression().map(warpExpression -> warpExpression.warpExpressionDataLeaves().isEmpty()).orElse(true)) {
+            return Optional.empty();
+        }
+        return Optional.of(filteringStats.updateAndGet(existing -> {
+            if (existing != null) {
+                return existing;
+            }
+            return new FilteringStats(
+                    WarpSessionProperties.getFilteringLowSelectivityThreshold(session, globalConfig),
+                    WarpSessionProperties.getFilteringChunkSkipThreshold(session, globalConfig));
+        }));
     }
 
     @Override

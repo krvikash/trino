@@ -541,6 +541,7 @@ public class DispatcherPageSourceProviderTest
                 pageSourceFactory,
                 txService,
                 metricsManager,
+                globalConfig,
                 "warp");
     }
 

@@ -32,7 +32,9 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static io.trino.spi.StandardErrorCode.INVALID_SESSION_PROPERTY;
 import static io.trino.spi.session.PropertyMetadata.booleanProperty;
+import static io.trino.spi.session.PropertyMetadata.doubleProperty;
 import static io.trino.spi.session.PropertyMetadata.integerProperty;
 import static io.trino.spi.session.PropertyMetadata.stringProperty;
 
@@ -48,6 +50,8 @@ public final class WarpSessionProperties
     public static final String IMPORT_EXPORT_S3_PATH = "import_export_s3_path";
     public static final String IMPORT_EXPORT_RELATIVE_S3_PATH = "import_export";
     public static final String PREDICATE_SIMPLIFY_THRESHOLD = "simplify_predicate_threshold";
+    public static final String FILTERING_LOW_SELECTIVITY_THRESHOLD = "filtering_low_selectivity_threshold";
+    public static final String FILTERING_CHUNK_SKIP_THRESHOLD = "filtering_chunk_skip_threshold";
     public static final String ENABLE_IMPORT_EXPORT = "enable_import_export";
     public static final String ENABLE_MATCH_COLLECT = "enable_match_collect";
     public static final String ENABLE_MAPPED_MATCH_COLLECT = "enable_mapped_match_collect";
@@ -115,6 +119,18 @@ public final class WarpSessionProperties
                         "Max allowed predicate before simplifying",
                         globalConfig.getPredicateSimplifyThreshold(),
                         false),
+                doubleProperty(
+                        FILTERING_LOW_SELECTIVITY_THRESHOLD,
+                        "Keep filtering with the warp index regardless of chunk skipping when the fraction of rows selected is below this threshold",
+                        globalConfig.getFilteringLowSelectivityThreshold(),
+                        value -> validateFraction(FILTERING_LOW_SELECTIVITY_THRESHOLD, value),
+                        false),
+                doubleProperty(
+                        FILTERING_CHUNK_SKIP_THRESHOLD,
+                        "Avoid filtering with the warp index when the fraction of chunks skipped is below this threshold and the fraction of rows selected is not below the low selectivity threshold",
+                        globalConfig.getFilteringChunkSkipThreshold(),
+                        value -> validateFraction(FILTERING_CHUNK_SKIP_THRESHOLD, value),
+                        false),
                 stringProperty(
                         UNSUPPORTED_FUNCTIONS,
                         "unsupported functions list. any function in the list will not be pushed down to workers. astrix will disable all",
@@ -150,6 +166,13 @@ public final class WarpSessionProperties
                         "This is for debugging - bypass to proxy",
                         false,
                         true));
+    }
+
+    private static void validateFraction(String name, double value)
+    {
+        if (Double.isNaN(value) || value < 0 || value > 1) {
+            throw new TrinoException(INVALID_SESSION_PROPERTY, "%s must be in range [0, 1]: %s".formatted(name, value));
+        }
     }
 
     public static Set<String> getUnsupportedNativeFunctions(
@@ -301,6 +324,29 @@ public final class WarpSessionProperties
             return (int) obj;
         }
         return globalConfig.getPredicateSimplifyThreshold();
+    }
+
+    public static double getFilteringLowSelectivityThreshold(
+            ConnectorSession session,
+            GlobalConfig globalConfig)
+    {
+        return getDoubleProperty(session, FILTERING_LOW_SELECTIVITY_THRESHOLD, globalConfig.getFilteringLowSelectivityThreshold());
+    }
+
+    public static double getFilteringChunkSkipThreshold(
+            ConnectorSession session,
+            GlobalConfig globalConfig)
+    {
+        return getDoubleProperty(session, FILTERING_CHUNK_SKIP_THRESHOLD, globalConfig.getFilteringChunkSkipThreshold());
+    }
+
+    private static double getDoubleProperty(ConnectorSession session, String name, double configValue)
+    {
+        Double value = getProperty(session, name, Double.class);
+        if (value == null) {
+            return configValue;
+        }
+        return value;
     }
 
     private static <T> T getProperty(ConnectorSession session, String name, Class<T> type)

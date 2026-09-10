@@ -246,7 +246,7 @@ public class DispatcherPageSourceFactoryTest
                 Optional.empty(),
                 columnHandleList,
                 DynamicFilter.EMPTY,
-                new FilteringStats(),
+                Optional.empty(),
                 customStatsContext);
         verifyWarmCalled(
                 connectorPageSourceProvider,
@@ -304,7 +304,7 @@ public class DispatcherPageSourceFactoryTest
                 Optional.empty(),
                 columnHandleList,
                 DynamicFilter.EMPTY,
-                new FilteringStats(),
+                Optional.empty(),
                 customStatsContext);
         assertThat(rowGroupData.getWarmUpElements().stream().findAny().orElseThrow().getLastUsedTimestamp()).isGreaterThanOrEqualTo(now);
 
@@ -364,7 +364,7 @@ public class DispatcherPageSourceFactoryTest
                 Optional.empty(),
                 columnHandleList,
                 dynamicFilter,
-                new FilteringStats(),
+                Optional.empty(),
                 customStatsContext);
         assertThat(pageSource).isNull();
         verify(connectorPageSourceProvider, times(1))
@@ -408,7 +408,7 @@ public class DispatcherPageSourceFactoryTest
                 Optional.empty(),
                 columnHandleList,
                 dynamicFilter,
-                new FilteringStats(),
+                Optional.empty(),
                 customStatsContext);
         verify(connectorPageSourceProvider, times(1))
                 .createPageSource(any(ConnectorTransactionHandle.class),
@@ -485,7 +485,7 @@ public class DispatcherPageSourceFactoryTest
                 Optional.empty(),
                 columnHandles,
                 dynamicFilter,
-                new FilteringStats(),
+                Optional.empty(),
                 customStatsContext);
         DispatcherPageSourceStats stats = (DispatcherPageSourceStats) customStatsContext.getStat(DispatcherPageSourceStats.createKey());
         assertThat(stats.getexternal_collect_columns()).isEqualTo(columnHandles.size()); // should be uncomment when committing to develop
@@ -531,7 +531,7 @@ public class DispatcherPageSourceFactoryTest
                 Optional.empty(),
                 columnHandleList,
                 dynamicFilter,
-                new FilteringStats(),
+                Optional.empty(),
                 customStatsContext);
         assertThat(pageSource).isInstanceOf(PrefilledPageSource.class);
         DispatcherPageSourceStats stats = (DispatcherPageSourceStats) customStatsContext.getStat(DispatcherPageSourceStats.createKey());
@@ -571,7 +571,7 @@ public class DispatcherPageSourceFactoryTest
                 Optional.empty(),
                 partitionColumnHandleList,
                 dynamicFilter,
-                new FilteringStats(),
+                Optional.empty(),
                 customStatsContext);
         assertThat(pageSource).isInstanceOf(PrefilledPageSource.class);
         DispatcherPageSourceStats stats = (DispatcherPageSourceStats) customStatsContext.getStat(DispatcherPageSourceStats.createKey());
@@ -614,7 +614,7 @@ public class DispatcherPageSourceFactoryTest
                 Optional.empty(),
                 partitionColumnHandleList,
                 dynamicFilter,
-                new FilteringStats(),
+                Optional.empty(),
                 customStatsContext);
         assertThat(pageSource).isInstanceOf(PrefilledPageSource.class);
         assertThat(pageSource.getNextSourcePage()).isNotNull();
@@ -650,7 +650,7 @@ public class DispatcherPageSourceFactoryTest
                 Optional.empty(),
                 partitionColumnHandleList,
                 dynamicFilter,
-                new FilteringStats(),
+                Optional.empty(),
                 customStatsContext);
 
         verify(connectorPageSourceProvider, times(1)).createPageSource(any(), any(), any(), any(), eq(Optional.empty()), anyList(), any(), any());

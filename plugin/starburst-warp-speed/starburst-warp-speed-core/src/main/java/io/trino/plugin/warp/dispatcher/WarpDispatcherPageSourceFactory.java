@@ -123,7 +123,7 @@ public class WarpDispatcherPageSourceFactory
             Optional<ConnectorTableCredentials> tableCredentials,
             List<ColumnHandle> columns,
             DynamicFilter dynamicFilter,
-            FilteringStats scanFilteringStats,
+            Optional<FilteringStats> filteringStats,
             CustomStatsContext customStatsContext)
     {
         initializeCustomStats(customStatsContext);
@@ -170,7 +170,7 @@ public class WarpDispatcherPageSourceFactory
                 tableCredentials,
                 columns,
                 dynamicFilter,
-                scanFilteringStats,
+                filteringStats,
                 customStatsContext);
 
         workerWarmingService.warm(
@@ -196,7 +196,7 @@ public class WarpDispatcherPageSourceFactory
             Optional<ConnectorTableCredentials> tableCredentials,
             List<ColumnHandle> columns,
             DynamicFilter dynamicFilter,
-            FilteringStats scanFilteringStats,
+            Optional<FilteringStats> filteringStats,
             CustomStatsContext customStatsContext)
     {
         // nice tweak to make load a bit faster in POCs and tests (from the old varada days)
@@ -217,13 +217,11 @@ public class WarpDispatcherPageSourceFactory
 
         RowGroupData rowGroupData = rowGroupDataService.getIfPresent(rowGroupKey);
 
-        Optional<FilteringStats> filteringStats = Optional.of(scanFilteringStats);
         PageSourceDecision pageSourceDecision = getBasicPageSourceDecision(
                 rowGroupData,
                 dispatcherTableHandle,
                 columns,
                 dynamicFilter,
-                filteringStats,
                 dispatcherPageSourceStats);
 
         if (PageSourceDecision.EMPTY.equals(pageSourceDecision)) {
@@ -234,6 +232,17 @@ public class WarpDispatcherPageSourceFactory
             int totalRecords = getTotalRecords(rowGroupData);
             dispatcherPageSourceStats.incempty_collect_columns();
             return new PrefilledPageSource(emptyMap(), dispatcherPageSourceStats, rowGroupData, totalRecords, Optional.empty());
+        }
+
+        if (PageSourceDecision.UNKNOWN.equals(pageSourceDecision) && !admitFiltering(filteringStats, dispatcherPageSourceStats)) {
+            logger.debug("filtering with the warp index does not pay off for this scan, reading from proxy");
+            pageSourceDecision = PageSourceDecision.PROXY;
+        }
+
+        // important to keep this lock here after the basic decisions are made
+        // if we can't get a read lock, fallback to proxy
+        if (PageSourceDecision.UNKNOWN.equals(pageSourceDecision) && !rowGroupData.getLock().readLock()) {
+            pageSourceDecision = PageSourceDecision.PROXY;
         }
 
         RowGroupCloseHandler closeHandler = new RowGroupCloseHandler();
@@ -348,7 +357,6 @@ public class WarpDispatcherPageSourceFactory
                             customStatsContext,
                             closeHandler);
 
-                    filteringStats.ifPresent(FilteringStats::recordStarted);
                     return mixedPageSource;
                 }
                 catch (Exception e) {
@@ -388,6 +396,22 @@ public class WarpDispatcherPageSourceFactory
             }
             throw e;
         }
+    }
+
+    /**
+     * Counts every gated split as either admitted or denied, so the two stats add up to the splits the gate saw.
+     */
+    private static boolean admitFiltering(Optional<FilteringStats> filteringStats, DispatcherPageSourceStats dispatcherPageSourceStats)
+    {
+        if (filteringStats.isEmpty()) {
+            return true;
+        }
+        if (filteringStats.get().tryAdmitFiltering()) {
+            dispatcherPageSourceStats.incefficient_filtering();
+            return true;
+        }
+        dispatcherPageSourceStats.incinefficient_filtering();
+        return false;
     }
 
     private ConnectorPageSource createProxiedConnectorPageSource(

@@ -34,6 +34,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.TreeMap;
+import java.util.function.Supplier;
 
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
 
@@ -55,7 +56,7 @@ public class DispatcherWrapperPageSource
     private final List<ColumnHandle> columns;
     private final CustomStatsContext customStatsContext;
     private final DynamicFilter dynamicFilter;
-    private final FilteringStats filteringStats;
+    private final Supplier<Optional<FilteringStats>> filteringStatsSupplier;
     private final String catalogName;
 
     private ConnectorPageSource connectorPageSource;
@@ -74,7 +75,7 @@ public class DispatcherWrapperPageSource
             Optional<ConnectorTableCredentials> tableCredentials,
             List<ColumnHandle> columns,
             DynamicFilter dynamicFilter,
-            FilteringStats filteringStats,
+            Supplier<Optional<FilteringStats>> filteringStatsSupplier,
             String catalogName)
     {
         this.connectorPageSourceProvider = pageSourceProvider;
@@ -88,7 +89,7 @@ public class DispatcherWrapperPageSource
         this.tableCredentials = tableCredentials;
         this.columns = columns;
         this.dynamicFilter = dynamicFilter;
-        this.filteringStats = filteringStats;
+        this.filteringStatsSupplier = filteringStatsSupplier;
         this.catalogName = catalogName;
     }
 
@@ -104,7 +105,7 @@ public class DispatcherWrapperPageSource
                 tableCredentials,
                 columns,
                 dynamicFilter,
-                filteringStats,
+                filteringStatsSupplier.get(),
                 customStatsContext);
     }
 
