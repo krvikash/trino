@@ -13,16 +13,22 @@
  */
 package io.trino.plugin.warp.dispatcher;
 
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.trino.plugin.warp.annotation.ForWarp;
 import io.trino.plugin.warp.config.GlobalConfig;
+import io.trino.plugin.warp.dispatcher.DispatcherPageSourceProvider.ScanFilteringKey;
 import io.trino.plugin.warp.juffer.StorageEngineTxService;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.connector.ConnectorPageSourceProvider;
 import io.trino.spi.connector.ConnectorPageSourceProviderFactory;
 import io.trino.spi.connector.MemoryContext;
+import org.gaul.modernizer_maven_annotations.SuppressModernizer;
+
+import java.time.Duration;
 
 import static java.util.Objects.requireNonNull;
 
@@ -36,6 +42,7 @@ public class DispatcherPageSourceProviderFactory
     private final MetricsManager metricsManager;
     private final GlobalConfig globalConfig;
     private final String catalogName;
+    private final Cache<ScanFilteringKey, FilteringStats> filteringStatsCache = buildFilteringStatsCache();
 
     @Inject
     public DispatcherPageSourceProviderFactory(
@@ -65,6 +72,16 @@ public class DispatcherPageSourceProviderFactory
                 txService,
                 metricsManager,
                 globalConfig,
-                catalogName);
+                catalogName,
+                filteringStatsCache);
+    }
+
+    @SuppressModernizer // entries are never invalidated, so the eviction races that EvictableCacheBuilder guards against cannot happen
+    private static Cache<ScanFilteringKey, FilteringStats> buildFilteringStatsCache()
+    {
+        return CacheBuilder.newBuilder()
+                .maximumSize(1000)
+                .expireAfterAccess(Duration.ofMinutes(30))
+                .build();
     }
 }

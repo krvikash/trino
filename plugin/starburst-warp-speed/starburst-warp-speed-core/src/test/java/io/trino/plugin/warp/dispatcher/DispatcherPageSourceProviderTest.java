@@ -13,6 +13,8 @@
  */
 package io.trino.plugin.warp.dispatcher;
 
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.airlift.slice.Slices;
@@ -64,6 +66,7 @@ import io.trino.spi.type.IntegerType;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.VarcharType;
 import io.trino.testing.TestingMetadata;
+import org.gaul.modernizer_maven_annotations.SuppressModernizer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -109,6 +112,7 @@ public class DispatcherPageSourceProviderTest
     private ConnectorPageSourceProvider proxiedPageSourceProvider;
     private DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer;
     private QueryClassifier queryClassifier;
+    private Cache<DispatcherPageSourceProvider.ScanFilteringKey, FilteringStats> filteringStatsCache;
     private final SchemaTableName schemaTableName = new SchemaTableName("s", "t");
 
     DynamicFilter dynamicFilter;
@@ -157,6 +161,8 @@ public class DispatcherPageSourceProviderTest
         proxiedPageSourceProvider = mock(ConnectorPageSourceProvider.class);
 
         queryClassifier = mock(QueryClassifier.class);
+
+        filteringStatsCache = buildFilteringStatsCache();
 
         dispatcherTableHandle = mockDispatcherTableHandle(schemaTableName.getSchemaName(), schemaTableName.getTableName(), TupleDomain.all());
 
@@ -371,6 +377,81 @@ public class DispatcherPageSourceProviderTest
     }
 
     @Test
+    public void testScansOfTheSameShapeShareAFilteringGate()
+    {
+        Type columnType = IntegerType.INTEGER;
+        ImmutableList<Pair<String, Type>> columnsMetadata = ImmutableList.of(Pair.of("c1", columnType));
+        List<ColumnHandle> columns = mockColumns(dispatcherProxiedConnectorTransformer, columnsMetadata);
+        ColumnHandle columnHandle = columns.getFirst();
+        TupleDomain<ColumnHandle> predicate = TupleDomain.withColumnDomains(Map.of(columnHandle, Domain.singleValue(columnType, 3L)));
+        TupleDomain<ColumnHandle> otherPredicate = TupleDomain.withColumnDomains(Map.of(columnHandle, Domain.singleValue(columnType, 4L)));
+
+        RowGroupData rowGroupData = generateRowGroupData(rowGroupKey, columnHandles);
+        when(rowGroupDataService.get(rowGroupKey)).thenReturn(rowGroupData);
+        when(rowGroupDataService.getIfPresent(rowGroupKey)).thenReturn(rowGroupData);
+
+        createWarpPageSource(predicate, columns);
+        assertThat(filteringStatsCache.size()).isEqualTo(1);
+
+        createWarpPageSource(predicate, columns);
+        assertThat(filteringStatsCache.size()).isEqualTo(1);
+
+        createWarpPageSource(otherPredicate, columns);
+        assertThat(filteringStatsCache.size()).isEqualTo(2);
+    }
+
+    @Test
+    public void testScansWithDifferentDynamicFilterColumnsDoNotShareAFilteringGate()
+    {
+        Type columnType = IntegerType.INTEGER;
+        ImmutableList<Pair<String, Type>> columnsMetadata = ImmutableList.of(Pair.of("c1", columnType), Pair.of("c2", columnType));
+        List<ColumnHandle> columns = mockColumns(dispatcherProxiedConnectorTransformer, columnsMetadata);
+        List<ColumnHandle> collectColumns = ImmutableList.of(columns.getFirst());
+        TupleDomain<ColumnHandle> predicate = TupleDomain.withColumnDomains(Map.of(columns.getFirst(), Domain.singleValue(columnType, 3L)));
+        TupleDomain<ColumnHandle> dynamicFilter = TupleDomain.withColumnDomains(Map.of(columns.get(1), Domain.singleValue(columnType, 5L)));
+        TupleDomain<ColumnHandle> dynamicFilterOnTheSameColumn = TupleDomain.withColumnDomains(Map.of(columns.get(1), Domain.singleValue(columnType, 6L)));
+
+        RowGroupData rowGroupData = generateRowGroupData(rowGroupKey, columnHandles);
+        when(rowGroupDataService.get(rowGroupKey)).thenReturn(rowGroupData);
+        when(rowGroupDataService.getIfPresent(rowGroupKey)).thenReturn(rowGroupData);
+
+        createWarpPageSource(predicate, dynamicFilter, collectColumns);
+        assertThat(filteringStatsCache.size()).isEqualTo(1);
+
+        createWarpPageSource(predicate, dynamicFilterOnTheSameColumn, collectColumns);
+        assertThat(filteringStatsCache.size()).isEqualTo(1);
+
+        createWarpPageSource(predicate, predicate, collectColumns);
+        assertThat(filteringStatsCache.size()).isEqualTo(2);
+    }
+
+    private void createWarpPageSource(TupleDomain<ColumnHandle> predicate, List<ColumnHandle> columns)
+    {
+        createWarpPageSource(predicate, predicate, columns);
+    }
+
+    private void createWarpPageSource(TupleDomain<ColumnHandle> predicate, TupleDomain<ColumnHandle> dynamicFilterPredicate, List<ColumnHandle> columns)
+    {
+        dispatcherTableHandle = mockDispatcherTableHandle(
+                schemaTableName.getSchemaName(),
+                schemaTableName.getTableName(),
+                predicate);
+        mockQueryClassifier(false, true, false);
+        dispatcherPageSourceProvider = createDispatcherPageSourceProvider();
+
+        ConnectorPageSource pageSource = dispatcherPageSourceProvider.createPageSource(
+                connectorTransactionHandle,
+                connectorSession,
+                dispatcherSplit,
+                dispatcherTableHandle,
+                Optional.empty(),
+                columns,
+                new CompletedDynamicFilter(dynamicFilterPredicate),
+                MemoryContext.NO_LIMIT);
+        assertThat(((DispatcherWrapperPageSource) pageSource).getConnectorPageSource()).isInstanceOf(DispatcherPageSource.class);
+    }
+
+    @Test
     public void testReadFlow_FileExist_mixedWithoutPredicate()
     {
         List<Pair<String, Type>> columnsMetadata = List.of(
@@ -542,7 +623,14 @@ public class DispatcherPageSourceProviderTest
                 txService,
                 metricsManager,
                 globalConfig,
-                "warp");
+                "warp",
+                filteringStatsCache);
+    }
+
+    @SuppressModernizer // entries are never invalidated, so the eviction races that EvictableCacheBuilder guards against cannot happen
+    private static Cache<DispatcherPageSourceProvider.ScanFilteringKey, FilteringStats> buildFilteringStatsCache()
+    {
+        return CacheBuilder.newBuilder().build();
     }
 
     protected void mockQueryClassifier(boolean isProxyOnly, boolean isWarpOnly, boolean isPrefilledOnly)

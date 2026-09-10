@@ -13,9 +13,12 @@
  */
 package io.trino.plugin.warp.dispatcher;
 
+import com.google.common.cache.Cache;
+import com.google.common.collect.ImmutableSet;
 import io.airlift.log.Logger;
 import io.trino.plugin.warp.WarpSessionProperties;
 import io.trino.plugin.warp.config.GlobalConfig;
+import io.trino.plugin.warp.expression.rewrite.WarpExpression;
 import io.trino.plugin.warp.gen.stats.DispatcherPageSourceStats;
 import io.trino.plugin.warp.juffer.StorageEngineTxService;
 import io.trino.plugin.warp.metrics.CustomStatsContext;
@@ -30,11 +33,13 @@ import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.connector.DynamicFilter;
 import io.trino.spi.connector.MemoryContext;
+import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.predicate.TupleDomain;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.atomic.AtomicReference;
+import java.util.Set;
 
 import static java.util.Objects.requireNonNull;
 
@@ -49,8 +54,7 @@ public class DispatcherPageSourceProvider
     private final MetricsManager metricsManager;
     private final GlobalConfig globalConfig;
     private final String catalogName;
-    // one gate per scan, shared by the splits this provider serves
-    private final AtomicReference<FilteringStats> filteringStats = new AtomicReference<>();
+    private final Cache<ScanFilteringKey, FilteringStats> filteringStatsCache;
 
     public DispatcherPageSourceProvider(
             ConnectorPageSourceProvider connectorPageSourceProvider,
@@ -58,7 +62,8 @@ public class DispatcherPageSourceProvider
             StorageEngineTxService txService,
             MetricsManager metricsManager,
             GlobalConfig globalConfig,
-            String catalogName)
+            String catalogName,
+            Cache<ScanFilteringKey, FilteringStats> filteringStatsCache)
     {
         this.connectorPageSourceProvider = requireNonNull(connectorPageSourceProvider);
         this.pageSourceFactory = requireNonNull(pageSourceFactory);
@@ -66,6 +71,7 @@ public class DispatcherPageSourceProvider
         this.metricsManager = requireNonNull(metricsManager);
         this.globalConfig = requireNonNull(globalConfig);
         this.catalogName = requireNonNull(catalogName);
+        this.filteringStatsCache = requireNonNull(filteringStatsCache);
     }
 
     @Override
@@ -126,6 +132,7 @@ public class DispatcherPageSourceProvider
 
     /**
      * Returns the gate of this scan, or empty when the scan has nothing for the warp index to filter on.
+     * Scans of the same shape share a gate, so a repeated query starts from the verdict of the last one.
      */
     private Optional<FilteringStats> getFilteringStats(
             ConnectorSession session,
@@ -137,14 +144,43 @@ public class DispatcherPageSourceProvider
                 dispatcherTableHandle.getWarpExpression().map(warpExpression -> warpExpression.warpExpressionDataLeaves().isEmpty()).orElse(true)) {
             return Optional.empty();
         }
-        return Optional.of(filteringStats.updateAndGet(existing -> {
-            if (existing != null) {
-                return existing;
-            }
-            return new FilteringStats(
-                    WarpSessionProperties.getFilteringLowSelectivityThreshold(session, globalConfig),
-                    WarpSessionProperties.getFilteringChunkSkipThreshold(session, globalConfig));
-        }));
+        double lowSelectivityThreshold = WarpSessionProperties.getFilteringLowSelectivityThreshold(session, globalConfig);
+        double chunkSkipThreshold = WarpSessionProperties.getFilteringChunkSkipThreshold(session, globalConfig);
+        Set<ColumnHandle> dynamicFilterColumns = dynamicFilterPredicate.getDomains()
+                .map(Map::keySet)
+                .map(ImmutableSet::copyOf)
+                .orElseGet(ImmutableSet::of);
+        ScanFilteringKey scanFilteringKey = new ScanFilteringKey(
+                dispatcherTableHandle.getSchemaTableName(),
+                dispatcherTableHandle.getFullPredicate(),
+                dispatcherTableHandle.getWarpExpression(),
+                dynamicFilterColumns,
+                lowSelectivityThreshold,
+                chunkSkipThreshold);
+        return Optional.of(filteringStatsCache.asMap().computeIfAbsent(
+                scanFilteringKey,
+                _ -> new FilteringStats(lowSelectivityThreshold, chunkSkipThreshold)));
+    }
+
+    /**
+     * Identifies the scans that filter on the same thing. The dynamic filter is taken by its columns
+     * rather than its values, which vary between runs of the same query.
+     */
+    public record ScanFilteringKey(
+            SchemaTableName schemaTableName,
+            TupleDomain<ColumnHandle> fullPredicate,
+            Optional<WarpExpression> warpExpression,
+            Set<ColumnHandle> dynamicFilterColumns,
+            double lowSelectivityThreshold,
+            double chunkSkipThreshold)
+    {
+        public ScanFilteringKey
+        {
+            requireNonNull(schemaTableName);
+            requireNonNull(fullPredicate);
+            requireNonNull(warpExpression);
+            dynamicFilterColumns = ImmutableSet.copyOf(dynamicFilterColumns);
+        }
     }
 
     @Override
