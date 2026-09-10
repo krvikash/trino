@@ -3971,6 +3971,9 @@ public class DeltaLakeMetadata
     {
         LocatedTableHandle handle = (LocatedTableHandle) tableHandle;
         checkNotMaterializedView(handle);
+        if (handle instanceof DeltaLakeTableHandle deltaLakeTableHandle) {
+            checkUnsupportedUniversalFormat(deltaLakeTableHandle.getMetadataEntry());
+        }
         boolean deleteData = handle.managed();
         metastore.dropTable(handle.schemaTableName(), handle.location(), deleteData);
         if (deleteData) {
