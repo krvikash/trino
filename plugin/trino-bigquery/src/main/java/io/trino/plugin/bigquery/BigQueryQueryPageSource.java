@@ -55,6 +55,7 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.airlift.concurrent.MoreFutures.getFutureValue;
 import static io.airlift.slice.Slices.utf8Slice;
 import static io.trino.plugin.bigquery.BigQueryClient.selectSql;
+import static io.trino.plugin.bigquery.BigQueryTypeManager.toEpochMicros;
 import static io.trino.plugin.bigquery.BigQueryTypeManager.toLongTimestampWithTimeZone;
 import static io.trino.plugin.bigquery.BigQueryTypeManager.toTrinoTimestamp;
 import static io.trino.plugin.bigquery.BigQueryUtil.buildNativeQuery;
@@ -253,7 +254,7 @@ public class BigQueryQueryPageSource
                 writeSlice(output, type, value);
             }
             else if (type.equals(TIMESTAMP_TZ_MICROS)) {
-                type.writeObject(output, toLongTimestampWithTimeZone(value.getTimestampValue()));
+                type.writeObject(output, toLongTimestampWithTimeZone(toEpochMicros(value.getStringValue())));
             }
             else if (type instanceof ArrayType arrayType) {
                 ((ArrayBlockBuilder) output).buildEntry(elementBuilder -> {

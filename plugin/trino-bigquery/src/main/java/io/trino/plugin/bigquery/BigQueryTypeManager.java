@@ -46,6 +46,7 @@ import io.trino.spi.type.VarbinaryType;
 import io.trino.spi.type.VarcharType;
 
 import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -85,6 +86,7 @@ import static java.lang.Math.floorDiv;
 import static java.lang.Math.floorMod;
 import static java.lang.Math.toIntExact;
 import static java.lang.String.format;
+import static java.math.RoundingMode.HALF_UP;
 import static java.time.ZoneOffset.UTC;
 import static java.util.Objects.requireNonNull;
 import static java.util.Objects.requireNonNullElse;
@@ -140,6 +142,18 @@ public final class BigQueryTypeManager
     {
         Instant instant = toLocalDateTime(datetime).toInstant(UTC);
         return (instant.getEpochSecond() * MICROSECONDS_PER_SECOND) + (instant.getNano() / NANOSECONDS_PER_MICROSECOND);
+    }
+
+    public static long toEpochMicros(String rawValue)
+    {
+        if (rawValue.indexOf('.') == -1) {
+            return new BigInteger(rawValue).longValue();
+        }
+
+        // Copied from com.google.cloud.bigquery.FieldValue.getTimestampValue
+        BigDecimal secondsWithMicro = new BigDecimal(rawValue);
+        BigDecimal scaled = secondsWithMicro.scaleByPowerOfTen(6).setScale(0, HALF_UP);
+        return scaled.longValue();
     }
 
     public static LongTimestampWithTimeZone toLongTimestampWithTimeZone(long epochMicros)

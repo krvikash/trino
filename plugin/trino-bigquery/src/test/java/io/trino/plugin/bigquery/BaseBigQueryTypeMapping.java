@@ -757,6 +757,22 @@ public abstract class BaseBigQueryTypeMapping
     }
 
     @Test
+    public void testTimestampTzWithCreateDisposition()
+    {
+        Session session = Session.builder(getSession())
+                .setCatalogSessionProperty("bigquery", "create_disposition_type", "CREATE_IF_NEEDED")
+                .build();
+
+        SqlDataTypeTest.create()
+                .addRoundTrip(
+                        "TIMESTAMP",
+                        "TIMESTAMP '2018-04-01 02:13:55.123 UTC'",
+                        TIMESTAMP_TZ_MICROS,
+                        "TIMESTAMP '2018-04-01 02:13:55.123000 UTC'")
+                .execute(getQueryRunner(), session, bigqueryViewCreateAndInsert("test.timestamp_tz_create_disposition"));
+    }
+
+    @Test
     public void testUnsupportedTimestampWithTimeZone()
     {
         try (TestTable table = new TestTable(getBigQuerySqlExecutor(), "test.unsupported_tz", "(col timestamp)")) {
