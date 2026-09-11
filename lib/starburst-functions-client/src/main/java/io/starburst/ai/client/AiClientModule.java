@@ -21,10 +21,14 @@ import io.opentelemetry.api.trace.Tracer;
 import io.starburst.ai.client.bedrock.AwsBedrockClientFactory;
 import io.starburst.ai.client.bedrock.AwsBedrockEmbeddingCodecsModule;
 import io.starburst.ai.client.openai.OpenAiClientFactory;
+import io.starburst.ai.client.openai.oauth.DisableRedirectsFilter;
 import io.starburst.ai.client.openai.oauth.ForAiOAuth2;
 import io.starburst.ai.client.openai.oauth.OAuth2TokenCache;
 import io.starburst.ai.client.openai.oauth.OAuth2TokenFetcher;
+import io.starburst.ai.client.openai.oauth.OAuthEndpointSsrfFilter;
 import io.starburst.ai.client.vertexai.VertexAiClientFactory;
+import io.starburst.stargate.security.OAuthServerUrlValidator;
+import io.starburst.stargate.security.SsrfEgressOAuthServerUrlValidator;
 import io.trino.spi.connector.ai.ModelConnectionSpecsLoader;
 
 import java.util.Optional;
@@ -151,7 +155,11 @@ public class AiClientModule
             httpClientBinder(binder).bindHttpClient("oauth2", ForAiOAuth2.class)
                     .withConfigDefaults(config -> config
                             .setMinThreads(1)
-                            .setSelectorCount(1));
+                            .setSelectorCount(1))
+                    // SSRF egress guard: block token requests that resolve to internal addresses.
+                    .withFilter(OAuthEndpointSsrfFilter.class)
+                    .withFilter(DisableRedirectsFilter.class);
+            newOptionalBinder(binder, OAuthServerUrlValidator.class).setDefault().to(SsrfEgressOAuthServerUrlValidator.class).in(Scopes.SINGLETON);
             binder.bind(OAuth2TokenFetcher.class).in(Scopes.SINGLETON);
         }
     }

@@ -62,26 +62,45 @@ class TestOpenAiConnectionInfoValidation
     }
 
     @Test
-    void rejectsHttpTokenUrlUnlessLocalhost()
+    void rejectsNonHttpsTokenUrl()
     {
-        assertThatThrownBy(() -> new OAuth2Config(
-                OAuth2GrantType.CLIENT_CREDENTIALS,
-                "http://idp.example/token",
-                "cid",
-                "${ENV:CS}",
-                Optional.empty(),
-                Optional.empty()))
+        assertThatThrownBy(() -> newOAuth2Config("http://idp.example/token"))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("https");
 
-        assertThatCode(() -> new OAuth2Config(
+        // http://localhost is no longer accepted; the token request carries the client secret.
+        assertThatThrownBy(() -> newOAuth2Config("http://localhost:9000/token"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("https");
+    }
+
+    @Test
+    void rejectsMalformedTokenUrl()
+    {
+        assertThatThrownBy(() -> newOAuth2Config("not a uri"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("not a valid URI");
+        assertThatThrownBy(() -> newOAuth2Config("https:///token"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("scheme and host");
+    }
+
+    @Test
+    void acceptsPublicHttpsTokenUrl()
+    {
+        assertThatCode(() -> newOAuth2Config("https://idp.example/token"))
+                .doesNotThrowAnyException();
+    }
+
+    private static OAuth2Config newOAuth2Config(String tokenUrl)
+    {
+        return new OAuth2Config(
                 OAuth2GrantType.CLIENT_CREDENTIALS,
-                "http://localhost:9000/token",
+                tokenUrl,
                 "cid",
                 "${ENV:CS}",
                 Optional.empty(),
-                Optional.empty()))
-                .doesNotThrowAnyException();
+                Optional.empty());
     }
 
     @Test

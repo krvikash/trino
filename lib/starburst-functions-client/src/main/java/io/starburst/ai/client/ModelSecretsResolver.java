@@ -23,8 +23,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-import static io.starburst.ai.model.ConnectionInfo.validateHttpsUrl;
-
 public final class ModelSecretsResolver
 {
     public static final String DUMMY_API_KEY = "dummy";
@@ -99,7 +97,6 @@ public final class ModelSecretsResolver
     public static ResolvedOAuth2Config resolveOAuth2Secrets(OAuth2Config config, SecretsResolver secretsResolver)
     {
         String tokenUrl = resolveOne(secretsResolver, "tokenUrl", config.tokenUrl());
-        validateHttpsUrl("oauthConfig.tokenUrl", tokenUrl);
         String clientId = resolveOne(secretsResolver, "clientId", config.clientId());
         String clientSecret = resolveOne(secretsResolver, "clientSecret", config.clientSecret());
         Optional<String> scope = config.scope().map(value -> resolveOne(secretsResolver, "scope", value));
