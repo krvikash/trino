@@ -66,6 +66,7 @@ import java.util.stream.IntStream;
 import static ai.rapids.cudf.DType.INT64;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Verify.verify;
+import static io.airlift.slice.Slices.utf8Slice;
 import static io.trino.RowPagesBuilder.rowPagesBuilder;
 import static io.trino.block.BlockAssertions.getOnlyValue;
 import static io.trino.operator.aggregation.AggregationTestUtils.assertAggregation;
@@ -78,6 +79,7 @@ import static io.trino.operator.gpu.GpuTestUtils.executeGpuOperation;
 import static io.trino.operator.gpu.GpuTestUtils.maybeSetGpuMemoryPoolForTests;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
+import static io.trino.spi.type.CharType.createCharType;
 import static io.trino.spi.type.DoubleType.DOUBLE;
 import static io.trino.spi.type.RealType.REAL;
 import static io.trino.spi.type.VarbinaryType.VARBINARY;
@@ -444,6 +446,36 @@ final class TestGpuAggregation
         else {
             REAL.writeFloat(builder, (float) value);
         }
+    }
+
+    @Test
+    void testMinMaxCharPaddedSemantics()
+    {
+        // U+0001 is less than space (U+0020), so naive byte comparison would produce wrong result without proper CHAR padding
+        Type charType = createCharType(2);
+        BlockBuilder valueBuilder = charType.createBlockBuilder(null, 4);
+        for (String value : List.of("a", "a", "a\u0001", "a\u0001")) {
+            charType.writeSlice(valueBuilder, utf8Slice(value));
+        }
+        Page inputPage = new Page(valueBuilder.build());
+        assertGlobalMatchesCpu(List.of(inputPage), "min", List.of(charType), SINGLE);
+        assertGlobalMatchesCpu(List.of(inputPage), "max", List.of(charType), SINGLE);
+    }
+
+    @Test
+    void testGroupByMinMaxCharPaddedSemantics()
+    {
+        // U+0001 is less than space (U+0020), so naive byte comparison would produce wrong result without proper CHAR padding
+        Type charType = createCharType(2);
+        BlockBuilder groupByBuilder = BIGINT.createBlockBuilder(null, 4);
+        BlockBuilder valueBuilder = charType.createBlockBuilder(null, 4);
+        for (String value : List.of("a", "a", "a\u0001", "a\u0001")) {
+            BIGINT.writeLong(groupByBuilder, 0);
+            charType.writeSlice(valueBuilder, utf8Slice(value));
+        }
+        Page inputPage = new Page(groupByBuilder.build(), valueBuilder.build());
+        assertGroupByMatchesCpu(List.of(inputPage), "min", List.of(charType), SINGLE);
+        assertGroupByMatchesCpu(List.of(inputPage), "max", List.of(charType), SINGLE);
     }
 
     @Test

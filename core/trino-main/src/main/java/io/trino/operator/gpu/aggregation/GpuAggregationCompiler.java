@@ -35,7 +35,9 @@ import io.trino.operator.gpu.expression.GpuExtractInt32Chunk;
 import io.trino.operator.gpu.expression.GpuIsNan;
 import io.trino.operator.gpu.expression.GpuNansToNulls;
 import io.trino.operator.gpu.expression.GpuPackAvgDecimalState;
+import io.trino.operator.gpu.expression.GpuPadSpaces;
 import io.trino.operator.gpu.expression.GpuRestoreNan;
+import io.trino.operator.gpu.expression.GpuTrim;
 import io.trino.operator.project.InputChannels;
 import io.trino.spi.function.BoundSignature;
 import io.trino.spi.gpu.borrow.Borrow;
@@ -476,6 +478,9 @@ public final class GpuAggregationCompiler
                         if (column.type() instanceof RealType || column.type() instanceof DoubleType) {
                             return compileFloatingPointMinMax(returnType, dType, input, factory);
                         }
+                        if (column.type() instanceof CharType charType) {
+                            return compileCharMinMax(returnType, dType, input, charType, factory);
+                        }
                         return AggregateCompilation.single(returnType, input, channel -> factory.create(channel, returnType, dType));
                     });
                 });
@@ -494,6 +499,19 @@ public final class GpuAggregationCompiler
                 Optional.of(new PostProjection(channels -> new CompiledExpression(
                         new GpuRestoreNan(dType),
                         new InputChannels(List.of(channels[0], channels[1]))))));
+    }
+
+    private static AggregateCompilation compileCharMinMax(Type returnType, DType dType, GpuExpression input, CharType charType, MinMaxFactory factory)
+    {
+        // cuDF compares raw bytes, but Trino's CHAR comparison pads with spaces first.
+        // Pad the input before aggregation and strip trailing spaces from the result.
+        GpuExpression padded = new GpuPadSpaces(input, charType.getLength());
+        return new AggregateCompilation(
+                returnType,
+                List.of(AggregateSlot.of(padded, channel -> factory.create(channel, returnType, dType))),
+                Optional.of(new PostProjection(channels -> new CompiledExpression(
+                        new GpuTrim(new GetColumn(0), " ", GpuTrim.Side.TRAILING, false),
+                        new InputChannels(List.of(channels[0]))))));
     }
 
     private static Optional<AggregateCompilation> compileAnyValue(
