@@ -147,6 +147,7 @@ public class LuceneMatcherTest
                 true,
                 true,
                 false,
+                false,
                 false);
 
         MatchContext matchContext = new MatchContext(Collections.emptyList(), remainingPredicateContext, true);
@@ -190,6 +191,7 @@ public class LuceneMatcherTest
                 false,
                 true,
                 true,
+                false,
                 false,
                 false);
         MatchContext matchContext = new MatchContext(Collections.emptyList(), remainingPredicateContext, true);
@@ -235,6 +237,7 @@ public class LuceneMatcherTest
                 true,
                 true,
                 false,
+                false,
                 false);
         MatchContext matchContext = new MatchContext(Collections.emptyList(), remainingPredicateContext, true);
 
@@ -272,6 +275,7 @@ public class LuceneMatcherTest
                 false,
                 true,
                 true,
+                false,
                 false,
                 false);
         MatchContext matchContext = new MatchContext(Collections.emptyList(), remainingPredicateContext, true);
@@ -316,6 +320,7 @@ public class LuceneMatcherTest
                 false,
                 true,
                 true,
+                false,
                 false,
                 false);
         MatchContext matchContext = new MatchContext(Collections.emptyList(), remainingPredicateContext, true);
@@ -579,6 +584,7 @@ public class LuceneMatcherTest
                 true,
                 true,
                 false,
+                false,
                 false);
 
         MatchContext matchContext = new MatchContext(Collections.emptyList(), remainingPredicateContext, true);
@@ -713,6 +719,7 @@ public class LuceneMatcherTest
                 true,
                 true,
                 false,
+                false,
                 false);
         MatchContext matchContext = new MatchContext(Collections.emptyList(), remainingPredicateContext, true);
         return luceneElementsMatcher.match(classifyArgs, matchContext);
@@ -732,6 +739,7 @@ public class LuceneMatcherTest
                 false,
                 true,
                 true,
+                false,
                 false,
                 false);
 

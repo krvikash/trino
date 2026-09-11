@@ -98,6 +98,7 @@ public class QueryClassifier
             boolean varcharMappedMatchCollect = WarpSessionProperties.getEnabledVarcharMappedMatchCollect(session);
             boolean enableInverseWithNulls = WarpSessionProperties.getEnabledInverseWithNulls(session);
             boolean debugNoPredicateBuffer = WarpSessionProperties.isDebugNoPredicateBuffer(session, globalConfig);
+            boolean collectFromIndex = WarpSessionProperties.isCollectFromIndexEnabled(session);
             WarmedWarmupTypes warmedWarmupTypes = createColumnToWarmUpElementPerType(rowGroupData);
             ClassifyArgs classifyArgs = new ClassifyArgs(
                     dispatcherTableHandle,
@@ -109,7 +110,8 @@ public class QueryClassifier
                     mappedMatchCollect,
                     varcharMappedMatchCollect,
                     enableInverseWithNulls,
-                    debugNoPredicateBuffer);
+                    debugNoPredicateBuffer,
+                    collectFromIndex);
             queryContext = baseQueryContext;
             if (classificationType == ClassificationType.QUERY ||
                     classificationType == ClassificationType.CHOOSING_ALTERNATIVE) {

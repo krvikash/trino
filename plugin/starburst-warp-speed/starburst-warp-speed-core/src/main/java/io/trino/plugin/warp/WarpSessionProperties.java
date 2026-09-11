@@ -52,6 +52,7 @@ public final class WarpSessionProperties
     public static final String ENABLE_MATCH_COLLECT = "enable_match_collect";
     public static final String ENABLE_MAPPED_MATCH_COLLECT = "enable_mapped_match_collect";
     public static final String ENABLE_VARCHAR_MAPPED_MATCH_COLLECT = "enable_varchar_mapped_match_collect";
+    public static final String ENABLE_COLLECT_FROM_INDEX = "enable_collect_from_index";
     public static final String ENABLE_INVERSE_WITH_NULLS = "enable_inverse_with_nulls";
     public static final String MIN_MAX_FILTER = "min_max_filter";
     public static final String DEBUG_NO_PREDICATE_BUFFER = "debug_no_predicate_buffer";
@@ -98,6 +99,11 @@ public final class WarpSessionProperties
                         ENABLE_VARCHAR_MAPPED_MATCH_COLLECT,
                         "mapped match collect for varchar enabled",
                         sharedConfig.getEnableVarcharMappedMatchCollect(),
+                        true),
+                booleanProperty(
+                        ENABLE_COLLECT_FROM_INDEX,
+                        "Collect a column with no predicate on it from its index element instead of from storage",
+                        true,
                         true),
                 booleanProperty(
                         ENABLE_INVERSE_WITH_NULLS,
@@ -232,6 +238,15 @@ public final class WarpSessionProperties
     {
         Boolean ret = getProperty(session, ENABLE_INVERSE_WITH_NULLS, Boolean.class);
         return ret != null ? ret : false;
+    }
+
+    public static boolean isCollectFromIndexEnabled(ConnectorSession session)
+    {
+        Boolean value = getProperty(session, ENABLE_COLLECT_FROM_INDEX, Boolean.class);
+        if (value == null) {
+            return false;
+        }
+        return value;
     }
 
     public static boolean getEnableMatchCollect(ConnectorSession session)

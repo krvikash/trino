@@ -152,6 +152,7 @@ class BasicMatcherTest
                 true,
                 true,
                 false,
+                false,
                 false);
 
         Map<WarpColumn, PredicateContext> remainingPredicateContext = predicateContext.getLeaves()

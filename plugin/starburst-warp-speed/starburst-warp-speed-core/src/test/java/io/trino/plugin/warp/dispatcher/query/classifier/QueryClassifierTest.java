@@ -90,6 +90,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
+import static io.trino.plugin.warp.WarpSessionProperties.ENABLE_COLLECT_FROM_INDEX;
 import static io.trino.plugin.warp.WarpSessionProperties.ENABLE_MATCH_COLLECT;
 import static io.trino.plugin.warp.WarpSessionProperties.PREDICATE_SIMPLIFY_THRESHOLD;
 import static io.trino.plugin.warp.dispatcher.WarmupTestDataUtil.createLuceneQueryMatchData;
@@ -849,6 +850,52 @@ public class QueryClassifierTest
         assertThat(queryContext.getMatchData()).isEqualTo(Optional.of(expectedMatchData));
         assertThat(queryContext.getPrefilledQueryCollectDataByBlockIndex()).isEmpty();
         assertThat(queryContext.isCanBeTight()).isFalse();  // because of the dynamic filter
+    }
+
+    /**
+     * `select v-int-data-basic-2 from T where v-int-data-basic in (1, 2)`
+     */
+    @Test
+    public void testCollectFromTheIndexOfAColumnWithoutAPredicate()
+    {
+        TestingConnectorColumnHandle collectColumn = warpColumnHandles.get("v-int-data-basic-2");
+        WarmUpElement collectWarmUpElement = weHandleToWarmUpElementByType.get(collectColumn).get(WarmUpType.WARM_UP_TYPE_BASIC);
+
+        QueryContext queryContext = classifyScanWithAnUnfilteredCollectColumn(true);
+
+        assertThat(queryContext.getNativeQueryCollectDataList()).containsExactly(
+                createNativeQueryCollectData(collectWarmUpElement, 0, true));
+        assertThat(queryContext.getRemainingCollectColumnByBlockIndex()).isEmpty();
+        assertThat(queryContext.getMatchLeavesDFS()).hasSize(2);
+    }
+
+    @Test
+    public void testCollectFromTheIndexIsSkippedWhenDisabled()
+    {
+        TestingConnectorColumnHandle collectColumn = warpColumnHandles.get("v-int-data-basic-2");
+
+        QueryContext queryContext = classifyScanWithAnUnfilteredCollectColumn(false);
+
+        assertThat(queryContext.getNativeQueryCollectDataList()).isEmpty();
+        assertThat(queryContext.getRemainingCollectColumnByBlockIndex()).isEqualTo(Map.of(0, collectColumn));
+        assertThat(queryContext.getMatchLeavesDFS()).hasSize(1);
+    }
+
+    private QueryContext classifyScanWithAnUnfilteredCollectColumn(boolean collectFromIndex)
+    {
+        when(session.getProperty(eq(ENABLE_COLLECT_FROM_INDEX), eq(Boolean.class))).thenReturn(collectFromIndex);
+        TestingConnectorColumnHandle matchColumn = warpColumnHandles.get("v-int-data-basic");
+        TestingConnectorColumnHandle collectColumn = warpColumnHandles.get("v-int-data-basic-2");
+        TupleDomain<ColumnHandle> fullPredicate = TupleDomain.withColumnDomains(
+                Map.of(matchColumn, Domain.multipleValues(matchColumn.type(), List.of(1L, 2L))));
+        when(dispatcherTableHandle.getFullPredicate()).thenReturn(fullPredicate);
+        PredicateContextData predicateContextData = predicateContextFactory.create(session, DynamicFilter.EMPTY, dispatcherTableHandle);
+
+        return queryClassifier.classify(
+                new QueryContext(predicateContextData, ImmutableList.of(collectColumn), true, "query-id"),
+                rowGroupData,
+                dispatcherTableHandle,
+                session);
     }
 
     private DispatcherTableHandle mockDispatcherTableHandle(SchemaTableName schemaTableName)
