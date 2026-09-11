@@ -46,7 +46,6 @@ import static io.starburst.ai.client.tracing.GenAiAttributes.GEN_AI_OPERATION_NA
 import static io.starburst.ai.client.tracing.GenAiAttributes.GEN_AI_PROVIDER_NAME;
 import static io.starburst.ai.client.tracing.GenAiAttributes.GEN_AI_REQUEST_MODEL;
 import static io.starburst.ai.client.tracing.GenAiAttributes.OPERATION_NAME_CHAT;
-import static io.starburst.ai.client.tracing.GenAiAttributes.PROVIDER_NAME_OPENAI;
 import static io.trino.spi.StandardErrorCode.PERMISSION_DENIED;
 import static java.util.Objects.requireNonNull;
 
@@ -55,6 +54,7 @@ public abstract class AbstractOpenAiClient<ResponseType>
 {
     private final boolean isToolStreamingSupported;
     private final Tracer tracer;
+    private final String providerName;
     private final boolean includeMessagesInTracing;
     private final RetryPolicy<ResponseType> retryPolicy = RetryPolicy.<ResponseType>builder()
             .handleIf(AbstractOpenAiClient::isRetryable)
@@ -69,12 +69,14 @@ public abstract class AbstractOpenAiClient<ResponseType>
             int batchParallelism,
             boolean isToolStreamingSupported,
             Tracer tracer,
+            String providerName,
             boolean includeMessagesInTracing,
             TokenUsageListener tokenUsageListener)
     {
         super(promptDao, executor, batchParallelism, tokenUsageListener);
         this.isToolStreamingSupported = isToolStreamingSupported;
         this.tracer = requireNonNull(tracer, "tracer is null");
+        this.providerName = requireNonNull(providerName, "providerName is null");
         this.includeMessagesInTracing = includeMessagesInTracing;
     }
 
@@ -115,7 +117,7 @@ public abstract class AbstractOpenAiClient<ResponseType>
     {
         Span span = tracer.spanBuilder(OPERATION_NAME_CHAT + " " + modelName())
                 .setAttribute(GEN_AI_OPERATION_NAME, OPERATION_NAME_CHAT)
-                .setAttribute(GEN_AI_PROVIDER_NAME, PROVIDER_NAME_OPENAI)
+                .setAttribute(GEN_AI_PROVIDER_NAME, providerName)
                 .setAttribute(GEN_AI_REQUEST_MODEL, modelName())
                 .setSpanKind(SpanKind.CLIENT)
                 .startSpan();

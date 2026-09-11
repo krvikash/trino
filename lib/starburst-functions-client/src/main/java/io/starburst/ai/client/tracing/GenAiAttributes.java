@@ -41,6 +41,7 @@ public final class GenAiAttributes
 
     public static final String OPERATION_NAME_CHAT = "chat";
     public static final String PROVIDER_NAME_OPENAI = "openai";
+    public static final String PROVIDER_NAME_AZURE_OPENAI = "azure.ai.openai";
     public static final String PROVIDER_NAME_AWS_BEDROCK = "aws.bedrock";
     public static final String PROVIDER_NAME_VERTEX_AI = "gcp.vertex_ai";
 

@@ -47,6 +47,8 @@ import static io.starburst.ai.client.AiClientErrorCode.INVALID_MODEL_CONFIGURATI
 import static io.starburst.ai.client.ModelSecretsResolver.DUMMY_API_KEY;
 import static io.starburst.ai.client.ModelSecretsResolver.resolveOAuth2Secrets;
 import static io.starburst.ai.client.ModelSecretsResolver.resolveOpenAiSecrets;
+import static io.starburst.ai.client.tracing.GenAiAttributes.PROVIDER_NAME_AZURE_OPENAI;
+import static io.starburst.ai.client.tracing.GenAiAttributes.PROVIDER_NAME_OPENAI;
 import static io.starburst.ai.model.LlmTrait.STREAMING_TOOL_CALL_SUPPORT;
 import static io.starburst.ai.model.StreamingToolCallSupportOption.STREAMING_TOOL_CALL_SUPPORTED;
 import static java.lang.String.format;
@@ -108,6 +110,7 @@ public class OpenAiClientFactory
                 .equals(STREAMING_TOOL_CALL_SUPPORTED.name());
 
         OpenAIClient openAiClient = createOpenAiClient(spec.id(), updatedConnectionInfo, azureOpenAiConnectionInfo);
+        String providerName = providerName(azureOpenAiConnectionInfo);
         if (spec.useResponsesApi()) {
             return new OpenAiResponsesLanguageModelClient(
                     modelName,
@@ -124,6 +127,7 @@ public class OpenAiClientFactory
                     isStreamingToolCallSupported,
                     spec.reasoningEffort().map(Enum::name).map(ReasoningEffort::of),
                     tracer,
+                    providerName,
                     includeMessagesInTracing,
                     tokenUsageListener);
         }
@@ -141,6 +145,7 @@ public class OpenAiClientFactory
                 openAiClient,
                 isStreamingToolCallSupported,
                 tracer,
+                providerName,
                 includeMessagesInTracing,
                 tokenUsageListener);
     }
@@ -155,6 +160,11 @@ public class OpenAiClientFactory
                 .orElse(connectionInfo);
         String modelName = azureOpenAiConnectionInfo.map(AzureOpenAiConnectionInfo::deployment).orElse(spec.modelName());
         return new OpenAiEmbeddingModelClient(modelName, spec.dimensions(), createOpenAiClient(spec.id(), updatedConnectionInfo, azureOpenAiConnectionInfo));
+    }
+
+    private static String providerName(Optional<AzureOpenAiConnectionInfo> azureOpenAiConnectionInfo)
+    {
+        return azureOpenAiConnectionInfo.isPresent() ? PROVIDER_NAME_AZURE_OPENAI : PROVIDER_NAME_OPENAI;
     }
 
     private OpenAIClient createOpenAiClient(String modelId, OpenAiConnectionInfo connectionInfo, Optional<AzureOpenAiConnectionInfo> azureOpenAiConnectionInfo)

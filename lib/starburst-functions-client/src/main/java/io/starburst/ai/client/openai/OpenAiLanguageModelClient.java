@@ -76,10 +76,11 @@ public class OpenAiLanguageModelClient
             OpenAIClient client,
             boolean isToolStreamingSupported,
             Tracer tracer,
+            String providerName,
             boolean includeMessagesInTracing,
             TokenUsageListener tokenUsageListener)
     {
-        super(promptDao, executor, batchParallelism, isToolStreamingSupported, tracer, includeMessagesInTracing, tokenUsageListener);
+        super(promptDao, executor, batchParallelism, isToolStreamingSupported, tracer, providerName, includeMessagesInTracing, tokenUsageListener);
         this.temperature = requireNonNull(temperature, "temperature is null");
         this.maxTokens = requireNonNull(maxTokens, "maxTokens is null");
         this.topP = requireNonNull(topP, "topP is null");
