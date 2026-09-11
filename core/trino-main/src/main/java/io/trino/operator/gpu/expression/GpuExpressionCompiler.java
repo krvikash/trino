@@ -472,6 +472,8 @@ public final class GpuExpressionCompiler
             if (outputType.isEmpty()) {
                 return Optional.empty();
             }
+            // cuDF compares raw bytes; Trino CHAR ordering requires virtual right-padding with spaces.
+            // Pad operands before comparison, then strip the padding from the result.
             if (call.type() instanceof CharType charType) {
                 return compileNary(call.arguments(), operands -> {
                     List<GpuExpression> padded = operands.stream()
@@ -513,6 +515,13 @@ public final class GpuExpressionCompiler
 
             GpuExpression left = leftCompiled.get();
             GpuExpression right = rightCompiled.get();
+            // cuDF compares raw bytes; Trino CHAR ordering requires virtual right-padding with spaces.
+            // Equality is unaffected because equal CHAR values have identical raw bytes.
+            if (comparison.left().type() instanceof CharType charType
+                    && (comparison instanceof IrExpressions.Comparison.LessThan || comparison instanceof IrExpressions.Comparison.LessThanOrEqual)) {
+                left = new GpuPadSpaces(left, charType.getLength());
+                right = new GpuPadSpaces(right, charType.getLength());
+            }
             return switch (comparison) {
                 case IrExpressions.Comparison.Equal _ -> Optional.of(new GpuBinaryExpression(left, right, BinaryOp.EQUAL, DType.BOOL8));
                 case IrExpressions.Comparison.NotEqual _ -> Optional.of(new GpuBinaryExpression(left, right, BinaryOp.NOT_EQUAL, DType.BOOL8));
