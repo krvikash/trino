@@ -1192,7 +1192,7 @@ public abstract class BaseIcebergConnectorSmokeTest
         return () -> {};
     }
 
-    private long getMostRecentSnapshotId(String tableName)
+    protected long getMostRecentSnapshotId(String tableName)
     {
         return (long) Iterables.getOnlyElement(getQueryRunner().execute(format("SELECT snapshot_id FROM \"%s$snapshots\" ORDER BY committed_at DESC LIMIT 1", tableName))
                 .getOnlyColumnAsSet());

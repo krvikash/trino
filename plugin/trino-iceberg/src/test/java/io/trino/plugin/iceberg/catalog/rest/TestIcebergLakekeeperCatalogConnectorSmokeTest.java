@@ -23,6 +23,7 @@ import io.trino.plugin.iceberg.catalog.TrinoCatalogFactory;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.testing.QueryRunner;
 import io.trino.testing.TestingConnectorBehavior;
+import io.trino.testing.sql.TestTable;
 import org.apache.iceberg.BaseTable;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
@@ -181,6 +182,31 @@ final class TestIcebergLakekeeperCatalogConnectorSmokeTest
     public void testRegisterTableWithTrailingSpaceInLocation()
     {
         assertThatThrownBy(super::testCreateTableWithTrailingSpaceInLocation).hasStackTraceContaining("Trailing whitespaces are forbidden");
+    }
+
+    @Test
+    @Override
+    public void testCreateOrReplaceTable()
+    {
+        try (TestTable table = newTrinoTable(
+                "test_create_or_replace",
+                " AS SELECT BIGINT '42' a, DOUBLE '-38.5' b")) {
+            assertThat(query("SELECT a, b FROM " + table.getName()))
+                    .matches("VALUES (BIGINT '42', -385e-1)");
+
+            long v1SnapshotId = getMostRecentSnapshotId(table.getName());
+
+            assertUpdate("CREATE OR REPLACE TABLE " + table.getName() + " AS SELECT BIGINT '-42' a, DOUBLE '38.5' b", 1);
+            assertThat(query("SELECT a, b FROM " + table.getName()))
+                    .matches("VALUES (BIGINT '-42', 385e-1)");
+
+            // Lakekeeper does not retain the snapshot log across CREATE OR REPLACE
+            assertThat(query("SELECT COUNT(snapshot_id) FROM \"" + table.getName() + "$history\""))
+                    .matches("VALUES BIGINT '1'");
+
+            assertThat(query("SELECT a, b  FROM " + table.getName() + " FOR VERSION AS OF " + v1SnapshotId))
+                    .matches("VALUES (BIGINT '42', -385e-1)");
+        }
     }
 
     @Test
