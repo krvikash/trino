@@ -38,6 +38,7 @@ import static io.trino.operator.gpu.GpuTestUtils.maybeSetGpuMemoryPoolForTests;
 import static io.trino.spi.connector.SortOrder.ASC_NULLS_FIRST;
 import static io.trino.spi.connector.SortOrder.ASC_NULLS_LAST;
 import static io.trino.spi.type.BigintType.BIGINT;
+import static io.trino.spi.type.CharType.createCharType;
 import static io.trino.spi.type.DoubleType.DOUBLE;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.sql.gen.TestColumnarFilters.NullsProvider.NO_NULLS;
@@ -80,6 +81,13 @@ class TestGpuTopNMemory
     void testMultipleColumns()
     {
         testTopN(List.of(BIGINT, VARCHAR, BIGINT), SMALL_LIMIT, new int[] {0, 1}, List.of(ASC_NULLS_LAST, ASC_NULLS_LAST));
+    }
+
+    @Test
+    void testCharSortKey()
+    {
+        List<Type> types = List.of(createCharType(2), BIGINT);
+        testTopN(types, SMALL_LIMIT, new int[] {0}, List.of(ASC_NULLS_LAST));
     }
 
     @Test

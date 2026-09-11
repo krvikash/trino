@@ -37,6 +37,7 @@ import static io.trino.operator.gpu.GpuSortUtils.estimateOrderByMemoryUsage;
 import static io.trino.plugin.base.gpu.GpuUtils.closeColumns;
 import static io.trino.plugin.base.gpu.GpuUtils.toGpuPage;
 import static io.trino.plugin.base.gpu.GpuUtils.toTable;
+import static java.lang.Math.addExact;
 import static java.lang.Math.min;
 import static java.lang.Math.toIntExact;
 import static java.util.Objects.requireNonNull;
@@ -121,7 +122,7 @@ public final class GpuTopN
                     allocated.borrow().transferFrom(allocation);
                 }
                 long combinedBytes = allocated.borrow().amount().gpuDeviceBytes();
-                long sortKeyBytes = getSortKeyBytes(page);
+                long[] sortKeyBytes = getSortKeyBytes(page);
                 long rowCount = (buffered.isEmpty() ? 0 : buffered.borrow().getRowCount()) + page.positionCount();
                 long workBytes = estimateOrderByMemoryUsage(getSortDTypes(page), sortTypes, sortOrders, sortKeyBytes, combinedBytes, rowCount);
                 allocated.borrow().update(MemoryAmount.gpuDevice(workBytes));
@@ -152,14 +153,15 @@ public final class GpuTopN
                 .toArray(DType[]::new);
     }
 
-    private long getSortKeyBytes(@Borrow GpuPage page)
+    private long[] getSortKeyBytes(@Borrow GpuPage page)
     {
-        long bytes = 0;
-        for (int channel : sortChannels) {
+        long[] bytes = new long[sortChannels.length];
+        for (int i = 0; i < sortChannels.length; i++) {
+            int channel = sortChannels[i];
             if (!buffered.isEmpty()) {
-                bytes += buffered.borrow().getColumn(channel).getDeviceMemorySize();
+                bytes[i] = buffered.borrow().getColumn(channel).getDeviceMemorySize();
             }
-            bytes += page.column(channel).retainedDeviceMemoryBytes();
+            bytes[i] = addExact(bytes[i], page.column(channel).retainedDeviceMemoryBytes());
         }
         return bytes;
     }

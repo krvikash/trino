@@ -25,6 +25,7 @@ import io.trino.spi.connector.SortOrder;
 import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
 import io.trino.spi.gpu.borrow.Own;
+import io.trino.spi.type.CharType;
 import io.trino.spi.type.DoubleType;
 import io.trino.spi.type.RealType;
 import io.trino.spi.type.Type;
@@ -35,6 +36,8 @@ import java.util.List;
 import static com.google.common.base.Preconditions.checkArgument;
 import static io.trino.operator.gpu.memory.GpuMemoryUtils.getOrderByMemoryUsage;
 import static io.trino.plugin.base.gpu.GpuUtils.closeColumns;
+import static java.lang.Math.addExact;
+import static java.lang.Math.multiplyExact;
 import static java.util.Objects.requireNonNull;
 
 public final class GpuSortUtils
@@ -47,20 +50,21 @@ public final class GpuSortUtils
         checkArgument(sortChannels.length == sortOrders.size(), "sortChannels and sortOrders sizes do not match");
         checkArgument(sortChannels.length == sortTypes.size(), "sortChannels and sortTypes sizes do not match");
 
-        // cuDF always sorts NaN after real values, while Trino uses COMPARISON_UNORDERED_FIRST
-        // for NULLS_FIRST orders, placing NaN before real values (after null). NULLS_LAST already matches cuDF.
+        // cuDF compares strings without the implicit right-padding required by Trino CHAR semantics.
+        // Replace every CHAR sort key with a temporary column padded to the declared CHAR length.
         //
+        // cuDF also always sorts NaN after real values, while Trino uses COMPARISON_UNORDERED_FIRST
+        // for NULLS_FIRST orders, placing NaN before real values (after null). NULLS_LAST already matches cuDF.
         // When correction is needed, insert a temporary boolean flag column before the float sort key.
         // For ASC: isNotNan() → false(NaN) before true(non-NaN) — NaN at the front.
         // For DESC: isNan() → false(non-NaN) before true(NaN) — NaN at the back.
-        // Use sortOrder() on the expanded keys to get row indices, then gather() the original table
-        // so the flag columns are never materialized in the sorted output.
 
         int flagCount = countNanFlags(sortTypes, sortOrders);
-        if (flagCount == 0) {
+        int paddedCharCount = countPaddedCharKeys(sortTypes);
+        if (flagCount == 0 && paddedCharCount == 0) {
             return table.orderBy(toOrderByArgs(sortChannels, sortOrders));
         }
-        try (SortableTable sortable = appendNanFlags(table, sortChannels, sortTypes, sortOrders, flagCount)) {
+        try (SortableTable sortable = createSortableTable(table, sortChannels, sortTypes, sortOrders, flagCount, paddedCharCount)) {
             OrderByArg[] args = toOrderByArgs(sortable.sortChannels(), sortable.sortOrders());
             try (ColumnVector sortIndices = sortable.table().sortOrder(args)) {
                 return table.gather(sortIndices);
@@ -68,25 +72,54 @@ public final class GpuSortUtils
         }
     }
 
-    public static long estimateOrderByMemoryUsage(DType[] sortDTypes, List<Type> sortTypes, List<SortOrder> sortOrders, long sortKeyBytes, long totalBytes, long rowCount)
+    public static long estimateOrderByMemoryUsage(DType[] sortDTypes, List<Type> sortTypes, List<SortOrder> sortOrders, long[] sortKeyBytes, long totalBytes, long rowCount)
     {
         checkArgument(sortDTypes.length == sortOrders.size(), "sortDTypes and sortOrders sizes do not match");
         checkArgument(sortDTypes.length == sortTypes.size(), "sortDTypes and sortTypes sizes do not match");
+        checkArgument(sortDTypes.length == sortKeyBytes.length, "sortDTypes and sortKeyBytes sizes do not match");
 
         int flagCount = countNanFlags(sortTypes, sortOrders);
-        if (flagCount == 0) {
-            return getOrderByMemoryUsage(sortDTypes, sortKeyBytes, totalBytes);
+        int paddedCharCount = countPaddedCharKeys(sortTypes);
+        if (flagCount == 0 && paddedCharCount == 0) {
+            return getOrderByMemoryUsage(sortDTypes, sum(sortKeyBytes), totalBytes);
         }
-        long flagBytes = flagCount * rowCount;
+
         DType[] expandedTypes = new DType[sortDTypes.length + flagCount];
         int index = 0;
+        long helperBytes = 0;
+        long expandedSortKeyBytes = 0;
         for (int i = 0; i < sortDTypes.length; i++) {
             if (needsNanFlag(sortTypes.get(i), sortOrders.get(i))) {
                 expandedTypes[index++] = DType.BOOL8;
+                helperBytes = addExact(helperBytes, rowCount);
+                expandedSortKeyBytes = addExact(expandedSortKeyBytes, rowCount);
             }
             expandedTypes[index++] = sortDTypes[i];
+
+            long keyBytes = sortKeyBytes[i];
+            if (needsCharPadding(sortTypes.get(i))) {
+                // pad() adds at most charType.getLength() single-byte space characters per row.
+                // The original column bytes account for multibyte UTF-8 characters already present.
+                CharType charType = (CharType) sortTypes.get(i);
+                long maxPaddingBytes = multiplyExact(charType.getLength(), rowCount);
+                long paddedKeyBytes = addExact(keyBytes, maxPaddingBytes);
+                helperBytes = addExact(helperBytes, paddedKeyBytes);
+                expandedSortKeyBytes = addExact(expandedSortKeyBytes, paddedKeyBytes);
+            }
+            else {
+                expandedSortKeyBytes = addExact(expandedSortKeyBytes, keyBytes);
+            }
         }
-        return getOrderByMemoryUsage(expandedTypes, sortKeyBytes + flagBytes, totalBytes + flagBytes);
+        return getOrderByMemoryUsage(expandedTypes, expandedSortKeyBytes, addExact(totalBytes, helperBytes));
+    }
+
+    private static long sum(long[] values)
+    {
+        long sum = 0;
+        for (long value : values) {
+            sum = addExact(sum, value);
+        }
+        return sum;
     }
 
     private static int countNanFlags(List<Type> sortTypes, List<SortOrder> sortOrders)
@@ -100,10 +133,21 @@ public final class GpuSortUtils
         return count;
     }
 
-    private static SortableTable appendNanFlags(Table table, int[] sortChannels, List<Type> sortTypes, List<SortOrder> sortOrders, int flagCount)
+    private static int countPaddedCharKeys(List<Type> sortTypes)
+    {
+        int count = 0;
+        for (Type type : sortTypes) {
+            if (needsCharPadding(type)) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    private static SortableTable createSortableTable(Table table, int[] sortChannels, List<Type> sortTypes, List<SortOrder> sortOrders, int flagCount, int paddedCharCount)
     {
         int originalColumnCount = table.getNumberOfColumns();
-        @Own ColumnVector[] allColumns = new ColumnVector[originalColumnCount + flagCount];
+        @Own ColumnVector[] allColumns = new ColumnVector[originalColumnCount + flagCount + paddedCharCount];
         try {
             for (int i = 0; i < originalColumnCount; i++) {
                 allColumns[i] = table.getColumn(i).incRefCount();
@@ -121,7 +165,15 @@ public final class GpuSortUtils
                     adjustedOrders.add(SortOrder.ASC_NULLS_FIRST);
                     appendIndex++;
                 }
-                adjustedChannels[outputIndex++] = channel;
+
+                int adjustedChannel = channel;
+                if (needsCharPadding(sortTypes.get(i))) {
+                    CharType charType = (CharType) sortTypes.get(i);
+                    allColumns[appendIndex] = table.getColumn(channel).pad(charType.getLength());
+                    adjustedChannel = appendIndex;
+                    appendIndex++;
+                }
+                adjustedChannels[outputIndex++] = adjustedChannel;
                 adjustedOrders.add(sortOrders.get(i));
             }
 
@@ -136,6 +188,11 @@ public final class GpuSortUtils
     private static boolean needsNanFlag(Type type, SortOrder sortOrder)
     {
         return (type instanceof DoubleType || type instanceof RealType) && sortOrder.isNullsFirst();
+    }
+
+    private static boolean needsCharPadding(Type type)
+    {
+        return type instanceof CharType charType && charType.getLength() > 0;
     }
 
     private static @Move ColumnVector createNanFlag(@Borrow ColumnView column, boolean isAscending)

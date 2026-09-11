@@ -37,6 +37,7 @@ import java.util.List;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
+import static io.airlift.slice.Slices.utf8Slice;
 import static io.trino.memory.context.AggregatedMemoryContext.newSimpleAggregatedMemoryContext;
 import static io.trino.operator.gpu.BufferPages.TARGET_ROW_COUNT;
 import static io.trino.operator.gpu.GpuTestUtils.assertSameDataInOrder;
@@ -45,6 +46,7 @@ import static io.trino.operator.gpu.GpuTestUtils.executeGpuOperation;
 import static io.trino.operator.gpu.GpuTestUtils.maybeSetGpuMemoryPoolForTests;
 import static io.trino.spi.connector.SortOrder.ASC_NULLS_LAST;
 import static io.trino.spi.type.BigintType.BIGINT;
+import static io.trino.spi.type.CharType.createCharType;
 import static io.trino.spi.type.DoubleType.DOUBLE;
 import static io.trino.spi.type.RealType.REAL;
 import static io.trino.sql.gen.TestColumnarFilters.NullsProvider.NO_NULLS;
@@ -257,6 +259,25 @@ final class TestGpuTopN
                 10,
                 new int[] {0},
                 List.of(ASC_NULLS_LAST));
+    }
+
+    @ParameterizedTest
+    @EnumSource(SortOrder.class)
+    void testCharPaddedSemantics(SortOrder sortOrder)
+    {
+        Type charType = createCharType(2);
+        BlockBuilder orderBuilder = charType.createBlockBuilder(null, 4);
+        // U+0001 is less than space (U+0020), so naive byte comparison would produce wrong order without proper CHAR padding
+        for (String value : List.of("a", "a", "a\u0001", "a\u0001")) {
+            charType.writeSlice(orderBuilder, utf8Slice(value));
+        }
+
+        assertGpuTopNMatchesCpu(
+                List.of(new Page(orderBuilder.build())),
+                List.of(charType),
+                10,
+                new int[] {0},
+                List.of(sortOrder));
     }
 
     static Stream<Arguments> nullsAndSortOrders()
