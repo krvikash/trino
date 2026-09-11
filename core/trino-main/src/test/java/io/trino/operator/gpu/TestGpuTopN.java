@@ -14,6 +14,7 @@
 package io.trino.operator.gpu;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 import com.google.common.primitives.Ints;
 import io.trino.operator.SimplePageWithPositionComparator;
 import io.trino.operator.TopNProcessor;
@@ -27,12 +28,9 @@ import io.trino.sql.gen.TestColumnarFilters.NullsProvider;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.EnumSource;
-import org.junit.jupiter.params.provider.FieldSource;
 import org.junit.jupiter.params.provider.MethodSource;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -40,6 +38,7 @@ import java.util.stream.Stream;
 import static io.airlift.slice.Slices.utf8Slice;
 import static io.trino.memory.context.AggregatedMemoryContext.newSimpleAggregatedMemoryContext;
 import static io.trino.operator.gpu.BufferPages.TARGET_ROW_COUNT;
+import static io.trino.operator.gpu.GpuTestUtils.TESTED_GPU_TYPES;
 import static io.trino.operator.gpu.GpuTestUtils.assertSameDataInOrder;
 import static io.trino.operator.gpu.GpuTestUtils.createBlock;
 import static io.trino.operator.gpu.GpuTestUtils.executeGpuOperation;
@@ -73,12 +72,12 @@ final class TestGpuTopN
     }
 
     @ParameterizedTest
-    @MethodSource("nullsAndSortOrders")
-    void testSingleColumn(NullsProvider nullsProvider, SortOrder sortOrder)
+    @MethodSource("singleColumnTestCases")
+    void testSingleColumn(Type type, NullsProvider nullsProvider, SortOrder sortOrder)
     {
         assertGpuTopNMatchesCpu(
-                new Page(createBlock(BIGINT, 100, nullsProvider)),
-                List.of(BIGINT),
+                new Page(createBlock(type, 100, nullsProvider)),
+                List.of(type),
                 10,
                 new int[] {0},
                 List.of(sortOrder));
@@ -96,30 +95,30 @@ final class TestGpuTopN
     }
 
     @ParameterizedTest
-    @MethodSource("nullsAndTwoSortOrders")
-    void testMultipleColumns(NullsProvider nullsProvider, SortOrder firstSortOrder, SortOrder secondSortOrder)
+    @MethodSource("twoColumnsTestCases")
+    void testMultipleColumns(NullsProvider nullsProvider, Type firstType, SortOrder firstSortOrder, Type secondType, SortOrder secondSortOrder)
     {
         assertGpuTopNMatchesCpu(
                 new Page(
-                        createBlock(BIGINT, 100, nullsProvider),
-                        createBlock(BIGINT, 100, nullsProvider)),
-                List.of(BIGINT, BIGINT),
+                        createBlock(firstType, 100, nullsProvider),
+                        createBlock(secondType, 100, nullsProvider)),
+                List.of(firstType, secondType),
                 10,
                 new int[] {0, 1},
                 List.of(firstSortOrder, secondSortOrder));
     }
 
     @ParameterizedTest
-    @MethodSource("nullsAndSortOrders")
-    void testMultipleBatches(NullsProvider nullsProvider, SortOrder sortOrder)
+    @MethodSource("singleColumnTestCases")
+    void testMultipleBatches(Type type, NullsProvider nullsProvider, SortOrder sortOrder)
     {
         List<Page> inputPages = List.of(
-                new Page(createBlock(BIGINT, TARGET_ROW_COUNT, nullsProvider)),
-                new Page(createBlock(BIGINT, TARGET_ROW_COUNT, nullsProvider)),
-                new Page(createBlock(BIGINT, TARGET_ROW_COUNT, nullsProvider)));
+                new Page(createBlock(type, TARGET_ROW_COUNT, nullsProvider)),
+                new Page(createBlock(type, TARGET_ROW_COUNT, nullsProvider)),
+                new Page(createBlock(type, TARGET_ROW_COUNT, nullsProvider)));
         assertGpuTopNMatchesCpu(
                 inputPages,
-                List.of(BIGINT),
+                List.of(type),
                 10,
                 new int[] {0},
                 List.of(sortOrder));
@@ -250,18 +249,6 @@ final class TestGpuTopN
     }
 
     @ParameterizedTest
-    @FieldSource("io.trino.operator.gpu.GpuTestUtils#TESTED_GPU_TYPES")
-    void testAllTypes(Type type)
-    {
-        assertGpuTopNMatchesCpu(
-                new Page(createBlock(type, 100, NO_NULLS)),
-                List.of(type),
-                10,
-                new int[] {0},
-                List.of(ASC_NULLS_LAST));
-    }
-
-    @ParameterizedTest
     @EnumSource(SortOrder.class)
     void testCharPaddedSemantics(SortOrder sortOrder)
     {
@@ -280,19 +267,26 @@ final class TestGpuTopN
                 List.of(sortOrder));
     }
 
-    static Stream<Arguments> nullsAndSortOrders()
+    static Stream<Object[]> singleColumnTestCases()
     {
-        return Arrays.stream(NullsProvider.values())
-                .flatMap(nulls -> Arrays.stream(SortOrder.values())
-                        .map(sort -> Arguments.of(nulls, sort)));
+        return Lists.cartesianProduct(
+                        TESTED_GPU_TYPES,
+                        ImmutableList.copyOf(NullsProvider.values()),
+                        ImmutableList.copyOf(SortOrder.values()))
+                .stream()
+                .map(List::toArray);
     }
 
-    static Stream<Arguments> nullsAndTwoSortOrders()
+    static Stream<Object[]> twoColumnsTestCases()
     {
-        return Arrays.stream(NullsProvider.values())
-                .flatMap(nulls -> Arrays.stream(SortOrder.values())
-                        .flatMap(sort1 -> Arrays.stream(SortOrder.values())
-                                .map(sort2 -> Arguments.of(nulls, sort1, sort2))));
+        return Lists.cartesianProduct(
+                        ImmutableList.copyOf(NullsProvider.values()),
+                        TESTED_GPU_TYPES,
+                        ImmutableList.copyOf(SortOrder.values()),
+                        TESTED_GPU_TYPES,
+                        ImmutableList.copyOf(SortOrder.values()))
+                .stream()
+                .map(List::toArray);
     }
 
     private static void assertGpuTopNMatchesCpu(Page inputPage, List<Type> types, int limit, int[] sortChannels, List<SortOrder> sortOrders)
