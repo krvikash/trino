@@ -1727,6 +1727,34 @@ public class TestGpuExpressions
         assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA));
     }
 
+    @Test
+    public void testLeastCharPaddedSemantics()
+    {
+        // U+0001 is less than space (U+0020), so least() would return wrong results without proper CHAR padding
+        Type charType = createCharType(2);
+        int channelA = 0;
+        int channelB = 1;
+        List<Type> inputTypes = List.of(charType, charType);
+        List<Page> inputPages = List.of(new Page(
+                charBlock(charType, "a", "a\u0001", "b", "a"),
+                charBlock(charType, "a\u0001", "a", "a", "ab")));
+
+        Expression expression = new Call(
+                FUNCTION_RESOLUTION.resolveFunction("least", fromTypes(charType, charType)),
+                ImmutableList.of(field(channelA, charType), field(channelB, charType)));
+
+        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA, channelB));
+    }
+
+    private static Block charBlock(Type charType, String... values)
+    {
+        BlockBuilder builder = charType.createBlockBuilder(null, values.length);
+        for (String value : values) {
+            charType.writeSlice(builder, Slices.utf8Slice(value));
+        }
+        return builder.build();
+    }
+
     @ParameterizedTest
     @EnumSource(NullsProvider.class)
     public void testIf(NullsProvider nullsProvider)

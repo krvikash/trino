@@ -472,6 +472,14 @@ public final class GpuExpressionCompiler
             if (outputType.isEmpty()) {
                 return Optional.empty();
             }
+            if (call.type() instanceof CharType charType) {
+                return compileNary(call.arguments(), operands -> {
+                    List<GpuExpression> padded = operands.stream()
+                            .map(operand -> (GpuExpression) new GpuPadSpaces(operand, charType.getLength()))
+                            .toList();
+                    return new GpuTrim(new GpuLeast(padded, outputType.get()), " ", GpuTrim.Side.TRAILING, false);
+                }, context);
+            }
             return compileNary(call.arguments(), operands -> new GpuLeast(operands, outputType.get()), context);
         }
 
