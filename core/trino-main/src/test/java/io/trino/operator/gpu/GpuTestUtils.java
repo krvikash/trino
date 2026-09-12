@@ -64,6 +64,7 @@ import io.trino.type.CharVarcharCoercion;
 
 import java.math.BigInteger;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -93,7 +94,6 @@ import static io.trino.spi.type.DoubleType.DOUBLE;
 import static io.trino.spi.type.IntegerType.INTEGER;
 import static io.trino.spi.type.RealType.REAL;
 import static io.trino.spi.type.SmallintType.SMALLINT;
-import static io.trino.spi.type.TimestampType.createTimestampType;
 import static io.trino.spi.type.Timestamps.MICROSECONDS_PER_DAY;
 import static io.trino.spi.type.Timestamps.NANOSECONDS_PER_MICROSECOND;
 import static io.trino.spi.type.TinyintType.TINYINT;
@@ -139,6 +139,20 @@ public final class GpuTestUtils
             .build();
 
     public static final List<Type> TESTED_GPU_FLOATING_POINT_TYPES = List.of(DOUBLE, REAL);
+
+    public static final List<List<Double>> FLOATING_POINT_EDGE_CASES = List.of(
+            // NaN among real values
+            List.of(Double.NaN, 3.0, -1.0, 5.0),
+            // only NaN
+            List.of(Double.NaN, Double.NaN),
+            // NaN + null
+            Arrays.asList(Double.NaN, null),
+            // NaN + null + real
+            Arrays.asList(Double.NaN, null, 42.0),
+            // +Inf, -Inf, NaN
+            List.of(Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY, Double.NaN),
+            // -0.0, 0.0, NaN
+            List.of(-0.0, 0.0, Double.NaN));
 
     private static final BlockTypeOperators BLOCK_TYPE_OPERATORS = new BlockTypeOperators();
 
@@ -219,6 +233,30 @@ public final class GpuTestUtils
     public static Block createBigintBlock(int positionsCount, NullsProvider nullsProvider, long minValue, long maxValue)
     {
         return createBigintBlocks(List.of(positionsCount), nullsProvider, minValue, maxValue).getFirst();
+    }
+
+    public static Block createFloatingPointBlock(Type type, List<Double> values)
+    {
+        BlockBuilder builder = type.createBlockBuilder(null, values.size());
+        for (Double value : values) {
+            if (value == null) {
+                builder.appendNull();
+            }
+            else {
+                writeFloatingPoint(builder, type, value);
+            }
+        }
+        return builder.build();
+    }
+
+    public static void writeFloatingPoint(BlockBuilder builder, Type type, double value)
+    {
+        if (type == DOUBLE) {
+            DOUBLE.writeDouble(builder, value);
+        }
+        else {
+            REAL.writeFloat(builder, (float) value);
+        }
     }
 
     public static List<Block> createBlocks(List<Integer> positionsCounts, NullsProvider nullsProvider, Type type)

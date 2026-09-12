@@ -52,7 +52,6 @@ import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.FieldSource;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -71,13 +70,16 @@ import static io.trino.RowPagesBuilder.rowPagesBuilder;
 import static io.trino.block.BlockAssertions.getOnlyValue;
 import static io.trino.operator.aggregation.AggregationTestUtils.assertAggregation;
 import static io.trino.operator.gpu.BufferPages.TARGET_ROW_COUNT;
+import static io.trino.operator.gpu.GpuTestUtils.FLOATING_POINT_EDGE_CASES;
 import static io.trino.operator.gpu.GpuTestUtils.assertSameDataInOrder;
 import static io.trino.operator.gpu.GpuTestUtils.assertSameDataWithoutOrder;
 import static io.trino.operator.gpu.GpuTestUtils.createBigintBlock;
 import static io.trino.operator.gpu.GpuTestUtils.createBlock;
+import static io.trino.operator.gpu.GpuTestUtils.createFloatingPointBlock;
 import static io.trino.operator.gpu.GpuTestUtils.executeGpuOperation;
 import static io.trino.operator.gpu.GpuTestUtils.maybeSetGpuMemoryPoolForTests;
 import static io.trino.operator.gpu.GpuTestUtils.mergePages;
+import static io.trino.operator.gpu.GpuTestUtils.writeFloatingPoint;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.spi.type.CharType.createCharType;
@@ -99,19 +101,6 @@ final class TestGpuAggregation
     // high-cardinality partial aggregation flushes, but large enough that low-cardinality and small inputs
     // aggregate into a single resident state without flushing.
     private static final long COMPACTION_THRESHOLD_BYTES = 256 * 1024;
-    private static final List<List<Double>> FLOATING_POINT_NAN_TEST_GROUPS = List.of(
-            // NaN among real values
-            List.of(Double.NaN, 3.0, -1.0, 5.0),
-            // only NaN
-            List.of(Double.NaN, Double.NaN),
-            // NaN + null
-            Arrays.asList(Double.NaN, null),
-            // NaN + null + real
-            Arrays.asList(Double.NaN, null, 42.0),
-            // +Inf, -Inf, NaN
-            List.of(Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY, Double.NaN),
-            // -0.0, 0.0, NaN
-            List.of(-0.0, 0.0, Double.NaN));
 
     @BeforeAll
     static void maybeSetGpuMemoryPool()
@@ -374,7 +363,7 @@ final class TestGpuAggregation
     @FieldSource("io.trino.operator.gpu.GpuTestUtils#TESTED_GPU_FLOATING_POINT_TYPES")
     void testMinFloatingPointNaN(Type type)
     {
-        for (List<Double> group : FLOATING_POINT_NAN_TEST_GROUPS) {
+        for (List<Double> group : FLOATING_POINT_EDGE_CASES) {
             Page inputPage = new Page(createFloatingPointBlock(type, group));
             assertGlobalMatchesCpu(List.of(inputPage), "min", List.of(type), SINGLE);
         }
@@ -384,7 +373,7 @@ final class TestGpuAggregation
     @FieldSource("io.trino.operator.gpu.GpuTestUtils#TESTED_GPU_FLOATING_POINT_TYPES")
     void testMaxFloatingPointNaN(Type type)
     {
-        for (List<Double> group : FLOATING_POINT_NAN_TEST_GROUPS) {
+        for (List<Double> group : FLOATING_POINT_EDGE_CASES) {
             Page inputPage = new Page(createFloatingPointBlock(type, group));
             assertGlobalMatchesCpu(List.of(inputPage), "max", List.of(type), SINGLE);
         }
@@ -406,27 +395,13 @@ final class TestGpuAggregation
         assertGroupByMatchesCpu(List.of(inputPage), "max", List.of(type), SINGLE);
     }
 
-    private static Block createFloatingPointBlock(Type type, List<Double> values)
-    {
-        BlockBuilder builder = type.createBlockBuilder(null, values.size());
-        for (Double value : values) {
-            if (value == null) {
-                builder.appendNull();
-            }
-            else {
-                writeFloatingPoint(builder, type, value);
-            }
-        }
-        return builder.build();
-    }
-
     private static Page createGroupByFloatingPointNanPage(Type type)
     {
-        int totalRows = FLOATING_POINT_NAN_TEST_GROUPS.stream().mapToInt(List::size).sum();
+        int totalRows = FLOATING_POINT_EDGE_CASES.stream().mapToInt(List::size).sum();
         BlockBuilder groupBuilder = BIGINT.createBlockBuilder(null, totalRows);
         BlockBuilder valueBuilder = type.createBlockBuilder(null, totalRows);
-        for (int groupId = 0; groupId < FLOATING_POINT_NAN_TEST_GROUPS.size(); groupId++) {
-            for (Double value : FLOATING_POINT_NAN_TEST_GROUPS.get(groupId)) {
+        for (int groupId = 0; groupId < FLOATING_POINT_EDGE_CASES.size(); groupId++) {
+            for (Double value : FLOATING_POINT_EDGE_CASES.get(groupId)) {
                 BIGINT.writeLong(groupBuilder, groupId);
                 if (value == null) {
                     valueBuilder.appendNull();
@@ -437,16 +412,6 @@ final class TestGpuAggregation
             }
         }
         return new Page(groupBuilder.build(), valueBuilder.build());
-    }
-
-    private static void writeFloatingPoint(BlockBuilder builder, Type type, double value)
-    {
-        if (type == DOUBLE) {
-            DOUBLE.writeDouble(builder, value);
-        }
-        else {
-            REAL.writeFloat(builder, (float) value);
-        }
     }
 
     @Test
