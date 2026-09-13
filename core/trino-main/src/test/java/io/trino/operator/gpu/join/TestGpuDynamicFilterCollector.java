@@ -15,6 +15,7 @@ package io.trino.operator.gpu.join;
 
 import ai.rapids.cudf.ColumnVector;
 import ai.rapids.cudf.Table;
+import io.airlift.slice.Slices;
 import io.airlift.units.DataSize;
 import io.trino.operator.JoinDomainBuilder;
 import io.trino.spi.block.Block;
@@ -46,6 +47,7 @@ import static io.trino.operator.gpu.GpuTestUtils.TESTED_GPU_TYPES;
 import static io.trino.operator.gpu.GpuTestUtils.createBlock;
 import static io.trino.operator.gpu.GpuTestUtils.maybeSetGpuMemoryPoolForTests;
 import static io.trino.spi.type.BigintType.BIGINT;
+import static io.trino.spi.type.CharType.createCharType;
 import static io.trino.spi.type.DoubleType.DOUBLE;
 import static io.trino.spi.type.NumberType.NUMBER;
 import static io.trino.spi.type.RealType.REAL;
@@ -182,6 +184,23 @@ final class TestGpuDynamicFilterCollector
         DynamicFilterTupleDomain<DynamicFilterId> gpuResult = collectGpuTupleDomain(VARBINARY, block, 100);
 
         assertThat(gpuResult.isAll()).isTrue();
+    }
+
+    @Test
+    void testCharPaddedSemantics()
+    {
+        Type charType = createCharType(2);
+        BlockBuilder builder = charType.createBlockBuilder(null, 2);
+        charType.writeSlice(builder, Slices.utf8Slice("a"));
+        charType.writeSlice(builder, Slices.utf8Slice("a\u0001"));
+        Block block = builder.build();
+
+        DynamicFilterDomain cpuDomain = collectCpuDomain(charType, block, 100, 0);
+        DynamicFilterDomain gpuDomain = collectGpuDomain(charType, block, 100);
+
+        assertThat(gpuDomain)
+                .as("discrete domain for %s", charType)
+                .isEqualTo(cpuDomain);
     }
 
     private static DynamicFilterDomain collectCpuDomain(Type type, @Nullable Block block, int maxDistinctValues, int bloomFilterMaxDistinctValues)
