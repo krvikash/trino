@@ -13,6 +13,12 @@
  */
 package io.trino.operator.gpu.join;
 
+import ai.rapids.cudf.ast.AstExpression;
+import ai.rapids.cudf.ast.BinaryOperation;
+import ai.rapids.cudf.ast.BinaryOperator;
+import ai.rapids.cudf.ast.ColumnReference;
+import ai.rapids.cudf.ast.TableReference;
+import io.airlift.slice.Slices;
 import io.trino.operator.gpu.BufferPages;
 import io.trino.operator.gpu.CopyToDevice;
 import io.trino.operator.gpu.GpuOperation;
@@ -26,21 +32,32 @@ import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.gpu.borrow.Move;
 import io.trino.spi.gpu.borrow.Own;
+import io.trino.spi.type.CharType;
 import io.trino.spi.type.Type;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
+import static ai.rapids.cudf.ast.BinaryOperator.GREATER;
+import static ai.rapids.cudf.ast.BinaryOperator.GREATER_EQUAL;
+import static ai.rapids.cudf.ast.BinaryOperator.LESS;
+import static ai.rapids.cudf.ast.BinaryOperator.LESS_EQUAL;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static io.trino.operator.gpu.GpuTestUtils.executeGpuOperation;
 import static io.trino.operator.gpu.GpuTestUtils.maybeSetGpuMemoryPoolForTests;
 import static io.trino.spi.type.BigintType.BIGINT;
+import static io.trino.spi.type.CharType.createCharType;
 import static org.assertj.core.api.Assertions.assertThat;
 
 final class TestGpuLookupJoin
@@ -165,6 +182,69 @@ final class TestGpuLookupJoin
         }
     }
 
+    @ParameterizedTest(name = "{0} {1}")
+    @MethodSource("charFilterCases")
+    void testFilteredCharComparison(GpuLookupJoin.JoinType joinType, BinaryOperator operator, List<String> expectedMatched, List<String> expectedUnmatched)
+    {
+        CharType charType = createCharType(2);
+        List<Type> types = List.of(BIGINT, charType);
+        Page buildPage = new Page(longBlock(1L), charBlock(charType, "a\t"));
+        Page probePage = new Page(longBlock(1L, 1L, 1L), charBlock(charType, "a", "a\t", "b"));
+        AstExpression filter = new BinaryOperation(
+                operator,
+                new ColumnReference(1, TableReference.LEFT),
+                new ColumnReference(1, TableReference.RIGHT));
+
+        GpuJoinBridgeManager manager = new GpuJoinBridgeManager();
+        try (BuildDriver build = new BuildDriver(manager, types, CHANNEL_0, new int[] {1}, Optional.of(filter), List.of(buildPage))) {
+            assertThat(build.run()).isInstanceOf(Blocked.class);
+            List<Page> output = runProbe(
+                    manager,
+                    types,
+                    CHANNEL_0,
+                    new int[] {0, 1},
+                    joinType,
+                    List.of(charType),
+                    List.of(BIGINT, charType, charType),
+                    true,
+                    List.of(probePage));
+            assertThat(build.run()).isInstanceOf(Finished.class);
+
+            List<String> matchedProbes = new ArrayList<>();
+            List<String> unmatchedProbes = new ArrayList<>();
+            for (Page page : output) {
+                for (int position = 0; position < page.getPositionCount(); position++) {
+                    assertThat(BIGINT.getLong(page.getBlock(0), position)).isEqualTo(1);
+                    String probeValue = charType.getSlice(page.getBlock(1), position).toStringUtf8();
+                    if (page.getBlock(2).isNull(position)) {
+                        unmatchedProbes.add(probeValue);
+                    }
+                    else {
+                        assertThat(charType.getSlice(page.getBlock(2), position).toStringUtf8()).isEqualTo("a\t");
+                        matchedProbes.add(probeValue);
+                    }
+                }
+            }
+
+            assertThat(matchedProbes).containsExactlyInAnyOrderElementsOf(expectedMatched);
+            assertThat(unmatchedProbes).containsExactlyInAnyOrderElementsOf(expectedUnmatched);
+        }
+    }
+
+    static Stream<Arguments> charFilterCases()
+    {
+        // CHAR(2) compares "a" as "a ", so "a\t" sorts before "a" and "b".
+        return Stream.of(
+                Arguments.of(GpuLookupJoin.JoinType.INNER, LESS, List.of(), List.of()),
+                Arguments.of(GpuLookupJoin.JoinType.INNER, LESS_EQUAL, List.of("a\t"), List.of()),
+                Arguments.of(GpuLookupJoin.JoinType.INNER, GREATER, List.of("a", "b"), List.of()),
+                Arguments.of(GpuLookupJoin.JoinType.INNER, GREATER_EQUAL, List.of("a", "a\t", "b"), List.of()),
+                Arguments.of(GpuLookupJoin.JoinType.LEFT, LESS, List.of(), List.of("a", "a\t", "b")),
+                Arguments.of(GpuLookupJoin.JoinType.LEFT, LESS_EQUAL, List.of("a\t"), List.of("a", "b")),
+                Arguments.of(GpuLookupJoin.JoinType.LEFT, GREATER, List.of("a", "b"), List.of("a\t")),
+                Arguments.of(GpuLookupJoin.JoinType.LEFT, GREATER_EQUAL, List.of("a", "a\t", "b"), List.of()));
+    }
+
     @Test
     void testInnerJoinEmptyBuild()
     {
@@ -210,12 +290,17 @@ final class TestGpuLookupJoin
 
         BuildDriver(GpuJoinBridgeManager manager, List<Type> buildTypes, int[] buildKeyChannels, int[] buildOutputChannels, List<Page> buildPages)
         {
+            this(manager, buildTypes, buildKeyChannels, buildOutputChannels, Optional.empty(), buildPages);
+        }
+
+        BuildDriver(GpuJoinBridgeManager manager, List<Type> buildTypes, int[] buildKeyChannels, int[] buildOutputChannels, Optional<AstExpression> filter, List<Page> buildPages)
+        {
             this.input = buildPages.iterator();
             GpuOperation.Context context = new TestingGpuOperationContext();
             this.bufferPages = new BufferPages(context.taskMemoryContext());
             Set<Integer> deviceChannels = IntStream.range(0, buildTypes.size()).boxed().collect(toImmutableSet());
             CopyToDevice copyToDevice = new CopyToDevice(context, bufferPages, buildTypes, deviceChannels);
-            GpuJoinBuild.Factory factory = new GpuJoinBuild.Factory(manager, buildKeyChannels, buildOutputChannels, Optional.empty(), Optional.empty());
+            GpuJoinBuild.Factory factory = new GpuJoinBuild.Factory(manager, buildKeyChannels, buildOutputChannels, filter, Optional.empty());
             this.build = factory.create(context, copyToDevice);
         }
 
@@ -265,8 +350,22 @@ final class TestGpuLookupJoin
             List<Type> outputTypes,
             List<Page> probePages)
     {
+        return runProbe(manager, probeTypes, probeKeyChannels, probeOutputChannels, joinType, buildOutputTypes, outputTypes, false, probePages);
+    }
+
+    private static List<Page> runProbe(
+            GpuJoinBridgeManager manager,
+            List<Type> probeTypes,
+            int[] probeKeyChannels,
+            int[] probeOutputChannels,
+            GpuLookupJoin.JoinType joinType,
+            List<Type> buildOutputTypes,
+            List<Type> outputTypes,
+            boolean filteredJoin,
+            List<Page> probePages)
+    {
         GpuLookupJoin.Factory factory = new GpuLookupJoin.Factory(
-                manager, probeKeyChannels, probeOutputChannels, joinType, buildOutputTypes, false);
+                manager, probeKeyChannels, probeOutputChannels, joinType, buildOutputTypes, filteredJoin);
         try {
             return executeGpuOperation(probePages, probeTypes, outputTypes, factory::create);
         }
@@ -280,6 +379,15 @@ final class TestGpuLookupJoin
         BlockBuilder builder = BIGINT.createFixedSizeBlockBuilder(values.length);
         for (long v : values) {
             BIGINT.writeLong(builder, v);
+        }
+        return builder.build();
+    }
+
+    private static Block charBlock(CharType charType, String... values)
+    {
+        BlockBuilder builder = charType.createBlockBuilder(null, values.length);
+        for (String v : values) {
+            charType.writeSlice(builder, Slices.utf8Slice(v));
         }
         return builder.build();
     }
