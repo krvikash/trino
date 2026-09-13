@@ -16,7 +16,6 @@ import com.google.inject.Provides;
 import com.google.inject.Scopes;
 import com.google.inject.Singleton;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
-import io.airlift.http.client.HttpClient;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.trace.Tracer;
 import io.starburst.ai.client.bedrock.AwsBedrockClientFactory;
@@ -83,12 +82,10 @@ public class AiClientModule
         binder.bind(ModelClientProviderWithDao.class).to(ReloadingModelClientProvider.class).in(Scopes.SINGLETON);
         AiClientConfig aiClientConfig = buildConfigObject(AiClientConfig.class);
 
+        newOptionalBinder(binder, OAuth2TokenFetcher.class);
         // Token refresh rides on the client cache reload, hence the dependency on cache refresh
         if (aiClientConfig.isOauth2Enabled() && aiClientConfig.isClientCacheRefreshEnabled()) {
             install(new AiOAuth2EnabledModule());
-        }
-        else {
-            install(new AiOAuth2DisabledModule());
         }
         switch (aiClientConfig.getStorageType()) {
             case NONE -> binder.bind(ModelConnectionSpecsLoader.class).toInstance(ModelConnectionSpecsLoader.EMPTY_LOADER);
@@ -155,30 +152,7 @@ public class AiClientModule
                     .withConfigDefaults(config -> config
                             .setMinThreads(1)
                             .setSelectorCount(1));
-        }
-
-        @Provides
-        @Singleton
-        public Optional<OAuth2TokenFetcher> getOAuth2TokenFetcher(@ForAiOAuth2 HttpClient httpClient)
-        {
-            return Optional.of(new OAuth2TokenFetcher(httpClient));
-        }
-    }
-
-    private static class AiOAuth2DisabledModule
-            implements Module
-    {
-        @Override
-        public void configure(Binder binder)
-        {
-            // nothing
-        }
-
-        @Provides
-        @Singleton
-        public Optional<OAuth2TokenFetcher> getOAuth2TokenFetcher()
-        {
-            return Optional.empty();
+            binder.bind(OAuth2TokenFetcher.class).in(Scopes.SINGLETON);
         }
     }
 }
