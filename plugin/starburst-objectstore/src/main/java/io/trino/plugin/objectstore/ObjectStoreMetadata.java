@@ -42,6 +42,7 @@ import io.trino.plugin.hive.HiveViewNotSupportedException;
 import io.trino.plugin.hive.TransactionalMetadata;
 import io.trino.plugin.hive.ViewReaderUtil;
 import io.trino.plugin.hive.functions.Unload.UnloadFunctionHandle;
+import io.trino.plugin.hive.metastore.MetastoreTypeConfig.MetastoreType;
 import io.trino.plugin.hive.procedure.OptimizeTableProcedure;
 import io.trino.plugin.hive.util.HiveUtil;
 import io.trino.plugin.hudi.HudiTableHandle;
@@ -195,7 +196,7 @@ public class ObjectStoreMetadata
     private final IcebergFileFormat defaultIcebergFileFormat;
     private final RelationTypeCache relationTypeCache;
     private final ExecutorService parallelInformationSchemaQueryingExecutor;
-    private final boolean isIcebergRestCatalogUsed;
+    private final MetastoreType metastoreType;
 
     public ObjectStoreMetadata(
             TypeManager typeManager,
@@ -211,7 +212,7 @@ public class ObjectStoreMetadata
             IcebergFileFormat defaultIcebergFileFormat,
             RelationTypeCache relationTypeCache,
             ExecutorService parallelInformationSchemaQueryingExecutor,
-            boolean isIcebergRestCatalogUsed)
+            MetastoreType metastoreType)
     {
         this.typeManager = requireNonNull(typeManager, "typeManager is null");
         this.hiveMetadata = requireNonNull(hiveMetadata, "hiveMetadata is null");
@@ -229,7 +230,7 @@ public class ObjectStoreMetadata
         this.defaultIcebergFileFormat = requireNonNull(defaultIcebergFileFormat, "defaultIcebergFileFormat is null");
         this.relationTypeCache = requireNonNull(relationTypeCache, "relationTypeCache is null");
         this.parallelInformationSchemaQueryingExecutor = requireNonNull(parallelInformationSchemaQueryingExecutor, "parallelInformationSchemaQueryingExecutor is null");
-        this.isIcebergRestCatalogUsed = isIcebergRestCatalogUsed;
+        this.metastoreType = metastoreType;
     }
 
     @Override
@@ -1095,7 +1096,7 @@ public class ObjectStoreMetadata
             HiveTableHandle hiveTableHandle = (HiveTableHandle) tableHandle;
             try {
                 String recursiveDirectory = hiveRecursiveDirWalkerEnabled ? "TRUE" : "FALSE";
-                if (!isIcebergRestCatalogUsed) {
+                if (metastoreType != MetastoreType.UNITY) {
                     migrateHiveToIcebergProcedure.orElseThrow().getMethodHandle().invoke(unwrap(ICEBERG, session), hiveTableHandle.getSchemaName(), hiveTableHandle.getTableName(), recursiveDirectory);
                 }
                 else {

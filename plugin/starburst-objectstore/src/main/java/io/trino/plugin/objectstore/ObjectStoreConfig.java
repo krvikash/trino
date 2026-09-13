@@ -15,8 +15,8 @@ package io.trino.plugin.objectstore;
 
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import io.airlift.configuration.Config;
-import io.airlift.configuration.ConfigDescription;
 import io.airlift.configuration.ConfigHidden;
+import io.airlift.configuration.DefunctConfig;
 import io.airlift.configuration.LegacyConfig;
 import io.trino.plugin.iceberg.IcebergFileFormat;
 import jakarta.validation.constraints.Min;
@@ -24,12 +24,15 @@ import jakarta.validation.constraints.NotNull;
 
 import static io.trino.plugin.iceberg.IcebergFileFormat.PARQUET;
 
+@DefunctConfig({
+        "great-lakes.iceberg-rest-catalog-used",
+        "object-store.iceberg-rest-catalog-used",
+})
 public class ObjectStoreConfig
 {
     private TableType tableType = TableType.HIVE;
     private int maxMetadataQueriesProcessingThreads = 32; // This is for IO, so default value not based on number of cores.
     private IcebergFileFormat defaultIcebergFileFormat = PARQUET;
-    private boolean isIcebergRestCatalogUsed;
     private boolean galaxyLocationSecurityEnabled;
 
     @NotNull
@@ -71,20 +74,6 @@ public class ObjectStoreConfig
     public ObjectStoreConfig setDefaultIcebergFileFormat(IcebergFileFormat defaultIcebergFileFormat)
     {
         this.defaultIcebergFileFormat = defaultIcebergFileFormat;
-        return this;
-    }
-
-    public boolean isIcebergRestCatalogUsed()
-    {
-        return isIcebergRestCatalogUsed;
-    }
-
-    @ConfigDescription("Must be set to true when Great Lakes connector is configured with Iceberg REST catalog")
-    @Config("great-lakes.iceberg-rest-catalog-used")
-    @LegacyConfig("object-store.iceberg-rest-catalog-used")
-    public ObjectStoreConfig setIcebergRestCatalogUsed(boolean icebergRestCatalogUsed)
-    {
-        isIcebergRestCatalogUsed = icebergRestCatalogUsed;
         return this;
     }
 

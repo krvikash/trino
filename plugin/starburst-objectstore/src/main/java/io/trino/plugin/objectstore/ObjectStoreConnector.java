@@ -31,6 +31,8 @@ import io.trino.plugin.deltalake.DeltaLakeMetadata;
 import io.trino.plugin.hive.HiveConfig;
 import io.trino.plugin.hive.HiveTransactionHandle;
 import io.trino.plugin.hive.TransactionalMetadata;
+import io.trino.plugin.hive.metastore.MetastoreTypeConfig;
+import io.trino.plugin.hive.metastore.MetastoreTypeConfig.MetastoreType;
 import io.trino.plugin.iceberg.IcebergFileFormat;
 import io.trino.plugin.iceberg.IcebergMetadata;
 import io.trino.plugin.objectstore.substitution.ObjectStoreSubstitutionMetadata;
@@ -71,6 +73,7 @@ import static com.google.common.collect.Sets.immutableEnumSet;
 import static com.google.common.collect.Sets.symmetricDifference;
 import static com.google.common.collect.Streams.forEachPair;
 import static io.airlift.concurrent.Threads.daemonThreadsNamed;
+import static io.trino.plugin.hive.metastore.MetastoreTypeConfig.MetastoreType.UNITY;
 import static io.trino.plugin.objectstore.FeatureExposure.UNDEFINED;
 import static io.trino.plugin.objectstore.FeatureExposures.tableProcedureExposureDecisions;
 import static io.trino.plugin.objectstore.MethodHandles.translateArguments;
@@ -127,7 +130,7 @@ public class ObjectStoreConnector
     private final IcebergFileFormat defaultIcebergFileFormat;
     private final RelationTypeCache relationTypeCache = new RelationTypeCache();
     private final ExecutorService parallelInformationSchemaQueryingExecutor;
-    private final boolean isIcebergRestCatalogUsed;
+    private final MetastoreType metastoreType;
 
     @Inject
     public ObjectStoreConnector(
@@ -148,6 +151,7 @@ public class ObjectStoreConnector
             FeatureExposures featureExposures,
             ObjectStoreConfig objectStoreConfig,
             HiveConfig hiveConfig,
+            MetastoreTypeConfig metastoreTypeConfig,
             Tracer tracer,
             CatalogName catalogName)
     {
@@ -172,14 +176,14 @@ public class ObjectStoreConnector
         this.materializedViewProperties = requireNonNull(materializedViewProperties, "materializedViewProperties is null");
         this.sessionProperties = requireNonNull(sessionProperties, "sessionProperties is null");
         this.analyzeProperties = analyzeProperties(delegates);
-        this.isIcebergRestCatalogUsed = objectStoreConfig.isIcebergRestCatalogUsed();
+        this.metastoreType = metastoreTypeConfig.getMetastoreType();
         this.procedures = procedures(delegates, sessionProperties, objectStoreProcedures);
         this.tableProcedures = tableProcedures(delegates);
         this.systemTables = systemTables(delegates);
         this.flushMetadataCache = objectStoreProcedures.stream()
                 .filter(procedure -> procedure.getName().equals("flush_metadata_cache"))
                 .collect(onlyElement());
-        this.migrateHiveToIcebergProcedure = isIcebergRestCatalogUsed
+        this.migrateHiveToIcebergProcedure = metastoreType == UNITY
                 ? Optional.empty()
                 : Optional.of(icebergConnector.getProcedures().stream().filter(procedure -> procedure.getName().equals("migrate")).collect(onlyElement()));
         this.hiveRecursiveDirWalkerEnabled = hiveConfig.getRecursiveDirWalkerEnabled();
@@ -288,8 +292,8 @@ public class ObjectStoreConnector
             }
         });
 
-        // `migrate` Iceberg procedure should be removed as Iceberg REST catalog doesn't support it.
-        if (isIcebergRestCatalogUsed) {
+        // `migrate` Iceberg procedure should be removed as Unity (Iceberg REST catalog) doesn't support it.
+        if (metastoreType == UNITY) {
             procedureExposures.remove(ICEBERG, "migrate");
         }
         if (!procedureExposures.isEmpty()) {
@@ -492,7 +496,7 @@ public class ObjectStoreConnector
                         defaultIcebergFileFormat,
                         relationTypeCache,
                         parallelInformationSchemaQueryingExecutor,
-                        isIcebergRestCatalogUsed),
+                        metastoreType),
                 getClass().getClassLoader());
     }
 

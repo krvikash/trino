@@ -55,7 +55,6 @@ public class TestObjectStorePlugin
                                 .put("hive.metastore", "unity")
                                 .put("hive.metastore.unity.host", "dbc-12345678-abcd")
                                 .put("hive.metastore.unity.catalog-name", "main")
-                                .put("object-store.iceberg-rest-catalog-used", "true")
                                 .buildOrThrow(),
                         new TestingConnectorContext())
                 .shutdown();
@@ -72,7 +71,6 @@ public class TestObjectStorePlugin
                                 .put("hive.metastore.unity.host", "dbc-12345678-abcd")
                                 .put("hive.metastore.unity.catalog-name", "main")
                                 .put("hive.metastore.unity.vended-credentials-enabled", "true")
-                                .put("object-store.iceberg-rest-catalog-used", "true")
                                 .buildOrThrow(),
                         new TestingConnectorContext())
                 .shutdown();

@@ -21,6 +21,7 @@ import com.google.inject.Scopes;
 import com.google.inject.TypeLiteral;
 import com.google.inject.multibindings.Multibinder;
 import io.trino.plugin.hive.HiveConfig;
+import io.trino.plugin.hive.metastore.MetastoreTypeConfig;
 import io.trino.plugin.objectstore.functions.tablechanges.TableChangesFunctionProvider;
 import io.trino.plugin.objectstore.functions.unload.OjbectStoreUnloadFunctionProvider;
 import io.trino.plugin.objectstore.procedure.ObjectStoreFlushMetadataCache;
@@ -65,6 +66,7 @@ public class ObjectStoreModule
 
         configBinder(binder).bindConfig(ObjectStoreConfig.class);
         configBinder(binder).bindConfig(HiveConfig.class);
+        configBinder(binder).bindConfig(MetastoreTypeConfig.class);
 
         binder.bind(FeatureExposures.class).in(Scopes.SINGLETON);
         newOptionalBinder(binder, Key.get(new TypeLiteral<Optional<Table<TableType, String, FeatureExposure>>>() {}, AdditionalSessionExposures.class))

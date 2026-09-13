@@ -32,7 +32,6 @@ public class TestObjectStoreConfig
                 .setTableType(TableType.HIVE)
                 .setMaxMetadataQueriesProcessingThreads(32)
                 .setDefaultIcebergFileFormat(IcebergFileFormat.PARQUET)
-                .setIcebergRestCatalogUsed(false)
                 .setGalaxyLocationSecurityEnabled(false));
     }
 
@@ -43,7 +42,6 @@ public class TestObjectStoreConfig
                 .put("great-lakes.table-type", "ICEBERG")
                 .put("great-lakes.information-schema-queries-threads", "13")
                 .put("great-lakes.iceberg-default-file-format", "ORC")
-                .put("great-lakes.iceberg-rest-catalog-used", "true")
                 .put("galaxy.location-security.enabled", "true")
                 .buildOrThrow();
 
@@ -51,7 +49,6 @@ public class TestObjectStoreConfig
                 .setTableType(TableType.ICEBERG)
                 .setMaxMetadataQueriesProcessingThreads(13)
                 .setDefaultIcebergFileFormat(IcebergFileFormat.ORC)
-                .setIcebergRestCatalogUsed(true)
                 .setGalaxyLocationSecurityEnabled(true);
 
         assertFullMapping(properties, expected);
