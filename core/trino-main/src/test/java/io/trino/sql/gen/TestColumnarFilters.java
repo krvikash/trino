@@ -309,6 +309,11 @@ public class TestColumnarFilters
         Expression falseFilter = new Constant(BOOLEAN, false);
         assertThatColumnarFilterEvaluationIsSupported(falseFilter);
         verifyFilter(inputPages, falseFilter);
+
+        // WHERE NULL
+        Expression nullFilter = constantNull(BOOLEAN);
+        assertThatColumnarFilterEvaluationIsSupported(nullFilter);
+        verifyFilter(inputPages, nullFilter);
     }
 
     @ParameterizedTest
@@ -629,6 +634,26 @@ public class TestColumnarFilters
                                         new Constant(INTEGER, 5L)))));
         assertThatColumnarFilterEvaluationIsSupported(orFilter);
         verifyFilter(inputPages, orFilter);
+    }
+
+    @ParameterizedTest
+    @MethodSource("inputProviders")
+    public void testLogicalWithNull(NullsProvider nullsProvider, boolean dictionaryEncoded)
+    {
+        List<Page> inputPages = createInputPages(nullsProvider, dictionaryEncoded);
+        Expression range = between(
+                new Reference(INTEGER, COL_INT_A),
+                new Constant(INTEGER, CONSTANT - 5),
+                new Constant(INTEGER, CONSTANT + 5));
+        for (Logical.Operator operator : List.of(Logical.Operator.AND, Logical.Operator.OR)) {
+            Expression filter = new Logical(operator, ImmutableList.of(range, constantNull(BOOLEAN)));
+            assertThatColumnarFilterEvaluationIsSupported(filter);
+            verifyFilter(inputPages, filter);
+
+            Expression notFilter = createNotExpression(filter);
+            assertThatColumnarFilterEvaluationIsSupported(notFilter);
+            verifyFilter(inputPages, notFilter);
+        }
     }
 
     @ParameterizedTest
