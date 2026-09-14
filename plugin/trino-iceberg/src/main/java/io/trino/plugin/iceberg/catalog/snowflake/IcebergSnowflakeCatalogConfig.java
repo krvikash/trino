@@ -17,7 +17,6 @@ import io.airlift.configuration.Config;
 import io.airlift.configuration.ConfigDescription;
 import io.airlift.configuration.ConfigSecuritySensitive;
 import io.airlift.configuration.validation.FileExists;
-import jakarta.annotation.PostConstruct;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotNull;
 import net.snowflake.client.api.driver.SnowflakeDriver;
@@ -26,8 +25,6 @@ import java.net.URI;
 import java.sql.Driver;
 import java.sql.SQLException;
 import java.util.Optional;
-
-import static com.google.common.base.Preconditions.checkState;
 
 public class IcebergSnowflakeCatalogConfig
 {
@@ -131,22 +128,22 @@ public class IcebergSnowflakeCatalogConfig
         return this;
     }
 
-    @PostConstruct
-    public void validate()
+    @AssertTrue(message = "Either password or private key must be set, but not both")
+    public boolean isEitherPasswordOrPrivateKeyPresent()
     {
-        checkState(
-                (getPrivateKey().isPresent() || getPrivateKeyFile().isPresent()) != getPassword().isPresent(),
-                "Either password or private key must be set, but not both");
-        if (getPassword().isEmpty()) {
-            checkState(
-                    getPrivateKey().isPresent() != getPrivateKeyFile().isPresent(),
-                    "iceberg.snowflake-catalog.private-key and iceberg.snowflake-catalog.private-key-file cannot be set simultaneously");
-        }
-        if (getPrivateKeyPassphrase().isPresent()) {
-            checkState(
-                    getPrivateKey().isPresent() || getPrivateKeyFile().isPresent(),
-                    "iceberg.snowflake-catalog.private-key.passphrase is set, but iceberg.snowflake-catalog.private-key or iceberg.snowflake-catalog.private-key-file is missing");
-        }
+        return (getPrivateKey().isPresent() || getPrivateKeyFile().isPresent()) != getPassword().isPresent();
+    }
+
+    @AssertTrue(message = "iceberg.snowflake-catalog.private-key and iceberg.snowflake-catalog.private-key-file cannot be set simultaneously")
+    public boolean isEitherPrivateKeyOrPrivateKeyFilePresent()
+    {
+        return getPassword().isPresent() || getPrivateKey().isPresent() != getPrivateKeyFile().isPresent();
+    }
+
+    @AssertTrue(message = "iceberg.snowflake-catalog.private-key.passphrase is set, but iceberg.snowflake-catalog.private-key or iceberg.snowflake-catalog.private-key-file is missing")
+    public boolean isPrivateKeyOrPrivateKeyFilePresentWhenPassphraseIsPresent()
+    {
+        return getPrivateKeyPassphrase().isEmpty() || getPrivateKey().isPresent() || getPrivateKeyFile().isPresent();
     }
 
     public String getDatabase()
