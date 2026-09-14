@@ -26,6 +26,7 @@ import io.trino.testing.DistributedQueryRunner;
 import io.trino.testing.QueryFailedException;
 import io.trino.testing.QueryRunner;
 import io.trino.testing.TransactionBuilder;
+import io.trino.testing.sql.TestTable;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -223,69 +224,61 @@ public abstract class BaseTestObjectStoreIcebergFeaturesConnectorTest
 
     @Test
     @Override
-    public void testExtraProperties()
-    {
-        // Arbitrary extra_properties currently not exposed in Galaxy
-        assertThatThrownBy(super::testExtraProperties)
-                .isInstanceOf(QueryFailedException.class)
-                .hasMessageContaining("Catalog 'iceberg' table property 'extra_properties' does not exist");
-    }
-
-    @Test
-    @Override
-    public void testReplaceTableExtraProperties()
-    {
-        // Arbitrary extra_properties currently not exposed in Galaxy
-        assertThatThrownBy(super::testReplaceTableExtraProperties)
-                .isInstanceOf(QueryFailedException.class)
-                .hasMessageContaining("Catalog 'iceberg' table property 'extra_properties' does not exist");
-    }
-
-    @Test
-    @Override
-    public void testCreateTableAsSelectWithExtraProperties()
-    {
-        // Arbitrary extra_properties currently not exposed in Galaxy
-        assertThatThrownBy(super::testCreateTableAsSelectWithExtraProperties)
-                .isInstanceOf(QueryFailedException.class)
-                .hasMessageContaining("Catalog 'iceberg' table property 'extra_properties' does not exist");
-    }
-
-    @Test
-    @Override
-    public void testShowCreateNotContainExtraProperties()
-    {
-        // Arbitrary extra_properties currently not exposed in Galaxy
-        assertThatThrownBy(super::testShowCreateNotContainExtraProperties)
-                .isInstanceOf(QueryFailedException.class)
-                .hasMessageContaining("Catalog 'iceberg' table property 'extra_properties' does not exist");
-    }
-
-    @Test
-    @Override
     public void testNullExtraProperty()
     {
-        // Arbitrary extra_properties currently not exposed in Galaxy
-        assertThatThrownBy(super::testNullExtraProperty)
-                .hasMessageContaining("Catalog 'iceberg' table property 'extra_properties' does not exist");
+        // ObjectStore registers extra_properties as a passthrough at analyzer time so it can
+        // scope the property to ICEBERG only (see ObjectStoreTableProperties). Iceberg's real
+        // decoder (icebergExtraPropertiesProperty) runs later in ObjectStoreMetadata.unwrap,
+        // so the null-value check throws its raw message rather than the analyzer-wrapped
+        // "Unable to set catalog 'iceberg' table property 'extra_properties' to [MAP(...)]:"
+        // form the parent test expects.
+        assertQueryFails(
+                "CREATE TABLE test_create_table_with_null_extra_properties (c1 integer) WITH (extra_properties = MAP(ARRAY['null.property'], ARRAY[null]))",
+                ".*Extra table property value cannot be null '\\{null.property=null}'.*");
+        assertQueryFails(
+                "CREATE TABLE test_create_table_with_as_null_extra_properties WITH (extra_properties = MAP(ARRAY['null.property'], ARRAY[null])) AS SELECT 1 as c1",
+                ".*Extra table property value cannot be null '\\{null.property=null}'.*");
     }
 
     @Test
-    @Override
-    public void testIllegalExtraPropertyKey()
+    public void testExtraPropertiesRejectedForHiveTables()
     {
-        // Arbitrary extra_properties currently not exposed in Galaxy
-        assertThatThrownBy(super::testIllegalExtraPropertyKey)
-                .hasMessageContaining("Catalog 'iceberg' table property 'extra_properties' does not exist");
+        assertQueryFails(
+                "CREATE TABLE test_hive_extra_props (x integer) " +
+                        "WITH (type = 'HIVE', extra_properties = MAP(ARRAY['gc.enabled'], ARRAY['false']))",
+                ".*Table property 'extra_properties' not supported for Hive tables.*");
     }
 
     @Test
-    @Override
-    public void testSetIllegalExtraPropertyKey()
+    public void testExtraPropertiesRejectedForDeltaTables()
     {
-        // Arbitrary extra_properties currently not exposed in Galaxy
-        assertThatThrownBy(super::testSetIllegalExtraPropertyKey)
-                .hasMessageContaining("Catalog 'iceberg' table property 'extra_properties' does not exist");
+        assertQueryFails(
+                "CREATE TABLE test_delta_extra_props (x integer) " +
+                        "WITH (type = 'DELTA', extra_properties = MAP(ARRAY['delta.appendOnly'], ARRAY['true']))",
+                ".*Table property 'extra_properties' not supported for Delta Lake tables.*");
+    }
+
+    @Test
+    public void testUnsetExtraPropertiesRejectedForHiveTables()
+    {
+        // UNSET PROPERTIES / SET PROPERTIES ... = DEFAULT passes a null value to
+        // ObjectStoreTableProperties.validProperty; guards against a null-safety bug there and
+        // ensures users see the specific scoping error rather than a generic delegate failure.
+        try (TestTable table = new TestTable(getQueryRunner()::execute, "test_hive_unset_extras_", "(x integer) WITH (type = 'HIVE')")) {
+            assertQueryFails(
+                    "ALTER TABLE " + table.getName() + " SET PROPERTIES extra_properties = DEFAULT",
+                    ".*Table property 'extra_properties' not supported for Hive tables.*");
+        }
+    }
+
+    @Test
+    public void testUnsetExtraPropertiesRejectedForDeltaTables()
+    {
+        try (TestTable table = new TestTable(getQueryRunner()::execute, "test_delta_unset_extras_", "(x integer) WITH (type = 'DELTA')")) {
+            assertQueryFails(
+                    "ALTER TABLE " + table.getName() + " SET PROPERTIES extra_properties = DEFAULT",
+                    ".*Table property 'extra_properties' not supported for Delta Lake tables.*");
+        }
     }
 
     private void skipDuplicateTestCoverage(String methodName, Class<?>... args)

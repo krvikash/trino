@@ -24,6 +24,8 @@ import io.trino.spi.TrinoException;
 import io.trino.spi.connector.Connector;
 import io.trino.spi.session.PropertyMetadata;
 import io.trino.spi.type.ArrayType;
+import io.trino.spi.type.MapType;
+import io.trino.spi.type.TypeManager;
 
 import java.util.HashMap;
 import java.util.List;
@@ -51,6 +53,7 @@ public final class ObjectStoreTableProperties
     private final PropertyMetadata<?> hiveFormatProperty;
     private final PropertyMetadata<?> hiveSortedByProperty;
     private final PropertyMetadata<?> icebergFormatProperty;
+    private final PropertyMetadata<?> icebergExtraPropertiesProperty;
 
     @Inject
     public ObjectStoreTableProperties(
@@ -58,7 +61,8 @@ public final class ObjectStoreTableProperties
             @ForIceberg Connector icebergConnector,
             @ForDelta Connector deltaConnector,
             @ForHudi Connector hudiConnector,
-            ObjectStoreConfig config)
+            ObjectStoreConfig config,
+            TypeManager typeManager)
     {
         Map<String, PropertyMetadata<?>> properties = new HashMap<>();
         ImmutableSet<String> ignoredDescriptions = ImmutableSet.<String>builder()
@@ -87,6 +91,7 @@ public final class ObjectStoreTableProperties
         }
 
         icebergFormatProperty = getByName(icebergConnector.getTableProperties(), "format");
+        icebergExtraPropertiesProperty = getByName(icebergConnector.getTableProperties(), "extra_properties");
         for (PropertyMetadata<?> property : icebergConnector.getTableProperties()) {
             if (property.getName().equals("format")) {
                 continue;
@@ -95,7 +100,9 @@ public final class ObjectStoreTableProperties
                 continue;
             }
             if (property.getName().equals("extra_properties")) {
-                // Arbitrary extra_properties currently not exposed in Galaxy
+                // Registered below as a permissive passthrough so ObjectStore's type-scoping
+                // (see tableTypesForProperty) runs before Iceberg's own validation. Iceberg's
+                // real decoder is applied in ObjectStoreMetadata.unwrap for ICEBERG tables.
                 continue;
             }
             PropertyMetadata<?> existing = properties.putIfAbsent(property.getName(), property);
@@ -162,6 +169,21 @@ public final class ObjectStoreTableProperties
                 config.getTableType(),
                 false));
 
+        addProperty(properties, new PropertyMetadata<>(
+                "extra_properties",
+                "Extra table properties",
+                new MapType(VARCHAR, VARCHAR, typeManager.getTypeOperators()),
+                Map.class,
+                null,
+                true,
+                value -> {
+                    @SuppressWarnings("unchecked")
+                    Map<String, String> map = (Map<String, String>) value;
+                    return map;
+                },
+                value -> value));
+        tableTypesForProperty.put("extra_properties", ICEBERG);
+
         this.properties = ImmutableMap.copyOf(properties);
         this.tableTypesForProperty = tableTypesForProperty.build();
     }
@@ -186,6 +208,11 @@ public final class ObjectStoreTableProperties
         return icebergFormatProperty;
     }
 
+    public PropertyMetadata<?> getIcebergExtraPropertiesProperty()
+    {
+        return icebergExtraPropertiesProperty;
+    }
+
     public boolean validProperty(TableType tableType, String name, Object value)
     {
         if (name.equals("type")) {
@@ -201,7 +228,10 @@ public final class ObjectStoreTableProperties
             return true;
         }
         PropertyMetadata<?> property = properties.get(name);
-        if ((property == null) || !value.equals(property.getDefaultValue())) {
+        // Treat null (from ALTER TABLE ... UNSET PROPERTIES / SET PROPERTIES x = DEFAULT) as an
+        // active operation on an unsupported property, so users see a specific error rather than
+        // silently dropping through to the delegate connector.
+        if ((property == null) || value == null || !value.equals(property.getDefaultValue())) {
             throw new TrinoException(INVALID_TABLE_PROPERTY, "Table property '%s' not supported for %s tables".formatted(name, tableType.displayName()));
         }
         return false;

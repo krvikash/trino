@@ -319,74 +319,65 @@ public abstract class BaseTestObjectStoreHiveFeaturesConnectorTest
     @Override
     public void testExtraProperties()
     {
-        // Arbitrary extra_properties currently not exposed in Galaxy
+        // extra_properties is not exposed for Hive tables (ObjectStore scopes it to ICEBERG only)
         assertThatThrownBy(super::testExtraProperties)
                 .isInstanceOf(QueryFailedException.class)
-                .hasMessageContaining("Catalog 'hive' table property 'extra_properties' does not exist");
+                .hasMessageContaining("Table property 'extra_properties' not supported for Hive tables");
     }
 
     @Test
     @Override
     public void testExtraPropertiesWithCtas()
     {
-        // Arbitrary extra_properties currently not exposed in Galaxy
+        // extra_properties is not exposed for Hive tables (ObjectStore scopes it to ICEBERG only)
         assertThatThrownBy(super::testExtraPropertiesWithCtas)
                 .isInstanceOf(QueryFailedException.class)
-                .hasMessageContaining("Catalog 'hive' table property 'extra_properties' does not exist");
+                .hasMessageContaining("Table property 'extra_properties' not supported for Hive tables");
     }
 
     @Test
     @Override
     public void testShowCreateWithExtraProperties()
     {
-        // Arbitrary extra_properties currently not exposed in Galaxy
+        // extra_properties is not exposed for Hive tables (ObjectStore scopes it to ICEBERG only)
         assertThatThrownBy(super::testShowCreateWithExtraProperties)
                 .isInstanceOf(QueryFailedException.class)
-                .hasMessageContaining("Catalog 'hive' table property 'extra_properties' does not exist");
-    }
-
-    @Test
-    @Override
-    public void testDuplicateExtraProperties()
-    {
-        // Arbitrary extra_properties currently not exposed in Galaxy
-        assertThatThrownBy(super::testDuplicateExtraProperties)
-                .hasMessageContaining("Catalog 'hive' table property 'extra_properties' does not exist");
+                .hasMessageContaining("Table property 'extra_properties' not supported for Hive tables");
     }
 
     @Test
     @Override
     public void testOverwriteExistingPropertyWithExtraProperties()
     {
-        // Arbitrary extra_properties currently not exposed in Galaxy
+        // extra_properties is not exposed for Hive tables (ObjectStore scopes it to ICEBERG only)
         assertThatThrownBy(super::testOverwriteExistingPropertyWithExtraProperties)
-                .hasMessageContaining("Catalog 'hive' table property 'extra_properties' does not exist");
+                .hasMessageContaining("Table property 'extra_properties' not supported for Hive tables");
     }
 
     @Test
     @Override
     public void testNullExtraProperty()
     {
-        // Arbitrary extra_properties currently not exposed in Galaxy
+        // extra_properties is not exposed for Hive tables (ObjectStore scopes it to ICEBERG only)
         assertThatThrownBy(super::testNullExtraProperty)
-                .hasMessageContaining("Catalog 'hive' table property 'extra_properties' does not exist");
+                .hasMessageContaining("Table property 'extra_properties' not supported for Hive tables");
     }
 
     @Test
     @Override
     public void testCollidingMixedCaseProperty()
     {
-        // Arbitrary extra_properties currently not exposed in Galaxy
+        // extra_properties is not exposed for Hive tables (ObjectStore scopes it to ICEBERG only)
         assertThatThrownBy(super::testCollidingMixedCaseProperty)
                 .isInstanceOf(QueryFailedException.class)
-                .hasMessageContaining("Catalog 'hive' table property 'extra_properties' does not exist");
+                .hasMessageContaining("Table property 'extra_properties' not supported for Hive tables");
     }
 
     @Test
     @Override
     public void testExtraPropertiesOnView()
     {
-        // Arbitrary extra_properties currently not exposed in Galaxy
+        // extra_properties is not exposed for Hive tables (ObjectStore scopes it to ICEBERG only)
         assertThatThrownBy(super::testExtraPropertiesOnView)
                 .isInstanceOf(QueryFailedException.class)
                 .hasMessageContaining("Catalog 'hive' view property 'extra_properties' does not exist");
@@ -396,7 +387,7 @@ public abstract class BaseTestObjectStoreHiveFeaturesConnectorTest
     @Override
     public void testDuplicateExtraPropertiesOnView()
     {
-        // Arbitrary extra_properties currently not exposed in Galaxy
+        // extra_properties is not exposed for Hive tables (ObjectStore scopes it to ICEBERG only)
         assertQueryFails(
                 "CREATE VIEW create_view_with_duplicate_extra_properties WITH (extra_properties = MAP(ARRAY['extra.property', 'extra.property'], ARRAY['true', 'false'])) AS SELECT 1 as colA",
                 "line 1:63: Catalog 'hive' view property 'extra_properties' does not exist");
@@ -406,7 +397,7 @@ public abstract class BaseTestObjectStoreHiveFeaturesConnectorTest
     @Override
     public void testNullExtraPropertyOnView()
     {
-        // Arbitrary extra_properties currently not exposed in Galaxy
+        // extra_properties is not exposed for Hive tables (ObjectStore scopes it to ICEBERG only)
         assertQueryFails(
                 "CREATE VIEW create_view_with_duplicate_extra_properties WITH (extra_properties = MAP(ARRAY['null.property'], ARRAY[null])) AS SELECT 1 as c1",
                 "line 1:63: Catalog 'hive' view property 'extra_properties' does not exist");
@@ -416,7 +407,7 @@ public abstract class BaseTestObjectStoreHiveFeaturesConnectorTest
     @Override
     public void testCollidingMixedCasePropertyOnView()
     {
-        // Arbitrary extra_properties currently not exposed in Galaxy
+        // extra_properties is not exposed for Hive tables (ObjectStore scopes it to ICEBERG only)
         assertThatThrownBy(super::testCollidingMixedCasePropertyOnView)
                 .isInstanceOf(QueryFailedException.class)
                 .hasMessageContaining("Catalog 'hive' view property 'extra_properties' does not exist");
@@ -426,7 +417,7 @@ public abstract class BaseTestObjectStoreHiveFeaturesConnectorTest
     @Override
     public void testCreateViewWithPreDefinedPropertiesAsExtraProperties()
     {
-        // Arbitrary extra_properties currently not exposed in Galaxy
+        // extra_properties is not exposed for Hive tables (ObjectStore scopes it to ICEBERG only)
         assertQueryFails(
                 "CREATE VIEW create_view_with_predefined_view_properties WITH (extra_properties = MAP(ARRAY['%s'], ARRAY['true'])) AS SELECT 1 as colA".formatted(TABLE_COMMENT),
                 "line 1:63: Catalog 'hive' view property 'extra_properties' does not exist");

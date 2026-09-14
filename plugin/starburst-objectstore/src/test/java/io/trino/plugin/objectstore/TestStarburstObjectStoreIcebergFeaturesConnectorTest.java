@@ -32,6 +32,7 @@ public class TestStarburstObjectStoreIcebergFeaturesConnectorTest
                 .put("fs.hadoop.enabled", "true")
                 // Allows testing the sorting writer flushing to the file system with smaller tables
                 .put("iceberg.writer-sort-buffer-size", "1MB")
+                .put("iceberg.allowed-extra-properties", "extra.property.one,extra.property.two,extra.property.three,sorted_by")
                 .buildOrThrow());
     }
 }

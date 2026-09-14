@@ -190,6 +190,7 @@ public class ObjectStoreMetadata
     private final PropertyMetadata<?> hiveFormatProperty;
     private final PropertyMetadata<?> hiveSortedByProperty;
     private final PropertyMetadata<?> icebergFormatProperty;
+    private final PropertyMetadata<?> icebergExtraPropertiesProperty;
     private final Procedure flushMetadataCache;
     private final Optional<Procedure> migrateHiveToIcebergProcedure;
     private final boolean hiveRecursiveDirWalkerEnabled;
@@ -224,6 +225,7 @@ public class ObjectStoreMetadata
         this.hiveFormatProperty = tableProperties.getHiveFormatProperty();
         this.hiveSortedByProperty = tableProperties.getHiveSortedByProperty();
         this.icebergFormatProperty = tableProperties.getIcebergFormatProperty();
+        this.icebergExtraPropertiesProperty = tableProperties.getIcebergExtraPropertiesProperty();
         this.flushMetadataCache = requireNonNull(flushMetadataCache, "flushMetadataCache is null");
         this.migrateHiveToIcebergProcedure = requireNonNull(migrateHiveToIcebergProcedure, "migrateHiveToIcebergProcedure is null");
         this.hiveRecursiveDirWalkerEnabled = hiveRecursiveDirWalkerEnabled;
@@ -1968,12 +1970,16 @@ public class ObjectStoreMetadata
                 Optional.ofNullable(properties.get("sorted_by")).ifPresent(value ->
                         properties.put("sorted_by", decodeProperty(hiveSortedByProperty, value)));
             }
-            case ICEBERG -> Optional.ofNullable(properties.get("format")).ifPresent(value -> {
-                if (value.equals("DEFAULT")) {
-                    value = defaultIcebergFileFormat.name();
-                }
-                properties.put("format", decodeProperty(icebergFormatProperty, value));
-            });
+            case ICEBERG -> {
+                Optional.ofNullable(properties.get("format")).ifPresent(value -> {
+                    if (value.equals("DEFAULT")) {
+                        value = defaultIcebergFileFormat.name();
+                    }
+                    properties.put("format", decodeProperty(icebergFormatProperty, value));
+                });
+                Optional.ofNullable(properties.get("extra_properties")).ifPresent(value ->
+                        properties.put("extra_properties", decodeProperty(icebergExtraPropertiesProperty, value)));
+            }
             case DELTA, HUDI -> {
                 /* ignore 'format' property */
             }
