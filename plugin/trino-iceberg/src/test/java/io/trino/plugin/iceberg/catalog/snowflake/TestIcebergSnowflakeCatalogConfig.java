@@ -17,10 +17,9 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import jakarta.validation.constraints.AssertTrue;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
-import java.io.IOException;
 import java.net.URI;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.SQLException;
 import java.util.Map;
@@ -97,11 +96,8 @@ public class TestIcebergSnowflakeCatalogConfig
     }
 
     @Test
-    public void testExplicitPropertyMappingPrivateKeyFile()
-            throws IOException
+    public void testExplicitPropertyMappingPrivateKeyFile(@TempDir Path keyFile)
     {
-        Path keyFile = Files.createTempFile(null, null);
-
         Map<String, String> properties = ImmutableMap.<String, String>builder()
                 .put("iceberg.snowflake-catalog.private-key-file", keyFile.toString())
                 .put("iceberg.snowflake-catalog.private-key.passphrase", "passphrase")
