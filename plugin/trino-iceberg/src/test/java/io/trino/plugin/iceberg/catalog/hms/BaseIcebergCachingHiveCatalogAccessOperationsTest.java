@@ -154,7 +154,7 @@ public abstract class BaseIcebergCachingHiveCatalogAccessOperationsTest
             // First refresh creates storage table and populates cache for source table and MV
             assertMetastoreInvocations("REFRESH MATERIALIZED VIEW test_select_mview_view",
                     ImmutableMultiset.<MetastoreMethod>builder()
-                            .addCopies(GET_TABLE, 2)
+                            .addCopies(GET_TABLE, 5)
                             .add(REPLACE_TABLE)
                             .build());
 
@@ -169,7 +169,7 @@ public abstract class BaseIcebergCachingHiveCatalogAccessOperationsTest
             // Refresh repopulates the cache
             assertMetastoreInvocations("REFRESH MATERIALIZED VIEW test_select_mview_view",
                     ImmutableMultiset.<MetastoreMethod>builder()
-                            .addCopies(GET_TABLE, 2)
+                            .addCopies(GET_TABLE, 5)
                             .add(REPLACE_TABLE)
                             .build());
 
