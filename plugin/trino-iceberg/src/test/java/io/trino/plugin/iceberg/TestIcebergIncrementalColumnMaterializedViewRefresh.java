@@ -14,18 +14,36 @@
 package io.trino.plugin.iceberg;
 
 import com.google.common.collect.ImmutableMap;
+import io.airlift.slice.Slice;
+import io.trino.plugin.hive.HiveTransactionHandle;
 import io.trino.plugin.hive.TestingHivePlugin;
+import io.trino.spi.Page;
+import io.trino.spi.connector.ConnectorInsertTableHandle;
+import io.trino.spi.connector.ConnectorPageSink;
+import io.trino.spi.connector.ConnectorPageSinkProvider;
+import io.trino.spi.connector.ConnectorTableHandle;
+import io.trino.spi.connector.SchemaTableName;
 import io.trino.testing.AbstractTestQueryFramework;
 import io.trino.testing.QueryRunner;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
+import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 
+import static io.trino.block.BlockAssertions.createLongsBlock;
+import static io.trino.plugin.iceberg.IcebergErrorCode.ICEBERG_COMMIT_ERROR;
 import static io.trino.plugin.iceberg.IcebergQueryRunner.ICEBERG_CATALOG;
+import static io.trino.plugin.iceberg.IcebergTestUtils.SESSION;
+import static io.trino.plugin.iceberg.IcebergTestUtils.getConnectorService;
+import static io.trino.spi.RefreshType.INCREMENTAL_COLUMN;
+import static io.trino.spi.connector.RetryMode.NO_RETRIES;
 import static io.trino.testing.TestingNames.randomNameSuffix;
+import static io.trino.testing.assertions.TrinoExceptionAssert.assertTrinoExceptionThrownBy;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -671,6 +689,54 @@ public class TestIcebergIncrementalColumnMaterializedViewRefresh
         public String toString()
         {
             return columnType;
+        }
+    }
+
+    /**
+     * Another refresh commits while this one writes, whether or not the storage table had a snapshot.
+     */
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    public void testIncrementalColumnRefreshRejectsInputAfterConcurrentRefresh(boolean refreshedBefore)
+    {
+        String source = ICEBERG_TEST_SCHEMA + ".concurrent_src_" + randomNameSuffix();
+        String mvName = "concurrent_mv_" + randomNameSuffix();
+        String qualifiedMvName = ICEBERG_TEST_SCHEMA + "." + mvName;
+        assertUpdate("CREATE TABLE " + source + " (id BIGINT, source_incremental_column BIGINT)");
+        assertUpdate("INSERT INTO " + source + " VALUES (1, 10)", 1);
+        assertUpdate("CREATE MATERIALIZED VIEW " + qualifiedMvName + " WITH (incremental_column = 'source_incremental_column') AS SELECT id, source_incremental_column FROM " + source);
+        if (refreshedBefore) {
+            assertUpdate("REFRESH MATERIALIZED VIEW " + qualifiedMvName, 1);
+            assertUpdate("INSERT INTO " + source + " VALUES (2, 20)", 1);
+        }
+        long refreshedId = refreshedBefore ? 2 : 1;
+
+        IcebergMetadata metadata = getConnectorService(getQueryRunner(), IcebergMetadataFactory.class).create(SESSION.getIdentity());
+        SchemaTableName storageTableName = metadata.getMaterializedView(SESSION, new SchemaTableName(ICEBERG_TEST_SCHEMA, mvName))
+                .orElseThrow().getStorageTable().orElseThrow().getSchemaTableName();
+        ConnectorTableHandle storageTable = metadata.getTableHandle(SESSION, storageTableName, Optional.empty(), Optional.empty());
+        assertThat(((IcebergTableHandle) storageTable).getSnapshotId().isPresent()).isEqualTo(refreshedBefore);
+        IcebergWritableTableHandle insertHandle = (IcebergWritableTableHandle) metadata.beginRefreshMaterializedView(
+                SESSION, storageTable, List.of(), false, NO_RETRIES, INCREMENTAL_COLUMN);
+        ConnectorPageSink pageSink = getConnectorService(getQueryRunner(), ConnectorPageSinkProvider.class).createPageSink(
+                new HiveTransactionHandle(true), SESSION, (ConnectorInsertTableHandle) insertHandle, metadata.getTableCredentials(SESSION, insertHandle), () -> 0);
+        try {
+            pageSink.appendPage(new Page(createLongsBlock(refreshedId), createLongsBlock(refreshedId * 10))).join();
+            Collection<Slice> fragments = pageSink.finish().join();
+
+            assertUpdate("REFRESH MATERIALIZED VIEW " + qualifiedMvName, 1);
+
+            assertTrinoExceptionThrownBy(() -> metadata.finishRefreshMaterializedView(
+                    SESSION, storageTable, insertHandle, fragments, List.of(), List.of(), false, false, false))
+                    .hasErrorCode(ICEBERG_COMMIT_ERROR)
+                    .hasMessageContaining("Materialized view storage table changed during incremental refresh");
+            assertThat(query("SELECT count(*) FROM " + qualifiedMvName + " WHERE id = " + refreshedId)).matches("VALUES BIGINT '1'");
+        }
+        finally {
+            pageSink.abort();
+            metadata.rollback();
+            assertUpdate("DROP MATERIALIZED VIEW " + qualifiedMvName);
+            assertUpdate("DROP TABLE " + source);
         }
     }
 }
