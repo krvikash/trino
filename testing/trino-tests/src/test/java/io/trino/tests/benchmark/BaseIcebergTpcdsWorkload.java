@@ -56,7 +56,7 @@ public abstract class BaseIcebergTpcdsWorkload
 
     protected final int scaleFactor;
 
-    private String benchmarkCatalog = "iceberg";
+    protected String benchmarkCatalog = "iceberg";
 
     protected BaseIcebergTpcdsWorkload(int scaleFactor)
     {

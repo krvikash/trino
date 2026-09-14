@@ -30,7 +30,7 @@ public final class BenchmarkIcebergTpcdsSf100
         System.exit(BenchmarkRunner.run(args, new TpcdsSf100Workload(), BenchmarkIcebergTpcdsSf100.class));
     }
 
-    static final class TpcdsSf100Workload
+    static class TpcdsSf100Workload
             extends BaseIcebergTpcdsWorkload
     {
         TpcdsSf100Workload()
