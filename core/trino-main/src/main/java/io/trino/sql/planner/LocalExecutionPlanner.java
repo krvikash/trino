@@ -246,6 +246,7 @@ import io.trino.spi.type.FunctionType;
 import io.trino.spi.type.RowType;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.TypeOperators;
+import io.trino.spi.type.VarbinaryType;
 import io.trino.spiller.PartitioningSpillerFactory;
 import io.trino.spiller.SingleStreamSpillerFactory;
 import io.trino.spiller.SpillerFactory;
@@ -4888,6 +4889,16 @@ public class LocalExecutionPlanner
             // Join filter
             Optional<CudfAstExpression> compiledFilter;
             if (node.getFilter().isPresent()) {
+                // TODO https://starburstdata.atlassian.net/browse/ENG-27258 temporary guard; cudf 26.06.x mixed joins corrupt memory on nested VARBINARY (LIST<UINT8>) keys.
+                boolean hasVarbinaryJoinKey = node.getCriteria().stream()
+                        .map(JoinNode.EquiJoinClause::getLeft)
+                        .map(Symbol::type)
+                        .anyMatch(VarbinaryType.class::isInstance);
+                if (hasVarbinaryJoinKey) {
+                    context.markAsGpuIneligible(node.getId(), "Filtered GPU joins on a VARBINARY key are not supported");
+                    return Optional.empty();
+                }
+
                 Expression filter = node.getFilter().get();
                 compiledFilter = GpuExpressionAstCompiler.compile(metadata, filter, getCharVarcharCoercion(session));
                 if (compiledFilter.isEmpty()) {
