@@ -22,6 +22,7 @@ import io.trino.filesystem.TrinoInputFile;
 import io.trino.memory.context.AggregatedMemoryContext;
 import io.trino.plugin.iceberg.delete.DeleteFile;
 import io.trino.spi.Page;
+import io.trino.spi.TrinoException;
 import io.trino.spi.connector.ConnectorPageSink;
 import io.trino.spi.connector.ConnectorPageSource;
 import io.trino.spi.connector.ConnectorSession;
@@ -53,6 +54,7 @@ import java.util.concurrent.CompletableFuture;
 
 import static io.airlift.slice.Slices.wrappedBuffer;
 import static io.trino.memory.context.AggregatedMemoryContext.newSimpleAggregatedMemoryContext;
+import static io.trino.plugin.iceberg.IcebergErrorCode.ICEBERG_WRITE_VALIDATION_FAILED;
 import static io.trino.plugin.iceberg.IcebergUtil.supportsRowLineage;
 import static java.util.UUID.randomUUID;
 import static java.util.concurrent.CompletableFuture.completedFuture;
@@ -206,6 +208,20 @@ public class CopyOnWriteIcebergMergeSink
                 Optional.empty());
     }
 
+    private long fileRecordCount(Location path)
+    {
+        Long recordCount = fileCounts.get(path.toString());
+        if (recordCount == null) {
+            // The data file being rewritten was not among the files scanned when the merge began, so the
+            // record count, the previous delete files, the data sequence number and the first row id are
+            // all unknown for it. Rewriting it would silently drop its existing position deletes.
+            throw new TrinoException(
+                    ICEBERG_WRITE_VALIDATION_FAILED,
+                    "Data file to rewrite was not scanned when the merge began: %s (%s data files scanned)".formatted(path, fileCounts.size()));
+        }
+        return recordCount;
+    }
+
     private ConnectorPageSource createPageSource(Location path, FileDeletion deletion, PartitionSpec partitionSpec, PartitionData partitionData)
             throws IOException
     {
@@ -235,7 +251,7 @@ public class CopyOnWriteIcebergMergeSink
                 0,
                 fileSize,
                 fileSize,
-                fileCounts.get(path.toString()),
+                fileRecordCount(path),
                 fileFormat,
                 tableCredentials,
                 dataSequenceNumbers.containsKey(path.toString()) ? OptionalLong.of(dataSequenceNumbers.get(path.toString())) : OptionalLong.empty(),
