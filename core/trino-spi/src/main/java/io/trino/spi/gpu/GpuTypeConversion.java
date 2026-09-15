@@ -18,6 +18,7 @@ import ai.rapids.cudf.DType;
 import ai.rapids.cudf.HostColumnVector;
 import ai.rapids.cudf.HostColumnVectorCore;
 import ai.rapids.cudf.HostMemoryBuffer;
+import ai.rapids.cudf.PadSide;
 import ai.rapids.cudf.Scalar;
 import io.airlift.slice.Slice;
 import io.airlift.slice.Slices;
@@ -62,6 +63,8 @@ import java.util.Optional;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import static io.trino.spi.type.Chars.padSpaces;
+import static io.trino.spi.type.Chars.trimTrailingSpaces;
 import static io.trino.spi.type.Timestamps.NANOSECONDS_PER_MICROSECOND;
 import static io.trino.spi.type.Timestamps.PICOSECONDS_PER_NANOSECOND;
 import static java.lang.Math.addExact;
@@ -76,6 +79,10 @@ import static java.util.Objects.requireNonNull;
 public final class GpuTypeConversion
 {
     private GpuTypeConversion() {}
+
+    // CHAR columns must be padded with spaces to their declared length to match Trino's
+    // comparison semantics. We cap the length to keep memory usage bounded.
+    public static final int MAX_SUPPORTED_CHAR_LENGTH = 255;
 
     private static final HostColumnVector.DataType BYTE_LIST_ELEMENT_TYPE = new HostColumnVector.BasicType(false, DType.UINT8);
 
@@ -209,12 +216,24 @@ public final class GpuTypeConversion
                     blocks -> copyTimestampNanosBlocksToDevice(blocks),
                     nullChecked(scalar -> nanosToLongTimestamp(scalar.getLong()))));
 
-            // For CHAR(n) the GPU representation is DType.STRING with trailing spaces trimmed (same as Trino stack representation)
-            case CharType _, VarcharType _ -> Optional.of(new GpuTypeMapping(
+            case VarcharType _ -> Optional.of(new GpuTypeMapping(
                     DType.STRING,
                     value -> Scalar.fromUTF8String(value.map(v -> ((Slice) v).getBytes()).orElse(null)),
                     GpuTypeConversion::copyVariableWithBlocksToDeviceString,
                     nullChecked(scalar -> Slices.wrappedBuffer(scalar.getUTF8()))));
+
+            case CharType charType when charType.getLength() <= MAX_SUPPORTED_CHAR_LENGTH -> Optional.of(new GpuTypeMapping(
+                    DType.STRING,
+                    value -> Scalar.fromUTF8String(value.map(v -> ((Slice) v))
+                            .map(slice -> padSpaces(slice, charType))
+                            .map(Slice::getBytes)
+                            .orElse(null)),
+                    blocks -> {
+                        try (ColumnVector rawColumn = copyVariableWithBlocksToDeviceString(blocks)) {
+                            return rawColumn.pad(charType.getLength(), PadSide.RIGHT, " ");
+                        }
+                    },
+                    nullChecked(scalar -> trimTrailingSpaces(Slices.wrappedBuffer(scalar.getUTF8())))));
 
             case VarbinaryType _ -> Optional.of(new GpuTypeMapping(
                     DType.LIST,

@@ -15,16 +15,12 @@ package io.trino.operator.gpu.expression;
 
 import ai.rapids.cudf.ColumnVector;
 import ai.rapids.cudf.ColumnView;
-import ai.rapids.cudf.PadSide;
-import ai.rapids.cudf.Scalar;
-import io.trino.plugin.base.gpu.ClosingOnce;
 import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
 
 import java.util.List;
 import java.util.Objects;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 
 /// Implements `concat(char(t), char(u)) → char(t + u)`.
@@ -33,41 +29,22 @@ import static java.util.Objects.requireNonNull;
 public final class GpuCharConcat
         extends GpuExpression
 {
-    private static final String SPACE = " ";
-
     private final GpuExpression left;
     private final GpuExpression right;
-    private final int leftLength;
 
-    public GpuCharConcat(GpuExpression left, GpuExpression right, int leftLength)
+    public GpuCharConcat(GpuExpression left, GpuExpression right)
     {
         this.left = requireNonNull(left, "left is null");
         this.right = requireNonNull(right, "right is null");
-        checkArgument(leftLength > 0, "leftLength must be positive, got %s", leftLength);
-        this.leftLength = leftLength;
     }
 
     @Override
     public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns)
     {
-        try (ColumnVector concatenated = concatenatePaddedLeft(positionCount, inputColumns);
-                Scalar space = Scalar.fromString(SPACE)) {
-            // Trino stores char(n) without its trailing spaces, so the padding added above must not
-            // survive into the result. It only can when the right argument is an empty string, because
-            // a non-empty char(n) argument is itself stored without trailing spaces.
-            return concatenated.rstrip(space);
-        }
-    }
-
-    private @Move ColumnVector concatenatePaddedLeft(int positionCount, List<@Borrow ColumnVector> inputColumns)
-    {
-        try (ClosingOnce<ColumnVector> leftColumn = ClosingOnce.own(left.evaluate(positionCount, inputColumns));
-                ColumnVector paddedLeft = leftColumn.borrow().pad(leftLength, PadSide.RIGHT, SPACE)) {
-            leftColumn.close();
-            try (ColumnVector rightColumn = right.evaluate(positionCount, inputColumns)) {
-                // cuDF makes a row null whenever any of its inputs is null, matching Trino's null propagation
-                return ColumnVector.stringConcatenate(new ColumnView[] {paddedLeft, rightColumn});
-            }
+        try (ColumnVector leftColumn = left.evaluate(positionCount, inputColumns);
+                ColumnVector rightColumn = right.evaluate(positionCount, inputColumns)) {
+            // cuDF makes a row null whenever any of its inputs is null, matching Trino's null propagation
+            return ColumnVector.stringConcatenate(new ColumnView[] {leftColumn, rightColumn});
         }
     }
 
@@ -76,13 +53,12 @@ public final class GpuCharConcat
     {
         return obj instanceof GpuCharConcat other
                 && left.equals(other.left)
-                && right.equals(other.right)
-                && leftLength == other.leftLength;
+                && right.equals(other.right);
     }
 
     @Override
     public int hashCode()
     {
-        return Objects.hash(getClass(), left, right, leftLength);
+        return Objects.hash(getClass(), left, right);
     }
 }

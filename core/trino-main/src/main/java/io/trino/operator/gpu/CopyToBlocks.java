@@ -18,6 +18,7 @@ import ai.rapids.cudf.Cuda;
 import ai.rapids.cudf.DType;
 import ai.rapids.cudf.HostColumnVector;
 import ai.rapids.cudf.HostMemoryBuffer;
+import ai.rapids.cudf.Scalar;
 import com.google.common.collect.ImmutableList;
 import io.trino.operator.gpu.memory.AllocatedMemory;
 import io.trino.operator.gpu.memory.GpuTaskMemoryContext;
@@ -138,11 +139,13 @@ public class CopyToBlocks
                 int positionCount = inputPage.positionCount();
                 // Issue all device→host transfers, then synchronize once so host-side allocation
                 // and bookkeeping overlap with in-flight DMA.
-                try {
+                try (AutoCloseableCloser closer = AutoCloseableCloser.create()) {
                     for (int columnIndex = 0; columnIndex < inputPage.columnCount(); columnIndex++) {
                         if (inputPage.column(columnIndex) instanceof DeviceMemory deviceMemory) {
                             allocated.update(allocated.amount().add(MemoryAmount.offHeap(deviceMemory.retainedDeviceMemoryBytes())));
-                            hostColumnVectors.add(deviceMemory.columnVector().copyToHostAsync(Cuda.DEFAULT_STREAM));
+                            @Own ColumnVector hostCopySource = prepareHostCopy(deviceMemory.columnVector(), types.get(columnIndex));
+                            closer.register(hostCopySource);
+                            hostColumnVectors.add(hostCopySource.copyToHostAsync(Cuda.DEFAULT_STREAM));
                         }
                     }
                     Cuda.DEFAULT_STREAM.sync();
@@ -159,7 +162,6 @@ public class CopyToBlocks
                     }
                     throw e;
                 }
-
                 int hostColumnVectorIndex = 0;
                 for (int columnIndex = 0; columnIndex < inputPage.columnCount(); columnIndex++) {
                     Type type = types.get(columnIndex);
@@ -284,10 +286,21 @@ public class CopyToBlocks
 
     public static Block copyToBlock(@Borrow ColumnVector columnVector, Type type)
     {
-        try (HostColumnVector hostColumnVector = columnVector.copyToHost()) {
+        try (ColumnVector hostCopySource = prepareHostCopy(columnVector, type);
+                HostColumnVector hostColumnVector = hostCopySource.copyToHost()) {
             return createColumnCopier(hostColumnVector, type)
                     .buildBlock(0, toIntExact(hostColumnVector.getRowCount()));
         }
+    }
+
+    private static @Move ColumnVector prepareHostCopy(@Borrow ColumnVector columnVector, Type type)
+    {
+        if (type instanceof CharType) {
+            try (Scalar space = Scalar.fromString(" ")) {
+                return columnVector.rstrip(space);
+            }
+        }
+        return columnVector.incRefCount();
     }
 
     private static ColumnCopier createColumnCopier(@Borrow HostColumnVector hostColumnVector, Type type)

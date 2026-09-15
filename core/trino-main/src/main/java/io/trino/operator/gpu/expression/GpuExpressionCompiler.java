@@ -100,7 +100,6 @@ import static io.trino.type.LikeFunctions.LIKE_FUNCTION_NAME;
 import static io.trino.type.LikePatternType.LIKE_PATTERN;
 import static java.lang.Character.MAX_SURROGATE;
 import static java.lang.Character.MIN_SURROGATE;
-import static java.lang.Math.min;
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -283,7 +282,8 @@ public final class GpuExpressionCompiler
                     // No truncation
                     case CharType to when from.getLength() <= to.getLength() -> {
                         verify(DType.STRING.equals(fromDType) && DType.STRING.equals(toDType), "Unexpected from/to DTypes: %s, %s", fromDType, toDType);
-                        yield Optional.of(input);
+                        // Pad to match the GPU CHAR representation.
+                        yield Optional.of(new GpuPadSpaces(input, to.getLength()));
                     }
                     case VarcharType to -> {
                         verify(DType.STRING.equals(fromDType) && DType.STRING.equals(toDType), "Unexpected from/to DTypes: %s, %s", fromDType, toDType);
@@ -309,12 +309,12 @@ public final class GpuExpressionCompiler
         {
             int targetLength = to.getLength().orElse(Integer.MAX_VALUE);
             GpuExpression result = input;
+            if (charVarcharCoercion == CharVarcharCoercion.SQL_STANDARD) {
+                // The GPU carries char(n) with trailing spaces, so the SQL standard cast has to remove them
+                result = new GpuTrim(result, SPACE, GpuTrim.Side.TRAILING);
+            }
             if (targetLength < from.getLength()) {
                 result = new GpuTruncateToLength(result, targetLength);
-            }
-            if (charVarcharCoercion == CharVarcharCoercion.LEGACY) {
-                // The GPU carries char(n) without trailing spaces, so the legacy cast has to restore them
-                result = new GpuPadSpaces(result, min(from.getLength(), targetLength));
             }
             return result;
         }
@@ -477,16 +477,6 @@ public final class GpuExpressionCompiler
             if (outputType.isEmpty()) {
                 return Optional.empty();
             }
-            // cuDF compares raw bytes; Trino CHAR ordering requires virtual right-padding with spaces.
-            // Pad operands before comparison, then strip the padding from the result.
-            if (call.type() instanceof CharType charType) {
-                return compileNary(call.arguments(), operands -> {
-                    List<GpuExpression> padded = operands.stream()
-                            .map(operand -> (GpuExpression) new GpuPadSpaces(operand, charType.getLength()))
-                            .toList();
-                    return new GpuTrim(new GpuLeast(padded, outputType.get()), SPACE, GpuTrim.Side.TRAILING);
-                }, context);
-            }
             return compileNary(call.arguments(), operands -> new GpuLeast(operands, outputType.get()), context);
         }
 
@@ -520,13 +510,6 @@ public final class GpuExpressionCompiler
 
             GpuExpression left = leftCompiled.get();
             GpuExpression right = rightCompiled.get();
-            // cuDF compares raw bytes; Trino CHAR ordering requires virtual right-padding with spaces.
-            // Equality is unaffected because equal CHAR values have identical raw bytes.
-            if (comparison.left().type() instanceof CharType charType
-                    && (comparison instanceof IrExpressions.Comparison.LessThan || comparison instanceof IrExpressions.Comparison.LessThanOrEqual)) {
-                left = new GpuPadSpaces(left, charType.getLength());
-                right = new GpuPadSpaces(right, charType.getLength());
-            }
             return switch (comparison) {
                 case IrExpressions.Comparison.Equal _ -> Optional.of(new GpuBinaryExpression(left, right, BinaryOp.EQUAL, DType.BOOL8));
                 case IrExpressions.Comparison.NotEqual _ -> Optional.of(new GpuBinaryExpression(left, right, BinaryOp.NOT_EQUAL, DType.BOOL8));
@@ -872,9 +855,9 @@ public final class GpuExpressionCompiler
             }
 
             if (arguments.size() == 2 &&
-                    arguments.get(0).type() instanceof CharType leftType &&
+                    arguments.get(0).type() instanceof CharType &&
                     arguments.get(1).type() instanceof CharType) {
-                return compileNary(arguments, compiled -> new GpuCharConcat(compiled.get(0), compiled.get(1), leftType.getLength()), context);
+                return compileNary(arguments, compiled -> new GpuCharConcat(compiled.get(0), compiled.get(1)), context);
             }
 
             // The remaining overloads take varbinary (carried as LIST<INT8> on the GPU), array or map arguments
@@ -991,7 +974,15 @@ public final class GpuExpressionCompiler
             }
 
             if (arguments.size() == 1) {
-                return Optional.of(new GpuTrim(source.get(), GpuTrim.WHITESPACE_CODE_POINTS, side));
+                GpuExpression result = source.get();
+                if (sourceType instanceof CharType && side == GpuTrim.Side.LEADING) {
+                    // GPU stores char(n) with trailing spaces. ltrim only removes from the left,
+                    // so the trailing padding would survive. Strip it first.
+                    // In this 1-arg overload, trim and rtrim don't need this because they already
+                    // remove from the right. The 2-arg overload handles them separately below.
+                    result = new GpuTrim(result, SPACE, GpuTrim.Side.TRAILING);
+                }
+                return Optional.of(new GpuTrim(result, GpuTrim.WHITESPACE_CODE_POINTS, side));
             }
 
             // The analyzer wraps the trim characters in a cast to CodePoints, which the optimizer folds
@@ -1011,23 +1002,32 @@ public final class GpuExpressionCompiler
                 }
             }
             if (codePoints.length == 0) {
-                // Removing no code points leaves a varchar unchanged. For char(x) the CPU still applies
-                // Chars.trimTrailingSpaces, but a char(x) value is stored without trailing spaces, so that
-                // is a no-op too. See the trailing space note below: this rests on behavior upstream
-                // considers a bug, so testTrimCodePoints pins it for both types.
-                return source;
+                if (sourceType instanceof VarcharType) {
+                    // Removing no code points leaves a varchar unchanged.
+                    return source;
+                }
+                // CPU trim(char, code_points) (erroneously) trims spaces from the right (i.e. takes raw
+                // stack value) before trimming the code_points. See https://github.com/trinodb/trino/issues/31004
+                return Optional.of(new GpuTrim(source.get(), SPACE, GpuTrim.Side.TRAILING));
             }
 
-            GpuExpression resultExpression = new GpuTrim(source.get(), new String(codePoints, 0, codePoints.length), side);
+            GpuExpression result = source.get();
+            if (sourceType instanceof CharType) {
+                // GPU stores char(n) with trailing spaces. Strip them before trimming code points so
+                // the trim operates on the logical (unpadded) value, matching the CPU which stores
+                // char(n) without trailing spaces.
+                result = new GpuTrim(result, SPACE, GpuTrim.Side.TRAILING);
+            }
+            result = new GpuTrim(result, new String(codePoints, 0, codePoints.length), side);
             if (sourceType instanceof CharType && side != GpuTrim.Side.LEADING) {
                 // char(x) trim and rtrim additionally strip trailing spaces, because StringFunctions.charTrim
                 // and charRightTrim apply Chars.trimTrailingSpaces after removing the code points. That is not
                 // a consequence of the result type, which is varchar(x); we do it only to match the CPU, whose
                 // own rationale is unclear and which upstream reports as wrong in
                 // https://github.com/trinodb/trino/issues/31004. charLeftTrim does not do it, and neither do we.
-                resultExpression = new GpuTrim(resultExpression, SPACE, GpuTrim.Side.TRAILING);
+                result = new GpuTrim(result, SPACE, GpuTrim.Side.TRAILING);
             }
-            return Optional.of(resultExpression);
+            return Optional.of(result);
         }
 
         private static Optional<String> extractPatternString(Type patternType, Object patternValue)

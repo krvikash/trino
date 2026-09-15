@@ -18,6 +18,7 @@ import ai.rapids.cudf.DType;
 import ai.rapids.cudf.HostColumnVector;
 import ai.rapids.cudf.Scalar;
 import com.google.common.collect.Streams;
+import io.airlift.slice.Slices;
 import io.trino.spi.Page;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
@@ -26,6 +27,7 @@ import io.trino.spi.block.Int128ArrayBlock;
 import io.trino.spi.block.RunLengthEncodedBlock;
 import io.trino.spi.gpu.Column.Blocks;
 import io.trino.spi.gpu.GpuTypeConversion;
+import io.trino.spi.type.CharType;
 import io.trino.spi.type.DecimalType;
 import io.trino.spi.type.Int128;
 import io.trino.spi.type.LongTimestamp;
@@ -39,6 +41,7 @@ import org.junit.jupiter.params.provider.EnumSource;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.Random;
@@ -57,6 +60,7 @@ import static io.trino.operator.gpu.GpuTestUtils.createBlocks;
 import static io.trino.operator.gpu.GpuTestUtils.executeGpuOperation;
 import static io.trino.operator.gpu.GpuTestUtils.maybeSetGpuMemoryPoolForTests;
 import static io.trino.operator.gpu.GpuTestUtils.positions;
+import static io.trino.spi.type.CharType.createCharType;
 import static io.trino.spi.type.DecimalType.createDecimalType;
 import static io.trino.spi.type.DoubleType.DOUBLE;
 import static io.trino.spi.type.RealType.REAL;
@@ -145,6 +149,32 @@ public class TestGpuDataConversion
         List<Page> inputPages = createInputPages(List.of(0, 0, 0, 0, 0, 0), NO_NULLS, types);
         List<Page> outputPages = executeRoundTrip(inputPages, types, allChannels(types.size()));
         assertThat(outputPages).isEmpty();
+    }
+
+    @Test
+    public void testCharCopyStripsPaddingOnGpu()
+    {
+        CharType type = createCharType(4);
+        List<String> sample = Arrays.asList("", "a", "a\t", "Ł", "abcd", " a", null);
+        List<String> values = IntStream.range(0, 37)
+                .mapToObj(index -> sample.get(index % sample.size()))
+                .toList();
+        BlockBuilder builder = type.createBlockBuilder(null, values.size());
+        for (String value : values) {
+            if (value == null) {
+                builder.appendNull();
+            }
+            else {
+                type.writeSlice(builder, Slices.utf8Slice(value));
+            }
+        }
+
+        List<Page> outputPages = executeRoundTrip(List.of(new Page(builder.build())), List.of(type), Set.of(0));
+        List<String> actual = outputPages.stream()
+                .flatMap(page -> IntStream.range(0, page.getPositionCount())
+                        .mapToObj(position -> page.getBlock(0).isNull(position) ? null : type.getSlice(page.getBlock(0), position).toStringUtf8()))
+                .toList();
+        assertThat(actual).containsExactlyElementsOf(values);
     }
 
     @ParameterizedTest

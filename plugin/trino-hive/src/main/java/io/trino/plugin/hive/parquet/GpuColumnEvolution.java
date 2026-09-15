@@ -17,7 +17,7 @@ import ai.rapids.cudf.BaseDeviceMemoryBuffer;
 import ai.rapids.cudf.ColumnVector;
 import ai.rapids.cudf.ColumnView;
 import ai.rapids.cudf.DType;
-import ai.rapids.cudf.Scalar;
+import ai.rapids.cudf.PadSide;
 import io.trino.spi.TrinoException;
 import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
@@ -45,10 +45,9 @@ public final class GpuColumnEvolution
             if (!actualDType.equals(DType.STRING)) {
                 throw unsupportedEvolutionException(columnName, actualDType, expectedDType);
             }
-            // The value from file may exceed the column length bound and need truncation.
-            try (ColumnVector truncated = cudfColumn.substring(0, charType.getLength());
-                    Scalar space = Scalar.fromString(" ")) {
-                return truncated.rstrip(space);
+            // The value from file may exceed the column length bound.
+            try (ColumnVector truncated = cudfColumn.substring(0, charType.getLength())) {
+                return truncated.pad(charType.getLength(), PadSide.RIGHT, " ");
             }
         }
         if (actualDType.equals(expectedDType)) {
