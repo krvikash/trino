@@ -256,7 +256,7 @@ public final class GpuWindow
     private MemoryAmount estimateSortMemoryRequirements(int[] sortChannels, List<Type> sortTypes, List<SortOrder> sortOrders, long currentBytes)
     {
         DType[] sortDTypes = getSortDTypes(bufferedTables.borrow().getFirst(), sortChannels);
-        long[] sortKeyBytes = estimateBufferedSortKeyBytes(sortChannels);
+        long sortKeyBytes = estimateBufferedSortKeyBytes(sortChannels);
         long sortWorkBytes = estimateOrderByMemoryUsage(sortDTypes, sortTypes, sortOrders, sortKeyBytes, currentBytes, totalBufferedRowCount);
         return MemoryAmount.gpuDevice(sortWorkBytes);
     }
@@ -268,13 +268,13 @@ public final class GpuWindow
                 .toArray(DType[]::new);
     }
 
-    private long[] estimateBufferedSortKeyBytes(int[] sortChannels)
+    private long estimateBufferedSortKeyBytes(int[] sortChannels)
     {
-        long[] bytes = new long[sortChannels.length];
+        long bytes = 0;
         for (int i = 0; i < sortChannels.length; i++) {
             int channel = sortChannels[i];
             for (Table table : bufferedTables.borrow()) {
-                bytes[i] = addExact(bytes[i], table.getColumn(channel).getDeviceMemorySize());
+                bytes = addExact(bytes, table.getColumn(channel).getDeviceMemorySize());
             }
         }
         return bytes;

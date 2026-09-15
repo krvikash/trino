@@ -122,7 +122,7 @@ public final class GpuTopN
                     allocated.borrow().transferFrom(allocation);
                 }
                 long combinedBytes = allocated.borrow().amount().gpuDeviceBytes();
-                long[] sortKeyBytes = getSortKeyBytes(page);
+                long sortKeyBytes = getSortKeyBytes(page);
                 long rowCount = (buffered.isEmpty() ? 0 : buffered.borrow().getRowCount()) + page.positionCount();
                 long workBytes = estimateOrderByMemoryUsage(getSortDTypes(page), sortTypes, sortOrders, sortKeyBytes, combinedBytes, rowCount);
                 allocated.borrow().update(MemoryAmount.gpuDevice(workBytes));
@@ -153,15 +153,15 @@ public final class GpuTopN
                 .toArray(DType[]::new);
     }
 
-    private long[] getSortKeyBytes(@Borrow GpuPage page)
+    private long getSortKeyBytes(@Borrow GpuPage page)
     {
-        long[] bytes = new long[sortChannels.length];
+        long bytes = 0;
         for (int i = 0; i < sortChannels.length; i++) {
             int channel = sortChannels[i];
             if (!buffered.isEmpty()) {
-                bytes[i] = buffered.borrow().getColumn(channel).getDeviceMemorySize();
+                bytes = addExact(bytes, buffered.borrow().getColumn(channel).getDeviceMemorySize());
             }
-            bytes[i] = addExact(bytes[i], page.column(channel).retainedDeviceMemoryBytes());
+            bytes = addExact(bytes, page.column(channel).retainedDeviceMemoryBytes());
         }
         return bytes;
     }
