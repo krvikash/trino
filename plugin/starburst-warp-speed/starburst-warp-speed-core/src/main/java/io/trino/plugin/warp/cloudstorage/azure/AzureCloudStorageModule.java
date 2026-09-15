@@ -91,7 +91,8 @@ public class AzureCloudStorageModule
     public AzureCloudStorage provideAzureCloudStorage(
             AzureFileSystemFactory fileSystemFactory,
             OpenTelemetry openTelemetry,
-            AzureAuth azureAuth)
+            AzureAuth azureAuth,
+            AzureFileSystemConfig config)
     {
         AzureFileSystemFactory azureFileSystemFactory = requireNonNull(fileSystemFactory, "fileSystemFactory is null");
         TracingOptions tracingOptions = new OpenTelemetryTracingOptions().setOpenTelemetry(openTelemetry);
@@ -102,6 +103,6 @@ public class AzureCloudStorageModule
                 .setConfiguration(configBuilder.build())
                 .setTracingOptions(tracingOptions));
 
-        return new AzureCloudStorage(azureFileSystemFactory, httpClient, tracingOptions, azureAuth);
+        return new AzureCloudStorage(azureFileSystemFactory, httpClient, tracingOptions, azureAuth, config.getEndpoints());
     }
 }

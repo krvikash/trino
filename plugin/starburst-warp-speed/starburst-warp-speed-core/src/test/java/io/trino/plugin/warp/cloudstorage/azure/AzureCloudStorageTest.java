@@ -52,7 +52,7 @@ public class AzureCloudStorageTest
         ConfigurationFactory configFactory = new ConfigurationFactory(Map.of("azure.auth-type", "ACCESS_KEY"));
         AzureCloudStorageModule module = new AzureCloudStorageModule("test", new TestingConnectorContext(), configFactory, ForWarp.class);
 
-        cloudStorage = module.provideAzureCloudStorage(fileSystemFactory, openTelemetry, azureAuth);
+        cloudStorage = module.provideAzureCloudStorage(fileSystemFactory, openTelemetry, azureAuth, azureFileSystemConfig);
     }
 
     @Override

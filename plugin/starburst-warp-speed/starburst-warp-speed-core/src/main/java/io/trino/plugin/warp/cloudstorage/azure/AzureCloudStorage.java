@@ -21,6 +21,7 @@ import com.azure.storage.blob.BlobContainerClient;
 import com.azure.storage.blob.BlobContainerClientBuilder;
 import com.azure.storage.blob.models.BlobProperties;
 import com.azure.storage.common.Utility;
+import com.google.common.collect.ImmutableSet;
 import io.trino.filesystem.Location;
 import io.trino.filesystem.azure.AzureAuth;
 import io.trino.filesystem.azure.AzureFileSystemFactory;
@@ -29,7 +30,9 @@ import io.trino.plugin.warp.cloudstorage.CloudStorageService;
 
 import java.io.IOException;
 import java.util.Locale;
+import java.util.Set;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static io.trino.plugin.warp.cloudstorage.azure.AzureUtils.handleAzureException;
 import static java.util.Objects.requireNonNull;
 
@@ -39,17 +42,20 @@ public class AzureCloudStorage
     private final HttpClient httpClient;
     private final TracingOptions tracingOptions;
     private final AzureAuth azureAuth;
+    private final Set<String> endpoints;
 
     public AzureCloudStorage(
             AzureFileSystemFactory fileSystemFactory,
             HttpClient httpClient,
             TracingOptions tracingOptions,
-            AzureAuth azureAuth)
+            AzureAuth azureAuth,
+            Set<String> endpoints)
     {
         super(fileSystemFactory);
         this.httpClient = requireNonNull(httpClient, "httpClient is null");
         this.tracingOptions = requireNonNull(tracingOptions, "tracingOptions is null");
         this.azureAuth = requireNonNull(azureAuth, "azureAuth is null");
+        this.endpoints = ImmutableSet.copyOf(requireNonNull(endpoints, "endpoints is null"));
     }
 
     @Override
@@ -138,11 +144,12 @@ public class AzureCloudStorage
     private BlobContainerClient createBlobContainerClient(AzureLocation location)
     {
         requireNonNull(location, "location is null");
+        checkArgument(endpoints.contains(location.endpoint()), "Location does not match any configured Azure endpoint %s: %s".formatted(endpoints, location));
 
         BlobContainerClientBuilder builder = new BlobContainerClientBuilder()
                 .httpClient(httpClient)
                 .clientOptions(new ClientOptions().setTracingOptions(tracingOptions))
-                .endpoint(String.format(Locale.US, "https://%s.blob.core.windows.net", location.account()));
+                .endpoint(String.format(Locale.US, "https://%s.blob.%s", location.account(), location.endpoint()));
         azureAuth.setAuth(location.account(), builder);
         location.container().ifPresent(builder::containerName);
         return builder.buildClient();

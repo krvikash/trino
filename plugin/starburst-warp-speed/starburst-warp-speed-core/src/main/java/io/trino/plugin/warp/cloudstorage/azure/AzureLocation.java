@@ -14,6 +14,7 @@
 package io.trino.plugin.warp.cloudstorage.azure;
 
 import com.google.common.base.CharMatcher;
+import com.google.common.base.Splitter;
 import io.trino.filesystem.Location;
 
 import java.util.Locale;
@@ -25,14 +26,16 @@ import static java.util.Objects.requireNonNull;
 //todo: this probably can be merged with `io.trino.filesystem.azure.AzureLocation` but we probably should enable test/product tests for warp+azure first
 class AzureLocation
 {
-    private static final String INVALID_LOCATION_MESSAGE = "Invalid Azure location. Expected form is 'abfs://[<containerName>@]<accountName>.dfs.core.windows.net/<filePath>': %s";
+    private static final String INVALID_LOCATION_MESSAGE = "Invalid Azure location. Expected form is 'abfs://[<containerName>@]<accountName>.dfs.<endpoint>/<filePath>': %s";
+    private static final String SERVICE_SEPARATOR = ".dfs.";
 
     // https://learn.microsoft.com/en-us/azure/azure-resource-manager/management/resource-name-rules
     private static final CharMatcher CONTAINER_VALID_CHARACTERS = CharMatcher.inRange('a', 'z').or(CharMatcher.inRange('0', '9')).or(CharMatcher.is('-'));
-    private static final CharMatcher STORAGE_ACCOUNT_VALID_CHARACTERS = CharMatcher.inRange('a', 'z').or(CharMatcher.inRange('0', '9'));
+    private static final CharMatcher STORAGE_ACCOUNT_VALID_CHARACTERS = CharMatcher.inRange('a', 'z').or(CharMatcher.inRange('0', '9')).or(CharMatcher.is('-'));
 
     private final Location location;
     private final String account;
+    private final String endpoint;
 
     public AzureLocation(Location location)
     {
@@ -58,23 +61,24 @@ class AzureLocation
                     location);
         });
 
-        // storage account is the first label of the host
+        // The service label separates the storage account from the endpoint
         checkArgument(location.host().isPresent(), INVALID_LOCATION_MESSAGE, location);
         String host = location.host().orElseThrow();
-        int accountSplit = host.indexOf('.');
+        int serviceSplit = host.indexOf(SERVICE_SEPARATOR);
         checkArgument(
-                accountSplit > 0,
+                serviceSplit > 0,
                 INVALID_LOCATION_MESSAGE,
                 this.location);
-        this.account = host.substring(0, accountSplit);
-
-        // host must end with ".dfs.core.windows.net"
-        checkArgument(host.substring(accountSplit).equals(".dfs.core.windows.net"), INVALID_LOCATION_MESSAGE, location);
+        this.account = host.substring(0, serviceSplit);
+        this.endpoint = host.substring(serviceSplit + SERVICE_SEPARATOR.length());
+        checkArgument(!endpoint.isEmpty(), INVALID_LOCATION_MESSAGE, location);
 
         // storage account is interpolated into URL host name, so perform extra checks
-        checkArgument(STORAGE_ACCOUNT_VALID_CHARACTERS.matchesAllOf(account),
-                "Invalid Azure storage account name. Valid characters are 'a-z' and '0-9': %s",
-                location);
+        for (String label : Splitter.on('.').split(account)) {
+            checkArgument(!label.isEmpty() && STORAGE_ACCOUNT_VALID_CHARACTERS.matchesAllOf(label),
+                    "Invalid Azure storage account name. Valid characters are 'a-z', '0-9', and '-': %s",
+                    location);
+        }
     }
 
     /**
@@ -83,7 +87,7 @@ class AzureLocation
      * Locations follow the conventions used by
      * <a href="https://docs.microsoft.com/en-us/azure/storage/blobs/data-lake-storage-introduction-abfs-uri">ABFS URI</a>
      * that follows the following convention
-     * <pre>{@code abfs://<container-name>@<storage-account-name>.dfs.core.windows.net/<blob_path>}</pre>
+     * <pre>{@code abfs://<container-name>@<storage-account-name>.dfs.<endpoint>/<blob_path>}</pre>
      */
     public static AzureLocation from(String location)
     {
@@ -103,6 +107,11 @@ class AzureLocation
     public String account()
     {
         return account;
+    }
+
+    public String endpoint()
+    {
+        return endpoint;
     }
 
     public String path()
