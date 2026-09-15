@@ -18,7 +18,6 @@ import com.google.inject.Inject;
 import io.airlift.slice.Slice;
 import io.airlift.slice.SliceOutput;
 import io.airlift.slice.Slices;
-import io.airlift.units.Duration;
 import io.starburst.stargate.buffer.data.client.spooling.SpooledChunk;
 import io.starburst.stargate.buffer.data.execution.Chunk;
 import io.starburst.stargate.buffer.data.execution.ChunkDataLease;
@@ -46,8 +45,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -75,8 +72,6 @@ public class TrinoFsSpoolingStorage
     private final TrinoFileSystem fileSystem;
     private final ListeningExecutorService executor;
     private final ListeningExecutorService deleteExecutor;
-    private final ScheduledExecutorService timeoutExecutor;
-    private final Duration operationTimeout;
     private final URI rootUri;
 
     @Inject
@@ -87,26 +82,15 @@ public class TrinoFsSpoolingStorage
             DataServerStats dataServerStats,
             @ForTrinoFsSpooling TrinoFileSystem fileSystem,
             @ForTrinoFsSpooling ListeningExecutorService executor,
-            @ForTrinoFsSpoolingDelete ListeningExecutorService deleteExecutor,
-            TrinoFsSpoolingConfig config,
-            @ForTrinoFsSpooling ScheduledExecutorService timeoutExecutor)
+            @ForTrinoFsSpoolingDelete ListeningExecutorService deleteExecutor)
     {
         super(bufferNodeId, mergedFileNameGenerator, dataServerStats);
         this.dataServerStats = requireNonNull(dataServerStats, "dataServerStats is null");
         this.fileSystem = requireNonNull(fileSystem, "fileSystem is null");
         this.executor = requireNonNull(executor, "executor is null");
         this.deleteExecutor = requireNonNull(deleteExecutor, "deleteExecutor is null");
-        this.operationTimeout = requireNonNull(config, "config is null").getOperationTimeout();
-        this.timeoutExecutor = requireNonNull(timeoutExecutor, "timeoutExecutor is null");
         this.rootUri = requireNonNull(spoolingDirectoryConfig.getSpoolingDirectory(), "spoolingDirectory is null");
         checkArgument(rootUri.toString().endsWith(PATH_SEPARATOR), "rootUri must end with '%s': %s", PATH_SEPARATOR, rootUri);
-    }
-
-    private <T> ListenableFuture<T> withOperationTimeout(ListenableFuture<T> future)
-    {
-        // Futures.withTimeout cancels the delegate with mayInterruptIfRunning=true, which
-        // interrupts the pool thread blocked inside the TrinoFileSystem call.
-        return translateFailures(Futures.withTimeout(future, operationTimeout.toMillis(), TimeUnit.MILLISECONDS, timeoutExecutor));
     }
 
     @Override
@@ -122,7 +106,7 @@ public class TrinoFsSpoolingStorage
             long contentLength)
     {
         String location = getLocation(fileName);
-        return withOperationTimeout(executor.submit(() -> {
+        return translateFailures(executor.submit(() -> {
             ImmutableMap.Builder<Long, SpooledChunk> spooledChunkMap = ImmutableMap.builder();
             // Lazy stream suppliers, one per chunk header plus the chunk body. Memory chunks supply
             // zero-copy views over their existing byte[]s; disk chunks stream straight from the file
@@ -223,19 +207,19 @@ public class TrinoFsSpoolingStorage
         ImmutableList.Builder<ListenableFuture<?>> futures = ImmutableList.builder();
         for (String directoryName : directoryNames) {
             String dirLocation = rootUri.toString() + directoryName;
-            futures.add(withOperationTimeout(deleteExecutor.submit(() -> {
+            futures.add(deleteExecutor.submit(() -> {
                 fileSystem.deleteDirectory(Location.of(dirLocation));
                 return null;
-            })));
+            }));
         }
-        return asVoid(Futures.allAsList(futures.build()));
+        return translateFailures(asVoid(Futures.allAsList(futures.build())));
     }
 
     @Override
     public ListenableFuture<Void> writeMetadataFile(long bufferNodeId, Slice metadataSlice)
     {
         String location = getLocation(getMetadataFileName(bufferNodeId));
-        return asVoid(withOperationTimeout(executor.submit(() -> {
+        return translateFailures(asVoid(executor.submit(() -> {
             TrinoOutputFile output = fileSystem.newOutputFile(Location.of(location));
             output.createOrOverwrite(metadataSlice.getBytes());
             return null;
@@ -246,7 +230,7 @@ public class TrinoFsSpoolingStorage
     public ListenableFuture<Slice> readMetadataFile(long bufferNodeId)
     {
         String location = getLocation(getMetadataFileName(bufferNodeId));
-        return withOperationTimeout(executor.submit(() -> {
+        return translateFailures(executor.submit(() -> {
             TrinoInputFile input = fileSystem.newInputFile(Location.of(location));
             try (TrinoInputStream stream = input.newStream()) {
                 return Slices.wrappedBuffer(stream.readAllBytes());

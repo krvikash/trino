@@ -424,12 +424,6 @@
 
         <dependency>
             <groupId>io.trino</groupId>
-            <artifactId>trino-memory-context</artifactId>
-            <scope>test</scope>
-        </dependency>
-
-        <dependency>
-            <groupId>io.trino</groupId>
             <artifactId>trino-testing-containers</artifactId>
             <scope>test</scope>
         </dependency>

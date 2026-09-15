@@ -10,7 +10,6 @@
 package io.starburst.stargate.buffer.data.spooling.trinofs;
 
 import com.google.common.collect.ImmutableMap;
-import io.airlift.units.Duration;
 import org.junit.jupiter.api.Test;
 
 import java.util.Map;
@@ -18,8 +17,6 @@ import java.util.Map;
 import static io.airlift.configuration.testing.ConfigAssertions.assertFullMapping;
 import static io.airlift.configuration.testing.ConfigAssertions.assertRecordedDefaults;
 import static io.airlift.configuration.testing.ConfigAssertions.recordDefaults;
-import static java.util.concurrent.TimeUnit.MINUTES;
-import static java.util.concurrent.TimeUnit.SECONDS;
 
 public class TestTrinoFsSpoolingConfig
 {
@@ -27,9 +24,8 @@ public class TestTrinoFsSpoolingConfig
     public void testDefaults()
     {
         assertRecordedDefaults(recordDefaults(TrinoFsSpoolingConfig.class)
-                .setExecutorThreads(128)
-                .setDeleteExecutorThreads(10)
-                .setOperationTimeout(new Duration(60, SECONDS)));
+                .setExecutorThreads(50)
+                .setDeleteExecutorThreads(10));
     }
 
     @Test
@@ -38,13 +34,11 @@ public class TestTrinoFsSpoolingConfig
         Map<String, String> properties = ImmutableMap.<String, String>builder()
                 .put("spooling.trino-fs.executor-threads", "16")
                 .put("spooling.trino-fs.delete-executor-threads", "4")
-                .put("spooling.trino-fs.operation-timeout", "2m")
                 .buildOrThrow();
 
         TrinoFsSpoolingConfig expected = new TrinoFsSpoolingConfig()
                 .setExecutorThreads(16)
-                .setDeleteExecutorThreads(4)
-                .setOperationTimeout(new Duration(2, MINUTES));
+                .setDeleteExecutorThreads(4);
 
         assertFullMapping(properties, expected);
     }

@@ -18,7 +18,6 @@ import io.starburst.stargate.buffer.data.server.DataServerStats;
 import io.starburst.stargate.buffer.data.spooling.AbstractTestSpoolingStorage;
 import io.starburst.stargate.buffer.data.spooling.MergedFileNameGenerator;
 import io.starburst.stargate.buffer.data.spooling.SpoolingStorage;
-import io.starburst.stargate.buffer.data.spooling.trinofs.TrinoFsSpoolingConfig;
 import io.starburst.stargate.buffer.data.spooling.trinofs.TrinoFsSpoolingStorage;
 import io.trino.filesystem.Location;
 import io.trino.filesystem.TrinoFileSystem;
@@ -26,11 +25,8 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 
 import java.io.IOException;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
 
 import static com.google.common.util.concurrent.MoreExecutors.newDirectExecutorService;
-import static io.airlift.concurrent.Threads.daemonThreadsNamed;
 
 /**
  * Shared scaffolding for cloud-backed {@link TrinoFsSpoolingStorage} integration tests.
@@ -104,14 +100,7 @@ public abstract class AbstractTestTrinoFsCloudSpoolingStorage
                 new DataServerStats(),
                 fileSystem,
                 newDirectExecutorService(),
-                newDirectExecutorService(),
-                new TrinoFsSpoolingConfig(),
-                newTimeoutExecutor());
-    }
-
-    private static ScheduledExecutorService newTimeoutExecutor()
-    {
-        return new ScheduledThreadPoolExecutor(1, daemonThreadsNamed("test-timeout-%s"));
+                newDirectExecutorService());
     }
 
     @Override

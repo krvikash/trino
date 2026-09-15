@@ -110,13 +110,11 @@ import static io.starburst.stargate.buffer.data.execution.ExchangeState.SOURCE_S
 import static io.starburst.stargate.buffer.data.execution.SpooledChunksByExchange.decodeMetadataSlice;
 import static io.starburst.stargate.buffer.data.spooling.SpoolingUtils.getMetadataFileName;
 import static io.trino.cache.SafeCaches.buildNonEvictableCache;
-import static java.lang.Math.min;
 import static java.lang.Math.toIntExact;
 import static java.lang.annotation.ElementType.FIELD;
 import static java.lang.annotation.ElementType.METHOD;
 import static java.lang.annotation.ElementType.PARAMETER;
 import static java.lang.annotation.RetentionPolicy.RUNTIME;
-import static java.util.Collections.synchronizedList;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.Executors.newSingleThreadScheduledExecutor;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
@@ -127,8 +125,6 @@ public class ChunkManager
 {
     private static final Logger log = Logger.get(ChunkManager.class);
     private static final HashFunction HASH_FUNC = murmur3_32_fixed();
-    // how long to wait for in-flight spooling writes to react to cancellation after spooling timed out
-    private static final Duration CANCELLATION_TIMEOUT = succinctDuration(10, SECONDS);
 
     private final long bufferNodeId;
     private final BufferNodeStateManager bufferNodeStateManager;
@@ -136,8 +132,6 @@ public class ChunkManager
     private final int chunkMaxSizeInBytes;
     private final int chunkSliceSizeInBytes;
     private final int drainingMaxAttempts;
-    private final long chunkSpoolTimeoutMillis;
-    private final long drainSpoolAttemptTimeoutMillis;
     private final Duration minDrainingDuration;
     private final int chunkListTargetSize;
     private final int chunkListMaxSize;
@@ -206,8 +200,6 @@ public class ChunkManager
         this.chunkMaxSizeInBytes = toIntExact(chunkManagerConfig.getChunkMaxSize().toBytes());
         this.chunkSliceSizeInBytes = toIntExact(chunkManagerConfig.getChunkSliceSize().toBytes());
         this.drainingMaxAttempts = dataServerConfig.getDrainingMaxAttempts();
-        this.chunkSpoolTimeoutMillis = chunkManagerConfig.getChunkSpoolTimeout().toMillis();
-        this.drainSpoolAttemptTimeoutMillis = dataServerConfig.getDrainAllChunksTimeout().toMillis() / drainingMaxAttempts;
         this.minDrainingDuration = dataServerConfig.getMinDrainingDuration();
         this.chunkListTargetSize = dataServerConfig.getChunkListTargetSize();
         this.chunkListMaxSize = dataServerConfig.getChunkListMaxSize();
@@ -534,14 +526,10 @@ public class ChunkManager
                         }
                     }
                 }
-                List<Chunk> attemptChunks = chunks.build();
-                if (attemptChunks.isEmpty()) {
+                if (spoolChunksSync(chunks.build())) {
                     break;
                 }
-                if (spoolChunksSync(attemptChunks, drainSpoolAttemptTimeoutMillis)) {
-                    break;
-                }
-                log.warn("spooling all chunks did not settle, retrying in %d milliseconds", backoff);
+                log.warn("spooling all chunks failed, retrying in %d milliseconds", backoff);
             }
             catch (RuntimeException e) {
                 log.warn(e, "spooling all chunks failed, retrying in %d milliseconds", backoff);
@@ -778,7 +766,7 @@ public class ChunkManager
                 // blocking call here to make sure:
                 // 1. No duplicate spooling
                 // 2. Wait for pending writes to make progress as we release memory as a result of chunk spooling
-                if (!spoolChunksSync(spoolCandidates, chunkSpoolTimeoutMillis)) {
+                if (!spoolChunksSync(spoolCandidates)) {
                     return;
                 }
             }
@@ -859,18 +847,7 @@ public class ChunkManager
         return resultFuture;
     }
 
-    /**
-     * Spools the given chunks as a single attempt. On success the lease and chunk are released inline; on failure
-     * the lease is released so its extra reference is dropped, but the chunk is not released so the caller can
-     * retry from a fresh lease (the base reference kept by the underlying chunk data keeps the resource alive).
-     * <p>
-     * When the attempt times out, in-flight writes are cancelled and awaited again with a bounded timeout. Writes
-     * that never react to cancellation leak their leases (their callback never fires).
-     *
-     * @param timeoutMillis how long to wait for the spooling writes to complete before cancelling them
-     * @return true iff all writes completed successfully
-     */
-    private boolean spoolChunksSync(List<Chunk> chunks, long timeoutMillis)
+    private boolean spoolChunksSync(List<Chunk> chunks)
     {
         ImmutableList.Builder<ChunksWithExchangeId> chunksWithExchangeIdBuilder = ImmutableList.builder();
         for (Map.Entry<String, Collection<Chunk>> entry : Multimaps.index(chunks, Chunk::getExchangeId).asMap().entrySet()) {
@@ -884,9 +861,7 @@ public class ChunkManager
         }
         List<ChunksWithExchangeId> chunksWithExchangeIds = chunksWithExchangeIdBuilder.build();
         CountDownLatch countCompletions = new CountDownLatch(chunksWithExchangeIds.size());
-        List<Throwable> failures = synchronizedList(new ArrayList<>());
-        // in-flight writes, so that they can be cancelled when spooling times out
-        List<ListenableFuture<?>> spoolingFutures = synchronizedList(new ArrayList<>());
+        ArrayList<Throwable> failures = new ArrayList<>();
 
         getFutureValue(processAllToCompletion(
                 chunksWithExchangeIds,
@@ -922,7 +897,6 @@ public class ChunkManager
                             exchangeId,
                             chunkDataLeaseMap,
                             contentLength);
-                    spoolingFutures.add(spoolingFuture);
                     addCallback(
                             spoolingFuture,
                             new FutureCallback<>()
@@ -948,8 +922,7 @@ public class ChunkManager
                                 public void onFailure(Throwable t)
                                 {
                                     try {
-                                        // release lease refs so the extra reference is dropped; the base reference
-                                        // kept by chunkData keeps the chunk alive for retry
+                                        // in case of failure we still need to decrease reference count to avoid memory leak
                                         chunkDataLeaseMap.values().forEach(ChunkDataLease::release);
                                         failures.add(t);
                                     }
@@ -964,27 +937,17 @@ public class ChunkManager
                 chunkSpoolConcurrency,
                 executor));
         try {
-            boolean completed = countCompletions.await(timeoutMillis, MILLISECONDS);
-            if (!completed) {
-                log.warn("spoolChunksSync timed out after %d ms; %d completions still pending, cancelling in-flight writes", timeoutMillis, countCompletions.getCount());
-                spoolingFutures.forEach(future -> future.cancel(true));
-                long cancellationTimeoutMillis = min(timeoutMillis, CANCELLATION_TIMEOUT.toMillis());
-                if (!countCompletions.await(cancellationTimeoutMillis, MILLISECONDS)) {
-                    // leases of hung writes are leaked; their callback never fires
-                    log.warn("%d writes did not react to cancellation within %d ms; leases leaked",
-                            countCompletions.getCount(),
-                            cancellationTimeoutMillis);
-                }
-            }
+            countCompletions.await();
             if (!failures.isEmpty()) {
                 printSpoolingExceptions(failures);
+                return false;
             }
         }
         catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new RuntimeException("spoolChunksSync was interrupted. Some leases may not have been released.", e);
         }
-        return failures.isEmpty();
+        return true;
     }
 
     private void printSpoolingExceptions(List<Throwable> failures)
