@@ -408,6 +408,8 @@
                         <ignoredResourcePattern>mime.types</ignoredResourcePattern>
                         <!-- net.snowflake:snowflake-jdbc, org.conscrypt:conscrypt-openjdk-uber -->
                         <ignoredResourcePattern>org/conscrypt/conscrypt.properties</ignoredResourcePattern>
+                        <!-- Duplicate in test classpath: trino-hive:tests and trino-iceberg:tests -->
+                        <ignoredResourcePattern>ozone-filesystem-hadoop3-1.4.0.jar</ignoredResourcePattern>
                     </ignoredResourcePatterns>
                     <ignoredClassPatterns>
                         <!-- net.snowflake:snowflake-jdbc, org.conscrypt:conscrypt-openjdk-uber -->
