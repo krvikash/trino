@@ -292,7 +292,6 @@ public class LogicalPlanner
     public PlanningResult plan(Analysis analysis, Stage stage, boolean collectPlanStatistics, boolean reuseCommonSubqueriesAllowed)
     {
         boolean forceSingleNodeQuery = nodeExecutionStrategy.shouldBeExecutedOnSingleNode(session, analysis.getTables());
-        PlanSanityChecker planSanityChecker = forceSingleNodeQuery ? SINGLE_NODE_PLAN_SANITY_CHECKER : DISTRIBUTED_PLAN_SANITY_CHECKER;
 
         PlanNode root;
         try (var _ = scopedSpan(plannerContext.getTracer(), "plan")) {
@@ -310,8 +309,10 @@ public class LogicalPlanner
                     false));
         }
 
+        // the checker depends on the distribution mode, which optimization may still change, so it is picked
+        // after optimization; both checkers run the same intermediate checks
         try (var _ = scopedSpan(plannerContext.getTracer(), "validate-intermediate")) {
-            planSanityChecker.validateIntermediatePlan(root, session, plannerContext, warningCollector);
+            DISTRIBUTED_PLAN_SANITY_CHECKER.validateIntermediatePlan(root, session, plannerContext, warningCollector);
         }
 
         if (stage.ordinal() >= OPTIMIZED.ordinal()) {
@@ -321,6 +322,8 @@ public class LogicalPlanner
                 }
             }
         }
+
+        PlanSanityChecker planSanityChecker = forceSingleNodeQuery ? SINGLE_NODE_PLAN_SANITY_CHECKER : DISTRIBUTED_PLAN_SANITY_CHECKER;
 
         if (stage.ordinal() >= OPTIMIZED_AND_VALIDATED.ordinal()) {
             // make sure we produce a valid plan after optimizations run. This is mainly to catch programming errors
