@@ -10,13 +10,17 @@
 package io.starburst.ai.client.vertexai;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.genai.types.Candidate;
 import com.google.genai.types.Content;
 import com.google.genai.types.FunctionCall;
 import com.google.genai.types.FunctionDeclaration;
 import com.google.genai.types.GenerateContentConfig;
+import com.google.genai.types.GenerateContentResponse;
 import com.google.genai.types.GenerateContentResponseUsageMetadata;
+import com.google.genai.types.Part;
 import com.google.genai.types.Schema;
 import com.google.genai.types.Tool;
 import io.starburst.ai.client.InternalToolDefinition;
@@ -32,12 +36,16 @@ import io.starburst.ai.client.ToolUseResponse;
 import io.trino.spi.TrinoException;
 import org.junit.jupiter.api.Test;
 
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.List;
 import java.util.Optional;
 
+import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.starburst.ai.client.MessageRole.ASSISTANT;
 import static io.starburst.ai.client.MessageRole.USER;
 import static io.starburst.ai.client.vertexai.VertexAiLanguageModelClient.buildConfig;
+import static io.starburst.ai.client.vertexai.VertexAiLanguageModelClient.parseToolResponse;
 import static io.starburst.ai.client.vertexai.VertexAiLanguageModelClient.toContents;
 import static io.starburst.ai.client.vertexai.VertexAiLanguageModelClient.toSchema;
 import static io.starburst.ai.client.vertexai.VertexAiLanguageModelClient.toTokenUsage;
@@ -217,7 +225,7 @@ public class TestVertexAiLanguageModelClient
                 .args(ImmutableMap.of("operation", "add", "value", 7))
                 .build();
 
-        ToolUseResponse.ToolCall toolCall = toToolCall(functionCall);
+        ToolUseResponse.ToolCall toolCall = toToolCall(functionCall, Optional.empty());
 
         assertThat(toolCall.id()).isEqualTo("call-1");
         assertThat(toolCall.name()).isEqualTo("fixture");
@@ -232,7 +240,7 @@ public class TestVertexAiLanguageModelClient
                 .name("fixture")
                 .build();
 
-        ToolUseResponse.ToolCall toolCall = toToolCall(functionCall);
+        ToolUseResponse.ToolCall toolCall = toToolCall(functionCall, Optional.empty());
 
         assertThat(toolCall.id()).isEqualTo("fixture");
         assertThat(toolCall.name()).isEqualTo("fixture");
@@ -245,9 +253,129 @@ public class TestVertexAiLanguageModelClient
     {
         FunctionCall functionCall = FunctionCall.builder().build();
 
-        assertThatThrownBy(() -> toToolCall(functionCall))
+        assertThatThrownBy(() -> toToolCall(functionCall, Optional.empty()))
                 .isInstanceOf(TrinoException.class)
                 .hasMessageContaining("missing a name");
+    }
+
+    @Test
+    void testParseToolResponseKeepsThoughtSignaturePerFunctionCallPart()
+    {
+        byte[] signatureOne = "sig-one".getBytes(StandardCharsets.UTF_8);
+        byte[] signatureTwo = "sig-two".getBytes(StandardCharsets.UTF_8);
+        GenerateContentResponse response = geminiResponseWithParallelToolCalls("thinking...", signatureOne, signatureTwo);
+
+        ToolUseResponse parsed = parseToolResponse(response);
+
+        assertThat(parsed.textResponse()).isEqualTo("thinking...");
+        assertThat(parsed.toolCalls()).hasSize(2);
+        assertThat(parsed.toolCalls().getFirst().thoughtSignature()).isEqualTo(Optional.of(Base64.getEncoder().encodeToString(signatureOne)));
+        assertThat(parsed.toolCalls().get(1).thoughtSignature()).isEqualTo(Optional.of(Base64.getEncoder().encodeToString(signatureTwo)));
+    }
+
+    @Test
+    void testToContentsReEmitsThoughtSignatureOnFunctionCallPart()
+    {
+        byte[] signature = "gemini-thought-signature".getBytes(StandardCharsets.UTF_8);
+        ToolUseResponse.ToolCall toolCall = new ToolUseResponse.ToolCall(
+                "call-1",
+                "fixture",
+                JsonNodeFactory.instance.objectNode().put("operation", "add"),
+                Optional.of(Base64.getEncoder().encodeToString(signature)));
+        LlmMessage assistant = new LlmMessage(ASSISTANT, Optional.empty(), ImmutableList.of(), ImmutableList.of(toolCall));
+
+        List<Content> contents = toContents(ImmutableList.of(assistant));
+
+        Part functionCallPart = onlyFunctionCallPart(contents.getFirst());
+        assertThat(functionCallPart.thoughtSignature()).isPresent();
+        assertThat(functionCallPart.thoughtSignature().orElseThrow()).isEqualTo(signature);
+    }
+
+    /**
+     * Covers the first function-call part of a step that carries no real signature: an app-synthesized
+     * ToolRequest or one persisted before thoughtSignature existed. Gemini validates the first call of
+     * each step, so the documented skip sentinel must go out rather than an absent thoughtSignature.
+     */
+    @Test
+    void testToContentsFallsBackToSkipSentinelWhenThoughtSignatureAbsent()
+    {
+        ToolUseResponse.ToolCall toolCall = new ToolUseResponse.ToolCall(
+                "call-1",
+                "fixture",
+                JsonNodeFactory.instance.objectNode().put("operation", "add"),
+                Optional.empty());
+        LlmMessage assistant = new LlmMessage(ASSISTANT, Optional.empty(), ImmutableList.of(), ImmutableList.of(toolCall));
+
+        List<Content> contents = toContents(ImmutableList.of(assistant));
+
+        Part functionCallPart = onlyFunctionCallPart(contents.getFirst());
+        assertThat(functionCallPart.thoughtSignature()).isPresent();
+        assertThat(new String(functionCallPart.thoughtSignature().orElseThrow(), StandardCharsets.UTF_8)).isEqualTo("skip_thought_signature_validator");
+    }
+
+    /**
+     * Gemini attaches a thought signature only to the first call of a parallel group. A later unsigned
+     * call is not app-synthesized, so it must be replayed with no signature (not the skip sentinel) to
+     * match what the model returned, while the signed first call still carries its signature.
+     */
+    @Test
+    void testToContentsOmitsSignatureForLaterUnsignedParallelCall()
+    {
+        byte[] signature = "gemini-thought-signature".getBytes(StandardCharsets.UTF_8);
+        ToolUseResponse.ToolCall signedCall = new ToolUseResponse.ToolCall(
+                "call-1",
+                "fixture",
+                JsonNodeFactory.instance.objectNode().put("operation", "add"),
+                Optional.of(Base64.getEncoder().encodeToString(signature)));
+        ToolUseResponse.ToolCall unsignedCall = new ToolUseResponse.ToolCall(
+                "call-2",
+                "fixture",
+                JsonNodeFactory.instance.objectNode().put("operation", "subtract"),
+                Optional.empty());
+        LlmMessage assistant = new LlmMessage(ASSISTANT, Optional.empty(), ImmutableList.of(), ImmutableList.of(signedCall, unsignedCall));
+
+        List<Content> contents = toContents(ImmutableList.of(assistant));
+
+        List<Part> functionCallParts = functionCallParts(contents.getFirst());
+        assertThat(functionCallParts).hasSize(2);
+        assertThat(functionCallParts.getFirst().thoughtSignature()).isPresent();
+        assertThat(functionCallParts.getFirst().thoughtSignature().orElseThrow()).isEqualTo(signature);
+        assertThat(functionCallParts.get(1).thoughtSignature()).isEmpty();
+    }
+
+    private static GenerateContentResponse geminiResponseWithParallelToolCalls(String text, byte[] signatureOne, byte[] signatureTwo)
+    {
+        Content content = Content.builder()
+                .role("model")
+                .parts(ImmutableList.of(
+                        Part.fromText(text),
+                        Part.builder()
+                                .functionCall(FunctionCall.builder().id("c1").name("fixture").args(ImmutableMap.of("operation", "add")))
+                                .thoughtSignature(signatureOne)
+                                .build(),
+                        Part.builder()
+                                .functionCall(FunctionCall.builder().id("c2").name("fixture").args(ImmutableMap.of("operation", "subtract")))
+                                .thoughtSignature(signatureTwo)
+                                .build()))
+                .build();
+        return GenerateContentResponse.builder()
+                .candidates(Candidate.builder().content(content).build())
+                .build();
+    }
+
+    private static Part onlyFunctionCallPart(Content content)
+    {
+        return content.parts().orElseThrow().stream()
+                .filter(part -> part.functionCall().isPresent())
+                .findFirst()
+                .orElseThrow();
+    }
+
+    private static List<Part> functionCallParts(Content content)
+    {
+        return content.parts().orElseThrow().stream()
+                .filter(part -> part.functionCall().isPresent())
+                .collect(toImmutableList());
     }
 
     private static class FixtureTool

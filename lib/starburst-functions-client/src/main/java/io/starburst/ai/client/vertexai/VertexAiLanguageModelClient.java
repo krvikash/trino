@@ -44,6 +44,8 @@ import io.starburst.ai.client.ToolUseResponse;
 import io.starburst.ai.client.tracing.AiTracing;
 import io.trino.spi.TrinoException;
 
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -67,6 +69,10 @@ public class VertexAiLanguageModelClient
         extends AbstractLanguageModelClient
 {
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapperProvider().get();
+    // Documented sentinel telling Gemini 3.x this function-call part was not model-generated, so it
+    // should not require (or validate) a real thoughtSignature on it.
+    // https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/thinking/thought-signatures#using-rest-or-manual-handling
+    private static final String SKIP_THOUGHT_SIGNATURE_VALIDATOR = "skip_thought_signature_validator";
 
     private final String modelName;
     private final Optional<Integer> maxTokens;
@@ -251,17 +257,22 @@ public class VertexAiLanguageModelClient
     static ToolUseResponse parseToolResponse(GenerateContentResponse response)
     {
         StringBuilder textResponse = new StringBuilder();
+        ImmutableList.Builder<ToolUseResponse.ToolCall> toolCalls = ImmutableList.builder();
+        // Iterate parts (not response.functionCalls(), which flattens and loses the part-to-signature
+        // pairing) so each function call keeps the thoughtSignature Gemini 3.x attached to its own part.
         for (Part part : Optional.ofNullable(response.parts()).orElse(ImmutableList.of())) {
+            // TODO: a response without a function call may carry a thoughtSignature on its last part,
+            //  which is dropped here. Omitting it never errors (unlike a function-call signature) but costs
+            //  cross-turn reasoning quality. Preserving it needs textResponse and LlmMessage.content to
+            //  carry the signature, plus the downstream session-storage models to persist it.
             part.text().ifPresent(textResponse::append);
+            part.functionCall().ifPresent(functionCall -> toolCalls.add(toToolCall(functionCall, part.thoughtSignature())));
         }
-        List<ToolUseResponse.ToolCall> toolCalls = Optional.ofNullable(response.functionCalls()).orElse(ImmutableList.of()).stream()
-                .map(VertexAiLanguageModelClient::toToolCall)
-                .collect(toImmutableList());
-        return new ToolUseResponse(textResponse.toString(), toolCalls);
+        return new ToolUseResponse(textResponse.toString(), toolCalls.build());
     }
 
     @VisibleForTesting
-    static ToolUseResponse.ToolCall toToolCall(FunctionCall functionCall)
+    static ToolUseResponse.ToolCall toToolCall(FunctionCall functionCall, Optional<byte[]> thoughtSignature)
     {
         String name = functionCall.name()
                 .orElseThrow(() -> new TrinoException(AI_CLIENT_ERROR, "Vertex AI function call is missing a name"));
@@ -269,7 +280,8 @@ public class VertexAiLanguageModelClient
         return new ToolUseResponse.ToolCall(
                 functionCall.id().orElse(name),
                 name,
-                OBJECT_MAPPER.valueToTree(args));
+                OBJECT_MAPPER.valueToTree(args),
+                thoughtSignature.map(signature -> Base64.getEncoder().encodeToString(signature)));
     }
 
     private static Map<String, Object> jsonToObjectMap(JsonNode node)
@@ -304,13 +316,29 @@ public class VertexAiLanguageModelClient
             case USER -> parts.add(Part.fromText(message.content().orElseThrow()));
             case ASSISTANT -> {
                 message.content().ifPresent(text -> parts.add(Part.fromText(text)));
-                for (ToolUseResponse.ToolCall toolCall : message.toolCalls()) {
-                    parts.add(Part.builder()
+                List<ToolUseResponse.ToolCall> toolCalls = message.toolCalls();
+                for (int i = 0; i < toolCalls.size(); i++) {
+                    ToolUseResponse.ToolCall toolCall = toolCalls.get(i);
+                    Part.Builder part = Part.builder()
                             .functionCall(FunctionCall.builder()
                                     .id(toolCall.id())
                                     .name(toolCall.name())
-                                    .args(jsonToObjectMap(toolCall.input())))
-                            .build());
+                                    .args(jsonToObjectMap(toolCall.input())));
+                    Optional<byte[]> signature = toolCall.thoughtSignature()
+                            .map(encoded -> Base64.getDecoder().decode(encoded));
+                    // Gemini 3.x validates only the first function-call part of each step: it must carry
+                    // a signature or the follow-up request 400s. Re-attach the model's own when captured;
+                    // otherwise fall back to the skip sentinel for that first call (app-synthesized, or
+                    // persisted before this field existed). Gemini signs only the first call of a parallel
+                    // group, so later unsigned calls are replayed with no signature, exactly as received.
+                    // https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/thinking/thought-signatures
+                    if (signature.isPresent()) {
+                        part.thoughtSignature(signature.orElseThrow());
+                    }
+                    else if (i == 0) {
+                        part.thoughtSignature(SKIP_THOUGHT_SIGNATURE_VALIDATOR.getBytes(StandardCharsets.UTF_8));
+                    }
+                    parts.add(part.build());
                 }
             }
             case TOOL_RESPONSE -> {
