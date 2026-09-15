@@ -43,6 +43,7 @@ import static io.trino.plugin.base.util.Procedures.checkProcedureArgument;
 import static io.trino.plugin.objectstore.TableType.DELTA;
 import static io.trino.plugin.objectstore.TableType.ICEBERG;
 import static io.trino.spi.StandardErrorCode.GENERIC_INTERNAL_ERROR;
+import static io.trino.spi.StandardErrorCode.INVALID_PROCEDURE_ARGUMENT;
 import static io.trino.spi.StandardErrorCode.NOT_SUPPORTED;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static java.lang.invoke.MethodHandles.lookup;
@@ -164,7 +165,7 @@ public final class ObjectStoreRegisterTableProcedure
             return fileSystem.directoryExists(location).orElse(false);
         }
         catch (IOException e) {
-            throw new TrinoException(GENERIC_INTERNAL_ERROR, "Failed to check location: " + location, e);
+            throw new TrinoException(INVALID_PROCEDURE_ARGUMENT, "Failed to check location: " + location, e);
         }
     }
 }
