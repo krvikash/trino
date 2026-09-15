@@ -17,6 +17,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import io.trino.tempto.assertions.QueryAssert;
+import io.trino.testng.services.Flaky;
 import org.testng.annotations.Test;
 
 import java.sql.Date;
@@ -39,6 +40,8 @@ import static io.trino.tests.product.TestGroups.PROFILE_SPECIFIC_TESTS;
 import static io.trino.tests.product.deltalake.TestDeltaLakeLegacyDateTimeCompatibility.Precision.MICROSECONDS;
 import static io.trino.tests.product.deltalake.TestDeltaLakeLegacyDateTimeCompatibility.Precision.MILLISECONDS;
 import static io.trino.tests.product.deltalake.TestDeltaLakeLegacyDateTimeCompatibility.Precision.NANOSECONDS;
+import static io.trino.tests.product.deltalake.util.DeltaLakeTestUtils.DATABRICKS_COMMUNICATION_FAILURE_ISSUE;
+import static io.trino.tests.product.deltalake.util.DeltaLakeTestUtils.DATABRICKS_COMMUNICATION_FAILURE_MATCH;
 import static io.trino.tests.product.utils.QueryExecutors.onDelta;
 import static io.trino.tests.product.utils.QueryExecutors.onSpark;
 import static io.trino.tests.product.utils.QueryExecutors.onTrino;
@@ -90,12 +93,14 @@ public class TestDeltaLakeLegacyDateTimeCompatibility
             "2022-04-13 15:30:12");
 
     @Test(groups = {DELTA_LAKE_DATABRICKS, DELTA_LAKE_DATABRICKS_143, DELTA_LAKE_DATABRICKS_154, DELTA_LAKE_OSS, PROFILE_SPECIFIC_TESTS})
+    @Flaky(issue = DATABRICKS_COMMUNICATION_FAILURE_ISSUE, match = DATABRICKS_COMMUNICATION_FAILURE_MATCH)
     public void testDeltaParquetLegacyDateCompatibilityWithHybridCalendar()
     {
         testDeltaParquetLegacyDateCompatibility("LEGACY");
     }
 
     @Test(groups = {DELTA_LAKE_DATABRICKS, DELTA_LAKE_DATABRICKS_143, DELTA_LAKE_DATABRICKS_154, DELTA_LAKE_OSS, PROFILE_SPECIFIC_TESTS})
+    @Flaky(issue = DATABRICKS_COMMUNICATION_FAILURE_ISSUE, match = DATABRICKS_COMMUNICATION_FAILURE_MATCH)
     public void testDeltaParquetLegacyDateCompatibilityWithProlepticCalendar()
     {
         testDeltaParquetLegacyDateCompatibility("CORRECTED");
@@ -566,6 +571,7 @@ public class TestDeltaLakeLegacyDateTimeCompatibility
     }
 
     @Test(groups = {DELTA_LAKE_DATABRICKS, DELTA_LAKE_DATABRICKS_143, DELTA_LAKE_DATABRICKS_154, DELTA_LAKE_OSS, PROFILE_SPECIFIC_TESTS})
+    @Flaky(issue = DATABRICKS_COMMUNICATION_FAILURE_ISSUE, match = DATABRICKS_COMMUNICATION_FAILURE_MATCH)
     public void testRegressionWriteInDeltaToDeltaTableWithLegacyTimestamp()
     {
         testRegressionWriteInDeltaToDeltaTableWithLegacyTimestamp(
@@ -605,6 +611,7 @@ public class TestDeltaLakeLegacyDateTimeCompatibility
     }
 
     @Test(groups = {DELTA_LAKE_DATABRICKS_154, DELTA_LAKE_OSS, PROFILE_SPECIFIC_TESTS})
+    @Flaky(issue = DATABRICKS_COMMUNICATION_FAILURE_ISSUE, match = DATABRICKS_COMMUNICATION_FAILURE_MATCH)
     public void testRegressionWriteInDeltaToDeltaTableWithLegacyTimestampNtz()
     {
         testRegressionWriteInDeltaToDeltaTableWithLegacyTimestampNtz(
