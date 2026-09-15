@@ -165,12 +165,12 @@ final class TestObjectStoreSchemaDiscovery
         String csvFileName = "schema-discovery/csv/cars.csv";
         String filePath = Resources.getResource(csvFileName).getPath();
         assertQueryFails("SELECT * FROM discovery WHERE uri = 's3://%s/%s'".formatted(BUCKET_NAME, csvFileName), ".*Root directory is empty or isn't a directory.*");
-        assertQueryFails("SELECT * FROM discovery WHERE uri = 'abc://%s'".formatted(filePath), ".*No factory for location.*");
+        assertQueryFails("SELECT * FROM discovery WHERE uri = 'abc://%s'".formatted(filePath), ".*Unsupported file system scheme abc for location: .*");
         assertQueryFails("SELECT * FROM shallow_discovery WHERE uri = 's3://%s/%s'".formatted(BUCKET_NAME, csvFileName), ".*Root directory is empty or isn't a directory.*");
 
         // shallow discovery uses a different code path that does not throw TrinoException:
         assertThatThrownBy(() -> getQueryRunner().execute("SELECT * FROM shallow_discovery WHERE uri = 'abc://%s'".formatted(filePath)))
-                .hasMessageMatching(".*No factory for location.*");
+                .hasMessageMatching(".*Unsupported file system scheme abc for location: .*");
     }
 
     @Test
