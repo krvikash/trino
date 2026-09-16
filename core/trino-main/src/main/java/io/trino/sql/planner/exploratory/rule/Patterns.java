@@ -15,6 +15,7 @@ package io.trino.sql.planner.exploratory.rule;
 
 import io.trino.matching.Pattern;
 import io.trino.matching.Property;
+import io.trino.sql.newir.Attributes;
 import io.trino.sql.planner.exploratory.MemoOperation;
 import io.trino.sql.planner.exploratory.MemoOperation.Child;
 
@@ -29,6 +30,16 @@ public class Patterns
     public static Pattern<MemoOperation> operation()
     {
         return Pattern.typeOf(MemoOperation.class);
+    }
+
+    /**
+     * Matches the attributes derived for the matched operation's equivalence group.
+     * Use this property when matching depends on derived semantic knowledge; {@link
+     * MemoOperation#attributes()} exposes the stored operation attributes instead.
+     */
+    public static Property<MemoOperation, Context, Attributes> attributes()
+    {
+        return property("attributes", (memoOperation, context) -> context.getGroupAttributes(memoOperation));
     }
 
     public static Property<MemoOperation, Context, List<Child>> children()

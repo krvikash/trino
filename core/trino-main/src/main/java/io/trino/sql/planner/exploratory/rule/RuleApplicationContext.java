@@ -13,6 +13,9 @@
  */
 package io.trino.sql.planner.exploratory.rule;
 
+import io.trino.sql.planner.exploratory.Memo;
+import io.trino.sql.planner.exploratory.MemoOperation;
+
 /**
  * Captures the facts relevant to applying a rule to a memo operation.
  * <p>
@@ -25,9 +28,9 @@ package io.trino.sql.planner.exploratory.rule;
  * those facts change.
  * <p>
  * In particular, operations are cached by value and {@link
- * io.trino.sql.planner.exploratory.MemoOperation#equals} ignores derived attributes, so a context
- * must include any of the operation's derived attributes that affect the rule's re-application
- * decision; otherwise a change in those attributes will not trigger re-application.
+ * MemoOperation#equals} ignores derived attributes. If matching or application depends on derived
+ * attributes of the operation's group or another group, the relevant values should be obtained
+ * through {@link Memo#getGroupAttributes(MemoOperation)} and included in the context.
  */
 public interface RuleApplicationContext
 {

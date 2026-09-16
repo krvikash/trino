@@ -42,6 +42,7 @@ import io.trino.sql.newir.Operation.OperationId;
 import io.trino.sql.newir.Program;
 import io.trino.sql.newir.Type;
 import io.trino.sql.planner.exploratory.MemoOperation.ParameterLineage;
+import io.trino.sql.planner.exploratory.rule.Patterns;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -201,6 +202,27 @@ public class TestMemo
                                 new AttributeKey(IR, HAS_SIDE_EFFECTS),
                                 true))
                         .build());
+    }
+
+    @Test
+    public void testGroupAttributesPattern()
+    {
+        Values valuesOperation = valuesOfRows(ImmutableList.of(singleConstantRow("", BIGINT, 42L)));
+        Memo memo = Memo.forProgram(program(valuesOperation), TESTING_DIALECT_REGISTRY);
+        MemoOperation operation = memo.getGroup(0).operations().getFirst();
+        Attributes operationAttributes = operation.attributes();
+        Attributes groupAttributes = memo.getGroupAttributes(operation);
+
+        assertThat(groupAttributes).isNotEqualTo(operationAttributes);
+        assertThat(Patterns.operation()
+                .with(Patterns.attributes().equalTo(groupAttributes))
+                .matches(operation, memo.getRuleContext()))
+                .isTrue();
+        assertThat(Patterns.operation()
+                .with(Patterns.attributes().equalTo(operationAttributes))
+                .matches(operation, memo.getRuleContext()))
+                .isFalse();
+        assertThat(operation.attributes()).isEqualTo(operationAttributes);
     }
 
     @Test

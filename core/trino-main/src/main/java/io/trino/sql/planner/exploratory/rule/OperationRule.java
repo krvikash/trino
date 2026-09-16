@@ -33,6 +33,9 @@ public interface OperationRule
      * The default implementation returns {@link RuleApplicationContext#EMPTY}, which
      * means the rule is applied at most once per memo operation. If that context is
      * insufficient for the rule, re-application may be missed when relevant conditions change.
+     * If matching or application depends on derived attributes, the relevant values should be
+     * obtained through {@link Memo#getGroupAttributes(MemoOperation)} and included in the
+     * returned context.
      */
     default RuleApplicationContext getApplicationContext(MemoOperation operation, Memo memo)
     {

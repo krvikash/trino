@@ -49,9 +49,14 @@ import static io.trino.sql.planner.exploratory.rule.RuleApplicationContext.EMPTY
  */
 final class RuleApplicationCache
 {
-    // Operations are keyed by value (MemoOperation.equals), which intentionally ignores derived
-    // attributes. This is by design: if a rule's application depends on derived attributes, those
-    // must be captured in the RuleApplicationContext, not inferred from the operation key.
+    /**
+     * Operations are keyed by value ({@link MemoOperation#equals(Object)}), which intentionally ignores
+     * derived attributes. If a rule's application depends on derived attributes, the relevant
+     * values must be captured in the {@link RuleApplicationContext}, not inferred from the
+     * operation key. Rules should obtain derived attributes through {@link
+     * Memo#getGroupAttributes(MemoOperation)}, because group attributes reflect more up-to-date
+     * cumulative knowledge than attributes stored on the operation.
+     */
     private final Map<MemoOperation, Set<OperationRule>> seenEmptyContexts = new LinkedHashMap<>();
     private final Map<MemoOperation, Map<OperationRule, Set<RuleApplicationContext>>> seenNonEmptyContexts = new LinkedHashMap<>();
 

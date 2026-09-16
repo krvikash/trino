@@ -13,12 +13,21 @@
  */
 package io.trino.sql.planner.exploratory.rule;
 
+import io.trino.sql.newir.Attributes;
 import io.trino.sql.newir.DialectRegistry;
 import io.trino.sql.planner.exploratory.MemoGroup;
+import io.trino.sql.planner.exploratory.MemoOperation;
 
 public interface Context
 {
     MemoGroup getGroup(int groupId);
+
+    /**
+     * Returns the attributes derived for the equivalence group containing the operation.
+     * This is the correct attribute view for rule matching and semantic decisions during
+     * rule application.
+     */
+    Attributes getGroupAttributes(MemoOperation operation);
 
     DialectRegistry getDialectRegistry();
 }

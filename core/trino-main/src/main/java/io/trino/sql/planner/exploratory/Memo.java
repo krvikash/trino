@@ -120,6 +120,19 @@ public class Memo
         return Optional.ofNullable(operationToGroup.get(operation));
     }
 
+    /**
+     * Returns the attributes of the equivalence group containing the operation.
+     * The most recent version of the operation is used when the supplied version is stale.
+     *
+     * @throws IllegalArgumentException if the operation is not present in Memo
+     */
+    public Attributes getGroupAttributes(MemoOperation operation)
+    {
+        MemoOperation recentOperation = getRecentVersion(requireNonNull(operation, "operation is null"));
+        checkArgument(operationToGroup.containsKey(recentOperation), "Operation not found in Memo: %s", recentOperation);
+        return getGroup(operationToGroup.get(recentOperation)).attributes();
+    }
+
     public MemoOperation getRecentVersion(MemoOperation operation)
     {
         return operationToRecentVersion.getOrIdentity(operation);
@@ -149,6 +162,12 @@ public class Memo
             public MemoGroup getGroup(int groupId)
             {
                 return Memo.this.getGroup(groupId);
+            }
+
+            @Override
+            public Attributes getGroupAttributes(MemoOperation operation)
+            {
+                return Memo.this.getGroupAttributes(operation);
             }
 
             @Override

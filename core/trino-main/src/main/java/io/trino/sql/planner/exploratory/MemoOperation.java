@@ -203,6 +203,12 @@ public class MemoOperation
         return children;
     }
 
+    /**
+     * Returns the attributes stored on this operation. They include inherent operation attributes
+     * and derived attributes that may lag behind the current cumulative knowledge of the containing
+     * equivalence group. Rules should use the owning group's attributes for matching and other
+     * decisions based on derived semantic knowledge.
+     */
     public Attributes attributes()
     {
         return attributes;
