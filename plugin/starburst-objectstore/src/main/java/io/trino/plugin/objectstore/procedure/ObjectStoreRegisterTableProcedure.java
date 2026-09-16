@@ -63,10 +63,11 @@ public final class ObjectStoreRegisterTableProcedure
     private static final String TABLE_NAME = "TABLE_NAME";
     private static final String TABLE_LOCATION = "TABLE_LOCATION";
     private static final String METADATA_FILE_NAME = "METADATA_FILE_NAME";
+    private static final String METADATA_LOCATION = "METADATA_LOCATION";
 
     static {
         try {
-            REGISTER_TABLE = lookup().unreflect(ObjectStoreRegisterTableProcedure.class.getMethod("registerTable", ConnectorAccessControl.class, ConnectorSession.class, String.class, String.class, String.class, String.class));
+            REGISTER_TABLE = lookup().unreflect(ObjectStoreRegisterTableProcedure.class.getMethod("registerTable", ConnectorAccessControl.class, ConnectorSession.class, String.class, String.class, String.class, String.class, String.class));
         }
         catch (ReflectiveOperationException e) {
             throw new TrinoException(GENERIC_INTERNAL_ERROR, e);
@@ -113,7 +114,8 @@ public final class ObjectStoreRegisterTableProcedure
                         new Argument(SCHEMA_NAME, VARCHAR),
                         new Argument(TABLE_NAME, VARCHAR),
                         new Argument(TABLE_LOCATION, VARCHAR),
-                        new Argument(METADATA_FILE_NAME, VARCHAR, false, null)),
+                        new Argument(METADATA_FILE_NAME, VARCHAR, false, null),
+                        new Argument(METADATA_LOCATION, VARCHAR, false, null)),
                 REGISTER_TABLE.bindTo(this));
     }
 
@@ -123,16 +125,20 @@ public final class ObjectStoreRegisterTableProcedure
             String schemaName,
             String tableName,
             String location,
-            String metadataFileName)
+            String metadataFileName,
+            String metadataLocation)
             throws Throwable
     {
         try (ThreadContextClassLoader ignored = new ThreadContextClassLoader(classLoader)) {
             locationAccessControl.checkCanUseLocation(session.getIdentity(), location);
+            if (metadataLocation != null) {
+                locationAccessControl.checkCanUseLocation(session.getIdentity(), metadataLocation);
+            }
 
             TrinoFileSystem fileSystem = fileSystemFactory.create(session);
 
             Location tableLocation = Location.of(location);
-            boolean isIcebergTable = exists(fileSystem, tableLocation.appendPath(IcebergUtil.METADATA_FOLDER_NAME));
+            boolean isIcebergTable = exists(fileSystem, metadataLocation == null ? tableLocation.appendPath(IcebergUtil.METADATA_FOLDER_NAME) : Location.of(metadataLocation));
             boolean isDeltaLakeTable = exists(fileSystem, tableLocation.appendPath(TransactionLogUtil.TRANSACTION_LOG_DIRECTORY));
             boolean isHudiTable = exists(fileSystem, tableLocation.appendPath(HUDI_METADATA_FOLDER_NAME));
 
@@ -142,11 +148,12 @@ public final class ObjectStoreRegisterTableProcedure
             }
 
             if (isIcebergTable) {
-                icebergRegisterTable.getMethodHandle().invoke(accessControl, sessionProperties.unwrap(ICEBERG, session), schemaName, tableName, location, metadataFileName);
+                icebergRegisterTable.getMethodHandle().invoke(accessControl, sessionProperties.unwrap(ICEBERG, session), schemaName, tableName, location, metadataFileName, metadataLocation);
                 securityControl.tableCreated(session, schemaName, tableName);
             }
             else if (isDeltaLakeTable) {
                 checkProcedureArgument(metadataFileName == null, "Unsupported metadata_file_name argument for Delta Lake table");
+                checkProcedureArgument(metadataLocation == null, "Unsupported metadata_location argument for Delta Lake table");
                 deltaRegisterTable.getMethodHandle().invoke(accessControl, sessionProperties.unwrap(DELTA, session), schemaName, tableName, location);
                 securityControl.tableCreated(session, schemaName, tableName);
             }

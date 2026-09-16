@@ -38,6 +38,7 @@ import java.util.Optional;
 import static io.trino.plugin.base.util.Procedures.checkProcedureArgument;
 import static io.trino.plugin.iceberg.IcebergErrorCode.ICEBERG_INVALID_METADATA;
 import static io.trino.plugin.iceberg.IcebergSessionProperties.isUseFileSizeFromMetadata;
+import static io.trino.plugin.iceberg.IcebergUtil.METADATA_FOLDER_NAME;
 import static io.trino.plugin.iceberg.procedure.RegisterTableProcedure.getMetadataLocation;
 import static io.trino.plugin.iceberg.procedure.RegisterTableProcedure.locationEquivalent;
 import static io.trino.plugin.iceberg.procedure.RegisterTableProcedure.validateMetadataLocation;
@@ -47,6 +48,7 @@ import static io.trino.spi.type.VarcharType.VARCHAR;
 import static java.lang.String.format;
 import static java.lang.invoke.MethodHandles.lookup;
 import static java.util.Objects.requireNonNull;
+import static org.apache.iceberg.util.LocationUtil.stripTrailingSlash;
 
 public class RegisterViewProcedure
         implements Provider<Procedure>
@@ -146,7 +148,7 @@ public class RegisterViewProcedure
         }
 
         TrinoFileSystem fileSystem = fileSystemFactory.create(clientSession);
-        String metadataLocation = getMetadataLocation(fileSystem, viewLocation, metadataFileName);
+        String metadataLocation = getMetadataLocation(fileSystem, "%s/%s".formatted(stripTrailingSlash(viewLocation), METADATA_FOLDER_NAME), metadataFileName);
         validateMetadataLocation(fileSystem, Location.of(metadataLocation));
         ViewMetadata viewMetadata;
         try {

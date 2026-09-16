@@ -40,6 +40,7 @@ import static io.trino.plugin.iceberg.IcebergTestUtils.checkOrcFileSorting;
 import static io.trino.plugin.objectstore.TableType.ICEBERG;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.testing.MaterializedResult.resultBuilder;
+import static io.trino.testing.TestingNames.randomNameSuffix;
 import static java.lang.String.format;
 import static java.time.ZoneOffset.UTC;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -678,6 +679,27 @@ public abstract class BaseObjectStoreIcebergConnectorTest
                 assertUpdate("DROP VIEW " + table.getName() + "_changes");
             }
         }
+    }
+
+    @Test
+    public void testRegisterTableProcedureMetadataLocation()
+    {
+        String tableName = "test_register_table_" + randomNameSuffix();
+
+        assertUpdate("CREATE TABLE " + tableName + " AS SELECT 1 x", 1);
+
+        String tableLocation = getTableLocation(tableName);
+        dropTableFromMetastore("tpch", tableName);
+
+        assertUpdate("CALL system.flush_metadata_cache(SCHEMA_NAME => CURRENT_SCHEMA, TABLE_NAME => '" + tableName + "')");
+
+        assertQueryFails("SELECT * FROM " + tableName, ".*Table '.*' does not exist");
+
+        assertUpdate("CALL system.register_table(schema_name=>CURRENT_SCHEMA, table_name=>'%s', table_location=>'%s', metadata_location=>'%s')".formatted(tableName, tableLocation, tableLocation + "/metadata"));
+
+        assertQuery("SELECT * FROM " + tableName, "VALUES 1");
+
+        assertUpdate("DROP TABLE " + tableName);
     }
 
     @Override
