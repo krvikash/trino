@@ -128,6 +128,7 @@ import static io.trino.plugin.hive.util.HiveUtil.isIcebergTable;
 import static io.trino.plugin.iceberg.IcebergErrorCode.ICEBERG_BAD_DATA;
 import static io.trino.plugin.iceberg.IcebergErrorCode.ICEBERG_CATALOG_ERROR;
 import static io.trino.plugin.iceberg.IcebergErrorCode.ICEBERG_INVALID_METADATA;
+import static io.trino.plugin.iceberg.IcebergExceptions.translateMetadataException;
 import static io.trino.plugin.iceberg.IcebergMaterializedViewDefinition.decodeMaterializedViewData;
 import static io.trino.plugin.iceberg.IcebergMaterializedViewDefinition.encodeMaterializedViewData;
 import static io.trino.plugin.iceberg.IcebergMaterializedViewDefinition.fromConnectorMaterializedViewDefinition;
@@ -1555,11 +1556,13 @@ public class TrinoGlueCatalog
 
             // TODO getTableAndCacheMetadata saved the value in materializedViewCache, so we could just use that, except when conversion fails
             storageMetadataLocation = materializedView.parameters().get(METADATA_LOCATION_PROP);
-            checkState(storageMetadataLocation != null, "Storage location missing in definition of materialized view %s", materializedView.name());
+            if (storageMetadataLocation == null) {
+                throw new TrinoException(ICEBERG_INVALID_METADATA, "Storage location missing in definition of materialized view " + materializedView.name());
+            }
         }
         else {
             storageMetadataLocation = materializedViewData.storageMetadataLocation
-                    .orElseThrow(() -> new IllegalStateException("Storage location not defined for materialized view " + viewName));
+                    .orElseThrow(() -> new TrinoException(ICEBERG_INVALID_METADATA, "Storage location missing in definition of materialized view " + viewName));
         }
 
         SchemaTableName storageTableName = new SchemaTableName(viewName.getSchemaName(), tableNameWithType(viewName.getTableName(), MATERIALIZED_VIEW_STORAGE));
@@ -1581,7 +1584,7 @@ public class TrinoGlueCatalog
             if (e.getCause() instanceof NotFoundException) {
                 return Optional.empty();
             }
-            throw e;
+            throw translateMetadataException(e.getCause(), storageTableName.toString());
         }
     }
 
