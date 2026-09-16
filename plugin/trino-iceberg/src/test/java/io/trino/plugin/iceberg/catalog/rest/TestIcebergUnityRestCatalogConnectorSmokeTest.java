@@ -539,6 +539,13 @@ final class TestIcebergUnityRestCatalogConnectorSmokeTest
 
     @Test
     @Override
+    public void testPartitionsStatsReadWriteSucceeds()
+    {
+        testFailsDueToReadOnlyCatalog(super::testPartitionsStatsReadWriteSucceeds);
+    }
+
+    @Test
+    @Override
     public void testAnalyze()
     {
         testFailsDueToReadOnlyCatalog(super::testAnalyze);

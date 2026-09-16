@@ -1029,6 +1029,23 @@ public abstract class BaseIcebergConnectorSmokeTest
         throw new AssertionError("Unexpected analyze failure", e);
     }
 
+    @Test
+    public void testPartitionsStatsReadWriteSucceeds()
+    {
+        if (!hasBehavior(SUPPORTS_CREATE_TABLE)) {
+            return;
+        }
+
+        Session session = Session.builder(getSession())
+                .setCatalogSessionProperty(IcebergQueryRunner.ICEBERG_CATALOG, "partition_statistics_collect_on_write", "true")
+                .build();
+        try (TestTable table = newTrinoTable("test_partition_stats_read_write_succeeds", "(id INT, part INT) WITH (partitioning = ARRAY['part'])")) {
+            assertUpdate(session, "INSERT INTO " + table.getName() + " VALUES (1, 10)", 1);
+            assertUpdate(session, "INSERT INTO " + table.getName() + " VALUES (2, 10)", 1);
+            assertQuerySucceeds(session, "SHOW STATS FOR " + table.getName());
+        }
+    }
+
     protected void dropSchema(String schema)
             throws Exception
     {

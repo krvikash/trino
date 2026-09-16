@@ -15,7 +15,6 @@ package io.trino.plugin.iceberg;
 
 import com.google.common.collect.AbstractIterator;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import com.google.errorprone.annotations.MustBeClosed;
 import com.google.inject.Inject;
 import io.trino.memory.context.AggregatedMemoryContext;
@@ -99,7 +98,7 @@ public final class PartitionStatisticsReader
                 inputFile.getLength(),
                 0,
                 fromIceberg(fileFormat),
-                new IcebergTableCredentials(ImmutableMap.of(), ImmutableList.of()),
+                IcebergTableCredentials.forFileIO(table.io()),
                 null,
                 OptionalLong.empty(),
                 Optional.empty(),
