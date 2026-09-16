@@ -13,6 +13,7 @@
  */
 package io.trino.operator.gpu;
 
+import ai.rapids.cudf.ColumnVector;
 import ai.rapids.cudf.Cuda;
 import ai.rapids.cudf.DType;
 import ai.rapids.cudf.HostColumnVector;
@@ -281,10 +282,12 @@ public class CopyToBlocks
         };
     }
 
-    public static Block copyToBlock(@Borrow HostColumnVector hostColumnVector, Type type)
+    public static Block copyToBlock(@Borrow ColumnVector columnVector, Type type)
     {
-        return createColumnCopier(hostColumnVector, type)
-                .buildBlock(0, toIntExact(hostColumnVector.getRowCount()));
+        try (HostColumnVector hostColumnVector = columnVector.copyToHost()) {
+            return createColumnCopier(hostColumnVector, type)
+                    .buildBlock(0, toIntExact(hostColumnVector.getRowCount()));
+        }
     }
 
     private static ColumnCopier createColumnCopier(@Borrow HostColumnVector hostColumnVector, Type type)

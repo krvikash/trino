@@ -16,16 +16,13 @@ package io.trino.operator.gpu.join;
 import ai.rapids.cudf.ColumnVector;
 import ai.rapids.cudf.GroupByAggregation;
 import ai.rapids.cudf.GroupByOptions;
-import ai.rapids.cudf.HostColumnVector;
 import ai.rapids.cudf.Scalar;
 import ai.rapids.cudf.Table;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import io.trino.operator.gpu.CopyToBlocks;
 import io.trino.spi.block.Block;
 import io.trino.spi.gpu.GpuTypeConversion.FromScalar;
 import io.trino.spi.gpu.borrow.Borrow;
-import io.trino.spi.gpu.borrow.Move;
 import io.trino.spi.predicate.Domain;
 import io.trino.spi.predicate.Range;
 import io.trino.spi.predicate.SortedRangeSet;
@@ -39,6 +36,7 @@ import io.trino.sql.planner.plan.DynamicFilterId;
 import java.util.List;
 import java.util.Optional;
 
+import static io.trino.operator.gpu.CopyToBlocks.copyToBlock;
 import static io.trino.spi.type.TypeUtils.typeHasNaN;
 import static java.util.Objects.requireNonNull;
 
@@ -127,24 +125,22 @@ public final class GpuDynamicFilterCollector
 
     private static ValueSet extractDistinctValueSet(Type type, @Borrow ColumnVector distinctColumn)
     {
-        try (HostColumnVector hostColumn = filterOutNaNs(type, distinctColumn)) {
-            Block block = CopyToBlocks.copyToBlock(hostColumn, type);
-            if (block.getPositionCount() == 0) {
-                return ValueSet.none(type);
-            }
-            return SortedRangeSet.fromUnorderedValuesBlock(type, block);
+        Block block = filterOutNaNs(type, distinctColumn);
+        if (block.getPositionCount() == 0) {
+            return ValueSet.none(type);
         }
+        return SortedRangeSet.fromUnorderedValuesBlock(type, block);
     }
 
-    private static @Move HostColumnVector filterOutNaNs(Type type, @Borrow ColumnVector column)
+    private static Block filterOutNaNs(Type type, @Borrow ColumnVector column)
     {
         if (typeHasNaN(type)) {
             try (ColumnVector mask = column.isNotNan();
                     Table table = new Table(column);
                     Table filtered = table.filter(mask)) {
-                return filtered.getColumn(0).copyToHost();
+                return copyToBlock(filtered.getColumn(0), type);
             }
         }
-        return column.copyToHost();
+        return copyToBlock(column, type);
     }
 }
