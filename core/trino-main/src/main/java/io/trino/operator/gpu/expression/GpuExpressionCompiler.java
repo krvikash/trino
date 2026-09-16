@@ -968,6 +968,11 @@ public final class GpuExpressionCompiler
 
         private Optional<GpuExpression> compileTrim(Call call, GpuTrim.Side side, Void context)
         {
+            if (!(call.type() instanceof VarcharType)) {
+                // defensive check: trim, ltrim, and rtrim currently return VARCHAR and the code below relies on the return type being VARCHAR
+                return Optional.empty();
+            }
+
             List<Expression> arguments = call.arguments();
             // defensive check: trim, ltrim and rtrim have only 1-arg (whitespace) and 2-arg (given code points) overloads
             if (arguments.isEmpty() || arguments.size() > 2) {
