@@ -1777,6 +1777,25 @@ public class TestGpuExpressions
         assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA, channelB));
     }
 
+    @Test
+    public void testComparisonAfterWideningCharCast()
+    {
+        CharType sourceType = createCharType(1);
+        CharType targetType = createCharType(2);
+        List<Type> inputTypes = List.of(sourceType, targetType);
+        List<Page> inputPages = List.of(new Page(
+                charBlock(sourceType, "a", "a", ""),
+                charBlock(targetType, "a", "a\u0001", "")));
+
+        // The widened value must acquire the target width before a GPU comparison uses it.
+        Expression widened = new Cast(field(0, sourceType), targetType);
+        Expression equal = comparison(ComparisonOperator.EQUAL, widened, field(1, targetType));
+        assertGpuMatchesCpu(inputPages, inputTypes, equal, Set.of(0, 1));
+
+        Expression lessThan = comparison(ComparisonOperator.LESS_THAN, widened, field(1, targetType));
+        assertGpuMatchesCpu(inputPages, inputTypes, lessThan, Set.of(0, 1));
+    }
+
     private static Block charBlock(Type charType, String... values)
     {
         BlockBuilder builder = charType.createBlockBuilder(null, values.length);
