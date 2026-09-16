@@ -44,17 +44,20 @@ public class SameTableScan
                 .collect(groupingBy(node -> tables.get(node.getId())));
 
         ImmutableList.Builder<RuleFinding> findings = ImmutableList.builder();
-        for (List<PlanNode> nodes : nodesByTable.values()) {
+        Set<PlanNodeId> reported = new HashSet<>();
+        for (Map.Entry<TableInfo, List<PlanNode>> entry : nodesByTable.entrySet()) {
+            List<PlanNode> nodes = entry.getValue();
             if (nodes.size() < 2) {
                 continue;
             }
-            overlappingExpensiveGroups(nodes, details).stream()
-                    .flatMap(overlapping -> {
-                        List<PlanNodeId> ids = overlapping.stream().map(PlanNode::getId).toList();
-                        return overlapping.stream().map(node -> toFinding(node, ids));
-                    })
-                    .distinct()
-                    .forEach(findings::add);
+            String tableName = entry.getKey().tableName().toString();
+            for (Set<PlanNode> overlapping : overlappingExpensiveGroups(nodes, details)) {
+                for (PlanNode node : overlapping) {
+                    if (reported.add(node.getId())) {
+                        findings.add(toFinding(node, tableName, overlapping.size()));
+                    }
+                }
+            }
         }
         return findings.build();
     }
@@ -109,8 +112,10 @@ public class SameTableScan
         return totalBytes > 0 ? part.toBytes() / totalBytes : 0;
     }
 
-    private static RuleFinding toFinding(PlanNode node, List<PlanNodeId> overlappingIds)
+    private static RuleFinding toFinding(PlanNode node, String tableName, int occurrences)
     {
-        return new RuleFinding.Node(node.getId().toString(), "Table scan is expensive and occurs multiple times on nodes %s".formatted(overlappingIds));
+        return new RuleFinding.Node(
+                node.getId().toString(),
+                "Table scan on '%s' occurs %d times.".formatted(tableName, occurrences));
     }
 }

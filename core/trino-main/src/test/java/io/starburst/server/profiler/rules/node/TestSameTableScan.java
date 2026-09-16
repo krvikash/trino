@@ -35,8 +35,11 @@ public class TestSameTableScan
             assertThat(findings).hasSize(2)
                     .allSatisfy(finding -> assertThat(finding).isInstanceOf(RuleFinding.Node.class));
             assertThat(findings)
-                    .extracting(finding -> ((RuleFinding.Node) finding).description())
-                    .allMatch(description -> description.contains("occurs multiple times"));
+                    .extracting(RuleFinding::description)
+                    .allSatisfy(description -> assertThat(description)
+                            .contains("nation")
+                            .contains("occurs 2 times")
+                            .doesNotContain("["));
         }
     }
 }
