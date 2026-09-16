@@ -42,6 +42,7 @@ import static io.trino.plugin.hive.HiveStorageFormat.REGEX;
 import static io.trino.plugin.hive.HiveStorageFormat.SEQUENCEFILE_PROTOBUF;
 import static io.trino.plugin.hive.TestingHiveUtils.getConnectorService;
 import static io.trino.spi.type.IntegerType.INTEGER;
+import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.testing.TestingNames.randomNameSuffix;
 import static java.util.Locale.ENGLISH;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -106,6 +107,50 @@ public class TestHiveGpuQueries
             assertUpdate("CREATE TABLE %s (n bigint) WITH (external_location = '%s', format = 'PARQUET')"
                     .formatted(tableName, directory));
             assertThat(query("SELECT n FROM " + tableName))
+                    .executesWithGpu(TableScanNode.class);
+            assertUpdate("DROP TABLE " + tableName);
+        }
+        finally {
+            fileSystem.deleteDirectory(directory);
+        }
+    }
+
+    @Test
+    public void testCharReadMatchesCpu()
+            throws IOException
+    {
+        // Write VARCHAR values that can exceed the declared CHAR(3) column width.
+        TrinoFileSystem fileSystem = getConnectorService(getQueryRunner(), TrinoFileSystemFactory.class)
+                .create(ConnectorIdentity.ofUser("test"));
+        Location directory = newExternalTableLocation();
+        fileSystem.createDirectory(directory);
+        try {
+            Location dataFile = directory.appendPath("data.parquet");
+            try (OutputStream out = fileSystem.newOutputFile(dataFile).create();
+                    ParquetWriter writer = ParquetTestUtils.createParquetWriter(
+                            out,
+                            ParquetWriterOptions.builder().build(),
+                            ImmutableList.of(VARCHAR),
+                            ImmutableList.of("c"),
+                            CompressionCodec.SNAPPY)) {
+                PageBuilder pageBuilder = new PageBuilder(ImmutableList.of(VARCHAR));
+                BlockBuilder builder = pageBuilder.getBlockBuilder(0);
+                VARCHAR.writeString(builder, "abcd");
+                VARCHAR.writeString(builder, "ab  ");
+                VARCHAR.writeString(builder, "żółw");
+                builder.appendNull();
+                pageBuilder.declarePositions(4);
+                writer.write(pageBuilder.build());
+            }
+
+            String tableName = "test_gpu_char_read_" + randomNameSuffix();
+            assertUpdate("CREATE TABLE %s (c char(3)) WITH (external_location = '%s', format = 'PARQUET')"
+                    .formatted(tableName, directory));
+
+            // Compare as VARCHAR first so a truncation regression reports a value mismatch.
+            assertThat(query("SELECT CAST(c AS varchar) FROM " + tableName))
+                    .executesWithGpu(TableScanNode.class);
+            assertThat(query("SELECT c FROM " + tableName))
                     .executesWithGpu(TableScanNode.class);
             assertUpdate("DROP TABLE " + tableName);
         }

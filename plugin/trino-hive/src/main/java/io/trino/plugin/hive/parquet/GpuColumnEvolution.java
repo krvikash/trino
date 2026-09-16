@@ -17,9 +17,11 @@ import ai.rapids.cudf.BaseDeviceMemoryBuffer;
 import ai.rapids.cudf.ColumnVector;
 import ai.rapids.cudf.ColumnView;
 import ai.rapids.cudf.DType;
+import ai.rapids.cudf.Scalar;
 import io.trino.spi.TrinoException;
 import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
+import io.trino.spi.type.CharType;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.VarbinaryType;
 
@@ -39,6 +41,16 @@ public final class GpuColumnEvolution
     public static @Move ColumnVector evolveColumn(String columnName, @Borrow ColumnVector cudfColumn, DType expectedDType, Type trinoType)
     {
         DType actualDType = cudfColumn.getType();
+        if (trinoType instanceof CharType charType) {
+            if (!actualDType.equals(DType.STRING)) {
+                throw unsupportedEvolutionException(columnName, actualDType, expectedDType);
+            }
+            // The value from file may exceed the column length bound and need truncation.
+            try (ColumnVector truncated = cudfColumn.substring(0, charType.getLength());
+                    Scalar space = Scalar.fromString(" ")) {
+                return truncated.rstrip(space);
+            }
+        }
         if (actualDType.equals(expectedDType)) {
             return cudfColumn.incRefCount();
         }
@@ -83,16 +95,21 @@ public final class GpuColumnEvolution
                 return listView.copyToColumnVector();
             }
         }
-        throw new TrinoException(
-                NOT_SUPPORTED,
-                format("Column %s: cannot evolve cuDF type %s to expected type %s",
-                        columnName,
-                        actualDType,
-                        expectedDType));
+        throw unsupportedEvolutionException(columnName, actualDType, expectedDType);
     }
 
     private static boolean isIntegerType(DType dtype)
     {
         return dtype == DType.INT8 || dtype == DType.INT16 || dtype == DType.INT32 || dtype == DType.INT64;
+    }
+
+    private static TrinoException unsupportedEvolutionException(String columnName, DType actualDType, DType expectedDType)
+    {
+        return new TrinoException(
+                NOT_SUPPORTED,
+                format("Column %s: cannot evolve cuDF type %s to expected type %s",
+                        columnName,
+                        actualDType,
+                        expectedDType));
     }
 }
