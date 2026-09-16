@@ -40,7 +40,8 @@ BUCKETS = [
     ]),
     ("jdbc-external", [
         ("SuiteExasol", LEGACY_COVERAGE_REMOVED),
-        ("SuiteSnowflake", LEGACY_COVERAGE_REMOVED),
+        # SuiteSnowflake covers the OSS Snowflake connector, which cork does not ship.
+        # The Starburst Snowflake suite is run instead.
     ]),
     ("connector-smoke", [
         ("SuiteCassandra", LEGACY_COVERAGE_REMOVED),

@@ -75,7 +75,6 @@ public class AllConnectorsSmokeEnvironment
             "redis",
             "redshift",
             "singlestore",
-            "snowflake",
             "sqlserver",
             "tpcds",
             "trino_thrift");
