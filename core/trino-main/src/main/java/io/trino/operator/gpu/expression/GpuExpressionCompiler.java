@@ -79,6 +79,7 @@ import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.trino.metadata.GlobalFunctionCatalog.isBuiltinFunctionName;
 import static io.trino.metadata.OperatorNameUtil.isOperatorName;
 import static io.trino.metadata.OperatorNameUtil.unmangleOperator;
+import static io.trino.operator.gpu.expression.GpuTrim.SPACE;
 import static io.trino.spi.gpu.GpuTypeConversion.isConvertible;
 import static io.trino.spi.gpu.GpuTypeConversion.toDType;
 import static io.trino.spi.gpu.GpuTypeConversion.toGpuMapping;
@@ -483,7 +484,7 @@ public final class GpuExpressionCompiler
                     List<GpuExpression> padded = operands.stream()
                             .map(operand -> (GpuExpression) new GpuPadSpaces(operand, charType.getLength()))
                             .toList();
-                    return new GpuTrim(new GpuLeast(padded, outputType.get()), " ", GpuTrim.Side.TRAILING, false);
+                    return new GpuTrim(new GpuLeast(padded, outputType.get()), SPACE, GpuTrim.Side.TRAILING);
                 }, context);
             }
             return compileNary(call.arguments(), operands -> new GpuLeast(operands, outputType.get()), context);
@@ -990,7 +991,7 @@ public final class GpuExpressionCompiler
             }
 
             if (arguments.size() == 1) {
-                return Optional.of(new GpuTrim(source.get(), GpuTrim.WHITESPACE_CODE_POINTS, side, false));
+                return Optional.of(new GpuTrim(source.get(), GpuTrim.WHITESPACE_CODE_POINTS, side));
             }
 
             // The analyzer wraps the trim characters in a cast to CodePoints, which the optimizer folds
@@ -1017,13 +1018,16 @@ public final class GpuExpressionCompiler
                 return source;
             }
 
-            // char(x) trim and rtrim additionally strip trailing spaces, because StringFunctions.charTrim
-            // and charRightTrim apply Chars.trimTrailingSpaces after removing the code points. That is not
-            // a consequence of the result type, which is varchar(x); we do it only to match the CPU, whose
-            // own rationale is unclear and which upstream reports as wrong in
-            // https://github.com/trinodb/trino/issues/31004. charLeftTrim does not do it, and neither do we.
-            boolean removeTrailingSpaces = sourceType instanceof CharType && side != GpuTrim.Side.LEADING;
-            return Optional.of(new GpuTrim(source.get(), new String(codePoints, 0, codePoints.length), side, removeTrailingSpaces));
+            GpuExpression resultExpression = new GpuTrim(source.get(), new String(codePoints, 0, codePoints.length), side);
+            if (sourceType instanceof CharType && side != GpuTrim.Side.LEADING) {
+                // char(x) trim and rtrim additionally strip trailing spaces, because StringFunctions.charTrim
+                // and charRightTrim apply Chars.trimTrailingSpaces after removing the code points. That is not
+                // a consequence of the result type, which is varchar(x); we do it only to match the CPU, whose
+                // own rationale is unclear and which upstream reports as wrong in
+                // https://github.com/trinodb/trino/issues/31004. charLeftTrim does not do it, and neither do we.
+                resultExpression = new GpuTrim(resultExpression, SPACE, GpuTrim.Side.TRAILING);
+            }
+            return Optional.of(resultExpression);
         }
 
         private static Optional<String> extractPatternString(Type patternType, Object patternValue)

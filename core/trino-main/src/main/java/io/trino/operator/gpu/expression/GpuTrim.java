@@ -15,8 +15,6 @@ package io.trino.operator.gpu.expression;
 
 import ai.rapids.cudf.ColumnVector;
 import ai.rapids.cudf.Scalar;
-import io.trino.plugin.base.gpu.ClosingOnce;
-import io.trino.plugin.base.gpu.ClosingRef;
 import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
 
@@ -33,20 +31,19 @@ public final class GpuTrim
 {
     /// Code points removed by the single-argument `trim`, `ltrim` and `rtrim`.
     public static final String WHITESPACE_CODE_POINTS = whitespaceCodePoints();
+    public static final String SPACE = " ";
 
     private final GpuExpression source;
     private final String codePointsToTrim;
     private final Side side;
-    private final boolean removeTrailingSpaces;
 
-    public GpuTrim(GpuExpression source, String codePointsToTrim, Side side, boolean removeTrailingSpaces)
+    public GpuTrim(GpuExpression source, String codePointsToTrim, Side side)
     {
         this.source = requireNonNull(source, "source is null");
         this.codePointsToTrim = requireNonNull(codePointsToTrim, "codePointsToTrim is null");
         // An empty set would make cuDF fall back to its own whitespace definition
         checkArgument(!codePointsToTrim.isEmpty(), "codePointsToTrim is empty");
         this.side = requireNonNull(side, "side is null");
-        this.removeTrailingSpaces = removeTrailingSpaces;
     }
 
     @Override
@@ -55,20 +52,9 @@ public final class GpuTrim
         // The code points are always passed explicitly: cuDF's no-argument strip() removes everything up
         // to and including the space character, which is neither a subset nor a superset of Trino's
         // whitespace, so relying on it would silently produce wrong results.
-        try (ClosingOnce<ColumnVector> sourceColumn = ClosingOnce.own(source.evaluate(positionCount, inputColumns));
-                Scalar codePoints = Scalar.fromString(codePointsToTrim);
-                ClosingRef<ColumnVector> stripped = ClosingRef.own(strip(sourceColumn.borrow(), codePoints))) {
-            sourceColumn.close();
-            if (!removeTrailingSpaces) {
-                return stripped.take();
-            }
-            // Only to match the CPU: StringFunctions.charTrim and charRightTrim apply
-            // Chars.trimTrailingSpaces after removing the code points. It does not follow from the result
-            // type, which is varchar(x), and upstream considers the behavior a bug --
-            // https://github.com/trinodb/trino/issues/31004 -- so this mirrors it deliberately.
-            try (Scalar space = Scalar.fromString(" ")) {
-                return stripped.borrow().rstrip(space);
-            }
+        try (ColumnVector sourceColumn = source.evaluate(positionCount, inputColumns);
+                Scalar codePoints = Scalar.fromString(codePointsToTrim)) {
+            return strip(sourceColumn, codePoints);
         }
     }
 
@@ -87,14 +73,13 @@ public final class GpuTrim
         return obj instanceof GpuTrim other
                 && source.equals(other.source)
                 && codePointsToTrim.equals(other.codePointsToTrim)
-                && side == other.side
-                && removeTrailingSpaces == other.removeTrailingSpaces;
+                && side == other.side;
     }
 
     @Override
     public int hashCode()
     {
-        return Objects.hash(getClass(), source, codePointsToTrim, side, removeTrailingSpaces);
+        return Objects.hash(getClass(), source, codePointsToTrim, side);
     }
 
     private static String whitespaceCodePoints()

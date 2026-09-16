@@ -76,6 +76,7 @@ import static com.google.common.base.Verify.verify;
 import static com.google.common.base.Verify.verifyNotNull;
 import static io.trino.metadata.GlobalFunctionCatalog.isBuiltinFunctionName;
 import static io.trino.operator.gpu.SignatureFormatter.formatAggregation;
+import static io.trino.operator.gpu.expression.GpuTrim.SPACE;
 import static io.trino.spi.gpu.GpuTypeConversion.isConvertible;
 import static io.trino.spi.gpu.GpuTypeConversion.toDType;
 import static io.trino.spi.type.DoubleType.DOUBLE;
@@ -510,7 +511,7 @@ public final class GpuAggregationCompiler
                 returnType,
                 List.of(AggregateSlot.of(padded, channel -> factory.create(channel, returnType, dType))),
                 Optional.of(new PostProjection(channels -> new CompiledExpression(
-                        new GpuTrim(new GetColumn(0), " ", GpuTrim.Side.TRAILING, false),
+                        new GpuTrim(new GetColumn(0), SPACE, GpuTrim.Side.TRAILING),
                         new InputChannels(List.of(channels[0]))))));
     }
 
