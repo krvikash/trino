@@ -69,6 +69,8 @@ public sealed interface ConnectionInfo
                         throw new IllegalArgumentException("Authorization header cannot be set in additionalHeaders when oauthConfig is configured");
                     }
                 }
+                endpoint.filter(value -> !value.isBlank())
+                        .ifPresent(value -> validateHttpsUrl("endpoint", value));
             }
         }
     }
@@ -97,7 +99,7 @@ public sealed interface ConnectionInfo
             if (tokenUrl.isBlank()) {
                 throw new IllegalArgumentException("tokenUrl is blank");
             }
-            validateTokenUrl(tokenUrl);
+            validateHttpsUrl("oauthConfig.tokenUrl", tokenUrl);
             if (clientId.isBlank()) {
                 throw new IllegalArgumentException("clientId is blank");
             }
@@ -107,31 +109,6 @@ public sealed interface ConnectionInfo
             if (!SECRET_REFERENCE.matcher(clientSecret).matches()) {
                 throw new IllegalArgumentException("oauthConfig.clientSecret must be a secret reference (e.g. ${ENV:VAR_NAME}); plaintext values are not allowed");
             }
-        }
-
-        public static void validateTokenUrl(String tokenUrl)
-        {
-            URI uri;
-            try {
-                uri = new URI(tokenUrl);
-            }
-            catch (URISyntaxException e) {
-                throw new IllegalArgumentException("oauthConfig.tokenUrl is not a valid URI: " + tokenUrl, e);
-            }
-            String scheme = uri.getScheme();
-            String host = uri.getHost();
-            if (scheme == null || host == null) {
-                throw new IllegalArgumentException("oauthConfig.tokenUrl must include a scheme and host: " + tokenUrl);
-            }
-            String lowerScheme = scheme.toLowerCase(Locale.ROOT);
-            String lowerHost = host.toLowerCase(Locale.ROOT);
-            if (lowerScheme.equals("https")) {
-                return;
-            }
-            if (lowerScheme.equals("http") && (lowerHost.equals("localhost") || lowerHost.equals("127.0.0.1"))) {
-                return;
-            }
-            throw new IllegalArgumentException("oauthConfig.tokenUrl must use https:// (http:// is allowed only for localhost): " + tokenUrl);
         }
 
         // Don't include the clientId/clientSecret if printing or logging this
@@ -184,5 +161,30 @@ public sealed interface ConnectionInfo
             requireNonNull(location, "location is null");
             additionalHeaders = requireNonNullElse(additionalHeaders, Map.of());
         }
+    }
+
+    static void validateHttpsUrl(String name, String url)
+    {
+        URI uri;
+        try {
+            uri = new URI(url);
+        }
+        catch (URISyntaxException e) {
+            throw new IllegalArgumentException(name + " is not a valid URI: " + url, e);
+        }
+        String scheme = uri.getScheme();
+        String host = uri.getHost();
+        if (scheme == null || host == null) {
+            throw new IllegalArgumentException(name + " must include a scheme and host: " + url);
+        }
+        String lowerScheme = scheme.toLowerCase(Locale.ROOT);
+        String lowerHost = host.toLowerCase(Locale.ROOT);
+        if (lowerScheme.equals("https")) {
+            return;
+        }
+        if (lowerScheme.equals("http") && (lowerHost.equals("localhost") || lowerHost.equals("127.0.0.1"))) {
+            return;
+        }
+        throw new IllegalArgumentException(name + " must use https:// (http:// is allowed only for localhost): " + url);
     }
 }

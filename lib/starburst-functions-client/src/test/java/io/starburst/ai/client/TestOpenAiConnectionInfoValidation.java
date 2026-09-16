@@ -170,6 +170,33 @@ class TestOpenAiConnectionInfoValidation
     }
 
     @Test
+    void rejectsHttpEndpointAlongsideOAuth2UnlessLocalhost()
+    {
+        assertThatThrownBy(() -> new OpenAiConnectionInfo(
+                Optional.of("http://llm.example/v1"),
+                Optional.empty(),
+                ImmutableMap.of(),
+                Optional.of(VALID_OAUTH2)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("endpoint must use https://");
+
+        assertThatCode(() -> new OpenAiConnectionInfo(
+                Optional.of("http://localhost:9000/v1"),
+                Optional.empty(),
+                ImmutableMap.of(),
+                Optional.of(VALID_OAUTH2)))
+                .doesNotThrowAnyException();
+
+        // The endpoint scheme is only constrained when a bearer token is sent to it.
+        assertThatCode(() -> new OpenAiConnectionInfo(
+                Optional.of("http://llm.example/v1"),
+                Optional.of("sk-abc"),
+                ImmutableMap.of(),
+                Optional.empty()))
+                .doesNotThrowAnyException();
+    }
+
+    @Test
     void allowsOtherAdditionalHeadersAlongsideOAuth2()
     {
         Map<String, List<String>> headers = ImmutableMap.of(
