@@ -385,6 +385,7 @@ public class GalaxySecurityMetadata
             case "SCHEMA" -> setSchemaOwner(session, new CatalogSchemaName(name.getFirst(), name.get(1)), principal);
             case "TABLE" -> setTableOwner(session, new CatalogSchemaTableName(name.getFirst(), name.get(1), name.get(2)), principal);
             case "VIEW" -> setViewOwner(session, new CatalogSchemaTableName(name.getFirst(), name.get(1), name.get(2)), principal);
+            case "MATERIALIZED VIEW" -> setMaterializedViewOwner(session, new CatalogSchemaTableName(name.getFirst(), name.get(1), name.get(2)), principal);
             case "FUNCTION" -> setFunctionOwner(session, new CatalogSchemaFunctionName(name.getFirst(), name.get(1), name.get(2)), principal);
             default -> {
                 Optional<EntityKind> optionalEntityKind = EntityPrivilegeTranslator.getEntityKind(entityKindString);
@@ -473,6 +474,11 @@ public class GalaxySecurityMetadata
     void setViewOwner(Session session, CatalogSchemaTableName view, TrinoPrincipal principal)
     {
         setTableOwner(session, view, principal);
+    }
+
+    private void setMaterializedViewOwner(Session session, CatalogSchemaTableName materializedView, TrinoPrincipal principal)
+    {
+        setTableOwner(session, materializedView, principal);
     }
 
     @Override

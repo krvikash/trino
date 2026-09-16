@@ -208,6 +208,10 @@ public class GalaxyAccessControl
                 CatalogSchemaTableName view = new CatalogSchemaTableName(name.getFirst(), name.get(1), name.get(2));
                 checkCatalogWritableAndViewOwner(context, view, explanation -> denySetEntityAuthorization(entityKindAndName, principal, explanation));
             }
+            case "MATERIALIZED VIEW" -> {
+                CatalogSchemaTableName materializedView = new CatalogSchemaTableName(name.getFirst(), name.get(1), name.get(2));
+                checkCatalogWritableAndMaterializedViewOwner(context, materializedView, explanation -> denySetEntityAuthorization(entityKindAndName, principal, explanation));
+            }
             default -> {
                 Optional<EntityKind> optionalEntityKind = EntityPrivilegeTranslator.getEntityKind(entityKindAndName.entityKind());
                 if (optionalEntityKind.isEmpty()) {

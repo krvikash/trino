@@ -997,6 +997,14 @@ public abstract class TestGalaxyAccessControl
     }
 
     @Test
+    public void testCheckCanSetMaterializedViewAuthorization()
+    {
+        withOwnedTable("Cannot set authorization for materialized view %s",
+                (context, name) ->
+                        accessControl.checkCanSetEntityAuthorization(context, toEntityKindAndName(name, "MATERIALIZED VIEW"), trinoPrincipal(LACKEY_FOLLOWER)));
+    }
+
+    @Test
     public void testCheckCanRenameMaterializedView()
     {
         withSchemaCreateTableAndTableOwnership("Cannot rename materialized view from %s to .*", (context, name) -> accessControl.checkCanRenameMaterializedView(context, name, new CatalogSchemaTableName(name.getCatalogName(), new SchemaTableName(name.getSchemaTableName().getSchemaName(), newTableName()))));

@@ -611,8 +611,7 @@ public abstract class TestGalaxySecurityMetadata
                 new EntityKindAndName(EntityKind.SCHEMA.name(), ImmutableList.of(catalogName, "myschema")),
                 new EntityKindAndName(EntityKind.TABLE.name(), ImmutableList.of(catalogName, "myschema", "mytable")),
                 new EntityKindAndName("VIEW", ImmutableList.of(catalogName, "myschema", "myview")),
-                // TODO: Uncomment when MV ownership is supported in 477
-                // new EntityKindAndName("MATERIALIZED VIEW", ImmutableList.of(catalogName, "myschema", "mymaterializedview")),
+                new EntityKindAndName("MATERIALIZED VIEW", ImmutableList.of(catalogName, "myschema", "mymaterializedview")),
                 new EntityKindAndName(EntityKind.FUNCTION.name(), ImmutableList.of(catalogName, "functions", "myfunction")));
         entityKindAndNames.forEach(this::testSetOwnerPermissions);
     }
