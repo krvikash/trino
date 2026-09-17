@@ -118,6 +118,7 @@ import io.trino.spi.function.SchemaFunctionName;
 import io.trino.spi.function.table.ConnectorTableFunctionHandle;
 import io.trino.spi.metrics.Metrics;
 import io.trino.spi.procedure.Procedure;
+import io.trino.spi.security.RoleGrant;
 import io.trino.spi.security.TrinoPrincipal;
 import io.trino.spi.session.PropertyMetadata;
 import io.trino.spi.statistics.ComputedStatistics;
@@ -247,6 +248,62 @@ public class ObjectStoreMetadata
     public List<String> listSchemaNames(ConnectorSession session)
     {
         return hiveMetadata.listSchemaNames(unwrap(HIVE, session));
+    }
+
+    // Roles are managed by the Hive delegate, whose access control metadata owns the role model of the metastore
+
+    @Override
+    public boolean roleExists(ConnectorSession session, String role)
+    {
+        return hiveMetadata.roleExists(unwrap(HIVE, session), role);
+    }
+
+    @Override
+    public void createRole(ConnectorSession session, String role, Optional<TrinoPrincipal> grantor)
+    {
+        hiveMetadata.createRole(unwrap(HIVE, session), role, grantor);
+    }
+
+    @Override
+    public void dropRole(ConnectorSession session, String role)
+    {
+        hiveMetadata.dropRole(unwrap(HIVE, session), role);
+    }
+
+    @Override
+    public Set<String> listRoles(ConnectorSession session)
+    {
+        return hiveMetadata.listRoles(unwrap(HIVE, session));
+    }
+
+    @Override
+    public Set<RoleGrant> listRoleGrants(ConnectorSession session, TrinoPrincipal principal)
+    {
+        return hiveMetadata.listRoleGrants(unwrap(HIVE, session), principal);
+    }
+
+    @Override
+    public void grantRoles(ConnectorSession session, Set<String> roles, Set<TrinoPrincipal> grantees, boolean adminOption, Optional<TrinoPrincipal> grantor)
+    {
+        hiveMetadata.grantRoles(unwrap(HIVE, session), roles, grantees, adminOption, grantor);
+    }
+
+    @Override
+    public void revokeRoles(ConnectorSession session, Set<String> roles, Set<TrinoPrincipal> grantees, boolean adminOption, Optional<TrinoPrincipal> grantor)
+    {
+        hiveMetadata.revokeRoles(unwrap(HIVE, session), roles, grantees, adminOption, grantor);
+    }
+
+    @Override
+    public Set<RoleGrant> listApplicableRoles(ConnectorSession session, TrinoPrincipal principal)
+    {
+        return hiveMetadata.listApplicableRoles(unwrap(HIVE, session), principal);
+    }
+
+    @Override
+    public Set<String> listEnabledRoles(ConnectorSession session)
+    {
+        return hiveMetadata.listEnabledRoles(unwrap(HIVE, session));
     }
 
     @Nullable

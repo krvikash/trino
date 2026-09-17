@@ -102,15 +102,6 @@ public class TestObjectStoreMetadata
                 // TODO https://github.com/starburstdata/galaxy-trino/issues/1432 Implement getRelationTypes method in ObjectStoreMetadata
                 .add(ConnectorMetadata.class.getMethod("getRelationTypes", ConnectorSession.class, Optional.class))
                 // Not implemented, not applicable in Galaxy
-                .add(ConnectorMetadata.class.getMethod("listRoles", ConnectorSession.class))
-                .add(ConnectorMetadata.class.getMethod("listApplicableRoles", ConnectorSession.class, TrinoPrincipal.class))
-                .add(ConnectorMetadata.class.getMethod("listEnabledRoles", ConnectorSession.class))
-                .add(ConnectorMetadata.class.getMethod("roleExists", ConnectorSession.class, String.class))
-                .add(ConnectorMetadata.class.getMethod("createRole", ConnectorSession.class, String.class, Optional.class))
-                .add(ConnectorMetadata.class.getMethod("dropRole", ConnectorSession.class, String.class))
-                .add(ConnectorMetadata.class.getMethod("grantRoles", ConnectorSession.class, Set.class, Set.class, boolean.class, Optional.class))
-                .add(ConnectorMetadata.class.getMethod("revokeRoles", ConnectorSession.class, Set.class, Set.class, boolean.class, Optional.class))
-                .add(ConnectorMetadata.class.getMethod("listRoleGrants", ConnectorSession.class, TrinoPrincipal.class))
                 .add(ConnectorMetadata.class.getMethod("redirectTable", ConnectorSession.class, SchemaTableName.class))
                 .add(ConnectorMetadata.class.getMethod("setSchemaAuthorization", ConnectorSession.class, String.class, TrinoPrincipal.class))
                 .add(ConnectorMetadata.class.getMethod("getSchemaOwner", ConnectorSession.class, String.class))
