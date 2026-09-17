@@ -10403,7 +10403,7 @@ public abstract class BaseIcebergConnectorTest
                 .isEqualTo("user");
     }
 
-    private Consumer<Plan> assertRemoteExchangesCount(int expectedRemoteExchangesCount)
+    protected Consumer<Plan> assertRemoteExchangesCount(int expectedRemoteExchangesCount)
     {
         return plan -> {
             int actualRemoteExchangesCount = searchFrom(plan.getRoot())
@@ -10413,7 +10413,7 @@ public abstract class BaseIcebergConnectorTest
         };
     }
 
-    private Consumer<Plan> assertNoReadPartitioning(String... columnNames)
+    protected Consumer<Plan> assertNoReadPartitioning(String... columnNames)
     {
         return plan -> {
             List<TableScanNode> tableScanNodes = searchFrom(plan.getRoot()).where(node -> node instanceof TableScanNode)

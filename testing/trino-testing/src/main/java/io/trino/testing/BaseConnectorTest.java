@@ -7594,7 +7594,7 @@ public abstract class BaseConnectorTest
         assertQueryWithCteReuse(query, "VALUES 5, 21");
     }
 
-    private Session enableCteReuse()
+    protected Session enableCteReuse()
     {
         Session cteReuse = Session.builder(getQueryRunner().getDefaultSession())
                 .setSystemProperty("reuse_common_subqueries", "true")
@@ -7648,7 +7648,7 @@ public abstract class BaseConnectorTest
         assertThat(query(query)).matches(expectedPlan);
     }
 
-    private int countRegexOccurrences(String value, String regex)
+    protected int countRegexOccurrences(String value, String regex)
     {
         Pattern pattern = Pattern.compile(regex, MULTILINE);
         Matcher matcher = pattern.matcher(value);
@@ -7659,7 +7659,7 @@ public abstract class BaseConnectorTest
         return result;
     }
 
-    private void assertQueryWithCteReuse(String query, String expectedResults)
+    protected void assertQueryWithCteReuse(String query, String expectedResults)
     {
         assertQuery(query, expectedResults);
         assertQuery(enableCteReuse(), query, expectedResults);
