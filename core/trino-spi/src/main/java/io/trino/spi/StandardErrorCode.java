@@ -216,6 +216,7 @@ public enum StandardErrorCode
     EXCEEDED_LOCAL_OFF_HEAP_MEMORY_LIMIT(131085, INSUFFICIENT_RESOURCES),
 
     UNSUPPORTED_TABLE_TYPE(133001, EXTERNAL),
+    GENERIC_EXTERNAL_ERROR(133002, EXTERNAL),
     /**/;
 
     // Connectors can use error codes starting at the range 0x0100_0000
