@@ -20,7 +20,7 @@ import io.trino.spi.gpu.borrow.Move;
 import java.util.List;
 import java.util.Objects;
 
-import static io.trino.operator.gpu.expression.CudfUtils.checkYearWithinInt16Range;
+import static io.trino.operator.gpu.expression.CudfUtils.checkYearWithinCudfCalendar;
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -42,9 +42,9 @@ public final class GpuYearExtract
     public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns)
     {
         try (ColumnVector timestamp = argument.evaluate(positionCount, inputColumns)) {
-            // cuDF's `ColumnView.year()` returns INT16, silently overflows for years outside [-32768, 32767],
-            // which is possible to date and low precision timestamp values.
-            checkYearWithinInt16Range(timestamp);
+            // cuDF's `ColumnView.year()` carries the year as an INT16 and silently returns a wrong
+            // value outside cuDF's calendar, which date and low precision timestamp values can reach.
+            checkYearWithinCudfCalendar(timestamp);
             return timestamp.year();
         }
     }

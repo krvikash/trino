@@ -38,8 +38,13 @@ import static java.lang.String.format;
  */
 final class CudfUtils
 {
-    private static final long LOWER_EPOCH_DAY = LocalDate.of(Short.MIN_VALUE, 1, 1).toEpochDay();
-    private static final long UPPER_EPOCH_DAY = LocalDate.of(Short.MAX_VALUE, 12, 31).toEpochDay();
+    /// cuDF's datetime kernels go through `cuda::std::chrono::year_month_day`, whose year is a
+    /// 16-bit value. `year::min()` is -32767; -32768 is the not-a-year sentinel. Outside this range
+    /// cuDF silently returns a wrong result rather than reporting an error.
+    static final int MIN_CALENDAR_YEAR = -32767;
+    static final int MAX_CALENDAR_YEAR = 32767;
+    static final long MIN_CALENDAR_EPOCH_DAY = LocalDate.of(MIN_CALENDAR_YEAR, 1, 1).toEpochDay();
+    static final long MAX_CALENDAR_EPOCH_DAY = LocalDate.of(MAX_CALENDAR_YEAR, 12, 31).toEpochDay();
 
     private CudfUtils() {}
 
@@ -104,43 +109,43 @@ final class CudfUtils
         }
     }
 
-    static void checkYearWithinInt16Range(@Borrow ColumnVector input)
+    static void checkYearWithinCudfCalendar(@Borrow ColumnVector input)
     {
         DType type = input.getType();
         if (type.equals(DType.TIMESTAMP_NANOSECONDS)) {
             return;
         }
-        try (Scalar minValidValue = minTimestampForInt16Year(type);
-                Scalar maxValidValue = maxTimestampForInt16Year(type);
+        try (Scalar minValidValue = minTimestampInCudfCalendar(type);
+                Scalar maxValidValue = maxTimestampInCudfCalendar(type);
                 ClosingOnce<ColumnVector> belowMinValid = ClosingOnce.own(input.binaryOp(LESS, minValidValue, DType.BOOL8));
                 ClosingOnce<ColumnVector> aboveMaxValid = ClosingOnce.own(input.binaryOp(GREATER, maxValidValue, DType.BOOL8));
                 ColumnVector outOfRange = belowMinValid.borrow().binaryOp(NULL_LOGICAL_OR, aboveMaxValid.borrow(), DType.BOOL8)) {
             belowMinValid.close();
             aboveMaxValid.close();
             if (anyTrue(outOfRange)) {
-                throw new TrinoException(NUMERIC_VALUE_OUT_OF_RANGE, format("Year out of range supported by GPU: must be in [%s, %s]", Short.MIN_VALUE, Short.MAX_VALUE));
+                throw new TrinoException(NUMERIC_VALUE_OUT_OF_RANGE, format("Year out of range supported by GPU: must be in [%s, %s]", MIN_CALENDAR_YEAR, MAX_CALENDAR_YEAR));
             }
         }
     }
 
-    private static @Move Scalar minTimestampForInt16Year(DType type)
+    private static @Move Scalar minTimestampInCudfCalendar(DType type)
     {
         return switch (type.getTypeId()) {
-            case TIMESTAMP_DAYS -> Scalar.timestampDaysFromInt(toIntExact(LOWER_EPOCH_DAY));
-            case TIMESTAMP_SECONDS -> Scalar.timestampFromLong(type, LOWER_EPOCH_DAY * SECONDS_PER_DAY);
-            case TIMESTAMP_MILLISECONDS -> Scalar.timestampFromLong(type, LOWER_EPOCH_DAY * MILLISECONDS_PER_DAY);
-            case TIMESTAMP_MICROSECONDS -> Scalar.timestampFromLong(type, LOWER_EPOCH_DAY * MICROSECONDS_PER_DAY);
+            case TIMESTAMP_DAYS -> Scalar.timestampDaysFromInt(toIntExact(MIN_CALENDAR_EPOCH_DAY));
+            case TIMESTAMP_SECONDS -> Scalar.timestampFromLong(type, MIN_CALENDAR_EPOCH_DAY * SECONDS_PER_DAY);
+            case TIMESTAMP_MILLISECONDS -> Scalar.timestampFromLong(type, MIN_CALENDAR_EPOCH_DAY * MILLISECONDS_PER_DAY);
+            case TIMESTAMP_MICROSECONDS -> Scalar.timestampFromLong(type, MIN_CALENDAR_EPOCH_DAY * MICROSECONDS_PER_DAY);
             default -> throw new IllegalStateException("Unexpected timestamp type: " + type);
         };
     }
 
-    private static @Move Scalar maxTimestampForInt16Year(DType type)
+    private static @Move Scalar maxTimestampInCudfCalendar(DType type)
     {
         return switch (type.getTypeId()) {
-            case TIMESTAMP_DAYS -> Scalar.timestampDaysFromInt(toIntExact(UPPER_EPOCH_DAY));
-            case TIMESTAMP_SECONDS -> Scalar.timestampFromLong(type, UPPER_EPOCH_DAY * SECONDS_PER_DAY + SECONDS_PER_DAY - 1);
-            case TIMESTAMP_MILLISECONDS -> Scalar.timestampFromLong(type, UPPER_EPOCH_DAY * MILLISECONDS_PER_DAY + MILLISECONDS_PER_DAY - 1);
-            case TIMESTAMP_MICROSECONDS -> Scalar.timestampFromLong(type, UPPER_EPOCH_DAY * MICROSECONDS_PER_DAY + MICROSECONDS_PER_DAY - 1);
+            case TIMESTAMP_DAYS -> Scalar.timestampDaysFromInt(toIntExact(MAX_CALENDAR_EPOCH_DAY));
+            case TIMESTAMP_SECONDS -> Scalar.timestampFromLong(type, MAX_CALENDAR_EPOCH_DAY * SECONDS_PER_DAY + SECONDS_PER_DAY - 1);
+            case TIMESTAMP_MILLISECONDS -> Scalar.timestampFromLong(type, MAX_CALENDAR_EPOCH_DAY * MILLISECONDS_PER_DAY + MILLISECONDS_PER_DAY - 1);
+            case TIMESTAMP_MICROSECONDS -> Scalar.timestampFromLong(type, MAX_CALENDAR_EPOCH_DAY * MICROSECONDS_PER_DAY + MICROSECONDS_PER_DAY - 1);
             default -> throw new IllegalStateException("Unexpected timestamp type: " + type);
         };
     }

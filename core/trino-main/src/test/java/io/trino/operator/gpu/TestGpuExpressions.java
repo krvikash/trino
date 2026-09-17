@@ -2412,7 +2412,7 @@ public class TestGpuExpressions
     @EnumSource(NullsProvider.class)
     public void testYearExtract(NullsProvider nullsProvider)
     {
-        // cuDF's year() returns INT16, so it can only represent years in the range [-32768, 32767].
+        // cuDF's year() returns INT16, so it can only represent years within cuDF's calendar.
         // Random test data spans the full long/int range and would overflow, so generate inputs in a
         // realistic range. The GPU compiler does not statically constrain the input range — callers
         // are responsible for ensuring values fit, which is the case for all production data sets.
@@ -2455,7 +2455,48 @@ public class TestGpuExpressions
                 .orElseThrow(() -> new AssertionError("GPU expression compile failed for: " + expression));
         assertTrinoExceptionThrownBy(() -> executeWithGpu(inputPages, List.of(type), expression, gpuExpression))
                 .hasErrorCode(NUMERIC_VALUE_OUT_OF_RANGE)
-                .hasMessage("Year out of range supported by GPU: must be in [-32768, 32767]");
+                .hasMessage("Year out of range supported by GPU: must be in [-32767, 32767]");
+    }
+
+    /// cuDF's calendar reaches year -32767 through year 32767, so the last year at either end has
+    /// to be answered and the first year past it rejected rather than silently answered wrong.
+    @Test
+    public void testYearExtractAtCudfCalendarBound()
+    {
+        assertYearExtractMatchesCpu(LocalDate.of(-32767, 1, 1));
+        assertYearExtractMatchesCpu(LocalDate.of(32767, 12, 31));
+        assertYearExtractThrows(LocalDate.of(-32768, 12, 31));
+        assertYearExtractThrows(LocalDate.of(32768, 1, 1));
+    }
+
+    private void assertYearExtractMatchesCpu(LocalDate date)
+    {
+        assertGpuMatchesCpu(
+                List.of(new Page(writeNativeValue(DATE, date.toEpochDay()))),
+                List.of(DATE),
+                yearExtract(DATE),
+                Set.of(0));
+    }
+
+    private void assertYearExtractThrows(LocalDate date)
+    {
+        Expression expression = yearExtract(DATE);
+        CompiledExpression gpuExpression = compileExpression(expression, layoutFor(List.of(DATE)), SQL_STANDARD)
+                .orElseThrow(() -> new AssertionError("GPU expression compile failed for: " + expression));
+        assertTrinoExceptionThrownBy(() -> executeWithGpu(
+                List.of(new Page(writeNativeValue(DATE, date.toEpochDay()))),
+                List.of(DATE),
+                expression,
+                gpuExpression))
+                .hasErrorCode(NUMERIC_VALUE_OUT_OF_RANGE)
+                .hasMessage("Year out of range supported by GPU: must be in [-32767, 32767]");
+    }
+
+    private static Expression yearExtract(Type type)
+    {
+        return new Call(
+                FUNCTION_RESOLUTION.resolveFunction("year", fromTypes(type)),
+                ImmutableList.of(field(0, type)));
     }
 
     private static Block createInRangeDateTimeBlock(Type type, int positionsCount, NullsProvider nullsProvider)
@@ -2645,7 +2686,7 @@ public class TestGpuExpressions
         List<Type> inputTypes = List.of(type);
         int positionsCount = 64;
         // cuDF's lastDayOfMonth() internally extracts the year as INT16, so
-        // dates with years outside [-32768, 32767] produce incorrect results.
+        // dates with years outside cuDF's calendar produce incorrect results.
         List<Page> inputPages = List.of(new Page(
                 positionsCount,
                 createInRangeDateTimeBlock(type, positionsCount, nullsProvider)));
@@ -2728,7 +2769,7 @@ public class TestGpuExpressions
                 .orElseThrow(() -> new AssertionError("GPU expression compile failed for: " + expression));
         assertTrinoExceptionThrownBy(() -> executeWithGpu(inputPages, List.of(type), expression, gpuExpression))
                 .hasErrorCode(NUMERIC_VALUE_OUT_OF_RANGE)
-                .hasMessage("Year out of range supported by GPU: must be in [-32768, 32767]");
+                .hasMessage("Year out of range supported by GPU: must be in [-32767, 32767]");
     }
 
     @ParameterizedTest
