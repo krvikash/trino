@@ -173,7 +173,7 @@ public class HiveGpuParquetPageSource
     private void createChunkedReader()
     {
         // Force timestamp columns (including INT96) to be read at microsecond precision.
-        // cuDF's INT96 decode silently overflows int64 (https://github.com/rapidsai/cudf/issues/22930):
+        // cuDF's INT96 decode silently overflows int64 (https://github.com/NVIDIA/cudf/issues/22930):
         // with TIMESTAMP_NANOSECONDS the valid range is only ~1677..2262;
         // with TIMESTAMP_MICROSECONDS it extends to ~year ±292,271.
         ParquetOptions.Builder optionsBuilder = ParquetOptions.builder()

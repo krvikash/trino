@@ -35,7 +35,7 @@ public final class GpuMemoryUtils
 
     /// Estimate the additional GPU device memory retained by `new HashJoin(buildKeys, [false])`,
     /// assuming `buildKeys` is retained by the caller and therefore not counted here.
-    // TODO might become obsolete when https://github.com/rapidsai/cudf/issues/22965 is done
+    // TODO might become obsolete when https://github.com/NVIDIA/cudf/issues/22965 is done
     public static long getHashJoinAdditionalGpuDeviceMemoryUsage(Table buildKeys)
     {
         long rowCount = buildKeys.getRowCount();

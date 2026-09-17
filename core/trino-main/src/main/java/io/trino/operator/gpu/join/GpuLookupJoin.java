@@ -296,7 +296,7 @@ public final class GpuLookupJoin
     {
         // For filtered joins, we don't have a good way to determine the output row count upfront,
         // so the estimate below doesn't include gather maps or GPU page output sizes.
-        // TODO: https://github.com/rapidsai/cudf/issues/22748 might address this.
+        // TODO: https://github.com/NVIDIA/cudf/issues/22748 might address this.
         long buildRows = bridge.buildKeysTable().getRowCount();
         long bytes = switch (joinType) {
             case INNER -> getMixedInnerJoinGpuDeviceMemoryUsage(buildRows, probePage.positionCount());
