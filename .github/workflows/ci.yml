@@ -1334,6 +1334,7 @@ jobs:
         if: contains(matrix.modules, 'trino-iceberg') && contains(matrix.profile, 'biglake-tests') && (env.CI_SKIP_SECRETS_PRESENCE_CHECKS != '' || env.GCP_CREDENTIALS_KEY != '')
         env:
           GCP_STORAGE_BUCKET: ${{ vars.GCP_STORAGE_BUCKET }}
+          GCP_CREDENTIALS_VENDING_STORAGE_BUCKET: ${{ vars.GCP_CREDENTIALS_VENDING_STORAGE_BUCKET }}
           GCP_CREDENTIALS_KEY: ${{ secrets.GCP_CREDENTIALS_KEY }}
         run: |
           $MAVEN test ${MAVEN_TEST} -pl :trino-iceberg -Pbiglake-tests

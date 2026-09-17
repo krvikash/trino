@@ -1153,6 +1153,7 @@
                                 <exclude>**/TestDatabricksUnityRestCatalog.java</exclude>
                                 <exclude>**/TestIcebergDatabricksUnityRestCatalogConnectorSmokeTest.java</exclude>
                                 <exclude>**/TestIcebergBigLakeMetastoreConnectorSmokeTest.java</exclude>
+                                <exclude>**/TestIcebergBigLakeVendedCredentials.java</exclude>
                                 <exclude>**/TestIcebergDatabricksUnityScanPlanningConnectorSmokeTest.java</exclude>
                                 <exclude>**/TestIcebergAiFunctions.java</exclude>
                                 <exclude>**/TestIcebergGlueCatalogExternalWriteTest.java</exclude>
@@ -1267,6 +1268,7 @@
                         <configuration>
                             <includes>
                                 <include>**/TestIcebergBigLakeMetastoreConnectorSmokeTest.java</include>
+                                <include>**/TestIcebergBigLakeVendedCredentials.java</include>
                             </includes>
                         </configuration>
                     </plugin>
