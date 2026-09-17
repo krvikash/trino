@@ -97,17 +97,35 @@ public class WarpPageSource
     @Override
     public void close()
     {
-        if (!closed) {
-            filteringStats.ifPresent(stats -> stats.recordProcessed(
-                    queryParams.getTotalNumRecords(),
-                    completedPositions,
-                    reader.getTotalNumChunks(),
-                    reader.getMatchedNumChunks()));
-            closed = true;
-            if (reader != null) {
+        if (closed) {
+            return;
+        }
+        closed = true;
+        try {
+            reportToFilteringStats();
+        }
+        finally {
+            try {
                 reader.close();
             }
-            predicatesCacheService.markFinished(queryParams.getPredicateCacheData());
+            finally {
+                predicatesCacheService.markFinished(queryParams.getPredicateCacheData());
+            }
+        }
+    }
+
+    private void reportToFilteringStats()
+    {
+        if (filteringStats.isEmpty()) {
+            return;
+        }
+        FilteringStats stats = filteringStats.orElseThrow();
+        if (finished && !isRowsLimitReached()) {
+            stats.recordProcessed(queryParams.getTotalNumRecords(), completedPositions, reader.getTotalNumChunks(), reader.getMatchedNumChunks());
+        }
+        else {
+            // a split that stopped before its last row carries no selectivity signal
+            stats.releaseSamplingSlot();
         }
     }
 
