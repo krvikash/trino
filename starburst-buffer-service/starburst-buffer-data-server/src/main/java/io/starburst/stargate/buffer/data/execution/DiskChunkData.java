@@ -316,7 +316,6 @@ public final class DiskChunkData
                 readChannel = FileChannel.open(file, StandardOpenOption.READ);
             }
             catch (NoSuchFileException e) {
-                stats.recordDiskChunkReadNotFound();
                 throw new DataServerException(CHUNK_NOT_FOUND, "disk chunk file not found for chunk %s: %s".formatted(chunkId, file), e);
             }
             catch (IOException e) {

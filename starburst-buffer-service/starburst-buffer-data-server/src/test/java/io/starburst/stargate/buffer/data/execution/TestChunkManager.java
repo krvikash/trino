@@ -626,6 +626,7 @@ public class TestChunkManager
                 s3ClientConfig,
                 new GcsClientConfig(),
                 Set.of(EXCHANGE_0));
+        DataServerStats dataServerStats = new DataServerStats();
         ChunkManager chunkManager = createChunkManager(
                 BUFFER_NODE_ID,
                 memoryAllocator,
@@ -633,7 +634,8 @@ public class TestChunkManager
                 DataSize.of(64, BYTE),
                 DataSize.of(32, BYTE),
                 failureInjectingSpoolingStorage,
-                1);  // Ensure no concurrency to ensure that the exception is handled before the next exchange begins writing.
+                1,  // Ensure no concurrency to ensure that the exception is handled before the next exchange begins writing.
+                dataServerStats);
 
         chunkManager.registerExchange(EXCHANGE_0, STANDARD, Optional.empty());
         chunkManager.registerExchange(EXCHANGE_1, STANDARD, Optional.empty());
@@ -657,12 +659,15 @@ public class TestChunkManager
         ChunkHandle chunkHandle2 = new ChunkHandle(BUFFER_NODE_ID, 1, 2L, 16);
         ChunkHandle chunkHandle3 = new ChunkHandle(BUFFER_NODE_ID, 1, 3L, 8);
 
+        assertThat(dataServerStats.getLocalChunkReadNotFound().getTotalCount()).isEqualTo(0);
+
         verifySpooledChunkDataResult(
                 chunkManager.getChunkData(BUFFER_NODE_ID, EXCHANGE_1, chunkHandle2.partitionId(), chunkHandle2.chunkId()),
                 new DataPage(1, 1, utf8Slice("data for chunk 2")));
         assertThatThrownBy(() -> chunkManager.getChunkData(BUFFER_NODE_ID, EXCHANGE_1, chunkHandle3.partitionId(), chunkHandle3.chunkId()))
                 .isInstanceOf(DataServerException.class)
                 .hasMessageStartingWith("No closed chunk found");
+        assertThat(dataServerStats.getLocalChunkReadNotFound().getTotalCount()).isEqualTo(1);
 
         verifyInMemoryChunkDataResult(
                 chunkManager.getChunkData(BUFFER_NODE_ID, EXCHANGE_0, chunkHandle0.partitionId(), chunkHandle0.chunkId()),
@@ -670,6 +675,7 @@ public class TestChunkManager
         assertThatThrownBy(() -> chunkManager.getChunkData(BUFFER_NODE_ID, EXCHANGE_0, chunkHandle1.partitionId(), chunkHandle1.chunkId()))
                 .isInstanceOf(DataServerException.class)
                 .hasMessageStartingWith("No closed chunk found");
+        assertThat(dataServerStats.getLocalChunkReadNotFound().getTotalCount()).isEqualTo(2);
 
         getFutureValue(chunkManager.finishExchange(EXCHANGE_0));
         verifyInMemoryChunkDataResult(
@@ -1060,12 +1066,14 @@ public class TestChunkManager
 
         assertThat(numClosedChunksFuture.isDone()).isTrue();
 
+        DataServerStats newChunkManagerStats = new DataServerStats();
         ChunkManager newChunkManager = createChunkManager(
                 BUFFER_NODE_ID,
                 defaultMemoryAllocator(),
                 DataSize.of(16, MEGABYTE),
                 DataSize.of(64, MEGABYTE),
-                DataSize.of(128, KILOBYTE));
+                DataSize.of(128, KILOBYTE),
+                newChunkManagerStats);
         // exchange missing
         assertDrainedChunkDataResult(newChunkManager, drainedBufferNodeId);
 
@@ -1076,6 +1084,15 @@ public class TestChunkManager
         // exchange exists, partition exists, but chunk missing
         getFutureValue(newChunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 0L, ImmutableList.of(utf8Slice("dummy0"))).addDataPagesFuture());
         assertDrainedChunkDataResult(newChunkManager, drainedBufferNodeId);
+
+        assertThat(newChunkManagerStats.getSpooledDataNotFound().getTotalCount()).isEqualTo(0);
+
+        // requested chunk id not present in the drained node's spooled chunk map at all
+        assertThatThrownBy(() -> newChunkManager.getChunkData(drainedBufferNodeId, EXCHANGE_0, 0, 999L))
+                .isInstanceOf(DataServerException.class)
+                .hasMessageContaining("No closed chunk found");
+        assertThat(newChunkManagerStats.getSpooledDataNotFound().getTotalCount()).isEqualTo(1);
+        assertThat(newChunkManagerStats.getLocalChunkReadNotFound().getTotalCount()).isEqualTo(0);
 
         newChunkManager.removeExchange(EXCHANGE_0);
     }

@@ -370,11 +370,24 @@ public class ChunkManager
             if (spooledChunk != null) {
                 return new SpooledChunkResult(spooledChunk);
             }
+            dataServerStats.recordSpooledDataNotFound();
             throw new DataServerException(CHUNK_NOT_FOUND, "No closed chunk found for bufferNodeId %d, exchange %s, chunk %d".formatted(bufferNodeId, exchangeId, chunkId));
         }
 
         Exchange exchange = getExchangeAndHeartbeat(exchangeId);
-        return exchange.getChunkData(bufferNodeId, partitionId, chunkId);
+        try {
+            return exchange.getChunkData(bufferNodeId, partitionId, chunkId);
+        }
+        catch (ChunkAlreadySpooledException e) {
+            dataServerStats.recordSpooledDataNotFound();
+            throw new DataServerException(CHUNK_NOT_FOUND, e.getMessage());
+        }
+        catch (DataServerException e) {
+            if (e.getErrorCode() == CHUNK_NOT_FOUND) {
+                dataServerStats.recordLocalChunkReadNotFound();
+            }
+            throw e;
+        }
     }
 
     public ListenableFuture<ChunkList> listClosedChunks(String exchangeId, OptionalLong pagingId)

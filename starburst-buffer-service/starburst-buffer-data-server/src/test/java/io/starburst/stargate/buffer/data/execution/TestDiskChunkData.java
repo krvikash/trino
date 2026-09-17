@@ -363,7 +363,6 @@ public class TestDiskChunkData
                     .isInstanceOf(DataServerException.class)
                     .extracting(e -> ((DataServerException) e).getErrorCode())
                     .isEqualTo(CHUNK_NOT_FOUND);
-            assertThat(stats.getDiskChunkReadNotFound().getTotalCount()).isEqualTo(1);
         }
         finally {
             chunk.release();

@@ -189,10 +189,15 @@ public class Partition
         Chunk chunk = closedChunks.get(chunkId);
         ChunkDataLease chunkDataLease = (chunk == null ? null : chunk.getChunkDataLease());
         if (chunkDataLease == null) {
-            // chunk already spooled
+            // not in memory: either never closed, or closed and already spooled
             Optional<SpooledChunk> spooledChunk = spooledChunksByExchange.getSpooledChunk(exchangeId, chunkId);
             if (spooledChunk.isPresent()) {
                 return new SpooledChunkResult(spooledChunk.get());
+            }
+            if (chunk != null) {
+                // closed and already spooled, but not yet visible in spooledChunksByExchange
+                throw new ChunkAlreadySpooledException(
+                        "Chunk already spooled but not yet visible for bufferNodeId %d, exchange %s, chunk %d".formatted(bufferNodeId, exchangeId, chunkId));
             }
             throw new DataServerException(
                     CHUNK_NOT_FOUND,
