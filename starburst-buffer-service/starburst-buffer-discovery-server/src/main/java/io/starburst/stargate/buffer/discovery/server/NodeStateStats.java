@@ -9,8 +9,10 @@
  */
 package io.starburst.stargate.buffer.discovery.server;
 
+import io.airlift.stats.CounterStat;
 import io.starburst.stargate.buffer.BufferNodeState;
 import org.weakref.jmx.Managed;
+import org.weakref.jmx.Nested;
 
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -21,6 +23,19 @@ public class NodeStateStats
     private final AtomicLong active = new AtomicLong();
     private final AtomicLong draining = new AtomicLong();
     private final AtomicLong drained = new AtomicLong();
+    private final CounterStat nodesLostWithoutDrain = new CounterStat();
+
+    public void recordNodeLostWithoutDrain()
+    {
+        nodesLostWithoutDrain.update(1);
+    }
+
+    @Managed
+    @Nested
+    public CounterStat getNodesLostWithoutDrain()
+    {
+        return nodesLostWithoutDrain;
+    }
 
     @Managed
     public long getStarting()

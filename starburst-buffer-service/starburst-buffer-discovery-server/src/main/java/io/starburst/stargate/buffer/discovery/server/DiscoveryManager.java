@@ -40,6 +40,7 @@ import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static io.airlift.concurrent.Threads.daemonThreadsNamed;
 import static io.airlift.units.Duration.succinctDuration;
 import static io.starburst.stargate.buffer.BufferNodeState.DRAINED;
+import static io.starburst.stargate.buffer.BufferNodeState.DRAINING;
 import static java.lang.annotation.ElementType.FIELD;
 import static java.lang.annotation.ElementType.METHOD;
 import static java.lang.annotation.ElementType.PARAMETER;
@@ -165,13 +166,20 @@ public class DiscoveryManager
             long lastUpdateTime = infoHolder.getLastUpdateTime();
             if (!infoHolder.isStale() && lastUpdateTime < markStaleThreshold) {
                 BufferNodeState bufferNodeState = infoHolder.getLastNodeInfo().state();
+                boolean isDrained = bufferNodeState.equals(DRAINED);
                 // Buffer nodes in drained state needs to be kept longer for the lifetime of a query,
                 // to make sure that new workers will not read from a drained node
-                if (!bufferNodeState.equals(DRAINED) || lastUpdateTime < drainedNodesMarkStaleThreshold) {
+                if (!isDrained || lastUpdateTime < drainedNodesMarkStaleThreshold) {
                     log.info("marking entry for node %s as stale; no update for %s; last state %s",
                             entry.getKey(),
                             succinctDuration(now - lastUpdateTime, MILLISECONDS),
-                            infoHolder.getLastNodeInfo().state());
+                            bufferNodeState);
+
+                    boolean lostWithoutDrain = !isDrained && !bufferNodeState.equals(DRAINING);
+                    if (lostWithoutDrain) {
+                        log.warn("node %s is lost without being drained first; last observed state %s", entry.getKey(), bufferNodeState);
+                        discoveryStats.getNodeStateStats().recordNodeLostWithoutDrain();
+                    }
                     infoHolder.markStale();
                 }
             }
