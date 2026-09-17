@@ -119,6 +119,7 @@ import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.Executors.newSingleThreadScheduledExecutor;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
+import static java.util.stream.Collectors.joining;
 
 @ThreadSafe
 public class ChunkManager
@@ -619,6 +620,8 @@ public class ChunkManager
         if (remainingExchangesBeingReleased > 0) {
             log.warn("%s exchanges did not finish releasing spooled chunks", remainingExchangesBeingReleased);
         }
+
+        logDrainOutcome(failedExchanges);
     }
 
     private void getFutureValueWithTimeout(ListenableFuture<Void> future, int timeoutValue, TimeUnit timeUnit)
@@ -988,6 +991,19 @@ public class ChunkManager
         dataServerStats.updateClosedChunks(getClosedChunks());
         dataServerStats.updateSpooledChunks(getSpooledChunksCount());
         dataServerStats.updateSpooledChunksByExchangeSize(spooledChunksByExchange.size());
+    }
+
+    private void logDrainOutcome(Set<Exchange> failedExchanges)
+    {
+        if (failedExchanges.isEmpty()) {
+            log.info("Drain completed successfully for buffer node %d", bufferNodeId);
+        }
+        else {
+            log.warn("Drain completed with %d failed exchange(s) for buffer node %d: %s",
+                    failedExchanges.size(),
+                    bufferNodeId,
+                    failedExchanges.stream().map(Exchange::getExchangeId).collect(joining(", ")));
+        }
     }
 
     private long tickerReadMillis()

@@ -773,12 +773,14 @@ public class TestChunkManager
                         .setSpoolingRatioLowWatermark(0.5),
                 new ChunkManagerConfig(),
                 new DataServerStats());
+        DataServerStats dataServerStats = new DataServerStats();
         ChunkManager chunkManager = createChunkManager(
                 BUFFER_NODE_ID,
                 memoryAllocator,
                 DataSize.of(16, BYTE),
                 DataSize.of(64, BYTE),
-                DataSize.of(8, BYTE));
+                DataSize.of(8, BYTE),
+                dataServerStats);
 
         chunkManager.registerExchange(EXCHANGE_0, STANDARD, Optional.empty());
         assertThat(chunkManager.getExchangeAndHeartbeat(EXCHANGE_0).isFinished()).isFalse();
@@ -1024,12 +1026,14 @@ public class TestChunkManager
     public void testGetDrainedChunkDataOnAfterDrainingAllChunks()
     {
         long drainedBufferNodeId = BUFFER_NODE_ID + 1;
+        DataServerStats dataServerStats = new DataServerStats();
         ChunkManager drainedChunkManager = createChunkManager(
                 drainedBufferNodeId,
                 defaultMemoryAllocator(),
                 DataSize.of(16, MEGABYTE),
                 DataSize.of(64, MEGABYTE),
-                DataSize.of(128, KILOBYTE));
+                DataSize.of(128, KILOBYTE),
+                dataServerStats);
         getFutureValue(drainedChunkManager.addDataPages(EXCHANGE_0, 0, 0, 0, 0L, ImmutableList.of(utf8Slice("test"))).addDataPagesFuture());
         getFutureValue(drainedChunkManager.addDataPages(EXCHANGE_0, 0, 0, 1, 0L, ImmutableList.of(utf8Slice("Spooling"))).addDataPagesFuture());
         getFutureValue(drainedChunkManager.addDataPages(EXCHANGE_0, 0, 1, 0, 0L, ImmutableList.of(utf8Slice("Storage"))).addDataPagesFuture());
@@ -1140,7 +1144,18 @@ public class TestChunkManager
             DataSize chunkMaxSize,
             DataSize chunkSliceSize)
     {
-        return this.createChunkManager(bufferNodeId, memoryAllocator, chunkTargetSize, chunkMaxSize, chunkSliceSize, spoolingStorage, 8);
+        return this.createChunkManager(bufferNodeId, memoryAllocator, chunkTargetSize, chunkMaxSize, chunkSliceSize, spoolingStorage, 8, new DataServerStats());
+    }
+
+    protected ChunkManager createChunkManager(
+            long bufferNodeId,
+            MemoryAllocator memoryAllocator,
+            DataSize chunkTargetSize,
+            DataSize chunkMaxSize,
+            DataSize chunkSliceSize,
+            DataServerStats dataServerStats)
+    {
+        return this.createChunkManager(bufferNodeId, memoryAllocator, chunkTargetSize, chunkMaxSize, chunkSliceSize, spoolingStorage, 8, dataServerStats);
     }
 
     protected ChunkManager createChunkManager(
@@ -1151,6 +1166,19 @@ public class TestChunkManager
             DataSize chunkSliceSize,
             SpoolingStorage spoolingStorage,
             int chunkSpoolConcurrency)
+    {
+        return this.createChunkManager(bufferNodeId, memoryAllocator, chunkTargetSize, chunkMaxSize, chunkSliceSize, spoolingStorage, chunkSpoolConcurrency, new DataServerStats());
+    }
+
+    protected ChunkManager createChunkManager(
+            long bufferNodeId,
+            MemoryAllocator memoryAllocator,
+            DataSize chunkTargetSize,
+            DataSize chunkMaxSize,
+            DataSize chunkSliceSize,
+            SpoolingStorage spoolingStorage,
+            int chunkSpoolConcurrency,
+            DataServerStats dataServerStats)
     {
         ChunkManagerConfig chunkManagerConfig = new ChunkManagerConfig()
                 .setChunkTargetSize(chunkTargetSize)
@@ -1178,7 +1206,7 @@ public class TestChunkManager
                 exchangeAllocatedBytes,
                 Optional.empty(),
                 chunkDataFactory,
-                new DataServerStats(),
+                dataServerStats,
                 new Tracer()
                 {
                     @Override

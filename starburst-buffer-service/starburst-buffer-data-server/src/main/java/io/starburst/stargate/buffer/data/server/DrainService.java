@@ -23,6 +23,7 @@ import java.util.concurrent.TimeUnit;
 
 import static io.airlift.concurrent.Threads.daemonThreadsNamed;
 import static java.util.Objects.requireNonNull;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 /**
  * The service responsible for handling the DRAINING of the Server Node.
@@ -88,6 +89,7 @@ public class DrainService
         if (bufferNodeStateManager.isDrainingStarted()) {
             return;
         }
+        long drainStartMillis = System.currentTimeMillis();
         bufferNodeStateManager.transitionState(BufferNodeState.DRAINING);
         discoveryBroadcast.ifPresent(DiscoveryBroadcast::broadcast);
 
@@ -101,9 +103,10 @@ public class DrainService
                     log.info("All in flight addData requests completed, proceeding to drain all chunks");
                 }
                 chunkManager.drainAllChunks();
+                log.info("Buffer node drained successfully in %s", Duration.succinctDuration(System.currentTimeMillis() - drainStartMillis, MILLISECONDS));
             }
             catch (Exception e) {
-                log.error(e, "Unexpected failure while draining node");
+                log.error(e, "Unexpected failure while draining node after %s", Duration.succinctDuration(System.currentTimeMillis() - drainStartMillis, MILLISECONDS));
             }
 
             // we mark node as DRAINED even on failure. It is not great but leaving node in DRAINING state
