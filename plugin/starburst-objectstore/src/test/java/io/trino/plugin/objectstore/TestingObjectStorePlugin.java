@@ -29,19 +29,31 @@ public class TestingObjectStorePlugin
     private final String connectorName;
     private final Optional<HiveMetastore> metastore;
     private final Optional<Module> hiveModule;
+    private final Optional<Module> additionalObjectStoreModule;
     private final Optional<Path> localFileSystemRootPath;
 
     public TestingObjectStorePlugin(String connectorName, Optional<HiveMetastore> metastore, Optional<Module> hiveModule, Optional<Path> localFileSystemRootPath)
     {
+        this(connectorName, metastore, hiveModule, Optional.empty(), localFileSystemRootPath);
+    }
+
+    public TestingObjectStorePlugin(
+            String connectorName,
+            Optional<HiveMetastore> metastore,
+            Optional<Module> hiveModule,
+            Optional<Module> additionalObjectStoreModule,
+            Optional<Path> localFileSystemRootPath)
+    {
         this.connectorName = requireNonNull(connectorName, "connectorName is null");
         this.metastore = requireNonNull(metastore, "metastore is null");
         this.hiveModule = requireNonNull(hiveModule, "hiveModule is null");
+        this.additionalObjectStoreModule = requireNonNull(additionalObjectStoreModule, "additionalObjectStoreModule is null");
         this.localFileSystemRootPath = requireNonNull(localFileSystemRootPath, "localFileSystemRootPath is null");
     }
 
     @Override
     public Iterable<ConnectorFactory> getConnectorFactories()
     {
-        return ImmutableList.of(new TestingObjectStoreConnectorFactory(connectorName, metastore, hiveModule, localFileSystemRootPath));
+        return ImmutableList.of(new TestingObjectStoreConnectorFactory(connectorName, metastore, hiveModule, additionalObjectStoreModule, localFileSystemRootPath));
     }
 }

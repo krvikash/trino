@@ -24,6 +24,7 @@ import com.google.inject.Inject;
 import com.google.inject.Injector;
 import io.airlift.bootstrap.LifeCycleManager;
 import io.opentelemetry.api.trace.Tracer;
+import io.trino.plugin.base.classloader.ClassLoaderSafeConnectorAccessControl;
 import io.trino.plugin.base.classloader.ClassLoaderSafeConnectorCacheMetadata;
 import io.trino.plugin.base.classloader.ClassLoaderSafeConnectorMetadata;
 import io.trino.plugin.base.classloader.ClassLoaderSafeConnectorSubstitutionMetadata;
@@ -38,6 +39,7 @@ import io.trino.plugin.iceberg.IcebergMetadata;
 import io.trino.plugin.objectstore.substitution.ObjectStoreSubstitutionMetadata;
 import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.connector.Connector;
+import io.trino.spi.connector.ConnectorAccessControl;
 import io.trino.spi.connector.ConnectorCapabilities;
 import io.trino.spi.connector.ConnectorMetadata;
 import io.trino.spi.connector.ConnectorNodePartitioningProvider;
@@ -127,6 +129,7 @@ public class ObjectStoreConnector
     private final FunctionProvider functionProvider;
     private final Tracer tracer;
     private final CatalogName catalogName;
+    private final Optional<ConnectorAccessControl> accessControl;
 
     private final IcebergFileFormat defaultIcebergFileFormat;
     private final RelationTypeCache relationTypeCache = new RelationTypeCache();
@@ -155,7 +158,8 @@ public class ObjectStoreConnector
             HiveConfig hiveConfig,
             MetastoreTypeConfig metastoreTypeConfig,
             Tracer tracer,
-            CatalogName catalogName)
+            CatalogName catalogName,
+            Optional<ConnectorAccessControl> accessControl)
     {
         this.injector = requireNonNull(injector, "injector is null");
         this.delegates = requireNonNull(delegates, "delegates is null");
@@ -196,6 +200,8 @@ public class ObjectStoreConnector
         this.defaultIcebergFileFormat = objectStoreConfig.getDefaultIcebergFileFormat();
         this.tracer = requireNonNull(tracer, "tracer is null");
         this.catalogName = requireNonNull(catalogName, "catalogName is null");
+        this.accessControl = requireNonNull(accessControl, "accessControl is null")
+                .map(control -> new ClassLoaderSafeConnectorAccessControl(control, getClass().getClassLoader()));
     }
 
     @VisibleForTesting
@@ -208,6 +214,14 @@ public class ObjectStoreConnector
     DelegateConnectors getDelegates()
     {
         return delegates;
+    }
+
+    @Override
+    public ConnectorAccessControl getAccessControl()
+    {
+        // Delegate connectors' access controls are intentionally not consulted here. A single connector-level
+        // access control (if bound) applies to all table types, matching how the engine authorizes one catalog.
+        return accessControl.orElseThrow(UnsupportedOperationException::new);
     }
 
     private static List<PropertyMetadata<?>> schemaProperties()

@@ -60,6 +60,10 @@ public final class InternalStarburstObjectStoreConnectorFactory
 {
     private InternalStarburstObjectStoreConnectorFactory() {}
 
+    /**
+     * @param additionalObjectStoreModule additional module installed in the object store connector's own injector
+     *         (as opposed to the delegate connectors' injectors), e.g. to bind a {@code ConnectorAccessControl}
+     */
     public static Connector createConnector(
             String catalogName,
             Map<String, String> config,
@@ -68,6 +72,7 @@ public final class InternalStarburstObjectStoreConnectorFactory
             Optional<Module> icebergCatalogModule,
             Optional<Module> deltaMetastoreModule,
             Module deltaModule,
+            Module additionalObjectStoreModule,
             ConnectorContext context)
     {
         Map<String, String> objectStoreConfig = buildConfig(config);
@@ -107,6 +112,7 @@ public final class InternalStarburstObjectStoreConnectorFactory
                         connectorModule(ForDelta.class, deltaConnector),
                         connectorModule(ForHudi.class, hudiConnector),
                         new ObjectStoreModule(),
+                        additionalObjectStoreModule,
                         new GalaxyLocationSecurityModule(),
                         new FileSystemModule(catalogName, context, false),
                         new ConnectorContextModule(catalogName, context));

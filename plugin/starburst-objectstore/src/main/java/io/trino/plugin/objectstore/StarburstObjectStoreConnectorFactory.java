@@ -45,6 +45,7 @@ public class StarburstObjectStoreConnectorFactory
                 Optional.empty(),
                 Optional.empty(),
                 EMPTY_MODULE,
+                EMPTY_MODULE,
                 context);
     }
 }

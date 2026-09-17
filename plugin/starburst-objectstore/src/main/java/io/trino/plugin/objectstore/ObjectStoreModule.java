@@ -20,6 +20,7 @@ import com.google.inject.Module;
 import com.google.inject.Scopes;
 import com.google.inject.TypeLiteral;
 import com.google.inject.multibindings.Multibinder;
+import io.trino.plugin.base.security.ConnectorAccessControlModule;
 import io.trino.plugin.hive.HiveConfig;
 import io.trino.plugin.hive.metastore.MetastoreTypeConfig;
 import io.trino.plugin.objectstore.functions.tablechanges.TableChangesFunctionProvider;
@@ -68,6 +69,10 @@ public class ObjectStoreModule
         configBinder(binder).bindConfig(ObjectStoreConfig.class);
         configBinder(binder).bindConfig(HiveConfig.class);
         configBinder(binder).bindConfig(MetastoreTypeConfig.class);
+
+        // No ConnectorAccessControl is bound by default, so the engine uses system access control.
+        // Embedding connectors (e.g. SEP Great Lakes) may set the optional binding to enforce connector-level security.
+        binder.install(new ConnectorAccessControlModule());
 
         binder.bind(FeatureExposures.class).in(Scopes.SINGLETON);
         newOptionalBinder(binder, Key.get(new TypeLiteral<Optional<Table<TableType, String, FeatureExposure>>>() {}, AdditionalSessionExposures.class))

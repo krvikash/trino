@@ -61,14 +61,21 @@ public class TestingObjectStoreConnectorFactory
     private final String connectorName;
     private final Optional<HiveMetastore> metastore;
     private final Optional<Module> hiveModule;
+    private final Optional<Module> additionalObjectStoreModule;
     private final Optional<TrinoFileSystemFactory> localFileSystemFactory;
     private final Optional<TransactionLogSynchronizer> localTransactionLogSynchronizer;
 
-    public TestingObjectStoreConnectorFactory(String connectorName, Optional<HiveMetastore> metastore, Optional<Module> hiveModule, Optional<Path> localFileSystemRootPath)
+    public TestingObjectStoreConnectorFactory(
+            String connectorName,
+            Optional<HiveMetastore> metastore,
+            Optional<Module> hiveModule,
+            Optional<Module> additionalObjectStoreModule,
+            Optional<Path> localFileSystemRootPath)
     {
         this.connectorName = requireNonNull(connectorName, "connectorName is null");
         this.metastore = requireNonNull(metastore, "metastore is null");
         this.hiveModule = requireNonNull(hiveModule, "hiveModule is null");
+        this.additionalObjectStoreModule = requireNonNull(additionalObjectStoreModule, "additionalObjectStoreModule is null");
         requireNonNull(localFileSystemRootPath, "localFileSystemRootPath is null");
         this.localFileSystemFactory = localFileSystemRootPath.map(LocalFileSystemFactory::new);
         this.localTransactionLogSynchronizer = localFileSystemFactory.map(factory -> new TestingLocalTransactionLogSynchronizer(new DefaultDeltaLakeFileSystemFactory(factory, new NoOpTableCredentialsProvider())));
@@ -100,6 +107,7 @@ public class TestingObjectStoreConnectorFactory
 
                         configBinder(binder).bindConfig(MetastoreTypeConfig.class);
                     },
+                    additionalObjectStoreModule.orElse(EMPTY_MODULE),
                     context);
             default -> throw new IllegalArgumentException("Unknown connector: " + connectorName);
         };

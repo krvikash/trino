@@ -15,12 +15,21 @@ package io.trino.plugin.objectstore;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterators;
+import com.google.inject.Module;
+import io.trino.plugin.base.classloader.ClassLoaderSafeConnectorAccessControl;
+import io.trino.plugin.base.security.AllowAllAccessControl;
+import io.trino.spi.connector.Connector;
+import io.trino.spi.connector.ConnectorAccessControl;
 import io.trino.spi.connector.ConnectorFactory;
 import io.trino.testing.TestingConnectorContext;
 import org.junit.jupiter.api.Test;
 
+import java.util.Optional;
+
 import static com.google.common.collect.Iterators.getOnlyElement;
+import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
 import static io.trino.plugin.objectstore.StarburstObjectStoreConnectorFactory.STARBURST_OBJECTSTORE;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class TestObjectStorePlugin
@@ -110,6 +119,47 @@ public class TestObjectStorePlugin
                         .buildOrThrow(),
                 new TestingConnectorContext()))
                 .hasMessageContaining("Configuration property 'unused_config' was not used");
+    }
+
+    @Test
+    public void testNoConnectorAccessControlByDefault()
+    {
+        Connector connector = getConnectorFactory().create(
+                "test",
+                ImmutableMap.of("hive.metastore.uri", "thrift://foo:1234"),
+                new TestingConnectorContext());
+        try {
+            // No ConnectorAccessControl bound means the engine falls back to system access control
+            assertThatThrownBy(connector::getAccessControl)
+                    .isInstanceOf(UnsupportedOperationException.class);
+        }
+        finally {
+            connector.shutdown();
+        }
+    }
+
+    @Test
+    public void testConnectorAccessControlExposedWhenBound()
+    {
+        ConnectorAccessControl accessControl = new AllowAllAccessControl();
+        Module accessControlModule = binder -> newOptionalBinder(binder, ConnectorAccessControl.class)
+                .setBinding()
+                .toInstance(accessControl);
+        ConnectorFactory factory = getOnlyElement(new TestingObjectStorePlugin(STARBURST_OBJECTSTORE, Optional.empty(), Optional.empty(), Optional.of(accessControlModule), Optional.empty())
+                .getConnectorFactories()
+                .iterator());
+
+        Connector connector = factory.create(
+                "test",
+                ImmutableMap.of("hive.metastore.uri", "thrift://foo:1234"),
+                new TestingConnectorContext());
+        try {
+            assertThat(connector.getAccessControl())
+                    .isInstanceOf(ClassLoaderSafeConnectorAccessControl.class);
+        }
+        finally {
+            connector.shutdown();
+        }
     }
 
     private static void assertCreateConnectorFails(String key, String value, String exceptionString)
