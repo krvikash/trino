@@ -851,13 +851,13 @@ public final class GpuExpressionCompiler
             }
 
             if (arguments.stream().allMatch(argument -> argument.type() instanceof VarcharType)) {
-                return compileNary(arguments, GpuVarcharConcat::new, context);
+                return compileNary(arguments, GpuConcat::new, context);
             }
 
             if (arguments.size() == 2 &&
                     arguments.get(0).type() instanceof CharType &&
                     arguments.get(1).type() instanceof CharType) {
-                return compileNary(arguments, compiled -> new GpuCharConcat(compiled.get(0), compiled.get(1)), context);
+                return compileNary(arguments, GpuConcat::new, context);
             }
 
             // The remaining overloads take varbinary (carried as LIST<INT8> on the GPU), array or map arguments

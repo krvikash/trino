@@ -32,15 +32,14 @@ import static io.trino.plugin.base.gpu.GpuUtils.closeColumns;
 import static io.trino.spi.StandardErrorCode.INVALID_FUNCTION_ARGUMENT;
 import static io.trino.spi.block.PageBuilderStatus.DEFAULT_MAX_PAGE_SIZE_IN_BYTES;
 
-/// The `concat` function over `varchar` arguments.
-public final class GpuVarcharConcat
+public final class GpuConcat
         extends GpuExpression
 {
     private static final int MAX_OUTPUT_LENGTH = DEFAULT_MAX_PAGE_SIZE_IN_BYTES;
 
     private final List<GpuExpression> arguments;
 
-    public GpuVarcharConcat(List<GpuExpression> arguments)
+    public GpuConcat(List<GpuExpression> arguments)
     {
         checkArgument(arguments.size() >= 2, "concat requires at least 2 arguments, got %s", arguments.size());
         this.arguments = ImmutableList.copyOf(arguments);
@@ -87,7 +86,7 @@ public final class GpuVarcharConcat
     @Override
     public boolean equals(Object obj)
     {
-        return obj instanceof GpuVarcharConcat other && arguments.equals(other.arguments);
+        return obj instanceof GpuConcat other && arguments.equals(other.arguments);
     }
 
     @Override
