@@ -949,7 +949,7 @@ jobs:
           && ! (contains(matrix.modules, 'trino-redshift') && (contains(matrix.profile, 'cloud-tests') || contains(matrix.profile, 'fte-tests')))
           && ! (contains(matrix.modules, 'trino-snowflake') && contains(matrix.profile, 'cloud-tests'))
           && ! (contains(matrix.modules, 'trino-exchange-filesystem') && contains(matrix.profile, 'cloud-tests'))
-          && ! (contains(matrix.modules, 'trino-filesystem-azure') && contains(matrix.profile, 'cloud-tests'))
+          && ! (contains(matrix.modules, 'trino-filesystem-azure') && (contains(matrix.profile, 'cloud-tests') || contains(matrix.profile, 'onelake-tests')))
           && ! (contains(matrix.modules, 'trino-filesystem-gcs') && contains(matrix.profile, 'cloud-tests'))
           && ! (contains(matrix.modules, 'trino-filesystem-s3') && contains(matrix.profile, 'cloud-tests'))
           && ! (contains(matrix.modules, 'starburst-buffer-data-server') && contains(matrix.profile, 'cloud-tests'))
@@ -1062,6 +1062,21 @@ jobs:
         if: >-
           contains(matrix.modules, 'trino-filesystem-azure') && contains(matrix.profile, 'cloud-tests') &&
           (env.CI_SKIP_SECRETS_PRESENCE_CHECKS != '' || env.ABFS_FLAT_ACCESS_KEY != '' || env.ABFS_HIERARCHICAL_ACCESS_KEY != '' || env.ABFS_OAUTH_CLIENT_SECRET != '')
+        run: |
+          $MAVEN test ${MAVEN_TEST} -pl ${{ matrix.modules }} ${{ format('-P {0}', matrix.profile) }}
+      - name: OneLake FileSystem Cloud Tests
+        id: tests-onelake
+        env:
+          ONELAKE_REGION: ${{ vars.ONELAKE_REGION }}
+          ONELAKE_WORKSPACE: ${{ vars.ONELAKE_WORKSPACE }}
+          ONELAKE_ITEM: ${{ vars.ONELAKE_ITEM }}
+          AZURE_ABFS_OAUTH_TENANT_ID: ${{ vars.AZURE_ABFS_OAUTH_TENANT_ID }}
+          AZURE_ABFS_OAUTH_CLIENT_ID: ${{ vars.AZURE_ABFS_OAUTH_CLIENT_ID }}
+          AZURE_ABFS_OAUTH_CLIENT_SECRET: ${{ secrets.AZURE_ABFS_OAUTH_CLIENT_SECRET }}
+        # Run tests if the OAuth secret is present
+        if: >-
+          contains(matrix.modules, 'trino-filesystem-azure') && contains(matrix.profile, 'onelake-tests') &&
+          (env.CI_SKIP_SECRETS_PRESENCE_CHECKS != '' || env.AZURE_ABFS_OAUTH_CLIENT_SECRET != '')
         run: |
           $MAVEN test ${MAVEN_TEST} -pl ${{ matrix.modules }} ${{ format('-P {0}', matrix.profile) }}
       - name: GCS FileSystem Cloud Tests
@@ -1442,6 +1457,7 @@ jobs:
             || steps.tests-hdfs-isolated.outcome == 'failure'
             || steps.tests-s3.outcome == 'failure'
             || steps.tests-azure.outcome == 'failure'
+            || steps.tests-onelake.outcome == 'failure'
             || steps.tests-buffer-trino-fs-cloud.outcome == 'failure'
             || steps.tests-filesystem-exchange.outcome == 'failure'
             || steps.tests-gcs.outcome == 'failure'

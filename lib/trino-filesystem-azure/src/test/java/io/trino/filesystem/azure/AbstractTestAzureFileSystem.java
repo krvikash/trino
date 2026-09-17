@@ -16,6 +16,7 @@ package io.trino.filesystem.azure;
 import com.azure.storage.blob.BlobContainerClient;
 import com.azure.storage.blob.BlobContainerClientBuilder;
 import com.azure.storage.blob.models.BlobItem;
+import com.azure.storage.blob.models.ListBlobsOptions;
 import com.azure.storage.blob.specialized.BlockBlobClient;
 import com.azure.storage.file.datalake.DataLakeFileSystemClient;
 import com.azure.storage.file.datalake.DataLakeServiceClient;
@@ -23,6 +24,7 @@ import com.azure.storage.file.datalake.DataLakeServiceClientBuilder;
 import com.azure.storage.file.datalake.models.PathItem;
 import com.azure.storage.file.datalake.options.DataLakePathDeleteOptions;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.io.Closer;
 import io.opentelemetry.api.OpenTelemetry;
 import io.trino.filesystem.AbstractTestTrinoFileSystem;
@@ -43,6 +45,7 @@ import org.junit.jupiter.api.TestInstance.Lifecycle;
 
 import java.io.IOException;
 import java.io.InterruptedIOException;
+import java.util.Optional;
 
 import static com.google.common.base.Preconditions.checkState;
 import static java.util.Locale.ROOT;
@@ -74,6 +77,26 @@ public abstract class AbstractTestAzureFileSystem
     private AzureFileSystemFactory fileSystemFactory;
     private TrinoFileSystem fileSystem;
 
+    protected String endpoint()
+    {
+        return "core.windows.net";
+    }
+
+    protected Optional<String> existingContainer()
+    {
+        return Optional.empty();
+    }
+
+    protected String pathPrefix()
+    {
+        return "";
+    }
+
+    protected boolean supportsAccountKindProbe()
+    {
+        return true;
+    }
+
     protected void initializeWithAccessKey(String account, String accountKey, AccountKind accountKind)
             throws IOException
     {
@@ -100,28 +123,37 @@ public abstract class AbstractTestAzureFileSystem
         this.azureAuth = requireNonNull(azureAuth, "azureAuth is null");
         this.accountKind = requireNonNull(accountKind, "accountKind is null");
         this.multipartWriteEnabled = multipartWriteEnabled;
-        containerName = "test-%s-%s".formatted(accountKind.name().toLowerCase(ROOT), randomUUID());
-        rootLocation = Location.of("abfs://%s@%s.dfs.core.windows.net/".formatted(containerName, account));
+        checkState(
+                existingContainer().isEmpty() || (accountKind == AccountKind.HIERARCHICAL && !pathPrefix().isEmpty()),
+                "An existing container requires a hierarchical account and a path prefix, since only the prefix directory can be torn down");
+        containerName = existingContainer().orElseGet(() -> "test-%s-%s".formatted(accountKind.name().toLowerCase(ROOT), randomUUID()));
+        rootLocation = Location.of("abfs://%s@%s.dfs.%s/%s".formatted(containerName, account, endpoint(), blobKey("")));
 
         BlobContainerClientBuilder builder = new BlobContainerClientBuilder()
-                .endpoint("https://%s.blob.core.windows.net".formatted(account))
+                .endpoint("https://%s.blob.%s".formatted(account, endpoint()))
                 .containerName(containerName);
         azureAuth.setAuth(account, builder);
         blobContainerClient = builder.buildClient();
-        // this will fail if the container already exists, which is what we want
-        blobContainerClient.create();
-        boolean isHierarchicalNamespaceEnabled = isHierarchicalNamespaceEnabled();
-        if (accountKind == AccountKind.HIERARCHICAL) {
-            checkState(isHierarchicalNamespaceEnabled, "Expected hierarchical namespaces to be enabled for storage account %s and container %s with account kind %s".formatted(account, containerName, accountKind));
+        if (existingContainer().isEmpty()) {
+            // this will fail if the container already exists, which is what we want
+            blobContainerClient.create();
         }
-        else {
-            checkState(!isHierarchicalNamespaceEnabled, "Expected hierarchical namespaces to not be enabled for storage account %s and container %s with account kind %s".formatted(account, containerName, accountKind));
+
+        if (supportsAccountKindProbe()) {
+            boolean isHierarchicalNamespaceEnabled = isHierarchicalNamespaceEnabled();
+            if (accountKind == AccountKind.HIERARCHICAL) {
+                checkState(isHierarchicalNamespaceEnabled, "Expected hierarchical namespaces to be enabled for storage account %s and container %s with account kind %s".formatted(account, containerName, accountKind));
+            }
+            else {
+                checkState(!isHierarchicalNamespaceEnabled, "Expected hierarchical namespaces to not be enabled for storage account %s and container %s with account kind %s".formatted(account, containerName, accountKind));
+            }
         }
 
         fileSystemFactory = new AzureFileSystemFactory(
                 OpenTelemetry.noop(),
                 azureAuth,
                 new AzureFileSystemConfig()
+                        .setEndpoints(ImmutableSet.of(endpoint()))
                         .setMultipartWriteEnabled(multipartWriteEnabled));
         fileSystem = fileSystemFactory.create(ConnectorIdentity.ofUser("test"));
 
@@ -145,16 +177,21 @@ public abstract class AbstractTestAzureFileSystem
     @AfterAll
     void tearDown()
     {
-        azureAuth = null;
         if (fileSystemFactory != null) {
             fileSystemFactory.destroy();
             fileSystemFactory = null;
         }
         fileSystem = null;
         if (blobContainerClient != null) {
-            blobContainerClient.deleteIfExists();
+            if (existingContainer().isEmpty()) {
+                blobContainerClient.deleteIfExists();
+            }
+            else {
+                deletePathPrefix();
+            }
             blobContainerClient = null;
         }
+        azureAuth = null;
     }
 
     @AfterEach
@@ -168,24 +205,48 @@ public abstract class AbstractTestAzureFileSystem
         if (accountKind == AccountKind.HIERARCHICAL) {
             DataLakeFileSystemClient fileSystemClient = createDataLakeFileSystemClient();
             DataLakePathDeleteOptions deleteRecursiveOptions = new DataLakePathDeleteOptions().setIsRecursive(true);
-            for (PathItem pathItem : fileSystemClient.listPaths()) {
-                if (pathItem.isDirectory()) {
-                    fileSystemClient.deleteDirectoryIfExistsWithResponse(pathItem.getName(), deleteRecursiveOptions, null, null);
-                }
-                else {
-                    fileSystemClient.deleteFileIfExists(pathItem.getName());
+            if (!pathPrefix().isEmpty()) {
+                replaceDirectory(fileSystemClient, deleteRecursiveOptions);
+            }
+            else {
+                for (PathItem pathItem : fileSystemClient.listPaths()) {
+                    if (pathItem.isDirectory()) {
+                        fileSystemClient.deleteDirectoryIfExistsWithResponse(pathItem.getName(), deleteRecursiveOptions, null, null);
+                    }
+                    else {
+                        fileSystemClient.deleteFileIfExists(pathItem.getName());
+                    }
                 }
             }
         }
         else {
-            blobContainerClient.listBlobs().forEach(item -> blobContainerClient.getBlobClient(item.getName()).deleteIfExists());
+            blobContainerClient.listBlobs(new ListBlobsOptions().setPrefix(blobKey("")), null)
+                    .forEach(item -> blobContainerClient.getBlobClient(item.getName()).deleteIfExists());
         }
+    }
+
+    private void replaceDirectory(DataLakeFileSystemClient fileSystemClient, DataLakePathDeleteOptions deleteRecursiveOptions)
+    {
+        // a test may delete the run's own root directory, so replace it rather than list a missing path
+        fileSystemClient.deleteDirectoryIfExistsWithResponse(pathPrefix(), deleteRecursiveOptions, null, null);
+        fileSystemClient.createDirectory(pathPrefix(), false);
+    }
+
+    private void deletePathPrefix()
+    {
+        DataLakePathDeleteOptions deleteRecursiveOptions = new DataLakePathDeleteOptions().setIsRecursive(true);
+        createDataLakeFileSystemClient().deleteDirectoryIfExistsWithResponse(pathPrefix(), deleteRecursiveOptions, null, null);
+    }
+
+    private String blobKey(String path)
+    {
+        return pathPrefix().isEmpty() ? path : "%s/%s".formatted(pathPrefix(), path);
     }
 
     private DataLakeFileSystemClient createDataLakeFileSystemClient()
     {
         DataLakeServiceClientBuilder serviceClientBuilder = new DataLakeServiceClientBuilder()
-                .endpoint("https://%s.dfs.core.windows.net".formatted(account));
+                .endpoint("https://%s.dfs.%s".formatted(account, endpoint()));
         azureAuth.setAuth(account, serviceClientBuilder);
         DataLakeServiceClient serviceClient = serviceClientBuilder.buildClient();
         return serviceClient.getFileSystemClient(containerName);
@@ -221,7 +282,9 @@ public abstract class AbstractTestAzureFileSystem
     @Override
     protected final void verifyFileSystemIsEmpty()
     {
-        assertThat(blobContainerClient.listBlobs()).map(BlobItem::getName).isEmpty();
+        assertThat(blobContainerClient.listBlobs(new ListBlobsOptions().setPrefix(blobKey("")), null))
+                .map(BlobItem::getName)
+                .isEmpty();
     }
 
     @Test
@@ -265,7 +328,7 @@ public abstract class AbstractTestAzureFileSystem
                 Thread.currentThread().interrupt();
                 throw new InterruptedIOException();
             }
-            if (blobContainerClient.listBlobs().iterator().hasNext()) {
+            if (blobContainerClient.listBlobs(new ListBlobsOptions().setPrefix(blobKey("")), null).iterator().hasNext()) {
                 cleanupFiles();
                 emptySinceNanos = System.nanoTime();
             }
@@ -328,7 +391,7 @@ public abstract class AbstractTestAzureFileSystem
     void testWasb()
             throws IOException
     {
-        try (TempBlob tempBlob = new TempBlob(Location.of("wasb://%s@%s.blob.core.windows.net/wasb-test/%s".formatted(containerName, account, randomUUID())))) {
+        try (TempBlob tempBlob = new TempBlob(Location.of("wasb://%s@%s.blob.%s/%s".formatted(containerName, account, endpoint(), blobKey("wasb-test/" + randomUUID()))))) {
             assertThat(tempBlob.exists()).isFalse();
 
             TrinoInputFile inputFile = getFileSystem().newInputFile(tempBlob.location());

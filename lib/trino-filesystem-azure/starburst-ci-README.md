@@ -57,3 +57,18 @@ This is done to provide the necessary permissions for OAuth2.0 related scenarios
 
 The access key for accessing the storage account for generic scenarios (not OAuth2.0 scenarios)
 can be found in the _Access keys_ section.
+
+### OneLake and Fabric resources
+
+For OneLake tests, a new fabric capacity, workspace, and lakehouse were created. 
+
+- The capacity, `starburstfabric`, exists in `eastus` under the `starburstdata-saas-dev` subscription. 
+  This was created with an F2 capacity, the smallest available.
+- The workspace, `starburst-workspace-ci`, was created using this capacity. The `starburst-dev-cicd` 
+  service principal is a member.
+- The lakehouse, `starburst_lakehouse`, was created in this workspace. It is also known as an "item" 
+  in OneLake.
+
+For OneLake tests, you need the region (`eastus`), the workspace (`starburst-workspace-ci`), the item
+(`starburst_lakehouse.Lakehouse`), the client ID and secret associated with `starburst-dev-cicd`, and
+the tenant ID.

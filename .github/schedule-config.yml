@@ -125,6 +125,7 @@
     dispatches: false
     impacted: false
 ## Weekly
+- { modules: lib/trino-filesystem-azure, profile: onelake-tests, when: {scheduled: weekly} }
 - { modules: plugin/starburst-kdb, when: {scheduled: weekly} }
 - { modules: plugin/starburst-openapi, when: {scheduled: weekly} }
 - { modules: plugin/trino-hudi, when: {scheduled: weekly} }
