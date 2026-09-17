@@ -12,6 +12,7 @@ package io.starburst.stargate.buffer.data.spooling;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
+import io.airlift.log.Logger;
 import io.airlift.stats.CounterStat;
 import io.airlift.stats.DistributionStat;
 import io.starburst.stargate.buffer.data.client.spooling.SpooledChunk;
@@ -33,6 +34,8 @@ import static java.util.Objects.requireNonNull;
 public abstract class AbstractSpoolingStorage
         implements SpoolingStorage
 {
+    private static final Logger log = Logger.get(AbstractSpoolingStorage.class);
+
     private final MergedFileNameGenerator mergedFileNameGenerator;
     private final CounterStat spooledDataSize;
     private final CounterStat spoolingFailures;
@@ -89,6 +92,7 @@ public abstract class AbstractSpoolingStorage
                     public void onFailure(Throwable t)
                     {
                         spoolingFailures.update(1);
+                        log.warn(t, "Spooling failure for exchange %s", exchangeId);
                     }
                 },
                 directExecutor());
