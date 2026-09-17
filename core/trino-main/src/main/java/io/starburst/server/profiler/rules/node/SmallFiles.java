@@ -61,7 +61,7 @@ public class SmallFiles
         DistributionSnapshot inputRowsDistribution = inputRowsDistribution(operator);
         return new RuleFinding.Node(
                 planNodeId.toString(),
-                "Table scan %s on table '%s' produced many (%s) small (p75 row count: %s) splits.".formatted(
-                        planNodeId, tableInfo.tableName(), operator.getTotalDrivers(), inputRowsDistribution.p75()));
+                "Table scan on '%s' produced many (%s) small splits (p75 rows: %s).".formatted(
+                        tableInfo.tableName(), operator.getTotalDrivers(), inputRowsDistribution.p75()));
     }
 }

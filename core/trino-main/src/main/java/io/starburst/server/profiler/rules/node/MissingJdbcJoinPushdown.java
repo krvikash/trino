@@ -33,7 +33,7 @@ public class MissingJdbcJoinPushdown
     {
         return details.planNodesById().values().stream()
                 .filter(node -> isMissingJdbcJoinPushdown(node, details))
-                .map(MissingJdbcJoinPushdown::toFinding)
+                .map(node -> toFinding(node, details))
                 .collect(toImmutableList());
     }
 
@@ -66,8 +66,14 @@ public class MissingJdbcJoinPushdown
                 .collect(toImmutableList());
     }
 
-    private static RuleFinding toFinding(PlanNode node)
+    private static RuleFinding toFinding(PlanNode node, QueryExecutionDetails details)
     {
-        return new RuleFinding.Node(node.getId().toString(), "Is missing join pushdown");
+        List<String> catalogs = jdbcCatalogs(details.children(node).getFirst(), details).stream()
+                .map(catalogHandle -> catalogHandle.getCatalogName().toString())
+                .sorted()
+                .collect(toImmutableList());
+        return new RuleFinding.Node(
+                node.getId().toString(),
+                "Join is not pushed down to JDBC catalogs %s.".formatted(catalogs));
     }
 }
