@@ -21,7 +21,9 @@ import static com.google.common.base.Preconditions.checkArgument;
  * split when its page source is created and does not change within the split. Filtering stays on
  * while the scan is sampled. Once enough rows and splits are sampled, it is turned off for later
  * splits when the index skips too few chunks to pay for the match work and too many rows survive
- * for downstream savings to pay for it instead. Only a bounded number of splits sample at once, so
+ * for downstream savings to pay for it instead. Every verdict starts a new sample, so a gate that
+ * outlives a query follows the splits it sees now instead of everything it has ever seen. Only a
+ * bounded number of splits sample at once, so
  * the cost of a wrong guess does not scale with how many splits the workers start in parallel.
  * After enough proxied splits the sample is reset and filtering is retried, so selectivity that
  * varies across a table is picked up. Each retry that confirms the verdict doubles the wait before
@@ -145,6 +147,7 @@ public class FilteringStats
             retryingAfterDisabled = false;
             resampleAfterProxiedSplits = INITIAL_RESAMPLE_AFTER_PROXIED_SPLITS;
         }
+        clearSample();
     }
 
     /**
@@ -159,14 +162,22 @@ public class FilteringStats
         return (totalChunks - matchedChunks) < chunkSkipThreshold * totalChunks;
     }
 
-    private void resetSample()
+    /**
+     * Drops the splits a verdict was made on, so the next verdict is made on the splits that follow it.
+     */
+    private void clearSample()
     {
-        mode = FilteringMode.SAMPLING;
         totalRows = 0;
         rowsAfterFiltering = 0;
         totalChunks = 0;
         matchedChunks = 0;
         sampledSplits = 0;
+    }
+
+    private void resetSample()
+    {
+        mode = FilteringMode.SAMPLING;
+        clearSample();
         samplingSplitsInFlight = 0;
         // a retry is speculative, so let fewer splits filter at once than in the first sample
         samplingAdmissionLimit = MIN_SAMPLE_SPLITS;

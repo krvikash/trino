@@ -66,6 +66,17 @@ public class FilteringStatsTest
     }
 
     @Test
+    public void testVerdictUsesOnlyTheSplitsSinceTheLastVerdict()
+    {
+        FilteringStats filteringStats = new FilteringStats(LOW_SELECTIVITY_THRESHOLD, CHUNK_SKIP_THRESHOLD);
+        recordSplit(filteringStats, 1, 90);
+        recordSplit(filteringStats, 1, 90);
+        recordSplit(filteringStats, ROWS_PER_SPLIT, CHUNKS_PER_SPLIT);
+        recordSplit(filteringStats, ROWS_PER_SPLIT, CHUNKS_PER_SPLIT);
+        assertThat(filteringStats.tryAdmitFiltering()).isFalse();
+    }
+
+    @Test
     public void testVerdictDeferredUntilEnoughSplitsAreSampled()
     {
         FilteringStats filteringStats = new FilteringStats(LOW_SELECTIVITY_THRESHOLD, CHUNK_SKIP_THRESHOLD);
