@@ -29,6 +29,8 @@ import org.junit.jupiter.api.parallel.Execution;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static io.starburst.stargate.buffer.trino.exchange.EmbeddedBufferQueryRunner.BUFFER_NODE_STATE_TRANSITION_TIMEOUT_MILLIS;
 import static io.starburst.stargate.buffer.trino.exchange.EmbeddedBufferQueryRunner.CHUNKS_AVAILABLE_TIMEOUT_MILLIS;
@@ -114,13 +116,11 @@ public class TestEmbeddedBufferDrain
     {
         ListeningExecutorService executor = MoreExecutors.listeningDecorator(newCachedThreadPool());
         try (DistributedQueryRunner queryRunner = createRunnerWithWorkers(2)) {
-            TestingTrinoServer worker = getWorker(queryRunner);
-            BufferNodeStateManager bufferNodeStateManager = worker.getInstance(Key.get(BufferNodeStateManager.class));
-            ChunkManager chunkManager = worker.getInstance(Key.get(ChunkManager.class));
-            DrainService drainService = worker.getInstance(Key.get(DrainService.class));
-
-            assertEventually(new Duration(BUFFER_NODE_STATE_TRANSITION_TIMEOUT_MILLIS, MILLISECONDS),
-                    () -> assertThat(bufferNodeStateManager.getState()).isEqualTo(BufferNodeState.ACTIVE));
+            for (TestingTrinoServer server : queryRunner.getServers()) {
+                BufferNodeStateManager stateManager = server.getInstance(Key.get(BufferNodeStateManager.class));
+                assertEventually(new Duration(BUFFER_NODE_STATE_TRANSITION_TIMEOUT_MILLIS, MILLISECONDS),
+                        () -> assertThat(stateManager.getState()).isEqualTo(BufferNodeState.ACTIVE));
+            }
 
             List<ListenableFuture<MaterializedResult>> queryFutures = new ArrayList<>();
             for (int i = 0; i < 5; i++) {
@@ -131,10 +131,11 @@ public class TestEmbeddedBufferDrain
                                         "GROUP BY a.group_key")));
             }
 
-            assertEventually(new Duration(CHUNKS_AVAILABLE_TIMEOUT_MILLIS, MILLISECONDS),
-                    () -> assertThat(chunkManager.getOpenChunks() + chunkManager.getClosedChunks())
-                            .describedAs("Expected chunks to be present before triggering drain")
-                            .isGreaterThan(0));
+            // Each query's exchange data is placed on a randomly chosen buffer node, so drain the node that received it
+            TestingTrinoServer bufferNodeServer = waitForServerWithChunks(queryRunner);
+            BufferNodeStateManager bufferNodeStateManager = bufferNodeServer.getInstance(Key.get(BufferNodeStateManager.class));
+            ChunkManager chunkManager = bufferNodeServer.getInstance(Key.get(ChunkManager.class));
+            DrainService drainService = bufferNodeServer.getInstance(Key.get(DrainService.class));
 
             drainService.drain();
 
@@ -144,7 +145,7 @@ public class TestEmbeddedBufferDrain
             assertEventually(new Duration(BUFFER_NODE_STATE_TRANSITION_TIMEOUT_MILLIS, MILLISECONDS),
                     () -> assertThat(bufferNodeStateManager.getState()).isEqualTo(BufferNodeState.DRAINED));
 
-            assertThat(chunkManager.getOpenChunks() + chunkManager.getClosedChunks())
+            assertThat(inMemoryChunks(chunkManager))
                     .describedAs("All in-memory chunks should be gone after drain")
                     .isEqualTo(0);
             assertThat(chunkManager.getSpooledChunksCount())
@@ -156,5 +157,25 @@ public class TestEmbeddedBufferDrain
         finally {
             executor.shutdownNow();
         }
+    }
+
+    private static TestingTrinoServer waitForServerWithChunks(DistributedQueryRunner queryRunner)
+    {
+        AtomicReference<TestingTrinoServer> serverWithChunks = new AtomicReference<>();
+        assertEventually(new Duration(CHUNKS_AVAILABLE_TIMEOUT_MILLIS, MILLISECONDS), () -> {
+            Optional<TestingTrinoServer> server = queryRunner.getServers().stream()
+                    .filter(candidate -> inMemoryChunks(candidate.getInstance(Key.get(ChunkManager.class))) > 0)
+                    .findFirst();
+            assertThat(server)
+                    .describedAs("Expected chunks to be present on a buffer node before triggering drain")
+                    .isPresent();
+            serverWithChunks.set(server.orElseThrow());
+        });
+        return serverWithChunks.get();
+    }
+
+    private static long inMemoryChunks(ChunkManager chunkManager)
+    {
+        return chunkManager.getOpenChunks() + chunkManager.getClosedChunks();
     }
 }
