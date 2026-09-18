@@ -44,6 +44,7 @@ import software.amazon.awssdk.retries.api.BackoffStrategy;
 import software.amazon.awssdk.services.glue.GlueClient;
 import software.amazon.awssdk.services.glue.GlueClientBuilder;
 import software.amazon.awssdk.services.glue.model.ConcurrentModificationException;
+import software.amazon.awssdk.services.glue.model.OperationTimeoutException;
 import software.amazon.awssdk.services.glue.model.ThrottlingException;
 import software.amazon.awssdk.services.sts.StsClient;
 import software.amazon.awssdk.services.sts.StsClientBuilder;
@@ -151,7 +152,10 @@ public final class GlueMetastoreModule
         glue.overrideConfiguration(builder -> builder
                 .executionInterceptors(ImmutableList.copyOf(executionInterceptors))
                 .retryStrategy(retryBuilder -> retryBuilder
-                        .retryOnException(throwable -> throwable instanceof ConcurrentModificationException || throwable instanceof ThrottlingException)
+                        // Glue models these as 400s so the SDK does not retry them by default, but all are transient
+                        .retryOnException(throwable -> throwable instanceof ConcurrentModificationException
+                                || throwable instanceof ThrottlingException
+                                || throwable instanceof OperationTimeoutException)
                         .backoffStrategy(BackoffStrategy.exponentialDelay(
                                 java.time.Duration.ofMillis(20),
                                 java.time.Duration.ofMillis(1500)))
