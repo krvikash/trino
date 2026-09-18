@@ -37,6 +37,25 @@ public class TestGpuVarbinaryJoinQueries
     }
 
     @Test
+    public void testGpuVarbinaryLeftJoinWithEmptyBuildSide()
+    {
+        // No build row at all, so every probe row is padded with nulls for the build columns. A null
+        // VARBINARY is a null LIST<UINT8>, which Scalar.fromNull cannot build.
+        assertThat(query(
+                """
+                SELECT p.n, b.v
+                FROM (SELECT i AS n FROM (UNNEST(sequence(0, 20))) t(i)) p
+                LEFT JOIN (
+                        SELECT to_utf8(CAST(i AS varchar)) AS v, i AS n
+                        FROM (UNNEST(sequence(0, 20))) t(i)
+                        WHERE CAST(i AS varchar) = 'no such value' -- unsatisfiable
+                        ) b
+                    ON p.n = b.n
+                """))
+                .executesWithGpu(JoinNode.class);
+    }
+
+    @Test
     public void testGpuVarbinaryJoin()
     {
         // Plain equi-join on a VARBINARY key runs on GPU.

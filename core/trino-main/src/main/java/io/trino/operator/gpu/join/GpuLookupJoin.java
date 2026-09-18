@@ -47,6 +47,7 @@ import java.util.Optional;
 
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Verify.verify;
+import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.airlift.concurrent.MoreFutures.asVoid;
 import static io.airlift.concurrent.MoreFutures.getDone;
 import static io.trino.operator.gpu.memory.GpuMemoryUtils.getMixedInnerJoinGpuDeviceMemoryUsage;
@@ -54,6 +55,7 @@ import static io.trino.operator.gpu.memory.GpuMemoryUtils.getMixedLeftJoinGpuDev
 import static io.trino.operator.gpu.memory.GpuMemoryUtils.getNullColumnMemoryUsage;
 import static io.trino.plugin.base.gpu.GpuUtils.closeColumns;
 import static io.trino.plugin.base.gpu.GpuUtils.toTable;
+import static io.trino.spi.gpu.GpuTypeConversion.nullScalar;
 import static java.lang.Math.toIntExact;
 import static java.util.Objects.requireNonNull;
 
@@ -133,6 +135,7 @@ public final class GpuLookupJoin
     private final int[] probeOutputChannels;
     private final JoinType joinType;
     private final List<Type> buildOutputTypes;
+    private final List<DType> buildOutputDTypes;
     private final boolean filteredJoin;
 
     private GpuLookupJoin(
@@ -151,7 +154,11 @@ public final class GpuLookupJoin
         this.probeKeyChannels = probeKeyChannels;
         this.probeOutputChannels = probeOutputChannels;
         this.joinType = joinType;
-        this.buildOutputTypes = buildOutputTypes;
+        this.buildOutputTypes = ImmutableList.copyOf(requireNonNull(buildOutputTypes, "buildOutputTypes is null"));
+        this.buildOutputDTypes = buildOutputTypes.stream()
+                .map(type -> GpuTypeConversion.toDType(type)
+                        .orElseThrow(() -> new IllegalStateException("Build type not GPU convertible: " + type)))
+                .collect(toImmutableList());
         this.filteredJoin = filteredJoin;
 
         closer.register(source);
@@ -326,16 +333,13 @@ public final class GpuLookupJoin
     private @Move GpuPage emitProbeRowsWithNullBuild(@Borrow GpuPage probePage, @Borrow AllocatedMemory allocation)
     {
         allocation.update(allocation.amount().add(estimateNullColumnMemoryUsage(probePage.positionCount())));
-        @Own Column[] outputColumns = new Column[probeOutputChannels.length + buildOutputTypes.size()];
+        @Own Column[] outputColumns = new Column[probeOutputChannels.length + buildOutputDTypes.size()];
         try {
             for (int i = 0; i < probeOutputChannels.length; i++) {
                 outputColumns[i] = probePage.column(probeOutputChannels[i]).incRefCount();
             }
-            for (int i = 0; i < buildOutputTypes.size(); i++) {
-                Type type = buildOutputTypes.get(i);
-                DType dType = GpuTypeConversion.toDType(type)
-                        .orElseThrow(() -> new IllegalStateException("Build type not GPU convertible: " + type));
-                try (Scalar nullScalar = Scalar.fromNull(dType)) {
+            for (int i = 0; i < buildOutputDTypes.size(); i++) {
+                try (Scalar nullScalar = nullScalar(buildOutputTypes.get(i))) {
                     outputColumns[probeOutputChannels.length + i] = new DeviceMemory(ColumnVector.fromScalar(nullScalar, probePage.positionCount()));
                 }
             }
@@ -349,9 +353,7 @@ public final class GpuLookupJoin
     private MemoryAmount estimateNullColumnMemoryUsage(int positionCount)
     {
         long bytes = 0L;
-        for (Type type : buildOutputTypes) {
-            DType dType = GpuTypeConversion.toDType(type)
-                    .orElseThrow(() -> new IllegalStateException("Build type not GPU convertible: " + type));
+        for (DType dType : buildOutputDTypes) {
             bytes += getNullColumnMemoryUsage(dType, positionCount);
         }
         return MemoryAmount.gpuDevice(bytes);
