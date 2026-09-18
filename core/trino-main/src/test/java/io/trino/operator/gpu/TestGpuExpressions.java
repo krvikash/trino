@@ -2612,12 +2612,15 @@ public class TestGpuExpressions
                 positionsCount,
                 createBlock(timestampType, positionsCount, nullsProvider)));
 
-        Type unitType = createVarcharType(unit.length());
-        Expression expression = new Call(
-                FUNCTION_RESOLUTION.resolveFunction("date_trunc", fromTypes(unitType, timestampType)),
-                ImmutableList.of(new Constant(unitType, Slices.utf8Slice(unit)), field(channelA, timestampType)));
+        assertGpuMatchesCpu(inputPages, inputTypes, dateTruncExpression(unit, timestampType), Set.of(channelA));
+    }
 
-        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA));
+    private static Expression dateTruncExpression(String unit, Type timestampType)
+    {
+        Type unitType = createVarcharType(unit.length());
+        return new Call(
+                FUNCTION_RESOLUTION.resolveFunction("date_trunc", fromTypes(unitType, timestampType)),
+                ImmutableList.of(new Constant(unitType, Slices.utf8Slice(unit)), field(0, timestampType)));
     }
 
     @Test
