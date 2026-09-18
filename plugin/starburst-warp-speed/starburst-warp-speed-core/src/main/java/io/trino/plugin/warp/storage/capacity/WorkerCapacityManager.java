@@ -56,6 +56,7 @@ public class WorkerCapacityManager
     private final NativeStorageStateHandler nativeStorageStateHandler;
     private final CatalogNameProvider catalogNameProvider;
     private final AtomicBoolean workerInitialized = new AtomicBoolean();
+    private final AtomicBoolean workerInitializationStarted = new AtomicBoolean();
     private final AtomicInteger executingTxCount = new AtomicInteger();
 
     private File warpDir;
@@ -86,11 +87,12 @@ public class WorkerCapacityManager
 
     public synchronized void initWorker()
     {
-        if (!workerInitialized.get()) {
-            cleanLocalStorage();
-            calculateReservationUsageForSingleTx();
-            workerInitialized.set(true);
+        // workerInitialized is set asynchronously once cleanup finishes, so a separate flag guards against starting twice
+        if (!workerInitializationStarted.compareAndSet(false, true)) {
+            return;
         }
+        calculateReservationUsageForSingleTx();
+        cleanLocalStorage();
     }
 
     private void calculateReservationUsageForSingleTx()
@@ -192,6 +194,7 @@ public class WorkerCapacityManager
         if (!createCatalogLocalStore()) {
             logger.warn("cleanLocalStorage exiting since cannot write to local store");
             calculateTotalCapacity();
+            workerInitialized.set(true);
             return;
         }
 
@@ -203,6 +206,7 @@ public class WorkerCapacityManager
             calculateTotalCapacity();
             nativeStorageStateHandler.enableTemporarily();
             nativeStorageStateHandler.enablePermanently();
+            workerInitialized.set(true);
             return;
         }
 
@@ -256,7 +260,15 @@ public class WorkerCapacityManager
                 }
             }
             finally {
-                calculateTotalCapacity();
+                try {
+                    calculateTotalCapacity();
+                    // publish only after totalCapacity reflects the post-cleanup value
+                    workerInitialized.set(true);
+                }
+                catch (Throwable e) {
+                    // fail closed: stay not-ready rather than advertise an unusable totalCapacity
+                    logger.error(e, "cleanLocalStorage job could not calculate total capacity for [%s]; worker stays uninitialized", localStorePath);
+                }
             }
         });
         cleanLocalStorageThread.start();

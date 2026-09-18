@@ -35,10 +35,13 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Locale;
 import java.util.Random;
+import java.util.concurrent.CountDownLatch;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 
 public class WorkerCapacityManagerTest
@@ -108,10 +111,11 @@ public class WorkerCapacityManagerTest
 
             workerCapacityManager.initWorker();
 
+            // cleanup and the capacity calculation finish on a background thread, which can take seconds on slow CI
             Failsafe.with(RetryPolicy.builder()
                             .handle(AssertionError.class)
-                            .withDelay(Duration.ofMillis(10))
-                            .withMaxRetries(10)
+                            .withDelay(Duration.ofMillis(100))
+                            .withMaxRetries(50)
                             .build())
                     .run(() -> {
                         assertThat(workerCapacityManager.isWorkerInitialized()).isTrue();
@@ -125,6 +129,61 @@ public class WorkerCapacityManagerTest
         }
         finally {
             FileUtils.deleteQuietly(localStoreDirectory);
+        }
+    }
+
+    @Test
+    void testNotInitializedWhileCleanupRuns()
+            throws Exception
+    {
+        Path localStorePath = Files.createTempDirectory("cleanLocalStorage2");
+        globalConfig.setLocalStorePath(localStorePath.toString());
+        File catalogLocalStore = new File(PathUtils.getUriPath(globalConfig.getLocalStorePath(), catalogNameProvider.get()));
+        assertThat(catalogLocalStore.mkdirs()).isTrue();
+        Files.writeString(catalogLocalStore.toPath().resolve("leftover"), "data");
+
+        CountDownLatch cleanupRunning = new CountDownLatch(1);
+        CountDownLatch releaseCleanup = new CountDownLatch(1);
+        NativeStorageStateHandler nativeStorageStateHandler = mock(NativeStorageStateHandler.class);
+        doAnswer(_ -> {
+            cleanupRunning.countDown();
+            releaseCleanup.await();
+            return null;
+        }).when(nativeStorageStateHandler).enableTemporarily();
+        workerCapacityManager = new WorkerCapacityManager(
+                globalConfig,
+                new WarmupDemoterConfig(),
+                new StubsStorageEngineConstants(),
+                nativeStorageStateHandler,
+                TestingTxService.createMetricsManager(),
+                catalogNameProvider);
+
+        try {
+            workerCapacityManager.initWorker();
+            assertThat(cleanupRunning.await(10, SECONDS)).isTrue();
+            assertThat(workerCapacityManager.isWorkerInitialized()).isFalse();
+        }
+        finally {
+            releaseCleanup.countDown();
+            FileUtils.deleteQuietly(localStorePath.toFile());
+        }
+    }
+
+    @Test
+    void testInitWorkerOnEmptyStore()
+            throws IOException
+    {
+        Path localStorePath = Files.createTempDirectory("cleanLocalStorage3");
+        globalConfig.setLocalStorePath(localStorePath.toString());
+        File catalogLocalStore = new File(PathUtils.getUriPath(globalConfig.getLocalStorePath(), catalogNameProvider.get()));
+        assertThat(catalogLocalStore.mkdirs()).isTrue();
+        try {
+            workerCapacityManager.initWorker();
+            assertThat(workerCapacityManager.isWorkerInitialized()).isTrue();
+            assertThat(workerCapacityManager.getTotalCapacity()).isGreaterThan(0);
+        }
+        finally {
+            FileUtils.deleteQuietly(localStorePath.toFile());
         }
     }
 
