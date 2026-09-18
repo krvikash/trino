@@ -33,6 +33,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static io.trino.plugin.base.gpu.GpuUtils.toTable;
 import static java.lang.Math.toIntExact;
 import static java.util.Objects.requireNonNull;
@@ -53,12 +54,33 @@ public abstract class GpuAggregation
     // cuDF concatenate fails when total child rows across all tables exceeds INT32_MAX.
     private static final int CHILD_ROWS_THRESHOLD = Integer.MAX_VALUE;
 
+    /// Rows a group-by aggregation emits for empty input.
+    ///
+    /// A multi-grouping-set aggregation (GROUPING SETS / ROLLUP / CUBE) can include the empty grouping
+    /// set, which is a global aggregation and therefore has a result even over an empty input. Each such
+    /// grouping set gets one row: null in every grouping key except `groupIdChannel`, which carries the
+    /// grouping set id, plus the empty-input value of every aggregate. This mirrors
+    /// [io.trino.operator.HashAggregationOperator]'s default output.
+    ///
+    /// @param groupIdChannel index of the groupId key among the aggregation's grouping keys
+    /// @param groupingSetIds ids of the empty grouping sets, one output row each
+    public record DefaultOutput(int groupIdChannel, List<Integer> groupingSetIds)
+    {
+        public DefaultOutput
+        {
+            groupingSetIds = ImmutableList.copyOf(requireNonNull(groupingSetIds, "groupingSetIds is null"));
+            checkArgument(groupIdChannel >= 0, "groupIdChannel is negative: %s", groupIdChannel);
+            checkArgument(!groupingSetIds.isEmpty(), "groupingSetIds is empty");
+        }
+    }
+
     public static class Factory
             implements GpuOperation.Factory
     {
         private final List<GpuAggregateFunction> aggregates;
         private final int[] groupByChannels;
         private final List<Type> groupByTypes;
+        private final Optional<DefaultOutput> defaultOutput;
         /**
          * True if input is raw data (SINGLE/PARTIAL steps), false if input is intermediate state (FINAL/INTERMEDIATE steps).
          */
@@ -69,11 +91,25 @@ public abstract class GpuAggregation
         private final long compactionThresholdBytes;
         private final int inputColumnCount;
 
-        public Factory(List<GpuAggregateFunction> aggregates, int[] groupByChannels, List<Type> groupByTypes, boolean inputRaw, boolean outputPartial, long compactionThresholdBytes, int inputColumnCount)
+        public Factory(
+                List<GpuAggregateFunction> aggregates,
+                int[] groupByChannels,
+                List<Type> groupByTypes,
+                Optional<DefaultOutput> defaultOutput,
+                boolean inputRaw,
+                boolean outputPartial,
+                long compactionThresholdBytes,
+                int inputColumnCount)
         {
             this.aggregates = ImmutableList.copyOf(requireNonNull(aggregates, "aggregates is null"));
             this.groupByChannels = groupByChannels.clone();
             this.groupByTypes = ImmutableList.copyOf(requireNonNull(groupByTypes, "groupByTypes is null"));
+            this.defaultOutput = requireNonNull(defaultOutput, "defaultOutput is null");
+            defaultOutput.ifPresent(output -> checkArgument(
+                    output.groupIdChannel() < groupByChannels.length,
+                    "groupIdChannel %s is not one of the %s grouping keys",
+                    output.groupIdChannel(),
+                    groupByChannels.length));
             this.inputRaw = inputRaw;
             this.outputPartial = outputPartial;
 
@@ -90,16 +126,17 @@ public abstract class GpuAggregation
         @Override
         public Factory duplicate()
         {
-            return new Factory(aggregates, groupByChannels, groupByTypes, inputRaw, outputPartial, compactionThresholdBytes, inputColumnCount);
+            return new Factory(aggregates, groupByChannels, groupByTypes, defaultOutput, inputRaw, outputPartial, compactionThresholdBytes, inputColumnCount);
         }
 
         @Override
         public GpuOperation create(Context context, GpuOperation source)
         {
             if (groupByChannels.length == 0) {
+                // A grouping-key-less aggregation is the empty grouping set itself, so it has no separate default output.
                 return new GpuGlobalAggregation(context, source, aggregates, inputRaw, outputPartial, compactionThresholdBytes, inputColumnCount);
             }
-            return new GpuGroupByAggregation(context, source, aggregates, groupByChannels, inputRaw, outputPartial, compactionThresholdBytes, inputColumnCount);
+            return new GpuGroupByAggregation(context, source, aggregates, groupByChannels, groupByTypes, defaultOutput, inputRaw, outputPartial, compactionThresholdBytes, inputColumnCount);
         }
 
         @Override
@@ -321,8 +358,10 @@ public abstract class GpuAggregation
     /**
      * Produce the final output page from the compacted intermediate table.
      * The table may be {@code null} when no columns were buffered (e.g., COUNT(*) with no input columns).
+     * A zero row count means no input remains since the last partial flush, or no input arrived at all.
+     * Subclasses supply the empty-input result when required, including for a non-null empty table.
      *
-     * @return the result page, or empty if there's no output (e.g., GROUP BY with no input rows)
+     * @return the result page, or empty if there's no output (e.g., a group-by whose rows were all flushed)
      */
     protected abstract @Move Optional<@Own GpuPage> finishAggregation(@Nullable @Borrow Table table, long totalBufferedRowCount);
 

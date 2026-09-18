@@ -102,11 +102,6 @@ public final class GpuAggregationCompiler
     {
         Step step = node.getStep();
 
-        if (node.getGroupingSetCount() > 1) {
-            log.debug("Could not compile aggregation with %s grouping sets for GPU execution", node.getGroupingSetCount());
-            return new AggregationCompileResult.Failure("multiple grouping sets");
-        }
-
         List<Symbol> groupingKeys = node.getGroupingKeys();
         ImmutableList.Builder<Type> groupByTypesBuilder = ImmutableList.builder();
         int[] groupByChannels = new int[groupingKeys.size()];
@@ -121,6 +116,24 @@ public final class GpuAggregationCompiler
             groupByChannels[i] = verifyNotNull(sourceLayout.get(symbol), "channel for symbol %s is not in source layout", symbol);
         }
         List<Type> groupByTypes = groupByTypesBuilder.build();
+
+        // Several grouping sets (GROUPING SETS / ROLLUP / CUBE) plan as a GroupIdNode feeding an
+        // aggregation whose keys are every grouping set key plus the groupId key, so physically this is
+        // still a plain group-by, exactly as on the CPU. The one extra behavior is the default output:
+        // an empty grouping set is a global aggregation, so it has a result even for an empty input.
+        Optional<GpuAggregation.DefaultOutput> defaultOutput = Optional.empty();
+        if (node.hasDefaultOutput() && !groupingKeys.isEmpty()) {
+            Optional<Symbol> groupIdSymbol = node.getGroupIdSymbol();
+            if (groupIdSymbol.isEmpty()) {
+                // This is an unexpected plan shape: grouped default output requires a groupId key
+                // to identify the empty grouping set, on both the CPU and GPU.
+                log.debug("Could not compile aggregation with default output and no groupId column for GPU execution");
+                return new AggregationCompileResult.Failure("default output without a groupId column");
+            }
+            defaultOutput = Optional.of(new GpuAggregation.DefaultOutput(
+                    groupingKeys.indexOf(groupIdSymbol.get()),
+                    ImmutableList.copyOf(node.getGlobalGroupingSets())));
+        }
 
         List<AggregateCompilation> compilations = new ArrayList<>();
         for (Map.Entry<Symbol, Aggregation> entry : node.getAggregations().entrySet()) {
@@ -148,7 +161,7 @@ public final class GpuAggregationCompiler
             compilations.add(compiled.get());
         }
 
-        return buildPipeline(sourceLayout.size(), groupByChannels, groupByTypes, compilations, step, compactionThresholdBytes);
+        return buildPipeline(sourceLayout.size(), groupByChannels, groupByTypes, defaultOutput, compilations, step, compactionThresholdBytes);
     }
 
     /**
@@ -162,6 +175,7 @@ public final class GpuAggregationCompiler
             int sourceColumnCount,
             int[] groupByChannels,
             List<Type> groupByTypes,
+            Optional<GpuAggregation.DefaultOutput> defaultOutput,
             List<AggregateCompilation> compilations,
             Step step,
             long compactionThresholdBytes)
@@ -224,6 +238,7 @@ public final class GpuAggregationCompiler
                 aggregates.build(),
                 aggregationGroupByChannels,
                 groupByTypes,
+                defaultOutput,
                 step.isInputRaw(),
                 step.isOutputPartial(),
                 compactionThresholdBytes,

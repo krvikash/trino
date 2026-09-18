@@ -18,7 +18,9 @@ import ai.rapids.cudf.ColumnVector;
 import ai.rapids.cudf.DType;
 import ai.rapids.cudf.GroupByAggregationOnColumn;
 import ai.rapids.cudf.GroupByOptions;
+import ai.rapids.cudf.Scalar;
 import ai.rapids.cudf.Table;
+import com.google.common.collect.ImmutableList;
 import io.trino.operator.gpu.GpuOperation;
 import io.trino.spi.gpu.Column;
 import io.trino.spi.gpu.Column.DeviceMemory;
@@ -26,14 +28,17 @@ import io.trino.spi.gpu.GpuPage;
 import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
 import io.trino.spi.gpu.borrow.Own;
+import io.trino.spi.type.Type;
 import jakarta.annotation.Nullable;
 
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.IntStream;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static io.trino.plugin.base.gpu.GpuUtils.closeColumns;
+import static io.trino.spi.gpu.GpuTypeConversion.nullScalar;
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -50,20 +55,29 @@ final class GpuGroupByAggregation
 
     private final int[] groupByChannels;
     private final int[] mergeGroupByChannels;
+    private final List<Type> groupByTypes;
+    private final Optional<DefaultOutput> defaultOutput;
 
     GpuGroupByAggregation(
             Context context,
             GpuOperation source,
             List<GpuAggregateFunction> aggregates,
             int[] groupByChannels,
+            List<Type> groupByTypes,
+            Optional<DefaultOutput> defaultOutput,
             boolean inputRaw,
             boolean outputPartial,
             long compactionThresholdBytes,
             int inputColumnCount)
     {
         super(context, source, aggregates, inputRaw, outputPartial, compactionThresholdBytes, inputColumnCount);
-        this.groupByChannels = requireNonNull(groupByChannels, "groupByChannels is null");
+        requireNonNull(groupByChannels, "groupByChannels is null");
+        requireNonNull(groupByTypes, "groupByTypes is null");
+        checkArgument(groupByTypes.size() == groupByChannels.length, "Expected %s grouping key types but got %s", groupByChannels.length, groupByTypes.size());
+        this.groupByChannels = groupByChannels;
         this.mergeGroupByChannels = IntStream.range(0, groupByChannels.length).toArray();
+        this.groupByTypes = ImmutableList.copyOf(groupByTypes);
+        this.defaultOutput = requireNonNull(defaultOutput, "defaultOutput is null");
     }
 
     @Override
@@ -143,10 +157,43 @@ final class GpuGroupByAggregation
     @Override
     protected @Move Optional<@Own GpuPage> finishAggregation(@Nullable @Borrow Table table, long totalBufferedRowCount)
     {
-        if (table == null) {
-            return Optional.empty();
+        if (totalBufferedRowCount == 0) {
+            return defaultOutput.map(this::createDefaultOutput);
         }
+        checkState(table != null, "GROUP BY aggregation requires buffered columns");
         return Optional.of(convertResultToGpuPage(table));
+    }
+
+    /// Builds the one row per empty grouping set that an empty input still has to produce.
+    ///
+    /// @see DefaultOutput
+    private @Move GpuPage createDefaultOutput(DefaultOutput output)
+    {
+        long[] groupingSetIds = output.groupingSetIds().stream().mapToLong(Integer::longValue).toArray();
+        int positionCount = groupingSetIds.length;
+
+        @Own Column[] outputColumns = new Column[groupByTypes.size() + aggregates.size()];
+        try {
+            for (int i = 0; i < groupByTypes.size(); i++) {
+                if (i == output.groupIdChannel()) {
+                    outputColumns[i] = new DeviceMemory(ColumnVector.fromLongs(groupingSetIds));
+                }
+                else {
+                    try (Scalar nullScalar = nullScalar(groupByTypes.get(i))) {
+                        outputColumns[i] = new DeviceMemory(ColumnVector.fromScalar(nullScalar, positionCount));
+                    }
+                }
+            }
+            for (int i = 0; i < aggregates.size(); i++) {
+                try (Scalar emptyResult = aggregates.get(i).emptyResult()) {
+                    outputColumns[groupByTypes.size() + i] = new DeviceMemory(ColumnVector.fromScalar(emptyResult, positionCount));
+                }
+            }
+            return new GpuPage(positionCount, outputColumns);
+        }
+        finally {
+            closeColumns(outputColumns);
+        }
     }
 
     private @Move GpuPage convertResultToGpuPage(@Borrow Table result)

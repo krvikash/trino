@@ -101,11 +101,10 @@ final class GpuGlobalAggregation
     protected @Move Optional<@Own GpuPage> finishAggregation(@Nullable @Borrow Table table, long totalBufferedRowCount)
     {
         if (totalBufferedRowCount == 0) {
-            checkState(table == null, "Expected no table when no rows were buffered");
+            // After a partial flush, this identity row is merged by the next aggregation step.
             return Optional.of(createEmptyInputResult());
         }
         if (table == null) {
-            // All aggregates are input-less (e.g., COUNT(*)) — no columns were buffered
             return Optional.of(computeWithoutColumns(totalBufferedRowCount));
         }
         return Optional.of(toGpuPage(table));

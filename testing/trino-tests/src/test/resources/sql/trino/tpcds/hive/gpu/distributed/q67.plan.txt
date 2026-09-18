@@ -11,11 +11,11 @@
                     - ExchangeNode LOCAL
                       - ExchangeNode REMOTE
                         - TopNRankingNode
-                          - ProjectNode
-                            - AggregationNode
+                          - ProjectNode (GPU)
+                            - AggregationNode (GPU)
                               - ExchangeNode LOCAL
                                 - ExchangeNode REMOTE
-                                  - AggregationNode
+                                  - AggregationNode (GPU)
                                     - GroupIdNode (GPU)
                                       - ExchangeNode LOCAL
                                         - ExchangeNode REMOTE

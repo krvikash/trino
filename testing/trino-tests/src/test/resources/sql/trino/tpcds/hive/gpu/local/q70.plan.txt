@@ -9,9 +9,9 @@
                 - ExchangeNode LOCAL
                   - ProjectNode
                     - ProjectNode
-                      - AggregationNode
-                        - ExchangeNode LOCAL
-                          - AggregationNode
+                      - AggregationNode (GPU)
+                        - ExchangeNode LOCAL (GPU)
+                          - AggregationNode (GPU)
                             - GroupIdNode (GPU)
                               - JoinNode (GPU)
                                 - JoinNode (GPU)

@@ -32,6 +32,7 @@ import org.junit.jupiter.api.parallel.Isolated;
 
 import java.util.Iterator;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static ai.rapids.cudf.DType.INT64;
@@ -132,6 +133,7 @@ class TestGpuAggregationMemory
                 List.of(new GpuCountNonNull(1, BIGINT, INT64)),
                 new int[] {0},
                 List.of(BIGINT),
+                Optional.empty(),
                 /*inputRaw=*/ true,
                 /*outputPartial=*/ false,
                 threshold,
@@ -212,6 +214,7 @@ class TestGpuAggregationMemory
                     aggregates,
                     groupByChannels,
                     groupByTypes,
+                    Optional.empty(),
                     inputRaw,
                     /*outputPartial=*/ false,
                     /*compactionThresholdBytes=*/ 1,

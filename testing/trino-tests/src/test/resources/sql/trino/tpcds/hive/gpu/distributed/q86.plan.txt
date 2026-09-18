@@ -15,10 +15,10 @@
                             - ExchangeNode REMOTE
                               - ProjectNode
                                 - ProjectNode
-                                  - AggregationNode
+                                  - AggregationNode (GPU)
                                     - ExchangeNode LOCAL
                                       - ExchangeNode REMOTE
-                                        - AggregationNode
+                                        - AggregationNode (GPU)
                                           - GroupIdNode (GPU)
                                             - JoinNode (GPU)
                                               - ExchangeNode REMOTE

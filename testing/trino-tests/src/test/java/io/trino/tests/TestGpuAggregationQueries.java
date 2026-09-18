@@ -242,4 +242,173 @@ public class TestGpuAggregationQueries
                 """))
                 .executesWithGpu(GroupIdNode.class);
     }
+
+    @Test
+    public void testGroupingSetsOnGpu()
+    {
+        assertThat(query(
+                """
+                SELECT orderstatus, orderpriority, count(*), sum(totalprice), min(orderkey), max(orderkey)
+                FROM orders
+                GROUP BY ROLLUP (orderstatus, orderpriority)
+                """))
+                .executesWithGpu(AggregationNode.class);
+
+        assertThat(query(
+                """
+                SELECT orderstatus, orderpriority, count(*), sum(totalprice)
+                FROM orders
+                GROUP BY CUBE (orderstatus, orderpriority)
+                """))
+                .executesWithGpu(AggregationNode.class);
+
+        // CUBE over one column is just ((orderstatus), ()); over three it is all eight subsets
+        assertThat(query(
+                """
+                SELECT orderstatus, count(*)
+                FROM orders
+                GROUP BY CUBE (orderstatus)
+                """))
+                .executesWithGpu(AggregationNode.class);
+
+        assertThat(query(
+                """
+                SELECT orderstatus, orderpriority, shippriority, count(*), sum(totalprice)
+                FROM orders
+                GROUP BY CUBE (orderstatus, orderpriority, shippriority)
+                """))
+                .executesWithGpu(AggregationNode.class);
+
+        // The grand total set first, and repeated alongside a non-empty set
+        assertThat(query(
+                """
+                SELECT orderstatus, orderpriority, count(*)
+                FROM orders
+                GROUP BY GROUPING SETS ((), (orderstatus, orderpriority))
+                """))
+                .executesWithGpu(AggregationNode.class);
+
+        assertThat(query(
+                """
+                SELECT orderstatus, orderpriority, count(*)
+                FROM orders
+                GROUP BY GROUPING SETS ((), (orderstatus, orderpriority), (), (orderstatus, orderpriority))
+                """))
+                .executesWithGpu(AggregationNode.class);
+
+        // No empty grouping set
+        assertThat(query(
+                """
+                SELECT orderstatus, orderpriority, count(*)
+                FROM orders
+                GROUP BY GROUPING SETS ((orderstatus), (orderpriority))
+                """))
+                .executesWithGpu(AggregationNode.class);
+
+        // grouping() reads the groupId key back out, so the key has to survive the GPU aggregation intact
+        assertThat(query(
+                """
+                SELECT orderstatus, orderpriority, grouping(orderstatus, orderpriority), count(*)
+                FROM orders
+                GROUP BY GROUPING SETS ((orderstatus, orderpriority), (orderstatus), ())
+                """))
+                .executesWithGpu(AggregationNode.class);
+
+        // Keys of assorted types, each nulled out by the grouping sets that leave it out
+        assertThat(query(
+                """
+                SELECT orderdate, shippriority, orderstatus, count(*)
+                FROM orders
+                GROUP BY ROLLUP (orderdate, shippriority, orderstatus)
+                """))
+                .executesWithGpu(AggregationNode.class);
+
+        // No aggregate function
+        assertThat(query(
+                """
+                SELECT orderstatus, orderpriority
+                FROM orders
+                GROUP BY ROLLUP (orderstatus, orderpriority)
+                """))
+                .executesWithGpu(AggregationNode.class);
+    }
+
+    @Test
+    public void testGroupingSetsWithoutMatchingRows()
+    {
+        // 'Z' is not an order status, so no row reaches the aggregation
+        assertThat(query(
+                """
+                SELECT orderstatus, orderpriority, count(*), sum(totalprice)
+                FROM orders
+                WHERE orderstatus = 'Z' -- unsatisfiable
+                GROUP BY ROLLUP (orderstatus, orderpriority)
+                """))
+                .executesWithGpu(AggregationNode.class);
+
+        // Two empty grouping sets
+        assertThat(query(
+                """
+                SELECT grouping(orderstatus), count(*)
+                FROM orders
+                WHERE orderstatus = 'Z' -- unsatisfiable
+                GROUP BY GROUPING SETS ((orderstatus), (), ())
+                """))
+                .executesWithGpu(AggregationNode.class);
+
+        // Aggregates whose PARTIAL step reshapes the accumulator in a post-projection: decimal sum/avg
+        // serializes to VARBINARY, floating-point min/max carries a has-NaN slot.
+        assertThat(query(
+                """
+                SELECT orderstatus,
+                       sum(CAST(totalprice AS decimal(12, 2))),
+                       sum(CAST(totalprice AS decimal(26, 4))),
+                       avg(CAST(totalprice AS decimal(12, 2))),
+                       min(totalprice),
+                       max(totalprice)
+                FROM orders
+                WHERE orderstatus = 'Z' -- unsatisfiable
+                GROUP BY ROLLUP (orderstatus)
+                """))
+                .executesWithGpu(AggregationNode.class);
+
+        // Grouping keys of assorted types, no aggregate function
+        assertThat(query(
+                """
+                SELECT orderdate, shippriority, orderstatus
+                FROM orders
+                WHERE orderstatus = 'Z' -- unsatisfiable
+                GROUP BY ROLLUP (orderdate, shippriority, orderstatus)
+                """))
+                .executesWithGpu(AggregationNode.class);
+
+        // CUBE always contains the grand total set
+        assertThat(query(
+                """
+                SELECT orderstatus, orderpriority, count(*), sum(totalprice)
+                FROM orders
+                WHERE orderstatus = 'Z' -- unsatisfiable
+                GROUP BY CUBE (orderstatus, orderpriority)
+                """))
+                .executesWithGpu(AggregationNode.class);
+
+        // The grand total set first, and repeated alongside a non-empty set
+        assertThat(query(
+                """
+                SELECT orderstatus, orderpriority, count(*)
+                FROM orders
+                WHERE orderstatus = 'Z' -- unsatisfiable
+                GROUP BY GROUPING SETS ((), (orderstatus, orderpriority))
+                """))
+                .executesWithGpu(AggregationNode.class);
+
+        assertThat(query(
+                """
+                SELECT orderstatus, orderpriority, count(*)
+                FROM orders
+                WHERE orderstatus = 'Z' -- unsatisfiable
+                GROUP BY GROUPING SETS ((), (orderstatus, orderpriority), (), (orderstatus, orderpriority))
+                """))
+                .executesWithGpu(AggregationNode.class);
+    }
 }

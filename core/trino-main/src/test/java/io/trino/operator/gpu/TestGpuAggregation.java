@@ -29,6 +29,7 @@ import io.trino.operator.gpu.aggregation.GpuAggregateFunction;
 import io.trino.operator.gpu.aggregation.GpuAggregation;
 import io.trino.operator.gpu.aggregation.GpuAggregationCompiler;
 import io.trino.operator.gpu.aggregation.GpuCountNonNull;
+import io.trino.operator.gpu.aggregation.GpuSum;
 import io.trino.spi.Page;
 import io.trino.spi.TrinoException;
 import io.trino.spi.block.Block;
@@ -59,6 +60,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.Random;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.IntStream;
 
@@ -97,6 +99,8 @@ final class TestGpuAggregation
 {
     private static final TestingFunctionResolution FUNCTION_RESOLUTION = new TestingFunctionResolution();
     private static final int GROUP_KEY_CHANNEL = 0;
+    // Index of the empty grouping set in ROLLUP(key), i.e. GROUPING SETS ((key), ())
+    private static final int EMPTY_GROUPING_SET_ID = 1;
     // Small enough that the multi-batch tests compact incrementally (each ~100k-row batch exceeds it) and a
     // high-cardinality partial aggregation flushes, but large enough that low-cardinality and small inputs
     // aggregate into a single resident state without flushing.
@@ -924,6 +928,214 @@ final class TestGpuAggregation
         runPartialFinalGrouped("bool_or", type, false);
     }
 
+    @ParameterizedTest
+    @FieldSource("io.trino.operator.gpu.GpuTestUtils#TESTED_GPU_TYPES")
+    void testGroupingSetsDefaultOutputForAllKeyTypes(Type keyType)
+    {
+        // ROLLUP(key) is the grouping sets ((key), ()). The empty one is a global aggregation, so an
+        // input with no rows still has a result for it: a null key, that grouping set's id, and count 0.
+        GpuAggregationCompiler.AggregationCompileResult.Success compiled = compileRollupCount(keyType, SINGLE);
+        List<Type> inputTypes = List.of(keyType, BIGINT);
+
+        List<Page> results = runGpuPipeline(List.of(createEmptyPage(inputTypes)), inputTypes, compiled);
+
+        Page result = mergePages(results, compiled.finalOutputTypes());
+        assertThat(result.getPositionCount()).isEqualTo(1);
+        assertThat(result.getBlock(0).isNull(0))
+                .as("grouping key must be null in the default output")
+                .isTrue();
+        assertThat(BIGINT.getLong(result.getBlock(1), 0))
+                .as("groupId must identify the empty grouping set")
+                .isEqualTo(EMPTY_GROUPING_SET_ID);
+        assertThat(BIGINT.getLong(result.getBlock(2), 0)).isEqualTo(0);
+    }
+
+    @Test
+    void testGroupingSetsWithoutEmptySetHasNoDefaultOutput()
+    {
+        // GROUPING SETS ((key), (key)) has no empty grouping set, so nothing is a global aggregation and
+        // an input with no rows produces no row at all.
+        GpuAggregationCompiler.AggregationCompileResult.Success compiled = compileGroupingSetsCount(BIGINT, 2, ImmutableSet.of(), SINGLE);
+        List<Type> inputTypes = List.of(BIGINT, BIGINT);
+
+        List<Page> results = runGpuPipeline(List.of(createEmptyPage(inputTypes)), inputTypes, compiled);
+
+        assertThat(results.stream().mapToInt(Page::getPositionCount).sum()).isEqualTo(0);
+    }
+
+    @Test
+    void testGroupingSetsDefaultOutputPerEmptyGroupingSet()
+    {
+        // GROUPING SETS ((key), (), ()) has two empty grouping sets, and each one is its own global
+        // aggregation, so the default output carries one row per id.
+        GpuAggregationCompiler.AggregationCompileResult.Success compiled = compileGroupingSetsCount(BIGINT, 3, ImmutableSet.of(1, 2), SINGLE);
+        List<Type> inputTypes = List.of(BIGINT, BIGINT);
+
+        List<Page> results = runGpuPipeline(List.of(createEmptyPage(inputTypes)), inputTypes, compiled);
+
+        Page result = mergePages(results, compiled.finalOutputTypes());
+        assertThat(result.getPositionCount()).isEqualTo(2);
+        List<Long> groupIds = new ArrayList<>();
+        for (int position = 0; position < result.getPositionCount(); position++) {
+            assertThat(result.getBlock(0).isNull(position)).isTrue();
+            groupIds.add(BIGINT.getLong(result.getBlock(1), position));
+            assertThat(BIGINT.getLong(result.getBlock(2), position)).isEqualTo(0);
+        }
+        assertThat(groupIds).containsExactlyInAnyOrder(1L, 2L);
+    }
+
+    @Test
+    void testFinalStepOfGroupingSetsHasNoDefaultOutput()
+    {
+        // Only a step that outputs partial state, or SINGLE, produces the default output; the FINAL step
+        // merges the rows its PARTIAL peers already emitted for the empty grouping set.
+        GpuAggregationCompiler.AggregationCompileResult.Success compiled = compileRollupCount(BIGINT, FINAL);
+        List<Type> inputTypes = List.of(BIGINT, BIGINT, BIGINT);
+
+        List<Page> results = runGpuPipeline(List.of(createEmptyPage(inputTypes)), inputTypes, compiled);
+
+        assertThat(results.stream().mapToInt(Page::getPositionCount).sum()).isEqualTo(0);
+    }
+
+    private static GpuAggregationCompiler.AggregationCompileResult.Success compileRollupCount(Type keyType, Step step)
+    {
+        return compileGroupingSetsCount(keyType, 2, ImmutableSet.of(EMPTY_GROUPING_SET_ID), step);
+    }
+
+    /**
+     * Compiles {@code count(*)} over the aggregation Trino plans for {@code GROUPING SETS}: a group-by on
+     * the grouping key plus the groupId key that a {@code GroupIdNode} adds. Channel 0 is the key,
+     * channel 1 the groupId.
+     */
+    private static GpuAggregationCompiler.AggregationCompileResult.Success compileGroupingSetsCount(
+            Type keyType,
+            int groupingSetCount,
+            Set<Integer> globalGroupingSets,
+            Step step)
+    {
+        Symbol key = new Symbol(keyType, "key");
+        Symbol groupId = new Symbol(BIGINT, "groupId");
+        List<Symbol> groupingKeys = ImmutableList.of(key, groupId);
+        Symbol output = new Symbol(BIGINT, "out");
+
+        // A step reading intermediate state takes the partial count as its argument; a raw one takes none.
+        ImmutableMap.Builder<Symbol, Integer> layout = ImmutableMap.<Symbol, Integer>builder()
+                .put(key, 0)
+                .put(groupId, 1);
+        List<Expression> arguments = ImmutableList.of();
+        if (!step.isInputRaw()) {
+            Symbol partialCount = new Symbol(BIGINT, "partialCount");
+            layout.put(partialCount, 2);
+            arguments = ImmutableList.of(partialCount.toSymbolReference());
+        }
+
+        Aggregation count = new Aggregation(
+                FUNCTION_RESOLUTION.resolveFunction("count", fromTypes()),
+                arguments,
+                false,
+                Optional.empty(),
+                Optional.empty(),
+                Optional.empty());
+
+        AggregationNode node = new AggregationNode(
+                new PlanNodeId("agg"),
+                new ValuesNode(new PlanNodeId("source"), groupingKeys),
+                ImmutableMap.of(output, count),
+                AggregationNode.groupingSets(groupingKeys, groupingSetCount, globalGroupingSets),
+                ImmutableList.of(),
+                step,
+                Optional.of(groupId));
+
+        return switch (GpuAggregationCompiler.compile(node, layout.buildOrThrow(), COMPACTION_THRESHOLD_BYTES)) {
+            case GpuAggregationCompiler.AggregationCompileResult.Failure failure -> throw new AssertionError("Failed to compile grouping sets count: " + failure.reason());
+            case GpuAggregationCompiler.AggregationCompileResult.Success success -> success;
+        };
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = Step.class, names = {"PARTIAL", "SINGLE", "FINAL"})
+    void testGlobalAggregationFinishAfterCompaction(Step step)
+    {
+        // Only PARTIAL flushes before finish, leaving an empty buffer. SINGLE and FINAL retain their state.
+        Block values = createBigintBlock(1_000, NullsProvider.NO_NULLS, 0, 1_000);
+
+        List<Page> results = executeGpuOperation(
+                List.of(new Page(values)),
+                List.of(BIGINT),
+                List.of(BIGINT),
+                (context, copyToDevice) -> new GpuAggregation.Factory(
+                        List.of(new GpuSum(0, BIGINT, INT64)),
+                        new int[] {},
+                        List.of(),
+                        Optional.empty(),
+                        /*inputRaw=*/ step.isInputRaw(),
+                        /*outputPartial=*/ step.isOutputPartial(),
+                        /*compactionThresholdBytes=*/ 1,
+                        1)
+                        .create(context, copyToDevice));
+
+        assertThat(results).hasSize(step == PARTIAL ? 2 : 1);
+        if (step == PARTIAL) {
+            assertThat(results.getLast().getPositionCount()).isEqualTo(1);
+            assertThat(results.getLast().getBlock(0).isNull(0)).isTrue();
+        }
+
+        // Partial sums are additive, so folding everything emitted gives the total.
+        long actual = 0;
+        for (Page page : results) {
+            for (int position = 0; position < page.getPositionCount(); position++) {
+                if (!page.getBlock(0).isNull(position)) {
+                    actual += BIGINT.getLong(page.getBlock(0), position);
+                }
+            }
+        }
+        long expected = 0;
+        for (int position = 0; position < values.getPositionCount(); position++) {
+            expected += BIGINT.getLong(values, position);
+        }
+        assertThat(actual).isEqualTo(expected);
+    }
+
+    @Test
+    void testGroupingSetsPartialFlushBeforeFinish()
+    {
+        List<Type> types = List.of(BIGINT, BIGINT, BIGINT);
+        List<Page> input = rowPagesBuilder(types)
+                .row(4L, 0L, 7L)
+                .row(null, (long) EMPTY_GROUPING_SET_ID, 7L)
+                .build();
+        List<Page> partialResults = executeGpuOperation(
+                input,
+                types,
+                types,
+                (context, copyToDevice) -> new GpuAggregation.Factory(
+                        List.of(new GpuCountNonNull(2, BIGINT, INT64)),
+                        new int[] {0, 1},
+                        List.of(BIGINT, BIGINT),
+                        Optional.of(new GpuAggregation.DefaultOutput(1, List.of(EMPTY_GROUPING_SET_ID))),
+                        /*inputRaw=*/ true,
+                        /*outputPartial=*/ true,
+                        /*compactionThresholdBytes=*/ 1,
+                        3)
+                        .create(context, copyToDevice));
+
+        assertThat(partialResults).hasSize(2);
+        Page defaultOutput = partialResults.getLast();
+        assertThat(defaultOutput.getPositionCount()).isEqualTo(1);
+        assertThat(defaultOutput.getBlock(0).isNull(0)).isTrue();
+        assertThat(BIGINT.getLong(defaultOutput.getBlock(1), 0)).isEqualTo(EMPTY_GROUPING_SET_ID);
+        assertThat(BIGINT.getLong(defaultOutput.getBlock(2), 0)).isEqualTo(0);
+
+        List<Page> finalResults = runGpuPipeline(partialResults, types, compileRollupCount(BIGINT, FINAL));
+        assertSameDataWithoutOrder(
+                finalResults,
+                rowPagesBuilder(types)
+                        .row(4L, 0L, 1L)
+                        .row(null, (long) EMPTY_GROUPING_SET_ID, 1L)
+                        .build(),
+                types);
+    }
+
     private static Block createGroupByBlock(int positionsCount, int numGroups)
     {
         BlockBuilder builder = BIGINT.createBlockBuilder(null, positionsCount);
@@ -1332,7 +1544,7 @@ final class TestGpuAggregation
                 inputTypes,
                 outputTypesBuilder.build(),
                 (context, copyToDevice) -> {
-                    GpuAggregation.Factory factory = new GpuAggregation.Factory(aggregates, groupByChannels, groupByTypesBuilder.build(), inputRaw, /*outputPartial=*/ false, COMPACTION_THRESHOLD_BYTES, inputTypes.size());
+                    GpuAggregation.Factory factory = new GpuAggregation.Factory(aggregates, groupByChannels, groupByTypesBuilder.build(), Optional.empty(), inputRaw, /*outputPartial=*/ false, COMPACTION_THRESHOLD_BYTES, inputTypes.size());
                     return factory.create(context, copyToDevice);
                 });
     }

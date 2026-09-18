@@ -11,7 +11,7 @@
                     - AggregationNode
                       - ExchangeNode LOCAL
                         - ExchangeNode REMOTE
-                          - AggregationNode
+                          - AggregationNode (GPU)
                             - ProjectNode (GPU)
                               - GroupIdNode (GPU)
                                 - ProjectNode (GPU)

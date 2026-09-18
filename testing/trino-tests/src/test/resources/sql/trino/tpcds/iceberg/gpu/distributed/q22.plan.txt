@@ -7,11 +7,11 @@
             - TopNNode (GPU)
               - ExchangeNode LOCAL (GPU)
                 - TopNNode (GPU)
-                  - ProjectNode
-                    - AggregationNode
+                  - ProjectNode (GPU)
+                    - AggregationNode (GPU)
                       - ExchangeNode LOCAL
                         - ExchangeNode REMOTE
-                          - AggregationNode
+                          - AggregationNode (GPU)
                             - ProjectNode (GPU)
                               - GroupIdNode (GPU)
                                 - ProjectNode (GPU)

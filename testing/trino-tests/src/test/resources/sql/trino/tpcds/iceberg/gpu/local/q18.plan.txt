@@ -4,8 +4,8 @@
       - TopNNode (GPU)
         - ProjectNode
           - AggregationNode
-            - ExchangeNode LOCAL
-              - AggregationNode
+            - ExchangeNode LOCAL (GPU)
+              - AggregationNode (GPU)
                 - GroupIdNode (GPU)
                   - ProjectNode (GPU)
                     - JoinNode (GPU)

@@ -366,7 +366,7 @@ final class TestGpuSumDecimalAggregation
 
         List<Projection> preProjectionList = preProjections.build();
         GpuOperation op = new GpuProject.Factory(preProjectionList).create(context, source);
-        op = new GpuAggregation.Factory(aggregates, groupByChannels, groupByTypes, /*inputRaw=*/ true, /*outputPartial=*/ false, /*compactionThresholdBytes=*/ 1, preProjectionList.size()).create(context, op);
+        op = new GpuAggregation.Factory(aggregates, groupByChannels, groupByTypes, Optional.empty(), /*inputRaw=*/ true, /*outputPartial=*/ false, /*compactionThresholdBytes=*/ 1, preProjectionList.size()).create(context, op);
         op = new GpuProject.Factory(postProjections.build()).create(context, op);
         return op;
     }
@@ -418,7 +418,7 @@ final class TestGpuSumDecimalAggregation
 
         List<Projection> preProjectionList = preProjections.build();
         GpuOperation op = new GpuProject.Factory(preProjectionList).create(context, source);
-        op = new GpuAggregation.Factory(aggregates, groupByChannels, groupByTypes, /*inputRaw=*/ false, /*outputPartial=*/ false, /*compactionThresholdBytes=*/ 1, preProjectionList.size()).create(context, op);
+        op = new GpuAggregation.Factory(aggregates, groupByChannels, groupByTypes, Optional.empty(), /*inputRaw=*/ false, /*outputPartial=*/ false, /*compactionThresholdBytes=*/ 1, preProjectionList.size()).create(context, op);
         op = new GpuProject.Factory(postProjections.build()).create(context, op);
         return op;
     }
