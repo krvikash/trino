@@ -144,7 +144,7 @@ public final class InSetDynamicFilterGenerator
                 makeClassName(ColumnarFilter.class.getSimpleName() + "_in_dynamic", Optional.empty()),
                 type(Object.class),
                 type(ColumnarFilter.class));
-        CallSiteBinder callSiteBinder = new CallSiteBinder();
+        CallSiteBinder callSiteBinder = CallSiteBinder.forHiddenClassGeneration();
 
         FieldDefinition inputChannelsField = generateGetInputChannels(classDefinition);
         FieldDefinition valueSetField = classDefinition.declareField(a(PRIVATE, FINAL), "valueSet", setClass);

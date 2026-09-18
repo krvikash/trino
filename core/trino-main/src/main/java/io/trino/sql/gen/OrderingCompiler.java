@@ -386,7 +386,7 @@ public class OrderingCompiler
 
     private Class<? extends PagesIndexAppender> internalCompilePageIndexAppender(List<Type> types)
     {
-        CallSiteBinder callSiteBinder = new CallSiteBinder();
+        CallSiteBinder callSiteBinder = CallSiteBinder.forHiddenClassGeneration();
 
         ClassDefinition classDefinition = new ClassDefinition(
                 a(PUBLIC, FINAL),
@@ -424,7 +424,7 @@ public class OrderingCompiler
 
         generateAppendMethod(classDefinition, channelFields);
 
-        return defineClass(classDefinition, PagesIndexAppender.class, callSiteBinder.getBindings(), getClass().getClassLoader());
+        return defineHiddenClass(classDefinition, PagesIndexAppender.class, callSiteBinder.getClassData());
     }
 
     private static void generateAppendMethod(ClassDefinition classDefinition, List<FieldDefinition> channelFields)

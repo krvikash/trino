@@ -38,8 +38,6 @@ import io.trino.sql.ir.Lambda;
 import io.trino.sql.ir.Reference;
 import io.trino.sql.planner.Symbol;
 import io.trino.type.CharVarcharCoercion;
-import org.objectweb.asm.Handle;
-import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
 
 import java.lang.reflect.Method;
@@ -235,10 +233,16 @@ public final class LambdaBytecodeGenerator
             captureVariableBuilder.add(valueVariable);
         }
 
-        // `this` is captured as Object: a hidden class cannot mention its own name in the
-        // invokedynamic descriptor, so the bootstrap re-casts the receiver via MethodHandle.asType
+        // The receiver type tells the bootstrap which class declares the lambda method, which
+        // is the main class even when the expression is split across chunk classes. A hidden
+        // class cannot mention its own name in the invokedynamic descriptor, so there the
+        // receiver is erased to Object and the bootstrap resolves the method on the caller.
+        BytecodeExpression lambdaReference = context.getExpressionCompiler().mainReference();
+        if (context.getCallSiteBinder().isHiddenClassGeneration()) {
+            lambdaReference = lambdaReference.cast(Object.class);
+        }
         List<BytecodeExpression> captureVariables = ImmutableList.<BytecodeExpression>builder()
-                .add(context.getExpressionCompiler().mainReference().cast(Object.class), scope.getVariable("session"))
+                .add(lambdaReference, scope.getVariable("session"))
                 .addAll(captureVariableBuilder.build())
                 .build();
 
