@@ -37,8 +37,10 @@ import static io.trino.tests.product.hive.TestHiveTransactionalTable.tableName;
 import static io.trino.tests.product.hive.TestHiveTransactionalTable.verifySelectForTrinoAndHive;
 import static io.trino.tests.product.utils.HadoopTestUtils.RETRYABLE_FAILURES_ISSUES;
 import static io.trino.tests.product.utils.HadoopTestUtils.RETRYABLE_FAILURES_MATCH;
+import static io.trino.tests.product.utils.HadoopTestUtils.executeIdempotentWrite;
 import static io.trino.tests.product.utils.QueryExecutors.onHive;
 import static io.trino.tests.product.utils.QueryExecutors.onTrino;
+import static io.trino.tests.product.utils.QueryExecutors.onTrinoWithoutRetry;
 import static java.lang.String.format;
 import static java.util.Locale.ENGLISH;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -116,20 +118,22 @@ public class TestHiveMerge
             builder.append(" STORED AS ORC TBLPROPERTIES ('transactional' = 'true')");
             onHive().executeQuery(builder.toString());
 
-            onTrino().executeQuery(format("INSERT INTO %s (customer, purchase) VALUES ('Dave', 'dates'), ('Lou', 'limes'), ('Carol', 'candles')", targetTable));
+            String targetInsert = format("INSERT INTO %s (customer, purchase) VALUES ('Dave', 'dates'), ('Lou', 'limes'), ('Carol', 'candles')", targetTable);
+            executeIdempotentWrite(onTrinoWithoutRetry(), targetTable, targetInsert);
             verifySelectForTrinoAndHive("SELECT * FROM " + targetTable, row("Dave", "dates"), row("Lou", "limes"), row("Carol", "candles"));
 
             withTemporaryTable("merge_update_with_various_formats_source", false, NONE, sourceTable -> {
                 onTrino().executeQuery(format("CREATE TABLE %s (customer VARCHAR, purchase VARCHAR) WITH (transactional = true)", sourceTable));
 
-                onTrino().executeQuery(format("INSERT INTO %s (customer, purchase) VALUES ('Craig', 'candles'), ('Len', 'limes'), ('Joe', 'jellybeans')", sourceTable));
+                executeIdempotentWrite(onTrinoWithoutRetry(), sourceTable, format("INSERT INTO %s (customer, purchase) VALUES ('Craig', 'candles'), ('Len', 'limes'), ('Joe', 'jellybeans')", sourceTable));
 
                 String sql = format("MERGE INTO %s t USING %s s ON (t.purchase = s.purchase)", targetTable, sourceTable) +
                         "    WHEN MATCHED AND s.purchase = 'limes' THEN DELETE" +
                         "    WHEN MATCHED THEN UPDATE SET customer = CONCAT(t.customer, '_', s.customer)" +
                         "    WHEN NOT MATCHED THEN INSERT (customer, purchase) VALUES(s.customer, s.purchase)";
 
-                onTrino().executeQuery(sql);
+                // a blindly retried MERGE would concatenate s.customer again onto rows the failed attempt already updated
+                executeIdempotentWrite(onTrinoWithoutRetry(), targetTable, sql, targetInsert);
 
                 verifySelectForTrinoAndHive("SELECT * FROM " + targetTable, row("Dave", "dates"), row("Carol_Craig", "candles"), row("Joe", "jellybeans"));
             });
@@ -317,7 +321,8 @@ public class TestHiveMerge
         withTemporaryTable("merge_simple_query_partitioned_target", true, NONE, targetTable -> {
             onTrino().executeQuery(format("CREATE TABLE %s (customer VARCHAR, purchases INT, address VARCHAR) WITH (transactional = true, partitioned_by = ARRAY['address'])", targetTable));
 
-            onTrino().executeQuery(format("INSERT INTO %s (customer, purchases, address) VALUES ('Aaron', 5, 'Antioch'), ('Bill', 7, 'Buena'), ('Carol', 3, 'Cambridge'), ('Dave', 11, 'Devon')", targetTable));
+            String initialInsert = format("INSERT INTO %s (customer, purchases, address) VALUES ('Aaron', 5, 'Antioch'), ('Bill', 7, 'Buena'), ('Carol', 3, 'Cambridge'), ('Dave', 11, 'Devon')", targetTable);
+            executeIdempotentWrite(onTrinoWithoutRetry(), targetTable, initialInsert);
 
             String query = format("MERGE INTO %s t USING ", targetTable) +
                     "(SELECT * FROM (VALUES ('Aaron', 6, 'Arches'), ('Carol', 9, 'Centreville'), ('Dave', 11, 'Darbyshire'), ('Ed', 7, 'Etherville'))) AS s(customer, purchases, address)" +
@@ -326,7 +331,8 @@ public class TestHiveMerge
                     "    WHEN MATCHED AND s.address = 'Centreville' THEN DELETE" +
                     "    WHEN MATCHED THEN UPDATE SET purchases = s.purchases + t.purchases, address = s.address" +
                     "    WHEN NOT MATCHED THEN INSERT (customer, purchases, address) VALUES(s.customer, s.purchases, s.address)";
-            onTrino().executeQuery(query);
+            // a blindly retried MERGE would add s.purchases again to rows the failed attempt already committed
+            executeIdempotentWrite(onTrinoWithoutRetry(), targetTable, query, initialInsert);
 
             verifySelectForTrinoAndHive("SELECT * FROM " + targetTable, row("Aaron", 11, "Arches"), row("Bill", 7, "Buena"), row("Dave", 22, "Darbyshire"), row("Ed", 7, "Etherville"));
         });
@@ -462,19 +468,21 @@ public class TestHiveMerge
         withTemporaryTable(format("%s_target", testDescription), true, NONE, targetTable -> {
             onHive().executeQuery(format(createTargetTableSql, targetTable));
 
-            onTrino().executeQuery(format("INSERT INTO %s (customer, purchases, address) VALUES ('Aaron', 5, 'Antioch'), ('Bill', 7, 'Buena'), ('Carol', 3, 'Cambridge'), ('Dave', 11, 'Devon')", targetTable));
+            String targetInsert = format("INSERT INTO %s (customer, purchases, address) VALUES ('Aaron', 5, 'Antioch'), ('Bill', 7, 'Buena'), ('Carol', 3, 'Cambridge'), ('Dave', 11, 'Devon')", targetTable);
+            executeIdempotentWrite(onTrinoWithoutRetry(), targetTable, targetInsert);
 
             withTemporaryTable(format("%s_source", testDescription), true, NONE, sourceTable -> {
                 onHive().executeQuery(format(createSourceTableSql, sourceTable));
 
-                onTrino().executeQuery(format("INSERT INTO %s (customer, purchases, address) VALUES ('Aaron', 6, 'Arches'), ('Ed', 7, 'Etherville'), ('Carol', 9, 'Centreville'), ('Dave', 11, 'Darbyshire')", sourceTable));
+                executeIdempotentWrite(onTrinoWithoutRetry(), sourceTable, format("INSERT INTO %s (customer, purchases, address) VALUES ('Aaron', 6, 'Arches'), ('Ed', 7, 'Etherville'), ('Carol', 9, 'Centreville'), ('Dave', 11, 'Darbyshire')", sourceTable));
 
                 String sql = format("MERGE INTO %s t USING %s s ON (t.customer = s.customer)", targetTable, sourceTable) +
                         "    WHEN MATCHED AND s.address = 'Centreville' THEN DELETE" +
                         "    WHEN MATCHED THEN UPDATE SET purchases = s.purchases + t.purchases, address = s.address" +
                         "    WHEN NOT MATCHED THEN INSERT (customer, purchases, address) VALUES(s.customer, s.purchases, s.address)";
 
-                onTrino().executeQuery(sql);
+                // a blindly retried MERGE would add s.purchases again to rows the failed attempt already updated
+                executeIdempotentWrite(onTrinoWithoutRetry(), targetTable, sql, targetInsert);
 
                 verifySelectForTrinoAndHive("SELECT customer, purchases, address FROM " + targetTable, row("Aaron", 11, "Arches"), row("Ed", 7, "Etherville"), row("Bill", 7, "Buena"), row("Dave", 22, "Darbyshire"));
             });
@@ -654,12 +662,13 @@ public class TestHiveMerge
         withTemporaryTable("merge_cast_target", false, NONE, targetTable -> {
             onTrino().executeQuery(format("CREATE TABLE %s (col1 TINYINT, col2 SMALLINT, col3 INT, col4 BIGINT, col5 REAL, col6 DOUBLE) WITH (transactional = true)", targetTable));
 
-            onTrino().executeQuery(format("INSERT INTO %s VALUES (1, 2, 3, 4, 5, 6)", targetTable));
+            // a blindly retried INSERT would land the row twice when the first attempt committed before failing
+            executeIdempotentWrite(onTrinoWithoutRetry(), targetTable, format("INSERT INTO %s VALUES (1, 2, 3, 4, 5, 6)", targetTable));
 
             withTemporaryTable("test_without_aliases_source", false, NONE, sourceTable -> {
                 onTrino().executeQuery(format("CREATE TABLE %s (col1 DOUBLE, col2 REAL, col3 BIGINT, col4 INT, col5 SMALLINT, col6 TINYINT) WITH (transactional = true)", sourceTable));
 
-                onTrino().executeQuery(format("INSERT INTO %s VALUES (2, 3, 4, 5, 6, 7)", sourceTable));
+                executeIdempotentWrite(onTrinoWithoutRetry(), sourceTable, format("INSERT INTO %s VALUES (2, 3, 4, 5, 6, 7)", sourceTable));
 
                 onTrino().executeQuery(format("MERGE INTO %s t USING %s s", targetTable, sourceTable) +
                         "    ON (t.col1 + 1 = s.col1)" +

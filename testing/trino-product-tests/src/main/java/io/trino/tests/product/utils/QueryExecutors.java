@@ -37,6 +37,12 @@ public final class QueryExecutors
         return connectToTrino("trino");
     }
 
+    // Raw executor without onTrino()'s HDFS-commit retry, for callers that manage the retry themselves
+    public static QueryExecutor onTrinoWithoutRetry()
+    {
+        return testContext().getDependency(QueryExecutor.class, "trino");
+    }
+
     public static QueryExecutor onCompatibilityTestServer()
     {
         return connectToTrino("compatibility-test-server");

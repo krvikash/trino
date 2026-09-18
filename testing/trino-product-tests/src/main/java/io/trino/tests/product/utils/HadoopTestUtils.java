@@ -14,14 +14,18 @@
 package io.trino.tests.product.utils;
 
 import com.google.common.base.Throwables;
+import dev.failsafe.Failsafe;
 import dev.failsafe.RetryPolicy;
 import io.airlift.log.Logger;
+import io.trino.tempto.query.QueryExecutor;
 import io.trino.tempto.query.QueryResult;
 import io.trino.tests.product.hive.HiveProductTest;
 import org.intellij.lang.annotations.Language;
 
 import java.time.temporal.ChronoUnit;
 import java.util.regex.Pattern;
+
+import static java.lang.String.format;
 
 public final class HadoopTestUtils
 {
@@ -61,5 +65,27 @@ public final class HadoopTestUtils
         return Pattern.compile(RETRYABLE_FAILURES_MATCH)
                 .matcher(Throwables.getStackTraceAsString(throwable))
                 .find();
+    }
+
+    // Runs sql with the same HDFS-commit retry as onTrino(), but restores targetTable's prior contents (DELETE, then
+    // repopulateSql) before every retry, so a write whose first attempt partially committed is never applied twice
+    public static QueryResult executeIdempotentWrite(QueryExecutor queryExecutor, String targetTable, @Language("SQL") String sql, @Language("SQL") String... repopulateSql)
+    {
+        RetryPolicy<QueryResult> policy = RetryPolicy.<QueryResult>builder()
+                .handleIf(HadoopTestUtils::isErrorCommittingToHive)
+                .withBackoff(1, 10, ChronoUnit.SECONDS)
+                .withMaxRetries(30)
+                .onRetry(event -> log.warn(event.getLastException(), "Write to %s failed on attempt %d, will reset the table and retry.", targetTable, event.getAttemptCount()))
+                .build();
+        return Failsafe.with(policy).get(context -> {
+            if (!context.isFirstAttempt()) {
+                // a failed reset fails this attempt, so sql never runs on top of partially committed state
+                queryExecutor.executeQuery(format("DELETE FROM %s", targetTable));
+                for (String statement : repopulateSql) {
+                    queryExecutor.executeQuery(statement);
+                }
+            }
+            return queryExecutor.executeQuery(sql);
+        });
     }
 }
