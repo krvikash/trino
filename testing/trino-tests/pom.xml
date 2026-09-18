@@ -16,6 +16,13 @@
     <properties>
         <air.test.jvm.additional-arguments>${air.test.jvm.additional-arguments.default}
             --add-opens=java.base/java.nio=ALL-UNNAMED --sun-misc-unsafe-memory-access=allow</air.test.jvm.additional-arguments>
+        <!-- This module runs thousands of DistributedQueryRunner-backed tests in a single fork (9000+ per CI run),
+             and has repeatedly OOM'd at the default 3g heap (ENG-8410, ENG-26709) even after reducing per-task
+             memory retention (task.info.max-age, see DistributedQueryRunner). Match the heap already given to
+             other query-runner-heavy modules (trino-hive, starburst-stargate, starburst-buffer-exchange-tests
+             all use 4g; this module's own "gpu" profile already uses 4g) instead of the 3g default. The CI
+             runner has 64GB RAM, so there is ample headroom for this module specifically. -->
+        <air.test.jvmsize>4g</air.test.jvmsize>
     </properties>
 
     <dependencies>
