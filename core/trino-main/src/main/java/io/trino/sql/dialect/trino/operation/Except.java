@@ -136,6 +136,20 @@ public final class Except
     }
 
     @Override
+    public Operation withArguments(List<Value> newArguments)
+    {
+        validateArguments(newArguments);
+        return new Except(
+                result.name(),
+                newArguments,
+                inputFieldSelectors.stream()
+                        .map(Region::getOnlyBlock)
+                        .collect(toImmutableList()),
+                DISTINCT.getAttribute(attributes),
+                emptySourceAttributes(newArguments.size()));
+    }
+
+    @Override
     public Attributes operationAttributes()
     {
         return filterAttributes(ExceptOperationMetadata.OPERATION_ATTRIBUTES);

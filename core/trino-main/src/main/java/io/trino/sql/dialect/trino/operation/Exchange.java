@@ -309,6 +309,30 @@ public class Exchange
     }
 
     @Override
+    public Operation withArguments(List<Value> newArguments)
+    {
+        validateArguments(newArguments);
+        return new Exchange(
+                result.name(),
+                newArguments,
+                inputFieldSelectors.stream()
+                        .map(Region::getOnlyBlock)
+                        .collect(toImmutableList()),
+                partitioningBoundArguments.getOnlyBlock(),
+                orderingSelector.getOnlyBlock(),
+                EXCHANGE_TYPE.getAttribute(attributes),
+                EXCHANGE_SCOPE.getAttribute(attributes),
+                PARTITIONING_HANDLE.getAttribute(attributes),
+                CONSTANT_VALUES.getAttribute(attributes),
+                REPLICATE_NULLS_AND_ANY.getAttribute(attributes),
+                Optional.ofNullable(BUCKET_TO_PARTITION.getAttribute(attributes)),
+                PARTITION_COUNT.getAttribute(attributes) == null ? OptionalInt.empty() : OptionalInt.of(PARTITION_COUNT.getAttribute(attributes)),
+                BUCKET_COUNT.getAttribute(attributes) == null ? OptionalInt.empty() : OptionalInt.of(BUCKET_COUNT.getAttribute(attributes)),
+                Optional.ofNullable(SORT_ORDERS.getAttribute(attributes)),
+                emptySourceAttributes(newArguments.size()));
+    }
+
+    @Override
     public Attributes operationAttributes()
     {
         return filterAttributes(ExchangeOperationMetadata.OPERATION_ATTRIBUTES);

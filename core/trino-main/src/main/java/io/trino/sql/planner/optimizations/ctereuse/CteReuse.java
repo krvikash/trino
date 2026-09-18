@@ -1501,13 +1501,20 @@ public class CteReuse
             }
             else {
                 // replace arguments and output the operation
-                for (int i = 0; i < operation.arguments().size(); i++) {
-                    Value argument = operation.arguments().get(i);
+                List<Value> arguments = operation.arguments();
+                List<Value> newArguments = new ArrayList<>(arguments);
+                boolean changed = false;
+                for (int i = 0; i < arguments.size(); i++) {
+                    Value argument = arguments.get(i);
                     if (replacements.containsKey(argument)) {
                         Value newArgument = replacements.get(argument);
                         checkArgument(availableValues.contains(newArgument), "argument not available");
-                        operation = ((TrinoOperation) operation).withArgument(newArgument, i);
+                        newArguments.set(i, newArgument);
+                        changed = true;
                     }
+                }
+                if (changed) {
+                    operation = ((TrinoOperation) operation).withArguments(newArguments);
                 }
                 newMainBlockBuilder.addOperation(operation);
                 availableValues.add(operation.result());

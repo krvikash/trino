@@ -121,6 +121,16 @@ public final class Row
     }
 
     @Override
+    public Operation withArguments(List<Value> newArguments)
+    {
+        validateArguments(newArguments);
+        return new Row(
+                result.name(),
+                newArguments,
+                emptySourceAttributes(newArguments.size()));
+    }
+
+    @Override
     public Operation withResultName(String newName)
     {
         return new Row(newName, fields, emptySourceAttributes(fields.size()));

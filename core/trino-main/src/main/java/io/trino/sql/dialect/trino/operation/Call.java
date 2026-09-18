@@ -131,6 +131,17 @@ public final class Call
     }
 
     @Override
+    public Operation withArguments(List<Value> newArguments)
+    {
+        validateArguments(newArguments);
+        return new Call(
+                result.name(),
+                newArguments,
+                RESOLVED_FUNCTION.getAttribute(attributes),
+                emptySourceAttributes(newArguments.size()));
+    }
+
+    @Override
     public Operation withResultName(String newName)
     {
         return new Call(newName, arguments, RESOLVED_FUNCTION.getAttribute(attributes), emptySourceAttributes(arguments.size()));

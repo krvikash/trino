@@ -170,6 +170,19 @@ public final class Match
     }
 
     @Override
+    public Operation withArguments(List<Value> newArguments)
+    {
+        validateArguments(newArguments);
+        return new Match(
+                result.name(),
+                newArguments.getFirst(),
+                newArguments.subList(1, 1 + when.size()),
+                newArguments.subList(1 + when.size(), 1 + when.size() + then.size()),
+                newArguments.getLast(),
+                emptySourceAttributes(newArguments.size()));
+    }
+
+    @Override
     public Operation withResultName(String newName)
     {
         return new Match(newName, operand, when, then, defaultValue, emptySourceAttributes(1 + when.size() + then.size() + 1));

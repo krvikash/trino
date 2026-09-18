@@ -402,7 +402,8 @@ public class PredicateUtils
             Map<Value, Operation> originalOperations,
             Map<Value, Operation> processedOperations)
     {
-        List<Value> processedArguments = operation.arguments().stream()
+        List<Value> originalArguments = operation.arguments();
+        List<Value> processedArguments = originalArguments.stream()
                 .map(argument -> {
                     Operation source = originalOperations.get(argument);
                     // source == null indicates that the argument is a block parameter or correlated
@@ -459,10 +460,8 @@ public class PredicateUtils
 
         else {
             // not a logical operation. Swap the arguments that changed
-            for (int i = 0; i < operation.arguments().size(); i++) {
-                if (!operation.arguments().get(i).equals(processedArguments.get(i))) {
-                    operation = ((TrinoOperation) operation).withArgument(processedArguments.get(i), i);
-                }
+            if (!originalArguments.equals(processedArguments)) {
+                operation = ((TrinoOperation) operation).withArguments(processedArguments);
             }
             processedOperations.put(operation.result(), operation);
             return operation.result();

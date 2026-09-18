@@ -135,6 +135,17 @@ public final class Bind
     }
 
     @Override
+    public Operation withArguments(List<Value> newArguments)
+    {
+        validateArguments(newArguments);
+        return new Bind(
+                result.name(),
+                newArguments.subList(0, values.size()),
+                newArguments.getLast(),
+                emptySourceAttributes(newArguments.size()));
+    }
+
+    @Override
     public Operation withResultName(String newName)
     {
         return new Bind(newName, values, lambda, emptySourceAttributes(values.size() + 1));

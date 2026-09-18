@@ -136,6 +136,20 @@ public final class Intersect
     }
 
     @Override
+    public Operation withArguments(List<Value> newArguments)
+    {
+        validateArguments(newArguments);
+        return new Intersect(
+                result.name(),
+                newArguments,
+                inputFieldSelectors.stream()
+                        .map(Region::getOnlyBlock)
+                        .collect(toImmutableList()),
+                DISTINCT.getAttribute(attributes),
+                emptySourceAttributes(newArguments.size()));
+    }
+
+    @Override
     public Attributes operationAttributes()
     {
         return filterAttributes(IntersectOperationMetadata.OPERATION_ATTRIBUTES);

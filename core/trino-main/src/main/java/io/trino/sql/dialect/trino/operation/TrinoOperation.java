@@ -26,6 +26,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static io.trino.sql.dialect.trino.TrinoDialect.TRINO;
 import static java.util.Collections.nCopies;
+import static java.util.Objects.requireNonNull;
 
 public abstract class TrinoOperation
         extends Operation
@@ -64,8 +65,36 @@ public abstract class TrinoOperation
 
     void validateArgument(Value newArgument, int index)
     {
-        checkArgument(index >= 0 && index < arguments().size(), "invalid argument index");
-        checkArgument(newArgument.type().equals(arguments().get(index).type()), "argument type mismatch");
+        List<Value> arguments = arguments();
+        checkArgument(index >= 0 && index < arguments.size(), "invalid argument index");
+        checkArgument(newArgument.type().equals(arguments.get(index).type()), "argument type mismatch");
+    }
+
+    /**
+     * Replace all operation arguments with newArguments.
+     * The new arguments must have the same count and respective types as the current arguments.
+     * Operations with variable arity should override this method to perform a single reconstruction.
+     */
+    public Operation withArguments(List<Value> newArguments)
+    {
+        validateArguments(newArguments);
+
+        Operation operation = this;
+        for (int i = 0; i < newArguments.size(); i++) {
+            operation = ((TrinoOperation) operation).withArgument(newArguments.get(i), i);
+        }
+        return operation;
+    }
+
+    void validateArguments(List<Value> newArguments)
+    {
+        requireNonNull(newArguments, "newArguments is null");
+
+        List<Value> arguments = arguments();
+        checkArgument(newArguments.size() == arguments.size(), "arguments list size mismatch");
+        for (int i = 0; i < arguments.size(); i++) {
+            checkArgument(newArguments.get(i).type().equals(arguments.get(i).type()), "argument type mismatch at index %s", i);
+        }
     }
 
     public Operation withResultName(String newName)

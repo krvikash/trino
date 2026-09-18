@@ -132,6 +132,17 @@ public final class In
     }
 
     @Override
+    public Operation withArguments(List<Value> newArguments)
+    {
+        validateArguments(newArguments);
+        return new In(
+                result.name(),
+                newArguments.getFirst(),
+                newArguments.subList(1, newArguments.size()),
+                emptySourceAttributes(newArguments.size()));
+    }
+
+    @Override
     public Operation withResultName(String newName)
     {
         return new In(newName, input, inputList, emptySourceAttributes(1 + inputList.size()));

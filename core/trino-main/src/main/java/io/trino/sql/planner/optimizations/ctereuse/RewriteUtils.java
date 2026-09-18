@@ -244,13 +244,7 @@ public class RewriteUtils
             String newResultName = nameAllocator.newName();
 
             // remap arguments
-            for (int i = 0; i < operation.arguments().size(); i++) {
-                Value oldArgument = operation.arguments().get(i);
-                Value newArgument = map.get(oldArgument);
-                if (newArgument != null) {
-                    operation = ((TrinoOperation) operation).withArgument(newArgument, i);
-                }
-            }
+            operation = remapArguments(operation, map);
 
             // remap regions
             List<Region> newRegions = operation.regions().stream()
@@ -285,13 +279,7 @@ public class RewriteUtils
                         .allMatch(entry -> entry.getKey().type().equals(entry.getValue().type())),
                 "type mismatch");
 
-        for (int i = 0; i < operation.arguments().size(); i++) {
-            Value oldArgument = operation.arguments().get(i);
-            Value newArgument = map.get(oldArgument);
-            if (newArgument != null) {
-                operation = ((TrinoOperation) operation).withArgument(newArgument, i);
-            }
-        }
+        operation = remapArguments(operation, map);
 
         List<Region> newRegions = operation.regions().stream()
                 .map(Region::getOnlyBlock)
@@ -306,6 +294,27 @@ public class RewriteUtils
                 .collect(toImmutableList());
 
         return ((TrinoOperation) operation).withRegions(newRegions);
+    }
+
+    private static Operation remapArguments(Operation operation, Map<Value, Value> map)
+    {
+        List<Value> arguments = operation.arguments();
+        List<Value> remappedArguments = new ArrayList<>(arguments.size());
+        boolean changed = false;
+        for (Value argument : arguments) {
+            Value remappedArgument = map.get(argument);
+            if (remappedArgument == null) {
+                remappedArgument = argument;
+            }
+            else {
+                changed = true;
+            }
+            remappedArguments.add(remappedArgument);
+        }
+        if (!changed) {
+            return operation;
+        }
+        return ((TrinoOperation) operation).withArguments(remappedArguments);
     }
 
     /**

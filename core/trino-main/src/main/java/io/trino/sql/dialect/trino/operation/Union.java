@@ -129,6 +129,19 @@ public final class Union
     }
 
     @Override
+    public Operation withArguments(List<Value> newArguments)
+    {
+        validateArguments(newArguments);
+        return new Union(
+                result.name(),
+                newArguments,
+                inputFieldSelectors.stream()
+                        .map(Region::getOnlyBlock)
+                        .collect(toImmutableList()),
+                emptySourceAttributes(newArguments.size()));
+    }
+
+    @Override
     public Attributes operationAttributes()
     {
         return Attributes.empty();

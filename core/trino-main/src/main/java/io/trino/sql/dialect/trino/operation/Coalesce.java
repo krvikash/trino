@@ -125,6 +125,16 @@ public final class Coalesce
     }
 
     @Override
+    public Operation withArguments(List<Value> newArguments)
+    {
+        validateArguments(newArguments);
+        return new Coalesce(
+                result.name(),
+                newArguments,
+                emptySourceAttributes(newArguments.size()));
+    }
+
+    @Override
     public Operation withResultName(String newName)
     {
         return new Coalesce(newName, operands, emptySourceAttributes(operands.size()));

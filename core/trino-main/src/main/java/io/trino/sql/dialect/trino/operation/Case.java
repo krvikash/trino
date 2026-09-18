@@ -162,6 +162,18 @@ public final class Case
     }
 
     @Override
+    public Operation withArguments(List<Value> newArguments)
+    {
+        validateArguments(newArguments);
+        return new Case(
+                result.name(),
+                newArguments.subList(0, when.size()),
+                newArguments.subList(when.size(), when.size() + then.size()),
+                newArguments.getLast(),
+                emptySourceAttributes(newArguments.size()));
+    }
+
+    @Override
     public Operation withResultName(String newName)
     {
         return new Case(newName, when, then, defaultValue, emptySourceAttributes(when.size() + then.size() + 1));

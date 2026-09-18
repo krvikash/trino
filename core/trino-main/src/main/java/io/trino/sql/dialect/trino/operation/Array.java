@@ -126,6 +126,17 @@ public final class Array
     }
 
     @Override
+    public Operation withArguments(List<Value> newArguments)
+    {
+        validateArguments(newArguments);
+        return new Array(
+                result.name(),
+                ((ArrayType) trinoType(result.type())).getElementType(),
+                newArguments,
+                emptySourceAttributes(newArguments.size()));
+    }
+
+    @Override
     public Operation withResultName(String newName)
     {
         return new Array(newName, ((ArrayType) trinoType(result.type())).getElementType(), elements, emptySourceAttributes(elements.size()));

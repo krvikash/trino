@@ -129,6 +129,17 @@ public final class Logical
     }
 
     @Override
+    public Operation withArguments(List<Value> newArguments)
+    {
+        validateArguments(newArguments);
+        return new Logical(
+                result.name(),
+                newArguments,
+                LOGICAL_OPERATOR.getAttribute(attributes),
+                emptySourceAttributes(newArguments.size()));
+    }
+
+    @Override
     public Operation withResultName(String newName)
     {
         return new Logical(newName, terms, LOGICAL_OPERATOR.getAttribute(attributes), emptySourceAttributes(terms.size()));
