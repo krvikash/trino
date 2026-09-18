@@ -45,10 +45,12 @@ import jakarta.annotation.Nullable;
 import java.util.List;
 import java.util.Optional;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.airlift.concurrent.MoreFutures.asVoid;
 import static io.airlift.concurrent.MoreFutures.getDone;
+import static io.trino.operator.gpu.memory.GpuMemoryUtils.getDistinctIndicesGpuDeviceMemoryUsage;
 import static io.trino.operator.gpu.memory.GpuMemoryUtils.getMixedInnerJoinGpuDeviceMemoryUsage;
 import static io.trino.operator.gpu.memory.GpuMemoryUtils.getMixedLeftJoinGpuDeviceMemoryUsage;
 import static io.trino.operator.gpu.memory.GpuMemoryUtils.getNullColumnMemoryUsage;
@@ -65,6 +67,7 @@ public final class GpuLookupJoin
     {
         INNER,
         LEFT,
+        RIGHT,
     }
 
     public static final class Factory
@@ -91,6 +94,7 @@ public final class GpuLookupJoin
             this.probeKeyChannels = requireNonNull(probeKeyChannels, "probeKeyChannels is null").clone();
             this.probeOutputChannels = requireNonNull(probeOutputChannels, "probeOutputChannels is null").clone();
             this.joinType = requireNonNull(joinType, "joinType is null");
+            checkArgument((joinType == JoinType.RIGHT) == bridgeManager.hasOuterDrain(), "%s join with a bridge manager whose outer drain is %s", joinType, bridgeManager.hasOuterDrain());
             this.buildOutputTypes = ImmutableList.copyOf(requireNonNull(buildOutputTypes, "buildOutputTypes is null"));
             this.filteredJoin = filteredJoin;
         }
@@ -138,6 +142,8 @@ public final class GpuLookupJoin
     private final List<DType> buildOutputDTypes;
     private final boolean filteredJoin;
 
+    private boolean complete;
+
     private GpuLookupJoin(
             Context context,
             GpuOperation source,
@@ -150,7 +156,6 @@ public final class GpuLookupJoin
     {
         this.taskMemoryContext = context.taskMemoryContext();
         this.source = requireNonNull(source, "source is null");
-        this.bridgeFuture = bridgeManager.getBridgeFuture();
         this.probeKeyChannels = probeKeyChannels;
         this.probeOutputChannels = probeOutputChannels;
         this.joinType = joinType;
@@ -160,10 +165,11 @@ public final class GpuLookupJoin
                         .orElseThrow(() -> new IllegalStateException("Build type not GPU convertible: " + type)))
                 .collect(toImmutableList());
         this.filteredJoin = filteredJoin;
-
         closer.register(source);
         closer.register(finish);
-        finish.register(bridgeManager::probeOperatorFinished);
+        this.bridgeFuture = bridgeManager.acquireBridgeForProbe();
+
+        finish.register(() -> bridgeManager.probeOperatorFinished(!complete));
     }
 
     @Override
@@ -181,6 +187,7 @@ public final class GpuLookupJoin
             case Blocked blocked -> blocked;
             case Yielded yielded -> yielded;
             case Finished finished -> {
+                complete = true;
                 finish.close();
                 yield finished;
             }
@@ -209,7 +216,7 @@ public final class GpuLookupJoin
         boolean buildSideEmpty = joinBridge instanceof EmptyBuildSide;
 
         switch (joinType) {
-            case INNER -> {
+            case INNER, RIGHT -> {
                 if (probeSideEmpty || buildSideEmpty) {
                     return Optional.empty();
                 }
@@ -230,7 +237,7 @@ public final class GpuLookupJoin
             if (!filteredJoin) {
                 HashJoinBridge bridge = (HashJoinBridge) joinBridge;
                 long joinOutputRowCount = switch (joinType) {
-                    case INNER -> probeKeyTable.innerJoinRowCount(bridge.hashJoin());
+                    case INNER, RIGHT -> probeKeyTable.innerJoinRowCount(bridge.hashJoin());
                     case LEFT -> probeKeyTable.leftJoinRowCount(bridge.hashJoin());
                 };
                 if (joinOutputRowCount == 0) {
@@ -241,7 +248,7 @@ public final class GpuLookupJoin
                 MemoryAmount estimatedMemory = estimateJoinOutputMemoryUsage(probePage, joinBridge, joinOutputRowCount);
                 allocation.update(allocation.amount().add(estimatedMemory));
                 maps = switch (joinType) {
-                    case INNER -> probeKeyTable.innerJoinGatherMaps(bridge.hashJoin(), joinOutputRowCount);
+                    case INNER, RIGHT -> probeKeyTable.innerJoinGatherMaps(bridge.hashJoin(), joinOutputRowCount);
                     case LEFT -> probeKeyTable.leftJoinGatherMaps(bridge.hashJoin(), joinOutputRowCount);
                 };
             }
@@ -250,7 +257,7 @@ public final class GpuLookupJoin
                 // cuDF materializes every equality match before applying the filter, so the peak memory
                 // of the mixed join scales with the equality match count rather than with row counts.
                 long equalityMatchCount = switch (joinType) {
-                    case INNER -> probeKeyTable.innerJoinRowCount(bridge.hashJoin());
+                    case INNER, RIGHT -> probeKeyTable.innerJoinRowCount(bridge.hashJoin());
                     case LEFT -> probeKeyTable.leftJoinRowCount(bridge.hashJoin());
                 };
                 if (equalityMatchCount == 0) {
@@ -264,7 +271,7 @@ public final class GpuLookupJoin
                     MemoryAmount estimatedMemory = estimateFilteredJoinMemoryUsage(probeSourceTable, bridge, equalityMatchCount);
                     allocation.update(allocation.amount().add(estimatedMemory));
                     maps = switch (joinType) {
-                        case INNER -> Table.mixedInnerJoinGatherMaps(probeKeyTable, bridge.buildKeysTable(), probeSourceTable, bridge.buildSourceTable(), bridge.compiledFilter(), NullEquality.UNEQUAL);
+                        case INNER, RIGHT -> Table.mixedInnerJoinGatherMaps(probeKeyTable, bridge.buildKeysTable(), probeSourceTable, bridge.buildSourceTable(), bridge.compiledFilter(), NullEquality.UNEQUAL);
                         case LEFT -> Table.mixedLeftJoinGatherMaps(probeKeyTable, bridge.buildKeysTable(), probeSourceTable, bridge.buildSourceTable(), bridge.compiledFilter(), NullEquality.UNEQUAL);
                     };
                 }
@@ -283,6 +290,10 @@ public final class GpuLookupJoin
                     // gone by now, so replace their reservation with one for the gather maps and the
                     // output page about to be built from them.
                     allocation.update(reservationBeforeJoin.add(estimateJoinOutputMemoryUsage(probePage, joinBridge, outputRowCount)));
+                }
+                if (joinType == JoinType.RIGHT) {
+                    // Update matched rows eagerly to reduce memory usage
+                    markMatchedBuildRows(gatherMaps.build(), rows, joinBridge);
                 }
                 // cuDF Table rejects an empty column array; skip creating the probe
                 // output table when there are no probe output columns (e.g. COUNT(*)).
@@ -320,7 +331,7 @@ public final class GpuLookupJoin
     private MemoryAmount estimateFilteredJoinMemoryUsage(@Borrow Table probeSourceTable, FilteredHashJoinBridge bridge, long equalityMatchCount)
     {
         long bytes = switch (joinType) {
-            case INNER -> getMixedInnerJoinGpuDeviceMemoryUsage(bridge.buildKeysTable(), bridge.buildSourceTable(), probeSourceTable, equalityMatchCount);
+            case INNER, RIGHT -> getMixedInnerJoinGpuDeviceMemoryUsage(bridge.buildKeysTable(), bridge.buildSourceTable(), probeSourceTable, equalityMatchCount);
             case LEFT -> getMixedLeftJoinGpuDeviceMemoryUsage(bridge.buildKeysTable(), bridge.buildSourceTable(), probeSourceTable, equalityMatchCount);
         };
         return MemoryAmount.gpuDevice(bytes);
@@ -363,10 +374,10 @@ public final class GpuLookupJoin
             int rows)
     {
         OutOfBoundsPolicy probePolicy = switch (joinType) {
-            case INNER, LEFT -> OutOfBoundsPolicy.DONT_CHECK;
+            case INNER, LEFT, RIGHT -> OutOfBoundsPolicy.DONT_CHECK;
         };
         OutOfBoundsPolicy buildPolicy = switch (joinType) {
-            case INNER -> OutOfBoundsPolicy.DONT_CHECK;
+            case INNER, RIGHT -> OutOfBoundsPolicy.DONT_CHECK;
             case LEFT -> OutOfBoundsPolicy.NULLIFY;
         };
 
@@ -407,6 +418,17 @@ public final class GpuLookupJoin
             if (buildGathered != null) {
                 buildGathered.close();
             }
+        }
+    }
+
+    private void markMatchedBuildRows(@Borrow GatherMap buildGatherMap, int rows, GpuJoinBridge bridge)
+    {
+        try (ClosingRef<AllocatedMemory> _ = ClosingRef.own(taskMemoryContext.allocate(getClass().getSimpleName() + "-distinct", MemoryAmount.gpuDevice(getDistinctIndicesGpuDeviceMemoryUsage(rows))));
+                ColumnView indices = buildGatherMap.toColumnView(0, rows);
+                ColumnVector indicesCopy = indices.copyToColumnVector();
+                Table indexTable = new Table(indicesCopy);
+                Table distinct = indexTable.dropDuplicates(new int[] {0}, Table.DuplicateKeepOption.KEEP_ANY, true)) {
+            bridge.matchMask().markMatched(distinct.getColumn(0));
         }
     }
 

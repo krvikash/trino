@@ -83,7 +83,7 @@ final class TestGpuLookupJoin
         Page buildPage = new Page(longBlock(1L, 3L, 5L));
         Page probePage = new Page(longBlock(1L, 2L, 3L, 4L, 5L));
 
-        GpuJoinBridgeManager manager = new GpuJoinBridgeManager();
+        GpuJoinBridgeManager manager = new GpuJoinBridgeManager(false);
 
         try (BuildDriver build = new BuildDriver(manager, buildTypes, CHANNEL_0, EMPTY_CHANNELS, List.of(buildPage))) {
             assertThat(build.run()).isInstanceOf(Blocked.class);
@@ -114,7 +114,7 @@ final class TestGpuLookupJoin
         Page buildPage = new Page(longBlock(1L, 3L));
         Page probePage = new Page(longBlock(1L, 2L, 3L, 4L));
 
-        GpuJoinBridgeManager manager = new GpuJoinBridgeManager();
+        GpuJoinBridgeManager manager = new GpuJoinBridgeManager(false);
 
         try (BuildDriver build = new BuildDriver(manager, buildTypes, CHANNEL_0, EMPTY_CHANNELS, List.of(buildPage))) {
             assertThat(build.run()).isInstanceOf(Blocked.class);
@@ -150,7 +150,7 @@ final class TestGpuLookupJoin
         Page buildPage = new Page(longBlock(1L, 3L), longBlock(10L, 30L));
         Page probePage = new Page(longBlock(1L, 2L, 3L, 4L));
 
-        GpuJoinBridgeManager manager = new GpuJoinBridgeManager();
+        GpuJoinBridgeManager manager = new GpuJoinBridgeManager(false);
 
         try (BuildDriver build = new BuildDriver(manager, buildTypes, CHANNEL_0, new int[] {1}, List.of(buildPage))) {
             assertThat(build.run()).isInstanceOf(Blocked.class);
@@ -195,7 +195,7 @@ final class TestGpuLookupJoin
                 new ColumnReference(1, TableReference.LEFT),
                 new ColumnReference(1, TableReference.RIGHT));
 
-        GpuJoinBridgeManager manager = new GpuJoinBridgeManager();
+        GpuJoinBridgeManager manager = new GpuJoinBridgeManager(false);
         try (BuildDriver build = new BuildDriver(manager, types, CHANNEL_0, new int[] {1}, Optional.of(filter), List.of(buildPage))) {
             assertThat(build.run()).isInstanceOf(Blocked.class);
             List<Page> output = runProbe(
@@ -253,7 +253,7 @@ final class TestGpuLookupJoin
 
         Page probePage = new Page(longBlock(1L, 2L, 3L));
 
-        GpuJoinBridgeManager manager = new GpuJoinBridgeManager();
+        GpuJoinBridgeManager manager = new GpuJoinBridgeManager(false);
 
         try (BuildDriver build = new BuildDriver(manager, buildTypes, CHANNEL_0, EMPTY_CHANNELS, List.of())) {
             assertThat(build.run()).isInstanceOf(Blocked.class);

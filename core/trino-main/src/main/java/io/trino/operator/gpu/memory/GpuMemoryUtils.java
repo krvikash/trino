@@ -42,6 +42,10 @@ public final class GpuMemoryUtils
     // Measured fixed cost of a mixed join: the cub temporary storage base plus the parsed AST of a
     // small predicate, neither of which is worth modelling in detail
     private static final long MIXED_JOIN_FIXED_BYTES = 1157;
+    // Measured fixed cost of Table.dropDuplicates
+    private static final long DISTINCT_FIXED_BYTES = 1152;
+    // Measured fixed cost of GpuJoinMatchMask#unmatchedBuildIndices: allocation rounding and cub temporaries
+    private static final long UNMATCHED_BUILD_INDICES_FIXED_BYTES = 1536;
 
     /// Estimate the additional GPU device memory retained by `new HashJoin(buildKeys, [false])`,
     /// assuming `buildKeys` is retained by the caller and therefore not counted here.
@@ -70,6 +74,31 @@ public final class GpuMemoryUtils
         // bucket_storage over-allocates by (alignment - 1) / sizeof(value_type) + 1 elements for alignment;
         // for int32_t keys with alignof(int32_t) = 4: extra = (4 - 1) / 4 + 1 = 1 element = 4 bytes
         return cucoBytes + 4 + preprocessedBytes;
+    }
+
+    /// Peak of copying `rows` INT32 indices and deduplicating them with {@link Table#dropDuplicates}.
+    public static long getDistinctIndicesGpuDeviceMemoryUsage(long rows)
+    {
+        if (rows == 0) {
+            return 0;
+        }
+        // Copy, hash set and distinct indices are live together
+        long copyBytes = rows * Integer.BYTES;
+        long hashSetBytes = cucoHashSetCapacity(rows) * HASH_SET_ENTRY_BYTES;
+        long distinctIndexBytes = rows * Integer.BYTES;
+        // Measured cub temporary storage
+        long temporaryBytes = DISTINCT_FIXED_BYTES + rows / 64;
+        return copyBytes + hashSetBytes + distinctIndexBytes + temporaryBytes;
+    }
+
+    /// Peak of {@link io.trino.operator.gpu.join.GpuJoinMatchMask#unmatchedBuildIndices}, assuming every build row is unmatched.
+    public static long getUnmatchedBuildIndicesGpuDeviceMemoryUsage(long buildRowCount)
+    {
+        long sequenceBytes = buildRowCount * Integer.BYTES;
+        long invertedMaskBytes = buildRowCount * Byte.BYTES;
+        // Filter output plus its gather map, as in getFilterGpuDeviceMemoryUsage
+        long filterBytes = 2 * buildRowCount * Integer.BYTES;
+        return sequenceBytes + invertedMaskBytes + filterBytes + UNMATCHED_BUILD_INDICES_FIXED_BYTES;
     }
 
     private static boolean isNested(Table table)

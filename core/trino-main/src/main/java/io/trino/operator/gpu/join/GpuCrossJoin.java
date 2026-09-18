@@ -43,6 +43,8 @@ import static com.google.common.math.LongMath.saturatedAdd;
 import static com.google.common.math.LongMath.saturatedMultiply;
 import static io.airlift.concurrent.MoreFutures.asVoid;
 import static io.airlift.concurrent.MoreFutures.getDone;
+import static io.trino.operator.gpu.join.GpuJoinUtils.MAX_OUTPUT_CHUNK_BYTES;
+import static io.trino.operator.gpu.join.GpuJoinUtils.TARGET_OUTPUT_CHUNK_BYTES;
 import static io.trino.plugin.base.gpu.GpuUtils.closeColumns;
 import static io.trino.plugin.base.gpu.GpuUtils.toTable;
 import static java.lang.Math.ceilDiv;
@@ -56,12 +58,6 @@ import static java.util.Objects.requireNonNull;
 public final class GpuCrossJoin
         implements GpuOperation
 {
-    /// Device memory an output chunk is aimed at when the product does not fit a single chunk. Lower
-    /// than [#MAX_OUTPUT_CHUNK_BYTES] because such a chunk is sized from the page's average row.
-    private static final long TARGET_OUTPUT_CHUNK_BYTES = 128L * 1024 * 1024;
-    /// Device memory an output chunk may not exceed. The product is emitted as one chunk when it fits,
-    /// because its size is known exactly; a chunk of it is bounded by the widest row either side holds.
-    private static final long MAX_OUTPUT_CHUNK_BYTES = 1024L * 1024 * 1024;
     /// Rows an output chunk may not exceed, on top of the byte limits. A cuDF column cannot hold more
     /// than [Integer#MAX_VALUE] rows, so a chunk of cheap rows still has to be bounded by their count.
     private static final int MAX_OUTPUT_CHUNK_ROWS = 10_000_000;

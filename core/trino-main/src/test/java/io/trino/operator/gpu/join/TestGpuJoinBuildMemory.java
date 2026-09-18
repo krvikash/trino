@@ -126,7 +126,7 @@ class TestGpuJoinBuildMemory
         try (GpuDeviceMemoryUsageValidation memoryValidation = GpuDeviceMemoryUsageValidation.createAndRegister(context, 1024 * 1024)) {
             Iterator<Page> inputPages = createPages(buildTypes, NO_NULLS, pageCount, ROWS_PER_PAGE, true);
 
-            GpuJoinBridgeManager manager = new GpuJoinBridgeManager();
+            GpuJoinBridgeManager manager = new GpuJoinBridgeManager(false);
             GpuJoinBuild.Factory factory = new GpuJoinBuild.Factory(manager, keyChannels, outputChannels, filter, Optional.empty());
             try (var source = new SettableGpuOperation();
                     GpuOperation build = factory.create(context, source)) {

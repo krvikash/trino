@@ -44,12 +44,15 @@ import org.junit.jupiter.params.provider.EnumSource;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.IntStream;
 
+import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.trino.operator.gpu.GpuTestUtils.copyToDevice;
 import static io.trino.operator.gpu.GpuTestUtils.createPages;
 import static io.trino.operator.gpu.GpuTestUtils.maybeSetGpuMemoryPoolForTests;
 import static io.trino.operator.gpu.join.GpuLookupJoin.JoinType.LEFT;
+import static io.trino.operator.gpu.join.GpuLookupJoin.JoinType.RIGHT;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.DecimalType.createDecimalType;
 import static io.trino.spi.type.VarcharType.VARCHAR;
@@ -80,6 +83,13 @@ class TestGpuLookupJoinMemory
     void testEmptyBuildLeftJoin()
     {
         testProbe(LEFT, List.of(BIGINT), new int[] {0}, new int[] {0}, new int[] {}, ImmutableList.of(BIGINT), 0, 1);
+    }
+
+    @Test
+    void testEmptyBuildRightJoin()
+    {
+        // The drain has no build rows to emit, so the output is empty
+        testProbe(RIGHT, List.of(BIGINT), new int[] {0}, new int[] {0}, new int[] {}, ImmutableList.of(BIGINT), 0, 1);
     }
 
     @ParameterizedTest
@@ -171,7 +181,7 @@ class TestGpuLookupJoinMemory
         TestingGpuOperationContext context = new TestingGpuOperationContext();
         long marginBytes = (largerMargin ? 9L : 1L) * 1024 * 1024;
         try (GpuDeviceMemoryUsageValidation memoryValidation = GpuDeviceMemoryUsageValidation.createAndRegister(context, marginBytes)) {
-            GpuJoinBridgeManager manager = new GpuJoinBridgeManager();
+            GpuJoinBridgeManager manager = new GpuJoinBridgeManager(joinType == RIGHT);
             GpuJoinBuild.Factory buildFactory = new GpuJoinBuild.Factory(manager, keyChannels, buildOutputChannels, filter, Optional.empty());
 
             try (var buildSource = new SettableGpuOperation();
@@ -202,12 +212,30 @@ class TestGpuLookupJoinMemory
 
                 // Drive probe with memory validation active
                 Iterator<Page> probePages = createPages(types, nullsProvider, probePageCount, PROBE_ROWS_PER_PAGE, true);
+                List<Type> probeOutputTypes = IntStream.of(probeOutputChannels).mapToObj(types::get).collect(toImmutableList());
                 GpuLookupJoin.Factory probeFactory = new GpuLookupJoin.Factory(manager, keyChannels, probeOutputChannels, joinType, buildOutputTypes, filteredJoin);
-                try (var probeSource = new SettableGpuOperation();
-                        GpuOperation probe = probeFactory.create(context, probeSource)) {
-                    drainJoinOutput(probe, probeSource, probePages, types, context, memoryValidation);
+                if (joinType == RIGHT) {
+                    try (var probeSource = new SettableGpuOperation();
+                            GpuOperation probe = probeFactory.create(context, probeSource)) {
+                        probeFactory.noMoreOperators();
+                        drainJoinOutput(probe, probeSource, probePages, types, context, memoryValidation);
+                    }
+                    // Separate outer driver, run after the probe so the barrier has fired and the drain never blocks
+                    GpuJoinOuterDrain.Factory drainFactory = new GpuJoinOuterDrain.Factory(manager, probeOutputTypes);
+                    try (var drainSource = new SettableGpuOperation();
+                            GpuOperation drain = drainFactory.create(context, drainSource)) {
+                        drainFactory.noMoreOperators();
+                        drainSource.noMoreInput();
+                        drainJoinOutput(drain, drainSource, List.<Page>of().iterator(), types, context, memoryValidation);
+                    }
                 }
-                probeFactory.noMoreOperators();
+                else {
+                    try (var probeSource = new SettableGpuOperation();
+                            GpuOperation probe = probeFactory.create(context, probeSource)) {
+                        drainJoinOutput(probe, probeSource, probePages, types, context, memoryValidation);
+                    }
+                    probeFactory.noMoreOperators();
+                }
 
                 // Drive build to Finished after all probes done
                 memoryValidation.withoutValidation(() -> {

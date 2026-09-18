@@ -158,6 +158,7 @@ import io.trino.operator.gpu.join.GpuCrossJoinBuildSideSupplier;
 import io.trino.operator.gpu.join.GpuDynamicFilterCollector;
 import io.trino.operator.gpu.join.GpuJoinBridgeManager;
 import io.trino.operator.gpu.join.GpuJoinBuild;
+import io.trino.operator.gpu.join.GpuJoinOuterDrain;
 import io.trino.operator.gpu.join.GpuLookupJoin;
 import io.trino.operator.gpu.join.GpuSemiJoin;
 import io.trino.operator.gpu.join.GpuSemiJoinBuild;
@@ -3472,7 +3473,15 @@ public class LocalExecutionPlanner
                 Set<DynamicFilterId> localDynamicFilters,
                 LocalExecutionPlanContext context)
         {
-            Optional<GpuJoinPlanClosure> gpuJoinPlan = tryPlanGpuLookupJoin(node, context);
+            // A GPU join that tracks unmatched build rows ends the probe pipeline in a local exchange, so the probe is its own pipeline
+            boolean buildOuter = node.getType() == RIGHT || node.getType() == FULL;
+            Optional<LocalExecutionPlanContext> gpuProbeContext = Optional.empty();
+            if (buildOuter) {
+                gpuProbeContext = Optional.of(context.createSubContext());
+                gpuProbeContext.get().setHashExchangeConstraint(context.getHashExchangeConstraint());
+            }
+            Optional<GpuJoinPlanClosure> gpuJoinPlan = tryPlanGpuLookupJoin(node, gpuProbeContext.orElse(context));
+            Optional<LocalExecutionPlanContext> probeContext = gpuJoinPlan.isPresent() ? gpuProbeContext : Optional.empty();
             // Plan probe
             PhysicalOperation probeSource;
             HashExchangeConstraint priorConstraint = context.getHashExchangeConstraint();
@@ -3482,14 +3491,13 @@ public class LocalExecutionPlanner
                 context.setHashExchangeConstraint(HashExchangeConstraint.HOST_ONLY);
             }
             try {
-                probeSource = probeNode.accept(this, context);
+                probeSource = probeNode.accept(this, probeContext.orElse(context));
             }
             finally {
                 context.setHashExchangeConstraint(priorConstraint);
             }
 
             // Plan build
-            boolean buildOuter = node.getType() == RIGHT || node.getType() == FULL;
             boolean spillEnabled = isSpillEnabled(session)
                     && node.isSpillable().orElseThrow(() -> new IllegalArgumentException("spillable not yet set"))
                     && !buildOuter;
@@ -3520,6 +3528,7 @@ public class LocalExecutionPlanner
                         probeSource,
                         localDynamicFilters,
                         context,
+                        probeContext,
                         buildContext);
             }
             buildContext.setHashExchangeConstraint(HashExchangeConstraint.HOST_ONLY);
@@ -4925,6 +4934,9 @@ public class LocalExecutionPlanner
                 case LEFT -> {
                     joinType = GpuLookupJoin.JoinType.LEFT;
                 }
+                case RIGHT -> {
+                    joinType = GpuLookupJoin.JoinType.RIGHT;
+                }
                 default -> {
                     log.debug("Could not convert join type for GPU execution: %s", node.getType());
                     context.markAsGpuIneligible(node.getId(), "Unsupported join type");
@@ -4982,8 +4994,8 @@ public class LocalExecutionPlanner
                 compiledFilter = Optional.empty();
             }
 
-            return Optional.of((probeSource, localDynamicFilters, joinContext, buildContext) ->
-                    planGpuLookupJoin(node, joinType, compiledFilter, probeSource, localDynamicFilters, joinContext, buildContext));
+            return Optional.of((probeSource, localDynamicFilters, outputContext, probeContext, buildContext) ->
+                    planGpuLookupJoin(node, joinType, compiledFilter, probeSource, localDynamicFilters, outputContext, probeContext, buildContext));
         }
 
         private PhysicalOperation planGpuLookupJoin(
@@ -4993,6 +5005,7 @@ public class LocalExecutionPlanner
                 PhysicalOperation probeSource,
                 Set<DynamicFilterId> localDynamicFilters,
                 LocalExecutionPlanContext outputContext,
+                Optional<LocalExecutionPlanContext> probeContext,
                 LocalExecutionPlanContext buildContext)
         {
             PlanNode buildNode = node.getRight();
@@ -5020,7 +5033,9 @@ public class LocalExecutionPlanner
             Map<Symbol, Integer> buildLayout = buildSource.getLayout();
             Optional<AstExpression> filter = compiledFilter.map(ast -> ast.toCudfAst(probeSource.getLayout(), buildLayout));
 
-            GpuJoinBridgeManager bridgeManager = new GpuJoinBridgeManager();
+            // Keeps the build rows no probe matched, so it needs a match mask and a sibling driver draining it
+            boolean lookupSideOuter = joinType == GpuLookupJoin.JoinType.RIGHT;
+            GpuJoinBridgeManager bridgeManager = new GpuJoinBridgeManager(lookupSideOuter);
 
             PhysicalOperation joinBuild = addGpuOperation(
                     new GpuJoinBuild.Factory(
@@ -5042,11 +5057,14 @@ public class LocalExecutionPlanner
 
             outputContext.addDriverFactory(false, joinBuild, buildContext);
 
+            List<Type> probeOutputTypes = probeOutputChannels.stream()
+                    .map(probeSource.getTypes()::get)
+                    .collect(toImmutableList());
             List<Type> buildOutputTypes = buildOutputChannels.stream()
                     .map(buildSource.getTypes()::get)
                     .collect(toImmutableList());
             List<Type> joinOutputTypes = ImmutableList.<Type>builder()
-                    .addAll(probeOutputChannels.stream().map(probeSource.getTypes()::get).collect(toImmutableList()))
+                    .addAll(probeOutputTypes)
                     .addAll(buildOutputTypes)
                     .build();
 
@@ -5059,13 +5077,72 @@ public class LocalExecutionPlanner
                     buildOutputTypes,
                     filter.isPresent());
 
-            return addGpuOperation(
+            if (probeContext.isEmpty()) {
+                return addGpuOperation(
+                        probeFactory,
+                        joinOutputTypes,
+                        probeSource,
+                        makeLayout(node),
+                        outputContext,
+                        node.getId());
+            }
+            PhysicalOperation join = addGpuOperation(
                     probeFactory,
                     joinOutputTypes,
                     probeSource,
                     makeLayout(node),
-                    outputContext,
+                    probeContext.get(),
                     node.getId());
+            return addGpuRightJoinExchange(node, join, new GpuJoinOuterDrain.Factory(bridgeManager, probeOutputTypes), joinOutputTypes, outputContext, probeContext.get());
+        }
+
+        /// Ends the probe pipeline in a local exchange that a single drain pipeline also writes into, so the
+        /// operators after the join run once, reading the matched and the unmatched rows from the exchange.
+        private PhysicalOperation addGpuRightJoinExchange(
+                JoinNode node,
+                PhysicalOperation join,
+                GpuJoinOuterDrain.Factory drainFactory,
+                List<Type> joinOutputTypes,
+                LocalExecutionPlanContext outputContext,
+                LocalExecutionPlanContext probeContext)
+        {
+            int consumerCount = outputContext.getDriverInstanceCount().orElseGet(() -> getTaskConcurrency(session));
+            outputContext.setDriverInstanceCount(consumerCount);
+            GpuLocalExchange exchange = new GpuLocalExchange(FIXED_ARBITRARY_DISTRIBUTION, consumerCount, new int[0], gpuLocalExchangeBufferSize.toBytes());
+
+            PhysicalOperation probeWithSink = addGpuOperation(
+                    new GpuLocalExchangeWriter.Factory(exchange.createSinkFactory()),
+                    joinOutputTypes,
+                    join,
+                    join.getLayout(),
+                    probeContext,
+                    node.getId());
+            outputContext.addDriverFactory(
+                    false,
+                    new PhysicalOperation(new SentinelSinkOperator.Factory(probeContext.getNextOperatorId(), node.getId()), probeWithSink.getLayout(), probeWithSink),
+                    probeContext);
+
+            LocalExecutionPlanContext drainContext = outputContext.createSubContext();
+            drainContext.setInputDriver(false);
+            drainContext.setDriverInstanceCount(1);
+            PhysicalOperation drain = new PhysicalOperation(
+                    new GpuOperator.Factory(
+                            drainContext.getNextOperatorId(),
+                            node.getId(),
+                            ImmutableList.of(),
+                            ImmutableList.of(drainFactory, new GpuLocalExchangeWriter.Factory(exchange.createSinkFactory())),
+                            joinOutputTypes,
+                            gpuSemaphore),
+                    join.getLayout());
+            outputContext.addDriverFactory(
+                    false,
+                    new PhysicalOperation(new SentinelSinkOperator.Factory(drainContext.getNextOperatorId(), node.getId()), join.getLayout(), drain),
+                    drainContext);
+
+            outputContext.setInputDriver(false);
+            return new PhysicalOperation(
+                    new GpuOperator.Factory(outputContext.getNextOperatorId(), node.getId(), exchange.readerSourceFactory(), joinOutputTypes, gpuSemaphore),
+                    join.getLayout());
         }
 
         private GpuDynamicFilterCollector buildGpuDynamicFilterCollector(
@@ -5175,6 +5252,7 @@ public class LocalExecutionPlanner
                 PhysicalOperation probeSource,
                 Set<DynamicFilterId> localDynamicFilters,
                 LocalExecutionPlanContext outputContext,
+                Optional<LocalExecutionPlanContext> probeContext,
                 LocalExecutionPlanContext buildContext);
     }
 

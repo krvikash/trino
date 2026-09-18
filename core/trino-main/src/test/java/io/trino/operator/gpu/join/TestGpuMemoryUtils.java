@@ -14,12 +14,14 @@
 package io.trino.operator.gpu.join;
 
 import ai.rapids.cudf.ColumnVector;
+import ai.rapids.cudf.ColumnView;
 import ai.rapids.cudf.GatherMap;
 import ai.rapids.cudf.HashJoin;
 import ai.rapids.cudf.NullEquality;
 import ai.rapids.cudf.Rmm;
 import ai.rapids.cudf.Scalar;
 import ai.rapids.cudf.Table;
+import ai.rapids.cudf.Table.DuplicateKeepOption;
 import ai.rapids.cudf.ast.CompiledExpression;
 import ai.rapids.cudf.ast.Literal;
 import io.trino.operator.gpu.join.GpuLookupJoin.JoinType;
@@ -50,11 +52,13 @@ import static io.trino.operator.gpu.GpuTestUtils.maybeSetGpuMemoryPoolForTests;
 import static io.trino.operator.gpu.join.GpuLookupJoin.JoinType.INNER;
 import static io.trino.operator.gpu.join.GpuLookupJoin.JoinType.LEFT;
 import static io.trino.operator.gpu.memory.GpuMemoryUtils.getContainsGpuDeviceMemoryUsage;
+import static io.trino.operator.gpu.memory.GpuMemoryUtils.getDistinctIndicesGpuDeviceMemoryUsage;
 import static io.trino.operator.gpu.memory.GpuMemoryUtils.getFilterGpuDeviceMemoryUsage;
 import static io.trino.operator.gpu.memory.GpuMemoryUtils.getHashJoinAdditionalGpuDeviceMemoryUsage;
 import static io.trino.operator.gpu.memory.GpuMemoryUtils.getMixedInnerJoinGpuDeviceMemoryUsage;
 import static io.trino.operator.gpu.memory.GpuMemoryUtils.getMixedLeftJoinGpuDeviceMemoryUsage;
 import static io.trino.operator.gpu.memory.GpuMemoryUtils.getNullColumnMemoryUsage;
+import static io.trino.operator.gpu.memory.GpuMemoryUtils.getUnmatchedBuildIndicesGpuDeviceMemoryUsage;
 import static io.trino.plugin.base.gpu.GpuUtils.toTable;
 import static io.trino.spi.gpu.GpuTypeConversion.toGpuMapping;
 import static io.trino.spi.type.BigintType.BIGINT;
@@ -224,6 +228,70 @@ class TestGpuMemoryUtils
         }
     }
 
+    @Test
+    void testGetDistinctIndicesGpuDeviceMemoryUsage()
+    {
+        for (int rows : List.of(1, 10, 1024, 100_000, 1_234_567, 76_346_673)) {
+            // All distinct, and each index repeated 8 times
+            for (int distinctCount : List.of(rows, Math.max(1, rows / 8))) {
+                testGetDistinctIndicesGpuDeviceMemoryUsage(rows, distinctCount);
+            }
+        }
+    }
+
+    private static void testGetDistinctIndicesGpuDeviceMemoryUsage(int rows, int distinctCount)
+    {
+        try (Scalar zero = Scalar.fromInt(0);
+                Scalar modulus = Scalar.fromInt(distinctCount);
+                ColumnVector sequence = ColumnVector.sequence(zero, rows);
+                ColumnVector indices = sequence.mod(modulus);
+                // A view, so the copy allocates as it does for a gather map
+                ColumnView indicesView = ColumnView.fromDeviceBuffer(indices.getData(), 0, INT32, rows)) {
+            long before = Rmm.getTotalBytesAllocated();
+            Rmm.resetScopedMaximumBytesAllocated(before);
+            try (ColumnVector copy = indicesView.copyToColumnVector();
+                    Table table = new Table(copy);
+                    Table _ = table.dropDuplicates(new int[] {0}, DuplicateKeepOption.KEEP_ANY, true)) {
+                long actual = Rmm.getScopedMaximumBytesAllocated() - before;
+                long estimated = getDistinctIndicesGpuDeviceMemoryUsage(rows);
+
+                assertThat(estimated)
+                        .as("estimated >= actual, rows=%s distinctCount=%s", rows, distinctCount)
+                        .isGreaterThanOrEqualTo(actual);
+                if (distinctCount == rows && estimated >= 1024) {
+                    assertThat(estimated)
+                            .as("estimated within 5%% of actual, rows=%s", rows)
+                            .isLessThanOrEqualTo((long) (actual * 1.05));
+                }
+            }
+        }
+    }
+
+    @Test
+    void testGetUnmatchedBuildIndicesGpuDeviceMemoryUsage()
+    {
+        for (int buildRowCount : List.of(1, 10, 1024, 100_000, 1_234_567)) {
+            // All unmatched is the worst case: every build row is in the filter output
+            try (GpuJoinMatchMask mask = GpuJoinMatchMask.allUnmatched(buildRowCount)) {
+                long before = Rmm.getTotalBytesAllocated();
+                Rmm.resetScopedMaximumBytesAllocated(before);
+                try (ColumnVector _ = mask.unmatchedBuildIndices()) {
+                    long actual = Rmm.getScopedMaximumBytesAllocated() - before;
+                    long estimated = getUnmatchedBuildIndicesGpuDeviceMemoryUsage(buildRowCount);
+
+                    assertThat(estimated)
+                            .as("estimated >= actual, buildRowCount=%s", buildRowCount)
+                            .isGreaterThanOrEqualTo(actual);
+                    if (estimated >= 1024 * 1024) {
+                        assertThat(estimated)
+                                .as("estimated within 5%% of actual, buildRowCount=%s", buildRowCount)
+                                .isLessThanOrEqualTo((long) (actual * 1.05));
+                    }
+                }
+            }
+        }
+    }
+
     @ParameterizedTest
     @EnumSource(JoinType.class)
     void testGetMixedJoinGpuDeviceMemoryUsage(JoinType joinType)
@@ -267,7 +335,7 @@ class TestGpuMemoryUtils
             long equalityMatchCount;
             try (HashJoin hashJoin = new HashJoin(buildKeyTable, /*compareNullsEqual=*/ false)) {
                 equalityMatchCount = switch (joinType) {
-                    case INNER -> probeKeyTable.innerJoinRowCount(hashJoin);
+                    case INNER, RIGHT -> probeKeyTable.innerJoinRowCount(hashJoin);
                     case LEFT -> probeKeyTable.leftJoinRowCount(hashJoin);
                 };
             }
@@ -277,7 +345,8 @@ class TestGpuMemoryUtils
                 return;
             }
             long reported = switch (joinType) {
-                case INNER -> getMixedInnerJoinGpuDeviceMemoryUsage(buildKeyTable, buildSourceTable, probeSourceTable, equalityMatchCount);
+                // RIGHT emits INNER output per page, so it uses the inner-join estimate, matching GpuLookupJoin
+                case INNER, RIGHT -> getMixedInnerJoinGpuDeviceMemoryUsage(buildKeyTable, buildSourceTable, probeSourceTable, equalityMatchCount);
                 case LEFT -> getMixedLeftJoinGpuDeviceMemoryUsage(buildKeyTable, buildSourceTable, probeSourceTable, equalityMatchCount);
             };
 
@@ -286,7 +355,7 @@ class TestGpuMemoryUtils
             long gatherMapBytes;
             Rmm.resetScopedMaximumBytesAllocated(memoryBefore);
             GatherMap[] maps = switch (joinType) {
-                case INNER -> Table.mixedInnerJoinGatherMaps(
+                case INNER, RIGHT -> Table.mixedInnerJoinGatherMaps(
                         probeKeyTable,
                         buildKeyTable,
                         probeSourceTable,

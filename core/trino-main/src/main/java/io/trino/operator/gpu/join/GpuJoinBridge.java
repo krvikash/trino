@@ -19,6 +19,7 @@ import ai.rapids.cudf.ast.CompiledExpression;
 import io.trino.spi.gpu.borrow.Borrow;
 import jakarta.annotation.Nullable;
 
+import static java.lang.Math.toIntExact;
 import static java.util.Objects.requireNonNull;
 
 public sealed interface GpuJoinBridge
@@ -26,6 +27,13 @@ public sealed interface GpuJoinBridge
     @Nullable
     @Borrow
     Table buildOutputTable();
+
+    int buildRowCount();
+
+    /// Present only for a RIGHT join over a non-empty build side.
+    @Nullable
+    @Borrow
+    GpuJoinMatchMask matchMask();
 
     record EmptyBuildSide()
             implements GpuJoinBridge
@@ -35,9 +43,25 @@ public sealed interface GpuJoinBridge
         {
             return null;
         }
+
+        @Override
+        public int buildRowCount()
+        {
+            return 0;
+        }
+
+        @Override
+        public @Nullable @Borrow GpuJoinMatchMask matchMask()
+        {
+            return null;
+        }
     }
 
-    record HashJoinBridge(@Borrow HashJoin hashJoin, @Nullable @Borrow Table buildOutputTable)
+    record HashJoinBridge(
+            @Borrow HashJoin hashJoin,
+            int buildRowCount,
+            @Nullable @Borrow GpuJoinMatchMask matchMask,
+            @Nullable @Borrow Table buildOutputTable)
             implements GpuJoinBridge
     {
         public HashJoinBridge
@@ -52,6 +76,7 @@ public sealed interface GpuJoinBridge
             // built from buildKeysTable
             @Borrow HashJoin hashJoin,
             @Borrow CompiledExpression compiledFilter,
+            @Nullable @Borrow GpuJoinMatchMask matchMask,
             @Nullable @Borrow Table buildOutputTable)
             implements GpuJoinBridge
     {
@@ -61,6 +86,12 @@ public sealed interface GpuJoinBridge
             requireNonNull(buildKeysTable, "buildKeysTable is null");
             requireNonNull(hashJoin, "hashJoin is null");
             requireNonNull(compiledFilter, "compiledFilter is null");
+        }
+
+        @Override
+        public int buildRowCount()
+        {
+            return toIntExact(buildKeysTable.getRowCount());
         }
     }
 }

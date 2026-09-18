@@ -39,6 +39,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static io.trino.operator.gpu.memory.GpuMemoryUtils.getHashJoinAdditionalGpuDeviceMemoryUsage;
 import static io.trino.plugin.base.gpu.GpuUtils.toTable;
+import static java.lang.Math.toIntExact;
 import static java.util.Objects.requireNonNull;
 
 public final class GpuJoinBuild
@@ -90,6 +91,7 @@ public final class GpuJoinBuild
     private final int[] buildOutputChannels;
     private final Optional<AstExpression> filter;
     private final Optional<GpuDynamicFilterCollector> dynamicFilter;
+    private final boolean trackMatchedBuildRows;
 
     // Never observed by the probe side
     private final @Own TablesList bufferedTables = TablesList.create();
@@ -104,6 +106,8 @@ public final class GpuJoinBuild
     private final ClosingRef<CompiledExpression> compiledFilter = ClosingRef.empty();
     // From the moment of publish, this is owned by the probe side
     private final ClosingRef<Table> buildOutputTable = ClosingRef.empty();
+    // Outer-drain joins only. From the moment of publish, probes merge into it and the drain reads it
+    private final ClosingRef<GpuJoinMatchMask> matchMask = ClosingRef.empty();
 
     private final AllocatedMemory allocated;
 
@@ -125,6 +129,7 @@ public final class GpuJoinBuild
         this.buildOutputChannels = buildOutputChannels;
         this.filter = requireNonNull(filter, "filter is null");
         this.dynamicFilter = requireNonNull(dynamicFilter, "dynamicFilter is null");
+        this.trackMatchedBuildRows = bridgeManager.hasOuterDrain();
         this.allocated = context.taskMemoryContext().allocate(getClass().getSimpleName(), MemoryAmount.ZERO);
     }
 
@@ -200,11 +205,22 @@ public final class GpuJoinBuild
             //  https://github.com/NVIDIA/cudf/issues/22748
             hashJoin.set(new HashJoin(buildKeyTable.borrow(), /*compareNullsEqual=*/ false));
 
+            int buildRowCount = toIntExact(buildKeyTable.borrow().getRowCount());
+            @Nullable @Borrow GpuJoinMatchMask sharedMatchMask = null;
+            if (trackMatchedBuildRows) {
+                // The mask plus one scatter scratch, as marking is serialized
+                allocated.update(allocated.amount().add(MemoryAmount.gpuDevice(2L * buildRowCount)));
+                matchMask.set(GpuJoinMatchMask.allUnmatched(buildRowCount));
+                sharedMatchMask = matchMask.borrow();
+            }
+
             if (filter.isEmpty()) {
                 buildSourceTable.close();
                 buildKeyTable.close();
                 bridge = new GpuJoinBridge.HashJoinBridge(
                         hashJoin.borrow(),
+                        buildRowCount,
+                        sharedMatchMask,
                         buildOutputTable);
             }
             else {
@@ -214,6 +230,7 @@ public final class GpuJoinBuild
                         buildKeyTable.borrow(),
                         hashJoin.borrow(),
                         compiledFilter.borrow(),
+                        sharedMatchMask,
                         buildOutputTable);
             }
         }
@@ -262,6 +279,7 @@ public final class GpuJoinBuild
             closer.register(hashJoin);
             closer.register(compiledFilter);
             closer.register(buildOutputTable);
+            closer.register(matchMask);
         }
     }
 
