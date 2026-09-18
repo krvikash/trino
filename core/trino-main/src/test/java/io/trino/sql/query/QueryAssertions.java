@@ -1221,14 +1221,24 @@ public class QueryAssertions
         @CanIgnoreReturnValue
         public ProgramAssert expectedEnforceSingleRowOperationCount(int expectedCount)
         {
-            assertOperationCount(EnforceSingleRow.class, expectedCount);
-            return this;
+            return assertOperationCount(EnforceSingleRow.class, expectedCount);
         }
 
         @CanIgnoreReturnValue
         public ProgramAssert expectedGroupIdOperationCount(int expectedCount)
         {
-            assertOperationCount(GroupId.class, expectedCount);
+            return assertOperationCount(GroupId.class, expectedCount);
+        }
+
+        @CanIgnoreReturnValue
+        public ProgramAssert assertOperationCount(Class<? extends TrinoOperation> trinoOperationClass, int expectedCount)
+        {
+            int actualOperationCount = (int) operations().stream()
+                    .filter(trinoOperationClass::isInstance)
+                    .count();
+            assertThat(actualOperationCount)
+                    .withFailMessage("Expected %d occurrences of %s operation, but found %d", expectedCount, trinoOperationClass.getSimpleName(), actualOperationCount)
+                    .isEqualTo(expectedCount);
             return this;
         }
 
@@ -1244,16 +1254,6 @@ public class QueryAssertions
                     .as("GroupId grouping sets")
                     .containsExactlyInAnyOrderElementsOf(expectedGroupingSets);
             return this;
-        }
-
-        private void assertOperationCount(Class<? extends TrinoOperation> trinoOperationClass, int expectedCount)
-        {
-            int actualOperationCount = (int) operations().stream()
-                    .filter(trinoOperationClass::isInstance)
-                    .count();
-            assertThat(actualOperationCount)
-                    .withFailMessage("Expected %d occurrences of %s operation, but found %d", expectedCount, trinoOperationClass.getSimpleName(), actualOperationCount)
-                    .isEqualTo(expectedCount);
         }
 
         private List<Operation> operations()
