@@ -21,7 +21,6 @@ import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.regex.Pattern;
 
-import static com.google.common.base.Throwables.getCausalChain;
 import static com.google.common.base.Throwables.getRootCause;
 import static com.google.common.base.Throwables.getStackTraceAsString;
 
@@ -77,8 +76,11 @@ public final class DatabricksRetryUtils
 
     private static boolean isUnityCatalogTransientError(Throwable throwable)
     {
+        // Match the literal Unity Catalog error_code field rather than a Java exception type: the client
+        // used to talk to Unity Catalog has changed (Databricks SDK -> io.unitycatalog.client), and a plain
+        // exception-type check silently stops matching real transient errors across such a swap.
         String stackTrace = getStackTraceAsString(throwable);
-        return stackTrace.contains("TEMPORARILY_UNAVAILABLE")
-                || getCausalChain(throwable).stream().anyMatch(InternalError.class::isInstance);
+        return stackTrace.contains("\"error_code\":\"TEMPORARILY_UNAVAILABLE\"")
+                || stackTrace.contains("\"error_code\":\"INTERNAL_ERROR\"");
     }
 }

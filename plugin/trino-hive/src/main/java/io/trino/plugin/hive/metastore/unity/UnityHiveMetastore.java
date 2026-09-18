@@ -175,8 +175,11 @@ public class UnityHiveMetastore
             MATERIALIZED_VIEW, MANAGED_TABLE);
     private static final ObjectMapper OBJECT_MAPPER = new JsonMapperProvider().get();
     // sometimes we see transient errors from unity api, which could be retried
+    // 500/503 are included because Unity Catalog uses them for its own transient/rate-limit conditions
+    // (error_code INTERNAL_ERROR / TEMPORARILY_UNAVAILABLE); safe here because this policy is only ever
+    // applied to idempotent read calls (schema/table lookups, listings, credential vending).
     private static final RetryPolicy<Object> UNITY_API_RETRY_POLICY = RetryPolicy.builder()
-            .handleIf(failure -> failure instanceof ApiException apiException && Set.of(408, 429, 504).contains(apiException.getCode()))
+            .handleIf(failure -> failure instanceof ApiException apiException && Set.of(408, 429, 500, 503, 504).contains(apiException.getCode()))
             .onFailedAttempt(e -> LOG.warn(e.getLastException(), "Retrying unity api call"))
             .withMaxDuration(Duration.ofSeconds(5))
             .withBackoff(100, 500, MILLIS)
@@ -1250,7 +1253,8 @@ public class UnityHiveMetastore
     public DeltaCredentialsResponse getTemporaryTableCredentials(SchemaTableName schemaTableName, DeltaCredentialOperation operation)
     {
         try {
-            return deltaTemporaryCredentialsApi.getTableCredentials(operation, catalogName, schemaTableName.getSchemaName(), schemaTableName.getTableName());
+            // generating temporary credentials is a read-only call, so it is safe to retry on transient failures
+            return retry(() -> deltaTemporaryCredentialsApi.getTableCredentials(operation, catalogName, schemaTableName.getSchemaName(), schemaTableName.getTableName()));
         }
         catch (ApiException e) {
             throw new TrinoException(HIVE_METASTORE_ERROR, e);
@@ -1261,7 +1265,8 @@ public class UnityHiveMetastore
     public TemporaryCredentials getTemporaryTableCredentials(String tableId, TableOperation operation)
     {
         try {
-            return temporaryCredentialsApi.generateTemporaryTableCredentials(new GenerateTemporaryTableCredential().tableId(tableId).operation(operation));
+            // generating temporary credentials is a read-only call, so it is safe to retry on transient failures
+            return retry(() -> temporaryCredentialsApi.generateTemporaryTableCredentials(new GenerateTemporaryTableCredential().tableId(tableId).operation(operation)));
         }
         catch (Exception e) {
             throw new TrinoException(HIVE_METASTORE_ERROR, e);
@@ -1272,7 +1277,8 @@ public class UnityHiveMetastore
     public TemporaryCredentials getTemporaryPathCredentials(String tableLocation, PathOperation operation)
     {
         try {
-            return temporaryCredentialsApi.generateTemporaryPathCredentials(new GenerateTemporaryPathCredential().url(tableLocation).operation(operation));
+            // generating temporary credentials is a read-only call, so it is safe to retry on transient failures
+            return retry(() -> temporaryCredentialsApi.generateTemporaryPathCredentials(new GenerateTemporaryPathCredential().url(tableLocation).operation(operation)));
         }
         catch (Exception e) {
             throw new TrinoException(HIVE_METASTORE_ERROR, e);
