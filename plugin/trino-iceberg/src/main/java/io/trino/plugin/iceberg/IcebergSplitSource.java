@@ -25,6 +25,8 @@ import com.google.common.io.Closer;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.errorprone.annotations.concurrent.GuardedBy;
+import dev.failsafe.Failsafe;
+import dev.failsafe.RetryPolicy;
 import io.airlift.log.Logger;
 import io.airlift.units.DataSize;
 import io.airlift.units.Duration;
@@ -75,6 +77,7 @@ import org.apache.iceberg.encryption.EncryptedInputFile;
 import org.apache.iceberg.encryption.EncryptionManager;
 import org.apache.iceberg.encryption.NativeEncryptionInputFile;
 import org.apache.iceberg.encryption.NativeEncryptionKeyMetadata;
+import org.apache.iceberg.exceptions.ServiceFailureException;
 import org.apache.iceberg.expressions.Expression;
 import org.apache.iceberg.io.CloseableIterable;
 import org.apache.iceberg.io.CloseableIterator;
@@ -141,6 +144,7 @@ import static io.trino.spi.type.DateTimeEncoding.packDateTimeWithZone;
 import static io.trino.spi.type.TimeZoneKey.UTC_KEY;
 import static io.trino.spi.type.TypeUtils.writeNativeValue;
 import static java.lang.Math.clamp;
+import static java.time.temporal.ChronoUnit.MILLIS;
 import static java.util.Collections.emptyIterator;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
@@ -155,6 +159,13 @@ public class IcebergSplitSource
         implements ConnectorSplitSource
 {
     private static final Logger log = Logger.get(IcebergSplitSource.class);
+
+    private static final RetryPolicy<Object> SCAN_PLANNING_RETRY_POLICY = RetryPolicy.builder()
+            .handleIf(failure -> failure instanceof ServiceFailureException)
+            .onFailedAttempt(e -> log.warn(e.getLastException(), "Retrying Iceberg REST scan-planning call after transient failure"))
+            .withBackoff(200, 2000, MILLIS)
+            .withMaxAttempts(3)
+            .build();
 
     private final IcebergFileSystemFactory fileSystemFactory;
     private final ConnectorSession session;
@@ -409,7 +420,7 @@ public class IcebergSplitSource
                             .collect(toImmutableList()));
         }
 
-        return new PlanResult(filtered.planFiles(), filtered);
+        return new PlanResult(Failsafe.with(SCAN_PLANNING_RETRY_POLICY).get(filtered::planFiles), filtered);
     }
 
     private record PlanResult(CloseableIterable<FileScanTask> iterable, Scan<?, FileScanTask, CombinedScanTask> scan) {}
