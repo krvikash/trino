@@ -118,9 +118,23 @@ public class TestFuzzAlluxioCacheFileSystem
             throws IOException
     {
         long position = random.nextLong(0, fileSize + 1);
-        int bufferSize = random.nextInt(0, fileSize + 1);
-        int bufferOffset = random.nextInt(0, bufferSize + 1);
-        int length = bufferSize - bufferOffset;
+        // Keep the whole requested range inside the file. TrinoInput#readFully requires every requested byte to be
+        // available and throws EOFException otherwise, which fails the ground-truth (expected) file system before the
+        // file system under test is exercised at all, aborting the comparison instead of performing it.
+        //
+        // Generating position and length independently, each bounded by fileSize, let position + length reach
+        // 2 * fileSize. Note that fileSize is a loop count, not a byte count: createTestFile writes min(fileSize - i, 4)
+        // bytes on each of its fileSize iterations, so the file actually holds about 4 * fileSize bytes. The read
+        // therefore only ran off the end for fileSize 1 or 2 - rare, but enough to make this test flaky. Bounding
+        // length by the bytes remaining keeps the read in range for every fileSize.
+        //
+        // The same bound is applied to every operation. readTail and TrinoInputStream#read return a short count
+        // instead of throwing, so they could tolerate a longer request, but they never reached the end of the file
+        // under the old bounds either: position is capped at fileSize, which is only about a quarter of the way in.
+        int maxLength = toIntExact(fileSize - position);
+        int length = random.nextInt(0, maxLength + 1);
+        int bufferOffset = random.nextInt(0, fileSize + 1);
+        int bufferSize = bufferOffset + length;
         byte[] bufferExpected = new byte[bufferSize];
         byte[] bufferActual = new byte[bufferSize];
 
