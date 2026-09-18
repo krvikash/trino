@@ -60,13 +60,16 @@ import static io.trino.operator.gpu.GpuTestUtils.createBlocks;
 import static io.trino.operator.gpu.GpuTestUtils.executeGpuOperation;
 import static io.trino.operator.gpu.GpuTestUtils.maybeSetGpuMemoryPoolForTests;
 import static io.trino.operator.gpu.GpuTestUtils.positions;
+import static io.trino.spi.StandardErrorCode.NUMERIC_VALUE_OUT_OF_RANGE;
 import static io.trino.spi.type.CharType.createCharType;
 import static io.trino.spi.type.DecimalType.createDecimalType;
 import static io.trino.spi.type.DoubleType.DOUBLE;
 import static io.trino.spi.type.RealType.REAL;
 import static io.trino.spi.type.TypeUtils.readNativeValue;
+import static io.trino.spi.type.TypeUtils.writeNativeValue;
 import static io.trino.spi.type.VarbinaryType.VARBINARY;
 import static io.trino.sql.gen.TestColumnarFilters.NullsProvider.NO_NULLS;
+import static io.trino.testing.assertions.TrinoExceptionAssert.assertTrinoExceptionThrownBy;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -376,6 +379,29 @@ public class TestGpuDataConversion
             assertThat(GpuTypeConversion.toGpuMapping(TimestampType.createTimestampType(precision)))
                     .as("long timestamp precision %d", precision)
                     .isEmpty();
+        }
+    }
+
+    @Test
+    void testTimestampOutsideNanosecondRange()
+    {
+        // Roughly year 3000 and year 1000, both past what a nanosecond count reaches
+        List<LongTimestamp> values = List.of(
+                new LongTimestamp(32_503_680_000_000_000L, 0),
+                new LongTimestamp(-30_610_224_000_000_000L, 0));
+        for (int precision = 7; precision <= MAX_GPU_TIMESTAMP_PRECISION; precision++) {
+            TimestampType type = TimestampType.createTimestampType(precision);
+            GpuTypeConversion.GpuTypeMapping gpuTypeMapping = GpuTypeConversion.toGpuMapping(type).orElseThrow();
+            for (LongTimestamp value : values) {
+                assertTrinoExceptionThrownBy(() -> gpuTypeMapping.toScalar().copyToScalar(Optional.of(value)))
+                        .hasErrorCode(NUMERIC_VALUE_OUT_OF_RANGE)
+                        .hasMessageMatching("Timestamp value out of range support for GPU for type timestamp\\(%s\\): (3000-01-01T00:00|1000-01-01T00:00)".formatted(precision));
+                try (Blocks blocks = new Blocks(List.of(writeNativeValue(type, value)))) {
+                    assertTrinoExceptionThrownBy(() -> gpuTypeMapping.toColumn().copyToDevice(blocks))
+                            .hasErrorCode(NUMERIC_VALUE_OUT_OF_RANGE)
+                            .hasMessageMatching("Timestamp value out of range support for GPU for type timestamp\\(%s\\): (3000-01-01T00:00|1000-01-01T00:00)".formatted(precision));
+                }
+            }
         }
     }
 

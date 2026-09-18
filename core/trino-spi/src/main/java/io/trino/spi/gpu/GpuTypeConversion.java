@@ -22,6 +22,7 @@ import ai.rapids.cudf.PadSide;
 import ai.rapids.cudf.Scalar;
 import io.airlift.slice.Slice;
 import io.airlift.slice.Slices;
+import io.trino.spi.TrinoException;
 import io.trino.spi.block.BitArrayBlock;
 import io.trino.spi.block.Bitmap;
 import io.trino.spi.block.Block;
@@ -56,6 +57,8 @@ import io.trino.spi.type.VarbinaryType;
 import io.trino.spi.type.VarcharType;
 import jakarta.annotation.Nullable;
 
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -63,8 +66,10 @@ import java.util.Optional;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import static io.trino.spi.StandardErrorCode.NUMERIC_VALUE_OUT_OF_RANGE;
 import static io.trino.spi.type.Chars.padSpaces;
 import static io.trino.spi.type.Chars.trimTrailingSpaces;
+import static io.trino.spi.type.Timestamps.MICROSECONDS_PER_SECOND;
 import static io.trino.spi.type.Timestamps.NANOSECONDS_PER_MICROSECOND;
 import static io.trino.spi.type.Timestamps.PICOSECONDS_PER_NANOSECOND;
 import static java.lang.Math.addExact;
@@ -220,8 +225,8 @@ public final class GpuTypeConversion
 
             case TimestampType timestampType when timestampType.getPrecision() <= 9 -> Optional.of(new GpuTypeMapping(
                     DType.TIMESTAMP_NANOSECONDS,
-                    value -> Scalar.timestampFromLong(DType.TIMESTAMP_NANOSECONDS, value.map(v -> longTimestampToNanos((LongTimestamp) v)).orElse(null)),
-                    blocks -> copyTimestampNanosBlocksToDevice(blocks),
+                    value -> Scalar.timestampFromLong(DType.TIMESTAMP_NANOSECONDS, value.map(v -> longTimestampToNanos(timestampType, (LongTimestamp) v)).orElse(null)),
+                    blocks -> copyTimestampNanosBlocksToDevice(timestampType, blocks),
                     nullChecked(scalar -> nanosToLongTimestamp(scalar.getLong()))));
 
             case VarcharType _ -> Optional.of(new GpuTypeMapping(
@@ -698,7 +703,7 @@ public final class GpuTypeConversion
         }
     }
 
-    private static @Move ColumnVector copyTimestampNanosBlocksToDevice(Blocks blocks)
+    private static @Move ColumnVector copyTimestampNanosBlocksToDevice(TimestampType type, Blocks blocks)
     {
         int totalPositions = blocks.positionCount();
         if (totalPositions == 0) {
@@ -718,18 +723,18 @@ public final class GpuTypeConversion
                 switch (block) {
                     case RunLengthEncodedBlock rle -> {
                         Fixed12Block value = (Fixed12Block) rle.getValue();
-                        long nanos = longTimestampToNanos(value, 0);
+                        long nanos = longTimestampToNanos(type, value, 0);
                         Arrays.fill(temp, nanos);
                     }
                     case DictionaryBlock dictionary -> {
                         Fixed12Block valueBlock = (Fixed12Block) dictionary.getUnderlyingValueBlock();
                         for (int i = 0; i < count; i++) {
-                            temp[i] = longTimestampToNanos(valueBlock, dictionary.getUnderlyingValuePosition(i));
+                            temp[i] = longTimestampToNanos(type, valueBlock, dictionary.getUnderlyingValuePosition(i));
                         }
                     }
                     case Fixed12Block fixed12Block -> {
                         for (int i = 0; i < count; i++) {
-                            temp[i] = longTimestampToNanos(fixed12Block, i);
+                            temp[i] = longTimestampToNanos(type, fixed12Block, i);
                         }
                     }
                     default -> throw new IllegalArgumentException("Unexpected block type: " + block.getClass().getSimpleName());
@@ -758,25 +763,36 @@ public final class GpuTypeConversion
         }
     }
 
-    private static long longTimestampToNanos(Fixed12Block block, int position)
+    private static long longTimestampToNanos(TimestampType type, Fixed12Block block, int position)
     {
-        return longTimestampToNanos(block.getFixed12First(position), block.getFixed12Second(position));
+        return longTimestampToNanos(type, block.getFixed12First(position), block.getFixed12Second(position));
     }
 
-    private static long longTimestampToNanos(LongTimestamp value)
+    private static long longTimestampToNanos(TimestampType type, LongTimestamp value)
     {
-        return longTimestampToNanos(value.getEpochMicros(), value.getPicosOfMicro());
+        return longTimestampToNanos(type, value.getEpochMicros(), value.getPicosOfMicro());
     }
 
-    private static long longTimestampToNanos(long epochMicros, int picosOfMicro)
+    private static long longTimestampToNanos(TimestampType type, long epochMicros, int picosOfMicro)
     {
         int nanosOfMicro = picosOfMicro / PICOSECONDS_PER_NANOSECOND;
         if (nanosOfMicro * PICOSECONDS_PER_NANOSECOND != picosOfMicro) {
             throw new IllegalArgumentException(format("Unexpected value precision: %s", picosOfMicro));
         }
-        return addExact(
-                multiplyExact(epochMicros, NANOSECONDS_PER_MICROSECOND),
-                nanosOfMicro);
+        try {
+            return addExact(
+                    multiplyExact(epochMicros, NANOSECONDS_PER_MICROSECOND),
+                    nanosOfMicro);
+        }
+        catch (ArithmeticException _) {
+            LocalDateTime localDateTime = LocalDateTime.ofEpochSecond(
+                    floorDiv(epochMicros, MICROSECONDS_PER_SECOND),
+                    floorMod(epochMicros, MICROSECONDS_PER_SECOND) * NANOSECONDS_PER_MICROSECOND + nanosOfMicro,
+                    ZoneOffset.UTC);
+            throw new TrinoException(
+                    NUMERIC_VALUE_OUT_OF_RANGE,
+                    "Timestamp value out of range support for GPU for type %s: %s".formatted(type.getDisplayName(), localDateTime));
+        }
     }
 
     private static LongTimestamp nanosToLongTimestamp(long nanos)

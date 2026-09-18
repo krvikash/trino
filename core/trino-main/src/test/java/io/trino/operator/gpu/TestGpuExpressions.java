@@ -163,7 +163,6 @@ import static java.util.Arrays.asList;
 import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.joining;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.junit.jupiter.api.parallel.ExecutionMode.CONCURRENT;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
@@ -2893,8 +2892,9 @@ public class TestGpuExpressions
                 if (epochMicros < Long.MIN_VALUE / NANOSECONDS_PER_MICROSECOND || epochMicros > Long.MAX_VALUE / NANOSECONDS_PER_MICROSECOND) {
                     // GPU converts long timestamps to TIMESTAMP_NANOSECONDS, which has a narrower representable range
                     List<Page> outOfRangePages = List.of(new Page(writeNativeValue(type, new LongTimestamp(epochMicros, 0))));
-                    assertThatThrownBy(() -> assertGpuMatchesCpu(outOfRangePages, inputTypes, expression, Set.of(channelA)))
-                            .isInstanceOf(ArithmeticException.class);
+                    assertTrinoExceptionThrownBy(() -> assertGpuMatchesCpu(outOfRangePages, inputTypes, expression, Set.of(channelA)))
+                            .hasErrorCode(NUMERIC_VALUE_OUT_OF_RANGE)
+                            .hasMessage("Timestamp value out of range support for GPU for type %s: 0001-01-01T00:00".formatted(type));
                     continue;
                 }
                 type.writeObject(builder, new LongTimestamp(epochMicros, 0));
