@@ -36,6 +36,7 @@ import static com.google.common.base.Verify.verify;
 import static io.trino.plugin.deltalake.DeltaLakeQueryRunner.TPCH_SCHEMA;
 import static io.trino.plugin.hive.metastore.unity.DatabricksRetryUtils.DATABRICKS_CLUSTER_UNAVAILABLE_RETRY_POLICY;
 import static io.trino.plugin.hive.metastore.unity.DatabricksRetryUtils.DATABRICKS_COMMUNICATION_FAILURE_RETRY_POLICY;
+import static io.trino.plugin.hive.metastore.unity.DatabricksRetryUtils.DATABRICKS_THRIFT_TIMEOUT_RETRY_POLICY;
 import static io.trino.plugin.hive.metastore.unity.DatabricksRetryUtils.UNITY_CATALOG_TRANSIENT_ERROR_RETRY_POLICY;
 import static io.trino.testing.TestingNames.randomNameSuffix;
 import static io.trino.tpch.TpchTable.NATION;
@@ -76,7 +77,7 @@ abstract class BaseUnityMetastoreDeltaConnectorSmokeTest
                 .setCreateTpchSchemas(false)
                 .build();
 
-        Failsafe.with(DATABRICKS_CLUSTER_UNAVAILABLE_RETRY_POLICY, DATABRICKS_COMMUNICATION_FAILURE_RETRY_POLICY)
+        Failsafe.with(DATABRICKS_CLUSTER_UNAVAILABLE_RETRY_POLICY, DATABRICKS_COMMUNICATION_FAILURE_RETRY_POLICY, DATABRICKS_THRIFT_TIMEOUT_RETRY_POLICY)
                 .run(() -> createTpchTables(queryRunner));
         return queryRunner;
     }

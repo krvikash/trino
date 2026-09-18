@@ -33,6 +33,14 @@ public final class DatabricksRetryUtils
                     "TemporarilyUnavailableRetry timeout of 900 seconds has been hit.\\E.*");
     private static final String DATABRICKS_CLUSTER_PENDING_MATCH = "The current cluster state is Pending";
     private static final String DATABRICKS_CLUSTER_TERMINATED_MATCH = "The current cluster state is Terminated";
+    // The Databricks JDBC driver's Thrift transport can report this HTTP 500 while closing the session
+    // (TCloseSessionReq) or otherwise waiting on the server, even though the preceding statement already
+    // completed. Unlike a generic HTTP 500 (which this codebase deliberately does not retry blindly, since a
+    // failing statement may have already succeeded remotely and retrying non-idempotent SQL could duplicate
+    // side effects, see the revert of "Add 500 error code to DatabricksSqlExecutor"), this specific signature
+    // is only ever used to retry the createTpchTables() setup body, which is exclusively idempotent DDL
+    // (CREATE ... IF NOT EXISTS / CREATE OR REPLACE).
+    private static final String DATABRICKS_THRIFT_FUTURES_TIMEOUT_MATCH = "Futures timed out";
 
     public static final RetryPolicy<Object> DATABRICKS_COMMUNICATION_FAILURE_RETRY_POLICY = RetryPolicy.builder()
             .handleIf(DatabricksRetryUtils::isDatabricksCommunicationFailure)
@@ -51,6 +59,12 @@ public final class DatabricksRetryUtils
             .withBackoff(1, 30, ChronoUnit.SECONDS)
             .withMaxRetries(3)
             .onRetry(event -> LOG.warn(event.getLastException(), "Query failed on attempt %d, will retry (Unity Catalog transient error).", event.getAttemptCount()))
+            .build();
+    public static final RetryPolicy<Object> DATABRICKS_THRIFT_TIMEOUT_RETRY_POLICY = RetryPolicy.builder()
+            .handleIf(DatabricksRetryUtils::isThriftFuturesTimeout)
+            .withBackoff(1, 15, ChronoUnit.SECONDS)
+            .withMaxRetries(5)
+            .onRetry(event -> LOG.warn(event.getLastException(), "Query failed on attempt %d, will retry (Databricks Thrift transport timeout).", event.getAttemptCount()))
             .build();
 
     private DatabricksRetryUtils() {}
@@ -82,5 +96,11 @@ public final class DatabricksRetryUtils
         String stackTrace = getStackTraceAsString(throwable);
         return stackTrace.contains("\"error_code\":\"TEMPORARILY_UNAVAILABLE\"")
                 || stackTrace.contains("\"error_code\":\"INTERNAL_ERROR\"");
+    }
+
+    private static boolean isThriftFuturesTimeout(Throwable throwable)
+    {
+        String stackTrace = getStackTraceAsString(throwable);
+        return stackTrace.contains("HTTP request failed by code: 500") && stackTrace.contains(DATABRICKS_THRIFT_FUTURES_TIMEOUT_MATCH);
     }
 }
