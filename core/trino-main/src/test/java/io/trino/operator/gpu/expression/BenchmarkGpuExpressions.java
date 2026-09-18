@@ -17,6 +17,7 @@ import ai.rapids.cudf.ColumnVector;
 import ai.rapids.cudf.Cuda;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import io.trino.operator.gpu.CudaStreams;
 import io.trino.plugin.base.gpu.UncheckedCloser;
 import io.trino.spi.block.Block;
 import io.trino.spi.gpu.Column.Blocks;
@@ -106,7 +107,7 @@ public class BenchmarkGpuExpressions
         }
         // A single stream sync per invocation instead of per evaluation, so the sync barely counts.
         // Peak device memory is reported separately by RmmPeakMemoryProfiler.
-        Cuda.DEFAULT_STREAM.sync();
+        CudaStreams.sync(Cuda.DEFAULT_STREAM);
         return checksum;
     }
 

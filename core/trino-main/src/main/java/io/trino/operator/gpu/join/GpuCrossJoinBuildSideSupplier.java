@@ -18,6 +18,7 @@ import ai.rapids.cudf.Table;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 import io.trino.operator.ReferenceCount;
+import io.trino.operator.gpu.CudaStreams;
 import io.trino.spi.gpu.borrow.Borrow;
 
 import java.util.Optional;
@@ -65,7 +66,7 @@ public final class GpuCrossJoinBuildSideSupplier
     public void probeOperatorClosed()
     {
         // Sync to ensure that probe operator did indeed fully finish using the build side.
-        Cuda.DEFAULT_STREAM.sync();
+        CudaStreams.sync(Cuda.DEFAULT_STREAM);
         referenceCount.release();
     }
 
@@ -74,7 +75,7 @@ public final class GpuCrossJoinBuildSideSupplier
         requireNonNull(buildSide, "buildSide is null");
         checkState(!buildSideFuture.isDone(), "Build side future already done");
         // Sync to ensure full results visibility for consuming threads.
-        Cuda.DEFAULT_STREAM.sync();
+        CudaStreams.sync(Cuda.DEFAULT_STREAM);
         buildSideFuture.set(buildSide);
         // When every probe operator and probe operator factory is already gone, for example after a
         // cancellation, the count is free and onRelease runs inline, releasing the build side right

@@ -134,7 +134,6 @@ public class CopyToBlocks
             List<ColumnCopier> copiers = newArrayListWithExpectedSize(inputPage.columnCount());
             @Own Column[] newColumns = new Column[inputPage.columnCount()];
             @Own List<HostColumnVector> hostColumnVectors = new ArrayList<>();
-            boolean syncFailed = false;
             try {
                 int positionCount = inputPage.positionCount();
                 // Issue all device→host transfers, then synchronize once so host-side allocation
@@ -148,16 +147,15 @@ public class CopyToBlocks
                             hostColumnVectors.add(hostCopySource.copyToHostAsync(Cuda.DEFAULT_STREAM));
                         }
                     }
-                    Cuda.DEFAULT_STREAM.sync();
+                    CudaStreams.sync(Cuda.DEFAULT_STREAM);
                 }
                 catch (RuntimeException e) {
                     // Sync before the finally-close to prevent freeing pinned host buffers that
                     // in-flight DMAs may still be writing into.
                     try {
-                        Cuda.DEFAULT_STREAM.sync();
+                        CudaStreams.sync(Cuda.DEFAULT_STREAM);
                     }
                     catch (RuntimeException syncException) {
-                        syncFailed = true;
                         e.addSuppressed(syncException);
                     }
                     throw e;
@@ -216,12 +214,7 @@ public class CopyToBlocks
                 try (AutoCloseableCloser closer = AutoCloseableCloser.create()) {
                     // Technically, no close is needed because newColumns is fully heap stuff
                     closer.register(() -> closeColumns(newColumns));
-
-                    // When the stream sync failed, host buffers may still be targets of in-flight
-                    // DMAs and must be leaked rather than freed.
-                    if (!syncFailed) {
-                        hostColumnVectors.forEach(closer::register);
-                    }
+                    hostColumnVectors.forEach(closer::register);
                 }
             }
         }

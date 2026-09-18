@@ -18,6 +18,7 @@ import ai.rapids.cudf.Table;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 import io.trino.operator.ReferenceCount;
+import io.trino.operator.gpu.CudaStreams;
 import io.trino.spi.gpu.borrow.Borrow;
 
 import java.util.Optional;
@@ -64,7 +65,7 @@ public final class GpuSemiJoinSetSupplier
     public void probeOperatorClosed()
     {
         // Sync to ensure that probe operator did indeed fully finish using the build side.
-        Cuda.DEFAULT_STREAM.sync();
+        CudaStreams.sync(Cuda.DEFAULT_STREAM);
         referenceCount.release();
     }
 
@@ -73,7 +74,7 @@ public final class GpuSemiJoinSetSupplier
         requireNonNull(set, "set is null");
         checkState(!setFuture.isDone(), "Set future already done");
         // Sync to ensure full results visibility for consuming threads.
-        Cuda.DEFAULT_STREAM.sync();
+        CudaStreams.sync(Cuda.DEFAULT_STREAM);
         setFuture.set(set);
         referenceCount.getFreeFuture().addListener(onRelease, directExecutor());
     }

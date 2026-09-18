@@ -152,7 +152,7 @@ public class GpuDynamicFilterProvider
 
                         VersionedFilter newFilter = compileTupleDomain(newPredicate);
                         // Sync to ensure full visibility of backing vectors for consuming threads.
-                        Cuda.DEFAULT_STREAM.sync();
+                        CudaStreams.sync(Cuda.DEFAULT_STREAM);
                         currentFilter = newFilter;
                         currentPredicate = newPredicate;
                     }
@@ -174,7 +174,7 @@ public class GpuDynamicFilterProvider
             if (versionToUse != null) {
                 if (!versionToUse.backingVectors.isEmpty()) {
                     // Sync to ensure `versionToUse` is indeed no longer in use
-                    Cuda.DEFAULT_STREAM.sync();
+                    CudaStreams.sync(Cuda.DEFAULT_STREAM);
                 }
                 versionToUse.referenceCount.release();
             }

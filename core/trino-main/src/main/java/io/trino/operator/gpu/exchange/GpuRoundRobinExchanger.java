@@ -17,6 +17,7 @@ import ai.rapids.cudf.Cuda;
 import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.trino.operator.exchange.LocalExchangeMemoryManager;
+import io.trino.operator.gpu.CudaStreams;
 import io.trino.operator.gpu.memory.AllocatedMemory;
 import io.trino.plugin.base.gpu.ClosingRef;
 import io.trino.spi.gpu.GpuPage;
@@ -52,7 +53,7 @@ final class GpuRoundRobinExchanger
             // Cross-thread handoff to readers; cudaStreamSynchronize drains this thread's PTDS
             // completely so all GPU writes are committed to device memory before another thread's
             // PTDS reads from the page. Mirrors GpuPassthroughExchanger.accept.
-            Cuda.DEFAULT_STREAM.sync();
+            CudaStreams.sync(Cuda.DEFAULT_STREAM);
             int target = nextBuffer;
             nextBuffer = (nextBuffer + 1) % buffers.size();
             buffers.get(target).add(allocated.take(), ownedPage.take(), page.retainedDeviceMemoryBytes());

@@ -471,7 +471,7 @@ public abstract class GpuOperator
             // experimental.thread-per-driver-scheduler-enabled is set.
             // Therefore, returuning/yielding constitutes an implicit cross-thread communication boundary
             // for internal state stored within operations or in GpuPageToPages buffers.
-            Cuda.DEFAULT_STREAM.sync();
+            CudaStreams.sync(Cuda.DEFAULT_STREAM);
             return operatorResult;
         }
         finally {
