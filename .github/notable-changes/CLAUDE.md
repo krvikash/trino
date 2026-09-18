@@ -81,8 +81,9 @@ When in doubt, classify as notable. Anything worth the effort of a backport almo
 
 ## GPU Execution Changes
 
-GPU support is an unreleased, hidden feature: the `gpu-execution` config property is
-`@ConfigHidden` in `FeaturesConfig.java`, and no customer can enable it.
+GPU support is released but hidden: the `gpu-execution` config property is `@ConfigHidden` in
+`FeaturesConfig.java`. A customer can technically enable it, but only in close cooperation with
+the Starburst team — it is not self-service or documented.
 
 **If a PR's change is about GPU execution and `gpu-execution` remains `@ConfigHidden`, classify
 it as NOT NOTABLE, regardless of the underlying bug's severity.**
