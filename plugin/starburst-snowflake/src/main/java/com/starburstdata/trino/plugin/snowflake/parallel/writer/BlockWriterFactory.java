@@ -82,9 +82,9 @@ public final class BlockWriterFactory
             int precision = typeHandle.requiredColumnSize() + max(-decimalDigits, 0);
             DecimalType decimalType = createDecimalType(precision, max(decimalDigits, 0));
             if (decimalType.isShort()) {
-                return new ShortDecimalValueWriter(converter, decimalType, type);
+                return new ShortDecimalValueWriter(converter, decimalType, type, columnHandle.getColumnName());
             }
-            return new LongDecimalValueWriter(converter, decimalDigits, type);
+            return new LongDecimalValueWriter(converter, decimalDigits, type, columnHandle.getColumnName());
         }
         if (type == VarcharType.VARCHAR && typeName.equals("VARIANT")) {
             return new VariantValueWriter(converter, type);

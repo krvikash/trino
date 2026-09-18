@@ -16,6 +16,9 @@ import io.trino.spi.type.Type;
 import net.snowflake.client.internal.core.SFException;
 import net.snowflake.client.internal.core.arrow.ArrowVectorConverter;
 
+import java.math.BigDecimal;
+
+import static com.starburstdata.trino.plugin.snowflake.parallel.writer.DecimalValues.rescale;
 import static java.math.RoundingMode.UNNECESSARY;
 
 public class ShortDecimalValueWriter
@@ -24,12 +27,14 @@ public class ShortDecimalValueWriter
     private final ArrowVectorConverter converter;
     private final DecimalType decimalType;
     private final Type type;
+    private final String columnName;
 
-    public ShortDecimalValueWriter(ArrowVectorConverter converter, DecimalType decimalType, Type type)
+    public ShortDecimalValueWriter(ArrowVectorConverter converter, DecimalType decimalType, Type type, String columnName)
     {
         this.converter = converter;
         this.decimalType = decimalType;
         this.type = type;
+        this.columnName = columnName;
     }
 
     @Override
@@ -41,7 +46,8 @@ public class ShortDecimalValueWriter
                 output.appendNull();
             }
             else {
-                type.writeLong(output, Decimals.encodeShortScaledValue(converter.toBigDecimal(row), decimalType.getScale(), UNNECESSARY));
+                BigDecimal value = rescale(converter.toBigDecimal(row), decimalType.getScale(), columnName);
+                type.writeLong(output, Decimals.encodeShortScaledValue(value, decimalType.getScale(), UNNECESSARY));
             }
         }
     }

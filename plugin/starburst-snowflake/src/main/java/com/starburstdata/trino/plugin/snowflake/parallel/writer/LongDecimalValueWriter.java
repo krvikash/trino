@@ -15,8 +15,8 @@ import io.trino.spi.type.Type;
 import net.snowflake.client.internal.core.SFException;
 import net.snowflake.client.internal.core.arrow.ArrowVectorConverter;
 
+import static com.starburstdata.trino.plugin.snowflake.parallel.writer.DecimalValues.rescale;
 import static java.lang.Math.max;
-import static java.math.RoundingMode.UNNECESSARY;
 
 public class LongDecimalValueWriter
         implements BlockWriter
@@ -24,12 +24,14 @@ public class LongDecimalValueWriter
     private final ArrowVectorConverter converter;
     private final int decimalDigits;
     private final Type type;
+    private final String columnName;
 
-    public LongDecimalValueWriter(ArrowVectorConverter converter, int decimalDigits, Type type)
+    public LongDecimalValueWriter(ArrowVectorConverter converter, int decimalDigits, Type type, String columnName)
     {
         this.converter = converter;
         this.decimalDigits = decimalDigits;
         this.type = type;
+        this.columnName = columnName;
     }
 
     @Override
@@ -41,7 +43,7 @@ public class LongDecimalValueWriter
                 output.appendNull();
             }
             else {
-                type.writeObject(output, Decimals.valueOf(converter.toBigDecimal(row).setScale(max(decimalDigits, 0), UNNECESSARY)));
+                type.writeObject(output, Decimals.valueOf(rescale(converter.toBigDecimal(row), max(decimalDigits, 0), columnName)));
             }
         }
     }
