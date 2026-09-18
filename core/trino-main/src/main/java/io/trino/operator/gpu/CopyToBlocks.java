@@ -129,94 +129,76 @@ public class CopyToBlocks
 
     private @Move GpuPage processPage(@Borrow AllocatedMemory allocated, @Borrow GpuPage inputPage)
     {
-        try {
+        try (AutoCloseableCloser closer = AutoCloseableCloser.create()) {
             checkArgument(inputPage.columnCount() == types.size(), "Page has wrong column count");
-            List<ColumnCopier> copiers = newArrayListWithExpectedSize(inputPage.columnCount());
+            int positionCount = inputPage.positionCount();
             @Own Column[] newColumns = new Column[inputPage.columnCount()];
-            @Own List<HostColumnVector> hostColumnVectors = new ArrayList<>();
-            try {
-                int positionCount = inputPage.positionCount();
-                // Issue all device→host transfers, then synchronize once so host-side allocation
-                // and bookkeeping overlap with in-flight DMA.
-                try (AutoCloseableCloser closer = AutoCloseableCloser.create()) {
+            // Technically, no close is needed because newColumns is fully heap stuff
+            closer.register(() -> closeColumns(newColumns));
+
+            List<ColumnCopier> copiers = newArrayListWithExpectedSize(inputPage.columnCount());
+            // Issue all device→host transfers, then synchronize once so host-side allocation
+            // and bookkeeping overlap with in-flight DMA.
+            try (AutoCloseableCloser deviceCloser = AutoCloseableCloser.create()) {
+                try {
                     for (int columnIndex = 0; columnIndex < inputPage.columnCount(); columnIndex++) {
-                        if (inputPage.column(columnIndex) instanceof DeviceMemory deviceMemory) {
-                            allocated.update(allocated.amount().add(MemoryAmount.offHeap(deviceMemory.retainedDeviceMemoryBytes())));
-                            @Own ColumnVector hostCopySource = prepareHostCopy(deviceMemory.columnVector(), types.get(columnIndex));
-                            closer.register(hostCopySource);
-                            hostColumnVectors.add(hostCopySource.copyToHostAsync(Cuda.DEFAULT_STREAM));
+                        Type type = types.get(columnIndex);
+                        switch (inputPage.column(columnIndex)) {
+                            case Blocks blocks -> copiers.add(createBlockCopier(blocks, type));
+                            case DeviceMemory deviceMemory -> {
+                                allocated.update(allocated.amount().add(MemoryAmount.offHeap(deviceMemory.retainedDeviceMemoryBytes())));
+                                @Own ColumnVector hostCopySource = deviceCloser.register(prepareHostCopy(deviceMemory.columnVector(), type));
+                                @Own HostColumnVector hostColumnVector = closer.register(hostCopySource.copyToHostAsync(Cuda.DEFAULT_STREAM));
+                                copiers.add(createColumnCopier(hostColumnVector, type));
+                            }
                         }
                     }
+                }
+                finally {
+                    // Sync before anything registered above is freed, on the failure path too:
+                    // in-flight DMAs may still be reading the device sources and writing the
+                    // pinned host buffers.
                     CudaStreams.sync(Cuda.DEFAULT_STREAM);
                 }
-                catch (RuntimeException e) {
-                    // Sync before the finally-close to prevent freeing pinned host buffers that
-                    // in-flight DMAs may still be writing into.
-                    try {
-                        CudaStreams.sync(Cuda.DEFAULT_STREAM);
-                    }
-                    catch (RuntimeException syncException) {
-                        e.addSuppressed(syncException);
-                    }
-                    throw e;
-                }
-                int hostColumnVectorIndex = 0;
-                for (int columnIndex = 0; columnIndex < inputPage.columnCount(); columnIndex++) {
-                    Type type = types.get(columnIndex);
-                    switch (inputPage.column(columnIndex)) {
-                        case Blocks blocks -> copiers.add(createBlockCopier(blocks, type));
-                        case DeviceMemory _ -> {
-                            HostColumnVector hostColumnVector = hostColumnVectors.get(hostColumnVectorIndex++);
-                            copiers.add(createColumnCopier(hostColumnVector, type));
-                        }
-                    }
-                }
-
-                long estimatedHeapBytes = 0;
-                for (ColumnCopier copier : copiers) {
-                    estimatedHeapBytes += copier.estimateHeapBytes(positionCount);
-                }
-                allocated.update(allocated.amount().add(MemoryAmount.heap(estimatedHeapBytes)));
-
-                List<Page> copiedPages = new ArrayList<>();
-                int targetBatchSize = INITIAL_BATCH_SIZE;
-                int offset = 0;
-                double maxAvgBytesPerPosition = 0;
-
-                // Growth heuristic mirrors PreSizedPageBuilder: start small, double until
-                // avg observed bytes/position × batchSize approaches MAX_PAGE_SIZE_IN_BYTES.
-                while (offset < positionCount) {
-                    int batchSize = min(targetBatchSize, positionCount - offset);
-
-                    Block[] blocks = new Block[copiers.size()];
-                    for (int i = 0; i < copiers.size(); i++) {
-                        blocks[i] = copiers.get(i).buildBlock(offset, batchSize);
-                    }
-                    Page page = new Page(batchSize, blocks);
-                    copiedPages.add(page);
-
-                    double avg = (double) page.getSizeInBytes() / batchSize;
-                    maxAvgBytesPerPosition = max(maxAvgBytesPerPosition, avg);
-                    long byteBudget = (long) (MAX_PAGE_SIZE_IN_BYTES / maxAvgBytesPerPosition);
-                    targetBatchSize = Math.clamp(Math.min(2L * batchSize, byteBudget), INITIAL_BATCH_SIZE, MAX_POSITIONS_PER_PAGE);
-                    offset += batchSize;
-                }
-
-                for (int columnIndex = 0; columnIndex < inputPage.columnCount(); columnIndex++) {
-                    int index = columnIndex;
-                    newColumns[columnIndex] = new Blocks(copiedPages.stream()
-                            .map(page -> page.getBlock(index))
-                            .collect(toImmutableList()));
-                }
-                return new GpuPage(positionCount, newColumns);
             }
-            finally {
-                try (AutoCloseableCloser closer = AutoCloseableCloser.create()) {
-                    // Technically, no close is needed because newColumns is fully heap stuff
-                    closer.register(() -> closeColumns(newColumns));
-                    hostColumnVectors.forEach(closer::register);
-                }
+
+            long estimatedHeapBytes = 0;
+            for (ColumnCopier copier : copiers) {
+                estimatedHeapBytes += copier.estimateHeapBytes(positionCount);
             }
+            allocated.update(allocated.amount().add(MemoryAmount.heap(estimatedHeapBytes)));
+
+            List<Page> copiedPages = new ArrayList<>();
+            int targetBatchSize = INITIAL_BATCH_SIZE;
+            int offset = 0;
+            double maxAvgBytesPerPosition = 0;
+
+            // Growth heuristic mirrors PreSizedPageBuilder: start small, double until
+            // avg observed bytes/position × batchSize approaches MAX_PAGE_SIZE_IN_BYTES.
+            while (offset < positionCount) {
+                int batchSize = min(targetBatchSize, positionCount - offset);
+
+                Block[] blocks = new Block[copiers.size()];
+                for (int i = 0; i < copiers.size(); i++) {
+                    blocks[i] = copiers.get(i).buildBlock(offset, batchSize);
+                }
+                Page page = new Page(batchSize, blocks);
+                copiedPages.add(page);
+
+                double avg = (double) page.getSizeInBytes() / batchSize;
+                maxAvgBytesPerPosition = max(maxAvgBytesPerPosition, avg);
+                long byteBudget = (long) (MAX_PAGE_SIZE_IN_BYTES / maxAvgBytesPerPosition);
+                targetBatchSize = Math.clamp(Math.min(2L * batchSize, byteBudget), INITIAL_BATCH_SIZE, MAX_POSITIONS_PER_PAGE);
+                offset += batchSize;
+            }
+
+            for (int columnIndex = 0; columnIndex < inputPage.columnCount(); columnIndex++) {
+                int index = columnIndex;
+                newColumns[columnIndex] = new Blocks(copiedPages.stream()
+                        .map(page -> page.getBlock(index))
+                        .collect(toImmutableList()));
+            }
+            return new GpuPage(positionCount, newColumns);
         }
         catch (RuntimeException e) {
             throw e;
