@@ -13,6 +13,8 @@
  */
 package io.trino.operator.gpu;
 
+import ai.rapids.cudf.BinaryOp;
+import ai.rapids.cudf.ColumnVector;
 import com.google.common.collect.ImmutableList;
 import io.trino.operator.gpu.memory.AllocatedMemory;
 import io.trino.spi.Page;
@@ -20,17 +22,22 @@ import io.trino.spi.block.Block;
 import io.trino.spi.block.RunLengthEncodedBlock;
 import io.trino.spi.gpu.Column;
 import io.trino.spi.gpu.Column.Blocks;
+import io.trino.spi.gpu.Column.DeviceMemory;
 import io.trino.spi.gpu.GpuPage;
+import io.trino.spi.type.TimestampType;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
+import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.trino.operator.gpu.GpuTestUtils.assertSameDataInOrder;
 import static io.trino.operator.gpu.GpuTestUtils.createBlocks;
 import static io.trino.operator.gpu.GpuTestUtils.drainToPages;
 import static io.trino.spi.type.IntegerType.INTEGER;
+import static io.trino.spi.type.TimestampType.createTimestampType;
 import static io.trino.sql.gen.TestColumnarFilters.NullsProvider.RANDOM_NULLS;
 import static java.util.Objects.requireNonNull;
+import static org.assertj.core.api.Assertions.assertThat;
 
 class TestCopyToBlocks
 {
@@ -68,6 +75,29 @@ class TestCopyToBlocks
                             .map(Page::new)
                             .toList(),
                     List.of(INTEGER));
+        }
+    }
+
+    @Test
+    void testCopiesNullWithUnsetValue()
+    {
+        // A null position built from a null scalar, as GpuGroupId does for the keys a grouping set leaves
+        // out, may have an uninitialized slot.
+        TimestampType type = createTimestampType(3);
+        GpuPage gpuPage;
+        try (ColumnVector values = ColumnVector.timestampMilliSecondsFromLongs(Long.MAX_VALUE, 1);
+                ColumnVector validity = ColumnVector.fromBoxedBooleans(null, true);
+                Column column = new DeviceMemory(values.mergeAndSetValidity(BinaryOp.BITWISE_AND, validity))) {
+            gpuPage = new GpuPage(2, new Column[] {column});
+        }
+
+        GpuOperation.Context context = new TestingGpuOperationContext();
+        try (GpuOperation sourceOperation = singlePageSource(context, gpuPage);
+                CopyToBlocks operation = new CopyToBlocks(context, sourceOperation, ImmutableList.of(type))) {
+            Page output = getOnlyElement(drainToPages(() -> {}, operation));
+            assertThat(output.getPositionCount()).isEqualTo(2);
+            assertThat(output.getBlock(0).isNull(0)).isTrue();
+            assertThat(type.getLong(output.getBlock(0), 1)).isEqualTo(1_000); // 1 millisecond in Trino's microseconds
         }
     }
 

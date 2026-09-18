@@ -26,6 +26,7 @@ import io.trino.plugin.base.gpu.ClosingRef;
 import io.trino.plugin.base.util.AutoCloseableCloser;
 import io.trino.spi.Page;
 import io.trino.spi.block.BitArrayBlock;
+import io.trino.spi.block.Bitmap;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.block.ByteArrayBlock;
@@ -80,6 +81,7 @@ import static java.lang.Math.floorDiv;
 import static java.lang.Math.floorMod;
 import static java.lang.Math.max;
 import static java.lang.Math.min;
+import static java.lang.Math.multiplyExact;
 import static java.lang.Math.toIntExact;
 import static java.util.Objects.requireNonNull;
 
@@ -509,10 +511,15 @@ public class CopyToBlocks
         {
             long[] values = new long[count];
             hostColumnVector.getData().getLongs(values, 0, (long) position * Long.BYTES, count);
+            Optional<long[]> valueIsValid = arrowValidityToWords(hostColumnVector.getValidity(), position, count);
             for (int i = 0; i < count; i++) {
-                values[i] = Math.multiplyExact(values[i], multiplier);
+                // A null position carries no value: cuDF leaves its slot uninitialized (e.g. a column
+                // built from a null scalar), and rescaling that can overflow. The block never reads it.
+                if (valueIsValid.isEmpty() || Bitmap.isSet(valueIsValid.get(), 0, i)) {
+                    values[i] = multiplyExact(values[i], multiplier);
+                }
             }
-            return new LongArrayBlock(count, arrowValidityToWords(hostColumnVector.getValidity(), position, count), values);
+            return new LongArrayBlock(count, valueIsValid, values);
         }
     }
 
