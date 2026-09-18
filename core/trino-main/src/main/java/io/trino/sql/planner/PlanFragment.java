@@ -385,7 +385,7 @@ public class PlanFragment
                 outputSkewedBucketCount,
                 statsAndCosts,
                 activeCatalogs.stream()
-                        .map(activeCatalog -> new CatalogProperties(activeCatalog.name(), activeCatalog.version(), activeCatalog.connectorName(), ImmutableMap.of()))
+                        .map(activeCatalog -> new CatalogProperties(activeCatalog.name(), activeCatalog.version(), activeCatalog.connectorName(), ImmutableMap.of(), activeCatalog.governance()))
                         .collect(toImmutableList()),
                 languageFunctions,
                 jsonRepresentation);

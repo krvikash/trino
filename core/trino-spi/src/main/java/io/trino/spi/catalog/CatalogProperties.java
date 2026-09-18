@@ -18,9 +18,10 @@ import io.trino.spi.connector.ConnectorName;
 
 import java.util.Map;
 
+import static io.trino.spi.catalog.CatalogGovernance.GOVERNED;
 import static java.util.Objects.requireNonNull;
 
-public record CatalogProperties(CatalogName name, CatalogVersion version, ConnectorName connectorName, Map<String, String> properties)
+public record CatalogProperties(CatalogName name, CatalogVersion version, ConnectorName connectorName, Map<String, String> properties, CatalogGovernance governance)
 {
     public CatalogProperties
     {
@@ -28,5 +29,11 @@ public record CatalogProperties(CatalogName name, CatalogVersion version, Connec
         requireNonNull(version, "version is null");
         requireNonNull(connectorName, "connectorName is null");
         properties = Map.copyOf(requireNonNull(properties, "properties is null"));
+        requireNonNull(governance, "governance is null");
+    }
+
+    public CatalogProperties(CatalogName name, CatalogVersion version, ConnectorName connectorName, Map<String, String> properties)
+    {
+        this(name, version, connectorName, properties, GOVERNED);
     }
 }

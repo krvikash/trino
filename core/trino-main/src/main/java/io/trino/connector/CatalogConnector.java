@@ -26,6 +26,7 @@ import static com.google.common.base.MoreObjects.toStringHelper;
 import static io.airlift.units.DataSize.succinctBytes;
 import static io.trino.ExceededMemoryLimitException.exceededLocalUserMemoryLimit;
 import static io.trino.metadata.CatalogStatus.OPERATIONAL;
+import static io.trino.spi.catalog.CatalogGovernance.GOVERNED;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
@@ -73,7 +74,8 @@ public class CatalogConnector
                 catalogConnector,
                 informationSchemaConnector,
                 systemConnector,
-                OPERATIONAL);
+                OPERATIONAL,
+                catalogProperties.map(CatalogProperties::governance).orElse(GOVERNED));
     }
 
     public CatalogHandle getCatalogHandle()

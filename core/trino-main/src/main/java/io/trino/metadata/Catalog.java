@@ -17,6 +17,7 @@ import io.trino.connector.CatalogHandle;
 import io.trino.connector.ConnectorServices;
 import io.trino.metadata.CatalogMetadata.SecurityManagement;
 import io.trino.spi.TrinoException;
+import io.trino.spi.catalog.CatalogGovernance;
 import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.connector.CatalogVersion;
 import io.trino.spi.connector.Connector;
@@ -33,6 +34,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static io.trino.connector.CatalogHandle.createRootCatalogHandle;
 import static io.trino.metadata.CatalogStatus.FAILING;
 import static io.trino.spi.StandardErrorCode.CATALOG_UNAVAILABLE;
+import static io.trino.spi.catalog.CatalogGovernance.GOVERNED;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
@@ -45,6 +47,7 @@ public class Catalog
     private final ConnectorServices informationSchemaConnector;
     private final ConnectorServices systemConnector;
     private final CatalogStatus catalogStatus;
+    private final CatalogGovernance governance;
 
     public Catalog(
             CatalogName catalogName,
@@ -55,6 +58,19 @@ public class Catalog
             ConnectorServices systemConnector,
             CatalogStatus catalogStatus)
     {
+        this(catalogName, catalogHandle, connectorName, catalogConnector, informationSchemaConnector, systemConnector, catalogStatus, GOVERNED);
+    }
+
+    public Catalog(
+            CatalogName catalogName,
+            CatalogHandle catalogHandle,
+            ConnectorName connectorName,
+            ConnectorServices catalogConnector,
+            ConnectorServices informationSchemaConnector,
+            ConnectorServices systemConnector,
+            CatalogStatus catalogStatus,
+            CatalogGovernance governance)
+    {
         this.catalogName = requireNonNull(catalogName, "catalogName is null");
         this.catalogHandle = requireNonNull(catalogHandle, "catalogHandle is null");
         checkArgument(!catalogHandle.getType().isInternal(), "Internal catalogName not allowed");
@@ -63,6 +79,7 @@ public class Catalog
         this.informationSchemaConnector = requireNonNull(informationSchemaConnector, "informationSchemaConnector is null");
         this.systemConnector = requireNonNull(systemConnector, "systemConnector is null");
         this.catalogStatus = requireNonNull(catalogStatus, "catalogStatus is null");
+        this.governance = requireNonNull(governance, "governance is null");
     }
 
     public static Catalog failedCatalog(CatalogName catalogName, CatalogVersion catalogVersion, ConnectorName connectorName)
@@ -79,6 +96,7 @@ public class Catalog
         this.informationSchemaConnector = null;
         this.systemConnector = null;
         this.catalogStatus = catalogStatus;
+        this.governance = GOVERNED;
     }
 
     public CatalogName getCatalogName()
@@ -99,6 +117,11 @@ public class Catalog
     public CatalogStatus getCatalogStatus()
     {
         return catalogStatus;
+    }
+
+    public CatalogGovernance getGovernance()
+    {
+        return governance;
     }
 
     public Optional<SecurityManagement> getSecurityManagement()
