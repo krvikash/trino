@@ -13,13 +13,12 @@
  */
 package io.trino.plugin.warp.metrics;
 
-import dev.failsafe.Failsafe;
-import dev.failsafe.RetryPolicy;
 import io.trino.plugin.warp.config.MetricsConfig;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -27,12 +26,13 @@ public class ScheduledMetricsHandlerTest
 {
     @Test
     public void testScheduler()
+            throws InterruptedException
     {
         MetricsConfig metricsConfig = new MetricsConfig();
         metricsConfig.setIntervalCleanerDuration(Duration.ofMillis(1));
         metricsConfig.setDelayDuration(Duration.ofMillis(1));
 
-        AtomicBoolean isRun = new AtomicBoolean(false);
+        CountDownLatch taskRan = new CountDownLatch(1);
 
         MetricsTimerTask metricsTimerTask = new MetricsTimerTask(metricsConfig)
         {
@@ -45,7 +45,7 @@ public class ScheduledMetricsHandlerTest
             @Override
             public void run()
             {
-                isRun.set(true);
+                taskRan.countDown();
             }
         };
 
@@ -53,12 +53,9 @@ public class ScheduledMetricsHandlerTest
 
         scheduledMetricsHandler.scheduleMetricsTimerTask(metricsTimerTask);
 
-        Failsafe.with(RetryPolicy.builder()
-                        .handle(AssertionError.class)
-                        .withMaxRetries(50)
-                        .withDelay(Duration.ofMillis(2))
-                        .withMaxDuration(Duration.ofMillis(100))
-                        .build())
-                .run(() -> assertThat(isRun).isTrue());
+        // The first Timer fire can lag well past the 1ms delay on a loaded runner, so wait on the task itself
+        assertThat(taskRan.await(10, TimeUnit.SECONDS))
+                .as("scheduled metrics task did not run within timeout")
+                .isTrue();
     }
 }
