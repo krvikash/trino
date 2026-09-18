@@ -416,7 +416,7 @@ public class CteReuse
                 buildOperationToDownstream(nestedBlock, currentScope, operationToDownstream);
             }
             // add operation result to scope
-            currentScope = currentScope.withOperationResult(operation);
+            currentScope.addOperationResult(operation);
         }
     }
 
@@ -1862,36 +1862,36 @@ public class CteReuse
     /**
      * Simplified view of scope in the query plan.
      * It consists of operation results and block parameters which are visible and can be correctly used as arguments.
-     *
-     * @param operationResults - accessible operation results mapped to the operations that return them.
+     * <p>
+     * Accessible operation results are mapped to the operations that return them.
      *         In Trino plan, we can only access the results of preceding operations in the same block.
      *         Although certain operation results from outer blocks are visible, they cannot be referenced in arguments,
      *         and are not present in this map.
-     * @param blockParameters - accessible block parameters mapped to blocks that declare them.
+     * <p>
+     * Accessible block parameters are mapped to blocks that declare them.
      *         It contains parameters of the current block and parameters of all outer blocks.
      */
-    private record AccessibleValueMap(Map<Operation.Result, Operation> operationResults, Map<Block.Parameter, Block> blockParameters)
+    private static final class AccessibleValueMap
     {
-        private AccessibleValueMap
+        private final Map<Operation.Result, Operation> operationResults = new HashMap<>();
+        private final Map<Block.Parameter, Block> blockParameters;
+
+        private AccessibleValueMap(Map<Block.Parameter, Block> blockParameters)
         {
-            requireNonNull(operationResults, "operationResults is null");
             requireNonNull(blockParameters, "blockParameters is null");
-            operationResults = ImmutableMap.copyOf(operationResults);
-            blockParameters = ImmutableMap.copyOf(blockParameters);
+            this.blockParameters = ImmutableMap.copyOf(blockParameters);
         }
 
         public static AccessibleValueMap initialize()
         {
-            return new AccessibleValueMap(ImmutableMap.of(), ImmutableMap.of());
+            return new AccessibleValueMap(ImmutableMap.of());
         }
 
-        public AccessibleValueMap withOperationResult(Operation operation)
+        public void addOperationResult(Operation operation)
         {
-            Map<Operation.Result, Operation> newOperationResults = new HashMap<>(operationResults);
-            if (newOperationResults.put(operation.result(), operation) != null) {
+            if (operationResults.put(operation.result(), operation) != null) {
                 throw new TrinoException(IR_ERROR, format("Operation result %s already in scope", operation.result().name()));
             }
-            return new AccessibleValueMap(newOperationResults, blockParameters);
         }
 
         public AccessibleValueMap forNestedBlock(Block block)
@@ -1903,7 +1903,7 @@ public class CteReuse
                 }
             }
             // clear outer operation results. They mustn't be referenced in nested blocks.
-            return new AccessibleValueMap(ImmutableMap.of(), newBlockParameters);
+            return new AccessibleValueMap(newBlockParameters);
         }
 
         public SourceNode getSource(Value value)
