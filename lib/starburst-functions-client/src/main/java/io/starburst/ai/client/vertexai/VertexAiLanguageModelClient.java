@@ -17,6 +17,7 @@ import com.google.common.base.Ascii;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.genai.Client;
+import com.google.genai.ResponseStream;
 import com.google.genai.types.Content;
 import com.google.genai.types.FunctionCall;
 import com.google.genai.types.FunctionDeclaration;
@@ -46,6 +47,7 @@ import io.trino.spi.TrinoException;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -141,12 +143,7 @@ public class VertexAiLanguageModelClient
 
     private GenerateContentResponse generateContent(List<String> systemPrompts, List<LlmMessage> messages, GenerateContentConfig config, TokenUsageContext context)
     {
-        Span span = tracer.spanBuilder(OPERATION_NAME_CHAT + " " + modelName)
-                .setAttribute(GEN_AI_OPERATION_NAME, OPERATION_NAME_CHAT)
-                .setAttribute(GEN_AI_PROVIDER_NAME, PROVIDER_NAME_VERTEX_AI)
-                .setAttribute(GEN_AI_REQUEST_MODEL, modelName)
-                .setSpanKind(SpanKind.CLIENT)
-                .startSpan();
+        Span span = startChatSpan();
         return AiTracing.withTracing(span, () -> {
             GenerateContentResponse response = client.models.generateContent(modelName, toContents(messages), config);
             response.usageMetadata().ifPresent(usage -> {
@@ -171,9 +168,104 @@ public class VertexAiLanguageModelClient
     @Override
     protected ToolUseResponse generateCompletionWithTools(List<String> systemPrompts, List<LlmMessage> messages, List<ToolDefinition<?>> tools, Consumer<String> output, Supplier<Boolean> isCancelled, TokenUsageContext context)
     {
-        ToolUseResponse response = generateCompletionWithTools(systemPrompts, messages, tools, context);
-        output.accept(response.textResponse());
-        return response;
+        GenerateContentConfig config = buildConfig(systemPrompts, maxTokens, temperature, topP, toTools(tools));
+        try {
+            return streamContent(systemPrompts, messages, config, output, isCancelled, context);
+        }
+        catch (TrinoException e) {
+            throw e;
+        }
+        catch (RuntimeException e) {
+            throw new TrinoException(AI_CLIENT_ERROR, "Failed to execute Vertex AI streaming tool-calling request for model %s".formatted(modelName), e);
+        }
+    }
+
+    private ToolUseResponse streamContent(
+            List<String> systemPrompts,
+            List<LlmMessage> messages,
+            GenerateContentConfig config,
+            Consumer<String> output,
+            Supplier<Boolean> isCancelled,
+            TokenUsageContext context)
+    {
+        // generateContentStream() both issues the request and blocks reading its first chunk, so a
+        // caller that has already cancelled is spared a billable request it would discard.
+        if (isCancelled.get()) {
+            return new ToolUseResponse("", ImmutableList.of());
+        }
+        Span span = startChatSpan();
+        return AiTracing.withTracing(span, () -> {
+            StreamedContent streamed;
+            try (ResponseStream<GenerateContentResponse> stream = client.models.generateContentStream(modelName, toContents(messages), config)) {
+                streamed = accumulateStream(stream, output, isCancelled);
+            }
+            streamed.usageMetadata().ifPresent(usage -> {
+                TokenUsage tokenUsage = toTokenUsage(usage, modelName);
+                AiTracing.recordUsage(span, tokenUsage);
+                reportTokenUsage(context, tokenUsage);
+            });
+            if (includeMessagesInTracing) {
+                AiTracing.recordMessages(span, systemPrompts, messages, streamed.response());
+            }
+            return streamed.response();
+        });
+    }
+
+    /**
+     * Folds the chunks of a streamed response into a single {@link ToolUseResponse}, forwarding each
+     * chunk's text to {@code output} as it arrives. Cancelling stops consuming the stream and keeps what
+     * arrived so far, so the returned text always matches what the caller was handed through
+     * {@code output}.
+     *
+     * <p>Cancellation takes effect at a chunk boundary, not mid-read: {@code ResponseStream} reads one
+     * chunk ahead on a blocking {@code BufferedReader}, so the read for the following chunk is already
+     * in flight by the time a chunk reaches this loop. Interrupting that read would mean closing the
+     * stream from another thread, which the OpenAI client here does not do either; bounding cancellation
+     * latency below one chunk belongs to the streaming layer as a whole rather than this provider.
+     */
+    @VisibleForTesting
+    static StreamedContent accumulateStream(Iterable<GenerateContentResponse> chunks, Consumer<String> output, Supplier<Boolean> isCancelled)
+    {
+        StringBuilder textResponse = new StringBuilder();
+        ImmutableList.Builder<ToolUseResponse.ToolCall> toolCalls = ImmutableList.builder();
+        Optional<GenerateContentResponseUsageMetadata> usageMetadata = Optional.empty();
+        Iterator<GenerateContentResponse> iterator = chunks.iterator();
+        while (!isCancelled.get() && iterator.hasNext()) {
+            GenerateContentResponse chunk = iterator.next();
+            // Each chunk restates the cumulative usage, so the last one seen carries the totals.
+            if (chunk.usageMetadata().isPresent()) {
+                usageMetadata = chunk.usageMetadata();
+            }
+            // Parse per chunk rather than per part so streaming and non-streaming share one
+            // interpretation of a response, including the part-to-thoughtSignature pairing.
+            ToolUseResponse parsed = parseToolResponse(chunk);
+            if (!parsed.textResponse().isEmpty()) {
+                textResponse.append(parsed.textResponse());
+                output.accept(parsed.textResponse());
+            }
+            toolCalls.addAll(parsed.toolCalls());
+        }
+        return new StreamedContent(new ToolUseResponse(textResponse.toString(), toolCalls.build()), usageMetadata);
+    }
+
+    @VisibleForTesting
+    record StreamedContent(ToolUseResponse response, Optional<GenerateContentResponseUsageMetadata> usageMetadata)
+    {
+        StreamedContent
+        {
+            requireNonNull(response, "response is null");
+            requireNonNull(usageMetadata, "usageMetadata is null");
+        }
+    }
+
+    private Span startChatSpan()
+    {
+        return tracer.spanBuilder(OPERATION_NAME_CHAT + " " + modelName)
+                .setAttribute(GEN_AI_OPERATION_NAME, OPERATION_NAME_CHAT)
+                .setAttribute(GEN_AI_PROVIDER_NAME, PROVIDER_NAME_VERTEX_AI)
+                .setAttribute(GEN_AI_REQUEST_MODEL, modelName)
+                .setSpanKind(SpanKind.CLIENT)
+                .startSpan();
     }
 
     @VisibleForTesting

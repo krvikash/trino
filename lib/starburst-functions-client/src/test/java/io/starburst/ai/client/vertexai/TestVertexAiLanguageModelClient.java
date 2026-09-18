@@ -11,6 +11,7 @@ package io.starburst.ai.client.vertexai;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
+import com.google.common.collect.AbstractIterator;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.genai.types.Candidate;
@@ -33,6 +34,7 @@ import io.starburst.ai.client.ToolDefinition;
 import io.starburst.ai.client.ToolParameter;
 import io.starburst.ai.client.ToolResult;
 import io.starburst.ai.client.ToolUseResponse;
+import io.starburst.ai.client.vertexai.VertexAiLanguageModelClient.StreamedContent;
 import io.trino.spi.TrinoException;
 import org.junit.jupiter.api.Test;
 
@@ -40,10 +42,12 @@ import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.starburst.ai.client.MessageRole.ASSISTANT;
 import static io.starburst.ai.client.MessageRole.USER;
+import static io.starburst.ai.client.vertexai.VertexAiLanguageModelClient.accumulateStream;
 import static io.starburst.ai.client.vertexai.VertexAiLanguageModelClient.buildConfig;
 import static io.starburst.ai.client.vertexai.VertexAiLanguageModelClient.parseToolResponse;
 import static io.starburst.ai.client.vertexai.VertexAiLanguageModelClient.toContents;
@@ -341,6 +345,171 @@ public class TestVertexAiLanguageModelClient
         assertThat(functionCallParts.getFirst().thoughtSignature()).isPresent();
         assertThat(functionCallParts.getFirst().thoughtSignature().orElseThrow()).isEqualTo(signature);
         assertThat(functionCallParts.get(1).thoughtSignature()).isEmpty();
+    }
+
+    @Test
+    void testAccumulateStreamForwardsEachChunkAndJoinsText()
+    {
+        List<GenerateContentResponse> chunks = ImmutableList.of(
+                textChunk("Hello"),
+                textChunk(", "),
+                textChunk("world"));
+        ImmutableList.Builder<String> streamed = ImmutableList.builder();
+
+        StreamedContent content = accumulateStream(chunks, streamed::add, () -> false);
+
+        assertThat(streamed.build()).containsExactly("Hello", ", ", "world");
+        assertThat(content.response().textResponse()).isEqualTo("Hello, world");
+        assertThat(content.response().toolCalls()).isEmpty();
+    }
+
+    @Test
+    void testAccumulateStreamSkipsEmptyChunks()
+    {
+        List<GenerateContentResponse> chunks = ImmutableList.of(
+                textChunk("Hello"),
+                GenerateContentResponse.builder().build(),
+                textChunk(" world"));
+        ImmutableList.Builder<String> streamed = ImmutableList.builder();
+
+        StreamedContent content = accumulateStream(chunks, streamed::add, () -> false);
+
+        assertThat(streamed.build()).containsExactly("Hello", " world");
+        assertThat(content.response().textResponse()).isEqualTo("Hello world");
+    }
+
+    /**
+     * Gemini streams a function call in a chunk of its own, with the thought signature on the same part.
+     * The signature must survive accumulation, since the follow-up request 400s without it.
+     */
+    @Test
+    void testAccumulateStreamCollectsToolCallsWithThoughtSignatures()
+    {
+        byte[] signature = "sig-one".getBytes(StandardCharsets.UTF_8);
+        List<GenerateContentResponse> chunks = ImmutableList.of(
+                textChunk("Let me check."),
+                GenerateContentResponse.builder()
+                        .candidates(Candidate.builder().content(Content.builder()
+                                .role("model")
+                                .parts(ImmutableList.of(Part.builder()
+                                        .functionCall(FunctionCall.builder().id("c1").name("fixture").args(ImmutableMap.of("operation", "add")))
+                                        .thoughtSignature(signature)
+                                        .build()))))
+                        .build());
+        ImmutableList.Builder<String> streamed = ImmutableList.builder();
+
+        StreamedContent content = accumulateStream(chunks, streamed::add, () -> false);
+
+        assertThat(streamed.build()).containsExactly("Let me check.");
+        assertThat(content.response().textResponse()).isEqualTo("Let me check.");
+        assertThat(content.response().toolCalls()).hasSize(1);
+        ToolUseResponse.ToolCall toolCall = content.response().toolCalls().getFirst();
+        assertThat(toolCall.name()).isEqualTo("fixture");
+        assertThat(toolCall.thoughtSignature()).isEqualTo(Optional.of(Base64.getEncoder().encodeToString(signature)));
+    }
+
+    /**
+     * Vertex AI restates the cumulative usage on every chunk, so only the last one reports the totals.
+     */
+    @Test
+    void testAccumulateStreamKeepsUsageFromLastChunkThatCarriesIt()
+    {
+        List<GenerateContentResponse> chunks = ImmutableList.of(
+                usageChunk("Hello", 12, 1),
+                usageChunk(" world", 12, 4),
+                textChunk("!"));
+
+        StreamedContent content = accumulateStream(chunks, _ -> {}, () -> false);
+
+        assertThat(content.response().textResponse()).isEqualTo("Hello world!");
+        assertThat(content.usageMetadata()).isPresent();
+        assertThat(content.usageMetadata().orElseThrow().promptTokenCount()).contains(12);
+        assertThat(content.usageMetadata().orElseThrow().candidatesTokenCount()).contains(4);
+    }
+
+    @Test
+    void testAccumulateStreamWithoutUsageMetadata()
+    {
+        StreamedContent content = accumulateStream(ImmutableList.of(textChunk("Hello")), _ -> {}, () -> false);
+
+        assertThat(content.usageMetadata()).isEmpty();
+    }
+
+    /**
+     * Cancelling stops consuming the stream, and the returned text stays consistent with what the caller
+     * already received through the output consumer.
+     */
+    @Test
+    void testAccumulateStreamStopsOnCancellation()
+    {
+        List<GenerateContentResponse> chunks = ImmutableList.of(
+                textChunk("Hello"),
+                textChunk(" world"),
+                textChunk(" again"));
+        ImmutableList.Builder<String> streamed = ImmutableList.builder();
+        AtomicInteger consumed = new AtomicInteger();
+
+        StreamedContent content = accumulateStream(chunks, streamed::add, () -> consumed.getAndIncrement() >= 2);
+
+        assertThat(streamed.build()).containsExactly("Hello", " world");
+        assertThat(content.response().textResponse()).isEqualTo("Hello world");
+    }
+
+    @Test
+    void testAccumulateStreamCancelledBeforeFirstChunk()
+    {
+        ImmutableList.Builder<String> streamed = ImmutableList.builder();
+
+        StreamedContent content = accumulateStream(ImmutableList.of(textChunk("Hello")), streamed::add, () -> true);
+
+        assertThat(streamed.build()).isEmpty();
+        assertThat(content.response().textResponse()).isEmpty();
+        assertThat(content.response().toolCalls()).isEmpty();
+    }
+
+    /**
+     * Cancelling must stop pulling from the stream rather than draining it, so a chunk source that fails
+     * when read past the cancellation point still yields a response.
+     */
+    @Test
+    void testAccumulateStreamStopsPullingChunksOnCancellation()
+    {
+        AtomicInteger pulled = new AtomicInteger();
+        Iterable<GenerateContentResponse> chunks = () -> new AbstractIterator<>()
+        {
+            @Override
+            protected GenerateContentResponse computeNext()
+            {
+                int index = pulled.getAndIncrement();
+                if (index >= 2) {
+                    throw new AssertionError("Pulled chunk %s after cancellation".formatted(index));
+                }
+                return textChunk("chunk-" + index);
+            }
+        };
+
+        StreamedContent content = accumulateStream(chunks, _ -> {}, () -> pulled.get() >= 2);
+
+        assertThat(content.response().textResponse()).isEqualTo("chunk-0chunk-1");
+        assertThat(pulled.get()).isEqualTo(2);
+    }
+
+    private static GenerateContentResponse textChunk(String text)
+    {
+        return GenerateContentResponse.builder()
+                .candidates(Candidate.builder().content(Content.builder()
+                        .role("model")
+                        .parts(ImmutableList.of(Part.fromText(text)))))
+                .build();
+    }
+
+    private static GenerateContentResponse usageChunk(String text, int promptTokens, int candidatesTokens)
+    {
+        return textChunk(text).toBuilder()
+                .usageMetadata(GenerateContentResponseUsageMetadata.builder()
+                        .promptTokenCount(promptTokens)
+                        .candidatesTokenCount(candidatesTokens))
+                .build();
     }
 
     private static GenerateContentResponse geminiResponseWithParallelToolCalls(String text, byte[] signatureOne, byte[] signatureTwo)
