@@ -277,6 +277,34 @@ public class TestVertexAiLanguageModelClient
         assertThat(parsed.toolCalls().get(1).thoughtSignature()).isEqualTo(Optional.of(Base64.getEncoder().encodeToString(signatureTwo)));
     }
 
+    /**
+     * A thought part carries the model's reasoning summary, which must stay out of the assistant
+     * response: it would otherwise be handed to the caller and, once fed back as conversation
+     * history, replayed as plain assistant text stripped of the marker identifying it as reasoning.
+     */
+    @Test
+    void testParseToolResponseExcludesThoughtText()
+    {
+        byte[] signature = "sig-one".getBytes(StandardCharsets.UTF_8);
+        GenerateContentResponse response = GenerateContentResponse.builder()
+                .candidates(Candidate.builder().content(Content.builder()
+                        .role("model")
+                        .parts(ImmutableList.of(
+                                Part.builder().text("reasoning the caller must not see").thought(true).build(),
+                                Part.fromText("Let me check."),
+                                Part.builder()
+                                        .functionCall(FunctionCall.builder().id("c1").name("fixture").args(ImmutableMap.of("operation", "add")))
+                                        .thoughtSignature(signature)
+                                        .build()))))
+                .build();
+
+        ToolUseResponse parsed = parseToolResponse(response);
+
+        assertThat(parsed.textResponse()).isEqualTo("Let me check.");
+        assertThat(parsed.toolCalls()).hasSize(1);
+        assertThat(parsed.toolCalls().getFirst().thoughtSignature()).isEqualTo(Optional.of(Base64.getEncoder().encodeToString(signature)));
+    }
+
     @Test
     void testToContentsReEmitsThoughtSignatureOnFunctionCallPart()
     {
@@ -409,6 +437,24 @@ public class TestVertexAiLanguageModelClient
     }
 
     /**
+     * Gemini streams a reasoning summary in a thought chunk of its own, which must never reach the
+     * output consumer that forwards text to the caller.
+     */
+    @Test
+    void testAccumulateStreamDoesNotForwardThoughtText()
+    {
+        List<GenerateContentResponse> chunks = ImmutableList.of(
+                thoughtChunk("reasoning the caller must not see"),
+                textChunk("Hello"));
+        ImmutableList.Builder<String> streamed = ImmutableList.builder();
+
+        StreamedContent content = accumulateStream(chunks, streamed::add, () -> false);
+
+        assertThat(streamed.build()).containsExactly("Hello");
+        assertThat(content.response().textResponse()).isEqualTo("Hello");
+    }
+
+    /**
      * Vertex AI restates the cumulative usage on every chunk, so only the last one reports the totals.
      */
     @Test
@@ -500,6 +546,15 @@ public class TestVertexAiLanguageModelClient
                 .candidates(Candidate.builder().content(Content.builder()
                         .role("model")
                         .parts(ImmutableList.of(Part.fromText(text)))))
+                .build();
+    }
+
+    private static GenerateContentResponse thoughtChunk(String text)
+    {
+        return GenerateContentResponse.builder()
+                .candidates(Candidate.builder().content(Content.builder()
+                        .role("model")
+                        .parts(ImmutableList.of(Part.builder().text(text).thought(true).build()))))
                 .build();
     }
 

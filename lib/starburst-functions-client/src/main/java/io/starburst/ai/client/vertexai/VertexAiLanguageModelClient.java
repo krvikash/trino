@@ -357,7 +357,13 @@ public class VertexAiLanguageModelClient
             //  which is dropped here. Omitting it never errors (unlike a function-call signature) but costs
             //  cross-turn reasoning quality. Preserving it needs textResponse and LlmMessage.content to
             //  carry the signature, plus the downstream session-storage models to persist it.
-            part.text().ifPresent(textResponse::append);
+
+            // A thought part carries the model's reasoning summary in text(), not assistant output, so
+            // exclude it as GenerateContentResponse.text() does. Gemini returns these only when
+            // ThinkingConfig.includeThoughts is set, which this client does not set.
+            if (!part.thought().orElse(false)) {
+                part.text().ifPresent(textResponse::append);
+            }
             part.functionCall().ifPresent(functionCall -> toolCalls.add(toToolCall(functionCall, part.thoughtSignature())));
         }
         return new ToolUseResponse(textResponse.toString(), toolCalls.build());
