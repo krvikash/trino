@@ -14,6 +14,7 @@
 package io.trino.operator.gpu;
 
 import ai.rapids.cudf.ColumnVector;
+import ai.rapids.cudf.DType;
 import ai.rapids.cudf.HostColumnVector;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
@@ -88,6 +89,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalLong;
 import java.util.Random;
 import java.util.Set;
 import java.util.stream.IntStream;
@@ -2629,6 +2631,124 @@ public class TestGpuExpressions
         for (String unit : List.of("minute", "MINUTE", "MiNuTe")) {
             testDateTrunc(unit, createTimestampType(6), NullsProvider.RANDOM_NULLS);
         }
+    }
+
+    @Test
+    public void testDateTruncMicrosecondUnderflow()
+    {
+        TimestampType type = createTimestampType(6);
+        for (Field field : Field.values()) {
+            OptionalLong period = field.periodInNativeUnits(DType.TIMESTAMP_MICROSECONDS);
+            if (period.isEmpty()) {
+                continue;
+            }
+            long firstSafe = firstRepresentableDateTruncValue(period.orElseThrow());
+            String unit = field.trinoDateTruncUnit();
+
+            assertDateTruncGpuThrows(unit, type, Long.MIN_VALUE);
+            assertDateTruncGpuThrows(unit, type, firstSafe - 1);
+            assertDateTruncMatchesCpu(unit, type, firstSafe);
+        }
+    }
+
+    @Test
+    public void testDateTruncUnderflowWithNulls()
+    {
+        TimestampType type = createTimestampType(6);
+        String unit = "day";
+        long firstSafe = firstRepresentableDateTruncValue(MICROSECONDS_PER_DAY);
+
+        assertDateTruncMatchesCpu(unit, type, shortTimestampBlock(type, (Long) null));
+        assertDateTruncMatchesCpu(unit, type, shortTimestampBlock(type, null, firstSafe));
+        assertDateTruncGpuThrows(unit, type, shortTimestampBlock(type, null, Long.MIN_VALUE));
+        assertDateTruncGpuThrows(unit, type, shortTimestampBlock(type, Long.MIN_VALUE, null));
+    }
+
+    @Test
+    public void testDateTruncNanosecondUnderflow()
+    {
+        TimestampType type = createTimestampType(9);
+        long firstConvertibleNanos = BigInteger.valueOf(Long.MIN_VALUE)
+                .divide(BigInteger.valueOf(NANOSECONDS_PER_MICROSECOND))
+                .multiply(BigInteger.valueOf(NANOSECONDS_PER_MICROSECOND))
+                .longValueExact();
+        LongTimestamp firstConvertible = nanosToLongTimestamp(firstConvertibleNanos);
+        for (Field field : Field.values()) {
+            OptionalLong period = field.periodInNativeUnits(DType.TIMESTAMP_NANOSECONDS);
+            if (period.isEmpty()) {
+                continue;
+            }
+            long periodValue = period.orElseThrow();
+            long firstSafe = firstRepresentableDateTruncValue(periodValue);
+            String unit = field.trinoDateTruncUnit();
+
+            assertDateTruncGpuThrows(unit, type, firstConvertible);
+            assertDateTruncGpuThrows(unit, type, nanosToLongTimestamp(firstSafe - 1));
+            assertDateTruncMatchesCpu(unit, type, nanosToLongTimestamp(firstSafe));
+        }
+    }
+
+    private static Block shortTimestampBlock(TimestampType type, Long... epochMicros)
+    {
+        BlockBuilder builder = type.createBlockBuilder(null, epochMicros.length);
+        for (Long value : epochMicros) {
+            if (value == null) {
+                builder.appendNull();
+            }
+            else {
+                type.writeLong(builder, value);
+            }
+        }
+        return builder.build();
+    }
+
+    private void assertDateTruncGpuThrows(String unit, Type timestampType, Object trinoValue)
+    {
+        assertDateTruncGpuThrows(unit, timestampType, writeNativeValue(timestampType, trinoValue));
+    }
+
+    private void assertDateTruncGpuThrows(String unit, Type timestampType, Block timestamps)
+    {
+        Expression expression = dateTruncExpression(unit, timestampType);
+        List<Page> inputPages = List.of(new Page(timestamps));
+        List<Type> inputTypes = List.of(timestampType);
+
+        CompiledExpression gpuExpression = compileExpression(expression, layoutFor(inputTypes), SQL_STANDARD)
+                .orElseThrow(() -> new AssertionError("GPU expression compile failed for: " + expression));
+        assertTrinoExceptionThrownBy(() -> executeWithGpu(inputPages, inputTypes, expression, gpuExpression))
+                .hasErrorCode(NUMERIC_VALUE_OUT_OF_RANGE)
+                .hasMessage("date_trunc('%s', ...) result out of range supported by GPU".formatted(unit));
+    }
+
+    private void assertDateTruncMatchesCpu(String unit, Type timestampType, Object trinoValue)
+    {
+        assertDateTruncMatchesCpu(unit, timestampType, writeNativeValue(timestampType, trinoValue));
+    }
+
+    private void assertDateTruncMatchesCpu(String unit, Type timestampType, Block timestamps)
+    {
+        assertGpuMatchesCpu(
+                List.of(new Page(timestamps)),
+                List.of(timestampType),
+                dateTruncExpression(unit, timestampType),
+                Set.of(0));
+    }
+
+    private static LongTimestamp nanosToLongTimestamp(long nanos)
+    {
+        long epochMicros = floorDiv(nanos, NANOSECONDS_PER_MICROSECOND);
+        int picosOfMicro = floorMod(nanos, NANOSECONDS_PER_MICROSECOND) * PICOSECONDS_PER_NANOSECOND;
+        return new LongTimestamp(epochMicros, picosOfMicro);
+    }
+
+    private static long firstRepresentableDateTruncValue(long period)
+    {
+        // BigInteger.divide rounds toward zero, yielding the first multiple within the long range.
+        BigInteger periodBigInteger = BigInteger.valueOf(period);
+        return BigInteger.valueOf(Long.MIN_VALUE)
+                .divide(periodBigInteger)
+                .multiply(periodBigInteger)
+                .longValueExact();
     }
 
     @Test

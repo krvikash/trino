@@ -18,6 +18,7 @@ import ai.rapids.cudf.DType;
 import ai.rapids.cudf.Scalar;
 import com.google.common.collect.ImmutableMap;
 import io.trino.plugin.base.gpu.ClosingOnce;
+import io.trino.spi.TrinoException;
 import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
 
@@ -28,6 +29,9 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalLong;
 
+import static ai.rapids.cudf.BinaryOp.GREATER;
+import static com.google.common.base.Verify.verify;
+import static io.trino.spi.StandardErrorCode.NUMERIC_VALUE_OUT_OF_RANGE;
 import static java.util.Objects.requireNonNull;
 
 public final class GpuDateTrunc
@@ -61,6 +65,20 @@ public final class GpuDateTrunc
                         ClosingOnce<ColumnVector> floorMod = ClosingOnce.own(asInt64.borrow().pmod(periodScalar));
                         ColumnVector floored = asInt64.borrow().sub(floorMod.borrow())) {
                     floorMod.close();
+                    // A correctly floored value never exceeds its input. If subtraction wraps
+                    // below Long.MIN_VALUE, the result is instead a large positive value.
+                    try (ColumnVector aboveInput = floored.binaryOp(GREATER, asInt64.borrow(), DType.BOOL8);
+                            Scalar anyAboveInput = aboveInput.any()) {
+                        if (!anyAboveInput.isValid()) {
+                            verify(aboveInput.getNullCount() != aboveInput.getRowCount(), "Unable to check date_trunc overflow");
+                        }
+                        else if (anyAboveInput.getBoolean()) {
+                            // LongTimestamp on the CPU can represent some results below the GPU nanosecond carrier.
+                            throw new TrinoException(
+                                    NUMERIC_VALUE_OUT_OF_RANGE,
+                                    "date_trunc('%s', ...) result out of range supported by GPU".formatted(field.trinoDateTruncUnit()));
+                        }
+                    }
                     return floored.castTo(columnType);
                 }
             }
