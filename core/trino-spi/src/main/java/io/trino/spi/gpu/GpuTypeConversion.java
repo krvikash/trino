@@ -106,6 +106,14 @@ public final class GpuTypeConversion
         return Optional.of(unmodifiableList(converted));
     }
 
+    public static @Move Scalar nullScalar(Type type)
+    {
+        // Note: Scalar.fromNull(DType) is not applicable to compound types
+        return toGpuMapping(type)
+                .orElseThrow(() -> new UnsupportedOperationException("Unsupported type: " + type))
+                .toScalar().copyToScalar(Optional.empty());
+    }
+
     public static Optional<DType> toDType(Type type)
     {
         return toGpuMapping(type)

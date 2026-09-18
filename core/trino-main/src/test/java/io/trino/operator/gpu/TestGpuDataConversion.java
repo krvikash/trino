@@ -65,6 +65,7 @@ import static io.trino.spi.type.DecimalType.createDecimalType;
 import static io.trino.spi.type.DoubleType.DOUBLE;
 import static io.trino.spi.type.RealType.REAL;
 import static io.trino.spi.type.TypeUtils.readNativeValue;
+import static io.trino.spi.type.VarbinaryType.VARBINARY;
 import static io.trino.sql.gen.TestColumnarFilters.NullsProvider.NO_NULLS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -447,6 +448,29 @@ public class TestGpuDataConversion
         assertThat(GpuTypeConversion.toDType(createDecimalType(18, 6))).hasValue(DType.create(DType.DTypeEnum.DECIMAL64, -6));
         assertThat(GpuTypeConversion.toDType(createDecimalType(19, 5))).hasValue(DType.create(DType.DTypeEnum.DECIMAL128, -5));
         assertThat(GpuTypeConversion.toDType(createDecimalType(38, 10))).hasValue(DType.create(DType.DTypeEnum.DECIMAL128, -10));
+    }
+
+    @Test
+    public void testVarbinaryIsTheOnlyListType()
+    {
+        // nullScalar(DType) builds a null LIST as VARBINARY's LIST<UINT8>; DType.LIST carries no element
+        // type of its own, so a second type mapping to LIST would silently get UINT8 elements.
+        assertThat(TESTED_GPU_TYPES.stream()
+                .filter(type -> GpuTypeConversion.toDType(type).orElseThrow().equals(DType.LIST))
+                .collect(toImmutableList()))
+                .containsExactly(VARBINARY);
+    }
+
+    @Test
+    public void testNullScalarForEverySupportedType()
+    {
+        for (Type type : TESTED_GPU_TYPES) {
+            DType dType = GpuTypeConversion.toDType(type).orElseThrow();
+            try (Scalar nullScalar = GpuTypeConversion.nullScalar(type)) {
+                assertThat(nullScalar.getType()).isEqualTo(dType);
+                assertThat(nullScalar.isValid()).isFalse();
+            }
+        }
     }
 
     @Test

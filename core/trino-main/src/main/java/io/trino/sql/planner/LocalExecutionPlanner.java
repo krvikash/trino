@@ -13,7 +13,6 @@
  */
 package io.trino.sql.planner;
 
-import ai.rapids.cudf.DType;
 import ai.rapids.cudf.ast.AstExpression;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Throwables;
@@ -2291,23 +2290,21 @@ public class LocalExecutionPlanner
             newLayout.put(node.getGroupIdSymbol(), outputChannel);
             outputTypes.add(BIGINT);
 
-            if (isGpuExecutionEnabled(session)) {
-                Optional<List<DType>> outputDTypes = toDTypes(outputTypes.build());
-                if (outputDTypes.isPresent()) {
-                    return addGpuOperation(
-                            new GpuGroupId.Factory(mappings.build(), outputDTypes.get()),
-                            outputTypes.build(),
-                            source,
-                            newLayout,
-                            context,
-                            node.getId());
-                }
+            List<Type> groupIdOutputTypes = outputTypes.build();
+            if (isGpuExecutionEnabled(session) && toDTypes(groupIdOutputTypes).isPresent()) {
+                return addGpuOperation(
+                        new GpuGroupId.Factory(mappings.build(), groupIdOutputTypes),
+                        groupIdOutputTypes,
+                        source,
+                        newLayout,
+                        context,
+                        node.getId());
             }
 
             OperatorFactory groupIdOperatorFactory = new GroupIdOperator.GroupIdOperatorFactory(
                     context.getNextOperatorId(),
                     node.getId(),
-                    outputTypes.build(),
+                    groupIdOutputTypes,
                     mappings.build());
 
             return new PhysicalOperation(groupIdOperatorFactory, newLayout, source);

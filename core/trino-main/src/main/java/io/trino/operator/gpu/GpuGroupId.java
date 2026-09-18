@@ -29,6 +29,7 @@ import io.trino.spi.gpu.GpuPage;
 import io.trino.spi.gpu.MemoryAmount;
 import io.trino.spi.gpu.borrow.Move;
 import io.trino.spi.gpu.borrow.Own;
+import io.trino.spi.type.Type;
 
 import java.util.Arrays;
 import java.util.List;
@@ -37,6 +38,8 @@ import java.util.Map;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.trino.operator.gpu.memory.GpuMemoryUtils.getNullColumnMemoryUsage;
 import static io.trino.plugin.base.gpu.GpuUtils.closeColumns;
+import static io.trino.spi.gpu.GpuTypeConversion.nullScalar;
+import static io.trino.spi.gpu.GpuTypeConversion.toDType;
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -49,9 +52,9 @@ public class GpuGroupId
             implements GpuOperation.Factory
     {
         private final List<Map<Integer, Integer>> groupingSetMappings;
-        private final List<DType> outputTypes;
+        private final List<Type> outputTypes;
 
-        public Factory(List<Map<Integer, Integer>> groupingSetMappings, List<DType> outputTypes)
+        public Factory(List<Map<Integer, Integer>> groupingSetMappings, List<Type> outputTypes)
         {
             this.groupingSetMappings = groupingSetMappings.stream()
                     .map(ImmutableMap::copyOf)
@@ -86,19 +89,23 @@ public class GpuGroupId
     private final GpuOperation source;
     // [setId][outputChannel] = inputChannel, or -1 meaning NULL
     private final int[][] groupingSetInputs;
-    private final List<DType> outputTypes;
+    private final List<Type> outputTypes;
+    private final List<DType> outputDTypes;
 
     private final ClosingRef<AllocatedMemory> allocated;
     private @Own GpuPage currentPage;
     private int currentGroupingSet;
     private boolean finished;
 
-    public GpuGroupId(Context context, GpuOperation source, int[][] groupingSetInputs, List<DType> outputTypes)
+    public GpuGroupId(Context context, GpuOperation source, int[][] groupingSetInputs, List<Type> outputTypes)
     {
         this.taskMemoryContext = context.taskMemoryContext();
         this.source = requireNonNull(source, "source is null");
         this.groupingSetInputs = requireNonNull(groupingSetInputs, "groupingSetInputs is null");
-        this.outputTypes = requireNonNull(outputTypes, "outputTypes is null");
+        this.outputTypes = ImmutableList.copyOf(requireNonNull(outputTypes, "outputTypes is null"));
+        this.outputDTypes = outputTypes.stream()
+                .map(type -> toDType(type).orElseThrow(() -> new IllegalArgumentException("Type has no GPU representation: " + type)))
+                .collect(toImmutableList());
         this.allocated = ClosingRef.own(taskMemoryContext.allocate(getClass().getSimpleName(), MemoryAmount.ZERO));
     }
 
@@ -143,7 +150,7 @@ public class GpuGroupId
 
             for (int i = 0; i < inputs.length; i++) {
                 if (inputs[i] == -1) {
-                    try (Scalar nullScalar = Scalar.fromNull(outputTypes.get(i))) {
+                    try (Scalar nullScalar = nullScalar(outputTypes.get(i))) {
                         DeviceMemory nullColumn = new DeviceMemory(ColumnVector.fromScalar(nullScalar, positionCount));
                         outputColumns[i] = nullColumn;
                         nonSharedColumnsMemoryBytes += nullColumn.retainedDeviceMemoryBytes();
@@ -185,7 +192,7 @@ public class GpuGroupId
         long bytes = 0;
         for (int i = 0; i < inputs.length; i++) {
             if (inputs[i] == -1) {
-                bytes += getNullColumnMemoryUsage(outputTypes.get(i), positionCount);
+                bytes += getNullColumnMemoryUsage(outputDTypes.get(i), positionCount);
             }
         }
         // groupId column

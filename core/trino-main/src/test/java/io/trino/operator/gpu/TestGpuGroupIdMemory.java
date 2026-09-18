@@ -13,7 +13,6 @@
  */
 package io.trino.operator.gpu;
 
-import ai.rapids.cudf.DType;
 import io.trino.operator.gpu.GpuOperation.Blocked;
 import io.trino.operator.gpu.GpuOperation.Data;
 import io.trino.operator.gpu.GpuOperation.Finished;
@@ -36,6 +35,7 @@ import static io.trino.operator.gpu.GpuTestUtils.copyToDevice;
 import static io.trino.operator.gpu.GpuTestUtils.createPages;
 import static io.trino.operator.gpu.GpuTestUtils.maybeSetGpuMemoryPoolForTests;
 import static io.trino.spi.type.BigintType.BIGINT;
+import static io.trino.spi.type.VarbinaryType.VARBINARY;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.sql.gen.TestColumnarFilters.NullsProvider.NO_NULLS;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -59,7 +59,7 @@ class TestGpuGroupIdMemory
     {
         testGroupId(
                 List.of(Map.of(0, 0, 1, 1, 2, 2)),
-                List.of(DType.INT64, DType.INT64, DType.INT64, DType.INT64),
+                List.of(BIGINT, BIGINT, BIGINT, BIGINT),
                 List.of(BIGINT, BIGINT, BIGINT));
     }
 
@@ -68,7 +68,7 @@ class TestGpuGroupIdMemory
     {
         testGroupId(
                 List.of(Map.of(0, 0, 1, 1), Map.of(0, 0, 2, 2)),
-                List.of(DType.INT64, DType.INT64, DType.INT64, DType.INT64),
+                List.of(BIGINT, BIGINT, BIGINT, BIGINT),
                 List.of(BIGINT, BIGINT, BIGINT));
     }
 
@@ -77,11 +77,22 @@ class TestGpuGroupIdMemory
     {
         testGroupId(
                 List.of(Map.of(0, 0), Map.of(1, 1)),
-                List.of(DType.STRING, DType.STRING, DType.INT64),
+                List.of(VARCHAR, VARCHAR, BIGINT),
                 List.of(VARCHAR, VARCHAR));
     }
 
-    private void testGroupId(List<Map<Integer, Integer>> groupingSetMappings, List<DType> outputTypes, List<Type> inputTypes)
+    @Test
+    void testVarbinaryColumns()
+    {
+        // VARBINARY is a nested LIST<UINT8> on the GPU, so the columns this nulls out need a null list
+        // scalar rather than Scalar.fromNull
+        testGroupId(
+                List.of(Map.of(0, 0), Map.of(1, 1)),
+                List.of(VARBINARY, VARBINARY, BIGINT),
+                List.of(VARBINARY, VARBINARY));
+    }
+
+    private void testGroupId(List<Map<Integer, Integer>> groupingSetMappings, List<Type> outputTypes, List<Type> inputTypes)
     {
         TestingGpuOperationContext context = new TestingGpuOperationContext();
         try (GpuDeviceMemoryUsageValidation memoryValidation = GpuDeviceMemoryUsageValidation.createAndRegister(context, 1024 * 1024)) {
