@@ -81,12 +81,22 @@ When in doubt, classify as notable. Anything worth the effort of a backport almo
 
 ## GPU Execution Changes
 
-GPU support is released but hidden: the `gpu-execution` config property is `@ConfigHidden` in
-`FeaturesConfig.java`. A customer can technically enable it, but only in close cooperation with
-the Starburst team — it is not self-service or documented.
+GPU support is released but hidden: the master switch, `@Config("gpu-execution")` on
+`FeaturesConfig.setGpuExecution()`, is annotated `@ConfigHidden`. The GPU-tuning knobs in the
+separate `io.trino.operator.gpu.GpuConfig` class (memory pool sizing, allocation mode, execution
+concurrency, etc.) are `@ConfigHidden` too, and `TestGpuConfig.testAllHiddenForNow()` fails the
+build if any of them is ever left un-hidden — but that test does not cover the `gpu-execution`
+property itself, since that one lives on `FeaturesConfig`, not `GpuConfig`. A customer can
+technically enable GPU execution, but only in close cooperation with the Starburst team — it is
+not self-service or documented.
 
 **If a PR's change is about GPU execution and `gpu-execution` remains `@ConfigHidden`, classify
-it as NOT NOTABLE, regardless of the underlying bug's severity.**
+it as NOT NOTABLE, regardless of the underlying bug's severity — this includes CVE/security
+fixes and release-branch backports. A code path a customer cannot reach without Starburst's
+direct help is not customer-facing, so it cannot be a customer-facing security issue, and a
+backport of it is not something a customer "hits" on upgrade. The security-fix and
+backport-notable rules above apply to customer-reachable behavior; they do not override this
+exclusion.**
 
 If `gpu-execution` is ever made non-hidden (officialized), re-evaluate GPU-execution PRs under
 the normal rules above instead of this exclusion.
