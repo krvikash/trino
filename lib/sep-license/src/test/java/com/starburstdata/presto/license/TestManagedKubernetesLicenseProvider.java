@@ -9,19 +9,17 @@
  */
 package com.starburstdata.presto.license;
 
+import com.google.common.collect.ImmutableMap;
 import io.trino.spi.TrinoException;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.parallel.Execution;
-import uk.org.webcompere.systemstubs.environment.EnvironmentVariables;
-import uk.org.webcompere.systemstubs.jupiter.SystemStub;
-import uk.org.webcompere.systemstubs.jupiter.SystemStubsExtension;
 
 import java.io.IOException;
 import java.net.URL;
 import java.time.LocalDateTime;
+import java.util.Map;
 
 import static com.google.common.io.Resources.getResource;
 import static com.google.common.io.Resources.toByteArray;
@@ -29,22 +27,22 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.junit.jupiter.api.parallel.ExecutionMode.SAME_THREAD;
 
-@ExtendWith(SystemStubsExtension.class)
-@Execution(SAME_THREAD) // because of SystemStub
-public class TestManagedKubernetesLicenseProvider
+@Execution(SAME_THREAD) // because ManagedKubernetesLicenseProvider caches the license in a static field
+final class TestManagedKubernetesLicenseProvider
 {
     private static final String METADATA_SERVICE_INSTANCE_IDENTITY_BASE_PATH = "/latest/dynamic/instance-identity/";
+
+    private static final Map<String, String> ENVIRONMENT = ImmutableMap.of(
+            "ENABLE_K8S_LICENSE_PROVIDER", "true",
+            "K8S_LICENSE_PROVIDER_MAX_RETRY", "3");
 
     private static byte[] licenseCheckoutFailureJson;
     private static byte[] licenseCheckoutSuccessJson;
     private static byte[] licenseCheckoutCrashJson;
     private static byte[] licenseCheckoutCloudMismatchJson;
 
-    @SystemStub
-    private final EnvironmentVariables variables = new EnvironmentVariables();
-
     @BeforeAll
-    public static void setUp()
+    static void setUp()
             throws IOException
     {
         URL licenseCheckoutFailureURL = getResource(TestManagedKubernetesLicenseProvider.class, "test-license-checkout-failure.json");
@@ -59,85 +57,100 @@ public class TestManagedKubernetesLicenseProvider
     }
 
     @BeforeEach
-    public void reset()
+    void reset()
     {
         ManagedKubernetesLicenseProvider.setManagedKubernetesLicense(null);
-        variables.set("ENABLE_K8S_LICENSE_PROVIDER", "true");
-        variables.set("K8S_LICENSE_PROVIDER_MAX_RETRY", "3");
     }
 
     @Test
-    public void testRaisesTrinoExceptionIfLicenseEndpointNotAvailable()
+    void testRaisesTrinoExceptionIfLicenseEndpointNotAvailable()
     {
-        LicenseProvider licenseProvider = new ManagedKubernetesLicenseProvider(TestingURLRequester.builder()
-                .withExceptionOnDownload(new IOException("Download failed, host unreachable"))
-                .build());
+        LicenseProvider licenseProvider = new ManagedKubernetesLicenseProvider(
+                TestingURLRequester.builder()
+                        .withExceptionOnDownload(new IOException("Download failed, host unreachable"))
+                        .build(),
+                ENVIRONMENT);
         assertThatExceptionOfType(TrinoException.class)
                 .isThrownBy(licenseProvider::getLicense)
                 .withMessage("Starburst Enterprise Managed Kubernetes License Verifier failed to start");
     }
 
     @Test
-    public void testReturnsEmptyIfLicenseProviderIsDisabled()
+    void testReturnsEmptyIfLicenseProviderIsDisabled()
     {
-        variables.set("ENABLE_K8S_LICENSE_PROVIDER", "false");
-        LicenseProvider licenseProvider = new ManagedKubernetesLicenseProvider(TestingURLRequester.builder()
-                .withDownloadResponse(METADATA_SERVICE_INSTANCE_IDENTITY_BASE_PATH + "/license", licenseCheckoutSuccessJson)
-                .build());
+        LicenseProvider licenseProvider = new ManagedKubernetesLicenseProvider(
+                TestingURLRequester.builder()
+                        .withDownloadResponse(METADATA_SERVICE_INSTANCE_IDENTITY_BASE_PATH + "/license", licenseCheckoutSuccessJson)
+                        .build(),
+                ImmutableMap.<String, String>builder()
+                        .putAll(ENVIRONMENT)
+                        .put("ENABLE_K8S_LICENSE_PROVIDER", "false")
+                        .buildKeepingLast());
         assertThat(licenseProvider.getLicense()).isEmpty();
     }
 
     @Test
-    public void testReturnsEmptyIfLicenseProviderEnvVarIsNotSet()
+    void testReturnsEmptyIfLicenseProviderEnvVarIsNotSet()
     {
-        variables.set("ENABLE_K8S_LICENSE_PROVIDER", null);
-        LicenseProvider licenseProvider = new ManagedKubernetesLicenseProvider(TestingURLRequester.builder()
-                .withDownloadResponse(METADATA_SERVICE_INSTANCE_IDENTITY_BASE_PATH + "/license", licenseCheckoutSuccessJson)
-                .build());
+        LicenseProvider licenseProvider = new ManagedKubernetesLicenseProvider(
+                TestingURLRequester.builder()
+                        .withDownloadResponse(METADATA_SERVICE_INSTANCE_IDENTITY_BASE_PATH + "/license", licenseCheckoutSuccessJson)
+                        .build(),
+                ImmutableMap.of("K8S_LICENSE_PROVIDER_MAX_RETRY", "3"));
         assertThat(licenseProvider.getLicense()).isEmpty();
     }
 
     @Test
-    public void testReturnsEmptyIfLicenseCheckoutFail()
+    void testReturnsEmptyIfLicenseCheckoutFail()
     {
-        LicenseProvider licenseProvider = new ManagedKubernetesLicenseProvider(TestingURLRequester.builder()
-                .withDownloadResponse("/license", licenseCheckoutFailureJson)
-                .build());
+        LicenseProvider licenseProvider = new ManagedKubernetesLicenseProvider(
+                TestingURLRequester.builder()
+                        .withDownloadResponse("/license", licenseCheckoutFailureJson)
+                        .build(),
+                ENVIRONMENT);
         assertThat(licenseProvider.getLicense()).isEmpty();
     }
 
     @Test
-    public void testReturnsEmptyIfCloudNotSupported()
+    void testReturnsEmptyIfCloudNotSupported()
     {
-        LicenseProvider licenseProvider = new ManagedKubernetesLicenseProvider(TestingURLRequester.builder()
-                .withDownloadResponse("/license", licenseCheckoutCloudMismatchJson)
-                .build());
+        LicenseProvider licenseProvider = new ManagedKubernetesLicenseProvider(
+                TestingURLRequester.builder()
+                        .withDownloadResponse("/license", licenseCheckoutCloudMismatchJson)
+                        .build(),
+                ENVIRONMENT);
         assertThat(licenseProvider.getLicense()).isEmpty();
     }
 
     @Test
-    public void testReturnsLicenseIfAWSLicenseCheckoutReturnsSuccess()
+    void testReturnsLicenseIfAWSLicenseCheckoutReturnsSuccess()
     {
-        LicenseProvider licenseProvider = new ManagedKubernetesLicenseProvider(TestingURLRequester.builder()
-                .withDownloadResponse("/license", licenseCheckoutSuccessJson)
-                .build());
+        LicenseProvider licenseProvider = new ManagedKubernetesLicenseProvider(
+                TestingURLRequester.builder()
+                        .withDownloadResponse("/license", licenseCheckoutSuccessJson)
+                        .build(),
+                ENVIRONMENT);
         assertThat(licenseProvider.getLicense()).contains(License.unsigned("200442618260", LicenseType.AWS_EKS, LocalDateTime.MAX));
         assertThat(licenseProvider.getLicense().orElseThrow().getHash()).isEmpty();
 
         // Verify cashing - no external services will be called as license was previously created (verification that throws exception will not be called.
-        licenseProvider = new ManagedKubernetesLicenseProvider(TestingURLRequester.builder()
-                .withDownloadResponse("/license", licenseCheckoutFailureJson)
-                .build());
+        licenseProvider = new ManagedKubernetesLicenseProvider(
+                TestingURLRequester.builder()
+                        .withDownloadResponse("/license", licenseCheckoutFailureJson)
+                        .build(),
+                ENVIRONMENT);
         assertThat(licenseProvider.getLicense()).contains(License.unsigned("200442618260", LicenseType.AWS_EKS, LocalDateTime.MAX));
         assertThat(licenseProvider.getLicense().orElseThrow().getHash()).isEmpty();
     }
 
     @Test
-    public void testRaisesTrinoExceptionIfLicenseEndpointCrashes()
+    void testRaisesTrinoExceptionIfLicenseEndpointCrashes()
     {
-        LicenseProvider licenseProvider = new ManagedKubernetesLicenseProvider(TestingURLRequester.builder()
-                .withDownloadResponse("/license", licenseCheckoutCrashJson)
-                .build());
+        LicenseProvider licenseProvider = new ManagedKubernetesLicenseProvider(
+                TestingURLRequester.builder()
+                        .withDownloadResponse("/license", licenseCheckoutCrashJson)
+                        .build(),
+                ENVIRONMENT);
         assertThatExceptionOfType(TrinoException.class)
                 .isThrownBy(licenseProvider::getLicense)
                 .withMessage("Internal Starburst Enterprise Managed Kubernetes License Verifier error");

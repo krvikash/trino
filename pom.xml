@@ -3062,6 +3062,8 @@
                                     <exclude>javax.annotation:javax.annotation-api</exclude>
                                     <!-- Amazon SDK v1 is deprecated, use v2 -->
                                     <exclude>com.amazonaws:*</exclude>
+                                    <!-- system-stubs instruments the JDK to stub System.getenv and system properties process-wide, which breaks unrelated tests running in parallel; inject the values instead -->
+                                    <exclude>uk.org.webcompere:*</exclude>
                                 </excludes>
                                 <includes combine.children="append">
                                     <!-- 2.x versions are not affected by CVE-2022-1471 -->

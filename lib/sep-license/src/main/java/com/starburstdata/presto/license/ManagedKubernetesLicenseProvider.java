@@ -10,6 +10,7 @@
 package com.starburstdata.presto.license;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ImmutableMap;
 import io.airlift.json.JsonCodec;
 import io.airlift.json.JsonCodecFactory;
 import io.airlift.log.Logger;
@@ -20,9 +21,11 @@ import java.net.URI;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 
 import static io.trino.spi.StandardErrorCode.GENERIC_INTERNAL_ERROR;
+import static java.util.Objects.requireNonNull;
 
 /**
  * Cloud Marketplaces offers container products that need to be integrated with respective license and/or billing services in a unique manner.
@@ -77,7 +80,6 @@ class ManagedKubernetesLicenseProvider
     private static final String PROVIDER_ENV_VARIABLE = "ENABLE_K8S_LICENSE_PROVIDER";
     private static final String MAX_RETRY_ENV_VARIABLE = "K8S_LICENSE_PROVIDER_MAX_RETRY";
     private static final String PORT_ENV_VARIABLE = "K8S_LICENSE_PROVIDER_PORT";
-    private static final String MANAGED_KUBERNETES_LICENSE_ENDPOINT = String.format("http://127.0.0.1:%s/license", System.getenv().getOrDefault(PORT_ENV_VARIABLE, "8085"));
     private static final String LICENSE_INIT_SUCCESS_STATUS = "success";
     private static final String LICENSE_INIT_FAILED_STATUS = "failure";
     private static final String LICENSE_INIT_ERROR_STATUS = "crash";
@@ -85,16 +87,20 @@ class ManagedKubernetesLicenseProvider
     private static License managedKubernetesLicense;
 
     private final URLRequester urlRequester;
+    private final Map<String, String> environment;
+    private final String licenseEndpoint;
 
     public ManagedKubernetesLicenseProvider()
     {
-        this(new URLRequesterImpl());
+        this(new URLRequesterImpl(), System.getenv());
     }
 
     @VisibleForTesting
-    ManagedKubernetesLicenseProvider(URLRequester urlRequester)
+    ManagedKubernetesLicenseProvider(URLRequester urlRequester, Map<String, String> environment)
     {
-        this.urlRequester = urlRequester;
+        this.urlRequester = requireNonNull(urlRequester, "urlRequester is null");
+        this.environment = ImmutableMap.copyOf(environment);
+        this.licenseEndpoint = String.format("http://127.0.0.1:%s/license", this.environment.getOrDefault(PORT_ENV_VARIABLE, "8085"));
     }
 
     static void setManagedKubernetesLicense(License license)
@@ -110,7 +116,7 @@ class ManagedKubernetesLicenseProvider
         byte[] identityJson = null;
 
         // Return empty if ManagedKubernetesLicenseProvider is disabled
-        if (!Boolean.parseBoolean(System.getenv().getOrDefault(PROVIDER_ENV_VARIABLE, "false"))) {
+        if (!Boolean.parseBoolean(environment.getOrDefault(PROVIDER_ENV_VARIABLE, "false"))) {
             log.info("%s is disabled", PROVIDER_NAME);
             return Optional.empty();
         }
@@ -121,13 +127,13 @@ class ManagedKubernetesLicenseProvider
         }
 
         int retry = 0;
-        int connectMaxRetry = Integer.parseInt(System.getenv().getOrDefault(MAX_RETRY_ENV_VARIABLE, "120"));
+        int connectMaxRetry = Integer.parseInt(environment.getOrDefault(MAX_RETRY_ENV_VARIABLE, "120"));
         while (retry < connectMaxRetry) {
             try {
                 if (retry != 0) {
                     Thread.sleep(1000);
                 }
-                identityJson = urlRequester.get(URI.create(MANAGED_KUBERNETES_LICENSE_ENDPOINT).toURL(), CONNECT_TIMEOUT);
+                identityJson = urlRequester.get(URI.create(licenseEndpoint).toURL(), CONNECT_TIMEOUT);
                 break;
             }
             catch (IOException | InterruptedException e) {
