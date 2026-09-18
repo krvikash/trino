@@ -79,6 +79,35 @@ PRs targeting a `release-**` branch are **backports**. The default classificatio
 
 When in doubt, classify as notable. Anything worth the effort of a backport almost always matters for a customer who upgrades to that patch version.
 
+## Hidden / Experimental Feature Flags
+
+Cork marks config and session properties that gate unreleased or internal-only features with
+`@ConfigHidden` (see `.claude/rules/trino-config-properties.md` for the general property
+conventions). A `@ConfigHidden` property is not documented or exposed to customers in any
+supported configuration — it exists for internal use ahead of an "officialize" step, often
+tracked by a `TODO (ENG-XXXX)` comment right next to the annotation (e.g. `gpu-execution` /
+`gpu_execution_enabled`, gated by `@ConfigHidden` in `FeaturesConfig.java` and registered as
+hidden in `SystemSessionProperties.java`, with `TODO (ENG-9839) officialize config toggles`).
+
+**When a PR's entire customer-visible effect (a bug fix, behavior change, new error message,
+etc.) is reachable only through a code path gated exclusively behind a property that is
+`@ConfigHidden` and/or a session property registered as hidden, classify the PR as NOT
+NOTABLE — regardless of the underlying bug's severity, including P0 data-correctness fixes.**
+No customer running a default or supported configuration can reach the change, so it does not
+belong in customer-facing release notes. This takes priority over the general Bug Fix
+Classification Guide flowchart above, which has no branch for hidden-feature gating and will
+otherwise mark a data-correctness fix or observable-behavior change as notable on its own.
+
+This exclusion is narrower than the general "opt-in feature flag" signal: a **documented,
+supported** opt-in feature (not `@ConfigHidden`) is still potentially notable, typically at
+`impact.level: low` (see Impact Level Guidelines) — do not extend the hidden-feature exclusion
+to config/session properties that are merely disabled by default but are otherwise documented
+and supported.
+
+If part of the change is reachable outside the hidden path — e.g. it also changes a default or
+behavior on the CPU/non-experimental path, or removes the hidden gate itself — evaluate that
+reachable part normally instead of applying this exclusion.
+
 ## Tier 2 Tags for Cork
 
 Use these specific tags when relevant:
