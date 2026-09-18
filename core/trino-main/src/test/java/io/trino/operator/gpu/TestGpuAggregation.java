@@ -766,11 +766,12 @@ final class TestGpuAggregation
         assertMaskedGroupByMatchesCpu(new Page(groupByBlock, valueBlock, maskBlock), "count", List.of());
     }
 
-    @Test
-    void testAnyValueGlobalEmpty()
+    @ParameterizedTest
+    @FieldSource("io.trino.operator.gpu.GpuTestUtils#TESTED_GPU_TYPES")
+    void testAnyValueGlobalEmpty(Type type)
     {
-        Page inputPage = createEmptyPage(List.of(BIGINT));
-        assertGlobalMatchesCpu(List.of(inputPage), "any_value", List.of(BIGINT), SINGLE);
+        Page inputPage = createEmptyPage(List.of(type));
+        assertGlobalMatchesCpu(List.of(inputPage), "any_value", List.of(type), SINGLE);
     }
 
     @ParameterizedTest

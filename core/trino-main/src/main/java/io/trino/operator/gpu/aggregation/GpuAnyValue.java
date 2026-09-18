@@ -26,6 +26,7 @@ import io.trino.spi.type.Type;
 import java.util.OptionalInt;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static io.trino.spi.gpu.GpuTypeConversion.nullScalar;
 import static java.util.Objects.requireNonNull;
 
 public class GpuAnyValue
@@ -52,7 +53,7 @@ public class GpuAnyValue
     @Override
     public @Move Scalar emptyResult()
     {
-        return Scalar.fromNull(outputDType);
+        return nullScalar(outputType);
     }
 
     @Override
