@@ -38,6 +38,7 @@ import io.trino.sql.dialect.trino.operation.GroupId;
 import io.trino.sql.dialect.trino.operation.Intersect;
 import io.trino.sql.dialect.trino.operation.Join;
 import io.trino.sql.dialect.trino.operation.Limit;
+import io.trino.sql.dialect.trino.operation.MarkDistinct;
 import io.trino.sql.dialect.trino.operation.Output;
 import io.trino.sql.dialect.trino.operation.Project;
 import io.trino.sql.dialect.trino.operation.Return;
@@ -84,6 +85,7 @@ import io.trino.sql.planner.plan.GroupIdNode;
 import io.trino.sql.planner.plan.IntersectNode;
 import io.trino.sql.planner.plan.JoinNode;
 import io.trino.sql.planner.plan.LimitNode;
+import io.trino.sql.planner.plan.MarkDistinctNode;
 import io.trino.sql.planner.plan.OutputNode;
 import io.trino.sql.planner.plan.PlanNode;
 import io.trino.sql.planner.plan.PlanVisitor;
@@ -711,6 +713,28 @@ public class RelationalProgramBuilder
         Map<Symbol, Integer> outputMapping = deriveOutputMapping(relationRowType(trinoType(limit.result().type())), node.getOutputSymbols());
         context.block().addOperation(limit);
         return new OperationAndMapping(limit, outputMapping);
+    }
+
+    @Override
+    public OperationAndMapping visitMarkDistinct(MarkDistinctNode node, Context context)
+    {
+        OperationAndMapping input = node.getSource().accept(this, context);
+        String resultName = nameAllocator.newName();
+
+        Block distinctFieldsSelector = fieldSelectorBlock(
+                "^distinctFieldsSelector",
+                relationRowType(trinoType(input.operation().result().type())),
+                input.mapping(),
+                node.getDistinctSymbols());
+
+        MarkDistinct markDistinct = new MarkDistinct(
+                resultName,
+                input.operation().result(),
+                distinctFieldsSelector,
+                input.operation().attributes());
+        Map<Symbol, Integer> outputMapping = deriveOutputMapping(relationRowType(trinoType(markDistinct.result().type())), node.getOutputSymbols());
+        context.block().addOperation(markDistinct);
+        return new OperationAndMapping(markDistinct, outputMapping);
     }
 
     @Override

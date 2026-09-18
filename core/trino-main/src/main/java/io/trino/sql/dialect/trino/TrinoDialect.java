@@ -52,6 +52,7 @@ import io.trino.sql.dialect.trino.operationmetadata.LambdaOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.LetOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.LimitOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.LogicalOperationMetadata;
+import io.trino.sql.dialect.trino.operationmetadata.MarkDistinctOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.MatchOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.OutputOperationMetadata;
 import io.trino.sql.dialect.trino.operationmetadata.ProjectOperationMetadata;
@@ -335,6 +336,7 @@ public final class TrinoDialect
                 new LetOperationMetadata(),
                 new LimitOperationMetadata(),
                 new LogicalOperationMetadata(),
+                new MarkDistinctOperationMetadata(),
                 new MatchOperationMetadata(),
                 new OutputOperationMetadata(),
                 new ProjectOperationMetadata(),

@@ -17,9 +17,13 @@ import io.trino.Session;
 import io.trino.connector.MockConnectorFactory;
 import io.trino.connector.MockConnectorPlugin;
 import io.trino.plugin.memory.MemoryQueryRunner;
+import io.trino.sql.dialect.trino.ProgramBuilder;
+import io.trino.sql.dialect.trino.operation.Aggregation;
+import io.trino.sql.dialect.trino.operation.MarkDistinct;
 import io.trino.testing.AbstractDistributedEngineOnlyQueries;
 import io.trino.testing.MaterializedResult;
 import io.trino.testing.QueryRunner;
+import io.trino.testing.QueryRunner.MaterializedResultWithPlan;
 import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.Test;
 
@@ -28,6 +32,7 @@ import static io.airlift.testing.Closeables.closeAllSuppress;
 import static io.trino.SystemSessionProperties.ENABLE_DYNAMIC_FILTERING;
 import static io.trino.sql.analyzer.QueryExplainer.DEPRECATED_TYPE_LOGICAL_WARNING;
 import static io.trino.sql.planner.OptimizerConfig.JoinDistributionType.BROADCAST;
+import static io.trino.sql.query.QueryAssertions.ProgramAssert.newProgramAssert;
 import static io.trino.sql.tree.ExplainType.Type.DISTRIBUTED;
 import static io.trino.sql.tree.ExplainType.Type.IO;
 import static io.trino.sql.tree.ExplainType.Type.LOGICAL;
@@ -297,6 +302,45 @@ public class TestDistributedEngineOnlyQueriesWithCteReuse
                 .as("multi-exchange RemoteSource appears only once — expected twice, one per anchor CTE use")
                 .isNotNegative();
         assertQuerySucceeds(query);
+    }
+
+    @Test
+    public void testMarkDistinctDoesNotPreventCteReuse()
+    {
+        @Language("SQL") String query =
+                """
+                WITH cte AS (
+                    SELECT regionkey, count(*) row_count
+                    FROM nation
+                    GROUP BY regionkey
+                )
+                SELECT cte.*, (SELECT name FROM region WHERE region.regionkey = cte.regionkey) region_name
+                FROM cte
+                UNION ALL
+                SELECT cte.*, (SELECT name FROM region WHERE region.regionkey = cte.regionkey) region_name
+                FROM cte
+                """;
+
+        Session withoutCteReuse = Session.builder(getSession())
+                .setSystemProperty("reuse_common_subqueries", "false")
+                .build();
+        MaterializedResultWithPlan resultWithoutCteReuse = getQueryRunner().executeWithPlan(withoutCteReuse, query);
+        // Each branch has partial and final aggregation stages, followed by its own MarkDistinct.
+        assertThat(newProgramAssert(resultWithoutCteReuse.queryPlan()
+                .map(plan -> ProgramBuilder.buildProgram(plan.getRoot()))
+                .orElseThrow()))
+                .assertOperationCount(MarkDistinct.class, 2)
+                .assertOperationCount(Aggregation.class, 4);
+
+        // program() is populated only when CTE reuse completes through the new-IR path.
+        MaterializedResultWithPlan resultWithCteReuse = getQueryRunner().executeWithPlan(getSession(), query);
+        // The lower aggregation stage is shared; the final aggregations and MarkDistinct operations remain branch-local.
+        assertThat(newProgramAssert(resultWithCteReuse.program().orElseThrow()))
+                .assertOperationCount(MarkDistinct.class, 2)
+                .assertOperationCount(Aggregation.class, 3);
+
+        assertThat(resultWithCteReuse.result().getMaterializedRows())
+                .containsExactlyInAnyOrderElementsOf(resultWithoutCteReuse.result().getMaterializedRows());
     }
 
     @Test

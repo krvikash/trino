@@ -147,6 +147,11 @@ public abstract class TrinoOperationVisitor<R, C>
         return visitOperation(operation, context);
     }
 
+    public R visitMarkDistinct(MarkDistinct operation, C context)
+    {
+        return visitOperation(operation, context);
+    }
+
     public R visitMatch(Match operation, C context)
     {
         return visitOperation(operation, context);

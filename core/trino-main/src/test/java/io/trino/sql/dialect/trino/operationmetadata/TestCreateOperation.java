@@ -58,6 +58,7 @@ import io.trino.sql.dialect.trino.operation.Lambda;
 import io.trino.sql.dialect.trino.operation.Let;
 import io.trino.sql.dialect.trino.operation.Limit;
 import io.trino.sql.dialect.trino.operation.Logical;
+import io.trino.sql.dialect.trino.operation.MarkDistinct;
 import io.trino.sql.dialect.trino.operation.Match;
 import io.trino.sql.dialect.trino.operation.Output;
 import io.trino.sql.dialect.trino.operation.Project;
@@ -2940,6 +2941,74 @@ class TestCreateOperation
                         new AttributeKey(IR, "has_side_effects"),
                         false)))
                 .hasMessage("logicalOperator is null");
+    }
+
+    @Test
+    public void testMarkDistinct()
+    {
+        Parameter distinctFieldsParameter = new Parameter("%10", VALUES_OPERATION_ROW_TYPE);
+        FieldReference fieldReferenceOperation = new FieldReference("%11", distinctFieldsParameter, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        Row rowOperation = new Row("%12", ImmutableList.of(fieldReferenceOperation.result()), ImmutableList.of(fieldReferenceOperation.attributes()));
+        Return returnOperation = new Return("%13", rowOperation.result(), rowOperation.attributes());
+        Block distinctFieldsSelector = new Block(
+                Optional.of("^distinctFieldsSelector"),
+                ImmutableList.of(distinctFieldsParameter),
+                ImmutableList.of(fieldReferenceOperation, rowOperation, returnOperation));
+
+        MarkDistinct markDistinctOperation = new MarkDistinct(
+                "%mark_distinct",
+                VALUES_OPERATION.result(),
+                distinctFieldsSelector,
+                VALUES_OPERATION.attributes());
+
+        Operation actualMarkDistinctOperation = TESTING_TRINO_DIALECT.createOperation(
+                MarkDistinctOperationMetadata.NAME,
+                "%mark_distinct",
+                ImmutableList.of(VALUES_OPERATION.result()),
+                ImmutableList.of(singleBlockRegion(distinctFieldsSelector)),
+                attributes(
+                        // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
+                        new AttributeKey(IR, "repeatability"),
+                        NON_IDEMPOTENT,
+                        new AttributeKey(IR, "safe"),
+                        true,
+                        new AttributeKey(IR, "has_side_effects"),
+                        false));
+
+        assertThat(actualMarkDistinctOperation).isEqualTo(markDistinctOperation);
+        assertThat(actualMarkDistinctOperation.result().type()).isEqualTo(irType(new MultisetType(anonymousRow(BIGINT, BOOLEAN, BOOLEAN))));
+
+        // wrong argument count
+        assertThatThrownBy(() -> TESTING_TRINO_DIALECT.createOperation(
+                MarkDistinctOperationMetadata.NAME,
+                "%mark_distinct",
+                ImmutableList.of(),
+                ImmutableList.of(singleBlockRegion(distinctFieldsSelector)),
+                attributes()))
+                .hasMessage("MarkDistinct operation must have exactly one argument: the input relation");
+
+        // wrong region count
+        assertThatThrownBy(() -> TESTING_TRINO_DIALECT.createOperation(
+                MarkDistinctOperationMetadata.NAME,
+                "%mark_distinct",
+                ImmutableList.of(VALUES_OPERATION.result()),
+                ImmutableList.of(),
+                attributes()))
+                .hasMessage("MarkDistinct operation must have exactly one region: the distinct fields selector");
+
+        // empty distinct fields selector
+        Constant emptyRow = new Constant("%14", EMPTY_ROW, null);
+        Return emptyReturn = new Return("%15", emptyRow.result(), emptyRow.attributes());
+        Block emptySelector = new Block(
+                Optional.of("^distinctFieldsSelector"),
+                ImmutableList.of(distinctFieldsParameter),
+                ImmutableList.of(emptyRow, emptyReturn));
+        assertThatThrownBy(() -> new MarkDistinct(
+                "%mark_distinct",
+                VALUES_OPERATION.result(),
+                emptySelector,
+                VALUES_OPERATION.attributes()))
+                .hasMessage("invalid distinct fields selector for MarkDistinct operation");
     }
 
     @Test

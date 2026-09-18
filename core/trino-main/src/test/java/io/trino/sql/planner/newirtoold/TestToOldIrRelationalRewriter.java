@@ -61,6 +61,7 @@ import io.trino.sql.planner.plan.GroupIdNode;
 import io.trino.sql.planner.plan.IntersectNode;
 import io.trino.sql.planner.plan.JoinNode;
 import io.trino.sql.planner.plan.LimitNode;
+import io.trino.sql.planner.plan.MarkDistinctNode;
 import io.trino.sql.planner.plan.OutputNode;
 import io.trino.sql.planner.plan.PlanNode;
 import io.trino.sql.planner.plan.PlanNodeId;
@@ -461,6 +462,17 @@ class TestToOldIrRelationalRewriter
                 true,
                 ImmutableList.of(B));
         assertRoundtrip(limitWithTies);
+    }
+
+    @Test
+    public void testMarkDistinct()
+    {
+        MarkDistinctNode markDistinctNode = new MarkDistinctNode(
+                new PlanNodeId("0"),
+                VALUES_NODE,
+                new Symbol(BOOLEAN, "is_distinct"),
+                ImmutableList.of(A, B));
+        assertRoundtrip(markDistinctNode);
     }
 
     @Test

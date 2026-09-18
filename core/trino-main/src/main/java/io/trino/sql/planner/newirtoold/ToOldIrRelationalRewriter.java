@@ -38,6 +38,7 @@ import io.trino.sql.dialect.trino.operation.GroupId;
 import io.trino.sql.dialect.trino.operation.Intersect;
 import io.trino.sql.dialect.trino.operation.Join;
 import io.trino.sql.dialect.trino.operation.Limit;
+import io.trino.sql.dialect.trino.operation.MarkDistinct;
 import io.trino.sql.dialect.trino.operation.Output;
 import io.trino.sql.dialect.trino.operation.Project;
 import io.trino.sql.dialect.trino.operation.SemiJoin;
@@ -102,6 +103,7 @@ import io.trino.sql.planner.plan.JoinNode;
 import io.trino.sql.planner.plan.JoinNode.EquiJoinClause;
 import io.trino.sql.planner.plan.JoinType;
 import io.trino.sql.planner.plan.LimitNode;
+import io.trino.sql.planner.plan.MarkDistinctNode;
 import io.trino.sql.planner.plan.OutputNode;
 import io.trino.sql.planner.plan.PlanNode;
 import io.trino.sql.planner.plan.ProjectNode;
@@ -607,6 +609,18 @@ public class ToOldIrRelationalRewriter
                 tiesResolvingScheme,
                 LimitOperationMetadata.PARTIAL.getAttribute(limit.attributes()),
                 preSortedInputs);
+    }
+
+    @Override
+    public PlanNode visitMarkDistinct(MarkDistinct markDistinct, List<PlanNode> sources)
+    {
+        PlanNode source = getOnlyElement(sources);
+
+        return new MarkDistinctNode(
+                planNodeIdAllocator.getNextId(),
+                source,
+                symbolAllocator.newSymbol("is_distinct", BOOLEAN),
+                scalarRewriter.getSelectedSymbols(markDistinct.distinctFieldsSelector(), source.getOutputSymbols()));
     }
 
     @Override

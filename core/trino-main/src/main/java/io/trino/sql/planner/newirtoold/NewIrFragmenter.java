@@ -40,6 +40,7 @@ import io.trino.sql.dialect.trino.operation.GroupId;
 import io.trino.sql.dialect.trino.operation.Intersect;
 import io.trino.sql.dialect.trino.operation.Join;
 import io.trino.sql.dialect.trino.operation.Limit;
+import io.trino.sql.dialect.trino.operation.MarkDistinct;
 import io.trino.sql.dialect.trino.operation.Output;
 import io.trino.sql.dialect.trino.operation.Project;
 import io.trino.sql.dialect.trino.operation.Query;
@@ -447,6 +448,14 @@ public class NewIrFragmenter
 
         @Override
         public PlanNode visitLimit(Limit operation, FragmentProperties context)
+        {
+            TrinoOperation source = getSource(operation);
+            PlanNode rewrittenSource = source.accept(this, context);
+            return operation.accept(relationalRewriter, ImmutableList.of(rewrittenSource));
+        }
+
+        @Override
+        public PlanNode visitMarkDistinct(MarkDistinct operation, FragmentProperties context)
         {
             TrinoOperation source = getSource(operation);
             PlanNode rewrittenSource = source.accept(this, context);

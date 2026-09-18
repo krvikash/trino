@@ -50,6 +50,7 @@ import io.trino.sql.dialect.trino.operation.GroupId;
 import io.trino.sql.dialect.trino.operation.Intersect;
 import io.trino.sql.dialect.trino.operation.Join;
 import io.trino.sql.dialect.trino.operation.Limit;
+import io.trino.sql.dialect.trino.operation.MarkDistinct;
 import io.trino.sql.dialect.trino.operation.Output;
 import io.trino.sql.dialect.trino.operation.Project;
 import io.trino.sql.dialect.trino.operation.Return;
@@ -106,6 +107,7 @@ import io.trino.sql.planner.plan.GroupIdNode;
 import io.trino.sql.planner.plan.IntersectNode;
 import io.trino.sql.planner.plan.JoinNode;
 import io.trino.sql.planner.plan.LimitNode;
+import io.trino.sql.planner.plan.MarkDistinctNode;
 import io.trino.sql.planner.plan.OutputNode;
 import io.trino.sql.planner.plan.PlanNode;
 import io.trino.sql.planner.plan.PlanNodeId;
@@ -1344,6 +1346,40 @@ final class TestRelationalProgramBuilder
                     LimitOperationMetadata.PARTIAL.putAttribute(builder, false);
                     LimitOperationMetadata.PRE_SORTED_INDEXES.putAttribute(builder, ImmutableList.of(0));
                 }));
+    }
+
+    @Test
+    public void testMarkDistinct()
+    {
+        MarkDistinctNode markDistinctNode = new MarkDistinctNode(
+                new PlanNodeId("mark_distinct"),
+                VALUES_NODE,
+                new Symbol(BOOLEAN, "is_distinct"),
+                ImmutableList.of(new Symbol(BIGINT, "a")));
+
+        Block.Parameter distinctFieldsParameter = new Block.Parameter("%10", VALUES_OPERATION_ROW_TYPE);
+        FieldReference fieldReferenceOperation = new FieldReference("%11", distinctFieldsParameter, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        Row rowOperation = new Row("%12", ImmutableList.of(fieldReferenceOperation.result()), ImmutableList.of(fieldReferenceOperation.attributes()));
+        Return returnOperation = new Return("%13", rowOperation.result(), rowOperation.attributes());
+        Block distinctFieldsSelector = new Block(
+                Optional.of("^distinctFieldsSelector"),
+                ImmutableList.of(distinctFieldsParameter),
+                ImmutableList.of(fieldReferenceOperation, rowOperation, returnOperation));
+
+        MarkDistinct markDistinctOperation = new MarkDistinct(
+                "%9",
+                VALUES_OPERATION.result(),
+                distinctFieldsSelector,
+                VALUES_OPERATION.attributes());
+
+        assertProgram(
+                markDistinctNode,
+                ImmutableList.of(VALUES_OPERATION, markDistinctOperation),
+                new MultisetType(anonymousRow(BIGINT, BOOLEAN, BOOLEAN)),
+                ImmutableMap.of(
+                        new Symbol(BIGINT, "a"), 0,
+                        new Symbol(BOOLEAN, "b"), 1,
+                        new Symbol(BOOLEAN, "is_distinct"), 2));
     }
 
     @Test
