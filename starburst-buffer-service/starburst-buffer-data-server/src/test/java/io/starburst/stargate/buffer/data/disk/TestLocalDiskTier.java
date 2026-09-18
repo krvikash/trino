@@ -82,7 +82,7 @@ public class TestLocalDiskTier
 
     @Test
     public void testNormalizesNonCanonicalRootDirectory()
-            throws IOException
+            throws ExecutionException, InterruptedException, IOException
     {
         Files.createFile(tempDir.resolve(".disk-buffer"));
         Path nested = Files.createDirectory(tempDir.resolve("nested"));
@@ -90,6 +90,11 @@ public class TestLocalDiskTier
 
         LocalDiskTier diskTier = createDiskTier(nonCanonicalRoot);
         diskTier.createPartitionDirectory("exchange-1", 3);
+        // The pre-existing ownership marker makes the "nested" directory look like a stale entry from a
+        // previous run, so construction schedules an async cleanup of it on the tracker's background thread.
+        // Without waiting for that task here, the cleanup can still be deleting "nested" when JUnit's
+        // @TempDir teardown concurrently walks the same directory, causing a DirectoryNotEmptyException.
+        diskTier.getDirectoryTracker().awaitPendingTasks();
 
         // If the root weren't normalized, the partition directory would not land at the canonical schema path.
         Path expected = tempDir.resolve(String.valueOf(BUFFER_NODE_ID)).resolve("exchange-1").resolve("3");
