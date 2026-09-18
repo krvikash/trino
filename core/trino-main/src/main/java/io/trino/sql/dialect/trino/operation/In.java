@@ -40,8 +40,7 @@ public final class In
         extends TrinoOperation
 {
     private final Result result;
-    private final Value input;
-    private final List<Value> inputList;
+    private final List<Value> arguments;
     private final Attributes attributes;
 
     public In(String resultName, Value input, List<Value> inputList, List<Attributes> sourceAttributes)
@@ -68,9 +67,10 @@ public final class In
             throw new TrinoException(IR_ERROR, "all values must be of the same type");
         }
 
-        this.input = input;
-
-        this.inputList = ImmutableList.copyOf(inputList);
+        this.arguments = ImmutableList.<Value>builderWithExpectedSize(1 + inputList.size())
+                .add(input)
+                .addAll(inputList)
+                .build();
 
         if (sourceAttributes.size() != 1 + inputList.size()) {
             throw new TrinoException(IR_ERROR, format("the number of source attribute maps: %s does not match the number of arguments: %s", sourceAttributes.size(), 1 + inputList.size()));
@@ -92,10 +92,7 @@ public final class In
     @Override
     public List<Value> arguments()
     {
-        return ImmutableList.<Value>builder()
-                .add(input)
-                .addAll(inputList)
-                .build();
+        return arguments;
     }
 
     @Override
@@ -120,15 +117,16 @@ public final class In
     public Operation withArgument(Value newArgument, int index)
     {
         validateArgument(newArgument, index);
+        List<Value> inputList = inputList();
         List<Value> newInputList = new ArrayList<>(inputList);
-        if (index >= 1 && index < 1 + inputList.size()) {
+        if (index >= 1 && index < arguments.size()) {
             newInputList.set(index - 1, newArgument);
         }
         return new In(
                 result.name(),
-                index == 0 ? newArgument : input,
+                index == 0 ? newArgument : input(),
                 newInputList,
-                emptySourceAttributes(1 + inputList.size()));
+                emptySourceAttributes(arguments.size()));
     }
 
     @Override
@@ -145,13 +143,23 @@ public final class In
     @Override
     public Operation withResultName(String newName)
     {
-        return new In(newName, input, inputList, emptySourceAttributes(1 + inputList.size()));
+        return new In(newName, input(), inputList(), emptySourceAttributes(arguments.size()));
     }
 
     @Override
     public Attributes operationAttributes()
     {
         return Attributes.empty();
+    }
+
+    public Value input()
+    {
+        return arguments.getFirst();
+    }
+
+    public List<Value> inputList()
+    {
+        return arguments.subList(1, arguments.size());
     }
 
     @Override

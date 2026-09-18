@@ -41,10 +41,8 @@ public final class Match
         extends TrinoOperation
 {
     private final Result result;
-    private final Value operand;
-    private final List<Value> when;
-    private final List<Value> then;
-    private final Value defaultValue;
+    private final List<Value> arguments;
+    private final int branchCount;
     private final Attributes attributes;
 
     public Match(String resultName, Value operand, List<Value> when, List<Value> then, Value defaultValue, List<Attributes> sourceAttributes)
@@ -93,13 +91,13 @@ public final class Match
 
         this.result = new Result(resultName, irType(resultType));
 
-        this.operand = operand;
-
-        this.when = ImmutableList.copyOf(when);
-
-        this.then = ImmutableList.copyOf(then);
-
-        this.defaultValue = defaultValue;
+        this.arguments = ImmutableList.<Value>builderWithExpectedSize(1 + when.size() + then.size() + 1)
+                .add(operand)
+                .addAll(when)
+                .addAll(then)
+                .add(defaultValue)
+                .build();
+        this.branchCount = when.size();
 
         // validate source attributes count -- one entry per each argument: operand, when-list, then-list, defaultValue
         if (sourceAttributes.size() != 1 + when.size() + then.size() + 1) {
@@ -122,12 +120,7 @@ public final class Match
     @Override
     public List<Value> arguments()
     {
-        return ImmutableList.<Value>builder()
-                .add(operand)
-                .addAll(when)
-                .addAll(then)
-                .add(defaultValue)
-                .build();
+        return arguments;
     }
 
     @Override
@@ -152,21 +145,23 @@ public final class Match
     public Operation withArgument(Value newArgument, int index)
     {
         validateArgument(newArgument, index);
+        List<Value> when = whenValues();
         List<Value> newWhen = new ArrayList<>(when);
         if (index >= 1 && index < 1 + when.size()) {
             newWhen.set(index - 1, newArgument);
         }
+        List<Value> then = thenValues();
         List<Value> newThen = new ArrayList<>(then);
         if (index >= 1 + when.size() && index < 1 + when.size() + then.size()) {
             newThen.set(index - when.size() - 1, newArgument);
         }
         return new Match(
                 result.name(),
-                index == 0 ? newArgument : operand,
+                index == 0 ? newArgument : operand(),
                 newWhen,
                 newThen,
-                index == 1 + when.size() + then.size() ? newArgument : defaultValue,
-                emptySourceAttributes(1 + when.size() + then.size() + 1));
+                index == arguments.size() - 1 ? newArgument : defaultValue(),
+                emptySourceAttributes(arguments.size()));
     }
 
     @Override
@@ -176,8 +171,8 @@ public final class Match
         return new Match(
                 result.name(),
                 newArguments.getFirst(),
-                newArguments.subList(1, 1 + when.size()),
-                newArguments.subList(1 + when.size(), 1 + when.size() + then.size()),
+                newArguments.subList(1, 1 + branchCount),
+                newArguments.subList(1 + branchCount, 1 + branchCount * 2),
                 newArguments.getLast(),
                 emptySourceAttributes(newArguments.size()));
     }
@@ -185,7 +180,7 @@ public final class Match
     @Override
     public Operation withResultName(String newName)
     {
-        return new Match(newName, operand, when, then, defaultValue, emptySourceAttributes(1 + when.size() + then.size() + 1));
+        return new Match(newName, operand(), whenValues(), thenValues(), defaultValue(), emptySourceAttributes(arguments.size()));
     }
 
     @Override
@@ -198,5 +193,25 @@ public final class Match
     public <R, C> R accept(TrinoOperationVisitor<R, C> visitor, C context)
     {
         return visitor.visitMatch(this, context);
+    }
+
+    private Value operand()
+    {
+        return arguments.getFirst();
+    }
+
+    private List<Value> whenValues()
+    {
+        return arguments.subList(1, 1 + branchCount);
+    }
+
+    private List<Value> thenValues()
+    {
+        return arguments.subList(1 + branchCount, 1 + branchCount * 2);
+    }
+
+    private Value defaultValue()
+    {
+        return arguments.getLast();
     }
 }

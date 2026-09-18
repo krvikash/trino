@@ -40,9 +40,8 @@ public final class Case
         extends TrinoOperation
 {
     private final Result result;
-    private final List<Value> when;
-    private final List<Value> then;
-    private final Value defaultValue;
+    private final List<Value> arguments;
+    private final int branchCount;
     private final Attributes attributes;
 
     public Case(String resultName, List<Value> when, List<Value> then, Value defaultValue, List<Attributes> sourceAttributes)
@@ -89,11 +88,12 @@ public final class Case
 
         this.result = new Result(resultName, irType(thenType));
 
-        this.when = ImmutableList.copyOf(when);
-
-        this.then = ImmutableList.copyOf(then);
-
-        this.defaultValue = defaultValue;
+        this.arguments = ImmutableList.<Value>builderWithExpectedSize(when.size() + then.size() + 1)
+                .addAll(when)
+                .addAll(then)
+                .add(defaultValue)
+                .build();
+        this.branchCount = when.size();
 
         // validate source attributes count -- one entry per each argument: when-list, then-list, defaultValue
         if (sourceAttributes.size() != when.size() + then.size() + 1) {
@@ -116,11 +116,7 @@ public final class Case
     @Override
     public List<Value> arguments()
     {
-        return ImmutableList.<Value>builder()
-                .addAll(when)
-                .addAll(then)
-                .add(defaultValue)
-                .build();
+        return arguments;
     }
 
     @Override
@@ -145,10 +141,12 @@ public final class Case
     public Operation withArgument(Value newArgument, int index)
     {
         validateArgument(newArgument, index);
+        List<Value> when = whenValues();
         List<Value> newWhen = new ArrayList<>(when);
         if (index < when.size()) {
             newWhen.set(index, newArgument);
         }
+        List<Value> then = thenValues();
         List<Value> newThen = new ArrayList<>(then);
         if (index >= when.size() && index < when.size() + then.size()) {
             newThen.set(index - when.size(), newArgument);
@@ -157,8 +155,8 @@ public final class Case
                 result.name(),
                 newWhen,
                 newThen,
-                index == when.size() + then.size() ? newArgument : defaultValue,
-                emptySourceAttributes(when.size() + then.size() + 1));
+                index == arguments.size() - 1 ? newArgument : defaultValue(),
+                emptySourceAttributes(arguments.size()));
     }
 
     @Override
@@ -167,8 +165,8 @@ public final class Case
         validateArguments(newArguments);
         return new Case(
                 result.name(),
-                newArguments.subList(0, when.size()),
-                newArguments.subList(when.size(), when.size() + then.size()),
+                newArguments.subList(0, branchCount),
+                newArguments.subList(branchCount, branchCount * 2),
                 newArguments.getLast(),
                 emptySourceAttributes(newArguments.size()));
     }
@@ -176,7 +174,7 @@ public final class Case
     @Override
     public Operation withResultName(String newName)
     {
-        return new Case(newName, when, then, defaultValue, emptySourceAttributes(when.size() + then.size() + 1));
+        return new Case(newName, whenValues(), thenValues(), defaultValue(), emptySourceAttributes(arguments.size()));
     }
 
     @Override
@@ -189,5 +187,20 @@ public final class Case
     public <R, C> R accept(TrinoOperationVisitor<R, C> visitor, C context)
     {
         return visitor.visitCase(this, context);
+    }
+
+    private List<Value> whenValues()
+    {
+        return arguments.subList(0, branchCount);
+    }
+
+    private List<Value> thenValues()
+    {
+        return arguments.subList(branchCount, branchCount * 2);
+    }
+
+    private Value defaultValue()
+    {
+        return arguments.getLast();
     }
 }

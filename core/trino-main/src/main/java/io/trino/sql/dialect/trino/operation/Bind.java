@@ -39,8 +39,7 @@ public final class Bind
         extends TrinoOperation
 {
     private final Result result;
-    private final List<Value> values;
-    private final Value lambda;
+    private final List<Value> arguments;
     private final Attributes attributes;
 
     public Bind(String resultName, List<Value> values, Value lambda, List<Attributes> sourceAttributes)
@@ -70,9 +69,10 @@ public final class Bind
 
         this.result = new Result(resultName, irType(resultType));
 
-        this.values = ImmutableList.copyOf(values);
-
-        this.lambda = lambda;
+        this.arguments = ImmutableList.<Value>builderWithExpectedSize(values.size() + 1)
+                .addAll(values)
+                .add(lambda)
+                .build();
 
         // validate source attributes count -- one entry per each argument: values-list, and lambda
         if (sourceAttributes.size() != values.size() + 1) {
@@ -95,10 +95,7 @@ public final class Bind
     @Override
     public List<Value> arguments()
     {
-        return ImmutableList.<Value>builder()
-                .addAll(values)
-                .add(lambda)
-                .build();
+        return arguments;
     }
 
     @Override
@@ -123,6 +120,7 @@ public final class Bind
     public Operation withArgument(Value newArgument, int index)
     {
         validateArgument(newArgument, index);
+        List<Value> values = values();
         List<Value> newValues = new ArrayList<>(values);
         if (index < values.size()) {
             newValues.set(index, newArgument);
@@ -130,8 +128,8 @@ public final class Bind
         return new Bind(
                 result.name(),
                 newValues,
-                index == values.size() ? newArgument : lambda,
-                emptySourceAttributes(values.size() + 1));
+                index == values.size() ? newArgument : lambda(),
+                emptySourceAttributes(arguments.size()));
     }
 
     @Override
@@ -140,7 +138,7 @@ public final class Bind
         validateArguments(newArguments);
         return new Bind(
                 result.name(),
-                newArguments.subList(0, values.size()),
+                newArguments.subList(0, arguments.size() - 1),
                 newArguments.getLast(),
                 emptySourceAttributes(newArguments.size()));
     }
@@ -148,7 +146,7 @@ public final class Bind
     @Override
     public Operation withResultName(String newName)
     {
-        return new Bind(newName, values, lambda, emptySourceAttributes(values.size() + 1));
+        return new Bind(newName, values(), lambda(), emptySourceAttributes(arguments.size()));
     }
 
     @Override
@@ -161,5 +159,15 @@ public final class Bind
     public <R, C> R accept(TrinoOperationVisitor<R, C> visitor, C context)
     {
         return visitor.visitBind(this, context);
+    }
+
+    private List<Value> values()
+    {
+        return arguments.subList(0, arguments.size() - 1);
+    }
+
+    private Value lambda()
+    {
+        return arguments.getLast();
     }
 }
