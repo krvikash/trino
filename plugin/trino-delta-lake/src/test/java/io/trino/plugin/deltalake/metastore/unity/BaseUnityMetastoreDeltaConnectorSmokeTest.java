@@ -239,6 +239,7 @@ abstract class BaseUnityMetastoreDeltaConnectorSmokeTest
     }
 
     @Test
+    @Flaky(issue = "https://starburstdata.atlassian.net/browse/ENG-26786", match = "TABLE_OR_VIEW_ALREADY_EXISTS")
     void testReadTimestampNtz()
     {
         String tableName = "read_timestamp_ntz_" + randomNameSuffix();
