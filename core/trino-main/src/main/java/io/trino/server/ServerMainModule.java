@@ -109,6 +109,7 @@ import io.trino.operator.gpu.GpuConfigurer;
 import io.trino.operator.gpu.GpuDeviceStats;
 import io.trino.operator.gpu.GpuExecutionSemaphore;
 import io.trino.operator.gpu.GpuNodeSetup;
+import io.trino.operator.gpu.NoGpuDeviceStats;
 import io.trino.operator.index.IndexJoinLookupStats;
 import io.trino.operator.index.IndexManager;
 import io.trino.operator.scalar.json.JsonExistsFunction;
@@ -339,6 +340,9 @@ public class ServerMainModule
             // Allow binding GpuConfig, but don't allow configuring it.
             binder.bind(GpuConfig.class).toInstance(new GpuConfig());
             binder.bind(GpuNodeSetup.class).toInstance(new GpuNodeSetup.Disabled());
+            binder.bind(NoGpuDeviceStats.class).asEagerSingleton();
+            // Export dummy GpuDeviceStats for JMX connector's sake. It discovers "tables" on coordinator only.
+            newExporter(binder).export(NoGpuDeviceStats.class).as(generator -> generator.generatedNameOf(GpuDeviceStats.class));
         }
         binder.bind(GpuExecutionSemaphore.class).in(Scopes.SINGLETON);
         binder.bind(ColumnarFilterCompiler.class).in(Scopes.SINGLETON);
