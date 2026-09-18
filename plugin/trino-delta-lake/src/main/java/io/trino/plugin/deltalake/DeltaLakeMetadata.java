@@ -1698,7 +1698,7 @@ public class DeltaLakeMetadata
                         while (addFileEntryIterator.hasNext()) {
                             long writeTimestamp = Instant.now().toEpochMilli();
                             AddFileEntry addFileEntry = addFileEntryIterator.next();
-                            transactionLogWriter.appendRemoveFileEntry(new RemoveFileEntry(addFileEntry.getPath(), addFileEntry.getPartitionValues(), writeTimestamp, true, Optional.empty()));
+                            transactionLogWriter.appendRemoveFileEntry(new RemoveFileEntry(addFileEntry.getPath(), addFileEntry.getPartitionValues(), writeTimestamp, true, addFileEntry.getDeletionVector()));
                         }
                     }
                     protocolEntry = protocolEntryForTable(ProtocolEntry.builder(tableHandle.getProtocolEntry()), containsTimestampType, tableMetadata.getProperties(), containsVariantType);
@@ -2241,7 +2241,7 @@ public class DeltaLakeMetadata
                     Iterator<AddFileEntry> addFileEntryIterator = activeFiles.iterator();
                     while (addFileEntryIterator.hasNext()) {
                         AddFileEntry addFileEntry = addFileEntryIterator.next();
-                        transactionLogWriter.appendRemoveFileEntry(new RemoveFileEntry(addFileEntry.getPath(), addFileEntry.getPartitionValues(), writeTimestamp, true, Optional.empty()));
+                        transactionLogWriter.appendRemoveFileEntry(new RemoveFileEntry(addFileEntry.getPath(), addFileEntry.getPartitionValues(), writeTimestamp, true, addFileEntry.getDeletionVector()));
                     }
                 }
             }
