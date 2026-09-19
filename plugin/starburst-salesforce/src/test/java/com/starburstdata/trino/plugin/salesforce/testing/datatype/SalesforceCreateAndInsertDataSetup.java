@@ -18,6 +18,8 @@ import io.trino.testing.sql.TestTable;
 import java.util.List;
 import java.util.stream.IntStream;
 
+import static com.starburstdata.trino.plugin.salesforce.testing.sql.SalesforceTestTable.TEST_RUN_ID;
+import static com.starburstdata.trino.plugin.salesforce.testing.sql.SalesforceTestTable.TEST_RUN_ID_COLUMN;
 import static io.airlift.testing.Closeables.closeAllSuppress;
 import static java.lang.String.format;
 import static java.util.stream.Collectors.joining;
@@ -36,11 +38,6 @@ public class SalesforceCreateAndInsertDataSetup
         this.sqlExecutor = sqlExecutor;
         this.jdbcUrl = jdbcUrl;
         this.tableName = tableName;
-    }
-
-    public String tableName()
-    {
-        return tableName;
     }
 
     @Override
@@ -69,7 +66,7 @@ public class SalesforceCreateAndInsertDataSetup
                 .mapToObj(column -> format("col_%d__c", column))
                 .collect(joining(", "));
 
-        sqlExecutor.execute(format("INSERT INTO %s__c (%s) VALUES(%s)", testTable.getName(), columns, valueLiterals));
+        sqlExecutor.execute(format("INSERT INTO %s__c (%s, %s) VALUES('%s', %s)", testTable.getName(), TEST_RUN_ID_COLUMN, columns, TEST_RUN_ID, valueLiterals));
     }
 
     private TestTable createTestTable(List<ColumnSetup> inputs)

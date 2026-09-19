@@ -61,7 +61,7 @@ import static org.junit.jupiter.api.parallel.ExecutionMode.SAME_THREAD;
 
 // Note that there are no CTAS-based type mapping tests in this class due to Salesforce custom object limits
 // We instead use static test names with no random suffix to avoid creating and deleting many tables and hitting this limit, which caused builds to fail
-// These tables are created if they don't exist and truncated when the test is closed as well as initially to ensure there is no data
+// These tables are created if they don't exist and are shared by concurrent test runs, see SalesforceTestTable.TEST_RUN_ID
 // Custom objects can be deleted by hand in Salesforce using the Object Manager
 @TestInstance(PER_CLASS)
 @Execution(SAME_THREAD) // Decimal tests share the same table
@@ -229,7 +229,7 @@ public class TestSalesforceTypeMapping
     @Test
     public void testDecimalWithRoundingModeUnnecessary()
     {
-        // We use the test table here to ensure the test_decimal table is empty before and after the test case runs
+        // The INSERT goes through Trino to cover the OEM license check, which cannot write 'Name', so this row is untagged
         try (SalesforceTestTable ignored = new SalesforceTestTable(jdbcUrl, "test_decimal", "")) {
             assertUpdate("INSERT INTO test_decimal__c (col_7__c) VALUES (CAST('2.7' AS decimal(4, 2)))", 1);
 

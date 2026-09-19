@@ -9,7 +9,6 @@
  */
 package com.starburstdata.trino.plugin.salesforce.testing.datatype;
 
-import io.airlift.log.Logger;
 import io.trino.Session;
 import io.trino.spi.type.Type;
 import io.trino.sql.query.QueryAssertions;
@@ -18,7 +17,6 @@ import io.trino.testing.MaterializedResult;
 import io.trino.testing.QueryRunner;
 import io.trino.testing.datatype.ColumnSetup;
 import io.trino.testing.sql.TemporaryRelation;
-import org.assertj.core.error.AssertJMultipleFailuresError;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -27,17 +25,17 @@ import java.util.Set;
 import java.util.stream.IntStream;
 
 import static com.google.common.base.Preconditions.checkState;
+import static com.starburstdata.trino.plugin.salesforce.testing.sql.SalesforceTestTable.TEST_RUN_ID;
+import static com.starburstdata.trino.plugin.salesforce.testing.sql.SalesforceTestTable.TEST_RUN_ID_COLUMN;
 import static java.lang.String.format;
 import static java.util.Collections.unmodifiableList;
 import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.joining;
 import static org.assertj.core.api.Assertions.assertThat;
 
-// Copied from trino-testing but modified to 1) handle the __c suffixes and 2) reset the metadata cache
+// Copied from trino-testing but modified to 1) handle the __c suffixes, 2) reset the metadata cache and 3) only read this test run's rows
 public final class SqlDataTypeTest
 {
-    private static final Logger log = Logger.get(SqlDataTypeTest.class);
-
     public static SqlDataTypeTest create()
     {
         return new SqlDataTypeTest();
@@ -61,17 +59,9 @@ public final class SqlDataTypeTest
     public SqlDataTypeTest execute(QueryRunner queryRunner, Session session, SalesforceCreateAndInsertDataSetup dataSetup)
     {
         checkState(!testCases.isEmpty(), "No test cases");
-        // Only initialize the table if verifySelect or verifyPredicate fails, to prevent data truncation.
-        try {
-            verifySelect(queryRunner, session, dataSetup.tableName());
-            verifyPredicate(queryRunner, session, dataSetup.tableName());
-        }
-        catch (AssertJMultipleFailuresError | RuntimeException e) {
-            log.warn(e, "Retrying SqlDataTypeTest.execute for table %s in Salesforce connector", dataSetup.tableName());
-            try (TemporaryRelation _ = dataSetup.setupTemporaryRelation(unmodifiableList(testCases))) {
-                verifySelect(queryRunner, session, dataSetup.tableName());
-                verifyPredicate(queryRunner, session, dataSetup.tableName());
-            }
+        try (TemporaryRelation testTable = dataSetup.setupTemporaryRelation(unmodifiableList(testCases))) {
+            verifySelect(queryRunner, session, testTable.getName());
+            verifyPredicate(queryRunner, session, testTable.getName());
         }
         return this;
     }
@@ -86,7 +76,7 @@ public final class SqlDataTypeTest
                 .mapToObj(column -> format("col_%d__c", column))
                 .collect(joining(", "));
 
-        ResultAssert assertion = assertThat(queryAssertions.query(session, "SELECT " + columns + " FROM " + tableName + "__c"))
+        ResultAssert assertion = assertThat(queryAssertions.query(session, "SELECT " + columns + " FROM " + tableName + "__c WHERE " + testRunPredicate()))
                 .result();
         MaterializedResult expected = queryRunner.execute(session, testCases.stream()
                 .map(TestCase::getExpectedLiteral)
@@ -109,7 +99,7 @@ public final class SqlDataTypeTest
 
     private void verifyPredicate(QueryRunner queryRunner, Session session, String tableName)
     {
-        String queryWithAll = "SELECT 'all found' FROM " + tableName + "__c WHERE " +
+        String queryWithAll = "SELECT 'all found' FROM " + tableName + "__c WHERE " + testRunPredicate() + " AND " +
                 IntStream.range(0, testCases.size())
                         .mapToObj(this::getPredicate)
                         .collect(joining(" AND "));
@@ -123,9 +113,14 @@ public final class SqlDataTypeTest
         QueryAssertions queryAssertions = new QueryAssertions(queryRunner);
 
         for (int column = 0; column < testCases.size(); column++) {
-            assertThat(queryAssertions.query(session, "SELECT 'found' FROM " + tableName + "__c WHERE " + getPredicate(column)))
+            assertThat(queryAssertions.query(session, "SELECT 'found' FROM " + tableName + "__c WHERE " + testRunPredicate() + " AND " + getPredicate(column)))
                     .matches("VALUES 'found'");
         }
+    }
+
+    private static String testRunPredicate()
+    {
+        return format("%s = '%s'", TEST_RUN_ID_COLUMN, TEST_RUN_ID);
     }
 
     private String getPredicate(int column)
