@@ -163,6 +163,12 @@ public class TrinoUnityCatalog
     }
 
     @Override
+    public void verifyTableWritable(org.apache.iceberg.Table icebergTable)
+    {
+        throw new UnsupportedOperationException("verifyTableWritable is not supported");
+    }
+
+    @Override
     public Optional<Iterator<RelationCommentMetadata>> streamRelationComments(ConnectorSession session, Optional<String> namespace, UnaryOperator<Set<SchemaTableName>> relationFilter, Predicate<SchemaTableName> isRedirected)
     {
         throw new UnsupportedOperationException("streamRelationComments is not supported");

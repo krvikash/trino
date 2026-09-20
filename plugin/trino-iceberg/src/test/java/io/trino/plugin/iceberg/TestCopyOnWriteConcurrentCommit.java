@@ -40,7 +40,7 @@ final class TestCopyOnWriteConcurrentCommit
 {
     private static final String SCHEMA_NAME = "test_schema";
 
-    private final AtomicReference<Runnable> onBeginMergeTableLoad = new AtomicReference<>();
+    private final AtomicReference<Runnable> onFinishMergeTableLoad = new AtomicReference<>();
 
     @Override
     protected QueryRunner createQueryRunner()
@@ -57,8 +57,8 @@ final class TestCopyOnWriteConcurrentCommit
             @Override
             public Optional<Table> getTable(String databaseName, String tableName)
             {
-                if (isCalledFromBeginMerge()) {
-                    Runnable action = onBeginMergeTableLoad.getAndSet(null);
+                if (isCalledFromFinishMerge()) {
+                    Runnable action = onFinishMergeTableLoad.getAndSet(null);
                     if (action != null) {
                         action.run();
                     }
@@ -80,16 +80,16 @@ final class TestCopyOnWriteConcurrentCommit
     }
 
     @Test
-    void testUpdateConflictingWithFileRewriteCommittedBeforeBeginMerge()
+    void testUpdateConflictingWithFileRewriteCommittedBeforeFinishMerge()
     {
         String tableName = "test_update_conflicting_with_file_rewrite_" + randomNameSuffix();
         assertUpdate("CREATE TABLE " + tableName + " (x) WITH (merge_mode = 'copy-on-write') AS VALUES 1, 2", 2);
         assertThat(computeActual("SELECT file_path FROM \"" + tableName + "$files\"").getRowCount()).isEqualTo(1);
 
-        onBeginMergeTableLoad.set(() -> assertUpdate("UPDATE " + tableName + " SET x = x + 10 WHERE x = 1", 1));
+        onFinishMergeTableLoad.set(() -> assertUpdate("UPDATE " + tableName + " SET x = x + 10 WHERE x = 1", 1));
         assertThat(query("UPDATE " + tableName + " SET x = x + 20 WHERE x = 2"))
                 .failure().hasMessageMatching("Failed to commit (the transaction )?during write: .*");
-        assertThat(onBeginMergeTableLoad.get()).isNull();
+        assertThat(onFinishMergeTableLoad.get()).isNull();
 
         assertThat(query("SELECT x FROM " + tableName))
                 .matches("VALUES 11, 2");
@@ -97,9 +97,9 @@ final class TestCopyOnWriteConcurrentCommit
         assertUpdate("DROP TABLE " + tableName);
     }
 
-    private static boolean isCalledFromBeginMerge()
+    private static boolean isCalledFromFinishMerge()
     {
         return StackWalker.getInstance().walk(frames -> frames.anyMatch(frame ->
-                frame.getClassName().equals(IcebergMetadata.class.getName()) && frame.getMethodName().equals("beginMerge")));
+                frame.getClassName().equals(IcebergMetadata.class.getName()) && frame.getMethodName().equals("finishMerge")));
     }
 }
