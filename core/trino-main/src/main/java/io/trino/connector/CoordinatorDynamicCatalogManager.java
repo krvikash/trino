@@ -381,6 +381,29 @@ public class CoordinatorDynamicCatalogManager
         }
     }
 
+    public void reloadCatalog(CatalogProperties catalogProperties)
+    {
+        CatalogName catalogName = catalogProperties.name();
+        catalogStore.verifyBuiltInCatalog(catalogName, "Reloading");
+
+        synchronized (catalogsUpdateLock) {
+            if (state == State.STOPPED) {
+                return;
+            }
+
+            Catalog activeCatalog = activeCatalogs.get(catalogName);
+            if (activeCatalog == null || activeCatalog.getCatalogHandle().getVersion().equals(catalogProperties.version())) {
+                return;
+            }
+
+            RegisteredCatalog registeredCatalog = allCatalogs.computeIfAbsent(
+                    createRootCatalogHandle(catalogName, catalogProperties.version()),
+                    _ -> new RegisteredCatalog(new RegistrationToken(), catalogFactory.createCatalog(catalogProperties)));
+            activeCatalogs.put(catalogName, registeredCatalog.catalog().getCatalog());
+            log.debug("Reloaded catalog: %s", catalogName);
+        }
+    }
+
     private RegisteredCatalog createCatalogLikeInternal(CatalogName oldCatalogName, CatalogName catalogName, Map<String, Optional<String>> properties)
     {
         CatalogHandle catalogHandle = activeCatalogs.get(oldCatalogName).getCatalogHandle();
