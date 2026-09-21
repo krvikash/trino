@@ -43,6 +43,7 @@ import io.trino.server.security.InternalPrincipal;
 import io.trino.server.security.ResourceSecurity;
 import io.trino.spi.ErrorCode;
 import io.trino.spi.QueryId;
+import io.trino.spi.security.AccessDeniedException;
 import io.trino.spi.security.Identity;
 import io.trino.tracing.TrinoAttributes;
 import jakarta.annotation.Nullable;
@@ -207,14 +208,19 @@ public class QueuedStatementResource
             throw new BadRequestException("Slug is empty");
         }
 
-        Query query = registerQueryIfNeeded(servletRequest, httpHeaders, sessionContext ->
-                new Query(statement, queryId, Optional.of(slug), sessionContext, dispatchManager, queryInfoUrlFactory, tracer));
+        try {
+            Query query = registerQueryIfNeeded(servletRequest, httpHeaders, sessionContext ->
+                    new Query(statement, queryId, Optional.of(slug), sessionContext, dispatchManager, queryInfoUrlFactory, tracer));
 
-        if (!query.getSubmitSlug().equals(Optional.of(slug)) || query.getLastToken() != 0) {
-            throw new ConflictException("Conflict with existing query");
+            if (!query.getSubmitSlug().equals(Optional.of(slug)) || query.getLastToken() != 0) {
+                throw new ConflictException("Conflict with existing query");
+            }
+
+            return createQueryResultsResponse(query.getQueryResults(query.getLastToken(), uriInfo), query.sessionContext.getQueryDataEncoding());
         }
-
-        return createQueryResultsResponse(query.getQueryResults(query.getLastToken(), uriInfo), query.sessionContext.getQueryDataEncoding());
+        catch (AccessDeniedException ex) {
+            throw new ForbiddenException(ex.getMessage());
+        }
     }
 
     private Query registerQueryIfNeeded(HttpServletRequest servletRequest, HttpHeaders httpHeaders, Function<SessionContext, Query> queryFactory)
