@@ -36,6 +36,7 @@ import io.trino.testing.MaterializedResult;
 import io.trino.testing.QueryRunner;
 import io.trino.testing.QueryRunner.MaterializedResultWithPlan;
 import io.trino.testing.TestingConnectorBehavior;
+import io.trino.testing.services.junit.Flaky;
 import io.trino.testing.sql.TestTable;
 import io.trino.testing.sql.TestView;
 import org.intellij.lang.annotations.Language;
@@ -956,7 +957,9 @@ public abstract class BaseBigQueryConnectorTest
                 .collect(onlyElement());
     }
 
+    @SuppressWarnings("deprecation")
     @Test
+    @Flaky(issue = "https://starburstdata.atlassian.net/browse/ENG-22302", match = "Expected size: 1 but was: 0")
     public void testQueryLabeling()
     {
         Function<String, Session> sessionWithToken = token -> Session.builder(getSession())
@@ -997,7 +1000,7 @@ public abstract class BaseBigQueryConnectorTest
                 )\
                 """.formatted(expectedLabel);
 
-        assertEventually(new Duration(1, MINUTES), () -> assertThat(bigQuerySqlExecutor.executeQuery(checkForLabelQuery).getValues())
+        assertEventually(new Duration(3, MINUTES), new Duration(2, SECONDS), () -> assertThat(bigQuerySqlExecutor.executeQuery(checkForLabelQuery).getValues())
                 .extracting(values -> values.get("query").getStringValue())
                 .singleElement()
                 .matches(statement -> statement.contains(expectedView)));
