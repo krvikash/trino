@@ -25,6 +25,7 @@ import io.trino.metadata.Metadata;
 import io.trino.plugin.base.security.DefaultSystemAccessControl;
 import io.trino.security.AccessControlConfig;
 import io.trino.security.AccessControlManager;
+import io.trino.security.AllSystemAccessControlsSelector;
 import io.trino.spi.NodeVersion;
 import io.trino.spi.resourcegroups.ResourceGroupId;
 import io.trino.sql.tree.Commit;
@@ -142,7 +143,7 @@ public class TestCommitTask
                 new ResourceGroupId("test"),
                 true,
                 transactionManager,
-                new AccessControlManager(NodeVersion.UNKNOWN, transactionManager, emptyEventListenerManager(), new AccessControlConfig(), OpenTelemetry.noop(), new SecretsResolver(ImmutableMap.of()), DefaultSystemAccessControl.NAME),
+                new AccessControlManager(NodeVersion.UNKNOWN, transactionManager, emptyEventListenerManager(), new AccessControlConfig(), OpenTelemetry.noop(), new SecretsResolver(ImmutableMap.of()), DefaultSystemAccessControl.NAME, new AllSystemAccessControlsSelector()),
                 executor,
                 metadata,
                 WarningCollector.NOOP,

@@ -80,7 +80,9 @@ import io.trino.profiler.ConnectorQueryProfilerRegistry;
 import io.trino.security.AccessControl;
 import io.trino.security.AccessControlConfig;
 import io.trino.security.AccessControlManager;
+import io.trino.security.AllSystemAccessControlsSelector;
 import io.trino.security.GroupProviderManager;
+import io.trino.security.SystemAccessControlSelector;
 import io.trino.server.InternalHttpClientModule;
 import io.trino.server.NodeStateManager;
 import io.trino.server.NodeStateManager.CurrentNodeState;
@@ -283,6 +285,7 @@ public class TestingTrinoServer
             Optional<FactoryConfiguration> systemAccessControlConfiguration,
             Optional<FactoryConfiguration> spoolingConfiguration,
             Optional<List<SystemAccessControl>> systemAccessControls,
+            Optional<SystemAccessControlSelector> systemAccessControlSelector,
             List<EventListener> eventListeners,
             Consumer<TestingTrinoServer> additionalConfiguration,
             CatalogMangerKind catalogMangerKind,
@@ -357,6 +360,10 @@ public class TestingTrinoServer
                     binder.bind(ExchangeManagerConfig.class).in(Scopes.SINGLETON);
                     binder.bind(CacheManagerConfig.class).in(Scopes.SINGLETON);
                     binder.bind(AccessControlConfig.class).in(Scopes.SINGLETON);
+                    newOptionalBinder(binder, SystemAccessControlSelector.class)
+                            .setDefault()
+                            .to(AllSystemAccessControlsSelector.class)
+                            .in(Scopes.SINGLETON);
                     binder.bind(TestingAccessControlManager.class).in(Scopes.SINGLETON);
                     binder.bind(TestingGroupProvider.class).in(Scopes.SINGLETON);
                     binder.bind(TestingEventListenerManager.class).in(Scopes.SINGLETON);
@@ -391,6 +398,8 @@ public class TestingTrinoServer
                         binder.bind(QuerySessionSupplier.class).in(Scopes.SINGLETON);
                         newOptionalBinder(binder, SessionSupplier.class).setBinding().to(TestingSessionSupplier.class).in(Scopes.SINGLETON);
                     }
+                    systemAccessControlSelector.ifPresent(selector ->
+                            newOptionalBinder(binder, SystemAccessControlSelector.class).setBinding().toInstance(selector));
                 });
 
         if (coordinator) {
@@ -899,6 +908,7 @@ public class TestingTrinoServer
         private Optional<FactoryConfiguration> systemAccessControlConfiguration = Optional.empty();
         private Optional<FactoryConfiguration> spoolingConfiguration = Optional.empty();
         private Optional<List<SystemAccessControl>> systemAccessControls = Optional.of(ImmutableList.of());
+        private Optional<SystemAccessControlSelector> systemAccessControlSelector = Optional.empty();
         private List<EventListener> eventListeners = ImmutableList.of();
         private Consumer<TestingTrinoServer> additionalConfiguration = _ -> {};
         private CatalogMangerKind catalogMangerKind = CatalogMangerKind.DYNAMIC;
@@ -994,6 +1004,12 @@ public class TestingTrinoServer
             return this;
         }
 
+        public Builder setSystemAccessControlSelector(Optional<SystemAccessControlSelector> systemAccessControlSelector)
+        {
+            this.systemAccessControlSelector = requireNonNull(systemAccessControlSelector, "systemAccessControlSelector is null");
+            return this;
+        }
+
         public Builder setEventListeners(List<EventListener> eventListeners)
         {
             this.eventListeners = ImmutableList.copyOf(requireNonNull(eventListeners, "eventListeners is null"));
@@ -1030,6 +1046,7 @@ public class TestingTrinoServer
                     systemAccessControlConfiguration,
                     spoolingConfiguration,
                     systemAccessControls,
+                    systemAccessControlSelector,
                     eventListeners,
                     additionalConfiguration,
                     catalogMangerKind,

@@ -52,6 +52,7 @@ import io.trino.plugin.base.security.AllowAllSystemAccessControl;
 import io.trino.plugin.base.security.DefaultSystemAccessControl;
 import io.trino.security.AccessControlConfig;
 import io.trino.security.AccessControlManager;
+import io.trino.security.AllSystemAccessControlsSelector;
 import io.trino.server.protocol.Slug;
 import io.trino.spi.NodeVersion;
 import io.trino.spi.catalog.CatalogProperties;
@@ -105,7 +106,8 @@ public class TestLocalDispatchQuery
                 new AccessControlConfig(),
                 noop(),
                 new SecretsResolver(ImmutableMap.of()),
-                DefaultSystemAccessControl.NAME);
+                DefaultSystemAccessControl.NAME,
+                new AllSystemAccessControlsSelector());
         accessControl.setSystemAccessControls(List.of(AllowAllSystemAccessControl.INSTANCE));
         QueryStateMachine queryStateMachine = QueryStateMachine.begin(
                 Optional.empty(),

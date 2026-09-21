@@ -35,6 +35,7 @@ import io.trino.plugin.base.security.AllowAllSystemAccessControl;
 import io.trino.plugin.base.security.DefaultSystemAccessControl;
 import io.trino.security.AccessControlConfig;
 import io.trino.security.AccessControlManager;
+import io.trino.security.AllSystemAccessControlsSelector;
 import io.trino.server.BasicQueryInfo;
 import io.trino.server.BasicQueryStats;
 import io.trino.server.ResultQueryInfo;
@@ -854,7 +855,8 @@ public class TestQueryStateMachine
                     new AccessControlConfig(),
                     OpenTelemetry.noop(),
                     new SecretsResolver(ImmutableMap.of()),
-                    DefaultSystemAccessControl.NAME);
+                    DefaultSystemAccessControl.NAME,
+                    new AllSystemAccessControlsSelector());
             accessControl.setSystemAccessControls(List.of(AllowAllSystemAccessControl.INSTANCE));
             QueryStateMachine stateMachine = QueryStateMachine.beginWithTicker(
                     Optional.empty(),

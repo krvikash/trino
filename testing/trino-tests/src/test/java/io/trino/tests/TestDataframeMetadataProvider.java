@@ -43,6 +43,7 @@ import io.trino.plugin.tpch.TpchConnectorFactory;
 import io.trino.security.AccessControl;
 import io.trino.security.AccessControlConfig;
 import io.trino.security.AccessControlManager;
+import io.trino.security.AllSystemAccessControlsSelector;
 import io.trino.server.dataframe.DataTypeMapper;
 import io.trino.server.dataframe.DataframeMetadataProvider;
 import io.trino.server.starburst.accesscontrol.PassthroughStarburstAnalyzerHelper;
@@ -103,7 +104,8 @@ public class TestDataframeMetadataProvider
                 new AccessControlConfig(),
                 OpenTelemetry.noop(),
                 new SecretsResolver(ImmutableMap.of()),
-                DefaultSystemAccessControl.NAME);
+                DefaultSystemAccessControl.NAME,
+                new AllSystemAccessControlsSelector());
         accessControlManager.setSystemAccessControls(List.of(AllowAllSystemAccessControl.INSTANCE));
         this.accessControl = accessControlManager;
 

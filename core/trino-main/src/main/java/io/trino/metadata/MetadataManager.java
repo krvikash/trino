@@ -200,7 +200,7 @@ import static java.util.Objects.requireNonNull;
 public final class MetadataManager
         implements Metadata
 {
-    private static final Set<String> ENTITY_KINDS_WITH_CATALOG = ImmutableSet.of("SCHEMA", "TABLE", "VIEW", "MATERIALIZED VIEW");
+    public static final Set<String> ENTITY_KINDS_WITH_CATALOG = ImmutableSet.of("SCHEMA", "TABLE", "VIEW", "MATERIALIZED VIEW");
     private static final Logger log = Logger.get(MetadataManager.class);
 
     @VisibleForTesting

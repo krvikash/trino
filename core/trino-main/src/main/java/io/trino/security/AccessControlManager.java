@@ -112,6 +112,7 @@ public class AccessControlManager
     private final List<File> configFiles;
     private final OpenTelemetry openTelemetry;
     private final String defaultAccessControlName;
+    private final SystemAccessControlSelector accessControlSelector;
     private final Map<String, SystemAccessControlFactory> systemAccessControlFactories = new ConcurrentHashMap<>();
     private final AtomicReference<CatalogServiceProvider<Optional<ConnectorAccessControl>>> connectorAccessControlProvider = new AtomicReference<>();
 
@@ -129,7 +130,8 @@ public class AccessControlManager
             AccessControlConfig config,
             OpenTelemetry openTelemetry,
             SecretsResolver secretsResolver,
-            @DefaultSystemAccessControlName String defaultAccessControlName)
+            @DefaultSystemAccessControlName String defaultAccessControlName,
+            SystemAccessControlSelector accessControlSelector)
     {
         this.nodeVersion = requireNonNull(nodeVersion, "nodeVersion is null");
         this.transactionManager = requireNonNull(transactionManager, "transactionManager is null");
@@ -138,6 +140,7 @@ public class AccessControlManager
         this.openTelemetry = requireNonNull(openTelemetry, "openTelemetry is null");
         this.secretsResolver = requireNonNull(secretsResolver, "secretsResolver is null");
         this.defaultAccessControlName = requireNonNull(defaultAccessControlName, "defaultAccessControl is null");
+        this.accessControlSelector = requireNonNull(accessControlSelector, "accessControlSelector is null");
         addSystemAccessControlFactory(new DefaultSystemAccessControl.Factory());
         addSystemAccessControlFactory(new AllowAllSystemAccessControl.Factory());
         addSystemAccessControlFactory(new ReadOnlySystemAccessControl.Factory());
@@ -226,7 +229,7 @@ public class AccessControlManager
         }
 
         log.info("-- Loaded system access control %s --", name);
-        return systemAccessControl;
+        return governedAware(systemAccessControl);
     }
 
     @VisibleForTesting
@@ -278,8 +281,29 @@ public class AccessControlManager
 
     public void setSystemAccessControls(List<SystemAccessControl> systemAccessControls)
     {
-        systemAccessControls.forEach(AccessControlManager::verifySystemAccessControl);
-        checkState(this.systemAccessControls.compareAndSet(null, systemAccessControls), "System access control already initialized");
+        systemAccessControls.stream()
+                .map(AccessControlManager::unwrap)
+                .forEach(AccessControlManager::verifySystemAccessControl);
+        List<SystemAccessControl> governedAwareSystemAccessControls = systemAccessControls.stream()
+                .map(this::governedAware)
+                .collect(toImmutableList());
+        checkState(this.systemAccessControls.compareAndSet(null, governedAwareSystemAccessControls), "System access control already initialized");
+    }
+
+    private SystemAccessControl governedAware(SystemAccessControl accessControl)
+    {
+        if (accessControl instanceof GovernedAwareSystemAccessControl) {
+            return accessControl;
+        }
+        return new GovernedAwareSystemAccessControl(accessControl, accessControlSelector);
+    }
+
+    private static SystemAccessControl unwrap(SystemAccessControl accessControl)
+    {
+        if (accessControl instanceof GovernedAwareSystemAccessControl governedAware) {
+            return governedAware.delegate();
+        }
+        return accessControl;
     }
 
     @Override
@@ -1762,7 +1786,7 @@ public class AccessControlManager
         // Apply the Galaxy pre-filter optimizations only when GalaxyAccessControl is the sole system
         // access control. They weaken the filterCatalogs/filterTables pre-filter that wraps the whole
         // access-control chain, so they are only safe when nothing else is in the chain
-        return accessControls.size() == 1 && getOnlyElement(accessControls) instanceof GalaxyAccessControl;
+        return accessControls.size() == 1 && unwrap(getOnlyElement(accessControls)) instanceof GalaxyAccessControl;
     }
 
     private ConnectorSecurityContext toConnectorSecurityContext(String catalogName, SecurityContext securityContext)

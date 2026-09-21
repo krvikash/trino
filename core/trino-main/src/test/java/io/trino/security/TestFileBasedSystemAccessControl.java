@@ -150,7 +150,8 @@ public class TestFileBasedSystemAccessControl
                 new AccessControlConfig(),
                 OpenTelemetry.noop(),
                 new SecretsResolver(ImmutableMap.of()),
-                DefaultSystemAccessControl.NAME);
+                DefaultSystemAccessControl.NAME,
+                new AllSystemAccessControlsSelector());
         accessControlManager.loadSystemAccessControl(
                 FileBasedSystemAccessControl.NAME,
                 ImmutableMap.of("security.config-file", Path.of("../../docs/src/main/sphinx/security/user-impersonation.json").toAbsolutePath().toString()));
@@ -823,7 +824,8 @@ public class TestFileBasedSystemAccessControl
                 new AccessControlConfig(),
                 OpenTelemetry.noop(),
                 new SecretsResolver(ImmutableMap.of()),
-                DefaultSystemAccessControl.NAME);
+                DefaultSystemAccessControl.NAME,
+                new AllSystemAccessControlsSelector());
         Path configFile = tempDir.resolve("catalog.json");
         Files.copy(getResourcePath("catalog.json"), configFile, REPLACE_EXISTING);
 
@@ -890,7 +892,8 @@ public class TestFileBasedSystemAccessControl
                 new AccessControlConfig(),
                 OpenTelemetry.noop(),
                 new SecretsResolver(ImmutableMap.of()),
-                DefaultSystemAccessControl.NAME);
+                DefaultSystemAccessControl.NAME,
+                new AllSystemAccessControlsSelector());
 
         accessControlManager.loadSystemAccessControl(FileBasedSystemAccessControl.NAME, ImmutableMap.of("security.config-file", getResourcePath(resourceName).toString()));
 

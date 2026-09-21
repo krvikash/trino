@@ -41,6 +41,7 @@ import io.trino.execution.warnings.WarningCollector;
 import io.trino.metadata.QualifiedObjectName;
 import io.trino.metadata.SessionPropertyManager;
 import io.trino.plugin.exchange.filesystem.FileSystemExchangePlugin;
+import io.trino.security.SystemAccessControlSelector;
 import io.trino.server.BasicQueryInfo;
 import io.trino.server.PluginManager;
 import io.trino.server.SessionPropertyDefaults;
@@ -152,6 +153,7 @@ public final class DistributedQueryRunner
             Optional<Path> baseDataDir,
             Optional<FactoryConfiguration> systemAccessControlConfiguration,
             Optional<List<SystemAccessControl>> systemAccessControls,
+            Optional<SystemAccessControlSelector> systemAccessControlSelector,
             List<EventListener> eventListeners,
             List<AutoCloseable> extraCloseables,
             TestingTrinoClientFactory testingTrinoClientFactory,
@@ -187,6 +189,7 @@ public final class DistributedQueryRunner
                         baseDataDir,
                         systemAccessControlConfiguration,
                         systemAccessControls,
+                        systemAccessControlSelector,
                         eventListeners,
                         modelConnectionSpecsLoader,
                         catalogMangerKind,
@@ -212,6 +215,7 @@ public final class DistributedQueryRunner
                     baseDataDir,
                     Optional.empty(),
                     Optional.of(ImmutableList.of()),
+                    Optional.empty(),
                     ImmutableList.of(),
                     modelConnectionSpecsLoader,
                     catalogMangerKind,
@@ -266,6 +270,7 @@ public final class DistributedQueryRunner
             Optional<Path> baseDataDir,
             Optional<FactoryConfiguration> systemAccessControlConfiguration,
             Optional<List<SystemAccessControl>> systemAccessControls,
+            Optional<SystemAccessControlSelector> systemAccessControlSelector,
             List<EventListener> eventListeners,
             Optional<ModelConnectionSpecsLoader> modelConnectionSpecsLoader,
             CatalogMangerKind catalogMangerKind,
@@ -287,6 +292,7 @@ public final class DistributedQueryRunner
                 SimpleSpanProcessor.create(spanExporter),
                 systemAccessControlConfiguration,
                 systemAccessControls,
+                systemAccessControlSelector,
                 eventListeners,
                 newServer -> {
                     functionBundles.forEach(newServer::addFunctions);
@@ -326,6 +332,7 @@ public final class DistributedQueryRunner
             SpanProcessor spanProcessor,
             Optional<FactoryConfiguration> systemAccessControlConfiguration,
             Optional<List<SystemAccessControl>> systemAccessControls,
+            Optional<SystemAccessControlSelector> systemAccessControlSelector,
             List<EventListener> eventListeners,
             Consumer<TestingTrinoServer> additionalConfiguration,
             Optional<ModelConnectionSpecsLoader> modelConnectionSpecsLoader,
@@ -370,6 +377,7 @@ public final class DistributedQueryRunner
                 .setSpanProcessor(spanProcessor)
                 .setSystemAccessControlConfiguration(systemAccessControlConfiguration)
                 .setSystemAccessControls(systemAccessControls)
+                .setSystemAccessControlSelector(systemAccessControlSelector)
                 .setEventListeners(eventListeners)
                 .setAdditionalConfiguration(additionalConfiguration)
                 .setModelConnectionSpecsLoader(modelConnectionSpecsLoader)
@@ -822,6 +830,7 @@ public final class DistributedQueryRunner
         private Optional<Path> baseDataDir = Optional.empty();
         private Optional<FactoryConfiguration> systemAccessControlConfiguration = Optional.empty();
         private Optional<List<SystemAccessControl>> systemAccessControls = Optional.empty();
+        private Optional<SystemAccessControlSelector> systemAccessControlSelector = Optional.empty();
         private List<EventListener> eventListeners = ImmutableList.of();
         private ImmutableList.Builder<AutoCloseable> extraCloseables = ImmutableList.builder();
         private TestingTrinoClientFactory testingTrinoClientFactory = TestingTrinoClient::new;
@@ -997,6 +1006,13 @@ public final class DistributedQueryRunner
             return self();
         }
 
+        @CanIgnoreReturnValue
+        public SELF setSystemAccessControlSelector(SystemAccessControlSelector systemAccessControlSelector)
+        {
+            this.systemAccessControlSelector = Optional.of(requireNonNull(systemAccessControlSelector, "systemAccessControlSelector is null"));
+            return self();
+        }
+
         @SuppressWarnings("unused")
         @CanIgnoreReturnValue
         public SELF setEventListener(EventListener eventListener)
@@ -1160,6 +1176,7 @@ public final class DistributedQueryRunner
                     baseDataDir,
                     systemAccessControlConfiguration,
                     systemAccessControls,
+                    systemAccessControlSelector,
                     eventListeners,
                     extraCloseables.build(),
                     testingTrinoClientFactory,

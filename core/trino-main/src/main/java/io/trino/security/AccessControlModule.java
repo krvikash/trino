@@ -40,6 +40,10 @@ public class AccessControlModule
     {
         configBinder(binder).bindConfig(AccessControlConfig.class);
         newOptionalBinder(binder, Key.get(String.class, DefaultSystemAccessControlName.class)).setDefault().toInstance(DefaultSystemAccessControl.NAME);
+        newOptionalBinder(binder, SystemAccessControlSelector.class)
+                .setDefault()
+                .to(AllSystemAccessControlsSelector.class)
+                .in(Scopes.SINGLETON);
         binder.bind(AccessControlManager.class).in(Scopes.SINGLETON);
         binder.bind(AccessControl.class).to(TracingAccessControl.class);
         newOptionalBinder(binder, AiModelAccessControl.class)

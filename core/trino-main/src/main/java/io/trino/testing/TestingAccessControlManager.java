@@ -22,7 +22,9 @@ import io.trino.metadata.QualifiedObjectName;
 import io.trino.plugin.base.security.DefaultSystemAccessControl;
 import io.trino.security.AccessControlConfig;
 import io.trino.security.AccessControlManager;
+import io.trino.security.AllSystemAccessControlsSelector;
 import io.trino.security.SecurityContext;
+import io.trino.security.SystemAccessControlSelector;
 import io.trino.spi.NodeVersion;
 import io.trino.spi.QueryId;
 import io.trino.spi.connector.CatalogSchemaName;
@@ -152,14 +154,15 @@ public class TestingAccessControlManager
             EventListenerManager eventListenerManager,
             AccessControlConfig accessControlConfig,
             SecretsResolver secretsResolver,
-            OpenTelemetry openTelemetry)
+            OpenTelemetry openTelemetry,
+            SystemAccessControlSelector accessControlSelector)
     {
-        super(NodeVersion.UNKNOWN, transactionManager, eventListenerManager, accessControlConfig, openTelemetry, secretsResolver, DefaultSystemAccessControl.NAME);
+        super(NodeVersion.UNKNOWN, transactionManager, eventListenerManager, accessControlConfig, openTelemetry, secretsResolver, DefaultSystemAccessControl.NAME, accessControlSelector);
     }
 
     public TestingAccessControlManager(TransactionManager transactionManager, EventListenerManager eventListenerManager, SecretsResolver secretsResolver)
     {
-        this(transactionManager, eventListenerManager, new AccessControlConfig(), secretsResolver, OpenTelemetry.noop());
+        this(transactionManager, eventListenerManager, new AccessControlConfig(), secretsResolver, OpenTelemetry.noop(), new AllSystemAccessControlsSelector());
     }
 
     public static TestingPrivilege privilege(String entityName, TestingPrivilegeType type)

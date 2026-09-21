@@ -1,0 +1,40 @@
+{
+    "catalogs": [
+        {
+            "catalog": "system",
+            "allow": "all"
+        },
+        {
+            "catalog": "alpha",
+            "allow": "all"
+        }
+    ],
+    "impersonation": [
+        {
+            "original_user": "user",
+            "new_user": "impersonated_user",
+            "allow": true
+        }
+    ],
+    "schemas": [
+        {
+            "catalog": "alpha",
+            "owner": true
+        }
+    ],
+    "tables": [
+        {
+            "catalog": "alpha",
+            "privileges": ["SELECT", "INSERT", "DELETE", "UPDATE", "OWNERSHIP"]
+        }
+    ],
+    "system_session_properties": [
+        {
+            "property": "query_max_run_time",
+            "allow": false
+        },
+        {
+            "allow": true
+        }
+    ]
+}
