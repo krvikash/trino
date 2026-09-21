@@ -21,6 +21,7 @@ import io.trino.plugin.iceberg.delete.DeletionVector;
 import io.trino.plugin.iceberg.delete.PositionDeleteWriter;
 import io.trino.spi.connector.ConnectorPageSink;
 import io.trino.spi.connector.ConnectorSession;
+import io.trino.spi.connector.MemoryContext;
 import org.apache.iceberg.FileContent;
 import org.apache.iceberg.Metrics;
 import org.apache.iceberg.PartitionSpec;
@@ -65,7 +66,8 @@ public class IcebergMergeSink
             Map<String, Long> fileCounts,
             Map<String, Long> dataSequenceNumbers,
             Map<String, Long> firstRowIds,
-            Optional<String> nameMapping)
+            Optional<String> nameMapping,
+            MemoryContext memoryContext)
     {
         super(locationProvider,
                 fileWriterFactory,
@@ -87,7 +89,8 @@ public class IcebergMergeSink
                 dataSequenceNumbers,
                 firstRowIds,
                 nameMapping,
-                formatVersion);
+                formatVersion,
+                memoryContext);
     }
 
     @Override

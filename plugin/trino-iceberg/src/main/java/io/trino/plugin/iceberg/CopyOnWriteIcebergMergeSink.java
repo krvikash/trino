@@ -83,7 +83,8 @@ public class CopyOnWriteIcebergMergeSink
             Map<String, Long> dataSequenceNumbers,
             Map<String, Long> firstRowIds,
             Optional<String> nameMapping,
-            int formatVersion)
+            int formatVersion,
+            MemoryContext memoryContext)
     {
         super(locationProvider,
                 fileWriterFactory,
@@ -105,7 +106,8 @@ public class CopyOnWriteIcebergMergeSink
                 dataSequenceNumbers,
                 firstRowIds,
                 nameMapping,
-                formatVersion);
+                formatVersion,
+                memoryContext);
     }
 
     @Override

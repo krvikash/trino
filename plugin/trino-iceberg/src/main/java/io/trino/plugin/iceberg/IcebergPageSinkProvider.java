@@ -281,7 +281,8 @@ public class IcebergPageSinkProvider
                             .collect(toImmutableMap(PositionDeleteFiles::dataFileLocation, PositionDeleteFiles::dataFileRecordCount)),
                     dataSequenceNumbers,
                     firstRowIds.buildOrThrow(),
-                    merge.getTableHandle().getNameMappingJson());
+                    merge.getTableHandle().getNameMappingJson(),
+                    memoryContext);
             case COPY_ON_WRITE -> new CopyOnWriteIcebergMergeSink(
                     locationProvider,
                     fileWriterFactory,
@@ -304,7 +305,8 @@ public class IcebergPageSinkProvider
                     dataSequenceNumbers,
                     firstRowIds.buildOrThrow(),
                     merge.getTableHandle().getNameMappingJson(),
-                    tableHandle.formatVersion());
+                    tableHandle.formatVersion(),
+                    memoryContext);
         };
     }
 
