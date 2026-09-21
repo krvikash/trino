@@ -40,6 +40,7 @@ import io.trino.spi.gpu.Column;
 import io.trino.spi.gpu.Column.Blocks;
 import io.trino.spi.gpu.Column.DeviceMemory;
 import io.trino.spi.gpu.GpuPage;
+import io.trino.spi.gpu.GpuTimestampWithTimeZone;
 import io.trino.spi.gpu.MemoryAmount;
 import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
@@ -54,6 +55,7 @@ import io.trino.spi.type.IntegerType;
 import io.trino.spi.type.RealType;
 import io.trino.spi.type.SmallintType;
 import io.trino.spi.type.TimestampType;
+import io.trino.spi.type.TimestampWithTimeZoneType;
 import io.trino.spi.type.TinyintType;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.VarbinaryType;
@@ -305,6 +307,10 @@ public class CopyToBlocks
             case TimestampType timestampType when timestampType.getPrecision() <= 3 -> new RescaledLongColumnCopier(hostColumnVector, 1_000L);
             case TimestampType timestampType when timestampType.getPrecision() <= 6 -> new LongColumnCopier(hostColumnVector);
             case TimestampType timestampType when timestampType.getPrecision() <= 9 -> new TimestampNanosCopier(hostColumnVector);
+            case TimestampWithTimeZoneType timestampWithTimeZoneType -> new TimestampWithTimeZoneColumnCopier(
+                    hostColumnVector,
+                    GpuTimestampWithTimeZone.instantDType(timestampWithTimeZoneType.getPrecision()).orElseThrow(),
+                    timestampWithTimeZoneType.isShort());
             default -> throw new UnsupportedOperationException("Unsupported type: " + type);
         };
     }
@@ -751,6 +757,63 @@ public class CopyToBlocks
                 Fixed12Block.encodeFixed12(epochMicros, picosOfMicro, values, i);
             }
             return new Fixed12Block(count, arrowValidityToWords(hostColumnVector.getValidity(), position, count), values);
+        }
+    }
+
+    /// Rebuilds a Trino `timestamp with time zone` from the instant [GpuTimestampWithTimeZone]
+    /// describes. Every value comes back in UTC, which is the only zone that reaches the device.
+    private static class TimestampWithTimeZoneColumnCopier
+            implements ColumnCopier
+    {
+        private final @Borrow HostColumnVector hostColumnVector;
+        private final DType instantType;
+        private final boolean shortRepresentation;
+
+        private TimestampWithTimeZoneColumnCopier(@Borrow HostColumnVector hostColumnVector, DType instantType, boolean shortRepresentation)
+        {
+            this.hostColumnVector = requireNonNull(hostColumnVector, "hostColumnVector is null");
+            this.instantType = requireNonNull(instantType, "instantType is null");
+            this.shortRepresentation = shortRepresentation;
+            checkType(hostColumnVector.getType(), instantType);
+        }
+
+        @Override
+        public long estimateHeapBytes(int positionCount)
+        {
+            // Estimates final block size, not peak - temporary arrays are excluded.
+            return (long) positionCount * (shortRepresentation ? Long.BYTES : 3 * Integer.BYTES) + nullsHeapBytes(hostColumnVector, positionCount);
+        }
+
+        @Override
+        public Block buildBlock(int position, int count)
+        {
+            long[] instantTicks = new long[count];
+            hostColumnVector.getData().getLongs(instantTicks, 0, (long) position * Long.BYTES, count);
+            Optional<long[]> valueIsValid = arrowValidityToWords(hostColumnVector.getValidity(), position, count);
+
+            if (shortRepresentation) {
+                long[] packedEpochMillis = new long[count];
+                for (int i = 0; i < count; i++) {
+                    // A null position carries no value: cuDF leaves its slot uninitialized (e.g. a column
+                    // built from a null scalar), and packing that can overflow. The block never reads it.
+                    if (valueIsValid.isEmpty() || Bitmap.isSet(valueIsValid.get(), 0, i)) {
+                        packedEpochMillis[i] = GpuTimestampWithTimeZone.packedEpochMillis(instantType, instantTicks[i]);
+                    }
+                }
+                return new LongArrayBlock(count, valueIsValid, packedEpochMillis);
+            }
+
+            int[] values = new int[count * 3];
+            for (int i = 0; i < count; i++) {
+                if (valueIsValid.isEmpty() || Bitmap.isSet(valueIsValid.get(), 0, i)) {
+                    Fixed12Block.encodeFixed12(
+                            GpuTimestampWithTimeZone.packedEpochMillis(instantType, instantTicks[i]),
+                            GpuTimestampWithTimeZone.picosOfMilli(instantType, instantTicks[i]),
+                            values,
+                            i);
+                }
+            }
+            return new Fixed12Block(count, valueIsValid, values);
         }
     }
 

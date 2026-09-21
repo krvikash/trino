@@ -745,6 +745,8 @@
                                 <!-- GPU tests run in the gpu profile only -->
                                 <exclude>**/TestDeltaLakeGpuCompositeSplits.java</exclude>
                                 <exclude>**/TestDeltaLakeGpuCompositeSplitsConnectorTest.java</exclude>
+                                <exclude>**/TestDeltaLakeGpuNonUtcParquetTimeZone.java</exclude>
+                                <exclude>**/TestDeltaLakeGpuNonUtcTimeZone.java</exclude>
                                 <exclude>**/TestDeltaLakeGpuQueries.java</exclude>
                             </excludes>
                         </configuration>
@@ -812,6 +814,8 @@
                             <includes>
                                 <include>**/TestDeltaLakeGpuCompositeSplits.java</include>
                                 <include>**/TestDeltaLakeGpuCompositeSplitsConnectorTest.java</include>
+                                <include>**/TestDeltaLakeGpuNonUtcParquetTimeZone.java</include>
+                                <include>**/TestDeltaLakeGpuNonUtcTimeZone.java</include>
                                 <include>**/TestDeltaLakeGpuQueries.java</include>
                             </includes>
                         </configuration>

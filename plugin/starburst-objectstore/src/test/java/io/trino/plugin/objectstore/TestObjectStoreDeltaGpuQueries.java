@@ -19,6 +19,7 @@ import io.trino.plugin.tpch.TpchPlugin;
 import io.trino.testing.DistributedQueryRunner;
 import io.trino.testing.QueryRunner;
 import io.trino.testing.containers.Minio;
+import org.junit.jupiter.api.Test;
 
 import static io.trino.plugin.base.util.Closables.closeAllSuppress;
 import static io.trino.plugin.objectstore.ObjectStoreQueryRunner.initializeTpchTables;
@@ -27,6 +28,7 @@ import static io.trino.testing.TestingSession.testSessionBuilder;
 import static io.trino.testing.containers.Minio.MINIO_REGION;
 import static io.trino.testing.containers.Minio.MINIO_ROOT_PASSWORD;
 import static io.trino.testing.containers.Minio.MINIO_ROOT_USER;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class TestObjectStoreDeltaGpuQueries
         extends TestDeltaLakeGpuQueries
@@ -75,5 +77,14 @@ class TestObjectStoreDeltaGpuQueries
             closeAllSuppress(e, queryRunner);
             throw e;
         }
+    }
+
+    @Test
+    @Override
+    public void testTimestampWithTimeZoneRoundingDisparityBetweenGpuAndCpu()
+    {
+        // This test cannot run against object store because of how it's implemented
+        assertThatThrownBy(super::testTimestampWithTimeZoneRoundingDisparityBetweenGpuAndCpu)
+                .hasMessage("Catalog 'delta' not found");
     }
 }

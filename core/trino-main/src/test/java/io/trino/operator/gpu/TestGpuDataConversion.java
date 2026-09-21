@@ -31,7 +31,10 @@ import io.trino.spi.type.CharType;
 import io.trino.spi.type.DecimalType;
 import io.trino.spi.type.Int128;
 import io.trino.spi.type.LongTimestamp;
+import io.trino.spi.type.LongTimestampWithTimeZone;
+import io.trino.spi.type.TimeZoneKey;
 import io.trino.spi.type.TimestampType;
+import io.trino.spi.type.TimestampWithTimeZoneType;
 import io.trino.spi.type.Type;
 import io.trino.sql.gen.TestColumnarFilters.NullsProvider;
 import org.junit.jupiter.api.BeforeAll;
@@ -52,7 +55,9 @@ import java.util.stream.Stream;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
+import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.trino.operator.gpu.GpuTestUtils.MAX_GPU_TIMESTAMP_PRECISION;
+import static io.trino.operator.gpu.GpuTestUtils.TESTED_GPU_TIMESTAMP_WITH_TIME_ZONE_TYPES;
 import static io.trino.operator.gpu.GpuTestUtils.TESTED_GPU_TYPES;
 import static io.trino.operator.gpu.GpuTestUtils.assertSameDataInOrder;
 import static io.trino.operator.gpu.GpuTestUtils.createBlock;
@@ -60,11 +65,18 @@ import static io.trino.operator.gpu.GpuTestUtils.createBlocks;
 import static io.trino.operator.gpu.GpuTestUtils.executeGpuOperation;
 import static io.trino.operator.gpu.GpuTestUtils.maybeSetGpuMemoryPoolForTests;
 import static io.trino.operator.gpu.GpuTestUtils.positions;
+import static io.trino.spi.StandardErrorCode.NOT_SUPPORTED;
 import static io.trino.spi.StandardErrorCode.NUMERIC_VALUE_OUT_OF_RANGE;
 import static io.trino.spi.type.CharType.createCharType;
+import static io.trino.spi.type.DateTimeEncoding.packDateTimeWithZone;
+import static io.trino.spi.type.DateTimeEncoding.unpackZoneKey;
 import static io.trino.spi.type.DecimalType.createDecimalType;
 import static io.trino.spi.type.DoubleType.DOUBLE;
 import static io.trino.spi.type.RealType.REAL;
+import static io.trino.spi.type.TimeZoneKey.UTC_KEY;
+import static io.trino.spi.type.TimeZoneKey.getTimeZoneKey;
+import static io.trino.spi.type.TimeZoneKey.getTimeZoneKeyForOffset;
+import static io.trino.spi.type.TimestampWithTimeZoneType.createTimestampWithTimeZoneType;
 import static io.trino.spi.type.TypeUtils.readNativeValue;
 import static io.trino.spi.type.TypeUtils.writeNativeValue;
 import static io.trino.spi.type.VarbinaryType.VARBINARY;
@@ -577,6 +589,98 @@ public class TestGpuDataConversion
                             .isEqualTo(expected);
                 }
             }
+        }
+    }
+
+    @ParameterizedTest
+    @EnumSource(NullsProvider.class)
+    void testTimestampWithTimeZonePages(NullsProvider nullsProvider)
+    {
+        List<Integer> positionsCounts = List.of(0, 1, 7, 16, 1_000, 33_333);
+        for (Type type : TESTED_GPU_TIMESTAMP_WITH_TIME_ZONE_TYPES) {
+            List<Type> types = List.of(type);
+            List<Page> inputPages = createInputPages(positionsCounts, nullsProvider, types);
+            assertRoundTripKeepsValuesInUtc(inputPages, types);
+            assertRoundTripKeepsValuesInUtc(toRlePages(inputPages), types);
+            assertRoundTripKeepsValuesInUtc(toDictionaryPages(inputPages), types);
+        }
+    }
+
+    /// `assertSameDataInOrder` compares two `timestamp with time zone` values by instant, the way
+    /// Trino does, so the zone has to be asserted on its own for the round trip to prove it comes
+    /// back as UTC rather than as whatever the input happened to hold.
+    private void assertRoundTripKeepsValuesInUtc(List<Page> inputPages, List<Type> types)
+    {
+        List<Page> outputPages = executeRoundTrip(inputPages, types, Set.of(0));
+        assertSameDataInOrder(outputPages, inputPages, types);
+
+        TimestampWithTimeZoneType type = (TimestampWithTimeZoneType) getOnlyElement(types);
+        for (Page page : outputPages) {
+            Block block = page.getBlock(0);
+            for (int position = 0; position < block.getPositionCount(); position++) {
+                if (block.isNull(position)) {
+                    continue;
+                }
+                assertThat(zoneKeyOf(type, block, position))
+                        .as("%s position %s", type, position)
+                        .isEqualTo(UTC_KEY);
+            }
+        }
+    }
+
+    private static TimeZoneKey zoneKeyOf(TimestampWithTimeZoneType type, Block block, int position)
+    {
+        Object value = readNativeValue(type, block, position);
+        if (type.isShort()) {
+            return unpackZoneKey((Long) value);
+        }
+        return getTimeZoneKey(((LongTimestampWithTimeZone) value).getTimeZoneKey());
+    }
+
+    /// The GPU representation carries the instant alone, so a value in another zone would come back
+    /// rendered in UTC. Nothing can fall back to the CPU once the page is on its way to the device,
+    /// so the copy fails instead of losing the zone.
+    @Test
+    void testTimestampWithTimeZoneRejectsZoneOtherThanUtc()
+    {
+        List<TimeZoneKey> zoneKeys = List.of(
+                getTimeZoneKeyForOffset(5 * 60 + 30),
+                getTimeZoneKey("Europe/Warsaw"));
+        for (Type type : TESTED_GPU_TIMESTAMP_WITH_TIME_ZONE_TYPES) {
+            TimestampWithTimeZoneType timestampWithTimeZoneType = (TimestampWithTimeZoneType) type;
+            for (TimeZoneKey zoneKey : zoneKeys) {
+                BlockBuilder builder = type.createBlockBuilder(null, 2);
+                builder.appendNull();
+                if (timestampWithTimeZoneType.isShort()) {
+                    timestampWithTimeZoneType.writeLong(builder, packDateTimeWithZone(0, zoneKey));
+                }
+                else {
+                    timestampWithTimeZoneType.writeObject(builder, LongTimestampWithTimeZone.fromEpochMillisAndFraction(0, 0, zoneKey));
+                }
+
+                List<Type> types = List.of(type);
+                List<Page> inputPages = List.of(new Page(builder.build()));
+                assertTrinoExceptionThrownBy(() -> executeRoundTrip(inputPages, types, Set.of(0)))
+                        .hasErrorCode(NOT_SUPPORTED)
+                        .hasMessage("%s value not supported by GPU: time zone must be UTC, was %s".formatted(type, zoneKey.getId()));
+            }
+        }
+    }
+
+    @Test
+    void testTimestampWithTimeZoneConvertibility()
+    {
+        for (Type type : TESTED_GPU_TIMESTAMP_WITH_TIME_ZONE_TYPES) {
+            TimestampWithTimeZoneType timestampWithTimeZoneType = (TimestampWithTimeZoneType) type;
+            assertThat(GpuTypeConversion.isConvertible(type)).as("%s", type).isTrue();
+            // The instant carrier is the one timestamp(p) of the same precision uses
+            assertThat(GpuTypeConversion.toDType(type))
+                    .as("%s", type)
+                    .isEqualTo(GpuTypeConversion.toDType(TimestampType.createTimestampType(timestampWithTimeZoneType.getPrecision())));
+        }
+        for (int precision = MAX_GPU_TIMESTAMP_PRECISION + 1; precision <= TimestampWithTimeZoneType.MAX_PRECISION; precision++) {
+            Type type = createTimestampWithTimeZoneType(precision);
+            assertThat(GpuTypeConversion.isConvertible(type)).as("%s", type).isFalse();
         }
     }
 

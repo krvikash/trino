@@ -13,11 +13,40 @@
  */
 package io.trino.plugin.deltalake;
 
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
+import io.trino.Session;
+import io.trino.filesystem.Location;
+import io.trino.filesystem.TrinoFileSystem;
+import io.trino.filesystem.TrinoFileSystemFactory;
+import io.trino.parquet.writer.ParquetWriter;
+import io.trino.parquet.writer.ParquetWriterOptions;
+import io.trino.spi.PageBuilder;
+import io.trino.spi.block.BlockBuilder;
+import io.trino.spi.security.ConnectorIdentity;
+import io.trino.spi.type.LongTimestampWithTimeZone;
 import io.trino.sql.planner.plan.TableScanNode;
 import io.trino.testing.BaseGpuQueriesTest;
 import io.trino.testing.QueryRunner;
+import org.apache.parquet.schema.LogicalTypeAnnotation;
+import org.apache.parquet.schema.LogicalTypeAnnotation.TimeUnit;
+import org.apache.parquet.schema.MessageType;
+import org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName;
+import org.apache.parquet.schema.Types;
+import org.joda.time.DateTimeZone;
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
+import java.io.OutputStream;
+import java.util.Optional;
+
+import static io.trino.SystemSessionProperties.GPU_EXECUTION_ENABLED;
+import static io.trino.plugin.deltalake.TestingDeltaLakeUtils.getConnectorService;
+import static io.trino.spi.type.TimeZoneKey.UTC_KEY;
+import static io.trino.spi.type.TimestampWithTimeZoneType.TIMESTAMP_TZ_MICROS;
+import static io.trino.testing.TestingNames.randomNameSuffix;
+import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.apache.parquet.format.CompressionCodec.SNAPPY;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class TestDeltaLakeGpuQueries
@@ -97,9 +126,73 @@ public class TestDeltaLakeGpuQueries
     {
         assertThat(query("SELECT \"$path\" FROM nation")).executesWithGpu(TableScanNode.class);
         assertThat(query("SELECT \"$file_size\" FROM nation")).executesWithGpu(TableScanNode.class);
-        // $file_modified_time is timestamp with time zone, which the engine does not run on the GPU
-        assertThat(query("SELECT \"$file_modified_time\" FROM nation")).executesWithoutGpu();
+        // $file_modified_time is a timestamp with time zone, which the GPU carries in UTC
+        assertThat(query("SELECT \"$file_modified_time\" FROM nation")).executesWithGpu(TableScanNode.class);
 
         assertThat(query("SELECT nationkey, \"$path\", \"$file_size\", name FROM nation")).executesWithGpu(TableScanNode.class);
+    }
+
+    @Test
+    public void testTimestampWithTimeZoneRoundingDisparityBetweenGpuAndCpu()
+            throws Exception
+    {
+        String tableName = "test_gpu_tstz_rounding_disparity_" + randomNameSuffix();
+        assertUpdate("CREATE TABLE " + tableName + " (ts timestamp(3) with time zone)");
+        assertUpdate("INSERT INTO " + tableName + " VALUES NULL", 1);
+        String path = (String) computeScalar("SELECT \"$path\" FROM " + tableName);
+        // Sub-millisecond parts of exactly half a millisecond, in the INT64 microseconds Spark writes
+        writeMicrosDataFile(
+                path.substring(0, path.lastIndexOf('/')),
+                2,
+                LongTimestampWithTimeZone.fromEpochMillisAndFraction(1718454896_123L, 500_000_000, UTC_KEY),
+                LongTimestampWithTimeZone.fromEpochMillisAndFraction(-1L, 500_000_000, UTC_KEY));
+        String selectQuery = "SELECT ts FROM " + tableName;
+
+        // TODO (https://starburstdata.atlassian.net/browse/ENG-28211): round instead of truncating
+        assertThat(query(selectQuery))
+                .matches("VALUES NULL, TIMESTAMP '2024-06-15 12:34:56.123 UTC', TIMESTAMP '1969-12-31 23:59:59.999 UTC'");
+
+        Session gpuDisabled = Session.builder(getSession())
+                .setSystemProperty(GPU_EXECUTION_ENABLED, "false")
+                .build();
+        assertThat(query(gpuDisabled, selectQuery))
+                .matches("VALUES NULL, TIMESTAMP '2024-06-15 12:34:56.124 UTC', TIMESTAMP '1970-01-01 00:00:00.000 UTC'");
+
+        assertUpdate("DROP TABLE " + tableName);
+    }
+
+    private void writeMicrosDataFile(String tableLocation, int version, LongTimestampWithTimeZone... values)
+            throws IOException
+    {
+        TrinoFileSystem fileSystem = getConnectorService(getQueryRunner(), TrinoFileSystemFactory.class)
+                .create(ConnectorIdentity.ofUser("test"));
+        String fileName = "int64_micros.parquet";
+        Location dataFile = Location.of(tableLocation + "/" + fileName);
+        MessageType schema = Types.buildMessage()
+                .addField(Types.optional(PrimitiveTypeName.INT64).as(LogicalTypeAnnotation.timestampType(true, TimeUnit.MICROS)).named("ts"))
+                .named("schema");
+        try (OutputStream out = fileSystem.newOutputFile(dataFile).create();
+                ParquetWriter writer = new ParquetWriter(
+                        out,
+                        schema,
+                        ImmutableMap.of(ImmutableList.of("ts"), TIMESTAMP_TZ_MICROS),
+                        ParquetWriterOptions.builder().build(),
+                        SNAPPY,
+                        "test-version",
+                        Optional.of(DateTimeZone.UTC),
+                        Optional.empty())) {
+            PageBuilder pageBuilder = new PageBuilder(ImmutableList.of(TIMESTAMP_TZ_MICROS));
+            BlockBuilder builder = pageBuilder.getBlockBuilder(0);
+            for (LongTimestampWithTimeZone value : values) {
+                TIMESTAMP_TZ_MICROS.writeObject(builder, value);
+            }
+            pageBuilder.declarePositions(values.length);
+            writer.write(pageBuilder.build());
+        }
+        long fileSize = fileSystem.newInputFile(dataFile).length();
+        String commit = "{\"add\":{\"path\":\"%s\",\"partitionValues\":{},\"size\":%s,\"modificationTime\":1,\"dataChange\":true}}\n".formatted(fileName, fileSize);
+        try (OutputStream out = fileSystem.newOutputFile(Location.of("%s/_delta_log/%020d.json".formatted(tableLocation, version))).create()) {
+            out.write(commit.getBytes(UTF_8));
+        }
     }
 }

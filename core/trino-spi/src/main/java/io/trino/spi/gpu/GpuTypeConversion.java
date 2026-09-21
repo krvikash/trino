@@ -34,6 +34,7 @@ import io.trino.spi.block.IntArrayBlock;
 import io.trino.spi.block.LongArrayBlock;
 import io.trino.spi.block.RunLengthEncodedBlock;
 import io.trino.spi.block.ShortArrayBlock;
+import io.trino.spi.block.ValueBlock;
 import io.trino.spi.block.VariableWidthBlock;
 import io.trino.spi.gpu.Column.Blocks;
 import io.trino.spi.gpu.borrow.Borrow;
@@ -48,9 +49,11 @@ import io.trino.spi.type.DoubleType;
 import io.trino.spi.type.Int128;
 import io.trino.spi.type.IntegerType;
 import io.trino.spi.type.LongTimestamp;
+import io.trino.spi.type.LongTimestampWithTimeZone;
 import io.trino.spi.type.RealType;
 import io.trino.spi.type.SmallintType;
 import io.trino.spi.type.TimestampType;
+import io.trino.spi.type.TimestampWithTimeZoneType;
 import io.trino.spi.type.TinyintType;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.VarbinaryType;
@@ -69,6 +72,8 @@ import java.util.logging.Logger;
 import static io.trino.spi.StandardErrorCode.NUMERIC_VALUE_OUT_OF_RANGE;
 import static io.trino.spi.type.Chars.padSpaces;
 import static io.trino.spi.type.Chars.trimTrailingSpaces;
+import static io.trino.spi.type.DateTimeEncoding.unpackMillisUtc;
+import static io.trino.spi.type.TimeZoneKey.UTC_KEY;
 import static io.trino.spi.type.Timestamps.MICROSECONDS_PER_SECOND;
 import static io.trino.spi.type.Timestamps.NANOSECONDS_PER_MICROSECOND;
 import static io.trino.spi.type.Timestamps.PICOSECONDS_PER_NANOSECOND;
@@ -258,6 +263,29 @@ public final class GpuTypeConversion
                     }).orElseGet(() -> Scalar.listFromNull(BYTE_LIST_ELEMENT_TYPE)),
                     GpuTypeConversion::copyVarbinaryBlocksToDevice,
                     Optional.empty()));
+
+            // See GpuTimestampWithTimeZone: only the UTC instant travels, so only a value in UTC is
+            // representable and anything else fails on the way to the device
+            case TimestampWithTimeZoneType timestampWithTimeZoneType when timestampWithTimeZoneType.isShort() -> GpuTimestampWithTimeZone.instantDType(timestampWithTimeZoneType.getPrecision())
+                    .map(instantType -> new GpuTypeMapping(
+                            instantType,
+                            value -> Scalar.timestampFromLong(
+                                    instantType,
+                                    value.map(v -> GpuTimestampWithTimeZone.instantTicks(timestampWithTimeZoneType, instantType, (Long) v, 0)).orElse(null)),
+                            blocks -> copyTimestampWithTimeZoneBlocksToDevice(timestampWithTimeZoneType, instantType, blocks),
+                            nullChecked(scalar -> GpuTimestampWithTimeZone.packedEpochMillis(instantType, scalar.getLong()))));
+
+            case TimestampWithTimeZoneType timestampWithTimeZoneType -> GpuTimestampWithTimeZone.instantDType(timestampWithTimeZoneType.getPrecision())
+                    .map(instantType -> new GpuTypeMapping(
+                            instantType,
+                            value -> Scalar.timestampFromLong(
+                                    instantType,
+                                    value.map(v -> GpuTimestampWithTimeZone.instantTicks(timestampWithTimeZoneType, instantType, (LongTimestampWithTimeZone) v)).orElse(null)),
+                            blocks -> copyTimestampWithTimeZoneBlocksToDevice(timestampWithTimeZoneType, instantType, blocks),
+                            nullChecked(scalar -> LongTimestampWithTimeZone.fromEpochMillisAndFraction(
+                                    unpackMillisUtc(GpuTimestampWithTimeZone.packedEpochMillis(instantType, scalar.getLong())),
+                                    GpuTimestampWithTimeZone.picosOfMilli(instantType, scalar.getLong()),
+                                    UTC_KEY))));
 
             default -> {
                 log.log(Level.FINE, () -> "Type is not supported for GPU execution: %s".formatted(type.getDisplayName()));
@@ -800,6 +828,67 @@ public final class GpuTypeConversion
         long epochMicros = floorDiv(nanos, NANOSECONDS_PER_MICROSECOND);
         int picosOfMicro = floorMod(nanos, NANOSECONDS_PER_MICROSECOND) * PICOSECONDS_PER_NANOSECOND;
         return new LongTimestamp(epochMicros, picosOfMicro);
+    }
+
+    private static @Move ColumnVector copyTimestampWithTimeZoneBlocksToDevice(TimestampWithTimeZoneType type, DType instantType, Blocks blocks)
+    {
+        int totalPositions = blocks.positionCount();
+        if (totalPositions == 0) {
+            try (HostColumnVector.Builder builder = HostColumnVector.builder(instantType, 0)) {
+                return builder.buildAndPutOnDevice();
+            }
+        }
+
+        HostMemoryBuffer data = null;
+        HostMemoryBuffer validity = null;
+        try {
+            data = HostMemoryBuffer.allocate((long) totalPositions * Long.BYTES);
+            long destByteOffset = 0;
+            for (Block block : blocks.blocks()) {
+                int count = block.getPositionCount();
+                // A null position holds no value, so the zone it appears to carry is not the value's
+                // and must not be rejected; the tick left behind is never read
+                long[] temp = new long[count];
+                switch (block.getUnderlyingValueBlock()) {
+                    case LongArrayBlock longBlock -> {
+                        for (int i = 0; i < count; i++) {
+                            if (!block.isNull(i)) {
+                                temp[i] = GpuTimestampWithTimeZone.instantTicks(type, instantType, longBlock.getLong(block.getUnderlyingValuePosition(i)), 0);
+                            }
+                        }
+                    }
+                    case Fixed12Block fixed12Block -> {
+                        for (int i = 0; i < count; i++) {
+                            if (!block.isNull(i)) {
+                                int position = block.getUnderlyingValuePosition(i);
+                                temp[i] = GpuTimestampWithTimeZone.instantTicks(type, instantType, fixed12Block.getFixed12First(position), fixed12Block.getFixed12Second(position));
+                            }
+                        }
+                    }
+                    case ValueBlock valueBlock -> throw new IllegalArgumentException("Unexpected block type: " + valueBlock.getClass().getSimpleName());
+                }
+                data.setLongs(destByteOffset, temp, 0, count);
+                destByteOffset += (long) count * Long.BYTES;
+            }
+
+            ValidityResult validityResult = buildValidity(blocks, totalPositions);
+            validity = validityResult.buffer();
+            long nullCount = validityResult.nullCount();
+
+            try (HostColumnVector hcv = new HostColumnVector(instantType, totalPositions, Optional.of(nullCount), data, validity, null, List.of())) {
+                data = null;
+                validity = null;
+                return hcv.copyToDevice();
+            }
+        }
+        finally {
+            if (data != null) {
+                data.close();
+            }
+            if (validity != null) {
+                validity.close();
+            }
+        }
     }
 
     private static @Move ColumnVector copyVariableWithBlocksToDeviceString(Blocks blocks)

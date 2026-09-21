@@ -176,6 +176,7 @@ public class HiveGpuParquetPageSource
         // cuDF's INT96 decode silently overflows int64 (https://github.com/NVIDIA/cudf/issues/22930):
         // with TIMESTAMP_NANOSECONDS the valid range is only ~1677..2262;
         // with TIMESTAMP_MICROSECONDS it extends to ~year ±292,271.
+        // TODO (https://starburstdata.atlassian.net/browse/ENG-28211): round instead of truncating
         ParquetOptions.Builder optionsBuilder = ParquetOptions.builder()
                 .withTimeUnit(DType.TIMESTAMP_MICROSECONDS);
         for (HiveColumnHandle col : gpuColumns) {

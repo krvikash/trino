@@ -82,6 +82,7 @@ public class DeltaLakeConnector
     private final DeltaLakeTransactionManager transactionManager;
     private final Set<ConnectorTableFunction> tableFunctions;
     private final FunctionProvider functionProvider;
+    private final DeltaLakePageSourceProvider deltaLakePageSourceProvider;
 
     public DeltaLakeConnector(
             Injector injector,
@@ -102,7 +103,8 @@ public class DeltaLakeConnector
             Optional<ConnectorAccessControl> accessControl,
             DeltaLakeTransactionManager transactionManager,
             Set<ConnectorTableFunction> tableFunctions,
-            FunctionProvider functionProvider)
+            FunctionProvider functionProvider,
+            DeltaLakePageSourceProvider deltaLakePageSourceProvider)
     {
         this.injector = requireNonNull(injector, "injector is null");
         this.lifeCycleManager = requireNonNull(lifeCycleManager, "lifeCycleManager is null");
@@ -126,6 +128,7 @@ public class DeltaLakeConnector
         this.transactionManager = requireNonNull(transactionManager, "transactionManager is null");
         this.tableFunctions = ImmutableSet.copyOf(requireNonNull(tableFunctions, "tableFunctions is null"));
         this.functionProvider = requireNonNull(functionProvider, "functionProvider is null");
+        this.deltaLakePageSourceProvider = requireNonNull(deltaLakePageSourceProvider, "deltaLakePageSourceProvider is null");
     }
 
     @Override
@@ -167,7 +170,7 @@ public class DeltaLakeConnector
             @Override
             public GpuPageSourceSupport getGpuPageSourceSupport(ConnectorTableHandle connectorTableHandle, List<ColumnHandle> columns)
             {
-                return DeltaLakePageSourceProvider.getGpuPageSourceSupport(columns);
+                return deltaLakePageSourceProvider.getGpuPageSourceSupport(columns);
             }
 
             @Override

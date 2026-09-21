@@ -1140,6 +1140,7 @@
                                 <exclude>**/TestIcebergGpuConnectorTest.java</exclude>
                                 <exclude>**/TestIcebergGpuDistributedAggregations.java</exclude>
                                 <exclude>**/TestIcebergGpuJoinQueries.java</exclude>
+                                <exclude>**/TestIcebergGpuNonUtcTimeZone.java</exclude>
                                 <exclude>**/TestIcebergGpuQueries.java</exclude>
                                 <!-- end of gpu profile -->
                                 <exclude>**/Test*Avro*.java</exclude>
@@ -1190,6 +1191,7 @@
                                 <include>**/TestIcebergGpuConnectorTest.java</include>
                                 <include>**/TestIcebergGpuDistributedAggregations.java</include>
                                 <include>**/TestIcebergGpuJoinQueries.java</include>
+                                <include>**/TestIcebergGpuNonUtcTimeZone.java</include>
                                 <include>**/TestIcebergGpuQueries.java</include>
                             </includes>
                         </configuration>

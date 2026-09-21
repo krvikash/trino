@@ -24,6 +24,7 @@ import io.trino.operator.project.InputChannels;
 import io.trino.operator.scalar.DivideRoundToScale;
 import io.trino.spi.function.CatalogSchemaFunctionName;
 import io.trino.spi.function.OperatorType;
+import io.trino.spi.gpu.GpuTimestampWithTimeZone;
 import io.trino.spi.type.BigintType;
 import io.trino.spi.type.BooleanType;
 import io.trino.spi.type.CharType;
@@ -158,6 +159,13 @@ public final class GpuExpressionCompiler
         @Override
         protected Optional<GpuExpression> visitConstant(Constant literal, Void context)
         {
+            // The GPU representation of a timestamp with time zone drops the zone, so a constant in
+            // another zone would come back as UTC. Compilation can still decline it, unlike the copy
+            // of a column, which has no choice but to fail. A constant that is only compared against
+            // goes through comparedConstant instead
+            if (literal.type() instanceof TimestampWithTimeZoneType && literal.value() != null && !GpuTimestampWithTimeZone.hasUtcZone(literal.value())) {
+                return Optional.empty();
+            }
             return toGpuMapping(literal.type())
                     .map(_ -> new GpuConstant(literal.type(), Optional.ofNullable(literal.value())));
         }
@@ -479,6 +487,9 @@ public final class GpuExpressionCompiler
                 case TimestampType timestampType when timestampType.getPrecision() <= 9 -> {
                     // cudf NULL_MIN semantics for carrier DType match those of Trino Type
                 }
+                case TimestampWithTimeZoneType timestampWithTimeZoneType when timestampWithTimeZoneType.getPrecision() <= 9 -> {
+                    // Trino orders by instant, which is the whole of the carrier DType
+                }
                 default -> {
                     return Optional.empty();
                 }
@@ -505,15 +516,18 @@ public final class GpuExpressionCompiler
                 case TimestampType timestampType when timestampType.getPrecision() <= 9 -> {
                     // cudf comparison semantics for carrier DType match those of Trino Type
                 }
+                case TimestampWithTimeZoneType timestampWithTimeZoneType when timestampWithTimeZoneType.getPrecision() <= 9 -> {
+                    // Trino compares by instant, which is the whole of the carrier DType
+                }
                 default -> {
                     return Optional.empty();
                 }
             }
-            Optional<GpuExpression> leftCompiled = comparison.left().accept(this, context);
+            Optional<GpuExpression> leftCompiled = compileComparand(comparison.left(), context);
             if (leftCompiled.isEmpty()) {
                 return Optional.empty();
             }
-            Optional<GpuExpression> rightCompiled = comparison.right().accept(this, context);
+            Optional<GpuExpression> rightCompiled = compileComparand(comparison.right(), context);
             if (rightCompiled.isEmpty()) {
                 return Optional.empty();
             }
@@ -527,6 +541,23 @@ public final class GpuExpressionCompiler
                 case IrExpressions.Comparison.LessThanOrEqual _ -> Optional.of(new GpuBinaryExpression(left, right, BinaryOp.LESS_EQUAL, DType.BOOL8));
                 case IrExpressions.Comparison.Identical _ -> Optional.of(new GpuBinaryExpression(left, right, BinaryOp.NULL_EQUALS, DType.BOOL8));
             };
+        }
+
+        private Optional<GpuExpression> compileComparand(Expression comparand, Void context)
+        {
+            if (comparand instanceof Constant constant) {
+                return visitConstant(comparedConstant(constant), context);
+            }
+            return comparand.accept(this, context);
+        }
+
+        private static Constant comparedConstant(Constant constant)
+        {
+            if (constant.type() instanceof TimestampWithTimeZoneType && constant.value() != null) {
+                // Note: conversion to UTC isn't really necessary; it's here only to satisfy copier's safety checks
+                return new Constant(constant.type(), GpuTimestampWithTimeZone.withUtcZone(constant.value()));
+            }
+            return constant;
         }
 
         private Optional<GpuExpression> compileBinaryArithmetic(Call call, OperatorType operatorType, Void context)
@@ -1098,6 +1129,9 @@ public final class GpuExpressionCompiler
                 case TimestampType timestampType when timestampType.getPrecision() <= 9 -> {
                     // cudf comparison semantics for carrier DType match those of Trino Type
                 }
+                case TimestampWithTimeZoneType timestampWithTimeZoneType when timestampWithTimeZoneType.getPrecision() <= 9 -> {
+                    // Trino compares by instant, which is the whole of the carrier DType
+                }
                 default -> {
                     return Optional.empty();
                 }
@@ -1115,12 +1149,11 @@ public final class GpuExpressionCompiler
                 if (!(item instanceof Constant constant)) {
                     return Optional.empty();
                 }
-                Object value = constant.value();
-                if (value == null) {
+                if (constant.value() == null) {
                     hasNull = true;
                 }
                 else {
-                    nonNullConstants.add(value);
+                    nonNullConstants.add(comparedConstant(constant).value());
                 }
             }
 

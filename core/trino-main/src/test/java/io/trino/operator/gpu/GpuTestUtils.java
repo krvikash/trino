@@ -49,7 +49,9 @@ import io.trino.spi.type.CharType;
 import io.trino.spi.type.DecimalType;
 import io.trino.spi.type.Int128;
 import io.trino.spi.type.LongTimestamp;
+import io.trino.spi.type.LongTimestampWithTimeZone;
 import io.trino.spi.type.TimestampType;
+import io.trino.spi.type.TimestampWithTimeZoneType;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.VarcharType;
 import io.trino.sql.gen.TestColumnarFilters.NullsProvider;
@@ -90,14 +92,18 @@ import static io.trino.operator.gpu.expression.GpuExpressionCompiler.compileExpr
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.spi.type.CharType.createCharType;
+import static io.trino.spi.type.DateTimeEncoding.packDateTimeWithZone;
 import static io.trino.spi.type.DateType.DATE;
 import static io.trino.spi.type.DecimalType.createDecimalType;
 import static io.trino.spi.type.DoubleType.DOUBLE;
 import static io.trino.spi.type.IntegerType.INTEGER;
 import static io.trino.spi.type.RealType.REAL;
 import static io.trino.spi.type.SmallintType.SMALLINT;
+import static io.trino.spi.type.TimeZoneKey.UTC_KEY;
+import static io.trino.spi.type.TimestampWithTimeZoneType.createTimestampWithTimeZoneType;
 import static io.trino.spi.type.Timestamps.MICROSECONDS_PER_DAY;
 import static io.trino.spi.type.Timestamps.NANOSECONDS_PER_MICROSECOND;
+import static io.trino.spi.type.Timestamps.NANOSECONDS_PER_MILLISECOND;
 import static io.trino.spi.type.TinyintType.TINYINT;
 import static io.trino.spi.type.TypeUtils.readNativeValue;
 import static io.trino.spi.type.VarbinaryType.VARBINARY;
@@ -138,7 +144,15 @@ public final class GpuTestUtils
             .add(createVarcharType(5))
             .add(createVarcharType(20))
             .add(VARBINARY)
+            // Both representations of timestamp with time zone; the full precision sweep is
+            // TESTED_GPU_TIMESTAMP_WITH_TIME_ZONE_TYPES
+            .add(createTimestampWithTimeZoneType(3))
+            .add(createTimestampWithTimeZoneType(6))
             .build();
+
+    public static final List<Type> TESTED_GPU_TIMESTAMP_WITH_TIME_ZONE_TYPES = IntStream.rangeClosed(0, MAX_GPU_TIMESTAMP_PRECISION)
+            .mapToObj(precision -> (Type) createTimestampWithTimeZoneType(precision))
+            .collect(toImmutableList());
 
     public static final List<Type> TESTED_GPU_FLOATING_POINT_TYPES = List.of(DOUBLE, REAL);
 
@@ -322,6 +336,9 @@ public final class GpuTestUtils
         }
         if (type == VARBINARY) {
             return createVarbinaryBlocks(positionsCounts, nullsProvider);
+        }
+        if (type instanceof TimestampWithTimeZoneType timestampWithTimeZoneType) {
+            return createTimestampWithTimeZoneBlocks(positionsCounts, nullsProvider, timestampWithTimeZoneType);
         }
         throw new UnsupportedOperationException("Unsupported type: " + type);
     }
@@ -555,6 +572,56 @@ public final class GpuTestUtils
                     return builder.build();
                 })
                 .collect(toImmutableList());
+    }
+
+    /// Every value is in UTC, the one zone the GPU representation holds.
+    private static List<Block> createTimestampWithTimeZoneBlocks(List<Integer> positionsCounts, NullsProvider nullsProvider, TimestampWithTimeZoneType type)
+    {
+        Random random = new Random(42);
+        // Digits beyond the declared precision must be zero, in the milliseconds up to precision 3
+        // and in the picoseconds of the millisecond from precision 4
+        long millisScale = 1;
+        for (int precision = type.getPrecision(); precision < TimestampWithTimeZoneType.MAX_SHORT_PRECISION; precision++) {
+            millisScale *= 10;
+        }
+        int picosScale = 1;
+        for (int precision = type.getPrecision(); precision < TimestampWithTimeZoneType.MAX_PRECISION; precision++) {
+            picosScale *= 10;
+        }
+        long finalMillisScale = millisScale;
+        int finalPicosScale = picosScale;
+        return positionsCounts.stream()
+                .map(positionsCount -> {
+                    Optional<long[]> isValid = nullsProvider.getValidityWords(positionsCount);
+                    BlockBuilder builder = type.createBlockBuilder(null, positionsCount);
+                    for (int i = 0; i < positionsCount; i++) {
+                        if (isValid.isPresent() && !Bitmap.isSet(isValid.get(), 0, i)) {
+                            builder.appendNull();
+                            continue;
+                        }
+                        long epochMillis = randomEpochMillis(random, type.getPrecision());
+                        if (type.isShort()) {
+                            type.writeLong(builder, packDateTimeWithZone((epochMillis / finalMillisScale) * finalMillisScale, UTC_KEY));
+                        }
+                        else {
+                            int picosOfMilli = (random.nextInt(1_000_000_000) / finalPicosScale) * finalPicosScale;
+                            type.writeObject(builder, LongTimestampWithTimeZone.fromEpochMillisAndFraction(epochMillis, picosOfMilli, UTC_KEY));
+                        }
+                    }
+                    return builder.build();
+                })
+                .collect(toImmutableList());
+    }
+
+    /// An instant every precision can carry on the GPU. The nanosecond column that carries
+    /// `timestamp(7) with time zone` and finer reaches only about 292 years around the epoch, which is
+    /// narrower than the packed millisecond the Trino value itself holds.
+    private static long randomEpochMillis(Random random, int precision)
+    {
+        long bound = precision <= 6
+                ? 1L << 50
+                : Long.MAX_VALUE / NANOSECONDS_PER_MILLISECOND;
+        return random.nextLong(-bound, bound);
     }
 
     private static List<Block> createLongDecimalBlocks(List<Integer> positionsCounts, NullsProvider nullsProvider, DecimalType type)

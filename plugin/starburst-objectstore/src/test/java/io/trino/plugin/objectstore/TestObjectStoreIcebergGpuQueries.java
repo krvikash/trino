@@ -132,4 +132,13 @@ class TestObjectStoreIcebergGpuQueries
         assertThatThrownBy(super::testParquetFileWithNameMappingAndWithoutFieldIds)
                 .hasMessage("Catalog 'iceberg' not found");
     }
+
+    @Test
+    @Override
+    public void testTimestampWithTimeZoneDynamicFilter()
+    {
+        // This test cannot run against object store because of how it's implemented
+        assertThatThrownBy(super::testTimestampWithTimeZoneDynamicFilter)
+                .hasMessage("Catalog 'iceberg' not found");
+    }
 }

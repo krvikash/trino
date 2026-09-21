@@ -166,7 +166,7 @@ public class DeltaLakePageSourceProvider
     private final long gpuScanMaxPageSizeBytes;
     private final int domainCompactionThreshold;
     private final DateTimeZone parquetDateTimeZone;
-    private final DateTimeZone dateTimeZone;
+    private final DateTimeZone outputTimeZone;
     private final TypeManager typeManager;
 
     @Inject
@@ -188,7 +188,7 @@ public class DeltaLakePageSourceProvider
         this.gpuScanMaxPageSizeBytes = gpuParquetConfig.getMaxPageSize().toBytes();
         this.domainCompactionThreshold = deltaLakeConfig.getDomainCompactionThreshold();
         this.parquetDateTimeZone = deltaLakeConfig.getParquetDateTimeZone();
-        this.dateTimeZone = deltaLakeConfig.getDateTimeZone();
+        this.outputTimeZone = deltaLakeConfig.getDateTimeZone();
         this.typeManager = requireNonNull(typeManager, "typeManager is null");
     }
 
@@ -196,7 +196,7 @@ public class DeltaLakePageSourceProvider
      * Plan-time check whether a table scan of the given columns can run on the GPU.
      * Per-split concerns (deletion vectors, file format specifics) are handled in {@link #createGpuPageSource}.
      */
-    public static GpuPageSourceSupport getGpuPageSourceSupport(List<ColumnHandle> columns)
+    public GpuPageSourceSupport getGpuPageSourceSupport(List<ColumnHandle> columns)
     {
         for (ColumnHandle columnHandle : columns) {
             DeltaLakeColumnHandle column = (DeltaLakeColumnHandle) columnHandle;
@@ -206,6 +206,12 @@ public class DeltaLakePageSourceProvider
             String name = column.baseColumnName();
             if (name.equals(ROW_ID_COLUMN_NAME) || name.equals(ROW_POSITION_COLUMN_NAME)) {
                 return GpuPageSourceSupport.unsupported("Unsupported metadata column");
+            }
+            if (column.type() instanceof TimestampWithTimeZoneType && !outputTimeZone.equals(UTC)) {
+                // The GPU scan declines a non-UTC zone and the CPU reader then packs values in it,
+                // while the GPU representation of a timestamp with time zone holds the instant alone, in UTC.
+                // delta.parquet.time-zone is not checked: it shifts the instant, the zone is always UTC
+                return GpuPageSourceSupport.unsupported("timestamp with time zone columns are not supported with a non-UTC time zone");
             }
         }
         return GpuPageSourceSupport.SUPPORTED;
@@ -255,8 +261,8 @@ public class DeltaLakePageSourceProvider
         // cuDF reads timestamps as raw UTC without applying delta.parquet.time-zone / delta.time-zone.
         // The CPU path shifts timestamps for a non-UTC zone (TimestampTzBlockTransformer / INT96 rebasing);
         // fall back to CPU rather than produce shifted results.
-        if (!dateTimeZone.equals(UTC) || !parquetDateTimeZone.equals(UTC)) {
-            log.debug("GPU page source not supported: non-UTC time zone (parquet=%s, output=%s)", parquetDateTimeZone, dateTimeZone);
+        if (!outputTimeZone.equals(UTC) || !parquetDateTimeZone.equals(UTC)) {
+            log.debug("GPU page source not supported: non-UTC time zone (parquet=%s, output=%s)", parquetDateTimeZone, outputTimeZone);
             return Optional.empty();
         }
 
@@ -338,7 +344,7 @@ public class DeltaLakePageSourceProvider
                         outputColumns.add(new GpuConstantColumn(column, FILE_SIZE_TYPE, split.fileSize()));
                     }
                     else if (column.baseColumnName().equals(FILE_MODIFIED_TIME_COLUMN_NAME)) {
-                        long packedTimestamp = packDateTimeWithZone(split.fileModifiedTime(), dateTimeZone.getID());
+                        long packedTimestamp = packDateTimeWithZone(split.fileModifiedTime(), outputTimeZone.getID());
                         outputColumns.add(new GpuConstantColumn(column, FILE_MODIFIED_TIME_TYPE, packedTimestamp));
                     }
                     else {
@@ -524,7 +530,7 @@ public class DeltaLakePageSourceProvider
                     partitionKeys,
                     partitionValues,
                     generatePages(split.fileRowCount().get(), onlyRowIdColumn(regularColumns)),
-                    dateTimeZone,
+                    outputTimeZone,
                     split.path(),
                     split.fileSize(),
                     split.fileModifiedTime());
@@ -600,7 +606,7 @@ public class DeltaLakePageSourceProvider
                 partitionKeys,
                 partitionValues,
                 delegate,
-                dateTimeZone,
+                outputTimeZone,
                 split.path(),
                 split.fileSize(),
                 split.fileModifiedTime());
@@ -612,7 +618,7 @@ public class DeltaLakePageSourceProvider
             Map<String, Optional<String>> partitionKeys,
             Optional<List<String>> partitionValues,
             ConnectorPageSource delegate,
-            DateTimeZone dateTimeZone,
+            DateTimeZone outputTimeZone,
             String path,
             long fileSize,
             long fileModifiedTime)
@@ -631,7 +637,7 @@ public class DeltaLakePageSourceProvider
                 transform.constantValue(writeNativeValue(FILE_SIZE_TYPE, fileSize));
             }
             else if (column.baseColumnName().equals(FILE_MODIFIED_TIME_COLUMN_NAME)) {
-                long packedTimestamp = packDateTimeWithZone(fileModifiedTime, dateTimeZone.getID());
+                long packedTimestamp = packDateTimeWithZone(fileModifiedTime, outputTimeZone.getID());
                 transform.constantValue(writeNativeValue(FILE_MODIFIED_TIME_TYPE, packedTimestamp));
             }
             else if (column.baseColumnName().equals(ROW_ID_COLUMN_NAME)) {
@@ -643,8 +649,8 @@ public class DeltaLakePageSourceProvider
             else if (missingColumnNames.contains(column.baseColumnName())) {
                 transform.constantValue(column.type().createNullBlock());
             }
-            else if (!dateTimeZone.equals(UTC)) {
-                transform.transform(delegateIndex, new TimestampTzBlockTransformer(column.type(), dateTimeZone));
+            else if (!outputTimeZone.equals(UTC)) {
+                transform.transform(delegateIndex, new TimestampTzBlockTransformer(column.type(), outputTimeZone));
                 delegateIndex++;
             }
             else {

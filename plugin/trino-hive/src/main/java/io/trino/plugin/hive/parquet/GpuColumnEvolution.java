@@ -55,6 +55,7 @@ public final class GpuColumnEvolution
         }
         if (actualDType.isTimestampType() && expectedDType.isTimestampType()) {
             // TODO: Handle overflow https://starburstdata.atlassian.net/browse/ENG-18406
+            // TODO (https://starburstdata.atlassian.net/browse/ENG-28211): round instead of truncating
             return cudfColumn.castTo(expectedDType);
         }
         if (actualDType.isDecimalType() && expectedDType.isDecimalType()) {

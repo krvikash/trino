@@ -29,9 +29,12 @@ import io.trino.operator.gpu.expression.GpuExpression;
 import io.trino.operator.gpu.expression.GpuInColumn;
 import io.trino.operator.gpu.expression.GpuIsNull;
 import io.trino.operator.project.InputChannels;
+import io.trino.spi.block.Block;
+import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.DynamicFilter;
 import io.trino.spi.gpu.Column.Blocks;
+import io.trino.spi.gpu.GpuTimestampWithTimeZone;
 import io.trino.spi.gpu.GpuTypeConversion;
 import io.trino.spi.gpu.GpuTypeConversion.ToColumn;
 import io.trino.spi.gpu.borrow.Borrow;
@@ -40,6 +43,7 @@ import io.trino.spi.gpu.borrow.Own;
 import io.trino.spi.predicate.Domain;
 import io.trino.spi.predicate.SortedRangeSet;
 import io.trino.spi.predicate.TupleDomain;
+import io.trino.spi.type.TimestampWithTimeZoneType;
 import io.trino.spi.type.Type;
 import io.trino.sql.ir.Expression;
 import io.trino.sql.planner.DomainTranslator;
@@ -56,6 +60,8 @@ import static com.google.common.base.Verify.verifyNotNull;
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 import static io.trino.operator.gpu.expression.GpuExpressionCompiler.compileExpression;
+import static io.trino.spi.type.TypeUtils.readNativeValue;
+import static io.trino.spi.type.TypeUtils.writeNativeValue;
 import static java.util.Objects.requireNonNull;
 
 public class GpuDynamicFilterProvider
@@ -251,7 +257,9 @@ public class GpuDynamicFilterProvider
                 sortedRangeSet.isDiscreteSet()) {
             // Fast, vectorized track for discrete domains. These tend to be big and the generic route requires boxing and processing each of the IN list values
             // separately.
-            ColumnVector inList = handleCopier.get(handle).copyToDevice(new Blocks(ImmutableList.of(sortedRangeSet.getSortedRanges())));
+            // Note: conversion to UTC isn't really necessary; it's here only to satisfy copier's safety checks
+            Block values = withUtcZones(domain.getType(), sortedRangeSet.getSortedRanges());
+            ColumnVector inList = handleCopier.get(handle).copyToDevice(new Blocks(ImmutableList.of(values)));
             ownedVectors.add(inList);
             GpuExpression inPredicate = new GpuInColumn(
                     new GetOnlyColumn(),
@@ -272,6 +280,21 @@ public class GpuDynamicFilterProvider
             log.debug("Could not convert Domain to GPU expression: %s", domain);
         }
         return compiled;
+    }
+
+    /// See [GpuTimestampWithTimeZone#withUtcZone]: the values of a dynamic filter are only compared
+    /// against, so a zone the GPU representation does not hold can be dropped.
+    private static Block withUtcZones(Type type, Block values)
+    {
+        if (!(type instanceof TimestampWithTimeZoneType)) {
+            return values;
+        }
+        BlockBuilder builder = type.createBlockBuilder(null, values.getPositionCount());
+        for (int position = 0; position < values.getPositionCount(); position++) {
+            Object value = readNativeValue(type, values, position);
+            writeNativeValue(type, builder, value == null ? null : GpuTimestampWithTimeZone.withUtcZone(value));
+        }
+        return builder.build();
     }
 
     private static final class VersionedFilter

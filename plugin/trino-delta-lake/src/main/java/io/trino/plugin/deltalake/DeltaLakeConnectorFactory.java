@@ -172,7 +172,8 @@ public class DeltaLakeConnectorFactory
                     deltaAccessControl,
                     transactionManager,
                     connectorTableFunctions,
-                    functionProvider);
+                    functionProvider,
+                    injector.getInstance(DeltaLakePageSourceProvider.class));
         }
     }
 }

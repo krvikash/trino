@@ -104,6 +104,7 @@ public class DeltaLakeModule
 
         binder.bind(DeltaLakeTransactionManager.class).in(Scopes.SINGLETON);
         binder.bind(ConnectorSplitManager.class).to(DeltaLakeSplitManager.class).in(Scopes.SINGLETON);
+        binder.bind(DeltaLakePageSourceProvider.class).in(Scopes.SINGLETON);
         newOptionalBinder(binder, ConnectorPageSourceProvider.class)
                 .setDefault().to(DeltaLakePageSourceProvider.class).in(Scopes.SINGLETON);
         binder.bind(ConnectorPageSinkProvider.class).to(DeltaLakePageSinkProvider.class).in(Scopes.SINGLETON);

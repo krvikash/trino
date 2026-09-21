@@ -54,6 +54,7 @@ import java.util.Optional;
 
 import static com.google.common.base.Preconditions.checkState;
 import static io.trino.SystemSessionProperties.GPU_EXECUTION_ENABLED;
+import static io.trino.plugin.iceberg.IcebergSessionProperties.DYNAMIC_FILTERING_WAIT_TIMEOUT;
 import static io.trino.plugin.iceberg.IcebergTestUtils.getFileSystemFactory;
 import static io.trino.plugin.iceberg.IcebergTestUtils.getHiveMetastore;
 import static io.trino.plugin.iceberg.IcebergTestUtils.loadTable;
@@ -122,12 +123,11 @@ public class TestIcebergGpuQueries
         assertThat(query("SELECT nationkey, \"$path\", name FROM nation"))
                 .executesWithGpu(TableScanNode.class);
 
-        // TODO: the 'timestamp with time zone' type is not supported yet
-        //  https://starburstdata.atlassian.net/browse/ENG-18047
+        // $file_modified_time is a timestamp with time zone, which the GPU carries in UTC
         assertThat(query("SELECT \"$file_modified_time\" FROM nation"))
-                .executesWithoutGpu();
+                .executesWithGpu(TableScanNode.class);
         assertThat(query("SELECT nationkey, \"$file_modified_time\", name FROM nation"))
-                .executesWithoutGpu();
+                .executesWithGpu(TableScanNode.class);
 
         assertUpdate(
                 "CREATE TABLE test_gpu_partition_meta " +
@@ -345,6 +345,65 @@ public class TestIcebergGpuQueries
                 .executesWithGpu(TableScanNode.class);
 
         assertUpdate("DROP TABLE " + tableName);
+    }
+
+    /// Iceberg's `timestamptz` is always UTC on disk and the reader keeps it there, which is the
+    /// one zone the GPU representation holds.
+    @Test
+    public void testTimestampWithTimeZonePrecision()
+    {
+        String tableName = "test_gpu_timestamp_tz_" + randomNameSuffix();
+        assertUpdate("CREATE TABLE " + tableName + " (ts timestamp(6) with time zone)");
+        assertUpdate("INSERT INTO " + tableName + " VALUES " +
+                "(TIMESTAMP '2024-06-15 12:34:56.123456 UTC'), " +
+                "(TIMESTAMP '1970-01-01 00:00:00.000001 UTC'), " +
+                "(TIMESTAMP '2000-01-01 00:00:00.000000 UTC'), " +
+                "(NULL)", 4);
+
+        assertThat(query("SELECT ts FROM " + tableName))
+                .executesWithGpu(TableScanNode.class)
+                .matches("VALUES " +
+                        "TIMESTAMP '2024-06-15 12:34:56.123456 UTC', " +
+                        "TIMESTAMP '1970-01-01 00:00:00.000001 UTC', " +
+                        "TIMESTAMP '2000-01-01 00:00:00.000000 UTC', " +
+                        "NULL");
+
+        // Ordering and grouping are by instant, which is the whole of the GPU column
+        assertThat(query("SELECT ts FROM " + tableName + " WHERE ts IS NOT NULL ORDER BY ts DESC LIMIT 1"))
+                .executesWithGpu(TableScanNode.class)
+                .matches("VALUES TIMESTAMP '2024-06-15 12:34:56.123456 UTC'");
+        assertThat(query("SELECT ts, count(*) FROM " + tableName + " GROUP BY ts"))
+                .executesWithGpu(TableScanNode.class)
+                .matches("VALUES " +
+                        "(TIMESTAMP '2024-06-15 12:34:56.123456 UTC', BIGINT '1'), " +
+                        "(TIMESTAMP '1970-01-01 00:00:00.000001 UTC', BIGINT '1'), " +
+                        "(TIMESTAMP '2000-01-01 00:00:00.000000 UTC', BIGINT '1'), " +
+                        "(NULL, BIGINT '1')");
+
+        assertUpdate("DROP TABLE " + tableName);
+    }
+
+    @Test
+    public void testTimestampWithTimeZoneDynamicFilter()
+    {
+        String probeTable = "test_gpu_timestamp_tz_probe_" + randomNameSuffix();
+        String buildTable = "test_gpu_timestamp_tz_build_" + randomNameSuffix();
+        assertUpdate("CREATE TABLE " + probeTable + " AS SELECT * FROM (VALUES " +
+                "TIMESTAMP '2024-06-15 12:34:56.123456 UTC', " +
+                "TIMESTAMP '2000-01-01 00:00:00.000000 UTC') t(ts)", 2);
+        assertUpdate("CREATE TABLE " + buildTable + " AS SELECT BIGINT '1' id, TIMESTAMP '2024-06-15 12:34:56.123456 UTC' ts", 1);
+        Session session = Session.builder(getSession())
+                .setCatalogSessionProperty("iceberg", DYNAMIC_FILTERING_WAIT_TIMEOUT, "1m")
+                .build();
+
+        // The array keeps the join on the CPU, so the build side zone reaches the GPU scan only as a dynamic filter
+        assertThat(query(session, "SELECT p.ts, b.ids FROM " + probeTable + " p " +
+                "JOIN (SELECT ts AT TIME ZONE 'Europe/Warsaw' ts, ARRAY[id] ids FROM " + buildTable + ") b ON p.ts = b.ts"))
+                .executesWithGpu(TableScanNode.class)
+                .matches("VALUES (TIMESTAMP '2024-06-15 12:34:56.123456 UTC', ARRAY[BIGINT '1'])");
+
+        assertUpdate("DROP TABLE " + probeTable);
+        assertUpdate("DROP TABLE " + buildTable);
     }
 
     @Test
@@ -633,6 +692,7 @@ public class TestIcebergGpuQueries
                         .build())
                 .commit();
 
+        // TODO (https://starburstdata.atlassian.net/browse/ENG-28211): round instead of truncating
         // GPU truncates: 123456789 nanos → 123456 micros
         assertThat(query("SELECT ts FROM " + tableName))
                 .matches("VALUES TIMESTAMP '2024-06-15 12:34:56.123456'");

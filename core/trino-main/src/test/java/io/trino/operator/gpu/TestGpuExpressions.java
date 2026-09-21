@@ -46,7 +46,9 @@ import io.trino.spi.type.Chars;
 import io.trino.spi.type.DecimalType;
 import io.trino.spi.type.Int128;
 import io.trino.spi.type.LongTimestamp;
+import io.trino.spi.type.LongTimestampWithTimeZone;
 import io.trino.spi.type.TimeType;
+import io.trino.spi.type.TimeZoneKey;
 import io.trino.spi.type.TimestampType;
 import io.trino.spi.type.TimestampWithTimeZoneType;
 import io.trino.spi.type.Timestamps;
@@ -129,6 +131,7 @@ import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.spi.type.CharType.createCharType;
 import static io.trino.spi.type.Chars.truncateToLengthAndTrimSpaces;
+import static io.trino.spi.type.DateTimeEncoding.packDateTimeWithZone;
 import static io.trino.spi.type.DateType.DATE;
 import static io.trino.spi.type.DecimalType.createDecimalType;
 import static io.trino.spi.type.DoubleType.DOUBLE;
@@ -136,7 +139,10 @@ import static io.trino.spi.type.IntegerType.INTEGER;
 import static io.trino.spi.type.NumberType.NUMBER;
 import static io.trino.spi.type.RealType.REAL;
 import static io.trino.spi.type.SmallintType.SMALLINT;
+import static io.trino.spi.type.TimeZoneKey.UTC_KEY;
+import static io.trino.spi.type.TimeZoneKey.getTimeZoneKey;
 import static io.trino.spi.type.TimestampType.createTimestampType;
+import static io.trino.spi.type.TimestampWithTimeZoneType.createTimestampWithTimeZoneType;
 import static io.trino.spi.type.Timestamps.MICROSECONDS_PER_DAY;
 import static io.trino.spi.type.Timestamps.NANOSECONDS_PER_DAY;
 import static io.trino.spi.type.Timestamps.NANOSECONDS_PER_MICROSECOND;
@@ -4634,6 +4640,40 @@ public class TestGpuExpressions
     {
         testIn(BIGINT, Arrays.asList(10L, null, 50L), nullsProvider);
         testIn(BIGINT, Collections.singletonList(null), nullsProvider);
+    }
+
+    /// Trino compares a `timestamp with time zone` by instant, so a constant in another zone is
+    /// equal to a column value of the same instant in UTC.
+    @Test
+    void testTimestampWithTimeZoneComparedWithConstantInAnotherZone()
+    {
+        TimeZoneKey warsaw = getTimeZoneKey("Europe/Warsaw");
+        long epochMillis = 1718454896123L;
+        for (int precision : List.of(3, 6, 9)) {
+            TimestampWithTimeZoneType type = createTimestampWithTimeZoneType(precision);
+            BlockBuilder builder = type.createBlockBuilder(null, 3);
+            writeNativeValue(type, builder, timestampWithTimeZone(type, epochMillis, UTC_KEY));
+            writeNativeValue(type, builder, timestampWithTimeZone(type, epochMillis + 1, UTC_KEY));
+            builder.appendNull();
+            List<Page> inputPages = List.of(new Page(builder.build()));
+            List<Type> inputTypes = List.of(type);
+
+            Expression in = new In(field(0, type), ImmutableList.of(
+                    new Constant(type, timestampWithTimeZone(type, epochMillis, warsaw)),
+                    new Constant(type, timestampWithTimeZone(type, epochMillis + 2, UTC_KEY))));
+            assertGpuMatchesCpu(inputPages, inputTypes, in, Set.of(0));
+
+            Expression lessThan = comparison(ComparisonOperator.LESS_THAN, field(0, type), new Constant(type, timestampWithTimeZone(type, epochMillis + 1, warsaw)));
+            assertGpuMatchesCpu(inputPages, inputTypes, lessThan, Set.of(0));
+        }
+    }
+
+    private static Object timestampWithTimeZone(TimestampWithTimeZoneType type, long epochMillis, TimeZoneKey zoneKey)
+    {
+        if (type.isShort()) {
+            return packDateTimeWithZone(epochMillis, zoneKey);
+        }
+        return LongTimestampWithTimeZone.fromEpochMillisAndFraction(epochMillis, 0, zoneKey);
     }
 
     private void testIn(Type type, List<Object> inValues, NullsProvider nullsProvider)

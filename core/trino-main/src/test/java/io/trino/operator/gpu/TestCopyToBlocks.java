@@ -24,7 +24,9 @@ import io.trino.spi.gpu.Column;
 import io.trino.spi.gpu.Column.Blocks;
 import io.trino.spi.gpu.Column.DeviceMemory;
 import io.trino.spi.gpu.GpuPage;
+import io.trino.spi.type.SqlTimestampWithTimeZone;
 import io.trino.spi.type.TimestampType;
+import io.trino.spi.type.TimestampWithTimeZoneType;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
@@ -36,7 +38,10 @@ import static io.trino.operator.gpu.GpuTestUtils.createBlocks;
 import static io.trino.operator.gpu.GpuTestUtils.drainToPages;
 import static io.trino.operator.gpu.GpuTestUtils.maybeSetGpuMemoryPoolForTests;
 import static io.trino.spi.type.IntegerType.INTEGER;
+import static io.trino.spi.type.TimeZoneKey.UTC_KEY;
 import static io.trino.spi.type.TimestampType.createTimestampType;
+import static io.trino.spi.type.TimestampWithTimeZoneType.TIMESTAMP_TZ_MICROS;
+import static io.trino.spi.type.TimestampWithTimeZoneType.TIMESTAMP_TZ_MILLIS;
 import static io.trino.sql.gen.TestColumnarFilters.NullsProvider.RANDOM_NULLS;
 import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -106,6 +111,37 @@ class TestCopyToBlocks
             assertThat(output.getPositionCount()).isEqualTo(2);
             assertThat(output.getBlock(0).isNull(0)).isTrue();
             assertThat(type.getLong(output.getBlock(0), 1)).isEqualTo(1_000); // 1 millisecond in Trino's microseconds
+        }
+    }
+
+    @Test
+    void testCopiesTimestampWithTimeZoneNullWithUnsetValue()
+    {
+        testCopiesTimestampWithTimeZoneNullWithUnsetValue(TIMESTAMP_TZ_MILLIS);
+        testCopiesTimestampWithTimeZoneNullWithUnsetValue(TIMESTAMP_TZ_MICROS);
+    }
+
+    private static void testCopiesTimestampWithTimeZoneNullWithUnsetValue(TimestampWithTimeZoneType type)
+    {
+        GpuPage gpuPage;
+        try (ColumnVector values = switch (type.getPrecision()) {
+            case 3 -> ColumnVector.timestampMilliSecondsFromLongs(Long.MIN_VALUE, 1);
+            case 6 -> ColumnVector.timestampMicroSecondsFromLongs(Long.MIN_VALUE, 1_000);
+            default -> throw new IllegalArgumentException("Unexpected type: " + type);
+        };
+                ColumnVector validity = ColumnVector.fromBoxedBooleans(null, true);
+                Column column = new DeviceMemory(values.mergeAndSetValidity(BinaryOp.BITWISE_AND, validity))) {
+            gpuPage = new GpuPage(2, new Column[] {column});
+        }
+
+        GpuOperation.Context context = new TestingGpuOperationContext();
+        try (GpuOperation sourceOperation = singlePageSource(context, gpuPage);
+                CopyToBlocks operation = new CopyToBlocks(context, sourceOperation, ImmutableList.of(type))) {
+            Page output = getOnlyElement(drainToPages(() -> {}, operation));
+            assertThat(output.getPositionCount()).isEqualTo(2);
+            assertThat(output.getBlock(0).isNull(0)).isTrue();
+            assertThat(type.getObjectValue(output.getBlock(0), 1))
+                    .isEqualTo(SqlTimestampWithTimeZone.newInstance(type.getPrecision(), 1, 0, UTC_KEY));
         }
     }
 

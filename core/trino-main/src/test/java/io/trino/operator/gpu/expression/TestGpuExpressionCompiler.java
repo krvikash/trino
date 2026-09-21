@@ -16,8 +16,11 @@ package io.trino.operator.gpu.expression;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.trino.spi.type.ArrayType;
+import io.trino.spi.type.LongTimestampWithTimeZone;
 import io.trino.spi.type.MapType;
 import io.trino.spi.type.RowType;
+import io.trino.spi.type.TimeZoneKey;
+import io.trino.spi.type.TimestampWithTimeZoneType;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.TypeOperators;
 import io.trino.sql.ir.ComparisonOperator;
@@ -43,6 +46,7 @@ import static io.trino.operator.gpu.expression.GpuExpressionCompiler.compileExpr
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.spi.type.CharType.createCharType;
+import static io.trino.spi.type.DateTimeEncoding.packDateTimeWithZone;
 import static io.trino.spi.type.DateType.DATE;
 import static io.trino.spi.type.DecimalType.createDecimalType;
 import static io.trino.spi.type.DoubleType.DOUBLE;
@@ -52,6 +56,8 @@ import static io.trino.spi.type.RealType.REAL;
 import static io.trino.spi.type.SmallintType.SMALLINT;
 import static io.trino.spi.type.TimeType.createTimeType;
 import static io.trino.spi.type.TimeWithTimeZoneType.createTimeWithTimeZoneType;
+import static io.trino.spi.type.TimeZoneKey.UTC_KEY;
+import static io.trino.spi.type.TimeZoneKey.getTimeZoneKey;
 import static io.trino.spi.type.TimestampType.createTimestampType;
 import static io.trino.spi.type.TimestampWithTimeZoneType.createTimestampWithTimeZoneType;
 import static io.trino.spi.type.TinyintType.TINYINT;
@@ -155,6 +161,54 @@ class TestGpuExpressionCompiler
                 .isEqualTo(expectGpuCompile);
     }
 
+    /// The GPU representation of a `timestamp with time zone` holds the UTC instant alone, so a
+    /// literal in another zone stays on the CPU rather than coming back rendered in UTC.
+    @Test
+    void testTimestampWithTimeZoneConstant()
+    {
+        for (int precision = 0; precision <= 9; precision++) {
+            TimestampWithTimeZoneType type = createTimestampWithTimeZoneType(precision);
+            assertThat(compileExpression(new Constant(type, null), ImmutableMap.of(), SQL_STANDARD))
+                    .as("null constant of %s", type)
+                    .isPresent();
+            assertThat(compileExpression(new Constant(type, epochValue(type, UTC_KEY)), ImmutableMap.of(), SQL_STANDARD))
+                    .as("UTC constant of %s", type)
+                    .isPresent();
+            assertThat(compileExpression(new Constant(type, epochValue(type, getTimeZoneKey("Europe/Warsaw"))), ImmutableMap.of(), SQL_STANDARD))
+                    .as("Europe/Warsaw constant of %s", type)
+                    .isEmpty();
+        }
+    }
+
+    @Test
+    void testTimestampWithTimeZoneComparedConstant()
+    {
+        for (int precision = 0; precision <= 9; precision++) {
+            TimestampWithTimeZoneType type = createTimestampWithTimeZoneType(precision);
+            Reference value = new Reference(type, "a");
+            Map<Symbol, Integer> layout = ImmutableMap.of(new Symbol(type, "a"), 0);
+            Constant utc = new Constant(type, epochValue(type, UTC_KEY));
+            Constant warsaw = new Constant(type, epochValue(type, getTimeZoneKey("Europe/Warsaw")));
+            assertThat(compileExpression(new In(value, ImmutableList.of(utc, warsaw)), layout, SQL_STANDARD))
+                    .as("In with Europe/Warsaw constant of %s", type)
+                    .isPresent();
+            assertThat(compileExpression(comparison(ComparisonOperator.LESS_THAN, value, warsaw), layout, SQL_STANDARD))
+                    .as("comparison with Europe/Warsaw constant of %s", type)
+                    .isPresent();
+            assertThat(compileExpression(comparison(ComparisonOperator.EQUAL, warsaw, value), layout, SQL_STANDARD))
+                    .as("comparison of Europe/Warsaw constant of %s", type)
+                    .isPresent();
+        }
+    }
+
+    private static Object epochValue(TimestampWithTimeZoneType type, TimeZoneKey zoneKey)
+    {
+        if (type.isShort()) {
+            return packDateTimeWithZone(0, zoneKey);
+        }
+        return LongTimestampWithTimeZone.fromEpochMillisAndFraction(0, 0, zoneKey);
+    }
+
     static Stream<Arguments> operandTypes()
     {
         return Stream.of(
@@ -218,16 +272,16 @@ class TestGpuExpressionCompiler
                 arguments(createTimestampType(10), false),
                 arguments(createTimestampType(11), false),
                 arguments(createTimestampType(12), false),
-                arguments(createTimestampWithTimeZoneType(0), false),
-                arguments(createTimestampWithTimeZoneType(1), false),
-                arguments(createTimestampWithTimeZoneType(2), false),
-                arguments(createTimestampWithTimeZoneType(3), false),
-                arguments(createTimestampWithTimeZoneType(4), false),
-                arguments(createTimestampWithTimeZoneType(5), false),
-                arguments(createTimestampWithTimeZoneType(6), false),
-                arguments(createTimestampWithTimeZoneType(7), false),
-                arguments(createTimestampWithTimeZoneType(8), false),
-                arguments(createTimestampWithTimeZoneType(9), false),
+                arguments(createTimestampWithTimeZoneType(0), true),
+                arguments(createTimestampWithTimeZoneType(1), true),
+                arguments(createTimestampWithTimeZoneType(2), true),
+                arguments(createTimestampWithTimeZoneType(3), true),
+                arguments(createTimestampWithTimeZoneType(4), true),
+                arguments(createTimestampWithTimeZoneType(5), true),
+                arguments(createTimestampWithTimeZoneType(6), true),
+                arguments(createTimestampWithTimeZoneType(7), true),
+                arguments(createTimestampWithTimeZoneType(8), true),
+                arguments(createTimestampWithTimeZoneType(9), true),
                 arguments(createTimestampWithTimeZoneType(10), false),
                 arguments(createTimestampWithTimeZoneType(11), false),
                 arguments(createTimestampWithTimeZoneType(12), false),

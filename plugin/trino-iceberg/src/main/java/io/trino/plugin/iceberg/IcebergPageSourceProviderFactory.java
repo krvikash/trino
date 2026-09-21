@@ -30,6 +30,7 @@ import io.trino.spi.connector.ConnectorPageSourceProviderFactory;
 import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.GpuPageSourceSupport;
 import io.trino.spi.connector.MemoryContext;
+import io.trino.spi.type.TimestampWithTimeZoneType;
 import io.trino.spi.type.TypeManager;
 import org.joda.time.DateTimeZone;
 
@@ -38,6 +39,7 @@ import java.util.Optional;
 
 import static io.trino.plugin.iceberg.IcebergMetadataColumn.isMetadataColumnId;
 import static java.util.Objects.requireNonNull;
+import static org.joda.time.DateTimeZone.UTC;
 
 public class IcebergPageSourceProviderFactory
         implements ConnectorPageSourceProviderFactory
@@ -98,6 +100,12 @@ public class IcebergPageSourceProviderFactory
             if (isMetadataColumnId(icebergColumn.getId()) && !isMetadataColumnSupportedForGpu(icebergColumn)) {
                 log.debug("GPU page source not supported: metadata column '%s' is not supported", icebergColumn.getName());
                 return GpuPageSourceSupport.unsupported("Unsupported metadata column");
+            }
+            if (icebergColumn.getType() instanceof TimestampWithTimeZoneType && !dateTimeZone.equals(UTC)) {
+                // The CPU reader packs values in iceberg.time-zone, while the GPU representation
+                // of a timestamp with time zone holds the instant alone, in UTC
+                log.debug("GPU page source not supported: column '%s' is timestamp with time zone and the time zone is %s", icebergColumn.getName(), dateTimeZone);
+                return GpuPageSourceSupport.unsupported("timestamp with time zone columns are not supported with a non-UTC time zone");
             }
         }
         return GpuPageSourceSupport.SUPPORTED;

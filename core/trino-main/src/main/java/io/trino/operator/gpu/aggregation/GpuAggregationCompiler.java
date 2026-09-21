@@ -52,6 +52,7 @@ import io.trino.spi.type.IntegerType;
 import io.trino.spi.type.RealType;
 import io.trino.spi.type.SmallintType;
 import io.trino.spi.type.TimestampType;
+import io.trino.spi.type.TimestampWithTimeZoneType;
 import io.trino.spi.type.TinyintType;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.VarcharType;
@@ -484,6 +485,9 @@ public final class GpuAggregationCompiler
                         }
                         case TimestampType timestampType when timestampType.getPrecision() <= 9 -> {
                             // cudf comparison semantics for carrier DType match those of Trino Type
+                        }
+                        case TimestampWithTimeZoneType timestampWithTimeZoneType when timestampWithTimeZoneType.getPrecision() <= 9 -> {
+                            // Trino orders by instant, which is the whole of the carrier DType
                         }
                         default -> {
                             return Optional.empty();
