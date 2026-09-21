@@ -14,6 +14,7 @@
 package io.starburst.stargate.icehouse.io;
 
 import com.google.common.collect.ImmutableSet;
+import io.airlift.units.Duration;
 import io.starburst.stargate.icehouse.io.storage.exceptions.AccessDeniedStorageException;
 import io.starburst.stargate.icehouse.io.storage.exceptions.InterruptedStorageException;
 import io.starburst.stargate.icehouse.io.storage.exceptions.NotFoundStorageException;
@@ -25,6 +26,8 @@ import io.trino.filesystem.TrinoInput;
 import io.trino.filesystem.TrinoInputFile;
 import io.trino.filesystem.TrinoInputStream;
 import io.trino.filesystem.TrinoOutputFile;
+import io.trino.filesystem.UriLocation;
+import io.trino.filesystem.encryption.EncryptionKey;
 import io.trino.memory.context.AggregatedMemoryContext;
 import software.amazon.awssdk.core.exception.AbortedException;
 import software.amazon.awssdk.core.exception.SdkException;
@@ -34,6 +37,7 @@ import software.amazon.awssdk.services.sts.model.StsException;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.time.Instant;
+import java.util.Collection;
 import java.util.Optional;
 import java.util.Set;
 
@@ -144,6 +148,19 @@ public class S3ErrorMappingTrinoFileSystem
     }
 
     @Override
+    public void deleteFiles(Collection<Location> locations)
+            throws IOException
+    {
+        try {
+            delegate.deleteFiles(locations);
+        }
+        catch (IOException | SdkException e) {
+            tryRethrowException(e);
+            throw e;
+        }
+    }
+
+    @Override
     public void deleteDirectory(Location location)
             throws IOException
     {
@@ -240,6 +257,58 @@ public class S3ErrorMappingTrinoFileSystem
     {
         try {
             return delegate.createTemporaryDirectory(targetPath, temporaryPrefix, relativePrefix);
+        }
+        catch (IOException | SdkException e) {
+            tryRethrowException(e);
+            throw e;
+        }
+    }
+
+    @Override
+    public Optional<UriLocation> preSignedUri(Location location, Duration ttl)
+            throws IOException
+    {
+        try {
+            return delegate.preSignedUri(location, ttl);
+        }
+        catch (IOException | SdkException e) {
+            tryRethrowException(e);
+            throw e;
+        }
+    }
+
+    @Override
+    public Optional<UriLocation> preSignedPutUri(Location location, Duration ttl, Optional<EncryptionKey> key)
+            throws IOException
+    {
+        try {
+            return delegate.preSignedPutUri(location, ttl, key);
+        }
+        catch (IOException | SdkException e) {
+            tryRethrowException(e);
+            throw e;
+        }
+    }
+
+    @Override
+    public Optional<UriLocation> preSignedDeleteUri(Location location, Duration ttl)
+            throws IOException
+    {
+        try {
+            return delegate.preSignedDeleteUri(location, ttl);
+        }
+        catch (IOException | SdkException e) {
+            tryRethrowException(e);
+            throw e;
+        }
+    }
+
+    @Override
+    public Optional<UriLocation> encryptedPreSignedUri(Location location, Duration ttl, EncryptionKey key)
+            throws IOException
+    {
+        try {
+            return delegate.encryptedPreSignedUri(location, ttl, key);
         }
         catch (IOException | SdkException e) {
             tryRethrowException(e);
