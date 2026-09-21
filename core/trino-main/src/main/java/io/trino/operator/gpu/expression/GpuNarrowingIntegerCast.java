@@ -16,6 +16,7 @@ package io.trino.operator.gpu.expression;
 import ai.rapids.cudf.ColumnVector;
 import ai.rapids.cudf.DType;
 import ai.rapids.cudf.Scalar;
+import com.google.common.collect.ImmutableList;
 import io.trino.plugin.base.gpu.ClosingOnce;
 import io.trino.spi.TrinoException;
 import io.trino.spi.gpu.borrow.Borrow;
@@ -31,6 +32,7 @@ import static io.trino.operator.gpu.expression.CudfUtils.anyTrue;
 import static io.trino.operator.gpu.expression.CudfUtils.integerScalar;
 import static io.trino.operator.gpu.expression.CudfUtils.maxValue;
 import static io.trino.operator.gpu.expression.CudfUtils.minValue;
+import static io.trino.operator.gpu.expression.GpuExpressions.nullSkippingCheck;
 import static io.trino.spi.StandardErrorCode.NUMERIC_VALUE_OUT_OF_RANGE;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
@@ -78,6 +80,18 @@ public final class GpuNarrowingIntegerCast
             }
             return source.castTo(targetDType);
         }
+    }
+
+    @Override
+    protected Fallibility computeFallibility()
+    {
+        return nullSkippingCheck(ImmutableList.of(argument));
+    }
+
+    @Override
+    protected boolean computeNullOnNullInputs()
+    {
+        return argument.nullOnNullInputs();
     }
 
     @Override

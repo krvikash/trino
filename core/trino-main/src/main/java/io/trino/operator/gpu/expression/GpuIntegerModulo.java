@@ -16,6 +16,7 @@ package io.trino.operator.gpu.expression;
 import ai.rapids.cudf.ColumnVector;
 import ai.rapids.cudf.DType;
 import ai.rapids.cudf.Scalar;
+import com.google.common.collect.ImmutableList;
 import io.trino.plugin.base.gpu.ClosingOnce;
 import io.trino.spi.TrinoException;
 import io.trino.spi.gpu.borrow.Borrow;
@@ -28,6 +29,10 @@ import static ai.rapids.cudf.BinaryOp.MOD;
 import static ai.rapids.cudf.BinaryOp.NULL_LOGICAL_AND;
 import static io.trino.operator.gpu.expression.CudfUtils.anyTrue;
 import static io.trino.operator.gpu.expression.CudfUtils.zero;
+import static io.trino.operator.gpu.expression.GpuExpressions.anyNullOnNullInputs;
+import static io.trino.operator.gpu.expression.GpuExpressions.longValue;
+import static io.trino.operator.gpu.expression.GpuExpressions.nullSkippingCheck;
+import static io.trino.operator.gpu.expression.GpuExpressions.worstOf;
 import static io.trino.spi.StandardErrorCode.DIVISION_BY_ZERO;
 import static java.util.Objects.requireNonNull;
 
@@ -40,12 +45,17 @@ public final class GpuIntegerModulo
     private final GpuExpression left;
     private final GpuExpression right;
     private final DType operandType;
+    /// Whether the divisor can be 0, the only value on which the modulus fails.
+    private final boolean checkNeeded;
 
     public GpuIntegerModulo(GpuExpression left, GpuExpression right, DType operandType)
     {
         this.left = requireNonNull(left, "left is null");
         this.right = requireNonNull(right, "right is null");
         this.operandType = requireNonNull(operandType, "operandType is null");
+        this.checkNeeded = longValue(right)
+                .map(divisor -> divisor == 0)
+                .orElse(true);
     }
 
     @Override
@@ -53,20 +63,42 @@ public final class GpuIntegerModulo
     {
         try (ColumnVector leftResult = left.evaluate(positionCount, inputColumns);
                 ColumnVector rightResult = right.evaluate(positionCount, inputColumns)) {
-            // Trino's CPU evaluator short-circuits modulus when an operand is null. Mask the
-            // divisor-zero detection by "left IS NOT NULL" so the GPU side matches.
-            try (Scalar zero = zero(operandType);
-                    ClosingOnce<ColumnVector> divisorIsZero = ClosingOnce.own(rightResult.equalTo(zero));
-                    ClosingOnce<ColumnVector> dividendNotNull = ClosingOnce.own(leftResult.isNotNull());
-                    ColumnVector divByZero = divisorIsZero.borrow().binaryOp(NULL_LOGICAL_AND, dividendNotNull.borrow(), DType.BOOL8)) {
-                divisorIsZero.close();
-                dividendNotNull.close();
-                if (anyTrue(divByZero)) {
-                    throw new TrinoException(DIVISION_BY_ZERO, "Division by zero");
-                }
+            if (checkNeeded) {
+                verifyDivisorNotZero(leftResult, rightResult);
             }
             return leftResult.binaryOp(MOD, rightResult, operandType);
         }
+    }
+
+    private void verifyDivisorNotZero(@Borrow ColumnVector leftResult, @Borrow ColumnVector rightResult)
+    {
+        // Trino's CPU evaluator short-circuits modulus when an operand is null. Mask the
+        // divisor-zero detection by "left IS NOT NULL" so the GPU side matches.
+        try (Scalar zero = zero(operandType);
+                ClosingOnce<ColumnVector> divisorIsZero = ClosingOnce.own(rightResult.equalTo(zero));
+                ClosingOnce<ColumnVector> dividendNotNull = ClosingOnce.own(leftResult.isNotNull());
+                ColumnVector divByZero = divisorIsZero.borrow().binaryOp(NULL_LOGICAL_AND, dividendNotNull.borrow(), DType.BOOL8)) {
+            divisorIsZero.close();
+            dividendNotNull.close();
+            if (anyTrue(divByZero)) {
+                throw new TrinoException(DIVISION_BY_ZERO, "Division by zero");
+            }
+        }
+    }
+
+    @Override
+    protected Fallibility computeFallibility()
+    {
+        if (checkNeeded) {
+            return nullSkippingCheck(ImmutableList.of(left, right));
+        }
+        return worstOf(ImmutableList.of(left, right));
+    }
+
+    @Override
+    protected boolean computeNullOnNullInputs()
+    {
+        return anyNullOnNullInputs(ImmutableList.of(left, right));
     }
 
     @Override

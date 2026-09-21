@@ -29,6 +29,7 @@ import io.trino.operator.gpu.aggregation.GpuAggregateFunction;
 import io.trino.operator.gpu.aggregation.GpuAggregation;
 import io.trino.operator.gpu.aggregation.GpuSum;
 import io.trino.operator.gpu.expression.CompiledExpression;
+import io.trino.operator.gpu.expression.Fallibility;
 import io.trino.operator.gpu.expression.GetColumn;
 import io.trino.operator.gpu.expression.GpuCombineDecimalStateSumsToDecimal128;
 import io.trino.operator.gpu.expression.GpuCombineSumChunksToVarbinary;
@@ -44,6 +45,7 @@ import io.trino.spi.type.DecimalType;
 import io.trino.spi.type.Type;
 import io.trino.sql.gen.TestColumnarFilters.NullsProvider;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
@@ -83,6 +85,20 @@ final class TestGpuSumDecimalAggregation
     static void maybeSetGpuMemoryPool()
     {
         maybeSetGpuMemoryPoolForTests();
+    }
+
+    @Test
+    void testCombineNullSumChunks()
+    {
+        GpuExpression expression = new GpuCombineSumChunksToVarbinary(DType.create(DType.DTypeEnum.DECIMAL128, 0));
+        try (ColumnVector chunk = ColumnVector.fromBoxedLongs(null, 0L);
+                ColumnVector result = expression.evaluate(2, ImmutableList.of(chunk, chunk, chunk, chunk));
+                var host = result.copyToHost()) {
+            assertThat(expression.fallibility()).isEqualTo(Fallibility.FALLIBLE_EXCEPT_ALL_NULLS);
+            assertThat(expression.nullOnNullInputs()).isTrue();
+            assertThat(host.isNull(0)).isTrue();
+            assertThat(host.isNull(1)).isFalse();
+        }
     }
 
     private enum Engine
@@ -433,6 +449,18 @@ final class TestGpuSumDecimalAggregation
         {
             checkState(inputColumns.size() == 1, "Expected exactly one input column, got %s", inputColumns.size());
             return inputColumns.getFirst().castTo(decimal128Type);
+        }
+
+        @Override
+        protected Fallibility computeFallibility()
+        {
+            return Fallibility.INFALLIBLE;
+        }
+
+        @Override
+        protected boolean computeNullOnNullInputs()
+        {
+            return true;
         }
 
         @Override

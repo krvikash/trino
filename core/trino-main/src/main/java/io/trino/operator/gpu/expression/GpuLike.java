@@ -63,6 +63,18 @@ public final class GpuLike
     }
 
     @Override
+    protected Fallibility computeFallibility()
+    {
+        return searched.fallibility();
+    }
+
+    @Override
+    protected boolean computeNullOnNullInputs()
+    {
+        return searched.nullOnNullInputs();
+    }
+
+    @Override
     public boolean equals(Object obj)
     {
         return obj instanceof GpuLike other

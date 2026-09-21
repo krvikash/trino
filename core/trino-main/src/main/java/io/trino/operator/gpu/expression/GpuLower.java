@@ -18,6 +18,7 @@ import ai.rapids.cudf.ColumnView;
 import ai.rapids.cudf.DType;
 import ai.rapids.cudf.Scalar;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSortedSet;
 import io.trino.plugin.base.gpu.ClosingRef;
 import io.trino.spi.TrinoException;
@@ -34,6 +35,7 @@ import java.util.stream.IntStream;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static io.trino.operator.gpu.expression.CudfUtils.anyTrue;
+import static io.trino.operator.gpu.expression.GpuExpressions.nullSkippingCheck;
 import static io.trino.spi.StandardErrorCode.NOT_SUPPORTED;
 import static java.lang.Integer.compareUnsigned;
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -168,6 +170,18 @@ public final class GpuLower
         checkArgument(utf8Bytes.length >= 1 && utf8Bytes.length <= 4, "Expected 1 to 4 UTF-8 bytes for code point %s, got %s", codePoint, utf8Bytes.length);
         // reads the UTF-8 bytes as a big-endian positive magnitude
         return new BigInteger(1, utf8Bytes).intValue();
+    }
+
+    @Override
+    protected Fallibility computeFallibility()
+    {
+        return nullSkippingCheck(ImmutableList.of(argument));
+    }
+
+    @Override
+    protected boolean computeNullOnNullInputs()
+    {
+        return argument.nullOnNullInputs();
     }
 
     @Override

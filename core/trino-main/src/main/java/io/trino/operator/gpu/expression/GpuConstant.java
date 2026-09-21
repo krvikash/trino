@@ -33,7 +33,7 @@ public final class GpuConstant
     private final Type type;
     // TODO (https://starburstdata.atlassian.net/browse/ENG-9846) should the Scalar be created once?
     private final ToScalar toScalar;
-    private final Optional<Object> value;
+    final Optional<Object> value;
 
     public GpuConstant(Type type, Optional<Object> value)
     {
@@ -50,6 +50,18 @@ public final class GpuConstant
         try (Scalar scalar = toScalar.copyToScalar(value)) {
             return ColumnVector.fromScalar(scalar, positionCount);
         }
+    }
+
+    @Override
+    protected Fallibility computeFallibility()
+    {
+        return Fallibility.INFALLIBLE;
+    }
+
+    @Override
+    protected boolean computeNullOnNullInputs()
+    {
+        return value.isEmpty();
     }
 
     @Override

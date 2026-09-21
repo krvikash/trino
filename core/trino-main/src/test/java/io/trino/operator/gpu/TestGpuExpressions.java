@@ -102,6 +102,7 @@ import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.trino.operator.gpu.GpuTestUtils.FUNCTION_RESOLUTION;
 import static io.trino.operator.gpu.GpuTestUtils.MAX_GPU_TIMESTAMP_PRECISION;
 import static io.trino.operator.gpu.GpuTestUtils.TESTED_GPU_TYPES;
+import static io.trino.operator.gpu.GpuTestUtils.assertDeclaredBehaviorOnAllNulls;
 import static io.trino.operator.gpu.GpuTestUtils.assertGpuMatchesCpu;
 import static io.trino.operator.gpu.GpuTestUtils.assertSameDataInOrder;
 import static io.trino.operator.gpu.GpuTestUtils.compileCpuExpression;
@@ -4171,6 +4172,8 @@ public class TestGpuExpressions
     //  in float→int casts; switch the call site to plain assertGpuMatchesCpu.
     private void assertGpuMatchesCpuForCast(List<Page> inputPages, List<Type> inputTypes, Expression expression, PageProcessor cpuProcessor, CompiledExpression gpuExpression)
     {
+        assertDeclaredBehaviorOnAllNulls(inputPages, inputTypes, expression, gpuExpression);
+
         List<Page> cpuResults;
         try {
             cpuResults = executeWithCpu(cpuProcessor, inputPages);

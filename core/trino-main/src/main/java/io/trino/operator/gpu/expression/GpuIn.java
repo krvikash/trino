@@ -86,6 +86,19 @@ public final class GpuIn
     }
 
     @Override
+    protected Fallibility computeFallibility()
+    {
+        return value.fallibility();
+    }
+
+    @Override
+    protected boolean computeNullOnNullInputs()
+    {
+        // A NULL value matches none of the non-NULL constants, and FALSE becomes NULL only when the list has a NULL
+        return hasNull && value.nullOnNullInputs();
+    }
+
+    @Override
     public boolean equals(Object obj)
     {
         return obj instanceof GpuIn other

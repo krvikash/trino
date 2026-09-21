@@ -24,6 +24,7 @@ import io.trino.operator.gpu.GpuOperation;
 import io.trino.operator.gpu.GpuProject;
 import io.trino.operator.gpu.GpuProject.Projection;
 import io.trino.operator.gpu.expression.CompiledExpression;
+import io.trino.operator.gpu.expression.Fallibility;
 import io.trino.operator.gpu.expression.GetColumn;
 import io.trino.operator.gpu.expression.GpuCast;
 import io.trino.operator.gpu.expression.GpuCombineDecimalStateSumsToDecimal128;
@@ -74,6 +75,8 @@ import static com.google.common.base.Verify.verify;
 import static com.google.common.base.Verify.verifyNotNull;
 import static io.trino.metadata.GlobalFunctionCatalog.isBuiltinFunctionName;
 import static io.trino.operator.gpu.SignatureFormatter.formatAggregation;
+import static io.trino.operator.gpu.expression.GpuExpressions.anyNullOnNullInputs;
+import static io.trino.operator.gpu.expression.GpuExpressions.worstOf;
 import static io.trino.spi.gpu.GpuTypeConversion.isConvertible;
 import static io.trino.spi.gpu.GpuTypeConversion.nullScalar;
 import static io.trino.spi.gpu.GpuTypeConversion.toDType;
@@ -787,6 +790,19 @@ public final class GpuAggregationCompiler
             try (Scalar nullScalar = nullScalar(valueType)) {
                 return mask.ifElse(value, nullScalar);
             }
+        }
+
+        @Override
+        protected Fallibility computeFallibility()
+        {
+            return worstOf(ImmutableList.of(mask, value));
+        }
+
+        @Override
+        protected boolean computeNullOnNullInputs()
+        {
+            // ifElse selects the NULL replacement wherever the mask is not TRUE, NULL included
+            return anyNullOnNullInputs(ImmutableList.of(mask, value));
         }
 
         @Override

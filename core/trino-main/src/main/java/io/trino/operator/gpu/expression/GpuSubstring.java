@@ -15,6 +15,7 @@ package io.trino.operator.gpu.expression;
 
 import ai.rapids.cudf.ColumnVector;
 import ai.rapids.cudf.Scalar;
+import com.google.common.collect.ImmutableList;
 import io.trino.plugin.base.gpu.ClosingOnce;
 import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
@@ -33,6 +34,8 @@ import static ai.rapids.cudf.BinaryOp.NULL_MIN;
 import static ai.rapids.cudf.BinaryOp.SUB;
 import static ai.rapids.cudf.DType.BOOL8;
 import static ai.rapids.cudf.DType.INT32;
+import static io.trino.operator.gpu.expression.GpuExpressions.anyNullOnNullInputs;
+import static io.trino.operator.gpu.expression.GpuExpressions.worstOf;
 import static java.util.Objects.requireNonNull;
 
 public final class GpuSubstring
@@ -167,6 +170,26 @@ public final class GpuSubstring
                 ColumnVector clamped = int64Column.clamp(intMin, intMax)) {
             return clamped.castTo(INT32);
         }
+    }
+
+    @Override
+    protected Fallibility computeFallibility()
+    {
+        return worstOf(operands());
+    }
+
+    @Override
+    protected boolean computeNullOnNullInputs()
+    {
+        return anyNullOnNullInputs(operands());
+    }
+
+    private List<GpuExpression> operands()
+    {
+        ImmutableList.Builder<GpuExpression> operands = ImmutableList.builder();
+        operands.add(source, start);
+        length.ifPresent(operands::add);
+        return operands.build();
     }
 
     @Override

@@ -43,6 +43,18 @@ public final class Apply
     }
 
     @Override
+    protected Fallibility computeFallibility()
+    {
+        return expression.fallibility();
+    }
+
+    @Override
+    protected boolean computeNullOnNullInputs()
+    {
+        return expression.nullOnNullInputs();
+    }
+
+    @Override
     public boolean equals(Object obj)
     {
         return obj instanceof Apply other

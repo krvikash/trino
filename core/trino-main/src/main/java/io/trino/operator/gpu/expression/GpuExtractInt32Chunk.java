@@ -64,6 +64,18 @@ public final class GpuExtractInt32Chunk
     }
 
     @Override
+    protected Fallibility computeFallibility()
+    {
+        return source.fallibility();
+    }
+
+    @Override
+    protected boolean computeNullOnNullInputs()
+    {
+        return source.nullOnNullInputs();
+    }
+
+    @Override
     public boolean equals(Object obj)
     {
         return obj instanceof GpuExtractInt32Chunk other

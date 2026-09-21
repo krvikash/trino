@@ -25,6 +25,8 @@ import java.util.List;
 import java.util.Objects;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static io.trino.operator.gpu.expression.GpuExpressions.anyNullOnNullInputs;
+import static io.trino.operator.gpu.expression.GpuExpressions.worstOf;
 import static java.util.Objects.requireNonNull;
 
 /// `LEAST(a, b, ...)`: the smallest operand, or NULL when any operand is NULL.
@@ -57,6 +59,18 @@ public final class GpuLeast
             }
             return result.take();
         }
+    }
+
+    @Override
+    protected Fallibility computeFallibility()
+    {
+        return worstOf(operands);
+    }
+
+    @Override
+    protected boolean computeNullOnNullInputs()
+    {
+        return anyNullOnNullInputs(operands);
     }
 
     @Override

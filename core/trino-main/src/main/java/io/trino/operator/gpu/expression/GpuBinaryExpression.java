@@ -17,12 +17,15 @@ import ai.rapids.cudf.BinaryOp;
 import ai.rapids.cudf.BinaryOperable;
 import ai.rapids.cudf.ColumnVector;
 import ai.rapids.cudf.DType;
+import com.google.common.collect.ImmutableList;
 import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
 
 import java.util.List;
 import java.util.Objects;
 
+import static io.trino.operator.gpu.expression.GpuExpressions.anyNullOnNullInputs;
+import static io.trino.operator.gpu.expression.GpuExpressions.worstOf;
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -51,6 +54,24 @@ public final class GpuBinaryExpression
                 ColumnVector rightResult = right.evaluate(positionCount, inputColumns)) {
             return leftResult.binaryOp(operation, rightResult, outputType);
         }
+    }
+
+    @Override
+    protected Fallibility computeFallibility()
+    {
+        return worstOf(ImmutableList.of(left, right));
+    }
+
+    @Override
+    protected boolean computeNullOnNullInputs()
+    {
+        return switch (operation) {
+            case ADD, SUB, MUL, DIV, TRUE_DIV, FLOOR_DIV, MOD, PMOD, PYMOD, POW, INT_POW, LOG_BASE, ATAN2,
+                 SHIFT_LEFT, SHIFT_RIGHT, SHIFT_RIGHT_UNSIGNED, BITWISE_AND, BITWISE_OR, BITWISE_XOR,
+                 LOGICAL_AND, LOGICAL_OR, EQUAL, NOT_EQUAL, LESS, GREATER, LESS_EQUAL, GREATER_EQUAL -> anyNullOnNullInputs(ImmutableList.of(left, right));
+            // The NULL_* operations produce a value from NULL operands
+            case NULL_EQUALS, NULL_NOT_EQUALS, NULL_MAX, NULL_MIN, NULL_LOGICAL_AND, NULL_LOGICAL_OR -> false;
+        };
     }
 
     @Override

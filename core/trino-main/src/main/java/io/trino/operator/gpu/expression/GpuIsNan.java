@@ -41,6 +41,18 @@ public final class GpuIsNan
     }
 
     @Override
+    protected Fallibility computeFallibility()
+    {
+        return source.fallibility();
+    }
+
+    @Override
+    protected boolean computeNullOnNullInputs()
+    {
+        return false;
+    }
+
+    @Override
     public boolean equals(Object obj)
     {
         return obj instanceof GpuIsNan other && source.equals(other.source);

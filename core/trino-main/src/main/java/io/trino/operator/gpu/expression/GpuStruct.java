@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Objects;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static io.trino.operator.gpu.expression.GpuExpressions.worstOf;
 import static io.trino.plugin.base.gpu.GpuUtils.closeColumns;
 
 public final class GpuStruct
@@ -49,6 +50,18 @@ public final class GpuStruct
         finally {
             closeColumns(fieldColumns);
         }
+    }
+
+    @Override
+    protected Fallibility computeFallibility()
+    {
+        return worstOf(fields);
+    }
+
+    @Override
+    protected boolean computeNullOnNullInputs()
+    {
+        return false;
     }
 
     @Override

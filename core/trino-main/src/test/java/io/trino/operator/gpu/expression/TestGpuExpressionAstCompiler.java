@@ -409,6 +409,18 @@ class TestGpuExpressionAstCompiler
         }
 
         @Override
+        protected Fallibility computeFallibility()
+        {
+            return Fallibility.INFALLIBLE;
+        }
+
+        @Override
+        protected boolean computeNullOnNullInputs()
+        {
+            return false;
+        }
+
+        @Override
         public boolean equals(Object obj)
         {
             return obj instanceof EvaluateAst other && cudfAst.equals(other.cudfAst);

@@ -14,6 +14,7 @@
 package io.trino.operator.gpu.expression;
 
 import ai.rapids.cudf.ColumnVector;
+import com.google.common.collect.ImmutableList;
 import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
 
@@ -21,6 +22,7 @@ import java.util.List;
 import java.util.Objects;
 
 import static io.trino.operator.gpu.expression.CudfUtils.checkYearWithinCudfCalendar;
+import static io.trino.operator.gpu.expression.GpuExpressions.nullSkippingCheck;
 import static java.util.Objects.requireNonNull;
 
 public final class GpuLastDayOfMonth
@@ -42,6 +44,18 @@ public final class GpuLastDayOfMonth
             checkYearWithinCudfCalendar(dateTime);
             return dateTime.lastDayOfMonth();
         }
+    }
+
+    @Override
+    protected Fallibility computeFallibility()
+    {
+        return nullSkippingCheck(ImmutableList.of(argument));
+    }
+
+    @Override
+    protected boolean computeNullOnNullInputs()
+    {
+        return argument.nullOnNullInputs();
     }
 
     @Override

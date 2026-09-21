@@ -22,6 +22,7 @@ import io.trino.operator.gpu.GpuOperation.Data;
 import io.trino.operator.gpu.GpuOperation.Finished;
 import io.trino.operator.gpu.GpuOperation.Yielded;
 import io.trino.operator.gpu.expression.CompiledExpression;
+import io.trino.operator.gpu.expression.Fallibility;
 import io.trino.operator.gpu.expression.GpuExpression;
 import io.trino.operator.gpu.memory.AllocatedMemory;
 import io.trino.operator.gpu.memory.GpuDeviceMemoryUsageValidation;
@@ -89,6 +90,18 @@ class TestGpuFilterMemory
                     try (Scalar zero = Scalar.fromLong(0)) {
                         return inputs.getFirst().binaryOp(BinaryOp.GREATER_EQUAL, zero, DType.BOOL8);
                     }
+                }
+
+                @Override
+                protected Fallibility computeFallibility()
+                {
+                    return Fallibility.INFALLIBLE;
+                }
+
+                @Override
+                protected boolean computeNullOnNullInputs()
+                {
+                    return true;
                 }
 
                 @Override

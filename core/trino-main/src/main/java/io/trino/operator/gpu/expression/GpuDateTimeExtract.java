@@ -44,6 +44,18 @@ public final class GpuDateTimeExtract
     }
 
     @Override
+    protected Fallibility computeFallibility()
+    {
+        return argument.fallibility();
+    }
+
+    @Override
+    protected boolean computeNullOnNullInputs()
+    {
+        return argument.nullOnNullInputs();
+    }
+
+    @Override
     public boolean equals(Object obj)
     {
         return obj instanceof GpuDateTimeExtract other

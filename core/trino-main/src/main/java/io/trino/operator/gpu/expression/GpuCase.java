@@ -28,6 +28,10 @@ import java.util.Objects;
 import static com.google.common.base.Preconditions.checkArgument;
 import static io.trino.operator.gpu.expression.CudfUtils.allTrue;
 import static io.trino.operator.gpu.expression.CudfUtils.anyTrue;
+import static io.trino.operator.gpu.expression.Fallibility.FALLIBLE_EXCEPT_ALL_NULLS;
+import static io.trino.operator.gpu.expression.Fallibility.best;
+import static io.trino.operator.gpu.expression.Fallibility.worst;
+import static io.trino.operator.gpu.expression.GpuExpressions.worstOf;
 import static io.trino.spi.gpu.GpuTypeConversion.nullScalar;
 import static java.lang.Math.toIntExact;
 import static java.util.Objects.requireNonNull;
@@ -141,6 +145,37 @@ public final class GpuCase
                 Table scattered = sourceTable.scatter(indices, targetTable)) {
             return scattered.getColumn(0).incRefCount();
         }
+    }
+
+    @Override
+    protected Fallibility computeFallibility()
+    {
+        Fallibility fallibility = worstOf(conditions);
+        for (int i = 0; i < conditions.size(); i++) {
+            Fallibility resultFallibility;
+            if (conditions.get(i).nullOnNullInputs()) {
+                // A NULL condition cannot select its result on an all-NULL input row.
+                // The result can still fail on other rows, so cap its fallibility at FALLIBLE_EXCEPT_ALL_NULLS.
+                resultFallibility = best(results.get(i).fallibility(), FALLIBLE_EXCEPT_ALL_NULLS);
+            }
+            else {
+                resultFallibility = results.get(i).fallibility();
+            }
+            fallibility = worst(fallibility, resultFallibility);
+        }
+        return fallibility;
+    }
+
+    @Override
+    protected boolean computeNullOnNullInputs()
+    {
+        // A result is selected only where its condition is TRUE, and where no condition is, the output stays NULL
+        for (int i = 0; i < conditions.size(); i++) {
+            if (!conditions.get(i).nullOnNullInputs() && !results.get(i).nullOnNullInputs()) {
+                return false;
+            }
+        }
+        return true;
     }
 
     @Override

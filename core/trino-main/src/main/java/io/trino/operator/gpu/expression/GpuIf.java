@@ -27,6 +27,11 @@ import java.util.Objects;
 
 import static io.trino.operator.gpu.expression.CudfUtils.allTrue;
 import static io.trino.operator.gpu.expression.CudfUtils.anyTrue;
+import static io.trino.operator.gpu.expression.Fallibility.FALLIBLE_EXCEPT_ALL_NULLS;
+import static io.trino.operator.gpu.expression.Fallibility.best;
+import static io.trino.operator.gpu.expression.Fallibility.worst;
+import static io.trino.operator.gpu.expression.GpuExpressions.allNullOnNullInputs;
+import static io.trino.operator.gpu.expression.GpuExpressions.worstOf;
 import static io.trino.spi.gpu.GpuTypeConversion.nullScalar;
 import static java.util.Objects.requireNonNull;
 
@@ -137,6 +142,30 @@ public final class GpuIf
                 Table finalTable = falseResultTable.scatter(falseIndices, partial)) {
             return finalTable.getColumn(0).incRefCount();
         }
+    }
+
+    @Override
+    protected Fallibility computeFallibility()
+    {
+        Fallibility trueValueFallibility;
+        if (condition.nullOnNullInputs()) {
+            // A NULL condition selects the false branch
+            trueValueFallibility = best(trueValue.fallibility(), FALLIBLE_EXCEPT_ALL_NULLS);
+        }
+        else {
+            trueValueFallibility = trueValue.fallibility();
+        }
+        return worst(worstOf(ImmutableList.of(condition, falseValue)), trueValueFallibility);
+    }
+
+    @Override
+    protected boolean computeNullOnNullInputs()
+    {
+        if (condition.nullOnNullInputs()) {
+            // A NULL condition selects the false branch
+            return falseValue.nullOnNullInputs();
+        }
+        return allNullOnNullInputs(ImmutableList.of(trueValue, falseValue));
     }
 
     @Override

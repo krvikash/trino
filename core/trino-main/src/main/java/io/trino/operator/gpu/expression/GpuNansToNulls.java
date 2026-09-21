@@ -45,6 +45,18 @@ public final class GpuNansToNulls
     }
 
     @Override
+    protected Fallibility computeFallibility()
+    {
+        return source.fallibility();
+    }
+
+    @Override
+    protected boolean computeNullOnNullInputs()
+    {
+        return source.nullOnNullInputs();
+    }
+
+    @Override
     public boolean equals(Object obj)
     {
         return obj instanceof GpuNansToNulls other && source.equals(other.source);

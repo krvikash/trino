@@ -29,6 +29,7 @@ import io.trino.operator.gpu.GpuOperation.Data;
 import io.trino.operator.gpu.GpuOperation.Finished;
 import io.trino.operator.gpu.GpuOperation.Yielded;
 import io.trino.operator.gpu.expression.CompiledExpression;
+import io.trino.operator.gpu.expression.Fallibility;
 import io.trino.operator.gpu.memory.AllocatedMemory;
 import io.trino.operator.project.PageProcessor;
 import io.trino.spi.Page;
@@ -84,6 +85,7 @@ import static com.google.common.collect.Streams.stream;
 import static io.airlift.testing.Closeables.closeAllSuppress;
 import static io.trino.SystemSessionProperties.LEGACY_VARCHAR_TO_CHAR_COERCION;
 import static io.trino.memory.context.AggregatedMemoryContext.newSimpleAggregatedMemoryContext;
+import static io.trino.operator.gpu.expression.Fallibility.FALLIBLE;
 import static io.trino.operator.gpu.expression.GpuExpressionCompiler.compileExpression;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
@@ -1015,6 +1017,8 @@ public final class GpuTestUtils
             boolean allowMultipleInputsForExceptionTesting,
             CharVarcharCoercion charVarcharCoercion)
     {
+        assertDeclaredBehaviorOnAllNulls(inputPages, inputTypes, expression, gpuExpression);
+
         List<Page> cpuResults;
         try {
             cpuResults = executeWithCpu(cpuProcessor, inputPages, fullConnectorSession(charVarcharCoercion));
@@ -1040,6 +1044,57 @@ public final class GpuTestUtils
         }
         List<Page> gpuResults = executeWithGpu(inputPages, inputTypes, expression, gpuExpression);
         assertSameDataInOrder(gpuResults, cpuResults, List.of(expression.type()));
+    }
+
+    /// On every input page where each column `gpuExpression` reads is NULL on every row, checks what
+    /// the expression declares through [GpuExpression#fallibility] and [GpuExpression#nullOnNullInputs]
+    /// against its evaluation. Both are properties of the GPU expression alone, so the CPU result
+    /// plays no part here.
+    public static void assertDeclaredBehaviorOnAllNulls(List<Page> inputPages, List<Type> inputTypes, Expression expression, CompiledExpression gpuExpression)
+    {
+        List<Integer> inputChannels = gpuExpression.inputChannels().getInputChannels();
+        if (inputChannels.isEmpty()) {
+            // Without input columns there is no all-NULL row
+            return;
+        }
+        Fallibility fallibility = gpuExpression.expression().fallibility();
+        boolean nullOnNullInputs = gpuExpression.expression().nullOnNullInputs();
+        for (Page page : inputPages) {
+            if (page.getPositionCount() == 0 || !allNull(page, inputChannels)) {
+                continue;
+            }
+            List<Page> gpuResults;
+            try {
+                gpuResults = executeWithGpu(List.of(page), inputTypes, expression, gpuExpression);
+            }
+            catch (TrinoException e) {
+                if (fallibility == FALLIBLE) {
+                    continue;
+                }
+                throw new AssertionError("%s is declared %s but failed on a page with every input column NULL".formatted(expression, fallibility), e);
+            }
+            if (nullOnNullInputs) {
+                long nullCount = positions(gpuResults)
+                        .filter(pagePosition -> pagePosition.page().getBlock(0).isNull(pagePosition.position()))
+                        .count();
+                assertThat(nullCount)
+                        .describedAs("%s is declared NULL on NULL inputs, but the output on a page with every input column NULL has non-NULL rows", expression)
+                        .isEqualTo(page.getPositionCount());
+            }
+        }
+    }
+
+    private static boolean allNull(Page page, List<Integer> channels)
+    {
+        for (int channel : channels) {
+            Block block = page.getBlock(channel);
+            for (int position = 0; position < block.getPositionCount(); position++) {
+                if (!block.isNull(position)) {
+                    return false;
+                }
+            }
+        }
+        return true;
     }
 
     public static List<Page> executeWithGpu(List<Page> inputPages, List<Type> inputTypes, Expression expression, CompiledExpression gpuExpression)

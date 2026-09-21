@@ -16,6 +16,7 @@ package io.trino.operator.gpu.expression;
 import ai.rapids.cudf.ColumnVector;
 import ai.rapids.cudf.DType;
 import ai.rapids.cudf.Scalar;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.trino.plugin.base.gpu.ClosingOnce;
 import io.trino.spi.TrinoException;
@@ -38,6 +39,8 @@ import static com.google.common.math.LongMath.saturatedSubtract;
 import static io.trino.operator.gpu.expression.CudfUtils.MAX_CALENDAR_EPOCH_DAY;
 import static io.trino.operator.gpu.expression.CudfUtils.MIN_CALENDAR_EPOCH_DAY;
 import static io.trino.operator.gpu.expression.CudfUtils.anyTrue;
+import static io.trino.operator.gpu.expression.GpuExpressions.nullSkippingCheck;
+import static io.trino.operator.gpu.expression.GpuExpressions.worstOf;
 import static io.trino.spi.StandardErrorCode.NUMERIC_VALUE_OUT_OF_RANGE;
 import static io.trino.spi.type.Timestamps.MICROSECONDS_PER_MILLISECOND;
 import static io.trino.spi.type.Timestamps.MILLISECONDS_PER_DAY;
@@ -73,6 +76,8 @@ public final class GpuDateAdd
     /// Inclusive range of inputs for which this expression matches the CPU implementation.
     private final long minInput;
     private final long maxInput;
+    /// Whether the input range excludes any value the argument can hold, so that it is checked.
+    private final boolean needsInputInRangeCheck;
 
     /// Returns a `date_add` expression, or empty when the unit does not apply to the carrier
     /// column, or when the shift is too large to apply without leaving the representable range.
@@ -150,6 +155,7 @@ public final class GpuDateAdd
         this.shift = shift;
         this.minInput = minInput;
         this.maxInput = maxInput;
+        this.needsInputInRangeCheck = minInput != Long.MIN_VALUE || maxInput != Long.MAX_VALUE;
     }
 
     @Override
@@ -157,7 +163,9 @@ public final class GpuDateAdd
     {
         try (ClosingOnce<ColumnVector> dateTime = ClosingOnce.own(argument.evaluate(positionCount, inputColumns));
                 ClosingOnce<ColumnVector> int64Timestamp = ClosingOnce.own(dateTime.borrow().castTo(DType.INT64))) {
-            verifyInputInRange(int64Timestamp.borrow());
+            if (needsInputInRangeCheck) {
+                verifyInputInRange(int64Timestamp.borrow());
+            }
             if (unit.isCalendarUnit()) {
                 int64Timestamp.close();
                 // cuDF clamps the day of month to the last day of the resulting month, as Trino does
@@ -190,9 +198,6 @@ public final class GpuDateAdd
         // carrier column could still hold; rejecting those here makes both engines fail on the same
         // rows. A calendar unit additionally reaches only as far as cuDF's calendar, which is
         // narrower, so there the GPU fails on inputs the CPU implementation answers.
-        if (minInput == Long.MIN_VALUE && maxInput == Long.MAX_VALUE) {
-            return;
-        }
         try (Scalar minScalar = Scalar.fromLong(minInput);
                 Scalar maxScalar = Scalar.fromLong(maxInput);
                 ClosingOnce<ColumnVector> belowMin = ClosingOnce.own(int64Timestamp.binaryOp(LESS, minScalar, DType.BOOL8));
@@ -209,6 +214,21 @@ public final class GpuDateAdd
     }
 
     @Override
+    protected Fallibility computeFallibility()
+    {
+        if (needsInputInRangeCheck) {
+            return nullSkippingCheck(ImmutableList.of(argument));
+        }
+        return worstOf(ImmutableList.of(argument));
+    }
+
+    @Override
+    protected boolean computeNullOnNullInputs()
+    {
+        return argument.nullOnNullInputs();
+    }
+
+    @Override
     public boolean equals(Object obj)
     {
         return obj instanceof GpuDateAdd other
@@ -216,12 +236,14 @@ public final class GpuDateAdd
                 && columnType.equals(other.columnType)
                 && unit == other.unit
                 && value == other.value;
+        // derived: shift, minInput, maxInput, needsInputInRangeCheck
     }
 
     @Override
     public int hashCode()
     {
         return Objects.hash(getClass(), argument, columnType, unit, value);
+        // derived: shift, minInput, maxInput, needsInputInRangeCheck
     }
 
     /// The units Trino accepts for `date_add`.

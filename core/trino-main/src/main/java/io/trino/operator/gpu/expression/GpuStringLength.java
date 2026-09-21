@@ -46,6 +46,18 @@ public final class GpuStringLength
     }
 
     @Override
+    protected Fallibility computeFallibility()
+    {
+        return argument.fallibility();
+    }
+
+    @Override
+    protected boolean computeNullOnNullInputs()
+    {
+        return argument.nullOnNullInputs();
+    }
+
+    @Override
     public boolean equals(Object obj)
     {
         return obj instanceof GpuStringLength other && argument.equals(other.argument);

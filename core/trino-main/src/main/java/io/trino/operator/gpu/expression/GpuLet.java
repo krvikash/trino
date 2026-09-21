@@ -21,6 +21,10 @@ import io.trino.spi.gpu.borrow.Move;
 import java.util.List;
 import java.util.Objects;
 
+import static io.trino.operator.gpu.expression.Fallibility.FALLIBLE;
+import static io.trino.operator.gpu.expression.Fallibility.FALLIBLE_EXCEPT_ALL_NULLS;
+import static io.trino.operator.gpu.expression.Fallibility.worst;
+import static io.trino.operator.gpu.expression.GpuExpressions.allNullOnNullInputs;
 import static java.util.Objects.requireNonNull;
 
 /// Realizes [io.trino.sql.ir.Let] on the GPU: evaluates `value` once and appends the resulting column to
@@ -48,6 +52,23 @@ public final class GpuLet
                     .build();
             return body.evaluate(positionCount, extended);
         }
+    }
+
+    @Override
+    protected Fallibility computeFallibility()
+    {
+        Fallibility bodyFallibility = body.fallibility();
+        if (bodyFallibility == FALLIBLE_EXCEPT_ALL_NULLS && !value.nullOnNullInputs()) {
+            // The bound column is one of the body's inputs, and it is not NULL on an all-NULL row
+            bodyFallibility = FALLIBLE;
+        }
+        return worst(value.fallibility(), bodyFallibility);
+    }
+
+    @Override
+    protected boolean computeNullOnNullInputs()
+    {
+        return allNullOnNullInputs(ImmutableList.of(value, body));
     }
 
     @Override

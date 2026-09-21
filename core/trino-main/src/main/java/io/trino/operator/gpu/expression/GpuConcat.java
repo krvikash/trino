@@ -28,6 +28,8 @@ import java.util.Objects;
 import static ai.rapids.cudf.BinaryOp.ADD;
 import static ai.rapids.cudf.DType.INT64;
 import static com.google.common.base.Preconditions.checkArgument;
+import static io.trino.operator.gpu.expression.GpuExpressions.anyNullOnNullInputs;
+import static io.trino.operator.gpu.expression.GpuExpressions.nullSkippingCheck;
 import static io.trino.plugin.base.gpu.GpuUtils.closeColumns;
 import static io.trino.spi.StandardErrorCode.INVALID_FUNCTION_ARGUMENT;
 import static io.trino.spi.block.PageBuilderStatus.DEFAULT_MAX_PAGE_SIZE_IN_BYTES;
@@ -81,6 +83,18 @@ public final class GpuConcat
                 }
             }
         }
+    }
+
+    @Override
+    protected Fallibility computeFallibility()
+    {
+        return nullSkippingCheck(arguments);
+    }
+
+    @Override
+    protected boolean computeNullOnNullInputs()
+    {
+        return anyNullOnNullInputs(arguments);
     }
 
     @Override

@@ -39,6 +39,18 @@ public final class GpuConstantColumn
     }
 
     @Override
+    protected Fallibility computeFallibility()
+    {
+        return Fallibility.INFALLIBLE;
+    }
+
+    @Override
+    protected boolean computeNullOnNullInputs()
+    {
+        return false;
+    }
+
+    @Override
     public boolean equals(Object obj)
     {
         return obj instanceof GpuConstantColumn other

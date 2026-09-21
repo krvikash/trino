@@ -27,6 +27,8 @@ import java.util.Objects;
 import static ai.rapids.cudf.BinaryOp.NULL_LOGICAL_AND;
 import static ai.rapids.cudf.BinaryOp.NULL_LOGICAL_OR;
 import static com.google.common.base.Preconditions.checkArgument;
+import static io.trino.operator.gpu.expression.GpuExpressions.allNullOnNullInputs;
+import static io.trino.operator.gpu.expression.GpuExpressions.worstOf;
 import static java.util.Objects.requireNonNull;
 
 public final class GpuLogicalExpression
@@ -64,6 +66,19 @@ public final class GpuLogicalExpression
             }
             return result.take();
         }
+    }
+
+    @Override
+    protected Fallibility computeFallibility()
+    {
+        return worstOf(operands);
+    }
+
+    @Override
+    protected boolean computeNullOnNullInputs()
+    {
+        // NULL AND FALSE is FALSE; NULL OR TRUE is TRUE. For either operator, one NULL is insufficient.
+        return allNullOnNullInputs(operands);
     }
 
     @Override

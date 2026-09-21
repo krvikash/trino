@@ -54,6 +54,18 @@ public final class GpuRestoreNan
     }
 
     @Override
+    protected Fallibility computeFallibility()
+    {
+        return Fallibility.INFALLIBLE;
+    }
+
+    @Override
+    protected boolean computeNullOnNullInputs()
+    {
+        return true;
+    }
+
+    @Override
     public boolean equals(Object obj)
     {
         return obj instanceof GpuRestoreNan other && dType.equals(other.dType);

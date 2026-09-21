@@ -30,6 +30,18 @@ public final class GetOnlyColumn
     }
 
     @Override
+    protected Fallibility computeFallibility()
+    {
+        return Fallibility.INFALLIBLE;
+    }
+
+    @Override
+    protected boolean computeNullOnNullInputs()
+    {
+        return true;
+    }
+
+    @Override
     public boolean equals(Object obj)
     {
         return obj instanceof GetOnlyColumn;

@@ -94,6 +94,19 @@ public final class GpuCombineSumChunksToVarbinary
     }
 
     @Override
+    protected Fallibility computeFallibility()
+    {
+        // combineInt64SumChunks returns a NULL overflow flag for an all-NULL input row.
+        return Fallibility.FALLIBLE_EXCEPT_ALL_NULLS;
+    }
+
+    @Override
+    protected boolean computeNullOnNullInputs()
+    {
+        return true;
+    }
+
+    @Override
     public boolean equals(Object obj)
     {
         return obj instanceof GpuCombineSumChunksToVarbinary other && decimal128Type.equals(other.decimal128Type);

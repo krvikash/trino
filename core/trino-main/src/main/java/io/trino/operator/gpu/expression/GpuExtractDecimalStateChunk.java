@@ -20,6 +20,7 @@ import ai.rapids.cudf.ColumnVector;
 import ai.rapids.cudf.ColumnView;
 import ai.rapids.cudf.DType;
 import ai.rapids.cudf.Scalar;
+import com.google.common.collect.ImmutableList;
 import io.trino.plugin.base.gpu.ClosingRef;
 import io.trino.spi.TrinoException;
 import io.trino.spi.gpu.borrow.Borrow;
@@ -32,6 +33,7 @@ import java.util.Optional;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static io.trino.operator.gpu.expression.CudfUtils.allTrue;
+import static io.trino.operator.gpu.expression.GpuExpressions.nullSkippingCheck;
 import static io.trino.spi.StandardErrorCode.GENERIC_INTERNAL_ERROR;
 import static java.lang.Math.toIntExact;
 import static java.util.Objects.requireNonNull;
@@ -223,6 +225,18 @@ public final class GpuExtractDecimalStateChunk
                         "sum(decimal) FINAL on GPU expects 8, 16, or 24 byte intermediate states");
             }
         }
+    }
+
+    @Override
+    protected Fallibility computeFallibility()
+    {
+        return nullSkippingCheck(ImmutableList.of(source));
+    }
+
+    @Override
+    protected boolean computeNullOnNullInputs()
+    {
+        return source.nullOnNullInputs();
     }
 
     @Override

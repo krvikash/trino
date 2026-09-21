@@ -16,6 +16,7 @@ package io.trino.operator.gpu.expression;
 import ai.rapids.cudf.BinaryOp;
 import ai.rapids.cudf.ColumnVector;
 import ai.rapids.cudf.DType;
+import com.google.common.collect.ImmutableList;
 import io.trino.plugin.base.gpu.ClosingOnce;
 import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
@@ -24,6 +25,8 @@ import java.util.List;
 import java.util.Objects;
 
 import static ai.rapids.cudf.DType.DTypeEnum.DECIMAL128;
+import static io.trino.operator.gpu.expression.GpuExpressions.anyNullOnNullInputs;
+import static io.trino.operator.gpu.expression.GpuExpressions.worstOf;
 import static java.util.Objects.requireNonNull;
 
 public final class GpuWideningShortDecimalArithmetic
@@ -55,6 +58,18 @@ public final class GpuWideningShortDecimalArithmetic
                 return leftWide.binaryOp(op, rightWide, outputType);
             }
         }
+    }
+
+    @Override
+    protected Fallibility computeFallibility()
+    {
+        return worstOf(ImmutableList.of(left, right));
+    }
+
+    @Override
+    protected boolean computeNullOnNullInputs()
+    {
+        return anyNullOnNullInputs(ImmutableList.of(left, right));
     }
 
     @Override

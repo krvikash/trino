@@ -14,15 +14,40 @@
 package io.trino.operator.gpu.expression;
 
 import ai.rapids.cudf.ColumnVector;
+import com.google.common.base.Supplier;
 import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
 
 import java.util.List;
 
+import static com.google.common.base.Suppliers.memoize;
+
 public abstract class GpuExpression
 {
+    // Derived properties are cached so parents can query both without repeatedly traversing subtrees.
+    private final Supplier<Fallibility> fallibility = memoize(this::computeFallibility);
+    private final Supplier<Boolean> nullOnNullInputs = memoize(this::computeNullOnNullInputs);
+
     @Move
     public abstract ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns);
+
+    /// Whether [#evaluate] can raise a runtime error, as a property of this GPU expression tree: a GPU
+    /// node may fail where its CPU counterpart does not, and the other way around.
+    public final Fallibility fallibility()
+    {
+        return fallibility.get();
+    }
+
+    protected abstract Fallibility computeFallibility();
+
+    /// Whether the result is guaranteed to be NULL on a row where every column in `inputColumns` is
+    /// NULL. `false` only means the result is not known to be NULL there, not that it is guaranteed to be non-NULL.
+    public final boolean nullOnNullInputs()
+    {
+        return nullOnNullInputs.get();
+    }
+
+    protected abstract boolean computeNullOnNullInputs();
 
     /// Two GPU expressions are equal when they are semantically equivalent,
     /// meaning they will produce the same output for the same input.

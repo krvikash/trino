@@ -41,6 +41,18 @@ public final class GpuIsNull
     }
 
     @Override
+    protected Fallibility computeFallibility()
+    {
+        return operand.fallibility();
+    }
+
+    @Override
+    protected boolean computeNullOnNullInputs()
+    {
+        return false;
+    }
+
+    @Override
     public boolean equals(Object obj)
     {
         return obj instanceof GpuIsNull other && operand.equals(other.operand);

@@ -14,11 +14,13 @@
 package io.trino.operator.gpu.expression;
 
 import ai.rapids.cudf.ColumnVector;
+import com.google.common.collect.ImmutableList;
 import io.trino.spi.gpu.borrow.Borrow;
 
 import java.util.List;
 import java.util.Objects;
 
+import static io.trino.operator.gpu.expression.GpuExpressions.worstOf;
 import static java.util.Objects.requireNonNull;
 
 public final class GpuInColumn
@@ -40,6 +42,18 @@ public final class GpuInColumn
                 ColumnVector values = this.values.evaluate(positionCount, inputColumns)) {
             return source.contains(values);
         }
+    }
+
+    @Override
+    protected Fallibility computeFallibility()
+    {
+        return worstOf(ImmutableList.of(source, values));
+    }
+
+    @Override
+    protected boolean computeNullOnNullInputs()
+    {
+        return false;
     }
 
     @Override

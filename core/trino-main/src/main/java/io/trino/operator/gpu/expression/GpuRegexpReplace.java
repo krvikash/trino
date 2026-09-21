@@ -60,6 +60,18 @@ public final class GpuRegexpReplace
     }
 
     @Override
+    protected Fallibility computeFallibility()
+    {
+        return source.fallibility();
+    }
+
+    @Override
+    protected boolean computeNullOnNullInputs()
+    {
+        return source.nullOnNullInputs();
+    }
+
+    @Override
     public boolean equals(Object obj)
     {
         return obj instanceof GpuRegexpReplace other

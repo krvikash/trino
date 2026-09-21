@@ -23,6 +23,8 @@ import java.util.List;
 import java.util.Objects;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static io.trino.operator.gpu.expression.GpuExpressions.allNullOnNullInputs;
+import static io.trino.operator.gpu.expression.GpuExpressions.worstOf;
 
 /// `COALESCE(v1, v2, ...)`: the value of the first operand that is not NULL, per row.
 public final class GpuCoalesce
@@ -53,6 +55,18 @@ public final class GpuCoalesce
             }
             return result.take();
         }
+    }
+
+    @Override
+    protected Fallibility computeFallibility()
+    {
+        return worstOf(operands);
+    }
+
+    @Override
+    protected boolean computeNullOnNullInputs()
+    {
+        return allNullOnNullInputs(operands);
     }
 
     @Override

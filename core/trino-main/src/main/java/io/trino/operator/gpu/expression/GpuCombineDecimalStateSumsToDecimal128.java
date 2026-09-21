@@ -92,6 +92,19 @@ public final class GpuCombineDecimalStateSumsToDecimal128
     }
 
     @Override
+    protected Fallibility computeFallibility()
+    {
+        // The overflow flags a NULL chunk sum produces are not known
+        return Fallibility.FALLIBLE;
+    }
+
+    @Override
+    protected boolean computeNullOnNullInputs()
+    {
+        return false;
+    }
+
+    @Override
     public boolean equals(Object obj)
     {
         return obj instanceof GpuCombineDecimalStateSumsToDecimal128 other && decimal128Type.equals(other.decimal128Type);

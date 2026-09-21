@@ -44,6 +44,18 @@ public final class GpuBoundReference
     }
 
     @Override
+    protected Fallibility computeFallibility()
+    {
+        return Fallibility.INFALLIBLE;
+    }
+
+    @Override
+    protected boolean computeNullOnNullInputs()
+    {
+        return true;
+    }
+
+    @Override
     public boolean equals(Object obj)
     {
         return obj instanceof GpuBoundReference other && deBruijnIndex == other.deBruijnIndex;
