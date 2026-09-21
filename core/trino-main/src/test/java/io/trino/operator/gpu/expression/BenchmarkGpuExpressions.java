@@ -50,6 +50,7 @@ import java.util.List;
 import java.util.Map;
 
 import static io.trino.jmh.Benchmarks.benchmark;
+import static io.trino.operator.gpu.GpuTestUtils.TEST_SESSION_TIME_ZONE_KEY;
 import static io.trino.operator.gpu.GpuTestUtils.createBigintBlock;
 import static io.trino.operator.gpu.GpuTestUtils.createBlock;
 import static io.trino.operator.gpu.GpuTestUtils.maybeSetGpuMemoryPoolForTests;
@@ -154,7 +155,7 @@ public class BenchmarkGpuExpressions
 
         private static GpuExpression compile(Expression expression)
         {
-            return compileExpression(expression, layout(BIGINT), SQL_STANDARD)
+            return compileExpression(expression, layout(BIGINT), SQL_STANDARD, TEST_SESSION_TIME_ZONE_KEY)
                     .orElseThrow(() -> new IllegalStateException("Expression is not GPU-compilable: " + expression))
                     .expression();
         }

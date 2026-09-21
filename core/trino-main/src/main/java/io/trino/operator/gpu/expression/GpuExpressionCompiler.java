@@ -36,6 +36,7 @@ import io.trino.spi.type.RealType;
 import io.trino.spi.type.SmallintType;
 import io.trino.spi.type.TimeType;
 import io.trino.spi.type.TimeWithTimeZoneType;
+import io.trino.spi.type.TimeZoneKey;
 import io.trino.spi.type.TimestampType;
 import io.trino.spi.type.TimestampWithTimeZoneType;
 import io.trino.spi.type.TinyintType;
@@ -94,6 +95,7 @@ import static io.trino.spi.type.DoubleType.DOUBLE;
 import static io.trino.spi.type.IntegerType.INTEGER;
 import static io.trino.spi.type.RealType.REAL;
 import static io.trino.spi.type.SmallintType.SMALLINT;
+import static io.trino.spi.type.TimeZoneKey.UTC_KEY;
 import static io.trino.spi.type.TinyintType.TINYINT;
 import static io.trino.sql.ir.IrExpressions.matchComparison;
 import static io.trino.type.IntervalDayTimeType.INTERVAL_DAY_TIME;
@@ -119,9 +121,9 @@ public final class GpuExpressionCompiler
     private static final int INTEGER_DECIMAL_DIGITS = 10;
     private static final int BIGINT_DECIMAL_DIGITS = 19;
 
-    public static Optional<CompiledExpression> compileExpression(Expression expression, Map<Symbol, Integer> layout, CharVarcharCoercion charVarcharCoercion)
+    public static Optional<CompiledExpression> compileExpression(Expression expression, Map<Symbol, Integer> layout, CharVarcharCoercion charVarcharCoercion, TimeZoneKey sessionTimeZoneKey)
     {
-        CompilationVisitor visitor = new CompilationVisitor(layout, charVarcharCoercion);
+        CompilationVisitor visitor = new CompilationVisitor(layout, charVarcharCoercion, sessionTimeZoneKey);
         Optional<CompiledExpression> compiled = expression.accept(visitor, null)
                 .map(result -> new CompiledExpression(result, new InputChannels(ImmutableList.copyOf(visitor.inputChannels))));
         if (compiled.isEmpty()) {
@@ -136,6 +138,7 @@ public final class GpuExpressionCompiler
     {
         private final Map<Symbol, Integer> sourceLayout;
         private final CharVarcharCoercion charVarcharCoercion;
+        private final TimeZoneKey sessionTimeZoneKey;
         // Maps each referenced Symbol to a compact, consecutive index (0, 1, 2, ...).
         // GPU operators use this index to look up the corresponding input column in
         // the materialized list of device-resident columns.
@@ -144,10 +147,11 @@ public final class GpuExpressionCompiler
         private final Map<Symbol, Integer> letBindings = new HashMap<>();
         private int nextBindingId;
 
-        CompilationVisitor(Map<Symbol, Integer> sourceLayout, CharVarcharCoercion charVarcharCoercion)
+        CompilationVisitor(Map<Symbol, Integer> sourceLayout, CharVarcharCoercion charVarcharCoercion, TimeZoneKey sessionTimeZoneKey)
         {
             this.sourceLayout = requireNonNull(sourceLayout, "sourceLayout is null");
             this.charVarcharCoercion = requireNonNull(charVarcharCoercion, "charVarcharCoercion is null");
+            this.sessionTimeZoneKey = requireNonNull(sessionTimeZoneKey, "sessionTimeZoneKey is null");
         }
 
         @Override
@@ -443,6 +447,14 @@ public final class GpuExpressionCompiler
                 return compileDateAdd(call, context);
             }
 
+            if (name.equals("to_unixtime")) {
+                return compileToUnixTime(call, context);
+            }
+
+            if (name.equals("from_unixtime")) {
+                return compileFromUnixTime(call, context);
+            }
+
             if (name.equals(DivideRoundToScale.NAME) && call.arguments().size() == 2) {
                 return compileDivideRoundToScale(call, context);
             }
@@ -452,6 +464,39 @@ public final class GpuExpressionCompiler
             }
 
             return Optional.empty();
+        }
+
+        private Optional<GpuExpression> compileToUnixTime(Call call, Void context)
+        {
+            if (call.arguments().size() != 1) {
+                return Optional.empty();
+            }
+            Expression argument = getOnlyElement(call.arguments());
+            // to_unixtime is declared only for timestamp(p) with time zone
+            if (call.type() != DOUBLE || !(argument.type() instanceof TimestampWithTimeZoneType timestampWithTimeZoneType)) {
+                return Optional.empty();
+            }
+            return GpuTimestampWithTimeZone.instantDType(timestampWithTimeZoneType.getPrecision())
+                    .flatMap(instantType -> argument.accept(this, context)
+                            .map(compiled -> new GpuToUnixTime(compiled, instantType)));
+        }
+
+        private Optional<GpuExpression> compileFromUnixTime(Call call, Void context)
+        {
+            // The other overloads take a zone, or an hour and minute offset, and stay on the CPU
+            if (call.arguments().size() != 1) {
+                return Optional.empty();
+            }
+            Expression argument = getOnlyElement(call.arguments());
+            if (argument.type() != DOUBLE
+                    || !(call.type() instanceof TimestampWithTimeZoneType resultType)
+                    // The result is packed as whole milliseconds, which is what precision 3 carries
+                    || resultType.getPrecision() != 3
+                    // The result is in the session time zone, and the GPU representation holds only UTC
+                    || !sessionTimeZoneKey.equals(UTC_KEY)) {
+                return Optional.empty();
+            }
+            return argument.accept(this, context).map(GpuFromUnixTime::new);
         }
 
         private Optional<GpuExpression> compileDivideRoundToScale(Call call, Void context)

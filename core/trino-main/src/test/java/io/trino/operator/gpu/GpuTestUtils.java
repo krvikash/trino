@@ -50,6 +50,7 @@ import io.trino.spi.type.DecimalType;
 import io.trino.spi.type.Int128;
 import io.trino.spi.type.LongTimestamp;
 import io.trino.spi.type.LongTimestampWithTimeZone;
+import io.trino.spi.type.TimeZoneKey;
 import io.trino.spi.type.TimestampType;
 import io.trino.spi.type.TimestampWithTimeZoneType;
 import io.trino.spi.type.Type;
@@ -207,6 +208,8 @@ public final class GpuTestUtils
             case LEGACY -> LEGACY_COERCION_CONNECTOR_SESSION;
         };
     }
+
+    public static final TimeZoneKey TEST_SESSION_TIME_ZONE_KEY = FULL_CONNECTOR_SESSION.getTimeZoneKey();
 
     public static final TestingFunctionResolution FUNCTION_RESOLUTION = new TestingFunctionResolution();
 
@@ -1047,7 +1050,7 @@ public final class GpuTestUtils
     {
         Map<Symbol, Integer> layout = layoutFor(inputTypes);
         PageProcessor pageProcessor = compileCpuExpression(expression, layout, charVarcharCoercion);
-        CompiledExpression gpuExpression = compileExpression(expression, layout, charVarcharCoercion)
+        CompiledExpression gpuExpression = compileExpression(expression, layout, charVarcharCoercion, TEST_SESSION_TIME_ZONE_KEY)
                 .orElseThrow(() -> new AssertionError("GPU expression compile failed for: " + expression));
 
         assertThat(gpuExpression.inputChannels().getInputChannels())
@@ -1065,7 +1068,7 @@ public final class GpuTestUtils
     {
         Map<Symbol, Integer> layout = layoutFor(inputTypes);
         PageProcessor cpuProcessor = compileCpuExpression(expression, layout);
-        CompiledExpression gpuExpression = compileExpression(expression, layout, SQL_STANDARD)
+        CompiledExpression gpuExpression = compileExpression(expression, layout, SQL_STANDARD, TEST_SESSION_TIME_ZONE_KEY)
                 .orElseThrow(() -> new AssertionError("GPU expression compile failed for: " + expression));
         assertGpuMatchesCpu(inputPages, inputTypes, expression, cpuProcessor, gpuExpression, false);
     }

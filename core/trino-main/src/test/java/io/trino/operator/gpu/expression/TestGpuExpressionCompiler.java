@@ -41,6 +41,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Stream;
 
+import static io.trino.operator.gpu.GpuTestUtils.TEST_SESSION_TIME_ZONE_KEY;
 import static io.trino.operator.gpu.GpuTestUtils.maybeSetGpuMemoryPoolForTests;
 import static io.trino.operator.gpu.expression.GpuExpressionCompiler.compileExpression;
 import static io.trino.spi.type.BigintType.BIGINT;
@@ -109,7 +110,7 @@ class TestGpuExpressionCompiler
         Map<Symbol, Integer> layout = ImmutableMap.of(
                 new Symbol(type, "a"), 0,
                 new Symbol(type, "b"), 1);
-        assertThat(compileExpression(comparison(ComparisonOperator.EQUAL, left, right), layout, SQL_STANDARD).isPresent())
+        assertThat(compileExpression(comparison(ComparisonOperator.EQUAL, left, right), layout, SQL_STANDARD, TEST_SESSION_TIME_ZONE_KEY).isPresent())
                 .as("Comparison on %s", type)
                 .isEqualTo(expectGpuCompile);
     }
@@ -124,7 +125,7 @@ class TestGpuExpressionCompiler
                 new Symbol(type, "a"), 0,
                 new Symbol(type, "b"), 1);
         boolean expectIdenticalCompile = expectGpuCompile && type != REAL && type != DOUBLE;
-        assertThat(compileExpression(comparison(ComparisonOperator.IDENTICAL, left, right), layout, SQL_STANDARD).isPresent())
+        assertThat(compileExpression(comparison(ComparisonOperator.IDENTICAL, left, right), layout, SQL_STANDARD, TEST_SESSION_TIME_ZONE_KEY).isPresent())
                 .as("IS NOT DISTINCT FROM on %s", type)
                 .isEqualTo(expectIdenticalCompile);
     }
@@ -144,7 +145,7 @@ class TestGpuExpressionCompiler
                 new Symbol(type, "a"), 0,
                 new Symbol(type, "b"), 1,
                 new Symbol(type, "c"), 2);
-        assertThat(compileExpression(between(value, min, max), layout, SQL_STANDARD).isPresent())
+        assertThat(compileExpression(between(value, min, max), layout, SQL_STANDARD, TEST_SESSION_TIME_ZONE_KEY).isPresent())
                 .as("Between on %s", type)
                 .isEqualTo(expectGpuCompile);
     }
@@ -156,7 +157,7 @@ class TestGpuExpressionCompiler
         Reference value = new Reference(type, "a");
         Map<Symbol, Integer> layout = ImmutableMap.of(new Symbol(type, "a"), 0);
         List<Expression> valueList = ImmutableList.of(new Constant(type, null));
-        assertThat(compileExpression(new In(value, valueList), layout, SQL_STANDARD).isPresent())
+        assertThat(compileExpression(new In(value, valueList), layout, SQL_STANDARD, TEST_SESSION_TIME_ZONE_KEY).isPresent())
                 .as("In on %s", type)
                 .isEqualTo(expectGpuCompile);
     }
@@ -168,13 +169,13 @@ class TestGpuExpressionCompiler
     {
         for (int precision = 0; precision <= 9; precision++) {
             TimestampWithTimeZoneType type = createTimestampWithTimeZoneType(precision);
-            assertThat(compileExpression(new Constant(type, null), ImmutableMap.of(), SQL_STANDARD))
+            assertThat(compileExpression(new Constant(type, null), ImmutableMap.of(), SQL_STANDARD, TEST_SESSION_TIME_ZONE_KEY))
                     .as("null constant of %s", type)
                     .isPresent();
-            assertThat(compileExpression(new Constant(type, epochValue(type, UTC_KEY)), ImmutableMap.of(), SQL_STANDARD))
+            assertThat(compileExpression(new Constant(type, epochValue(type, UTC_KEY)), ImmutableMap.of(), SQL_STANDARD, TEST_SESSION_TIME_ZONE_KEY))
                     .as("UTC constant of %s", type)
                     .isPresent();
-            assertThat(compileExpression(new Constant(type, epochValue(type, getTimeZoneKey("Europe/Warsaw"))), ImmutableMap.of(), SQL_STANDARD))
+            assertThat(compileExpression(new Constant(type, epochValue(type, getTimeZoneKey("Europe/Warsaw"))), ImmutableMap.of(), SQL_STANDARD, TEST_SESSION_TIME_ZONE_KEY))
                     .as("Europe/Warsaw constant of %s", type)
                     .isEmpty();
         }
@@ -189,13 +190,13 @@ class TestGpuExpressionCompiler
             Map<Symbol, Integer> layout = ImmutableMap.of(new Symbol(type, "a"), 0);
             Constant utc = new Constant(type, epochValue(type, UTC_KEY));
             Constant warsaw = new Constant(type, epochValue(type, getTimeZoneKey("Europe/Warsaw")));
-            assertThat(compileExpression(new In(value, ImmutableList.of(utc, warsaw)), layout, SQL_STANDARD))
+            assertThat(compileExpression(new In(value, ImmutableList.of(utc, warsaw)), layout, SQL_STANDARD, TEST_SESSION_TIME_ZONE_KEY))
                     .as("In with Europe/Warsaw constant of %s", type)
                     .isPresent();
-            assertThat(compileExpression(comparison(ComparisonOperator.LESS_THAN, value, warsaw), layout, SQL_STANDARD))
+            assertThat(compileExpression(comparison(ComparisonOperator.LESS_THAN, value, warsaw), layout, SQL_STANDARD, TEST_SESSION_TIME_ZONE_KEY))
                     .as("comparison with Europe/Warsaw constant of %s", type)
                     .isPresent();
-            assertThat(compileExpression(comparison(ComparisonOperator.EQUAL, warsaw, value), layout, SQL_STANDARD))
+            assertThat(compileExpression(comparison(ComparisonOperator.EQUAL, warsaw, value), layout, SQL_STANDARD, TEST_SESSION_TIME_ZONE_KEY))
                     .as("comparison of Europe/Warsaw constant of %s", type)
                     .isPresent();
         }

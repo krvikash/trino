@@ -55,6 +55,7 @@ import java.util.function.Supplier;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.Iterables.getOnlyElement;
+import static io.trino.operator.gpu.GpuTestUtils.TEST_SESSION_TIME_ZONE_KEY;
 import static io.trino.operator.gpu.GpuTestUtils.executeGpuOperation;
 import static io.trino.operator.gpu.GpuTestUtils.executeWithCpu;
 import static io.trino.operator.gpu.GpuTestUtils.maybeSetGpuMemoryPoolForTests;
@@ -605,7 +606,7 @@ public class TestGpuCasts
             this.to = to;
             this.castExpression = new Cast(new Reference(from, "ref0"), to);
             this.layout = ImmutableMap.of(new Symbol(from, "ref0"), 0);
-            this.compiled = Suppliers.memoize(() -> compileExpression(castExpression, layout, SQL_STANDARD));
+            this.compiled = Suppliers.memoize(() -> compileExpression(castExpression, layout, SQL_STANDARD, TEST_SESSION_TIME_ZONE_KEY));
         }
 
         /**

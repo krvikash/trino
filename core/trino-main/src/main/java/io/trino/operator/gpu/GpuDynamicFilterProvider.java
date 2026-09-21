@@ -43,6 +43,7 @@ import io.trino.spi.gpu.borrow.Own;
 import io.trino.spi.predicate.Domain;
 import io.trino.spi.predicate.SortedRangeSet;
 import io.trino.spi.predicate.TupleDomain;
+import io.trino.spi.type.TimeZoneKey;
 import io.trino.spi.type.TimestampWithTimeZoneType;
 import io.trino.spi.type.Type;
 import io.trino.sql.ir.Expression;
@@ -88,6 +89,7 @@ public class GpuDynamicFilterProvider
 
     private final DomainTranslator domainTranslator;
     private final CharVarcharCoercion charVarcharCoercion;
+    private final TimeZoneKey sessionTimeZoneKey;
     private final DynamicFilter dynamicFilter;
     private final Map<ColumnHandle, Integer> sourceLayout;
     private final Map<ColumnHandle, Type> handleType;
@@ -107,12 +109,14 @@ public class GpuDynamicFilterProvider
             DynamicFilter dynamicFilter,
             Map<ColumnHandle, Integer> sourceLayout,
             List<Type> types,
-            CharVarcharCoercion charVarcharCoercion)
+            CharVarcharCoercion charVarcharCoercion,
+            TimeZoneKey sessionTimeZoneKey)
     {
         this.dynamicFilter = requireNonNull(dynamicFilter, "dynamicFilter is null");
         this.sourceLayout = ImmutableMap.copyOf(requireNonNull(sourceLayout, "sourceLayout is null"));
         this.domainTranslator = requireNonNull(domainTranslator, "domainTranslator is null");
         this.charVarcharCoercion = charVarcharCoercion;
+        this.sessionTimeZoneKey = requireNonNull(sessionTimeZoneKey, "sessionTimeZoneKey is null");
 
         ImmutableMap.Builder<ColumnHandle, Type> handleType = ImmutableMap.builder();
         ImmutableMap.Builder<ColumnHandle, ToColumn> handleCopier = ImmutableMap.builder();
@@ -274,7 +278,7 @@ public class GpuDynamicFilterProvider
 
         Symbol symbol = new Symbol(handleType.get(handle), "synthetic");
         Expression expression = domainTranslator.toPredicate(charVarcharCoercion, domain, symbol.toSymbolReference());
-        Optional<GpuExpression> compiled = compileExpression(expression, ImmutableMap.of(symbol, 0), charVarcharCoercion)
+        Optional<GpuExpression> compiled = compileExpression(expression, ImmutableMap.of(symbol, 0), charVarcharCoercion, sessionTimeZoneKey)
                 .map(CompiledExpression::expression);
         if (compiled.isEmpty()) {
             log.debug("Could not convert Domain to GPU expression: %s", domain);

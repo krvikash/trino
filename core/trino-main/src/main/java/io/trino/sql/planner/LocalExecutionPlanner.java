@@ -2514,7 +2514,8 @@ public class LocalExecutionPlanner
                                     dynamicFilter,
                                     ImmutableMap.copyOf(Maps.transformValues(columnHandleToSymbol, sourceLayout::get)),
                                     sourceOutputTypes,
-                                    getCharVarcharCoercion(context.getTaskContext().getSession())));
+                                    getCharVarcharCoercion(context.getTaskContext().getSession()),
+                                    context.getTaskContext().getSession().getTimeZoneKey()));
                         }
                         else {
                             gpuDynamicFilter = Optional.empty();
@@ -2642,7 +2643,8 @@ public class LocalExecutionPlanner
                 PlanNodeId planNodeId,
                 LocalExecutionPlanContext context)
         {
-            Optional<CompiledExpression> compiledExpression = GpuExpressionCompiler.compileExpression(expression, sourceLayout, getCharVarcharCoercion(context.getTaskContext().getSession()));
+            Session session = context.getTaskContext().getSession();
+            Optional<CompiledExpression> compiledExpression = GpuExpressionCompiler.compileExpression(expression, sourceLayout, getCharVarcharCoercion(session), session.getTimeZoneKey());
             if (compiledExpression.isEmpty()) {
                 context.markAsGpuIneligible(planNodeId, "Unsupported expression: %s".formatted(formatExpression(expression)));
             }

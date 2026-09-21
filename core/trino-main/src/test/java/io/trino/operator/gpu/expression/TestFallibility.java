@@ -41,6 +41,7 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static io.airlift.slice.Slices.utf8Slice;
+import static io.trino.operator.gpu.GpuTestUtils.TEST_SESSION_TIME_ZONE_KEY;
 import static io.trino.operator.gpu.GpuTestUtils.maybeSetGpuMemoryPoolForTests;
 import static io.trino.operator.gpu.expression.Fallibility.FALLIBLE;
 import static io.trino.operator.gpu.expression.Fallibility.FALLIBLE_EXCEPT_ALL_NULLS;
@@ -379,7 +380,7 @@ final class TestFallibility
     private static void assertCompilesEachReferenceOnce(Expression expression, int expectedReferences)
     {
         AtomicInteger references = new AtomicInteger();
-        var visitor = new GpuExpressionCompiler.CompilationVisitor(LAYOUT, SQL_STANDARD)
+        var visitor = new GpuExpressionCompiler.CompilationVisitor(LAYOUT, SQL_STANDARD, TEST_SESSION_TIME_ZONE_KEY)
         {
             @Override
             protected Optional<GpuExpression> visitReference(Reference reference, Void context)
@@ -475,7 +476,7 @@ final class TestFallibility
 
     private static GpuExpression compile(Expression expression)
     {
-        return compileExpression(expression, LAYOUT, SQL_STANDARD)
+        return compileExpression(expression, LAYOUT, SQL_STANDARD, TEST_SESSION_TIME_ZONE_KEY)
                 .orElseThrow(() -> new AssertionError("Expression does not compile for GPU: " + expression))
                 .expression();
     }

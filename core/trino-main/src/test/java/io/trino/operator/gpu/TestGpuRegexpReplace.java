@@ -39,6 +39,7 @@ import java.util.Optional;
 
 import static io.airlift.slice.Slices.utf8Slice;
 import static io.trino.operator.gpu.GpuTestUtils.FUNCTION_RESOLUTION;
+import static io.trino.operator.gpu.GpuTestUtils.TEST_SESSION_TIME_ZONE_KEY;
 import static io.trino.operator.gpu.GpuTestUtils.assertSameDataInOrder;
 import static io.trino.operator.gpu.GpuTestUtils.executeGpuOperation;
 import static io.trino.operator.gpu.GpuTestUtils.executeWithCpu;
@@ -727,7 +728,7 @@ final class TestGpuRegexpReplace
         Map<Symbol, Integer> layout = ImmutableMap.of(
                 new Symbol(VARCHAR, "ref0"), 0,
                 new Symbol(JONI_REGEXP, "ref1"), 1);
-        assertThat(compileExpression(expression, layout, SQL_STANDARD)).isEmpty();
+        assertThat(compileExpression(expression, layout, SQL_STANDARD, TEST_SESSION_TIME_ZONE_KEY)).isEmpty();
     }
 
     @Test
@@ -742,7 +743,7 @@ final class TestGpuRegexpReplace
         Map<Symbol, Integer> layout = ImmutableMap.of(
                 new Symbol(VARCHAR, "ref0"), 0,
                 new Symbol(VARCHAR, "ref1"), 1);
-        assertThat(compileExpression(expression, layout, SQL_STANDARD)).isEmpty();
+        assertThat(compileExpression(expression, layout, SQL_STANDARD, TEST_SESSION_TIME_ZONE_KEY)).isEmpty();
     }
 
     @Test
@@ -839,7 +840,7 @@ final class TestGpuRegexpReplace
 
         void doesNotCompile()
         {
-            assertThat(compileExpression(expression, LAYOUT, SQL_STANDARD))
+            assertThat(compileExpression(expression, LAYOUT, SQL_STANDARD, TEST_SESSION_TIME_ZONE_KEY))
                     .describedAs("Expected GPU compilation to fail for %s", expressionString)
                     .isEmpty();
         }
@@ -862,7 +863,7 @@ final class TestGpuRegexpReplace
         {
             List<Type> inputTypes = List.of(VARCHAR);
 
-            CompiledExpression gpuExpression = compileExpression(expression, LAYOUT, SQL_STANDARD)
+            CompiledExpression gpuExpression = compileExpression(expression, LAYOUT, SQL_STANDARD, TEST_SESSION_TIME_ZONE_KEY)
                     .orElseThrow(() -> new AssertionError("GPU compilation failed for " + expressionString));
 
             assertThat(gpuExpression.inputChannels().getInputChannels())

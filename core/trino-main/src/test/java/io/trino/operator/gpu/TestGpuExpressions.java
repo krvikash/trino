@@ -24,12 +24,14 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Streams;
 import io.airlift.slice.Slice;
 import io.airlift.slice.Slices;
+import io.trino.FullConnectorSession;
 import io.trino.cache.EvictableCacheBuilder;
 import io.trino.metadata.OperatorNotFoundException;
 import io.trino.metadata.ResolvedFunction;
 import io.trino.operator.gpu.expression.CompiledExpression;
 import io.trino.operator.gpu.expression.GpuDateAdd;
 import io.trino.operator.gpu.expression.GpuDateTrunc.Field;
+import io.trino.operator.gpu.expression.GpuFromUnixTime;
 import io.trino.operator.gpu.expression.GpuUpper;
 import io.trino.operator.project.PageProcessor;
 import io.trino.operator.scalar.StringFunctions;
@@ -41,6 +43,7 @@ import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.block.VariableWidthBlockBuilder;
 import io.trino.spi.function.OperatorType;
+import io.trino.spi.security.ConnectorIdentity;
 import io.trino.spi.type.CharType;
 import io.trino.spi.type.Chars;
 import io.trino.spi.type.DecimalType;
@@ -69,6 +72,7 @@ import io.trino.sql.ir.Logical;
 import io.trino.sql.ir.Reference;
 import io.trino.sql.ir.WhenClause;
 import io.trino.sql.planner.Symbol;
+import io.trino.testing.TestingSession;
 import io.trino.type.CharVarcharCoercion;
 import io.trino.type.LikePattern;
 import org.jetbrains.annotations.Nullable;
@@ -102,15 +106,19 @@ import static com.google.common.base.Verify.verify;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static com.google.common.collect.Iterables.getOnlyElement;
+import static io.airlift.slice.Slices.utf8Slice;
 import static io.trino.operator.gpu.GpuTestUtils.FUNCTION_RESOLUTION;
 import static io.trino.operator.gpu.GpuTestUtils.MAX_GPU_TIMESTAMP_PRECISION;
+import static io.trino.operator.gpu.GpuTestUtils.TESTED_GPU_TIMESTAMP_WITH_TIME_ZONE_TYPES;
 import static io.trino.operator.gpu.GpuTestUtils.TESTED_GPU_TYPES;
+import static io.trino.operator.gpu.GpuTestUtils.TEST_SESSION_TIME_ZONE_KEY;
 import static io.trino.operator.gpu.GpuTestUtils.assertDeclaredBehaviorOnAllNulls;
 import static io.trino.operator.gpu.GpuTestUtils.assertGpuMatchesCpu;
 import static io.trino.operator.gpu.GpuTestUtils.assertSameDataInOrder;
 import static io.trino.operator.gpu.GpuTestUtils.compileCpuExpression;
 import static io.trino.operator.gpu.GpuTestUtils.createBigintBlock;
 import static io.trino.operator.gpu.GpuTestUtils.createBlock;
+import static io.trino.operator.gpu.GpuTestUtils.createFloatingPointBlock;
 import static io.trino.operator.gpu.GpuTestUtils.decimalBlock;
 import static io.trino.operator.gpu.GpuTestUtils.executeWithCpu;
 import static io.trino.operator.gpu.GpuTestUtils.executeWithGpu;
@@ -132,6 +140,7 @@ import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.spi.type.CharType.createCharType;
 import static io.trino.spi.type.Chars.truncateToLengthAndTrimSpaces;
 import static io.trino.spi.type.DateTimeEncoding.packDateTimeWithZone;
+import static io.trino.spi.type.DateTimeEncoding.unpackZoneKey;
 import static io.trino.spi.type.DateType.DATE;
 import static io.trino.spi.type.DecimalType.createDecimalType;
 import static io.trino.spi.type.DoubleType.DOUBLE;
@@ -141,7 +150,9 @@ import static io.trino.spi.type.RealType.REAL;
 import static io.trino.spi.type.SmallintType.SMALLINT;
 import static io.trino.spi.type.TimeZoneKey.UTC_KEY;
 import static io.trino.spi.type.TimeZoneKey.getTimeZoneKey;
+import static io.trino.spi.type.TimeZoneKey.getTimeZoneKeyForOffset;
 import static io.trino.spi.type.TimestampType.createTimestampType;
+import static io.trino.spi.type.TimestampWithTimeZoneType.TIMESTAMP_TZ_MILLIS;
 import static io.trino.spi.type.TimestampWithTimeZoneType.createTimestampWithTimeZoneType;
 import static io.trino.spi.type.Timestamps.MICROSECONDS_PER_DAY;
 import static io.trino.spi.type.Timestamps.NANOSECONDS_PER_DAY;
@@ -180,6 +191,12 @@ import static org.junit.jupiter.params.provider.Arguments.arguments;
 @Execution(CONCURRENT)
 public class TestGpuExpressions
 {
+    /// `from_unixtime` returns the session time zone, and the GPU representation holds only UTC, so
+    /// the CPU side of its comparison has to run in a UTC session too.
+    private static final FullConnectorSession UTC_CONNECTOR_SESSION = new FullConnectorSession(
+            TestingSession.testSessionBuilder().setTimeZoneKey(UTC_KEY).build(),
+            ConnectorIdentity.ofUser("test"));
+
     // The nine {true, false, null} x {true, false, null} combinations, column-wise.
     private static final Boolean[] TRUTH_TABLE_LEFT = {true, true, true, false, false, false, null, null, null};
     private static final Boolean[] TRUTH_TABLE_RIGHT = {true, false, null, true, false, null, true, false, null};
@@ -527,7 +544,7 @@ public class TestGpuExpressions
 
         Expression expression = new Cast(field(0, REAL), INTEGER);
         Map<Symbol, Integer> layout = layoutFor(List.of(REAL));
-        CompiledExpression compiledGpu = compileExpression(expression, layout, SQL_STANDARD).orElseThrow();
+        CompiledExpression compiledGpu = compileExpression(expression, layout, SQL_STANDARD, TEST_SESSION_TIME_ZONE_KEY).orElseThrow();
         PageProcessor cpuProcessor = compileCpuExpression(expression, layout);
 
         for (int value : values) {
@@ -634,7 +651,7 @@ public class TestGpuExpressions
 
                 Expression expression = buildUnaryOperatorExpression(operator, function, field(0, coerced));
                 Map<Symbol, Integer> layout = layoutFor(List.of(coerced));
-                Optional<CompiledExpression> gpuExpression = compileExpression(expression, layout, SQL_STANDARD);
+                Optional<CompiledExpression> gpuExpression = compileExpression(expression, layout, SQL_STANDARD, TEST_SESSION_TIME_ZONE_KEY);
                 if (gpuExpression.isEmpty()) {
                     // Not supported for GPU execution
                     continue;
@@ -678,7 +695,7 @@ public class TestGpuExpressions
 
                 Expression expression = new Cast(field(0, fromType), toType);
                 Map<Symbol, Integer> layout = layoutFor(List.of(fromType));
-                Optional<CompiledExpression> gpuExpression = compileExpression(expression, layout, SQL_STANDARD);
+                Optional<CompiledExpression> gpuExpression = compileExpression(expression, layout, SQL_STANDARD, TEST_SESSION_TIME_ZONE_KEY);
                 if (gpuExpression.isEmpty()) {
                     continue;
                 }
@@ -758,7 +775,7 @@ public class TestGpuExpressions
 
                     Expression expression = new Call(function, ImmutableList.of(field(0, leftCoerced), field(1, rightCoerced)));
                     Map<Symbol, Integer> layout = layoutFor(List.of(leftCoerced, rightCoerced));
-                    Optional<CompiledExpression> gpuExpression = compileExpression(expression, layout, SQL_STANDARD);
+                    Optional<CompiledExpression> gpuExpression = compileExpression(expression, layout, SQL_STANDARD, TEST_SESSION_TIME_ZONE_KEY);
                     if (gpuExpression.isEmpty()) {
                         // Not supported for GPU execution
                         continue;
@@ -1099,7 +1116,7 @@ public class TestGpuExpressions
         // rescaled dividend nor the long-division intermediates fit in DECIMAL128
         DecimalType dividendType = createDecimalType(30, 0);
         DecimalType divisorType = createDecimalType(20, 10);
-        assertThat(compileExpression(divide(dividendType, divisorType), layoutFor(List.of(dividendType, divisorType)), SQL_STANDARD))
+        assertThat(compileExpression(divide(dividendType, divisorType), layoutFor(List.of(dividendType, divisorType)), SQL_STANDARD, TEST_SESSION_TIME_ZONE_KEY))
                 .isEmpty();
     }
 
@@ -1278,7 +1295,7 @@ public class TestGpuExpressions
 
         if (operator == ComparisonOperator.IDENTICAL && (type == REAL || type == DOUBLE)) {
             // operator currently not supported
-            assertThat(compileExpression(expression, layoutFor(inputTypes), SQL_STANDARD))
+            assertThat(compileExpression(expression, layoutFor(inputTypes), SQL_STANDARD, TEST_SESSION_TIME_ZONE_KEY))
                     .isEmpty();
             return;
         }
@@ -1535,7 +1552,7 @@ public class TestGpuExpressions
         Expression sum = add(field(0, BIGINT), field(1, BIGINT));
         Map<Symbol, Integer> layout = layoutFor(inputTypes);
         PageProcessor cpuProcessor = compileCpuExpression(add(add(sum, sum), field(0, BIGINT)), layout);
-        CompiledExpression gpuExpression = compileExpression(expression, layout, SQL_STANDARD).orElseThrow();
+        CompiledExpression gpuExpression = compileExpression(expression, layout, SQL_STANDARD, TEST_SESSION_TIME_ZONE_KEY).orElseThrow();
         assertThat(gpuExpression.inputChannels().getInputChannels()).containsExactly(0, 1);
         assertGpuMatchesCpu(inputPages, inputTypes, expression, cpuProcessor, gpuExpression, false);
     }
@@ -1599,7 +1616,7 @@ public class TestGpuExpressions
 
         if (type == VARBINARY) {
             // cudf replaceNulls has no implementation for the LIST<UINT8> column carrying varbinary
-            assertThat(compileExpression(expression, layoutFor(inputTypes), SQL_STANDARD)).isEmpty();
+            assertThat(compileExpression(expression, layoutFor(inputTypes), SQL_STANDARD, TEST_SESSION_TIME_ZONE_KEY)).isEmpty();
             return;
         }
         assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA, channelB));
@@ -2918,7 +2935,7 @@ public class TestGpuExpressions
                 FUNCTION_RESOLUTION.resolveFunction("year", fromTypes(type)),
                 ImmutableList.of(field(channelA, type)));
 
-        CompiledExpression gpuExpression = compileExpression(expression, layoutFor(List.of(type)), SQL_STANDARD)
+        CompiledExpression gpuExpression = compileExpression(expression, layoutFor(List.of(type)), SQL_STANDARD, TEST_SESSION_TIME_ZONE_KEY)
                 .orElseThrow(() -> new AssertionError("GPU expression compile failed for: " + expression));
         assertTrinoExceptionThrownBy(() -> executeWithGpu(inputPages, List.of(type), expression, gpuExpression))
                 .hasErrorCode(NUMERIC_VALUE_OUT_OF_RANGE)
@@ -2948,7 +2965,7 @@ public class TestGpuExpressions
     private void assertYearExtractThrows(LocalDate date)
     {
         Expression expression = yearExtract(DATE);
-        CompiledExpression gpuExpression = compileExpression(expression, layoutFor(List.of(DATE)), SQL_STANDARD)
+        CompiledExpression gpuExpression = compileExpression(expression, layoutFor(List.of(DATE)), SQL_STANDARD, TEST_SESSION_TIME_ZONE_KEY)
                 .orElseThrow(() -> new AssertionError("GPU expression compile failed for: " + expression));
         assertTrinoExceptionThrownBy(() -> executeWithGpu(
                 List.of(new Page(writeNativeValue(DATE, date.toEpochDay()))),
@@ -3149,7 +3166,7 @@ public class TestGpuExpressions
         List<Page> inputPages = List.of(new Page(timestamps));
         List<Type> inputTypes = List.of(timestampType);
 
-        CompiledExpression gpuExpression = compileExpression(expression, layoutFor(inputTypes), SQL_STANDARD)
+        CompiledExpression gpuExpression = compileExpression(expression, layoutFor(inputTypes), SQL_STANDARD, TEST_SESSION_TIME_ZONE_KEY)
                 .orElseThrow(() -> new AssertionError("GPU expression compile failed for: " + expression));
         assertTrinoExceptionThrownBy(() -> executeWithGpu(inputPages, inputTypes, expression, gpuExpression))
                 .hasErrorCode(NUMERIC_VALUE_OUT_OF_RANGE)
@@ -3209,7 +3226,7 @@ public class TestGpuExpressions
         for (int codePoint : UNSUPPORTED_CODE_POINTS) {
             List<Page> inputPages = List.of(new Page(writeNativeValue(type, Slices.utf8Slice(new String(Character.toChars(codePoint))))));
             Expression expression = createLowerExpression(type);
-            CompiledExpression gpuExpression = compileExpression(expression, layoutFor(List.of(type)), SQL_STANDARD)
+            CompiledExpression gpuExpression = compileExpression(expression, layoutFor(List.of(type)), SQL_STANDARD, TEST_SESSION_TIME_ZONE_KEY)
                     .orElseThrow(() -> new AssertionError("GPU expression compile failed for: " + expression));
             assertTrinoExceptionThrownBy(() -> executeWithGpu(inputPages, List.of(type), expression, gpuExpression))
                     .describedAs("U+%04X", codePoint)
@@ -3386,7 +3403,7 @@ public class TestGpuExpressions
     {
         List<Page> inputPages = List.of(new Page(varcharsBlock(Arrays.asList(values))));
         Expression expression = createUpperExpression(VARCHAR);
-        CompiledExpression gpuExpression = compileExpression(expression, layoutFor(List.of(VARCHAR)), SQL_STANDARD)
+        CompiledExpression gpuExpression = compileExpression(expression, layoutFor(List.of(VARCHAR)), SQL_STANDARD, TEST_SESSION_TIME_ZONE_KEY)
                 .orElseThrow(() -> new AssertionError("GPU expression compile failed for: " + expression));
         assertTrinoExceptionThrownBy(() -> executeWithGpu(inputPages, List.of(VARCHAR), expression, gpuExpression))
                 .describedAs("%s", Arrays.asList(values))
@@ -3499,11 +3516,214 @@ public class TestGpuExpressions
                 FUNCTION_RESOLUTION.resolveFunction("last_day_of_month", fromTypes(type)),
                 ImmutableList.of(field(channelA, type)));
 
-        CompiledExpression gpuExpression = compileExpression(expression, layoutFor(List.of(type)), SQL_STANDARD)
+        CompiledExpression gpuExpression = compileExpression(expression, layoutFor(List.of(type)), SQL_STANDARD, TEST_SESSION_TIME_ZONE_KEY)
                 .orElseThrow(() -> new AssertionError("GPU expression compile failed for: " + expression));
         assertTrinoExceptionThrownBy(() -> executeWithGpu(inputPages, List.of(type), expression, gpuExpression))
                 .hasErrorCode(NUMERIC_VALUE_OUT_OF_RANGE)
                 .hasMessage("Year out of range supported by GPU: must be in [-32767, 32767]");
+    }
+
+    @ParameterizedTest
+    @EnumSource(NullsProvider.class)
+    void testToUnixTime(NullsProvider nullsProvider)
+    {
+        for (Type type : TESTED_GPU_TIMESTAMP_WITH_TIME_ZONE_TYPES) {
+            int channel = 0;
+            List<Type> inputTypes = List.of(type);
+            List<Page> inputPages = List.of(new Page(createBlock(type, 64, nullsProvider)));
+            assertGpuMatchesCpu(inputPages, inputTypes, toUnixTime(field(channel, type)), Set.of(channel));
+        }
+    }
+
+    /// The CPU implementation of the long representation converts the milliseconds and the
+    /// picoseconds of the millisecond to double separately and adds the two, so the result is rounded
+    /// twice. `to_unixtime(TIMESTAMP '2020-05-10 12:34:56.12345 UTC')` is `1589114096.1234498e0`
+    /// rather than `1589114096.12345e0`, which one division of the whole instant would give.
+    @Test
+    void testToUnixTimeRoundsTwice()
+    {
+        // 2020-05-10 12:34:56.12345 UTC, as epoch milliseconds plus 0.45 of a millisecond
+        long epochMillis = 1589114096123L;
+        int picosOfMilli = 450_000_000;
+
+        for (int precision = 5; precision <= MAX_GPU_TIMESTAMP_PRECISION; precision++) {
+            TimestampWithTimeZoneType type = createTimestampWithTimeZoneType(precision);
+            BlockBuilder builder = type.createBlockBuilder(null, 2);
+            type.writeObject(builder, LongTimestampWithTimeZone.fromEpochMillisAndFraction(epochMillis, picosOfMilli, UTC_KEY));
+            builder.appendNull();
+
+            assertGpuMatchesCpu(List.of(new Page(builder.build())), List.of(type), toUnixTime(field(0, type)), Set.of(0));
+        }
+    }
+
+    /// `to_unixtime` is declared only for `timestamp(p) with time zone`, so a plain `timestamp`
+    /// reaches it through a cast that resolves the session time zone. cuDF has no zone rules, so the
+    /// cast does not compile and the whole call stays on the CPU.
+    @Test
+    void testToUnixTimeOnTimestampFallsBackToCpu()
+    {
+        for (int precision = 0; precision <= MAX_GPU_TIMESTAMP_PRECISION; precision++) {
+            Type argumentType = createTimestampType(precision);
+            TimestampWithTimeZoneType castType = createTimestampWithTimeZoneType(precision);
+            Expression expression = toUnixTime(new Cast(field(0, argumentType), castType));
+            assertThat(compileExpression(expression, layoutFor(List.of(argumentType)), SQL_STANDARD, TEST_SESSION_TIME_ZONE_KEY))
+                    .as("to_unixtime over %s", argumentType)
+                    .isEmpty();
+        }
+    }
+
+    @Test
+    void testToUnixTimeUnsupportedPrecisionFallsBackToCpu()
+    {
+        for (int precision = MAX_GPU_TIMESTAMP_PRECISION + 1; precision <= TimestampWithTimeZoneType.MAX_PRECISION; precision++) {
+            Type type = createTimestampWithTimeZoneType(precision);
+            assertThat(compileExpression(toUnixTime(field(0, type)), layoutFor(List.of(type)), SQL_STANDARD, TEST_SESSION_TIME_ZONE_KEY))
+                    .as("to_unixtime over %s", type)
+                    .isEmpty();
+        }
+    }
+
+    private static Expression toUnixTime(Expression argument)
+    {
+        return new Call(
+                FUNCTION_RESOLUTION.resolveFunction("to_unixtime", fromTypes(argument.type())),
+                ImmutableList.of(argument));
+    }
+
+    /// `Math.round` is not `floor(x + 0.5)`, so the input covers the halfway fractions, where the tie
+    /// is broken towards positive infinity, and the value just below a half, where `floor(x + 0.5)`
+    /// rounds up and `Math.round` does not.
+    @Test
+    void testFromUnixTime()
+    {
+        List<Double> values = new ArrayList<>(asList(
+                0.0,
+                -0.0,
+                null,
+                0.0005,
+                -0.0005,
+                0.0015,
+                -0.0015,
+                0.0025,
+                -0.0025,
+                4.9999999999999994e-4,
+                -4.9999999999999994e-4,
+                GpuFromUnixTime.MIN_EPOCH_MILLIS,
+                GpuFromUnixTime.MAX_EPOCH_MILLIS,
+                Math.nextDown(0.0005),
+                Math.nextUp(0.0005),
+                null,
+                1.0,
+                -1.0,
+                1589093396.1234498,
+                -1589093396.1234498,
+                // The product with 1000 rounds to the halfway 1000.5 before Math.round sees it
+                1.0005,
+                -1589067296.1235));
+        Random random = new Random(42);
+        for (int i = 0; i < 512; i++) {
+            values.add(random.nextDouble(-2e12, 2e12));
+            values.add(random.nextDouble(-1000, 1000));
+            values.add(random.nextDouble(-1, 1));
+        }
+
+        assertFromUnixTimeMatchesCpu(List.of(new Page(createFloatingPointBlock(DOUBLE, values))));
+    }
+
+    /// `Math.round(NaN)` is zero, so the CPU implementation returns the epoch rather than failing.
+    @Test
+    void testFromUnixTimeNotANumber()
+    {
+        assertFromUnixTimeMatchesCpu(List.of(new Page(createFloatingPointBlock(DOUBLE, List.of(Double.NaN)))));
+    }
+
+    @Test
+    void testFromUnixTimeOutOfRange()
+    {
+        List<Double> values = List.of(
+                GpuFromUnixTime.MIN_EPOCH_MILLIS - 1,
+                GpuFromUnixTime.MAX_EPOCH_MILLIS + 1,
+                Double.MAX_VALUE,
+                -Double.MAX_VALUE,
+                Double.POSITIVE_INFINITY,
+                Double.NEGATIVE_INFINITY);
+        for (Double value : values) {
+            assertFromUnixTimeMatchesCpu(List.of(new Page(createFloatingPointBlock(DOUBLE, List.of(value)))));
+        }
+    }
+
+    /// The result carries the session time zone, and the GPU representation holds only UTC, so
+    /// anything else leaves the call on the CPU.
+    @Test
+    void testFromUnixTimeOutsideUtcSessionFallsBackToCpu()
+    {
+        Expression expression = fromUnixTime(field(0, DOUBLE));
+        for (TimeZoneKey zoneKey : List.of(getTimeZoneKey("Europe/Warsaw"), getTimeZoneKeyForOffset(5 * 60 + 30))) {
+            assertThat(compileExpression(expression, layoutFor(List.of(DOUBLE)), SQL_STANDARD, zoneKey))
+                    .as("from_unixtime in %s", zoneKey.getId())
+                    .isEmpty();
+        }
+    }
+
+    @Test
+    void testFromUnixTimeOtherOverloadsFallBackToCpu()
+    {
+        Map<Symbol, Integer> layout = layoutFor(List.of(DOUBLE));
+        Expression withZoneId = new Call(
+                FUNCTION_RESOLUTION.resolveFunction("from_unixtime", fromTypes(DOUBLE, VARCHAR)),
+                ImmutableList.of(field(0, DOUBLE), new Constant(VARCHAR, utf8Slice("America/New_York"))));
+        assertThat(compileExpression(withZoneId, layout, SQL_STANDARD, UTC_KEY)).isEmpty();
+
+        Expression withOffset = new Call(
+                FUNCTION_RESOLUTION.resolveFunction("from_unixtime", fromTypes(DOUBLE, BIGINT, BIGINT)),
+                ImmutableList.of(field(0, DOUBLE), new Constant(BIGINT, 5L), new Constant(BIGINT, 30L)));
+        assertThat(compileExpression(withOffset, layout, SQL_STANDARD, UTC_KEY)).isEmpty();
+
+        Type nanosType = createDecimalType(20, 3);
+        Expression fromUnixTimeNanos = new Call(
+                FUNCTION_RESOLUTION.resolveFunction("from_unixtime_nanos", fromTypes(nanosType)),
+                ImmutableList.of(field(0, nanosType)));
+        assertThat(compileExpression(fromUnixTimeNanos, layoutFor(List.of(nanosType)), SQL_STANDARD, UTC_KEY)).isEmpty();
+    }
+
+    /// `from_unixtime` compiles only in a UTC session, so both engines are run in one: the CPU
+    /// result then carries the zone as well as the instant, which `assertSameDataInOrder` compares
+    /// by instant alone.
+    private static void assertFromUnixTimeMatchesCpu(List<Page> inputPages)
+    {
+        List<Type> inputTypes = List.of(DOUBLE);
+        Expression expression = fromUnixTime(field(0, DOUBLE));
+        Map<Symbol, Integer> layout = layoutFor(inputTypes);
+        PageProcessor cpuProcessor = compileCpuExpression(expression, layout);
+        CompiledExpression gpuExpression = compileExpression(expression, layout, SQL_STANDARD, UTC_KEY)
+                .orElseThrow(() -> new AssertionError("GPU expression compile failed for: " + expression));
+
+        List<Page> cpuResults;
+        try {
+            cpuResults = executeWithCpu(cpuProcessor, inputPages, UTC_CONNECTOR_SESSION);
+        }
+        catch (TrinoException cpuExecutionException) {
+            assertTrinoExceptionThrownBy(() -> executeWithGpu(inputPages, inputTypes, expression, gpuExpression))
+                    .hasErrorCode(cpuExecutionException::getErrorCode);
+            return;
+        }
+        List<Page> gpuResults = executeWithGpu(inputPages, inputTypes, expression, gpuExpression);
+        assertSameDataInOrder(gpuResults, cpuResults, List.of(TIMESTAMP_TZ_MILLIS));
+        for (Page page : gpuResults) {
+            Block block = page.getBlock(0);
+            for (int position = 0; position < block.getPositionCount(); position++) {
+                if (!block.isNull(position)) {
+                    assertThat(unpackZoneKey(TIMESTAMP_TZ_MILLIS.getLong(block, position))).isEqualTo(UTC_KEY);
+                }
+            }
+        }
+    }
+
+    private static Expression fromUnixTime(Expression argument)
+    {
+        return new Call(
+                FUNCTION_RESOLUTION.resolveFunction("from_unixtime", fromTypes(argument.type())),
+                ImmutableList.of(argument));
     }
 
     @ParameterizedTest
@@ -3515,7 +3735,7 @@ public class TestGpuExpressions
                 for (long value : List.of(-13L, 5L)) {
                     try {
                         if (!isDateAddSupported(unit, dateTimeType)) {
-                            assertThat(compileExpression(dateAdd(unit.trinoDateAddUnit(), new Constant(BIGINT, value), dateTimeType), layoutFor(List.of(dateTimeType)), SQL_STANDARD))
+                            assertThat(compileExpression(dateAdd(unit.trinoDateAddUnit(), new Constant(BIGINT, value), dateTimeType), layoutFor(List.of(dateTimeType)), SQL_STANDARD, TEST_SESSION_TIME_ZONE_KEY))
                                     .isEmpty();
                             continue;
                         }
@@ -3596,7 +3816,7 @@ public class TestGpuExpressions
     private void assertDateAddOnGpu(String unit, long value, LocalDate input, LocalDate expected)
     {
         Expression expression = dateAdd(unit, new Constant(BIGINT, value), DATE);
-        CompiledExpression gpuExpression = compileExpression(expression, layoutFor(List.of(DATE)), SQL_STANDARD)
+        CompiledExpression gpuExpression = compileExpression(expression, layoutFor(List.of(DATE)), SQL_STANDARD, TEST_SESSION_TIME_ZONE_KEY)
                 .orElseThrow(() -> new AssertionError("GPU expression compile failed for: " + expression));
         Page result = getOnlyElement(executeWithGpu(
                 List.of(new Page(writeNativeValue(DATE, input.toEpochDay()))),
@@ -3689,19 +3909,19 @@ public class TestGpuExpressions
         Map<Symbol, Integer> layout = ImmutableMap.of(
                 new Symbol(timestampType, "ref0"), 0,
                 new Symbol(BIGINT, "shift"), 1);
-        assertThat(compileExpression(dateAdd("day", new Reference(BIGINT, "shift"), timestampType), layout, SQL_STANDARD))
+        assertThat(compileExpression(dateAdd("day", new Reference(BIGINT, "shift"), timestampType), layout, SQL_STANDARD, TEST_SESSION_TIME_ZONE_KEY))
                 .isEmpty();
-        assertThat(compileExpression(dateAdd("day", new Constant(BIGINT, null), timestampType), layoutFor(List.of(timestampType)), SQL_STANDARD))
+        assertThat(compileExpression(dateAdd("day", new Constant(BIGINT, null), timestampType), layoutFor(List.of(timestampType)), SQL_STANDARD, TEST_SESSION_TIME_ZONE_KEY))
                 .isEmpty();
         // No representable input is left, and the CPU implementation fails for every input
-        assertThat(compileExpression(dateAdd("day", new Constant(BIGINT, Long.MAX_VALUE), timestampType), layoutFor(List.of(timestampType)), SQL_STANDARD))
+        assertThat(compileExpression(dateAdd("day", new Constant(BIGINT, Long.MAX_VALUE), timestampType), layoutFor(List.of(timestampType)), SQL_STANDARD, TEST_SESSION_TIME_ZONE_KEY))
                 .isEmpty();
         // A month count cuDF cannot take as a 32-bit scalar
-        assertThat(compileExpression(dateAdd("year", new Constant(BIGINT, 1_000_000_000L), timestampType), layoutFor(List.of(timestampType)), SQL_STANDARD))
+        assertThat(compileExpression(dateAdd("year", new Constant(BIGINT, 1_000_000_000L), timestampType), layoutFor(List.of(timestampType)), SQL_STANDARD, TEST_SESSION_TIME_ZONE_KEY))
                 .isEmpty();
         // A month count cuDF can take, but which reserves more than cuDF's calendar spans, so that
         // no representable input is left
-        assertThat(compileExpression(dateAdd("year", new Constant(BIGINT, 3_000_000L), DATE), layoutFor(List.of(DATE)), SQL_STANDARD))
+        assertThat(compileExpression(dateAdd("year", new Constant(BIGINT, 3_000_000L), DATE), layoutFor(List.of(DATE)), SQL_STANDARD, TEST_SESSION_TIME_ZONE_KEY))
                 .isEmpty();
     }
 
@@ -3798,7 +4018,7 @@ public class TestGpuExpressions
     public void testDateAddOutOfRangeMessageNamesTheBound()
     {
         Expression expression = dateAdd("year", new Constant(BIGINT, 1L), DATE);
-        CompiledExpression gpuExpression = compileExpression(expression, layoutFor(List.of(DATE)), SQL_STANDARD)
+        CompiledExpression gpuExpression = compileExpression(expression, layoutFor(List.of(DATE)), SQL_STANDARD, TEST_SESSION_TIME_ZONE_KEY)
                 .orElseThrow(() -> new AssertionError("GPU expression compile failed for: " + expression));
         assertTrinoExceptionThrownBy(() -> executeWithGpu(
                 List.of(new Page(writeNativeValue(DATE, LocalDate.of(32767, 12, 1).toEpochDay()))),
@@ -3947,7 +4167,7 @@ public class TestGpuExpressions
     private void assertGpuDateAddThrows(String unit, long value, Type dateTimeType, Block dateTimes)
     {
         Expression expression = dateAdd(unit, new Constant(BIGINT, value), dateTimeType);
-        CompiledExpression gpuExpression = compileExpression(expression, layoutFor(List.of(dateTimeType)), SQL_STANDARD)
+        CompiledExpression gpuExpression = compileExpression(expression, layoutFor(List.of(dateTimeType)), SQL_STANDARD, TEST_SESSION_TIME_ZONE_KEY)
                 .orElseThrow(() -> new AssertionError("GPU expression compile failed for: " + expression));
         try {
             assertTrinoExceptionThrownBy(() -> executeWithGpu(
@@ -4242,12 +4462,12 @@ public class TestGpuExpressions
         Expression nonConstantSearch = new Call(
                 FUNCTION_RESOLUTION.resolveFunction("replace", fromTypes(VARCHAR, VARCHAR)),
                 ImmutableList.of(field(0, VARCHAR), field(1, VARCHAR)));
-        assertThat(compileExpression(nonConstantSearch, layoutFor(inputTypes), SQL_STANDARD)).isEmpty();
+        assertThat(compileExpression(nonConstantSearch, layoutFor(inputTypes), SQL_STANDARD, TEST_SESSION_TIME_ZONE_KEY)).isEmpty();
 
         Expression nonConstantReplacement = new Call(
                 FUNCTION_RESOLUTION.resolveFunction("replace", fromTypes(VARCHAR, VARCHAR, VARCHAR)),
                 ImmutableList.of(field(0, VARCHAR), new Constant(VARCHAR, Slices.utf8Slice("a")), field(1, VARCHAR)));
-        assertThat(compileExpression(nonConstantReplacement, layoutFor(inputTypes), SQL_STANDARD)).isEmpty();
+        assertThat(compileExpression(nonConstantReplacement, layoutFor(inputTypes), SQL_STANDARD, TEST_SESSION_TIME_ZONE_KEY)).isEmpty();
     }
 
     private void testReplace(NullsProvider nullsProvider, String search, Optional<String> replacement)
@@ -4274,7 +4494,7 @@ public class TestGpuExpressions
         if (search.isEmpty()) {
             // Trino wraps every code point in the replacement rather than replacing a substring,
             // and cuDF rejects an empty target outright
-            assertThat(compileExpression(expression, layoutFor(inputTypes), SQL_STANDARD)).isEmpty();
+            assertThat(compileExpression(expression, layoutFor(inputTypes), SQL_STANDARD, TEST_SESSION_TIME_ZONE_KEY)).isEmpty();
             return;
         }
         assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(varcharChannel));
@@ -4337,7 +4557,7 @@ public class TestGpuExpressions
                 FUNCTION_RESOLUTION.resolveFunction("trim", fromTypes(VARCHAR, CODE_POINTS)),
                 ImmutableList.of(field(0, VARCHAR), nonConstantCodePoints));
 
-        assertThat(compileExpression(expression, layoutFor(inputTypes), SQL_STANDARD))
+        assertThat(compileExpression(expression, layoutFor(inputTypes), SQL_STANDARD, TEST_SESSION_TIME_ZONE_KEY))
                 .isEmpty();
     }
 
@@ -4350,7 +4570,7 @@ public class TestGpuExpressions
                 FUNCTION_RESOLUTION.resolveFunction("trim", fromTypes(VARCHAR, CODE_POINTS)),
                 ImmutableList.of(field(0, VARCHAR), new Constant(CODE_POINTS, null)));
 
-        assertThat(compileExpression(expression, layoutFor(inputTypes), SQL_STANDARD))
+        assertThat(compileExpression(expression, layoutFor(inputTypes), SQL_STANDARD, TEST_SESSION_TIME_ZONE_KEY))
                 .isEmpty();
     }
 
@@ -4374,7 +4594,7 @@ public class TestGpuExpressions
                 FUNCTION_RESOLUTION.resolveFunction(functionName, fromTypes(VARCHAR)),
                 ImmutableList.of(field(0, VARCHAR)));
         Map<Symbol, Integer> layout = layoutFor(inputTypes);
-        CompiledExpression gpuExpression = compileExpression(expression, layout, SQL_STANDARD)
+        CompiledExpression gpuExpression = compileExpression(expression, layout, SQL_STANDARD, TEST_SESSION_TIME_ZONE_KEY)
                 .orElseThrow(() -> new AssertionError("GPU expression compile failed for: " + expression));
 
         List<Page> cpuResults = executeWithCpu(compileCpuExpression(expression, layout), inputPages);
@@ -4482,7 +4702,8 @@ public class TestGpuExpressions
                         FUNCTION_RESOLUTION.resolveFunction("concat", fromTypes(VARBINARY, VARBINARY)),
                         ImmutableList.of(field(0, VARBINARY), field(1, VARBINARY))),
                 layoutFor(List.of(VARBINARY, VARBINARY)),
-                SQL_STANDARD))
+                SQL_STANDARD,
+                TEST_SESSION_TIME_ZONE_KEY))
                 .isEmpty();
     }
 
@@ -4721,7 +4942,7 @@ public class TestGpuExpressions
                 positionsCount,
                 createBigintBlock(positionsCount, NullsProvider.NO_NULLS, 0, 100)));
 
-        CompiledExpression gpuExpression = compileExpression(constantExpression, layoutFor(List.of()), SQL_STANDARD)
+        CompiledExpression gpuExpression = compileExpression(constantExpression, layoutFor(List.of()), SQL_STANDARD, TEST_SESSION_TIME_ZONE_KEY)
                 .orElseThrow(() -> new AssertionError("GPU expression compile failed for: " + constantExpression));
         assertThat(gpuExpression.inputChannels().getInputChannels()).isEmpty();
 
