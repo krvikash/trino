@@ -841,6 +841,28 @@ public class TestGroupByHash
     }
 
     @Test
+    public void testGroupIdsPastWarmingThreshold()
+    {
+        // Probes are warmed only once the table outgrows the cache. Start small so the table
+        // crosses that size while inserting, then look every key up again on the large table.
+        int length = 1_000_000;
+        int[] expected = IntStream.range(0, length).toArray();
+        for (Type type : DATA_TYPES) {
+            Block valuesBlock = type == VARCHAR ? createStringSequenceBlock(0, length) : createLongSequenceBlock(0, length);
+            GroupByHash groupByHash = new FlatGroupByHash(
+                    ImmutableList.of(type),
+                    shouldCacheHashValue(false, ImmutableList.of(type)),
+                    1,
+                    true,
+                    new FlatHashStrategyCompiler(new TypeOperators(), new NullSafeHashCompiler(new TypeOperators())),
+                    NOOP);
+            Page page = new Page(valuesBlock);
+            assertThat(getGroupIds(groupByHash, page)).isEqualTo(expected);
+            assertThat(getGroupIds(groupByHash, page)).isEqualTo(expected);
+        }
+    }
+
+    @Test
     public void testBigintGroupByHashBatched()
     {
         Block inputBlock = BlockAssertions.createLongsBlock(0L, 1L, -1L, 777L, Integer.MAX_VALUE + 1L, null, Integer.MIN_VALUE - 1L, Long.MAX_VALUE, Long.MIN_VALUE);

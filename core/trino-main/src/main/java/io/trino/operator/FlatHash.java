@@ -31,6 +31,7 @@ import static io.trino.operator.AppendOnlyVariableWidthData.getChunkOffset;
 import static io.trino.spi.StandardErrorCode.GENERIC_INSUFFICIENT_RESOURCES;
 import static java.lang.Math.addExact;
 import static java.lang.Math.max;
+import static java.lang.Math.min;
 import static java.lang.Math.multiplyExact;
 import static java.lang.Math.toIntExact;
 import static java.nio.ByteOrder.LITTLE_ENDIAN;
@@ -59,6 +60,11 @@ public final class FlatHash
     private static final int RECORDS_PER_GROUP_MASK = RECORDS_PER_GROUP - 1;
 
     private static final int VECTOR_LENGTH = Long.BYTES;
+    /**
+     * Probes warmed together. Large enough to overlap the misses, small enough to stay in L1.
+     */
+    private static final int PREFETCH_BATCH_SIZE = 64;
+    private static final long PREFETCH_MIN_FOOTPRINT_BYTES = 1L << 20;
     private static final VarHandle LONG_HANDLE = MethodHandles.byteArrayViewVarHandle(long[].class, LITTLE_ENDIAN);
 
     private final FlatHashStrategy flatHashStrategy;
@@ -73,6 +79,13 @@ public final class FlatHash
     private byte[] control;
     private int[] groupIdsByHash;
     private byte[][] fixedSizeRecords;
+
+    private final int[] prefetchBuckets = new int[PREFETCH_BATCH_SIZE];
+    /**
+     * Receives the warming loads so the JIT cannot drop them.
+     */
+    @SuppressWarnings("UnusedVariable")
+    private long prefetchSink;
 
     private long fixedRecordGroupsRetainedSize;
     private long temporaryRehashRetainedSize;
@@ -139,6 +152,7 @@ public final class FlatHash
                 sizeOf(control),
                 sizeOf(groupIdsByHash),
                 sizeOf(fixedSizeRecords),
+                sizeOf(prefetchBuckets),
                 variableWidthData == null ? 0 : variableWidthData.getRetainedSizeBytes());
     }
 
@@ -262,6 +276,84 @@ public final class FlatHash
         return putIfAbsent(blocks, position, hash, flatHashStrategy);
     }
 
+    /**
+     * Warms every line the next {@code length} probes will touch, then runs the ordinary probes.
+     * <p>
+     * A probe walks control byte, then {@code groupIdsByHash}, then the record, and each address
+     * comes out of the previous load, so a row cannot overlap its own misses and only the little
+     * the reorder window reaches ahead overlaps with the next row's. Issuing the loads for a whole
+     * batch first, in tight loops with nothing in between, lets them overlap instead. The warming
+     * passes read only and their results are discarded, so {@link #putIfAbsent} remains the single
+     * source of truth for what the table does.
+     */
+    public void putIfAbsentBatched(
+            Block[] blocks,
+            int startPosition,
+            int length,
+            long[] hashes,
+            int[] groupIds,
+            int groupIdsOffset,
+            FlatHashStrategy flatHashStrategy)
+    {
+        // small tables stay in cache, where warming only adds work
+        boolean warm = probeFootprintBytes() >= PREFETCH_MIN_FOOTPRINT_BYTES;
+        for (int start = 0; start < length; start += PREFETCH_BATCH_SIZE) {
+            int batch = min(PREFETCH_BATCH_SIZE, length - start);
+            if (warm) {
+                prefetchProbes(hashes, start, batch);
+            }
+            for (int i = start; i < start + batch; i++) {
+                groupIds[groupIdsOffset + i] = putIfAbsent(blocks, startPosition + i, hashes[i], flatHashStrategy);
+            }
+        }
+    }
+
+    /**
+     * Bytes a probe can touch: the control bytes, groupIdsByHash, and the records and keys behind them.
+     */
+    private long probeFootprintBytes()
+    {
+        long bytes = (long) capacity * (Byte.BYTES + Integer.BYTES) + (long) nextGroupId * fixedRecordSize;
+        if (variableWidthData != null) {
+            bytes += variableWidthData.getAllocatedBytes();
+        }
+        return bytes;
+    }
+
+    /**
+     * Read only: pulls in the control, group id and record lines that the probes will need.
+     */
+    private void prefetchProbes(long[] hashes, int hashesOffset, int batch)
+    {
+        int[] buckets = prefetchBuckets;
+        long sink = 0;
+        for (int i = 0; i < batch; i++) {
+            int bucket = bucketForHash(hashes[hashesOffset + i]);
+            buckets[i] = bucket;
+            sink ^= (long) LONG_HANDLE.get(control, bucket);
+        }
+        // the group ids for a control vector's eight buckets span one or two lines
+        for (int i = 0; i < batch; i++) {
+            sink += groupIdsByHash[buckets[i]];
+        }
+        // the record a probe will most likely land on; a wrong guess only wastes the fetch
+        for (int i = 0; i < batch; i++) {
+            long controlMatches = match((long) LONG_HANDLE.get(control, buckets[i]), repeat(hashPrefix(hashes[hashesOffset + i])));
+            if (controlMatches == 0) {
+                continue;
+            }
+            int groupId = groupIdsByHash[bucket(buckets[i] + (Long.numberOfTrailingZeros(controlMatches) >>> 3))];
+            if (groupId < 0) {
+                continue;
+            }
+            byte[] records = fixedSizeRecords[recordGroupIndexForGroupId(groupId)];
+            if (records != null) {
+                sink += records[getFixedRecordOffset(groupId)];
+            }
+        }
+        prefetchSink += sink;
+    }
+
     public int putIfAbsent(Block[] blocks, int position, long hash, FlatHashStrategy flatHashStrategy)
     {
         int index = getIndex(blocks, position, hash, flatHashStrategy);
@@ -284,8 +376,8 @@ public final class FlatHash
     private int getIndex(Block[] blocks, int position, long hash, FlatHashStrategy flatHashStrategy)
     {
         checkState(!isReleasingOutput(), "already releasing output");
-        byte hashPrefix = (byte) (hash & 0x7F | 0x80);
-        int bucket = bucket((int) (hash >> 7));
+        byte hashPrefix = hashPrefix(hash);
+        int bucket = bucketForHash(hash);
 
         int step = 1;
         long repeated = repeat(hashPrefix);
@@ -452,6 +544,17 @@ public final class FlatHash
     private int bucket(int hash)
     {
         return hash & mask;
+    }
+
+    // shared by the probe and the warming passes, which no test checks against each other
+    private int bucketForHash(long hash)
+    {
+        return bucket((int) (hash >> 7));
+    }
+
+    private static byte hashPrefix(long hash)
+    {
+        return (byte) (hash & 0x7F | 0x80);
     }
 
     private static int recordGroupIndexForGroupId(int groupId)

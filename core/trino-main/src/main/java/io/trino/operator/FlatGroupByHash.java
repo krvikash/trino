@@ -71,6 +71,8 @@ public class FlatGroupByHash
     private final BlockBuilder[] currentBlockBuilders;
     // reusable array for computing hash batches into
     private long[] currentHashes;
+    // reusable array for the batched probe to discard group ids into, used by addPage only
+    private int[] currentGroupIds;
 
     public FlatGroupByHash(
             List<Type> hashTypes,
@@ -136,6 +138,7 @@ public class FlatGroupByHash
                 flatHash.getEstimatedSize(),
                 currentPageSizeInBytes,
                 sizeOf(currentHashes),
+                sizeOf(currentGroupIds),
                 (dictionaryLookBack != null ? dictionaryLookBack.getRetainedSizeInBytes() : 0));
     }
 
@@ -149,6 +152,7 @@ public class FlatGroupByHash
     public void startReleasingOutput()
     {
         currentHashes = null;
+        currentGroupIds = null;
         dictionaryLookBack = null;
         Arrays.fill(currentBlocks, null);
         currentPageSizeInBytes = 0;
@@ -227,6 +231,15 @@ public class FlatGroupByHash
     private int putIfAbsent(Block[] blocks, int position, FlatHashStrategy flatHashStrategy)
     {
         return flatHash.putIfAbsent(blocks, position, flatHashStrategy);
+    }
+
+    // addPage has no use for the group ids, but the batched probe writes them somewhere
+    private int[] getGroupIdsBufferArray(int size)
+    {
+        if (currentGroupIds == null || currentGroupIds.length < size) {
+            currentGroupIds = new int[Math.min(size, BATCH_SIZE)];
+        }
+        return currentGroupIds;
     }
 
     private long[] getHashesBufferArray(int size)
@@ -391,9 +404,7 @@ public class FlatGroupByHash
                 }
 
                 hashGenerator.hashBlocksBatched(blocks, hashes, lastPosition, batchSize);
-                for (int i = 0; i < batchSize; i++) {
-                    flatHash.putIfAbsent(blocks, lastPosition + i, hashes[i], flatHashStrategy);
-                }
+                flatHash.putIfAbsentBatched(blocks, lastPosition, batchSize, hashes, getGroupIdsBufferArray(batchSize), 0, flatHashStrategy);
 
                 lastPosition += batchSize;
                 remainingPositions -= batchSize;
@@ -565,9 +576,7 @@ public class FlatGroupByHash
                 }
 
                 hashGenerator.hashBlocksBatched(blocks, hashes, lastPosition, batchSize);
-                for (int i = 0, position = lastPosition; i < batchSize; i++, position++) {
-                    groupIds[position] = flatHash.putIfAbsent(blocks, position, hashes[i], flatHashStrategy);
-                }
+                flatHash.putIfAbsentBatched(blocks, lastPosition, batchSize, hashes, groupIds, lastPosition, flatHashStrategy);
 
                 lastPosition += batchSize;
                 remainingPositions -= batchSize;
