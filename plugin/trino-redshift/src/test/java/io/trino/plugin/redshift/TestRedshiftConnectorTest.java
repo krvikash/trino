@@ -31,6 +31,7 @@ import io.trino.sql.planner.plan.FilterNode;
 import io.trino.sql.planner.plan.TableScanNode;
 import io.trino.testing.QueryRunner;
 import io.trino.testing.TestingConnectorBehavior;
+import io.trino.testing.services.junit.Flaky;
 import io.trino.testing.sql.SqlExecutor;
 import io.trino.testing.sql.TestTable;
 import org.jdbi.v3.core.Handle;
@@ -132,6 +133,14 @@ public class TestRedshiftConnectorTest
     protected TestTable newTrinoTable(String namePrefix, String tableDefinition, List<String> rowsToInsert)
     {
         return new TestTable(new TrinoSqlExecutorWithRetries(getQueryRunner()), namePrefix, tableDefinition, rowsToInsert);
+    }
+
+    @Test
+    @Override
+    @Flaky(issue = "https://starburstdata.atlassian.net/browse/ENG-12304", match = "could not open relation with OID|column size not present")
+    public void testSelectInformationSchemaColumns()
+    {
+        super.testSelectInformationSchemaColumns();
     }
 
     @Test
