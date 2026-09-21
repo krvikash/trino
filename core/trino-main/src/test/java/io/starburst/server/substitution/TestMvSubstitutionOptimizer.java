@@ -1651,7 +1651,7 @@ public class TestMvSubstitutionOptimizer
         Metadata metadata = getPlanTester().getPlannerContext().getMetadata();
         return new PlanOptimizer.Context(
                 session,
-                false,
+                Optional.of(false),
                 emptySymbolAllocator(),
                 new PlanNodeIdAllocator(),
                 WarningCollector.NOOP,

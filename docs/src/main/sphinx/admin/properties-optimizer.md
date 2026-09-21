@@ -256,6 +256,10 @@ The estimated value will always be between `min_hash_partition_count` and
 `max_hash_partition_count` session property.
 A value of `0MB` disables this optimization.
 
+A query whose estimated input is below this size and below half of
+{ref}`prop-resource-query-max-memory-per-node` may also be planned as a single fragment;
+`0MB` disables that planning.
+
 ## `optimizer.min-input-rows-per-task`
 
 - **Type:** {ref}`prop-type-integer`
@@ -269,6 +273,9 @@ increases concurrency on large clusters where multiple small queries are running
 The estimated value will always be between `min_hash_partition_count` and
 `max_hash_partition_count` session property.
 A value of `0` disables this optimization.
+
+A query with a plan node estimated at this many rows or more, and at more rows than its table
+scans read, is not planned as a single fragment; `0` disables that planning.
 
 ## `optimizer.use-cost-based-partitioning`
 
@@ -302,7 +309,7 @@ the rows that survive. This reduces work when most rows are discarded by the `LI
 ## `experimental.query-distribution-mode`
 
 - **Type:** {ref}`prop-type-string`
-- **Allowed values:** `DISTRIBUTED`, `SINGLE_NODE`
+- **Allowed values:** `DISTRIBUTED`, `SINGLE_NODE`, `AUTOMATIC`
 - **Default value:** `DISTRIBUTED`
 - **Session property:** `query_distribution_mode`
 
@@ -310,3 +317,13 @@ Whether a query runs on a single node, which skips remote exchanges at the cost 
 parallelism and data locality.
 - `DISTRIBUTED` plans every query across the cluster.
 - `SINGLE_NODE` runs every query on a single node.
+- `AUTOMATIC` runs a query on a single node when the estimated output of its table scans, and of
+every plan node, is below `optimizer.min-input-size-per-task` and below half of
+{ref}`prop-resource-query-max-memory-per-node`, and when every plan node is estimated at fewer
+rows than `optimizer.min-input-rows-per-task` or at no more rows than the table scans read. A
+query stays distributed when an estimate is unknown, when its input is not read from a table, or
+when tasks are retried (`retry-policy` set to `TASK`). A write stays distributed as well, because
+the plan node that commits it has no estimate.
+
+Under `SINGLE_NODE` and `AUTOMATIC` alike, a query that reads a table whose connector does not
+support single node execution, such as a system table, stays distributed.

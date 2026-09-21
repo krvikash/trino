@@ -271,7 +271,7 @@ public class BenchmarkMvSubstitutionOptimizer
             plan = buildInputPlan(transactionSession);
             context = new PlanOptimizer.Context(
                     transactionSession,
-                    false,
+                    Optional.of(false),
                     emptySymbolAllocator(),
                     new PlanNodeIdAllocator(),
                     WarningCollector.NOOP,

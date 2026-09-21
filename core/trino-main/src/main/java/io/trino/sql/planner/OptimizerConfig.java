@@ -161,6 +161,7 @@ public class OptimizerConfig
     {
         DISTRIBUTED,
         SINGLE_NODE,
+        AUTOMATIC,
     }
 
     public double getCpuCostWeight()
@@ -809,7 +810,7 @@ public class OptimizerConfig
     }
 
     @Config("experimental.query-distribution-mode")
-    @ConfigDescription("Select query execution: distributed or single node")
+    @ConfigDescription("Select query execution: distributed or single node or automatic")
     public OptimizerConfig setQueryDistributionMode(QueryDistributionMode queryDistributionMode)
     {
         this.queryDistributionMode = requireNonNull(queryDistributionMode, "queryDistributionMode is null");
@@ -911,7 +912,7 @@ public class OptimizerConfig
     }
 
     @Config("optimizer.min-input-size-per-task")
-    @ConfigDescription("Minimum input data size required per task. This will help optimizer determine hash partition count for joins and aggregations")
+    @ConfigDescription("Minimum input data size required per task. This will help optimizer determine hash partition count for joins and aggregations, and bounds the input of a query that runs on a single node")
     public OptimizerConfig setMinInputSizePerTask(DataSize minInputSizePerTask)
     {
         this.minInputSizePerTask = minInputSizePerTask;

@@ -20,6 +20,7 @@ import io.airlift.units.Duration;
 import io.trino.sql.planner.OptimizerConfig;
 import io.trino.sql.planner.OptimizerConfig.JoinDistributionType;
 import io.trino.sql.planner.OptimizerConfig.JoinReorderingStrategy;
+import io.trino.sql.planner.OptimizerConfig.QueryDistributionMode;
 import org.junit.jupiter.api.Test;
 
 import java.util.Map;
@@ -92,7 +93,7 @@ public class TestOptimizerConfig
                 .setTableScanNodePartitioningMinBucketToTaskRatio(0.5)
                 .setMergeProjectWithValues(true)
                 .setForceSingleNodeOutput(false)
-                .setQueryDistributionMode(DISTRIBUTED)
+                .setQueryDistributionMode(QueryDistributionMode.DISTRIBUTED)
                 .setAdaptivePartialAggregationEnabled(true)
                 .setAdaptivePartialAggregationUniqueRowsRatioThreshold(0.8)
                 .setCardinalityEstimationBasedPartialAggregationControllerEnabled(true)

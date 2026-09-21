@@ -1233,7 +1233,7 @@ public final class SystemSessionProperties
                         false),
                 dataSizeProperty(
                         MIN_INPUT_SIZE_PER_TASK,
-                        "Minimum input data size required per task. This will help optimizer determine hash partition count for joins and aggregations",
+                        "Minimum input data size required per task. This will help optimizer determine hash partition count for joins and aggregations, and bounds the input of a query planned as a single fragment",
                         optimizerConfig.getMinInputSizePerTask(),
                         false),
                 longProperty(

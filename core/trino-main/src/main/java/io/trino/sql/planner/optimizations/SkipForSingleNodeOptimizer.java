@@ -30,7 +30,7 @@ public class SkipForSingleNodeOptimizer
     @Override
     public PlanNode optimize(PlanNode plan, Context context)
     {
-        if (!context.forceSingleNodeQuery()) {
+        if (!context.isSingleNode()) {
             return delegate.optimize(plan, context);
         }
         return plan;

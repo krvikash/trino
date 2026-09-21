@@ -267,6 +267,7 @@ import io.trino.sql.planner.optimizations.AddExchanges;
 import io.trino.sql.planner.optimizations.AddLocalExchanges;
 import io.trino.sql.planner.optimizations.BeginTableWrite;
 import io.trino.sql.planner.optimizations.CheckSubqueryNodesAreRewritten;
+import io.trino.sql.planner.optimizations.DetermineNodeExecutionMode;
 import io.trino.sql.planner.optimizations.DeterminePartitionCount;
 import io.trino.sql.planner.optimizations.DeterminePreferredDynamicFilterTimeout;
 import io.trino.sql.planner.optimizations.IndexJoinOptimizer;
@@ -319,7 +320,8 @@ public class PlanOptimizers
             MvSubstitutionStats mvSubstitutionStats,
             MvSubstitutionUsageMetrics mvSubstitutionUsageMetrics,
             NodePartitioningManager nodePartitioningManager,
-            RuleStatsRecorder ruleStats)
+            RuleStatsRecorder ruleStats,
+            NodeExecutionStrategy nodeExecutionStrategy)
     {
         this(plannerContext,
                 taskManagerConfig,
@@ -338,12 +340,13 @@ public class PlanOptimizers
                 mvSubstitutionStats,
                 mvSubstitutionUsageMetrics,
                 nodePartitioningManager,
-                ruleStats);
+                ruleStats,
+                nodeExecutionStrategy);
     }
 
     /// `forceSingleNode` selects an optimizer set for a runner that has no distributed execution at all, so no
     /// remote exchange is ever added. It is not the same as single node execution mode, which is a per query
-    /// decision made at plan time and handled by [SkipForSingleNodeOptimizer] and [AddExchanges].
+    /// decision made by [DetermineNodeExecutionMode] and handled by [SkipForSingleNodeOptimizer] and [AddExchanges].
     public PlanOptimizers(
             PlannerContext plannerContext,
             TaskManagerConfig taskManagerConfig,
@@ -362,8 +365,10 @@ public class PlanOptimizers
             MvSubstitutionStats mvSubstitutionStats,
             MvSubstitutionUsageMetrics mvSubstitutionUsageMetrics,
             NodePartitioningManager nodePartitioningManager,
-            RuleStatsRecorder ruleStats)
+            RuleStatsRecorder ruleStats,
+            NodeExecutionStrategy nodeExecutionStrategy)
     {
+        requireNonNull(nodeExecutionStrategy, "nodeExecutionStrategy is null");
         CostCalculator costCalculator = costCalculatorWithEstimatedExchanges;
 
         this.ruleStats = requireNonNull(ruleStats, "ruleStats is null");
@@ -944,6 +949,9 @@ public class PlanOptimizers
                         // Must run before AddExchanges
                         .add(new DetermineTableScanNodePartitioning(metadata, nodePartitioningManager, taskCountEstimator))
                         .build()));
+
+        // Must run before SkipForSingleNodeOptimizer and AddExchanges, which act on the decision
+        builder.add(new DetermineNodeExecutionMode(nodeExecutionStrategy));
 
         if (!forceSingleNode) {
             builder.add(

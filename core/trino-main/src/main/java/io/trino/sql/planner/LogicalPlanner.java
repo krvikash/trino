@@ -182,7 +182,6 @@ import static io.trino.sql.ir.IrExpressions.comparison;
 import static io.trino.sql.ir.IrExpressions.ifExpression;
 import static io.trino.sql.planner.LogicalPlanner.Stage.OPTIMIZED;
 import static io.trino.sql.planner.LogicalPlanner.Stage.OPTIMIZED_AND_VALIDATED;
-import static io.trino.sql.planner.NodeExecutionStrategy.DISTRIBUTED_EXECUTION;
 import static io.trino.sql.planner.PlanBuilder.newPlanBuilder;
 import static io.trino.sql.planner.QueryPlanner.visibleFields;
 import static io.trino.sql.planner.SystemPartitioningHandle.FIXED_HASH_DISTRIBUTION;
@@ -217,7 +216,6 @@ public class LogicalPlanner
     private final boolean cacheEnabled;
     private final CacheCommonSubqueries cacheCommonSubqueries;
     private final WarningCollector warningCollector;
-    private final NodeExecutionStrategy nodeExecutionStrategy;
     private final PlanOptimizersStatsCollector planOptimizersStatsCollector;
     private final CachingTableStatsProvider tableStatsProvider;
     private final FormatOptions formatOptions;
@@ -237,28 +235,9 @@ public class LogicalPlanner
             FormatOptions formatOptions,
             MvSubstitutionCollector mvSubstitutionCollector)
     {
-        this(session, planOptimizers, alternativeOptimizers, DISTRIBUTED_EXECUTION, idAllocator, plannerContext, statsCalculator, costCalculator, warningCollector, planOptimizersStatsCollector, tableStatsProvider, formatOptions, mvSubstitutionCollector);
-    }
-
-    public LogicalPlanner(
-            Session session,
-            List<PlanOptimizer> planOptimizers,
-            List<PlanOptimizer> alternativeOptimizers,
-            NodeExecutionStrategy nodeExecutionStrategy,
-            PlanNodeIdAllocator idAllocator,
-            PlannerContext plannerContext,
-            StatsCalculator statsCalculator,
-            CostCalculator costCalculator,
-            WarningCollector warningCollector,
-            PlanOptimizersStatsCollector planOptimizersStatsCollector,
-            CachingTableStatsProvider tableStatsProvider,
-            FormatOptions formatOptions,
-            MvSubstitutionCollector mvSubstitutionCollector)
-    {
         this.session = requireNonNull(session, "session is null");
         this.planOptimizers = requireNonNull(planOptimizers, "planOptimizers is null");
         this.alternativeOptimizers = requireNonNull(alternativeOptimizers, "alternativeOptimizers is null");
-        this.nodeExecutionStrategy = requireNonNull(nodeExecutionStrategy, "nodeExecutionStrategy is null");
         this.idAllocator = requireNonNull(idAllocator, "idAllocator is null");
         this.plannerContext = requireNonNull(plannerContext, "plannerContext is null");
         this.metadata = plannerContext.getMetadata();
@@ -291,8 +270,6 @@ public class LogicalPlanner
 
     public PlanningResult plan(Analysis analysis, Stage stage, boolean collectPlanStatistics, boolean reuseCommonSubqueriesAllowed)
     {
-        boolean forceSingleNodeQuery = nodeExecutionStrategy.shouldBeExecutedOnSingleNode(session, analysis.getTables());
-
         PlanNode root;
         try (var _ = scopedSpan(plannerContext.getTracer(), "plan")) {
             root = planStatement(analysis, analysis.getStatement());
@@ -315,14 +292,26 @@ public class LogicalPlanner
             DISTRIBUTED_PLAN_SANITY_CHECKER.validateIntermediatePlan(root, session, plannerContext, warningCollector);
         }
 
+        PlanOptimizer.Context context = new PlanOptimizer.Context(
+                session,
+                Optional.empty(),
+                symbolAllocator,
+                idAllocator,
+                warningCollector,
+                planOptimizersStatsCollector,
+                tableStatsProvider,
+                RuntimeInfoProvider.noImplementation(),
+                mvSubstitutionCollector);
         if (stage.ordinal() >= OPTIMIZED.ordinal()) {
             try (var _ = scopedSpan(plannerContext.getTracer(), "optimizer")) {
                 for (PlanOptimizer optimizer : planOptimizers) {
-                    root = runOptimizer(root, tableStatsProvider, optimizer, forceSingleNodeQuery);
+                    root = runOptimizer(root, optimizer, context);
+                    context = optimizer.deriveNextContext(root, context);
                 }
             }
         }
-
+        // only DetermineNodeExecutionMode chooses single node execution; a plan not optimized, or optimized without it, is distributed
+        boolean forceSingleNodeQuery = context.singleNodeDecision().orElse(false);
         PlanSanityChecker planSanityChecker = forceSingleNodeQuery ? SINGLE_NODE_PLAN_SANITY_CHECKER : DISTRIBUTED_PLAN_SANITY_CHECKER;
 
         if (stage.ordinal() >= OPTIMIZED_AND_VALIDATED.ordinal()) {
@@ -350,7 +339,7 @@ public class LogicalPlanner
         if (useSubPlanAlternatives) {
             for (PlanOptimizer optimizer : alternativeOptimizers) {
                 try (var _ = scopedSpan(plannerContext.getTracer(), "alternative-optimizer")) {
-                    root = runOptimizer(root, tableStatsProvider, optimizer, forceSingleNodeQuery);
+                    root = runOptimizer(root, optimizer, context);
                 }
             }
         }
@@ -392,11 +381,11 @@ public class LogicalPlanner
         return new PlanningResult(plan, optimizedProgram, forceSingleNodeQuery);
     }
 
-    private PlanNode runOptimizer(PlanNode root, TableStatsProvider tableStatsProvider, PlanOptimizer optimizer, boolean forceSingleNode)
+    private PlanNode runOptimizer(PlanNode root, PlanOptimizer optimizer, PlanOptimizer.Context context)
     {
         PlanNode result;
         try (var _ = optimizerSpan(optimizer)) {
-            result = optimizer.optimize(root, new PlanOptimizer.Context(session, forceSingleNode, symbolAllocator, idAllocator, warningCollector, planOptimizersStatsCollector, tableStatsProvider, RuntimeInfoProvider.noImplementation(), mvSubstitutionCollector));
+            result = optimizer.optimize(root, context);
         }
         if (result == null) {
             throw new NullPointerException(optimizer.getClass().getName() + " returned a null plan");

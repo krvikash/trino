@@ -430,7 +430,7 @@ final class TestReplacePartialTopNWithLimit
                     plan,
                     new PlanOptimizer.Context(
                             session,
-                            false,
+                            Optional.of(false),
                             emptySymbolAllocator(),
                             new PlanNodeIdAllocator(),
                             WarningCollector.NOOP,

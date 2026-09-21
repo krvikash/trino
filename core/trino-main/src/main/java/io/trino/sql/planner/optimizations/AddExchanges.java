@@ -165,7 +165,7 @@ public class AddExchanges
     @Override
     public PlanNode optimize(PlanNode plan, Context context)
     {
-        if (context.forceSingleNodeQuery()) {
+        if (context.singleNodeDecision().orElse(false)) {
             return SimplePlanRewriter.rewriteWith(new ForceSingleNodeQueryRewriter(context.idAllocator()), plan);
         }
 

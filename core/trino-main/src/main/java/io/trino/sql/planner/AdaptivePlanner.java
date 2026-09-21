@@ -43,6 +43,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
@@ -262,7 +263,7 @@ public class AdaptivePlanner
                     result.plan(),
                     new PlanOptimizer.Context(
                             session,
-                            forceSingleNodeQuery,
+                            Optional.of(forceSingleNodeQuery),
                             symbolAllocator,
                             idAllocator,
                             warningCollector,

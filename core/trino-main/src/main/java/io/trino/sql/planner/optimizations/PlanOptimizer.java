@@ -23,15 +23,22 @@ import io.trino.sql.planner.PlanNodeIdAllocator;
 import io.trino.sql.planner.SymbolAllocator;
 import io.trino.sql.planner.plan.PlanNode;
 
+import java.util.Optional;
+
 import static java.util.Objects.requireNonNull;
 
 public interface PlanOptimizer
 {
     PlanNode optimize(PlanNode plan, Context context);
 
+    default Context deriveNextContext(PlanNode plan, Context context)
+    {
+        return context;
+    }
+
     record Context(
             Session session,
-            boolean forceSingleNodeQuery,
+            Optional<Boolean> singleNodeDecision,
             SymbolAllocator symbolAllocator,
             PlanNodeIdAllocator idAllocator,
             WarningCollector warningCollector,
@@ -42,7 +49,7 @@ public interface PlanOptimizer
     {
         public Context(
                 Session session,
-                boolean forceSingleNodeQuery,
+                Optional<Boolean> singleNodeDecision,
                 SymbolAllocator symbolAllocator,
                 PlanNodeIdAllocator idAllocator,
                 WarningCollector warningCollector,
@@ -52,7 +59,7 @@ public interface PlanOptimizer
                 MvSubstitutionCollector mvSubstitutionCollector)
         {
             this.session = requireNonNull(session, "session is null");
-            this.forceSingleNodeQuery = forceSingleNodeQuery;
+            this.singleNodeDecision = requireNonNull(singleNodeDecision, "singleNodeDecision is null");
             this.symbolAllocator = requireNonNull(symbolAllocator, "symbolAllocator is null");
             this.idAllocator = requireNonNull(idAllocator, "idAllocator is null");
             this.warningCollector = requireNonNull(warningCollector, "warningCollector is null");
@@ -60,6 +67,18 @@ public interface PlanOptimizer
             this.planOptimizersStatsCollector = requireNonNull(planOptimizersStatsCollector, "planOptimizersStatsCollector is null");
             this.runtimeInfoProvider = requireNonNull(runtimeInfoProvider, "runtimeInfoProvider is null");
             this.mvSubstitutionCollector = requireNonNull(mvSubstitutionCollector, "mvSubstitutionCollector is null");
+        }
+
+        public Context withSingleNodeDecision(boolean singleNode)
+        {
+            return new Context(session, Optional.of(singleNode), symbolAllocator, idAllocator, warningCollector, planOptimizersStatsCollector, tableStatsProvider, runtimeInfoProvider, mvSubstitutionCollector);
+        }
+
+        /// Whether the query executes on a single node. Throws if [DetermineNodeExecutionMode] has not decided yet;
+        /// callers that need the pre-decision default (distributed) should read [#singleNodeDecision] directly.
+        public boolean isSingleNode()
+        {
+            return singleNodeDecision.orElseThrow(() -> new IllegalStateException("Node execution mode is not decided before " + DetermineNodeExecutionMode.class.getSimpleName()));
         }
     }
 }

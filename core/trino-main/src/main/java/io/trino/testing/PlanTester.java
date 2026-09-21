@@ -239,7 +239,6 @@ import io.trino.sql.planner.LocalExecutionPlanner;
 import io.trino.sql.planner.LocalExecutionPlanner.LocalExecutionPlan;
 import io.trino.sql.planner.LogicalPlanner;
 import io.trino.sql.planner.LogicalPlanner.PlanningResult;
-import io.trino.sql.planner.NodeExecutionStrategy.DynamicNodeExecutionStrategy;
 import io.trino.sql.planner.NodePartitioningManager;
 import io.trino.sql.planner.OptimizerConfig;
 import io.trino.sql.planner.PartitionFunctionProvider;
@@ -1127,7 +1126,8 @@ public class PlanTester
                 new MvSubstitutionStats(),
                 new MvSubstitutionUsageMetrics(MeterProvider.noop().get("noop")),
                 nodePartitioningManager,
-                new RuleStatsRecorder());
+                new RuleStatsRecorder(),
+                forceSingleNode ? SINGLE_NODE_EXECUTION : DISTRIBUTED_EXECUTION);
     }
 
     public List<PlanOptimizer> getAlternativeOptimizers()
@@ -1186,7 +1186,6 @@ public class PlanTester
                 session,
                 optimizers,
                 alternativeOptimizers,
-                forceSingleNode ? SINGLE_NODE_EXECUTION : DISTRIBUTED_EXECUTION,
                 idAllocator,
                 getPlannerContext(),
                 statsCalculator,
@@ -1227,7 +1226,6 @@ public class PlanTester
                 statsCalculator,
                 costCalculator,
                 new NodeVersion("test"),
-                new DynamicNodeExecutionStrategy(plannerContext.getMetadata()),
                 formatOptions);
     }
 
