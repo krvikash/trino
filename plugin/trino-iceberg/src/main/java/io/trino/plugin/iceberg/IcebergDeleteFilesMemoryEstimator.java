@@ -104,7 +104,7 @@ public final class IcebergDeleteFilesMemoryEstimator
      * equality delete files exist (short of a writer committing an empty delete file). A missing
      * or unreadable summary is treated as having them, so the estimate errs high.
      */
-    private static boolean hasEqualityDeletes(Snapshot snapshot)
+    static boolean hasEqualityDeletes(Snapshot snapshot)
     {
         if (snapshot.summary() == null) {
             return true;

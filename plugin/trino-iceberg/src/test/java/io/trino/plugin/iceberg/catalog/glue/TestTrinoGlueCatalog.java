@@ -196,6 +196,8 @@ public class TestTrinoGlueCatalog
                     Optional.empty(),
                     3,
                     16,
+                    3072L,
+                    6144L,
                     false,
                     _ -> false,
                     UTC,

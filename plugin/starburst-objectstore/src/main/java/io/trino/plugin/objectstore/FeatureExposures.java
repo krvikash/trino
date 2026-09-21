@@ -183,6 +183,7 @@ public final class FeatureExposures
                 .put(ICEBERG, "projection_pushdown_enabled", EXPOSED)
                 .put(ICEBERG, "query_partition_filter_required", EXPOSED)
                 .put(ICEBERG, "query_partition_filter_required_schemas", EXPOSED)
+                .put(ICEBERG, "remote_splits_generation_delete_file_memory_threshold", EXPOSED)
                 .put(ICEBERG, "remote_splits_generation_enabled", EXPOSED)
                 .put(ICEBERG, "remote_splits_generation_manifests_per_thread", EXPOSED)
                 .put(ICEBERG, "remove_orphan_files_min_retention", EXPOSED)

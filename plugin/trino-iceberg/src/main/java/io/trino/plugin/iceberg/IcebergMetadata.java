@@ -297,6 +297,7 @@ import static com.google.common.collect.Iterables.getOnlyElement;
 import static com.google.common.collect.Iterables.size;
 import static com.google.common.collect.Maps.transformValues;
 import static com.google.common.collect.Sets.difference;
+import static io.airlift.units.DataSize.Unit.MEGABYTE;
 import static io.airlift.units.Duration.ZERO;
 import static io.trino.filesystem.Locations.isS3Tables;
 import static io.trino.metastore.TableInfo.ExtendedRelationType.TRINO_MATERIALIZED_VIEW;
@@ -333,6 +334,8 @@ import static io.trino.plugin.iceberg.IcebergColumnHandle.rowIdColumnHandle;
 import static io.trino.plugin.iceberg.IcebergDefaultValues.formatIcebergDefaultAsSql;
 import static io.trino.plugin.iceberg.IcebergDefaultValues.parseDefaultValue;
 import static io.trino.plugin.iceberg.IcebergDefaultValues.toIcebergLiteral;
+import static io.trino.plugin.iceberg.IcebergDeleteFilesMemoryEstimator.equalityDeleteFileMemory;
+import static io.trino.plugin.iceberg.IcebergDeleteFilesMemoryEstimator.hasEqualityDeletes;
 import static io.trino.plugin.iceberg.IcebergErrorCode.ICEBERG_BAD_DATA;
 import static io.trino.plugin.iceberg.IcebergErrorCode.ICEBERG_CATALOG_ERROR;
 import static io.trino.plugin.iceberg.IcebergErrorCode.ICEBERG_COMMIT_ERROR;
@@ -361,6 +364,7 @@ import static io.trino.plugin.iceberg.IcebergSessionProperties.getDropTableMode;
 import static io.trino.plugin.iceberg.IcebergSessionProperties.getExpireSnapshotMinRetention;
 import static io.trino.plugin.iceberg.IcebergSessionProperties.getHiveCatalogName;
 import static io.trino.plugin.iceberg.IcebergSessionProperties.getQueryPartitionFilterRequiredSchemas;
+import static io.trino.plugin.iceberg.IcebergSessionProperties.getRemoteSplitsGenerationDeleteFileMemoryThreshold;
 import static io.trino.plugin.iceberg.IcebergSessionProperties.getRemoteSplitsGenerationManifestsPerThread;
 import static io.trino.plugin.iceberg.IcebergSessionProperties.getRemoveOrphanFilesMinRetention;
 import static io.trino.plugin.iceberg.IcebergSessionProperties.isBucketExecutionEnabled;
@@ -595,6 +599,9 @@ public class IcebergMetadata
             REMOVE_ORPHAN_FILES,
             DROP_EXTENDED_STATS);
 
+    // Manifest decoding parallelizes, so this scales with vcores, like Iceberg's Spark distributed planning
+    private static final DataSize REMOTE_SPLITS_GENERATION_MANIFESTS_SIZE_PER_VCORE = DataSize.of(50, MEGABYTE);
+
     private final LocationAccessControl locationAccessControl;
     private final AiModelAccessControl aiModelAccessControl;
     private final CatalogName catalogName;
@@ -609,6 +616,8 @@ public class IcebergMetadata
     private final Optional<HiveMetastoreFactory> metastoreFactory;
     private final int maxFormatVersion;
     private final int splitManagerThreads;
+    private final long remoteSplitsGenerationMemoryPerPositionalDeleteFile;
+    private final long remoteSplitsGenerationMemoryPerEqualityDeleteFile;
     private final boolean addFilesProcedureEnabled;
     private final Predicate<String> allowedExtraProperties;
     private final DateTimeZone dateTimeZone;
@@ -657,6 +666,8 @@ public class IcebergMetadata
             Optional<HiveMetastoreFactory> metastoreFactory,
             int maxFormatVersion,
             int splitManagerThreads,
+            long remoteSplitsGenerationMemoryPerPositionalDeleteFile,
+            long remoteSplitsGenerationMemoryPerEqualityDeleteFile,
             boolean addFilesProcedureEnabled,
             Predicate<String> allowedExtraProperties,
             DateTimeZone dateTimeZone,
@@ -685,6 +696,8 @@ public class IcebergMetadata
         this.metastoreFactory = requireNonNull(metastoreFactory, "metastoreFactory is null");
         this.maxFormatVersion = maxFormatVersion;
         this.splitManagerThreads = splitManagerThreads;
+        this.remoteSplitsGenerationMemoryPerPositionalDeleteFile = remoteSplitsGenerationMemoryPerPositionalDeleteFile;
+        this.remoteSplitsGenerationMemoryPerEqualityDeleteFile = remoteSplitsGenerationMemoryPerEqualityDeleteFile;
         this.addFilesProcedureEnabled = addFilesProcedureEnabled;
         this.allowedExtraProperties = requireNonNull(allowedExtraProperties, "allowedExtraProperties is null");
         this.dateTimeZone = requireNonNull(dateTimeZone, "dateTimeZone is null");
@@ -5868,9 +5881,35 @@ public class IcebergMetadata
         if (snapshot == null) {
             return false;
         }
+        List<ManifestFile> manifests = snapshot.allManifests(icebergTable.io());
         long manifestThreshold =
                 (long) getRemoteSplitsGenerationManifestsPerThread(session) * splitManagerThreads;
-        return snapshot.allManifests(icebergTable.io()).size() > manifestThreshold;
+        if (manifests.size() > manifestThreshold) {
+            return true;
+        }
+
+        // split-manager-threads defaults to two per core
+        long vcores = max(1, splitManagerThreads / 2);
+        long manifestsSize = manifests.stream().mapToLong(ManifestFile::length).sum();
+        if (manifestsSize > vcores * REMOTE_SPLITS_GENERATION_MANIFESTS_SIZE_PER_VCORE.toBytes()) {
+            return true;
+        }
+
+        // The delete file index is retained on the coordinator heap, so this threshold is fixed rather than scaled
+        return estimateDeleteFileIndexMemory(icebergTable, snapshot) > getRemoteSplitsGenerationDeleteFileMemoryThreshold(session).toBytes();
+    }
+
+    private long estimateDeleteFileIndexMemory(Table icebergTable, Snapshot snapshot)
+    {
+        // Counts live files only, as the delete file index does
+        long deleteFileCount = snapshot.deleteManifests(icebergTable.io()).stream()
+                .mapToLong(manifest -> requireNonNullElse(manifest.addedFilesCount(), 0) + requireNonNullElse(manifest.existingFilesCount(), 0))
+                .sum();
+        long memoryPerDeleteFile = remoteSplitsGenerationMemoryPerPositionalDeleteFile;
+        if (hasEqualityDeletes(snapshot)) {
+            memoryPerDeleteFile = equalityDeleteFileMemory(icebergTable.schema().identifierFieldIds().size(), remoteSplitsGenerationMemoryPerEqualityDeleteFile);
+        }
+        return deleteFileCount * memoryPerDeleteFile;
     }
 
     public OptionalLong getIncrementalRefreshFromSnapshot()

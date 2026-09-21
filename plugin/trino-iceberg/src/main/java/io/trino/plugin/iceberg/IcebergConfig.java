@@ -103,9 +103,10 @@ public class IcebergConfig
     private boolean registerViewProcedureEnabled;
     private boolean addFilesProcedureEnabled;
     private boolean remoteSplitsGenerationEnabled;
-    private int remoteSplitsGenerationManifestsPerThread = 16;
+    private int remoteSplitsGenerationManifestsPerThread = 8;
     private DataSize remoteSplitsGenerationMemoryPerPositionalDeleteFile = DataSize.of(3, KILOBYTE);
     private DataSize remoteSplitsGenerationMemoryPerEqualityDeleteFile = DataSize.of(6, KILOBYTE);
+    private DataSize remoteSplitsGenerationDeleteFileMemoryThreshold = DataSize.of(1, GIGABYTE);
     private Optional<String> hiveCatalogName = Optional.empty();
     private int formatVersion = FORMAT_VERSION_DEFAULT;
     private int maxFormatVersion = 3;
@@ -453,6 +454,21 @@ public class IcebergConfig
             DataSize remoteSplitsGenerationMemoryPerEqualityDeleteFile)
     {
         this.remoteSplitsGenerationMemoryPerEqualityDeleteFile = remoteSplitsGenerationMemoryPerEqualityDeleteFile;
+        return this;
+    }
+
+    @NotNull
+    public DataSize getRemoteSplitsGenerationDeleteFileMemoryThreshold()
+    {
+        return remoteSplitsGenerationDeleteFileMemoryThreshold;
+    }
+
+    @Config("iceberg.remote-splits-generation.delete-file-memory-threshold")
+    @ConfigDescription("Delegate split generation to a worker when the estimated memory of the delete file index " +
+            "built during split generation exceeds this value")
+    public IcebergConfig setRemoteSplitsGenerationDeleteFileMemoryThreshold(DataSize remoteSplitsGenerationDeleteFileMemoryThreshold)
+    {
+        this.remoteSplitsGenerationDeleteFileMemoryThreshold = remoteSplitsGenerationDeleteFileMemoryThreshold;
         return this;
     }
 

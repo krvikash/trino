@@ -59,6 +59,8 @@ public class IcebergMetadataFactory
     private final Optional<HiveMetastoreFactory> metastoreFactory;
     private final int maxFormatVersion;
     private final int splitManagerThreads;
+    private final long remoteSplitsGenerationMemoryPerPositionalDeleteFile;
+    private final long remoteSplitsGenerationMemoryPerEqualityDeleteFile;
     private final boolean addFilesProcedureEnabled;
     private final DateTimeZone dateTimeZone;
     private final Predicate<String> allowedExtraProperties;
@@ -119,6 +121,8 @@ public class IcebergMetadataFactory
         this.icebergScanExecutor = requireNonNull(icebergScanExecutor, "icebergScanExecutor is null");
         this.maxFormatVersion = config.getMaxFormatVersion();
         this.splitManagerThreads = config.getSplitManagerThreads();
+        this.remoteSplitsGenerationMemoryPerPositionalDeleteFile = config.getRemoteSplitsGenerationMemoryPerPositionalDeleteFile().toBytes();
+        this.remoteSplitsGenerationMemoryPerEqualityDeleteFile = config.getRemoteSplitsGenerationMemoryPerEqualityDeleteFile().toBytes();
         this.addFilesProcedureEnabled = config.isAddFilesProcedureEnabled();
         this.dateTimeZone = config.getDateTimeZone();
         if (config.getAllowedExtraProperties().equals(ImmutableList.of("*"))) {
@@ -166,6 +170,8 @@ public class IcebergMetadataFactory
                 metastoreFactory,
                 maxFormatVersion,
                 splitManagerThreads,
+                remoteSplitsGenerationMemoryPerPositionalDeleteFile,
+                remoteSplitsGenerationMemoryPerEqualityDeleteFile,
                 addFilesProcedureEnabled,
                 allowedExtraProperties,
                 dateTimeZone,

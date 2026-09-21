@@ -118,6 +118,7 @@ public final class IcebergSessionProperties
     private static final String DROP_TABLE_MODE = "drop_table_mode";
     private static final String REMOTE_SPLITS_GENERATION_ENABLED = "remote_splits_generation_enabled";
     private static final String REMOTE_SPLITS_GENERATION_MANIFESTS_PER_THREAD = "remote_splits_generation_manifests_per_thread";
+    private static final String REMOTE_SPLITS_GENERATION_DELETE_FILE_MEMORY_THRESHOLD = "remote_splits_generation_delete_file_memory_threshold";
 
     private final List<PropertyMetadata<?>> sessionProperties;
 
@@ -448,6 +449,12 @@ public final class IcebergSessionProperties
                             }
                         },
                         false))
+                .add(dataSizeProperty(
+                        REMOTE_SPLITS_GENERATION_DELETE_FILE_MEMORY_THRESHOLD,
+                        "Delegate split generation to a worker when the estimated memory of the delete file index " +
+                                "built during split generation exceeds this value",
+                        icebergConfig.getRemoteSplitsGenerationDeleteFileMemoryThreshold(),
+                        false))
                 .add(integerProperty(
                         MAX_PARTITIONS_PER_WRITER,
                         "Maximum number of partitions per writer",
@@ -753,5 +760,10 @@ public final class IcebergSessionProperties
     public static int getRemoteSplitsGenerationManifestsPerThread(ConnectorSession session)
     {
         return session.getProperty(REMOTE_SPLITS_GENERATION_MANIFESTS_PER_THREAD, Integer.class);
+    }
+
+    public static DataSize getRemoteSplitsGenerationDeleteFileMemoryThreshold(ConnectorSession session)
+    {
+        return session.getProperty(REMOTE_SPLITS_GENERATION_DELETE_FILE_MEMORY_THRESHOLD, DataSize.class);
     }
 }
