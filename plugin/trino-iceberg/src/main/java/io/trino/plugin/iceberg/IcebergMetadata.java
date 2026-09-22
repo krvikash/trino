@@ -434,6 +434,7 @@ import static io.trino.plugin.iceberg.TableType.DATA;
 import static io.trino.plugin.iceberg.TypeConverter.toIcebergType;
 import static io.trino.plugin.iceberg.TypeConverter.toIcebergTypeForNewColumn;
 import static io.trino.plugin.iceberg.TypeConverter.toTrinoType;
+import static io.trino.plugin.iceberg.delete.RemoveDanglingDeleteFiles.prepareDanglingDeleteRemoval;
 import static io.trino.plugin.iceberg.procedure.IcebergTableProcedureId.ADD_FILES;
 import static io.trino.plugin.iceberg.procedure.IcebergTableProcedureId.ADD_FILES_FROM_TABLE;
 import static io.trino.plugin.iceberg.procedure.IcebergTableProcedureId.DROP_EXTENDED_STATS;
@@ -2886,12 +2887,11 @@ public class IcebergMetadata
 
                 Snapshot currentSnapshot = icebergTable.currentSnapshot();
                 beginTransaction(icebergTable);
-                RowDelta rowDelta = transaction.newRowDelta();
-                for (DeleteFile file : danglingDeleteFilesResult.danglingDeleteFiles()) {
-                    rowDelta.removeDeletes(file);
-                }
-                rowDelta.validateFromSnapshot(currentSnapshot.snapshotId());
-                commitUpdate(rowDelta, session, "remove_dangling_delete_files");
+                RewriteFiles rewriteFiles = prepareDanglingDeleteRemoval(
+                        transaction.newRewrite(),
+                        danglingDeleteFilesResult.danglingDeleteFiles(),
+                        currentSnapshot.snapshotId());
+                commitUpdate(rewriteFiles, session, "remove_dangling_delete_files");
                 commitTransaction(transaction, "remove_dangling_delete_files");
                 transaction = null;
 

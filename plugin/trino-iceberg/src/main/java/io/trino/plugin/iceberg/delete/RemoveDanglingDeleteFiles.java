@@ -13,7 +13,9 @@
  */
 package io.trino.plugin.iceberg.delete;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Iterables;
 import com.google.errorprone.annotations.ThreadSafe;
 import com.google.inject.Inject;
 import io.airlift.log.Logger;
@@ -26,7 +28,9 @@ import org.apache.iceberg.FileContent;
 import org.apache.iceberg.ManifestFile;
 import org.apache.iceberg.ManifestReader;
 import org.apache.iceberg.PartitionSpec;
+import org.apache.iceberg.RewriteFiles;
 import org.apache.iceberg.Snapshot;
+import org.apache.iceberg.SnapshotAncestryValidator;
 import org.apache.iceberg.exceptions.NotFoundException;
 import org.apache.iceberg.io.CloseableIterator;
 import org.apache.iceberg.util.ContentFileUtil;
@@ -34,6 +38,7 @@ import org.apache.iceberg.util.StructLikeWrapper;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
@@ -62,6 +67,18 @@ public class RemoveDanglingDeleteFiles
     public RemoveDanglingDeleteFiles(@ForIcebergSplitManager ExecutorService icebergScanExecutor)
     {
         this.icebergScanExecutor = requireNonNull(icebergScanExecutor, "icebergScanExecutor is null");
+    }
+
+    @VisibleForTesting
+    public static RewriteFiles prepareDanglingDeleteRemoval(RewriteFiles rewriteFiles, Collection<DeleteFile> danglingDeleteFiles, long planningSnapshotId)
+    {
+        for (DeleteFile file : danglingDeleteFiles) {
+            rewriteFiles.deleteFile(file);
+        }
+        rewriteFiles.validateFromSnapshot(planningSnapshotId);
+        // Guard against a rollback possibly reviving a dangling delete file
+        rewriteFiles.validateWith(new PlanningSnapshotAncestryValidator(planningSnapshotId));
+        return rewriteFiles;
     }
 
     /**
@@ -473,4 +490,28 @@ public class RemoveDanglingDeleteFiles
     }
 
     private record PartitionKey(int specId, StructLikeWrapper partition) {}
+
+    /**
+     * Rejects the commit unless the table still descends from the given snapshot, which a rollback or an
+     * expired snapshot would break.
+     *
+     * Iceberg runs the validator inside apply(), so it is re-evaluated on every commit retry, which a
+     * pre-commit check would not be.
+     */
+    @VisibleForTesting
+    record PlanningSnapshotAncestryValidator(long planningSnapshotId)
+            implements SnapshotAncestryValidator
+    {
+        @Override
+        public boolean validate(Iterable<Snapshot> baseSnapshots)
+        {
+            return Iterables.any(baseSnapshots, snapshot -> snapshot != null && snapshot.snapshotId() == planningSnapshotId);
+        }
+
+        @Override
+        public String errorMessage()
+        {
+            return "Table no longer descends from planning snapshot %s".formatted(planningSnapshotId);
+        }
+    }
 }

@@ -13,6 +13,7 @@
  */
 package io.trino.plugin.iceberg.procedure;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.trino.filesystem.TrinoFileSystemFactory;
 import io.trino.metastore.HiveMetastore;
@@ -27,11 +28,13 @@ import org.apache.iceberg.AppendFiles;
 import org.apache.iceberg.BaseTable;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.DataFiles;
+import org.apache.iceberg.DataOperations;
 import org.apache.iceberg.DeleteFile;
 import org.apache.iceberg.FileFormat;
 import org.apache.iceberg.FileMetadata;
 import org.apache.iceberg.ManifestFile;
 import org.apache.iceberg.ManifestFiles;
+import org.apache.iceberg.ManifestReader;
 import org.apache.iceberg.ManifestWriter;
 import org.apache.iceberg.Metrics;
 import org.apache.iceberg.MetricsConfig;
@@ -48,6 +51,7 @@ import org.apache.iceberg.deletes.DVFileWriter;
 import org.apache.iceberg.deletes.PositionDelete;
 import org.apache.iceberg.deletes.PositionDeleteIndex;
 import org.apache.iceberg.deletes.PositionDeleteWriter;
+import org.apache.iceberg.exceptions.ValidationException;
 import org.apache.iceberg.io.FileIO;
 import org.apache.iceberg.io.OutputFile;
 import org.apache.iceberg.io.OutputFileFactory;
@@ -58,6 +62,7 @@ import org.junit.jupiter.api.Test;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Optional;
@@ -66,15 +71,18 @@ import java.util.stream.Gatherers;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
+import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.trino.plugin.iceberg.IcebergTestUtils.FILE_IO_FACTORY;
 import static io.trino.plugin.iceberg.IcebergTestUtils.getFileSystemFactory;
 import static io.trino.plugin.iceberg.IcebergTestUtils.getHiveMetastore;
+import static io.trino.plugin.iceberg.delete.RemoveDanglingDeleteFiles.prepareDanglingDeleteRemoval;
 import static io.trino.plugin.iceberg.util.EqualityDeleteUtils.writeEqualityDeleteForTable;
 import static io.trino.testing.TestingConnectorSession.SESSION;
 import static org.apache.iceberg.FileContent.EQUALITY_DELETES;
 import static org.apache.iceberg.FileContent.POSITION_DELETES;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 final class TestIcebergRemoveDanglingDeleteFilesProcedure
         extends AbstractTestQueryFramework
@@ -187,6 +195,74 @@ final class TestIcebergRemoveDanglingDeleteFilesProcedure
             assertThat(query("SELECT * FROM " + table.getName()))
                     .skippingTypesCheck()
                     .matches("SELECT * FROM tpch.tiny.nation WHERE regionkey != 2");
+        }
+    }
+
+    @Test
+    void testCleanupSnapshotUsesReplaceOperation()
+            throws Exception
+    {
+        try (TestTable table = newTrinoTable(
+                "test_cleanup_snapshot_operation",
+                "(nationkey bigint, name varchar, regionkey bigint, comment varchar)")) {
+            BaseTable icebergTable = loadTable(table.getName());
+
+            // Equality deletes written before data have lower sequence numbers and are dangling
+            writeEqualityDeleteForTable(icebergTable, fileSystemFactory, Optional.empty(), Optional.empty(), ImmutableMap.of("regionkey", 1L), Optional.empty());
+            assertUpdate("INSERT INTO " + table.getName() + " SELECT * FROM tpch.tiny.nation", 25);
+
+            assertUpdate(
+                    "ALTER TABLE " + table.getName() + " EXECUTE remove_dangling_delete_files",
+                    """
+                    VALUES
+                    ('removed_delete_files_count', 1),
+                    ('dangling_equality_delete_files_count', 1),
+                    ('dangling_position_delete_files_count', 0),
+                    ('dangling_dv_files_count', 0),
+                    ('data_files_without_sequence_numbers', 0),
+                    ('unexpected_delete_files_count', 0)""");
+
+            // REPLACE keeps cleanup snapshots out of Iceberg's VALIDATE_ADDED_DELETE_FILES_OPERATIONS, so a later
+            // RewriteFiles does not have to read the delete manifests this cleanup rewrote
+            assertThat(loadTable(table.getName()).currentSnapshot().operation()).isEqualTo(DataOperations.REPLACE);
+            assertThat(equalityDeleteFileCount(table.getName())).isEqualTo(0);
+        }
+    }
+
+    @Test
+    void testRemovalRejectedWhenTableNoLongerDescendsFromPlanningSnapshot()
+            throws Exception
+    {
+        try (TestTable table = newTrinoTable(
+                "test_planning_snapshot_ancestry",
+                "(nationkey bigint, name varchar, regionkey bigint, comment varchar)")) {
+            BaseTable icebergTable = loadTable(table.getName());
+
+            // Equality delete written before data has a lower sequence number and is dangling
+            writeEqualityDeleteForTable(icebergTable, fileSystemFactory, Optional.empty(), Optional.empty(), ImmutableMap.of("regionkey", 1L), Optional.empty());
+            assertUpdate("INSERT INTO " + table.getName() + " SELECT * FROM tpch.tiny.nation", 25);
+
+            icebergTable = loadTable(table.getName());
+            DeleteFile danglingDeleteFile = getOnlyElement(liveDeleteFiles(icebergTable));
+            long snapshotWithDanglingDelete = icebergTable.currentSnapshot().snapshotId();
+
+            // Plan against a later snapshot, then roll back off it. The rollback target still contains the targeted
+            // delete file, so failMissingDeletePaths cannot reject the commit and only the ancestry check can.
+            writeEqualityDeleteForTable(icebergTable, fileSystemFactory, Optional.empty(), Optional.empty(), ImmutableMap.of("regionkey", 2L), Optional.empty());
+            icebergTable = loadTable(table.getName());
+            long planningSnapshotId = icebergTable.currentSnapshot().snapshotId();
+            icebergTable.manageSnapshots().rollbackTo(snapshotWithDanglingDelete).commit();
+
+            icebergTable = loadTable(table.getName());
+            assertThat(liveDeleteFileLocations(icebergTable)).containsExactly(danglingDeleteFile.location());
+
+            // A rollback can make a previously dangling delete file apply to live data again
+            BaseTable rolledBackTable = icebergTable;
+            assertThatThrownBy(() -> prepareDanglingDeleteRemoval(rolledBackTable.newRewrite(), ImmutableList.of(danglingDeleteFile), planningSnapshotId).commit())
+                    .isInstanceOf(ValidationException.class)
+                    .hasMessageContaining("no longer descends from planning snapshot");
+
+            assertThat(liveDeleteFileLocations(loadTable(table.getName()))).containsExactly(danglingDeleteFile.location());
         }
     }
 
@@ -923,6 +999,27 @@ final class TestIcebergRemoveDanglingDeleteFilesProcedure
                     .addDeletes(getOnlyElement(dvWriter.result().deleteFiles()))
                     .commit();
         }
+    }
+
+    private static List<DeleteFile> liveDeleteFiles(BaseTable icebergTable)
+    {
+        ImmutableList.Builder<DeleteFile> deleteFiles = ImmutableList.builder();
+        for (ManifestFile manifest : icebergTable.currentSnapshot().deleteManifests(icebergTable.io())) {
+            try (ManifestReader<DeleteFile> reader = ManifestFiles.readDeleteManifest(manifest, icebergTable.io(), icebergTable.specs())) {
+                reader.forEach(deleteFiles::add);
+            }
+            catch (IOException e) {
+                throw new UncheckedIOException(e);
+            }
+        }
+        return deleteFiles.build();
+    }
+
+    private static List<String> liveDeleteFileLocations(BaseTable icebergTable)
+    {
+        return liveDeleteFiles(icebergTable).stream()
+                .map(DeleteFile::location)
+                .collect(toImmutableList());
     }
 
     private long deleteFileCount(String tableName)
