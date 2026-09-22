@@ -20,12 +20,14 @@ import com.google.common.collect.ImmutableList;
 import io.trino.plugin.base.gpu.ClosingOnce;
 import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
+import io.trino.spi.type.Type;
 
 import java.util.List;
 import java.util.Objects;
 
 import static io.trino.operator.gpu.expression.CudfUtils.allTrue;
 import static io.trino.operator.gpu.expression.CudfUtils.anyTrue;
+import static io.trino.spi.gpu.GpuTypeConversion.nullScalar;
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -45,12 +47,14 @@ public final class GpuIf
     private final GpuExpression condition;
     private final GpuExpression trueValue;
     private final GpuExpression falseValue;
+    private final Type outputType;
 
-    public GpuIf(GpuExpression condition, GpuExpression trueValue, GpuExpression falseValue)
+    public GpuIf(GpuExpression condition, GpuExpression trueValue, GpuExpression falseValue, Type outputType)
     {
         this.condition = requireNonNull(condition, "condition is null");
         this.trueValue = requireNonNull(trueValue, "trueValue is null");
         this.falseValue = requireNonNull(falseValue, "falseValue is null");
+        this.outputType = requireNonNull(outputType, "outputType is null");
     }
 
     @Override
@@ -79,7 +83,7 @@ public final class GpuIf
                     conditionMask.close();
                     try (ColumnVector falseResult = filterAndEvaluate(falseValue, notConditionMask, inputColumns);
                             Table falseIndices = sequenceTable.filter(notConditionMask)) {
-                        return scatterCombine(positionCount, trueIndices.getColumn(0), falseIndices.getColumn(0), trueResult, falseResult);
+                        return scatterCombine(outputType, positionCount, trueIndices.getColumn(0), falseIndices.getColumn(0), trueResult, falseResult);
                     }
                 }
             }
@@ -112,6 +116,7 @@ public final class GpuIf
      * single full-length output column.
      */
     private static @Move ColumnVector scatterCombine(
+            Type outputType,
             int positionCount,
             @Borrow ColumnVector trueIndices,
             @Borrow ColumnVector falseIndices,
@@ -123,7 +128,7 @@ public final class GpuIf
         // `falseResult` rows into the remaining positions (`falseIndices`). Because every original
         // position is in exactly one of the two index lists, the second scatter overwrites every
         // remaining NULL and the final column has no leftover NULLs from the initial target.
-        try (Scalar nullScalar = Scalar.fromNull(trueResult.getType());
+        try (Scalar nullScalar = nullScalar(outputType);
                 ColumnVector initialTarget = ColumnVector.fromScalar(nullScalar, positionCount);
                 Table initialTable = new Table(initialTarget);
                 Table trueResultTable = new Table(trueResult);
@@ -140,12 +145,13 @@ public final class GpuIf
         return obj instanceof GpuIf other
                 && condition.equals(other.condition)
                 && trueValue.equals(other.trueValue)
-                && falseValue.equals(other.falseValue);
+                && falseValue.equals(other.falseValue)
+                && outputType.equals(other.outputType);
     }
 
     @Override
     public int hashCode()
     {
-        return Objects.hash(getClass(), condition, trueValue, falseValue);
+        return Objects.hash(getClass(), condition, trueValue, falseValue, outputType);
     }
 }

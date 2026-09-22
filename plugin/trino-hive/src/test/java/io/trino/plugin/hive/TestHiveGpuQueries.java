@@ -285,6 +285,17 @@ public class TestHiveGpuQueries
     }
 
     @Test
+    public void testVarbinaryCase()
+    {
+        // IF and CASE assemble their result over an all-null column of the result type, and a null
+        // VARBINARY is a null LIST<UINT8>.
+        assertThat(query("SELECT IF(nationkey % 2 = 0, X'0102', X'03') FROM nation"))
+                .executesWithGpu(ProjectNode.class);
+        assertThat(query("SELECT CASE WHEN nationkey % 3 = 0 THEN X'01' WHEN nationkey % 3 = 1 THEN X'0203' END FROM nation"))
+                .executesWithGpu(ProjectNode.class);
+    }
+
+    @Test
     public void testTimestampNanosecondPrecision()
     {
         String catalog = getSession().getCatalog().orElseThrow();

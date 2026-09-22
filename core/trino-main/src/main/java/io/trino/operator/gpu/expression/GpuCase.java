@@ -14,13 +14,13 @@
 package io.trino.operator.gpu.expression;
 
 import ai.rapids.cudf.ColumnVector;
-import ai.rapids.cudf.DType;
 import ai.rapids.cudf.Scalar;
 import ai.rapids.cudf.Table;
 import com.google.common.collect.ImmutableList;
 import io.trino.plugin.base.gpu.ClosingRef;
 import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
+import io.trino.spi.type.Type;
 
 import java.util.List;
 import java.util.Objects;
@@ -28,6 +28,7 @@ import java.util.Objects;
 import static com.google.common.base.Preconditions.checkArgument;
 import static io.trino.operator.gpu.expression.CudfUtils.allTrue;
 import static io.trino.operator.gpu.expression.CudfUtils.anyTrue;
+import static io.trino.spi.gpu.GpuTypeConversion.nullScalar;
 import static java.lang.Math.toIntExact;
 import static java.util.Objects.requireNonNull;
 
@@ -36,9 +37,9 @@ public final class GpuCase
 {
     private final List<GpuExpression> conditions;
     private final List<GpuExpression> results;
-    private final DType outputType;
+    private final Type outputType;
 
-    public GpuCase(List<GpuExpression> conditions, List<GpuExpression> results, DType outputType)
+    public GpuCase(List<GpuExpression> conditions, List<GpuExpression> results, Type outputType)
     {
         checkArgument(conditions.size() == results.size(), "conditions and results must have equal size");
         this.conditions = ImmutableList.copyOf(conditions);
@@ -49,7 +50,7 @@ public final class GpuCase
     @Override
     public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns)
     {
-        try (Scalar nullScalar = Scalar.fromNull(outputType);
+        try (Scalar nullScalar = nullScalar(outputType);
                 Scalar falseScalar = Scalar.fromBool(false);
                 Scalar trueScalar = Scalar.fromBool(true);
                 Scalar zeroScalar = Scalar.fromInt(0);

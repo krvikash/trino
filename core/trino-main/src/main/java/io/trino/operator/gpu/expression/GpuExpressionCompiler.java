@@ -1136,19 +1136,18 @@ public final class GpuExpressionCompiler
         @Override
         protected Optional<GpuExpression> visitCase(Case caseExpression, Void context)
         {
-            if (caseExpression.whenClauses().size() == 1) {
-                WhenClause when = caseExpression.whenClauses().getFirst();
-                return compileNary(
-                        ImmutableList.of(when.getOperand(), when.getResult(), caseExpression.defaultValue()),
-                        args -> new GpuIf(args.get(0), args.get(1), args.get(2)),
-                        context);
-            }
-
             Optional<DType> outputType = toDType(caseExpression.type());
             if (outputType.isEmpty()) {
                 return Optional.empty();
             }
-            DType outputDType = outputType.get();
+
+            if (caseExpression.whenClauses().size() == 1) {
+                WhenClause when = caseExpression.whenClauses().getFirst();
+                return compileNary(
+                        ImmutableList.of(when.getOperand(), when.getResult(), caseExpression.defaultValue()),
+                        args -> new GpuIf(args.get(0), args.get(1), args.get(2), caseExpression.type()),
+                        context);
+            }
 
             ImmutableList.Builder<Expression> allExpressions = ImmutableList.builder();
             for (WhenClause when : caseExpression.whenClauses()) {
@@ -1169,7 +1168,7 @@ public final class GpuExpressionCompiler
                 conditions.add(new GpuConstant(BOOLEAN, Optional.of(true)));
                 results.add(args.getLast());
 
-                return new GpuCase(conditions.build(), results.build(), outputDType);
+                return new GpuCase(conditions.build(), results.build(), caseExpression.type());
             }, context);
         }
 
