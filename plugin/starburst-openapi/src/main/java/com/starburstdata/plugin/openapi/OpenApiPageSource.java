@@ -49,10 +49,13 @@ public class OpenApiPageSource<S>
         implements ConnectorPageSource
 {
     private static final int MAX_RETRIES = 3;
+    // Matches Jetty's default
+    private static final int MAX_REDIRECTS = 8;
     private static final long DEFAULT_RETRY_AFTER_MILLIS = 5_000L;
     private static final long MAX_RETRY_AFTER_MILLIS = 60_000L;
 
     private final HttpClient httpClient;
+    private final AllowedAuthority allowedAuthority;
     private final OpenApiPaginationStrategy<S> paginationStrategy;
     private final OpenApiDecoder decoder;
     private final List<ColumnHandle> columnHandles;
@@ -67,6 +70,7 @@ public class OpenApiPageSource<S>
 
     public OpenApiPageSource(
             HttpClient httpClient,
+            AllowedAuthority allowedAuthority,
             OpenApiPaginationStrategy<S> paginationStrategy,
             OpenApiRequestTableHandle requestTableHandle,
             OpenApiDecoder decoder,
@@ -75,6 +79,7 @@ public class OpenApiPageSource<S>
             OpenApiAuthenticator authenticator)
     {
         this.httpClient = requireNonNull(httpClient, "httpClient is null");
+        this.allowedAuthority = requireNonNull(allowedAuthority, "allowedAuthority is null");
         this.paginationStrategy = requireNonNull(paginationStrategy, "paginationStrategy is null");
         this.currentState = paginationStrategy.initialState();
         requireNonNull(requestTableHandle, "requestTableHandle is null");
@@ -96,10 +101,10 @@ public class OpenApiPageSource<S>
     {
         return paginationStrategy.nextRequestFromState(Request.builder()
                         .setMethod("GET")
-                        .setUri(handle.uri())
-                        // Jetty caps redirect chains at 8 by default; exceeding it throws an exception
-                        // that surfaces through ReadFromJson.handleException rather than looping forever.
-                        .setFollowRedirects(true)
+                        .setUri(allowedAuthority.check(handle.uri()))
+                        // Redirects are followed by this class rather than by Jetty, so that every hop
+                        // is checked against the allowed authority before it is sent with credentials.
+                        .setFollowRedirects(false)
                         .addHeader(HeaderNames.USER_AGENT, "starburst-openapi")
                         .addHeader(HeaderNames.CONTENT_TYPE, JSON_UTF_8.toString())
                         .addHeader(HeaderNames.ACCEPT, JSON_UTF_8.toString())
@@ -162,10 +167,16 @@ public class OpenApiPageSource<S>
                         OPENAPI_GENERIC_EXTERNAL_ERROR,
                         "Not found (status 404) for %s - the route or resource may not exist, or access may be restricted".formatted(request.getUri().getPath()));
                 case 429, 503 -> throw new RetryableException(statusCode, parseRetryAfterMillis(response));
-                // A redirect status reaching here means Jetty exhausted its redirect limit (8 by default).
-                case 301, 302, 303, 307, 308 -> throw new TrinoException(
-                        OPENAPI_GENERIC_EXTERNAL_ERROR,
-                        "Too many redirects for %s - possible redirect loop".formatted(request.getUri().getPath()));
+                case 301, 302, 303, 307, 308 -> {
+                    String location = response.getHeader(HeaderNames.LOCATION).orElse("");
+                    if (location.isEmpty()) {
+                        throw new TrinoException(
+                                OPENAPI_GENERIC_EXTERNAL_ERROR,
+                                "Redirect (status %s) for %s - the response has no Location header".formatted(statusCode, request.getUri().getPath()));
+                    }
+                    // Caught by executeFollowingRedirects, which checks the target and retries up to MAX_REDIRECTS times.
+                    throw new RedirectException(location);
+                }
                 default -> throw new TrinoException(
                         OPENAPI_GENERIC_EXTERNAL_ERROR,
                         "Unexpected response status (%s) for %s".formatted(statusCode, request.getUri().getPath()));
@@ -227,14 +238,36 @@ public class OpenApiPageSource<S>
     {
         checkState(!isFinished(), "Unexpectedly tried to make request when finished.");
         try {
-            return Failsafe.with(retryPolicy).getAsync(() ->
-                    httpClient.execute(authenticator.filterRequest(nextRequest), jsonResponseHandler));
+            return Failsafe.with(retryPolicy).getAsync(() -> executeRedirects(nextRequest));
         }
         catch (RetryableException e) {
             throw new TrinoException(
                     OPENAPI_GENERIC_EXTERNAL_ERROR,
                     "Request failed (status %s) after %s retries for %s".formatted(e.statusCode(), MAX_RETRIES, nextRequest.getUri().getPath()));
         }
+    }
+
+    /**
+     * Follows redirects here rather than in the HTTP client so that each hop is checked against the
+     * allowed authority before the request is sent.
+     */
+    private OpenApiResult<S> executeRedirects(Request request)
+    {
+        Request current = request;
+        for (int hops = 0; hops <= MAX_REDIRECTS; hops++) {
+            allowedAuthority.check(current.getUri());
+            try {
+                return httpClient.execute(authenticator.filterRequest(current), jsonResponseHandler);
+            }
+            catch (RedirectException e) {
+                current = Request.Builder.fromRequest(current)
+                        .setUri(current.getUri().resolve(e.location()))
+                        .build();
+            }
+        }
+        throw new TrinoException(
+                OPENAPI_GENERIC_EXTERNAL_ERROR,
+                "Too many redirects for %s - possible redirect loop".formatted(request.getUri().getPath()));
     }
 
     private static long parseRetryAfterMillis(Response response)
@@ -272,6 +305,23 @@ public class OpenApiPageSource<S>
     }
 
     record OpenApiResult<P>(Iterator<SourcePage> pageIterator, P newPaginationState) {}
+
+    private static final class RedirectException
+            extends RuntimeException
+    {
+        private final String location;
+
+        RedirectException(String location)
+        {
+            super("Redirected", null, true, false);
+            this.location = requireNonNull(location, "location is null");
+        }
+
+        String location()
+        {
+            return location;
+        }
+    }
 
     private static final class RetryableException
             extends RuntimeException

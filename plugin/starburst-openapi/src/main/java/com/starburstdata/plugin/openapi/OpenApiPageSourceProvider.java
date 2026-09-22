@@ -37,16 +37,19 @@ public class OpenApiPageSourceProvider
     private final OpenApiDescription openApiDescription;
     private final ObjectMapper objectMapper;
     private final HttpClient httpClient;
+    private final AllowedAuthority allowedAuthority;
 
     @Inject
     public OpenApiPageSourceProvider(
             OpenApiDescription openApiDescription,
             ObjectMapper objectMapper,
-            @ForOpenApi HttpClient httpClient)
+            @ForOpenApi HttpClient httpClient,
+            OpenApiConfig config)
     {
         this.openApiDescription = requireNonNull(openApiDescription, "openApiDescription is null");
         this.objectMapper = requireNonNull(objectMapper, "objectMapper is null");
         this.httpClient = requireNonNull(httpClient, "httpClient is null");
+        this.allowedAuthority = AllowedAuthority.forBaseUri(config.getBaseUri());
     }
 
     @Override
@@ -63,6 +66,7 @@ public class OpenApiPageSourceProvider
         OpenApiPaginationStrategy<?> paginationStrategy = openApiDescription.getPaginationStrategy(handle);
         return new OpenApiPageSource<>(
                 httpClient,
+                allowedAuthority,
                 paginationStrategy,
                 handle,
                 openApiDescription.getDecoder(handle.path()),

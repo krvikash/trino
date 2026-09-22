@@ -1,0 +1,194 @@
+{
+    "openapi": "3.0.4",
+    "info": {
+        "title": "Pagination SSRF API",
+        "version": 1.0,
+        "description": "Specification for testing that pagination links and redirects are confined to the authority of openapi.base-uri. Each path exercises one behaviour: a next-page link or a redirect, pointing either at the configured host or at another one."
+    },
+    "paths": {
+        "/items/paged": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "description": "Returns a page of items, with a Link header rel=\"next\" pointing at this same host while more pages exist.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object",
+                                        "properties": {
+                                            "id": {
+                                                "type": "integer",
+                                                "format": "int64"
+                                            },
+                                            "name": {
+                                                "type": "string"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "parameters": [
+                {
+                    "name": "page",
+                    "in": "query",
+                    "schema": {
+                        "type": "integer"
+                    }
+                },
+                {
+                    "name": "per_page",
+                    "in": "query",
+                    "schema": {
+                        "type": "integer"
+                    }
+                }
+            ]
+        },
+        "/items/off-host-link": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "description": "Returns a page of items with a Link header rel=\"next\" pointing at a different host, as a compromised API would.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object",
+                                        "properties": {
+                                            "id": {
+                                                "type": "integer",
+                                                "format": "int64"
+                                            },
+                                            "name": {
+                                                "type": "string"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/items/off-host-redirect": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "description": "Redirects to a different host.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object",
+                                        "properties": {
+                                            "id": {
+                                                "type": "integer",
+                                                "format": "int64"
+                                            },
+                                            "name": {
+                                                "type": "string"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/items/redirect-loop": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "description": "Redirects to itself, to exercise the redirect hop limit.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object",
+                                        "properties": {
+                                            "id": {
+                                                "type": "integer",
+                                                "format": "int64"
+                                            },
+                                            "name": {
+                                                "type": "string"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/items/same-host-redirect": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "description": "Redirects to /items/all on this same host, which is followed.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object",
+                                        "properties": {
+                                            "id": {
+                                                "type": "integer",
+                                                "format": "int64"
+                                            },
+                                            "name": {
+                                                "type": "string"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/items/all": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "description": "Returns all items in a single response with no next-page link.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object",
+                                        "properties": {
+                                            "id": {
+                                                "type": "integer",
+                                                "format": "int64"
+                                            },
+                                            "name": {
+                                                "type": "string"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
