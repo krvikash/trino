@@ -17,8 +17,10 @@ import io.trino.sql.planner.plan.JoinNode;
 import io.trino.sql.planner.plan.PlanNode;
 
 import java.util.List;
+import java.util.Optional;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static io.trino.spi.profiler.Severity.CRITICAL;
 
 public class ExpandingJoin
         implements QueryProfilerRule
@@ -64,6 +66,8 @@ public class ExpandingJoin
         return new RuleFinding.Node(
                 node.getId().toString(),
                 "Expanding Join of left table with %s positions and right table with %s positions ".formatted(leftPositions, rightPositions) +
-                        "produced output of %s which multiplying factor is %s".formatted(outputPositions, outputRatio));
+                        "produced output of %s which multiplying factor is %s".formatted(outputPositions, outputRatio),
+                CRITICAL,
+                Optional.empty());
     }
 }

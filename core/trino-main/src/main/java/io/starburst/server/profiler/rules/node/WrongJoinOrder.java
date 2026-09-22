@@ -25,6 +25,7 @@ import java.util.Optional;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.trino.SystemSessionProperties.JOIN_REORDERING_STRATEGY;
+import static io.trino.spi.profiler.Severity.CRITICAL;
 import static io.trino.sql.planner.OptimizerConfig.JoinReorderingStrategy.AUTOMATIC;
 
 public class WrongJoinOrder
@@ -34,13 +35,11 @@ public class WrongJoinOrder
     public List<RuleFinding> analyze(QueryExecutionDetails details)
     {
         return details.planNodesById().values().stream()
-                .flatMap(node -> detectWrongJoinOrder(node, details)
-                        .map(explanation -> toFinding(node, explanation))
-                        .stream())
+                .flatMap(node -> detectWrongJoinOrder(node, details).stream())
                 .collect(toImmutableList());
     }
 
-    private static Optional<String> detectWrongJoinOrder(PlanNode node, QueryExecutionDetails details)
+    private static Optional<RuleFinding> detectWrongJoinOrder(PlanNode node, QueryExecutionDetails details)
     {
         if (!(node instanceof JoinNode)) {
             return Optional.empty();
@@ -54,12 +53,10 @@ public class WrongJoinOrder
             return Optional.empty();
         }
 
-        String base = "Build side (%s) is bigger than the probe side (%s).".formatted(rightSize, leftSize);
+        String description = "Build side (%s) is bigger than the probe side (%s).".formatted(rightSize, leftSize);
         String reason = detectReason(left, right, details);
-        if (!reason.isEmpty()) {
-            return Optional.of(base + " " + reason);
-        }
-        return Optional.of(base);
+        Optional<String> recommendation = reason.isEmpty() ? Optional.empty() : Optional.of(reason);
+        return Optional.of(new RuleFinding.Node(node.getId().toString(), description, CRITICAL, recommendation));
     }
 
     private static String detectReason(PlanNode left, PlanNode right, QueryExecutionDetails details)
@@ -122,10 +119,5 @@ public class WrongJoinOrder
         for (PlanNode source : details.children(node)) {
             collectTableScansWithMissingStats(source, details, result);
         }
-    }
-
-    private static RuleFinding toFinding(PlanNode node, String explanation)
-    {
-        return new RuleFinding.Node(node.getId().toString(), explanation);
     }
 }

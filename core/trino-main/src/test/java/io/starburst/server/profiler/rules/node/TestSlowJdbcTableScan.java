@@ -46,6 +46,6 @@ public class TestSlowJdbcTableScan
                                 ImmutableList.of(operator("0", "TableScanOperator", 1))),
                         ImmutableList.of()),
                 config -> config.setSlowJdbcTableMinScheduledTimeRatio(0.0));
-        assertThat(onlyPlanNodeFinding(findings).description()).contains("Slow JDBC table scan");
+        assertThat(onlyPlanNodeFinding(findings).finding().description()).contains("Slow JDBC table scan");
     }
 }

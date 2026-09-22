@@ -31,6 +31,6 @@ public class TestMissingJdbcProjectionPushdown
                 new MissingJdbcProjectionPushdown(),
                 queryInfo(nonIdentityProject("1", jdbcScan("0"))),
                 UnaryOperator.identity());
-        assertThat(onlyPlanNodeFinding(findings).description()).contains("Missing projection pushdown");
+        assertThat(onlyPlanNodeFinding(findings).finding().description()).contains("Missing projection pushdown");
     }
 }

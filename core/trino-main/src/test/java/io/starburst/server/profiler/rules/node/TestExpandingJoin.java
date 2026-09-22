@@ -9,6 +9,7 @@
  */
 package io.starburst.server.profiler.rules.node;
 
+import io.starburst.server.profiler.results.Finding;
 import io.starburst.server.profiler.results.RuleFinding;
 import io.trino.testing.StandaloneQueryRunner;
 import org.junit.jupiter.api.Test;
@@ -33,7 +34,7 @@ public class TestExpandingJoin
                     "SELECT * FROM nation n, region r",
                     config -> config.setCrossJoinScalingFactor(1));
 
-            RuleFinding.Node finding = onlyPlanNodeFinding(findings);
+            Finding finding = onlyPlanNodeFinding(findings).finding();
             assertThat(finding.description()).contains("Expanding Join");
         }
     }

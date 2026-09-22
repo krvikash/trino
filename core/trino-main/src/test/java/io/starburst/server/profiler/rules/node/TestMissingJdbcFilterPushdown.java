@@ -31,6 +31,6 @@ public class TestMissingJdbcFilterPushdown
                 new MissingJdbcFilterPushdown(),
                 queryInfo(filter("1", jdbcScan("0"))),
                 UnaryOperator.identity());
-        assertThat(onlyPlanNodeFinding(findings).description()).contains("Missing predicate pushdown");
+        assertThat(onlyPlanNodeFinding(findings).finding().description()).contains("Missing predicate pushdown");
     }
 }

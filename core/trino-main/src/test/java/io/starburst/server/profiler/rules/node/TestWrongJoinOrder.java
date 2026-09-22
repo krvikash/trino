@@ -9,11 +9,13 @@
  */
 package io.starburst.server.profiler.rules.node;
 
+import io.starburst.server.profiler.results.Finding;
 import io.starburst.server.profiler.results.RuleFinding;
 import io.trino.Session;
 import io.trino.sql.planner.OptimizerConfig.JoinDistributionType;
 import io.trino.sql.planner.OptimizerConfig.JoinReorderingStrategy;
 import io.trino.testing.StandaloneQueryRunner;
+import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -45,9 +47,9 @@ public class TestWrongJoinOrder
                     "SELECT * FROM region r JOIN orders o ON r.regionkey = o.custkey",
                     config -> config);
 
-            RuleFinding.Node finding = onlyPlanNodeFinding(findings);
-            assertThat(finding.description())
-                    .contains("Build side")
+            Finding finding = onlyPlanNodeFinding(findings).finding();
+            assertThat(finding.description()).contains("Build side");
+            assertThat(finding.recommendation()).get(InstanceOfAssertFactories.STRING)
                     .contains("join_reordering_strategy is set to 'NONE'");
         }
     }

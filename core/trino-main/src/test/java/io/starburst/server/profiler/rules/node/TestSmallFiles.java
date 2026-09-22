@@ -46,7 +46,7 @@ public class TestSmallFiles
                                 ImmutableList.of(smallFilesOperator("0", 2000, 5.0))),
                         ImmutableList.of()),
                 config -> config.setSmallFilesMinNumberOfSplits(1));
-        assertThat(onlyPlanNodeFinding(findings).description())
+        assertThat(onlyPlanNodeFinding(findings).finding().description())
                 .contains("test_catalog.test_schema.events")
                 .contains("small splits")
                 .doesNotContain("Table scan 0");

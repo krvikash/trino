@@ -33,7 +33,7 @@ public class TestMissingJdbcJoinPushdown
                 new MissingJdbcJoinPushdown(),
                 queryInfo(join("2", jdbcScan("0"), jdbcScan("1"))),
                 UnaryOperator.identity());
-        assertThat(onlyPlanNodeFinding(findings).description())
+        assertThat(onlyPlanNodeFinding(findings).finding().description())
                 .isEqualTo("Join is not pushed down to JDBC catalogs [test_catalog].");
     }
 
@@ -46,7 +46,7 @@ public class TestMissingJdbcJoinPushdown
                 UnaryOperator.identity());
         assertThat(findings)
                 .hasSize(2)
-                .extracting(RuleFinding::description)
+                .extracting(finding -> finding.finding().description())
                 .allSatisfy(description -> assertThat(description)
                         .isEqualTo("Join is not pushed down to JDBC catalogs [test_catalog]."));
     }
@@ -63,7 +63,7 @@ public class TestMissingJdbcJoinPushdown
                         join("4", jdbcScan("0", catalogA), jdbcScan("1", catalogB)),
                         join("5", jdbcScan("2", catalogA), jdbcScan("3", catalogB)))),
                 UnaryOperator.identity());
-        assertThat(onlyPlanNodeFinding(findings).description())
+        assertThat(onlyPlanNodeFinding(findings).finding().description())
                 .isEqualTo("Join is not pushed down to JDBC catalogs [catalog_a, catalog_b].");
     }
 }

@@ -11,12 +11,12 @@ package io.starburst.server.profiler.results;
 
 import static java.util.Objects.requireNonNull;
 
-public record PlanNodeFinding(String name, String planNodeId, String description)
+public record PlanNodeFinding(String name, String planNodeId, Finding finding)
 {
     public PlanNodeFinding
     {
         requireNonNull(name, "name is null");
         requireNonNull(planNodeId, "planNodeId is null");
-        requireNonNull(description, "description is null");
+        requireNonNull(finding, "finding is null");
     }
 }

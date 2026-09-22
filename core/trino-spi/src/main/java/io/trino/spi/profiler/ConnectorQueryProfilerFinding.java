@@ -13,12 +13,21 @@
  */
 package io.trino.spi.profiler;
 
+import java.util.Optional;
+
 import static java.util.Objects.requireNonNull;
 
-public record ConnectorQueryProfilerFinding(String description)
+public record ConnectorQueryProfilerFinding(String description, Severity severity, Optional<String> recommendation)
 {
     public ConnectorQueryProfilerFinding
     {
         requireNonNull(description, "description is null");
+        requireNonNull(severity, "severity is null");
+        requireNonNull(recommendation, "recommendation is null");
+    }
+
+    public ConnectorQueryProfilerFinding(String description)
+    {
+        this(description, Severity.WARNING, Optional.empty());
     }
 }

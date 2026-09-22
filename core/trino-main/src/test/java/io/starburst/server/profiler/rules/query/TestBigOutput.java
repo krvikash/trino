@@ -10,6 +10,7 @@
 package io.starburst.server.profiler.rules.query;
 
 import io.airlift.units.DataSize;
+import io.starburst.server.profiler.results.Finding;
 import io.starburst.server.profiler.results.RuleFinding;
 import io.trino.testing.StandaloneQueryRunner;
 import org.junit.jupiter.api.Test;
@@ -34,7 +35,7 @@ public class TestBigOutput
                     "SELECT * FROM orders",
                     config -> config.setMinBigOutputSize(DataSize.ofBytes(0)));
 
-            RuleFinding.Query finding = onlyQueryFinding(findings);
+            Finding finding = onlyQueryFinding(findings).finding();
             assertThat(finding.description()).contains("query output data size is considerable");
         }
     }

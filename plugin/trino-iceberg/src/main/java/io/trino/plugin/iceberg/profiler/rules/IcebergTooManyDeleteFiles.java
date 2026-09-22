@@ -20,6 +20,8 @@ import io.trino.spi.profiler.ConnectorQueryProfilerRule;
 import java.util.List;
 import java.util.Optional;
 
+import static io.trino.spi.profiler.Severity.CRITICAL;
+
 public final class IcebergTooManyDeleteFiles
         implements ConnectorQueryProfilerRule
 {
@@ -49,6 +51,8 @@ public final class IcebergTooManyDeleteFiles
         }
         return List.of(new ConnectorQueryProfilerFinding(
                 "Too many delete files (amount %s, delete to all ratio: %.2f)".formatted(
-                        deleteFiles.get(), (double) deleteFiles.get() / dataFiles.get())));
+                        deleteFiles.get(), (double) deleteFiles.get() / dataFiles.get()),
+                CRITICAL,
+                Optional.empty()));
     }
 }

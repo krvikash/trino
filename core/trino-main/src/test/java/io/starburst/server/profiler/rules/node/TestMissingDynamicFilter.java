@@ -9,6 +9,7 @@
  */
 package io.starburst.server.profiler.rules.node;
 
+import io.starburst.server.profiler.results.Finding;
 import io.starburst.server.profiler.results.RuleFinding;
 import io.trino.Session;
 import io.trino.testing.StandaloneQueryRunner;
@@ -40,7 +41,7 @@ public class TestMissingDynamicFilter
                     "SELECT * FROM nation n JOIN region r ON n.regionkey = r.regionkey",
                     config -> config.setDynamicFilterJoinFilteringPercentage(-1));
 
-            RuleFinding.Node finding = onlyPlanNodeFinding(findings);
+            Finding finding = onlyPlanNodeFinding(findings).finding();
             assertThat(finding.description()).contains("No dynamic filter on join");
         }
     }

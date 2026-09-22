@@ -24,7 +24,9 @@ import io.trino.sql.planner.plan.SemiJoinNode;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
+import static io.trino.spi.profiler.Severity.CRITICAL;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.joining;
@@ -117,6 +119,6 @@ public class MissingDynamicFilter
                     .collect(joining("\n"));
             explanation = "Dynamic filters not reducing probe scan effectively — %s:\n%s".formatted(probeSummary, filterDetails);
         }
-        return new RuleFinding.Node(node.getId().toString(), explanation);
+        return new RuleFinding.Node(node.getId().toString(), explanation, CRITICAL, Optional.empty());
     }
 }

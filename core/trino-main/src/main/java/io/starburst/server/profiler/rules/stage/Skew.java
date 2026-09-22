@@ -17,8 +17,10 @@ import io.starburst.server.profiler.rules.QueryProfilerRule;
 import io.trino.execution.StageInfo;
 
 import java.util.List;
+import java.util.Optional;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static io.trino.spi.profiler.Severity.CRITICAL;
 
 public class Skew
         implements QueryProfilerRule
@@ -52,6 +54,8 @@ public class Skew
                 stageInfo.stageId().toString(),
                 "Stage input between workers is skewed. Max input size (%s) is significantly larger than median input size (%s).".formatted(
                         DataSize.ofBytes((long) taskInputDistribution.getMax()),
-                        DataSize.ofBytes((long) taskInputDistribution.valueAt(0.5))));
+                        DataSize.ofBytes((long) taskInputDistribution.valueAt(0.5))),
+                CRITICAL,
+                Optional.empty());
     }
 }

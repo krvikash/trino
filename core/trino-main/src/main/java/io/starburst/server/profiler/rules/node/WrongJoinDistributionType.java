@@ -18,8 +18,10 @@ import io.trino.sql.planner.plan.JoinNode.DistributionType;
 import io.trino.sql.planner.plan.PlanNode;
 
 import java.util.List;
+import java.util.Optional;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static io.trino.spi.profiler.Severity.CRITICAL;
 
 public class WrongJoinDistributionType
         implements QueryProfilerRule
@@ -47,21 +49,18 @@ public class WrongJoinDistributionType
                 (distributionType == DistributionType.PARTITIONED && rightSize.toBytes() < thresholds.joinMaxBroadcastTableSize().toBytes() / ERROR_MARGIN);
     }
 
-    private static String explanation(PlanNode node, QueryExecutionDetails details)
+    private static RuleFinding toFinding(PlanNode node, QueryExecutionDetails details)
     {
         QueryExecutionDetails.Thresholds thresholds = details.thresholds();
         JoinNode joinNode = (JoinNode) node;
         DataSize rightSize = details.outputDataSize(details.children(node).get(1).getId());
         if (joinNode.getDistributionType().orElseThrow() == DistributionType.REPLICATED) {
-            return "The build side (%s) is bigger than max broadcast size (%s). The join should be PARTITIONED".formatted(
+            String description = "The build side (%s) is bigger than max broadcast size (%s).".formatted(
                     rightSize, thresholds.joinMaxBroadcastTableSize());
+            return new RuleFinding.Node(node.getId().toString(), description, CRITICAL, Optional.of("The join should be PARTITIONED."));
         }
-        return "The build side (%s) is smaller than max broadcast size (%s). The join should be REPLICATED".formatted(
+        String description = "The build side (%s) is smaller than max broadcast size (%s).".formatted(
                 rightSize, thresholds.joinMaxBroadcastTableSize());
-    }
-
-    private static RuleFinding toFinding(PlanNode node, QueryExecutionDetails details)
-    {
-        return new RuleFinding.Node(node.getId().toString(), explanation(node, details));
+        return new RuleFinding.Node(node.getId().toString(), description, CRITICAL, Optional.of("The join should be REPLICATED."));
     }
 }

@@ -10,10 +10,12 @@
 package io.starburst.server.profiler.rules.node;
 
 import io.airlift.units.DataSize;
+import io.starburst.server.profiler.results.Finding;
 import io.starburst.server.profiler.results.RuleFinding;
 import io.trino.Session;
 import io.trino.sql.planner.OptimizerConfig.JoinDistributionType;
 import io.trino.testing.StandaloneQueryRunner;
+import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -42,8 +44,9 @@ public class TestWrongJoinDistributionType
                     "SELECT * FROM region r JOIN nation n ON r.regionkey = n.regionkey",
                     config -> config.setJoinMaxBroadcastTableSize(DataSize.ofBytes(1)));
 
-            RuleFinding.Node finding = onlyPlanNodeFinding(findings);
-            assertThat(finding.description()).contains("should be PARTITIONED");
+            Finding finding = onlyPlanNodeFinding(findings).finding();
+            assertThat(finding.recommendation()).get(InstanceOfAssertFactories.STRING)
+                    .contains("should be PARTITIONED");
         }
     }
 }

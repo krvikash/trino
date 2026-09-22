@@ -11,11 +11,11 @@ package io.starburst.server.profiler.results;
 
 import static java.util.Objects.requireNonNull;
 
-public record QueryFinding(String name, String description)
+public record QueryFinding(String name, Finding finding)
 {
     public QueryFinding
     {
         requireNonNull(name, "name is null");
-        requireNonNull(description, "description is null");
+        requireNonNull(finding, "finding is null");
     }
 }

@@ -30,6 +30,6 @@ public class TestMissingStats
                 new MissingStats(),
                 queryInfo(jdbcScan("0")),
                 UnaryOperator.identity());
-        assertThat(onlyPlanNodeFinding(findings).description()).contains("is missing stats");
+        assertThat(onlyPlanNodeFinding(findings).finding().description()).contains("is missing stats");
     }
 }

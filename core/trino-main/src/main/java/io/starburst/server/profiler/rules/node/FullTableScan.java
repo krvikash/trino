@@ -16,8 +16,10 @@ import io.trino.sql.planner.plan.PlanNode;
 import io.trino.sql.planner.plan.TableScanNode;
 
 import java.util.List;
+import java.util.Optional;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static io.trino.spi.profiler.Severity.CRITICAL;
 
 public class FullTableScan
         implements QueryProfilerRule
@@ -36,6 +38,8 @@ public class FullTableScan
         String tableName = details.tableName(node.getId()).orElse("UNKNOWN");
         return new RuleFinding.Node(
                 node.getId().toString(),
-                "Table scan on the %s table is a Full Table Scan, try partitioning the table or applying filters.".formatted(tableName));
+                "Table scan on the %s table is a Full Table Scan.".formatted(tableName),
+                CRITICAL,
+                Optional.of("Try partitioning the table or applying filters."));
     }
 }

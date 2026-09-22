@@ -26,8 +26,10 @@ import io.trino.sql.planner.plan.TableScanNode;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
+import static io.trino.spi.profiler.Severity.CRITICAL;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.toCollection;
@@ -116,6 +118,8 @@ public class SameTableScan
     {
         return new RuleFinding.Node(
                 node.getId().toString(),
-                "Table scan on '%s' occurs %d times.".formatted(tableName, occurrences));
+                "Table scan on '%s' occurs %d times.".formatted(tableName, occurrences),
+                CRITICAL,
+                Optional.empty());
     }
 }

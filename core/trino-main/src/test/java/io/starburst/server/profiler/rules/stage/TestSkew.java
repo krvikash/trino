@@ -47,6 +47,6 @@ public class TestSkew
                                 taskWithProcessedInput(ofBytes(1000)),
                                 taskWithProcessedInput(DataSize.of(10, MEGABYTE)))),
                 UnaryOperator.identity());
-        assertThat(onlyStageFinding(findings).description()).contains("skewed");
+        assertThat(onlyStageFinding(findings).finding().description()).contains("skewed");
     }
 }

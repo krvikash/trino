@@ -35,7 +35,7 @@ public class TestSameTableScan
             assertThat(findings).hasSize(2)
                     .allSatisfy(finding -> assertThat(finding).isInstanceOf(RuleFinding.Node.class));
             assertThat(findings)
-                    .extracting(RuleFinding::description)
+                    .extracting(finding -> finding.finding().description())
                     .allSatisfy(description -> assertThat(description)
                             .contains("nation")
                             .contains("occurs 2 times")

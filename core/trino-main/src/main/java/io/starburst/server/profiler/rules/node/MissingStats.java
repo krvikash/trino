@@ -18,10 +18,12 @@ import io.trino.sql.planner.plan.PlanNode;
 import io.trino.sql.planner.plan.TableScanNode;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static io.trino.spi.profiler.Severity.CRITICAL;
 import static java.util.stream.Collectors.toCollection;
 
 public class MissingStats
@@ -65,6 +67,10 @@ public class MissingStats
                     .append(String.join(", ", columnsWithMissingStats))
                     .append(";");
         }
-        return new RuleFinding.Node(node.getId().toString(), message.toString());
+        return new RuleFinding.Node(
+                node.getId().toString(),
+                message.toString(),
+                CRITICAL,
+                Optional.of("Run ANALYZE on the table to collect statistics for cost-based optimization."));
     }
 }

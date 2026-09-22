@@ -12,6 +12,7 @@ package io.starburst.server.profiler;
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Inject;
 import io.airlift.log.Logger;
+import io.starburst.server.profiler.results.Finding;
 import io.starburst.server.profiler.results.PlanNodeFinding;
 import io.starburst.server.profiler.results.QueryFinding;
 import io.starburst.server.profiler.results.QueryProfilerResult;
@@ -39,7 +40,7 @@ import static java.util.Objects.requireNonNull;
 public class QueryProfiler
 {
     private static final Logger log = Logger.get(QueryProfiler.class);
-    private static final String PROFILER_VERSION = "2.0";
+    private static final String PROFILER_VERSION = "3.0";
 
     private final List<QueryProfilerRule> rules;
     private final QueryProfilerConfig config;
@@ -72,9 +73,9 @@ public class QueryProfiler
             try {
                 for (RuleFinding finding : rule.analyze(details)) {
                     switch (finding) {
-                        case RuleFinding.Node node -> planNodeFindings.add(new PlanNodeFinding(name, node.planNodeId(), node.description()));
-                        case RuleFinding.Stage stage -> stageFindings.add(new StageFinding(name, stage.stageId(), stage.description()));
-                        case RuleFinding.Query query -> queryFindings.add(new QueryFinding(name, query.description()));
+                        case RuleFinding.Node node -> planNodeFindings.add(new PlanNodeFinding(name, node.planNodeId(), node.finding()));
+                        case RuleFinding.Stage stage -> stageFindings.add(new StageFinding(name, stage.stageId(), stage.finding()));
+                        case RuleFinding.Query query -> queryFindings.add(new QueryFinding(name, query.finding()));
                     }
                 }
             }
@@ -106,7 +107,7 @@ public class QueryProfiler
                                 .map(finding -> new PlanNodeFinding(
                                         rule.getClass().getSimpleName(),
                                         input.planNodeId().toString(),
-                                        finding.description()))))
+                                        new Finding(finding.description(), finding.severity(), finding.recommendation())))))
                 .collect(toImmutableList());
     }
 

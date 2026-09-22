@@ -34,7 +34,7 @@ public class TestSlowSplitDistribution
 
             assertThat(findings)
                     .isNotEmpty()
-                    .allSatisfy(finding -> assertThat(((RuleFinding.Stage) finding).description())
+                    .allSatisfy(finding -> assertThat(((RuleFinding.Stage) finding).finding().description())
                             .contains("split generation"));
         }
     }
