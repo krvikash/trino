@@ -75,6 +75,7 @@ import static com.google.common.base.Verify.verifyNotNull;
 import static io.trino.metadata.GlobalFunctionCatalog.isBuiltinFunctionName;
 import static io.trino.operator.gpu.SignatureFormatter.formatAggregation;
 import static io.trino.spi.gpu.GpuTypeConversion.isConvertible;
+import static io.trino.spi.gpu.GpuTypeConversion.nullScalar;
 import static io.trino.spi.gpu.GpuTypeConversion.toDType;
 import static io.trino.spi.type.DoubleType.DOUBLE;
 import static io.trino.spi.type.RealType.REAL;
@@ -276,7 +277,7 @@ public final class GpuAggregationCompiler
                             int mask = maskChannel.orElseThrow();
                             return Optional.of(AggregateCompilation.single(
                                     outputType,
-                                    maskExpression(mask, mask),
+                                    maskExpression(mask, mask, BooleanType.BOOLEAN),
                                     channel -> new GpuCountNonNull(channel, outputType, dType)));
                         }
                         return Optional.of(new AggregateCompilation(
@@ -288,7 +289,7 @@ public final class GpuAggregationCompiler
                             .filter(column -> isConvertible(column.type()))
                             .map(column -> {
                                 GpuExpression input = maskChannel.isPresent()
-                                        ? maskExpression(maskChannel.orElseThrow(), column.channel())
+                                        ? maskExpression(maskChannel.orElseThrow(), column.channel(), column.type())
                                         : new GetColumn(column.channel());
                                 return AggregateCompilation.single(outputType, input, channel -> new GpuCountNonNull(channel, outputType, dType));
                             });
@@ -312,7 +313,7 @@ public final class GpuAggregationCompiler
         return switch (argumentType) {
             case BigintType _ -> toDType(argumentType).map(dType -> {
                 GpuExpression input = maskChannel.isPresent()
-                        ? maskExpression(maskChannel.orElseThrow(), column.get().channel())
+                        ? maskExpression(maskChannel.orElseThrow(), column.get().channel(), argumentType)
                         : new GetColumn(column.get().channel());
                 return AggregateCompilation.single(outputType, input, channel -> new GpuSum(channel, outputType, dType));
             });
@@ -323,7 +324,7 @@ public final class GpuAggregationCompiler
 
                 GpuExpression input = new GetColumn(column.get().channel());
                 if (maskChannel.isPresent()) {
-                    input = new Mask(new GetColumn(maskChannel.orElseThrow()), input);
+                    input = new Mask(new GetColumn(maskChannel.orElseThrow()), input, argumentType);
                 }
                 // sum(REAL) and sum(DOUBLE) both use DOUBLE as accumulator type
                 if (step.isInputRaw() && argumentType == REAL) {
@@ -471,7 +472,7 @@ public final class GpuAggregationCompiler
                     }
                     return toDType(returnType).map(dType -> {
                         GpuExpression input = maskChannel.isPresent()
-                                ? maskExpression(maskChannel.orElseThrow(), column.channel())
+                                ? maskExpression(maskChannel.orElseThrow(), column.channel(), column.type())
                                 : new GetColumn(column.channel());
                         if (column.type() instanceof RealType || column.type() instanceof DoubleType) {
                             return compileFloatingPointMinMax(returnType, dType, input, factory);
@@ -506,7 +507,7 @@ public final class GpuAggregationCompiler
                 .flatMap(column -> toDType(returnType)
                         .map(dType -> {
                             GpuExpression input = maskChannel.isPresent()
-                                    ? maskExpression(maskChannel.orElseThrow(), column.channel())
+                                    ? maskExpression(maskChannel.orElseThrow(), column.channel(), column.type())
                                     : new GetColumn(column.channel());
                             return AggregateCompilation.single(returnType, input, channel -> new GpuAnyValue(channel, returnType, dType));
                         }));
@@ -743,9 +744,9 @@ public final class GpuAggregationCompiler
         return DecimalType.createDecimalType(38, input.getScale());
     }
 
-    private static GpuExpression maskExpression(int maskChannel, int valueChannel)
+    private static GpuExpression maskExpression(int maskChannel, int valueChannel, Type valueType)
     {
-        return new Mask(new GetColumn(maskChannel), new GetColumn(valueChannel));
+        return new Mask(new GetColumn(maskChannel), new GetColumn(valueChannel), valueType);
     }
 
     private static InputChannels allChannels(int count)
@@ -762,11 +763,13 @@ public final class GpuAggregationCompiler
     {
         private final GpuExpression mask;
         private final GpuExpression value;
+        private final Type valueType;
 
-        public Mask(GpuExpression mask, GpuExpression value)
+        public Mask(GpuExpression mask, GpuExpression value, Type valueType)
         {
             this.mask = requireNonNull(mask, "mask is null");
             this.value = requireNonNull(value, "value is null");
+            this.valueType = requireNonNull(valueType, "valueType is null");
         }
 
         @Override
@@ -774,14 +777,14 @@ public final class GpuAggregationCompiler
         {
             try (ColumnVector maskVector = mask.evaluate(positionCount, inputColumns);
                     ColumnVector valueVector = value.evaluate(positionCount, inputColumns)) {
-                return mask(maskVector, valueVector);
+                return mask(maskVector, valueVector, valueType);
             }
         }
 
-        private static @Move ColumnVector mask(@Borrow ColumnVector mask, @Borrow ColumnVector value)
+        private static @Move ColumnVector mask(@Borrow ColumnVector mask, @Borrow ColumnVector value, Type valueType)
         {
             checkArgument(mask.getType() == DType.BOOL8, "Unexpected mask type: %s", mask.getType());
-            try (Scalar nullScalar = Scalar.fromNull(value.getType())) {
+            try (Scalar nullScalar = nullScalar(valueType)) {
                 return mask.ifElse(value, nullScalar);
             }
         }
@@ -791,13 +794,14 @@ public final class GpuAggregationCompiler
         {
             return obj instanceof Mask other
                     && mask.equals(other.mask)
-                    && value.equals(other.value);
+                    && value.equals(other.value)
+                    && valueType.equals(other.valueType);
         }
 
         @Override
         public int hashCode()
         {
-            return Objects.hash(getClass(), mask, value);
+            return Objects.hash(getClass(), mask, value, valueType);
         }
     }
 }

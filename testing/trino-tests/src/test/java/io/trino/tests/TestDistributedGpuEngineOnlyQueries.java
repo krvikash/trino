@@ -474,6 +474,16 @@ public class TestDistributedGpuEngineOnlyQueries
     }
 
     @Test
+    public void testGpuVarbinaryAggregationWithFilter()
+    {
+        // FILTER nulls out the values the mask rejects, and a null VARBINARY is a null LIST<UINT8>.
+        String source = "(SELECT to_utf8(CAST(i AS varchar)) AS v, i AS n FROM (UNNEST(sequence(0, 100))) t(i))";
+
+        assertThat(query("SELECT count(v) FILTER (WHERE n % 2 = 0) FROM " + source))
+                .executesWithGpu(AggregationNode.class);
+    }
+
+    @Test
     public void testGpuVarbinaryFilter()
     {
         // VARBINARY maps to nested DType.LIST<UINT8>; cuDF binary_op does not support nested
