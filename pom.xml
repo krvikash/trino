@@ -466,6 +466,30 @@
                 <version>1.7.1</version>
             </dependency>
 
+            <!-- Explicit pin: this repo has no jackson-bom import, so
+                 jackson-databind/jackson-core/jackson-annotations were purely
+                 inherited from the airbase parent BOM, which left several 2026
+                 Jackson CVEs open (CVE-2026-68497, -83557, -19032, -54513,
+                 -54512, -59888, -54514, -54516, -54517, -54518, -59889, -54515,
+                 and CVE-2026-68494/GHSA-r7wm-3cxj-wff9). Pinning only these
+                 three artifacts explicitly rather than adding a full BOM
+                 import, to keep this change scoped to the known CVEs. -->
+            <dependency>
+                <groupId>com.fasterxml.jackson.core</groupId>
+                <artifactId>jackson-annotations</artifactId>
+                <version>2.22</version>
+            </dependency>
+            <dependency>
+                <groupId>com.fasterxml.jackson.core</groupId>
+                <artifactId>jackson-core</artifactId>
+                <version>2.22.2</version>
+            </dependency>
+            <dependency>
+                <groupId>com.fasterxml.jackson.core</groupId>
+                <artifactId>jackson-databind</artifactId>
+                <version>2.22.2</version>
+            </dependency>
+
             <dependency>
                 <groupId>com.fasterxml.woodstox</groupId>
                 <artifactId>woodstox-core</artifactId>
