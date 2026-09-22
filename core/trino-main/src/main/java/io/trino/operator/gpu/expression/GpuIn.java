@@ -14,7 +14,6 @@
 package io.trino.operator.gpu.expression;
 
 import ai.rapids.cudf.ColumnVector;
-import ai.rapids.cudf.DType;
 import ai.rapids.cudf.Scalar;
 import com.google.common.collect.ImmutableList;
 import io.trino.plugin.base.gpu.ClosingOnce;
@@ -64,7 +63,7 @@ public final class GpuIn
                 inList.close();
                 if (hasNull) {
                     // if the list contains NULL and no match is found, return NULL instead of FALSE
-                    try (Scalar nullScalar = Scalar.fromNull(DType.BOOL8);
+                    try (Scalar nullScalar = Scalar.fromBool(null);
                             Scalar falseScalar = Scalar.fromBool(false);
                             ColumnVector isFalse = result.borrow().equalTo(falseScalar)) {
                         return isFalse.ifElse(nullScalar, result.borrow());

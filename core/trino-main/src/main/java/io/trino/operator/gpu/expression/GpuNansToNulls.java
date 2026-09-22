@@ -21,6 +21,7 @@ import io.trino.spi.gpu.borrow.Move;
 import java.util.List;
 import java.util.Objects;
 
+import static io.trino.operator.gpu.expression.CudfUtils.floatingScalar;
 import static java.util.Objects.requireNonNull;
 
 public final class GpuNansToNulls
@@ -38,7 +39,7 @@ public final class GpuNansToNulls
     {
         try (ColumnVector input = source.evaluate(positionCount, inputColumns);
                 ColumnVector isNotNan = input.isNotNan();
-                Scalar nullScalar = Scalar.fromNull(input.getType())) {
+                Scalar nullScalar = floatingScalar(input.getType(), null)) {
             return isNotNan.ifElse(input, nullScalar);
         }
     }

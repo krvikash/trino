@@ -47,7 +47,7 @@ public final class GpuRestoreNan
         checkState(hasNan.getType().equals(DType.BOOL8), "Expected hasNan column of type BOOL8, got %s", hasNan.getType());
 
         try (Scalar nanScalar = floatingScalar(dType, Double.NaN);
-                Scalar nullScalar = Scalar.fromNull(dType);
+                Scalar nullScalar = floatingScalar(dType, null);
                 ColumnVector nanReplacement = hasNan.ifElse(nanScalar, nullScalar)) {
             return minMaxResult.replaceNulls(nanReplacement);
         }

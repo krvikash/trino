@@ -318,4 +318,9 @@
         <version>1.8</version>
         <comment>Same undefined behavior on failure as Cuda.Stream.sync, and it synchronizes every stream of every thread. Use io.trino.operator.gpu.CudaStreams.sync</comment>
     </violation>
+    <violation>
+        <name>ai/rapids/cudf/Scalar.fromNull:(Lai/rapids/cudf/DType;)Lai/rapids/cudf/Scalar;</name>
+        <version>1.8</version>
+        <comment>Scalar.fromNull does not work for compound types. Use GpuTypeConversion.nullScalar(Type) instead</comment>
+    </violation>
 </modernizer>

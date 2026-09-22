@@ -14,7 +14,6 @@
 package io.trino.operator.gpu.join;
 
 import ai.rapids.cudf.ColumnVector;
-import ai.rapids.cudf.DType;
 import ai.rapids.cudf.Scalar;
 import ai.rapids.cudf.Table;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -39,6 +38,7 @@ import static io.airlift.concurrent.MoreFutures.asVoid;
 import static io.airlift.concurrent.MoreFutures.getDone;
 import static io.trino.operator.gpu.memory.GpuMemoryUtils.getContainsGpuDeviceMemoryUsage;
 import static io.trino.plugin.base.gpu.GpuUtils.closeColumns;
+import static io.trino.spi.gpu.GpuTypeConversion.nullScalar;
 import static java.lang.Math.ceilDiv;
 import static java.util.Objects.requireNonNull;
 
@@ -178,7 +178,7 @@ public final class GpuSemiJoin
                 return matched.take();
             }
             // build has nulls: "no match" must become NULL per three-valued IN semantics.
-            try (Scalar nullScalar = Scalar.fromNull(DType.BOOL8);
+            try (Scalar nullScalar = Scalar.fromBool(null);
                     Scalar falseScalar = Scalar.fromBool(false);
                     ColumnVector isFalse = matched.borrow().equalTo(falseScalar)) {
                 return isFalse.ifElse(nullScalar, matched.borrow());

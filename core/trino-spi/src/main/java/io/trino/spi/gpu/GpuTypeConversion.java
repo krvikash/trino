@@ -176,7 +176,7 @@ public final class GpuTypeConversion
                 yield Optional.of(new GpuTypeMapping(
                         dType,
                         value -> value.map(o -> Scalar.fromDecimal(cudfScale, (Long) o))
-                                .orElseGet(() -> Scalar.fromNull(dType)),
+                                .orElseGet(() -> Scalar.fromDecimal(null, dType)),
                         blocks -> copyLongBlocksToDevice(blocks, dType),
                         nullChecked(Scalar::getLong)));
             }
@@ -187,7 +187,7 @@ public final class GpuTypeConversion
                 yield Optional.of(new GpuTypeMapping(
                         dType,
                         value -> value.map(o -> Scalar.fromDecimal(cudfScale, ((Int128) o).toBigInteger()))
-                                .orElseGet(() -> Scalar.fromNull(dType)),
+                                .orElseGet(() -> Scalar.fromDecimal(null, dType)),
                         blocks -> copyInt128BlocksToDevice(blocks, dType),
                         nullChecked(scalar -> Int128.valueOf(scalar.getBigDecimal().unscaledValue()))));
             }

@@ -35,6 +35,8 @@ import java.util.List;
 import static com.google.common.base.Preconditions.checkArgument;
 import static io.trino.operator.gpu.memory.GpuMemoryUtils.getOrderByMemoryUsage;
 import static io.trino.plugin.base.gpu.GpuUtils.closeColumns;
+import static io.trino.spi.gpu.GpuTypeConversion.nullScalar;
+import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static java.lang.Math.addExact;
 import static java.lang.Math.multiplyExact;
 import static java.util.Objects.requireNonNull;
@@ -147,7 +149,7 @@ public final class GpuSortUtils
             }
             // isNan()/isNotNan() return false/true (not null) for null inputs, so null propagation is explicit
             try (ColumnVector isNull = column.isNull();
-                    Scalar nullBool = Scalar.fromNull(DType.BOOL8)) {
+                    Scalar nullBool = nullScalar(BOOLEAN)) {
                 return isNull.ifElse(nullBool, flag.borrow());
             }
         }

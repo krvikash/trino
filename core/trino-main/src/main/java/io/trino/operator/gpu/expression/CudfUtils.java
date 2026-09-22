@@ -64,10 +64,10 @@ final class CudfUtils
         };
     }
 
-    static @Move Scalar floatingScalar(DType floatingDType, double value)
+    static @Move Scalar floatingScalar(DType floatingDType, Double value)
     {
         return switch (floatingDType.getTypeId()) {
-            case FLOAT32 -> Scalar.fromFloat((float) value);
+            case FLOAT32 -> Scalar.fromFloat(value != null ? value.floatValue() : null);
             case FLOAT64 -> Scalar.fromDouble(value);
             default -> throw new IllegalArgumentException("Unsupported floating DType: " + floatingDType);
         };
