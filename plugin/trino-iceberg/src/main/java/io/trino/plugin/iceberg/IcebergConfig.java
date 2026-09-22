@@ -57,6 +57,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 
 @DefunctConfig({
         "iceberg.allow-legacy-snapshot-syntax",
+        "iceberg.equality-deletes-blocks-hash-enabled",
         "iceberg.experimental.extended-statistics.enabled",
         "iceberg.extended-statistics.enabled",
         "iceberg.unsafe-sorting-properties-enabled",
@@ -143,7 +144,6 @@ public class IcebergConfig
     private VariantMapping legacyVariantTypeMapping = VariantMapping.VARIANT;
     private DropTableMode dropTableMode = DropTableMode.PURGE;
     private boolean compositeSplitsEnabled;
-    private boolean equalityDeletesBlocksHashEnabled = true;
     private ParquetFooterCacheType parquetFooterCacheType = NONE;
     private DataSize parquetFooterCacheMemoryMaxSize = DataSize.of(10, MEGABYTE);
 
@@ -925,19 +925,6 @@ public class IcebergConfig
     {
         TimeZone timeZone = TimeZone.getTimeZone(ZoneId.of(this.timeZone));
         return DateTimeZone.forTimeZone(timeZone);
-    }
-
-    public boolean isEqualityDeletesBlocksHashEnabled()
-    {
-        return equalityDeletesBlocksHashEnabled;
-    }
-
-    @Config("iceberg.equality-deletes-blocks-hash-enabled")
-    @ConfigDescription("Use BlocksHash for optimized equality delete filtering")
-    public IcebergConfig setEqualityDeletesBlocksHashEnabled(boolean equalityDeletesBlocksHashEnabled)
-    {
-        this.equalityDeletesBlocksHashEnabled = equalityDeletesBlocksHashEnabled;
-        return this;
     }
 
     @NotNull

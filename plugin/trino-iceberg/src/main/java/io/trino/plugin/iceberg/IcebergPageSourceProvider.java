@@ -280,7 +280,7 @@ public class IcebergPageSourceProvider
     private final long gpuScanMaxPageSizeBytes;
     private final DateTimeZone dateTimeZone;
     private final TypeManager typeManager;
-    private final Optional<BlocksHashFactory> blocksHashFactory;
+    private final BlocksHashFactory blocksHashFactory;
     private final ParquetFooterCache parquetFooterCache;
     private final EncryptionManagerFactory encryptionManagerFactory;
     private final MemoryContext sharedMemoryContext;
@@ -297,7 +297,7 @@ public class IcebergPageSourceProvider
             DateTimeZone dateTimeZone,
             TypeManager typeManager,
             ParquetFooterCache parquetFooterCache,
-            Optional<BlocksHashFactory> blocksHashFactory,
+            BlocksHashFactory blocksHashFactory,
             EncryptionManagerFactory encryptionManagerFactory,
             long gpuScanMaxPageSizeBytes,
             MemoryContext sharedMemoryContext)

@@ -35,7 +35,6 @@ import io.trino.spi.type.TypeManager;
 import org.joda.time.DateTimeZone;
 
 import java.util.List;
-import java.util.Optional;
 
 import static io.trino.plugin.iceberg.IcebergMetadataColumn.isMetadataColumnId;
 import static java.util.Objects.requireNonNull;
@@ -54,7 +53,7 @@ public class IcebergPageSourceProviderFactory
     private final long gpuScanMaxPageSizeBytes;
     private final DateTimeZone dateTimeZone;
     private final TypeManager typeManager;
-    private final Optional<BlocksHashFactory> blocksHashFactory;
+    private final BlocksHashFactory blocksHashFactory;
     private final ParquetFooterCache parquetFooterCache;
     private final EncryptionManagerFactory encryptionManagerFactory;
 
@@ -80,9 +79,7 @@ public class IcebergPageSourceProviderFactory
         this.gpuScanMaxPageSizeBytes = gpuParquetConfig.getMaxPageSize().toBytes();
         this.dateTimeZone = icebergConfig.getDateTimeZone();
         this.typeManager = requireNonNull(typeManager, "typeManager is null");
-        this.blocksHashFactory = icebergConfig.isEqualityDeletesBlocksHashEnabled()
-                ? Optional.of(requireNonNull(blocksHashFactory, "blocksHashFactory is null"))
-                : Optional.empty();
+        this.blocksHashFactory = requireNonNull(blocksHashFactory, "blocksHashFactory is null");
         this.parquetFooterCache = requireNonNull(parquetFooterCache, "parquetFooterCache is null");
         this.encryptionManagerFactory = requireNonNull(encryptionManagerFactory, "encryptionManagerFactory is null");
     }

@@ -111,7 +111,6 @@ public class TestIcebergConfig
                 .setTimeZone("UTC")
                 .setLegacyVariantTypeMapping(VariantMapping.VARIANT)
                 .setDropTableMode(DropTableMode.PURGE)
-                .setEqualityDeletesBlocksHashEnabled(true)
                 .setParquetFooterCacheType(NONE)
                 .setParquetFooterCacheMemoryMaxSize(DataSize.of(10, MEGABYTE)));
     }
@@ -177,7 +176,6 @@ public class TestIcebergConfig
                 .put("iceberg.time-zone", nonDefaultTimeZone().getID())
                 .put("iceberg.legacy-variant-type-mapping", "JSON")
                 .put("iceberg.drop-table-mode", "keep")
-                .put("iceberg.equality-deletes-blocks-hash-enabled", "false")
                 .put("iceberg.parquet-footer-cache.type", "MEMORY")
                 .put("iceberg.parquet-footer-cache.memory.max-size", "42MB")
                 .buildOrThrow();
@@ -241,7 +239,6 @@ public class TestIcebergConfig
                 .setTimeZone(nonDefaultTimeZone().getID())
                 .setLegacyVariantTypeMapping(VariantMapping.JSON)
                 .setDropTableMode(DropTableMode.KEEP)
-                .setEqualityDeletesBlocksHashEnabled(false)
                 .setParquetFooterCacheType(MEMORY)
                 .setParquetFooterCacheMemoryMaxSize(DataSize.of(42, MEGABYTE));
 

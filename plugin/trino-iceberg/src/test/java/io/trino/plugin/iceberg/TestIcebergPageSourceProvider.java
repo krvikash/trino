@@ -296,7 +296,7 @@ class TestIcebergPageSourceProvider
                 new IcebergConfig().getDateTimeZone(),
                 TESTING_TYPE_MANAGER,
                 ParquetFooterCache.noop(),
-                Optional.of(blocksHashFactory),
+                blocksHashFactory,
                 ENCRYPTION_MANAGER_FACTORY,
                 new GpuParquetConfig().getMaxPageSize().toBytes(),
                 memoryContext);
