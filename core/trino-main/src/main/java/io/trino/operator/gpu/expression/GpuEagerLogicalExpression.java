@@ -31,27 +31,30 @@ import static io.trino.operator.gpu.expression.GpuExpressions.allNullOnNullInput
 import static io.trino.operator.gpu.expression.GpuExpressions.worstOf;
 import static java.util.Objects.requireNonNull;
 
-public final class GpuLogicalExpression
+/// `AND` and `OR` with every operand evaluated over every row. The CPU stops at the first FALSE
+/// operand of an `AND` and the first TRUE operand of an `OR`, so an operand that can fail belongs in
+/// the lazy form [GpuIf] provides instead.
+public final class GpuEagerLogicalExpression
         extends GpuExpression
 {
     private final List<GpuExpression> operands;
     private final BinaryOp operation;
 
-    private GpuLogicalExpression(List<GpuExpression> operands, BinaryOp operation)
+    private GpuEagerLogicalExpression(List<GpuExpression> operands, BinaryOp operation)
     {
-        checkArgument(operands.size() >= 2, "AND requires at least 2 operands");
+        checkArgument(operands.size() >= 2, "Logical expression requires at least 2 operands");
         this.operands = ImmutableList.copyOf(operands);
         this.operation = requireNonNull(operation, "operation is null");
     }
 
-    public static GpuLogicalExpression and(List<GpuExpression> operands)
+    public static GpuEagerLogicalExpression and(List<GpuExpression> operands)
     {
-        return new GpuLogicalExpression(operands, NULL_LOGICAL_AND);
+        return new GpuEagerLogicalExpression(operands, NULL_LOGICAL_AND);
     }
 
-    public static GpuLogicalExpression or(List<GpuExpression> operands)
+    public static GpuEagerLogicalExpression or(List<GpuExpression> operands)
     {
-        return new GpuLogicalExpression(operands, NULL_LOGICAL_OR);
+        return new GpuEagerLogicalExpression(operands, NULL_LOGICAL_OR);
     }
 
     @Override
@@ -84,7 +87,7 @@ public final class GpuLogicalExpression
     @Override
     public boolean equals(Object obj)
     {
-        return obj instanceof GpuLogicalExpression other
+        return obj instanceof GpuEagerLogicalExpression other
                 && operands.equals(other.operands)
                 && operation == other.operation;
     }

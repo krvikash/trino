@@ -2037,6 +2037,11 @@ public class TestGpuExpressions
 
     /// `10 / coalesce(divisor, 7)`, which can raise on any row: the check the divide runs is masked by
     /// the dividend being non-NULL, and a constant dividend never is.
+    private static Expression not(Expression expression)
+    {
+        return new Call(FUNCTION_RESOLUTION.resolveFunction("$not", fromTypes(BOOLEAN)), ImmutableList.of(expression));
+    }
+
     private static Expression divideConstantByCoalesce(Expression divisor)
     {
         return new Call(
@@ -2102,6 +2107,228 @@ public class TestGpuExpressions
                     case 1 -> random.nextLong(1, 100);
                     default -> -random.nextLong(1, 100);
                 });
+            }
+        }
+        return List.of(new Page(positionsCount, aBuilder.build(), bBuilder.build()));
+    }
+
+    @ParameterizedTest
+    @EnumSource(NullsProvider.class)
+    void testAndFallibleOperandFallibleExceptAllNulls(NullsProvider nullsProvider)
+    {
+        // b <> 0 AND a / b = 42: the divide is skipped where b is 0, and yields NULL where b is NULL
+        Expression expression = andDivides(divide(field(0, BIGINT), field(1, BIGINT)));
+        assertGpuMatchesCpu(divisorPages(nullsProvider), List.of(BIGINT, BIGINT), expression, Set.of(0, 1));
+    }
+
+    @ParameterizedTest
+    @EnumSource(NullsProvider.class)
+    void testAndFallibleOperand(NullsProvider nullsProvider)
+    {
+        // b <> 0 AND 10 / coalesce(b, 7) = 42: coalesce revives a divisor from a NULL b, so the divide
+        // can raise on any row, and stays in range on the rows the AND still has to evaluate it on
+        Expression expression = andDivides(divideConstantByCoalesce(field(1, BIGINT)));
+        assertGpuMatchesCpu(divisorPages(nullsProvider), List.of(BIGINT, BIGINT), expression, Set.of(1));
+    }
+
+    @ParameterizedTest
+    @EnumSource(NullsProvider.class)
+    void testOrFallibleOperandFallibleExceptAllNulls(NullsProvider nullsProvider)
+    {
+        // b = 0 OR a / b = 42
+        Expression expression = orDivides(divide(field(0, BIGINT), field(1, BIGINT)));
+        assertGpuMatchesCpu(divisorPages(nullsProvider), List.of(BIGINT, BIGINT), expression, Set.of(0, 1));
+    }
+
+    @ParameterizedTest
+    @EnumSource(NullsProvider.class)
+    void testOrFallibleOperand(NullsProvider nullsProvider)
+    {
+        // b = 0 OR 10 / coalesce(b, 7) = 42
+        Expression expression = orDivides(divideConstantByCoalesce(field(1, BIGINT)));
+        assertGpuMatchesCpu(divisorPages(nullsProvider), List.of(BIGINT, BIGINT), expression, Set.of(1));
+    }
+
+    @ParameterizedTest
+    @EnumSource(NullsProvider.class)
+    void testAndFallibleOperandBehindInfallibleOnes(NullsProvider nullsProvider)
+    {
+        // a < 0 AND b <> 0 AND 10 / coalesce(b, 7) = 42
+        Expression expression = new Logical(Logical.Operator.AND, ImmutableList.of(
+                comparison(ComparisonOperator.LESS_THAN, field(0, BIGINT), new Constant(BIGINT, 0L)),
+                not(comparison(ComparisonOperator.EQUAL, field(1, BIGINT), new Constant(BIGINT, 0L))),
+                comparison(ComparisonOperator.EQUAL, divideConstantByCoalesce(field(1, BIGINT)), new Constant(BIGINT, 42L))));
+        assertGpuMatchesCpu(divisorPages(nullsProvider), List.of(BIGINT, BIGINT), expression, Set.of(0, 1));
+    }
+
+    @ParameterizedTest
+    @EnumSource(NullsProvider.class)
+    void testOrFallibleOperandBehindInfallibleOnes(NullsProvider nullsProvider)
+    {
+        // a < 0 OR b = 0 OR 10 / coalesce(b, 7) = 42
+        Expression expression = new Logical(Logical.Operator.OR, ImmutableList.of(
+                comparison(ComparisonOperator.LESS_THAN, field(0, BIGINT), new Constant(BIGINT, 0L)),
+                comparison(ComparisonOperator.EQUAL, field(1, BIGINT), new Constant(BIGINT, 0L)),
+                comparison(ComparisonOperator.EQUAL, divideConstantByCoalesce(field(1, BIGINT)), new Constant(BIGINT, 42L))));
+        assertGpuMatchesCpu(divisorPages(nullsProvider), List.of(BIGINT, BIGINT), expression, Set.of(0, 1));
+    }
+
+    @ParameterizedTest
+    @EnumSource(NullsProvider.class)
+    void testAndFallibleOperandBehindNullHead(NullsProvider nullsProvider)
+    {
+        // b <> 0 AND 10 / coalesce(b, 7) <> 42
+        Expression expression = new Logical(Logical.Operator.AND, ImmutableList.of(
+                not(comparison(ComparisonOperator.EQUAL, field(1, BIGINT), new Constant(BIGINT, 0L))),
+                not(comparison(ComparisonOperator.EQUAL, divideConstantByCoalesce(field(1, BIGINT)), new Constant(BIGINT, 42L)))));
+        assertGpuMatchesCpu(divisorPages(nullsProvider), List.of(BIGINT, BIGINT), expression, Set.of(1));
+    }
+
+    @ParameterizedTest
+    @EnumSource(NullsProvider.class)
+    void testOrFallibleOperandBehindNullHead(NullsProvider nullsProvider)
+    {
+        // b = 0 OR 10 / coalesce(b, 7) <> 42
+        Expression expression = new Logical(Logical.Operator.OR, ImmutableList.of(
+                comparison(ComparisonOperator.EQUAL, field(1, BIGINT), new Constant(BIGINT, 0L)),
+                not(comparison(ComparisonOperator.EQUAL, divideConstantByCoalesce(field(1, BIGINT)), new Constant(BIGINT, 42L)))));
+        assertGpuMatchesCpu(divisorPages(nullsProvider), List.of(BIGINT, BIGINT), expression, Set.of(1));
+    }
+
+    @Test
+    void testCoalesceFallibleOperandFallibleExceptAllNulls()
+    {
+        // COALESCE(a, 10 / b): the divide is skipped where a is not NULL, which is where b is 0
+        Expression expression = new Coalesce(ImmutableList.of(
+                field(0, BIGINT),
+                divide(new Constant(BIGINT, 10L), field(1, BIGINT))));
+        assertGpuMatchesCpu(coalescePages(), List.of(BIGINT, BIGINT), expression, Set.of(0, 1));
+    }
+
+    @Test
+    void testCoalesceFallibleOperand()
+    {
+        // COALESCE(a, 10 / coalesce(b, 0)): the inner coalesce turns a NULL b into a zero divisor, so
+        // the divide can raise on any row it reaches, and reaches none where a is not NULL
+        Expression expression = new Coalesce(ImmutableList.of(
+                field(0, BIGINT),
+                divide(new Constant(BIGINT, 10L), new Coalesce(ImmutableList.of(field(1, BIGINT), new Constant(BIGINT, 0L))))));
+        assertGpuMatchesCpu(coalescePages(), List.of(BIGINT, BIGINT), expression, Set.of(0, 1));
+    }
+
+    @Test
+    void testCoalesceFallibleOperandAheadOfInfallibleOnes()
+    {
+        // COALESCE(a, 10 / coalesce(b, 0), 42): the trailing operand keeps being evaluated over every
+        // row, which only the operand ahead of it is allowed to depend on
+        Expression expression = new Coalesce(ImmutableList.of(
+                field(0, BIGINT),
+                divide(new Constant(BIGINT, 10L), new Coalesce(ImmutableList.of(field(1, BIGINT), new Constant(BIGINT, 0L)))),
+                new Constant(BIGINT, 42L)));
+        assertGpuMatchesCpu(coalescePages(), List.of(BIGINT, BIGINT), expression, Set.of(0, 1));
+    }
+
+    @Test
+    void testCoalesceFallibleOperandBehindInfallibleOnes()
+    {
+        // COALESCE(NULL, a, 10 / coalesce(b, 0))
+        Expression expression = new Coalesce(ImmutableList.of(
+                new Constant(BIGINT, null),
+                field(0, BIGINT),
+                divide(new Constant(BIGINT, 10L), new Coalesce(ImmutableList.of(field(1, BIGINT), new Constant(BIGINT, 0L))))));
+        assertGpuMatchesCpu(coalescePages(), List.of(BIGINT, BIGINT), expression, Set.of(0, 1));
+    }
+
+    @Test
+    void testCoalesceFallibleOperandsSeparatedByInfallibleOne()
+    {
+        // COALESCE(a, 10 / coalesce(b, 0), 42, 10 / coalesce(b, 0))
+        Expression fallible = divide(new Constant(BIGINT, 10L), new Coalesce(ImmutableList.of(field(1, BIGINT), new Constant(BIGINT, 0L))));
+        Expression expression = new Coalesce(ImmutableList.of(
+                field(0, BIGINT),
+                fallible,
+                new Constant(BIGINT, 42L),
+                fallible));
+        assertGpuMatchesCpu(coalescePages(), List.of(BIGINT, BIGINT), expression, Set.of(0, 1));
+    }
+
+    @Test
+    void testCoalescePreservesNestedEnclosingBindings()
+    {
+        Symbol x = new Symbol(BIGINT, "x");
+        Symbol y = new Symbol(BIGINT, "y");
+        Symbol z = new Symbol(BIGINT, "z");
+        Expression expression = new Let(x, field(1, BIGINT), new Let(y, new Constant(BIGINT, 10L),
+                new Coalesce(
+                        field(0, BIGINT),
+                        new Constant(BIGINT, null),
+                        new Let(z, add(y.toSymbolReference(), new Constant(BIGINT, 1L)), divide(z.toSymbolReference(), x.toSymbolReference())))));
+        assertGpuMatchesCpu(coalescePages(), List.of(BIGINT, BIGINT), expression, Set.of(0, 1));
+    }
+
+    @ParameterizedTest
+    @EnumSource(NullsProvider.class)
+    void testLogicalPreservesEnclosingBinding(NullsProvider nullsProvider)
+    {
+        Symbol x = new Symbol(BIGINT, "x");
+        Expression quotient = divide(new Constant(BIGINT, 10L), x.toSymbolReference());
+        for (Expression body : List.of(andDivides(quotient), orDivides(quotient))) {
+            Expression expression = new Let(x, field(1, BIGINT), body);
+            assertGpuMatchesCpu(divisorPages(nullsProvider), List.of(BIGINT, BIGINT), expression, Set.of(1));
+        }
+    }
+
+    /// `b <> 0 AND divide = 42`, where the CPU never evaluates `divide` on a zero `b`.
+    private static Expression andDivides(Expression divide)
+    {
+        Expression bNotZero = new Call(
+                FUNCTION_RESOLUTION.resolveFunction("$not", fromTypes(BOOLEAN)),
+                ImmutableList.of(comparison(ComparisonOperator.EQUAL, field(1, BIGINT), new Constant(BIGINT, 0L))));
+        return new Logical(Logical.Operator.AND, ImmutableList.of(
+                bNotZero,
+                comparison(ComparisonOperator.EQUAL, divide, new Constant(BIGINT, 42L))));
+    }
+
+    /// `b = 0 OR divide = 42`, where the CPU never evaluates `divide` on a zero `b`.
+    private static Expression orDivides(Expression divide)
+    {
+        return new Logical(Logical.Operator.OR, ImmutableList.of(
+                comparison(ComparisonOperator.EQUAL, field(1, BIGINT), new Constant(BIGINT, 0L)),
+                comparison(ComparisonOperator.EQUAL, divide, new Constant(BIGINT, 42L))));
+    }
+
+    private static Expression divide(Expression dividend, Expression divisor)
+    {
+        return new Call(
+                FUNCTION_RESOLUTION.resolveOperator(OperatorType.DIVIDE, List.of(BIGINT, BIGINT)),
+                ImmutableList.of(dividend, divisor));
+    }
+
+    /// A page of `a` and `b` where a NULL `a` always comes with a `b` that divides safely, and every
+    /// `b` that does not is paired with a non-NULL `a` that keeps the CPU from reaching it.
+    private static List<Page> coalescePages()
+    {
+        int positionsCount = 64;
+        BlockBuilder aBuilder = BIGINT.createBlockBuilder(null, positionsCount);
+        BlockBuilder bBuilder = BIGINT.createBlockBuilder(null, positionsCount);
+        for (int i = 0; i < positionsCount; i++) {
+            switch (i % 4) {
+                case 0 -> {
+                    aBuilder.appendNull();
+                    BIGINT.writeLong(bBuilder, 7);
+                }
+                case 1 -> {
+                    aBuilder.appendNull();
+                    BIGINT.writeLong(bBuilder, -3);
+                }
+                case 2 -> {
+                    BIGINT.writeLong(aBuilder, 5);
+                    BIGINT.writeLong(bBuilder, 0);
+                }
+                default -> {
+                    BIGINT.writeLong(aBuilder, 5);
+                    bBuilder.appendNull();
+                }
             }
         }
         return List.of(new Page(positionsCount, aBuilder.build(), bBuilder.build()));

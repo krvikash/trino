@@ -13,6 +13,7 @@
  */
 package io.trino.operator.gpu.expression;
 
+import ai.rapids.cudf.BinaryOp;
 import ai.rapids.cudf.ColumnVector;
 import ai.rapids.cudf.DType;
 import com.google.common.collect.ImmutableList;
@@ -36,6 +37,8 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static io.airlift.slice.Slices.utf8Slice;
 import static io.trino.operator.gpu.GpuTestUtils.maybeSetGpuMemoryPoolForTests;
@@ -63,6 +66,8 @@ final class TestFallibility
     private static final Reference D = new Reference(DATE, "d");
     private static final Reference E = new Reference(BOOLEAN, "e");
     private static final Reference T = new Reference(createTimestampType(9), "t");
+    private static final Symbol X = new Symbol(BIGINT, "x");
+    private static final Reference X_REFERENCE = X.toSymbolReference();
     private static final Map<Symbol, Integer> LAYOUT = ImmutableMap.of(
             Symbol.from(A), 0,
             Symbol.from(B), 1,
@@ -242,6 +247,165 @@ final class TestFallibility
         // The bound column is not NULL on an all-NULL row, so the body's check fires there
         assertThat(compile(new Let(x, new Coalesce(B, bigint(0)), divide(bigint(10), xReference))).fallibility()).isEqualTo(FALLIBLE);
         assertThat(compile(new Let(x, divide(A, B), xReference)).fallibility()).isEqualTo(FALLIBLE_EXCEPT_ALL_NULLS);
+    }
+
+    @Test
+    void testCoalesceEvaluatesFallibleOperandLazily()
+    {
+        // 10 / b raises where b is 0, which the CPU never reaches while a is not NULL
+        assertThat(compile(new Coalesce(A, divide(bigint(10), B))))
+                .isEqualTo(compile(new Let(X, A, ifExpression(new IsNull(X_REFERENCE), divide(bigint(10), B), X_REFERENCE))));
+
+        // The first operand is evaluated on every row either way, so it is left where it is
+        assertThat(compile(new Coalesce(divide(bigint(10), B), A))).isInstanceOf(GpuEagerCoalesce.class);
+        assertThat(compile(new Coalesce(A, B))).isInstanceOf(GpuEagerCoalesce.class);
+    }
+
+    @Test
+    void testCoalesceKeepsInfallibleOperandsEager()
+    {
+        // Only the operand ahead of the fallible one binds; the operands behind it cannot fail, so
+        // evaluating them over every row is free of consequence
+        assertThat(compile(new Coalesce(A, divide(bigint(10), B), A)))
+                .isEqualTo(compile(new Let(X, A, ifExpression(
+                        new IsNull(X_REFERENCE),
+                        new Coalesce(divide(bigint(10), B), A),
+                        X_REFERENCE))));
+    }
+
+    @Test
+    void testCoalesceBindsInfallibleOperandsAheadOfFallibleOneTogether()
+    {
+        assertThat(compile(new Coalesce(A, B, A, divide(bigint(10), B))))
+                .isEqualTo(compile(new Let(X, new Coalesce(A, B, A), ifExpression(
+                        new IsNull(X_REFERENCE),
+                        divide(bigint(10), B),
+                        X_REFERENCE))));
+
+        // A fallible first operand is evaluated on every row either way, and the second fallible one is
+        // followed by an infallible operand
+        assertThat(compile(new Coalesce(divide(bigint(10), B), A, B, divide(bigint(10), A), A)))
+                .isEqualTo(compile(new Let(X, new Coalesce(divide(bigint(10), B), A, B), ifExpression(
+                        new IsNull(X_REFERENCE),
+                        new Coalesce(divide(bigint(10), A), A),
+                        X_REFERENCE))));
+    }
+
+    @Test
+    void testLogicalBindsInfallibleOperandsAheadOfFallibleOneTogether()
+    {
+        Expression fallible = comparison(ComparisonOperator.EQUAL, divide(bigint(10), B), bigint(1));
+        GpuExpression c = new GetColumn(0);
+        GpuExpression e = new GetColumn(1);
+        GpuExpression gpuFallible = new GpuBinaryExpression(
+                new GpuIntegerDivide(compile(bigint(10)), new GetColumn(2), DType.INT64, "bigint"),
+                compile(bigint(1)),
+                BinaryOp.EQUAL,
+                DType.BOOL8);
+        GpuExpression head = new GpuBoundReference(0);
+
+        assertThat(compile(and(C, E, fallible, C)))
+                .isEqualTo(new GpuLet(
+                        0,
+                        GpuEagerLogicalExpression.and(List.of(c, e)),
+                        new GpuIf(
+                                new GpuNot(head),
+                                new GpuConstant(BOOLEAN, Optional.of(false)),
+                                GpuEagerLogicalExpression.and(List.of(head, GpuEagerLogicalExpression.and(List.of(gpuFallible, c)))),
+                                BOOLEAN)));
+
+        assertThat(compile(or(C, E, fallible, C)))
+                .isEqualTo(new GpuLet(
+                        0,
+                        GpuEagerLogicalExpression.or(List.of(c, e)),
+                        new GpuIf(
+                                head,
+                                new GpuConstant(BOOLEAN, Optional.of(true)),
+                                GpuEagerLogicalExpression.or(List.of(head, GpuEagerLogicalExpression.or(List.of(gpuFallible, c)))),
+                                BOOLEAN)));
+    }
+
+    @Test
+    void testCoalesceNestsBindingsForEveryFallibleOperand()
+    {
+        Expression fallible = divide(bigint(10), new Coalesce(B, bigint(0)));
+        GpuExpression divisor = new GetColumn(1);
+        GpuExpression gpuFallible = new GpuIntegerDivide(compile(bigint(10)), new GpuEagerCoalesce(List.of(divisor, compile(bigint(0)))), DType.INT64, "bigint");
+        GpuExpression outer = new GpuBoundReference(1);
+        GpuExpression inner = new GpuBoundReference(0);
+        assertThat(compile(new Coalesce(A, divide(bigint(10), B), fallible)))
+                .isEqualTo(new GpuLet(1, compile(A),
+                        new GpuIf(
+                                new GpuIsNull(outer),
+                                new GpuLet(
+                                        0,
+                                        new GpuIntegerDivide(compile(bigint(10)), divisor, DType.INT64, "bigint"),
+                                        new GpuIf(new GpuIsNull(inner), gpuFallible, inner, BIGINT)),
+                                outer,
+                                BIGINT)));
+    }
+
+    @Test
+    void testLazyOperandPreservesEnclosingBinding()
+    {
+        GpuExpression bound = new GpuBoundReference(0);
+        assertThat(compile(new Let(X, A, new Coalesce(B, divide(bigint(10), X_REFERENCE)))))
+                .isEqualTo(new GpuLet(
+                        0,
+                        compile(A),
+                        new GpuLet(
+                                1,
+                                new GetColumn(1),
+                                new GpuIf(
+                                        new GpuIsNull(new GpuBoundReference(1)),
+                                        new GpuIntegerDivide(compile(bigint(10)), bound, DType.INT64, "bigint"),
+                                        new GpuBoundReference(1),
+                                        BIGINT))));
+    }
+
+    @Test
+    void testNestedShortCircuitOperandsCompileOnce()
+    {
+        Expression logical = comparison(ComparisonOperator.EQUAL, divide(A, B), bigint(1));
+        Expression coalesce = divide(A, B);
+        for (int i = 0; i < 25; i++) {
+            logical = i % 2 == 0 ? and(C, logical) : or(C, logical);
+            coalesce = new Coalesce(A, coalesce);
+        }
+        assertCompilesEachReferenceOnce(logical, 27);
+        assertCompilesEachReferenceOnce(coalesce, 27);
+    }
+
+    private static void assertCompilesEachReferenceOnce(Expression expression, int expectedReferences)
+    {
+        AtomicInteger references = new AtomicInteger();
+        var visitor = new GpuExpressionCompiler.CompilationVisitor(LAYOUT, SQL_STANDARD)
+        {
+            @Override
+            protected Optional<GpuExpression> visitReference(Reference reference, Void context)
+            {
+                // Fail immediately on repeated compilation, rather than waiting for an exponential traversal.
+                assertThat(references.incrementAndGet()).isLessThanOrEqualTo(expectedReferences);
+                return super.visitReference(reference, context);
+            }
+        };
+        assertThat(expression.accept(visitor, null)).isPresent();
+        assertThat(references.get()).isEqualTo(expectedReferences);
+    }
+
+    @Test
+    void testLogicalEvaluatesFallibleOperandLazily()
+    {
+        Expression fallible = comparison(ComparisonOperator.EQUAL, divide(bigint(10), B), bigint(1));
+
+        assertThat(compile(and(C, fallible))).isInstanceOf(GpuLet.class);
+        assertThat(compile(or(C, fallible))).isInstanceOf(GpuLet.class);
+
+        assertThat(compile(and(C, E))).isInstanceOf(GpuEagerLogicalExpression.class);
+        assertThat(compile(or(C, E))).isInstanceOf(GpuEagerLogicalExpression.class);
+        // The first operand is evaluated on every row either way
+        assertThat(compile(and(fallible, C))).isInstanceOf(GpuEagerLogicalExpression.class);
+        assertThat(compile(or(fallible, C))).isInstanceOf(GpuEagerLogicalExpression.class);
     }
 
     @Test

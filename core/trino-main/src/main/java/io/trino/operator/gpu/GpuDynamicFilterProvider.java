@@ -24,10 +24,10 @@ import io.trino.operator.gpu.expression.Apply;
 import io.trino.operator.gpu.expression.CompiledExpression;
 import io.trino.operator.gpu.expression.GetOnlyColumn;
 import io.trino.operator.gpu.expression.GpuConstantColumn;
+import io.trino.operator.gpu.expression.GpuEagerLogicalExpression;
 import io.trino.operator.gpu.expression.GpuExpression;
 import io.trino.operator.gpu.expression.GpuInColumn;
 import io.trino.operator.gpu.expression.GpuIsNull;
-import io.trino.operator.gpu.expression.GpuLogicalExpression;
 import io.trino.operator.project.InputChannels;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.DynamicFilter;
@@ -234,7 +234,7 @@ public class GpuDynamicFilterProvider
             CompiledDynamicFilter.Expression compiledFilter = new CompiledDynamicFilter.Expression(new CompiledExpression(
                     compiledDomains == 1
                             ? getOnlyElement(domainFilters.build())
-                            : GpuLogicalExpression.and(domainFilters.build()),
+                            : GpuEagerLogicalExpression.and(domainFilters.build()),
                     new InputChannels(inputChannels)));
             VersionedFilter versionedFilter = new VersionedFilter(ownedVectors, compiledFilter);
             ownedVectors.clear(); // ownership is transferred to versionedFilter
@@ -257,7 +257,7 @@ public class GpuDynamicFilterProvider
                     new GetOnlyColumn(),
                     new GpuConstantColumn(inList));
             if (domain.isNullAllowed()) {
-                return Optional.of(GpuLogicalExpression.or(ImmutableList.of(
+                return Optional.of(GpuEagerLogicalExpression.or(ImmutableList.of(
                         inPredicate,
                         new GpuIsNull(new GetOnlyColumn()))));
             }

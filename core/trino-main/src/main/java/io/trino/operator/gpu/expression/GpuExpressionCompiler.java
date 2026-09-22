@@ -71,6 +71,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.BinaryOperator;
 import java.util.function.Function;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -79,6 +80,7 @@ import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.trino.metadata.GlobalFunctionCatalog.isBuiltinFunctionName;
 import static io.trino.metadata.OperatorNameUtil.isOperatorName;
 import static io.trino.metadata.OperatorNameUtil.unmangleOperator;
+import static io.trino.operator.gpu.expression.Fallibility.INFALLIBLE;
 import static io.trino.operator.gpu.expression.GpuTrim.SPACE;
 import static io.trino.spi.gpu.GpuTypeConversion.isConvertible;
 import static io.trino.spi.gpu.GpuTypeConversion.toDType;
@@ -141,7 +143,7 @@ public final class GpuExpressionCompiler
         private final Map<Symbol, Integer> letBindings = new HashMap<>();
         private int nextBindingId;
 
-        private CompilationVisitor(Map<Symbol, Integer> sourceLayout, CharVarcharCoercion charVarcharCoercion)
+        CompilationVisitor(Map<Symbol, Integer> sourceLayout, CharVarcharCoercion charVarcharCoercion)
         {
             this.sourceLayout = requireNonNull(sourceLayout, "sourceLayout is null");
             this.charVarcharCoercion = requireNonNull(charVarcharCoercion, "charVarcharCoercion is null");
@@ -1058,7 +1060,7 @@ public final class GpuExpressionCompiler
             if (value.isEmpty()) {
                 return Optional.empty();
             }
-            int bindingId = nextBindingId++;
+            int bindingId = allocateBindingId();
             Integer previousBinding = letBindings.put(let.name(), bindingId);
             try {
                 return let.body().accept(this, context)
@@ -1127,11 +1129,30 @@ public final class GpuExpressionCompiler
         @Override
         protected Optional<GpuExpression> visitLogical(Logical logical, Void context)
         {
-            Function<List<GpuExpression>, GpuExpression> constructor = switch (logical.operator()) {
-                case AND -> GpuLogicalExpression::and;
-                case OR -> GpuLogicalExpression::or;
+            return switch (logical.operator()) {
+                case AND -> compileLazyAssociative(logical.terms(), GpuEagerLogicalExpression::and, CompilationVisitor::lazyAnd, context);
+                case OR -> compileLazyAssociative(logical.terms(), GpuEagerLogicalExpression::or, CompilationVisitor::lazyOr, context);
             };
-            return compileNary(logical.terms(), constructor, context);
+        }
+
+        // A NULL head settles neither AND nor OR. The conditions of this and lazyOr are NULL there, which
+        // GpuIf reads as FALSE, sending the row to the branch that evaluates the tail.
+        private static GpuExpression lazyAnd(GpuExpression head, GpuExpression tail)
+        {
+            return new GpuIf(
+                    new GpuNot(head),
+                    new GpuConstant(BOOLEAN, Optional.of(false)),
+                    GpuEagerLogicalExpression.and(ImmutableList.of(head, tail)),
+                    BOOLEAN);
+        }
+
+        private static GpuExpression lazyOr(GpuExpression head, GpuExpression tail)
+        {
+            return new GpuIf(
+                    head,
+                    new GpuConstant(BOOLEAN, Optional.of(true)),
+                    GpuEagerLogicalExpression.or(ImmutableList.of(head, tail)),
+                    BOOLEAN);
         }
 
         @Override
@@ -1190,7 +1211,68 @@ public final class GpuExpressionCompiler
             if (cudfType.isEmpty() || cudfType.get().isNestedType()) {
                 return Optional.empty();
             }
-            return compileNary(coalesce.operands(), GpuCoalesce::new, context);
+            return compileLazyAssociative(
+                    coalesce.operands(),
+                    GpuEagerCoalesce::new,
+                    (head, tail) -> new GpuIf(new GpuIsNull(head), tail, head, coalesce.type()),
+                    context);
+        }
+
+        /// Compiles a lazy, associative n-ary operator, one where `op(a, b, c)` is `op(a, op(b, c))`
+        /// and the CPU evaluates an operand only when the ones before it have not settled the result.
+        ///
+        /// An operand which can fail is evaluated only on the rows where the CPU would have evaluated it.
+        ///
+        /// @param eager evaluates every operand over every row
+        /// @param lazy combines `head`, a [GpuBoundReference] to the evaluated head segment which may be used
+        ///         more than once, with `tail`, which stands for every remaining segment and must be evaluated
+        ///         only where the CPU would reach it
+        private Optional<GpuExpression> compileLazyAssociative(
+                List<Expression> operands,
+                Function<List<GpuExpression>, GpuExpression> eager,
+                BinaryOperator<GpuExpression> lazy,
+                Void context)
+        {
+            checkArgument(operands.size() >= 2, "Expression requires at least 2 operands, got %s", operands.size());
+            return compileAll(operands, context).map(compiled -> {
+                // The operands split into segments, a new one starting at every operand past the head that
+                // can fail. Each segment is one eager node: the CPU reaches its first operand on every row the
+                // segment is evaluated on, and the operands behind it cannot fail, so evaluating them on rows
+                // the CPU would have skipped only costs time.
+                ImmutableList.Builder<GpuExpression> segmentsBuilder = ImmutableList.builder();
+                int segmentStart = 0;
+                for (int i = 1; i < compiled.size(); i++) {
+                    if (compiled.get(i).fallibility() != INFALLIBLE) {
+                        segmentsBuilder.add(eagerSegment(compiled.subList(segmentStart, i), eager));
+                        segmentStart = i;
+                    }
+                }
+                segmentsBuilder.add(eagerSegment(compiled.subList(segmentStart, compiled.size()), eager));
+                List<GpuExpression> segments = segmentsBuilder.build();
+
+                // If there is only one segment, it is compiled directly as an eager node. Otherwise, the
+                // segments are combined from right to left with binary lazy nodes. Each lazy node evaluates
+                // and binds the head segment with a GpuLet, then uses a GpuIf to evaluate the remaining
+                // segments only on rows where they are needed.
+                GpuExpression tail = segments.getLast();
+                for (int i = segments.size() - 2; i >= 0; i--) {
+                    int bindingId = allocateBindingId();
+                    tail = new GpuLet(bindingId, segments.get(i), lazy.apply(new GpuBoundReference(bindingId), tail));
+                }
+                return tail;
+            });
+        }
+
+        private int allocateBindingId()
+        {
+            int bindingId = nextBindingId;
+            nextBindingId++;
+            return bindingId;
+        }
+
+        private static GpuExpression eagerSegment(List<GpuExpression> segment, Function<List<GpuExpression>, GpuExpression> eager)
+        {
+            return segment.size() == 1 ? segment.getFirst() : eager.apply(segment);
         }
 
         private Optional<GpuExpression> compileNary(
