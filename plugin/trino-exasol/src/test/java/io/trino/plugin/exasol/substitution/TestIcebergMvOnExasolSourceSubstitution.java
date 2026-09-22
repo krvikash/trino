@@ -26,7 +26,7 @@ import io.trino.tpch.TpchTable;
 import org.junit.jupiter.api.parallel.Execution;
 
 import static io.trino.plugin.exasol.TestingExasolServer.TEST_SCHEMA;
-import static io.trino.plugin.hive.substitution.AbstractMvSubstitutionFullTest.SubFieldTestContext.VARCHAR_JSON_VALUES;
+import static io.trino.testing.substitution.AbstractMvSubstitutionFullTest.SubFieldTestContext.VARCHAR_JSON_VALUES;
 import static org.junit.jupiter.api.parallel.ExecutionMode.SAME_THREAD;
 
 @Execution(SAME_THREAD)

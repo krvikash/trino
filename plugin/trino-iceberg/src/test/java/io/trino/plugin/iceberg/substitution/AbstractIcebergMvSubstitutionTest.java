@@ -14,11 +14,11 @@
 package io.trino.plugin.iceberg.substitution;
 
 import io.trino.Session;
-import io.trino.plugin.hive.substitution.AbstractMvSubstitutionFullTest;
 import io.trino.plugin.iceberg.TestingIcebergPlugin;
 import io.trino.plugin.tpch.TpchPlugin;
 import io.trino.spi.connector.CatalogSchemaName;
 import io.trino.testing.QueryRunner;
+import io.trino.testing.substitution.AbstractMvSubstitutionFullTest;
 
 import java.nio.file.Path;
 import java.util.Map;

@@ -13,12 +13,12 @@
  */
 package io.trino.plugin.iceberg.substitution;
 
-import io.trino.plugin.hive.substitution.AbstractMvSubstitutionTest;
 import io.trino.plugin.iceberg.TestingIcebergPlugin;
 import io.trino.spi.connector.CatalogSchemaName;
 import io.trino.spi.connector.CatalogSchemaTableName;
 import io.trino.testing.QueryRunner;
 import io.trino.testing.sql.TestMaterializedView;
+import io.trino.testing.substitution.AbstractMvSubstitutionTest;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Execution;
 

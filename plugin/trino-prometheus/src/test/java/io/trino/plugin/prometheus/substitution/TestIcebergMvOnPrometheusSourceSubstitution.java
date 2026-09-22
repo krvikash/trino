@@ -74,7 +74,7 @@ public class TestIcebergMvOnPrometheusSourceSubstitution
     /**
      * Prometheus scrapes itself every scrape interval, so {@code up} gains a row while the test runs.
      * The MV holds a snapshot taken before the query, while
-     * {@link io.trino.plugin.hive.substitution.AbstractMvSubstitutionTest} reads its comparison baseline
+     * {@link io.trino.testing.substitution.AbstractMvSubstitutionTest} reads its comparison baseline
      * from the base table afterwards, so the two legitimately differ by whatever was scraped in between.
      * This override therefore asserts containment rather than equality.
      */
