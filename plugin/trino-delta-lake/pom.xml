@@ -743,6 +743,8 @@
                                 <exclude>**/TestAzureUnityMetastoreDeltaConnectorSmokeTest.java</exclude>
                                 <exclude>**/TestAzureUnityMetastoreWithCredentialsVendingDeltaConnectorSmokeTest.java</exclude>
                                 <!-- GPU tests run in the gpu profile only -->
+                                <exclude>**/TestDeltaLakeGpuCompositeSplits.java</exclude>
+                                <exclude>**/TestDeltaLakeGpuCompositeSplitsConnectorTest.java</exclude>
                                 <exclude>**/TestDeltaLakeGpuQueries.java</exclude>
                             </excludes>
                         </configuration>
@@ -808,6 +810,8 @@
                         <artifactId>maven-surefire-plugin</artifactId>
                         <configuration>
                             <includes>
+                                <include>**/TestDeltaLakeGpuCompositeSplits.java</include>
+                                <include>**/TestDeltaLakeGpuCompositeSplitsConnectorTest.java</include>
                                 <include>**/TestDeltaLakeGpuQueries.java</include>
                             </includes>
                         </configuration>

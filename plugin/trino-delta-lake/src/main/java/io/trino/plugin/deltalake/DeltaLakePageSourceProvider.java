@@ -43,6 +43,7 @@ import io.trino.plugin.deltalake.delete.PositionDeleteFilter;
 import io.trino.plugin.deltalake.delete.RoaringBitmapArray;
 import io.trino.plugin.deltalake.transactionlog.DeletionVectorEntry;
 import io.trino.plugin.deltalake.transactionlog.DeltaLakeSchemaSupport.ColumnMappingMode;
+import io.trino.plugin.hive.CompositePageSource;
 import io.trino.plugin.hive.HiveColumnHandle;
 import io.trino.plugin.hive.HiveColumnProjectionInfo;
 import io.trino.plugin.hive.TransformConnectorPageSource;
@@ -95,6 +96,7 @@ import java.io.UncheckedIOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.Set;
@@ -221,13 +223,22 @@ public class DeltaLakePageSourceProvider
             ConnectorGpuMemoryContext gpuMemoryContext,
             IoExecutor ioExecutor)
     {
-        DeltaLakeSplit split = (DeltaLakeSplit) connectorSplit;
         DeltaLakeTableHandle table = (DeltaLakeTableHandle) connectorTable;
 
-        if (split.deletionVector().isPresent()) {
-            // Deletion vectors require row-level filtering that the GPU scan does not implement.
-            log.debug("GPU page source not supported: split has a deletion vector");
-            return Optional.empty();
+        List<DeltaLakeSplit> splits;
+        if (connectorSplit instanceof CompositeDeltaLakeSplit(List<DeltaLakeSplit> compositeSplits)) {
+            splits = compositeSplits;
+        }
+        else {
+            splits = ImmutableList.of((DeltaLakeSplit) connectorSplit);
+        }
+
+        for (DeltaLakeSplit split : splits) {
+            if (split.deletionVector().isPresent()) {
+                // Deletion vectors require row-level filtering that the GPU scan does not implement.
+                log.debug("GPU page source not supported: split has a deletion vector");
+                return Optional.empty();
+            }
         }
         if (table.isMerge()) {
             // MERGE relies on the synthetic $row_id row block that the GPU scan does not build.
@@ -253,131 +264,175 @@ public class DeltaLakePageSourceProvider
                 .map(DeltaLakeColumnHandle.class::cast)
                 .collect(toImmutableList());
 
-        TupleDomain<DeltaLakeColumnHandle> effectivePredicate = getUnenforcedPredicate(
-                session,
-                split,
-                table,
-                dynamicFilter.getCurrentPredicate())
-                .transformKeys(DeltaLakeColumnHandle.class::cast);
-        if (effectivePredicate.isNone()) {
-            return Optional.of(new EmptyGpuPageSource());
-        }
-
-        Location location = Location.of(split.path());
-        TrinoFileSystem fileSystem = fileSystemFactory.create(session, tableCredentials.map(DeltaLakeTableCredentials.class::cast));
-        TrinoInputFile inputFile = fileSystem.newInputFile(location, split.fileSize());
-
         return createGpuParquetPageSource(
+                session,
                 gpuMemoryContext,
-                inputFile,
-                split,
+                tableCredentials,
+                splits,
+                table,
                 deltaLakeColumns,
-                effectivePredicate,
+                dynamicFilter,
                 columnMappingMode,
                 ioExecutor);
     }
 
     private Optional<ConnectorGpuPageSource> createGpuParquetPageSource(
+            ConnectorSession session,
             ConnectorGpuMemoryContext gpuMemoryContext,
-            TrinoInputFile inputFile,
-            DeltaLakeSplit split,
+            Optional<ConnectorTableCredentials> tableCredentials,
+            List<DeltaLakeSplit> splits,
+            DeltaLakeTableHandle table,
             List<DeltaLakeColumnHandle> deltaLakeColumns,
-            TupleDomain<DeltaLakeColumnHandle> effectivePredicate,
+            DynamicFilter dynamicFilter,
             ColumnMappingMode columnMappingMode,
             IoExecutor ioExecutor)
     {
         AggregatedMemoryContext memoryContext = newRootAggregatedMemoryContext(new HeapMemoryReservationHandler(gpuMemoryContext), 0L);
         FileFormatDataSourceStats stats = new FileFormatDataSourceStats();
-        Map<String, Optional<String>> partitionKeys = split.partitionKeys();
+        TrinoFileSystem fileSystem = fileSystemFactory.create(session, tableCredentials.map(DeltaLakeTableCredentials.class::cast));
 
-        try (ParquetDataSource dataSource = createDataSource(inputFile, OptionalLong.empty(), gpuParquetReaderOptions, memoryContext, stats)) {
-            ParquetMetadata parquetMetadata = MetadataReader.readFooter(dataSource, gpuParquetReaderOptions, Optional.empty(), Optional.empty());
-            FileMetadata fileMetadata = parquetMetadata.getFileMetaData();
-            MessageType fileSchema = fileMetadata.getSchema();
+        ImmutableList.Builder<ParquetFileFabricator.FileEntry> inputFiles = ImmutableList.builder();
+        MessageType requestedSchema = null;
+        Map<String, String> firstKeyValueMetaData = null;
+        List<GpuOutputColumn> gpuOutputColumns = null;
+        long footerCompletedBytes = 0;
+        long footerReadTimeNanos = 0;
 
-            Map<Integer, String> parquetFieldIdToName = columnMappingMode == ColumnMappingMode.ID
-                    ? fileSchema.getFields().stream()
-                      .filter(field -> field.getId() != null)
-                      .collect(toImmutableMap(field -> field.getId().intValue(), Type::getName))
-                    : ImmutableMap.of();
-
-            ImmutableList.Builder<GpuOutputColumn> outputColumns = ImmutableList.builder();
-            ImmutableList.Builder<HiveColumnHandle> parquetColumns = ImmutableList.builder();
-            int parquetIndex = 0;
-            for (DeltaLakeColumnHandle column : deltaLakeColumns) {
-                if (column.isBaseColumn() && partitionKeys.containsKey(column.basePhysicalColumnName())) {
-                    Object value = deserializePartitionValue(column, partitionKeys.get(column.basePhysicalColumnName()));
-                    outputColumns.add(new GpuConstantColumn(column, column.baseType(), value));
-                }
-                else if (column.baseColumnName().equals(PATH_COLUMN_NAME)) {
-                    outputColumns.add(new GpuConstantColumn(column, PATH_TYPE, utf8Slice(split.path())));
-                }
-                else if (column.baseColumnName().equals(FILE_SIZE_COLUMN_NAME)) {
-                    outputColumns.add(new GpuConstantColumn(column, FILE_SIZE_TYPE, split.fileSize()));
-                }
-                else if (column.baseColumnName().equals(FILE_MODIFIED_TIME_COLUMN_NAME)) {
-                    long packedTimestamp = packDateTimeWithZone(split.fileModifiedTime(), dateTimeZone.getID());
-                    outputColumns.add(new GpuConstantColumn(column, FILE_MODIFIED_TIME_TYPE, packedTimestamp));
-                }
-                else {
-                    Optional<HiveColumnHandle> hiveColumn = toHiveColumnHandle(column, columnMappingMode, parquetFieldIdToName);
-                    if (hiveColumn.isEmpty()) {
-                        // Column not present in the file (schema evolution / column-mapping mismatch): synthesize nulls.
-                        outputColumns.add(new GpuConstantColumn(column, column.baseType(), null));
-                        continue;
-                    }
-                    String parquetName = hiveColumn.get().getBaseColumnName();
-                    if (!fileSchema.containsField(parquetName)) {
-                        outputColumns.add(new GpuConstantColumn(column, column.baseType(), null));
-                        continue;
-                    }
-                    Type parquetType = fileSchema.getType(parquetName);
-                    if (parquetType.isPrimitive() && !isSupportedForGpu(parquetType.asPrimitiveType(), column.baseType())) {
-                        log.debug("GPU page source not supported: column '%s' has unsupported Parquet type %s for Trino type %s", column.baseColumnName(), parquetType, column.baseType());
-                        return Optional.empty();
-                    }
-                    outputColumns.add(new GpuParquetFileColumn(column, parquetName, parquetIndex));
-                    parquetColumns.add(hiveColumn.get());
-                    parquetIndex++;
-                }
+        for (DeltaLakeSplit split : splits) {
+            TupleDomain<DeltaLakeColumnHandle> effectivePredicate = getUnenforcedPredicate(
+                    session,
+                    split,
+                    table,
+                    dynamicFilter.getCurrentPredicate())
+                    .transformKeys(DeltaLakeColumnHandle.class::cast);
+            if (effectivePredicate.isNone()) {
+                continue;
             }
 
-            List<HiveColumnHandle> gpuColumns = parquetColumns.build();
-            MessageType requestedSchema = getParquetMessageType(gpuColumns, true, fileSchema)
-                    .orElse(new MessageType(fileSchema.getName(), ImmutableList.of()));
+            TrinoInputFile inputFile = fileSystem.newInputFile(Location.of(split.path()), split.fileSize());
+            Map<String, Optional<String>> partitionKeys = split.partitionKeys();
 
-            Map<List<String>, ColumnDescriptor> descriptorsByPath = getDescriptors(fileSchema, requestedSchema);
-            TupleDomain<HiveColumnHandle> hivePredicate = getParquetTupleDomain(effectivePredicate, columnMappingMode, parquetFieldIdToName);
-            TupleDomain<ColumnDescriptor> parquetTupleDomain = ParquetPageSourceFactory.getParquetTupleDomain(descriptorsByPath, hivePredicate, fileSchema, true);
-            TupleDomainParquetPredicate parquetPredicate = buildPredicate(requestedSchema, parquetTupleDomain, descriptorsByPath, UTC);
+            try (ParquetDataSource dataSource = createDataSource(inputFile, OptionalLong.empty(), gpuParquetReaderOptions, memoryContext.newAggregatedMemoryContext(), stats)) {
+                ParquetMetadata parquetMetadata = MetadataReader.readFooter(dataSource, gpuParquetReaderOptions, Optional.empty(), Optional.empty());
+                FileMetadata fileMetadata = parquetMetadata.getFileMetaData();
+                MessageType fileSchema = fileMetadata.getSchema();
 
-            List<RowGroupInfo> filteredRowGroups = getFilteredRowGroups(
-                    split.start(),
-                    split.length(),
-                    dataSource,
-                    parquetMetadata,
-                    ImmutableList.of(parquetTupleDomain),
-                    ImmutableList.of(parquetPredicate),
-                    descriptorsByPath,
-                    UTC,
-                    domainCompactionThreshold,
-                    gpuParquetReaderOptions);
+                Map<Integer, String> parquetFieldIdToName = columnMappingMode == ColumnMappingMode.ID
+                        ? fileSchema.getFields().stream()
+                          .filter(field -> field.getId() != null)
+                          .collect(toImmutableMap(field -> field.getId().intValue(), Type::getName))
+                        : ImmutableMap.of();
 
-            ParquetFileFabricator fabricator = new ParquetFileFabricator(
-                    ImmutableList.of(new ParquetFileFabricator.FileEntry(inputFile, filteredRowGroups, parquetMetadata)),
-                    requestedSchema,
-                    gpuMemoryContext,
-                    gpuParquetReaderOptions,
-                    ioExecutor);
+                ImmutableList.Builder<GpuOutputColumn> outputColumns = ImmutableList.builder();
+                ImmutableList.Builder<HiveColumnHandle> parquetColumns = ImmutableList.builder();
+                int parquetIndex = 0;
+                for (DeltaLakeColumnHandle column : deltaLakeColumns) {
+                    if (column.isBaseColumn() && partitionKeys.containsKey(column.basePhysicalColumnName())) {
+                        Object value = deserializePartitionValue(column, partitionKeys.get(column.basePhysicalColumnName()));
+                        outputColumns.add(new GpuConstantColumn(column, column.baseType(), value));
+                    }
+                    else if (column.baseColumnName().equals(PATH_COLUMN_NAME)) {
+                        outputColumns.add(new GpuConstantColumn(column, PATH_TYPE, utf8Slice(split.path())));
+                    }
+                    else if (column.baseColumnName().equals(FILE_SIZE_COLUMN_NAME)) {
+                        outputColumns.add(new GpuConstantColumn(column, FILE_SIZE_TYPE, split.fileSize()));
+                    }
+                    else if (column.baseColumnName().equals(FILE_MODIFIED_TIME_COLUMN_NAME)) {
+                        long packedTimestamp = packDateTimeWithZone(split.fileModifiedTime(), dateTimeZone.getID());
+                        outputColumns.add(new GpuConstantColumn(column, FILE_MODIFIED_TIME_TYPE, packedTimestamp));
+                    }
+                    else {
+                        Optional<HiveColumnHandle> hiveColumn = toHiveColumnHandle(column, columnMappingMode, parquetFieldIdToName);
+                        if (hiveColumn.isEmpty()) {
+                            // Column not present in the file (schema evolution / column-mapping mismatch): synthesize nulls.
+                            outputColumns.add(new GpuConstantColumn(column, column.baseType(), null));
+                            continue;
+                        }
+                        String parquetName = hiveColumn.get().getBaseColumnName();
+                        if (!fileSchema.containsField(parquetName)) {
+                            outputColumns.add(new GpuConstantColumn(column, column.baseType(), null));
+                            continue;
+                        }
+                        Type parquetType = fileSchema.getType(parquetName);
+                        if (parquetType.isPrimitive() && !isSupportedForGpu(parquetType.asPrimitiveType(), column.baseType())) {
+                            log.debug("GPU page source not supported: column '%s' has unsupported Parquet type %s for Trino type %s", column.baseColumnName(), parquetType, column.baseType());
+                            return Optional.empty();
+                        }
+                        outputColumns.add(new GpuParquetFileColumn(column, parquetName, parquetIndex));
+                        parquetColumns.add(hiveColumn.get());
+                        parquetIndex++;
+                    }
+                }
 
-            return Optional.of(new DeltaLakeGpuParquetPageSource(gpuMemoryContext, fabricator, outputColumns.build(), dataSource.getReadBytes(), dataSource.getReadTimeNanos(), gpuScanMaxPageSizeBytes));
+                List<HiveColumnHandle> gpuColumns = parquetColumns.build();
+                MessageType subSplitRequestedSchema = getParquetMessageType(gpuColumns, true, fileSchema)
+                        .orElse(new MessageType(fileSchema.getName(), ImmutableList.of()));
+                List<GpuOutputColumn> subSplitOutputColumns = outputColumns.build();
+
+                if (requestedSchema == null) {
+                    requestedSchema = subSplitRequestedSchema;
+                    firstKeyValueMetaData = fileMetadata.getKeyValueMetaData();
+                    gpuOutputColumns = subSplitOutputColumns;
+                }
+                else {
+                    if (!requestedSchema.equals(subSplitRequestedSchema)) {
+                        log.debug("GPU page source not supported for composite: schema mismatch for file %s", inputFile.location());
+                        return Optional.empty();
+                    }
+                    if (!Objects.equals(firstKeyValueMetaData, fileMetadata.getKeyValueMetaData())) {
+                        log.debug("GPU page source not supported for composite: key-value metadata mismatch for file %s", inputFile.location());
+                        return Optional.empty();
+                    }
+                    // One fabricated file has one value per constant column, e.g. partition values, which Delta does not store in data files
+                    if (!gpuOutputColumns.equals(subSplitOutputColumns)) {
+                        log.debug("GPU page source not supported for composite: output columns mismatch for file %s", inputFile.location());
+                        return Optional.empty();
+                    }
+                }
+
+                Map<List<String>, ColumnDescriptor> descriptorsByPath = getDescriptors(fileSchema, requestedSchema);
+                TupleDomain<HiveColumnHandle> hivePredicate = getParquetTupleDomain(effectivePredicate, columnMappingMode, parquetFieldIdToName);
+                TupleDomain<ColumnDescriptor> parquetTupleDomain = ParquetPageSourceFactory.getParquetTupleDomain(descriptorsByPath, hivePredicate, fileSchema, true);
+                TupleDomainParquetPredicate parquetPredicate = buildPredicate(requestedSchema, parquetTupleDomain, descriptorsByPath, UTC);
+
+                List<RowGroupInfo> filteredRowGroups = getFilteredRowGroups(
+                        split.start(),
+                        split.length(),
+                        dataSource,
+                        parquetMetadata,
+                        ImmutableList.of(parquetTupleDomain),
+                        ImmutableList.of(parquetPredicate),
+                        descriptorsByPath,
+                        UTC,
+                        domainCompactionThreshold,
+                        gpuParquetReaderOptions);
+
+                inputFiles.add(new ParquetFileFabricator.FileEntry(inputFile, filteredRowGroups, parquetMetadata));
+
+                footerCompletedBytes += dataSource.getReadBytes();
+                footerReadTimeNanos += dataSource.getReadTimeNanos();
+            }
+            catch (TrinoException e) {
+                throw e;
+            }
+            catch (IOException | RuntimeException e) {
+                throw new TrinoException(DELTA_LAKE_BAD_DATA, "Failed to create GPU Parquet page source for: " + inputFile.location() + ". " + e.getMessage(), e);
+            }
         }
-        catch (TrinoException e) {
-            throw e;
+
+        List<ParquetFileFabricator.FileEntry> files = inputFiles.build();
+        if (files.isEmpty()) {
+            return Optional.of(new EmptyGpuPageSource());
         }
-        catch (IOException | RuntimeException e) {
-            throw new TrinoException(DELTA_LAKE_BAD_DATA, "Failed to create GPU Parquet page source for: " + inputFile.location() + ". " + e.getMessage(), e);
-        }
+
+        ParquetFileFabricator fabricator = new ParquetFileFabricator(
+                files,
+                requestedSchema,
+                gpuMemoryContext,
+                gpuParquetReaderOptions,
+                ioExecutor);
+
+        return Optional.of(new DeltaLakeGpuParquetPageSource(gpuMemoryContext, fabricator, gpuOutputColumns, footerCompletedBytes, footerReadTimeNanos, gpuScanMaxPageSizeBytes));
     }
 
     private static boolean isSupportedForGpu(PrimitiveType parquetType, io.trino.spi.type.Type trinoType)
@@ -406,6 +461,12 @@ public class DeltaLakePageSourceProvider
             DynamicFilter dynamicFilter,
             MemoryContext memoryContext)
     {
+        if (connectorSplit instanceof CompositeDeltaLakeSplit(List<DeltaLakeSplit> splits)) {
+            return new CompositePageSource<>(
+                    splits,
+                    subSplit -> createPageSource(transaction, session, subSplit, connectorTable, tableCredentials, columns, dynamicFilter, memoryContext));
+        }
+
         DeltaLakeSplit split = (DeltaLakeSplit) connectorSplit;
         DeltaLakeTableHandle table = (DeltaLakeTableHandle) connectorTable;
 

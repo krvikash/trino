@@ -140,7 +140,9 @@ public class DeltaLakeSplitManager
                 maxSplitsPerSecond,
                 maxOutstandingSplits,
                 getDynamicFilteringWaitTimeout(session),
-                deltaLakeTableHandle.isRecordScannedFiles());
+                deltaLakeTableHandle.isRecordScannedFiles(),
+                session,
+                deltaLakeTableHandle.getProjectedColumns());
 
         return new ClassLoaderSafeConnectorSplitSource(splitSource, DeltaLakeSplitManager.class.getClassLoader());
     }
@@ -160,6 +162,10 @@ public class DeltaLakeSplitManager
     @Override
     public Optional<CacheSplitId> getCacheSplitId(ConnectorSplit split)
     {
+        if (split instanceof CompositeDeltaLakeSplit) {
+            // Split caching is not supported for composite splits
+            return Optional.empty();
+        }
         DeltaLakeSplit deltaLakeSplit = (DeltaLakeSplit) split;
 
         // ensure cache id generation is revisited whenever split classes change

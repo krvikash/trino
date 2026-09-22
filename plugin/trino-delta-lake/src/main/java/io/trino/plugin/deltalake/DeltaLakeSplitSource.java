@@ -15,8 +15,10 @@ package io.trino.plugin.deltalake;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Multimaps;
 import com.google.common.io.Closer;
 import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.ListenableFuture;
 import io.airlift.concurrent.MoreFutures;
 import io.airlift.log.Logger;
 import io.airlift.units.Duration;
@@ -24,6 +26,7 @@ import io.trino.plugin.hive.util.AsyncQueue;
 import io.trino.plugin.hive.util.ThrottledAsyncQueue;
 import io.trino.spi.ErrorCodeSupplier;
 import io.trino.spi.TrinoException;
+import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorSplit;
 import io.trino.spi.connector.ConnectorSplitSource;
 import io.trino.spi.connector.DynamicFilterSnapshot;
@@ -33,9 +36,12 @@ import io.trino.spi.predicate.TupleDomain;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.stream.Stream;
@@ -45,8 +51,13 @@ import static com.google.common.base.Throwables.getCausalChain;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static com.google.common.util.concurrent.Futures.immediateFailedFuture;
+import static com.google.common.util.concurrent.Futures.immediateFuture;
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 import static io.airlift.concurrent.MoreFutures.toCompletableFuture;
+import static io.trino.plugin.deltalake.DeltaLakeColumnType.PARTITION_KEY;
+import static io.trino.plugin.deltalake.DeltaLakeColumnType.REGULAR;
+import static io.trino.plugin.deltalake.DeltaLakeSessionProperties.getMaxSplitSize;
+import static io.trino.plugin.deltalake.DeltaLakeSessionProperties.isCompositeSplitsEnabled;
 import static io.trino.plugin.deltalake.util.DeltaLakeDomains.partitionMatchesPredicate;
 import static io.trino.spi.StandardErrorCode.GENERIC_INTERNAL_ERROR;
 import static java.util.Objects.requireNonNull;
@@ -59,6 +70,8 @@ public class DeltaLakeSplitSource
     private final SchemaTableName tableName;
     private final AsyncQueue<ConnectorSplit> queue;
     private final boolean recordScannedFiles;
+    private final boolean compositeSplitsEnabled;
+    private final long targetSplitSize;
     private final ImmutableSet.Builder<DeltaLakeScannedDataFile> scannedFilePaths = ImmutableSet.builder();
     private final long dynamicFilteringWaitTimeoutMillis;
     private final Closer closer = Closer.create();
@@ -72,12 +85,20 @@ public class DeltaLakeSplitSource
             int maxSplitsPerSecond,
             int maxOutstandingSplits,
             Duration dynamicFilteringWaitTimeout,
-            boolean recordScannedFiles)
+            boolean recordScannedFiles,
+            ConnectorSession session,
+            Optional<Set<DeltaLakeColumnHandle>> projectedColumns)
     {
         this.tableName = requireNonNull(tableName, "tableName is null");
         this.queue = new ThrottledAsyncQueue<>(maxSplitsPerSecond, maxOutstandingSplits, executor);
         closer.register(queue::finish);
         this.recordScannedFiles = recordScannedFiles;
+        this.compositeSplitsEnabled = !recordScannedFiles
+                && isCompositeSplitsEnabled(session)
+                && projectedColumns
+                .map(columns -> columns.stream().allMatch(DeltaLakeSplitSource::isColumnCompatibleWithCompositeSplits))
+                .orElse(true);
+        this.targetSplitSize = getMaxSplitSize(session).toBytes();
         this.dynamicFilteringWaitTimeoutMillis = dynamicFilteringWaitTimeout.toMillis();
         closer.register(splits::close);
         queueSplits(splits, queue, executor)
@@ -121,7 +142,7 @@ public class DeltaLakeSplitSource
         }
 
         return toCompletableFuture(Futures.transform(
-                queue.getBatchAsync(maxSize),
+                fetchSplits(maxSize),
                 splits -> {
                     TupleDomain<DeltaLakeColumnHandle> dynamicFilterPredicate = dynamicFilterSnapshot.currentPredicate().transformKeys(DeltaLakeColumnHandle.class::cast);
                     if (dynamicFilterPredicate.isNone()) {
@@ -138,9 +159,79 @@ public class DeltaLakeSplitSource
                     if (recordScannedFiles) {
                         filteredSplits.forEach(split -> scannedFilePaths.add(new DeltaLakeScannedDataFile(((DeltaLakeSplit) split).path(), ((DeltaLakeSplit) split).partitionKeys())));
                     }
+                    if (compositeSplitsEnabled) {
+                        return mergeIntoCompositeSplits(filteredSplits);
+                    }
                     return filteredSplits;
                 },
                 directExecutor()));
+    }
+
+    /// With composite splits, waits for a full batch so that packing does not depend on how fast splits are queued.
+    private ListenableFuture<List<ConnectorSplit>> fetchSplits(int maxSize)
+    {
+        if (!compositeSplitsEnabled) {
+            return queue.getBatchAsync(maxSize);
+        }
+        return fetchSplits(maxSize, ImmutableList.of());
+    }
+
+    private ListenableFuture<List<ConnectorSplit>> fetchSplits(int maxSize, List<ConnectorSplit> fetched)
+    {
+        return Futures.transformAsync(
+                queue.getBatchAsync(maxSize - fetched.size()),
+                splits -> {
+                    List<ConnectorSplit> batch = ImmutableList.<ConnectorSplit>builder()
+                            .addAll(fetched)
+                            .addAll(splits)
+                            .build();
+                    if (batch.size() >= maxSize || queue.isFinished()) {
+                        return immediateFuture(batch);
+                    }
+                    return fetchSplits(maxSize, batch);
+                },
+                directExecutor());
+    }
+
+    private List<ConnectorSplit> mergeIntoCompositeSplits(List<ConnectorSplit> splits)
+    {
+        List<DeltaLakeSplit> deltaLakeSplits = splits.stream()
+                .map(DeltaLakeSplit.class::cast)
+                .collect(toImmutableList());
+        ImmutableList.Builder<ConnectorSplit> result = ImmutableList.builder();
+        // Composites never span partitions, so the files of a composite share their partition values
+        for (Collection<DeltaLakeSplit> partitionSplits : Multimaps.index(deltaLakeSplits, DeltaLakeSplit::partitionKeys).asMap().values()) {
+            List<DeltaLakeSplit> currentBatch = new ArrayList<>();
+            long currentBatchSize = 0;
+            for (DeltaLakeSplit split : partitionSplits) {
+                if (!currentBatch.isEmpty() && currentBatchSize + split.length() > targetSplitSize) {
+                    result.add(toCompositeOrSingleSplit(currentBatch));
+                    currentBatch = new ArrayList<>();
+                    currentBatchSize = 0;
+                }
+                currentBatch.add(split);
+                currentBatchSize += split.length();
+            }
+            result.add(toCompositeOrSingleSplit(currentBatch));
+        }
+        return result.build();
+    }
+
+    private static ConnectorSplit toCompositeOrSingleSplit(List<DeltaLakeSplit> batch)
+    {
+        if (batch.size() == 1) {
+            return batch.getFirst();
+        }
+        return new CompositeDeltaLakeSplit(batch);
+    }
+
+    private static boolean isColumnCompatibleWithCompositeSplits(DeltaLakeColumnHandle column)
+    {
+        // The GPU path merges the files of a composite into a single fabricated Parquet file, so it cannot
+        // produce synthesized columns whose values differ between files ($path, $file_size, $file_modified_time)
+        // or rows ($row_position, $row_id). The CPU path handles them, but composites are disabled for both paths
+        // because the execution path is chosen at the worker, after splits are generated.
+        return column.columnType() == REGULAR || column.columnType() == PARTITION_KEY;
     }
 
     @Override

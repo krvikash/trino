@@ -118,7 +118,18 @@ public class TestDeltaLakeConnectorTest
         floci.start();
         floci.createBucket(bucketName);
 
-        QueryRunner queryRunner = DeltaLakeQueryRunner.builder(SCHEMA)
+        QueryRunner queryRunner = createQueryRunnerBuilder().build();
+        queryRunner.execute("CREATE SCHEMA schemawithoutunderscore WITH (location = 's3://" + bucketName + "/schemawithoutunderscore')");
+
+        metastore = getConnectorService(queryRunner, HiveMetastoreFactory.class)
+                .createMetastore(Optional.empty());
+
+        return queryRunner;
+    }
+
+    protected DeltaLakeQueryRunner.Builder createQueryRunnerBuilder()
+    {
+        return DeltaLakeQueryRunner.builder(SCHEMA)
                 .addDeltaProperty("hive.metastore", "file")
                 .addDeltaProperty("hive.metastore.catalog.dir", "local:///file-metastore")
                 .addDeltaProperty("hive.metastore.disable-location-checks", "true")
@@ -127,14 +138,13 @@ public class TestDeltaLakeConnectorTest
                 .addDeltaProperty("delta.metastore.store-table-metadata", "true")
                 .addDeltaProperty("delta.enable-non-concurrent-writes", "true")
                 .addDeltaProperty("delta.register-table-procedure.enabled", "true")
-                .setInitialTables(REQUIRED_TPCH_TABLES)
-                .build();
-        queryRunner.execute("CREATE SCHEMA schemawithoutunderscore WITH (location = 's3://" + bucketName + "/schemawithoutunderscore')");
+                .setInitialTables(REQUIRED_TPCH_TABLES);
+    }
 
-        metastore = getConnectorService(queryRunner, HiveMetastoreFactory.class)
-                .createMetastore(Optional.empty());
-
-        return queryRunner;
+    /// Session for writes whose tests check how many files are written
+    protected Session getFileCountSensitiveWriterSession()
+    {
+        return getSession();
     }
 
     @Override
@@ -1290,7 +1300,7 @@ public class TestDeltaLakeConnectorTest
         String tableName = "test_default_max_file_size" + randomNameSuffix();
         @Language("SQL") String createTableSql = format("CREATE TABLE %s AS SELECT * FROM tpch.sf1.lineitem LIMIT 200000", tableName);
 
-        Session session = Session.builder(getSession())
+        Session session = Session.builder(getFileCountSensitiveWriterSession())
                 .setSystemProperty("task_min_writer_count", "1")
                 // task scale writers should be disabled since we want to write with a single task writer
                 .setSystemProperty("task_scale_writers_enabled", "false")
@@ -1301,7 +1311,7 @@ public class TestDeltaLakeConnectorTest
         assertUpdate(format("DROP TABLE %s", tableName));
 
         DataSize maxSize = DataSize.of(50, DataSize.Unit.KILOBYTE);
-        session = Session.builder(getSession())
+        session = Session.builder(getFileCountSensitiveWriterSession())
                 .setSystemProperty("task_min_writer_count", "1")
                 // task scale writers should be disabled since we want to write with a single task writer
                 .setSystemProperty("task_scale_writers_enabled", "false")

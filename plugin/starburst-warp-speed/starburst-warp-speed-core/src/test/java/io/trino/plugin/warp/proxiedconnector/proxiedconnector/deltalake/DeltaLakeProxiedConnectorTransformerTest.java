@@ -13,6 +13,7 @@
  */
 package io.trino.plugin.warp.proxiedconnector.proxiedconnector.deltalake;
 
+import io.trino.plugin.deltalake.CompositeDeltaLakeSplit;
 import io.trino.plugin.deltalake.DeltaLakeSplit;
 import io.trino.plugin.deltalake.DeltaLakeTableHandle;
 import io.trino.plugin.deltalake.transactionlog.MetadataEntry;
@@ -37,6 +38,7 @@ import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.Set;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 
 public class DeltaLakeProxiedConnectorTransformerTest
@@ -155,6 +157,33 @@ public class DeltaLakeProxiedConnectorTransformerTest
                 deltaLakeProxiedConnectorTransformer,
                 dispatcherTableHandle,
                 dispatcherTableHandle.getProxyConnectorTableHandle());
+    }
+
+    @Test
+    public void testFlattenSplits()
+    {
+        DeltaLakeSplit first = createDeltaLakeSplit("path1");
+        DeltaLakeSplit second = createDeltaLakeSplit("path2");
+
+        assertThat(deltaLakeProxiedConnectorTransformer.flattenSplits(first)).containsExactly(first);
+        assertThat(deltaLakeProxiedConnectorTransformer.flattenSplits(new CompositeDeltaLakeSplit(List.of(first, second))))
+                .containsExactly(first, second);
+    }
+
+    private static DeltaLakeSplit createDeltaLakeSplit(String path)
+    {
+        return new DeltaLakeSplit(
+                path,
+                0,
+                10,
+                10,
+                Optional.empty(),
+                0,
+                Optional.empty(),
+                Optional.empty(),
+                SplitWeight.standard(),
+                TupleDomain.all(),
+                Map.of());
     }
 
     private static DeltaLakeTableHandle getDeltaLakeTableHandle()

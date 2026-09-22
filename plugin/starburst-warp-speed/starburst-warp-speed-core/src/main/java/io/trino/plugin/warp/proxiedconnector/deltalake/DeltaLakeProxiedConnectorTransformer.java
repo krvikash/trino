@@ -16,6 +16,7 @@ package io.trino.plugin.warp.proxiedconnector.deltalake;
 import com.google.common.hash.Hashing;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
+import io.trino.plugin.deltalake.CompositeDeltaLakeSplit;
 import io.trino.plugin.deltalake.CorruptedDeltaLakeTableHandle;
 import io.trino.plugin.deltalake.DeltaLakeColumnHandle;
 import io.trino.plugin.deltalake.DeltaLakeSplit;
@@ -173,6 +174,16 @@ public class DeltaLakeProxiedConnectorTransformer
                 tableHandle.getAnalyzeHandle(),
                 tableHandle.getReadVersion(),
                 tableHandle.isTimeTravel());
+    }
+
+    @Override
+    public List<ConnectorSplit> flattenSplits(ConnectorSplit connectorSplit)
+    {
+        return switch (connectorSplit) {
+            case CompositeDeltaLakeSplit composite -> List.copyOf(composite.splits());
+            case DeltaLakeSplit single -> List.of(single);
+            default -> throw new IllegalArgumentException("Unexpected split type: " + connectorSplit.getClass().getSimpleName());
+        };
     }
 
     @Override

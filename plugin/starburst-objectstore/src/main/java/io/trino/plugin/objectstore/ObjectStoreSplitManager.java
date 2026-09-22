@@ -15,6 +15,7 @@ package io.trino.plugin.objectstore;
 
 import com.google.common.base.VerifyException;
 import com.google.inject.Inject;
+import io.trino.plugin.deltalake.CompositeDeltaLakeSplit;
 import io.trino.plugin.deltalake.DeltaLakeSplit;
 import io.trino.plugin.deltalake.DeltaLakeTableHandle;
 import io.trino.plugin.deltalake.functions.tablechanges.TableChangesTableFunctionHandle;
@@ -89,7 +90,7 @@ public class ObjectStoreSplitManager
         return switch (split) {
             case HiveSplit _ -> hiveSplitManager.getCacheSplitId(split);
             case CompositeIcebergSplit _, IcebergSplit _ -> icebergSplitManager.getCacheSplitId(split);
-            case DeltaLakeSplit _ -> deltaSplitManager.getCacheSplitId(split);
+            case CompositeDeltaLakeSplit _, DeltaLakeSplit _ -> deltaSplitManager.getCacheSplitId(split);
             case HudiSplit _ -> hudiSplitManager.getCacheSplitId(split);
             default -> throw new VerifyException("Unhandled class: " + split.getClass().getName());
         };

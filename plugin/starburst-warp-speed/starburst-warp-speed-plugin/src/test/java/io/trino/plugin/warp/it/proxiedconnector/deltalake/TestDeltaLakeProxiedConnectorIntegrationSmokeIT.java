@@ -15,6 +15,7 @@ package io.trino.plugin.warp.it.proxiedconnector.deltalake;
 
 import com.google.inject.Scopes;
 import com.google.inject.multibindings.MapBinder;
+import io.trino.Session;
 import io.trino.filesystem.TrinoFileSystemFactory;
 import io.trino.filesystem.local.LocalFileSystemFactory;
 import io.trino.plugin.deltalake.DefaultDeltaLakeFileSystemFactory;
@@ -38,6 +39,7 @@ import java.util.Optional;
 
 import static com.google.inject.multibindings.MapBinder.newMapBinder;
 import static io.airlift.configuration.ConfigBinder.configBinder;
+import static io.trino.plugin.deltalake.DeltaLakeSessionProperties.COMPOSITE_SPLITS_ENABLED;
 import static io.trino.plugin.warp.config.ProxiedConnectorConfig.DELTA_LAKE_CONNECTOR_NAME;
 import static io.trino.plugin.warp.config.ProxiedConnectorConfig.PROXIED_CONNECTOR;
 import static io.trino.plugin.warp.extension.config.WarpExtensionConfig.USE_HTTP_SERVER_PORT;
@@ -96,5 +98,23 @@ public class TestDeltaLakeProxiedConnectorIntegrationSmokeIT
     {
         computeActual("CREATE TABLE t2 AS SELECT * FROM t");
         computeActual("DROP TABLE t2");
+    }
+
+    @Test
+    public void testCompositeSplits()
+    {
+        assertUpdate("CREATE TABLE composite_splits (a INT, b VARCHAR)");
+        for (int i = 0; i < 5; i++) {
+            assertUpdate("INSERT INTO composite_splits VALUES (" + i + ", 'value" + i + "')", 1);
+        }
+
+        Session compositeSplitsSession = Session.builder(getSession())
+                .setCatalogSessionProperty(catalog, COMPOSITE_SPLITS_ENABLED, "true")
+                .build();
+
+        assertQuery(
+                compositeSplitsSession,
+                "SELECT * FROM composite_splits",
+                "VALUES (0, 'value0'), (1, 'value1'), (2, 'value2'), (3, 'value3'), (4, 'value4')");
     }
 }

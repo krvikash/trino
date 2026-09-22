@@ -79,6 +79,7 @@ public final class DeltaLakeSessionProperties
     private static final String QUERY_PARTITION_FILTER_REQUIRED = "query_partition_filter_required";
     private static final String LOAD_METADATA_FROM_CHECKSUM_FILE = "load_metadata_from_checksum_file";
     private static final String STORE_TABLE_METADATA = "store_table_metadata";
+    public static final String COMPOSITE_SPLITS_ENABLED = "experimental_composite_splits_enabled";
 
     private final List<PropertyMetadata<?>> sessionProperties;
 
@@ -257,6 +258,11 @@ public final class DeltaLakeSessionProperties
                         STORE_TABLE_METADATA,
                         "Store table metadata in metastore",
                         deltaLakeConfig.isStoreTableMetadataEnabled(),
+                        true),
+                booleanProperty(
+                        COMPOSITE_SPLITS_ENABLED,
+                        "Merge small splits into composite splits spanning multiple files",
+                        deltaLakeConfig.isCompositeSplitsEnabled(),
                         true));
     }
 
@@ -269,6 +275,11 @@ public final class DeltaLakeSessionProperties
     public static DataSize getMaxSplitSize(ConnectorSession session)
     {
         return session.getProperty(MAX_SPLIT_SIZE, DataSize.class);
+    }
+
+    public static boolean isCompositeSplitsEnabled(ConnectorSession session)
+    {
+        return session.getProperty(COMPOSITE_SPLITS_ENABLED, Boolean.class);
     }
 
     public static Duration getVacuumMinRetention(ConnectorSession session)

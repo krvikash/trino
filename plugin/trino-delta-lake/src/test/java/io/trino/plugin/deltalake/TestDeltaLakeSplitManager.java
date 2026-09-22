@@ -68,8 +68,10 @@ import java.util.stream.Stream;
 
 import static com.google.common.util.concurrent.MoreExecutors.newDirectExecutorService;
 import static io.airlift.json.JsonCodec.jsonCodec;
+import static io.airlift.units.DataSize.Unit.GIGABYTE;
 import static io.trino.hdfs.HdfsTestUtils.HDFS_FILE_SYSTEM_FACTORY;
 import static io.trino.node.TestingInternalNodeManager.CURRENT_NODE;
+import static io.trino.plugin.deltalake.DeltaLakeColumnHandle.pathColumnHandle;
 import static io.trino.plugin.hive.TestHiveCacheIds.createJsonCodec;
 import static io.trino.plugin.hive.metastore.file.TestingFileHiveMetastore.createTestingFileHiveMetastore;
 import static io.trino.type.InternalTypeManager.TESTING_TYPE_MANAGER;
@@ -186,6 +188,105 @@ public class TestDeltaLakeSplitManager
         assertThat(splits).isEqualTo(expected);
     }
 
+    @Test
+    public void testCompositeSplitsBundleSmallFiles()
+            throws ExecutionException, InterruptedException
+    {
+        long fileSize = 1_000;
+        List<AddFileEntry> addFileEntries = ImmutableList.of(
+                addFileEntryOfSize(FILE_PATH, fileSize),
+                addFileEntryOfSize(FILE_PATH, fileSize),
+                addFileEntryOfSize(FILE_PATH, fileSize));
+        DeltaLakeConfig deltaLakeConfig = new DeltaLakeConfig()
+                .setMaxSplitSize(DataSize.ofBytes(10_000))
+                .setCompositeSplitsEnabled(true);
+
+        DeltaLakeSplitManager splitManager = setupSplitManager(addFileEntries, deltaLakeConfig);
+        List<ConnectorSplit> splits = getRawSplits(splitManager, deltaLakeConfig);
+
+        assertThat(splits).hasSize(1);
+        assertThat(splits.getFirst()).isInstanceOfSatisfying(
+                CompositeDeltaLakeSplit.class,
+                composite -> assertThat(composite.splits()).hasSize(3));
+    }
+
+    @Test
+    public void testCompositeSplitsFlushWhenTargetExceeded()
+            throws ExecutionException, InterruptedException
+    {
+        // Two 6_000-byte files: each is its own split, and 6_000 + 6_000 > 10_000, so neither batch grows past
+        // one split. Single-split batches are not wrapped in a composite.
+        long fileSize = 6_000;
+        List<AddFileEntry> addFileEntries = ImmutableList.of(
+                addFileEntryOfSize(FILE_PATH, fileSize),
+                addFileEntryOfSize(FILE_PATH, fileSize));
+        DeltaLakeConfig deltaLakeConfig = new DeltaLakeConfig()
+                .setMaxSplitSize(DataSize.ofBytes(10_000))
+                .setCompositeSplitsEnabled(true);
+
+        DeltaLakeSplitManager splitManager = setupSplitManager(addFileEntries, deltaLakeConfig);
+        List<ConnectorSplit> splits = getRawSplits(splitManager, deltaLakeConfig);
+
+        assertThat(splits).hasSize(2);
+        assertThat(splits).allSatisfy(split -> assertThat(split).isInstanceOf(DeltaLakeSplit.class));
+    }
+
+    @Test
+    public void testCompositeSplitsDisabledByDefault()
+            throws ExecutionException, InterruptedException
+    {
+        long fileSize = 1_000;
+        List<AddFileEntry> addFileEntries = ImmutableList.of(
+                addFileEntryOfSize(FILE_PATH, fileSize),
+                addFileEntryOfSize(FILE_PATH, fileSize));
+        DeltaLakeConfig deltaLakeConfig = new DeltaLakeConfig()
+                .setMaxSplitSize(DataSize.ofBytes(10_000));
+
+        DeltaLakeSplitManager splitManager = setupSplitManager(addFileEntries, deltaLakeConfig);
+        List<ConnectorSplit> splits = getRawSplits(splitManager, deltaLakeConfig);
+
+        assertThat(splits).hasSize(2);
+        assertThat(splits).allSatisfy(split -> assertThat(split).isInstanceOf(DeltaLakeSplit.class));
+    }
+
+    @Test
+    public void testCompositeSplitsDisabledWhenSynthesizedColumnProjected()
+            throws ExecutionException, InterruptedException
+    {
+        long fileSize = 1_000;
+        List<AddFileEntry> addFileEntries = ImmutableList.of(
+                addFileEntryOfSize(FILE_PATH, fileSize),
+                addFileEntryOfSize(FILE_PATH, fileSize));
+        DeltaLakeConfig deltaLakeConfig = new DeltaLakeConfig()
+                .setMaxSplitSize(DataSize.ofBytes(10_000))
+                .setCompositeSplitsEnabled(true);
+
+        DeltaLakeSplitManager splitManager = setupSplitManager(addFileEntries, deltaLakeConfig);
+        List<ConnectorSplit> splits = getRawSplits(splitManager, deltaLakeConfig, tableHandle.withProjectedColumns(ImmutableSet.of(pathColumnHandle())));
+
+        assertThat(splits).hasSize(2);
+        assertThat(splits).allSatisfy(split -> assertThat(split).isInstanceOf(DeltaLakeSplit.class));
+    }
+
+    @Test
+    public void testCompositeSplitsDisabledWhenRecordingScannedFiles()
+            throws ExecutionException, InterruptedException
+    {
+        long fileSize = 1_000;
+        List<AddFileEntry> addFileEntries = ImmutableList.of(
+                addFileEntryOfSize(FILE_PATH, fileSize),
+                addFileEntryOfSize(FILE_PATH, fileSize));
+        DeltaLakeConfig deltaLakeConfig = new DeltaLakeConfig()
+                .setMaxSplitSize(DataSize.ofBytes(10_000))
+                .setCompositeSplitsEnabled(true);
+
+        DeltaLakeSplitManager splitManager = setupSplitManager(addFileEntries, deltaLakeConfig);
+        List<ConnectorSplit> splits = getRawSplits(splitManager, deltaLakeConfig, tableHandle.forOptimize(true, DataSize.of(1, GIGABYTE)));
+
+        assertThat(splits).hasSize(2);
+        assertThat(splits).allSatisfy(split -> assertThat(split).isInstanceOf(DeltaLakeSplit.class));
+    }
+
     private DeltaLakeSplitManager setupSplitManager(List<AddFileEntry> addFileEntries, DeltaLakeConfig deltaLakeConfig)
     {
         TestingConnectorContext context = new TestingConnectorContext();
@@ -292,6 +393,28 @@ public class TestDeltaLakeSplitManager
                     nextBatch.stream()
                             .map(split -> (DeltaLakeSplit) split)
                             .collect(Collectors.toList()));
+        }
+        return splits.build();
+    }
+
+    private List<ConnectorSplit> getRawSplits(DeltaLakeSplitManager splitManager, DeltaLakeConfig deltaLakeConfig)
+            throws ExecutionException, InterruptedException
+    {
+        return getRawSplits(splitManager, deltaLakeConfig, tableHandle);
+    }
+
+    private List<ConnectorSplit> getRawSplits(DeltaLakeSplitManager splitManager, DeltaLakeConfig deltaLakeConfig, DeltaLakeTableHandle table)
+            throws ExecutionException, InterruptedException
+    {
+        ConnectorSplitSource splitSource = splitManager.getSplits(
+                transactionHandle,
+                testingConnectorSessionWithConfig(deltaLakeConfig),
+                table,
+                ImmutableSet.of(),
+                Constraint.alwaysTrue());
+        ImmutableList.Builder<ConnectorSplit> splits = ImmutableList.builder();
+        while (!splitSource.isFinished()) {
+            splits.addAll(splitSource.getNextBatch(10, new DynamicFilterSnapshot(TupleDomain.all(), true)).get());
         }
         return splits.build();
     }

@@ -67,6 +67,7 @@ public class DeltaLakeConfig
     private int maxOutstandingSplits = 1_000;
     private int maxSplitsPerSecond = Integer.MAX_VALUE;
     private DataSize maxSplitSize = DataSize.of(128, MEGABYTE);
+    private boolean compositeSplitsEnabled;
     private double minimumAssignedSplitWeight = 0.05;
     private int maxPartitionsPerWriter = 100;
     private boolean s3TransactionLogConditionalWritesEnabled = true;
@@ -192,6 +193,20 @@ public class DeltaLakeConfig
     public DeltaLakeConfig setMaxSplitSize(DataSize maxSplitSize)
     {
         this.maxSplitSize = maxSplitSize;
+        return this;
+    }
+
+    public boolean isCompositeSplitsEnabled()
+    {
+        return compositeSplitsEnabled;
+    }
+
+    @ConfigHidden
+    @Config("delta.experimental.composite-splits.enabled")
+    @ConfigDescription("Merge small splits into composite splits spanning multiple files")
+    public DeltaLakeConfig setCompositeSplitsEnabled(boolean compositeSplitsEnabled)
+    {
+        this.compositeSplitsEnabled = compositeSplitsEnabled;
         return this;
     }
 

@@ -200,6 +200,7 @@ public final class FeatureExposures
                 .put(DELTA, "dynamic_row_filtering_enabled", EXPOSED)
                 .put(DELTA, "dynamic_row_filtering_selectivity_threshold", EXPOSED)
                 .put(DELTA, "dynamic_row_filtering_wait_timeout", EXPOSED)
+                .put(DELTA, "experimental_composite_splits_enabled", INACCESSIBLE)
                 .put(DELTA, "extended_statistics_collect_on_write", EXPOSED)
                 .put(DELTA, "extended_statistics_enabled", EXPOSED)
                 .put(DELTA, "hive_catalog_name", INACCESSIBLE)

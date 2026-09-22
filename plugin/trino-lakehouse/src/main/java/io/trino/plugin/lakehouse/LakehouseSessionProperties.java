@@ -45,6 +45,7 @@ public class LakehouseSessionProperties
     private static final Set<String> IGNORED_DEFAULT_VALUES = ImmutableSet.<String>builder()
             .add("compression_codec")
             .add("dynamic_filtering_wait_timeout")
+            .add("experimental_composite_splits_enabled")
             .add("max_split_size")
             .build();
 
