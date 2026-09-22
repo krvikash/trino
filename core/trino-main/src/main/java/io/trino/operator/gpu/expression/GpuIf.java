@@ -20,7 +20,9 @@ import com.google.common.collect.ImmutableList;
 import io.trino.plugin.base.gpu.ClosingOnce;
 import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
+import io.trino.spi.gpu.borrow.Own;
 import io.trino.spi.type.Type;
+import org.gaul.modernizer_maven_annotations.SuppressModernizer;
 
 import java.util.List;
 import java.util.Map.Entry;
@@ -34,19 +36,25 @@ import static io.trino.operator.gpu.expression.Fallibility.best;
 import static io.trino.operator.gpu.expression.Fallibility.worst;
 import static io.trino.operator.gpu.expression.GpuExpressions.allNullOnNullInputs;
 import static io.trino.operator.gpu.expression.GpuExpressions.worstOf;
+import static io.trino.plugin.base.gpu.GpuUtils.closeColumns;
 import static io.trino.spi.gpu.GpuTypeConversion.nullScalar;
+import static io.trino.spi.gpu.GpuTypeConversion.toDType;
 import static java.util.Objects.requireNonNull;
 
 /**
  * {@code IF(condition, trueValue, falseValue)} with lazy evaluation semantics.
  *
- * <p>Each branch is evaluated only on the rows where it is selected, so a
- * sub-expression that the CPU would never have evaluated for a given row never
- * triggers a runtime check on the GPU either. For example, the true branch of
- * {@code IF(b != 0, 10 / coalesce(b, 0), 42)} only sees rows where
- * {@code b != 0}, so the divide-by-zero check never fires — even though
- * {@code coalesce} would otherwise resurrect the zero divisor from any
- * NULL-masked input.
+ * <p>A branch must not raise a runtime error on a row it does not cover, because the CPU would
+ * never have evaluated it there. How much that costs depends on the branch's
+ * {@link Fallibility}: an {@link Fallibility#INFALLIBLE} branch can be evaluated over every row
+ * and the two results combined, a {@link Fallibility#FALLIBLE_EXCEPT_ALL_NULLS} one over every row
+ * as long as the rows it does not cover reach it with all input and bound columns NULL, and only a
+ * {@link Fallibility#FALLIBLE} one has to be evaluated over a filtered copy of the input and
+ * scattered back.
+ *
+ * <p>For example the true branch of {@code IF(b != 0, 10 / coalesce(b, 0), 42)} is
+ * {@code FALLIBLE}: NULL-masking its input does not keep the divide-by-zero check away from it,
+ * because {@code coalesce} resurrects the zero divisor from the NULL.
  */
 public final class GpuIf
         extends GpuExpression
@@ -64,6 +72,24 @@ public final class GpuIf
         this.outputType = requireNonNull(outputType, "outputType is null");
     }
 
+    /// How a branch can be evaluated so it doesn't fail on a row it does not cover.
+    private enum BranchEvaluation
+    {
+        /// Over every row, as it is.
+        EVERY_ROW,
+        /// Over every row, with the input columns NULL wherever the branch is not selected.
+        MASKED_INPUTS,
+        /// Over a filtered copy of the input holding only the rows the branch covers.
+        FILTERED,
+    }
+
+    /// The branch a row of the condition mask selects: TRUE rows select the true branch.
+    private enum Branch
+    {
+        TRUE,
+        FALSE,
+    }
+
     @Override
     public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns, Bindings bindings)
     {
@@ -79,14 +105,34 @@ public final class GpuIf
             if (!anyTrue(conditionMask.borrow())) {
                 return falseValue.evaluate(positionCount, inputColumns, bindings);
             }
-            // TODO (https://starburstdata.atlassian.net/browse/ENG-12126) when both branches are infallible, evaluate them eagerly and combine with ifElse instead of filter+scatter.
-            // TODO (https://starburstdata.atlassian.net/browse/ENG-12126) when both branches are infallible on all-NULL input, evaluate them with masked inputs instead of filter+scatter.
-            try (Scalar zero = Scalar.fromInt(0);
+            BranchEvaluation trueEvaluation = branchEvaluation(trueValue, inputColumns, bindings);
+            BranchEvaluation falseEvaluation = branchEvaluation(falseValue, inputColumns, bindings);
+            if (trueEvaluation != BranchEvaluation.FILTERED && falseEvaluation != BranchEvaluation.FILTERED) {
+                try (ColumnVector trueResult = evaluateEveryRow(trueValue, trueEvaluation, conditionMask.borrow(), Branch.TRUE, positionCount, inputColumns, bindings);
+                        ColumnVector falseResult = evaluateEveryRow(falseValue, falseEvaluation, conditionMask.borrow(), Branch.FALSE, positionCount, inputColumns, bindings)) {
+                    return conditionMask.borrow().ifElse(trueResult, falseResult);
+                }
+            }
+            try (ColumnVector notConditionMask = conditionMask.borrow().not();
+                    Scalar zero = Scalar.fromInt(0);
                     ColumnVector sequence = ColumnVector.sequence(zero, positionCount);
                     Table sequenceTable = new Table(sequence)) {
+                if (falseEvaluation != BranchEvaluation.FILTERED) {
+                    try (ColumnVector falseResult = evaluateEveryRow(falseValue, falseEvaluation, conditionMask.borrow(), Branch.FALSE, positionCount, inputColumns, bindings);
+                            ColumnVector trueResult = filterAndEvaluate(trueValue, conditionMask.borrow(), inputColumns, bindings);
+                            Table trueIndices = sequenceTable.filter(conditionMask.borrow())) {
+                        return scatterInto(trueResult, trueIndices.getColumn(0), falseResult);
+                    }
+                }
+                if (trueEvaluation != BranchEvaluation.FILTERED) {
+                    try (ColumnVector trueResult = evaluateEveryRow(trueValue, trueEvaluation, conditionMask.borrow(), Branch.TRUE, positionCount, inputColumns, bindings);
+                            ColumnVector falseResult = filterAndEvaluate(falseValue, notConditionMask, inputColumns, bindings);
+                            Table falseIndices = sequenceTable.filter(notConditionMask)) {
+                        return scatterInto(falseResult, falseIndices.getColumn(0), trueResult);
+                    }
+                }
                 try (ColumnVector trueResult = filterAndEvaluate(trueValue, conditionMask.borrow(), inputColumns, bindings);
-                        Table trueIndices = sequenceTable.filter(conditionMask.borrow());
-                        ColumnVector notConditionMask = conditionMask.borrow().not()) {
+                        Table trueIndices = sequenceTable.filter(conditionMask.borrow())) {
                     conditionMask.close();
                     try (ColumnVector falseResult = filterAndEvaluate(falseValue, notConditionMask, inputColumns, bindings);
                             Table falseIndices = sequenceTable.filter(notConditionMask)) {
@@ -94,6 +140,87 @@ public final class GpuIf
                     }
                 }
             }
+        }
+    }
+
+    private BranchEvaluation branchEvaluation(GpuExpression branch, List<@Borrow ColumnVector> inputColumns, Bindings bindings)
+    {
+        if (toDType(outputType).orElseThrow().isNestedType()) {
+            // cuDF ifElse does not combine nested columns, while scatter does
+            return BranchEvaluation.FILTERED;
+        }
+        return switch (branch.fallibility()) {
+            case INFALLIBLE -> BranchEvaluation.EVERY_ROW;
+            case FALLIBLE_EXCEPT_ALL_NULLS -> {
+                List<Entry<Integer, @Borrow ColumnVector>> allBindings = bindings.allBindings();
+                if (inputColumns.isEmpty() && allBindings.isEmpty()) {
+                    // Without input columns or bindings every row is vacuously all-NULL.
+                    yield BranchEvaluation.EVERY_ROW;
+                }
+                if (inputColumns.stream().anyMatch(column -> column.getType().isNestedType()) || allBindings.stream().anyMatch(binding -> binding.getValue().getType().isNestedType())) {
+                    // cuDF ifElse cannot replace the values of a nested column with NULL
+                    yield BranchEvaluation.FILTERED;
+                }
+                yield BranchEvaluation.MASKED_INPUTS;
+            }
+            case FALLIBLE -> BranchEvaluation.FILTERED;
+        };
+    }
+
+    /// Evaluates `branch` over every row, hiding the rows it does not cover behind NULL input columns
+    /// when it needs that not to fail on them. `side` tells which rows of `conditionMask` `branch` covers.
+    @SuppressModernizer // branchEvaluation excludes nested input columns from MASKED_INPUTS.
+    private static @Move ColumnVector evaluateEveryRow(
+            GpuExpression branch,
+            BranchEvaluation evaluation,
+            @Borrow ColumnVector conditionMask,
+            Branch side,
+            int positionCount,
+            List<@Borrow ColumnVector> inputColumns,
+            Bindings bindings)
+    {
+        if (evaluation == BranchEvaluation.EVERY_ROW) {
+            return branch.evaluate(positionCount, inputColumns, bindings);
+        }
+        List<Entry<Integer, @Borrow ColumnVector>> allBindings = bindings.allBindings();
+        List<@Borrow ColumnVector> allColumns = ImmutableList.<@Borrow ColumnVector>builder()
+                .addAll(inputColumns)
+                .addAll(transform(allBindings, Entry::getValue))
+                .build();
+        @Own ColumnVector[] maskedColumns = new ColumnVector[allColumns.size()];
+        try {
+            for (int i = 0; i < allColumns.size(); i++) {
+                @Borrow ColumnVector column = allColumns.get(i);
+                try (Scalar nullValue = Scalar.fromNull(column.getType())) {
+                    // ifElse keeps the column's own NULLs, so this only ever adds NULLs
+                    maskedColumns[i] = switch (side) {
+                        case TRUE -> conditionMask.ifElse(column, nullValue);
+                        case FALSE -> conditionMask.ifElse(nullValue, column);
+                    };
+                }
+            }
+            Bindings maskedBindings = new Bindings();
+            for (int i = 0; i < allBindings.size(); i++) {
+                maskedBindings.put(allBindings.get(i).getKey(), maskedColumns[inputColumns.size() + i]);
+            }
+            return branch.evaluate(positionCount, ImmutableList.copyOf(maskedColumns).subList(0, inputColumns.size()), maskedBindings);
+        }
+        finally {
+            closeColumns(maskedColumns);
+        }
+    }
+
+    /// Overlays `source` onto `target`: the positions listed in `indices` take their value from
+    /// `source`, every other position keeps the one it has in `target`.
+    private static @Move ColumnVector scatterInto(
+            @Borrow ColumnVector source,
+            @Borrow ColumnVector indices,
+            @Borrow ColumnVector target)
+    {
+        try (Table sourceTable = new Table(source);
+                Table targetTable = new Table(target);
+                Table merged = sourceTable.scatter(indices, targetTable)) {
+            return merged.getColumn(0).incRefCount();
         }
     }
 

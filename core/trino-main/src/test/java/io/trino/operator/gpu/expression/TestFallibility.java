@@ -163,6 +163,12 @@ final class TestFallibility
         assertThat(compile(ifExpression(C, bigint(0), fallibleOnAllNulls)).fallibility()).isEqualTo(FALLIBLE);
         assertThat(compile(ifExpression(new Constant(BOOLEAN, true), fallibleOnAllNulls, bigint(0))).fallibility()).isEqualTo(FALLIBLE);
         assertThat(compile(ifExpression(new IsNull(B), fallibleOnAllNulls, bigint(0))).fallibility()).isEqualTo(FALLIBLE);
+        // A divide over a column dividend is skipped on an all-NULL row, one over a constant dividend is not
+        assertThat(compile(divide(A, B)).fallibility()).isEqualTo(FALLIBLE_EXCEPT_ALL_NULLS);
+        assertThat(compile(divide(A, new Coalesce(B, bigint(7)))).fallibility()).isEqualTo(FALLIBLE_EXCEPT_ALL_NULLS);
+        assertThat(compile(divide(bigint(10), new Coalesce(B, bigint(7)))).fallibility()).isEqualTo(FALLIBLE);
+
+        assertThat(compile(ifExpression(C, A, B)).fallibility()).isEqualTo(INFALLIBLE);
         assertThat(compile(ifExpression(C, A, B)).nullOnNullInputs()).isTrue();
         // A NULL condition selects the false branch
         assertThat(compile(ifExpression(C, bigint(1), B)).nullOnNullInputs()).isTrue();
