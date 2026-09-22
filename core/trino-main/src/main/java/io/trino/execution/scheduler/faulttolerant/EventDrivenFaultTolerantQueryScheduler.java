@@ -54,6 +54,7 @@ import io.trino.exchange.ExchangeMetricsCollector;
 import io.trino.exchange.SpoolingExchangeInput;
 import io.trino.execution.BasicStageStats;
 import io.trino.execution.BasicStagesInfo;
+import io.trino.execution.DiscardedRemoteTask;
 import io.trino.execution.ExecutionFailureInfo;
 import io.trino.execution.NodeTaskMap;
 import io.trino.execution.QueryState;
@@ -473,7 +474,7 @@ public class EventDrivenFaultTolerantQueryScheduler
             return;
         }
         try {
-            stageRegistry.initializeRestart(originalPlan);
+            stageRegistry.initializeRestart(originalPlan, toFailure(exchangeFailure));
             // the storage lives as long as the query does (see start()); the new attempt only needs it empty
             taskDescriptorStorage.reset(queryStateMachine.getQueryId());
             dynamicFilterService.registerQueryRetry(queryStateMachine.getQueryId(), nextAttempt);
@@ -540,6 +541,7 @@ public class EventDrivenFaultTolerantQueryScheduler
         private final Map<StageId, SqlStage> stages = new ConcurrentHashMap<>();
         @GuardedBy("this")
         private final Set<TaskId> discardedTaskIds = new HashSet<>();
+        private final Map<StageId, List<DiscardedRemoteTask>> discardedTasksByStage = new ConcurrentHashMap<>();
 
         public StageRegistry(QueryStateMachine queryStateMachine, SubPlan plan)
         {
@@ -552,15 +554,32 @@ public class EventDrivenFaultTolerantQueryScheduler
             verify(stages.putIfAbsent(stage.getStageId(), stage) == null, "stage %s is already present", stage.getStageId());
         }
 
-        public synchronized void initializeRestart(SubPlan newPlan)
+        public synchronized void initializeRestart(SubPlan newPlan, ExecutionFailureInfo restartCause)
         {
+            requireNonNull(restartCause, "restartCause is null");
             for (SqlStage stage : stages.values()) {
-                for (RemoteTask task : stage.getAllTasks()) {
-                    discardedTaskIds.add(task.getTaskId());
-                }
+                List<DiscardedRemoteTask> discardedTasks = convertToDiscardedTasks(stage.getAllTasks(), restartCause);
+                discardedTasks.forEach(task -> discardedTaskIds.add(task.getTaskId()));
+                discardedTasksByStage.merge(
+                        stage.getStageId(),
+                        discardedTasks,
+                        (existing, added) -> ImmutableList.<DiscardedRemoteTask>builder().addAll(existing).addAll(added).build());
             }
             stages.clear();
             updatePlan(newPlan);
+        }
+
+        private static List<DiscardedRemoteTask> convertToDiscardedTasks(List<RemoteTask> tasks, ExecutionFailureInfo restartCause)
+        {
+            return tasks.stream()
+                    .map(task -> new DiscardedRemoteTask(task.getTaskInfo(), restartCause))
+                    .collect(toImmutableList());
+        }
+
+        public synchronized List<DiscardedRemoteTask> consumeDiscardedTasks(StageId stageId)
+        {
+            List<DiscardedRemoteTask> failedTasks = discardedTasksByStage.remove(stageId);
+            return failedTasks == null ? ImmutableList.of() : failedTasks;
         }
 
         public void updatePlan(SubPlan plan)
@@ -1700,7 +1719,8 @@ public class EventDrivenFaultTolerantQueryScheduler
                         tracer,
                         schedulerSpan,
                         schedulerStats,
-                        bucketCountProvider);
+                        bucketCountProvider,
+                        stageRegistry.consumeDiscardedTasks(stageId));
                 closer.register(stage::abort);
                 stageRegistry.add(stage);
                 stage.addFinalStageInfoListener(_ -> queryStateMachine.updateQueryInfo(Optional.ofNullable(stageRegistry.getStages())));

@@ -33,6 +33,7 @@ import io.trino.metadata.Metadata;
 import io.trino.metadata.Split;
 import io.trino.node.InternalNode;
 import io.trino.operator.RetryPolicy;
+import io.trino.operator.TaskStats;
 import io.trino.spi.NodeVersion;
 import io.trino.spi.QueryId;
 import io.trino.spi.connector.ConnectorTableCredentials;
@@ -47,6 +48,7 @@ import io.trino.sql.planner.plan.PlanNode;
 import io.trino.sql.planner.plan.PlanNodeId;
 import io.trino.sql.planner.plan.RemoteSourceNode;
 import io.trino.testing.TestingSplit;
+import io.trino.util.Failures;
 import io.trino.util.FinalizerService;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -56,6 +58,7 @@ import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.parallel.Execution;
 
 import java.net.URI;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -235,6 +238,87 @@ public class TestSqlStage
         assertThat(capturedCredentials.get())
                 .containsExactly(Map.entry(TABLE_SCAN_NODE_ID, credentials));
 
+        stage.finish();
+    }
+
+    @Test
+    public void testDiscardedTasksAreExposedAsFailed()
+    {
+        StageId stageId = new StageId(new QueryId("query"), 0);
+        TaskId discardedTaskId = new TaskId(stageId, 0, 0);
+        TaskInfo source = TaskInfo.createInitialTask(
+                discardedTaskId,
+                URI.create("http://node/0"),
+                "prior-node",
+                false,
+                Optional.empty(),
+                new TaskStats(Instant.now(), null));
+        DiscardedRemoteTask discardedTask = new DiscardedRemoteTask(
+                source,
+                Failures.toFailure(new RuntimeException("restart")));
+
+        SqlStage stage = createSqlStage(
+                dummyMetadata(),
+                stageId,
+                createScanPlanFragment(),
+                ImmutableMap.of(),
+                new MockRemoteTaskFactory(executor, scheduledExecutor),
+                TEST_SESSION,
+                true,
+                new NodeTaskMap(new FinalizerService()),
+                executor,
+                noopTracer(),
+                Span.getInvalid(),
+                new SplitSchedulerStats(),
+                (_, _) -> OptionalInt.empty(),
+                ImmutableList.of(discardedTask));
+
+        assertThat(stage.getAllTasks()).containsExactly(discardedTask);
+        StageInfo stageInfo = stage.getStageInfo();
+        assertThat(stageInfo.tasks()).hasSize(1);
+        assertThat(stageInfo.tasks().get(0).taskStatus().state()).isEqualTo(TaskState.FAILED);
+        assertThat(stageInfo.tasks().get(0).taskStatus().taskId()).isEqualTo(discardedTaskId);
+        assertThat(stage.getBasicStageInfo().getTasks()).hasSize(1);
+
+        stage.finish();
+    }
+
+    @Test
+    public void testDiscardedTasksMergeWithLiveTasks()
+    {
+        StageId stageId = new StageId(new QueryId("query"), 0);
+        TaskId discardedTaskId = new TaskId(stageId, 5, 0);
+        TaskInfo source = TaskInfo.createInitialTask(
+                discardedTaskId,
+                URI.create("http://node/5"),
+                "prior-node",
+                false,
+                Optional.empty(),
+                new TaskStats(Instant.now(), null));
+        DiscardedRemoteTask discardedTask = new DiscardedRemoteTask(
+                source,
+                Failures.toFailure(new RuntimeException("restart")));
+
+        SqlStage stage = createSqlStage(
+                dummyMetadata(),
+                stageId,
+                createScanPlanFragment(),
+                ImmutableMap.of(),
+                new MockRemoteTaskFactory(executor, scheduledExecutor),
+                TEST_SESSION,
+                true,
+                new NodeTaskMap(new FinalizerService()),
+                executor,
+                noopTracer(),
+                Span.getInvalid(),
+                new SplitSchedulerStats(),
+                (_, _) -> OptionalInt.empty(),
+                ImmutableList.of(discardedTask));
+
+        createTestTask(stage, 0);
+
+        assertThat(stage.getAllTasks()).hasSize(2);
+        assertThat(stage.getStageInfo().tasks()).hasSize(2);
         stage.finish();
     }
 

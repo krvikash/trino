@@ -104,6 +104,39 @@ public final class SqlStage
             SplitSchedulerStats schedulerStats,
             LocalExchangeBucketCountProvider bucketCountProvider)
     {
+        return createSqlStage(
+                metadata,
+                stageId,
+                fragment,
+                tables,
+                remoteTaskFactory,
+                session,
+                summarizeTaskInfo,
+                nodeTaskMap,
+                stateMachineExecutor,
+                tracer,
+                schedulerSpan,
+                schedulerStats,
+                bucketCountProvider,
+                ImmutableList.of());
+    }
+
+    public static SqlStage createSqlStage(
+            Metadata metadata,
+            StageId stageId,
+            PlanFragment fragment,
+            Map<PlanNodeId, TableInfo> tables,
+            RemoteTaskFactory remoteTaskFactory,
+            Session session,
+            boolean summarizeTaskInfo,
+            NodeTaskMap nodeTaskMap,
+            Executor stateMachineExecutor,
+            Tracer tracer,
+            Span schedulerSpan,
+            SplitSchedulerStats schedulerStats,
+            LocalExchangeBucketCountProvider bucketCountProvider,
+            List<DiscardedRemoteTask> discardedTasks)
+    {
         requireNonNull(stageId, "stageId is null");
         requireNonNull(fragment, "fragment is null");
         checkArgument(fragment.getOutputPartitioningScheme().getBucketToPartition().isEmpty(), "bucket to partition is not expected to be set at this point");
@@ -114,6 +147,7 @@ public final class SqlStage
         requireNonNull(stateMachineExecutor, "stateMachineExecutor is null");
         requireNonNull(tracer, "tracer is null");
         requireNonNull(schedulerStats, "schedulerStats is null");
+        requireNonNull(discardedTasks, "discardedTasks is null");
 
         StageStateMachine stateMachine = new StageStateMachine(
                 stageId,
@@ -133,7 +167,21 @@ public final class SqlStage
                 bucketCountProvider,
                 memoize(() -> extractTableCredentials(session, metadata, fragment)));
         sqlStage.initialize();
+        sqlStage.seedDiscardedTasks(discardedTasks);
         return sqlStage;
+    }
+
+    private synchronized void seedDiscardedTasks(List<DiscardedRemoteTask> discardedTasks)
+    {
+        for (DiscardedRemoteTask task : discardedTasks) {
+            TaskId taskId = task.getTaskId();
+            checkArgument(task.getTaskStatus().state().isDone(), "discarded task %s is not terminal", taskId);
+            checkArgument(!tasks.containsKey(taskId), "discarded task %s already registered", taskId);
+            tasks.put(taskId, task);
+            allTasks.add(taskId);
+            finishedTasks.add(taskId);
+            tasksWithFinalInfo.add(taskId);
+        }
     }
 
     private SqlStage(

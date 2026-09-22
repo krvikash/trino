@@ -44,6 +44,7 @@ import io.trino.spi.resourcegroups.ResourceGroupId;
 import io.trino.sql.planner.PlanFragment;
 import io.trino.sql.planner.SubPlan;
 import io.trino.transaction.TransactionManager;
+import io.trino.util.Failures;
 import io.trino.util.FinalizerService;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -115,7 +116,7 @@ public class TestStageRegistry
                 .isInstanceOf(VerifyException.class)
                 .hasMessageContaining(stageId.toString());
 
-        registry.initializeRestart(plan);
+        registry.initializeRestart(plan, Failures.toFailure(new RuntimeException("restart")));
         // After initializeRestart, adding the same stage id must succeed
         registry.add(stage);
     }
@@ -131,7 +132,7 @@ public class TestStageRegistry
             registry.add(createStage(new StageId(new QueryId("query"), i)));
         }
 
-        registry.initializeRestart(plan);
+        registry.initializeRestart(plan, Failures.toFailure(new RuntimeException("restart")));
 
         // All three stage ids can be re-added after initializeRestart
         for (int i = 0; i < 3; i++) {
@@ -149,7 +150,7 @@ public class TestStageRegistry
         SqlStage stage = createStage(new StageId(new QueryId("query"), 0));
         registry.add(stage);
         RemoteTask task = createTask(stage);
-        registry.initializeRestart(plan);
+        registry.initializeRestart(plan, Failures.toFailure(new RuntimeException("restart")));
 
         // failTaskRemotely is reachable from outside the scheduler, so a task of the discarded attempt can report
         // a failure after the restart
