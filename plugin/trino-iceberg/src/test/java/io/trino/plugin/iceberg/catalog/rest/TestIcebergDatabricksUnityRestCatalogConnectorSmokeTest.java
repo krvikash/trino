@@ -13,6 +13,8 @@
  */
 package io.trino.plugin.iceberg.catalog.rest;
 
+import dev.failsafe.Failsafe;
+import dev.failsafe.RetryPolicy;
 import io.opentelemetry.api.OpenTelemetry;
 import io.trino.filesystem.Location;
 import io.trino.filesystem.s3.S3FileSystemConfig;
@@ -25,16 +27,22 @@ import io.trino.plugin.iceberg.IcebergQueryRunner;
 import io.trino.plugin.iceberg.catalog.TrinoCatalog;
 import io.trino.plugin.iceberg.catalog.TrinoCatalogFactory;
 import io.trino.spi.connector.SchemaTableName;
+import io.trino.testing.QueryFailedException;
 import io.trino.testing.QueryRunner;
 import io.trino.testing.TestingConnectorBehavior;
+import io.trino.testing.sql.TestTable;
 import org.apache.iceberg.BaseTable;
+import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Path;
+import java.util.List;
 
+import static com.google.common.base.Strings.nullToEmpty;
+import static com.google.common.base.Throwables.getCausalChain;
 import static com.google.common.io.MoreFiles.deleteRecursively;
 import static com.google.common.io.RecursiveDeleteOption.ALLOW_INSECURE;
 import static io.trino.plugin.iceberg.IcebergTestUtils.checkParquetFileSorting;
@@ -87,6 +95,37 @@ final class TestIcebergDatabricksUnityRestCatalogConnectorSmokeTest
                 .addIcebergProperty("s3.region", DATABRICKS_AWS_REGION)
                 .setInitialTables(REQUIRED_TPCH_TABLES)
                 .build();
+    }
+
+    @Override
+    protected TestTable newTrinoTable(String namePrefix, @Language("SQL") String tableDefinition, List<String> rowsToInsert)
+    {
+        return new TestTable(this::executeRetryingAmbiguousCreate, namePrefix, tableDefinition, rowsToInsert);
+    }
+
+    // Retries a Databricks Unity ambiguous commit failure (ErrorCode: 2012); safe only for CREATE TABLE since
+    // no data files exist yet to duplicate.
+    private void executeRetryingAmbiguousCreate(@Language("SQL") String sql)
+    {
+        if (!sql.startsWith("CREATE TABLE ")) {
+            getQueryRunner().execute(sql);
+            return;
+        }
+        Failsafe.with(RetryPolicy.builder()
+                        .handleIf(e -> getCausalChain(e).stream().anyMatch(t -> nullToEmpty(t.getMessage()).contains("ErrorCode: 2012")))
+                        .withMaxRetries(2)
+                        .build())
+                .run(context -> {
+                    try {
+                        getQueryRunner().execute(sql);
+                    }
+                    catch (QueryFailedException e) {
+                        if (context.isRetry() && e.getMessage().contains("already exists")) {
+                            return;
+                        }
+                        throw e;
+                    }
+                });
     }
 
     @Override
