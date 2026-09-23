@@ -16,6 +16,9 @@ package io.trino.operator.gpu.window;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.primitives.Ints;
+import io.trino.metadata.FunctionManager;
+import io.trino.metadata.ResolvedFunction;
+import io.trino.metadata.TestingFunctionResolution;
 import io.trino.operator.DriverContext;
 import io.trino.operator.DummySpillerFactory;
 import io.trino.operator.TestWindowOperator;
@@ -27,15 +30,12 @@ import io.trino.operator.gpu.GpuOperation;
 import io.trino.operator.gpu.GpuTestUtils;
 import io.trino.operator.gpu.TestingGpuOperationContext;
 import io.trino.operator.gpu.window.GpuWindowCompiler.CompileResult;
-import io.trino.operator.window.DenseRankFunction;
 import io.trino.operator.window.FrameInfo;
-import io.trino.operator.window.RankFunction;
-import io.trino.operator.window.ReflectionWindowFunctionSupplier;
-import io.trino.operator.window.RowNumberFunction;
 import io.trino.spi.Page;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.connector.SortOrder;
+import io.trino.spi.function.WindowFunctionSupplier;
 import io.trino.spi.type.Type;
 import io.trino.sql.gen.TestColumnarFilters.NullsProvider;
 import io.trino.testing.TestingTaskContext;
@@ -57,6 +57,7 @@ import java.util.stream.IntStream;
 import java.util.stream.LongStream;
 import java.util.stream.Stream;
 
+import static com.google.common.base.Verify.verify;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 import static io.airlift.concurrent.Threads.daemonThreadsNamed;
@@ -81,6 +82,7 @@ import static io.trino.operator.gpu.window.GpuWindowTestUtils.compileWindow;
 import static io.trino.operator.gpu.window.GpuWindowTestUtils.createOperation;
 import static io.trino.spi.connector.SortOrder.ASC_NULLS_LAST;
 import static io.trino.spi.connector.SortOrder.DESC_NULLS_FIRST;
+import static io.trino.spi.function.FunctionKind.WINDOW;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.CharType.createCharType;
 import static io.trino.spi.type.VarbinaryType.VARBINARY;
@@ -104,6 +106,7 @@ final class TestGpuWindow
             Optional.empty(),
             Optional.empty());
     private static final List<Integer> POSITION_COUNTS = List.of(0, 1, 100);
+    private static final TestingFunctionResolution FUNCTION_RESOLUTION = new TestingFunctionResolution();
 
     @BeforeAll
     static void maybeSetGpuMemoryPool()
@@ -548,12 +551,10 @@ final class TestGpuWindow
 
     private static WindowFunctionDefinition windowFunctionDefinition(String name)
     {
-        ReflectionWindowFunctionSupplier supplier = switch (name) {
-            case "row_number" -> new ReflectionWindowFunctionSupplier(0, RowNumberFunction.class);
-            case "rank" -> new ReflectionWindowFunctionSupplier(0, RankFunction.class);
-            case "dense_rank" -> new ReflectionWindowFunctionSupplier(0, DenseRankFunction.class);
-            default -> throw new IllegalArgumentException("Unsupported function: " + name);
-        };
-        return WindowFunctionDefinition.window(supplier, BIGINT, UNBOUNDED_FRAME, false, ImmutableList.of());
+        ResolvedFunction resolvedFunction = FUNCTION_RESOLUTION.resolveFunction(name, ImmutableList.of());
+        FunctionManager functionManager = FUNCTION_RESOLUTION.getPlannerContext().getFunctionManager();
+        verify(resolvedFunction.functionKind() == WINDOW, "Unsupported function kind: %s", resolvedFunction.functionKind());
+        WindowFunctionSupplier supplier = functionManager.getWindowFunctionSupplier(resolvedFunction);
+        return WindowFunctionDefinition.window(supplier, resolvedFunction.signature().getReturnType(), UNBOUNDED_FRAME, false, ImmutableList.of());
     }
 }

@@ -16,14 +16,10 @@ package io.trino.operator.gpu.window;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
-import io.trino.connector.system.GlobalSystemConnector;
 import io.trino.metadata.ResolvedFunction;
+import io.trino.metadata.TestingFunctionResolution;
 import io.trino.operator.gpu.GpuOperation;
 import io.trino.spi.connector.SortOrder;
-import io.trino.spi.function.BoundSignature;
-import io.trino.spi.function.FunctionId;
-import io.trino.spi.function.FunctionKind;
-import io.trino.spi.function.FunctionNullability;
 import io.trino.spi.type.Type;
 import io.trino.sql.planner.OrderingScheme;
 import io.trino.sql.planner.Symbol;
@@ -36,9 +32,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 
-import static io.trino.metadata.GlobalFunctionCatalog.builtinFunctionName;
 import static io.trino.spi.type.BigintType.BIGINT;
 
 public final class GpuWindowTestUtils
@@ -46,6 +40,8 @@ public final class GpuWindowTestUtils
     private GpuWindowTestUtils() {}
 
     public static final List<String> GPU_SUPPORTED_WINDOW_FUNCTIONS = List.of("row_number", "rank", "dense_rank");
+
+    private static final TestingFunctionResolution FUNCTION_RESOLUTION = new TestingFunctionResolution();
 
     public static GpuWindowCompiler.CompileResult compileWindow(
             List<Type> sourceTypes,
@@ -103,17 +99,7 @@ public final class GpuWindowTestUtils
 
     private static WindowNode.Function rankingFunction(String name)
     {
-        BoundSignature boundSignature = new BoundSignature(builtinFunctionName(name), BIGINT, List.of());
-        ResolvedFunction resolvedFunction = new ResolvedFunction(
-                boundSignature,
-                GlobalSystemConnector.CATALOG_HANDLE,
-                FunctionId.toFunctionId(name, boundSignature.toSignature()),
-                FunctionKind.WINDOW,
-                true,
-                true,
-                new FunctionNullability(false, List.of()),
-                Map.of(),
-                Set.of());
+        ResolvedFunction resolvedFunction = FUNCTION_RESOLUTION.resolveFunction(name, List.of());
         return new WindowNode.Function(
                 resolvedFunction,
                 List.of(),
