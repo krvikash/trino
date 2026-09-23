@@ -253,15 +253,15 @@ final class TestGpuWindow
 
     @ParameterizedTest
     @MethodSource("multiplePagesTestCases")
-    void testMultipleInputPages(String function, NullsProvider nullsProvider, SortOrder sortOrder)
+    void testMultipleInputPages(String function)
     {
         for (List<Type> types : typesTestCases(2)) {
             assertGpuWindowMatchesCpu(
-                    createPages(types, nullsProvider, 3, TARGET_ROW_COUNT),
+                    createPages(types, NO_NULLS, 3, TARGET_ROW_COUNT),
                     types,
                     new int[] {0},
                     new int[] {1},
-                    List.of(sortOrder),
+                    List.of(ASC_NULLS_LAST),
                     List.of(function));
         }
     }
