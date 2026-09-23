@@ -196,17 +196,17 @@ public final class GpuWindow
             }
 
             long sortedBytes = sorted.map(Table::getDeviceMemorySize).orElse(0L);
-            allocated.borrow().update(MemoryAmount.gpuDevice(sortedBytes + estimateScanPeakBytes(sorted, rowCount)));
+            allocated.borrow().update(MemoryAmount.gpuDevice(sortedBytes + estimateComputePeakBytes(sorted, rowCount)));
 
-            @Own ColumnVector[] scanColumns = computeScanColumns(sorted);
-            for (ColumnVector column : scanColumns) {
+            @Own ColumnVector[] resultColumns = computeResultColumns(sorted);
+            for (ColumnVector column : resultColumns) {
                 closer.register(column::close);
             }
 
-            long scanBytes = Arrays.stream(scanColumns).mapToLong(ColumnVector::getDeviceMemorySize).sum();
-            allocated.borrow().update(MemoryAmount.gpuDevice(sortedBytes + scanBytes));
+            long resultBytes = Arrays.stream(resultColumns).mapToLong(ColumnVector::getDeviceMemorySize).sum();
+            allocated.borrow().update(MemoryAmount.gpuDevice(sortedBytes + resultBytes));
 
-            try (ClosingRef<GpuPage> result = ClosingRef.own(buildOutputPage(sorted, scanColumns, rowCount))) {
+            try (ClosingRef<GpuPage> result = ClosingRef.own(buildOutputPage(sorted, resultColumns, rowCount))) {
                 allocated.borrow().update(result.borrow().retainedMemory());
                 return new Data(allocated.take(), result.take());
             }
@@ -230,7 +230,7 @@ public final class GpuWindow
 
         int[] sortChannels = new int[totalSortKeys];
         ImmutableList.Builder<SortOrder> sortOrdersBuilder = ImmutableList.builder();
-        // Partition channels are sorted first so that groupedScan can use withKeysSorted(true).
+        // cuDF expects input sorted by the partition channels, then the order channels.
         // ASC_NULLS_LAST must match sortedPartitionGroupByOptions (keysDescending=false, keysNullSmallest=false).
         for (int i = 0; i < partitionCount; i++) {
             sortChannels[i] = partitionChannels[i];
@@ -280,12 +280,12 @@ public final class GpuWindow
         return bytes;
     }
 
-    private @Move ColumnVector[] computeScanColumns(Optional<@Borrow Table> sorted)
+    private @Move ColumnVector[] computeResultColumns(Optional<@Borrow Table> sorted)
     {
         if (specs.isEmpty()) {
             return new ColumnVector[0];
         }
-        checkState(sorted.isPresent(), "scan require an input table");
+        checkState(sorted.isPresent(), "input table is required");
         if (partitionChannels.length > 0) {
             return computePartitionedScanColumns(sorted.get());
         }
@@ -331,7 +331,7 @@ public final class GpuWindow
         }
     }
 
-    private long estimateScanPeakBytes(Optional<@Borrow Table> sorted, int rowCount)
+    private long estimateComputePeakBytes(Optional<@Borrow Table> sorted, int rowCount)
     {
         if (specs.isEmpty()) {
             return 0;
@@ -344,7 +344,7 @@ public final class GpuWindow
             return scanOutputBytes;
         }
 
-        checkState(sorted.isPresent(), "partitioned scan requires an input table");
+        checkState(sorted.isPresent(), "computation requires an input table");
         long partitionKeyBytes = estimatePartitionKeyBytes(sorted.get());
         long scanWorkingBytes = specs.stream()
                 .mapToLong(spec -> (long) rowCount * spec.groupedScanWorkingBytesPerRow())
@@ -362,17 +362,17 @@ public final class GpuWindow
         return bytes;
     }
 
-    // Output layout: [sorted columns 0..N-1, scan result columns N..N+S-1].
+    // Output layout: [sorted columns 0..N-1, result columns N..N+S-1].
     // GpuWindowCompiler.buildPipeline relies on this to build post-projections.
-    private static @Move GpuPage buildOutputPage(Optional<@Borrow Table> sorted, @Borrow ColumnVector[] scanColumns, int rowCount)
+    private static @Move GpuPage buildOutputPage(Optional<@Borrow Table> sorted, @Borrow ColumnVector[] resultColumns, int rowCount)
     {
         if (sorted.isEmpty()) {
-            return toGpuPageFromColumns(rowCount, scanColumns);
+            return toGpuPageFromColumns(rowCount, resultColumns);
         }
-        if (scanColumns.length == 0) {
+        if (resultColumns.length == 0) {
             return toGpuPage(sorted.get());
         }
-        try (Table outputTable = appendColumns(sorted.get(), scanColumns)) {
+        try (Table outputTable = appendColumns(sorted.get(), resultColumns)) {
             return toGpuPage(outputTable);
         }
     }
