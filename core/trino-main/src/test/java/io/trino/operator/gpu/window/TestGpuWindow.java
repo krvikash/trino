@@ -63,14 +63,15 @@ import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 import static io.airlift.concurrent.Threads.daemonThreadsNamed;
 import static io.airlift.slice.Slices.utf8Slice;
 import static io.trino.SessionTestUtils.TEST_SESSION;
+import static io.trino.block.BlockAssertions.createLongSequenceBlock;
 import static io.trino.block.BlockAssertions.createLongsBlock;
 import static io.trino.operator.OperatorAssertion.toPages;
 import static io.trino.operator.gpu.BufferPages.TARGET_ROW_COUNT;
 import static io.trino.operator.gpu.GpuTestUtils.FLOATING_POINT_EDGE_CASES;
 import static io.trino.operator.gpu.GpuTestUtils.TESTED_GPU_FLOATING_POINT_TYPES;
 import static io.trino.operator.gpu.GpuTestUtils.TESTED_GPU_TYPES;
-import static io.trino.operator.gpu.GpuTestUtils.assertSameDataInOrder;
 import static io.trino.operator.gpu.GpuTestUtils.assertSameDataWithoutOrder;
+import static io.trino.operator.gpu.GpuTestUtils.createBigintBlock;
 import static io.trino.operator.gpu.GpuTestUtils.createBlock;
 import static io.trino.operator.gpu.GpuTestUtils.createFloatingPointBlock;
 import static io.trino.operator.gpu.GpuTestUtils.drainToPages;
@@ -86,6 +87,7 @@ import static io.trino.spi.function.FunctionKind.WINDOW;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.CharType.createCharType;
 import static io.trino.spi.type.VarbinaryType.VARBINARY;
+import static io.trino.sql.gen.TestColumnarFilters.NullsProvider.NO_NULLS;
 import static io.trino.sql.planner.plan.FrameBoundType.UNBOUNDED_FOLLOWING;
 import static io.trino.sql.planner.plan.FrameBoundType.UNBOUNDED_PRECEDING;
 import static io.trino.sql.planner.plan.WindowFrameType.RANGE;
@@ -265,19 +267,34 @@ final class TestGpuWindow
                 TESTED_GPU_WINDOW_FUNCTIONS);
     }
 
-    @Test
-    void testSortPreservesNonKeyColumns()
+    @ParameterizedTest
+    @FieldSource("io.trino.operator.gpu.window.GpuWindowTestUtils#TESTED_GPU_WINDOW_FUNCTIONS")
+    void testSortPreservesNonKeyColumns(String function)
     {
+        Page inputPage;
+        if ("row_number".equals(function)) {
+            // TODO: Make this test deterministic for row_number. When ORDER BY keys are tied, row_number assignment depends on the
+            //  relative order of rows whose non-key columns are not included in the ORDER BY clause. This input avoids that ambiguity
+            //  because the ORDER BY values are unique within each partition.
+            inputPage = new Page(
+                    createLongsBlock(2L, 1L, 1L, 2L, 1L),
+                    createLongsBlock(30L, 20L, 10L, 10L, 30L),
+                    createLongsBlock(230L, 120L, 110L, 210L, 130L));
+        }
+        else {
+            int positionCount = 100;
+            inputPage = new Page(
+                    createBigintBlock(positionCount, NO_NULLS, 1L, 3L),
+                    createBigintBlock(positionCount, NO_NULLS, 10L, 20L),
+                    createLongSequenceBlock(0, positionCount));
+        }
         assertGpuWindowMatchesCpu(
-                List.of(new Page(
-                        createLongsBlock(2L, 1L, 1L, 2L, 1L),
-                        createLongsBlock(30L, 20L, 10L, 10L, 30L),
-                        createLongsBlock(230L, 120L, 110L, 210L, 130L))),
+                List.of(inputPage),
                 List.of(BIGINT, BIGINT, BIGINT),
                 new int[] {0},
                 new int[] {1},
                 List.of(ASC_NULLS_LAST),
-                TESTED_GPU_WINDOW_FUNCTIONS);
+                List.of(function));
     }
 
     @ParameterizedTest
@@ -468,12 +485,7 @@ final class TestGpuWindow
             List<Type> outputTypes = compiled.outputTypes();
             List<Page> gpuResults = executeGpuWindow(inputPages, sourceTypes, outputTypes, compiled.stages());
             List<Page> cpuResults = executeCpuWindow(inputPages, sourceTypes, partitionChannels, orderChannels, orderSortOrders, functions);
-            if (orderSortOrders.isEmpty()) {
-                assertSameDataWithoutOrder(gpuResults, cpuResults, outputTypes);
-            }
-            else {
-                assertSameDataInOrder(gpuResults, cpuResults, outputTypes);
-            }
+            assertSameDataWithoutOrder(gpuResults, cpuResults, outputTypes);
         }
     }
 
