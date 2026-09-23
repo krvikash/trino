@@ -119,9 +119,9 @@ public abstract class GpuAggregation
     private final long compactionThresholdBytes;
 
     private final @Own TablesList inputTables = TablesList.create();
+    private long inputTablesTotalBytes;
     private final ClosingRef<Table> compactedTable = ClosingRef.empty();
     private final ClosingRef<AllocatedMemory> allocated;
-    private long totalInputBytes;
     private final int[] maxNestedInputRowCountPerColumn;
     private long totalBufferedRowCount;
     private boolean finished;
@@ -193,17 +193,17 @@ public abstract class GpuAggregation
                 // threshold rather than growing to threshold + this page. The post-append compaction
                 // below still flushes a page that already exceeds the threshold on its own.
                 if (!inputTables.isEmpty()
-                        && (totalInputBytes + tableBytes > compactionThresholdBytes
+                        && (inputTablesTotalBytes + tableBytes > compactionThresholdBytes
                         || anyColumnExceedsRowCountThreshold(tableRows))) {
                     compact();
                 }
 
                 allocated.borrow().transferFrom(pageAllocation);
                 inputTables.add(inputTable.take());
-                totalInputBytes += tableBytes;
+                inputTablesTotalBytes += tableBytes;
                 addRowCounts(tableRows);
 
-                if (totalInputBytes >= compactionThresholdBytes) {
+                if (inputTablesTotalBytes >= compactionThresholdBytes) {
                     compact();
                 }
             }
@@ -222,7 +222,7 @@ public abstract class GpuAggregation
 
         @Own Optional<GpuPage> aggregationResult = finishAggregation();
 
-        totalInputBytes = 0;
+        inputTablesTotalBytes = 0;
         Arrays.fill(maxNestedInputRowCountPerColumn, 0);
         totalBufferedRowCount = 0;
 
@@ -265,7 +265,7 @@ public abstract class GpuAggregation
                 preAggregated.set(preAggregate(concatenated));
             }
             finally {
-                totalInputBytes = 0;
+                inputTablesTotalBytes = 0;
                 Arrays.fill(maxNestedInputRowCountPerColumn, 0);
             }
 
