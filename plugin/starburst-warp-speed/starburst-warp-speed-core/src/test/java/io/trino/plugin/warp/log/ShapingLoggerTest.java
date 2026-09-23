@@ -23,6 +23,7 @@ import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.IntStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -117,19 +118,13 @@ public class ShapingLoggerTest
 
     @Test
     public void testAfterShapingIntervalLogFirst()
-            throws InterruptedException
     {
-        ShapingLogger shapingLogger = shapingLoggerFactory.getInstance(
-                this.getClass(),
-                logger,
-                0,
-                Duration.ofMillis(10),
-                1,
-                ShapingLogger.MODE.FORMAT);
+        AtomicLong now = new AtomicLong();
+        ShapingLogger shapingLogger = new ShapingLogger(catalogName, logger, 0, Duration.ofMillis(10), 1, ShapingLogger.MODE.FORMAT, now::get);
 
         shapingLogger.error("%s", "test");
 
-        Thread.sleep(13);
+        now.addAndGet(13);
 
         shapingLogger.error("%s", "test");
 
@@ -138,7 +133,7 @@ public class ShapingLoggerTest
 
         shapingLogger.error("%s", "test");
 
-        Thread.sleep(13);
+        now.addAndGet(13);
 
         shapingLogger.error("%s", "test");
 
@@ -148,18 +143,12 @@ public class ShapingLoggerTest
 
     @Test
     public void testAfterShapingIntervalDontLogFirst()
-            throws InterruptedException
     {
-        ShapingLogger shapingLogger = shapingLoggerFactory.getInstance(
-                this.getClass(),
-                logger,
-                2,
-                Duration.ofMillis(10),
-                1,
-                ShapingLogger.MODE.FORMAT);
+        AtomicLong now = new AtomicLong();
+        ShapingLogger shapingLogger = new ShapingLogger(catalogName, logger, 2, Duration.ofMillis(10), 1, ShapingLogger.MODE.FORMAT, now::get);
         shapingLogger.error("%s", "test");
 
-        Thread.sleep(13);
+        now.addAndGet(13);
 
         shapingLogger.error("%s", "test");
 
@@ -168,7 +157,7 @@ public class ShapingLoggerTest
 
         shapingLogger.error("%s", "test");
 
-        Thread.sleep(13);
+        now.addAndGet(13);
 
         shapingLogger.error("%s", "test");
 

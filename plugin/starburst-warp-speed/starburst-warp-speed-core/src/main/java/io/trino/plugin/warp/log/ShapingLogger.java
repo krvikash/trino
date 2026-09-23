@@ -24,6 +24,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.LongSupplier;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static io.trino.plugin.warp.dispatcher.WarpMDCContext.CATALOG_NAME_LOCAL_PROPERTY;
@@ -55,6 +56,8 @@ public class ShapingLogger
     // if true first log message will be logged regardless of interval/duration
     private final int numberOfSamples;
 
+    private final LongSupplier clock;
+
     public ShapingLogger(
             String catalog,
             Logger logger,
@@ -63,6 +66,19 @@ public class ShapingLogger
             int numberOfSamples,
             MODE mode)
     {
+        this(catalog, logger, threshold, duration, numberOfSamples, mode, System::currentTimeMillis);
+    }
+
+    // clock is injectable so the interval logic can be tested without sleeping
+    ShapingLogger(
+            String catalog,
+            Logger logger,
+            int threshold,
+            Duration duration,
+            int numberOfSamples,
+            MODE mode,
+            LongSupplier clock)
+    {
         this.catalog = requireNonNull(catalog);
         this.logger = requireNonNull(logger);
         this.threshold = threshold;
@@ -70,6 +86,7 @@ public class ShapingLogger
         this.numberOfSamples = numberOfSamples;
         checkArgument(threshold == 0 || threshold > numberOfSamples, "threshold must be greater than number of samples");
         this.mode = requireNonNull(mode);
+        this.clock = requireNonNull(clock, "clock is null");
     }
 
     public void info(String message)
@@ -149,7 +166,7 @@ public class ShapingLogger
 
     private void log(Pair<String, List<Object>> key, Runnable runnable)
     {
-        long currentTimeMillis = System.currentTimeMillis();
+        long currentTimeMillis = clock.getAsLong();
         shapingLoggerStateMap.compute(key, (_, val) -> {
             if (val == null) {
                 val = new ShapingLoggerState(1, currentTimeMillis);
