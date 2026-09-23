@@ -82,7 +82,6 @@ import static io.trino.operator.gpu.window.GpuWindowTestUtils.TESTED_GPU_WINDOW_
 import static io.trino.operator.gpu.window.GpuWindowTestUtils.compileWindow;
 import static io.trino.operator.gpu.window.GpuWindowTestUtils.createOperation;
 import static io.trino.spi.connector.SortOrder.ASC_NULLS_LAST;
-import static io.trino.spi.connector.SortOrder.DESC_NULLS_FIRST;
 import static io.trino.spi.function.FunctionKind.WINDOW;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.CharType.createCharType;
@@ -198,21 +197,6 @@ final class TestGpuWindow
     }
 
     @ParameterizedTest
-    @MethodSource("noOrderByTestCases")
-    void testMixedSortOrders(String function, NullsProvider nullsProvider)
-    {
-        for (List<Type> types : typesTestCases(3)) {
-            assertGpuWindowMatchesCpu(
-                    createPages(types, nullsProvider, 1, POSITION_COUNT),
-                    types,
-                    new int[] {0},
-                    new int[] {1, 2},
-                    List.of(ASC_NULLS_LAST, DESC_NULLS_FIRST),
-                    List.of(function));
-        }
-    }
-
-    @ParameterizedTest
     @FieldSource("io.trino.operator.gpu.window.GpuWindowTestUtils#TESTED_GPU_WINDOW_FUNCTIONS")
     void testNoSourceColumns(String function)
     {
@@ -226,8 +210,8 @@ final class TestGpuWindow
     }
 
     @ParameterizedTest
-    @MethodSource("baseTestCases")
-    void testMultiColumns(String function, NullsProvider nullsProvider, SortOrder sortOrder)
+    @MethodSource("fourColumnsWithNullProviderAndSortOrder")
+    void testMultiColumnKeys(String function, NullsProvider nullsProvider, SortOrder firstSortOrder, SortOrder secondSortOrder)
     {
         for (List<Type> types : typesTestCases(4)) {
             assertGpuWindowMatchesCpu(
@@ -235,7 +219,7 @@ final class TestGpuWindow
                     types,
                     new int[] {0, 1},
                     new int[] {2, 3},
-                    List.of(sortOrder, sortOrder),
+                    List.of(firstSortOrder, secondSortOrder),
                     List.of(function));
         }
     }
@@ -440,6 +424,17 @@ final class TestGpuWindow
         return Lists.cartesianProduct(
                         TESTED_GPU_WINDOW_FUNCTIONS,
                         ImmutableList.copyOf(NullsProvider.values()),
+                        ImmutableList.copyOf(SortOrder.values()))
+                .stream()
+                .map(List::toArray);
+    }
+
+    static Stream<Object[]> fourColumnsWithNullProviderAndSortOrder()
+    {
+        return Lists.cartesianProduct(
+                        TESTED_GPU_WINDOW_FUNCTIONS,
+                        ImmutableList.copyOf(NullsProvider.values()),
+                        ImmutableList.copyOf(SortOrder.values()),
                         ImmutableList.copyOf(SortOrder.values()))
                 .stream()
                 .map(List::toArray);
