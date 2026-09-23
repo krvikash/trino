@@ -13,6 +13,7 @@
  */
 package io.trino.operator.gpu.window;
 
+import com.google.common.collect.ImmutableList;
 import io.trino.operator.gpu.GpuOperation;
 import io.trino.operator.gpu.GpuOperation.Blocked;
 import io.trino.operator.gpu.GpuOperation.Data;
@@ -36,6 +37,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.Iterator;
 import java.util.List;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import static com.google.common.collect.Iterables.getOnlyElement;
@@ -70,11 +72,10 @@ final class TestGpuWindowMemory
     void testSinglePartitionKeyAndOrderBy(WindowFunctionTestCase testCase)
     {
         testWindow(
-                testCase.sourceTypes(),
+                testCase,
                 new int[] {0},
                 new int[] {1},
-                List.of(ASC_NULLS_LAST),
-                List.of(testCase.function()));
+                List.of(ASC_NULLS_LAST));
     }
 
     @ParameterizedTest
@@ -82,11 +83,10 @@ final class TestGpuWindowMemory
     void testMultipleOrderBy(WindowFunctionTestCase testCase)
     {
         testWindow(
-                testCase.sourceTypes(),
+                testCase,
                 new int[] {0},
                 new int[] {1, 2},
                 List.of(ASC_NULLS_LAST, ASC_NULLS_LAST),
-                List.of(testCase.function()),
                 1);
     }
 
@@ -95,11 +95,10 @@ final class TestGpuWindowMemory
     void testMultiplePartitionBy(WindowFunctionTestCase testCase)
     {
         testWindow(
-                testCase.sourceTypes(),
+                testCase,
                 new int[] {0, 1},
                 new int[] {2},
                 List.of(ASC_NULLS_LAST),
-                List.of(testCase.function()),
                 1);
     }
 
@@ -108,11 +107,10 @@ final class TestGpuWindowMemory
     void testNoPartitionBy(WindowFunctionTestCase testCase)
     {
         testWindow(
-                testCase.sourceTypes(),
+                testCase,
                 new int[] {},
                 new int[] {0},
-                List.of(ASC_NULLS_LAST),
-                List.of(testCase.function()));
+                List.of(ASC_NULLS_LAST));
     }
 
     @ParameterizedTest
@@ -120,22 +118,69 @@ final class TestGpuWindowMemory
     void testNoOrderBy(WindowFunctionTestCase testCase)
     {
         testWindow(
-                testCase.sourceTypes(),
+                testCase,
                 new int[] {0},
                 new int[] {},
-                List.of(),
-                List.of(testCase.function()));
+                List.of());
     }
 
     @Test
     void testMultipleFunctions()
     {
+        ImmutableList.Builder<Type> sourceTypes = ImmutableList.builder();
+        sourceTypes.add(BIGINT, BIGINT);
+        ImmutableList.Builder<BoundTestedWindowFunction> functions = ImmutableList.builder();
+        int nextArgumentChannel = 2;
+        for (TestedWindowFunction function : TESTED_GPU_WINDOW_FUNCTIONS) {
+            int[] argumentChannels = new int[function.argumentTypes().size()];
+            for (int argument = 0; argument < function.argumentTypes().size(); argument++) {
+                sourceTypes.add(function.argumentTypes().get(argument));
+                argumentChannels[argument] = nextArgumentChannel++;
+            }
+            functions.add(BoundTestedWindowFunction.of(function, argumentChannels));
+        }
         testWindow(
-                List.of(BIGINT, BIGINT),
+                sourceTypes.build(),
                 new int[] {0},
                 new int[] {1},
                 List.of(ASC_NULLS_LAST),
-                TESTED_GPU_WINDOW_FUNCTIONS);
+                functions.build());
+    }
+
+    private void testWindow(
+            WindowFunctionTestCase testCase,
+            int[] partitionChannels,
+            int[] orderChannels,
+            List<SortOrder> orderSortOrders)
+    {
+        testWindow(
+                testCase,
+                partitionChannels,
+                orderChannels,
+                orderSortOrders,
+                1);
+        testWindow(
+                testCase,
+                partitionChannels,
+                orderChannels,
+                orderSortOrders,
+                MULTIPLE_PAGES);
+    }
+
+    private void testWindow(
+            WindowFunctionTestCase testCase,
+            int[] partitionChannels,
+            int[] orderChannels,
+            List<SortOrder> orderSortOrders,
+            int pageCount)
+    {
+        testWindow(
+                testCase.sourceTypes(),
+                partitionChannels,
+                orderChannels,
+                orderSortOrders,
+                List.of(testCase.function()),
+                pageCount);
     }
 
     static Stream<WindowFunctionTestCase> singlePartitionKeyAndOrderByTestCases()
@@ -178,7 +223,12 @@ final class TestGpuWindowMemory
     {
         return TESTED_GPU_WINDOW_FUNCTIONS.stream()
                 .flatMap(function -> sourceTypes.stream()
-                        .map(types -> new WindowFunctionTestCase(function, types)));
+                        .map(types -> {
+                            // argument channels follow the key channels
+                            int[] argumentChannels = IntStream.range(types.size(), types.size() + function.argumentTypes().size()).toArray();
+                            List<Type> finalSourceTypes = Stream.concat(types.stream(), function.argumentTypes().stream()).toList();
+                            return new WindowFunctionTestCase(BoundTestedWindowFunction.of(function, argumentChannels), finalSourceTypes);
+                        }));
     }
 
     private void testWindow(
@@ -186,7 +236,7 @@ final class TestGpuWindowMemory
             int[] partitionChannels,
             int[] orderChannels,
             List<SortOrder> orderSortOrders,
-            List<String> functions)
+            List<BoundTestedWindowFunction> functions)
     {
         testWindow(inputTypes, partitionChannels, orderChannels, orderSortOrders, functions, 1);
         testWindow(inputTypes, partitionChannels, orderChannels, orderSortOrders, functions, MULTIPLE_PAGES);
@@ -197,7 +247,7 @@ final class TestGpuWindowMemory
             int[] partitionChannels,
             int[] orderChannels,
             List<SortOrder> orderSortOrders,
-            List<String> functions,
+            List<BoundTestedWindowFunction> functions,
             int pageCount)
     {
         TestingGpuOperationContext context = new TestingGpuOperationContext();

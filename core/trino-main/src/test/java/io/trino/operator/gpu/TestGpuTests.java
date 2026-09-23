@@ -67,7 +67,7 @@ final class TestGpuTests
 
     private static boolean isTestClassName(String simpleName)
     {
-        return simpleName.startsWith("Test") && !simpleName.startsWith("Testing");
+        return simpleName.startsWith("Test") && !simpleName.startsWith("Testing") && !simpleName.startsWith("Tested");
     }
 
     private static boolean hasMemoryPoolSetup(Class<?> testClass)

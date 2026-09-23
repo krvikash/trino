@@ -90,12 +90,15 @@ import static io.trino.spi.function.FunctionKind.WINDOW;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.CharType.createCharType;
 import static io.trino.spi.type.VarbinaryType.VARBINARY;
+import static io.trino.sql.analyzer.TypeDescriptorProvider.fromTypes;
 import static io.trino.sql.gen.TestColumnarFilters.NullsProvider.NO_NULLS;
+import static io.trino.sql.gen.TestColumnarFilters.NullsProvider.RANDOM_NULLS;
 import static io.trino.sql.planner.plan.FrameBoundType.UNBOUNDED_FOLLOWING;
 import static io.trino.sql.planner.plan.FrameBoundType.UNBOUNDED_PRECEDING;
 import static io.trino.sql.planner.plan.WindowFrameType.RANGE;
 import static java.util.concurrent.Executors.newScheduledThreadPool;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assumptions.abort;
 
 final class TestGpuWindow
 {
@@ -192,15 +195,18 @@ final class TestGpuWindow
 
     @ParameterizedTest
     @FieldSource("io.trino.operator.gpu.window.GpuWindowTestUtils#TESTED_GPU_WINDOW_FUNCTIONS")
-    void testNoSourceColumns(String function)
+    void testNoSourceColumns(TestedWindowFunction function)
     {
+        if (!function.argumentTypes().isEmpty()) {
+            abort("Function taking arguments cannot be tested without source columns");
+        }
         assertGpuWindowMatchesCpu(
                 List.of(new Page(5)),
                 List.of(),
                 new int[0],
                 new int[0],
                 List.of(),
-                List.of(function));
+                List.of(BoundTestedWindowFunction.of(function.name())));
     }
 
     @ParameterizedTest
@@ -221,15 +227,12 @@ final class TestGpuWindow
     void testTies(WindowFunctionTestCase testCase, NullsProvider nullsProvider, SortOrder sortOrder)
     {
         List<Type> types = testCase.sourceTypes();
-        Type partitionType = types.get(0);
-        Type orderType = types.get(1);
-
-        Block orderByBlock = createBlock(orderType, POSITION_COUNT, nullsProvider);
+        Block orderByBlock = createBlock(types.get(1), POSITION_COUNT, nullsProvider);
         Page page = mergePages(
                 List.of(
-                        new Page(createBlock(partitionType, POSITION_COUNT, nullsProvider), orderByBlock),
-                        new Page(createBlock(partitionType, POSITION_COUNT, nullsProvider), orderByBlock),
-                        new Page(createBlock(partitionType, POSITION_COUNT, nullsProvider), orderByBlock)),
+                        createPageWithRepeatedOrderKey(types, orderByBlock, POSITION_COUNT, nullsProvider),
+                        createPageWithRepeatedOrderKey(types, orderByBlock, POSITION_COUNT, nullsProvider),
+                        createPageWithRepeatedOrderKey(types, orderByBlock, POSITION_COUNT, nullsProvider)),
                 types);
         assertGpuWindowMatchesCpu(
                 List.of(page),
@@ -256,37 +259,65 @@ final class TestGpuWindow
     @Test
     void testMultipleFunctions()
     {
+        ImmutableList.Builder<Type> sourceTypes = ImmutableList.builder();
+        sourceTypes.add(BIGINT, BIGINT);
+        ImmutableList.Builder<Block> blocks = ImmutableList.builder();
+        blocks.add(
+                createBlock(BIGINT, POSITION_COUNT, RANDOM_NULLS),
+                createBlock(BIGINT, POSITION_COUNT, RANDOM_NULLS));
+
+        ImmutableList.Builder<BoundTestedWindowFunction> functions = ImmutableList.builder();
+        int nextArgumentChannel = 2;
+        for (TestedWindowFunction function : TESTED_GPU_WINDOW_FUNCTIONS) {
+            int[] argumentChannels = new int[function.argumentTypes().size()];
+            for (int argument = 0; argument < function.argumentTypes().size(); argument++) {
+                sourceTypes.add(function.argumentTypes().get(argument));
+                blocks.add(createBlock(function.argumentTypes().get(argument), POSITION_COUNT, RANDOM_NULLS));
+                argumentChannels[argument] = nextArgumentChannel++;
+            }
+            functions.add(BoundTestedWindowFunction.of(function, argumentChannels));
+        }
+
         assertGpuWindowMatchesCpu(
-                List.of(new Page(
-                        createBlock(BIGINT, 100, NullsProvider.RANDOM_NULLS),
-                        createBlock(BIGINT, 100, NullsProvider.RANDOM_NULLS))),
-                List.of(BIGINT, BIGINT),
+                List.of(new Page(blocks.build().toArray(Block[]::new))),
+                sourceTypes.build(),
                 new int[] {0},
                 new int[] {1},
                 List.of(ASC_NULLS_LAST),
-                TESTED_GPU_WINDOW_FUNCTIONS);
+                functions.build());
     }
 
     @ParameterizedTest
     @FieldSource("io.trino.operator.gpu.window.GpuWindowTestUtils#TESTED_GPU_WINDOW_FUNCTIONS")
-    void testSortPreservesNonKeyColumns(String function)
+    void testSortPreservesNonKeyColumns(TestedWindowFunction function)
     {
-        int positionCount = 100;
+        ImmutableList.Builder<Type> sourceTypes = ImmutableList.builder();
+        sourceTypes.add(BIGINT, BIGINT, BIGINT);
+        ImmutableList.Builder<Block> blocks = ImmutableList.builder();
+        blocks.add(
+                createBigintBlock(POSITION_COUNT, NO_NULLS, 1L, 3L),
+                createBigintBlock(POSITION_COUNT, NO_NULLS, 10L, 20L),
+                createLongSequenceBlock(0, POSITION_COUNT));
+
+        int argumentStart = 3;
+        for (Type argumentType : function.argumentTypes()) {
+            sourceTypes.add(argumentType);
+            blocks.add(createBlock(argumentType, POSITION_COUNT, NO_NULLS));
+        }
+        int[] argumentChannels = IntStream.range(argumentStart, argumentStart + function.argumentTypes().size()).toArray();
+
         assertGpuWindowMatchesCpu(
-                List.of(new Page(
-                        createBigintBlock(positionCount, NO_NULLS, 1L, 3L),
-                        createBigintBlock(positionCount, NO_NULLS, 10L, 20L),
-                        createLongSequenceBlock(0, positionCount))),
-                List.of(BIGINT, BIGINT, BIGINT),
+                List.of(new Page(blocks.build().toArray(Block[]::new))),
+                sourceTypes.build(),
                 new int[] {0},
                 new int[] {1},
                 List.of(ASC_NULLS_LAST),
-                List.of(function));
+                List.of(BoundTestedWindowFunction.of(function, argumentChannels)));
     }
 
     @ParameterizedTest
     @FieldSource("io.trino.operator.gpu.window.GpuWindowTestUtils#TESTED_GPU_WINDOW_FUNCTIONS")
-    void testCharKeysUsePaddedSemantics(String function)
+    void testCharKeysUsePaddedSemantics(TestedWindowFunction function)
     {
         Type charType = createCharType(2);
         BlockBuilder charBlockBuilder = charType.createBlockBuilder(null, 4);
@@ -294,25 +325,30 @@ final class TestGpuWindow
             charType.writeSlice(charBlockBuilder, utf8Slice(value));
         }
 
-        assertGpuWindowMatchesCpu(
-                List.of(new Page(
-                        createLongsBlock(1L, 1L, 1L, 1L),
-                        charBlockBuilder.build())),
-                List.of(BIGINT, charType),
-                new int[] {0},
-                new int[] {1},
-                List.of(ASC_NULLS_LAST),
-                List.of(function));
+        int keyChannelCount = 2;
+        int[] argumentChannels = IntStream.range(keyChannelCount, keyChannelCount + function.argumentTypes().size()).toArray();
 
         assertGpuWindowMatchesCpu(
-                List.of(new Page(
-                        charBlockBuilder.build(),
-                        createLongsBlock(1L, 2L, 3L, 4L))),
-                List.of(charType, BIGINT),
+                List.of(appendArgumentBlocks(
+                        function,
+                        createLongsBlock(1L, 1L, 1L, 1L),
+                        charBlockBuilder.build())),
+                appendArgumentTypes(function, List.of(BIGINT, charType)),
                 new int[] {0},
                 new int[] {1},
                 List.of(ASC_NULLS_LAST),
-                List.of(function));
+                List.of(BoundTestedWindowFunction.of(function, argumentChannels)));
+
+        assertGpuWindowMatchesCpu(
+                List.of(appendArgumentBlocks(
+                        function,
+                        charBlockBuilder.build(),
+                        createLongsBlock(1L, 2L, 3L, 4L))),
+                appendArgumentTypes(function, List.of(charType, BIGINT)),
+                new int[] {0},
+                new int[] {1},
+                List.of(ASC_NULLS_LAST),
+                List.of(BoundTestedWindowFunction.of(function, argumentChannels)));
     }
 
     @Test
@@ -327,7 +363,7 @@ final class TestGpuWindow
                 new int[] {0},
                 new int[] {1, 2},
                 List.of(ASC_NULLS_LAST, ASC_NULLS_LAST),
-                List.of("rank", "dense_rank"));
+                List.of(BoundTestedWindowFunction.of("rank"), BoundTestedWindowFunction.of("dense_rank")));
     }
 
     @Test
@@ -342,37 +378,61 @@ final class TestGpuWindow
                 new int[] {0},
                 new int[] {1, 2},
                 List.of(ASC_NULLS_LAST, ASC_NULLS_LAST),
-                List.of("rank", "dense_rank"));
+                List.of(BoundTestedWindowFunction.of("rank"), BoundTestedWindowFunction.of("dense_rank")));
     }
 
     @ParameterizedTest
     @MethodSource("floatingPointTestCases")
-    void testOrderByFloatingPointEdgeCases(String function, Type type, SortOrder sortOrder, List<Double> values)
+    void testOrderByFloatingPointEdgeCases(TestedWindowFunction function, Type type, SortOrder sortOrder, List<Double> values)
     {
+        ImmutableList.Builder<Type> sourceTypes = ImmutableList.builder();
+        sourceTypes.add(BIGINT, type);
+        ImmutableList.Builder<Block> blocks = ImmutableList.builder();
+        blocks.add(createLongsBlock(Collections.nCopies(values.size(), 1L)));
+        blocks.add(createFloatingPointBlock(type, values));
+
+        int[] argumentChannels = new int[function.argumentTypes().size()];
+        int nextArgumentChannel = 2;
+        for (int argument = 0; argument < function.argumentTypes().size(); argument++) {
+            Type argumentType = function.argumentTypes().get(argument);
+            sourceTypes.add(argumentType);
+            blocks.add(createBlock(argumentType, values.size(), NO_NULLS));
+            argumentChannels[argument] = nextArgumentChannel++;
+        }
         assertGpuWindowMatchesCpu(
-                List.of(new Page(
-                        createLongsBlock(Collections.nCopies(values.size(), 1L)),
-                        createFloatingPointBlock(type, values))),
-                List.of(BIGINT, type),
+                List.of(new Page(blocks.build().toArray(Block[]::new))),
+                sourceTypes.build(),
                 new int[] {0},
                 new int[] {1},
                 List.of(sortOrder),
-                List.of(function));
+                List.of(BoundTestedWindowFunction.of(function, argumentChannels)));
     }
 
     @ParameterizedTest
     @MethodSource("floatingPointTestCases")
-    void testPartitionByFloatingPointEdgeCases(String function, Type type, SortOrder sortOrder, List<Double> values)
+    void testPartitionByFloatingPointEdgeCases(TestedWindowFunction function, Type type, SortOrder sortOrder, List<Double> values)
     {
+        ImmutableList.Builder<Type> sourceTypes = ImmutableList.builder();
+        sourceTypes.add(type, BIGINT);
+        ImmutableList.Builder<Block> blocks = ImmutableList.builder();
+        blocks.add(createFloatingPointBlock(type, values));
+        blocks.add(createLongsBlock(LongStream.range(0, values.size()).boxed().toList()));
+
+        int[] argumentChannels = new int[function.argumentTypes().size()];
+        int nextArgumentChannel = 2;
+        for (int argument = 0; argument < function.argumentTypes().size(); argument++) {
+            Type argumentType = function.argumentTypes().get(argument);
+            sourceTypes.add(argumentType);
+            blocks.add(createBlock(argumentType, values.size(), NO_NULLS));
+            argumentChannels[argument] = nextArgumentChannel++;
+        }
         assertGpuWindowMatchesCpu(
-                List.of(new Page(
-                        createFloatingPointBlock(type, values),
-                        createLongsBlock(LongStream.range(0, values.size()).boxed().toList()))),
-                List.of(type, BIGINT),
+                List.of(new Page(blocks.build().toArray(Block[]::new))),
+                sourceTypes.build(),
                 new int[] {0},
                 new int[] {1},
                 List.of(sortOrder),
-                List.of(function));
+                List.of(BoundTestedWindowFunction.of(function, argumentChannels)));
     }
 
     @Test
@@ -386,7 +446,13 @@ final class TestGpuWindow
                 new int[] {0},
                 new int[] {1},
                 List.of(ASC_NULLS_LAST),
-                List.of("rank", "rank", "dense_rank", "dense_rank", "row_number", "row_number"));
+                List.of(
+                        BoundTestedWindowFunction.of("rank"),
+                        BoundTestedWindowFunction.of("rank"),
+                        BoundTestedWindowFunction.of("dense_rank"),
+                        BoundTestedWindowFunction.of("dense_rank"),
+                        BoundTestedWindowFunction.of("row_number"),
+                        BoundTestedWindowFunction.of("row_number")));
     }
 
     static Stream<Object[]> oneColumnWithNullProvider()
@@ -454,9 +520,17 @@ final class TestGpuWindow
                 typeTestCases.add(testCase);
             }
         }
-        for (String function : TESTED_GPU_WINDOW_FUNCTIONS) {
+        for (TestedWindowFunction function : TESTED_GPU_WINDOW_FUNCTIONS) {
             for (List<Type> testCaseTypes : typeTestCases) {
-                builder.add(new WindowFunctionTestCase(function, testCaseTypes));
+                // argument channels follow the key channels
+                int[] argumentChannels = IntStream.range(channelCount, channelCount + function.argumentTypes().size())
+                        .toArray();
+                BoundTestedWindowFunction boundFunction = BoundTestedWindowFunction.of(function, argumentChannels);
+                List<Type> finalTypeTestCases = ImmutableList.<Type>builder()
+                        .addAll(testCaseTypes)
+                        .addAll(function.argumentTypes())
+                        .build();
+                builder.add(new WindowFunctionTestCase(boundFunction, finalTypeTestCases));
             }
         }
         return builder.build();
@@ -478,13 +552,43 @@ final class TestGpuWindow
         return ImmutableList.copyOf(GpuTestUtils.createPages(types, nullsProvider, pageCount, positionsPerPage, true));
     }
 
+    private static Page createPageWithRepeatedOrderKey(List<Type> types, Block orderBlock, int positionCount, NullsProvider nullsProvider)
+    {
+        Block[] blocks = new Block[types.size()];
+        for (int channel = 0; channel < types.size(); channel++) {
+            blocks[channel] = channel == 1
+                    ? orderBlock
+                    : createBlock(types.get(channel), positionCount, nullsProvider);
+        }
+        return new Page(blocks);
+    }
+
+    private static List<Type> appendArgumentTypes(TestedWindowFunction function, List<Type> sourceTypes)
+    {
+        return ImmutableList.<Type>builder()
+                .addAll(sourceTypes)
+                .addAll(function.argumentTypes())
+                .build();
+    }
+
+    private static Page appendArgumentBlocks(TestedWindowFunction function, Block... sourceBlocks)
+    {
+        ImmutableList.Builder<Block> blocks = ImmutableList.builder();
+        blocks.add(sourceBlocks);
+        int positionCount = sourceBlocks[0].getPositionCount();
+        for (Type argumentType : function.argumentTypes()) {
+            blocks.add(createBlock(argumentType, positionCount, NO_NULLS));
+        }
+        return new Page(blocks.build().toArray(Block[]::new));
+    }
+
     private static void assertGpuWindowMatchesCpu(
             List<Page> inputPages,
             List<Type> sourceTypes,
             int[] partitionChannels,
             int[] orderChannels,
             List<SortOrder> orderSortOrders,
-            List<String> functions)
+            List<BoundTestedWindowFunction> functions)
     {
         CompileResult result = compileWindow(sourceTypes, partitionChannels, orderChannels, orderSortOrders, functions);
         if (isUnsupported(functions, orderChannels, sourceTypes)) {
@@ -507,7 +611,7 @@ final class TestGpuWindow
         }
     }
 
-    private static boolean isUnsupported(List<String> functions, int[] orderChannels, List<Type> sourceTypes)
+    private static boolean isUnsupported(List<BoundTestedWindowFunction> functions, int[] orderChannels, List<Type> sourceTypes)
     {
         return containsType(orderChannels, sourceTypes, VARBINARY) && containsFunction(functions, "rank", "dense_rank");
     }
@@ -518,10 +622,10 @@ final class TestGpuWindow
         return Arrays.stream(orderChannels).mapToObj(sourceTypes::get).anyMatch(typeSet::contains);
     }
 
-    private static boolean containsFunction(List<String> functions, String... functionNames)
+    private static boolean containsFunction(List<BoundTestedWindowFunction> functions, String... functionNames)
     {
         Set<String> functionNamesSet = ImmutableSet.copyOf(functionNames);
-        return functions.stream().anyMatch(functionNamesSet::contains);
+        return functions.stream().map(BoundTestedWindowFunction::name).anyMatch(functionNamesSet::contains);
     }
 
     private static void assertSameWindowDataWithoutOrder(
@@ -531,10 +635,10 @@ final class TestGpuWindow
             List<Type> sourceTypes,
             int[] partitionChannels,
             int[] orderChannels,
-            List<String> functions)
+            List<BoundTestedWindowFunction> functions)
     {
         List<Integer> rowNumberOutputChannels = IntStream.range(0, functions.size())
-                .filter(functionIndex -> functions.get(functionIndex).equals("row_number"))
+                .filter(functionIndex -> functions.get(functionIndex).name().equals("row_number"))
                 .map(functionIndex -> sourceTypes.size() + functionIndex)
                 .boxed()
                 .collect(toImmutableList());
@@ -635,14 +739,14 @@ final class TestGpuWindow
             int[] partitionChannels,
             int[] orderChannels,
             List<SortOrder> orderSortOrders,
-            List<String> functions)
+            List<BoundTestedWindowFunction> functions)
     {
         List<Integer> outputChannels = IntStream.range(0, sourceTypes.size())
                 .boxed()
                 .collect(toImmutableList());
         ImmutableList.Builder<WindowFunctionDefinition> functionDefinitions = ImmutableList.builder();
-        for (String name : functions) {
-            functionDefinitions.add(windowFunctionDefinition(name));
+        for (BoundTestedWindowFunction function : functions) {
+            functionDefinitions.add(windowFunctionDefinition(function, sourceTypes));
         }
         WindowOperator.WindowOperatorFactory factory = TestWindowOperator.createFactoryUnbounded(
                 sourceTypes,
@@ -662,12 +766,21 @@ final class TestGpuWindow
         return toPages(factory, driverContext, inputPages);
     }
 
-    private static WindowFunctionDefinition windowFunctionDefinition(String name)
+    private static WindowFunctionDefinition windowFunctionDefinition(BoundTestedWindowFunction spec, List<Type> sourceTypes)
     {
-        ResolvedFunction resolvedFunction = FUNCTION_RESOLUTION.resolveFunction(name, ImmutableList.of());
+        List<Type> argumentTypes = Arrays.stream(spec.argumentChannels())
+                .mapToObj(sourceTypes::get)
+                .collect(toImmutableList());
+        ResolvedFunction resolvedFunction = FUNCTION_RESOLUTION.resolveFunction(spec.name(), fromTypes(argumentTypes));
         FunctionManager functionManager = FUNCTION_RESOLUTION.getPlannerContext().getFunctionManager();
         verify(resolvedFunction.functionKind() == WINDOW, "Unsupported function kind: %s", resolvedFunction.functionKind());
         WindowFunctionSupplier supplier = functionManager.getWindowFunctionSupplier(resolvedFunction);
-        return WindowFunctionDefinition.window(supplier, resolvedFunction.signature().getReturnType(), UNBOUNDED_FRAME, false, ImmutableList.of());
+        return WindowFunctionDefinition.window(
+                supplier,
+                resolvedFunction.signature().getReturnType(),
+                UNBOUNDED_FRAME,
+                false,
+                ImmutableList.of(),
+                Arrays.stream(spec.argumentChannels()).boxed().toArray(Integer[]::new));
     }
 }

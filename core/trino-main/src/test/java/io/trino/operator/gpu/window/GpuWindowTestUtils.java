@@ -33,13 +33,17 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-import static io.trino.spi.type.BigintType.BIGINT;
+import static com.google.common.collect.ImmutableList.toImmutableList;
+import static io.trino.sql.analyzer.TypeDescriptorProvider.fromTypes;
 
 public final class GpuWindowTestUtils
 {
     private GpuWindowTestUtils() {}
 
-    public static final List<String> TESTED_GPU_WINDOW_FUNCTIONS = List.of("row_number", "rank", "dense_rank");
+    public static final List<TestedWindowFunction> TESTED_GPU_WINDOW_FUNCTIONS = List.of(
+            new TestedWindowFunction("row_number", List.of()),
+            new TestedWindowFunction("rank", List.of()),
+            new TestedWindowFunction("dense_rank", List.of()));
 
     private static final TestingFunctionResolution FUNCTION_RESOLUTION = new TestingFunctionResolution();
 
@@ -48,7 +52,7 @@ public final class GpuWindowTestUtils
             int[] partitionChannels,
             int[] orderChannels,
             List<SortOrder> orderSortOrders,
-            List<String> functions)
+            List<BoundTestedWindowFunction> functions)
     {
         Symbol[] sourceSymbols = new Symbol[sourceTypes.size()];
         for (int i = 0; i < sourceTypes.size(); i++) {
@@ -73,8 +77,12 @@ public final class GpuWindowTestUtils
         }
 
         ImmutableMap.Builder<Symbol, WindowNode.Function> windowFunctions = ImmutableMap.builder();
-        for (int i = 0; i < functions.size(); i++) {
-            windowFunctions.put(new Symbol(BIGINT, "f" + i), rankingFunction(functions.get(i)));
+        int functionIndex = 0;
+        for (BoundTestedWindowFunction boundFunction : functions) {
+            WindowNode.Function function = windowFunction(boundFunction, sourceSymbols);
+            windowFunctions.put(
+                    new Symbol(function.getResolvedFunction().signature().getReturnType(), "f" + functionIndex++),
+                    function);
         }
 
         WindowNode node = windowNode(sourceSymbols, partitionBy, orderingScheme, windowFunctions.buildOrThrow());
@@ -97,12 +105,20 @@ public final class GpuWindowTestUtils
                 0);
     }
 
-    private static WindowNode.Function rankingFunction(String name)
+    private static WindowNode.Function windowFunction(BoundTestedWindowFunction spec, Symbol[] sourceSymbols)
     {
-        ResolvedFunction resolvedFunction = FUNCTION_RESOLUTION.resolveFunction(name, List.of());
+        List<Symbol> argumentSymbols = Arrays.stream(spec.argumentChannels())
+                .mapToObj(channel -> sourceSymbols[channel])
+                .collect(toImmutableList());
+        List<Type> argumentTypes = argumentSymbols.stream()
+                .map(Symbol::type)
+                .collect(toImmutableList());
+        ResolvedFunction resolvedFunction = FUNCTION_RESOLUTION.resolveFunction(spec.name(), fromTypes(argumentTypes));
         return new WindowNode.Function(
                 resolvedFunction,
-                List.of(),
+                argumentSymbols.stream()
+                        .map(Symbol::toSymbolReference)
+                        .collect(toImmutableList()),
                 Optional.empty(),
                 WindowNode.Frame.DEFAULT_FRAME,
                 false,

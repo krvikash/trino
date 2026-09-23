@@ -20,7 +20,7 @@ import java.util.List;
 
 import static java.util.Objects.requireNonNull;
 
-public record WindowFunctionTestCase(String function, List<Type> sourceTypes)
+public record WindowFunctionTestCase(BoundTestedWindowFunction function, List<Type> sourceTypes)
 {
     public WindowFunctionTestCase
     {
@@ -31,6 +31,6 @@ public record WindowFunctionTestCase(String function, List<Type> sourceTypes)
     @Override
     public String toString()
     {
-        return function + sourceTypes;
+        return function.name() + sourceTypes;
     }
 }
