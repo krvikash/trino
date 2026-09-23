@@ -47,8 +47,10 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.FieldSource;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
@@ -434,9 +436,26 @@ final class TestGpuWindow
 
     private static List<WindowFunctionTestCase> allTypesAndFunctionsTestCases(int channelCount)
     {
+        Random random = new Random(42);
         ImmutableList.Builder<WindowFunctionTestCase> builder = ImmutableList.builder();
+        Set<List<Type>> typeTestCases = new HashSet<>();
+        for (int testedTypeChannel = 0; testedTypeChannel < channelCount; testedTypeChannel++) {
+            for (Type type : TESTED_GPU_TYPES) {
+                List<Type> testCase = new ArrayList<>();
+                for (int channel = 0; channel < channelCount; channel++) {
+                    if (channel == testedTypeChannel) {
+                        testCase.add(type);
+                    }
+                    else {
+                        int index = random.nextInt(TESTED_GPU_TYPES.size());
+                        testCase.add(TESTED_GPU_TYPES.get(index));
+                    }
+                }
+                typeTestCases.add(testCase);
+            }
+        }
         for (String function : TESTED_GPU_WINDOW_FUNCTIONS) {
-            for (List<Type> testCaseTypes : typesTestCases(channelCount)) {
+            for (List<Type> testCaseTypes : typeTestCases) {
                 builder.add(new WindowFunctionTestCase(function, testCaseTypes));
             }
         }
@@ -452,22 +471,6 @@ final class TestGpuWindow
                         FLOATING_POINT_EDGE_CASES)
                 .stream()
                 .map(List::toArray);
-    }
-
-    private static List<List<Type>> typesTestCases(int typesPerTestCase)
-    {
-        Random random = new Random(42);
-        ImmutableList.Builder<List<Type>> builder = ImmutableList.builder();
-        for (Type type : TESTED_GPU_TYPES) {
-            ImmutableList.Builder<Type> testCase = ImmutableList.builder();
-            testCase.add(type);
-            for (int i = 1; i < typesPerTestCase; i++) {
-                int index = random.nextInt(TESTED_GPU_TYPES.size());
-                testCase.add(TESTED_GPU_TYPES.get(index));
-            }
-            builder.add(testCase.build());
-        }
-        return builder.build();
     }
 
     private static List<Page> createPages(List<Type> types, NullsProvider nullsProvider, int pageCount, int positionsPerPage)
