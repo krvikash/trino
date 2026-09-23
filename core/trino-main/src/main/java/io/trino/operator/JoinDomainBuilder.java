@@ -134,12 +134,10 @@ public class JoinDomainBuilder
         this.identicalFlatFlat = typeOperators.getIdenticalOperator(type, simpleConvention(FAIL_ON_NULL, FLAT, FLAT));
         this.identicalFlatBlock = typeOperators.getIdenticalOperator(type, simpleConvention(FAIL_ON_NULL, FLAT, VALUE_BLOCK_POSITION_NOT_NULL));
         if (collectBloomFilter) {
-            this.bloomFilter = new LongBloomFilter();
             this.compareFlatFlat = typeOperators.getComparisonUnorderedLastOperator(type, simpleConvention(FAIL_ON_NULL, FLAT, FLAT));
             this.compareBlockBlock = typeOperators.getComparisonUnorderedLastOperator(type, simpleConvention(FAIL_ON_NULL, VALUE_BLOCK_POSITION_NOT_NULL, VALUE_BLOCK_POSITION_NOT_NULL));
         }
         else {
-            this.bloomFilter = null;
             this.compareFlatFlat = null;
             this.compareBlockBlock = null;
         }
@@ -194,6 +192,7 @@ public class JoinDomainBuilder
 
                 retainedSizeInBytes = INSTANCE_SIZE;
                 if (collectBloomFilter) {
+                    bloomFilter = new LongBloomFilter();
                     int minIndex = -1;
                     int maxIndex = -1;
                     for (int index = 0; index < distinctCapacity; index++) {
@@ -215,7 +214,7 @@ public class JoinDomainBuilder
                         }
                     }
 
-                    retainedSizeInBytes += bloomFilter == null ? 0 : bloomFilter.getSizeInBytes();
+                    retainedSizeInBytes += bloomFilter.getSizeInBytes();
 
                     if (minIndex != -1) {
                         minValue = readValueToBlock(minIndex);
