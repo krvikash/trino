@@ -271,25 +271,12 @@ final class TestGpuWindow
     @FieldSource("io.trino.operator.gpu.window.GpuWindowTestUtils#TESTED_GPU_WINDOW_FUNCTIONS")
     void testSortPreservesNonKeyColumns(String function)
     {
-        Page inputPage;
-        if ("row_number".equals(function)) {
-            // TODO: Make this test deterministic for row_number. When ORDER BY keys are tied, row_number assignment depends on the
-            //  relative order of rows whose non-key columns are not included in the ORDER BY clause. This input avoids that ambiguity
-            //  because the ORDER BY values are unique within each partition.
-            inputPage = new Page(
-                    createLongsBlock(2L, 1L, 1L, 2L, 1L),
-                    createLongsBlock(30L, 20L, 10L, 10L, 30L),
-                    createLongsBlock(230L, 120L, 110L, 210L, 130L));
-        }
-        else {
-            int positionCount = 100;
-            inputPage = new Page(
-                    createBigintBlock(positionCount, NO_NULLS, 1L, 3L),
-                    createBigintBlock(positionCount, NO_NULLS, 10L, 20L),
-                    createLongSequenceBlock(0, positionCount));
-        }
+        int positionCount = 100;
         assertGpuWindowMatchesCpu(
-                List.of(inputPage),
+                List.of(new Page(
+                        createBigintBlock(positionCount, NO_NULLS, 1L, 3L),
+                        createBigintBlock(positionCount, NO_NULLS, 10L, 20L),
+                        createLongSequenceBlock(0, positionCount))),
                 List.of(BIGINT, BIGINT, BIGINT),
                 new int[] {0},
                 new int[] {1},
@@ -485,8 +472,81 @@ final class TestGpuWindow
             List<Type> outputTypes = compiled.outputTypes();
             List<Page> gpuResults = executeGpuWindow(inputPages, sourceTypes, outputTypes, compiled.stages());
             List<Page> cpuResults = executeCpuWindow(inputPages, sourceTypes, partitionChannels, orderChannels, orderSortOrders, functions);
-            assertSameDataWithoutOrder(gpuResults, cpuResults, outputTypes);
+            assertSameWindowDataWithoutOrder(
+                    gpuResults,
+                    cpuResults,
+                    outputTypes,
+                    sourceTypes,
+                    partitionChannels,
+                    orderChannels,
+                    functions);
         }
+    }
+
+    private static void assertSameWindowDataWithoutOrder(
+            List<Page> actual,
+            List<Page> expected,
+            List<Type> outputTypes,
+            List<Type> sourceTypes,
+            int[] partitionChannels,
+            int[] orderChannels,
+            List<String> functions)
+    {
+        List<Integer> rowNumberOutputChannels = IntStream.range(0, functions.size())
+                .filter(functionIndex -> functions.get(functionIndex).equals("row_number"))
+                .map(functionIndex -> sourceTypes.size() + functionIndex)
+                .boxed()
+                .collect(toImmutableList());
+
+        if (rowNumberOutputChannels.isEmpty()) {
+            assertSameDataWithoutOrder(actual, expected, outputTypes);
+            return;
+        }
+
+        // row_number is allowed to assign different numbers to different payload rows within one peer group.
+        // Compare all other columns as complete rows so payload/function associations are still checked.
+        List<Integer> stableOutputChannels = IntStream.range(0, outputTypes.size())
+                .filter(channel -> !rowNumberOutputChannels.contains(channel))
+                .boxed()
+                .collect(toImmutableList());
+        assertSameDataWithoutOrder(
+                projectChannels(actual, stableOutputChannels),
+                projectChannels(expected, stableOutputChannels),
+                projectTypes(outputTypes, stableOutputChannels));
+
+        // Compare row_number values against their logical scope, not against the payload row carrying them.
+        // This preserves the check that numbers cannot move between partitions or peer groups.
+        List<Integer> rowNumberScopeChannels = IntStream.concat(
+                        Arrays.stream(partitionChannels),
+                        Arrays.stream(orderChannels))
+                .distinct()
+                .boxed()
+                .collect(toImmutableList());
+        List<Integer> rowNumberChannels = ImmutableList.<Integer>builder()
+                .addAll(rowNumberScopeChannels)
+                .addAll(rowNumberOutputChannels)
+                .build();
+        assertSameDataWithoutOrder(
+                projectChannels(actual, rowNumberChannels),
+                projectChannels(expected, rowNumberChannels),
+                projectTypes(outputTypes, rowNumberChannels));
+    }
+
+    private static List<Page> projectChannels(List<Page> pages, List<Integer> channels)
+    {
+        int[] channelArray = channels.stream()
+                .mapToInt(Integer::intValue)
+                .toArray();
+        return pages.stream()
+                .map(page -> page.getColumns(channelArray))
+                .collect(toImmutableList());
+    }
+
+    private static List<Type> projectTypes(List<Type> types, List<Integer> channels)
+    {
+        return channels.stream()
+                .map(types::get)
+                .collect(toImmutableList());
     }
 
     private static List<Page> executeGpuWindow(
