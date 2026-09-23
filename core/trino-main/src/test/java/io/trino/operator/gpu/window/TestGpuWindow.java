@@ -107,7 +107,7 @@ final class TestGpuWindow
             Optional.empty(),
             Optional.empty(),
             Optional.empty());
-    private static final List<Integer> POSITION_COUNTS = List.of(0, 1, 100);
+    private static final int POSITION_COUNT = 100;
     private static final TestingFunctionResolution FUNCTION_RESOLUTION = new TestingFunctionResolution();
 
     @BeforeAll
@@ -124,11 +124,11 @@ final class TestGpuWindow
 
     @ParameterizedTest
     @MethodSource("baseTestCases")
-    void testSinglePartitionKeyAndOrderBy(String function, int positionCount, NullsProvider nullsProvider, SortOrder sortOrder)
+    void testEmptyInput(String function, NullsProvider nullsProvider, SortOrder sortOrder)
     {
         for (List<Type> types : typesTestCases(2)) {
             assertGpuWindowMatchesCpu(
-                    createPages(types, nullsProvider, 1, positionCount),
+                    createPages(types, nullsProvider, 1, 0),
                     types,
                     new int[] {0},
                     new int[] {1},
@@ -139,11 +139,41 @@ final class TestGpuWindow
 
     @ParameterizedTest
     @MethodSource("baseTestCases")
-    void testNoPartitionBy(String function, int positionCount, NullsProvider nullsProvider, SortOrder sortOrder)
+    void testSingleInputRow(String function, NullsProvider nullsProvider, SortOrder sortOrder)
+    {
+        for (List<Type> types : typesTestCases(2)) {
+            assertGpuWindowMatchesCpu(
+                    createPages(types, nullsProvider, 1, 1),
+                    types,
+                    new int[] {0},
+                    new int[] {1},
+                    List.of(sortOrder),
+                    List.of(function));
+        }
+    }
+
+    @ParameterizedTest
+    @MethodSource("baseTestCases")
+    void testSinglePartitionKeyAndOrderBy(String function, NullsProvider nullsProvider, SortOrder sortOrder)
+    {
+        for (List<Type> types : typesTestCases(2)) {
+            assertGpuWindowMatchesCpu(
+                    createPages(types, nullsProvider, 1, POSITION_COUNT),
+                    types,
+                    new int[] {0},
+                    new int[] {1},
+                    List.of(sortOrder),
+                    List.of(function));
+        }
+    }
+
+    @ParameterizedTest
+    @MethodSource("baseTestCases")
+    void testNoPartitionBy(String function, NullsProvider nullsProvider, SortOrder sortOrder)
     {
         for (List<Type> types : typesTestCases(1)) {
             assertGpuWindowMatchesCpu(
-                    createPages(types, nullsProvider, 1, positionCount),
+                    createPages(types, nullsProvider, 1, POSITION_COUNT),
                     types,
                     new int[0],
                     new int[] {0},
@@ -154,11 +184,11 @@ final class TestGpuWindow
 
     @ParameterizedTest
     @MethodSource("noOrderByTestCases")
-    void testNoOrderBy(String function, int positionCount, NullsProvider nullsProvider)
+    void testNoOrderBy(String function, NullsProvider nullsProvider)
     {
         for (List<Type> types : typesTestCases(1)) {
             assertGpuWindowMatchesCpu(
-                    createPages(types, nullsProvider, 1, positionCount),
+                    createPages(types, nullsProvider, 1, POSITION_COUNT),
                     types,
                     new int[] {0},
                     new int[0],
@@ -169,11 +199,11 @@ final class TestGpuWindow
 
     @ParameterizedTest
     @MethodSource("noOrderByTestCases")
-    void testMixedSortOrders(String function, int positionCount, NullsProvider nullsProvider)
+    void testMixedSortOrders(String function, NullsProvider nullsProvider)
     {
         for (List<Type> types : typesTestCases(3)) {
             assertGpuWindowMatchesCpu(
-                    createPages(types, nullsProvider, 1, positionCount),
+                    createPages(types, nullsProvider, 1, POSITION_COUNT),
                     types,
                     new int[] {0},
                     new int[] {1, 2},
@@ -197,11 +227,11 @@ final class TestGpuWindow
 
     @ParameterizedTest
     @MethodSource("baseTestCases")
-    void testMultiColumns(String function, int positionCount, NullsProvider nullsProvider, SortOrder sortOrder)
+    void testMultiColumns(String function, NullsProvider nullsProvider, SortOrder sortOrder)
     {
         for (List<Type> types : typesTestCases(4)) {
             assertGpuWindowMatchesCpu(
-                    createPages(types, nullsProvider, 1, positionCount),
+                    createPages(types, nullsProvider, 1, POSITION_COUNT),
                     types,
                     new int[] {0, 1},
                     new int[] {2, 3},
@@ -212,21 +242,18 @@ final class TestGpuWindow
 
     @ParameterizedTest
     @MethodSource("baseTestCases")
-    void testTies(String function, int positionCount, NullsProvider nullsProvider, SortOrder sortOrder)
+    void testTies(String function, NullsProvider nullsProvider, SortOrder sortOrder)
     {
-        if (positionCount == 0) {
-            return;
-        }
         for (List<Type> types : typesTestCases(2)) {
             Type partitionType = types.get(0);
             Type orderType = types.get(1);
 
-            Block orderByBlock = createBlock(orderType, positionCount, nullsProvider);
+            Block orderByBlock = createBlock(orderType, POSITION_COUNT, nullsProvider);
             Page page = mergePages(
                     List.of(
-                            new Page(createBlock(partitionType, positionCount, nullsProvider), orderByBlock),
-                            new Page(createBlock(partitionType, positionCount, nullsProvider), orderByBlock),
-                            new Page(createBlock(partitionType, positionCount, nullsProvider), orderByBlock)),
+                            new Page(createBlock(partitionType, POSITION_COUNT, nullsProvider), orderByBlock),
+                            new Page(createBlock(partitionType, POSITION_COUNT, nullsProvider), orderByBlock),
+                            new Page(createBlock(partitionType, POSITION_COUNT, nullsProvider), orderByBlock)),
                     types);
             assertGpuWindowMatchesCpu(
                     List.of(page),
@@ -393,7 +420,6 @@ final class TestGpuWindow
     {
         return Lists.cartesianProduct(
                         TESTED_GPU_WINDOW_FUNCTIONS,
-                        POSITION_COUNTS,
                         ImmutableList.copyOf(NullsProvider.values()),
                         ImmutableList.copyOf(SortOrder.values()))
                 .stream()
@@ -404,7 +430,6 @@ final class TestGpuWindow
     {
         return Lists.cartesianProduct(
                         TESTED_GPU_WINDOW_FUNCTIONS,
-                        POSITION_COUNTS,
                         ImmutableList.copyOf(NullsProvider.values()))
                 .stream()
                 .map(List::toArray);
