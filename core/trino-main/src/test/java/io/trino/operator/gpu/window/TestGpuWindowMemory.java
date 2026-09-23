@@ -32,10 +32,11 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.api.parallel.Isolated;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.FieldSource;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.Iterator;
 import java.util.List;
+import java.util.stream.Stream;
 
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.trino.operator.gpu.GpuTestUtils.copyToDevice;
@@ -65,99 +66,65 @@ final class TestGpuWindowMemory
     }
 
     @ParameterizedTest
-    @FieldSource("io.trino.operator.gpu.window.GpuWindowTestUtils#TESTED_GPU_WINDOW_FUNCTIONS")
-    void testSinglePartitionKeyAndOrderBy(String function)
+    @MethodSource("singlePartitionKeyAndOrderByTestCases")
+    void testSinglePartitionKeyAndOrderBy(WindowFunctionTestCase testCase)
     {
         testWindow(
-                List.of(BIGINT, BIGINT),
+                testCase.sourceTypes(),
                 new int[] {0},
                 new int[] {1},
                 List.of(ASC_NULLS_LAST),
-                List.of(function));
-        testWindow(
-                List.of(VARCHAR, VARCHAR),
-                new int[] {0},
-                new int[] {1},
-                List.of(ASC_NULLS_LAST),
-                List.of(function));
+                List.of(testCase.function()));
     }
 
     @ParameterizedTest
-    @FieldSource("io.trino.operator.gpu.window.GpuWindowTestUtils#TESTED_GPU_WINDOW_FUNCTIONS")
-    void testMultipleOrderBy(String function)
+    @MethodSource("multipleOrderByTestCases")
+    void testMultipleOrderBy(WindowFunctionTestCase testCase)
     {
         testWindow(
-                List.of(BIGINT, BIGINT, BIGINT),
+                testCase.sourceTypes(),
                 new int[] {0},
                 new int[] {1, 2},
                 List.of(ASC_NULLS_LAST, ASC_NULLS_LAST),
-                List.of(function),
-                1);
-        testWindow(
-                List.of(BIGINT, VARCHAR, VARCHAR),
-                new int[] {0},
-                new int[] {1, 2},
-                List.of(ASC_NULLS_LAST, ASC_NULLS_LAST),
-                List.of(function),
-                1);
-        testWindow(
-                List.of(BIGINT, VARCHAR, BIGINT),
-                new int[] {0},
-                new int[] {1, 2},
-                List.of(ASC_NULLS_LAST, ASC_NULLS_LAST),
-                List.of(function),
+                List.of(testCase.function()),
                 1);
     }
 
     @ParameterizedTest
-    @FieldSource("io.trino.operator.gpu.window.GpuWindowTestUtils#TESTED_GPU_WINDOW_FUNCTIONS")
-    void testMultiplePartitionBy(String function)
+    @MethodSource("multiplePartitionByTestCases")
+    void testMultiplePartitionBy(WindowFunctionTestCase testCase)
     {
         testWindow(
-                List.of(BIGINT, BIGINT, BIGINT),
+                testCase.sourceTypes(),
                 new int[] {0, 1},
                 new int[] {2},
                 List.of(ASC_NULLS_LAST),
-                List.of(function),
-                1);
-        testWindow(
-                List.of(VARCHAR, VARCHAR, BIGINT),
-                new int[] {0, 1},
-                new int[] {2},
-                List.of(ASC_NULLS_LAST),
-                List.of(function),
-                1);
-        testWindow(
-                List.of(BIGINT, VARCHAR, VARCHAR),
-                new int[] {0, 1},
-                new int[] {2},
-                List.of(ASC_NULLS_LAST),
-                List.of(function),
+                List.of(testCase.function()),
                 1);
     }
 
     @ParameterizedTest
-    @FieldSource("io.trino.operator.gpu.window.GpuWindowTestUtils#TESTED_GPU_WINDOW_FUNCTIONS")
-    void testNoPartitionBy(String function)
+    @MethodSource("noPartitionByTestCases")
+    void testNoPartitionBy(WindowFunctionTestCase testCase)
     {
         testWindow(
-                List.of(BIGINT),
+                testCase.sourceTypes(),
                 new int[] {},
                 new int[] {0},
                 List.of(ASC_NULLS_LAST),
-                List.of(function));
+                List.of(testCase.function()));
     }
 
     @ParameterizedTest
-    @FieldSource("io.trino.operator.gpu.window.GpuWindowTestUtils#TESTED_GPU_WINDOW_FUNCTIONS")
-    void testNoOrderBy(String function)
+    @MethodSource("noOrderByTestCases")
+    void testNoOrderBy(WindowFunctionTestCase testCase)
     {
         testWindow(
-                List.of(BIGINT),
+                testCase.sourceTypes(),
                 new int[] {0},
                 new int[] {},
                 List.of(),
-                List.of(function));
+                List.of(testCase.function()));
     }
 
     @Test
@@ -169,6 +136,49 @@ final class TestGpuWindowMemory
                 new int[] {1},
                 List.of(ASC_NULLS_LAST),
                 TESTED_GPU_WINDOW_FUNCTIONS);
+    }
+
+    static Stream<WindowFunctionTestCase> singlePartitionKeyAndOrderByTestCases()
+    {
+        return allTypesAndFunctionsTestCases(
+                List.of(
+                        List.of(BIGINT, BIGINT),
+                        List.of(VARCHAR, VARCHAR)));
+    }
+
+    static Stream<WindowFunctionTestCase> multipleOrderByTestCases()
+    {
+        return allTypesAndFunctionsTestCases(
+                List.of(
+                        List.of(BIGINT, BIGINT, BIGINT),
+                        List.of(BIGINT, VARCHAR, VARCHAR),
+                        List.of(BIGINT, VARCHAR, BIGINT)));
+    }
+
+    static Stream<WindowFunctionTestCase> multiplePartitionByTestCases()
+    {
+        return allTypesAndFunctionsTestCases(
+                List.of(
+                        List.of(BIGINT, BIGINT, BIGINT),
+                        List.of(VARCHAR, VARCHAR, BIGINT),
+                        List.of(BIGINT, VARCHAR, VARCHAR)));
+    }
+
+    static Stream<WindowFunctionTestCase> noPartitionByTestCases()
+    {
+        return allTypesAndFunctionsTestCases(List.of(List.of(BIGINT)));
+    }
+
+    static Stream<WindowFunctionTestCase> noOrderByTestCases()
+    {
+        return allTypesAndFunctionsTestCases(List.of(List.of(BIGINT)));
+    }
+
+    private static Stream<WindowFunctionTestCase> allTypesAndFunctionsTestCases(List<List<Type>> sourceTypes)
+    {
+        return TESTED_GPU_WINDOW_FUNCTIONS.stream()
+                .flatMap(function -> sourceTypes.stream()
+                        .map(types -> new WindowFunctionTestCase(function, types)));
     }
 
     private void testWindow(
