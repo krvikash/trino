@@ -93,7 +93,7 @@ import static io.trino.spi.type.VarbinaryType.VARBINARY;
 import static io.trino.sql.analyzer.TypeDescriptorProvider.fromTypes;
 import static io.trino.sql.gen.TestColumnarFilters.NullsProvider.NO_NULLS;
 import static io.trino.sql.gen.TestColumnarFilters.NullsProvider.RANDOM_NULLS;
-import static io.trino.sql.planner.plan.FrameBoundType.UNBOUNDED_FOLLOWING;
+import static io.trino.sql.planner.plan.FrameBoundType.CURRENT_ROW;
 import static io.trino.sql.planner.plan.FrameBoundType.UNBOUNDED_PRECEDING;
 import static io.trino.sql.planner.plan.WindowFrameType.RANGE;
 import static java.util.concurrent.Executors.newScheduledThreadPool;
@@ -103,12 +103,12 @@ import static org.junit.jupiter.api.Assumptions.abort;
 final class TestGpuWindow
 {
     private static final ScheduledExecutorService SCHEDULED_EXECUTOR = newScheduledThreadPool(2, daemonThreadsNamed("test-scheduler-%s"));
-    private static final FrameInfo UNBOUNDED_FRAME = new FrameInfo(
+    private static final FrameInfo DEFAULT_FRAME = new FrameInfo(
             RANGE,
             UNBOUNDED_PRECEDING,
             Optional.empty(),
             Optional.empty(),
-            UNBOUNDED_FOLLOWING,
+            CURRENT_ROW,
             Optional.empty(),
             Optional.empty(),
             Optional.empty(),
@@ -778,7 +778,7 @@ final class TestGpuWindow
         return WindowFunctionDefinition.window(
                 supplier,
                 resolvedFunction.signature().getReturnType(),
-                UNBOUNDED_FRAME,
+                DEFAULT_FRAME,
                 false,
                 ImmutableList.of(),
                 Arrays.stream(spec.argumentChannels()).boxed().toArray(Integer[]::new));
