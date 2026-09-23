@@ -415,6 +415,31 @@ public class TestDynamicPageFilter
     }
 
     @Test
+    public void testVarcharDynamicFilterSkipsCompilerCache()
+    {
+        ColumnarFilterCompiler compiler = new ColumnarFilterCompiler(PLANNER_CONTEXT, new CompilerConfig());
+        ColumnHandle column = new TestingColumnHandle("column");
+        Symbol symbol = new Symbol(VARCHAR, "A");
+        DynamicPageFilter pageFilter = new DynamicPageFilter(
+                PLANNER_CONTEXT,
+                SESSION,
+                ImmutableMap.of(symbol, column),
+                ImmutableMap.of(symbol, 0),
+                1,
+                true);
+        TestingDynamicFilter dynamicFilter = new TestingDynamicFilter(1);
+        dynamicFilter.update(DynamicFilterTupleDomain.withColumnDomains(
+                ImmutableMap.of(column, multipleValues(VARCHAR, ImmutableList.of(utf8Slice("ab"), utf8Slice("cd"), utf8Slice("fg"))))));
+
+        FilterEvaluator filterEvaluator = pageFilter.createDynamicPageFilterEvaluator(compiler, PAGE_FUNCTION_COMPILER, dynamicFilter).get();
+        SourcePage page = SourcePage.create(new Page(createStringsBlock("ab", "bc", null, "cd", "de", "fg")));
+        verifySelectedPositions(filterPage(page, filterEvaluator), new int[] {0, 3, 5});
+
+        assertThat(compiler.getFilterCache().getRequestCount()).isEqualTo(0);
+        assertThat(compiler.getFilterCache().getLoadCount()).isEqualTo(0);
+    }
+
+    @Test
     public void testIneffectiveFilter()
     {
         ColumnHandle column = new TestingColumnHandle("column");
