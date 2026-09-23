@@ -14,6 +14,7 @@
 package io.trino.operator.gpu.window;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.primitives.Ints;
 import io.trino.metadata.FunctionManager;
@@ -52,6 +53,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 import java.util.Random;
+import java.util.Set;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.stream.IntStream;
 import java.util.stream.LongStream;
@@ -481,9 +483,7 @@ final class TestGpuWindow
             List<String> functions)
     {
         CompileResult result = compileWindow(sourceTypes, partitionChannels, orderChannels, orderSortOrders, functions);
-        boolean hasVarbinaryPeerKey = Arrays.stream(orderChannels).mapToObj(sourceTypes::get).anyMatch(type -> type == VARBINARY);
-        boolean usesPeerKey = functions.stream().anyMatch(name -> name.equals("rank") || name.equals("dense_rank"));
-        if (hasVarbinaryPeerKey && usesPeerKey) {
+        if (isUnsupported(functions, orderChannels, sourceTypes)) {
             assertThat(result).isInstanceOf(CompileResult.Failure.class);
         }
         else {
@@ -501,6 +501,23 @@ final class TestGpuWindow
                     orderChannels,
                     functions);
         }
+    }
+
+    private static boolean isUnsupported(List<String> functions, int[] orderChannels, List<Type> sourceTypes)
+    {
+        return containsType(orderChannels, sourceTypes, VARBINARY) && containsFunction(functions, "rank", "dense_rank");
+    }
+
+    private static boolean containsType(int[] orderChannels, List<Type> sourceTypes, Type... types)
+    {
+        Set<Type> typeSet = ImmutableSet.copyOf(types);
+        return Arrays.stream(orderChannels).mapToObj(sourceTypes::get).anyMatch(typeSet::contains);
+    }
+
+    private static boolean containsFunction(List<String> functions, String... functionNames)
+    {
+        Set<String> functionNamesSet = ImmutableSet.copyOf(functionNames);
+        return functions.stream().anyMatch(functionNamesSet::contains);
     }
 
     private static void assertSameWindowDataWithoutOrder(
