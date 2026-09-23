@@ -163,7 +163,7 @@ public class ColumnarFilterCompiler
         InputChannels inputChannels = result.inputChannels();
 
         if (dynamicFilter && filter instanceof In in) {
-            Optional<InSetDynamicFilterGenerator> generator = InSetDynamicFilterGenerator.tryCreate(in, compactLayout, metadata, charVarcharCoercion, functionManager);
+            Optional<InSetDynamicFilterGenerator> generator = InSetDynamicFilterGenerator.tryCreate(in, compactLayout, metadata, charVarcharCoercion, functionManager, plannerContext.getTypeOperators());
             if (generator.isPresent()) {
                 return Optional.of(compileInSetDynamicFilter(generator.get(), inputChannels));
             }
@@ -245,7 +245,7 @@ public class ColumnarFilterCompiler
                     yield Optional.of(new CallColumnarFilterGenerator(call.function(), call.arguments(), layout, functionManager).generateColumnarFilter());
                 }
                 case IsNull isNull -> Optional.of(createIsNullColumnarFilter(isNull));
-                case In in -> Optional.of(new InColumnarFilterGenerator(in, layout, metadata, charVarcharCoercion, functionManager).generateColumnarFilter());
+                case In in -> Optional.of(new InColumnarFilterGenerator(in, layout, metadata, charVarcharCoercion, functionManager, plannerContext.getTypeOperators()).generateColumnarFilter());
                 case Reference reference when reference.type().equals(BOOLEAN) -> Optional.of(BooleanColumnarFilter.class);
                 default -> Optional.empty();
             };
