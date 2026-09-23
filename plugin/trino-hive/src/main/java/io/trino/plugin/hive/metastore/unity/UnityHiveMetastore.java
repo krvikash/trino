@@ -178,9 +178,19 @@ public class UnityHiveMetastore
     // 500/503 are included because Unity Catalog uses them for its own transient/rate-limit conditions
     // (error_code INTERNAL_ERROR / TEMPORARILY_UNAVAILABLE); safe here because this policy is only ever
     // applied to idempotent read calls (schema/table lookups, listings, credential vending).
+    private static final Set<Integer> RETRYABLE_HTTP_STATUS_CODES = Set.of(408, 429, 500, 503, 504);
     private static final RetryPolicy<Object> UNITY_API_RETRY_POLICY = RetryPolicy.builder()
-            .handleIf(failure -> failure instanceof ApiException apiException && Set.of(408, 429, 500, 503, 504).contains(apiException.getCode()))
-            .onFailedAttempt(e -> LOG.warn(e.getLastException(), "Retrying unity api call"))
+            .handleIf(failure -> failure instanceof ApiException apiException && RETRYABLE_HTTP_STATUS_CODES.contains(apiException.getCode()))
+            // the staged-commits GET bypasses the generated ApiClient, so its status arrives on the raw response rather than as an ApiException
+            .handleResultIf(result -> result instanceof HttpResponse<?> response && RETRYABLE_HTTP_STATUS_CODES.contains(response.statusCode()))
+            .onFailedAttempt(e -> {
+                if (e.getLastResult() instanceof HttpResponse<?> response) {
+                    LOG.warn("Retrying unity api call after HTTP %s", response.statusCode());
+                }
+                else {
+                    LOG.warn(e.getLastException(), "Retrying unity api call");
+                }
+            })
             .withMaxDuration(Duration.ofSeconds(5))
             .withBackoff(100, 500, MILLIS)
             .withMaxAttempts(3)
@@ -1197,7 +1207,8 @@ public class UnityHiveMetastore
                 .GET();
         tokenProvider.getToken().ifPresent(token -> request.header(AUTHORIZATION.toString(), "Bearer " + token));
 
-        HttpResponse<String> response = sendRequest(request.build());
+        HttpRequest httpRequest = request.build();
+        HttpResponse<String> response = Failsafe.with(UNITY_API_RETRY_POLICY).get(() -> sendRequest(httpRequest));
         if (response.statusCode() < 200 || response.statusCode() >= 300) {
             throw new TrinoException(HIVE_METASTORE_ERROR, "Failed to load staged commits: HTTP " + response.statusCode() + " " + response.body());
         }
