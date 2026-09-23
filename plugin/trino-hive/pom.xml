@@ -173,6 +173,12 @@
         <dependency>
             <groupId>io.trino.coral</groupId>
             <artifactId>coral</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>javax.annotation</groupId>
+                    <artifactId>javax.annotation-api</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
 
         <dependency>
