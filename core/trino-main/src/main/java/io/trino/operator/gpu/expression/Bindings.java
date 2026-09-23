@@ -13,4 +13,47 @@
  */
 package io.trino.operator.gpu.expression;
 
-public final class Bindings {}
+import ai.rapids.cudf.ColumnVector;
+import io.trino.spi.gpu.borrow.Borrow;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+
+import static com.google.common.base.Verify.verify;
+import static com.google.common.base.Verify.verifyNotNull;
+import static com.google.common.collect.ImmutableList.toImmutableList;
+import static java.util.Map.entry;
+import static java.util.Objects.requireNonNull;
+
+/// Active LET values
+public final class Bindings
+{
+    private final Map<Integer, @Borrow ColumnVector> bindings = new HashMap<>();
+
+    void put(int bindingId, @Borrow ColumnVector value)
+    {
+        requireNonNull(value, "value is null");
+        verify(bindings.putIfAbsent(bindingId, value) == null, "Binding already exists: %s", bindingId);
+    }
+
+    void remove(int bindingId)
+    {
+        @SuppressWarnings("resource") @Borrow ColumnVector removed = bindings.remove(bindingId);
+        verify(removed != null, "Unknown binding: %s", bindingId);
+    }
+
+    @Borrow
+    ColumnVector binding(int bindingId)
+    {
+        return verifyNotNull(bindings.get(bindingId), "Unknown binding: %s", bindingId);
+    }
+
+    List<Entry<Integer, @Borrow ColumnVector>> allBindings()
+    {
+        return bindings.entrySet().stream()
+                .map(entry -> entry(entry.getKey(), entry.getValue())) // defensive copy
+                .collect(toImmutableList());
+    }
+}

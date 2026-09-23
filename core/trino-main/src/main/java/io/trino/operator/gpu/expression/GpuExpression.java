@@ -39,8 +39,8 @@ public abstract class GpuExpression
 
     protected abstract Fallibility computeFallibility();
 
-    /// Whether the result is guaranteed to be NULL on a row where every column in `inputColumns` is
-    /// NULL. `false` only means the result is not known to be NULL there, not that it is guaranteed to be non-NULL.
+    /// Whether the result is guaranteed to be NULL on a row where every column in `inputColumns` and `bindings`
+    /// is NULL. `false` only means the result is not known to be NULL there, not that it is guaranteed to be non-NULL.
     public final boolean nullOnNullInputs()
     {
         return nullOnNullInputs.get();
@@ -49,7 +49,7 @@ public abstract class GpuExpression
     protected abstract boolean computeNullOnNullInputs();
 
     /// Two GPU expressions are equal when they are semantically equivalent,
-    /// meaning they will produce the same output for the same input.
+    /// meaning they will produce the same output for the same input columns and bindings.
     @Override
     public abstract boolean equals(Object obj);
 

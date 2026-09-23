@@ -1472,7 +1472,7 @@ public class TestGpuExpressions
                 createBigintBlock(positionsCount, nullsProvider, -100, 100)));
 
         // Let s1 = ref0 + ref1 in (Let s2 = s1 + ref2 in (s1 + s2))
-        // Body references s1 (de Bruijn index 1) and s2 (index 0); the inner value references s1 (index 0).
+        // The same s1 binding is addressable in both the inner value and body.
         Symbol s1 = new Symbol(BIGINT, "s1");
         Symbol s2 = new Symbol(BIGINT, "s2");
         Expression inner = new Let(
@@ -1544,7 +1544,7 @@ public class TestGpuExpressions
                 createBigintBlock(positionsCount, nullsProvider, -100, 100)));
 
         // (Let s1 = ref0 + ref1 in s1 + s1) + (Let s2 = ref0 - ref1 in s2 + s2)
-        // Sibling bindings are never live simultaneously, so both reuse the same tail slot (index 0).
+        // Sibling bindings have separate scopes.
         Symbol s1 = new Symbol(BIGINT, "s1");
         Symbol s2 = new Symbol(BIGINT, "s2");
         Expression left = new Let(

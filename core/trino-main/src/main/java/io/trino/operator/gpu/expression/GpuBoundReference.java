@@ -22,25 +22,22 @@ import java.util.Objects;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
-/// Reads a [GpuLet]-bound column. Each enclosing [GpuLet] appends its bound value to the end of the input
-/// list, so a binding is `deBruijnIndex` positions from the end, where 0 is the innermost enclosing
-/// [GpuLet]. Indexing from the end keeps the reference independent of the number of source columns, so
-/// binding resolves in a single compilation pass.
+/// Reads a LET binding by its identity, independently of nesting depth and input-channel layout.
 public final class GpuBoundReference
         extends GpuExpression
 {
-    private final int deBruijnIndex;
+    private final int bindingId;
 
-    public GpuBoundReference(int deBruijnIndex)
+    public GpuBoundReference(int bindingId)
     {
-        checkArgument(deBruijnIndex >= 0, "deBruijnIndex must be non-negative: %s", deBruijnIndex);
-        this.deBruijnIndex = deBruijnIndex;
+        checkArgument(bindingId >= 0, "bindingId must be non-negative: %s", bindingId);
+        this.bindingId = bindingId;
     }
 
     @Override
     public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns, Bindings bindings)
     {
-        return inputColumns.get(inputColumns.size() - 1 - deBruijnIndex).incRefCount();
+        return bindings.binding(bindingId).incRefCount();
     }
 
     @Override
@@ -58,12 +55,12 @@ public final class GpuBoundReference
     @Override
     public boolean equals(Object obj)
     {
-        return obj instanceof GpuBoundReference other && deBruijnIndex == other.deBruijnIndex;
+        return obj instanceof GpuBoundReference other && bindingId == other.bindingId;
     }
 
     @Override
     public int hashCode()
     {
-        return Objects.hash(getClass(), deBruijnIndex);
+        return Objects.hash(getClass(), bindingId);
     }
 }

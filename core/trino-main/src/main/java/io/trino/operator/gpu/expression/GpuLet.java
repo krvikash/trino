@@ -27,17 +27,17 @@ import static io.trino.operator.gpu.expression.Fallibility.worst;
 import static io.trino.operator.gpu.expression.GpuExpressions.allNullOnNullInputs;
 import static java.util.Objects.requireNonNull;
 
-/// Realizes [io.trino.sql.ir.Let] on the GPU: evaluates `value` once and appends the resulting column to
-/// the input list while `body` is evaluated, so references to the bound symbol ([GpuBoundReference]) read
-/// it there.
+/// Evaluates a LET value once and extends the body's binding scope without changing input channels.
 public final class GpuLet
         extends GpuExpression
 {
+    private final int bindingId;
     private final GpuExpression value;
     private final GpuExpression body;
 
-    public GpuLet(GpuExpression value, GpuExpression body)
+    public GpuLet(int bindingId, GpuExpression value, GpuExpression body)
     {
+        this.bindingId = bindingId;
         this.value = requireNonNull(value, "value is null");
         this.body = requireNonNull(body, "body is null");
     }
@@ -46,11 +46,13 @@ public final class GpuLet
     public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns, Bindings bindings)
     {
         try (ColumnVector bound = value.evaluate(positionCount, inputColumns, bindings)) {
-            List<ColumnVector> extended = ImmutableList.<ColumnVector>builderWithExpectedSize(inputColumns.size() + 1)
-                    .addAll(inputColumns)
-                    .add(bound)
-                    .build();
-            return body.evaluate(positionCount, extended, bindings);
+            bindings.put(bindingId, bound);
+            try {
+                return body.evaluate(positionCount, inputColumns, bindings);
+            }
+            finally {
+                bindings.remove(bindingId);
+            }
         }
     }
 
@@ -75,6 +77,7 @@ public final class GpuLet
     public boolean equals(Object obj)
     {
         return obj instanceof GpuLet other
+                && bindingId == other.bindingId
                 && value.equals(other.value)
                 && body.equals(other.body);
     }
@@ -82,6 +85,6 @@ public final class GpuLet
     @Override
     public int hashCode()
     {
-        return Objects.hash(getClass(), value, body);
+        return Objects.hash(getClass(), bindingId, value, body);
     }
 }

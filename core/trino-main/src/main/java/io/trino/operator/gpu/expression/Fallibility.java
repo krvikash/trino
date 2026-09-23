@@ -19,7 +19,7 @@ public enum Fallibility
 {
     /// Evaluation never raises a runtime error.
     INFALLIBLE,
-    /// Evaluation may raise a runtime error, except on rows where every input column is NULL.
+    /// Evaluation may raise a runtime error, except on rows where every input column and binding is NULL.
     FALLIBLE_EXCEPT_ALL_NULLS,
     /// Evaluation may raise a runtime error on any row.
     FALLIBLE,

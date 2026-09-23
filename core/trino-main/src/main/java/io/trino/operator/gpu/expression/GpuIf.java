@@ -23,8 +23,10 @@ import io.trino.spi.gpu.borrow.Move;
 import io.trino.spi.type.Type;
 
 import java.util.List;
+import java.util.Map.Entry;
 import java.util.Objects;
 
+import static com.google.common.collect.Lists.transform;
 import static io.trino.operator.gpu.expression.CudfUtils.allTrue;
 import static io.trino.operator.gpu.expression.CudfUtils.anyTrue;
 import static io.trino.operator.gpu.expression.Fallibility.FALLIBLE_EXCEPT_ALL_NULLS;
@@ -101,11 +103,16 @@ public final class GpuIf
             List<@Borrow ColumnVector> inputColumns,
             Bindings bindings)
     {
+        List<Entry<Integer, @Borrow ColumnVector>> allBindings = bindings.allBindings();
+        List<@Borrow ColumnVector> allInputColumns = ImmutableList.<@Borrow ColumnVector>builder()
+                .addAll(inputColumns)
+                .addAll(transform(allBindings, Entry::getValue))
+                .build();
         // Table requires at least one column; if the IF references no input fields, use the
         // mask itself as a placeholder so we can still derive the filtered row count.
-        @Borrow ColumnVector[] tableColumns = inputColumns.isEmpty()
+        @Borrow ColumnVector[] tableColumns = allInputColumns.isEmpty()
                 ? new ColumnVector[] {mask}
-                : inputColumns.toArray(ColumnVector[]::new);
+                : allInputColumns.toArray(ColumnVector[]::new);
         try (Table inputTable = new Table(tableColumns);
                 Table filtered = inputTable.filter(mask)) {
             int filteredRowCount = (int) filtered.getRowCount();
@@ -113,7 +120,11 @@ public final class GpuIf
             for (int i = 0; i < inputColumns.size(); i++) {
                 filteredColumns.add(filtered.getColumn(i));
             }
-            return branch.evaluate(filteredRowCount, filteredColumns.build(), bindings);
+            Bindings filteredBindings = new Bindings();
+            for (int i = 0; i < allBindings.size(); i++) {
+                filteredBindings.put(allBindings.get(i).getKey(), filtered.getColumn(inputColumns.size() + i));
+            }
+            return branch.evaluate(filteredRowCount, filteredColumns.build(), filteredBindings);
         }
     }
 

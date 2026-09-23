@@ -23,9 +23,11 @@ import io.trino.spi.gpu.borrow.Move;
 import io.trino.spi.type.Type;
 
 import java.util.List;
+import java.util.Map.Entry;
 import java.util.Objects;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.collect.Lists.transform;
 import static io.trino.operator.gpu.expression.CudfUtils.allTrue;
 import static io.trino.operator.gpu.expression.CudfUtils.anyTrue;
 import static io.trino.operator.gpu.expression.Fallibility.FALLIBLE_EXCEPT_ALL_NULLS;
@@ -54,6 +56,11 @@ public final class GpuCase
     @Override
     public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns, Bindings bindings)
     {
+        List<Entry<Integer, @Borrow ColumnVector>> allBindings = bindings.allBindings();
+        List<@Borrow ColumnVector> allInputColumns = ImmutableList.<@Borrow ColumnVector>builder()
+                .addAll(inputColumns)
+                .addAll(transform(allBindings, Entry::getValue))
+                .build();
         try (Scalar nullScalar = nullScalar(outputType);
                 Scalar falseScalar = Scalar.fromBool(false);
                 Scalar trueScalar = Scalar.fromBool(true);
@@ -68,18 +75,20 @@ public final class GpuCase
                 }
 
                 try (Table remainingIndicesTable = sequenceTable.filter(remainingMask.borrow());
-                        ClosingRef<Table> filteredInput = filter(inputColumns, remainingMask.borrow())) {
+                        ClosingRef<Table> filteredInput = filter(allInputColumns, remainingMask.borrow())) {
                     int filteredRowCount = toIntExact(remainingIndicesTable.getRowCount());
-                    List<@Borrow ColumnVector> filteredColumns = getColumns(filteredInput);
+                    List<@Borrow ColumnVector> filteredAll = getColumns(filteredInput);
+                    List<@Borrow ColumnVector> filteredColumns = filteredAll.subList(0, inputColumns.size());
+                    Bindings filteredBindings = zipBindings(allBindings, filteredAll.subList(inputColumns.size(), filteredAll.size()));
 
-                    try (ColumnVector conditionRaw = conditions.get(i).evaluate(filteredRowCount, filteredColumns, bindings);
+                    try (ColumnVector conditionRaw = conditions.get(i).evaluate(filteredRowCount, filteredColumns, filteredBindings);
                             ColumnVector conditionMask = conditionRaw.replaceNulls(falseScalar)) {
                         if (!anyTrue(conditionMask)) {
                             continue;
                         }
 
                         if (allTrue(conditionMask)) {
-                            try (ColumnVector branchResult = results.get(i).evaluate(filteredRowCount, filteredColumns, bindings)) {
+                            try (ColumnVector branchResult = results.get(i).evaluate(filteredRowCount, filteredColumns, filteredBindings)) {
                                 output.replace(scatterCombine(output.borrow(), branchResult, remainingIndicesTable.getColumn(0)));
                             }
                             remainingMask.replace(ColumnVector.fromScalar(falseScalar, positionCount));
@@ -89,9 +98,11 @@ public final class GpuCase
                         try (Table matchedIndicesTable = remainingIndicesTable.filter(conditionMask);
                                 ClosingRef<Table> matchedInput = filter(filteredInput, conditionMask)) {
                             int matchedRowCount = toIntExact(matchedIndicesTable.getRowCount());
-                            List<@Borrow ColumnVector> matchedColumns = getColumns(matchedInput);
+                            List<@Borrow ColumnVector> matchedAll = getColumns(matchedInput);
+                            List<@Borrow ColumnVector> matchedColumns = matchedAll.subList(0, inputColumns.size());
+                            Bindings matchedBindings = zipBindings(allBindings, matchedAll.subList(inputColumns.size(), matchedAll.size()));
 
-                            try (ColumnVector branchResult = results.get(i).evaluate(matchedRowCount, matchedColumns, bindings)) {
+                            try (ColumnVector branchResult = results.get(i).evaluate(matchedRowCount, matchedColumns, matchedBindings)) {
                                 output.replace(scatterCombine(output.borrow(), branchResult, matchedIndicesTable.getColumn(0)));
                             }
                             try (ColumnVector falseValues = ColumnVector.fromScalar(falseScalar, matchedRowCount)) {
@@ -104,6 +115,16 @@ public final class GpuCase
 
             return output.take();
         }
+    }
+
+    private static Bindings zipBindings(List<Entry<Integer, @Borrow ColumnVector>> bindings, List<@Borrow ColumnVector> boundColumns)
+    {
+        checkArgument(boundColumns.size() == bindings.size(), "Expected %s bound columns, got %s", bindings.size(), boundColumns.size());
+        Bindings result = new Bindings();
+        for (int i = 0; i < bindings.size(); i++) {
+            result.put(bindings.get(i).getKey(), boundColumns.get(i));
+        }
+        return result;
     }
 
     private static @Move ClosingRef<Table> filter(List<@Borrow ColumnVector> inputColumns, @Borrow ColumnVector mask)

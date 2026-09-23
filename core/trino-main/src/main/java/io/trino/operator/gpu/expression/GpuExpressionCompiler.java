@@ -138,8 +138,8 @@ public final class GpuExpressionCompiler
         // the materialized list of device-resident columns.
         private final Map<Symbol, Integer> compactLayout = new HashMap<>();
         private final List<Integer> inputChannels = new ArrayList<>();
-        // Symbols bound by enclosing Lets, in binding order (innermost last).
-        private final List<Symbol> bindingStack = new ArrayList<>();
+        private final Map<Symbol, Integer> letBindings = new HashMap<>();
+        private int nextBindingId;
 
         private CompilationVisitor(Map<Symbol, Integer> sourceLayout, CharVarcharCoercion charVarcharCoercion)
         {
@@ -167,9 +167,9 @@ public final class GpuExpressionCompiler
                 return Optional.empty();
             }
             Symbol symbol = Symbol.from(reference);
-            int binding = bindingStack.lastIndexOf(symbol);
-            if (binding >= 0) {
-                return Optional.of(new GpuBoundReference(bindingStack.size() - 1 - binding));
+            Integer binding = letBindings.get(symbol);
+            if (binding != null) {
+                return Optional.of(new GpuBoundReference(binding));
             }
             Integer sourceChannel = sourceLayout.get(symbol);
             verify(sourceChannel != null, "Reference %s not present in source layout", symbol);
@@ -1058,13 +1058,19 @@ public final class GpuExpressionCompiler
             if (value.isEmpty()) {
                 return Optional.empty();
             }
-            bindingStack.addLast(let.name());
+            int bindingId = nextBindingId++;
+            Integer previousBinding = letBindings.put(let.name(), bindingId);
             try {
                 return let.body().accept(this, context)
-                        .map(body -> new GpuLet(value.get(), body));
+                        .map(body -> new GpuLet(bindingId, value.get(), body));
             }
             finally {
-                bindingStack.removeLast();
+                if (previousBinding == null) {
+                    letBindings.remove(let.name());
+                }
+                else {
+                    letBindings.put(let.name(), previousBinding);
+                }
             }
         }
 
