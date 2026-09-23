@@ -226,33 +226,32 @@ public final class GpuWindowCompiler
         }
 
         Map<GpuExpression, Integer> projectedInputChannels = sourceExpressionChannels(sourceColumnCount);
-        Map<GpuWindow.ScanSpec, Integer> specIndexes = new LinkedHashMap<>();
-        Map<CompiledWindowFunction, Integer> outputIndexes = new IdentityHashMap<>();
-        ImmutableList.Builder<GpuWindow.ScanSpec> scanSpecBuilder = ImmutableList.builder();
+        Map<GpuWindow.WindowComputation, Integer> channelBoundComputationIndexes = new LinkedHashMap<>();
+        Map<CompiledWindowFunction, int[]> outputIndexes = new IdentityHashMap<>();
+        ImmutableList.Builder<GpuWindow.WindowComputation> computations = ImmutableList.builder();
         int currentChannel = sourceColumnCount;
 
         for (CompiledWindowFunction function : functions) {
-            GpuExpression input = function.input();
-            Integer projectedChannel = projectedInputChannels.get(input);
-            if (projectedChannel == null) {
-                projectedChannel = currentChannel++;
-                projectedInputChannels.put(input, projectedChannel);
-                preProjections.add(new Projection.Gpu(new CompiledExpression(input, allSourceChannels)));
-            }
+            int[] computationIndexes = new int[function.computations().size()];
+            for (int i = 0; i < function.computations().size(); i++) {
+                WindowComputation computation = function.computations().get(i);
+                Integer projectedChannel = projectedInputChannels.get(computation.input());
+                if (projectedChannel == null) {
+                    projectedChannel = currentChannel++;
+                    projectedInputChannels.put(computation.input(), projectedChannel);
+                    preProjections.add(new Projection.Gpu(new CompiledExpression(computation.input(), allSourceChannels)));
+                }
 
-            GpuWindow.ScanSpec spec = new GpuWindow.ScanSpec(
-                    projectedChannel,
-                    function.scan(),
-                    function.groupedScan(),
-                    function.scanOutputBytesPerRow(),
-                    function.groupedScanWorkingBytesPerRow());
-            Integer specIndex = specIndexes.get(spec);
-            if (specIndex == null) {
-                specIndex = specIndexes.size();
-                specIndexes.put(spec, specIndex);
-                scanSpecBuilder.add(spec);
+                GpuWindow.WindowComputation channelBoundComputation = computation.bindToChannel(projectedChannel);
+                Integer computationIndex = channelBoundComputationIndexes.get(channelBoundComputation);
+                if (computationIndex == null) {
+                    computationIndex = channelBoundComputationIndexes.size();
+                    channelBoundComputationIndexes.put(channelBoundComputation, computationIndex);
+                    computations.add(channelBoundComputation);
+                }
+                computationIndexes[i] = computationIndex;
             }
-            outputIndexes.put(function, specIndex);
+            outputIndexes.put(function, computationIndexes);
         }
 
         ImmutableList.Builder<GpuOperation.Factory> stages = ImmutableList.builder();
@@ -265,22 +264,22 @@ public final class GpuWindowCompiler
                 orderType,
                 orderChannels,
                 orderSortOrders,
-                scanSpecBuilder.build()));
-        int firstRawResultChannel = currentChannel;
+                computations.build()));
+        int firstResultChannel = currentChannel;
         for (CompiledWindowFunction function : functions) {
-            int rawResultChannel = firstRawResultChannel + verifyNotNull(outputIndexes.get(function), "output index is missing");
-            postProjections.add(new Projection.Gpu(rebind(function.postProjection(), rawResultChannel)));
+            int[] computationIndexes = verifyNotNull(outputIndexes.get(function), "output indexes are missing");
+            postProjections.add(new Projection.Gpu(rebind(function.postProjection(), firstResultChannel, computationIndexes)));
         }
         stages.add(new GpuProject.Factory(postProjections.build()));
         return stages.build();
     }
 
-    private static CompiledExpression rebind(CompiledExpression expression, int firstInputChannel)
+    private static CompiledExpression rebind(CompiledExpression expression, int firstInputChannel, int[] computationIndexes)
     {
         return new CompiledExpression(
                 expression.expression(),
                 new InputChannels(expression.inputChannels().getInputChannels().stream()
-                        .map(channel -> firstInputChannel + channel)
+                        .map(channel -> firstInputChannel + computationIndexes[channel])
                         .toList()));
     }
 
@@ -303,21 +302,14 @@ public final class GpuWindowCompiler
     }
 
     private record CompiledWindowFunction(
-            GpuExpression input,
-            ScanAggregation scan,
-            GroupByScanAggregation groupedScan,
-            int scanOutputBytesPerRow,
-            int groupedScanWorkingBytesPerRow,
+            List<WindowComputation> computations,
             CompiledExpression postProjection,
             Type outputType)
     {
         public CompiledWindowFunction
         {
-            requireNonNull(input, "input is null");
-            requireNonNull(scan, "scan is null");
-            requireNonNull(groupedScan, "groupedScan is null");
-            checkArgument(scanOutputBytesPerRow > 0, "scanOutputBytesPerRow must be positive");
-            checkArgument(groupedScanWorkingBytesPerRow >= 0, "groupedScanWorkingBytesPerRow is negative");
+            checkArgument(!computations.isEmpty(), "computations is empty");
+            computations = ImmutableList.copyOf(computations);
             requireNonNull(postProjection, "postProjection is null");
             requireNonNull(outputType, "outputType is null");
         }
@@ -333,11 +325,13 @@ public final class GpuWindowCompiler
             return Optional.empty();
         }
         return Optional.of(new CompiledWindowFunction(
-                peerKey.orElse(ONE),
-                ScanAggregation.rank(),
-                GroupByScanAggregation.rank(),
-                RANK_SCAN_OUTPUT_BYTES_PER_ROW,
-                RANK_GROUPED_SCAN_WORKING_BYTES_PER_ROW,
+                ImmutableList.of(
+                        new ScanComputation(
+                                peerKey.orElse(ONE),
+                                ScanAggregation.rank(),
+                                GroupByScanAggregation.rank(),
+                                RANK_SCAN_OUTPUT_BYTES_PER_ROW,
+                                RANK_GROUPED_SCAN_WORKING_BYTES_PER_ROW)),
                 CAST_SCAN_RESULT_TO_BIGINT,
                 BIGINT));
     }
@@ -352,11 +346,13 @@ public final class GpuWindowCompiler
             return Optional.empty();
         }
         return Optional.of(new CompiledWindowFunction(
-                peerKey.orElse(ONE),
-                ScanAggregation.denseRank(),
-                GroupByScanAggregation.denseRank(),
-                RANK_SCAN_OUTPUT_BYTES_PER_ROW,
-                RANK_GROUPED_SCAN_WORKING_BYTES_PER_ROW,
+                ImmutableList.of(
+                        new ScanComputation(
+                                peerKey.orElse(ONE),
+                                ScanAggregation.denseRank(),
+                                GroupByScanAggregation.denseRank(),
+                                RANK_SCAN_OUTPUT_BYTES_PER_ROW,
+                                RANK_GROUPED_SCAN_WORKING_BYTES_PER_ROW)),
                 CAST_SCAN_RESULT_TO_BIGINT,
                 BIGINT));
     }
@@ -367,11 +363,13 @@ public final class GpuWindowCompiler
             return Optional.empty();
         }
         return Optional.of(new CompiledWindowFunction(
-                ONE,
-                ScanAggregation.sum(),
-                GroupByScanAggregation.sum(),
-                ROW_NUMBER_SCAN_OUTPUT_BYTES_PER_ROW,
-                ROW_NUMBER_GROUPED_SCAN_WORKING_BYTES_PER_ROW,
+                ImmutableList.of(
+                        new ScanComputation(
+                                ONE,
+                                ScanAggregation.sum(),
+                                GroupByScanAggregation.sum(),
+                                ROW_NUMBER_SCAN_OUTPUT_BYTES_PER_ROW,
+                                ROW_NUMBER_GROUPED_SCAN_WORKING_BYTES_PER_ROW)),
                 PASSTHROUGH,
                 BIGINT));
     }
@@ -379,5 +377,36 @@ public final class GpuWindowCompiler
     private static boolean hasArgumentsOrNonBigintResult(WindowNode.Function function)
     {
         return !function.getArguments().isEmpty() || function.getResolvedFunction().signature().getReturnType() != BIGINT;
+    }
+
+    private sealed interface WindowComputation
+    {
+        GpuExpression input();
+
+        GpuWindow.WindowComputation bindToChannel(int inputChannel);
+    }
+
+    private record ScanComputation(
+            GpuExpression input,
+            ScanAggregation scan,
+            GroupByScanAggregation groupedScan,
+            int scanOutputBytesPerRow,
+            int groupedScanWorkingBytesPerRow)
+            implements WindowComputation
+    {
+        public ScanComputation
+        {
+            requireNonNull(input, "input is null");
+            requireNonNull(scan, "scan is null");
+            requireNonNull(groupedScan, "groupedScan is null");
+            checkArgument(scanOutputBytesPerRow > 0, "scanOutputBytesPerRow must be positive");
+            checkArgument(groupedScanWorkingBytesPerRow >= 0, "groupedScanWorkingBytesPerRow is negative");
+        }
+
+        @Override
+        public GpuWindow.WindowComputation bindToChannel(int inputChannel)
+        {
+            return new GpuWindow.ScanComputation(inputChannel, scan, groupedScan, scanOutputBytesPerRow, groupedScanWorkingBytesPerRow);
+        }
     }
 }

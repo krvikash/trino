@@ -64,7 +64,7 @@ public final class GpuWindow
         private final List<Type> orderTypes;
         private final int[] orderChannels;
         private final List<SortOrder> orderSortOrders;
-        private final List<ScanSpec> specs;
+        private final List<WindowComputation> computations;
 
         public Factory(
                 List<Type> partitionTypes,
@@ -72,7 +72,7 @@ public final class GpuWindow
                 List<Type> orderTypes,
                 int[] orderChannels,
                 List<SortOrder> orderSortOrders,
-                List<ScanSpec> specs)
+                List<WindowComputation> computations)
         {
             checkArgument(orderChannels.length == orderSortOrders.size(), "orderChannels and orderSortOrders sizes do not match");
             checkArgument(orderChannels.length == orderTypes.size(), "orderChannels and orderTypes sizes do not match");
@@ -82,19 +82,19 @@ public final class GpuWindow
             this.orderTypes = ImmutableList.copyOf(orderTypes);
             this.orderChannels = orderChannels.clone();
             this.orderSortOrders = ImmutableList.copyOf(orderSortOrders);
-            this.specs = ImmutableList.copyOf(requireNonNull(specs, "specs is null"));
+            this.computations = ImmutableList.copyOf(requireNonNull(computations, "computations is null"));
         }
 
         @Override
         public Factory duplicate()
         {
-            return new Factory(partitionTypes, partitionChannels, orderTypes, orderChannels, orderSortOrders, specs);
+            return new Factory(partitionTypes, partitionChannels, orderTypes, orderChannels, orderSortOrders, computations);
         }
 
         @Override
         public GpuOperation create(Context context, GpuOperation source)
         {
-            return new GpuWindow(context, source, partitionTypes, partitionChannels, orderTypes, orderChannels, orderSortOrders, specs);
+            return new GpuWindow(context, source, partitionTypes, partitionChannels, orderTypes, orderChannels, orderSortOrders, computations);
         }
 
         @Override
@@ -107,21 +107,24 @@ public final class GpuWindow
     private final List<Type> orderTypes;
     private final int[] orderChannels;
     private final List<SortOrder> orderSortOrders;
-    private final List<ScanSpec> specs;
+    private final List<ScanComputation> scanComputations;
 
     private final @Own TablesList bufferedTables = TablesList.create();
     private final ClosingRef<AllocatedMemory> allocated;
     private long totalBufferedRowCount;
     private boolean finished;
 
-    public record ScanSpec(
+    public sealed interface WindowComputation {}
+
+    public record ScanComputation(
             int inputChannel,
             ScanAggregation scanAggregation,
             GroupByScanAggregation groupedScanAggregation,
             int scanOutputBytesPerRow,
             int groupedScanWorkingBytesPerRow)
+            implements WindowComputation
     {
-        public ScanSpec
+        public ScanComputation
         {
             checkArgument(inputChannel >= 0, "inputChannel is negative");
             requireNonNull(scanAggregation, "scanAggregation is null");
@@ -139,7 +142,7 @@ public final class GpuWindow
             List<Type> orderTypes,
             int[] orderChannels,
             List<SortOrder> orderSortOrders,
-            List<ScanSpec> specs)
+            List<WindowComputation> computations)
     {
         this.source = requireNonNull(source, "source is null");
         this.partitionTypes = partitionTypes;
@@ -147,7 +150,15 @@ public final class GpuWindow
         this.orderChannels = orderChannels;
         this.orderTypes = orderTypes;
         this.orderSortOrders = orderSortOrders;
-        this.specs = specs;
+
+        ImmutableList.Builder<ScanComputation> scanComputationBuilder = ImmutableList.builder();
+        for (WindowComputation windowComputationOnChannel : computations) {
+            switch (windowComputationOnChannel) {
+                case ScanComputation computation -> scanComputationBuilder.add(computation);
+            }
+        }
+        this.scanComputations = scanComputationBuilder.build();
+
         this.allocated = ClosingRef.own(context.taskMemoryContext().allocate(getClass().getSimpleName(), MemoryAmount.ZERO));
     }
 
@@ -282,7 +293,7 @@ public final class GpuWindow
 
     private @Move ColumnVector[] computeResultColumns(Optional<@Borrow Table> sorted)
     {
-        if (specs.isEmpty()) {
+        if (scanComputations.isEmpty()) {
             return new ColumnVector[0];
         }
         checkState(sorted.isPresent(), "input table is required");
@@ -294,11 +305,11 @@ public final class GpuWindow
 
     private @Move ColumnVector[] computeUnpartitionedScanColumns(@Borrow Table sorted)
     {
-        @Own ColumnVector[] results = new ColumnVector[specs.size()];
+        @Own ColumnVector[] results = new ColumnVector[scanComputations.size()];
         try {
-            for (int i = 0; i < specs.size(); i++) {
-                ScanSpec spec = specs.get(i);
-                results[i] = sorted.getColumn(spec.inputChannel()).scan(spec.scanAggregation());
+            for (int i = 0; i < scanComputations.size(); i++) {
+                ScanComputation computation = scanComputations.get(i);
+                results[i] = sorted.getColumn(computation.inputChannel()).scan(computation.scanAggregation());
             }
             return results;
         }
@@ -310,16 +321,16 @@ public final class GpuWindow
 
     private @Move ColumnVector[] computePartitionedScanColumns(@Borrow Table sorted)
     {
-        @Own ColumnVector[] results = new ColumnVector[specs.size()];
+        @Own ColumnVector[] results = new ColumnVector[scanComputations.size()];
         try {
-            int[] scanInputChannels = specs.stream()
-                    .mapToInt(ScanSpec::inputChannel)
+            int[] scanInputChannels = scanComputations.stream()
+                    .mapToInt(ScanComputation::inputChannel)
                     .toArray();
-            GroupByScanAggregation[] aggregations = specs.stream()
-                    .map(ScanSpec::groupedScanAggregation)
+            GroupByScanAggregation[] aggregations = scanComputations.stream()
+                    .map(ScanComputation::groupedScanAggregation)
                     .toArray(GroupByScanAggregation[]::new);
             try (Table groupedResult = groupedScan(sorted, scanInputChannels, partitionChannels, aggregations)) {
-                for (int i = 0; i < specs.size(); i++) {
+                for (int i = 0; i < scanComputations.size(); i++) {
                     results[i] = groupedResult.getColumn(partitionChannels.length + i).incRefCount();
                 }
                 return results;
@@ -333,12 +344,12 @@ public final class GpuWindow
 
     private long estimateComputePeakBytes(Optional<@Borrow Table> sorted, int rowCount)
     {
-        if (specs.isEmpty()) {
+        if (scanComputations.isEmpty()) {
             return 0;
         }
 
-        long scanOutputBytes = specs.stream()
-                .mapToLong(spec -> (long) rowCount * spec.scanOutputBytesPerRow())
+        long scanOutputBytes = scanComputations.stream()
+                .mapToLong(computation -> (long) rowCount * computation.scanOutputBytesPerRow())
                 .sum();
         if (partitionChannels.length == 0) {
             return scanOutputBytes;
@@ -346,8 +357,8 @@ public final class GpuWindow
 
         checkState(sorted.isPresent(), "computation requires an input table");
         long partitionKeyBytes = estimatePartitionKeyBytes(sorted.get());
-        long scanWorkingBytes = specs.stream()
-                .mapToLong(spec -> (long) rowCount * spec.groupedScanWorkingBytesPerRow())
+        long scanWorkingBytes = scanComputations.stream()
+                .mapToLong(computation -> (long) rowCount * computation.groupedScanWorkingBytesPerRow())
                 .max()
                 .orElse(0);
         return partitionKeyBytes + scanOutputBytes + scanWorkingBytes;
