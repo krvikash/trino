@@ -180,8 +180,8 @@ public final class GpuWindowCompiler
 
         ImmutableList.Builder<Type> outputTypes = ImmutableList.builder();
         outputTypes.addAll(sourceTypes);
-        for (int i = 0; i < functions.size(); i++) {
-            outputTypes.add(BIGINT);
+        for (CompiledWindowFunction function : functions) {
+            outputTypes.add(function.outputType());
         }
 
         return new CompileResult.Success(
@@ -312,7 +312,8 @@ public final class GpuWindowCompiler
             GroupByScanAggregation groupedScan,
             int scanOutputBytesPerRow,
             int groupedScanWorkingBytesPerRow,
-            CompiledExpression postProjection)
+            CompiledExpression postProjection,
+            Type outputType)
     {
         public CompiledWindowFunction
         {
@@ -322,6 +323,7 @@ public final class GpuWindowCompiler
             checkArgument(scanOutputBytesPerRow > 0, "scanOutputBytesPerRow must be positive");
             checkArgument(groupedScanWorkingBytesPerRow >= 0, "groupedScanWorkingBytesPerRow is negative");
             requireNonNull(postProjection, "postProjection is null");
+            requireNonNull(outputType, "outputType is null");
         }
     }
 
@@ -333,7 +335,8 @@ public final class GpuWindowCompiler
                 GroupByScanAggregation.rank(),
                 RANK_SCAN_OUTPUT_BYTES_PER_ROW,
                 RANK_GROUPED_SCAN_WORKING_BYTES_PER_ROW,
-                CAST_SCAN_RESULT_TO_BIGINT);
+                CAST_SCAN_RESULT_TO_BIGINT,
+                BIGINT);
     }
 
     private static CompiledWindowFunction denseRank(Optional<GpuExpression> peerKey)
@@ -344,7 +347,8 @@ public final class GpuWindowCompiler
                 GroupByScanAggregation.denseRank(),
                 RANK_SCAN_OUTPUT_BYTES_PER_ROW,
                 RANK_GROUPED_SCAN_WORKING_BYTES_PER_ROW,
-                CAST_SCAN_RESULT_TO_BIGINT);
+                CAST_SCAN_RESULT_TO_BIGINT,
+                BIGINT);
     }
 
     private static CompiledWindowFunction rowNumber()
@@ -355,6 +359,7 @@ public final class GpuWindowCompiler
                 GroupByScanAggregation.sum(),
                 ROW_NUMBER_SCAN_OUTPUT_BYTES_PER_ROW,
                 ROW_NUMBER_GROUPED_SCAN_WORKING_BYTES_PER_ROW,
-                PASSTHROUGH);
+                PASSTHROUGH,
+                BIGINT);
     }
 }
