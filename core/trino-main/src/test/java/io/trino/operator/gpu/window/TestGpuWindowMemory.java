@@ -41,7 +41,7 @@ import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.trino.operator.gpu.GpuTestUtils.copyToDevice;
 import static io.trino.operator.gpu.GpuTestUtils.createPages;
 import static io.trino.operator.gpu.GpuTestUtils.maybeSetGpuMemoryPoolForTests;
-import static io.trino.operator.gpu.window.GpuWindowTestUtils.GPU_SUPPORTED_WINDOW_FUNCTIONS;
+import static io.trino.operator.gpu.window.GpuWindowTestUtils.TESTED_GPU_WINDOW_FUNCTIONS;
 import static io.trino.operator.gpu.window.GpuWindowTestUtils.compileWindow;
 import static io.trino.spi.connector.SortOrder.ASC_NULLS_LAST;
 import static io.trino.spi.type.BigintType.BIGINT;
@@ -65,7 +65,7 @@ final class TestGpuWindowMemory
     }
 
     @ParameterizedTest
-    @FieldSource("io.trino.operator.gpu.window.GpuWindowTestUtils#GPU_SUPPORTED_WINDOW_FUNCTIONS")
+    @FieldSource("io.trino.operator.gpu.window.GpuWindowTestUtils#TESTED_GPU_WINDOW_FUNCTIONS")
     void testSinglePartitionKeyAndOrderBy(String function)
     {
         testWindow(
@@ -83,7 +83,7 @@ final class TestGpuWindowMemory
     }
 
     @ParameterizedTest
-    @FieldSource("io.trino.operator.gpu.window.GpuWindowTestUtils#GPU_SUPPORTED_WINDOW_FUNCTIONS")
+    @FieldSource("io.trino.operator.gpu.window.GpuWindowTestUtils#TESTED_GPU_WINDOW_FUNCTIONS")
     void testMultipleOrderBy(String function)
     {
         testWindow(
@@ -110,7 +110,7 @@ final class TestGpuWindowMemory
     }
 
     @ParameterizedTest
-    @FieldSource("io.trino.operator.gpu.window.GpuWindowTestUtils#GPU_SUPPORTED_WINDOW_FUNCTIONS")
+    @FieldSource("io.trino.operator.gpu.window.GpuWindowTestUtils#TESTED_GPU_WINDOW_FUNCTIONS")
     void testMultiplePartitionBy(String function)
     {
         testWindow(
@@ -137,7 +137,7 @@ final class TestGpuWindowMemory
     }
 
     @ParameterizedTest
-    @FieldSource("io.trino.operator.gpu.window.GpuWindowTestUtils#GPU_SUPPORTED_WINDOW_FUNCTIONS")
+    @FieldSource("io.trino.operator.gpu.window.GpuWindowTestUtils#TESTED_GPU_WINDOW_FUNCTIONS")
     void testNoPartitionBy(String function)
     {
         testWindow(
@@ -149,7 +149,7 @@ final class TestGpuWindowMemory
     }
 
     @ParameterizedTest
-    @FieldSource("io.trino.operator.gpu.window.GpuWindowTestUtils#GPU_SUPPORTED_WINDOW_FUNCTIONS")
+    @FieldSource("io.trino.operator.gpu.window.GpuWindowTestUtils#TESTED_GPU_WINDOW_FUNCTIONS")
     void testNoOrderBy(String function)
     {
         testWindow(
@@ -168,7 +168,7 @@ final class TestGpuWindowMemory
                 new int[] {0},
                 new int[] {1},
                 List.of(ASC_NULLS_LAST),
-                GPU_SUPPORTED_WINDOW_FUNCTIONS);
+                TESTED_GPU_WINDOW_FUNCTIONS);
     }
 
     private void testWindow(

@@ -77,7 +77,7 @@ import static io.trino.operator.gpu.GpuTestUtils.drainToPages;
 import static io.trino.operator.gpu.GpuTestUtils.executeGpuOperation;
 import static io.trino.operator.gpu.GpuTestUtils.maybeSetGpuMemoryPoolForTests;
 import static io.trino.operator.gpu.GpuTestUtils.mergePages;
-import static io.trino.operator.gpu.window.GpuWindowTestUtils.GPU_SUPPORTED_WINDOW_FUNCTIONS;
+import static io.trino.operator.gpu.window.GpuWindowTestUtils.TESTED_GPU_WINDOW_FUNCTIONS;
 import static io.trino.operator.gpu.window.GpuWindowTestUtils.compileWindow;
 import static io.trino.operator.gpu.window.GpuWindowTestUtils.createOperation;
 import static io.trino.spi.connector.SortOrder.ASC_NULLS_LAST;
@@ -181,7 +181,7 @@ final class TestGpuWindow
     }
 
     @ParameterizedTest
-    @FieldSource("io.trino.operator.gpu.window.GpuWindowTestUtils#GPU_SUPPORTED_WINDOW_FUNCTIONS")
+    @FieldSource("io.trino.operator.gpu.window.GpuWindowTestUtils#TESTED_GPU_WINDOW_FUNCTIONS")
     void testNoSourceColumns(String function)
     {
         assertGpuWindowMatchesCpu(
@@ -262,7 +262,7 @@ final class TestGpuWindow
                 new int[] {0},
                 new int[] {1},
                 List.of(ASC_NULLS_LAST),
-                GPU_SUPPORTED_WINDOW_FUNCTIONS);
+                TESTED_GPU_WINDOW_FUNCTIONS);
     }
 
     @Test
@@ -277,11 +277,11 @@ final class TestGpuWindow
                 new int[] {0},
                 new int[] {1},
                 List.of(ASC_NULLS_LAST),
-                GPU_SUPPORTED_WINDOW_FUNCTIONS);
+                TESTED_GPU_WINDOW_FUNCTIONS);
     }
 
     @ParameterizedTest
-    @FieldSource("io.trino.operator.gpu.window.GpuWindowTestUtils#GPU_SUPPORTED_WINDOW_FUNCTIONS")
+    @FieldSource("io.trino.operator.gpu.window.GpuWindowTestUtils#TESTED_GPU_WINDOW_FUNCTIONS")
     void testCharKeysUsePaddedSemantics(String function)
     {
         Type charType = createCharType(2);
@@ -388,7 +388,7 @@ final class TestGpuWindow
     static Stream<Object[]> baseTestCases()
     {
         return Lists.cartesianProduct(
-                        GPU_SUPPORTED_WINDOW_FUNCTIONS,
+                        TESTED_GPU_WINDOW_FUNCTIONS,
                         POSITION_COUNTS,
                         ImmutableList.copyOf(NullsProvider.values()),
                         ImmutableList.copyOf(SortOrder.values()))
@@ -399,7 +399,7 @@ final class TestGpuWindow
     static Stream<Object[]> noOrderByTestCases()
     {
         return Lists.cartesianProduct(
-                        GPU_SUPPORTED_WINDOW_FUNCTIONS,
+                        TESTED_GPU_WINDOW_FUNCTIONS,
                         POSITION_COUNTS,
                         ImmutableList.copyOf(NullsProvider.values()))
                 .stream()
@@ -409,7 +409,7 @@ final class TestGpuWindow
     static Stream<Object[]> multiplePagesTestCases()
     {
         return Lists.cartesianProduct(
-                        GPU_SUPPORTED_WINDOW_FUNCTIONS,
+                        TESTED_GPU_WINDOW_FUNCTIONS,
                         ImmutableList.copyOf(NullsProvider.values()),
                         ImmutableList.copyOf(SortOrder.values()))
                 .stream()
@@ -419,7 +419,7 @@ final class TestGpuWindow
     static Stream<Object[]> floatingPointTestCases()
     {
         return Lists.cartesianProduct(
-                        GPU_SUPPORTED_WINDOW_FUNCTIONS,
+                        TESTED_GPU_WINDOW_FUNCTIONS,
                         TESTED_GPU_FLOATING_POINT_TYPES,
                         ImmutableList.copyOf(SortOrder.values()).reverse(),
                         FLOATING_POINT_EDGE_CASES)

@@ -39,7 +39,7 @@ public final class GpuWindowTestUtils
 {
     private GpuWindowTestUtils() {}
 
-    public static final List<String> GPU_SUPPORTED_WINDOW_FUNCTIONS = List.of("row_number", "rank", "dense_rank");
+    public static final List<String> TESTED_GPU_WINDOW_FUNCTIONS = List.of("row_number", "rank", "dense_rank");
 
     private static final TestingFunctionResolution FUNCTION_RESOLUTION = new TestingFunctionResolution();
 
