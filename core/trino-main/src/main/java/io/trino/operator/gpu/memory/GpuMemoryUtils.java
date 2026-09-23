@@ -227,7 +227,7 @@ public final class GpuMemoryUtils
     }
 
     /// cuDF validity mask: one bit per row, `ceil(rows / 8)` bytes padded to a 64-byte boundary.
-    private static long nullMaskBytes(long rowCount)
+    public static long nullMaskBytes(long rowCount)
     {
         return 64 * ceilDiv(ceilDiv(rowCount, 8), 64);
     }

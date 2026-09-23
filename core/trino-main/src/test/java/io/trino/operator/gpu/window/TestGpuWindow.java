@@ -31,12 +31,15 @@ import io.trino.operator.gpu.GpuOperation;
 import io.trino.operator.gpu.GpuTestUtils;
 import io.trino.operator.gpu.TestingGpuOperationContext;
 import io.trino.operator.gpu.window.GpuWindowCompiler.CompileResult;
+import io.trino.operator.window.AggregationWindowFunctionSupplier;
 import io.trino.operator.window.FrameInfo;
 import io.trino.spi.Page;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.connector.SortOrder;
 import io.trino.spi.function.WindowFunctionSupplier;
+import io.trino.spi.type.DecimalType;
+import io.trino.spi.type.Int128;
 import io.trino.spi.type.Type;
 import io.trino.sql.gen.TestColumnarFilters.NullsProvider;
 import io.trino.testing.TestingTaskContext;
@@ -47,6 +50,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.FieldSource;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -61,7 +65,6 @@ import java.util.stream.IntStream;
 import java.util.stream.LongStream;
 import java.util.stream.Stream;
 
-import static com.google.common.base.Verify.verify;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 import static io.airlift.concurrent.Threads.daemonThreadsNamed;
@@ -86,9 +89,12 @@ import static io.trino.operator.gpu.window.GpuWindowTestUtils.TESTED_GPU_WINDOW_
 import static io.trino.operator.gpu.window.GpuWindowTestUtils.compileWindow;
 import static io.trino.operator.gpu.window.GpuWindowTestUtils.createOperation;
 import static io.trino.spi.connector.SortOrder.ASC_NULLS_LAST;
-import static io.trino.spi.function.FunctionKind.WINDOW;
 import static io.trino.spi.type.BigintType.BIGINT;
+import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.spi.type.CharType.createCharType;
+import static io.trino.spi.type.DecimalType.createDecimalType;
+import static io.trino.spi.type.DoubleType.DOUBLE;
+import static io.trino.spi.type.RealType.REAL;
 import static io.trino.spi.type.VarbinaryType.VARBINARY;
 import static io.trino.sql.analyzer.TypeDescriptorProvider.fromTypes;
 import static io.trino.sql.gen.TestColumnarFilters.NullsProvider.NO_NULLS;
@@ -188,6 +194,19 @@ final class TestGpuWindow
                 createPages(testCase.sourceTypes(), nullsProvider, 1, POSITION_COUNT),
                 testCase.sourceTypes(),
                 new int[] {0},
+                new int[0],
+                List.of(),
+                List.of(testCase.function()));
+    }
+
+    @ParameterizedTest
+    @MethodSource("oneColumnWithNullProvider")
+    void testNoPartitionByNoOrderBy(WindowFunctionTestCase testCase, NullsProvider nullsProvider)
+    {
+        assertGpuWindowMatchesCpu(
+                createPages(testCase.sourceTypes(), nullsProvider, 1, POSITION_COUNT),
+                testCase.sourceTypes(),
+                new int[0],
                 new int[0],
                 List.of(),
                 List.of(testCase.function()));
@@ -455,6 +474,187 @@ final class TestGpuWindow
                         BoundTestedWindowFunction.of("row_number")));
     }
 
+    @Test
+    void testAvgShortDecimalSumExceeds64Bits()
+    {
+        // A short decimal is stored as a 64-bit value, and ten rows at the largest value decimal(18, 0) holds sum
+        // past Long.MAX_VALUE, so the running sum fits only because it is accumulated as DECIMAL128 rather than in
+        // the storage type of the input.
+        DecimalType decimalType = createDecimalType(18, 0);
+        int rowCount = 10;
+        for (Long longValue : List.of(999_999_999_999_999_999L, -999_999_999_999_999_999L)) {
+            BigInteger value = BigInteger.valueOf(longValue);
+            List<BigInteger> unscaledValues = ImmutableList.<BigInteger>builder()
+                    .add(value.subtract(BigInteger.valueOf(9L * value.signum())))  // to keep the divisions inexact
+                    .addAll(Collections.nCopies(rowCount - 1, value))
+                    .build();
+            assertAvgMatchesCpu(decimalType, GpuTestUtils.decimalBlock(decimalType, unscaledValues));
+        }
+    }
+
+    @Test
+    void testAvgLongDecimalSumExceedsDeclaredPrecision()
+    {
+        // The input is already DECIMAL128 here, so unlike in testAvgShortDecimalSumExceeds64Bits the sum outgrows
+        // the declared precision rather than the storage width: two values close to the precision-28 maximum
+        // already add up to 29 digits, which is allowed only because the running sum is not narrowed to the
+        // declared type.
+        DecimalType decimalType = createDecimalType(28, 0);
+        int rowCount = 10;
+        BigInteger max = BigInteger.TEN.pow(28).subtract(BigInteger.ONE);
+        for (BigInteger value : List.of(max, max.negate())) {
+            List<BigInteger> unscaledValues = ImmutableList.<BigInteger>builder()
+                    .add(value.subtract(BigInteger.valueOf(9L * value.signum()))) // to keep the divisions inexact
+                    .addAll(Collections.nCopies(rowCount - 1, value))
+                    .build();
+            assertAvgMatchesCpu(decimalType, GpuTestUtils.decimalBlock(decimalType, unscaledValues));
+        }
+    }
+
+    @ParameterizedTest
+    @MethodSource("avgDecimalTypes")
+    void testAvgDecimalHalfUpRounding(DecimalType decimalType)
+    {
+        // Unscaled values stay below 10 so that both the inputs and the results are valid for every tested
+        // precision, including 1. A sum of 3 over two rows lands exactly halfway, which HALF_UP rounds away
+        // from zero for both signs.
+        assertAvgMatchesCpu(decimalType, 1L, 2L);
+        assertAvgMatchesCpu(decimalType, -1L, -2L);
+        // 7 / 3 rounds towards zero and 8 / 3 away from it
+        assertAvgMatchesCpu(decimalType, 1L, 3L, 3L);
+        assertAvgMatchesCpu(decimalType, -1L, -3L, -3L);
+        assertAvgMatchesCpu(decimalType, 2L, 3L, 3L);
+        assertAvgMatchesCpu(decimalType, -2L, -3L, -3L);
+    }
+
+    @ParameterizedTest
+    @MethodSource("avgDecimalTypes")
+    void testAvgDecimalFrameWithOnlyNulls(DecimalType decimalType)
+    {
+        // In the first partition, the cumulative frames of the first two rows hold nulls only, so their count is
+        // zero and the average is null even though the partition has non-null rows further down. The second
+        // partition holds nulls only, so its frames are null-only over the whole partition as well.
+        assertAvgMatchesCpu(
+                List.of(new Page(
+                        createLongsBlock(1L, 1L, 1L, 1L, 2L, 2L),
+                        createLongSequenceBlock(0, 6),
+                        decimalBlock(decimalType, null, null, 2L, 4L, null, null))),
+                List.of(BIGINT, BIGINT, decimalType),
+                0,
+                1,
+                ASC_NULLS_LAST,
+                List.of(BoundTestedWindowFunction.of("avg", 2)));
+    }
+
+    @ParameterizedTest
+    @MethodSource("avgDecimalTypesAndSortOrders")
+    void testAvgDecimalFrameWithOnlyNullsAndNullOrderKeys(DecimalType decimalType, SortOrder sortOrder)
+    {
+        // Rows with a null order key are peers of each other. With NULLS FIRST they open the partition, so their
+        // shared frame holds nulls only; with NULLS LAST they close it, so their frame covers the whole partition.
+        // The second partition holds null order keys and null values only.
+        assertAvgMatchesCpu(
+                List.of(new Page(
+                        createLongsBlock(1L, 1L, 1L, 1L, 1L, 2L, 2L),
+                        createLongsBlock(null, null, 1L, 2L, 2L, null, null),
+                        decimalBlock(decimalType, null, null, 2L, null, 4L, null, null))),
+                List.of(BIGINT, BIGINT, decimalType),
+                0,
+                1,
+                sortOrder,
+                List.of(BoundTestedWindowFunction.of("avg", 2)));
+    }
+
+    @ParameterizedTest
+    @MethodSource("unsupportedAvgArgumentTypes")
+    void testAvgUnsupportedArgumentTypeFallsBackToCpu(Type argumentType)
+    {
+        CompileResult result = compileWindow(
+                List.of(BIGINT, argumentType),
+                new int[] {0},
+                new int[] {0},
+                List.of(ASC_NULLS_LAST),
+                List.of(BoundTestedWindowFunction.of("avg", 1)));
+
+        assertThat(result).isInstanceOfSatisfying(
+                CompileResult.Failure.class,
+                failure -> assertThat(failure.reason()).contains("unsupported window function"));
+    }
+
+    @Test
+    void testAvgMultipleDecimalFunctions()
+    {
+        DecimalType shortDecimal = createDecimalType(9, 2);
+        DecimalType longDecimal = createDecimalType(19, 4);
+        List<Type> sourceTypes = List.of(BIGINT, BIGINT, shortDecimal, longDecimal);
+        assertAvgMatchesCpu(
+                createPages(sourceTypes, RANDOM_NULLS, 1, POSITION_COUNT),
+                sourceTypes,
+                0,
+                1,
+                ASC_NULLS_LAST,
+                List.of(
+                        BoundTestedWindowFunction.of("avg", 2),
+                        BoundTestedWindowFunction.of("avg", 3),
+                        BoundTestedWindowFunction.of("avg", 2),
+                        BoundTestedWindowFunction.of("avg", 3)));
+    }
+
+    @Test
+    void testAvgInterleavedWithScanFunctions()
+    {
+        // Rolling and scan computations run in separate batches, so their results must be put back in the order
+        // of the functions rather than batch by batch
+        DecimalType shortDecimal = createDecimalType(9, 2);
+        DecimalType longDecimal = createDecimalType(19, 4);
+        List<Type> sourceTypes = List.of(BIGINT, BIGINT, shortDecimal, longDecimal);
+        assertAvgMatchesCpu(
+                createPages(sourceTypes, RANDOM_NULLS, 1, POSITION_COUNT),
+                sourceTypes,
+                0,
+                1,
+                ASC_NULLS_LAST,
+                List.of(
+                        BoundTestedWindowFunction.of("avg", 2),
+                        BoundTestedWindowFunction.of("rank"),
+                        BoundTestedWindowFunction.of("avg", 3),
+                        BoundTestedWindowFunction.of("row_number"),
+                        BoundTestedWindowFunction.of("dense_rank")));
+    }
+
+    static Stream<DecimalType> avgDecimalTypes()
+    {
+        return Stream.of(
+                createDecimalType(1, 0),
+                createDecimalType(18, 0),
+                createDecimalType(18, 9),
+                createDecimalType(18, 18),
+                createDecimalType(19, 0),
+                createDecimalType(19, 10),
+                createDecimalType(28, 0),
+                createDecimalType(28, 14),
+                createDecimalType(28, 28));
+    }
+
+    static Stream<Object[]> avgDecimalTypesAndSortOrders()
+    {
+        return Lists.cartesianProduct(
+                        avgDecimalTypes().collect(toImmutableList()),
+                        ImmutableList.copyOf(SortOrder.values()))
+                .stream()
+                .map(List::toArray);
+    }
+
+    static Stream<Type> unsupportedAvgArgumentTypes()
+    {
+        return Stream.of(
+                createDecimalType(29, 0),
+                createDecimalType(38, 10),
+                BIGINT,
+                DOUBLE,
+                REAL);
+    }
+
     static Stream<Object[]> oneColumnWithNullProvider()
     {
         return Lists.cartesianProduct(
@@ -582,6 +782,59 @@ final class TestGpuWindow
         return new Page(blocks.build().toArray(Block[]::new));
     }
 
+    private static void assertAvgMatchesCpu(DecimalType decimalType, Long... unscaledValues)
+    {
+        assertAvgMatchesCpu(decimalType, decimalBlock(decimalType, unscaledValues));
+    }
+
+    private static void assertAvgMatchesCpu(DecimalType decimalType, Block values)
+    {
+        // Distinct order keys make every frame cumulative, so the last frame covers the whole partition and the
+        // earlier frames are verified as well
+        int rowCount = values.getPositionCount();
+        assertAvgMatchesCpu(
+                List.of(new Page(
+                        createLongsBlock(Collections.nCopies(rowCount, 1L)),
+                        createLongSequenceBlock(0, rowCount),
+                        values)),
+                List.of(BIGINT, BIGINT, decimalType),
+                0,
+                1,
+                ASC_NULLS_LAST,
+                List.of(BoundTestedWindowFunction.of("avg", 2)));
+    }
+
+    private static void assertAvgMatchesCpu(
+            List<Page> inputPages,
+            List<Type> sourceTypes,
+            int partitionChannel,
+            int orderChannel,
+            SortOrder sortOrder,
+            List<BoundTestedWindowFunction> functions)
+    {
+        for (int[] partitionChannels : List.of(new int[] {partitionChannel}, new int[0])) {
+            // With order keys, the frame runs from the start of the partition to the last peer of the current row,
+            // which cuDF computes as a window bounded by order key values
+            assertGpuWindowMatchesCpu(
+                    inputPages,
+                    sourceTypes,
+                    partitionChannels,
+                    new int[] {orderChannel},
+                    List.of(sortOrder),
+                    functions);
+            // Without order keys, the frame is the whole partition, which cuDF computes as a window bounded by row offsets
+            // and unbounded in both directions.
+            // Without partition keys either, that partition is the whole input.
+            assertGpuWindowMatchesCpu(
+                    inputPages,
+                    sourceTypes,
+                    partitionChannels,
+                    new int[0],
+                    List.of(),
+                    functions);
+        }
+    }
+
     private static void assertGpuWindowMatchesCpu(
             List<Page> inputPages,
             List<Type> sourceTypes,
@@ -613,7 +866,10 @@ final class TestGpuWindow
 
     private static boolean isUnsupported(List<BoundTestedWindowFunction> functions, int[] orderChannels, List<Type> sourceTypes)
     {
-        return containsType(orderChannels, sourceTypes, VARBINARY) && containsFunction(functions, "rank", "dense_rank");
+        if (containsType(orderChannels, sourceTypes, VARBINARY) && containsFunction(functions, "rank", "dense_rank")) {
+            return true;
+        }
+        return containsType(orderChannels, sourceTypes, BOOLEAN, VARBINARY, REAL, DOUBLE) && containsFunction(functions, "avg");
     }
 
     private static boolean containsType(int[] orderChannels, List<Type> sourceTypes, Type... types)
@@ -766,6 +1022,23 @@ final class TestGpuWindow
         return toPages(factory, driverContext, inputPages);
     }
 
+    private static Block decimalBlock(DecimalType decimalType, Long... unscaledValues)
+    {
+        BlockBuilder builder = decimalType.createBlockBuilder(null, unscaledValues.length);
+        for (Long value : unscaledValues) {
+            if (value == null) {
+                builder.appendNull();
+            }
+            else if (decimalType.isShort()) {
+                decimalType.writeLong(builder, value);
+            }
+            else {
+                decimalType.writeObject(builder, Int128.valueOf(BigInteger.valueOf(value)));
+            }
+        }
+        return builder.build();
+    }
+
     private static WindowFunctionDefinition windowFunctionDefinition(BoundTestedWindowFunction spec, List<Type> sourceTypes)
     {
         List<Type> argumentTypes = Arrays.stream(spec.argumentChannels())
@@ -773,8 +1046,14 @@ final class TestGpuWindow
                 .collect(toImmutableList());
         ResolvedFunction resolvedFunction = FUNCTION_RESOLUTION.resolveFunction(spec.name(), fromTypes(argumentTypes));
         FunctionManager functionManager = FUNCTION_RESOLUTION.getPlannerContext().getFunctionManager();
-        verify(resolvedFunction.functionKind() == WINDOW, "Unsupported function kind: %s", resolvedFunction.functionKind());
-        WindowFunctionSupplier supplier = functionManager.getWindowFunctionSupplier(resolvedFunction);
+        WindowFunctionSupplier supplier = switch (resolvedFunction.functionKind()) {
+            case AGGREGATE -> new AggregationWindowFunctionSupplier(
+                    resolvedFunction.signature(),
+                    functionManager.getAggregationImplementation(resolvedFunction),
+                    resolvedFunction.functionNullability());
+            case WINDOW -> functionManager.getWindowFunctionSupplier(resolvedFunction);
+            default -> throw new IllegalStateException("Unsupported function kind: " + resolvedFunction.functionKind());
+        };
         return WindowFunctionDefinition.window(
                 supplier,
                 resolvedFunction.signature().getReturnType(),

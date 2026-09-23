@@ -15,6 +15,8 @@ package io.trino.operator.gpu.window;
 
 import ai.rapids.cudf.DType;
 import ai.rapids.cudf.GroupByScanAggregation;
+import ai.rapids.cudf.NullPolicy;
+import ai.rapids.cudf.RollingAggregation;
 import ai.rapids.cudf.ScanAggregation;
 import com.google.common.collect.ImmutableList;
 import io.trino.metadata.ResolvedFunction;
@@ -25,13 +27,19 @@ import io.trino.operator.gpu.expression.CompiledExpression;
 import io.trino.operator.gpu.expression.GetColumn;
 import io.trino.operator.gpu.expression.GpuCast;
 import io.trino.operator.gpu.expression.GpuConstant;
+import io.trino.operator.gpu.expression.GpuDivideRoundToScale;
 import io.trino.operator.gpu.expression.GpuExpression;
 import io.trino.operator.gpu.expression.GpuStruct;
 import io.trino.operator.project.InputChannels;
 import io.trino.spi.connector.SortOrder;
-import io.trino.spi.function.FunctionKind;
+import io.trino.spi.type.BooleanType;
+import io.trino.spi.type.DecimalType;
+import io.trino.spi.type.DoubleType;
+import io.trino.spi.type.RealType;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.VarbinaryType;
+import io.trino.sql.ir.Expression;
+import io.trino.sql.ir.Reference;
 import io.trino.sql.planner.OrderingScheme;
 import io.trino.sql.planner.Symbol;
 import io.trino.sql.planner.plan.WindowNode;
@@ -65,6 +73,9 @@ public final class GpuWindowCompiler
     private static final int ROW_NUMBER_SCAN_OUTPUT_BYTES_PER_ROW = DType.INT64.getSizeInBytes();
     // cuDF's sort_groupby_helper (sort_helper.cu) allocates three shared INT32 columns: _key_sorted_order, _group_offsets, _group_labels.
     private static final int ROW_NUMBER_GROUPED_SCAN_WORKING_BYTES_PER_ROW = 3 * DType.INT32.getSizeInBytes();
+    // cuDF's DECIMAL128 rolling sum wraps around on overflow instead of failing. A cuDF column holds at most 2^31 - 1 rows,
+    // so a sum of precision-28 values stays below (2^31 - 1) * 10^28 < 2^127, while precision 29 could exceed it
+    private static final int MAX_DECIMAL128_SUM_AVG_PRECISION = 28;
 
     public sealed interface CompileResult
     {
@@ -131,9 +142,6 @@ public final class GpuWindowCompiler
             WindowNode.Function function = entry.getValue();
             ResolvedFunction resolvedFunction = function.getResolvedFunction();
 
-            if (resolvedFunction.functionKind() != FunctionKind.WINDOW) {
-                return new CompileResult.Failure("non-window function: " + resolvedFunction.name());
-            }
             if (!isBuiltinFunctionName(resolvedFunction.name())) {
                 return new CompileResult.Failure("non-builtin function: " + resolvedFunction.name());
             }
@@ -150,10 +158,13 @@ public final class GpuWindowCompiler
                 return new CompileResult.Failure("non-default frame: " + resolvedFunction.name());
             }
 
-            String functionName = resolvedFunction.name().functionName();
-            Optional<CompiledWindowFunction> compiledFunction = compileWindowFunction(resolvedFunction, function, peerKey, orderTypes);
+            Optional<CompiledWindowFunction> compiledFunction = switch (resolvedFunction.functionKind()) {
+                case WINDOW -> compileWindowFunction(resolvedFunction, function, peerKey, orderTypes);
+                case AGGREGATE -> compileAggregateFunction(resolvedFunction, function, sourceLayout, orderTypes);
+                default -> Optional.empty();
+            };
             if (compiledFunction.isEmpty()) {
-                return new CompileResult.Failure("unsupported window function: " + functionName);
+                return new CompileResult.Failure("unsupported window function: " + resolvedFunction.name());
             }
             functionsBuilder.add(compiledFunction.orElseThrow());
         }
@@ -190,6 +201,83 @@ public final class GpuWindowCompiler
             case "dense_rank" -> denseRank(function, peerKey, orderTypes);
             default -> Optional.empty();
         };
+    }
+
+    private static Optional<CompiledWindowFunction> compileAggregateFunction(
+            ResolvedFunction resolvedFunction,
+            WindowNode.Function function,
+            Map<Symbol, Integer> sourceLayout,
+            List<Type> orderTypes)
+    {
+        String functionName = resolvedFunction.name().functionName();
+        return switch (functionName) {
+            case "avg" -> compileAvgDecimal(function, sourceLayout, orderTypes);
+            default -> Optional.empty();
+        };
+    }
+
+    private static Optional<CompiledWindowFunction> compileAvgDecimal(WindowNode.Function function, Map<Symbol, Integer> sourceLayout, List<Type> orderTypes)
+    {
+        // Table.aggregateWindowsOverRanges accepts only integral (Boolean-exclusive), decimal, timestamp and string order-by columns.
+        // Excluding the rest is simpler than listing these; TestGpuWindow covers every type as an order key.
+        if (orderTypes.stream().anyMatch(type -> type instanceof BooleanType || type instanceof VarbinaryType)) {
+            return Optional.empty();
+        }
+        // cuDF does accept floating-point order keys, but it derives the frame boundaries from its own
+        // comparisons, which always order NaN after every real value.
+        if (orderTypes.stream().anyMatch(type -> type instanceof RealType || type instanceof DoubleType)) {
+            return Optional.empty();
+        }
+
+        List<Expression> arguments = function.getArguments();
+        if (arguments.size() != 1) {
+            return Optional.empty();
+        }
+        if (!(arguments.getFirst() instanceof Reference reference)) {
+            return Optional.empty();
+        }
+
+        Symbol symbol = Symbol.from(reference);
+        if (!(symbol.type() instanceof DecimalType decimalType)) {
+            return Optional.empty();
+        }
+        if (decimalType.getPrecision() > MAX_DECIMAL128_SUM_AVG_PRECISION) {
+            return Optional.empty();
+        }
+
+        int sourceChannel = verifyNotNull(sourceLayout.get(symbol), "channel for symbol %s is not in source layout", symbol);
+        // Trino scale s means unscaled / 10^s; cuDF scale convention is unscaled * 10^scale, so negate
+        DType decimal128Type = DType.create(DType.DTypeEnum.DECIMAL128, -decimalType.getScale());
+
+        GpuExpression sumInput;
+        if (decimalType.isShort()) {
+            sumInput = new GpuCast(new GetColumn(sourceChannel), decimal128Type);
+        }
+        else {
+            sumInput = new GetColumn(sourceChannel);
+        }
+        GpuExpression countInput = new GetColumn(sourceChannel);
+
+        // cuDF rolling COUNT returns INT32 (size_type), which cannot overflow since a single cuDF column holds at most 2^31 - 1 rows
+        // widen it to INT64 because GpuDivideRoundToScale takes a BIGINT divisor
+        GpuExpression countAsInt64 = new GpuCast(new GetColumn(1), DType.INT64);
+        GpuExpression divideExpression = new GpuDivideRoundToScale(new GetColumn(0), countAsInt64);
+        GpuExpression postExpression;
+        if (decimalType.isShort()) {
+            DType decimal64Type = DType.create(DType.DTypeEnum.DECIMAL64, -decimalType.getScale());
+            postExpression = new GpuCast(divideExpression, decimal64Type);
+        }
+        else {
+            postExpression = divideExpression;
+        }
+        CompiledExpression postProjection = new CompiledExpression(postExpression, new InputChannels(ImmutableList.of(0, 1)));
+
+        return Optional.of(new CompiledWindowFunction(
+                ImmutableList.of(
+                        new RollingComputation(sumInput, RollingAggregation.sum(), decimal128Type.getSizeInBytes()),
+                        new RollingComputation(countInput, RollingAggregation.count(NullPolicy.EXCLUDE), DType.INT32.getSizeInBytes())),
+                postProjection,
+                decimalType));
     }
 
     private static Optional<GpuExpression> peerKey(int[] orderChannels)
@@ -407,6 +495,26 @@ public final class GpuWindowCompiler
         public GpuWindow.WindowComputation bindToChannel(int inputChannel)
         {
             return new GpuWindow.ScanComputation(inputChannel, scan, groupedScan, scanOutputBytesPerRow, groupedScanWorkingBytesPerRow);
+        }
+    }
+
+    private record RollingComputation(
+            GpuExpression input,
+            RollingAggregation rollingAggregation,
+            int outputBytesPerRow)
+            implements WindowComputation
+    {
+        public RollingComputation
+        {
+            requireNonNull(input, "input is null");
+            requireNonNull(rollingAggregation, "rollingAggregation is null");
+            checkArgument(outputBytesPerRow > 0, "outputBytesPerRow must be positive");
+        }
+
+        @Override
+        public GpuWindow.WindowComputation bindToChannel(int inputChannel)
+        {
+            return new GpuWindow.RollingComputation(inputChannel, rollingAggregation, outputBytesPerRow);
         }
     }
 }

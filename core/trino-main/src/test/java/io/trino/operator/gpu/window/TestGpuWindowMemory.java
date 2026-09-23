@@ -60,6 +60,7 @@ final class TestGpuWindowMemory
 {
     private static final int ROWS_PER_PAGE = 1_234_567;
     private static final int MULTIPLE_PAGES = 4;
+    private static final int MEGABYTE = 1024 * 1024;
 
     @BeforeAll
     static void maybeSetGpuMemoryPool()
@@ -117,11 +118,33 @@ final class TestGpuWindowMemory
     @MethodSource("noOrderByTestCases")
     void testNoOrderBy(WindowFunctionTestCase testCase)
     {
-        testWindow(
-                testCase,
-                new int[] {0},
-                new int[] {},
-                List.of());
+        if ("avg".equals(testCase.function().name())) {
+            testWindow(
+                    testCase.sourceTypes(),
+                    new int[] {0},
+                    new int[] {},
+                    List.of(),
+                    List.of(testCase.function()),
+                    1,
+                    MEGABYTE);
+            testWindow(
+                    testCase.sourceTypes(),
+                    new int[] {0},
+                    new int[] {},
+                    List.of(),
+                    List.of(testCase.function()),
+                    MULTIPLE_PAGES,
+                    // Larger margin for a partitioned avg without order by, because its estimate charges one partition per row, an upper bound that
+                    // the multi-page input does not reach: every page repeats the same keys, which leaves about a quarter as many partitions as rows.
+                    4 * MEGABYTE);
+        }
+        else {
+            testWindow(
+                    testCase,
+                    new int[] {0},
+                    new int[] {},
+                    List.of());
+        }
     }
 
     @Test
@@ -180,7 +203,8 @@ final class TestGpuWindowMemory
                 orderChannels,
                 orderSortOrders,
                 List.of(testCase.function()),
-                pageCount);
+                pageCount,
+                MEGABYTE);
     }
 
     static Stream<WindowFunctionTestCase> singlePartitionKeyAndOrderByTestCases()
@@ -238,8 +262,8 @@ final class TestGpuWindowMemory
             List<SortOrder> orderSortOrders,
             List<BoundTestedWindowFunction> functions)
     {
-        testWindow(inputTypes, partitionChannels, orderChannels, orderSortOrders, functions, 1);
-        testWindow(inputTypes, partitionChannels, orderChannels, orderSortOrders, functions, MULTIPLE_PAGES);
+        testWindow(inputTypes, partitionChannels, orderChannels, orderSortOrders, functions, 1, MEGABYTE);
+        testWindow(inputTypes, partitionChannels, orderChannels, orderSortOrders, functions, MULTIPLE_PAGES, MEGABYTE);
     }
 
     private void testWindow(
@@ -248,10 +272,11 @@ final class TestGpuWindowMemory
             int[] orderChannels,
             List<SortOrder> orderSortOrders,
             List<BoundTestedWindowFunction> functions,
-            int pageCount)
+            int pageCount,
+            long marginBytes)
     {
         TestingGpuOperationContext context = new TestingGpuOperationContext();
-        try (GpuDeviceMemoryUsageValidation memoryValidation = GpuDeviceMemoryUsageValidation.createAndRegister(context, 1024 * 1024)) {
+        try (GpuDeviceMemoryUsageValidation memoryValidation = GpuDeviceMemoryUsageValidation.createAndRegister(context, marginBytes)) {
             Iterator<Page> inputPages = createPages(inputTypes, NO_NULLS, pageCount, ROWS_PER_PAGE, true);
 
             CompileResult result = compileWindow(inputTypes, partitionChannels, orderChannels, orderSortOrders, functions);

@@ -34,6 +34,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static io.trino.spi.type.DecimalType.createDecimalType;
 import static io.trino.sql.analyzer.TypeDescriptorProvider.fromTypes;
 
 public final class GpuWindowTestUtils
@@ -43,7 +44,8 @@ public final class GpuWindowTestUtils
     public static final List<TestedWindowFunction> TESTED_GPU_WINDOW_FUNCTIONS = List.of(
             new TestedWindowFunction("row_number", List.of()),
             new TestedWindowFunction("rank", List.of()),
-            new TestedWindowFunction("dense_rank", List.of()));
+            new TestedWindowFunction("dense_rank", List.of()),
+            new TestedWindowFunction("avg", List.of(createDecimalType(28, 2))));
 
     private static final TestingFunctionResolution FUNCTION_RESOLUTION = new TestingFunctionResolution();
 
