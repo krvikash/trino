@@ -31,6 +31,8 @@ updates:
     ignore:
       # TODO remove once https://github.com/jline/jline3/issues/1879 has been addressed
       - dependency-name: "org.jline:jline-*"
+      # org.apache.iceberg is pinned to a private fork
+      - dependency-name: "org.apache.iceberg:*"
   - package-ecosystem: "npm"
     directory: "/core/trino-web-ui/src/main/resources/webapp"
     schedule:
