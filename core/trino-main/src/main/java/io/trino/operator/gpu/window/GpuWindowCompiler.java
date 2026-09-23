@@ -17,7 +17,6 @@ import ai.rapids.cudf.DType;
 import ai.rapids.cudf.GroupByScanAggregation;
 import ai.rapids.cudf.ScanAggregation;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSet;
 import io.trino.metadata.ResolvedFunction;
 import io.trino.operator.gpu.GpuOperation;
 import io.trino.operator.gpu.GpuProject;
@@ -37,13 +36,11 @@ import io.trino.sql.planner.OrderingScheme;
 import io.trino.sql.planner.Symbol;
 import io.trino.sql.planner.plan.WindowNode;
 
-import java.util.Arrays;
 import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Verify.verifyNotNull;
@@ -68,7 +65,6 @@ public final class GpuWindowCompiler
     private static final int ROW_NUMBER_SCAN_OUTPUT_BYTES_PER_ROW = DType.INT64.getSizeInBytes();
     // cuDF's sort_groupby_helper (sort_helper.cu) allocates three shared INT32 columns: _key_sorted_order, _group_offsets, _group_labels.
     private static final int ROW_NUMBER_GROUPED_SCAN_WORKING_BYTES_PER_ROW = 3 * DType.INT32.getSizeInBytes();
-    private static final Set<String> PEER_COMPARING_FUNCTIONS = ImmutableSet.of("rank", "dense_rank");
 
     public sealed interface CompileResult
     {
@@ -127,8 +123,8 @@ public final class GpuWindowCompiler
             orderChannels = new int[0];
         }
         List<SortOrder> orderSortOrders = orderSortOrdersBuilder.build();
+        List<Type> orderTypes = orderTypesBuilder.build();
         Optional<GpuExpression> peerKey = peerKey(orderChannels);
-        boolean hasVarbinaryPeerKey = Arrays.stream(orderChannels).mapToObj(sourceTypes::get).anyMatch(VarbinaryType.class::isInstance);
 
         ImmutableList.Builder<CompiledWindowFunction> functionsBuilder = ImmutableList.builder();
         for (Map.Entry<Symbol, WindowNode.Function> entry : node.getWindowFunctions().entrySet()) {
@@ -140,9 +136,6 @@ public final class GpuWindowCompiler
             }
             if (!isBuiltinFunctionName(resolvedFunction.name())) {
                 return new CompileResult.Failure("non-builtin function: " + resolvedFunction.name());
-            }
-            if (!function.getArguments().isEmpty()) {
-                return new CompileResult.Failure("function with arguments: " + resolvedFunction.name());
             }
             if (function.getOrderingScheme().isPresent()) {
                 return new CompileResult.Failure("function with ordering: " + resolvedFunction.name());
@@ -156,25 +149,13 @@ public final class GpuWindowCompiler
             if (!function.getFrame().equals(WindowNode.Frame.DEFAULT_FRAME)) {
                 return new CompileResult.Failure("non-default frame: " + resolvedFunction.name());
             }
-            if (resolvedFunction.signature().getReturnType() != BIGINT) {
-                return new CompileResult.Failure("unsupported return type: %s for function: %s".formatted(resolvedFunction.signature().getReturnType(), resolvedFunction.name()));
-            }
 
             String functionName = resolvedFunction.name().functionName();
-            if (hasVarbinaryPeerKey && PEER_COMPARING_FUNCTIONS.contains(functionName)) {
-                // VARBINARY maps to cuDF list columns, which grouped rank scan rejects.
-                return new CompileResult.Failure("unsupported order key type: VARBINARY");
-            }
-            CompiledWindowFunction compiledFunction = switch (functionName) {
-                case "row_number" -> rowNumber();
-                case "rank" -> rank(peerKey);
-                case "dense_rank" -> denseRank(peerKey);
-                default -> null;
-            };
-            if (compiledFunction == null) {
+            Optional<CompiledWindowFunction> compiledFunction = compileWindowFunction(resolvedFunction, function, peerKey, orderTypes);
+            if (compiledFunction.isEmpty()) {
                 return new CompileResult.Failure("unsupported window function: " + functionName);
             }
-            functionsBuilder.add(compiledFunction);
+            functionsBuilder.add(compiledFunction.orElseThrow());
         }
         List<CompiledWindowFunction> functions = functionsBuilder.build();
 
@@ -189,11 +170,26 @@ public final class GpuWindowCompiler
                         sourceTypes.size(),
                         partitionTypesBuilder.build(),
                         partitionChannels,
-                        orderTypesBuilder.build(),
+                        orderTypes,
                         orderChannels,
                         orderSortOrders,
                         functions),
                 outputTypes.build());
+    }
+
+    private static Optional<CompiledWindowFunction> compileWindowFunction(
+            ResolvedFunction resolvedFunction,
+            WindowNode.Function function,
+            Optional<GpuExpression> peerKey,
+            List<Type> orderTypes)
+    {
+        String functionName = resolvedFunction.name().functionName();
+        return switch (functionName) {
+            case "row_number" -> rowNumber(function);
+            case "rank" -> rank(function, peerKey, orderTypes);
+            case "dense_rank" -> denseRank(function, peerKey, orderTypes);
+            default -> Optional.empty();
+        };
     }
 
     private static Optional<GpuExpression> peerKey(int[] orderChannels)
@@ -327,39 +323,61 @@ public final class GpuWindowCompiler
         }
     }
 
-    private static CompiledWindowFunction rank(Optional<GpuExpression> peerKey)
+    private static Optional<CompiledWindowFunction> rank(WindowNode.Function function, Optional<GpuExpression> peerKey, List<Type> orderTypes)
     {
-        return new CompiledWindowFunction(
+        if (hasArgumentsOrNonBigintResult(function)) {
+            return Optional.empty();
+        }
+        if (orderTypes.stream().anyMatch(type -> type instanceof VarbinaryType)) {
+            // VARBINARY maps to cuDF list columns, which grouped rank scan rejects.
+            return Optional.empty();
+        }
+        return Optional.of(new CompiledWindowFunction(
                 peerKey.orElse(ONE),
                 ScanAggregation.rank(),
                 GroupByScanAggregation.rank(),
                 RANK_SCAN_OUTPUT_BYTES_PER_ROW,
                 RANK_GROUPED_SCAN_WORKING_BYTES_PER_ROW,
                 CAST_SCAN_RESULT_TO_BIGINT,
-                BIGINT);
+                BIGINT));
     }
 
-    private static CompiledWindowFunction denseRank(Optional<GpuExpression> peerKey)
+    private static Optional<CompiledWindowFunction> denseRank(WindowNode.Function function, Optional<GpuExpression> peerKey, List<Type> orderTypes)
     {
-        return new CompiledWindowFunction(
+        if (hasArgumentsOrNonBigintResult(function)) {
+            return Optional.empty();
+        }
+        if (orderTypes.stream().anyMatch(type -> type instanceof VarbinaryType)) {
+            // VARBINARY maps to cuDF list columns, which grouped rank scan rejects.
+            return Optional.empty();
+        }
+        return Optional.of(new CompiledWindowFunction(
                 peerKey.orElse(ONE),
                 ScanAggregation.denseRank(),
                 GroupByScanAggregation.denseRank(),
                 RANK_SCAN_OUTPUT_BYTES_PER_ROW,
                 RANK_GROUPED_SCAN_WORKING_BYTES_PER_ROW,
                 CAST_SCAN_RESULT_TO_BIGINT,
-                BIGINT);
+                BIGINT));
     }
 
-    private static CompiledWindowFunction rowNumber()
+    private static Optional<CompiledWindowFunction> rowNumber(WindowNode.Function function)
     {
-        return new CompiledWindowFunction(
+        if (hasArgumentsOrNonBigintResult(function)) {
+            return Optional.empty();
+        }
+        return Optional.of(new CompiledWindowFunction(
                 ONE,
                 ScanAggregation.sum(),
                 GroupByScanAggregation.sum(),
                 ROW_NUMBER_SCAN_OUTPUT_BYTES_PER_ROW,
                 ROW_NUMBER_GROUPED_SCAN_WORKING_BYTES_PER_ROW,
                 PASSTHROUGH,
-                BIGINT);
+                BIGINT));
+    }
+
+    private static boolean hasArgumentsOrNonBigintResult(WindowNode.Function function)
+    {
+        return !function.getArguments().isEmpty() || function.getResolvedFunction().signature().getReturnType() != BIGINT;
     }
 }
