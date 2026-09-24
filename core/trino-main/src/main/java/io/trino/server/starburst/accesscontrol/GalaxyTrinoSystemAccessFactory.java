@@ -27,6 +27,7 @@ import io.trino.spi.security.SystemAccessControlFactory;
 import java.util.Map;
 
 import static io.airlift.configuration.ConfigBinder.configBinder;
+import static io.trino.server.starburst.accesscontrol.GalaxySystemAccessControlConfig.AccessControlMode.GALAXY;
 import static java.util.Objects.requireNonNull;
 
 public class GalaxyTrinoSystemAccessFactory
@@ -81,7 +82,9 @@ public class GalaxyTrinoSystemAccessFactory
                     //  Only here we're provided with `galaxy.read-only-catalogs` values.
                     binder.bind(CatalogResolver.class).to(StaticCatalogResolver.class);
                     configBinder(binder).bindConfig(GalaxyAccessControlConfig.class);
-                    configBinder(binder).bindConfig(GalaxyAccessControlUrlsConfig.class);
+                    if (accessControlMode == GALAXY) {
+                        configBinder(binder).bindConfig(GalaxyAccessControlUrlsConfig.class);
+                    }
 
                     configBinder(binder).bindConfig(GalaxySystemAccessControlConfig.class);
                     binder.bind(TrinoSecurityApi.class).toInstance(trinoSecurityApi);

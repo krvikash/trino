@@ -21,9 +21,10 @@ import java.net.URI;
 import java.util.Optional;
 
 public class GalaxyAccessControlUrlsConfig
+        implements GalaxyAccessControlUris
 {
     private URI accountUri;
-    private URI accessControlOverrideUri;
+    private URI accessControlUri;
     private Optional<URI> regionalAccessControlUri = Optional.empty();
 
     @NotNull
@@ -39,19 +40,21 @@ public class GalaxyAccessControlUrlsConfig
         return this;
     }
 
+    @Override
     @NotNull
-    public URI getAccessControlOverrideUri()
+    public URI getAccessControlUri()
     {
-        return accessControlOverrideUri;
+        return accessControlUri;
     }
 
     @Config("galaxy.access-control-url")
-    public GalaxyAccessControlUrlsConfig setAccessControlOverrideUri(URI accessControlOverrideUri)
+    public GalaxyAccessControlUrlsConfig setAccessControlUri(URI accessControlUri)
     {
-        this.accessControlOverrideUri = accessControlOverrideUri;
+        this.accessControlUri = accessControlUri;
         return this;
     }
 
+    @Override
     @NotNull
     public Optional<URI> getRegionalAccessControlUri()
     {

@@ -32,7 +32,7 @@ public class TestGalaxyAccessControlUrlsConfig
         assertRecordedDefaults(recordDefaults(GalaxyAccessControlUrlsConfig.class)
                 // No defaults for the accountUri
                 .setAccountUri(null)
-                .setAccessControlOverrideUri(null)
+                .setAccessControlUri(null)
                 .setRegionalAccessControlUri(null));
     }
 
@@ -48,7 +48,7 @@ public class TestGalaxyAccessControlUrlsConfig
 
         GalaxyAccessControlUrlsConfig expected = new GalaxyAccessControlUrlsConfig()
                 .setAccountUri(URI.create("https://whackadoodle.galaxy.com"))
-                .setAccessControlOverrideUri(URI.create("https://whackadoodle.aws-us-east1.accesscontrol.galaxy.com"))
+                .setAccessControlUri(URI.create("https://whackadoodle.aws-us-east1.accesscontrol.galaxy.com"))
                 .setRegionalAccessControlUri(URI.create("https://whackadoodle.aws-us-west2.accesscontrol.galaxy.com"));
 
         assertFullMapping(properties, expected);

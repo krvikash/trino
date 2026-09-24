@@ -21,23 +21,34 @@ import io.airlift.http.client.HttpClient;
 import io.airlift.units.Duration;
 import io.starburst.stargate.accesscontrol.client.HttpTrinoSecurityClient;
 import io.starburst.stargate.accesscontrol.client.TrinoSecurityApi;
+import io.trino.server.starburst.accesscontrol.GalaxyAccessControlUris;
 import io.trino.server.starburst.accesscontrol.GalaxyAccessControlUrlsConfig;
+import io.trino.server.starburst.accesscontrol.GalaxySystemAccessControlConfig;
 
 import java.net.URI;
 
+import static com.google.inject.Scopes.SINGLETON;
 import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.airlift.http.client.HttpClientBinder.httpClientBinder;
+import static io.trino.server.starburst.accesscontrol.GalaxySystemAccessControlConfig.AccessControlMode.GALAXY;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 public class GalaxySecurityHttpClientModule
         extends AbstractConfigurationAwareModule
 {
-    @Override
-    protected void setup(Binder binder)
+    @Provides
+    @Singleton
+    public static TrinoSecurityApi createTrinoSecurityApi(
+            @ForGalaxyReadWriteSystemAccessControl HttpClient readWriteHttpClient,
+            @ForGalaxyRegionalAccessControl HttpClient regionalHttpClient,
+            GalaxyAccessControlUris accessControlUris)
     {
-        configBinder(binder).bindConfig(GalaxyAccessControlUrlsConfig.class);
-        bindHttpClient(binder);
+        requireNonNull(accessControlUris, "accessControlUris is null");
+        URI writeUri = accessControlUris.getAccessControlUri();
+        URI readUri = accessControlUris.getRegionalAccessControlUri().orElse(writeUri);
+        HttpClient regionalHttpClientToUse = accessControlUris.getRegionalAccessControlUri().map(_ -> regionalHttpClient).orElse(readWriteHttpClient);
+        return new HttpTrinoSecurityClient(writeUri, readUri, readWriteHttpClient, regionalHttpClientToUse);
     }
 
     public static void bindHttpClient(Binder binder)
@@ -65,17 +76,13 @@ public class GalaxySecurityHttpClientModule
                 });
     }
 
-    @Provides
-    @Singleton
-    public static TrinoSecurityApi createTrinoSecurityApi(
-            @ForGalaxyReadWriteSystemAccessControl HttpClient readWriteHttpClient,
-            @ForGalaxyRegionalAccessControl HttpClient regionalHttpClient,
-            GalaxyAccessControlUrlsConfig config)
+    @Override
+    protected void setup(Binder binder)
     {
-        requireNonNull(config, "config is null");
-        URI writeUri = config.getAccessControlOverrideUri();
-        URI readUri = config.getRegionalAccessControlUri().orElse(writeUri);
-        HttpClient regionalHttpClientToUse = config.getRegionalAccessControlUri().map(_ -> regionalHttpClient).orElse(readWriteHttpClient);
-        return new HttpTrinoSecurityClient(writeUri, readUri, readWriteHttpClient, regionalHttpClientToUse);
+        if (buildConfigObject(GalaxySystemAccessControlConfig.class).getAccessControlMode() == GALAXY) {
+            configBinder(binder).bindConfig(GalaxyAccessControlUrlsConfig.class);
+            binder.bind(GalaxyAccessControlUris.class).to(GalaxyAccessControlUrlsConfig.class).in(SINGLETON);
+        }
+        bindHttpClient(binder);
     }
 }
