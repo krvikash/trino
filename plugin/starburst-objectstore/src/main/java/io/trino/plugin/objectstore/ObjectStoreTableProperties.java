@@ -45,6 +45,7 @@ import static io.trino.spi.StandardErrorCode.INVALID_TABLE_PROPERTY;
 import static io.trino.spi.session.PropertyMetadata.enumProperty;
 import static io.trino.spi.session.PropertyMetadata.stringProperty;
 import static io.trino.spi.type.VarcharType.VARCHAR;
+import static java.util.Objects.requireNonNull;
 
 public final class ObjectStoreTableProperties
 {
@@ -64,6 +65,12 @@ public final class ObjectStoreTableProperties
             ObjectStoreConfig config,
             TypeManager typeManager)
     {
+        requireNonNull(hiveConnector, "hiveConnector is null");
+        requireNonNull(icebergConnector, "icebergConnector is null");
+        requireNonNull(deltaConnector, "deltaConnector is null");
+        requireNonNull(hudiConnector, "hudiConnector is null");
+        requireNonNull(typeManager, "typeManager is null");
+
         Map<String, PropertyMetadata<?>> properties = new HashMap<>();
         ImmutableSet<String> ignoredDescriptions = ImmutableSet.<String>builder()
                 .add("location")
