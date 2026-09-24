@@ -20,10 +20,12 @@ import io.trino.execution.starburst.GalaxyPrivilegeUtilities;
 import io.trino.metadata.SystemSecurityMetadata;
 import io.trino.server.starburst.accesscontrol.GalaxyAccessControlConfig;
 import io.trino.server.starburst.accesscontrol.GalaxySecurityMetadata;
+import io.trino.server.starburst.accesscontrol.GalaxySystemAccessControlConfig;
 
 import static com.google.inject.Scopes.SINGLETON;
 import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
 import static io.airlift.configuration.ConfigBinder.configBinder;
+import static io.trino.server.starburst.accesscontrol.GalaxySystemAccessControlConfig.AccessControlMode.GALAXY;
 
 public class GalaxyCommonSecurityModule
         extends AbstractConfigurationAwareModule
@@ -32,7 +34,11 @@ public class GalaxyCommonSecurityModule
     protected void setup(Binder binder)
     {
         newOptionalBinder(binder, EntityPropertyManagerApi.class).setBinding().to(EntityPropertyManager.class).in(SINGLETON);
-        newOptionalBinder(binder, SystemSecurityMetadata.class).setBinding().to(GalaxySecurityMetadata.class).in(SINGLETON);
+        // In SEP mode, Galaxy access control must work side-by-side with other SystemSecurityMetadatas.
+        // Only totally claim the binding in Galaxy mode.
+        if (buildConfigObject(GalaxySystemAccessControlConfig.class).getAccessControlMode() == GALAXY) {
+            newOptionalBinder(binder, SystemSecurityMetadata.class).setBinding().to(GalaxySecurityMetadata.class).in(SINGLETON);
+        }
         binder.bind(GalaxySecurityMetadata.class).in(SINGLETON);
         newOptionalBinder(binder, PrivilegeUtilitiesApi.class).setBinding().to(GalaxyPrivilegeUtilities.class).in(SINGLETON);
 
