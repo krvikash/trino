@@ -98,7 +98,7 @@ import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static io.trino.SystemSessionProperties.isGpuExecutionEnabled;
 import static io.trino.SystemSessionProperties.isSpillEnabled;
 import static io.trino.spi.predicate.TupleDomain.extractFixedValues;
-import static io.trino.sql.planner.SystemPartitioningHandle.FIXED_ARBITRARY_DISTRIBUTION;
+import static io.trino.sql.planner.optimizations.PropertyDerivations.isRoundRobin;
 import static io.trino.sql.planner.optimizations.StreamPropertyDerivations.StreamProperties.StreamDistribution.FIXED;
 import static io.trino.sql.planner.optimizations.StreamPropertyDerivations.StreamProperties.StreamDistribution.MULTIPLE;
 import static io.trino.sql.planner.optimizations.StreamPropertyDerivations.StreamProperties.StreamDistribution.SINGLE;
@@ -384,7 +384,8 @@ public final class StreamPropertyDerivations
 
             return switch (node.getType()) {
                 case GATHER -> StreamProperties.singleStream();
-                case REPARTITION -> node.getPartitioningScheme().getPartitioning().getHandle().equals(FIXED_ARBITRARY_DISTRIBUTION) ?
+                // round robin places rows independently of their values
+                case REPARTITION -> isRoundRobin(node.getPartitioningScheme().getPartitioning().getHandle()) ?
                         new StreamProperties(FIXED, Optional.empty(), false) :
                         new StreamProperties(
                                 FIXED,
