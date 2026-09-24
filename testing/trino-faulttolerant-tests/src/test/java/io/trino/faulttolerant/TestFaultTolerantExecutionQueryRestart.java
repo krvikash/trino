@@ -64,11 +64,24 @@ public class TestFaultTolerantExecutionQueryRestart
         failureInjector.stopInjectingFailures();
     }
 
+    private FaultTolerantQueryRestartStats queryRestartStats()
+    {
+        return getDistributedQueryRunner().getCoordinator().getInstance(Key.get(FaultTolerantQueryRestartStats.class));
+    }
+
     private long queryRestarts()
     {
-        return getDistributedQueryRunner().getCoordinator().getInstance(Key.get(FaultTolerantQueryRestartStats.class))
-                .getQueryRestartsDueToExchangeDataLoss()
-                .getTotalCount();
+        return queryRestartStats().getQueryRestartsDueToExchangeDataLoss().getTotalCount();
+    }
+
+    private long queryRestartsSucceeded()
+    {
+        return queryRestartStats().getQueryRestartsSucceeded().getTotalCount();
+    }
+
+    private long queryRestartsExhausted()
+    {
+        return queryRestartStats().getQueryRestartsExhausted().getTotalCount();
     }
 
     private Session retrySession()
@@ -82,10 +95,13 @@ public class TestFaultTolerantExecutionQueryRestart
     @Test
     public void testQuerySucceedsWithoutInjectedFailure()
     {
+        long succeededRestartsBeforeRunningQuery = queryRestartsSucceeded();
         assertQuery(
                 retrySession(),
                 "SELECT count(*) FROM tpch.tiny.orders",
                 "SELECT 15000");
+        // a first attempt that succeeds is not a restart
+        assertThat(queryRestartsSucceeded() - succeededRestartsBeforeRunningQuery).isEqualTo(0);
     }
 
     @Test
@@ -101,12 +117,14 @@ public class TestFaultTolerantExecutionQueryRestart
     @Test
     public void testQuerySucceedsAfterSingleExchangeFailure()
     {
+        long succeededRestartsBeforeRunningQuery = queryRestartsSucceeded();
         failureInjector.injectFailure();
         assertQuery(
                 retrySession(),
                 "SELECT count(*) FROM tpch.tiny.orders",
                 "SELECT 15000");
         assertThat(failureInjector.failuresRemaining()).isEqualTo(0);
+        assertThat(queryRestartsSucceeded() - succeededRestartsBeforeRunningQuery).isEqualTo(1);
     }
 
     @Test
@@ -117,6 +135,7 @@ public class TestFaultTolerantExecutionQueryRestart
         int restarts = 3;
         failureInjector.injectFailures(restarts);
         long restartsBeforeRunningQuery = queryRestarts();
+        long succeededRestartsBeforeRunningQuery = queryRestartsSucceeded();
         Session session = testSessionBuilder(retrySession())
                 .setSystemProperty(RETRY_INITIAL_DELAY, "0s")
                 .build();
@@ -126,6 +145,8 @@ public class TestFaultTolerantExecutionQueryRestart
 
         assertThat(failureInjector.failuresRemaining()).isEqualTo(0);
         assertThat(queryRestarts() - restartsBeforeRunningQuery).isEqualTo(restarts);
+        // only the attempt that finally succeeds is counted, however many restarts it took
+        assertThat(queryRestartsSucceeded() - succeededRestartsBeforeRunningQuery).isEqualTo(1);
     }
 
     @Test
@@ -133,6 +154,8 @@ public class TestFaultTolerantExecutionQueryRestart
     {
         failureInjector.injectFailures(1000);
         long restartsBeforeRunningQuery = queryRestarts();
+        long exhaustedRestartsBeforeRunningQuery = queryRestartsExhausted();
+        long succeededRestartsBeforeRunningQuery = queryRestartsSucceeded();
         Integer allowedQueryRestarts = 1;
 
         Session session = testSessionBuilder(getSession())
@@ -145,6 +168,8 @@ public class TestFaultTolerantExecutionQueryRestart
 
         long restartsAfterRunningTheQuery = queryRestarts();
         assertThat(restartsAfterRunningTheQuery - restartsBeforeRunningQuery).isEqualTo(allowedQueryRestarts.intValue());
+        assertThat(queryRestartsExhausted() - exhaustedRestartsBeforeRunningQuery).isEqualTo(1);
+        assertThat(queryRestartsSucceeded() - succeededRestartsBeforeRunningQuery).isEqualTo(0);
     }
 
     @Test
@@ -152,6 +177,7 @@ public class TestFaultTolerantExecutionQueryRestart
     {
         failureInjector.injectFailures(1000);
         long restartsBeforeRunningQuery = queryRestarts();
+        long exhaustedRestartsBeforeRunningQuery = queryRestartsExhausted();
         int noRestartsAllowed = 0;
 
         Session session = testSessionBuilder(getSession())
@@ -163,6 +189,8 @@ public class TestFaultTolerantExecutionQueryRestart
 
         long restartsAfterRunningTheQuery = queryRestarts();
         assertThat(restartsAfterRunningTheQuery - restartsBeforeRunningQuery).isEqualTo(noRestartsAllowed);
+        // with the feature off no restart is ever requested, so there is no retry budget to exhaust
+        assertThat(queryRestartsExhausted() - exhaustedRestartsBeforeRunningQuery).isEqualTo(0);
     }
 
     @Test

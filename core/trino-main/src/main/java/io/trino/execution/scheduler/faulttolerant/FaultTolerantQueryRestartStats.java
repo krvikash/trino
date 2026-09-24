@@ -22,6 +22,8 @@ import org.weakref.jmx.Nested;
 public class FaultTolerantQueryRestartStats
 {
     private final CounterStat queryRestartsDueToExchangeDataLoss = new CounterStat();
+    private final CounterStat queryRestartsSucceeded = new CounterStat();
+    private final CounterStat queryRestartsExhausted = new CounterStat();
 
     @Managed
     @Nested
@@ -33,5 +35,29 @@ public class FaultTolerantQueryRestartStats
     public void recordQueryRestartDueToExchangeDataLoss()
     {
         queryRestartsDueToExchangeDataLoss.update(1);
+    }
+
+    @Managed
+    @Nested
+    public CounterStat getQueryRestartsSucceeded()
+    {
+        return queryRestartsSucceeded;
+    }
+
+    public void recordQueryRestartSucceeded()
+    {
+        queryRestartsSucceeded.update(1);
+    }
+
+    @Managed
+    @Nested
+    public CounterStat getQueryRestartsExhausted()
+    {
+        return queryRestartsExhausted;
+    }
+
+    public void recordQueryRestartsExhausted()
+    {
+        queryRestartsExhausted.update(1);
     }
 }

@@ -453,6 +453,7 @@ public class EventDrivenFaultTolerantQueryScheduler
                     completedAttempt,
                     toFailure(exchangeFailure).errorCode(),
                     maxRetries);
+            queryRestartStats.recordQueryRestartsExhausted();
             return false;
         }
         int nextAttempt = completedAttempt + 1;
@@ -1356,6 +1357,7 @@ public class EventDrivenFaultTolerantQueryScheduler
                         try {
                             if (attempt > 0) {
                                 log.info("Query %s: restarted attempt %d succeeded", queryStateMachine.getQueryId(), attempt);
+                                queryRestartStats.recordQueryRestartSucceeded();
                             }
                             queryStateMachine.updateInputsForQueryResults(
                                     ImmutableList.of(new SpoolingExchangeInput(handles, Optional.of(rootStageExecution.getSinkOutputSelector()))),
