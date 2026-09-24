@@ -66,9 +66,11 @@ public class Hadoop
     {
         super.setupContainer();
         withLogConsumer(new PrintingLogConsumer("Hadoop"));
+        // with one datanode the namenode's load check rejects it as NODE_TOO_BUSY whenever a block is placed during a heartbeat update
         withRunCommand(List.of("bash", "-e", "-c",
                 """
                 rm /etc/supervisord.d/{hive*,mysql*,socks*,sshd*,yarn*}.conf
+                sed -i 's#</configuration>#<property><name>dfs.namenode.redundancy.considerLoad</name><value>false</value></property></configuration>#' /etc/hadoop/conf/hdfs-site.xml
                 supervisord -c /etc/supervisord.conf
                 """));
     }
