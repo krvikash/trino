@@ -264,7 +264,7 @@ public abstract class BaseTestObjectStoreIcebergFeaturesConnectorTest
         // SET PROPERTIES ... = DEFAULT passes a null value to
         // ObjectStoreTableProperties.validProperty; guards against a null-safety bug there and
         // ensures users see the specific scoping error rather than a generic delegate failure.
-        try (TestTable table = new TestTable(getQueryRunner()::execute, "test_hive_unset_extras_", "(x integer) WITH (type = 'HIVE')")) {
+        try (TestTable table = newTrinoTable("test_hive_unset_extras_", "(x integer) WITH (type = 'HIVE')")) {
             assertQueryFails(
                     "ALTER TABLE " + table.getName() + " SET PROPERTIES extra_properties = DEFAULT",
                     ".*Table property 'extra_properties' not supported for Hive tables.*");
@@ -274,7 +274,7 @@ public abstract class BaseTestObjectStoreIcebergFeaturesConnectorTest
     @Test
     public void testUnsetExtraPropertiesRejectedForDeltaTables()
     {
-        try (TestTable table = new TestTable(getQueryRunner()::execute, "test_delta_unset_extras_", "(x integer) WITH (type = 'DELTA')")) {
+        try (TestTable table = newTrinoTable("test_delta_unset_extras_", "(x integer) WITH (type = 'DELTA')")) {
             assertQueryFails(
                     "ALTER TABLE " + table.getName() + " SET PROPERTIES extra_properties = DEFAULT",
                     ".*Table property 'extra_properties' not supported for Delta Lake tables.*");
