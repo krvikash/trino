@@ -20,11 +20,13 @@ import io.trino.operator.gpu.exchange.GpuLocalExchange.GpuLocalExchangeSinkFacto
 import io.trino.operator.gpu.memory.AllocatedMemory;
 import io.trino.spi.gpu.Column;
 import io.trino.spi.gpu.GpuPage;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayDeque;
 import java.util.Deque;
 
+import static io.trino.operator.gpu.GpuTestUtils.maybeSetGpuMemoryPoolForTests;
 import static io.trino.sql.planner.SystemPartitioningHandle.SINGLE_DISTRIBUTION;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -32,6 +34,12 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 public class TestGpuLocalExchangeWriter
 {
     private static final long MAX_BUFFER_BYTES = 64L * 1024 * 1024;
+
+    @BeforeAll
+    static void maybeSetGpuMemoryPool()
+    {
+        maybeSetGpuMemoryPoolForTests();
+    }
 
     /**
      * Creates a real {@link GpuLocalExchangeSink} using a real {@link GpuLocalExchange}.

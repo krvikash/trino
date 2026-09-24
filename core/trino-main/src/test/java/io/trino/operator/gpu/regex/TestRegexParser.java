@@ -26,12 +26,14 @@ import io.trino.operator.gpu.regex.Pattern.Sequence;
 import io.trino.operator.gpu.regex.RegexParser.ParsingException;
 import org.assertj.core.api.AbstractThrowableAssert;
 import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Optional;
 import java.util.OptionalInt;
 
+import static io.trino.operator.gpu.GpuTestUtils.maybeSetGpuMemoryPoolForTests;
 import static io.trino.operator.gpu.regex.Pattern.Repeat.Greediness.GREEDY;
 import static io.trino.operator.gpu.regex.RegexParser.parse;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -40,6 +42,12 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class TestRegexParser
 {
     private final Sequence emptySequence = new Sequence(List.of());
+
+    @BeforeAll
+    static void maybeSetGpuMemoryPool()
+    {
+        maybeSetGpuMemoryPoolForTests();
+    }
 
     @Test
     void testLiterals()

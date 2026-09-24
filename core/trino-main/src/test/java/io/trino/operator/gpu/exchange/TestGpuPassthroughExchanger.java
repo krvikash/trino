@@ -20,16 +20,23 @@ import io.trino.operator.gpu.TestingGpuOperationContext;
 import io.trino.operator.gpu.exchange.GpuLocalExchangeBuffer.BufferedPage;
 import io.trino.operator.gpu.memory.AllocatedMemory;
 import io.trino.spi.gpu.GpuPage;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
+import static io.trino.operator.gpu.GpuTestUtils.maybeSetGpuMemoryPoolForTests;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class TestGpuPassthroughExchanger
 {
+    @BeforeAll
+    static void maybeSetGpuMemoryPool()
+    {
+        maybeSetGpuMemoryPoolForTests();
+    }
+
     @Test
     public void forwardsToSingleBuffer()
     {
-        GpuTestUtils.maybeSetGpuMemoryPoolForTests();
         LocalExchangeMemoryManager memory = new LocalExchangeMemoryManager(1 << 20);
         GpuLocalExchangeBuffer buffer = new GpuLocalExchangeBuffer(memory, _ -> {});
         TestingGpuOperationContext context = new TestingGpuOperationContext();

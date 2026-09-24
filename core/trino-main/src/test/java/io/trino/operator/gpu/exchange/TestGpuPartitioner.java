@@ -19,6 +19,7 @@ import io.trino.operator.gpu.GpuTestUtils;
 import io.trino.spi.gpu.Column;
 import io.trino.spi.gpu.Column.DeviceMemory;
 import io.trino.spi.gpu.GpuPage;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -26,14 +27,20 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import static io.trino.operator.gpu.GpuTestUtils.maybeSetGpuMemoryPoolForTests;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class TestGpuPartitioner
 {
+    @BeforeAll
+    static void maybeSetGpuMemoryPool()
+    {
+        maybeSetGpuMemoryPoolForTests();
+    }
+
     @Test
     public void roundTripPreservesAllRows()
     {
-        GpuTestUtils.maybeSetGpuMemoryPoolForTests();
         try (GpuPage input = GpuTestUtils.deviceIntColumn(new int[] {1, 2, 3, 4, 5, 6, 7, 8})) {
             GpuPage[] parts = GpuPartitioner.partition(input, new int[] {0}, 4);
             try {
@@ -55,7 +62,6 @@ public class TestGpuPartitioner
     @Test
     public void emptyInputProducesEmptyPartitions()
     {
-        GpuTestUtils.maybeSetGpuMemoryPoolForTests();
         try (GpuPage input = GpuTestUtils.deviceIntColumn(new int[0])) {
             GpuPage[] parts = GpuPartitioner.partition(input, new int[] {0}, 3);
             try {
@@ -75,7 +81,6 @@ public class TestGpuPartitioner
     @Test
     public void singlePartitionPreservesAllRowsAndValues()
     {
-        GpuTestUtils.maybeSetGpuMemoryPoolForTests();
         int[] inputValues = {10, 20, 30, 40, 50};
         try (GpuPage input = GpuTestUtils.deviceIntColumn(inputValues)) {
             GpuPage[] parts = GpuPartitioner.partition(input, new int[] {0}, 1);
@@ -95,7 +100,6 @@ public class TestGpuPartitioner
     @Test
     public void partitioningPreservesValuesAcrossAllPartitions()
     {
-        GpuTestUtils.maybeSetGpuMemoryPoolForTests();
         int[] inputValues = new int[256];
         for (int i = 0; i < inputValues.length; i++) {
             inputValues[i] = i;
@@ -128,7 +132,6 @@ public class TestGpuPartitioner
     @Test
     public void sameKeysLandInSamePartition()
     {
-        GpuTestUtils.maybeSetGpuMemoryPoolForTests();
         // Many copies of just two distinct keys; cuDF MURMUR3 is deterministic so each key always
         // lands in the same partition, with the matching rows clustered there.
         int[] keys = new int[64];
@@ -178,7 +181,6 @@ public class TestGpuPartitioner
     @Test
     public void nonKeyColumnValuesArePreserved()
     {
-        GpuTestUtils.maybeSetGpuMemoryPoolForTests();
         // Each row carries a (key, value) where value = key * 100. After partitioning by the key
         // column, every row must still carry its original value in whichever partition it lands.
         int[] keys = {1, 2, 3, 4, 5, 6, 7, 8};

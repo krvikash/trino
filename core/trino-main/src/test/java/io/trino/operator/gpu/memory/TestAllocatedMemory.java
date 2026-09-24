@@ -20,6 +20,7 @@ import io.trino.memory.context.AggregatedMemoryContext;
 import io.trino.memory.context.MemoryReservationHandler;
 import io.trino.spi.gpu.MemoryAmount;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -31,6 +32,7 @@ import static com.google.common.base.Verify.verify;
 import static com.google.common.collect.ImmutableMultiset.toImmutableMultiset;
 import static io.trino.memory.context.AggregatedMemoryContext.newRootAggregatedMemoryContext;
 import static io.trino.operator.Operator.NOT_BLOCKED;
+import static io.trino.operator.gpu.GpuTestUtils.maybeSetGpuMemoryPoolForTests;
 import static java.lang.Math.toIntExact;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -50,6 +52,12 @@ class TestAllocatedMemory
     private AggregatedMemoryContext offHeapMemory;
 
     private GpuTaskMemoryContext context;
+
+    @BeforeAll
+    static void maybeSetGpuMemoryPool()
+    {
+        maybeSetGpuMemoryPoolForTests();
+    }
 
     @BeforeEach
     void setup()

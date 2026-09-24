@@ -26,6 +26,7 @@ import io.trino.spi.gpu.Column;
 import io.trino.spi.gpu.Column.DeviceMemory;
 import io.trino.spi.gpu.GpuPage;
 import io.trino.sql.planner.SystemPartitioningHandle;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -35,6 +36,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import static io.trino.operator.gpu.GpuTestUtils.maybeSetGpuMemoryPoolForTests;
 import static io.trino.sql.planner.SystemPartitioningHandle.FIXED_HASH_DISTRIBUTION;
 import static io.trino.sql.planner.SystemPartitioningHandle.SINGLE_DISTRIBUTION;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -42,6 +44,12 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class TestGpuLocalExchange
 {
+    @BeforeAll
+    static void maybeSetGpuMemoryPool()
+    {
+        maybeSetGpuMemoryPoolForTests();
+    }
+
     @Test
     public void singleDistributionHasOneBuffer()
     {
@@ -78,7 +86,6 @@ public class TestGpuLocalExchange
     @Test
     public void gatherRoundtripPreservesAllValues()
     {
-        GpuTestUtils.maybeSetGpuMemoryPoolForTests();
         GpuLocalExchange exchange = new GpuLocalExchange(SINGLE_DISTRIBUTION, 1, new int[0], 1L << 20);
         TestingGpuOperationContext context = new TestingGpuOperationContext();
         GpuLocalExchangeSinkFactory factory = exchange.createSinkFactory();
@@ -96,7 +103,6 @@ public class TestGpuLocalExchange
     @Test
     public void fixedHashRoundtripPreservesAllValuesAndKeysSamePartition()
     {
-        GpuTestUtils.maybeSetGpuMemoryPoolForTests();
         int partitions = 4;
         GpuLocalExchange exchange = new GpuLocalExchange(FIXED_HASH_DISTRIBUTION, partitions, new int[] {0}, 1L << 20);
         TestingGpuOperationContext context = new TestingGpuOperationContext();
@@ -143,7 +149,6 @@ public class TestGpuLocalExchange
     @Test
     public void multipleSinkFactoriesContributeToSameBuffers()
     {
-        GpuTestUtils.maybeSetGpuMemoryPoolForTests();
         int partitions = 4;
         GpuLocalExchange exchange = new GpuLocalExchange(FIXED_HASH_DISTRIBUTION, partitions, new int[] {0}, 1L << 20);
         TestingGpuOperationContext context = new TestingGpuOperationContext();
@@ -173,7 +178,6 @@ public class TestGpuLocalExchange
     @Test
     public void sourceFinishedFlagPropagatesAfterAllSinksClose()
     {
-        GpuTestUtils.maybeSetGpuMemoryPoolForTests();
         GpuLocalExchange exchange = new GpuLocalExchange(SINGLE_DISTRIBUTION, 1, new int[0], 1L << 20);
         TestingGpuOperationContext context = new TestingGpuOperationContext();
         GpuLocalExchangeSinkFactory factory = exchange.createSinkFactory();

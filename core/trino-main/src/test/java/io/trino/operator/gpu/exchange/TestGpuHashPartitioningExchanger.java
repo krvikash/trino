@@ -24,6 +24,7 @@ import io.trino.operator.gpu.memory.AllocatedMemory;
 import io.trino.spi.gpu.Column;
 import io.trino.spi.gpu.Column.DeviceMemory;
 import io.trino.spi.gpu.GpuPage;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -32,14 +33,20 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.IntStream;
 
+import static io.trino.operator.gpu.GpuTestUtils.maybeSetGpuMemoryPoolForTests;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class TestGpuHashPartitioningExchanger
 {
+    @BeforeAll
+    static void maybeSetGpuMemoryPool()
+    {
+        maybeSetGpuMemoryPoolForTests();
+    }
+
     @Test
     public void distributesAcrossBuffersByHashKey()
     {
-        GpuTestUtils.maybeSetGpuMemoryPoolForTests();
         int partitions = 4;
         LocalExchangeMemoryManager memory = new LocalExchangeMemoryManager(1 << 20);
         List<GpuLocalExchangeBuffer> buffers = IntStream.range(0, partitions)
@@ -66,7 +73,6 @@ public class TestGpuHashPartitioningExchanger
     @Test
     public void multipleAcceptCallsAccumulateAllRows()
     {
-        GpuTestUtils.maybeSetGpuMemoryPoolForTests();
         int partitions = 4;
         LocalExchangeMemoryManager memory = new LocalExchangeMemoryManager(1 << 20);
         List<GpuLocalExchangeBuffer> buffers = IntStream.range(0, partitions)
@@ -104,7 +110,6 @@ public class TestGpuHashPartitioningExchanger
     @Test
     public void zeroRowPartitionsDoNotReachBuffers()
     {
-        GpuTestUtils.maybeSetGpuMemoryPoolForTests();
         int partitions = 4;
         LocalExchangeMemoryManager memory = new LocalExchangeMemoryManager(1 << 20);
         List<GpuLocalExchangeBuffer> buffers = IntStream.range(0, partitions)
@@ -135,7 +140,6 @@ public class TestGpuHashPartitioningExchanger
     @Test
     public void sameKeysFromDifferentCallsLandInSameBuffer()
     {
-        GpuTestUtils.maybeSetGpuMemoryPoolForTests();
         int partitions = 4;
         LocalExchangeMemoryManager memory = new LocalExchangeMemoryManager(1 << 20);
         List<GpuLocalExchangeBuffer> buffers = IntStream.range(0, partitions)

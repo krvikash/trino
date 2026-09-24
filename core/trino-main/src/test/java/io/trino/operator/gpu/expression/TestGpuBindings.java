@@ -34,7 +34,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class TestGpuBindings
 {
     @BeforeAll
-    static void setup()
+    static void maybeSetGpuMemoryPool()
     {
         maybeSetGpuMemoryPoolForTests();
     }

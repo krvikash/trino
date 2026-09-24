@@ -19,14 +19,22 @@ import io.trino.operator.gpu.exchange.GpuLocalExchangeBuffer.BufferedPage;
 import io.trino.operator.gpu.memory.AllocatedMemory;
 import io.trino.spi.gpu.Column;
 import io.trino.spi.gpu.GpuPage;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static io.trino.operator.gpu.GpuTestUtils.maybeSetGpuMemoryPoolForTests;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class TestGpuLocalExchangeBuffer
 {
+    @BeforeAll
+    static void maybeSetGpuMemoryPool()
+    {
+        maybeSetGpuMemoryPoolForTests();
+    }
+
     @Test
     public void enqueueDequeueAccountsBytes()
     {

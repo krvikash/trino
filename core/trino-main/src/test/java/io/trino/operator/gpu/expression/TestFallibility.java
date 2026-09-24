@@ -31,12 +31,14 @@ import io.trino.sql.ir.Logical;
 import io.trino.sql.ir.Reference;
 import io.trino.sql.ir.WhenClause;
 import io.trino.sql.planner.Symbol;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Map;
 
 import static io.airlift.slice.Slices.utf8Slice;
+import static io.trino.operator.gpu.GpuTestUtils.maybeSetGpuMemoryPoolForTests;
 import static io.trino.operator.gpu.expression.Fallibility.FALLIBLE;
 import static io.trino.operator.gpu.expression.Fallibility.FALLIBLE_EXCEPT_ALL_NULLS;
 import static io.trino.operator.gpu.expression.Fallibility.INFALLIBLE;
@@ -68,6 +70,12 @@ final class TestFallibility
             Symbol.from(D), 3,
             Symbol.from(E), 4,
             Symbol.from(T), 5);
+
+    @BeforeAll
+    static void maybeSetGpuMemoryPool()
+    {
+        maybeSetGpuMemoryPoolForTests();
+    }
 
     @Test
     void testComparison()

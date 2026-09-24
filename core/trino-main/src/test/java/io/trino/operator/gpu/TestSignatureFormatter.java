@@ -22,11 +22,13 @@ import io.trino.sql.ir.Constant;
 import io.trino.sql.ir.IsNull;
 import io.trino.sql.ir.Reference;
 import io.trino.sql.planner.plan.AggregationNode.Aggregation;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import java.util.Optional;
 
 import static io.trino.operator.gpu.GpuTestUtils.FUNCTION_RESOLUTION;
+import static io.trino.operator.gpu.GpuTestUtils.maybeSetGpuMemoryPoolForTests;
 import static io.trino.operator.gpu.SignatureFormatter.formatAggregation;
 import static io.trino.operator.gpu.SignatureFormatter.formatExpression;
 import static io.trino.spi.type.BigintType.BIGINT;
@@ -39,6 +41,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 final class TestSignatureFormatter
 {
+    @BeforeAll
+    static void maybeSetGpuMemoryPool()
+    {
+        maybeSetGpuMemoryPoolForTests();
+    }
+
     @Test
     void testReference()
     {

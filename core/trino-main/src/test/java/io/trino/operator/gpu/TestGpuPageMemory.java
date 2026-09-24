@@ -19,6 +19,7 @@ import io.trino.spi.block.Block;
 import io.trino.spi.gpu.GpuPage;
 import io.trino.spi.type.Type;
 import io.trino.sql.gen.TestColumnarFilters.NullsProvider;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Isolated;
 
@@ -36,11 +37,15 @@ class TestGpuPageMemory
 {
     private static final int POSITION_COUNT = 1024;
 
+    @BeforeAll
+    static void maybeSetGpuMemoryPool()
+    {
+        maybeSetGpuMemoryPoolForTests();
+    }
+
     @Test
     void testRetainedDeviceMemoryMatchesActualAllocations()
     {
-        maybeSetGpuMemoryPoolForTests();
-
         for (Type type : TESTED_GPU_TYPES) {
             for (NullsProvider nullsProvider : NullsProvider.values()) {
                 verifyMemoryAccounting(type, nullsProvider);
