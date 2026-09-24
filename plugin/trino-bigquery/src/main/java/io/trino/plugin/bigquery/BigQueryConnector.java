@@ -13,9 +13,11 @@
  */
 package io.trino.plugin.bigquery;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.inject.Inject;
+import com.google.inject.Injector;
 import io.airlift.bootstrap.LifeCycleManager;
 import io.trino.plugin.base.classloader.ClassLoaderSafeConnectorMetadata;
 import io.trino.plugin.base.classloader.ClassLoaderSafeConnectorSubstitutionMetadata;
@@ -43,6 +45,7 @@ import static java.util.Objects.requireNonNull;
 public class BigQueryConnector
         implements Connector
 {
+    private final Injector injector;
     private final LifeCycleManager lifeCycleManager;
     private final BigQueryTransactionManager transactionManager;
     private final BigQuerySplitManager splitManager;
@@ -57,6 +60,7 @@ public class BigQueryConnector
 
     @Inject
     public BigQueryConnector(
+            Injector injector,
             LifeCycleManager lifeCycleManager,
             BigQueryTransactionManager transactionManager,
             BigQuerySplitManager splitManager,
@@ -69,6 +73,7 @@ public class BigQueryConnector
             BigQuerySchemaProperties schemaProperties,
             BigQuerySubstitutionMetadata substitutionMetadata)
     {
+        this.injector = requireNonNull(injector, "injector is null");
         this.lifeCycleManager = requireNonNull(lifeCycleManager, "lifeCycleManager is null");
         this.transactionManager = requireNonNull(transactionManager, "transactionManager is null");
         this.splitManager = requireNonNull(splitManager, "splitManager is null");
@@ -84,6 +89,12 @@ public class BigQueryConnector
         this.substitutionMetadata = new ClassLoaderSafeConnectorSubstitutionMetadata(
                 requireNonNull(substitutionMetadata, "substitutionMetadata is null"),
                 getClass().getClassLoader());
+    }
+
+    @VisibleForTesting
+    Injector getInjector()
+    {
+        return injector;
     }
 
     @Override
