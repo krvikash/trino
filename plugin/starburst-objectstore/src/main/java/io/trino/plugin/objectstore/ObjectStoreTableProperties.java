@@ -228,7 +228,7 @@ public final class ObjectStoreTableProperties
             return true;
         }
         PropertyMetadata<?> property = properties.get(name);
-        // Treat null (from ALTER TABLE ... UNSET PROPERTIES / SET PROPERTIES x = DEFAULT) as an
+        // Treat null (from ALTER TABLE ... SET PROPERTIES x = DEFAULT) as an
         // active operation on an unsupported property, so users see a specific error rather than
         // silently dropping through to the delegate connector.
         if ((property == null) || value == null || !value.equals(property.getDefaultValue())) {

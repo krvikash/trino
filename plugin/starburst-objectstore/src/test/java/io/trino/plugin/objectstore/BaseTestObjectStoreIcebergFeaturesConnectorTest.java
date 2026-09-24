@@ -261,7 +261,7 @@ public abstract class BaseTestObjectStoreIcebergFeaturesConnectorTest
     @Test
     public void testUnsetExtraPropertiesRejectedForHiveTables()
     {
-        // UNSET PROPERTIES / SET PROPERTIES ... = DEFAULT passes a null value to
+        // SET PROPERTIES ... = DEFAULT passes a null value to
         // ObjectStoreTableProperties.validProperty; guards against a null-safety bug there and
         // ensures users see the specific scoping error rather than a generic delegate failure.
         try (TestTable table = new TestTable(getQueryRunner()::execute, "test_hive_unset_extras_", "(x integer) WITH (type = 'HIVE')")) {
