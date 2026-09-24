@@ -1485,6 +1485,54 @@ public class TestGpuExpressions
 
     @ParameterizedTest
     @EnumSource(NullsProvider.class)
+    public void testLetShadowsExternalSymbol(NullsProvider nullsProvider)
+    {
+        List<Type> inputTypes = List.of(BIGINT, BIGINT);
+        int positionsCount = 64;
+        List<Page> inputPages = List.of(new Page(
+                positionsCount,
+                createBigintBlock(positionsCount, nullsProvider, -100, 100),
+                createBigintBlock(positionsCount, nullsProvider, -100, 100)));
+
+        Reference reference = field(0, BIGINT);
+        // The value reads the external symbol; the body reads the binding; the sibling reads the external symbol again.
+        Expression expression = add(
+                new Let(Symbol.from(reference),
+                        add(reference, field(1, BIGINT)),
+                        add(reference, reference)),
+                reference);
+
+        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(0, 1));
+    }
+
+    @ParameterizedTest
+    @EnumSource(NullsProvider.class)
+    public void testLetShadowsOuterBinding(NullsProvider nullsProvider)
+    {
+        List<Type> inputTypes = List.of(BIGINT, BIGINT);
+        int positionsCount = 64;
+        List<Page> inputPages = List.of(new Page(
+                positionsCount,
+                createBigintBlock(positionsCount, nullsProvider, -100, 100),
+                createBigintBlock(positionsCount, nullsProvider, -100, 100)));
+
+        Symbol symbol = new Symbol(BIGINT, "s");
+        Reference reference = symbol.toSymbolReference();
+        // The inner value reads the outer binding, which is restored after the inner body.
+        Expression inner = new Let(symbol, add(reference, field(1, BIGINT)), add(reference, reference));
+        Expression expression = new Let(symbol, field(0, BIGINT), add(inner, reference));
+
+        // The CPU compiler rejects duplicate nested Let names, so use an equivalent expression without bindings.
+        Expression sum = add(field(0, BIGINT), field(1, BIGINT));
+        Map<Symbol, Integer> layout = layoutFor(inputTypes);
+        PageProcessor cpuProcessor = compileCpuExpression(add(add(sum, sum), field(0, BIGINT)), layout);
+        CompiledExpression gpuExpression = compileExpression(expression, layout, SQL_STANDARD).orElseThrow();
+        assertThat(gpuExpression.inputChannels().getInputChannels()).containsExactly(0, 1);
+        assertGpuMatchesCpu(inputPages, inputTypes, expression, cpuProcessor, gpuExpression, false);
+    }
+
+    @ParameterizedTest
+    @EnumSource(NullsProvider.class)
     public void testSiblingLets(NullsProvider nullsProvider)
     {
         List<Type> inputTypes = List.of(BIGINT, BIGINT);

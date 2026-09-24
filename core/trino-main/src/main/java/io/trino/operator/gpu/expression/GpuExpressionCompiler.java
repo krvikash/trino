@@ -1058,11 +1058,6 @@ public final class GpuExpressionCompiler
             if (value.isEmpty()) {
                 return Optional.empty();
             }
-            if (bindingStack.contains(let.name())) {
-                // This is considered impossible
-                log.warn("Duplicate nested Let symbols");
-                return Optional.empty();
-            }
             bindingStack.addLast(let.name());
             try {
                 return let.body().accept(this, context)
