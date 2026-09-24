@@ -68,7 +68,7 @@ jobs:
             -Dair.check.skip-all \
             -Dgib.disable \
             -am \
-            -pl :trino-iceberg,:trino-ssh-tunnel,:starburst-events-model,:icehouse-io,:icehouse-catalog \
+            -pl :trino-iceberg,:trino-ssh-tunnel,:icehouse-io,:icehouse-catalog \
             -Drevision="${TRINO_VERSION}"
 
       - name: Tag release commit
