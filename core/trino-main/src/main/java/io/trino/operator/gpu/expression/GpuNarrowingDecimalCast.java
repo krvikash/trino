@@ -57,9 +57,9 @@ public final class GpuNarrowingDecimalCast
     }
 
     @Override
-    public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns)
+    public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns, Bindings bindings)
     {
-        try (ColumnVector value = input.evaluate(positionCount, inputColumns)) {
+        try (ColumnVector value = input.evaluate(positionCount, inputColumns, bindings)) {
             // Changing scale is currently unsupported
             verify(value.getType().getScale() == targetType.getScale(), "scale must be preserved: %s -> %s", value.getType(), targetType);
             // Input must be 128-bit. If the input was 64-bit but target was 128-bit, the bounds scalars would overflow.

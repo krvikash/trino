@@ -79,9 +79,9 @@ public final class GpuLower
     }
 
     @Override
-    public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns)
+    public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns, Bindings bindings)
     {
-        try (ClosingRef<ColumnVector> input = ClosingRef.own(argument.evaluate(positionCount, inputColumns))) {
+        try (ClosingRef<ColumnVector> input = ClosingRef.own(argument.evaluate(positionCount, inputColumns, bindings))) {
             int maxChar = maxCharUtf8(input.borrow());
 
             if (compareUnsigned(maxChar, DOTTED_CAPITAL_I_CHAR_UTF8) < 0) {

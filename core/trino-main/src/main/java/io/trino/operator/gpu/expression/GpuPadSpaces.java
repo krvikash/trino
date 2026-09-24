@@ -39,9 +39,9 @@ public final class GpuPadSpaces
     }
 
     @Override
-    public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns)
+    public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns, Bindings bindings)
     {
-        try (ColumnVector value = argument.evaluate(positionCount, inputColumns)) {
+        try (ColumnVector value = argument.evaluate(positionCount, inputColumns, bindings)) {
             // cuDF pad widths are code point counts
             return value.pad(length, PadSide.RIGHT, " ");
         }

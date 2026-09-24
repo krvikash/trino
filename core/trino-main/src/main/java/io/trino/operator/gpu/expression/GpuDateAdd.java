@@ -159,9 +159,9 @@ public final class GpuDateAdd
     }
 
     @Override
-    public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns)
+    public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns, Bindings bindings)
     {
-        try (ClosingOnce<ColumnVector> dateTime = ClosingOnce.own(argument.evaluate(positionCount, inputColumns));
+        try (ClosingOnce<ColumnVector> dateTime = ClosingOnce.own(argument.evaluate(positionCount, inputColumns, bindings));
                 ClosingOnce<ColumnVector> int64Timestamp = ClosingOnce.own(dateTime.borrow().castTo(DType.INT64))) {
             if (needsInputInRangeCheck) {
                 verifyInputInRange(int64Timestamp.borrow());

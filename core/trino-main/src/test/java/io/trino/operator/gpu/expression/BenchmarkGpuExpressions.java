@@ -101,7 +101,7 @@ public class BenchmarkGpuExpressions
     {
         long checksum = 0;
         for (int i = 0; i < REPETITIONS; i++) {
-            try (ColumnVector result = expression.evaluate(positionCount, inputColumns)) {
+            try (ColumnVector result = expression.evaluate(positionCount, inputColumns, new Bindings())) {
                 checksum += result.getRowCount();
             }
         }

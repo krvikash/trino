@@ -15,6 +15,7 @@ package io.trino.operator.gpu;
 
 import ai.rapids.cudf.ColumnVector;
 import com.google.common.collect.ImmutableList;
+import io.trino.operator.gpu.expression.Bindings;
 import io.trino.operator.gpu.expression.CompiledExpression;
 import io.trino.operator.gpu.memory.AllocatedMemory;
 import io.trino.operator.gpu.memory.GpuTaskMemoryContext;
@@ -112,7 +113,7 @@ public class GpuProject
                                 .map(DeviceMemory.class::cast)
                                 .map(DeviceMemory::columnVector)
                                 .collect(toImmutableList());
-                        yield new DeviceMemory(expression.expression().evaluate(input.positionCount(), inputs));
+                        yield new DeviceMemory(expression.expression().evaluate(input.positionCount(), inputs, new Bindings()));
                     }
                 };
             }

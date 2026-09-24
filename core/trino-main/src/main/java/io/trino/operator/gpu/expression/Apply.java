@@ -37,9 +37,9 @@ public final class Apply
     }
 
     @Override
-    public ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns)
+    public ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns, Bindings bindings)
     {
-        return expression.evaluate(positionCount, ImmutableList.of(inputColumns.get(channel)));
+        return expression.evaluate(positionCount, ImmutableList.of(inputColumns.get(channel)), bindings);
     }
 
     @Override

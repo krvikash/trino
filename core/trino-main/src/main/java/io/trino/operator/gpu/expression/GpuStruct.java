@@ -38,12 +38,12 @@ public final class GpuStruct
     }
 
     @Override
-    public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns)
+    public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns, Bindings bindings)
     {
         @Own ColumnVector[] fieldColumns = new ColumnVector[fields.size()];
         try {
             for (int i = 0; i < fields.size(); i++) {
-                fieldColumns[i] = fields.get(i).evaluate(positionCount, inputColumns);
+                fieldColumns[i] = fields.get(i).evaluate(positionCount, inputColumns, bindings);
             }
             return ColumnVector.makeStruct(fieldColumns);
         }

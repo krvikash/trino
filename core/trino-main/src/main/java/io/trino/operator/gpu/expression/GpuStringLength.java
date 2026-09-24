@@ -35,9 +35,9 @@ public final class GpuStringLength
     }
 
     @Override
-    public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns)
+    public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns, Bindings bindings)
     {
-        try (ClosingOnce<ColumnVector> input = ClosingOnce.own(argument.evaluate(positionCount, inputColumns));
+        try (ClosingOnce<ColumnVector> input = ClosingOnce.own(argument.evaluate(positionCount, inputColumns, bindings));
                 ColumnVector charLengths = input.borrow().getCharLengths()) {
             input.close();
             // cuDF returns INT32; Trino's length() returns BIGINT.

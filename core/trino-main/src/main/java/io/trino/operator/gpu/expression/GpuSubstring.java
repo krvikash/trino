@@ -53,14 +53,14 @@ public final class GpuSubstring
     }
 
     @Override
-    public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns)
+    public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns, Bindings bindings)
     {
-        try (ColumnVector sourceColumn = source.evaluate(positionCount, inputColumns);
-                ColumnVector startColumn = start.evaluate(positionCount, inputColumns)) {
+        try (ColumnVector sourceColumn = source.evaluate(positionCount, inputColumns, bindings);
+                ColumnVector startColumn = start.evaluate(positionCount, inputColumns, bindings)) {
             if (length.isEmpty()) {
                 return substring(sourceColumn, startColumn);
             }
-            try (ColumnVector lengthColumn = length.get().evaluate(positionCount, inputColumns)) {
+            try (ColumnVector lengthColumn = length.get().evaluate(positionCount, inputColumns, bindings)) {
                 return substring(sourceColumn, startColumn, lengthColumn);
             }
         }

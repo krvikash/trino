@@ -54,9 +54,9 @@ public final class GpuIn
     }
 
     @Override
-    public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns)
+    public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns, Bindings bindings)
     {
-        try (ClosingOnce<ColumnVector> valueColumn = ClosingOnce.own(value.evaluate(positionCount, inputColumns));
+        try (ClosingOnce<ColumnVector> valueColumn = ClosingOnce.own(value.evaluate(positionCount, inputColumns, bindings));
                 ClosingOnce<ColumnVector> inList = ClosingOnce.own(buildInListColumn())) {
             try (ClosingRef<ColumnVector> result = ClosingRef.own(valueColumn.borrow().contains(inList.borrow()))) {
                 valueColumn.close();

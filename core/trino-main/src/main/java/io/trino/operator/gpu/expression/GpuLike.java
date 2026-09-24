@@ -52,9 +52,9 @@ public final class GpuLike
     }
 
     @Override
-    public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns)
+    public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns, Bindings bindings)
     {
-        try (ColumnVector searched = this.searched.evaluate(positionCount, inputColumns);
+        try (ColumnVector searched = this.searched.evaluate(positionCount, inputColumns, bindings);
                 // TODO (https://starburstdata.atlassian.net/browse/ENG-9846) should these Scalars be reused between calls?
                 Scalar patternScalar = Scalar.fromString(pattern);
                 Scalar escapeScalar = Scalar.fromString(escape)) {

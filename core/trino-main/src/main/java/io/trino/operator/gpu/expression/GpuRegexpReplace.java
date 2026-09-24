@@ -43,9 +43,9 @@ public final class GpuRegexpReplace
     }
 
     @Override
-    public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns)
+    public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns, Bindings bindings)
     {
-        try (ColumnVector sourceColumn = source.evaluate(positionCount, inputColumns)) {
+        try (ColumnVector sourceColumn = source.evaluate(positionCount, inputColumns, bindings)) {
             if (hasBackreferences) {
                 RegexProgram program = new RegexProgram(cudfPattern, EXTRACT);
                 return sourceColumn.stringReplaceWithBackrefs(program, cudfReplacement);

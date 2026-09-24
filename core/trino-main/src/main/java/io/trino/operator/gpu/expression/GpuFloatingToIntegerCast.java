@@ -126,9 +126,9 @@ public final class GpuFloatingToIntegerCast
     }
 
     @Override
-    public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns)
+    public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns, Bindings bindings)
     {
-        try (ClosingOnce<ColumnVector> source = ClosingOnce.own(argument.evaluate(positionCount, inputColumns))) {
+        try (ClosingOnce<ColumnVector> source = ClosingOnce.own(argument.evaluate(positionCount, inputColumns, bindings))) {
             // Range check: input strictly within (lowerBoundExclusive, upperBoundExclusive).
             // IEEE comparisons against NaN return false, so NaN/±Inf/finite-OOR all end up out of range.
             // Null inputs propagate as null through the comparisons; anyTrue ignores nulls.

@@ -57,14 +57,14 @@ public final class GpuIntegerMultiply
     }
 
     @Override
-    public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns)
+    public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns, Bindings bindings)
     {
         // Multiply at widerType (which holds the full product), then check the wide
         // product round-trips through the narrow type. For BIGINT widerType is DECIMAL128;
         // cuDF discards the outType for decimal binary ops and picks scale=0+0=0 itself
         // (see BinaryOperable.implicitConversion), which is the DType we want.
-        try (ClosingOnce<ColumnVector> leftResult = ClosingOnce.own(left.evaluate(positionCount, inputColumns));
-                ClosingOnce<ColumnVector> rightResult = ClosingOnce.own(right.evaluate(positionCount, inputColumns));
+        try (ClosingOnce<ColumnVector> leftResult = ClosingOnce.own(left.evaluate(positionCount, inputColumns, bindings));
+                ClosingOnce<ColumnVector> rightResult = ClosingOnce.own(right.evaluate(positionCount, inputColumns, bindings));
                 ClosingOnce<ColumnVector> wideProduct = ClosingOnce.own(leftResult.borrow().binaryOp(MUL, rightResult.borrow(), widerType))) {
             leftResult.close();
             rightResult.close();

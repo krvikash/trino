@@ -43,14 +43,14 @@ public final class GpuLet
     }
 
     @Override
-    public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns)
+    public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns, Bindings bindings)
     {
-        try (ColumnVector bound = value.evaluate(positionCount, inputColumns)) {
+        try (ColumnVector bound = value.evaluate(positionCount, inputColumns, bindings)) {
             List<ColumnVector> extended = ImmutableList.<ColumnVector>builderWithExpectedSize(inputColumns.size() + 1)
                     .addAll(inputColumns)
                     .add(bound)
                     .build();
-            return body.evaluate(positionCount, extended);
+            return body.evaluate(positionCount, extended, bindings);
         }
     }
 

@@ -36,9 +36,9 @@ public final class GpuDateTimeExtract
     }
 
     @Override
-    public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns)
+    public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns, Bindings bindings)
     {
-        try (ColumnVector timestamp = argument.evaluate(positionCount, inputColumns)) {
+        try (ColumnVector timestamp = argument.evaluate(positionCount, inputColumns, bindings)) {
             return field.extract(timestamp);
         }
     }

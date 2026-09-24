@@ -253,7 +253,7 @@ final class TestFallibility
         private int nullComputations;
 
         @Override
-        public ColumnVector evaluate(int positionCount, List<ColumnVector> inputColumns)
+        public ColumnVector evaluate(int positionCount, List<ColumnVector> inputColumns, Bindings bindings)
         {
             throw new UnsupportedOperationException();
         }

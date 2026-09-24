@@ -38,9 +38,9 @@ public final class GpuTruncateToLength
     }
 
     @Override
-    public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns)
+    public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns, Bindings bindings)
     {
-        try (ColumnVector value = argument.evaluate(positionCount, inputColumns)) {
+        try (ColumnVector value = argument.evaluate(positionCount, inputColumns, bindings)) {
             // cuDF substring positions are code point offsets, and the end position is clamped to the string length
             return value.substring(0, length);
         }

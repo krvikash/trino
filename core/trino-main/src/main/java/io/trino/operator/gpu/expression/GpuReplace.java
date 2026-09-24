@@ -42,9 +42,9 @@ public final class GpuReplace
     }
 
     @Override
-    public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns)
+    public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns, Bindings bindings)
     {
-        try (ColumnVector sourceColumn = source.evaluate(positionCount, inputColumns);
+        try (ColumnVector sourceColumn = source.evaluate(positionCount, inputColumns, bindings);
                 Scalar searchScalar = Scalar.fromString(search);
                 Scalar replacementScalar = Scalar.fromString(replacement)) {
             // cuDF scans left to right and resumes after each match, so occurrences never overlap.

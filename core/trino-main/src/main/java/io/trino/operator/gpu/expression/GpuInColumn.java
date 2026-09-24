@@ -36,10 +36,10 @@ public final class GpuInColumn
     }
 
     @Override
-    public ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns)
+    public ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns, Bindings bindings)
     {
-        try (ColumnVector source = this.source.evaluate(positionCount, inputColumns);
-                ColumnVector values = this.values.evaluate(positionCount, inputColumns)) {
+        try (ColumnVector source = this.source.evaluate(positionCount, inputColumns, bindings);
+                ColumnVector values = this.values.evaluate(positionCount, inputColumns, bindings)) {
             return source.contains(values);
         }
     }

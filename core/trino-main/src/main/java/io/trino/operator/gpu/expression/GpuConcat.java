@@ -48,12 +48,12 @@ public final class GpuConcat
     }
 
     @Override
-    public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns)
+    public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns, Bindings bindings)
     {
         @Own ColumnVector[] columns = new ColumnVector[arguments.size()];
         try {
             for (int i = 0; i < columns.length; i++) {
-                columns[i] = arguments.get(i).evaluate(positionCount, inputColumns);
+                columns[i] = arguments.get(i).evaluate(positionCount, inputColumns, bindings);
             }
             verifyOutputLength(columns);
             return ColumnVector.stringConcatenate(columns);

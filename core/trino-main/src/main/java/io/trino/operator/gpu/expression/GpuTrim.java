@@ -47,12 +47,12 @@ public final class GpuTrim
     }
 
     @Override
-    public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns)
+    public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns, Bindings bindings)
     {
         // The code points are always passed explicitly: cuDF's no-argument strip() removes everything up
         // to and including the space character, which is neither a subset nor a superset of Trino's
         // whitespace, so relying on it would silently produce wrong results.
-        try (ColumnVector sourceColumn = source.evaluate(positionCount, inputColumns);
+        try (ColumnVector sourceColumn = source.evaluate(positionCount, inputColumns, bindings);
                 Scalar codePoints = Scalar.fromString(codePointsToTrim)) {
             return strip(sourceColumn, codePoints);
         }

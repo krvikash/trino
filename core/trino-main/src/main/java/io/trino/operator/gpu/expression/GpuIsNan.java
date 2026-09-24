@@ -33,9 +33,9 @@ public final class GpuIsNan
     }
 
     @Override
-    public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns)
+    public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns, Bindings bindings)
     {
-        try (ColumnVector input = source.evaluate(positionCount, inputColumns)) {
+        try (ColumnVector input = source.evaluate(positionCount, inputColumns, bindings)) {
             return input.isNan();
         }
     }

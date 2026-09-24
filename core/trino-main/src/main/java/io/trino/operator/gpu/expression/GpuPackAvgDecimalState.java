@@ -33,7 +33,7 @@ public final class GpuPackAvgDecimalState
         extends GpuExpression
 {
     @Override
-    public @Move ColumnVector evaluate(int positionCount, @Borrow List<ColumnVector> inputColumns)
+    public @Move ColumnVector evaluate(int positionCount, @Borrow List<ColumnVector> inputColumns, Bindings bindings)
     {
         checkState(inputColumns.size() == 2, "Expected 2 input columns (sum, count), got %s", inputColumns.size());
         @Borrow ColumnVector sumColumn = inputColumns.get(0);

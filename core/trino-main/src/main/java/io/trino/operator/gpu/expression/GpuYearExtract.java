@@ -41,9 +41,9 @@ public final class GpuYearExtract
     }
 
     @Override
-    public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns)
+    public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns, Bindings bindings)
     {
-        try (ColumnVector timestamp = argument.evaluate(positionCount, inputColumns)) {
+        try (ColumnVector timestamp = argument.evaluate(positionCount, inputColumns, bindings)) {
             // cuDF's `ColumnView.year()` carries the year as an INT16 and silently returns a wrong
             // value outside cuDF's calendar, which date and low precision timestamp values can reach.
             checkYearWithinCudfCalendar(timestamp);

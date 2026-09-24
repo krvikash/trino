@@ -33,9 +33,9 @@ public final class GpuNot
     }
 
     @Override
-    public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns)
+    public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns, Bindings bindings)
     {
-        try (ColumnVector result = operand.evaluate(positionCount, inputColumns)) {
+        try (ColumnVector result = operand.evaluate(positionCount, inputColumns, bindings)) {
             return result.not();
         }
     }

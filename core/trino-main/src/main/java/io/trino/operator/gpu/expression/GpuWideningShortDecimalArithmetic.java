@@ -46,13 +46,13 @@ public final class GpuWideningShortDecimalArithmetic
     }
 
     @Override
-    public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns)
+    public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns, Bindings bindings)
     {
         // Widen inputs to DECIMAL128 so the result doesn't overflow DECIMAL64.
-        try (ClosingOnce<ColumnVector> leftResult = ClosingOnce.own(left.evaluate(positionCount, inputColumns));
+        try (ClosingOnce<ColumnVector> leftResult = ClosingOnce.own(left.evaluate(positionCount, inputColumns, bindings));
                 ColumnVector leftWide = leftResult.borrow().castTo(DType.create(DECIMAL128, leftResult.borrow().getType().getScale()))) {
             leftResult.close();
-            try (ClosingOnce<ColumnVector> rightResult = ClosingOnce.own(right.evaluate(positionCount, inputColumns));
+            try (ClosingOnce<ColumnVector> rightResult = ClosingOnce.own(right.evaluate(positionCount, inputColumns, bindings));
                     ColumnVector rightWide = rightResult.borrow().castTo(DType.create(DECIMAL128, rightResult.borrow().getType().getScale()))) {
                 rightResult.close();
                 return leftWide.binaryOp(op, rightWide, outputType);

@@ -400,7 +400,7 @@ class TestGpuExpressionAstCompiler
         }
 
         @Override
-        public ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns)
+        public ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns, Bindings bindings)
         {
             try (Table table = new Table(inputColumns.toArray(new ColumnVector[0]));
                     var compiled = cudfAst.compile()) {

@@ -49,9 +49,9 @@ public final class GpuDateTrunc
     }
 
     @Override
-    public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns)
+    public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns, Bindings bindings)
     {
-        try (ClosingOnce<ColumnVector> timestamp = ClosingOnce.own(argument.evaluate(positionCount, inputColumns))) {
+        try (ClosingOnce<ColumnVector> timestamp = ClosingOnce.own(argument.evaluate(positionCount, inputColumns, bindings))) {
             DType columnType = timestamp.borrow().getType();
             OptionalLong period = field.periodInNativeUnits(columnType);
             if (period.isEmpty()) {

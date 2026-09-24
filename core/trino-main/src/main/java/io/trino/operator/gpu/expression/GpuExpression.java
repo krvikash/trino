@@ -28,8 +28,7 @@ public abstract class GpuExpression
     private final Supplier<Fallibility> fallibility = memoize(this::computeFallibility);
     private final Supplier<Boolean> nullOnNullInputs = memoize(this::computeNullOnNullInputs);
 
-    @Move
-    public abstract ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns);
+    public abstract @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns, Bindings bindings);
 
     /// Whether [#evaluate] can raise a runtime error, as a property of this GPU expression tree: a GPU
     /// node may fail where its CPU counterpart does not, and the other way around.

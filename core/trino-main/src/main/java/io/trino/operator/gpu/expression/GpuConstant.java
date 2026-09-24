@@ -45,7 +45,7 @@ public final class GpuConstant
     }
 
     @Override
-    public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns)
+    public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns, Bindings bindings)
     {
         try (Scalar scalar = toScalar.copyToScalar(value)) {
             return ColumnVector.fromScalar(scalar, positionCount);

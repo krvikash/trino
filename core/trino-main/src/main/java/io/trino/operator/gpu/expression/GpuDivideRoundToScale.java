@@ -60,10 +60,10 @@ public final class GpuDivideRoundToScale
     }
 
     @Override
-    public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns)
+    public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns, Bindings bindings)
     {
-        try (ColumnVector dividendColumn = dividend.evaluate(positionCount, inputColumns);
-                ColumnVector divisorColumn = divisor.evaluate(positionCount, inputColumns)) {
+        try (ColumnVector dividendColumn = dividend.evaluate(positionCount, inputColumns, bindings);
+                ColumnVector divisorColumn = divisor.evaluate(positionCount, inputColumns, bindings)) {
             failOnInvalidDivisor(dividendColumn, divisorColumn);
 
             // Work on the unscaled 128-bit integers. The rounding intermediates are confined to the

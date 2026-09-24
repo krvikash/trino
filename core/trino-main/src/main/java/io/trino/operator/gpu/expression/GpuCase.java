@@ -52,7 +52,7 @@ public final class GpuCase
     }
 
     @Override
-    public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns)
+    public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns, Bindings bindings)
     {
         try (Scalar nullScalar = nullScalar(outputType);
                 Scalar falseScalar = Scalar.fromBool(false);
@@ -72,14 +72,14 @@ public final class GpuCase
                     int filteredRowCount = toIntExact(remainingIndicesTable.getRowCount());
                     List<@Borrow ColumnVector> filteredColumns = getColumns(filteredInput);
 
-                    try (ColumnVector conditionRaw = conditions.get(i).evaluate(filteredRowCount, filteredColumns);
+                    try (ColumnVector conditionRaw = conditions.get(i).evaluate(filteredRowCount, filteredColumns, bindings);
                             ColumnVector conditionMask = conditionRaw.replaceNulls(falseScalar)) {
                         if (!anyTrue(conditionMask)) {
                             continue;
                         }
 
                         if (allTrue(conditionMask)) {
-                            try (ColumnVector branchResult = results.get(i).evaluate(filteredRowCount, filteredColumns)) {
+                            try (ColumnVector branchResult = results.get(i).evaluate(filteredRowCount, filteredColumns, bindings)) {
                                 output.replace(scatterCombine(output.borrow(), branchResult, remainingIndicesTable.getColumn(0)));
                             }
                             remainingMask.replace(ColumnVector.fromScalar(falseScalar, positionCount));
@@ -91,7 +91,7 @@ public final class GpuCase
                             int matchedRowCount = toIntExact(matchedIndicesTable.getRowCount());
                             List<@Borrow ColumnVector> matchedColumns = getColumns(matchedInput);
 
-                            try (ColumnVector branchResult = results.get(i).evaluate(matchedRowCount, matchedColumns)) {
+                            try (ColumnVector branchResult = results.get(i).evaluate(matchedRowCount, matchedColumns, bindings)) {
                                 output.replace(scatterCombine(output.borrow(), branchResult, matchedIndicesTable.getColumn(0)));
                             }
                             try (ColumnVector falseValues = ColumnVector.fromScalar(falseScalar, matchedRowCount)) {

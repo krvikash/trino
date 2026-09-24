@@ -38,7 +38,7 @@ public final class GpuRestoreNan
     }
 
     @Override
-    public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns)
+    public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns, Bindings bindings)
     {
         checkState(inputColumns.size() == 2, "Expected 2 input columns (minMaxResult, hasNan), got %s", inputColumns.size());
         @Borrow ColumnVector minMaxResult = inputColumns.get(0);

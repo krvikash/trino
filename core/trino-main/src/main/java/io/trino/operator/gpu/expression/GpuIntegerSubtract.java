@@ -58,15 +58,15 @@ public final class GpuIntegerSubtract
     }
 
     @Override
-    public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns)
+    public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns, Bindings bindings)
     {
         // SUB overflows iff operands differ in sign and the result's sign differs
         // from the minuend's: ((left ^ right) & (left ^ result)) < 0. Sign bit of
         // (left ^ right) is set iff operands differ in sign; ANDing with (left ^
         // result) and testing < 0 checks that property on the sign bit only,
         // vectorized against the (possibly wrapped) cuDF SUB result.
-        try (ClosingOnce<ColumnVector> leftResult = ClosingOnce.own(left.evaluate(positionCount, inputColumns));
-                ClosingOnce<ColumnVector> rightResult = ClosingOnce.own(right.evaluate(positionCount, inputColumns));
+        try (ClosingOnce<ColumnVector> leftResult = ClosingOnce.own(left.evaluate(positionCount, inputColumns, bindings));
+                ClosingOnce<ColumnVector> rightResult = ClosingOnce.own(right.evaluate(positionCount, inputColumns, bindings));
                 ClosingRef<ColumnVector> result = ClosingRef.own(leftResult.borrow().binaryOp(SUB, rightResult.borrow(), operandType));
                 ClosingOnce<ColumnVector> signsDiffer = ClosingOnce.own(leftResult.borrow().binaryOp(BITWISE_XOR, rightResult.borrow(), operandType))) {
             rightResult.close();

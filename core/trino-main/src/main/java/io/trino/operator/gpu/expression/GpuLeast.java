@@ -44,12 +44,12 @@ public final class GpuLeast
     }
 
     @Override
-    public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns)
+    public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns, Bindings bindings)
     {
-        try (ClosingRef<ColumnVector> result = ClosingRef.own(operands.getFirst().evaluate(positionCount, inputColumns))) {
+        try (ClosingRef<ColumnVector> result = ClosingRef.own(operands.getFirst().evaluate(positionCount, inputColumns, bindings))) {
             for (int i = 1; i < operands.size(); i++) {
                 try (ColumnVector current = result.take();
-                        ColumnVector next = operands.get(i).evaluate(positionCount, inputColumns);
+                        ColumnVector next = operands.get(i).evaluate(positionCount, inputColumns, bindings);
                         ColumnVector minimum = current.binaryOp(BinaryOp.NULL_MIN, next, outputType)) {
                     // NULL_MIN treats NULL as the identity element instead of propagating it, so
                     // restore the NULL by intersecting the operand validity masks: a row is NULL

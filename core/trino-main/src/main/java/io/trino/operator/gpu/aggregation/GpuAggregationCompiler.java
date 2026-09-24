@@ -23,6 +23,7 @@ import io.airlift.units.DataSize;
 import io.trino.operator.gpu.GpuOperation;
 import io.trino.operator.gpu.GpuProject;
 import io.trino.operator.gpu.GpuProject.Projection;
+import io.trino.operator.gpu.expression.Bindings;
 import io.trino.operator.gpu.expression.CompiledExpression;
 import io.trino.operator.gpu.expression.Fallibility;
 import io.trino.operator.gpu.expression.GetColumn;
@@ -776,10 +777,10 @@ public final class GpuAggregationCompiler
         }
 
         @Override
-        public ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns)
+        public ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns, Bindings bindings)
         {
-            try (ColumnVector maskVector = mask.evaluate(positionCount, inputColumns);
-                    ColumnVector valueVector = value.evaluate(positionCount, inputColumns)) {
+            try (ColumnVector maskVector = mask.evaluate(positionCount, inputColumns, bindings);
+                    ColumnVector valueVector = value.evaluate(positionCount, inputColumns, bindings)) {
                 return mask(maskVector, valueVector, valueType);
             }
         }

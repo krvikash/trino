@@ -36,9 +36,9 @@ public final class GpuLastDayOfMonth
     }
 
     @Override
-    public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns)
+    public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns, Bindings bindings)
     {
-        try (ColumnVector dateTime = argument.evaluate(positionCount, inputColumns)) {
+        try (ColumnVector dateTime = argument.evaluate(positionCount, inputColumns, bindings)) {
             // cuDF's `ColumnView.lastDayOfMonth()` carries the year as an INT16 and silently returns a
             // wrong value outside cuDF's calendar, which date and low precision timestamp values can reach.
             checkYearWithinCudfCalendar(dateTime);

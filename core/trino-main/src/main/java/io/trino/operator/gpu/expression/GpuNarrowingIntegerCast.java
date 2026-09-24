@@ -62,9 +62,9 @@ public final class GpuNarrowingIntegerCast
     }
 
     @Override
-    public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns)
+    public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns, Bindings bindings)
     {
-        try (ColumnVector source = argument.evaluate(positionCount, inputColumns)) {
+        try (ColumnVector source = argument.evaluate(positionCount, inputColumns, bindings)) {
             // Detect OOR directly: (source < min) OR (source > max). Nulls in source propagate to NULL on
             // both comparisons; NULL_LOGICAL_OR yields NULL when both operands are NULL, which anyTrue ignores.
             try (Scalar lower = integerScalar(sourceDType, minValue(targetDType));

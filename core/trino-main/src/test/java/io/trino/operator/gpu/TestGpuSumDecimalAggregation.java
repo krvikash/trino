@@ -28,6 +28,7 @@ import io.trino.operator.gpu.GpuProject.Projection;
 import io.trino.operator.gpu.aggregation.GpuAggregateFunction;
 import io.trino.operator.gpu.aggregation.GpuAggregation;
 import io.trino.operator.gpu.aggregation.GpuSum;
+import io.trino.operator.gpu.expression.Bindings;
 import io.trino.operator.gpu.expression.CompiledExpression;
 import io.trino.operator.gpu.expression.Fallibility;
 import io.trino.operator.gpu.expression.GetColumn;
@@ -92,7 +93,7 @@ final class TestGpuSumDecimalAggregation
     {
         GpuExpression expression = new GpuCombineSumChunksToVarbinary(DType.create(DType.DTypeEnum.DECIMAL128, 0));
         try (ColumnVector chunk = ColumnVector.fromBoxedLongs(null, 0L);
-                ColumnVector result = expression.evaluate(2, ImmutableList.of(chunk, chunk, chunk, chunk));
+                ColumnVector result = expression.evaluate(2, ImmutableList.of(chunk, chunk, chunk, chunk), new Bindings());
                 var host = result.copyToHost()) {
             assertThat(expression.fallibility()).isEqualTo(Fallibility.FALLIBLE_EXCEPT_ALL_NULLS);
             assertThat(expression.nullOnNullInputs()).isTrue();
@@ -445,7 +446,7 @@ final class TestGpuSumDecimalAggregation
         }
 
         @Override
-        public ColumnVector evaluate(int positionCount, List<ColumnVector> inputColumns)
+        public ColumnVector evaluate(int positionCount, List<ColumnVector> inputColumns, Bindings bindings)
         {
             checkState(inputColumns.size() == 1, "Expected exactly one input column, got %s", inputColumns.size());
             return inputColumns.getFirst().castTo(decimal128Type);

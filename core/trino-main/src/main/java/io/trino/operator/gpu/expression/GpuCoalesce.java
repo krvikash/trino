@@ -39,17 +39,17 @@ public final class GpuCoalesce
     }
 
     @Override
-    public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns)
+    public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns, Bindings bindings)
     {
         // TODO (https://starburstdata.atlassian.net/browse/ENG-26721) evaluate the operands lazily,
         //  the way GpuIf evaluates its branches. Every operand is evaluated over every row here, while
         //  the CPU (CoalesceCodeGenerator) stops at the first non-NULL one, so a fallible later operand
         //  can fail a query the CPU would have answered: COALESCE(a, 10 / b) raises division by zero on
         //  rows where a is not NULL and b is 0.
-        try (ClosingRef<ColumnVector> result = ClosingRef.own(operands.getFirst().evaluate(positionCount, inputColumns))) {
+        try (ClosingRef<ColumnVector> result = ClosingRef.own(operands.getFirst().evaluate(positionCount, inputColumns, bindings))) {
             for (int i = 1; i < operands.size(); i++) {
                 try (ColumnVector current = result.take();
-                        ColumnVector replacement = operands.get(i).evaluate(positionCount, inputColumns)) {
+                        ColumnVector replacement = operands.get(i).evaluate(positionCount, inputColumns, bindings)) {
                     result.set(current.replaceNulls(replacement));
                 }
             }

@@ -21,6 +21,7 @@ import io.trino.operator.gpu.GpuOperation.Blocked;
 import io.trino.operator.gpu.GpuOperation.Data;
 import io.trino.operator.gpu.GpuOperation.Finished;
 import io.trino.operator.gpu.GpuOperation.Yielded;
+import io.trino.operator.gpu.expression.Bindings;
 import io.trino.operator.gpu.expression.CompiledExpression;
 import io.trino.operator.gpu.expression.Fallibility;
 import io.trino.operator.gpu.expression.GpuExpression;
@@ -85,7 +86,7 @@ class TestGpuFilterMemory
             GpuExpression filterExpression = new GpuExpression()
             {
                 @Override
-                public ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputs)
+                public ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputs, Bindings bindings)
                 {
                     try (Scalar zero = Scalar.fromLong(0)) {
                         return inputs.getFirst().binaryOp(BinaryOp.GREATER_EQUAL, zero, DType.BOOL8);

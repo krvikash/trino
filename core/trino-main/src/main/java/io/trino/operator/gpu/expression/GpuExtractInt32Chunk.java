@@ -52,9 +52,9 @@ public final class GpuExtractInt32Chunk
     }
 
     @Override
-    public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns)
+    public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns, Bindings bindings)
     {
-        try (ColumnVector input = source.evaluate(positionCount, inputColumns)) {
+        try (ColumnVector input = source.evaluate(positionCount, inputColumns, bindings)) {
             DType.DTypeEnum inputTypeId = input.getType().getTypeId();
             checkState(inputTypeId == DType.DTypeEnum.DECIMAL128,
                     "Expected DECIMAL128 input column, got %s",

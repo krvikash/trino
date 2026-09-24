@@ -33,7 +33,7 @@ public final class GetColumn
     }
 
     @Override
-    public ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns)
+    public ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns, Bindings bindings)
     {
         return inputColumns.get(channel).incRefCount();
     }

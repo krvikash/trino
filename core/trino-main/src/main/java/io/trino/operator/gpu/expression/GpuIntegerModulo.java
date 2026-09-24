@@ -59,10 +59,10 @@ public final class GpuIntegerModulo
     }
 
     @Override
-    public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns)
+    public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns, Bindings bindings)
     {
-        try (ColumnVector leftResult = left.evaluate(positionCount, inputColumns);
-                ColumnVector rightResult = right.evaluate(positionCount, inputColumns)) {
+        try (ColumnVector leftResult = left.evaluate(positionCount, inputColumns, bindings);
+                ColumnVector rightResult = right.evaluate(positionCount, inputColumns, bindings)) {
             if (checkNeeded) {
                 verifyDivisorNotZero(leftResult, rightResult);
             }

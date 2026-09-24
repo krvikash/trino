@@ -19,6 +19,7 @@ import ai.rapids.cudf.DType;
 import ai.rapids.cudf.Scalar;
 import ai.rapids.cudf.Table;
 import io.trino.operator.gpu.GpuDynamicFilterProvider.CompiledDynamicFilter;
+import io.trino.operator.gpu.expression.Bindings;
 import io.trino.operator.gpu.expression.CompiledExpression;
 import io.trino.operator.gpu.memory.AllocatedMemory;
 import io.trino.operator.gpu.memory.GpuTaskMemoryContext;
@@ -184,7 +185,7 @@ public class GpuFilter
                 .collect(toImmutableList());
 
         // TODO: Add memory tracking to expression evaluation: https://starburstdata.atlassian.net/browse/ENG-20209
-        return filter.expression().evaluate(input.positionCount(), inputs);
+        return filter.expression().evaluate(input.positionCount(), inputs, new Bindings());
     }
 
     private static Result applyMask(ClosingRef<AllocatedMemory> allocation, ClosingRef<GpuPage> inputPage, ClosingOnce<ColumnVector> mask, OptionalDouble passThroughThresholdRatio)

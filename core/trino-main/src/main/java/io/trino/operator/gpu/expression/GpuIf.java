@@ -63,30 +63,30 @@ public final class GpuIf
     }
 
     @Override
-    public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns)
+    public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns, Bindings bindings)
     {
-        try (ClosingOnce<ColumnVector> conditionRaw = ClosingOnce.own(condition.evaluate(positionCount, inputColumns));
+        try (ClosingOnce<ColumnVector> conditionRaw = ClosingOnce.own(condition.evaluate(positionCount, inputColumns, bindings));
                 Scalar falseScalar = Scalar.fromBool(false);
                 // Treat NULL as FALSE so the false branch covers it, matching Trino IF semantics.
                 ClosingOnce<ColumnVector> conditionMask = ClosingOnce.own(conditionRaw.borrow().replaceNulls(falseScalar))) {
             conditionRaw.close();
             // Every row selects the true branch — skip filter+scatter (and the unused negated mask).
             if (allTrue(conditionMask.borrow())) {
-                return trueValue.evaluate(positionCount, inputColumns);
+                return trueValue.evaluate(positionCount, inputColumns, bindings);
             }
             if (!anyTrue(conditionMask.borrow())) {
-                return falseValue.evaluate(positionCount, inputColumns);
+                return falseValue.evaluate(positionCount, inputColumns, bindings);
             }
             // TODO (https://starburstdata.atlassian.net/browse/ENG-12126) when both branches are infallible, evaluate them eagerly and combine with ifElse instead of filter+scatter.
             // TODO (https://starburstdata.atlassian.net/browse/ENG-12126) when both branches are infallible on all-NULL input, evaluate them with masked inputs instead of filter+scatter.
             try (Scalar zero = Scalar.fromInt(0);
                     ColumnVector sequence = ColumnVector.sequence(zero, positionCount);
                     Table sequenceTable = new Table(sequence)) {
-                try (ColumnVector trueResult = filterAndEvaluate(trueValue, conditionMask.borrow(), inputColumns);
+                try (ColumnVector trueResult = filterAndEvaluate(trueValue, conditionMask.borrow(), inputColumns, bindings);
                         Table trueIndices = sequenceTable.filter(conditionMask.borrow());
                         ColumnVector notConditionMask = conditionMask.borrow().not()) {
                     conditionMask.close();
-                    try (ColumnVector falseResult = filterAndEvaluate(falseValue, notConditionMask, inputColumns);
+                    try (ColumnVector falseResult = filterAndEvaluate(falseValue, notConditionMask, inputColumns, bindings);
                             Table falseIndices = sequenceTable.filter(notConditionMask)) {
                         return scatterCombine(outputType, positionCount, trueIndices.getColumn(0), falseIndices.getColumn(0), trueResult, falseResult);
                     }
@@ -98,7 +98,8 @@ public final class GpuIf
     private static @Move ColumnVector filterAndEvaluate(
             GpuExpression branch,
             @Borrow ColumnVector mask,
-            List<@Borrow ColumnVector> inputColumns)
+            List<@Borrow ColumnVector> inputColumns,
+            Bindings bindings)
     {
         // Table requires at least one column; if the IF references no input fields, use the
         // mask itself as a placeholder so we can still derive the filtered row count.
@@ -112,7 +113,7 @@ public final class GpuIf
             for (int i = 0; i < inputColumns.size(); i++) {
                 filteredColumns.add(filtered.getColumn(i));
             }
-            return branch.evaluate(filteredRowCount, filteredColumns.build());
+            return branch.evaluate(filteredRowCount, filteredColumns.build(), bindings);
         }
     }
 

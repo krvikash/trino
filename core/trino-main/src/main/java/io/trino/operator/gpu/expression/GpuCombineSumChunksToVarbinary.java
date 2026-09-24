@@ -56,7 +56,7 @@ public final class GpuCombineSumChunksToVarbinary
     }
 
     @Override
-    public @Move ColumnVector evaluate(int positionCount, @Borrow List<ColumnVector> inputColumns)
+    public @Move ColumnVector evaluate(int positionCount, @Borrow List<ColumnVector> inputColumns, Bindings bindings)
     {
         checkState(inputColumns.size() == 4, "Expected 4 chunk columns, got %s", inputColumns.size());
 

@@ -58,14 +58,14 @@ public final class GpuIntegerAdd
     }
 
     @Override
-    public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns)
+    public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns, Bindings bindings)
     {
         // ADD overflows iff the operands share a sign that the result then flips.
         // Sign bit of (left ^ result) is set iff left and result differ in sign;
         // ANDing with (right ^ result) and testing < 0 checks that property on the
         // sign bit only, vectorized against the (possibly wrapped) cuDF ADD result.
-        try (ClosingOnce<ColumnVector> leftResult = ClosingOnce.own(left.evaluate(positionCount, inputColumns));
-                ClosingOnce<ColumnVector> rightResult = ClosingOnce.own(right.evaluate(positionCount, inputColumns));
+        try (ClosingOnce<ColumnVector> leftResult = ClosingOnce.own(left.evaluate(positionCount, inputColumns, bindings));
+                ClosingOnce<ColumnVector> rightResult = ClosingOnce.own(right.evaluate(positionCount, inputColumns, bindings));
                 ClosingRef<ColumnVector> result = ClosingRef.own(leftResult.borrow().binaryOp(ADD, rightResult.borrow(), operandType));
                 ClosingOnce<ColumnVector> leftXor = ClosingOnce.own(leftResult.borrow().binaryOp(BITWISE_XOR, result.borrow(), operandType))) {
             leftResult.close();

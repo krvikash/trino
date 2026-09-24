@@ -60,7 +60,7 @@ public final class GpuCombineDecimalStateSumsToDecimal128
     }
 
     @Override
-    public @Move ColumnVector evaluate(int positionCount, @Borrow List<ColumnVector> inputColumns)
+    public @Move ColumnVector evaluate(int positionCount, @Borrow List<ColumnVector> inputColumns, Bindings bindings)
     {
         checkState(inputColumns.size() == 5,
                 "Expected 4 chunk-sum columns plus an overflow-sum column, got %s",

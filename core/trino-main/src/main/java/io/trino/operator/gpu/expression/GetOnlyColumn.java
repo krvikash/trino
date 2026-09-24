@@ -24,7 +24,7 @@ public final class GetOnlyColumn
         extends GpuExpression
 {
     @Override
-    public ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns)
+    public ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns, Bindings bindings)
     {
         return getOnlyElement(inputColumns).incRefCount();
     }

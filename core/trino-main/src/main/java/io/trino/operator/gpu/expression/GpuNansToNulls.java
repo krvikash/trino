@@ -35,9 +35,9 @@ public final class GpuNansToNulls
     }
 
     @Override
-    public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns)
+    public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns, Bindings bindings)
     {
-        try (ColumnVector input = source.evaluate(positionCount, inputColumns);
+        try (ColumnVector input = source.evaluate(positionCount, inputColumns, bindings);
                 ColumnVector isNotNan = input.isNotNan();
                 Scalar nullScalar = floatingScalar(input.getType(), null)) {
             return isNotNan.ifElse(input, nullScalar);

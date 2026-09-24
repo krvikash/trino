@@ -36,9 +36,9 @@ public final class GpuCast
     }
 
     @Override
-    public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns)
+    public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns, Bindings bindings)
     {
-        try (ColumnVector result = argument.evaluate(positionCount, inputColumns)) {
+        try (ColumnVector result = argument.evaluate(positionCount, inputColumns, bindings)) {
             return result.castTo(toType);
         }
     }

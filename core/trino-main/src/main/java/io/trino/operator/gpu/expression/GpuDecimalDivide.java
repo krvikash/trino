@@ -92,13 +92,13 @@ public final class GpuDecimalDivide
     }
 
     @Override
-    public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns)
+    public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns, Bindings bindings)
     {
         try (ClosingRef<ColumnVector> dividendMagnitude = ClosingRef.empty();
                 ClosingRef<ColumnVector> divisorMagnitude = ClosingRef.empty();
                 ClosingRef<ColumnVector> resultNegative = ClosingRef.empty()) {
-            try (ColumnVector unscaledDividend = unscaledOperand(dividend, positionCount, inputColumns);
-                    ColumnVector unscaledDivisor = unscaledOperand(divisor, positionCount, inputColumns)) {
+            try (ColumnVector unscaledDividend = unscaledOperand(dividend, positionCount, inputColumns, bindings);
+                    ColumnVector unscaledDivisor = unscaledOperand(divisor, positionCount, inputColumns, bindings)) {
                 failOnZeroDivisor(unscaledDividend, unscaledDivisor);
                 dividendMagnitude.set(unscaledDividend.abs());
                 divisorMagnitude.set(nonZeroMagnitude(unscaledDivisor));
@@ -159,9 +159,9 @@ public final class GpuDecimalDivide
 
     /// Evaluates an operand and reinterprets the decimal as its unscaled integer, widened to DECIMAL128.
     /// The operand's own column is released as soon as it has been reinterpreted.
-    private static @Move ColumnVector unscaledOperand(GpuExpression operand, int positionCount, List<@Borrow ColumnVector> inputColumns)
+    private static @Move ColumnVector unscaledOperand(GpuExpression operand, int positionCount, List<@Borrow ColumnVector> inputColumns, Bindings bindings)
     {
-        try (ColumnVector column = operand.evaluate(positionCount, inputColumns);
+        try (ColumnVector column = operand.evaluate(positionCount, inputColumns, bindings);
                 ColumnView unscaled = column.bitCastTo(DType.create(column.getType().getTypeId(), 0))) {
             if (unscaled.getType().equals(UNSCALED)) {
                 return unscaled.copyToColumnVector();

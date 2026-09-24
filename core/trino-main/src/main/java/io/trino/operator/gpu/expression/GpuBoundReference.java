@@ -38,7 +38,7 @@ public final class GpuBoundReference
     }
 
     @Override
-    public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns)
+    public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns, Bindings bindings)
     {
         return inputColumns.get(inputColumns.size() - 1 - deBruijnIndex).incRefCount();
     }
