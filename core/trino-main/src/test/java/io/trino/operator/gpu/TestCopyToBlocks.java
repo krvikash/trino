@@ -25,6 +25,7 @@ import io.trino.spi.gpu.Column.Blocks;
 import io.trino.spi.gpu.Column.DeviceMemory;
 import io.trino.spi.gpu.GpuPage;
 import io.trino.spi.type.TimestampType;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -33,6 +34,7 @@ import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.trino.operator.gpu.GpuTestUtils.assertSameDataInOrder;
 import static io.trino.operator.gpu.GpuTestUtils.createBlocks;
 import static io.trino.operator.gpu.GpuTestUtils.drainToPages;
+import static io.trino.operator.gpu.GpuTestUtils.maybeSetGpuMemoryPoolForTests;
 import static io.trino.spi.type.IntegerType.INTEGER;
 import static io.trino.spi.type.TimestampType.createTimestampType;
 import static io.trino.sql.gen.TestColumnarFilters.NullsProvider.RANDOM_NULLS;
@@ -41,6 +43,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class TestCopyToBlocks
 {
+    @BeforeAll
+    static void maybeSetGpuMemoryPool()
+    {
+        maybeSetGpuMemoryPoolForTests();
+    }
+
     @Test
     void testCopiesPreExistingBlocks()
     {
