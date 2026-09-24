@@ -472,6 +472,7 @@ import static io.trino.spi.StandardErrorCode.QUERY_REJECTED;
 import static io.trino.spi.StandardErrorCode.TABLE_ALREADY_EXISTS;
 import static io.trino.spi.StandardErrorCode.TABLE_NOT_FOUND;
 import static io.trino.spi.StandardErrorCode.TYPE_MISMATCH;
+import static io.trino.spi.connector.IncrementalColumnWatermark.Unknown.unknownIncrementalColumnWatermark;
 import static io.trino.spi.connector.MaterializedViewFreshness.Freshness.FRESH;
 import static io.trino.spi.connector.MaterializedViewFreshness.Freshness.FRESH_WITHIN_GRACE_PERIOD;
 import static io.trino.spi.connector.MaterializedViewFreshness.Freshness.STALE;
@@ -5459,7 +5460,7 @@ public class IcebergMetadata
     }
 
     @Override
-    public Optional<MaterializedViewIncrementalRefresh> getMaterializedViewIncrementalRefresh(ConnectorSession session, SchemaTableName materializedViewName)
+    public Optional<MaterializedViewIncrementalRefresh> getMaterializedViewIncrementalRefresh(ConnectorSession session, ConnectorTableHandle storageTableHandle, SchemaTableName materializedViewName)
     {
         if (!materializedViewIncrementalColumnRefreshEnabled) {
             return Optional.empty();
@@ -5470,7 +5471,7 @@ public class IcebergMetadata
         }
         Map<String, Object> materializedViewProperties = catalog.getMaterializedViewProperties(session, materializedViewName, definition.get());
         return IcebergMaterializedViewProperties.getIncrementalColumn(materializedViewProperties)
-                .map(MaterializedViewIncrementalRefresh::new);
+                .map(incrementalColumn -> new MaterializedViewIncrementalRefresh(incrementalColumn, unknownIncrementalColumnWatermark()));
     }
 
     @Override

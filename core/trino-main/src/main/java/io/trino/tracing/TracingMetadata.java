@@ -791,11 +791,11 @@ public class TracingMetadata
     }
 
     @Override
-    public Optional<MaterializedViewIncrementalRefresh> getMaterializedViewIncrementalRefresh(Session session, QualifiedObjectName materializedViewName)
+    public Optional<MaterializedViewIncrementalRefresh> getMaterializedViewIncrementalRefresh(Session session, TableHandle storageTableHandle, QualifiedObjectName materializedViewName)
     {
         Span span = startSpan("getMaterializedViewIncrementalRefresh", materializedViewName);
         try (var _ = scopedSpan(span)) {
-            return delegate.getMaterializedViewIncrementalRefresh(session, materializedViewName);
+            return delegate.getMaterializedViewIncrementalRefresh(session, storageTableHandle, materializedViewName);
         }
     }
 

@@ -983,9 +983,9 @@ public class LakehouseMetadata
     }
 
     @Override
-    public Optional<MaterializedViewIncrementalRefresh> getMaterializedViewIncrementalRefresh(ConnectorSession session, SchemaTableName materializedViewName)
+    public Optional<MaterializedViewIncrementalRefresh> getMaterializedViewIncrementalRefresh(ConnectorSession session, ConnectorTableHandle storageTableHandle, SchemaTableName materializedViewName)
     {
-        return icebergMetadata.getMaterializedViewIncrementalRefresh(session, materializedViewName);
+        return icebergMetadata.getMaterializedViewIncrementalRefresh(session, storageTableHandle, materializedViewName);
     }
 
     @Override

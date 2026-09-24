@@ -70,6 +70,7 @@ import io.trino.spi.connector.ColumnSchema;
 import io.trino.spi.connector.ConnectorMaterializedViewDefinition.WhenStaleBehavior;
 import io.trino.spi.connector.ConnectorTableMetadata;
 import io.trino.spi.connector.ConnectorTransactionHandle;
+import io.trino.spi.connector.IncrementalColumnWatermark;
 import io.trino.spi.connector.MaterializedViewFreshness;
 import io.trino.spi.connector.MaterializedViewIncrementalRefresh;
 import io.trino.spi.connector.PointerType;
@@ -773,12 +774,10 @@ class StatementAnalyzer
             // the injected incremental_column predicate (built below) resolve to storage rather
             // than re-inlining the source query and looping.
             analysis.setRefreshingMaterializedView(name);
-            query = applyIncrementalColumnFilter(query, name);
-            Scope queryScope = process(query, scope);
-
-            // verify the insert destination columns match the query
             TableHandle targetTableHandle = metadata.getTableHandle(session, targetTable)
                     .orElseThrow(() -> semanticException(TABLE_NOT_FOUND, refreshMaterializedView, "Table '%s' does not exist", targetTable));
+            query = applyIncrementalColumnFilter(query, name, view, targetTableHandle);
+            Scope queryScope = process(query, scope);
 
             analysis.setSkipMaterializedViewRefresh(metadata.getMaterializedViewFreshness(session, name, false).getFreshness() == FRESH);
 
@@ -5841,9 +5840,9 @@ class StatementAnalyzer
             }
         }
 
-        private Query applyIncrementalColumnFilter(Query query, QualifiedObjectName name)
+        private Query applyIncrementalColumnFilter(Query query, QualifiedObjectName name, MaterializedViewDefinition view, TableHandle storageTableHandle)
         {
-            Optional<MaterializedViewIncrementalRefresh> incrementalRefresh = metadata.getMaterializedViewIncrementalRefresh(session, name);
+            Optional<MaterializedViewIncrementalRefresh> incrementalRefresh = metadata.getMaterializedViewIncrementalRefresh(session, storageTableHandle, name);
             if (incrementalRefresh.isEmpty()) {
                 return query;
             }
@@ -5855,7 +5854,56 @@ class StatementAnalyzer
                     query,
                     (problematicNode, construct) -> semanticException(NOT_SUPPORTED, problematicNode, "Materialized view with incremental_column is not supported when its definition contains %s", construct));
             analysis.setMaterializedViewIncrementalRefresh(incrementalRefresh.get());
-            String quotedColumn = "\"" + incrementalRefresh.get().incrementalColumn().replace("\"", "\"\"") + "\"";
+
+            String incrementalColumn = incrementalRefresh.get().incrementalColumn();
+            NodeLocation location = query.getLocation().orElseThrow();
+
+            // A resolved watermark becomes a plan-time literal, which pushes into the source connector;
+            // the correlated subquery never does.
+            IncrementalColumnWatermark watermark = incrementalRefresh.get().watermark();
+            return switch (watermark) {
+                case IncrementalColumnWatermark.Empty _ -> query;
+                case IncrementalColumnWatermark.Value value -> {
+                    Optional<Query> queryWithLiteralFilter = tryApplyIncrementalColumnLiteralFilter(query, name, view, incrementalColumn, value, location);
+                    yield queryWithLiteralFilter
+                            .orElseGet(() -> applyIncrementalColumnSubqueryFilter(query, name, incrementalColumn, location));
+                }
+                case IncrementalColumnWatermark.Unknown _ -> applyIncrementalColumnSubqueryFilter(query, name, incrementalColumn, location);
+            };
+        }
+
+        private Optional<Query> tryApplyIncrementalColumnLiteralFilter(
+                Query query,
+                QualifiedObjectName name,
+                MaterializedViewDefinition view,
+                String incrementalColumn,
+                IncrementalColumnWatermark.Value watermark,
+                NodeLocation location)
+        {
+            Optional<ViewColumn> column = view.getColumns().stream()
+                    .filter(viewColumn -> viewColumn.name().equals(incrementalColumn))
+                    .findFirst();
+            if (column.isEmpty()) {
+                return Optional.empty();
+            }
+            Type columnType = getViewColumnType(column.get(), name, query);
+            Optional<Expression> literal = IncrementalColumnWatermarkLiteral.toLiteral(location, columnType, watermark.type(), watermark.value());
+            if (literal.isEmpty()) {
+                return Optional.empty();
+            }
+            Expression filter = new Predicated(
+                    location,
+                    new Identifier(location, incrementalColumn, true),
+                    new ComparisonPredicate(location, ComparisonPredicate.Operator.GREATER_THAN, literal.get()));
+            return Optional.of(simpleQuery(
+                    new Select(location, false, ImmutableList.of(new AllColumns(location))),
+                    subquery(query),
+                    filter));
+        }
+
+        private Query applyIncrementalColumnSubqueryFilter(Query query, QualifiedObjectName name, String incrementalColumn, NodeLocation location)
+        {
+            String quotedColumn = "\"" + incrementalColumn.replace("\"", "\"\"") + "\"";
             // Reference the materialized view by its public name. The visitTable
             // self-reference guard (StatementAnalyzer#visitTable) ensures this resolves to
             // storage, not to a recursive inline expansion of the MV's source query.
@@ -5868,7 +5916,6 @@ class StatementAnalyzer
             String filterSql = "(SELECT max(%s) FROM %s) IS NULL OR %s > (SELECT max(%s) FROM %s)"
                     .formatted(quotedColumn, quotedMv, quotedColumn, quotedColumn, quotedMv);
             Expression filter = sqlParser.createExpression(filterSql);
-            NodeLocation location = query.getLocation().orElseThrow();
             return simpleQuery(
                     new Select(location, false, ImmutableList.of(new AllColumns(location))),
                     subquery(query),

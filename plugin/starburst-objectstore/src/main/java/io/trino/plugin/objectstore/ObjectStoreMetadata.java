@@ -629,9 +629,12 @@ public class ObjectStoreMetadata
     }
 
     @Override
-    public Optional<MaterializedViewIncrementalRefresh> getMaterializedViewIncrementalRefresh(ConnectorSession session, SchemaTableName materializedViewName)
+    public Optional<MaterializedViewIncrementalRefresh> getMaterializedViewIncrementalRefresh(ConnectorSession session, ConnectorTableHandle storageTableHandle, SchemaTableName materializedViewName)
     {
-        return icebergMetadata.getMaterializedViewIncrementalRefresh(unwrap(ICEBERG, session), materializedViewName);
+        if (!storageTableHandle.getClass().equals(IcebergTableHandle.class)) {
+            return Optional.empty();
+        }
+        return icebergMetadata.getMaterializedViewIncrementalRefresh(unwrap(ICEBERG, session), storageTableHandle, materializedViewName);
     }
 
     @Override

@@ -1335,17 +1335,14 @@ public final class MetadataManager
     }
 
     @Override
-    public Optional<MaterializedViewIncrementalRefresh> getMaterializedViewIncrementalRefresh(Session session, QualifiedObjectName materializedViewName)
+    public Optional<MaterializedViewIncrementalRefresh> getMaterializedViewIncrementalRefresh(Session session, TableHandle storageTableHandle, QualifiedObjectName materializedViewName)
     {
-        Optional<CatalogMetadata> catalog = getOptionalCatalogMetadata(session, materializedViewName.catalogName());
-        if (catalog.isEmpty()) {
-            return Optional.empty();
-        }
-        CatalogMetadata catalogMetadata = catalog.get();
-        CatalogHandle catalogHandle = catalogMetadata.getCatalogHandle(session, materializedViewName, Optional.empty(), Optional.empty());
+        CatalogHandle catalogHandle = storageTableHandle.catalogHandle();
+        CatalogMetadata catalogMetadata = getRequiredCatalogMetadata(session, materializedViewName.catalogName());
+        checkArgument(catalogHandle.equals(catalogMetadata.getCatalogHandle()), "Storage table of materialized view %s is not in catalog %s", materializedViewName, materializedViewName.catalogName());
         ConnectorMetadata metadata = catalogMetadata.getMetadataFor(session, catalogHandle);
         ConnectorSession connectorSession = session.toConnectorSession(catalogHandle);
-        return metadata.getMaterializedViewIncrementalRefresh(connectorSession, materializedViewName.asSchemaTableName());
+        return metadata.getMaterializedViewIncrementalRefresh(connectorSession, storageTableHandle.connectorHandle(), materializedViewName.asSchemaTableName());
     }
 
     @Override

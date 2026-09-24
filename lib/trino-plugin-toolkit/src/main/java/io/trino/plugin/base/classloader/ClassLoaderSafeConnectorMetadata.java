@@ -673,10 +673,10 @@ public class ClassLoaderSafeConnectorMetadata
     }
 
     @Override
-    public Optional<MaterializedViewIncrementalRefresh> getMaterializedViewIncrementalRefresh(ConnectorSession session, SchemaTableName materializedViewName)
+    public Optional<MaterializedViewIncrementalRefresh> getMaterializedViewIncrementalRefresh(ConnectorSession session, ConnectorTableHandle storageTableHandle, SchemaTableName materializedViewName)
     {
         try (ThreadContextClassLoader _ = new ThreadContextClassLoader(classLoader)) {
-            return delegate.getMaterializedViewIncrementalRefresh(session, materializedViewName);
+            return delegate.getMaterializedViewIncrementalRefresh(session, storageTableHandle, materializedViewName);
         }
     }
 

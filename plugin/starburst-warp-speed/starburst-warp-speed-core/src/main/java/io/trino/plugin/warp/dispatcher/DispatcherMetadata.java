@@ -597,9 +597,12 @@ public class DispatcherMetadata
     }
 
     @Override
-    public Optional<MaterializedViewIncrementalRefresh> getMaterializedViewIncrementalRefresh(ConnectorSession session, SchemaTableName materializedViewName)
+    public Optional<MaterializedViewIncrementalRefresh> getMaterializedViewIncrementalRefresh(ConnectorSession session, ConnectorTableHandle storageTableHandle, SchemaTableName materializedViewName)
     {
-        return proxiedConnectorMetadata.getMaterializedViewIncrementalRefresh(session, materializedViewName);
+        return proxiedConnectorMetadata.getMaterializedViewIncrementalRefresh(
+                session,
+                ((DispatcherTableHandle) storageTableHandle).getProxyConnectorTableHandle(),
+                materializedViewName);
     }
 
     @Override

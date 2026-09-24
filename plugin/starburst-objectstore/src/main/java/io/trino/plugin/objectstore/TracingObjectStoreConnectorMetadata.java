@@ -767,11 +767,11 @@ public class TracingObjectStoreConnectorMetadata<T extends ConnectorMetadata>
     }
 
     @Override
-    public Optional<MaterializedViewIncrementalRefresh> getMaterializedViewIncrementalRefresh(ConnectorSession session, SchemaTableName materializedViewName)
+    public Optional<MaterializedViewIncrementalRefresh> getMaterializedViewIncrementalRefresh(ConnectorSession session, ConnectorTableHandle storageTableHandle, SchemaTableName materializedViewName)
     {
         Span span = startSpan("getMaterializedViewIncrementalRefresh", materializedViewName);
         try (var _ = scopedSpan(span)) {
-            return delegate.getMaterializedViewIncrementalRefresh(session, materializedViewName);
+            return delegate.getMaterializedViewIncrementalRefresh(session, storageTableHandle, materializedViewName);
         }
     }
 

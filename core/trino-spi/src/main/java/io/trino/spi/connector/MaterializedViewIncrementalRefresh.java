@@ -20,15 +20,16 @@ import static java.util.Objects.requireNonNull;
  * Connector-supplied properties that drive predicate-based incremental refresh
  * of a materialized view. Returned by
  * {@link ConnectorMetadata#getMaterializedViewIncrementalRefresh}; consumed by
- * the engine at analyzer time to inject a {@code WHERE col > (SELECT max(col)
- * FROM mv)} filter into the view's source query and to force the refresh into
+ * the engine at analyzer time to inject a {@code col > <watermark>} filter into
+ * the view's source query and to force the refresh into
  * {@link io.trino.spi.RefreshType#INCREMENTAL_COLUMN} mode.
  */
-public record MaterializedViewIncrementalRefresh(String incrementalColumn)
+public record MaterializedViewIncrementalRefresh(String incrementalColumn, IncrementalColumnWatermark watermark)
 {
     public MaterializedViewIncrementalRefresh
     {
         requireNonNull(incrementalColumn, "incrementalColumn is null");
         checkArgument(!incrementalColumn.isBlank(), "incrementalColumn is blank");
+        requireNonNull(watermark, "watermark is null");
     }
 }

@@ -535,7 +535,7 @@ public abstract class AbstractMockMetadata
     }
 
     @Override
-    public Optional<MaterializedViewIncrementalRefresh> getMaterializedViewIncrementalRefresh(Session session, QualifiedObjectName materializedViewName)
+    public Optional<MaterializedViewIncrementalRefresh> getMaterializedViewIncrementalRefresh(Session session, TableHandle storageTableHandle, QualifiedObjectName materializedViewName)
     {
         throw new UnsupportedOperationException();
     }

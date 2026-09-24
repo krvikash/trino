@@ -1075,9 +1075,9 @@ public class MockPlanAlternativeMetadata
     }
 
     @Override
-    public Optional<MaterializedViewIncrementalRefresh> getMaterializedViewIncrementalRefresh(ConnectorSession session, SchemaTableName materializedViewName)
+    public Optional<MaterializedViewIncrementalRefresh> getMaterializedViewIncrementalRefresh(ConnectorSession session, ConnectorTableHandle storageTableHandle, SchemaTableName materializedViewName)
     {
-        return delegate.getMaterializedViewIncrementalRefresh(session, materializedViewName);
+        return delegate.getMaterializedViewIncrementalRefresh(session, getDelegate(storageTableHandle), materializedViewName);
     }
 
     @Override

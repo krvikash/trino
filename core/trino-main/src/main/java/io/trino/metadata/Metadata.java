@@ -443,8 +443,11 @@ public interface Metadata
      * properties, or empty if the view does not opt into incremental-column
      * refresh. Read at analyzer time to drive the source-query rewrite and
      * the {@link io.trino.spi.RefreshType#INCREMENTAL_COLUMN} classification.
+     * {@code storageTableHandle} identifies the view's storage table, so the
+     * connector resolves the watermark against the same snapshot the engine
+     * resolved rather than re-reading the table's current state.
      */
-    Optional<MaterializedViewIncrementalRefresh> getMaterializedViewIncrementalRefresh(Session session, QualifiedObjectName materializedViewName);
+    Optional<MaterializedViewIncrementalRefresh> getMaterializedViewIncrementalRefresh(Session session, TableHandle storageTableHandle, QualifiedObjectName materializedViewName);
 
     /**
      * Begin refresh materialized view query
