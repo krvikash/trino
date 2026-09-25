@@ -22,6 +22,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 
 import static io.trino.SystemSessionProperties.SCALE_WRITERS;
+import static io.trino.SystemSessionProperties.SKEWED_PARTITION_MIN_DATA_PROCESSED_REBALANCE_THRESHOLD;
 import static io.trino.SystemSessionProperties.TASK_SCALE_WRITERS_ENABLED;
 import static io.trino.SystemSessionProperties.WRITER_SCALING_MIN_DATA_PROCESSED;
 import static io.trino.testing.TestingNames.randomNameSuffix;
@@ -40,8 +41,9 @@ import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
  * appearing multiple times in the output — i.e., duplicate rows. This is why
  * {@code getMergeWriterScalingOptions} returns {@code DISABLED} for CoW tables.
  *
- * <p>Uses {@code tpch.tiny} (1.5k rows) for speed. Note that the CoW duplication bug
- * originally only reproduced at sf10 scale (15M rows).
+ * <p>Uses {@code tpch.tiny} for speed. With default settings the CoW duplication only shows
+ * at {@code tpch.sf10} (15M rows); the small output buffer and rebalance threshold make
+ * writers scale at this size too.
  */
 @TestInstance(PER_CLASS)
 public class TestIcebergMergeWriterScaling
@@ -59,6 +61,8 @@ public class TestIcebergMergeWriterScaling
     {
         return IcebergQueryRunner.builder()
                 .setWorkerCount(3)
+                // Remote writer scaling rebalances only when the output buffer is full
+                .addExtraProperty("sink.max-buffer-size", "1kB")
                 .build();
     }
 
@@ -101,6 +105,7 @@ public class TestIcebergMergeWriterScaling
                 .setSystemProperty(SCALE_WRITERS, "true")
                 .setSystemProperty(TASK_SCALE_WRITERS_ENABLED, "true")
                 .setSystemProperty(WRITER_SCALING_MIN_DATA_PROCESSED, "0B")
+                .setSystemProperty(SKEWED_PARTITION_MIN_DATA_PROCESSED_REBALANCE_THRESHOLD, "1kB")
                 .build();
     }
 
