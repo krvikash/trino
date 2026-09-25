@@ -149,7 +149,8 @@ public final class CompilerUtils
     public static Map<String, Class<?>> defineClasses(List<ClassDefinition> classDefinitions, DynamicClassLoader classLoader)
     {
         return classGenerator(classLoader)
-                .omitDebugInfo(true)
+                .omitDebugInfo(DUMP_CLASSES_DIRECTORY.isEmpty())
+                .dumpClassFilesTo(DUMP_CLASSES_DIRECTORY)
                 .defineClasses(classDefinitions);
     }
 
