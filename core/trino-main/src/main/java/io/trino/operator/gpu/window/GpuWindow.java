@@ -291,6 +291,37 @@ public final class GpuWindow
         return bytes;
     }
 
+    private long estimateComputePeakBytes(Optional<@Borrow Table> sorted, int rowCount)
+    {
+        if (scanComputations.isEmpty()) {
+            return 0;
+        }
+
+        long scanOutputBytes = scanComputations.stream()
+                .mapToLong(computation -> (long) rowCount * computation.scanOutputBytesPerRow())
+                .sum();
+        if (partitionChannels.length == 0) {
+            return scanOutputBytes;
+        }
+
+        checkState(sorted.isPresent(), "computation requires an input table");
+        long partitionKeyBytes = estimatePartitionKeyBytes(sorted.get());
+        long scanWorkingBytes = scanComputations.stream()
+                .mapToLong(computation -> (long) rowCount * computation.groupedScanWorkingBytesPerRow())
+                .max()
+                .orElse(0);
+        return partitionKeyBytes + scanOutputBytes + scanWorkingBytes;
+    }
+
+    private long estimatePartitionKeyBytes(@Borrow Table sorted)
+    {
+        long bytes = 0;
+        for (int channel : partitionChannels) {
+            bytes += sorted.getColumn(channel).getDeviceMemorySize();
+        }
+        return bytes;
+    }
+
     private @Move ColumnVector[] computeResultColumns(Optional<@Borrow Table> sorted)
     {
         if (scanComputations.isEmpty()) {
@@ -340,37 +371,6 @@ public final class GpuWindow
             closeColumns(results);
             throw t;
         }
-    }
-
-    private long estimateComputePeakBytes(Optional<@Borrow Table> sorted, int rowCount)
-    {
-        if (scanComputations.isEmpty()) {
-            return 0;
-        }
-
-        long scanOutputBytes = scanComputations.stream()
-                .mapToLong(computation -> (long) rowCount * computation.scanOutputBytesPerRow())
-                .sum();
-        if (partitionChannels.length == 0) {
-            return scanOutputBytes;
-        }
-
-        checkState(sorted.isPresent(), "computation requires an input table");
-        long partitionKeyBytes = estimatePartitionKeyBytes(sorted.get());
-        long scanWorkingBytes = scanComputations.stream()
-                .mapToLong(computation -> (long) rowCount * computation.groupedScanWorkingBytesPerRow())
-                .max()
-                .orElse(0);
-        return partitionKeyBytes + scanOutputBytes + scanWorkingBytes;
-    }
-
-    private long estimatePartitionKeyBytes(@Borrow Table sorted)
-    {
-        long bytes = 0;
-        for (int channel : partitionChannels) {
-            bytes += sorted.getColumn(channel).getDeviceMemorySize();
-        }
-        return bytes;
     }
 
     // Output layout: [sorted columns 0..N-1, result columns N..N+S-1].
