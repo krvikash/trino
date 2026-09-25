@@ -187,6 +187,8 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import static java.util.stream.Collectors.joining;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.IntStream.range;
+import static org.apache.iceberg.FileContent.DATA;
+import static org.apache.iceberg.FileContent.POSITION_DELETES;
 import static org.apache.iceberg.TableMetadata.newTableMetadata;
 import static org.apache.iceberg.TableProperties.AVRO_COMPRESSION;
 import static org.apache.iceberg.TableProperties.DEFAULT_FILE_FORMAT;
@@ -6162,33 +6164,70 @@ public abstract class BaseIcebergConnectorTest
     @Test
     public void testDeleteOnIdentityPartitionedTableProducesOneDeleteEntryPerDataFile()
     {
-        testDeleteFileCount("WITH (partitioning = ARRAY['regionkey'])", "DELETE FROM %s WHERE mod(id, 2) = 0");
+        testDeleteFileCount("WITH (partitioning = ARRAY['part'])", "DELETE FROM %s WHERE mod(id, 2) = 0", 25000, 0);
     }
 
-    private void testDeleteFileCount(String tableProperties, @Language("SQL") String operation)
+    @Test
+    public void testUpdateOnUnpartitionedTableDeleteFileCount()
+    {
+        testDeleteFileCount("", "UPDATE %s SET value = 1 WHERE mod(id, 2) = 0", 50000, 25000);
+    }
+
+    @Test
+    public void testDeleteOnUnpartitionedTableDeleteFileCount()
+    {
+        testDeleteFileCount("", "DELETE FROM %s WHERE mod(id, 2) = 0", 25000, 0);
+    }
+
+    @Test
+    public void testMergeOnUnpartitionedTableDeleteFileCount()
+    {
+        testDeleteFileCount(
+                "",
+                """
+                MERGE INTO %s t
+                -- sequence is capped at 10000 entries
+                USING (SELECT file * 10000 + id AS id FROM UNNEST(sequence(0, 4)) f(file) CROSS JOIN UNNEST(sequence(0, 9999, 2)) i(id)) s
+                ON t.id = s.id
+                WHEN MATCHED THEN UPDATE SET value = 1
+                """,
+                50000,
+                25000);
+    }
+
+    private void testDeleteFileCount(String tableProperties, @Language("SQL") String operation, long expectedCount, long expectedSum)
     {
         Session session = Session.builder(getSession())
                 .setSystemProperty(TASK_MIN_WRITER_COUNT, "4")
                 .setSystemProperty(TASK_MAX_WRITER_COUNT, "4")
+                .setSystemProperty(SCALE_WRITERS, "false")
+                .setSystemProperty(TASK_SCALE_WRITERS_ENABLED, "false")
                 .build();
 
-        try (TestTable table = newTrinoTable(
-                "test_identity_partitioned_deletes_",
-                tableProperties + " AS SELECT id, id % 5 regionkey FROM UNNEST(sequence(0, 499)) t(id)")) {
+        int dataFileCount = 5;
+        try (TestTable table = newTrinoTable("test_delete_file_count_", "(id integer, value integer, part integer) " + tableProperties)) {
+            for (int part = 0; part < dataFileCount; part++) {
+                assertUpdate("INSERT INTO %s SELECT id, 0, %s FROM UNNEST(sequence(%s, %s)) t(id)".formatted(table.getName(), part, part * 10000, part * 10000 + 9999), 10000);
+            }
             assertQuery(
                     "SELECT content, count(*) FROM \"" + table.getName() + "$files\" GROUP BY content",
-                    "VALUES (0, 5)");
+                    "VALUES (%s, %s)".formatted(DATA.id(), dataFileCount));
 
-            assertUpdate(session, operation.formatted(table.getName()), 250);
+            assertUpdate(session, operation.formatted(table.getName()), 25000);
 
-            assertThat(query("SELECT count(*) FROM \"" + table.getName() + "$files\" WHERE content = 1"))
-                    .matches("VALUES BIGINT '5'");
+            long deleteFileCount = (long) computeScalar("SELECT count(*) FROM \"" + table.getName() + "$files\" WHERE content = " + POSITION_DELETES.id());
+            if (tableProperties.isEmpty() && formatVersion == 2) {
+                // Each writer writes its own position delete file for every data file it touches
+                // Format version 3 merges the deletion vectors of a data file on commit
+                assertThat(deleteFileCount).isGreaterThan(dataFileCount);
+            }
+            else {
+                // Deleted rows of each data file go to a single delete file
+                assertThat(deleteFileCount).isEqualTo(dataFileCount);
+            }
             assertQuery(
-                    "SELECT count(*) FROM " + table.getName(),
-                    "VALUES 250");
-            assertQuery(
-                    "SELECT count(*) FROM " + table.getName() + " WHERE id % 2 = 0",
-                    "VALUES 0");
+                    "SELECT count(*), sum(value) FROM " + table.getName(),
+                    "VALUES (%s, %s)".formatted(expectedCount, expectedSum));
         }
     }
 
