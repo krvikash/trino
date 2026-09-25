@@ -54,6 +54,7 @@ import io.trino.spi.type.Type;
 import io.trino.spi.type.TypeDescriptor;
 import io.trino.spi.type.TypeOperators;
 import io.trino.sql.PlannerContext;
+import io.trino.sql.ir.Array;
 import io.trino.sql.ir.Call;
 import io.trino.sql.ir.Case;
 import io.trino.sql.ir.Coalesce;
@@ -85,6 +86,8 @@ import static io.airlift.bytecode.Access.a;
 import static io.airlift.bytecode.Parameter.arg;
 import static io.airlift.bytecode.ParameterizedType.type;
 import static io.airlift.slice.Slices.allocate;
+import static io.trino.block.BlockAssertions.assertBlockEquals;
+import static io.trino.block.BlockAssertions.createBooleansBlock;
 import static io.trino.block.BlockAssertions.createLongsBlock;
 import static io.trino.block.BlockAssertions.createRepeatedValuesBlock;
 import static io.trino.block.BlockAssertions.createStringsBlock;
@@ -100,6 +103,7 @@ import static io.trino.sql.analyzer.TypeDescriptorProvider.fromTypes;
 import static io.trino.sql.gen.RowConstructorCodeGenerator.MEGAMORPHIC_FIELD_COUNT;
 import static io.trino.sql.ir.ComparisonOperator.EQUAL;
 import static io.trino.sql.ir.ComparisonOperator.GREATER_THAN;
+import static io.trino.sql.ir.ComparisonOperator.LESS_THAN;
 import static io.trino.sql.ir.IrExpressions.call;
 import static io.trino.sql.ir.TestingIr.comparison;
 import static io.trino.sql.planner.TestingPlannerContext.plannerContextBuilder;
@@ -234,6 +238,33 @@ public class TestPageFunctionCompiler
         Page page = createSingleArrayPage(inputArrayType, 1);
         Block result = project(projection, page, SelectedPositions.positionsRange(0, page.getPositionCount()));
         assertThat(outputArrayType.getObjectValue(result, 0)).isEqualTo(ImmutableList.of(42));
+    }
+
+    @Test
+    public void testLambdaInvokedFromChunkClass()
+    {
+        // Every extracted term lands in its own chunk class, while lambdas are declared on the main class
+        PlannerContext plannerContext = FUNCTION_RESOLUTION.getPlannerContext();
+        PageFunctionCompiler compiler = new PageFunctionCompiler(plannerContext.getFunctionManager(), plannerContext.getMetadata(), plannerContext.getTypeManager(), 0, 0, 0);
+
+        ResolvedFunction anyMatch = FUNCTION_RESOLUTION.resolveFunction("any_match", fromTypes(new ArrayType(BIGINT), new FunctionType(ImmutableList.of(BIGINT), BOOLEAN)));
+        Reference column = new Reference(BIGINT, "$col_0");
+        Expression expression = new Logical(
+                Logical.Operator.AND,
+                ImmutableList.of(
+                        comparison(GREATER_THAN, column, new Constant(BIGINT, 0L)),
+                        call(anyMatch,
+                                new Array(BIGINT, ImmutableList.of(column)),
+                                new Lambda(ImmutableList.of(new Symbol(BIGINT, "n")), comparison(LESS_THAN, new Reference(BIGINT, "n"), new Constant(BIGINT, 3L))))));
+        Map<Symbol, Integer> layout = ImmutableMap.of(new Symbol(BIGINT, "$col_0"), 0);
+        Page page = createLongBlockPage(0, 1, 2, 3, 4);
+
+        PageFilter filter = compiler.compileFilter(expression, layout, SQL_STANDARD, Optional.empty()).get();
+        assertThat(filter.filter(SESSION, filter.getInputChannels().getInputChannels(SourcePage.create(page))).size()).isEqualTo(2);
+
+        PageProjection projection = compiler.compileProjection(expression, layout, SQL_STANDARD, Optional.empty()).get();
+        Block result = project(projection, page, SelectedPositions.positionsRange(0, page.getPositionCount()));
+        assertBlockEquals(BOOLEAN, result, createBooleansBlock(false, true, true, false, false));
     }
 
     @Test
