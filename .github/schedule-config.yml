@@ -69,7 +69,7 @@
 - { modules: plugin/trino-iceberg, runners: [self-hosted, gha-fleet-ec2-16cpu-64gb-amd64, latest] }
 - { modules: plugin/trino-iceberg, profile: cloud-tests }
 - { modules: plugin/trino-iceberg, profile: fte-tests }
-- { modules: plugin/trino-iceberg, profile: minio-and-avro }
+- { modules: plugin/trino-iceberg, profile: floci-and-avro }
 # biglake-tests runs on nightly schedule only
 - { modules: testing/trino-faulttolerant-tests, profile: default }
 - { modules: testing/trino-faulttolerant-tests, profile: test-fault-tolerant-delta }
