@@ -22,6 +22,7 @@ import io.airlift.bytecode.MethodDefinition;
 import io.airlift.bytecode.Parameter;
 import io.airlift.bytecode.Variable;
 import io.airlift.bytecode.expression.BytecodeExpression;
+import io.trino.util.CompilerUtils;
 
 import java.util.EnumSet;
 import java.util.HashMap;
@@ -32,7 +33,6 @@ import static io.airlift.bytecode.Access.FINAL;
 import static io.airlift.bytecode.Access.PRIVATE;
 import static io.airlift.bytecode.Access.PUBLIC;
 import static io.airlift.bytecode.Access.a;
-import static io.airlift.bytecode.ClassGenerator.classGenerator;
 import static io.airlift.bytecode.Parameter.arg;
 import static io.airlift.bytecode.ParameterizedType.type;
 import static io.airlift.bytecode.expression.BytecodeExpressions.newInstance;
@@ -122,8 +122,7 @@ public class ExpressionGenerationContext
     // because DynamicClassLoader contains immutable callSiteBindings that will not see further changes.
     public <T> Class<? extends T> defineClasses(Class<T> mainClassSuperType, DynamicClassLoader classLoader, List<ClassDefinition> classes)
     {
-        Map<String, Class<?>> definedClasses = classGenerator(classLoader)
-                .defineClasses(classes);
+        Map<String, Class<?>> definedClasses = CompilerUtils.defineClasses(classes, classLoader);
         Class<?> mainClazz = definedClasses.get(mainClass.classDefinition().getType().getJavaClassName());
         return mainClazz.asSubclass(mainClassSuperType);
     }
