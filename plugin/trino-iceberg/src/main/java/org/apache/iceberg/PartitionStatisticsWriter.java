@@ -22,6 +22,7 @@ import io.airlift.log.Logger;
 import io.trino.filesystem.Location;
 import io.trino.filesystem.TrinoFileSystem;
 import io.trino.plugin.iceberg.ForIcebergPlanning;
+import io.trino.plugin.iceberg.IcebergFileFormat;
 import io.trino.plugin.iceberg.IcebergFileSystemFactory;
 import io.trino.plugin.iceberg.IcebergFileWriter;
 import io.trino.plugin.iceberg.IcebergFileWriterFactory;
@@ -70,6 +71,8 @@ import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static io.trino.plugin.iceberg.IcebergFileFormat.ORC;
+import static io.trino.plugin.iceberg.IcebergFileFormat.PARQUET;
 import static io.trino.plugin.iceberg.IcebergSessionProperties.isPartitionStatisticsCollectOnWrite;
 import static io.trino.plugin.iceberg.IcebergTypes.convertIcebergValueToTrino;
 import static io.trino.plugin.iceberg.IcebergUtil.getFileFormat;
@@ -79,10 +82,6 @@ import static io.trino.plugin.iceberg.TypeConverter.toTrinoType;
 import static io.trino.spi.type.TypeUtils.readNativeValue;
 import static io.trino.spi.type.TypeUtils.writeNativeValue;
 import static java.util.Objects.requireNonNull;
-import static org.apache.iceberg.FileFormat.ORC;
-import static org.apache.iceberg.FileFormat.PARQUET;
-import static org.apache.iceberg.TableProperties.DEFAULT_FILE_FORMAT;
-import static org.apache.iceberg.TableProperties.DEFAULT_FILE_FORMAT_DEFAULT;
 import static org.apache.iceberg.TableUtil.formatVersion;
 import static org.apache.iceberg.util.PartitionUtil.coercePartition;
 import static org.apache.iceberg.util.SnapshotUtil.ancestorsBetween;
@@ -170,9 +169,9 @@ public class PartitionStatisticsWriter
             Map<String, String> storageProperties,
             Iterable<PartitionStats> records)
     {
-        FileFormat fileFormat = FileFormat.fromString(table.properties().getOrDefault(DEFAULT_FILE_FORMAT, DEFAULT_FILE_FORMAT_DEFAULT));
+        IcebergFileFormat fileFormat = getFileFormat(table);
         fileFormat = Set.of(PARQUET, ORC).contains(fileFormat) ? fileFormat : PARQUET;
-        OutputFile outputFile = newPartitionStatsFile(table, fileFormat, snapshotId);
+        OutputFile outputFile = newPartitionStatsFile(table, fileFormat.toIceberg(), snapshotId);
 
         Location outputPath = Location.of(outputFile.location());
         IcebergFileWriter fileWriter = fileWriterFactory.createDataFileWriter(
@@ -180,7 +179,7 @@ public class PartitionStatisticsWriter
                 outputPath,
                 dataSchema,
                 session,
-                getFileFormat(table),
+                fileFormat,
                 MetricsConfig.forTable(table),
                 storageProperties);
 

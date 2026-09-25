@@ -463,6 +463,13 @@ public final class TestIcebergPartitionStatistics
             assertThat(partitionStatisticsFiles)
                     .extracting(PartitionStatisticsFile::path)
                     .allMatch(path -> path.endsWith(extension));
+
+            assertThat(query("SHOW STATS FOR " + table.getName())).result()
+                    .projected("column_name", "distinct_values_count", "row_count")
+                    .matches("VALUES " +
+                            "(VARCHAR 'id', 3e0, CAST(null AS DOUBLE)), " +
+                            "(VARCHAR 'part', 2e0, CAST(null AS DOUBLE)), " +
+                            "(CAST(null AS VARCHAR), CAST(null AS DOUBLE), 3e0)");
         }
     }
 
