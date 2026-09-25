@@ -103,7 +103,7 @@ final class TestIcebergDatabricksUnityRestCatalogConnectorSmokeTest
         return new TestTable(this::executeRetryingAmbiguousCreate, namePrefix, tableDefinition, rowsToInsert);
     }
 
-    // Retries a Databricks Unity ambiguous commit failure (ErrorCode: 2012); safe only for CREATE TABLE since
+    // Retries a Databricks Unity ambiguous commit failure (ErrorCode: 2012 or 2016); safe only for CREATE TABLE since
     // no data files exist yet to duplicate.
     private void executeRetryingAmbiguousCreate(@Language("SQL") String sql)
     {
@@ -112,7 +112,9 @@ final class TestIcebergDatabricksUnityRestCatalogConnectorSmokeTest
             return;
         }
         Failsafe.with(RetryPolicy.builder()
-                        .handleIf(e -> getCausalChain(e).stream().anyMatch(t -> nullToEmpty(t.getMessage()).contains("ErrorCode: 2012")))
+                        .handleIf(e -> getCausalChain(e).stream()
+                                .map(t -> nullToEmpty(t.getMessage()))
+                                .anyMatch(message -> message.contains("ErrorCode: 2012") || message.contains("ErrorCode: 2016")))
                         .withMaxRetries(2)
                         .build())
                 .run(context -> {
