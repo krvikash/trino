@@ -22,6 +22,7 @@ import ai.rapids.cudf.Scalar;
 import ai.rapids.cudf.Table;
 import com.google.common.collect.ImmutableList;
 import io.trino.plugin.base.gpu.ClosingRef;
+import io.trino.plugin.base.gpu.TablesList;
 import io.trino.plugin.hive.parquet.Buffers;
 import io.trino.plugin.hive.parquet.ParquetFileFabricator;
 import io.trino.spi.TrinoException;
@@ -39,6 +40,7 @@ import jakarta.annotation.Nullable;
 import java.util.List;
 import java.util.Optional;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Verify.verify;
 import static io.trino.plugin.base.gpu.GpuUtils.closeColumns;
 import static io.trino.plugin.hive.parquet.GpuColumnEvolution.evolveColumn;
@@ -80,8 +82,19 @@ public class IcebergGpuParquetPageSource
         }
     }
 
+    /// A split's part of the fabricated Parquet file: its output columns and how many rows it contributes.
+    record GpuSubSplit(List<GpuOutputColumn> outputColumns, long rowCount)
+    {
+        GpuSubSplit
+        {
+            outputColumns = ImmutableList.copyOf(requireNonNull(outputColumns, "outputColumns is null"));
+            checkArgument(rowCount >= 0, "rowCount is negative: %s", rowCount);
+        }
+    }
+
     private final ConnectorGpuMemoryContext memoryContext;
     private final ParquetFileFabricator fabricator;
+    private final List<GpuSubSplit> subSplits;
     private final List<GpuOutputColumn> outputColumns;
     private final String[] parquetColumnNames;
     private final long footerCompletedBytes;
@@ -95,15 +108,16 @@ public class IcebergGpuParquetPageSource
     @Own
     @Nullable
     private ParquetChunkedReader chunkedReader;
+    // Rows emitted so far, which locates each page within the sub-splits
+    private long emittedRows;
     // Constant-only reads (all outputs are partition/constant columns) synthesize prefilled pages;
     // emit them in row-bounded chunks.
-    private int emittedPrefilledRows;
     private int prefilledRowsPerPage;
 
     public IcebergGpuParquetPageSource(
             ConnectorGpuMemoryContext memoryContext,
             ParquetFileFabricator fabricator,
-            List<GpuOutputColumn> outputColumns,
+            List<GpuSubSplit> subSplits,
             long footerCompletedBytes,
             long footerReadTimeNanos,
             long maxPageSizeBytes)
@@ -113,12 +127,38 @@ public class IcebergGpuParquetPageSource
         this.footerCompletedBytes = footerCompletedBytes;
         this.footerReadTimeNanos = footerReadTimeNanos;
         this.maxPageSizeBytes = maxPageSizeBytes;
+        checkArgument(!subSplits.isEmpty(), "subSplits is empty");
+        this.subSplits = ImmutableList.copyOf(subSplits);
+        this.outputColumns = this.subSplits.getFirst().outputColumns();
+        for (GpuSubSplit subSplit : this.subSplits) {
+            checkArgument(haveSameLayout(outputColumns, subSplit.outputColumns()), "Sub-split output columns %s do not match %s", subSplit.outputColumns(), outputColumns);
+        }
         this.parquetColumnNames = outputColumns.stream()
                 .filter(GpuParquetFileColumn.class::isInstance)
                 .map(GpuParquetFileColumn.class::cast)
                 .map(GpuParquetFileColumn::parquetName)
                 .toArray(String[]::new);
-        this.outputColumns = ImmutableList.copyOf(outputColumns);
+    }
+
+    /// Whether sub-splits with these output columns can be read from one fabricated Parquet file.
+    /// Constant values may differ between sub-splits, everything else must match.
+    static boolean haveSameLayout(List<GpuOutputColumn> first, List<GpuOutputColumn> second)
+    {
+        if (first.size() != second.size()) {
+            return false;
+        }
+        for (int i = 0; i < first.size(); i++) {
+            boolean sameLayout = switch (first.get(i)) {
+                case GpuParquetFileColumn parquetColumn -> parquetColumn.equals(second.get(i));
+                case GpuConstantColumn constantColumn -> second.get(i) instanceof GpuConstantColumn other &&
+                        constantColumn.column().equals(other.column()) &&
+                        constantColumn.type().equals(other.type());
+            };
+            if (!sameLayout) {
+                return false;
+            }
+        }
+        return true;
     }
 
     @Override
@@ -130,6 +170,8 @@ public class IcebergGpuParquetPageSource
 
         if (fabricatedParquet == null) {
             fabricatedParquet = fabricator.fabricate();
+            long subSplitRows = subSplits.stream().mapToLong(GpuSubSplit::rowCount).sum();
+            verify(fabricatedParquet.rowCount() == subSplitRows, "Fabricated %s rows but sub-splits contain %s", fabricatedParquet.rowCount(), subSplitRows);
             return new Yielded();
         }
 
@@ -146,7 +188,7 @@ public class IcebergGpuParquetPageSource
             if (prefilledRowsPerPage == 0) {
                 prefilledRowsPerPage = prefilledRowsPerPage(totalRows);
             }
-            int rows = min(prefilledRowsPerPage, totalRows - emittedPrefilledRows);
+            int rows = toIntExact(min(prefilledRowsPerPage, totalRows - emittedRows));
             if (rows <= 0) {
                 finished = true;
                 close();
@@ -154,7 +196,7 @@ public class IcebergGpuParquetPageSource
             }
             try (var page = ClosingRef.own(createPageFromConstants(rows));
                     var allocation = ClosingRef.own(memoryContext.allocate(page.borrow().retainedMemory()))) {
-                emittedPrefilledRows += rows;
+                emittedRows += rows;
                 return new Data(allocation.take(), page.take());
             }
         }
@@ -172,6 +214,7 @@ public class IcebergGpuParquetPageSource
                 }
                 try (var page = ClosingRef.own(convertToGpuPage(table));
                         var allocation = ClosingRef.own(memoryContext.allocate(page.borrow().retainedMemory()))) {
+                    emittedRows += table.getRowCount();
                     return new Data(allocation.take(), page.take());
                 }
             }
@@ -210,7 +253,7 @@ public class IcebergGpuParquetPageSource
         @Own Column[] columns = new Column[outputColumns.size()];
         try {
             for (int i = 0; i < outputColumns.size(); i++) {
-                columns[i] = createConstantColumn((GpuConstantColumn) outputColumns.get(i), rowCount);
+                columns[i] = createConstantColumn(i, rowCount);
             }
             return new GpuPage(rowCount, columns);
         }
@@ -238,7 +281,7 @@ public class IcebergGpuParquetPageSource
                         @Own ColumnVector evolved = evolveColumn(parquetColumn.column().getName(), cudfColumn, expectedDType, trinoType);
                         yield new Column.DeviceMemory(evolved);
                     }
-                    case GpuConstantColumn constantColumn -> createConstantColumn(constantColumn, rowCount);
+                    case GpuConstantColumn _ -> createConstantColumn(i, rowCount);
                 };
             }
             return new GpuPage(rowCount, columns);
@@ -248,14 +291,45 @@ public class IcebergGpuParquetPageSource
         }
     }
 
-    private static @Move Column createConstantColumn(GpuConstantColumn constantColumn, int rowCount)
+    /// Creates columns absent from the Parquet data, such as identity partition columns.
+    private @Move Column createConstantColumn(int columnIndex, int rowCount)
+    {
+        GpuConstantColumn constant = (GpuConstantColumn) outputColumns.get(columnIndex);
+        if (subSplits.stream().allMatch(subSplit -> subSplit.outputColumns().get(columnIndex).equals(constant))) {
+            return new Column.DeviceMemory(createConstantVector(constant, rowCount));
+        }
+        try (TablesList pieces = TablesList.create()) {
+            long pageStart = emittedRows;
+            long pageEnd = emittedRows + rowCount;
+            long subSplitStart = 0;
+            long coveredRows = 0;
+            for (GpuSubSplit subSplit : subSplits) {
+                long subSplitEnd = subSplitStart + subSplit.rowCount();
+                // Rows of this sub-split that fall into the page: the overlap of [subSplitStart, subSplitEnd) and [pageStart, pageEnd)
+                long rows = min(subSplitEnd, pageEnd) - max(subSplitStart, pageStart);
+                if (rows > 0) {
+                    try (ColumnVector piece = createConstantVector((GpuConstantColumn) subSplit.outputColumns().get(columnIndex), toIntExact(rows))) {
+                        pieces.add(new Table(piece));
+                    }
+                    coveredRows += rows;
+                }
+                subSplitStart = subSplitEnd;
+            }
+            verify(coveredRows == rowCount, "Sub-splits cover %s rows of page [%s, %s)", coveredRows, pageStart, pageEnd);
+            try (Table column = pieces.concatenateAndClear()) {
+                return new Column.DeviceMemory(column.getColumn(0).incRefCount());
+            }
+        }
+    }
+
+    private static @Move ColumnVector createConstantVector(GpuConstantColumn constantColumn, int rowCount)
     {
         Type type = constantColumn.type();
         try (Scalar scalar = toGpuMapping(type)
                 .orElseThrow(() -> new UnsupportedOperationException("Unsupported type: " + type))
                 .toScalar()
                 .copyToScalar(Optional.ofNullable(constantColumn.value()))) {
-            return new Column.DeviceMemory(ColumnVector.fromScalar(scalar, rowCount));
+            return ColumnVector.fromScalar(scalar, rowCount);
         }
     }
 

@@ -66,6 +66,7 @@ import io.trino.plugin.hive.parquet.ParquetPageSource;
 import io.trino.plugin.iceberg.IcebergGpuParquetPageSource.GpuConstantColumn;
 import io.trino.plugin.iceberg.IcebergGpuParquetPageSource.GpuOutputColumn;
 import io.trino.plugin.iceberg.IcebergGpuParquetPageSource.GpuParquetFileColumn;
+import io.trino.plugin.iceberg.IcebergGpuParquetPageSource.GpuSubSplit;
 import io.trino.plugin.iceberg.IcebergParquetColumnIOConverter.FieldContext;
 import io.trino.plugin.iceberg.IcebergSplit.ParquetFileDecryptionData;
 import io.trino.plugin.iceberg.delete.DeleteFile;
@@ -398,9 +399,8 @@ public class IcebergPageSourceProvider
                 .collect(toImmutableList());
         checkForNonMetadataRowId(icebergColumns, formatVersion);
 
-        // TODO: This condition is too conservative for composite splits that contain sub-splits from a single partition (https://starburstdata.atlassian.net/browse/ENG-20177)
-        boolean referencesMultiplePartitions = icebergSplits.size() > 1;
         ImmutableList.Builder<ParquetFileFabricator.FileEntry> inputFiles = ImmutableList.builder();
+        ImmutableList.Builder<GpuSubSplit> subSplits = ImmutableList.builder();
         MessageType requestedSchema = null;
         Map<String, String> firstKeyValueMetaData = null;
         List<GpuOutputColumn> firstOutputColumns = null;
@@ -446,7 +446,7 @@ public class IcebergPageSourceProvider
                 ImmutableList.Builder<IcebergColumnHandle> parquetColumns = ImmutableList.builder();
                 int parquetIndex = 0;
                 for (IcebergColumnHandle column : icebergColumns) {
-                    if (!referencesMultiplePartitions && partitionKeys.containsKey(column.getId())) {
+                    if (partitionKeys.containsKey(column.getId())) {
                         Object value = deserializePartitionValue(column.getType(), partitionKeys.get(column.getId()).orElse(null), column.getName());
                         outputColumns.add(new GpuConstantColumn(column, column.getType(), value));
                     }
@@ -475,12 +475,13 @@ public class IcebergPageSourceProvider
                     }
                 }
 
+                List<GpuOutputColumn> subSplitOutputColumns = outputColumns.build();
                 MessageType subSplitRequestedSchema = getMessageType(parquetColumns.build(), fileSchema.getName(), parquetIdToField);
 
                 if (requestedSchema == null) {
                     requestedSchema = subSplitRequestedSchema;
                     firstKeyValueMetaData = fileMetadata.getKeyValueMetaData();
-                    firstOutputColumns = outputColumns.build();
+                    firstOutputColumns = subSplitOutputColumns;
                 }
                 else {
                     // Compare requested schemas via equals(). This checks column names, physical types
@@ -499,7 +500,8 @@ public class IcebergPageSourceProvider
                         log.debug("GPU page source not supported for composite: key-value metadata mismatch for file %s", inputFile.location());
                         return Optional.empty();
                     }
-                    if (!firstOutputColumns.equals(outputColumns.build())) {
+                    // Constant values, e.g. identity partition values, may differ between sub-splits
+                    if (!IcebergGpuParquetPageSource.haveSameLayout(firstOutputColumns, subSplitOutputColumns)) {
                         log.debug("GPU page source not supported for composite: output columns mismatch for file %s", inputFile.location());
                         return Optional.empty();
                     }
@@ -522,6 +524,10 @@ public class IcebergPageSourceProvider
                         gpuParquetReaderOptions);
 
                 inputFiles.add(new ParquetFileFabricator.FileEntry(inputFile, filteredRowGroups, parquetMetadata));
+                long rowCount = filteredRowGroups.stream()
+                        .mapToLong(rowGroup -> rowGroup.prunedBlockMetadata().getRowCount())
+                        .sum();
+                subSplits.add(new GpuSubSplit(subSplitOutputColumns, rowCount));
 
                 footerCompletedBytes += dataSource.getReadBytes();
                 footerReadTimeNanos += dataSource.getReadTimeNanos();
@@ -546,7 +552,7 @@ public class IcebergPageSourceProvider
                 gpuParquetReaderOptions,
                 ioExecutor);
 
-        return Optional.of(new IcebergGpuParquetPageSource(gpuMemoryContext, fabricator, firstOutputColumns, footerCompletedBytes, footerReadTimeNanos, gpuScanMaxPageSizeBytes));
+        return Optional.of(new IcebergGpuParquetPageSource(gpuMemoryContext, fabricator, subSplits.build(), footerCompletedBytes, footerReadTimeNanos, gpuScanMaxPageSizeBytes));
     }
 
     private static boolean isSupportedForGpu(PrimitiveType parquetType, Type trinoType)

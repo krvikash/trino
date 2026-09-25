@@ -1128,6 +1128,7 @@
                             <excludes>
                                 <!-- gpu profile -->
                                 <exclude>**/TestIcebergGpuCompositeSplitsConnectorTest.java</exclude>
+                                <exclude>**/TestIcebergGpuCompositeSplitsPartitionValues.java</exclude>
                                 <exclude>**/TestIcebergGpuConnectorSmokeTest.java</exclude>
                                 <exclude>**/TestIcebergGpuConnectorTest.java</exclude>
                                 <exclude>**/TestIcebergGpuDistributedAggregations.java</exclude>
@@ -1177,6 +1178,7 @@
                         <configuration>
                             <includes>
                                 <include>**/TestIcebergGpuCompositeSplitsConnectorTest.java</include>
+                                <include>**/TestIcebergGpuCompositeSplitsPartitionValues.java</include>
                                 <include>**/TestIcebergGpuConnectorSmokeTest.java</include>
                                 <include>**/TestIcebergGpuConnectorTest.java</include>
                                 <include>**/TestIcebergGpuDistributedAggregations.java</include>
