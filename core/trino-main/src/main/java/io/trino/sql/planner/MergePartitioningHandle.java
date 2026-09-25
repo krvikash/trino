@@ -22,6 +22,7 @@ import io.trino.operator.PartitionFunction;
 import io.trino.spi.Page;
 import io.trino.spi.TrinoException;
 import io.trino.spi.block.Block;
+import io.trino.spi.connector.BucketFunction;
 import io.trino.spi.connector.ConnectorPartitioningHandle;
 import io.trino.spi.type.Type;
 import io.trino.sql.planner.SystemPartitioningHandle.SystemPartitionFunction.RoundRobinBucketFunction;
@@ -159,7 +160,7 @@ public final class MergePartitioningHandle
         return optionalInsertScheme.orElseGet(optionalUpdateScheme::orElseThrow);
     }
 
-    public PartitionFunction getPartitionFunction(PartitionFunctionLookup partitionFunctionLookup, List<Type> types, int[] bucketToPartition)
+    public PartitionFunction getPartitionFunction(PartitionFunctionLookup partitionFunctionLookup, List<Type> types, int[] bucketToPartition, boolean scaleWriters)
     {
         // channels: merge row, insert arguments, update row ID
         List<Type> insertTypes = types.subList(1, types.size() - (updatePartitioning.isPresent() ? 1 : 0));
@@ -170,10 +171,10 @@ public final class MergePartitioningHandle
         Optional<PartitionFunction> updateFunction = updatePartitioning.map(scheme ->
                 partitionFunctionLookup.get(scheme, List.of(getLast(types))));
 
-        return getPartitionFunction(insertFunction, updateFunction, insertTypes.size(), bucketToPartition);
+        return getPartitionFunction(insertFunction, updateFunction, insertTypes.size(), bucketToPartition, scaleWriters);
     }
 
-    private static PartitionFunction getPartitionFunction(Optional<PartitionFunction> insertFunction, Optional<PartitionFunction> updateFunction, int insertArguments, int[] bucketToPartition)
+    private static PartitionFunction getPartitionFunction(Optional<PartitionFunction> insertFunction, Optional<PartitionFunction> updateFunction, int insertArguments, int[] bucketToPartition, boolean scaleWriters)
     {
         if (insertFunction.isPresent() && updateFunction.isPresent()) {
             return new MergePartitionFunction(
@@ -194,8 +195,14 @@ public final class MergePartitioningHandle
         }
 
         if (updateFunction.isPresent()) {
+            PartitionFunction insertRowsFunction = roundRobinFunction;
+            if (scaleWriters) {
+                // Writer scaling spreads the single partition over more writers as data grows
+                BucketFunction singlePartitionBucketFunction = (_, _) -> 0;
+                insertRowsFunction = new BucketPartitionFunction(singlePartitionBucketFunction, bucketToPartition);
+            }
             return new MergePartitionFunction(
-                    roundRobinFunction,
+                    insertRowsFunction,
                     updateFunction.get(),
                     new int[] {},
                     new int[] {insertArguments + 1});

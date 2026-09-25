@@ -51,7 +51,8 @@ public class PartitionFunctionProvider
             return handle.getPartitionFunction(
                     (scheme, types) -> getPartitionFunction(session, scheme.getPartitioning().getHandle(), types, bucketToPartition),
                     partitionChannelTypes,
-                    bucketToPartition);
+                    bucketToPartition,
+                    partitioningHandle.isScaleWriters());
         }
 
         ConnectorNodePartitioningProvider partitioningProvider = getPartitioningProvider(partitioningHandle);
