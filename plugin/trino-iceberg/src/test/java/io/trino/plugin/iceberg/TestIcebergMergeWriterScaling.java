@@ -16,6 +16,7 @@ package io.trino.plugin.iceberg;
 import io.trino.Session;
 import io.trino.testing.AbstractTestQueryFramework;
 import io.trino.testing.QueryRunner;
+import io.trino.testing.sql.TestTable;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -27,6 +28,8 @@ import static io.trino.SystemSessionProperties.TASK_SCALE_WRITERS_ENABLED;
 import static io.trino.SystemSessionProperties.WRITER_SCALING_MIN_DATA_PROCESSED;
 import static io.trino.testing.TestingNames.randomNameSuffix;
 import static java.lang.String.format;
+import static org.apache.iceberg.FileContent.DATA;
+import static org.apache.iceberg.FileContent.POSITION_DELETES;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 
@@ -157,6 +160,30 @@ public class TestIcebergMergeWriterScaling
     public void testMergeWriterScalingOnPartitionedCoWV3()
     {
         testMergeWriterScalingCorrectness("merge_mode = 'copy-on-write', partitioning = ARRAY['orderstatus'], format_version = 3");
+    }
+
+    @Test
+    public void testDeleteFileCountOnUnpartitionedMoR()
+    {
+        testDeleteFileCount("merge_mode = 'merge-on-read', format_version = 2");
+    }
+
+    @Test
+    public void testDeleteFileCountOnPartitionedMoR()
+    {
+        testDeleteFileCount("merge_mode = 'merge-on-read', format_version = 2, partitioning = ARRAY['returnflag']");
+    }
+
+    private void testDeleteFileCount(String tableProperties)
+    {
+        long updatedCount = (long) computeScalar("SELECT count(*) FROM tpch.tiny.lineitem WHERE orderkey % 2 = 0");
+        try (TestTable table = newTrinoTable("test_merge_scaling_delete_files_", "WITH (" + tableProperties + ") AS SELECT orderkey, partkey, returnflag FROM tpch.tiny.lineitem")) {
+            long dataFileCount = (long) computeScalar("SELECT count(*) FROM \"" + table.getName() + "$files\" WHERE content = " + DATA.id());
+
+            assertUpdate(scalingEnabledSession(), "UPDATE " + table.getName() + " SET partkey = partkey + 1 WHERE orderkey % 2 = 0", updatedCount);
+            // Deleted rows of each data file go to a single delete file
+            assertThat((long) computeScalar("SELECT count(*) FROM \"" + table.getName() + "$files\" WHERE content = " + POSITION_DELETES.id())).isEqualTo(dataFileCount);
+        }
     }
 
     private void testMergeWriterScalingCorrectness(String tableProperties)

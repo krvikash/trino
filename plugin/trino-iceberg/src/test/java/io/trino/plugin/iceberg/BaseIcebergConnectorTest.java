@@ -6215,16 +6215,9 @@ public abstract class BaseIcebergConnectorTest
 
             assertUpdate(session, operation.formatted(table.getName()), 25000);
 
-            long deleteFileCount = (long) computeScalar("SELECT count(*) FROM \"" + table.getName() + "$files\" WHERE content = " + POSITION_DELETES.id());
-            if (tableProperties.isEmpty() && formatVersion == 2) {
-                // Each writer writes its own position delete file for every data file it touches
-                // Format version 3 merges the deletion vectors of a data file on commit
-                assertThat(deleteFileCount).isGreaterThan(dataFileCount);
-            }
-            else {
-                // Deleted rows of each data file go to a single delete file
-                assertThat(deleteFileCount).isEqualTo(dataFileCount);
-            }
+            // Deleted rows of each data file go to a single position delete file or deletion vector
+            assertThat(query("SELECT count(*) FROM \"" + table.getName() + "$files\" WHERE content = " + POSITION_DELETES.id()))
+                    .matches("VALUES BIGINT '%s'".formatted(dataFileCount));
             assertQuery(
                     "SELECT count(*), sum(value) FROM " + table.getName(),
                     "VALUES (%s, %s)".formatted(expectedCount, expectedSum));

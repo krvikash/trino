@@ -4098,16 +4098,11 @@ public class IcebergMetadata
         Schema schema = SchemaParser.fromJson(table.getTableSchemaJson());
         int specId = table.getSpecId().orElseThrow(() -> new VerifyException("Partition spec missing in the table handle"));
         PartitionSpec partitionSpec = PartitionSpecParser.fromJson(schema, table.getPartitionSpecJsons().get(specId));
-        Optional<ConnectorTableLayout> writeLayout = getWriteLayout(schema, partitionSpec, true);
-        if (rowLevelOperationMode(catalog.loadTable(session, ((IcebergTableHandle) tableHandle).getSchemaTableName())) == COPY_ON_WRITE) {
-            if (writeLayout.isEmpty() || writeLayout.get().getPartitioning().isEmpty()) {
-                return Optional.of(new IcebergPartitioningHandle(true, List.of(), List.of()));
-            }
-        }
-        return writeLayout
+        return Optional.of(getWriteLayout(schema, partitionSpec, true)
                 .flatMap(ConnectorTableLayout::getPartitioning)
                 .map(IcebergPartitioningHandle.class::cast)
-                .map(IcebergPartitioningHandle::forUpdate);
+                .map(IcebergPartitioningHandle::forUpdate)
+                .orElseGet(() -> new IcebergPartitioningHandle(true, List.of(), List.of())));
     }
 
     @Override
