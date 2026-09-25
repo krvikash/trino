@@ -6162,6 +6162,11 @@ public abstract class BaseIcebergConnectorTest
     @Test
     public void testDeleteOnIdentityPartitionedTableProducesOneDeleteEntryPerDataFile()
     {
+        testDeleteFileCount("WITH (partitioning = ARRAY['regionkey'])", "DELETE FROM %s WHERE mod(id, 2) = 0");
+    }
+
+    private void testDeleteFileCount(String tableProperties, @Language("SQL") String operation)
+    {
         Session session = Session.builder(getSession())
                 .setSystemProperty(TASK_MIN_WRITER_COUNT, "4")
                 .setSystemProperty(TASK_MAX_WRITER_COUNT, "4")
@@ -6169,15 +6174,12 @@ public abstract class BaseIcebergConnectorTest
 
         try (TestTable table = newTrinoTable(
                 "test_identity_partitioned_deletes_",
-                """
-                WITH (partitioning = ARRAY['regionkey']) AS
-                SELECT id, id % 5 regionkey
-                FROM UNNEST(sequence(0, 499)) t(id)""")) {
+                tableProperties + " AS SELECT id, id % 5 regionkey FROM UNNEST(sequence(0, 499)) t(id)")) {
             assertQuery(
                     "SELECT content, count(*) FROM \"" + table.getName() + "$files\" GROUP BY content",
                     "VALUES (0, 5)");
 
-            assertUpdate(session, "DELETE FROM " + table.getName() + " WHERE id % 2 = 0", 250);
+            assertUpdate(session, operation.formatted(table.getName()), 250);
 
             assertThat(query("SELECT count(*) FROM \"" + table.getName() + "$files\" WHERE content = 1"))
                     .matches("VALUES BIGINT '5'");
