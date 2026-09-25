@@ -28,7 +28,9 @@ import io.trino.operator.gpu.expression.GetColumn;
 import io.trino.operator.gpu.expression.GpuCast;
 import io.trino.operator.gpu.expression.GpuConstant;
 import io.trino.operator.gpu.expression.GpuDivideRoundToScale;
+import io.trino.operator.gpu.expression.GpuDivideSumChunksRoundToScale;
 import io.trino.operator.gpu.expression.GpuExpression;
+import io.trino.operator.gpu.expression.GpuExtractInt32Chunk;
 import io.trino.operator.gpu.expression.GpuStruct;
 import io.trino.operator.project.InputChannels;
 import io.trino.spi.connector.SortOrder;
@@ -76,6 +78,8 @@ public final class GpuWindowCompiler
     // cuDF's DECIMAL128 rolling sum wraps around on overflow instead of failing. A cuDF column holds at most 2^31 - 1 rows,
     // so a sum of precision-28 values stays below (2^31 - 1) * 10^28 < 2^127, while precision 29 could exceed it
     private static final int MAX_DECIMAL128_SUM_AVG_PRECISION = 28;
+    // cuDF widens the rolling sum of each 32-bit chunk to 64 bits
+    private static final int CHUNK_SUM_OUTPUT_BYTES_PER_ROW = DType.INT64.getSizeInBytes();
 
     public sealed interface CompileResult
     {
@@ -241,11 +245,11 @@ public final class GpuWindowCompiler
         if (!(symbol.type() instanceof DecimalType decimalType)) {
             return Optional.empty();
         }
-        if (decimalType.getPrecision() > MAX_DECIMAL128_SUM_AVG_PRECISION) {
-            return Optional.empty();
-        }
 
         int sourceChannel = verifyNotNull(sourceLayout.get(symbol), "channel for symbol %s is not in source layout", symbol);
+        if (decimalType.getPrecision() > MAX_DECIMAL128_SUM_AVG_PRECISION) {
+            return Optional.of(avgChunkedSumDecimal(sourceChannel, decimalType));
+        }
         // Trino scale s means unscaled / 10^s; cuDF scale convention is unscaled * 10^scale, so negate
         DType decimal128Type = DType.create(DType.DTypeEnum.DECIMAL128, -decimalType.getScale());
 
@@ -278,6 +282,27 @@ public final class GpuWindowCompiler
                         new RollingComputation(countInput, RollingAggregation.count(NullPolicy.EXCLUDE), DType.INT32.getSizeInBytes())),
                 postProjection,
                 decimalType));
+    }
+
+    private static CompiledWindowFunction avgChunkedSumDecimal(int sourceChannel, DecimalType decimalType)
+    {
+        // Sum the four 32-bit chunks of the DECIMAL128 values separately, as sum(decimal) does. Chunks 0..2 are
+        // unsigned, chunk 3 carries the sign of the value.
+        ImmutableList.Builder<WindowComputation> computations = ImmutableList.builder();
+        ImmutableList.Builder<GpuExpression> chunkSums = ImmutableList.builder();
+        for (int chunkIndex = 0; chunkIndex < 4; chunkIndex++) {
+            DType chunkType = chunkIndex < 3 ? DType.UINT32 : DType.INT32;
+            GpuExpression chunk = new GpuExtractInt32Chunk(new GetColumn(sourceChannel), chunkIndex, chunkType);
+            computations.add(new RollingComputation(chunk, RollingAggregation.sum(), CHUNK_SUM_OUTPUT_BYTES_PER_ROW));
+            chunkSums.add(new GetColumn(chunkIndex));
+        }
+        computations.add(new RollingComputation(new GetColumn(sourceChannel), RollingAggregation.count(NullPolicy.EXCLUDE), DType.INT32.getSizeInBytes()));
+
+        GpuExpression countAsInt64 = new GpuCast(new GetColumn(4), DType.INT64);
+        CompiledExpression postProjection = new CompiledExpression(
+                new GpuDivideSumChunksRoundToScale(chunkSums.build(), countAsInt64, decimalType),
+                new InputChannels(ImmutableList.of(0, 1, 2, 3, 4)));
+        return new CompiledWindowFunction(computations.build(), postProjection, decimalType);
     }
 
     private static Optional<GpuExpression> peerKey(int[] orderChannels)

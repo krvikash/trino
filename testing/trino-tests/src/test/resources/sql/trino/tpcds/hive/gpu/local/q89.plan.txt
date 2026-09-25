@@ -5,7 +5,7 @@
         - TopNNode (GPU)
           - ProjectNode
             - FilterNode
-              - WindowNode
+              - WindowNode (GPU)
                 - AggregationNode (GPU)
                   - ExchangeNode LOCAL
                     - AggregationNode

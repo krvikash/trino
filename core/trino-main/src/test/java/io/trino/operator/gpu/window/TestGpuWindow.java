@@ -49,6 +49,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.FieldSource;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.math.BigInteger;
 import java.util.ArrayList;
@@ -93,6 +94,7 @@ import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.spi.type.CharType.createCharType;
 import static io.trino.spi.type.DecimalType.createDecimalType;
+import static io.trino.spi.type.Decimals.MAX_PRECISION;
 import static io.trino.spi.type.DoubleType.DOUBLE;
 import static io.trino.spi.type.RealType.REAL;
 import static io.trino.spi.type.VarbinaryType.VARBINARY;
@@ -511,6 +513,82 @@ final class TestGpuWindow
         }
     }
 
+    @Test
+    void testAvgWideDecimalSumExceedsDeclaredPrecision()
+    {
+        // Above precision 28 the running sum is kept as 64-bit sums of the 32-bit chunks of the values, and like
+        // in testAvgLongDecimalSumExceedsDeclaredPrecision it outgrows the declared precision without being
+        // narrowed.
+        int precision = 29;
+        for (int scale : List.of(0, 2, 6, precision)) {
+            DecimalType decimalType = createDecimalType(precision, scale);
+            int rowCount = 10;
+            BigInteger max = BigInteger.TEN.pow(precision).subtract(BigInteger.ONE);
+            for (BigInteger value : List.of(max, max.negate())) {
+                List<BigInteger> unscaledValues = ImmutableList.<BigInteger>builder()
+                        .add(value.subtract(BigInteger.valueOf(9L * value.signum()))) // to keep the divisions inexact
+                        .addAll(Collections.nCopies(rowCount - 1, value))
+                        .build();
+                assertAvgMatchesCpu(decimalType, GpuTestUtils.decimalBlock(decimalType, unscaledValues));
+            }
+        }
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {0, 2, 6, 38})
+    void testAvgDecimalSumExceeds128Bits(int scale)
+    {
+        // Two values near the decimal(38, s) maximum add up past the signed 128-bit range, but their average is
+        // still a valid decimal(38, s). The order keys make the first two rows peers, so they share a frame
+        // whose sum overflows 128 bits, and so does the frame of the last row. The cancelling rows in between
+        // return the sum to a small value.
+        DecimalType decimalType = createDecimalType(38, scale);
+        BigInteger max = BigInteger.TEN.pow(38).subtract(BigInteger.ONE);
+        BigInteger nearMax = max.subtract(BigInteger.valueOf(7));
+        for (int sign : List.of(1, -1)) {
+            List<BigInteger> unscaledValues = List.of(
+                    max.multiply(BigInteger.valueOf(sign)),
+                    nearMax.multiply(BigInteger.valueOf(sign)),
+                    max.multiply(BigInteger.valueOf(-sign)),
+                    nearMax.multiply(BigInteger.valueOf(-sign)),
+                    BigInteger.valueOf(3L * sign),
+                    max.multiply(BigInteger.valueOf(sign)),
+                    max.multiply(BigInteger.valueOf(sign)));
+            assertAvgMatchesCpu(
+                    List.of(new Page(
+                            createLongsBlock(1L, 1L, 1L, 1L, 1L, 1L, 1L),
+                            createLongsBlock(0L, 0L, 1L, 2L, 3L, 4L, 5L),
+                            GpuTestUtils.decimalBlock(decimalType, unscaledValues))),
+                    List.of(BIGINT, BIGINT, decimalType),
+                    0,
+                    1,
+                    ASC_NULLS_LAST,
+                    List.of(BoundTestedWindowFunction.of("avg", 2)));
+        }
+    }
+
+    @Test
+    void testAvgDecimalCompilesForAllPrecisionsAndScales()
+    {
+        int typeCount = 0;
+        for (int precision = 1; precision <= MAX_PRECISION; precision++) {
+            for (int scale = 0; scale <= precision; scale++) {
+                DecimalType decimalType = createDecimalType(precision, scale);
+                CompileResult result = compileWindow(
+                        List.of(BIGINT, BIGINT, decimalType),
+                        new int[] {0},
+                        new int[] {1},
+                        List.of(ASC_NULLS_LAST),
+                        List.of(BoundTestedWindowFunction.of("avg", 2)));
+                assertThat(result)
+                        .as("avg(%s)", decimalType)
+                        .isInstanceOfSatisfying(CompileResult.Success.class, success -> assertThat(success.outputTypes()).last().isEqualTo(decimalType));
+                typeCount++;
+            }
+        }
+        assertThat(typeCount).isEqualTo(779);
+    }
+
     @ParameterizedTest
     @MethodSource("avgDecimalTypes")
     void testAvgDecimalHalfUpRounding(DecimalType decimalType)
@@ -633,7 +711,15 @@ final class TestGpuWindow
                 createDecimalType(19, 10),
                 createDecimalType(28, 0),
                 createDecimalType(28, 14),
-                createDecimalType(28, 28));
+                createDecimalType(28, 28),
+                createDecimalType(29, 0),
+                createDecimalType(29, 2),
+                createDecimalType(29, 6),
+                createDecimalType(29, 29),
+                createDecimalType(38, 0),
+                createDecimalType(38, 2),
+                createDecimalType(38, 6),
+                createDecimalType(38, 38));
     }
 
     static Stream<Object[]> avgDecimalTypesAndSortOrders()
@@ -648,8 +734,6 @@ final class TestGpuWindow
     static Stream<Type> unsupportedAvgArgumentTypes()
     {
         return Stream.of(
-                createDecimalType(29, 0),
-                createDecimalType(38, 10),
                 BIGINT,
                 DOUBLE,
                 REAL);

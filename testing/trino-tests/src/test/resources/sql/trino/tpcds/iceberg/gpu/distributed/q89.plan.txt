@@ -10,7 +10,7 @@
                   - TopNNode (GPU)
                     - ProjectNode
                       - FilterNode
-                        - WindowNode
+                        - WindowNode (GPU)
                           - ExchangeNode LOCAL
                             - ExchangeNode REMOTE
                               - AggregationNode (GPU)

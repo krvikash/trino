@@ -186,12 +186,32 @@ final class TestGpuWindowQueries
     }
 
     @Test
-    void testAvgDecimalPrecisionAboveLimitGpuIneligible()
+    void testAvgWideDecimalOnGpu()
     {
         assertThat(query(
                 """
                 SELECT avg(price) OVER (PARTITION BY orderstatus ORDER BY orderkey)
                 FROM (SELECT orderstatus, orderkey, CAST(totalprice AS decimal(29, 2)) AS price FROM orders)
+                """))
+                .executesWithGpu(WindowNode.class);
+        assertThat(query(
+                """
+                SELECT avg(price) OVER (PARTITION BY orderstatus ORDER BY orderkey)
+                FROM (SELECT orderstatus, orderkey, CAST(totalprice AS decimal(38, 6)) AS price FROM orders)
+                """))
+                .executesWithGpu(WindowNode.class);
+    }
+
+    @Test
+    void testAvgWideDecimalRowsFrameGpu()
+    {
+        assertThat(query(
+                """
+                SELECT avg(price) OVER (
+                    PARTITION BY orderstatus
+                    ORDER BY orderkey
+                    ROWS BETWEEN 2 PRECEDING AND CURRENT ROW)
+                FROM (SELECT orderstatus, orderkey, CAST(totalprice AS decimal(38, 6)) AS price FROM orders)
                 """))
                 .executesWithoutGpu();
     }

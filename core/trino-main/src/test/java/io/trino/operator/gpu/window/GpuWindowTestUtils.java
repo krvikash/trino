@@ -45,7 +45,8 @@ public final class GpuWindowTestUtils
             new TestedWindowFunction("row_number", List.of()),
             new TestedWindowFunction("rank", List.of()),
             new TestedWindowFunction("dense_rank", List.of()),
-            new TestedWindowFunction("avg", List.of(createDecimalType(28, 2))));
+            new TestedWindowFunction("avg", List.of(createDecimalType(28, 2))),
+            new TestedWindowFunction("avg", List.of(createDecimalType(38, 6))));
 
     private static final TestingFunctionResolution FUNCTION_RESOLUTION = new TestingFunctionResolution();
 

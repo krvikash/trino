@@ -8,7 +8,7 @@
               - ExchangeNode LOCAL (GPU)
                 - TopNNode (GPU)
                   - FilterNode
-                    - WindowNode
+                    - WindowNode (GPU)
                       - ExchangeNode LOCAL
                         - ExchangeNode REMOTE
                           - ProjectNode (GPU)

@@ -7,8 +7,8 @@
             - JoinNode
               - ProjectNode (GPU)
                 - JoinNode (GPU)
-                  - FilterNode
-                    - WindowNode
+                  - FilterNode (GPU)
+                    - WindowNode (GPU)
                       - FilterNode (GPU)
                         - WindowNode (GPU)
                           - AggregationNode (GPU)
