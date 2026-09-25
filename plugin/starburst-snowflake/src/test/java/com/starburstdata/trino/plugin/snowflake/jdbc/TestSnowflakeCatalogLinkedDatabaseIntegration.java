@@ -160,6 +160,31 @@ class TestSnowflakeCatalogLinkedDatabaseIntegration
     }
 
     @Test
+    void testGetTableHandleResolvesExactCaseWhenAmbiguousSiblingExists()
+    {
+        String baseName = "ambiguous_schema_" + randomNameSuffix();
+        String upperSchemaName = baseName.toUpperCase(ENGLISH);
+
+        // An unquoted CREATE SCHEMA stores the name uppercase -- exactly what Trino's identifier
+        // mapping guesses for the lowercase Trino-side name used below. A quoted sibling that only
+        // differs in case must not turn that exact match into a "Multiple names matching" error.
+        SnowflakeServer.safeExecuteOnDatabase(
+                testDatabase.getName(),
+                "CREATE SCHEMA " + upperSchemaName,
+                "CREATE TABLE " + upperSchemaName + ".\"" + TABLE_NAME + "\" (id BIGINT, name VARCHAR)",
+                "CREATE SCHEMA \"" + baseName + "\"",
+                "CREATE TABLE \"" + baseName + "\".\"" + TABLE_NAME + "\" (id BIGINT, name VARCHAR)");
+
+        SnowflakeClient client = createClient();
+        Optional<JdbcTableHandle> handle = client.getTableHandle(
+                TestingConnectorSession.builder().build(),
+                new SchemaTableName(normalizedDatabaseName + "." + baseName, TABLE_NAME));
+
+        assertThat(handle).isPresent();
+        assertThat(handle.get().asPlainTable().getRemoteTableName().getSchemaName()).contains(upperSchemaName);
+    }
+
+    @Test
     void testGetAllTableColumnsResolvesActualStoredCase()
             throws SQLException
     {

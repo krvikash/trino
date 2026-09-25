@@ -498,18 +498,28 @@ public class SnowflakeClient
             throws SQLException
     {
         Optional<String> match = Optional.empty();
+        boolean ambiguous = false;
         while (resultSet.next()) {
             String actualName = resultSet.getString(columnLabel);
+            if (actualName == null) {
+                continue;
+            }
+            // An exact match always wins, even if a case-variant sibling (e.g. quoted "orders"
+            // alongside unquoted ORDERS) also matches case-insensitively: regular (non-CLDB)
+            // accounts using database-prefix-for-schema must keep resolving to the exact name
+            // Trino's identifier mapping guessed, unaffected by an unrelated sibling's casing.
+            if (actualName.equals(targetName)) {
+                return Optional.of(actualName);
+            }
             if (actualName.equalsIgnoreCase(targetName)) {
                 if (match.isPresent() && !match.get().equals(actualName)) {
-                    throw new TrinoException(JDBC_ERROR, format(
-                            "Multiple names matching '%s' found: '%s' and '%s'",
-                            targetName,
-                            match.get(),
-                            actualName));
+                    ambiguous = true;
                 }
                 match = Optional.of(actualName);
             }
+        }
+        if (ambiguous) {
+            throw new TrinoException(JDBC_ERROR, format("Multiple names matching '%s' found", targetName));
         }
         return match;
     }
