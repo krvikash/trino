@@ -79,6 +79,7 @@ import io.trino.execution.scheduler.OutputDataSizeEstimate;
 import io.trino.execution.scheduler.QueryScheduler;
 import io.trino.execution.scheduler.SplitSchedulerStats;
 import io.trino.execution.scheduler.TaskExecutionStats;
+import io.trino.execution.scheduler.faulttolerant.ExchangeFailureClassifier.ExchangeFailureKind;
 import io.trino.execution.scheduler.faulttolerant.NodeAllocator.NodeLease;
 import io.trino.execution.scheduler.faulttolerant.OutputStatsEstimator.OutputStatsEstimateResult;
 import io.trino.execution.scheduler.faulttolerant.PartitionMemoryEstimator.MemoryRequirements;
@@ -185,6 +186,8 @@ import static io.trino.execution.resourcegroups.IndexedPriorityQueue.PriorityOrd
 import static io.trino.execution.scheduler.ErrorCodes.isOutOfMemoryError;
 import static io.trino.execution.scheduler.Exchanges.getAllSourceHandles;
 import static io.trino.execution.scheduler.SchedulingUtils.canStream;
+import static io.trino.execution.scheduler.faulttolerant.ExchangeFailureClassifier.ExchangeFailureKind.TRANSIENT;
+import static io.trino.execution.scheduler.faulttolerant.ExchangeFailureClassifier.classify;
 import static io.trino.execution.scheduler.faulttolerant.TaskExecutionClass.EAGER_SPECULATIVE;
 import static io.trino.execution.scheduler.faulttolerant.TaskExecutionClass.SPECULATIVE;
 import static io.trino.execution.scheduler.faulttolerant.TaskExecutionClass.STANDARD;
@@ -192,7 +195,6 @@ import static io.trino.operator.ExchangeOperator.REMOTE_CATALOG_HANDLE;
 import static io.trino.operator.RetryPolicy.TASK;
 import static io.trino.spi.ErrorType.EXTERNAL;
 import static io.trino.spi.ErrorType.INTERNAL_ERROR;
-import static io.trino.spi.ErrorType.USER_ERROR;
 import static io.trino.spi.StandardErrorCode.EXCEEDED_TIME_LIMIT;
 import static io.trino.spi.StandardErrorCode.GENERIC_INTERNAL_ERROR;
 import static io.trino.spi.StandardErrorCode.REMOTE_HOST_GONE;
@@ -2735,7 +2737,15 @@ public class EventDrivenFaultTolerantQueryScheduler
                 return ImmutableList.of();
             }
 
-            if (partition.getRemainingAttempts() == 0 || (errorCode != null && (errorCode.getType() == USER_ERROR || errorCode.isFatal()))) {
+            ExchangeFailureKind failureKind = errorCode == null ? TRANSIENT : classify(errorCode);
+            boolean retryable = switch (failureKind) {
+                case TRANSIENT -> true;
+                // missing exchange data may be a temporary transient storage inconsistency (e.g. NFS lookup cache), so retry once before giving up
+                case EXCHANGE_DATA_UNRECOVERABLE -> partition.tryConsumeExchangeDataLossRetry();
+                case FATAL -> false;
+            };
+            log.debug("Task %s failed with error code %s, failureKind=%s, retryable=%s", taskId, errorCode, failureKind, retryable);
+            if (partition.getRemainingAttempts() == 0 || !retryable) {
                 stage.fail(failure);
                 // stage failed, don't reschedule
                 return ImmutableList.of();
@@ -3044,6 +3054,7 @@ public class EventDrivenFaultTolerantQueryScheduler
         private Optional<OpenTaskDescriptor> openTaskDescriptor;
         private MemoryRequirements memoryRequirements;
         private boolean failureObserved;
+        private boolean exchangeDataLossRetryConsumed;
         private int remainingAttempts;
 
         private final Map<TaskId, RemoteTask> tasks = new HashMap<>();
@@ -3251,6 +3262,14 @@ public class EventDrivenFaultTolerantQueryScheduler
             remainingAttempts--;
         }
 
+        // returns true only for the first observed exchange data loss in this partition
+        public boolean tryConsumeExchangeDataLossRetry()
+        {
+            boolean retryAvailable = !exchangeDataLossRetryConsumed;
+            exchangeDataLossRetryConsumed = true;
+            return retryAvailable;
+        }
+
         public void updateExchangeSinkInstanceHandle(TaskId taskId, ExchangeSinkInstanceHandle handle)
         {
             SpoolingOutputBuffers outputBuffers = taskOutputBuffers.get(taskId);
@@ -3309,6 +3328,7 @@ public class EventDrivenFaultTolerantQueryScheduler
                     .add("openTaskDescriptor", openTaskDescriptor)
                     .add("memoryRequirements", memoryRequirements)
                     .add("failureObserved", failureObserved)
+                    .add("exchangeDataLossObserved", exchangeDataLossRetryConsumed)
                     .add("remainingAttempts", remainingAttempts)
                     .add("tasks", tasks)
                     .add("taskOutputBuffers", taskOutputBuffers)
