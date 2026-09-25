@@ -16,6 +16,7 @@ package io.trino.operator.output;
 
 import io.trino.operator.PartitionFunction;
 import io.trino.spi.Page;
+import io.trino.sql.planner.MergePartitioningHandle.MergePartitionFunction;
 
 import static java.util.Objects.requireNonNull;
 
@@ -26,6 +27,7 @@ public class SkewedPartitionFunction
     private final SkewedPartitionRebalancer skewedPartitionRebalancer;
 
     private final long[] partitionRowCount;
+    private final long[] pinnedPartitionRowCount;
 
     public SkewedPartitionFunction(PartitionFunction partitionFunction, SkewedPartitionRebalancer skewedPartitionRebalancer)
     {
@@ -33,6 +35,7 @@ public class SkewedPartitionFunction
         this.skewedPartitionRebalancer = requireNonNull(skewedPartitionRebalancer, "skewedPartitionRebalancer is null");
 
         this.partitionRowCount = new long[partitionFunction.partitionCount()];
+        this.pinnedPartitionRowCount = new long[partitionFunction.partitionCount()];
     }
 
     @Override
@@ -45,14 +48,20 @@ public class SkewedPartitionFunction
     public int getPartition(Page page, int position)
     {
         int partition = partitionFunction.getPartition(page, position);
+        // Deleted rows of a data file stay on the first task of their partition
+        if (partitionFunction instanceof MergePartitionFunction mergePartitionFunction && mergePartitionFunction.isDeletedRow(page, position)) {
+            pinnedPartitionRowCount[partition]++;
+            return skewedPartitionRebalancer.getTaskId(partition, 0);
+        }
         return skewedPartitionRebalancer.getTaskId(partition, partitionRowCount[partition]++);
     }
 
     public void flushPartitionRowCountToRebalancer()
     {
         for (int partition = 0; partition < partitionFunction.partitionCount(); partition++) {
-            skewedPartitionRebalancer.addPartitionRowCount(partition, partitionRowCount[partition]);
+            skewedPartitionRebalancer.addPartitionRowCount(partition, partitionRowCount[partition] + pinnedPartitionRowCount[partition]);
             partitionRowCount[partition] = 0;
+            pinnedPartitionRowCount[partition] = 0;
         }
     }
 }

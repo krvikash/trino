@@ -18,6 +18,7 @@ import com.google.common.util.concurrent.ListenableFuture;
 import io.trino.operator.PartitionFunction;
 import io.trino.operator.output.SkewedPartitionRebalancer;
 import io.trino.spi.Page;
+import io.trino.sql.planner.MergePartitioningHandle.MergePartitionFunction;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 
 import java.util.List;
@@ -111,11 +112,18 @@ public class ScaleWriterPartitioningExchanger
             int partitionId = partitionFunction.getPartition(partitionPage, position);
             partitionRowCounts[partitionId] += 1;
 
-            // Get writer id for this partition by looking at the scaling state
-            int writerId = partitionWriterIds[partitionId];
-            if (writerId == -1) {
-                writerId = getNextWriterId(partitionId);
-                partitionWriterIds[partitionId] = writerId;
+            int writerId;
+            // Deleted rows of a data file stay on the first writer of their partition
+            if (partitionFunction instanceof MergePartitionFunction mergePartitionFunction && mergePartitionFunction.isDeletedRow(partitionPage, position)) {
+                writerId = partitionRebalancer.getTaskId(partitionId, 0);
+            }
+            else {
+                // Get writer id for this partition by looking at the scaling state
+                writerId = partitionWriterIds[partitionId];
+                if (writerId == -1) {
+                    writerId = getNextWriterId(partitionId);
+                    partitionWriterIds[partitionId] = writerId;
+                }
             }
             writerAssignments[writerId].add(position);
         }

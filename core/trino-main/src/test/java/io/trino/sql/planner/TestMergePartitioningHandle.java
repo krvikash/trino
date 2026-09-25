@@ -18,10 +18,13 @@ import io.trino.operator.BucketPartitionFunction;
 import io.trino.operator.PartitionFunction;
 import io.trino.spi.Page;
 import io.trino.spi.block.ByteArrayBlock;
+import io.trino.sql.planner.MergePartitioningHandle.MergePartitionFunction;
 import org.junit.jupiter.api.Test;
 
 import java.util.Optional;
+import java.util.stream.IntStream;
 
+import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.trino.block.BlockAssertions.createLongsBlock;
 import static io.trino.spi.connector.ConnectorMergeSink.DELETE_OPERATION_NUMBER;
 import static io.trino.spi.connector.ConnectorMergeSink.INSERT_OPERATION_NUMBER;
@@ -49,13 +52,23 @@ class TestMergePartitioningHandle
         assertThat(getPartitions(createUpdateOnlyPartitionFunction(true), createMergePage())).containsExactly(0, 3, 0, 1, 0);
     }
 
+    @Test
+    void testIsDeletedRow()
+    {
+        MergePartitionFunction partitionFunction = (MergePartitionFunction) createUpdateOnlyPartitionFunction(true);
+        Page page = createMergePage();
+
+        assertThat(IntStream.range(0, page.getPositionCount()).mapToObj(position -> partitionFunction.isDeletedRow(page, position)).collect(toImmutableList()))
+                .containsExactly(false, true, false, true, false);
+    }
+
     private static PartitionFunction createUpdateOnlyPartitionFunction(boolean scaleWriters)
     {
         Symbol rowId = new Symbol(BIGINT, "row_id");
         MergePartitioningHandle handle = new MergePartitioningHandle(
                 Optional.empty(),
                 Optional.of(new PartitioningScheme(Partitioning.create(FIXED_HASH_DISTRIBUTION, ImmutableList.of(rowId)), ImmutableList.of(rowId))));
-        PartitionFunction updateFunction = new BucketPartitionFunction((page, position) -> toIntExact(BIGINT.getLong(page.getBlock(0), position) % 4), BUCKET_TO_PARTITION);
+        PartitionFunction updateFunction = new BucketPartitionFunction((page, position) -> toIntExact(BIGINT.getLong(page.getBlock(0), position) % BUCKET_TO_PARTITION.length), BUCKET_TO_PARTITION);
         return handle.getPartitionFunction((_, _) -> updateFunction, ImmutableList.of(TINYINT, BIGINT), BUCKET_TO_PARTITION, scaleWriters);
     }
 

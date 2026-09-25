@@ -16,15 +16,21 @@ package io.trino.operator.output;
 import com.google.common.collect.ImmutableList;
 import io.airlift.units.DataSize;
 import io.trino.SequencePageBuilder;
+import io.trino.operator.BucketPartitionFunction;
 import io.trino.operator.PartitionFunction;
 import io.trino.spi.Page;
+import io.trino.spi.block.ByteArrayBlock;
+import io.trino.sql.planner.MergePartitioningHandle.MergePartitionFunction;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
+import static io.trino.spi.connector.ConnectorMergeSink.DELETE_OPERATION_NUMBER;
+import static io.trino.spi.connector.ConnectorMergeSink.INSERT_OPERATION_NUMBER;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -271,6 +277,56 @@ class TestSkewedPartitionRebalancer
                         new IntArrayList(ImmutableList.of(3, 5, 9, 11, 15)));
         assertThat(rebalancer.getPartitionAssignments())
                 .containsExactly(ImmutableList.of(0, 2), ImmutableList.of(1), ImmutableList.of(2, 0));
+    }
+
+    @Test
+    void testMergeDeletedRowsStayOnFirstTask()
+    {
+        SkewedPartitionRebalancer rebalancer = new SkewedPartitionRebalancer(
+                1,
+                3,
+                1,
+                MIN_PARTITION_DATA_PROCESSED_REBALANCE_THRESHOLD,
+                MIN_DATA_PROCESSED_REBALANCE_THRESHOLD);
+        PartitionFunction singlePartition = new BucketPartitionFunction((_, _) -> 0, new int[] {0});
+        SkewedPartitionFunction function = new SkewedPartitionFunction(
+                new MergePartitionFunction(singlePartition, singlePartition, new int[] {}, new int[] {1}),
+                rebalancer);
+
+        for (int cycle = 0; cycle < 2; cycle++) {
+            rebalancer.addPartitionRowCount(0, 1000);
+            rebalancer.addDataProcessed(DataSize.of(60, MEGABYTE).toBytes());
+            rebalancer.rebalance();
+        }
+        assertThat(rebalancer.getPartitionAssignments())
+                .containsExactly(ImmutableList.of(0, 1, 2));
+
+        Page page = createInsertAndDeletePage(12);
+        List<List<Integer>> taskPositions = ImmutableList.of(new ArrayList<>(), new ArrayList<>(), new ArrayList<>());
+        for (int position = 0; position < page.getPositionCount(); position++) {
+            taskPositions.get(function.getPartition(page, position)).add(position);
+        }
+        assertThat(taskPositions)
+                .containsExactly(
+                        ImmutableList.of(0, 1, 3, 5, 6, 7, 9, 11),
+                        ImmutableList.of(2, 8),
+                        ImmutableList.of(4, 10));
+    }
+
+    private static Page createInsertAndDeletePage(int positionCount)
+    {
+        byte[] operations = new byte[positionCount];
+        for (int position = 0; position < positionCount; position++) {
+            if (position % 2 == 0) {
+                operations[position] = INSERT_OPERATION_NUMBER;
+            }
+            else {
+                operations[position] = DELETE_OPERATION_NUMBER;
+            }
+        }
+        return new Page(
+                new ByteArrayBlock(positionCount, Optional.empty(), operations),
+                SequencePageBuilder.createSequencePage(ImmutableList.of(BIGINT), positionCount, 0).getBlock(0));
     }
 
     private static List<List<Integer>> getPartitionPositions(PartitionFunction function, int maxPosition)

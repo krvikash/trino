@@ -216,7 +216,7 @@ public final class MergePartitioningHandle
         PartitionFunction get(PartitioningScheme scheme, List<Type> partitionChannelTypes);
     }
 
-    private static final class MergePartitionFunction
+    public static final class MergePartitionFunction
             implements PartitionFunction
     {
         private final PartitionFunction insertFunction;
@@ -249,6 +249,12 @@ public final class MergePartitioningHandle
                 case UPDATE_OPERATION_NUMBER, DELETE_OPERATION_NUMBER, UPDATE_DELETE_OPERATION_NUMBER -> updateFunction.getPartition(page.getColumns(updateColumns), position);
                 default -> throw new VerifyException("Invalid merge operation number: " + operation);
             };
+        }
+
+        public boolean isDeletedRow(Page page, int position)
+        {
+            byte operation = TINYINT.getByte(page.getBlock(0), position);
+            return operation == UPDATE_OPERATION_NUMBER || operation == DELETE_OPERATION_NUMBER || operation == UPDATE_DELETE_OPERATION_NUMBER;
         }
     }
 }
