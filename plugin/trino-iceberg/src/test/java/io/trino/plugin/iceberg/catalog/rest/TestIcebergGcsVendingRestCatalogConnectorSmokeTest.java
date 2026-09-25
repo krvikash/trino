@@ -32,6 +32,7 @@ import io.trino.testing.QueryFailedException;
 import io.trino.testing.QueryRunner;
 import io.trino.testing.TestingConnectorBehavior;
 import io.trino.testing.containers.IcebergGcsRestCatalogBackendContainer;
+import io.trino.testing.services.junit.Flaky;
 import org.apache.iceberg.BaseTable;
 import org.apache.iceberg.CatalogProperties;
 import org.apache.iceberg.catalog.SessionCatalog;
@@ -169,6 +170,14 @@ final class TestIcebergGcsVendingRestCatalogConnectorSmokeTest
     {
         assertThatThrownBy(super::testRenameSchema)
                 .hasMessageContaining("renameNamespace is not supported for Iceberg REST catalog");
+    }
+
+    @Test
+    @Override
+    @Flaky(issue = "https://starburstdata.atlassian.net/browse/ENG-27996", match = "StorageException: 503 Service Unavailable")
+    public void testTruncateTable()
+    {
+        super.testTruncateTable();
     }
 
     @Override
