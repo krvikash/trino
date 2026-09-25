@@ -780,7 +780,7 @@ jobs:
           secret-id: ${{ vars.SEP_SECRETS_AWS_ID }}
           login-docker: true
       - uses: ./.github/actions/setup
-        timeout-minutes: 10
+        timeout-minutes: 15
         with:
           cache: restore
           cleanup-node: true
