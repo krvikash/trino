@@ -9,17 +9,25 @@
  */
 package com.starburstdata.trino.plugin.snowflake.jdbc;
 
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheStats;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.io.Closer;
+import com.google.common.util.concurrent.UncheckedExecutionException;
 import com.google.inject.Inject;
 import com.starburstdata.trino.plugin.snowflake.SnowflakeConfig;
 import com.starburstdata.trino.plugin.snowflake.SnowflakeSessionProperties;
+import io.trino.cache.EvictableCacheBuilder;
 import io.trino.plugin.base.aggregation.AggregateFunctionRewriter;
 import io.trino.plugin.base.aggregation.AggregateFunctionRule;
+import io.trino.plugin.base.cache.identity.IdentityCacheMapping;
+import io.trino.plugin.base.cache.identity.IdentityCacheMapping.IdentityCacheKey;
 import io.trino.plugin.base.expression.ConnectorExpressionRewriter;
 import io.trino.plugin.base.mapping.IdentifierMapping;
+import io.trino.plugin.base.mapping.MappingConfig;
 import io.trino.plugin.base.projection.ProjectFunctionRewriter;
 import io.trino.plugin.base.projection.ProjectFunctionRule;
 import io.trino.plugin.jdbc.BaseJdbcClient;
@@ -122,6 +130,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
@@ -198,6 +208,7 @@ import static java.sql.Types.FLOAT;
 import static java.sql.Types.REAL;
 import static java.sql.Types.VARCHAR;
 import static java.util.Objects.requireNonNull;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.stream.Collectors.joining;
 
 public class SnowflakeClient
@@ -239,6 +250,10 @@ public class SnowflakeClient
     private final boolean statisticsEnabled;
     private final boolean databasePrefixForSchemaEnabled;
     private final boolean collationCorrectionEnabled;
+    private final IdentityCacheMapping identityCacheMapping;
+    private final Cache<CatalogCacheKey, Optional<String>> actualCaseCatalogCache;
+    private final Cache<SchemaCacheKey, Optional<String>> actualCaseSchemaCache;
+    private final Cache<TableCacheKey, Optional<String>> actualCaseTableCache;
 
     @Inject
     public SnowflakeClient(
@@ -249,13 +264,23 @@ public class SnowflakeClient
             QueryBuilder queryBuilder,
             TypeManager typeManager,
             IdentifierMapping identifierMapping,
-            RemoteQueryModifier queryModifier)
+            RemoteQueryModifier queryModifier,
+            IdentityCacheMapping identityCacheMapping,
+            MappingConfig mappingConfig)
     {
         super(IDENTIFIER_QUOTE, connectionFactory, queryBuilder, config.getJdbcTypesMappedToVarchar(), identifierMapping, queryModifier, true);
         this.jsonType = typeManager.getType(new TypeDescriptor(JSON));
         this.statisticsEnabled = requireNonNull(statisticsConfig, "statisticsConfig is null").isEnabled();
         this.databasePrefixForSchemaEnabled = requireNonNull(snowflakeConfig, "snowflakeConfig is null").getDatabasePrefixForSchemaEnabled();
         this.collationCorrectionEnabled = snowflakeConfig.isCollationCorrectionEnabled();
+        this.identityCacheMapping = requireNonNull(identityCacheMapping, "identityCacheMapping is null");
+        // Reuses the case-insensitive-name-matching cache TTL: resolving a name's actual stored case
+        // is the same kind of operation (and identity-visibility concern) that property already tunes.
+        long actualCaseCacheTtlMillis = requireNonNull(mappingConfig, "mappingConfig is null").getCaseInsensitiveNameMatchingCacheTtl().toMillis();
+        long cacheMaximumSize = config.getCacheMaximumSize();
+        this.actualCaseCatalogCache = buildActualCaseCache(cacheMaximumSize, actualCaseCacheTtlMillis);
+        this.actualCaseSchemaCache = buildActualCaseCache(cacheMaximumSize, actualCaseCacheTtlMillis);
+        this.actualCaseTableCache = buildActualCaseCache(cacheMaximumSize, actualCaseCacheTtlMillis);
         Predicate<ConnectorSession> experimentalPushdownEnabled = SnowflakeSessionProperties::getExperimentalPushdownEnabled;
         this.connectorExpressionRewriter = JdbcConnectorExpressionRewriterBuilder.newBuilder()
                 // Same as addStandardRules but rewrites variables in a custom way.
@@ -321,6 +346,34 @@ public class SnowflakeClient
                         .add(new ImplementRegrIntercept())
                         .add(new ImplementRegrSlope())
                         .build());
+    }
+
+    private static <K, V> Cache<K, V> buildActualCaseCache(long maximumSize, long ttlMillis)
+    {
+        return EvictableCacheBuilder.newBuilder()
+                .maximumSize(maximumSize)
+                .expireAfterWrite(ttlMillis, MILLISECONDS)
+                .shareNothingWhenDisabled()
+                .recordStats()
+                .build();
+    }
+
+    @VisibleForTesting
+    CacheStats getActualCaseCatalogCacheStats()
+    {
+        return actualCaseCatalogCache.stats();
+    }
+
+    @VisibleForTesting
+    CacheStats getActualCaseSchemaCacheStats()
+    {
+        return actualCaseSchemaCache.stats();
+    }
+
+    @VisibleForTesting
+    CacheStats getActualCaseTableCacheStats()
+    {
+        return actualCaseTableCache.stats();
     }
 
     @Override
@@ -413,6 +466,19 @@ public class SnowflakeClient
     public ResultSet getTables(Connection connection, Optional<String> remoteSchemaName, Optional<String> remoteTableName)
             throws SQLException
     {
+        return getTables(Optional.empty(), connection, remoteSchemaName, remoteTableName);
+    }
+
+    @Override
+    public ResultSet getTables(ConnectorSession session, Connection connection, Optional<String> remoteSchemaName, Optional<String> remoteTableName)
+            throws SQLException
+    {
+        return getTables(Optional.of(session), connection, remoteSchemaName, remoteTableName);
+    }
+
+    private ResultSet getTables(Optional<ConnectorSession> session, Connection connection, Optional<String> remoteSchemaName, Optional<String> remoteTableName)
+            throws SQLException
+    {
         if (!databasePrefixForSchemaEnabled) {
             return super.getTables(connection, remoteSchemaName, remoteTableName);
         }
@@ -428,9 +494,10 @@ public class SnowflakeClient
             return getSnowflakeSystemDatabaseTables(connection, databaseSchema.get(), remoteTableName.get());
         }
 
-        Optional<String> actualCaseCatalog = databaseSchema.map(schema -> resolveActualCaseCatalogName(connection, schema.getDatabaseName()).orElse(schema.getDatabaseName()));
+        Optional<String> actualCaseCatalog = databaseSchema.map(schema -> resolveActualCaseCatalogName(session, connection, schema.getDatabaseName()).orElse(schema.getDatabaseName()));
 
         return getTablesWithExactCaseResolution(
+                session,
                 connection,
                 actualCaseCatalog.orElse(null),
                 databaseSchema.map(DatabaseSchemaName::getSchemaName),
@@ -441,16 +508,17 @@ public class SnowflakeClient
      * Trino's identifier mapping uppercases remote schema/table names by default, but
      * catalog-linked databases (CLDBs) store objects in their original, often lowercase, case.
      */
-    private ResultSet getTablesWithExactCaseResolution(Connection connection, String catalog, Optional<String> schemaName, Optional<String> tableName)
+    private ResultSet getTablesWithExactCaseResolution(Optional<ConnectorSession> session, Connection connection, String catalog, Optional<String> schemaName, Optional<String> tableName)
             throws SQLException
     {
         DatabaseMetaData metadata = connection.getMetaData();
 
-        Optional<String> schemaPattern = schemaName.map(name -> resolveActualCaseSchemaName(connection, catalog, name).orElse(""));
+        Optional<String> schemaPattern = schemaName.map(name -> resolveActualCaseSchemaName(session, connection, catalog, name).orElse(""));
 
         Optional<String> actualCaseTableName = Optional.empty();
         if (tableName.isPresent() && schemaPattern.isPresent() && !schemaPattern.get().isEmpty()) {
             actualCaseTableName = resolveActualCaseTableName(
+                    session,
                     connection,
                     catalog,
                     escapeObjectNameForMetadataQuery(schemaPattern, metadata.getSearchStringEscape()).orElseThrow(),
@@ -464,7 +532,31 @@ public class SnowflakeClient
                 getTableTypes().map(types -> types.toArray(String[]::new)).orElse(null));
     }
 
-    private Optional<String> resolveActualCaseCatalogName(Connection connection, String catalog)
+    /**
+     * Resolving the actual stored case requires an unfiltered, driver-side scan
+     * (getCatalogs()/getSchemas()/getTables()) of every catalog/schema/table in scope, which is
+     * expensive to repeat for every sibling lookup in a query, or across repeated queries. The
+     * result is cached, scoped by {@link IdentityCacheKey} because Snowflake role impersonation
+     * means different sessions can see different sets of catalogs/schemas/tables for the same
+     * nominal name -- an unscoped cache could leak one identity's visible objects to another.
+     * Ambiguous matches (see {@link #resolveActualCaseName}) are never cached: {@link Cache#get}
+     * does not cache an exception thrown by the loader, so an ambiguous result is always
+     * re-verified against a fresh scan rather than served stale.
+     * <p>
+     * When no session is available (some internal callers only have a {@link Connection}, see
+     * {@link #getTables(Connection, Optional, Optional)}), resolution is performed directly,
+     * bypassing the cache.
+     */
+    private Optional<String> resolveActualCaseCatalogName(Optional<ConnectorSession> session, Connection connection, String catalog)
+    {
+        if (session.isEmpty()) {
+            return doResolveActualCaseCatalogName(connection, catalog);
+        }
+        CatalogCacheKey key = new CatalogCacheKey(identityCacheMapping.getRemoteUserCacheKey(session.get()), catalog);
+        return getCached(actualCaseCatalogCache, key, () -> doResolveActualCaseCatalogName(connection, catalog));
+    }
+
+    private Optional<String> doResolveActualCaseCatalogName(Connection connection, String catalog)
     {
         try (ResultSet resultSet = connection.getMetaData().getCatalogs()) {
             return resolveActualCaseName(catalog, resultSet, "TABLE_CAT");
@@ -474,7 +566,16 @@ public class SnowflakeClient
         }
     }
 
-    private Optional<String> resolveActualCaseSchemaName(Connection connection, String catalog, String schemaName)
+    private Optional<String> resolveActualCaseSchemaName(Optional<ConnectorSession> session, Connection connection, String catalog, String schemaName)
+    {
+        if (session.isEmpty()) {
+            return doResolveActualCaseSchemaName(connection, catalog, schemaName);
+        }
+        SchemaCacheKey key = new SchemaCacheKey(identityCacheMapping.getRemoteUserCacheKey(session.get()), catalog, schemaName);
+        return getCached(actualCaseSchemaCache, key, () -> doResolveActualCaseSchemaName(connection, catalog, schemaName));
+    }
+
+    private Optional<String> doResolveActualCaseSchemaName(Connection connection, String catalog, String schemaName)
     {
         try (ResultSet resultSet = connection.getMetaData().getSchemas(catalog, null)) {
             return resolveActualCaseName(schemaName, resultSet, "TABLE_SCHEM");
@@ -484,7 +585,16 @@ public class SnowflakeClient
         }
     }
 
-    private Optional<String> resolveActualCaseTableName(Connection connection, String catalog, String schemaName, String tableName)
+    private Optional<String> resolveActualCaseTableName(Optional<ConnectorSession> session, Connection connection, String catalog, String schemaName, String tableName)
+    {
+        if (session.isEmpty()) {
+            return doResolveActualCaseTableName(connection, catalog, schemaName, tableName);
+        }
+        TableCacheKey key = new TableCacheKey(identityCacheMapping.getRemoteUserCacheKey(session.get()), catalog, schemaName, tableName);
+        return getCached(actualCaseTableCache, key, () -> doResolveActualCaseTableName(connection, catalog, schemaName, tableName));
+    }
+
+    private Optional<String> doResolveActualCaseTableName(Connection connection, String catalog, String schemaName, String tableName)
     {
         try (ResultSet resultSet = connection.getMetaData().getTables(catalog, schemaName, null, getTableTypes().map(types -> types.toArray(String[]::new)).orElse(null))) {
             return resolveActualCaseName(tableName, resultSet, "TABLE_NAME");
@@ -524,6 +634,51 @@ public class SnowflakeClient
         return match;
     }
 
+    private static <K> Optional<String> getCached(Cache<K, Optional<String>> cache, K key, Callable<Optional<String>> loader)
+    {
+        try {
+            return cache.get(key, loader);
+        }
+        catch (UncheckedExecutionException e) {
+            throwIfInstanceOf(e.getCause(), TrinoException.class);
+            throw e;
+        }
+        catch (ExecutionException e) {
+            throwIfInstanceOf(e.getCause(), TrinoException.class);
+            throw new UncheckedExecutionException(e);
+        }
+    }
+
+    private record CatalogCacheKey(IdentityCacheKey identity, String catalog)
+    {
+        private CatalogCacheKey
+        {
+            requireNonNull(identity, "identity is null");
+            requireNonNull(catalog, "catalog is null");
+        }
+    }
+
+    private record SchemaCacheKey(IdentityCacheKey identity, String catalog, String schema)
+    {
+        private SchemaCacheKey
+        {
+            requireNonNull(identity, "identity is null");
+            requireNonNull(catalog, "catalog is null");
+            requireNonNull(schema, "schema is null");
+        }
+    }
+
+    private record TableCacheKey(IdentityCacheKey identity, String catalog, String schema, String table)
+    {
+        private TableCacheKey
+        {
+            requireNonNull(identity, "identity is null");
+            requireNonNull(catalog, "catalog is null");
+            requireNonNull(schema, "schema is null");
+            requireNonNull(table, "table is null");
+        }
+    }
+
     private ResultSet getSnowflakeSystemDatabaseTables(Connection connection, DatabaseSchemaName databaseSchema, String remoteTableName)
             throws SQLException
     {
@@ -552,6 +707,19 @@ public class SnowflakeClient
     protected ResultSet getAllTableColumns(Connection connection, Optional<String> remoteSchemaName)
             throws SQLException
     {
+        return getAllTableColumns(Optional.empty(), connection, remoteSchemaName);
+    }
+
+    @Override
+    protected ResultSet getAllTableColumns(ConnectorSession session, Connection connection, Optional<String> remoteSchemaName)
+            throws SQLException
+    {
+        return getAllTableColumns(Optional.of(session), connection, remoteSchemaName);
+    }
+
+    private ResultSet getAllTableColumns(Optional<ConnectorSession> session, Connection connection, Optional<String> remoteSchemaName)
+            throws SQLException
+    {
         if (!databasePrefixForSchemaEnabled) {
             DatabaseMetaData metadata = connection.getMetaData();
             return metadata.getColumns(
@@ -562,18 +730,19 @@ public class SnowflakeClient
         }
 
         Optional<DatabaseSchemaName> requestedSchema = remoteSchemaName.map(DatabaseSchemaName::parseDatabaseSchemaName);
-        Optional<String> actualCaseCatalog = requestedSchema.map(schema -> resolveActualCaseCatalogName(connection, schema.getDatabaseName()).orElse(schema.getDatabaseName()));
+        Optional<String> actualCaseCatalog = requestedSchema.map(schema -> resolveActualCaseCatalogName(session, connection, schema.getDatabaseName()).orElse(schema.getDatabaseName()));
         return getColumnsWithExactCaseResolution(
+                session,
                 connection,
                 actualCaseCatalog.orElse(null),
                 requestedSchema.map(DatabaseSchemaName::getSchemaName));
     }
 
-    private ResultSet getColumnsWithExactCaseResolution(Connection connection, String catalog, Optional<String> schemaName)
+    private ResultSet getColumnsWithExactCaseResolution(Optional<ConnectorSession> session, Connection connection, String catalog, Optional<String> schemaName)
             throws SQLException
     {
         DatabaseMetaData metadata = connection.getMetaData();
-        Optional<String> schemaPattern = schemaName.map(name -> resolveActualCaseSchemaName(connection, catalog, name).orElse(""));
+        Optional<String> schemaPattern = schemaName.map(name -> resolveActualCaseSchemaName(session, connection, catalog, name).orElse(""));
 
         return metadata.getColumns(
                 catalog,

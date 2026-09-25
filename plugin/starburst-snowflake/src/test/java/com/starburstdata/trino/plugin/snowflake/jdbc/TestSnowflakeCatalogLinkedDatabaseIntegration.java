@@ -9,17 +9,24 @@
  */
 package com.starburstdata.trino.plugin.snowflake.jdbc;
 
+import com.google.common.collect.ImmutableMap;
 import com.starburstdata.trino.plugin.snowflake.SnowflakeConfig;
 import com.starburstdata.trino.plugin.snowflake.SnowflakeServer;
 import com.starburstdata.trino.plugin.snowflake.TestDatabase;
+import io.trino.plugin.base.cache.identity.SingletonIdentityCacheMapping;
 import io.trino.plugin.base.mapping.DefaultIdentifierMapping;
+import io.trino.plugin.base.mapping.MappingConfig;
 import io.trino.plugin.jdbc.BaseJdbcConfig;
 import io.trino.plugin.jdbc.DefaultQueryBuilder;
+import io.trino.plugin.jdbc.ExtraCredentialsBasedIdentityCacheMapping;
 import io.trino.plugin.jdbc.JdbcStatisticsConfig;
 import io.trino.plugin.jdbc.JdbcTableHandle;
+import io.trino.plugin.jdbc.credential.ExtraCredentialConfig;
 import io.trino.plugin.jdbc.logging.RemoteQueryModifier;
+import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.RelationCommentMetadata;
 import io.trino.spi.connector.SchemaTableName;
+import io.trino.spi.security.ConnectorIdentity;
 import io.trino.testing.TestingConnectorSession;
 import io.trino.type.InternalTypeManager;
 import org.junit.jupiter.api.AfterAll;
@@ -185,6 +192,58 @@ class TestSnowflakeCatalogLinkedDatabaseIntegration
     }
 
     @Test
+    void testActualCaseResolutionCachesRepeatedLookupsForSameIdentity()
+    {
+        SnowflakeClient client = createClient();
+        ConnectorSession session = TestingConnectorSession.builder().build();
+        SchemaTableName schemaTableName = new SchemaTableName(trinoSchemaName, TABLE_NAME);
+
+        assertThat(client.getTableHandle(session, schemaTableName)).isPresent();
+        long catalogHitsAfterFirstCall = client.getActualCaseCatalogCacheStats().hitCount();
+        long schemaHitsAfterFirstCall = client.getActualCaseSchemaCacheStats().hitCount();
+        long tableHitsAfterFirstCall = client.getActualCaseTableCacheStats().hitCount();
+
+        // Same session, same names: the second lookup must be served from the cache instead of
+        // repeating the unfiltered getCatalogs()/getSchemas()/getTables() scans.
+        assertThat(client.getTableHandle(session, schemaTableName)).isPresent();
+
+        assertThat(client.getActualCaseCatalogCacheStats().hitCount()).isGreaterThan(catalogHitsAfterFirstCall);
+        assertThat(client.getActualCaseSchemaCacheStats().hitCount()).isGreaterThan(schemaHitsAfterFirstCall);
+        assertThat(client.getActualCaseTableCacheStats().hitCount()).isGreaterThan(tableHitsAfterFirstCall);
+    }
+
+    @Test
+    void testActualCaseResolutionCacheDoesNotLeakAcrossIdentities()
+    {
+        SnowflakeClient client = new SnowflakeClient(
+                new BaseJdbcConfig(),
+                new SnowflakeConfig().setDatabasePrefixForSchemaEnabled(true),
+                new JdbcStatisticsConfig(),
+                _ -> openRealConnection(),
+                new DefaultQueryBuilder(RemoteQueryModifier.NONE),
+                InternalTypeManager.TESTING_TYPE_MANAGER,
+                new DefaultIdentifierMapping(),
+                RemoteQueryModifier.NONE,
+                new ExtraCredentialsBasedIdentityCacheMapping(new ExtraCredentialConfig().setUserCredentialName("snowflake.user")),
+                new MappingConfig());
+        SchemaTableName schemaTableName = new SchemaTableName(trinoSchemaName, TABLE_NAME);
+        ConnectorSession alice = TestingConnectorSession.builder()
+                .setIdentity(ConnectorIdentity.forUser("test").withExtraCredentials(ImmutableMap.of("snowflake.user", "alice")).build())
+                .build();
+        ConnectorSession bob = TestingConnectorSession.builder()
+                .setIdentity(ConnectorIdentity.forUser("test").withExtraCredentials(ImmutableMap.of("snowflake.user", "bob")).build())
+                .build();
+
+        assertThat(client.getTableHandle(alice, schemaTableName)).isPresent();
+        // Different identity, same names: must not be served from a cache entry scoped to
+        // alice's identity, or one Snowflake role's visible objects could leak to another's.
+        assertThat(client.getTableHandle(bob, schemaTableName)).isPresent();
+
+        assertThat(client.getActualCaseSchemaCacheStats().hitCount()).isZero();
+        assertThat(client.getActualCaseTableCacheStats().hitCount()).isZero();
+    }
+
+    @Test
     void testGetAllTableColumnsResolvesActualStoredCase()
             throws SQLException
     {
@@ -271,7 +330,9 @@ class TestSnowflakeCatalogLinkedDatabaseIntegration
                 new DefaultQueryBuilder(RemoteQueryModifier.NONE),
                 InternalTypeManager.TESTING_TYPE_MANAGER,
                 new DefaultIdentifierMapping(),
-                RemoteQueryModifier.NONE);
+                RemoteQueryModifier.NONE,
+                new SingletonIdentityCacheMapping(),
+                new MappingConfig());
     }
 
     private static Connection openRealConnection()

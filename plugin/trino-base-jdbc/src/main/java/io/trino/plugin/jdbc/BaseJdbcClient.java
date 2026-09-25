@@ -212,7 +212,7 @@ public abstract class BaseJdbcClient
                 return ImmutableList.of();
             }
 
-            try (ResultSet resultSet = getTables(connection, remoteSchema, Optional.empty())) {
+            try (ResultSet resultSet = getTables(session, connection, remoteSchema, Optional.empty())) {
                 ImmutableList.Builder<RelationCommentMetadata> list = ImmutableList.builder();
                 while (resultSet.next()) {
                     String remoteSchemaFromResultSet = getTableRemoteSchemaName(resultSet);
@@ -238,7 +238,7 @@ public abstract class BaseJdbcClient
             RemoteIdentifiers remoteIdentifiers = getRemoteIdentifiers(connection);
             String remoteSchema = identifierMapping.toRemoteSchemaName(remoteIdentifiers, identity, schemaTableName.getSchemaName());
             String remoteTable = identifierMapping.toRemoteTableName(remoteIdentifiers, identity, remoteSchema, schemaTableName.getTableName());
-            try (ResultSet resultSet = getTables(connection, Optional.of(remoteSchema), Optional.of(remoteTable))) {
+            try (ResultSet resultSet = getTables(session, connection, Optional.of(remoteSchema), Optional.of(remoteTable))) {
                 List<JdbcTableHandle> tableHandles = new ArrayList<>();
                 while (resultSet.next()) {
                     tableHandles.add(new JdbcTableHandle(schemaTableName, getRemoteTable(resultSet), getTableComment(resultSet)));
@@ -387,7 +387,7 @@ public abstract class BaseJdbcClient
 
             // getTables filter tables by table_type. This is not possible to do when reading columns result set.
             ImmutableSet.Builder<RemoteTableName> visibleTables = ImmutableSet.builder();
-            try (ResultSet tablesResultSet = getTables(connection, remoteSchema, Optional.empty())) {
+            try (ResultSet tablesResultSet = getTables(session, connection, remoteSchema, Optional.empty())) {
                 while (tablesResultSet.next()) {
                     if (filterRemoteSchema(getTableRemoteSchemaName(tablesResultSet))) {
                         visibleTables.add(getRemoteTable(tablesResultSet));
@@ -395,7 +395,7 @@ public abstract class BaseJdbcClient
                 }
             }
 
-            resultSet = getAllTableColumns(connection, remoteSchema);
+            resultSet = getAllTableColumns(session, connection, remoteSchema);
             return new IterateTableColumns(session, connection, visibleTables.build(), resultSet);
         }
         catch (RuntimeException | SQLException e) {
@@ -593,6 +593,19 @@ public abstract class BaseJdbcClient
                 escapeObjectNameForMetadataQuery(remoteSchemaName, metadata.getSearchStringEscape()).orElse(null),
                 null,
                 null);
+    }
+
+    /**
+     * Session-aware variant of {@link #getAllTableColumns(Connection, Optional)}, called wherever a
+     * {@link ConnectorSession} is available. The default delegates to the session-less overload, so
+     * subclasses that don't need the session (the common case) only have to override that one.
+     * Subclasses that need the session (for example, to scope an identity-aware cache) should
+     * override this overload instead.
+     */
+    protected ResultSet getAllTableColumns(ConnectorSession session, Connection connection, Optional<String> remoteSchemaName)
+            throws SQLException
+    {
+        return getAllTableColumns(connection, remoteSchemaName);
     }
 
     @Override
@@ -1540,6 +1553,19 @@ public abstract class BaseJdbcClient
                 escapeObjectNameForMetadataQuery(remoteSchemaName, metadata.getSearchStringEscape()).orElse(null),
                 escapeObjectNameForMetadataQuery(remoteTableName, metadata.getSearchStringEscape()).orElse(null),
                 getTableTypes().map(types -> types.toArray(String[]::new)).orElse(null));
+    }
+
+    /**
+     * Session-aware variant of {@link #getTables(Connection, Optional, Optional)}, called wherever a
+     * {@link ConnectorSession} is available. The default delegates to the session-less overload, so
+     * subclasses that don't need the session (the common case) only have to override that one.
+     * Subclasses that need the session (for example, to scope an identity-aware cache) should
+     * override this overload instead.
+     */
+    public ResultSet getTables(ConnectorSession session, Connection connection, Optional<String> remoteSchemaName, Optional<String> remoteTableName)
+            throws SQLException
+    {
+        return getTables(connection, remoteSchemaName, remoteTableName);
     }
 
     protected Optional<List<String>> getTableTypes()
