@@ -18,6 +18,7 @@ import io.trino.plugin.hive.metastore.unity.DatabricksSqlExecutor;
 import io.trino.plugin.iceberg.IcebergQueryRunner;
 import io.trino.testing.AbstractTestQueryFramework;
 import io.trino.testing.QueryRunner;
+import io.trino.testing.services.junit.Flaky;
 import io.trino.testing.sql.TestTable;
 import org.junit.jupiter.api.Test;
 
@@ -61,6 +62,7 @@ final class TestDatabricksUnityRestCatalog
     }
 
     @Test
+    @Flaky(issue = "https://starburstdata.atlassian.net/browse/ENG-27824", match = "HTTP request failed by code: 502")
     void testDeletionVectors()
             throws Exception
     {
