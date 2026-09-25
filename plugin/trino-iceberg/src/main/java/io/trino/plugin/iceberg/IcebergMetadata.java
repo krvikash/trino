@@ -4126,24 +4126,24 @@ public class IcebergMetadata
 
         beginTransaction(icebergTable);
 
-        List<PositionDeleteFiles> previousDeleteFiles = loadPreviousDeleteFiles(icebergTable, branch);
+        // beginTransaction refreshes icebergTable, so its current snapshot may already include commits made
+        // after analysis. The merge scans the handle's snapshot, and a data file replaced by such a commit
+        // would be missing from the previous delete files, failing its rewrite.
+        List<PositionDeleteFiles> previousDeleteFiles = loadPreviousDeleteFiles(icebergTable, table.getSnapshotId());
         IcebergWritableTableHandle insertHandle = newWritableTableHandle(table.getSchemaTableName(), icebergTable, table.getTableSchemaJson(), branch, previousDeleteFiles);
         return new IcebergMergeTableHandle(table, insertHandle);
     }
 
-    private List<PositionDeleteFiles> loadPreviousDeleteFiles(Table icebergTable, Optional<String> branch)
+    private List<PositionDeleteFiles> loadPreviousDeleteFiles(Table icebergTable, OptionalLong snapshotId)
     {
         int formatVersion = formatVersion(icebergTable);
         validateFormatVersion(formatVersion, maxFormatVersion);
         RowLevelOperationMode operationMode = rowLevelOperationMode(icebergTable);
-        if (operationMode == MERGE_ON_READ) {
+        if (operationMode == MERGE_ON_READ || snapshotId.isEmpty()) {
             return ImmutableList.of();
         }
 
-        TableScan tableScan = icebergTable.newScan();
-        if (branch.isPresent()) {
-            tableScan = tableScan.useRef(branch.get());
-        }
+        TableScan tableScan = icebergTable.newScan().useSnapshot(snapshotId.orElseThrow());
 
         ImmutableList.Builder<PositionDeleteFiles> rewritableDeletes = ImmutableList.builder();
         try (CloseableIterable<FileScanTask> iterator = tableScan.planFiles()) {
@@ -5135,7 +5135,7 @@ public class IcebergMetadata
             fromSnapshotForRefresh = OptionalLong.of(Long.parseLong(sourceTable.getValue()));
         }
 
-        List<PositionDeleteFiles> rewritableDeletes = loadPreviousDeleteFiles(icebergTable, Optional.empty());
+        List<PositionDeleteFiles> rewritableDeletes = loadPreviousDeleteFiles(icebergTable, getCurrentSnapshotId(icebergTable));
         return newWritableTableHandle(table.getSchemaTableName(), icebergTable, table.getTableSchemaJson(), Optional.empty(), rewritableDeletes);
     }
 
