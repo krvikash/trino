@@ -29,6 +29,7 @@ properties = {
     "dfs.client.block.write.replace-datanode-on-failure.policy": "NEVER",
     "dfs.client.block.write.replace-datanode-on-failure.best-effort": "true",
     "dfs.namenode.avoid.write.stale.datanode": "false",
+    "dfs.namenode.redundancy.considerLoad": "false",
     "dfs.safemode.threshold.pct": "0",
 }
 
