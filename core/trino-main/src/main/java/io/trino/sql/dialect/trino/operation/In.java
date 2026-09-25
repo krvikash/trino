@@ -15,8 +15,8 @@ package io.trino.sql.dialect.trino.operation;
 
 import com.google.common.collect.ImmutableList;
 import io.trino.spi.TrinoException;
+import io.trino.spi.type.ArrayType;
 import io.trino.spi.type.Type;
-import io.trino.sql.dialect.trino.TrinoDialect;
 import io.trino.sql.dialect.trino.operationmetadata.InOperationMetadata;
 import io.trino.sql.newir.Attributes;
 import io.trino.sql.newir.FormatOptions.PrintOptions;
@@ -24,7 +24,6 @@ import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Region;
 import io.trino.sql.newir.Value;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
@@ -33,47 +32,46 @@ import static io.trino.sql.dialect.trino.TrinoDialect.TRINO;
 import static io.trino.sql.dialect.trino.TrinoDialect.irType;
 import static io.trino.sql.dialect.trino.TrinoDialect.trinoType;
 import static io.trino.sql.dialect.trino.operationmetadata.InOperationMetadata.NAME;
-import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
 public final class In
         extends TrinoOperation
 {
     private final Result result;
-    private final List<Value> arguments;
+    private final Value input;
+    private final Value valueList;
     private final Attributes attributes;
 
-    public In(String resultName, Value input, List<Value> inputList, List<Attributes> sourceAttributes)
+    public In(String resultName, Value input, Value valueList, List<Attributes> sourceAttributes)
     {
-        this(resultName, input, inputList, sourceAttributes, Attributes.empty());
+        this(resultName, input, valueList, sourceAttributes, Attributes.empty());
     }
 
-    public In(String resultName, Value input, List<Value> inputList, List<Attributes> sourceAttributes, Attributes enforcedAttributes)
+    public In(String resultName, Value input, Value valueList, List<Attributes> sourceAttributes, Attributes enforcedAttributes)
     {
         super(TRINO, NAME);
         requireNonNull(resultName, "resultName is null");
         requireNonNull(input, "input is null");
-        requireNonNull(inputList, "inputList is null");
+        requireNonNull(valueList, "valueList is null");
         requireNonNull(sourceAttributes, "sourceAttributes is null");
         requireNonNull(enforcedAttributes, "enforcedAttributes is null");
 
         this.result = new Result(resultName, irType(BOOLEAN));
 
         Type inputType = trinoType(input.type());
-        if (!inputList.stream()
-                .map(Value::type)
-                .map(TrinoDialect::trinoType)
-                .allMatch(type -> type.equals(inputType))) {
-            throw new TrinoException(IR_ERROR, "all values must be of the same type");
+        Type valueListType = trinoType(valueList.type());
+        if (!(valueListType instanceof ArrayType arrayType)) {
+            throw new TrinoException(IR_ERROR, "value list must be of array type");
+        }
+        if (!arrayType.getElementType().equals(inputType)) {
+            throw new TrinoException(IR_ERROR, "value list element type must match the input type");
         }
 
-        this.arguments = ImmutableList.<Value>builderWithExpectedSize(1 + inputList.size())
-                .add(input)
-                .addAll(inputList)
-                .build();
+        this.input = input;
+        this.valueList = valueList;
 
-        if (sourceAttributes.size() != 1 + inputList.size()) {
-            throw new TrinoException(IR_ERROR, format("the number of source attribute maps: %s does not match the number of arguments: %s", sourceAttributes.size(), 1 + inputList.size()));
+        if (sourceAttributes.size() != 2) {
+            throw new TrinoException(IR_ERROR, "In operation must have exactly two source attribute maps");
         }
 
         Attributes.Builder attributes = Attributes.builder();
@@ -92,7 +90,7 @@ public final class In
     @Override
     public List<Value> arguments()
     {
-        return arguments;
+        return ImmutableList.of(input, valueList);
     }
 
     @Override
@@ -117,33 +115,17 @@ public final class In
     public Operation withArgument(Value newArgument, int index)
     {
         validateArgument(newArgument, index);
-        List<Value> inputList = inputList();
-        List<Value> newInputList = new ArrayList<>(inputList);
-        if (index >= 1 && index < arguments.size()) {
-            newInputList.set(index - 1, newArgument);
-        }
         return new In(
                 result.name(),
-                index == 0 ? newArgument : input(),
-                newInputList,
-                emptySourceAttributes(arguments.size()));
-    }
-
-    @Override
-    public Operation withArguments(List<Value> newArguments)
-    {
-        validateArguments(newArguments);
-        return new In(
-                result.name(),
-                newArguments.getFirst(),
-                newArguments.subList(1, newArguments.size()),
-                emptySourceAttributes(newArguments.size()));
+                index == 0 ? newArgument : input,
+                index == 1 ? newArgument : valueList,
+                emptySourceAttributes(2));
     }
 
     @Override
     public Operation withResultName(String newName)
     {
-        return new In(newName, input(), inputList(), emptySourceAttributes(arguments.size()));
+        return new In(newName, input, valueList, emptySourceAttributes(2));
     }
 
     @Override
@@ -154,12 +136,12 @@ public final class In
 
     public Value input()
     {
-        return arguments.getFirst();
+        return input;
     }
 
-    public List<Value> inputList()
+    public Value valueList()
     {
-        return arguments.subList(1, arguments.size());
+        return valueList;
     }
 
     @Override

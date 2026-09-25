@@ -48,7 +48,7 @@ public class InOperationMetadata
     @Override
     public Operation createOperation(String resultName, List<Value> arguments, List<Region> regions, Attributes attributes)
     {
-        checkArgument(!arguments.isEmpty(), "In operation arguments cannot be empty");
+        checkArgument(arguments.size() == 2, "In operation must have exactly two arguments: the input and the value list");
         checkArgument(regions.isEmpty(), "In operation does not have regions");
 
         Attributes.Partition partitionedAttributes = attributes.partitionKeys(inherentOperationAttributeKeys()::contains);
@@ -56,9 +56,9 @@ public class InOperationMetadata
 
         return new In(
                 resultName,
-                arguments.getFirst(),
-                arguments.subList(1, arguments.size()),
-                emptySourceAttributes(arguments.size()),
+                arguments.get(0),
+                arguments.get(1),
+                emptySourceAttributes(2),
                 derivedAttributes);
     }
 
@@ -70,7 +70,7 @@ public class InOperationMetadata
 
     public static Attributes deriveAttributes(Attributes currentAttributes, List<Attributes> childAttributes)
     {
-        checkArgument(!childAttributes.isEmpty(), "In operation must have at least one child attributes map");
+        checkArgument(childAttributes.size() == 2, "In operation must have exactly two child attributes maps");
 
         return defaultDeriveIrLevelAttributes(childAttributes);
     }

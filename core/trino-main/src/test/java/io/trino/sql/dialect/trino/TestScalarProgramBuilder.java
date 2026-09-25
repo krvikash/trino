@@ -451,11 +451,16 @@ final class TestScalarProgramBuilder
         Constant constantOperation1 = new Constant("%1", BIGINT, 0L);
         Constant constantOperation2 = new Constant("%2", BIGINT, 1L);
         Constant constantOperation3 = new Constant("%3", BIGINT, 2L);
-        In inOperation = new In(
+        Array valueListOperation = new Array(
                 "%4",
-                constantOperationValue.result(),
+                BIGINT,
                 ImmutableList.of(constantOperation1.result(), constantOperation2.result(), constantOperation3.result()),
-                ImmutableList.of(constantOperationValue.attributes(), constantOperation1.attributes(), constantOperation2.attributes(), constantOperation3.attributes()));
+                ImmutableList.of(constantOperation1.attributes(), constantOperation2.attributes(), constantOperation3.attributes()));
+        In inOperation = new In(
+                "%5",
+                constantOperationValue.result(),
+                valueListOperation.result(),
+                ImmutableList.of(constantOperationValue.attributes(), valueListOperation.attributes()));
 
         assertProgram(
                 inExpression,
@@ -464,6 +469,7 @@ final class TestScalarProgramBuilder
                         constantOperation1,
                         constantOperation2,
                         constantOperation3,
+                        valueListOperation,
                         inOperation),
                 BOOLEAN);
     }

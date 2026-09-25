@@ -14,6 +14,8 @@
 package io.trino.sql.dialect.trino.operation;
 
 import com.google.common.collect.ImmutableList;
+import io.trino.spi.TrinoException;
+import io.trino.spi.type.ArrayType;
 import io.trino.sql.newir.Attributes;
 import io.trino.sql.newir.Operation;
 import io.trino.sql.newir.Value;
@@ -31,27 +33,25 @@ class TestTrinoOperation
     public void testReplaceAllArguments()
     {
         Value input = new Operation.Result("%input", irType(BIGINT));
-        Value first = new Operation.Result("%first", irType(BIGINT));
-        Value second = new Operation.Result("%second", irType(BIGINT));
-        In in = new In("%in", input, ImmutableList.of(first, second), TrinoOperation.emptySourceAttributes(3));
+        Value valueList = new Operation.Result("%value_list", irType(new ArrayType(BIGINT)));
+        In in = new In("%in", input, valueList, TrinoOperation.emptySourceAttributes(2));
 
         Value newInput = new Operation.Result("%new_input", irType(BIGINT));
-        Value newFirst = new Operation.Result("%new_first", irType(BIGINT));
-        Value newSecond = new Operation.Result("%new_second", irType(BIGINT));
-        assertThat(in.withArguments(ImmutableList.of(newInput, newFirst, newSecond)).arguments())
-                .containsExactly(newInput, newFirst, newSecond);
+        Value newValueList = new Operation.Result("%new_value_list", irType(new ArrayType(BIGINT)));
+        assertThat(in.withArguments(ImmutableList.of(newInput, newValueList)).arguments())
+                .containsExactly(newInput, newValueList);
 
         // The index-based method remains available for replacing a single argument.
-        assertThat(in.withArgument(newFirst, 1).arguments())
-                .containsExactly(input, newFirst, second);
+        assertThat(in.withArgument(newValueList, 1).arguments())
+                .containsExactly(input, newValueList);
     }
 
     @Test
     public void testReplaceAllArgumentsValidation()
     {
         Value input = new Operation.Result("%input", irType(BIGINT));
-        Value listValue = new Operation.Result("%list_value", irType(BIGINT));
-        In in = new In("%in", input, ImmutableList.of(listValue), TrinoOperation.emptySourceAttributes(2));
+        Value valueList = new Operation.Result("%value_list", irType(new ArrayType(BIGINT)));
+        In in = new In("%in", input, valueList, TrinoOperation.emptySourceAttributes(2));
 
         assertThatThrownBy(() -> in.withArguments(ImmutableList.of(input)))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -61,6 +61,21 @@ class TestTrinoOperation
         assertThatThrownBy(() -> in.withArguments(ImmutableList.of(input, booleanValue)))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("argument type mismatch at index 1");
+    }
+
+    @Test
+    public void testInValidation()
+    {
+        Value input = new Operation.Result("%input", irType(BIGINT));
+        Value notAnArray = new Operation.Result("%not_an_array", irType(BIGINT));
+        assertThatThrownBy(() -> new In("%in", input, notAnArray, TrinoOperation.emptySourceAttributes(2)))
+                .isInstanceOf(TrinoException.class)
+                .hasMessage("value list must be of array type");
+
+        Value wrongElementType = new Operation.Result("%wrong_element_type", irType(new ArrayType(BOOLEAN)));
+        assertThatThrownBy(() -> new In("%in", input, wrongElementType, TrinoOperation.emptySourceAttributes(2)))
+                .isInstanceOf(TrinoException.class)
+                .hasMessage("value list element type must match the input type");
     }
 
     @Test

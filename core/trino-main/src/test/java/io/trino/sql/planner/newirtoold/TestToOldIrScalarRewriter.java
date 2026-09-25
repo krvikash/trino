@@ -539,12 +539,17 @@ class TestToOldIrScalarRewriter
         FieldReference fieldReferenceOperation1 = new FieldReference("%0", INPUT_ROW_PARAMETER, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         FieldReference fieldReferenceOperation2 = new FieldReference("%1", INPUT_ROW_PARAMETER, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
         io.trino.sql.dialect.trino.operation.Constant constantOperation = new io.trino.sql.dialect.trino.operation.Constant("%2", BIGINT, 0L);
-        io.trino.sql.dialect.trino.operation.In inOperation = new io.trino.sql.dialect.trino.operation.In(
+        io.trino.sql.dialect.trino.operation.Array valueListOperation = new io.trino.sql.dialect.trino.operation.Array(
                 "%3",
-                fieldReferenceOperation1.result(),
+                BIGINT,
                 ImmutableList.of(fieldReferenceOperation2.result(), constantOperation.result()),
-                ImmutableList.of(fieldReferenceOperation1.attributes(), fieldReferenceOperation2.attributes(), constantOperation.attributes()));
-        Return returnOperation = new Return("%4", inOperation.result(), inOperation.attributes());
+                ImmutableList.of(fieldReferenceOperation2.attributes(), constantOperation.attributes()));
+        io.trino.sql.dialect.trino.operation.In inOperation = new io.trino.sql.dialect.trino.operation.In(
+                "%4",
+                fieldReferenceOperation1.result(),
+                valueListOperation.result(),
+                ImmutableList.of(fieldReferenceOperation1.attributes(), valueListOperation.attributes()));
+        Return returnOperation = new Return("%5", inOperation.result(), inOperation.attributes());
         Block rewritten = new Block(
                 Optional.empty(),
                 ImmutableList.of(INPUT_ROW_PARAMETER),
@@ -552,6 +557,7 @@ class TestToOldIrScalarRewriter
                         fieldReferenceOperation1,
                         fieldReferenceOperation2,
                         constantOperation,
+                        valueListOperation,
                         inOperation,
                         returnOperation));
 
@@ -564,17 +570,23 @@ class TestToOldIrScalarRewriter
         In in = new In(new Reference(BIGINT, "b"), ImmutableList.of());
 
         FieldReference fieldReferenceOperation = new FieldReference("%0", INPUT_ROW_PARAMETER, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
-        io.trino.sql.dialect.trino.operation.In inOperation = new io.trino.sql.dialect.trino.operation.In(
+        io.trino.sql.dialect.trino.operation.Array valueListOperation = new io.trino.sql.dialect.trino.operation.Array(
                 "%1",
-                fieldReferenceOperation.result(),
+                BIGINT,
                 ImmutableList.of(),
-                ImmutableList.of(fieldReferenceOperation.attributes()));
-        Return returnOperation = new Return("%2", inOperation.result(), inOperation.attributes());
+                ImmutableList.of());
+        io.trino.sql.dialect.trino.operation.In inOperation = new io.trino.sql.dialect.trino.operation.In(
+                "%2",
+                fieldReferenceOperation.result(),
+                valueListOperation.result(),
+                ImmutableList.of(fieldReferenceOperation.attributes(), valueListOperation.attributes()));
+        Return returnOperation = new Return("%3", inOperation.result(), inOperation.attributes());
         Block rewritten = new Block(
                 Optional.empty(),
                 ImmutableList.of(INPUT_ROW_PARAMETER),
                 ImmutableList.of(
                         fieldReferenceOperation,
+                        valueListOperation,
                         inOperation,
                         returnOperation));
 

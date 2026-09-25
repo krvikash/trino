@@ -2030,16 +2030,21 @@ class TestCreateOperation
         Constant constantOperation1 = new Constant("%1", BIGINT, 0L);
         Constant constantOperation2 = new Constant("%2", BIGINT, 1L);
         Constant constantOperation3 = new Constant("%3", BIGINT, 2L);
-        In inOperation = new In(
+        Array valueListOperation = new Array(
                 "%4",
-                constantOperationValue.result(),
+                BIGINT,
                 ImmutableList.of(constantOperation1.result(), constantOperation2.result(), constantOperation3.result()),
-                ImmutableList.of(constantOperationValue.attributes(), constantOperation1.attributes(), constantOperation2.attributes(), constantOperation3.attributes()));
+                ImmutableList.of(constantOperation1.attributes(), constantOperation2.attributes(), constantOperation3.attributes()));
+        In inOperation = new In(
+                "%5",
+                constantOperationValue.result(),
+                valueListOperation.result(),
+                ImmutableList.of(constantOperationValue.attributes(), valueListOperation.attributes()));
 
         Operation actualInOperation = TESTING_TRINO_DIALECT.createOperation(
                 InOperationMetadata.NAME,
-                "%4",
-                ImmutableList.of(constantOperationValue.result(), constantOperation1.result(), constantOperation2.result(), constantOperation3.result()),
+                "%5",
+                ImmutableList.of(constantOperationValue.result(), valueListOperation.result()),
                 ImmutableList.of(),
                 attributes(
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable
@@ -2056,7 +2061,7 @@ class TestCreateOperation
         // wrong argument count
         assertThatThrownBy(() -> TESTING_TRINO_DIALECT.createOperation(
                 InOperationMetadata.NAME,
-                "%4",
+                "%5",
                 ImmutableList.of(),
                 ImmutableList.of(),
                 attributes(
@@ -2067,13 +2072,13 @@ class TestCreateOperation
                         true,
                         new AttributeKey(IR, "has_side_effects"),
                         false)))
-                .hasMessage("In operation arguments cannot be empty");
+                .hasMessage("In operation must have exactly two arguments: the input and the value list");
 
         // wrong region count
         assertThatThrownBy(() -> TESTING_TRINO_DIALECT.createOperation(
                 InOperationMetadata.NAME,
-                "%4",
-                ImmutableList.of(constantOperationValue.result(), constantOperation1.result(), constantOperation2.result(), constantOperation3.result()),
+                "%5",
+                ImmutableList.of(constantOperationValue.result(), valueListOperation.result()),
                 ImmutableList.of(SOME_REGION),
                 attributes(
                         // the IR level attributes must be enforced as they cannot be derived from source attributes, which are unavailable

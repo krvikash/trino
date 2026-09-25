@@ -261,24 +261,27 @@ public class ScalarProgramBuilder
     protected Operation visitIn(io.trino.sql.ir.In node, Context context)
     {
         Operation value = node.value().accept(this, context);
-        List<Operation> valueList = node.valueList().stream()
+        List<Operation> valueListElements = node.valueList().stream()
                 .map(element -> element.accept(this, context))
                 .collect(toImmutableList());
 
-        ImmutableList.Builder<Attributes> sourceAttributes = ImmutableList.builder();
-        sourceAttributes.add(value.attributes());
-        valueList.stream()
-                .map(Operation::attributes)
-                .forEach(sourceAttributes::add);
+        Array valueList = new Array(
+                nameAllocator.newName(),
+                node.value().type(),
+                valueListElements.stream()
+                        .map(Operation::result)
+                        .collect(toImmutableList()),
+                valueListElements.stream()
+                        .map(Operation::attributes)
+                        .collect(toImmutableList()));
+        context.block().addOperation(valueList);
 
         String resultName = nameAllocator.newName();
         In in = new In(
                 resultName,
                 value.result(),
-                valueList.stream()
-                        .map(Operation::result)
-                        .collect(toImmutableList()),
-                sourceAttributes.build());
+                valueList.result(),
+                ImmutableList.of(value.attributes(), valueList.attributes()));
         context.block().addOperation(in);
         return in;
     }

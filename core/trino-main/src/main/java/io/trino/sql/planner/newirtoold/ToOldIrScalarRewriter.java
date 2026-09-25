@@ -288,12 +288,16 @@ public class ToOldIrScalarRewriter
         @Override
         public Expression visitIn(In operation, Context context)
         {
-            List<Expression> arguments = operation.arguments().stream()
+            Expression input = context.getOperation(operation.input()).accept(this, context);
+
+            TrinoOperation valueListOperation = context.getOperation(operation.valueList());
+            checkState(valueListOperation instanceof Array, "Expected In value list to be produced by Array operation");
+            List<Expression> values = valueListOperation.arguments().stream()
                     .map(context::getOperation)
                     .map(element -> element.accept(this, context))
                     .collect(toImmutableList());
 
-            return new io.trino.sql.ir.In(arguments.getFirst(), arguments.subList(1, arguments.size()));
+            return new io.trino.sql.ir.In(input, values);
         }
 
         @Override
