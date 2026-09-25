@@ -11,34 +11,31 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.plugin.iceberg;
+package io.trino.plugin.hive;
 
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.trino.plugin.base.metrics.LongCount;
-import io.trino.spi.SplitWeight;
 import io.trino.spi.connector.ConnectorPageSource;
 import io.trino.spi.connector.SourcePage;
 import io.trino.spi.metrics.Metrics;
-import io.trino.spi.predicate.TupleDomain;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
-import java.util.OptionalLong;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.IntStream;
 
+import static com.google.common.collect.ImmutableList.toImmutableList;
 import static org.assertj.core.api.Assertions.assertThat;
 
-final class TestCompositeIcebergPageSource
+final class TestCompositePageSource
 {
     @Test
     void testHappyPath()
             throws IOException
     {
-        List<IcebergSplit> splits = createSplits(3);
+        List<Integer> splits = createSplits(3);
         List<SourcePage> pages1 = List.of(SourcePage.create(10), SourcePage.create(20));
         List<SourcePage> pages2 = List.of(SourcePage.create(30));
         List<SourcePage> pages3 = List.of(SourcePage.create(5), SourcePage.create(15));
@@ -48,7 +45,7 @@ final class TestCompositeIcebergPageSource
         TestingPageSource source3 = new TestingPageSource(pages3, 300, 3000);
         List<TestingPageSource> sources = List.of(source1, source2, source3);
 
-        try (CompositeIcebergPageSource composite = new CompositeIcebergPageSource(splits, split -> sources.get(splits.indexOf(split)))) {
+        try (CompositePageSource<Integer> composite = new CompositePageSource<>(splits, split -> sources.get(splits.indexOf(split)))) {
             List<SourcePage> result = drainPages(composite);
             assertThat(result).hasSize(5);
             assertThat(result.get(0).getPositionCount()).isEqualTo(10);
@@ -70,13 +67,13 @@ final class TestCompositeIcebergPageSource
     void testEmptySubSource()
             throws IOException
     {
-        List<IcebergSplit> splits = createSplits(3);
+        List<Integer> splits = createSplits(3);
         TestingPageSource source1 = new TestingPageSource(List.of(SourcePage.create(10)), 100, 1000);
         TestingPageSource emptySource = new TestingPageSource(List.of(), 0, 0);
         TestingPageSource source3 = new TestingPageSource(List.of(SourcePage.create(20)), 200, 2000);
         List<TestingPageSource> sources = List.of(source1, emptySource, source3);
 
-        try (CompositeIcebergPageSource composite = new CompositeIcebergPageSource(splits, split -> sources.get(splits.indexOf(split)))) {
+        try (CompositePageSource<Integer> composite = new CompositePageSource<>(splits, split -> sources.get(splits.indexOf(split)))) {
             List<SourcePage> result = drainPages(composite);
             assertThat(result).hasSize(2);
             assertThat(result.get(0).getPositionCount()).isEqualTo(10);
@@ -92,14 +89,14 @@ final class TestCompositeIcebergPageSource
     void testMetricsMerging()
             throws IOException
     {
-        List<IcebergSplit> splits = createSplits(2);
+        List<Integer> splits = createSplits(2);
         Metrics metrics1 = new Metrics(ImmutableMap.of("rows_read", new LongCount(5)));
         Metrics metrics2 = new Metrics(ImmutableMap.of("rows_read", new LongCount(7)));
         TestingPageSource source1 = new TestingPageSource(List.of(SourcePage.create(10)), 0, 0, metrics1);
         TestingPageSource source2 = new TestingPageSource(List.of(SourcePage.create(10)), 0, 0, metrics2);
         List<TestingPageSource> sources = List.of(source1, source2);
 
-        try (CompositeIcebergPageSource composite = new CompositeIcebergPageSource(splits, split -> sources.get(splits.indexOf(split)))) {
+        try (CompositePageSource<Integer> composite = new CompositePageSource<>(splits, split -> sources.get(splits.indexOf(split)))) {
             drainPages(composite);
             Metrics merged = composite.getMetrics();
             assertThat(((LongCount) merged.getMetrics().get("rows_read")).getTotal()).isEqualTo(12);
@@ -110,12 +107,12 @@ final class TestCompositeIcebergPageSource
     void testEarlyClose()
             throws IOException
     {
-        List<IcebergSplit> splits = createSplits(3);
+        List<Integer> splits = createSplits(3);
         TestingPageSource source1 = new TestingPageSource(List.of(SourcePage.create(10)), 100, 0);
         TestingPageSource source2 = new TestingPageSource(List.of(SourcePage.create(20), SourcePage.create(30)), 200, 0);
         AtomicBoolean thirdFactoryCalled = new AtomicBoolean(false);
 
-        CompositeIcebergPageSource composite = new CompositeIcebergPageSource(splits, split -> {
+        CompositePageSource<Integer> composite = new CompositePageSource<>(splits, split -> {
             int index = splits.indexOf(split);
             if (index == 0) {
                 return source1;
@@ -142,12 +139,12 @@ final class TestCompositeIcebergPageSource
     @Test
     void testMemoryUsage()
     {
-        List<IcebergSplit> splits = createSplits(2);
+        List<Integer> splits = createSplits(2);
         TestingPageSource source1 = new TestingPageSource(List.of(SourcePage.create(10)), 0, 0, Metrics.EMPTY, 1024);
         TestingPageSource source2 = new TestingPageSource(List.of(SourcePage.create(10)), 0, 0, Metrics.EMPTY, 2048);
         List<TestingPageSource> sources = List.of(source1, source2);
 
-        CompositeIcebergPageSource composite = new CompositeIcebergPageSource(splits, split -> sources.get(splits.indexOf(split)));
+        CompositePageSource<Integer> composite = new CompositePageSource<>(splits, split -> sources.get(splits.indexOf(split)));
 
         assertThat(composite.getMemoryUsage()).isEqualTo(0);
 
@@ -162,32 +159,12 @@ final class TestCompositeIcebergPageSource
         assertThat(composite.getMemoryUsage()).isEqualTo(0);
     }
 
-    private static List<IcebergSplit> createSplits(int count)
+    private static List<Integer> createSplits(int count)
     {
-        ImmutableList.Builder<IcebergSplit> builder = ImmutableList.builder();
-        for (int i = 0; i < count; i++) {
-            builder.add(new IcebergSplit(
-                    "path_" + i,
-                    0,
-                    100,
-                    100,
-                    25,
-                    IcebergFileFormat.PARQUET,
-                    0,
-                    0,
-                    ImmutableList.of(),
-                    ImmutableList.of(),
-                    SplitWeight.standard(),
-                    TupleDomain.all(),
-                    Optional.empty(),
-                    OptionalLong.empty(),
-                    OptionalLong.empty(),
-                    Optional.empty()));
-        }
-        return builder.build();
+        return IntStream.range(0, count).boxed().collect(toImmutableList());
     }
 
-    private static List<SourcePage> drainPages(CompositeIcebergPageSource composite)
+    private static List<SourcePage> drainPages(CompositePageSource<?> composite)
     {
         List<SourcePage> pages = new ArrayList<>();
         while (!composite.isFinished()) {

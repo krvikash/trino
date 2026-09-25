@@ -11,7 +11,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.plugin.iceberg;
+package io.trino.plugin.hive;
 
 import io.trino.spi.connector.ConnectorPageSource;
 import io.trino.spi.connector.SourcePage;
@@ -27,11 +27,11 @@ import java.util.function.Function;
 
 import static java.util.Objects.requireNonNull;
 
-public class CompositeIcebergPageSource
+public class CompositePageSource<S>
         implements ConnectorPageSource
 {
-    private final Iterator<IcebergSplit> subSplits;
-    private final Function<IcebergSplit, ConnectorPageSource> pageSourceFactory;
+    private final Iterator<S> subSplits;
+    private final Function<S, ConnectorPageSource> pageSourceFactory;
 
     @Nullable
     private ConnectorPageSource currentPageSource;
@@ -40,7 +40,7 @@ public class CompositeIcebergPageSource
     private long readTimeNanos;
     private Metrics metrics = Metrics.EMPTY;
 
-    public CompositeIcebergPageSource(List<IcebergSplit> subSplits, Function<IcebergSplit, ConnectorPageSource> pageSourceFactory)
+    public CompositePageSource(List<S> subSplits, Function<S, ConnectorPageSource> pageSourceFactory)
     {
         this.subSplits = subSplits.iterator();
         this.pageSourceFactory = requireNonNull(pageSourceFactory, "pageSourceFactory is null");
