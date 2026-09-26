@@ -317,64 +317,6 @@ public abstract class BaseTestObjectStoreHiveFeaturesConnectorTest
 
     @Test
     @Override
-    public void testExtraProperties()
-    {
-        // extra_properties is not exposed for Hive tables (ObjectStore scopes it to ICEBERG only)
-        assertThatThrownBy(super::testExtraProperties)
-                .isInstanceOf(QueryFailedException.class)
-                .hasMessageContaining("Table property 'extra_properties' not supported for Hive tables");
-    }
-
-    @Test
-    @Override
-    public void testExtraPropertiesWithCtas()
-    {
-        // extra_properties is not exposed for Hive tables (ObjectStore scopes it to ICEBERG only)
-        assertThatThrownBy(super::testExtraPropertiesWithCtas)
-                .isInstanceOf(QueryFailedException.class)
-                .hasMessageContaining("Table property 'extra_properties' not supported for Hive tables");
-    }
-
-    @Test
-    @Override
-    public void testShowCreateWithExtraProperties()
-    {
-        // extra_properties is not exposed for Hive tables (ObjectStore scopes it to ICEBERG only)
-        assertThatThrownBy(super::testShowCreateWithExtraProperties)
-                .isInstanceOf(QueryFailedException.class)
-                .hasMessageContaining("Table property 'extra_properties' not supported for Hive tables");
-    }
-
-    @Test
-    @Override
-    public void testOverwriteExistingPropertyWithExtraProperties()
-    {
-        // extra_properties is not exposed for Hive tables (ObjectStore scopes it to ICEBERG only)
-        assertThatThrownBy(super::testOverwriteExistingPropertyWithExtraProperties)
-                .hasMessageContaining("Table property 'extra_properties' not supported for Hive tables");
-    }
-
-    @Test
-    @Override
-    public void testNullExtraProperty()
-    {
-        // extra_properties is not exposed for Hive tables (ObjectStore scopes it to ICEBERG only)
-        assertThatThrownBy(super::testNullExtraProperty)
-                .hasMessageContaining("Table property 'extra_properties' not supported for Hive tables");
-    }
-
-    @Test
-    @Override
-    public void testCollidingMixedCaseProperty()
-    {
-        // extra_properties is not exposed for Hive tables (ObjectStore scopes it to ICEBERG only)
-        assertThatThrownBy(super::testCollidingMixedCaseProperty)
-                .isInstanceOf(QueryFailedException.class)
-                .hasMessageContaining("Table property 'extra_properties' not supported for Hive tables");
-    }
-
-    @Test
-    @Override
     public void testExtraPropertiesOnView()
     {
         // extra_properties is not exposed for Hive tables (ObjectStore scopes it to ICEBERG only)

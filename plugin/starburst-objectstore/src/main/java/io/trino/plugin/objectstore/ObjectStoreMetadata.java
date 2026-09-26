@@ -189,6 +189,7 @@ public class ObjectStoreMetadata
     private final ObjectStoreSessionProperties sessionProperties;
     private final PropertyMetadata<?> hiveFormatProperty;
     private final PropertyMetadata<?> hiveSortedByProperty;
+    private final PropertyMetadata<?> hiveExtraPropertiesProperty;
     private final PropertyMetadata<?> icebergFormatProperty;
     private final PropertyMetadata<?> icebergExtraPropertiesProperty;
     private final Procedure flushMetadataCache;
@@ -224,6 +225,7 @@ public class ObjectStoreMetadata
         this.sessionProperties = requireNonNull(sessionProperties, "sessionProperties is null");
         this.hiveFormatProperty = tableProperties.getHiveFormatProperty();
         this.hiveSortedByProperty = tableProperties.getHiveSortedByProperty();
+        this.hiveExtraPropertiesProperty = tableProperties.getHiveExtraPropertiesProperty();
         this.icebergFormatProperty = tableProperties.getIcebergFormatProperty();
         this.icebergExtraPropertiesProperty = tableProperties.getIcebergExtraPropertiesProperty();
         this.flushMetadataCache = requireNonNull(flushMetadataCache, "flushMetadataCache is null");
@@ -1978,6 +1980,9 @@ public class ObjectStoreMetadata
                 });
                 Optional.ofNullable(properties.get("sorted_by")).ifPresent(value ->
                         properties.put("sorted_by", decodeProperty(hiveSortedByProperty, value)));
+
+                Optional.ofNullable(properties.get("extra_properties")).ifPresent(value ->
+                        properties.put("extra_properties", decodeProperty(hiveExtraPropertiesProperty, value)));
             }
             case ICEBERG -> {
                 Optional.ofNullable(properties.get("format")).ifPresent(value -> {

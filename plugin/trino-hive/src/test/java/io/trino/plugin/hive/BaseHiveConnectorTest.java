@@ -9480,7 +9480,8 @@ public abstract class BaseHiveConnectorTest
                         "   c1 integer\n" +
                         ")\n" +
                         "WITH (\n" +
-                        "   format = 'ORC'\n" +
+                        "   format = 'ORC'" +
+                        (isObjectStore() ? ",\n   type = 'HIVE'\n" : "\n") +
                         ")");
         assertUpdate("DROP TABLE %s".formatted(tableName));
     }
@@ -9499,7 +9500,8 @@ public abstract class BaseHiveConnectorTest
                         "   c1 integer\n" +
                         ")\n" +
                         "WITH (\n" +
-                        "   format = 'ORC'\n" +
+                        "   format = 'ORC'" +
+                        (isObjectStore() ? ",\n   type = 'HIVE'\n" : "\n") +
                         ")");
 
         assertUpdate("DROP TABLE %s".formatted(tableName));
@@ -9516,7 +9518,8 @@ public abstract class BaseHiveConnectorTest
                         "   c1 integer\n" +
                         ")\n" +
                         "WITH (\n" +
-                        "   format = 'ORC'\n" +
+                        "   format = 'ORC'" +
+                        (isObjectStore() ? ",\n   type = 'HIVE'\n" : "\n") +
                         ")");
 
         assertUpdate("DROP TABLE %s".formatted(tableName));

@@ -241,15 +241,6 @@ public abstract class BaseTestObjectStoreIcebergFeaturesConnectorTest
     }
 
     @Test
-    public void testExtraPropertiesRejectedForHiveTables()
-    {
-        assertQueryFails(
-                "CREATE TABLE test_hive_extra_props (x integer) " +
-                        "WITH (type = 'HIVE', extra_properties = MAP(ARRAY['gc.enabled'], ARRAY['false']))",
-                ".*Table property 'extra_properties' not supported for Hive tables.*");
-    }
-
-    @Test
     public void testExtraPropertiesRejectedForDeltaTables()
     {
         assertQueryFails(
@@ -261,13 +252,11 @@ public abstract class BaseTestObjectStoreIcebergFeaturesConnectorTest
     @Test
     public void testUnsetExtraPropertiesRejectedForHiveTables()
     {
-        // SET PROPERTIES ... = DEFAULT passes a null value to
-        // ObjectStoreTableProperties.validProperty; guards against a null-safety bug there and
-        // ensures users see the specific scoping error rather than a generic delegate failure.
+        // Hive connector doesn't support setting table properties
         try (TestTable table = newTrinoTable("test_hive_unset_extras_", "(x integer) WITH (type = 'HIVE')")) {
             assertQueryFails(
                     "ALTER TABLE " + table.getName() + " SET PROPERTIES extra_properties = DEFAULT",
-                    ".*Table property 'extra_properties' not supported for Hive tables.*");
+                    "This connector does not support setting table properties");
         }
     }
 

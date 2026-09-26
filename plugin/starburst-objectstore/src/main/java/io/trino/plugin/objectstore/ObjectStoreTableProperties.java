@@ -53,6 +53,7 @@ public final class ObjectStoreTableProperties
     private final SetMultimap<String, TableType> tableTypesForProperty;
     private final PropertyMetadata<?> hiveFormatProperty;
     private final PropertyMetadata<?> hiveSortedByProperty;
+    private final PropertyMetadata<?> hiveExtraPropertiesProperty;
     private final PropertyMetadata<?> icebergFormatProperty;
     private final PropertyMetadata<?> icebergExtraPropertiesProperty;
 
@@ -82,6 +83,7 @@ public final class ObjectStoreTableProperties
 
         hiveFormatProperty = getByName(hiveConnector.getTableProperties(), "format");
         hiveSortedByProperty = getByName(hiveConnector.getTableProperties(), "sorted_by");
+        hiveExtraPropertiesProperty = getByName(hiveConnector.getTableProperties(), "extra_properties");
         for (PropertyMetadata<?> property : hiveConnector.getTableProperties()) {
             if (property.getName().equals("format")) {
                 continue;
@@ -90,7 +92,6 @@ public final class ObjectStoreTableProperties
                 continue;
             }
             if (property.getName().equals("extra_properties")) {
-                // Arbitrary extra_properties currently not exposed in Galaxy
                 continue;
             }
             addProperty(properties, property);
@@ -189,6 +190,7 @@ public final class ObjectStoreTableProperties
                     return map;
                 },
                 value -> value));
+        tableTypesForProperty.put("extra_properties", HIVE);
         tableTypesForProperty.put("extra_properties", ICEBERG);
 
         this.properties = ImmutableMap.copyOf(properties);
@@ -208,6 +210,11 @@ public final class ObjectStoreTableProperties
     public PropertyMetadata<?> getHiveSortedByProperty()
     {
         return hiveSortedByProperty;
+    }
+
+    public PropertyMetadata<?> getHiveExtraPropertiesProperty()
+    {
+        return hiveExtraPropertiesProperty;
     }
 
     public PropertyMetadata<?> getIcebergFormatProperty()
