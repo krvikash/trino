@@ -28,16 +28,24 @@ import io.trino.spi.statistics.ColumnStatisticMetadata;
 import io.trino.spi.statistics.ColumnStatisticType;
 import io.trino.spi.statistics.TableStatisticType;
 import io.trino.spi.statistics.TableStatisticsMetadata;
+import io.trino.spi.type.RowType;
 import io.trino.spi.type.Type;
 import io.trino.sql.PlannerContext;
+import io.trino.sql.ir.Expression;
+import io.trino.sql.ir.FieldReference;
 import io.trino.sql.planner.plan.AggregationNode;
+import io.trino.sql.planner.plan.Assignments;
+import io.trino.sql.planner.plan.PlanNode;
+import io.trino.sql.planner.plan.ProjectNode;
 import io.trino.sql.planner.plan.StatisticAggregations;
 import io.trino.sql.planner.plan.StatisticAggregationsDescriptor;
 import io.trino.sql.tree.QualifiedName;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.IntStream;
 
 import static com.google.common.base.Verify.verify;
 import static com.google.common.base.Verify.verifyNotNull;
@@ -55,25 +63,27 @@ import static java.util.Objects.requireNonNull;
 public class StatisticsAggregationPlanner
 {
     private final SymbolAllocator symbolAllocator;
+    private final PlanNodeIdAllocator idAllocator;
     private final Metadata metadata;
     private final Session session;
     private final FunctionResolver functionResolver;
 
-    public StatisticsAggregationPlanner(SymbolAllocator symbolAllocator, PlannerContext plannerContext, Session session)
+    public StatisticsAggregationPlanner(SymbolAllocator symbolAllocator, PlanNodeIdAllocator idAllocator, PlannerContext plannerContext, Session session)
     {
         this.symbolAllocator = requireNonNull(symbolAllocator, "symbolAllocator is null");
+        this.idAllocator = requireNonNull(idAllocator, "idAllocator is null");
         this.metadata = plannerContext.getMetadata();
         this.session = requireNonNull(session, "session is null");
         this.functionResolver = plannerContext.getFunctionResolver();
     }
 
-    public TableStatisticAggregation createStatisticsAggregation(TableStatisticsMetadata statisticsMetadata, Map<String, Symbol> columnToSymbolMap)
+    public TableStatisticAggregation createStatisticsAggregation(TableStatisticsMetadata statisticsMetadata, Map<ColumnFieldPath, Symbol> columnToSymbolMap)
     {
         StatisticAggregationsDescriptor.Builder<Symbol> descriptor = StatisticAggregationsDescriptor.builder();
 
         List<String> groupingColumns = statisticsMetadata.getGroupingColumns();
         List<Symbol> groupingSymbols = groupingColumns.stream()
-                .map(columnToSymbolMap::get)
+                .map(column -> columnToSymbolMap.get(ColumnFieldPath.column(column)))
                 .collect(toImmutableList());
 
         for (int i = 0; i < groupingSymbols.size(); i++) {
@@ -98,8 +108,9 @@ public class StatisticsAggregationPlanner
         }
 
         for (ColumnStatisticMetadata columnStatisticMetadata : statisticsMetadata.getColumnStatistics()) {
-            String columnName = columnStatisticMetadata.getColumnName();
-            Symbol inputSymbol = columnToSymbolMap.get(columnName);
+            ColumnFieldPath columnFieldPath = ColumnFieldPath.of(columnStatisticMetadata);
+            String columnName = columnFieldPath.displayName();
+            Symbol inputSymbol = columnToSymbolMap.get(columnFieldPath);
             verifyNotNull(inputSymbol, "no symbol for [%s] column, these columns exist: %s", columnName, columnToSymbolMap.keySet());
             Type inputType = inputSymbol.type();
             verifyNotNull(inputType, "inputType is null for symbol: %s", inputSymbol);
@@ -166,6 +177,119 @@ public class StatisticsAggregationPlanner
                         Optional.empty(),
                         Optional.empty()),
                 resolvedFunction.signature().getReturnType());
+    }
+
+    /**
+     * A connector may request a statistic for a primitive leaf field nested inside a ROW column.
+     * The aggregation can only consume a symbol, so materialise a dereference chain per requested
+     * leaf in a {@link ProjectNode} over {@code source}, passing {@code source}'s own output
+     * symbols through as identities. Dereference pushdown later folds the projection into the
+     * scan where the connector supports it.
+     * <p>
+     * Returns {@code source} unchanged when no nested leaf is requested.
+     */
+    public StatisticsAggregationSource projectNestedStatisticsFields(
+            PlanNode source,
+            Map<String, Symbol> columnNameToSymbol,
+            TableStatisticsMetadata statisticsMetadata)
+    {
+        Map<ColumnFieldPath, Symbol> columnToSymbolMap = new LinkedHashMap<>();
+        columnNameToSymbol.forEach((columnName, symbol) -> columnToSymbolMap.put(ColumnFieldPath.column(columnName), symbol));
+
+        Assignments.Builder nestedAssignments = Assignments.builder();
+        for (ColumnStatisticMetadata columnStatistic : statisticsMetadata.getColumnStatistics()) {
+            if (columnStatistic.getFieldPath().isEmpty()) {
+                continue;
+            }
+            ColumnFieldPath columnFieldPath = ColumnFieldPath.of(columnStatistic);
+            if (columnToSymbolMap.containsKey(columnFieldPath)) {
+                // Several statistics may be requested for the same leaf
+                continue;
+            }
+            Symbol baseSymbol = columnNameToSymbol.get(columnStatistic.getColumnName());
+            verifyNotNull(baseSymbol, "no symbol for [%s] column, these columns exist: %s", columnStatistic.getColumnName(), columnNameToSymbol.keySet());
+            Expression leafExpression = dereferenceNestedField(baseSymbol.toSymbolReference(), columnFieldPath);
+            Symbol leafSymbol = symbolAllocator.newSymbol(columnFieldPath.displayName(), leafExpression.type());
+            nestedAssignments.put(leafSymbol, leafExpression);
+            columnToSymbolMap.put(columnFieldPath, leafSymbol);
+        }
+
+        Assignments assignments = nestedAssignments.build();
+        if (assignments.isEmpty()) {
+            return new StatisticsAggregationSource(source, columnToSymbolMap);
+        }
+        return new StatisticsAggregationSource(
+                new ProjectNode(
+                        idAllocator.getNextId(),
+                        source,
+                        Assignments.builder()
+                                .putIdentities(source.getOutputSymbols())
+                                .putAll(assignments)
+                                .build()),
+                columnToSymbolMap);
+    }
+
+    private static Expression dereferenceNestedField(Expression base, ColumnFieldPath columnFieldPath)
+    {
+        Expression expression = base;
+        for (String fieldName : columnFieldPath.fieldPath()) {
+            Type type = expression.type();
+            verify(type instanceof RowType, "Statistic %s requires field [%s] of a row type, but found: %s", columnFieldPath.displayName(), fieldName, type);
+            List<RowType.Field> fields = ((RowType) type).getFields();
+            int index = IntStream.range(0, fields.size())
+                    .filter(i -> fields.get(i).getName().equals(Optional.of(fieldName)))
+                    .findFirst()
+                    .orElse(-1);
+            verify(index >= 0, "Statistic %s requires field [%s], but found: %s", columnFieldPath.displayName(), fieldName, type);
+            expression = new FieldReference(expression, index);
+        }
+        return expression;
+    }
+
+    public record StatisticsAggregationSource(PlanNode source, Map<ColumnFieldPath, Symbol> columnToSymbolMap)
+    {
+        public StatisticsAggregationSource
+        {
+            requireNonNull(source, "source is null");
+            columnToSymbolMap = ImmutableMap.copyOf(requireNonNull(columnToSymbolMap, "columnToSymbolMap is null"));
+        }
+    }
+
+    /**
+     * Identifies the input of a column statistic: a top-level column, or a primitive leaf field
+     * nested inside one. The field path is part of the key because a dotted name alone is
+     * ambiguous — a table may have a top-level column literally named {@code a.x} as well as a
+     * column {@code a} with a field {@code x}.
+     */
+    public record ColumnFieldPath(String columnName, List<String> fieldPath)
+    {
+        public ColumnFieldPath
+        {
+            requireNonNull(columnName, "columnName is null");
+            fieldPath = ImmutableList.copyOf(requireNonNull(fieldPath, "fieldPath is null"));
+        }
+
+        public static ColumnFieldPath column(String columnName)
+        {
+            return new ColumnFieldPath(columnName, ImmutableList.of());
+        }
+
+        public static ColumnFieldPath of(ColumnStatisticMetadata columnStatisticMetadata)
+        {
+            return new ColumnFieldPath(columnStatisticMetadata.getColumnName(), columnStatisticMetadata.getFieldPath());
+        }
+
+        /**
+         * The column name with the field path appended, e.g. {@code attrs.intent}. For symbol names
+         * and messages only, as a dotted name does not identify a field unambiguously.
+         */
+        public String displayName()
+        {
+            if (fieldPath.isEmpty()) {
+                return columnName;
+            }
+            return columnName + "." + String.join(".", fieldPath);
+        }
     }
 
     public static class TableStatisticAggregation

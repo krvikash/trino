@@ -83,6 +83,7 @@ import io.trino.sql.ir.Lambda;
 import io.trino.sql.ir.Row;
 import io.trino.sql.newir.FormatOptions;
 import io.trino.sql.newir.Program;
+import io.trino.sql.planner.StatisticsAggregationPlanner.StatisticsAggregationSource;
 import io.trino.sql.planner.StatisticsAggregationPlanner.TableStatisticAggregation;
 import io.trino.sql.planner.iterative.IterativeOptimizer;
 import io.trino.sql.planner.optimizations.PlanOptimizer;
@@ -261,7 +262,7 @@ public class LogicalPlanner
         this.idAllocator = requireNonNull(idAllocator, "idAllocator is null");
         this.plannerContext = requireNonNull(plannerContext, "plannerContext is null");
         this.metadata = plannerContext.getMetadata();
-        this.statisticsAggregationPlanner = new StatisticsAggregationPlanner(symbolAllocator, plannerContext, session);
+        this.statisticsAggregationPlanner = new StatisticsAggregationPlanner(symbolAllocator, idAllocator, plannerContext, session);
         this.statsCalculator = requireNonNull(statsCalculator, "statsCalculator is null");
         this.costCalculator = requireNonNull(costCalculator, "costCalculator is null");
         this.cacheEnabled = isSubqueryCacheEnabled(session);
@@ -513,7 +514,12 @@ public class LogicalPlanner
             columnNameToSymbol.put(column.getName(), symbol);
         }
 
-        TableStatisticAggregation tableStatisticAggregation = statisticsAggregationPlanner.createStatisticsAggregation(tableStatisticsMetadata, columnNameToSymbol.buildOrThrow());
+        StatisticsAggregationSource aggregationSource = statisticsAggregationPlanner.projectNestedStatisticsFields(
+                new TableScanNode(idAllocator.getNextId(), targetTable, tableScanOutputs.build(), symbolToColumnHandle.buildOrThrow(), TupleDomain.all(), Optional.empty(), false, Optional.empty()),
+                columnNameToSymbol.buildOrThrow(),
+                tableStatisticsMetadata);
+
+        TableStatisticAggregation tableStatisticAggregation = statisticsAggregationPlanner.createStatisticsAggregation(tableStatisticsMetadata, aggregationSource.columnToSymbolMap());
         StatisticAggregations statisticAggregations = tableStatisticAggregation.getAggregations();
         List<Symbol> groupingSymbols = statisticAggregations.getGroupingSymbols();
 
@@ -521,7 +527,7 @@ public class LogicalPlanner
                 idAllocator.getNextId(),
                 singleAggregation(
                         idAllocator.getNextId(),
-                        new TableScanNode(idAllocator.getNextId(), targetTable, tableScanOutputs.build(), symbolToColumnHandle.buildOrThrow(), TupleDomain.all(), Optional.empty(), false, Optional.empty()),
+                        aggregationSource.source(),
                         statisticAggregations.getAggregations(),
                         singleGroupingSet(groupingSymbols)),
                 new StatisticsWriterNode.WriteStatisticsReference(targetTable),
@@ -849,7 +855,11 @@ public class LogicalPlanner
                 .collect(toImmutableMap(Entry::getKey, Entry::getValue));
 
         if (!statisticsMetadata.isEmpty()) {
-            TableStatisticAggregation result = statisticsAggregationPlanner.createStatisticsAggregation(statisticsMetadata, columnToSymbolMap);
+            // Nested-leaf statistics need a symbol per leaf; the projection passes `symbols`
+            // through unchanged, so the written data and the partitioning scheme are unaffected.
+            StatisticsAggregationSource aggregationSource = statisticsAggregationPlanner.projectNestedStatisticsFields(source, columnToSymbolMap, statisticsMetadata);
+            source = aggregationSource.source();
+            TableStatisticAggregation result = statisticsAggregationPlanner.createStatisticsAggregation(statisticsMetadata, aggregationSource.columnToSymbolMap());
 
             StatisticAggregations.Parts aggregations = result.getAggregations().createPartialAggregations(symbolAllocator, session, plannerContext);
 
