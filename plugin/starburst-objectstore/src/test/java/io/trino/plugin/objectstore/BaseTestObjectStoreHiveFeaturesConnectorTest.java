@@ -46,14 +46,9 @@ import java.util.Optional;
 import static com.google.common.base.Verify.verify;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static com.google.inject.multibindings.MapBinder.newMapBinder;
-import static io.trino.metastore.Table.TABLE_COMMENT;
 import static io.trino.plugin.base.util.Closables.closeAllSuppress;
-import static io.trino.plugin.hive.HiveMetadata.TRINO_CREATED_BY;
-import static io.trino.plugin.hive.HiveMetadata.TRINO_QUERY_ID_NAME;
-import static io.trino.plugin.hive.HiveMetadata.TRINO_VERSION_NAME;
 import static io.trino.plugin.hive.HiveQueryRunner.copyTpchTablesBucketed;
 import static io.trino.plugin.hive.HiveTableProperties.STORAGE_FORMAT_PROPERTY;
-import static io.trino.plugin.hive.ViewReaderUtil.PRESTO_VIEW_FLAG;
 import static io.trino.plugin.objectstore.ObjectStoreQueryRunner.initializeTpchTables;
 import static io.trino.plugin.tpch.ColumnNaming.SIMPLIFIED;
 import static io.trino.testing.TestingSession.testSessionBuilder;
@@ -313,70 +308,6 @@ public abstract class BaseTestObjectStoreHiveFeaturesConnectorTest
     {
         // The test merit is not Galaxy specific, but the test structure is.
         skipAuthorizationRelatedTest();
-    }
-
-    @Test
-    @Override
-    public void testExtraPropertiesOnView()
-    {
-        // extra_properties is not exposed for Hive tables (ObjectStore scopes it to ICEBERG only)
-        assertThatThrownBy(super::testExtraPropertiesOnView)
-                .isInstanceOf(QueryFailedException.class)
-                .hasMessageContaining("Catalog 'hive' view property 'extra_properties' does not exist");
-    }
-
-    @Test
-    @Override
-    public void testDuplicateExtraPropertiesOnView()
-    {
-        // extra_properties is not exposed for Hive tables (ObjectStore scopes it to ICEBERG only)
-        assertQueryFails(
-                "CREATE VIEW create_view_with_duplicate_extra_properties WITH (extra_properties = MAP(ARRAY['extra.property', 'extra.property'], ARRAY['true', 'false'])) AS SELECT 1 as colA",
-                "line 1:63: Catalog 'hive' view property 'extra_properties' does not exist");
-    }
-
-    @Test
-    @Override
-    public void testNullExtraPropertyOnView()
-    {
-        // extra_properties is not exposed for Hive tables (ObjectStore scopes it to ICEBERG only)
-        assertQueryFails(
-                "CREATE VIEW create_view_with_duplicate_extra_properties WITH (extra_properties = MAP(ARRAY['null.property'], ARRAY[null])) AS SELECT 1 as c1",
-                "line 1:63: Catalog 'hive' view property 'extra_properties' does not exist");
-    }
-
-    @Test
-    @Override
-    public void testCollidingMixedCasePropertyOnView()
-    {
-        // extra_properties is not exposed for Hive tables (ObjectStore scopes it to ICEBERG only)
-        assertThatThrownBy(super::testCollidingMixedCasePropertyOnView)
-                .isInstanceOf(QueryFailedException.class)
-                .hasMessageContaining("Catalog 'hive' view property 'extra_properties' does not exist");
-    }
-
-    @Test
-    @Override
-    public void testCreateViewWithPreDefinedPropertiesAsExtraProperties()
-    {
-        // extra_properties is not exposed for Hive tables (ObjectStore scopes it to ICEBERG only)
-        assertQueryFails(
-                "CREATE VIEW create_view_with_predefined_view_properties WITH (extra_properties = MAP(ARRAY['%s'], ARRAY['true'])) AS SELECT 1 as colA".formatted(TABLE_COMMENT),
-                "line 1:63: Catalog 'hive' view property 'extra_properties' does not exist");
-
-        assertQueryFails(
-                "CREATE VIEW create_view_with_predefined_view_properties WITH (extra_properties = MAP(ARRAY['%s'], ARRAY['true'])) AS SELECT 1 as colA".formatted(PRESTO_VIEW_FLAG),
-                "line 1:63: Catalog 'hive' view property 'extra_properties' does not exist");
-
-        assertQueryFails("CREATE VIEW create_view_with_predefined_view_properties WITH (extra_properties = MAP(ARRAY['%s'], ARRAY['true'])) AS SELECT 1 as colA".formatted(TRINO_CREATED_BY),
-                "line 1:63: Catalog 'hive' view property 'extra_properties' does not exist");
-
-        assertQueryFails("CREATE VIEW create_view_with_predefined_view_properties WITH (extra_properties = MAP(ARRAY['%s'], ARRAY['true'])) AS SELECT 1 as colA".formatted(TRINO_VERSION_NAME),
-                "line 1:63: Catalog 'hive' view property 'extra_properties' does not exist");
-
-        assertQueryFails(
-                "CREATE VIEW create_view_with_predefined_view_properties WITH (extra_properties = MAP(ARRAY['%s'], ARRAY['true'])) AS SELECT 1 as colA".formatted(TRINO_QUERY_ID_NAME),
-                "line 1:63: Catalog 'hive' view property 'extra_properties' does not exist");
     }
 
     @Test

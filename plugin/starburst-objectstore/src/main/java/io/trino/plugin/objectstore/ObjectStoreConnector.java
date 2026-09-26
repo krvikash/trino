@@ -113,6 +113,7 @@ public class ObjectStoreConnector
     private final ObjectStoreTableProperties tableProperties;
     private final List<PropertyMetadata<?>> branchProperties;
     private final List<PropertyMetadata<?>> columnProperties;
+    private final ObjectStoreViewProperties viewProperties;
     private final ObjectStoreMaterializedViewProperties materializedViewProperties;
     private final ObjectStoreSessionProperties sessionProperties;
     private final List<PropertyMetadata<?>> analyzeProperties;
@@ -143,6 +144,7 @@ public class ObjectStoreConnector
             ObjectStorePageSinkProvider pageSinkProvider,
             ObjectStoreNodePartitioningProvider nodePartitioningProvider,
             ObjectStoreTableProperties tableProperties,
+            ObjectStoreViewProperties viewProperties,
             ObjectStoreMaterializedViewProperties materializedViewProperties,
             ObjectStoreSessionProperties sessionProperties,
             Set<Procedure> objectStoreProcedures,
@@ -173,6 +175,7 @@ public class ObjectStoreConnector
         this.branchProperties = branchProperties(delegates);
         boolean hivePartitionProjectionEnabled = hiveConfig.isPartitionProjectionEnabled();
         this.columnProperties = columnProperties(delegates, hivePartitionProjectionEnabled);
+        this.viewProperties = requireNonNull(viewProperties, "viewProperties is null");
         this.materializedViewProperties = requireNonNull(materializedViewProperties, "materializedViewProperties is null");
         this.sessionProperties = requireNonNull(sessionProperties, "sessionProperties is null");
         this.analyzeProperties = analyzeProperties(delegates);
@@ -583,6 +586,12 @@ public class ObjectStoreConnector
     public List<PropertyMetadata<?>> getBranchProperties()
     {
         return branchProperties;
+    }
+
+    @Override
+    public List<PropertyMetadata<?>> getViewProperties()
+    {
+        return viewProperties.getProperties();
     }
 
     @Override

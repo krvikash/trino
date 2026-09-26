@@ -51,6 +51,7 @@ public class ObjectStoreModule
         binder.bind(ObjectStorePageSinkProvider.class).in(Scopes.SINGLETON);
         binder.bind(ObjectStoreNodePartitioningProvider.class).in(Scopes.SINGLETON);
         binder.bind(ObjectStoreTableProperties.class).in(Scopes.SINGLETON);
+        binder.bind(ObjectStoreViewProperties.class).in(Scopes.SINGLETON);
         binder.bind(ObjectStoreMaterializedViewProperties.class).in(Scopes.SINGLETON);
         binder.bind(ObjectStoreSessionProperties.class).in(Scopes.SINGLETON);
 
