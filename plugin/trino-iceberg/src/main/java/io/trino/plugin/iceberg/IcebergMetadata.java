@@ -3942,17 +3942,23 @@ public class IcebergMetadata
         }
 
         Schema schema = SchemaParser.fromJson(table.getTableSchemaJson());
-        List<IcebergColumnHandle> columns = getTopLevelColumns(schema, typeManager);
-        Set<Integer> columnIds = columns.stream()
-                .map(IcebergColumnHandle::getId)
-                .collect(toImmutableSet());
-        Map<Integer, Long> ndvs = readNdvs(icebergTable, snapshotId, columnIds);
+        // Resolve every target, nested leaves included, to its Iceberg field id. A leaf that
+        // already has an NDV blob must be refreshed on write, or it would be retained unchanged
+        // and go stale while top-level columns were updated.
+        Map<ColumnStatisticMetadata, Integer> fieldIds = collectStatisticsTargets(tableMetadata).stream()
+                .flatMap(target -> findStatisticsField(schema, target)
+                        .map(field -> Map.entry(target, field.fieldId()))
+                        .stream())
+                .collect(toImmutableMap(Entry::getKey, Entry::getValue));
+        Map<Integer, Long> ndvs = readNdvs(icebergTable, snapshotId, ImmutableSet.copyOf(fieldIds.values()));
         // Avoid collecting NDV stats on columns where we don't know the existing NDV count
-        Set<String> columnsWithExtendedStatistics = columns.stream()
-                .filter(column -> ndvs.containsKey(column.getId()))
-                .map(IcebergColumnHandle::getName)
-                .collect(toImmutableSet());
-        return getStatisticsCollectionMetadata(tableMetadata, Optional.of(columnsWithExtendedStatistics), _ -> {});
+        return new TableStatisticsMetadata(
+                fieldIds.entrySet().stream()
+                        .filter(entry -> ndvs.containsKey(entry.getValue()))
+                        .map(Entry::getKey)
+                        .collect(toImmutableSet()),
+                ImmutableSet.of(),
+                ImmutableList.of());
     }
 
     @Override
@@ -3982,10 +3988,10 @@ public class IcebergMetadata
                 getStatisticsCollectionMetadata(
                         tableMetadata,
                         analyzeColumnNames,
-                        availableColumnNames -> {
+                        unsatisfiedColumnNames -> {
                             throw new TrinoException(
                                     INVALID_ANALYZE_PROPERTY,
-                                    format("Invalid columns specified for analysis: %s", Sets.difference(analyzeColumnNames.orElseThrow(), availableColumnNames)));
+                                    format("Invalid columns specified for analysis: %s", unsatisfiedColumnNames));
                         }));
     }
 
@@ -3994,33 +4000,118 @@ public class IcebergMetadata
             Optional<Set<String>> selectedColumnNames,
             Consumer<Set<String>> unsatisfiableSelectedColumnsHandler)
     {
-        Set<String> allScalarColumnNames = tableMetadata.getColumns().stream()
-                .filter(column -> !column.isHidden())
-                .filter(column -> {
-                    io.trino.spi.type.Type type = column.getType();
-                    // Geometry and Geography are excluded because Iceberg doesn't support geospatial statistics
-                    return !(type instanceof MapType || type instanceof ArrayType || type instanceof RowType
-                            || isGeospatialType(type));
+        List<ColumnStatisticMetadata> targets = collectStatisticsTargets(tableMetadata);
+        Set<ColumnStatisticMetadata> columnStatistics = selectedColumnNames
+                .map(columnNames -> {
+                    ImmutableSet.Builder<ColumnStatisticMetadata> selected = ImmutableSet.builder();
+                    ImmutableSet.Builder<String> unsatisfiedColumnNames = ImmutableSet.builder();
+                    for (String columnName : columnNames) {
+                        List<ColumnStatisticMetadata> matches = selectStatisticsTargets(targets, columnName);
+                        if (matches.isEmpty()) {
+                            unsatisfiedColumnNames.add(columnName);
+                        }
+                        selected.addAll(matches);
+                    }
+                    Set<String> unsatisfied = unsatisfiedColumnNames.build();
+                    if (!unsatisfied.isEmpty()) {
+                        unsatisfiableSelectedColumnsHandler.accept(unsatisfied);
+                    }
+                    return selected.build();
                 })
-                .filter(column -> column.getType() != VARIANT) // variant does not support NDV statistics
-                .map(ColumnMetadata::getName)
-                .collect(toImmutableSet());
-
-        selectedColumnNames.ifPresent(columnNames -> {
-            if (!allScalarColumnNames.containsAll(columnNames)) {
-                unsatisfiableSelectedColumnsHandler.accept(allScalarColumnNames);
-            }
-        });
-
-        Set<ColumnStatisticMetadata> columnStatistics = tableMetadata.getColumns().stream()
-                .filter(columnMetadata -> allScalarColumnNames.contains(columnMetadata.getName()))
-                .filter(selectedColumnNames
-                        .map(columnNames -> (Predicate<ColumnMetadata>) columnMetadata -> columnNames.contains(columnMetadata.getName()))
-                        .orElse(_ -> true))
-                .map(column -> new ColumnStatisticMetadata(column.getName(), NUMBER_OF_DISTINCT_VALUES_NAME, NUMBER_OF_DISTINCT_VALUES_FUNCTION))
-                .collect(toImmutableSet());
+                .orElseGet(() -> ImmutableSet.copyOf(targets));
 
         return new TableStatisticsMetadata(columnStatistics, ImmutableSet.of(), ImmutableList.of());
+    }
+
+    /**
+     * Returns the targets a name in the {@code columns} analyze property selects. An exact match
+     * wins, and a nested leaf otherwise matches regardless of case.
+     */
+    private static List<ColumnStatisticMetadata> selectStatisticsTargets(List<ColumnStatisticMetadata> targets, String columnName)
+    {
+        List<ColumnStatisticMetadata> exactMatches = targets.stream()
+                .filter(target -> dottedName(target).equals(columnName))
+                .collect(toImmutableList());
+        if (!exactMatches.isEmpty()) {
+            return exactMatches;
+        }
+        return targets.stream()
+                .filter(target -> !target.getFieldPath().isEmpty())
+                .filter(target -> dottedName(target).equalsIgnoreCase(columnName))
+                .collect(toImmutableList());
+    }
+
+    /**
+     * Resolves a statistic to its Iceberg field by walking {@link ColumnStatisticMetadata#getFieldPath()}
+     * one struct level at a time. Unlike {@link Schema#caseInsensitiveFindField} on a dotted name, this
+     * neither fails on a struct holding both {@code x} and {@code X} nor confuses a top-level column
+     * named {@code a.x} with field {@code x} of column {@code a}.
+     */
+    private static Optional<NestedField> findStatisticsField(Schema schema, ColumnStatisticMetadata statistic)
+    {
+        // Top-level names reach the connector lower-cased, while field names keep their declared case
+        Optional<NestedField> field = schema.columns().stream()
+                .filter(column -> column.name().toLowerCase(ENGLISH).equals(statistic.getColumnName()))
+                .findFirst();
+        for (String fieldName : statistic.getFieldPath()) {
+            field = field
+                    .filter(parent -> parent.type().isStructType())
+                    .map(parent -> parent.type().asStructType().field(fieldName));
+        }
+        return field;
+    }
+
+    private static String dottedName(ColumnStatisticMetadata statistic)
+    {
+        return Stream.concat(Stream.of(statistic.getColumnName()), statistic.getFieldPath().stream())
+                .collect(joining("."));
+    }
+
+    /**
+     * Enumerates every primitive leaf that Iceberg can hold statistics for, descending through ROW
+     * columns to arbitrary depth. The Iceberg spec permits a statistics blob on the leaf primitive
+     * field inside a struct, so a primitive behaves the same whether it is standalone or nested.
+     */
+    private static List<ColumnStatisticMetadata> collectStatisticsTargets(ConnectorTableMetadata tableMetadata)
+    {
+        ImmutableList.Builder<ColumnStatisticMetadata> targets = ImmutableList.builder();
+        for (ColumnMetadata column : tableMetadata.getColumns()) {
+            if (column.isHidden()) {
+                continue;
+            }
+            addStatisticsTargets(targets, column.getName(), ImmutableList.of(), column.getType());
+        }
+        return targets.build();
+    }
+
+    private static void addStatisticsTargets(
+            ImmutableList.Builder<ColumnStatisticMetadata> targets,
+            String columnName,
+            List<String> fieldPath,
+            io.trino.spi.type.Type type)
+    {
+        // Checked before the ROW descent, so an excluded type is pruned even if it is row-backed.
+        // Geometry and Geography are excluded because Iceberg doesn't support geospatial statistics,
+        // and variant does not support NDV statistics. ARRAY and MAP elements are not addressable
+        // as columns, so their leaves are pruned with them.
+        if (type instanceof MapType || type instanceof ArrayType || isGeospatialType(type) || type == VARIANT) {
+            return;
+        }
+        if (type instanceof RowType rowType) {
+            for (RowType.Field field : rowType.getFields()) {
+                if (field.getName().isEmpty()) {
+                    // An anonymous field cannot be named in a statistic, so nothing can be collected for it
+                    continue;
+                }
+                addStatisticsTargets(
+                        targets,
+                        columnName,
+                        ImmutableList.<String>builder().addAll(fieldPath).add(field.getName().get()).build(),
+                        field.getType());
+            }
+            return;
+        }
+        targets.add(new ColumnStatisticMetadata(columnName, fieldPath, NUMBER_OF_DISTINCT_VALUES_NAME, NUMBER_OF_DISTINCT_VALUES_FUNCTION));
     }
 
     @Override
@@ -5726,9 +5817,6 @@ public class IcebergMetadata
 
     private static CollectedStatistics processComputedTableStatistics(Table table, Collection<ComputedStatistics> computedStatistics)
     {
-        Map<String, Integer> columnNameToId = table.schema().columns().stream()
-                .collect(toImmutableMap(nestedField -> nestedField.name().toLowerCase(ENGLISH), NestedField::fieldId));
-
         ImmutableMap.Builder<Integer, CompactThetaSketch> ndvSketches = ImmutableMap.builder();
         for (ComputedStatistics computedStatistic : computedStatistics) {
             verify(computedStatistic.getGroupingColumns().isEmpty() && computedStatistic.getGroupingValues().isEmpty(), "Unexpected grouping");
@@ -5736,12 +5824,10 @@ public class IcebergMetadata
             for (Entry<ColumnStatisticMetadata, Block> entry : computedStatistic.getColumnStatistics().entrySet()) {
                 ColumnStatisticMetadata statisticMetadata = entry.getKey();
                 if (statisticMetadata.getConnectorAggregationId().equals(NUMBER_OF_DISTINCT_VALUES_NAME)) {
-                    Integer columnId = verifyNotNull(
-                            columnNameToId.get(statisticMetadata.getColumnName()),
-                            "Column not found in table: [%s]",
-                            statisticMetadata.getColumnName());
+                    NestedField field = findStatisticsField(table.schema(), statisticMetadata)
+                            .orElseThrow(() -> new VerifyException("Column not found in table: [%s]".formatted(dottedName(statisticMetadata))));
                     CompactThetaSketch sketch = DataSketchStateSerializer.deserialize(entry.getValue(), 0);
-                    ndvSketches.put(columnId, sketch);
+                    ndvSketches.put(field.fieldId(), sketch);
                 }
                 else {
                     throw new UnsupportedOperationException("Unsupported statistic: " + statisticMetadata);

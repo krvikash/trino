@@ -14,6 +14,7 @@
 package io.trino.plugin.iceberg;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.math.IntMath;
 import io.trino.Session;
@@ -22,27 +23,39 @@ import io.trino.metastore.HiveMetastore;
 import io.trino.testing.AbstractTestQueryFramework;
 import io.trino.testing.QueryRunner;
 import io.trino.testing.sql.TestTable;
+import org.apache.datasketches.common.Family;
+import org.apache.datasketches.theta.CompactThetaSketch;
+import org.apache.datasketches.theta.UpdatableThetaSketch;
 import org.apache.iceberg.BaseTable;
+import org.apache.iceberg.GenericBlobMetadata;
 import org.apache.iceberg.GenericStatisticsFile;
+import org.apache.iceberg.Schema;
 import org.apache.iceberg.StatisticsFile;
 import org.apache.iceberg.TableOperations;
+import org.apache.iceberg.puffin.Blob;
 import org.apache.iceberg.puffin.Puffin;
 import org.apache.iceberg.puffin.PuffinWriter;
+import org.apache.iceberg.types.Types;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
+import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.List;
+import java.util.Set;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static com.google.common.collect.MoreCollectors.onlyElement;
 import static io.trino.plugin.iceberg.IcebergSessionProperties.COLLECT_EXTENDED_STATISTICS_ON_WRITE;
 import static io.trino.plugin.iceberg.IcebergSessionProperties.EXPIRE_SNAPSHOTS_MIN_RETENTION;
 import static io.trino.plugin.iceberg.IcebergTestUtils.getFileSystemFactory;
 import static io.trino.plugin.iceberg.IcebergTestUtils.getHiveMetastore;
 import static io.trino.plugin.iceberg.IcebergTestUtils.loadTable;
+import static io.trino.plugin.iceberg.TableStatisticsReader.APACHE_DATASKETCHES_THETA_V1_NDV_PROPERTY;
 import static io.trino.testing.DataProviders.cartesianProduct;
 import static io.trino.testing.DataProviders.trueFalse;
 import static io.trino.testing.TestingAccessControlManager.TestingPrivilegeType.EXECUTE_TABLE_PROCEDURE;
@@ -52,7 +65,10 @@ import static io.trino.tpch.TpchTable.NATION;
 import static java.lang.String.format;
 import static java.math.RoundingMode.UP;
 import static java.util.stream.Collectors.joining;
+import static org.apache.iceberg.puffin.PuffinCompressionCodec.ZSTD;
+import static org.apache.iceberg.puffin.StandardBlobTypes.APACHE_DATASKETCHES_THETA_V1;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.withinPercentage;
 
 public class TestIcebergStatistics
         extends AbstractTestQueryFramework
@@ -865,7 +881,7 @@ public class TestIcebergStatistics
     @Test
     public void testEmptyNoScalarColumns()
     {
-        // Currently, only scalar columns can be analyzed
+        // The table has no top-level scalar column, but the leaves inside its ROW columns can be analyzed
         String tableName = "empty_table_without_scalar_columns";
 
         assertUpdate("CREATE TABLE " + tableName + " (a row(x integer), b row(y varchar))");
@@ -881,7 +897,7 @@ public class TestIcebergStatistics
         // On empty table
         assertQueryFails("ANALYZE " + tableName + " WITH (columns = ARRAY[])", "Cannot specify empty list of columns for analysis");
         assertQueryFails("ANALYZE " + tableName + " WITH (columns = ARRAY['a'])", "Invalid columns specified for analysis: \\[a]");
-        assertQueryFails("ANALYZE " + tableName + " WITH (columns = ARRAY['a.x'])", "Invalid columns specified for analysis: \\[a.x]");
+        assertUpdate("ANALYZE " + tableName + " WITH (columns = ARRAY['a.x'])");
         assertQueryFails("ANALYZE " + tableName + " WITH (columns = ARRAY['b'])", "Invalid columns specified for analysis: \\[b]");
         assertUpdate("ANALYZE " + tableName);
         assertQuery(
@@ -913,7 +929,7 @@ public class TestIcebergStatistics
     @Test
     public void testNoScalarColumns()
     {
-        // Currently, only scalar columns can be analyzed
+        // The table has no top-level scalar column, but the leaves inside its ROW columns can be analyzed
         String tableName = "table_without_scalar_columns";
 
         assertUpdate("CREATE TABLE " + tableName + " (a row(x integer), b row(y varchar))");
@@ -933,7 +949,7 @@ public class TestIcebergStatistics
         // On non-empty table
         assertQueryFails("ANALYZE " + tableName + " WITH (columns = ARRAY[])", "Cannot specify empty list of columns for analysis");
         assertQueryFails("ANALYZE " + tableName + " WITH (columns = ARRAY['a'])", "Invalid columns specified for analysis: \\[a]");
-        assertQueryFails("ANALYZE " + tableName + " WITH (columns = ARRAY['a.x'])", "Invalid columns specified for analysis: \\[a.x]");
+        assertUpdate("ANALYZE " + tableName + " WITH (columns = ARRAY['a.x'])");
         assertQueryFails("ANALYZE " + tableName + " WITH (columns = ARRAY['b'])", "Invalid columns specified for analysis: \\[b]");
         assertUpdate("ANALYZE " + tableName);
         assertQuery(
@@ -958,6 +974,551 @@ public class TestIcebergStatistics
                   ('b', null, null, null, null, null, null),
                   (null,  null, null, null, 4, null, null)
                 """);
+
+        assertUpdate("DROP TABLE " + tableName);
+    }
+
+    /**
+     * ANALYZE collects NDV for leaves inside ROW columns, and the ROW column itself is not a valid analyze column.
+     */
+    @Test
+    public void testNestedRowFieldNdvCollectedByAnalyze()
+    {
+        String tableName = "test_nested_leaf_ndv_baseline_" + randomNameSuffix();
+
+        assertUpdate("CREATE TABLE " + tableName + " (k integer, a row(x integer, y varchar))");
+        assertUpdate(
+                withStatsOnWrite(getSession(), false),
+                "INSERT INTO " + tableName + " VALUES (1, ROW(10, 'a')), (2, ROW(20, 'b')), (3, ROW(20, 'c'))",
+                3);
+
+        assertUpdate("ANALYZE " + tableName);
+
+        // Table-level SHOW STATS projects top-level columns, so the ROW column itself still has no
+        // NDV of its own
+        assertThat(query("SHOW STATS FOR " + tableName))
+                .result()
+                .projected("column_name", "distinct_values_count")
+                .skippingTypesCheck()
+                .containsAll("VALUES ('k', DOUBLE '3'), ('a', null), (null, null)");
+
+        // a.x holds 2 distinct values and a.y holds 3, and both are now collected
+        assertThat(query("SHOW STATS FOR (SELECT a.x AS leaf_x, a.y AS leaf_y FROM " + tableName + ")"))
+                .result()
+                .projected("column_name", "distinct_values_count")
+                .skippingTypesCheck()
+                .containsAll("VALUES ('leaf_x', DOUBLE '2'), ('leaf_y', DOUBLE '3'), (null, null)");
+
+        // ... backed by a theta-sketch blob per leaf field id
+        BaseTable icebergTable = loadIcebergTable(tableName);
+        assertThat(thetaSketchBlobFieldIds(icebergTable))
+                .contains(
+                        icebergTable.schema().findField("k").fieldId(),
+                        icebergTable.schema().findField("a.x").fieldId(),
+                        icebergTable.schema().findField("a.y").fieldId());
+
+        // A leaf can be named explicitly...
+        assertUpdate("ANALYZE " + tableName + " WITH (columns = ARRAY['a.x'])");
+        // ... but the enclosing ROW column cannot, since no statistic is defined for the struct
+        assertQueryFails(
+                "ANALYZE " + tableName + " WITH (columns = ARRAY['a'])",
+                "Invalid columns specified for analysis: \\[a]");
+
+        assertUpdate("DROP TABLE " + tableName);
+    }
+
+    /**
+     * ANALYZE collects NDV for leaves of a ROW nested two levels deep.
+     */
+    @Test
+    public void testNestedRowFieldNdvCollectedForDeeplyNestedRow()
+    {
+        String tableName = "test_nested_leaf_ndv_deep_" + randomNameSuffix();
+
+        assertUpdate("CREATE TABLE " + tableName + " (k integer, a row(b row(c integer, d varchar), e integer))");
+        assertUpdate(
+                withStatsOnWrite(getSession(), false),
+                "INSERT INTO " + tableName + " VALUES (1, ROW(ROW(10, 'a'), 1)), (2, ROW(ROW(20, 'b'), 1)), (3, ROW(ROW(20, 'c'), 1))",
+                3);
+
+        assertUpdate("ANALYZE " + tableName);
+
+        assertThat(query("SHOW STATS FOR (SELECT a.b.c AS leaf_c, a.b.d AS leaf_d, a.e AS leaf_e FROM " + tableName + ")"))
+                .result()
+                .projected("column_name", "distinct_values_count")
+                .skippingTypesCheck()
+                .containsAll("VALUES ('leaf_c', DOUBLE '2'), ('leaf_d', DOUBLE '3'), ('leaf_e', DOUBLE '1'), (null, null)");
+
+        BaseTable icebergTable = loadIcebergTable(tableName);
+        assertThat(thetaSketchBlobFieldIds(icebergTable))
+                .contains(
+                        icebergTable.schema().findField("a.b.c").fieldId(),
+                        icebergTable.schema().findField("a.b.d").fieldId(),
+                        icebergTable.schema().findField("a.e").fieldId());
+
+        // A leaf at depth two can be named explicitly, while the intermediate struct cannot
+        assertUpdate("ANALYZE " + tableName + " WITH (columns = ARRAY['a.b.c'])");
+        assertQueryFails(
+                "ANALYZE " + tableName + " WITH (columns = ARRAY['a.b'])",
+                "Invalid columns specified for analysis: \\[a.b]");
+
+        assertUpdate("DROP TABLE " + tableName);
+    }
+
+    /**
+     * The {@code columns} analyze property selects a leaf regardless of the case it was declared with.
+     */
+    @Test
+    public void testNestedRowFieldAnalyzeColumnsIsCaseInsensitive()
+    {
+        String tableName = "test_nested_leaf_ndv_case_" + randomNameSuffix();
+
+        assertUpdate("CREATE TABLE " + tableName + " (k integer, a row(\"X\" integer))");
+        assertUpdate(
+                withStatsOnWrite(getSession(), false),
+                "INSERT INTO " + tableName + " VALUES (1, ROW(10)), (2, ROW(20))",
+                2);
+
+        // The lower-cased spelling must select the leaf, as SELECT a.x does. Analyzing it first on
+        // a table with no statistics covers selection, not just validation: if the selected-name
+        // filter matched exactly, this ANALYZE would succeed while collecting nothing.
+        assertUpdate("ANALYZE " + tableName + " WITH (columns = ARRAY['a.x'])");
+        assertThat(query("SHOW STATS FOR (SELECT a.x AS leaf_x FROM " + tableName + ")"))
+                .result()
+                .projected("column_name", "distinct_values_count")
+                .skippingTypesCheck()
+                .containsAll("VALUES ('leaf_x', DOUBLE '2'), (null, null)");
+
+        // The declared case is accepted too
+        assertUpdate("ANALYZE " + tableName + " WITH (columns = ARRAY['a.X'])");
+
+        assertUpdate("DROP TABLE " + tableName);
+    }
+
+    /**
+     * ANALYZE resolves each leaf by its exact name, so a struct holding fields that differ only in case is analyzed.
+     */
+    @Test
+    public void testNestedRowFieldsDifferingOnlyInCase()
+    {
+        String tableName = "test_nested_leaf_ndv_case_collision_" + randomNameSuffix();
+
+        assertUpdate("CREATE TABLE " + tableName + " (k integer, a row(x integer))");
+        assertUpdate(
+                withStatsOnWrite(getSession(), false),
+                "INSERT INTO " + tableName + " VALUES (1, ROW(1)), (2, ROW(2)), (3, ROW(2))",
+                3);
+        // Trino cannot declare such a struct, but the Iceberg API can. The data is written first,
+        // as the writers cannot handle it.
+        loadIcebergTable(tableName).updateSchema()
+                .addColumn("a", "X", Types.IntegerType.get())
+                .commit();
+
+        Schema schema = loadIcebergTable(tableName).schema();
+        int kId = schema.findField("k").fieldId();
+        int lowerId = schema.findField("a.x").fieldId();
+        int upperId = schema.findField("a.X").fieldId();
+
+        assertUpdate("ANALYZE " + tableName + " WITH (columns = ARRAY['k'])");
+        assertThat(thetaSketchBlobFieldIds(loadIcebergTable(tableName))).containsExactlyInAnyOrder(kId);
+
+        // An exact spelling selects only the leaf it names
+        assertUpdate("ANALYZE " + tableName + " WITH (columns = ARRAY['a.X'])");
+        assertThat(thetaSketchBlobFieldIds(loadIcebergTable(tableName))).containsExactlyInAnyOrder(kId, upperId);
+
+        assertUpdate("ANALYZE " + tableName);
+        assertThat(thetaSketchBlobFieldIds(loadIcebergTable(tableName))).containsExactlyInAnyOrder(kId, lowerId, upperId);
+
+        assertUpdate("DROP TABLE " + tableName);
+    }
+
+    /**
+     * A hand-written NDV blob on a nested leaf is read back, independently of the write path.
+     */
+    @Test
+    public void testNestedRowFieldNdvIsReadWhenPresentInStatisticsFile()
+            throws Exception
+    {
+        String tableName = "test_nested_leaf_ndv_read_" + randomNameSuffix();
+
+        assertUpdate("CREATE TABLE " + tableName + " (k integer, a row(x integer))");
+        assertUpdate(
+                withStatsOnWrite(getSession(), false),
+                "INSERT INTO " + tableName + " VALUES (1, ROW(10)), (2, ROW(20)), (3, ROW(20))",
+                3);
+
+        BaseTable icebergTable = loadIcebergTable(tableName);
+        int leafFieldId = icebergTable.schema().findField("a.x").fieldId();
+        writeNdvStatisticsFileForField(icebergTable, leafFieldId, 2, 10, 20);
+        assertThat(thetaSketchBlobFieldIds(icebergTable)).containsExactly(leafFieldId);
+
+        assertThat(query("SHOW STATS FOR (SELECT a.x AS leaf_x FROM " + tableName + ")"))
+                .result()
+                .projected("column_name", "distinct_values_count")
+                .skippingTypesCheck()
+                .containsAll("VALUES ('leaf_x', DOUBLE '2'), (null, null)");
+
+        assertUpdate("DROP TABLE " + tableName);
+    }
+
+    /**
+     * ANALYZE reduces the unknown row estimates of a join workload whose predicates are nested leaves.
+     */
+    @Test
+    public void testNestedRowFieldStatisticsImprovePlanEstimates()
+    {
+        String suffix = randomNameSuffix();
+        String sourceTable = "test_nested_leaf_sim_source_" + suffix;
+        String eventTable = "test_nested_leaf_sim_event_" + suffix;
+        String responseTable = "test_nested_leaf_sim_response_" + suffix;
+
+        Session writeSession = withStatsOnWrite(getSession(), false);
+        assertUpdate(writeSession, "CREATE TABLE " + sourceTable + " AS SELECT " +
+                "CAST(ROW(CAST(n.nationkey AS varchar), with_timezone(CAST(date_add('day', n.nationkey, date '1995-01-01') AS timestamp(6)), 'UTC')) AS row(id varchar, effective timestamp(6) with time zone)) AS key, " +
+                "n.name AS source_name FROM tpch.tiny.nation n", 25);
+        assertUpdate(writeSession, "CREATE TABLE " + eventTable + " AS SELECT " +
+                "CAST(ROW(CAST(o.orderkey AS varchar), with_timezone(CAST(o.orderdate AS timestamp(6)), 'UTC')) AS row(event_id varchar, occurred timestamp(6) with time zone)) AS key, " +
+                "CAST(ROW(o.orderpriority, o.orderstatus) AS row(intent varchar, product varchar)) AS attrs, " +
+                "CAST(o.custkey % 25 AS varchar) AS source_id, o.orderdate AS occurred_date FROM tpch.tiny.orders o", 15000);
+        assertUpdate(writeSession, "CREATE TABLE " + responseTable + " AS SELECT " +
+                "CAST(ROW('r' || CAST(o.orderkey AS varchar), CAST(o.orderkey AS varchar), with_timezone(CAST(o.orderdate AS timestamp(6)), 'UTC')) AS row(response_id varchar, response_event_id varchar, response_occurred timestamp(6) with time zone)) AS key, " +
+                "o.orderkey % 11 AS score, o.orderdate AS offered_date FROM tpch.tiny.orders o WHERE o.orderkey % 10 = 0", 1500);
+
+        String explainSql = "EXPLAIN WITH source_dedup AS (" +
+                "SELECT key, source_name FROM (" +
+                "SELECT key, source_name, ROW_NUMBER() OVER (PARTITION BY key.id ORDER BY key.effective DESC) AS rnk FROM " + sourceTable + ") a " +
+                "WHERE rnk = 1) " +
+                "SELECT s.source_name, e.attrs.intent AS intent, count(*) AS events, avg(r.score) AS avg_score " +
+                "FROM source_dedup s " +
+                "INNER JOIN " + eventTable + " e ON s.key.id = e.source_id " +
+                "LEFT JOIN " + responseTable + " r " +
+                "  ON e.key.event_id = r.key.response_event_id " +
+                "  AND date_format(e.key.occurred, '%Y-%m-%d') = date_format(r.key.response_occurred, '%Y-%m-%d') " +
+                "WHERE e.occurred_date >= date '1995-01-01' AND e.attrs.intent <> '5-LOW' " +
+                "GROUP BY s.source_name, e.attrs.intent";
+
+        long unknownBefore = countUnknownRowEstimates((String) computeScalar(explainSql));
+        assertThat(unknownBefore)
+                .as("the plan must start with uncosted nodes, or this test proves nothing")
+                .isPositive();
+
+        assertUpdate("ANALYZE " + sourceTable);
+        assertUpdate("ANALYZE " + eventTable);
+        assertUpdate("ANALYZE " + responseTable);
+
+        assertThat(countUnknownRowEstimates((String) computeScalar(explainSql)))
+                .as("ANALYZE must cost the nodes above the nested-leaf predicates")
+                .isLessThan(unknownBefore);
+
+        // The leaf statistics behind that improvement. attrs.intent is orderpriority, which has 5
+        // distinct values in TPC-H, and is small enough for the theta sketch to be exact.
+        assertThat(query("SHOW STATS FOR (SELECT attrs.intent AS intent FROM " + eventTable + ")"))
+                .result()
+                .projected("column_name", "distinct_values_count", "nulls_fraction")
+                .skippingTypesCheck()
+                .containsAll("VALUES ('intent', DOUBLE '5', DOUBLE '0.0')");
+
+        // key.event_id has one distinct value per row, so the NDV is a theta-sketch estimate and
+        // is asserted with a tolerance
+        double eventIdNdv = computeActual("SHOW STATS FOR (SELECT key.event_id AS event_id FROM " + eventTable + ")")
+                .getMaterializedRows().stream()
+                .filter(row -> "event_id".equals(row.getField(0)))
+                .map(row -> (double) row.getField(2))
+                .collect(onlyElement());
+        assertThat(eventIdNdv).isCloseTo(15000, withinPercentage(2));
+
+        assertUpdate("DROP TABLE " + responseTable);
+        assertUpdate("DROP TABLE " + eventTable);
+        assertUpdate("DROP TABLE " + sourceTable);
+    }
+
+    /**
+     * INSERT refreshes a leaf NDV that ANALYZE populated.
+     */
+    @Test
+    public void testNestedRowFieldNdvRefreshedOnInsert()
+    {
+        String tableName = "test_nested_leaf_ndv_insert_" + randomNameSuffix();
+
+        assertUpdate("CREATE TABLE " + tableName + " (k integer, a row(x integer))");
+        assertUpdate(
+                withStatsOnWrite(getSession(), false),
+                "INSERT INTO " + tableName + " VALUES (1, ROW(10)), (2, ROW(20))",
+                2);
+        assertUpdate("ANALYZE " + tableName);
+        assertThat(query("SHOW STATS FOR (SELECT a.x AS leaf_x FROM " + tableName + ")"))
+                .result()
+                .projected("column_name", "distinct_values_count")
+                .skippingTypesCheck()
+                .containsAll("VALUES ('leaf_x', DOUBLE '2'), (null, null)");
+
+        // Two more distinct leaf values, written with collection enabled
+        assertUpdate(
+                withStatsOnWrite(getSession(), true),
+                "INSERT INTO " + tableName + " VALUES (3, ROW(30)), (4, ROW(40))",
+                2);
+
+        // The NDV must follow the data
+        assertThat(query("SHOW STATS FOR (SELECT a.x AS leaf_x FROM " + tableName + ")"))
+                .result()
+                .projected("column_name", "distinct_values_count")
+                .skippingTypesCheck()
+                .containsAll("VALUES ('leaf_x', DOUBLE '4'), (null, null)");
+
+        assertUpdate("DROP TABLE " + tableName);
+    }
+
+    /**
+     * INSERT does not start collecting NDV for a leaf that has none.
+     */
+    @Test
+    public void testNestedRowFieldNdvNotStartedOnInsert()
+    {
+        String tableName = "test_nested_leaf_ndv_no_start_" + randomNameSuffix();
+
+        assertUpdate("CREATE TABLE " + tableName + " (k integer, a row(x integer))");
+        // Land data without any statistics, so the write gate has no NDV to refresh
+        assertUpdate(
+                withStatsOnWrite(getSession(), false),
+                "INSERT INTO " + tableName + " VALUES (1, ROW(10)), (2, ROW(20))",
+                2);
+        assertUpdate(
+                withStatsOnWrite(getSession(), true),
+                "INSERT INTO " + tableName + " VALUES (3, ROW(30))",
+                1);
+
+        assertThat(query("SHOW STATS FOR (SELECT a.x AS leaf_x FROM " + tableName + ")"))
+                .result()
+                .projected("column_name", "distinct_values_count")
+                .skippingTypesCheck()
+                .containsAll("VALUES ('leaf_x', null), (null, null)");
+        assertThat(thetaSketchBlobFieldIds(loadIcebergTable(tableName))).isEmpty();
+
+        assertUpdate("DROP TABLE " + tableName);
+    }
+
+    /**
+     * OPTIMIZE carries leaf NDV blobs across the statistics file rewrite.
+     */
+    @Test
+    public void testNestedRowFieldNdvSurvivesOptimize()
+    {
+        String tableName = "test_nested_leaf_ndv_optimize_" + randomNameSuffix();
+
+        assertUpdate("CREATE TABLE " + tableName + " (k integer, a row(x integer))");
+        assertUpdate(
+                withStatsOnWrite(getSession(), false),
+                "INSERT INTO " + tableName + " VALUES (1, ROW(10)), (2, ROW(20))",
+                2);
+        assertUpdate(withStatsOnWrite(getSession(), false), "INSERT INTO " + tableName + " VALUES (3, ROW(30))", 1);
+        assertUpdate("ANALYZE " + tableName);
+
+        int leafFieldId = loadIcebergTable(tableName).schema().findField("a.x").fieldId();
+        assertThat(thetaSketchBlobFieldIds(loadIcebergTable(tableName))).contains(leafFieldId);
+
+        assertUpdate("ALTER TABLE " + tableName + " EXECUTE optimize");
+
+        assertThat(thetaSketchBlobFieldIds(loadIcebergTable(tableName))).contains(leafFieldId);
+        assertThat(query("SHOW STATS FOR (SELECT a.x AS leaf_x FROM " + tableName + ")"))
+                .result()
+                .projected("column_name", "distinct_values_count")
+                .skippingTypesCheck()
+                .containsAll("VALUES ('leaf_x', DOUBLE '3'), (null, null)");
+
+        assertUpdate("DROP TABLE " + tableName);
+    }
+
+    /**
+     * Materialized view refresh collects leaf NDVs.
+     */
+    @Test
+    public void testNestedRowFieldNdvCollectedOnMaterializedViewRefresh()
+    {
+        String suffix = randomNameSuffix();
+        String baseTable = "test_nested_leaf_mv_base_" + suffix;
+        String viewName = "test_nested_leaf_mv_" + suffix;
+
+        assertUpdate("CREATE TABLE " + baseTable + " (k integer, a row(x integer))");
+        assertUpdate(
+                withStatsOnWrite(getSession(), false),
+                "INSERT INTO " + baseTable + " VALUES (1, ROW(10)), (2, ROW(20)), (3, ROW(20))",
+                3);
+
+        assertUpdate("CREATE MATERIALIZED VIEW " + viewName + " AS SELECT k, a FROM " + baseTable);
+        assertUpdate(withStatsOnWrite(getSession(), true), "REFRESH MATERIALIZED VIEW " + viewName, 3);
+
+        assertThat(query("SHOW STATS FOR (SELECT a.x AS leaf_x FROM " + viewName + ")"))
+                .result()
+                .projected("column_name", "distinct_values_count")
+                .skippingTypesCheck()
+                .containsAll("VALUES ('leaf_x', DOUBLE '2'), (null, null)");
+
+        assertUpdate("DROP MATERIALIZED VIEW " + viewName);
+        assertUpdate("DROP TABLE " + baseTable);
+    }
+
+    /**
+     * A leaf NDV follows its field across a rename, and a dropped field's blob is retained.
+     */
+    @Test
+    public void testNestedRowFieldNdvAcrossSchemaEvolution()
+    {
+        String tableName = "test_nested_leaf_ndv_evolution_" + randomNameSuffix();
+
+        assertUpdate("CREATE TABLE " + tableName + " (k integer, a row(x integer, y varchar))");
+        assertUpdate(
+                withStatsOnWrite(getSession(), false),
+                "INSERT INTO " + tableName + " VALUES (1, ROW(10, 'p')), (2, ROW(20, 'q'))",
+                2);
+        assertUpdate("ANALYZE " + tableName);
+
+        BaseTable icebergTable = loadIcebergTable(tableName);
+        int renamedFieldId = icebergTable.schema().findField("a.x").fieldId();
+        int droppedFieldId = icebergTable.schema().findField("a.y").fieldId();
+        assertThat(thetaSketchBlobFieldIds(icebergTable)).contains(renamedFieldId, droppedFieldId);
+
+        // A rename does not change the field id, so the statistic follows the new name
+        assertUpdate("ALTER TABLE " + tableName + " RENAME COLUMN \"a\".\"x\" TO renamed");
+        assertThat(query("SHOW STATS FOR (SELECT a.renamed AS leaf FROM " + tableName + ")"))
+                .result()
+                .projected("column_name", "distinct_values_count")
+                .skippingTypesCheck()
+                .containsAll("VALUES ('leaf', DOUBLE '2'), (null, null)");
+
+        // The dropped field keeps its blob, exactly as a dropped top-level column does
+        assertUpdate("ALTER TABLE " + tableName + " DROP COLUMN \"a\".\"y\"");
+        assertUpdate("ANALYZE " + tableName);
+        assertThat(thetaSketchBlobFieldIds(loadIcebergTable(tableName)))
+                .contains(renamedFieldId, droppedFieldId);
+
+        assertUpdate("DROP TABLE " + tableName);
+    }
+
+    /**
+     * Leaf NDVs cost a join workload whose predicates are nested leaves.
+     */
+    @Test
+    public void testNestedRowFieldStatisticsAreUsedForJoinPlanning()
+    {
+        String eventTable = "test_nested_leaf_event_" + randomNameSuffix();
+        String responseTable = "test_nested_leaf_response_" + randomNameSuffix();
+        String sourceTable = "test_nested_leaf_source_" + randomNameSuffix();
+        Session writeSession = withStatsOnWrite(getSession(), false);
+
+        assertUpdate("CREATE TABLE " + eventTable + " (" +
+                "key row(event_id varchar, occurred timestamp(6) with time zone), " +
+                "attrs row(intent varchar, product varchar), " +
+                "source_id varchar, " +
+                "occurred_date date)");
+        assertUpdate("CREATE TABLE " + responseTable + " (" +
+                "key row(response_id varchar, response_event_id varchar, response_occurred timestamp(6) with time zone), " +
+                "score bigint, " +
+                "offered_date date)");
+        assertUpdate("CREATE TABLE " + sourceTable + " (" +
+                "key row(id varchar, effective timestamp(6) with time zone), " +
+                "source_name varchar)");
+
+        // 40 events over 4 sources and 2 intents; 20 of them have a response
+        assertUpdate(
+                writeSession,
+                "INSERT INTO " + eventTable + " SELECT " +
+                        "CAST(ROW('e' || CAST(n AS varchar), from_unixtime(n * 86400) AT TIME ZONE 'UTC') AS row(event_id varchar, occurred timestamp(6) with time zone)), " +
+                        "CAST(ROW(IF(n % 2 = 0, 'book', 'cancel'), 'p' || CAST(n % 5 AS varchar)) AS row(intent varchar, product varchar)), " +
+                        "'s' || CAST(n % 4 AS varchar), " +
+                        "date(from_unixtime(n * 86400)) " +
+                        "FROM UNNEST(sequence(1, 40)) AS t(n)",
+                40);
+        assertUpdate(
+                writeSession,
+                "INSERT INTO " + responseTable + " SELECT " +
+                        "CAST(ROW('r' || CAST(n AS varchar), 'e' || CAST(n AS varchar), from_unixtime(n * 86400) AT TIME ZONE 'UTC') AS row(response_id varchar, response_event_id varchar, response_occurred timestamp(6) with time zone)), " +
+                        "n % 11, " +
+                        "date(from_unixtime(n * 86400)) " +
+                        "FROM UNNEST(sequence(1, 20)) AS t(n)",
+                20);
+        assertUpdate(
+                writeSession,
+                "INSERT INTO " + sourceTable + " SELECT " +
+                        "CAST(ROW('s' || CAST(n AS varchar), from_unixtime(n * 86400) AT TIME ZONE 'UTC') AS row(id varchar, effective timestamp(6) with time zone)), " +
+                        "'partner' || CAST(n AS varchar) " +
+                        "FROM UNNEST(sequence(0, 3)) AS t(n)",
+                4);
+
+        assertUpdate("ANALYZE " + eventTable);
+        assertUpdate("ANALYZE " + responseTable);
+        assertUpdate("ANALYZE " + sourceTable);
+
+        // 1. Leaf statistics exist and are correct, at every nesting site the query touches
+        assertThat(query("SHOW STATS FOR (SELECT key.event_id AS event_id, key.occurred AS occurred, attrs.intent AS intent FROM " + eventTable + ")"))
+                .result()
+                .projected("column_name", "distinct_values_count")
+                .skippingTypesCheck()
+                .containsAll("VALUES ('event_id', DOUBLE '40'), ('occurred', DOUBLE '40'), ('intent', DOUBLE '2'), (null, null)");
+        assertThat(query("SHOW STATS FOR (SELECT key.response_event_id AS response_event_id FROM " + responseTable + ")"))
+                .result()
+                .projected("column_name", "distinct_values_count")
+                .skippingTypesCheck()
+                .containsAll("VALUES ('response_event_id', DOUBLE '20'), (null, null)");
+
+        // 2. The CBO costs the whole plan: INNER JOIN on a nested leaf, then a LEFT JOIN whose
+        //    condition is a compound predicate over nested leaves on both sides
+        String explain = (String) computeScalar(
+                "EXPLAIN SELECT s.source_name, e.attrs.intent, count(*) AS events, avg(r.score) AS avg_score " +
+                        "FROM " + sourceTable + " s " +
+                        "INNER JOIN " + eventTable + " e ON s.key.id = e.source_id " +
+                        "LEFT JOIN " + responseTable + " r " +
+                        "  ON e.key.event_id = r.key.response_event_id " +
+                        "  AND date_format(e.key.occurred, '%Y-%m-%d') = date_format(r.key.response_occurred, '%Y-%m-%d') " +
+                        "WHERE e.occurred_date >= date '1970-01-02' " +
+                        "GROUP BY s.source_name, e.attrs.intent");
+        assertThat(explain).doesNotContain("rows: ?");
+
+        assertUpdate("DROP TABLE " + eventTable);
+        assertUpdate("DROP TABLE " + responseTable);
+        assertUpdate("DROP TABLE " + sourceTable);
+    }
+
+    /**
+     * A nested leaf NDV is read through the partition-statistics branch of the statistics reader.
+     */
+    @Test
+    public void testNestedRowFieldNdvIsReadFromPartitionStatisticsBranch()
+            throws Exception
+    {
+        String catalog = getSession().getCatalog().orElseThrow();
+        // The shared query runner disables partition statistics, so enable both halves here:
+        // collect-on-write to produce the partition statistics file, and enabled to make the
+        // reader take that branch
+        Session partitionStatisticsSession = Session.builder(getSession())
+                .setCatalogSessionProperty(catalog, "partition_statistics_enabled", "true")
+                .setCatalogSessionProperty(catalog, "partition_statistics_collect_on_write", "true")
+                .build();
+
+        String tableName = "test_nested_leaf_ndv_partition_stats_" + randomNameSuffix();
+
+        assertUpdate(
+                partitionStatisticsSession,
+                "CREATE TABLE " + tableName + " (k integer, a row(x integer)) WITH (partitioning = ARRAY['k'])");
+        assertUpdate(
+                partitionStatisticsSession,
+                "INSERT INTO " + tableName + " VALUES (1, ROW(10)), (2, ROW(20)), (2, ROW(20))",
+                3);
+        assertUpdate(partitionStatisticsSession, "ANALYZE " + tableName);
+
+        BaseTable icebergTable = loadIcebergTable(tableName);
+        // Guard: with no partition statistics file the reader silently falls back to the
+        // manifest-based branch, which would make this a duplicate of the test above
+        assertThat(icebergTable.partitionStatisticsFiles()).isNotEmpty();
+
+        int leafFieldId = icebergTable.schema().findField("a.x").fieldId();
+        writeNdvStatisticsFileForField(icebergTable, leafFieldId, 2, 10, 20);
+        assertThat(thetaSketchBlobFieldIds(icebergTable)).containsExactly(leafFieldId);
+
+        assertThat(query(partitionStatisticsSession, "SHOW STATS FOR (SELECT a.x AS leaf_x FROM " + tableName + ")"))
+                .result()
+                .projected("column_name", "distinct_values_count")
+                .skippingTypesCheck()
+                .containsAll("VALUES ('leaf_x', DOUBLE '2'), (null, null)");
 
         assertUpdate("DROP TABLE " + tableName);
     }
@@ -1295,5 +1856,65 @@ public class TestIcebergStatistics
     private BaseTable loadIcebergTable(String tableName)
     {
         return loadTable(tableName, metastore, fileSystemFactory, "iceberg", "tpch");
+    }
+
+    /**
+     * Registers a statistics file holding one theta-sketch blob for {@code fieldId}, replacing any existing one.
+     */
+    private static void writeNdvStatisticsFileForField(BaseTable icebergTable, int fieldId, long ndv, long... sketchValues)
+            throws IOException
+    {
+        long snapshotId = icebergTable.currentSnapshot().snapshotId();
+        long sequenceNumber = icebergTable.currentSnapshot().sequenceNumber();
+
+        UpdatableThetaSketch sketch = UpdatableThetaSketch.builder()
+                // Must match the Iceberg table statistics specification, as IcebergThetaSketchForStats does
+                .setFamily(Family.ALPHA)
+                .build();
+        for (long value : sketchValues) {
+            sketch.update(value);
+        }
+        CompactThetaSketch compactSketch = sketch.compact();
+
+        TableOperations operations = icebergTable.operations();
+        String statsPath = operations.metadataFileLocation("nested-leaf-stats-" + randomNameSuffix() + ".stats");
+        try (PuffinWriter writer = Puffin.write(operations.io().newOutputFile(statsPath)).build()) {
+            writer.add(new Blob(
+                    APACHE_DATASKETCHES_THETA_V1,
+                    ImmutableList.of(fieldId),
+                    snapshotId,
+                    sequenceNumber,
+                    ByteBuffer.wrap(compactSketch.toByteArray()),
+                    ZSTD,
+                    ImmutableMap.of(APACHE_DATASKETCHES_THETA_V1_NDV_PROPERTY, Long.toString(ndv))));
+            writer.finish();
+            icebergTable.updateStatistics()
+                    .setStatistics(new GenericStatisticsFile(
+                            snapshotId,
+                            statsPath,
+                            writer.fileSize(),
+                            writer.footerSize(),
+                            writer.writtenBlobsMetadata().stream()
+                                    .map(GenericBlobMetadata::from)
+                                    .collect(toImmutableList())))
+                    .commit();
+        }
+        icebergTable.refresh();
+    }
+
+    private static long countUnknownRowEstimates(String explainOutput)
+    {
+        return explainOutput.lines()
+                .filter(line -> line.contains("rows: ?"))
+                .count();
+    }
+
+    private static Set<Integer> thetaSketchBlobFieldIds(BaseTable icebergTable)
+    {
+        return icebergTable.statisticsFiles().stream()
+                .flatMap(statisticsFile -> statisticsFile.blobMetadata().stream())
+                .filter(blobMetadata -> blobMetadata.type().equals(APACHE_DATASKETCHES_THETA_V1))
+                .flatMap(blobMetadata -> blobMetadata.fields().stream())
+                .collect(toImmutableSet());
     }
 }
