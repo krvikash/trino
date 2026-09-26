@@ -71,6 +71,7 @@ import io.trino.sql.ir.optimizer.rule.SimplifyStackedArithmeticNegation;
 import io.trino.sql.ir.optimizer.rule.SimplifyStackedNot;
 import io.trino.sql.ir.optimizer.rule.SpecializeCastWithJsonParse;
 import io.trino.sql.ir.optimizer.rule.SpecializeTransformWithJsonParse;
+import io.trino.sql.ir.optimizer.rule.UnwrapMatchingCastsInComparison;
 import io.trino.sql.planner.Symbol;
 import io.trino.sql.planner.SymbolAllocator;
 
@@ -116,6 +117,7 @@ public class IrExpressionOptimizer
                 new RemoveRedundantInItems(context),
                 new SimplifyContinuousInValues(context),
                 new SimplifyRedundantCast(),
+                new UnwrapMatchingCastsInComparison(context),
                 new SimplifyRedundantTryCast(context),
                 new SimplifyCharLength(context),
                 new SimplifyStackedNot(),
