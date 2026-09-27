@@ -25,7 +25,10 @@ import java.time.LocalDate;
 
 import static ai.rapids.cudf.BinaryOp.GREATER;
 import static ai.rapids.cudf.BinaryOp.LESS;
+import static ai.rapids.cudf.BinaryOp.NULL_LOGICAL_AND;
 import static ai.rapids.cudf.BinaryOp.NULL_LOGICAL_OR;
+import static io.trino.spi.StandardErrorCode.DIVISION_BY_ZERO;
+import static io.trino.spi.StandardErrorCode.NOT_SUPPORTED;
 import static io.trino.spi.StandardErrorCode.NUMERIC_VALUE_OUT_OF_RANGE;
 import static io.trino.spi.type.Timestamps.MICROSECONDS_PER_DAY;
 import static io.trino.spi.type.Timestamps.MILLISECONDS_PER_DAY;
@@ -148,5 +151,26 @@ final class CudfUtils
             case TIMESTAMP_MICROSECONDS -> Scalar.timestampFromLong(type, MAX_CALENDAR_EPOCH_DAY * MICROSECONDS_PER_DAY + MICROSECONDS_PER_DAY - 1);
             default -> throw new IllegalStateException("Unexpected timestamp type: " + type);
         };
+    }
+
+    public static void failOnNonPositiveDivisor(@Borrow ColumnVector dividendColumn, @Borrow ColumnVector divisorColumn)
+    {
+        // Reject a non-positive divisor, but only where the dividend is non-null: a null dividend
+        // yields null regardless of the divisor.
+        try (Scalar zero = Scalar.fromLong(0);
+                ColumnVector dividendNotNull = dividendColumn.isNotNull()) {
+            try (ColumnVector negativeDivisor = divisorColumn.binaryOp(LESS, zero, DType.BOOL8);
+                    ColumnVector negativeAndPresent = negativeDivisor.binaryOp(NULL_LOGICAL_AND, dividendNotNull, DType.BOOL8)) {
+                if (anyTrue(negativeAndPresent)) {
+                    throw new TrinoException(NOT_SUPPORTED, "Negative divisor is not supported");
+                }
+            }
+            try (ColumnVector zeroDivisor = divisorColumn.equalTo(zero);
+                    ColumnVector zeroAndPresent = zeroDivisor.binaryOp(NULL_LOGICAL_AND, dividendNotNull, DType.BOOL8)) {
+                if (anyTrue(zeroAndPresent)) {
+                    throw new TrinoException(DIVISION_BY_ZERO, "Division by zero");
+                }
+            }
+        }
     }
 }

@@ -19,7 +19,6 @@ import ai.rapids.cudf.DType;
 import ai.rapids.cudf.Scalar;
 import com.google.common.collect.ImmutableList;
 import io.trino.plugin.base.gpu.ClosingRef;
-import io.trino.spi.TrinoException;
 import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
 
@@ -30,14 +29,10 @@ import java.util.Objects;
 import static ai.rapids.cudf.BinaryOp.ADD;
 import static ai.rapids.cudf.BinaryOp.DIV;
 import static ai.rapids.cudf.BinaryOp.GREATER_EQUAL;
-import static ai.rapids.cudf.BinaryOp.LESS;
 import static ai.rapids.cudf.BinaryOp.MOD;
-import static ai.rapids.cudf.BinaryOp.NULL_LOGICAL_AND;
-import static io.trino.operator.gpu.expression.CudfUtils.anyTrue;
+import static io.trino.operator.gpu.expression.CudfUtils.failOnNonPositiveDivisor;
 import static io.trino.operator.gpu.expression.GpuExpressions.anyNullOnNullInputs;
 import static io.trino.operator.gpu.expression.GpuExpressions.nullSkippingCheck;
-import static io.trino.spi.StandardErrorCode.DIVISION_BY_ZERO;
-import static io.trino.spi.StandardErrorCode.NOT_SUPPORTED;
 import static java.util.Objects.requireNonNull;
 
 /// GPU counterpart of the `$divide_round_to_scale` scalar
@@ -64,7 +59,7 @@ public final class GpuDivideRoundToScale
     {
         try (ColumnVector dividendColumn = dividend.evaluate(positionCount, inputColumns, bindings);
                 ColumnVector divisorColumn = divisor.evaluate(positionCount, inputColumns, bindings)) {
-            failOnInvalidDivisor(dividendColumn, divisorColumn);
+            failOnNonPositiveDivisor(dividendColumn, divisorColumn);
 
             // Work on the unscaled 128-bit integers. The rounding intermediates are confined to the
             // roundingBump helpers so they are freed as soon as they are consumed, keeping only a few
@@ -105,27 +100,6 @@ public final class GpuDivideRoundToScale
     public int hashCode()
     {
         return Objects.hash(getClass(), dividend, divisor);
-    }
-
-    private static void failOnInvalidDivisor(ColumnVector dividendColumn, ColumnVector divisorColumn)
-    {
-        // Reject a non-positive divisor, but only where the dividend is non-null: a null dividend
-        // yields null regardless of the divisor.
-        try (Scalar zero = Scalar.fromLong(0);
-                ColumnVector dividendNotNull = dividendColumn.isNotNull()) {
-            try (ColumnVector negativeDivisor = divisorColumn.binaryOp(LESS, zero, DType.BOOL8);
-                    ColumnVector negativeAndPresent = negativeDivisor.binaryOp(NULL_LOGICAL_AND, dividendNotNull, DType.BOOL8)) {
-                if (anyTrue(negativeAndPresent)) {
-                    throw new TrinoException(NOT_SUPPORTED, "Negative divisor is not supported");
-                }
-            }
-            try (ColumnVector zeroDivisor = divisorColumn.equalTo(zero);
-                    ColumnVector zeroAndPresent = zeroDivisor.binaryOp(NULL_LOGICAL_AND, dividendNotNull, DType.BOOL8)) {
-                if (anyTrue(zeroAndPresent)) {
-                    throw new TrinoException(DIVISION_BY_ZERO, "Division by zero");
-                }
-            }
-        }
     }
 
     // +1 / -1 following the dividend's sign, applied only where 2 * |remainder| >= divisor
