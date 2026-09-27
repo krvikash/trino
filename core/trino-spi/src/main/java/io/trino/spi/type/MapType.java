@@ -671,6 +671,7 @@ public class MapType
                 offset++;
             }
             else {
+                slice[offset] = 0;
                 // skip null byte
                 offset++;
                 keyWriteFlat.invokeExact(
@@ -691,6 +692,7 @@ public class MapType
                 offset++;
             }
             else {
+                slice[offset] = 0;
                 // skip null byte
                 offset++;
                 valueWriteFlat.invokeExact(
