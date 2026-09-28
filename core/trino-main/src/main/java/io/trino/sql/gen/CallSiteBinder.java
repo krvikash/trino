@@ -67,11 +67,6 @@ public final class CallSiteBinder
         return new CallSiteBinder(CallSiteBinder.class.getClassLoader(), true);
     }
 
-    public boolean isHiddenClassGeneration()
-    {
-        return hiddenClassGeneration;
-    }
-
     public Binding bind(MethodHandle method)
     {
         return methodHandleBindings.computeIfAbsent(method, handle -> {

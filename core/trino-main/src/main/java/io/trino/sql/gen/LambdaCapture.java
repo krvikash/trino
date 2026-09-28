@@ -70,26 +70,20 @@ public final class LambdaCapture
         try {
             // The implementation method is identified by name and type instead of a constant
             // method handle: a hidden class cannot resolve a constant pool entry that names
-            // itself, but the full-privilege caller lookup can always find the method.
-            // The receiver type names the declaring class, which is not always the caller:
-            // an expression split across chunk classes invokes a lambda declared on the main
-            // class. A hidden caller cannot name itself, so it erases the receiver to Object
-            // and the implementation method is its own.
-            Class<?> implClass = type.parameterType(0);
-            if (implClass == Object.class) {
-                implClass = callerLookup.lookupClass();
-            }
-            MethodHandle implMethod = callerLookup.findVirtual(implClass, implMethodName, implMethodType);
+            // itself, but the full-privilege caller lookup can always find its own methods.
+            Class<?> callerClass = callerLookup.lookupClass();
+            MethodHandle implMethod = callerLookup.findVirtual(callerClass, implMethodName, implMethodType);
 
-            if (implClass.isHidden()) {
+            if (callerClass.isHidden()) {
                 // LambdaMetafactory cannot name a hidden implementation class in the proxy
                 // it spins, so generate the proxy ourselves around the method handle
                 return generateLambdaProxy(callerLookup, name, type, samMethodType, implMethod);
             }
 
-            // The metafactory requires the precise receiver type, so restore it and adapt
-            // the resulting factory back to the call site type.
-            MethodType factoryType = type.changeParameterType(0, implClass);
+            // The receiver is captured as Object in the invoked type. The metafactory
+            // requires the precise receiver type, so restore it and adapt the resulting
+            // factory back to the call site type.
+            MethodType factoryType = type.changeParameterType(0, callerClass);
             // delegate to metafactory, we may choose to generate code ourselves in the future.
             CallSite callSite = LambdaMetafactory.metafactory(
                     callerLookup,

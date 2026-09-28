@@ -197,6 +197,7 @@ public final class LambdaBytecodeGenerator
                 .ret(returnType);
 
         return new CompiledLambda(
+                classDefinition,
                 method.getName(),
                 getMethodType(method.getMethodDescriptor()),
                 method.getReturnType(),
@@ -233,16 +234,10 @@ public final class LambdaBytecodeGenerator
             captureVariableBuilder.add(valueVariable);
         }
 
-        // The receiver type tells the bootstrap which class declares the lambda method, which
-        // is the main class even when the expression is split across chunk classes. A hidden
-        // class cannot mention its own name in the invokedynamic descriptor, so there the
-        // receiver is erased to Object and the bootstrap resolves the method on the caller.
-        BytecodeExpression lambdaReference = context.getExpressionCompiler().mainReference();
-        if (context.getCallSiteBinder().isHiddenClassGeneration()) {
-            lambdaReference = lambdaReference.cast(Object.class);
-        }
+        // `this` is captured as Object: a hidden class cannot mention its own name in the
+        // invokedynamic descriptor, so the bootstrap re-casts the receiver via MethodHandle.asType
         List<BytecodeExpression> captureVariables = ImmutableList.<BytecodeExpression>builder()
-                .add(lambdaReference, scope.getVariable("session"))
+                .add(context.getExpressionCompiler().mainReference().cast(Object.class), scope.getVariable("session"))
                 .addAll(captureVariableBuilder.build())
                 .build();
 
@@ -253,19 +248,53 @@ public final class LambdaBytecodeGenerator
                         .map(ParameterizedType::getAsmType)
                         .toArray(Type[]::new));
 
-        block.append(
-                invokeDynamic(
-                        LAMBDA_CAPTURE_METHOD,
-                        ImmutableList.of(
-                                getType(getSingleApplyMethod(lambdaInterface)),
-                                compiledLambda.getMethodName(),
-                                compiledLambda.getMethodAsmType(),
-                                instantiatedMethodAsmType),
-                        "apply",
-                        type(lambdaInterface),
-                        captureVariables));
+        List<Object> bootstrapArguments = ImmutableList.of(
+                getType(getSingleApplyMethod(lambdaInterface)),
+                compiledLambda.getMethodName(),
+                compiledLambda.getMethodAsmType(),
+                instantiatedMethodAsmType);
+        if (context.getClassDefinition().equals(compiledLambda.getDeclaringClass())) {
+            block.append(invokeDynamic(LAMBDA_CAPTURE_METHOD, bootstrapArguments, "apply", type(lambdaInterface), captureVariables));
+        }
+        else {
+            // A chunk class captures through a method of the main class, so the bootstrap caller
+            // is always the class declaring the lambda method. The main instance is the target.
+            MethodDefinition captureMethod = lambdaCaptureMethod(compiledLambda, lambdaInterface, captureTempVariables, bootstrapArguments);
+            block.append(context.getExpressionCompiler().mainReference().invoke(captureMethod, captureVariables.subList(1, captureVariables.size())));
+        }
         captureTempVariables.forEach(scope::releaseTempVariableForReuse);
         return block;
+    }
+
+    // Declares once per lambda a main class method holding the capture call site for chunk classes
+    private static MethodDefinition lambdaCaptureMethod(
+            CompiledLambda compiledLambda,
+            Class<?> lambdaInterface,
+            List<Variable> captureVariables,
+            List<Object> bootstrapArguments)
+    {
+        ClassDefinition mainClassDefinition = compiledLambda.getDeclaringClass();
+        String methodName = compiledLambda.getMethodName() + "$capture";
+        for (MethodDefinition method : mainClassDefinition.getMethods()) {
+            if (method.getName().equals(methodName)) {
+                return method;
+            }
+        }
+        ImmutableList.Builder<Parameter> parametersBuilder = ImmutableList.builder();
+        parametersBuilder.add(arg("session", ConnectorSession.class));
+        for (int i = 0; i < captureVariables.size(); i++) {
+            parametersBuilder.add(arg("capture_" + i, captureVariables.get(i).getType()));
+        }
+        List<Parameter> parameters = parametersBuilder.build();
+        MethodDefinition method = mainClassDefinition.declareMethod(a(PUBLIC), methodName, type(lambdaInterface), parameters);
+        List<BytecodeExpression> arguments = ImmutableList.<BytecodeExpression>builder()
+                .add(method.getThis().cast(Object.class))
+                .addAll(parameters)
+                .build();
+        method.getBody()
+                .append(invokeDynamic(LAMBDA_CAPTURE_METHOD, bootstrapArguments, "apply", type(lambdaInterface), arguments))
+                .retObject();
+        return method;
     }
 
     public static Class<? extends Supplier<Object>> compileLambdaProvider(Lambda lambdaExpression, FunctionManager functionManager, Metadata metadata, TypeManager typeManager, int maxMethodComplexity, CharVarcharCoercion charVarcharCoercion, Class<?> lambdaInterface)
@@ -396,21 +425,29 @@ public final class LambdaBytecodeGenerator
     public static class CompiledLambda
     {
         // lambda method information
+        private final ClassDefinition declaringClass;
         private final String methodName;
         private final Type methodAsmType;
         private final ParameterizedType returnType;
         private final List<ParameterizedType> parameterTypes;
 
         public CompiledLambda(
+                ClassDefinition declaringClass,
                 String methodName,
                 Type methodAsmType,
                 ParameterizedType returnType,
                 List<ParameterizedType> parameterTypes)
         {
+            this.declaringClass = requireNonNull(declaringClass, "declaringClass is null");
             this.methodName = requireNonNull(methodName, "methodName is null");
             this.methodAsmType = requireNonNull(methodAsmType, "methodAsmType is null");
             this.returnType = requireNonNull(returnType, "returnType is null");
             this.parameterTypes = ImmutableList.copyOf(requireNonNull(parameterTypes, "parameterTypes is null"));
+        }
+
+        public ClassDefinition getDeclaringClass()
+        {
+            return declaringClass;
         }
 
         public String getMethodName()
