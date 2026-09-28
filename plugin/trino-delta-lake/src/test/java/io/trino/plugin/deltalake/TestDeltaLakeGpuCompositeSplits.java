@@ -172,13 +172,13 @@ final class TestDeltaLakeGpuCompositeSplits
         long fileCount = fileCount(tableName);
 
         // Constants only
-        assertThat(query("SELECT part FROM " + tableName)).executesWithGpu(TableScanNode.class);
+        assertThat(query("SELECT part, count(*) FROM " + tableName + " GROUP BY part")).executesWithGpu(TableScanNode.class);
         // Parquet columns and constants
-        assertThat(query("SELECT id, part FROM " + tableName)).executesWithGpu(TableScanNode.class);
+        assertThat(query("SELECT part, count(*), sum(id) FROM " + tableName + " GROUP BY part")).executesWithGpu(TableScanNode.class);
         assertThat(gpuScanSplitCount("SELECT id, part FROM " + tableName)).isBetween(1L, fileCount - 1);
         // Delta Lake has no file statistics for boolean columns, so the second insert's files stay in the
         // composite, but all their row groups are pruned, leaving files without rows between the others
-        assertThat(query("SELECT id, part FROM " + tableName + " WHERE flag")).executesWithGpu(TableScanNode.class);
+        assertThat(query("SELECT part, count(*), sum(id) FROM " + tableName + " WHERE flag GROUP BY part")).executesWithGpu(TableScanNode.class);
 
         assertUpdate("DROP TABLE " + tableName);
     }
