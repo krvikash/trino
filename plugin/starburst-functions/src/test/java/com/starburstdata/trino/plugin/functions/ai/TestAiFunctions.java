@@ -276,9 +276,9 @@ public class TestAiFunctions
                     r(review, label) AS (
                         VALUES
                             ('The product is amazing' || CHR(10) || 'The best thing since sliced bread!', 'positive'),
-                            ('I hate this product passionately!', 'negative'),
+                            ('I hate this product, it broke on the first day', 'negative'),
                             ('', null),
-                            ('I like the taste but it smells bad', 'mixed'),
+                            ('The taste is great but the smell is awful', 'mixed'),
                             (null, null),
                             ('I could take it or leave it', 'neutral')
                     ),
