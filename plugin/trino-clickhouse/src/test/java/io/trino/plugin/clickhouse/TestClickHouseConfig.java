@@ -28,6 +28,7 @@ package io.trino.plugin.clickhouse;
  */
 
 import com.google.common.collect.ImmutableMap;
+import jakarta.validation.constraints.AssertTrue;
 import org.junit.jupiter.api.Test;
 
 import java.util.Map;
@@ -35,6 +36,7 @@ import java.util.Map;
 import static io.airlift.configuration.testing.ConfigAssertions.assertFullMapping;
 import static io.airlift.configuration.testing.ConfigAssertions.assertRecordedDefaults;
 import static io.airlift.configuration.testing.ConfigAssertions.recordDefaults;
+import static io.airlift.testing.ValidationAssertions.assertFailsValidation;
 
 public class TestClickHouseConfig
 {
@@ -43,7 +45,8 @@ public class TestClickHouseConfig
     {
         assertRecordedDefaults(recordDefaults(ClickHouseConfig.class)
                 .setMapStringAsVarchar(false)
-                .setAllowTimestampUnsafeCastPushdown(false));
+                .setAllowTimestampUnsafeCastPushdown(false)
+                .setClusterName(null));
     }
 
     @Test
@@ -52,12 +55,24 @@ public class TestClickHouseConfig
         Map<String, String> properties = ImmutableMap.<String, String>builder()
                 .put("clickhouse.map-string-as-varchar", "true")
                 .put("clickhouse.allow-timestamp-unsafe-cast-pushdown", "true")
+                .put("clickhouse.cluster-name", "test_cluster")
                 .buildOrThrow();
 
         ClickHouseConfig expected = new ClickHouseConfig()
                 .setMapStringAsVarchar(true)
-                .setAllowTimestampUnsafeCastPushdown(true);
+                .setAllowTimestampUnsafeCastPushdown(true)
+                .setClusterName("test_cluster");
 
         assertFullMapping(properties, expected);
+    }
+
+    @Test
+    public void testClusterName()
+    {
+        assertFailsValidation(
+                new ClickHouseConfig().setClusterName(" "),
+                "clusterNameValid",
+                "clickhouse.cluster-name must not be blank",
+                AssertTrue.class);
     }
 }
