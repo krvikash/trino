@@ -1935,6 +1935,19 @@ jobs:
           name: product tests junit m2 io.trino
           path: ~/.m2/repository/io/trino
           retention-days: 1
+      # pt-junit runs the suites from these classes instead of compiling its own. Compiling filters
+      # `git describe` into trino-cli-version.txt, and if the commit is tagged after this job checks
+      # out, a later checkout describes it differently from the CLI built here.
+      - name: Product tests JUnit classes
+        uses: actions/upload-artifact@v7
+        with:
+          name: product tests junit classes
+          path: |
+            testing/trino-product-tests/target/classes
+            testing/trino-product-tests/target/test-classes
+          # the OAuth2 proxy environments mount .htpasswd files from the test resources
+          include-hidden-files: true
+          retention-days: 1
       - id: set-junit-matrix
         run: |
           .github/bin/build-pt-junit-matrix.py > matrix-junit.json
@@ -2144,9 +2157,11 @@ jobs:
           gzip -dc product-tests-trino-image.tar.gz | docker load
           version=$($MAVEN -f pom.xml --quiet help:evaluate -Dexpression=project.version -DforceStdout --raw-streams)
           docker tag "product-tests-trino:${version}-amd64" trinodb/trino:latest
-      - name: Compile JUnit product test suites
-        run: |
-          $MAVEN -pl testing/trino-product-tests -Dair.check.skip-all=true -DskipTests test-compile
+      - name: Product tests JUnit classes
+        uses: actions/download-artifact@v8
+        with:
+          name: product tests junit classes
+          path: testing/trino-product-tests/target
       - name: Product Tests (JUnit suites)
         id: tests
         shell: bash
