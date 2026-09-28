@@ -390,6 +390,14 @@ public final class GpuExpressionCompiler
                 }
             }
 
+            if (name.equals("upper") && call.arguments().size() == 1) {
+                Expression argument = getOnlyElement(call.arguments());
+                if (argument.type() instanceof VarcharType || argument.type() instanceof CharType) {
+                    return argument.accept(this, context)
+                            .map(GpuUpper::new);
+                }
+            }
+
             // TODO: add substring support for char(x)
             if (name.equals("substring") && call.arguments().getFirst().type() instanceof VarcharType) {
                 return compileSubstring(call, context);
