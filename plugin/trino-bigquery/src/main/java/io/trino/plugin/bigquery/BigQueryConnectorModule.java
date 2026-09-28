@@ -91,7 +91,7 @@ public class BigQueryConnectorModule
             // BigQuery related
             binder.bind(BigQueryReadClientFactory.class).in(Scopes.SINGLETON);
             binder.bind(BigQueryWriteClientFactory.class).in(Scopes.SINGLETON);
-            binder.bind(BigQueryClientFactory.class).in(Scopes.SINGLETON);
+            bindBigQueryClientFactory(binder);
             binder.bind(BigQueryTypeManager.class).in(Scopes.SINGLETON);
 
             // Connector implementation
@@ -133,6 +133,12 @@ public class BigQueryConnectorModule
 
             closingBinder(binder).registerExecutor(ListeningExecutorService.class);
             closingBinder(binder).registerExecutor(Key.get(ExecutorService.class, ForBigQueryPageSource.class));
+        }
+
+        // Overridable so an extending connector can supply its own BigQueryClientFactory binding.
+        protected void bindBigQueryClientFactory(Binder binder)
+        {
+            binder.bind(BigQueryClientFactory.class).in(Scopes.SINGLETON);
         }
 
         @Provides
