@@ -768,18 +768,13 @@ IR version = 1
             ^predicate (%446 : "row(bigint,integer,integer,varchar)")
                 %447 = field_reference(%446) : ("row(bigint,integer,integer,varchar)") -> "varchar" ()
                     {field_reference:index = "3", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %448 = constant() : () -> "varchar" ()
-                    {constant:value = "[type=varchar, value=breakfast]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %449 = constant() : () -> "varchar" ()
-                    {constant:value = "[type=varchar, value=dinner]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %450 = array(%448, %449) : ("varchar", "varchar") -> "array(varchar)" ()
-                    {array:element_type = "varchar", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
+                %450 = constant() : () -> "array(varchar)" ()
+                    {constant:value = "[type=array(varchar), value=[breakfast, dinner]]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %451 = in(%447, %450) : ("varchar", "array(varchar)") -> "boolean" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %452 = return(%451) : ("boolean") -> "boolean" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
             })
-            {ir.has_side_effects = "false", ir.safe = "true"}
         %453 = project(%445) : ("multiset(row(bigint,integer,integer,varchar))") -> "multiset(row(bigint,integer,integer))" ({
             ^assignments (%454 : "row(bigint,integer,integer,varchar)")
                 %455 = field_reference(%454) : ("row(bigint,integer,integer,varchar)") -> "bigint" ()

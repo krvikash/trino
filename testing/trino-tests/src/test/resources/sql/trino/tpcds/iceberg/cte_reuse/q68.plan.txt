@@ -338,18 +338,13 @@ IR version = 1
             ^predicate (%172 : "row(bigint,varchar)")
                 %173 = field_reference(%172) : ("row(bigint,varchar)") -> "varchar" ()
                     {field_reference:index = "1", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %174 = constant() : () -> "varchar" ()
-                    {constant:value = "[type=varchar, value=Fairview]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %175 = constant() : () -> "varchar" ()
-                    {constant:value = "[type=varchar, value=Midway]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %176 = array(%174, %175) : ("varchar", "varchar") -> "array(varchar)" ()
-                    {array:element_type = "varchar", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
+                %176 = constant() : () -> "array(varchar)" ()
+                    {constant:value = "[type=array(varchar), value=[Fairview, Midway]]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %177 = in(%173, %176) : ("varchar", "array(varchar)") -> "boolean" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %178 = return(%177) : ("boolean") -> "boolean" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
             })
-            {ir.has_side_effects = "false", ir.safe = "true"}
         %179 = project(%171) : ("multiset(row(bigint,varchar))") -> "multiset(row(bigint))" ({
             ^assignments (%180 : "row(bigint,varchar)")
                 %181 = field_reference(%180) : ("row(bigint,varchar)") -> "bigint" ()

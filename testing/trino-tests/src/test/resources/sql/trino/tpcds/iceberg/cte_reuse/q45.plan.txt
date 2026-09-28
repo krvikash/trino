@@ -5,45 +5,45 @@ IR version = 1
             {table_scan:table_handle = "local:tpcds_sf1000_parquet_part.web_sales$data@6086383195474739821", table_scan:column_handles = "3:ws_item_sk:bigint, 4:ws_bill_customer_sk:bigint, 21:ws_sales_price:decimal(7,2), 34:ws_sold_date_sk:bigint", table_scan:constraint = "ALL", table_scan:update_target = "false", table_scan:use_connector_node_partitioning = "false", table_scan:row_type = "row(bigint,bigint,decimal(7,2),bigint)", ir.has_side_effects = "false", ir.safe = "true"}
         %2 = filter(%1) : ("multiset(row(bigint,bigint,decimal(7,2),bigint))") -> "multiset(row(bigint,bigint,decimal(7,2),bigint))" ({
             ^predicate (%3 : "row(bigint,bigint,decimal(7,2),bigint)")
-                %812 = field_reference(%3) : ("row(bigint,bigint,decimal(7,2),bigint)") -> "bigint" ()
+                %772 = field_reference(%3) : ("row(bigint,bigint,decimal(7,2),bigint)") -> "bigint" ()
                     {field_reference:index = "1"}
-                %813 = constant() : () -> "varchar" ()
+                %773 = constant() : () -> "varchar" ()
                     {constant:value = "[type=varchar, value=EQUAL]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %814 = constant() : () -> "varchar" ()
+                %774 = constant() : () -> "varchar" ()
                     {constant:value = "[type=varchar, value=df_1163]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %815 = constant() : () -> "boolean" ()
+                %775 = constant() : () -> "boolean" ()
                     {constant:value = "[type=boolean, value=false]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %816 = constant() : () -> "integer" ()
+                %776 = constant() : () -> "integer" ()
                     {constant:value = "[type=integer, value=0]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %817 = call(%812, %813, %814, %815, %816) : ("bigint", "varchar", "varchar", "boolean", "integer") -> "boolean" ()
+                %777 = call(%772, %773, %774, %775, %776) : ("bigint", "varchar", "varchar", "boolean", "integer") -> "boolean" ()
                     {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$internal$dynamic_filter_function""},""returnType"":""boolean"",""argumentTypes"":[""bigint"",""varchar"",""varchar"",""boolean"",""integer""]},""catalogHandle"":""system:normal:system"",""functionId"":""$internal$dynamic_filter_function<t>(t,varchar,varchar,boolean,integer):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":false,""functionNullability"":{""returnNullable"":false,""argumentNullable"":[false,false,false,false,true]},""typeDependencies"":{},""functionDependencies"":[]}"}
-                %819 = field_reference(%3) : ("row(bigint,bigint,decimal(7,2),bigint)") -> "bigint" ()
+                %779 = field_reference(%3) : ("row(bigint,bigint,decimal(7,2),bigint)") -> "bigint" ()
                     {field_reference:index = "0"}
-                %820 = constant() : () -> "varchar" ()
+                %780 = constant() : () -> "varchar" ()
                     {constant:value = "[type=varchar, value=EQUAL]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %821 = constant() : () -> "varchar" ()
+                %781 = constant() : () -> "varchar" ()
                     {constant:value = "[type=varchar, value=df_1164]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %822 = constant() : () -> "boolean" ()
+                %782 = constant() : () -> "boolean" ()
                     {constant:value = "[type=boolean, value=false]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %823 = constant() : () -> "integer" ()
+                %783 = constant() : () -> "integer" ()
                     {constant:value = "[type=integer, value=0]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %824 = call(%819, %820, %821, %822, %823) : ("bigint", "varchar", "varchar", "boolean", "integer") -> "boolean" ()
+                %784 = call(%779, %780, %781, %782, %783) : ("bigint", "varchar", "varchar", "boolean", "integer") -> "boolean" ()
                     {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$internal$dynamic_filter_function""},""returnType"":""boolean"",""argumentTypes"":[""bigint"",""varchar"",""varchar"",""boolean"",""integer""]},""catalogHandle"":""system:normal:system"",""functionId"":""$internal$dynamic_filter_function<t>(t,varchar,varchar,boolean,integer):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":false,""functionNullability"":{""returnNullable"":false,""argumentNullable"":[false,false,false,false,true]},""typeDependencies"":{},""functionDependencies"":[]}"}
-                %826 = field_reference(%3) : ("row(bigint,bigint,decimal(7,2),bigint)") -> "bigint" ()
+                %786 = field_reference(%3) : ("row(bigint,bigint,decimal(7,2),bigint)") -> "bigint" ()
                     {field_reference:index = "3"}
-                %827 = constant() : () -> "varchar" ()
+                %787 = constant() : () -> "varchar" ()
                     {constant:value = "[type=varchar, value=EQUAL]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %828 = constant() : () -> "varchar" ()
+                %788 = constant() : () -> "varchar" ()
                     {constant:value = "[type=varchar, value=df_1165]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %829 = constant() : () -> "boolean" ()
+                %789 = constant() : () -> "boolean" ()
                     {constant:value = "[type=boolean, value=false]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %830 = constant() : () -> "integer" ()
+                %790 = constant() : () -> "integer" ()
                     {constant:value = "[type=integer, value=20000]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %831 = call(%826, %827, %828, %829, %830) : ("bigint", "varchar", "varchar", "boolean", "integer") -> "boolean" ()
+                %791 = call(%786, %787, %788, %789, %790) : ("bigint", "varchar", "varchar", "boolean", "integer") -> "boolean" ()
                     {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$internal$dynamic_filter_function""},""returnType"":""boolean"",""argumentTypes"":[""bigint"",""varchar"",""varchar"",""boolean"",""integer""]},""catalogHandle"":""system:normal:system"",""functionId"":""$internal$dynamic_filter_function<t>(t,varchar,varchar,boolean,integer):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":false,""functionNullability"":{""returnNullable"":false,""argumentNullable"":[false,false,false,false,true]},""typeDependencies"":{},""functionDependencies"":[]}"}
-                %835 = logical(%817, %824, %831) : ("boolean", "boolean", "boolean") -> "boolean" ()
+                %795 = logical(%777, %784, %791) : ("boolean", "boolean", "boolean") -> "boolean" ()
                     {logical:operator = "AND"}
-                %836 = return(%835) : ("boolean") -> "boolean" ()
+                %796 = return(%795) : ("boolean") -> "boolean" ()
                     {ir.terminal = "true"}
             })
         %24 = table_scan() : () -> "multiset(row(bigint,integer,integer))" ()
@@ -166,8 +166,8 @@ IR version = 1
             ^dynamicFilterTargetSelector (%84 : "row(bigint)")
                 %85 = field_reference(%84) : ("row(bigint)") -> "bigint" ()
                     {field_reference:index = "0", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %868 = row(%85) : ("bigint") -> "row(bigint)" ()
-                %869 = return(%868) : ("row(bigint)") -> "row(bigint)" ()
+                %828 = row(%85) : ("bigint") -> "row(bigint)" ()
+                %829 = return(%828) : ("row(bigint)") -> "row(bigint)" ()
                     {ir.terminal = "true"}
             })
             {join:type = "INNER", join:may_skip_output_duplicates = "false", join:distribution_type = "REPLICATED", join:dynamic_filter_ids = "[""df_1165""]", join:statistics_and_cost_summary = "{""outputRowCount"":5.062428004666214E7,""outputSizeInBytes"":1.3666531643689632E9,""cpuCost"":5.320083986951525E10,""memoryCost"":9251.362958917474,""networkCost"":9251.362958917474}"}
@@ -265,8 +265,8 @@ IR version = 1
             ^dynamicFilterTargetSelector (%135 : "row(bigint,varchar)")
                 %136 = field_reference(%135) : ("row(bigint,varchar)") -> "bigint" ()
                     {field_reference:index = "0", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %870 = row(%136) : ("bigint") -> "row(bigint)" ()
-                %871 = return(%870) : ("row(bigint)") -> "row(bigint)" ()
+                %830 = row(%136) : ("bigint") -> "row(bigint)" ()
+                %831 = return(%830) : ("row(bigint)") -> "row(bigint)" ()
                     {ir.terminal = "true"}
             })
             {join:type = "INNER", join:may_skip_output_duplicates = "false", join:distribution_type = "REPLICATED", join:dynamic_filter_ids = "[""df_1164""]", join:statistics_and_cost_summary = "{""outputRowCount"":5.062428004666214E7,""outputSizeInBytes"":1.4553089348006802E9,""cpuCost"":5.612353334368489E10,""memoryCost"":4.7412251362958916E7,""networkCost"":4.7412251362958916E7}"}
@@ -302,19 +302,19 @@ IR version = 1
             {table_scan:table_handle = "local:tpcds_sf1000_parquet_part.customer$data@2201162249508106077", table_scan:column_handles = "1:c_customer_sk:bigint, 5:c_current_addr_sk:bigint", table_scan:constraint = "ALL", table_scan:update_target = "false", table_scan:use_connector_node_partitioning = "false", table_scan:row_type = "row(bigint,bigint)", ir.has_side_effects = "false", ir.safe = "true"}
         %154 = filter(%153) : ("multiset(row(bigint,bigint))") -> "multiset(row(bigint,bigint))" ({
             ^predicate (%155 : "row(bigint,bigint)")
-                %853 = field_reference(%155) : ("row(bigint,bigint)") -> "bigint" ()
+                %813 = field_reference(%155) : ("row(bigint,bigint)") -> "bigint" ()
                     {field_reference:index = "1"}
-                %854 = constant() : () -> "varchar" ()
+                %814 = constant() : () -> "varchar" ()
                     {constant:value = "[type=varchar, value=EQUAL]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %855 = constant() : () -> "varchar" ()
+                %815 = constant() : () -> "varchar" ()
                     {constant:value = "[type=varchar, value=df_1174]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %856 = constant() : () -> "boolean" ()
+                %816 = constant() : () -> "boolean" ()
                     {constant:value = "[type=boolean, value=false]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %857 = constant() : () -> "integer" ()
+                %817 = constant() : () -> "integer" ()
                     {constant:value = "[type=integer, value=0]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %858 = call(%853, %854, %855, %856, %857) : ("bigint", "varchar", "varchar", "boolean", "integer") -> "boolean" ()
+                %818 = call(%813, %814, %815, %816, %817) : ("bigint", "varchar", "varchar", "boolean", "integer") -> "boolean" ()
                     {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""$internal$dynamic_filter_function""},""returnType"":""boolean"",""argumentTypes"":[""bigint"",""varchar"",""varchar"",""boolean"",""integer""]},""catalogHandle"":""system:normal:system"",""functionId"":""$internal$dynamic_filter_function<t>(t,varchar,varchar,boolean,integer):boolean"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":false,""functionNullability"":{""returnNullable"":false,""argumentNullable"":[false,false,false,false,true]},""typeDependencies"":{},""functionDependencies"":[]}"}
-                %863 = return(%858) : ("boolean") -> "boolean" ()
+                %823 = return(%818) : ("boolean") -> "boolean" ()
                     {ir.terminal = "true"}
             })
         %163 = exchange(%154) : ("multiset(row(bigint,bigint))") -> "multiset(row(bigint,bigint))" ({
@@ -443,8 +443,8 @@ IR version = 1
             ^dynamicFilterTargetSelector (%226 : "row(bigint,varchar,varchar)")
                 %227 = field_reference(%226) : ("row(bigint,varchar,varchar)") -> "bigint" ()
                     {field_reference:index = "0", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %872 = row(%227) : ("bigint") -> "row(bigint)" ()
-                %873 = return(%872) : ("row(bigint)") -> "row(bigint)" ()
+                %832 = row(%227) : ("bigint") -> "row(bigint)" ()
+                %833 = return(%832) : ("row(bigint)") -> "row(bigint)" ()
                     {ir.terminal = "true"}
             })
             {join:type = "INNER", join:may_skip_output_duplicates = "false", join:distribution_type = "PARTITIONED", join:dynamic_filter_ids = "[""df_1174""]", join:statistics_and_cost_summary = "{""outputRowCount"":1.2E7,""outputSizeInBytes"":3.19970402E8,""cpuCost"":1.607911206E9,""memoryCost"":1.59985201E8,""networkCost"":3.75985201E8}"}
@@ -548,8 +548,8 @@ IR version = 1
             ^dynamicFilterTargetSelector (%280 : "row(bigint,varchar,varchar)")
                 %281 = field_reference(%280) : ("row(bigint,varchar,varchar)") -> "bigint" ()
                     {field_reference:index = "0", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %874 = row(%281) : ("bigint") -> "row(bigint)" ()
-                %875 = return(%874) : ("row(bigint)") -> "row(bigint)" ()
+                %834 = row(%281) : ("bigint") -> "row(bigint)" ()
+                %835 = return(%834) : ("row(bigint)") -> "row(bigint)" ()
                     {ir.terminal = "true"}
             })
             {join:type = "INNER", join:may_skip_output_duplicates = "false", join:distribution_type = "PARTITIONED", join:dynamic_filter_ids = "[""df_1163""]", join:statistics_and_cost_summary = "{""outputRowCount"":5.071587911345198E7,""outputSizeInBytes"":1.897456013105249E9,""cpuCost"":6.34994296383915E10,""memoryCost"":5.273678543629589E8,""networkCost"":2.198676789163639E9}"}
@@ -559,34 +559,13 @@ IR version = 1
             ^predicate (%286 : "row(bigint,varchar)")
                 %287 = field_reference(%286) : ("row(bigint,varchar)") -> "bigint" ()
                     {field_reference:index = "0", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %288 = constant() : () -> "bigint" ()
-                    {constant:value = "[type=bigint, value=2]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %289 = constant() : () -> "bigint" ()
-                    {constant:value = "[type=bigint, value=3]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %290 = constant() : () -> "bigint" ()
-                    {constant:value = "[type=bigint, value=5]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %291 = constant() : () -> "bigint" ()
-                    {constant:value = "[type=bigint, value=7]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %292 = constant() : () -> "bigint" ()
-                    {constant:value = "[type=bigint, value=11]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %293 = constant() : () -> "bigint" ()
-                    {constant:value = "[type=bigint, value=13]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %294 = constant() : () -> "bigint" ()
-                    {constant:value = "[type=bigint, value=17]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %295 = constant() : () -> "bigint" ()
-                    {constant:value = "[type=bigint, value=19]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %296 = constant() : () -> "bigint" ()
-                    {constant:value = "[type=bigint, value=23]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %297 = constant() : () -> "bigint" ()
-                    {constant:value = "[type=bigint, value=29]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %298 = array(%288, %289, %290, %291, %292, %293, %294, %295, %296, %297) : ("bigint", "bigint", "bigint", "bigint", "bigint", "bigint", "bigint", "bigint", "bigint", "bigint") -> "array(bigint)" ()
-                    {array:element_type = "bigint", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
+                %298 = constant() : () -> "array(bigint)" ()
+                    {constant:value = "[type=array(bigint), value=[2, 3, 5, 7, 11, 13, 17, 19, 23, 29]]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %299 = in(%287, %298) : ("bigint", "array(bigint)") -> "boolean" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %300 = return(%299) : ("boolean") -> "boolean" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
             })
-            {ir.has_side_effects = "false", ir.safe = "true"}
         %301 = project(%285) : ("multiset(row(bigint,varchar))") -> "multiset(row(varchar))" ({
             ^assignments (%302 : "row(bigint,varchar)")
                 %303 = field_reference(%302) : ("row(bigint,varchar)") -> "varchar" ()
@@ -685,26 +664,8 @@ IR version = 1
                     {constant:value = "[type=bigint, value=5]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %350 = call(%347, %348, %349) : ("varchar", "bigint", "bigint") -> "varchar" ()
                     {call:resolved_function = "{""signature"":{""name"":{""catalogName"":""system"",""schemaName"":""builtin"",""functionName"":""substring""},""returnType"":""varchar"",""argumentTypes"":[""varchar"",""bigint"",""bigint""]},""catalogHandle"":""system:normal:system"",""functionId"":""substring(varchar(x),bigint,bigint):varchar(x)"",""functionKind"":""SCALAR"",""deterministic"":true,""neverFails"":true,""functionNullability"":{""returnNullable"":false,""argumentNullable"":[false,false,false]},""typeDependencies"":{},""functionDependencies"":[]}", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %351 = constant() : () -> "varchar" ()
-                    {constant:value = "[type=varchar, value=85669]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %352 = constant() : () -> "varchar" ()
-                    {constant:value = "[type=varchar, value=86197]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %353 = constant() : () -> "varchar" ()
-                    {constant:value = "[type=varchar, value=88274]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %354 = constant() : () -> "varchar" ()
-                    {constant:value = "[type=varchar, value=83405]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %355 = constant() : () -> "varchar" ()
-                    {constant:value = "[type=varchar, value=86475]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %356 = constant() : () -> "varchar" ()
-                    {constant:value = "[type=varchar, value=85392]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %357 = constant() : () -> "varchar" ()
-                    {constant:value = "[type=varchar, value=85460]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %358 = constant() : () -> "varchar" ()
-                    {constant:value = "[type=varchar, value=80348]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %359 = constant() : () -> "varchar" ()
-                    {constant:value = "[type=varchar, value=81792]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %360 = array(%351, %352, %353, %354, %355, %356, %357, %358, %359) : ("varchar", "varchar", "varchar", "varchar", "varchar", "varchar", "varchar", "varchar", "varchar") -> "array(varchar)" ()
-                    {array:element_type = "varchar", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
+                %360 = constant() : () -> "array(varchar)" ()
+                    {constant:value = "[type=array(varchar), value=[85669, 86197, 88274, 83405, 86475, 85392, 85460, 80348, 81792]]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %361 = in(%350, %360) : ("varchar", "array(varchar)") -> "boolean" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %362 = field_reference(%346) : ("row(decimal(7,2),varchar,varchar,boolean)") -> "boolean" ()
@@ -714,7 +675,6 @@ IR version = 1
                 %364 = return(%363) : ("boolean") -> "boolean" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
             })
-            {ir.has_side_effects = "false", ir.safe = "true"}
         %365 = project(%345) : ("multiset(row(decimal(7,2),varchar,varchar,boolean))") -> "multiset(row(decimal(7,2),varchar,varchar))" ({
             ^assignments (%366 : "row(decimal(7,2),varchar,varchar,boolean)")
                 %367 = field_reference(%366) : ("row(decimal(7,2),varchar,varchar,boolean)") -> "decimal(7,2)" ()

@@ -17,7 +17,9 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.trino.metadata.ResolvedFunction;
 import io.trino.metadata.TestingFunctionResolution;
+import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.function.OperatorType;
+import io.trino.spi.type.ArrayType;
 import io.trino.spi.type.RowType;
 import io.trino.spi.type.Type;
 import io.trino.sql.dialect.trino.Context;
@@ -65,6 +67,7 @@ import static io.trino.spi.type.DecimalType.createDecimalType;
 import static io.trino.spi.type.DoubleType.DOUBLE;
 import static io.trino.spi.type.EmptyRowType.EMPTY_ROW;
 import static io.trino.spi.type.RowType.anonymousRow;
+import static io.trino.spi.type.TypeUtils.writeNativeValue;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.sql.analyzer.TypeDescriptorProvider.fromTypes;
 import static io.trino.sql.dialect.ir.IrDialect.DEFAULT_BLOCK_PARAMETER_ATTRIBUTES;
@@ -591,6 +594,37 @@ class TestToOldIrScalarRewriter
                         returnOperation));
 
         assertRoundtrip(in, rewritten);
+    }
+
+    @Test
+    public void testInWithConstantValueList()
+    {
+        In in = new In(
+                new Reference(BIGINT, "b"),
+                ImmutableList.of(new Constant(BIGINT, 1L), new Constant(BIGINT, null), new Constant(BIGINT, 3L)));
+
+        FieldReference input = new FieldReference("%0", INPUT_ROW_PARAMETER, 1, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        BlockBuilder valueBuilder = BIGINT.createBlockBuilder(null, 3);
+        writeNativeValue(BIGINT, valueBuilder, 1L);
+        writeNativeValue(BIGINT, valueBuilder, null);
+        writeNativeValue(BIGINT, valueBuilder, 3L);
+        io.trino.sql.dialect.trino.operation.Constant valueList = new io.trino.sql.dialect.trino.operation.Constant(
+                "%1",
+                new ArrayType(BIGINT),
+                valueBuilder.build());
+        io.trino.sql.dialect.trino.operation.In inOperation = new io.trino.sql.dialect.trino.operation.In(
+                "%2",
+                input.result(),
+                valueList.result(),
+                ImmutableList.of(input.attributes(), valueList.attributes()));
+        Return returnOperation = new Return("%3", inOperation.result(), inOperation.attributes());
+        Block block = new Block(
+                Optional.empty(),
+                ImmutableList.of(INPUT_ROW_PARAMETER),
+                ImmutableList.of(input, valueList, inOperation, returnOperation));
+
+        assertThat(new ToOldIrScalarRewriter(emptySymbolAllocator()).toOldIr(block, ImmutableList.of(INPUT_SYMBOLS)))
+                .isEqualTo(in);
     }
 
     @Test

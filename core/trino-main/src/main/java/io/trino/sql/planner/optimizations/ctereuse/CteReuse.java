@@ -203,6 +203,8 @@ public class CteReuse
             return Optional.empty();
         }
 
+        program = InListConstantFolding.foldConstantInLists(program);
+
         // initialize the (operation -> downstream operations) map for the original program
         // it will be used to traverse the original program and will not be updated when we change parts of the program
         // TODO operations should be always compared scope-aware. Theoretically, there can be equal operations in different scopes of one plan. The keys and values of operationToDownstream should be (Operation, scope)

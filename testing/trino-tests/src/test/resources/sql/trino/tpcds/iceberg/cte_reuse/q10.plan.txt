@@ -661,24 +661,13 @@ IR version = 1
             ^predicate (%398 : "row(bigint,varchar)")
                 %399 = field_reference(%398) : ("row(bigint,varchar)") -> "varchar" ()
                     {field_reference:index = "1", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %400 = constant() : () -> "varchar" ()
-                    {constant:value = "[type=varchar, value=Dona Ana County]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %401 = constant() : () -> "varchar" ()
-                    {constant:value = "[type=varchar, value=Jefferson County]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %402 = constant() : () -> "varchar" ()
-                    {constant:value = "[type=varchar, value=La Porte County]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %403 = constant() : () -> "varchar" ()
-                    {constant:value = "[type=varchar, value=Rush County]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %404 = constant() : () -> "varchar" ()
-                    {constant:value = "[type=varchar, value=Toole County]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %405 = array(%400, %401, %402, %403, %404) : ("varchar", "varchar", "varchar", "varchar", "varchar") -> "array(varchar)" ()
-                    {array:element_type = "varchar", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
+                %405 = constant() : () -> "array(varchar)" ()
+                    {constant:value = "[type=array(varchar), value=[Dona Ana County, Jefferson County, La Porte County, Rush County, Toole County]]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %406 = in(%399, %405) : ("varchar", "array(varchar)") -> "boolean" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %407 = return(%406) : ("boolean") -> "boolean" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
             })
-            {ir.has_side_effects = "false", ir.safe = "true"}
         %408 = project(%397) : ("multiset(row(bigint,varchar))") -> "multiset(row(bigint))" ({
             ^assignments (%409 : "row(bigint,varchar)")
                 %410 = field_reference(%409) : ("row(bigint,varchar)") -> "bigint" ()

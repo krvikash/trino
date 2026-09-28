@@ -127,18 +127,13 @@ IR version = 1
             ^predicate (%64 : "row(bigint,varchar)")
                 %65 = field_reference(%64) : ("row(bigint,varchar)") -> "varchar" ()
                     {field_reference:index = "1", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %66 = constant() : () -> "varchar" ()
-                    {constant:value = "[type=varchar, value=Fairview]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %67 = constant() : () -> "varchar" ()
-                    {constant:value = "[type=varchar, value=Midway]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %68 = array(%66, %67) : ("varchar", "varchar") -> "array(varchar)" ()
-                    {array:element_type = "varchar", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
+                %68 = constant() : () -> "array(varchar)" ()
+                    {constant:value = "[type=array(varchar), value=[Fairview, Midway]]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %69 = in(%65, %68) : ("varchar", "array(varchar)") -> "boolean" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %70 = return(%69) : ("boolean") -> "boolean" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
             })
-            {ir.has_side_effects = "false", ir.safe = "true"}
         %71 = project(%63) : ("multiset(row(bigint,varchar))") -> "multiset(row(bigint))" ({
             ^assignments (%72 : "row(bigint,varchar)")
                 %73 = field_reference(%72) : ("row(bigint,varchar)") -> "bigint" ()
@@ -245,8 +240,8 @@ IR version = 1
             ^dynamicFilterTargetSelector (%124 : "row(bigint)")
                 %125 = field_reference(%124) : ("row(bigint)") -> "bigint" ()
                     {field_reference:index = "0", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %1034 = row(%125) : ("bigint") -> "row(bigint)" ()
-                %1035 = return(%1034) : ("row(bigint)") -> "row(bigint)" ()
+                %1032 = row(%125) : ("bigint") -> "row(bigint)" ()
+                %1033 = return(%1032) : ("row(bigint)") -> "row(bigint)" ()
                     {ir.terminal = "true"}
             })
             {join:type = "INNER", join:may_skip_output_duplicates = "false", join:distribution_type = "REPLICATED", join:dynamic_filter_ids = "[""df_1291""]", join:statistics_and_cost_summary = "{""outputRowCount"":1.0145978834088889E8,""outputSizeInBytes"":6.172824446184482E9,""cpuCost"":4.0637705603818445E11,""memoryCost"":2656.0,""networkCost"":2656.0}"}
@@ -256,12 +251,8 @@ IR version = 1
             ^predicate (%130 : "row(bigint,integer,integer)")
                 %131 = field_reference(%130) : ("row(bigint,integer,integer)") -> "integer" ()
                     {field_reference:index = "2", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %132 = constant() : () -> "integer" ()
-                    {constant:value = "[type=integer, value=0]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %133 = constant() : () -> "integer" ()
-                    {constant:value = "[type=integer, value=6]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %134 = array(%132, %133) : ("integer", "integer") -> "array(integer)" ()
-                    {array:element_type = "integer", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
+                %134 = constant() : () -> "array(integer)" ()
+                    {constant:value = "[type=array(integer), value=[0, 6]]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %135 = in(%131, %134) : ("integer", "array(integer)") -> "boolean" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %136 = constant() : () -> "integer" ()
@@ -281,7 +272,6 @@ IR version = 1
                 %143 = return(%142) : ("boolean") -> "boolean" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
             })
-            {ir.has_side_effects = "false", ir.safe = "true"}
         %144 = project(%129) : ("multiset(row(bigint,integer,integer))") -> "multiset(row(bigint))" ({
             ^assignments (%145 : "row(bigint,integer,integer)")
                 %146 = field_reference(%145) : ("row(bigint,integer,integer)") -> "bigint" ()
@@ -386,8 +376,8 @@ IR version = 1
             ^dynamicFilterTargetSelector (%196 : "row(bigint)")
                 %197 = field_reference(%196) : ("row(bigint)") -> "bigint" ()
                     {field_reference:index = "0", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %1036 = row(%197) : ("bigint") -> "row(bigint)" ()
-                %1037 = return(%1036) : ("row(bigint)") -> "row(bigint)" ()
+                %1034 = row(%197) : ("bigint") -> "row(bigint)" ()
+                %1035 = return(%1034) : ("row(bigint)") -> "row(bigint)" ()
                     {ir.terminal = "true"}
             })
             {join:type = "INNER", join:may_skip_output_duplicates = "false", join:distribution_type = "REPLICATED", join:dynamic_filter_ids = "[""df_1290""]", join:statistics_and_cost_summary = "{""outputRowCount"":1.5139857903869607E7,""outputSizeInBytes"":7.903022707578323E8,""cpuCost"":4.133430022943149E11,""memoryCost"":23209.970917135557,""networkCost"":23209.970917135557}"}
@@ -515,8 +505,8 @@ IR version = 1
             ^dynamicFilterTargetSelector (%262 : "row(bigint)")
                 %263 = field_reference(%262) : ("row(bigint)") -> "bigint" ()
                     {field_reference:index = "0", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %1038 = row(%263) : ("bigint") -> "row(bigint)" ()
-                %1039 = return(%1038) : ("row(bigint)") -> "row(bigint)" ()
+                %1036 = row(%263) : ("bigint") -> "row(bigint)" ()
+                %1037 = return(%1036) : ("row(bigint)") -> "row(bigint)" ()
                     {ir.terminal = "true"}
             })
             {join:type = "INNER", join:may_skip_output_duplicates = "false", join:distribution_type = "REPLICATED", join:dynamic_filter_ids = "[""df_1289""]", join:statistics_and_cost_summary = "{""outputRowCount"":3614647.5155272963,""outputSizeInBytes"":1.574543996199059E8,""cpuCost"":4.142913079646926E11,""memoryCost"":152809.97091713556,""networkCost"":152809.97091713556}"}
@@ -730,8 +720,8 @@ IR version = 1
             ^dynamicFilterTargetSelector (%371 : "row(bigint,varchar)")
                 %372 = field_reference(%371) : ("row(bigint,varchar)") -> "bigint" ()
                     {field_reference:index = "0", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %1040 = row(%372) : ("bigint") -> "row(bigint)" ()
-                %1041 = return(%1040) : ("row(bigint)") -> "row(bigint)" ()
+                %1038 = row(%372) : ("bigint") -> "row(bigint)" ()
+                %1039 = return(%1038) : ("row(bigint)") -> "row(bigint)" ()
                     {ir.terminal = "true"}
             })
             {join:type = "INNER", join:may_skip_output_duplicates = "false", join:distribution_type = "PARTITIONED", join:dynamic_filter_ids = "[""df_1288""]", join:statistics_and_cost_summary = "{""outputRowCount"":3452000.5027079103,""outputSizeInBytes"":1.8001047105206928E8,""cpuCost"":4.1519966658298456E11,""memoryCost"":1.0351264697091714E8,""networkCost"":2.6096704659082302E8}"}
@@ -977,8 +967,8 @@ IR version = 1
             ^dynamicFilterTargetSelector (%496 : "row(bigint,bigint,varchar,decimal(38,2),decimal(38,2))")
                 %497 = field_reference(%496) : ("row(bigint,bigint,varchar,decimal(38,2),decimal(38,2))") -> "bigint" ()
                     {field_reference:index = "1", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %1042 = row(%497) : ("bigint") -> "row(bigint)" ()
-                %1043 = return(%1042) : ("row(bigint)") -> "row(bigint)" ()
+                %1040 = row(%497) : ("bigint") -> "row(bigint)" ()
+                %1041 = return(%1040) : ("row(bigint)") -> "row(bigint)" ()
                     {ir.terminal = "true"}
             })
             {join:type = "INNER", join:may_skip_output_duplicates = "false", join:distribution_type = "PARTITIONED", join:dynamic_filter_ids = "[""df_1286""]", join:statistics_and_cost_summary = "{""outputRowCount"":3459098.9628107897,""outputSizeInBytes"":2.7395606604500633E8,""cpuCost"":6.851593029627517E11,""memoryCost"":4.475392855265451E8,""networkCost"":2.2813021249230243E11}"}
@@ -1128,8 +1118,8 @@ IR version = 1
             ^dynamicFilterTargetSelector (%573 : "row(bigint,varchar)")
                 %574 = field_reference(%573) : ("row(bigint,varchar)") -> "bigint" ()
                     {field_reference:index = "0", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %1044 = row(%574) : ("bigint") -> "row(bigint)" ()
-                %1045 = return(%1044) : ("row(bigint)") -> "row(bigint)" ()
+                %1042 = row(%574) : ("bigint") -> "row(bigint)" ()
+                %1043 = return(%1042) : ("row(bigint)") -> "row(bigint)" ()
                     {ir.terminal = "true"}
             })
             {join:type = "INNER", join:may_skip_output_duplicates = "false", join:distribution_type = "PARTITIONED", join:dynamic_filter_ids = "[""df_1285""]", join:statistics_and_cost_summary = "{""outputRowCount"":3459098.9628107897,""outputSizeInBytes"":2.712809355415775E8,""cpuCost"":6.863919353783833E11,""memoryCost"":5.50899122526545E8,""networkCost"":2.2850752839534744E11}"}

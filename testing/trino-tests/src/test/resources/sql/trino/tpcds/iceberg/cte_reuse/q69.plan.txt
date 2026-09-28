@@ -436,20 +436,13 @@ IR version = 1
             ^predicate (%223 : "row(bigint,varchar)")
                 %224 = field_reference(%223) : ("row(bigint,varchar)") -> "varchar" ()
                     {field_reference:index = "1", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %225 = constant() : () -> "varchar" ()
-                    {constant:value = "[type=varchar, value=GA]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %226 = constant() : () -> "varchar" ()
-                    {constant:value = "[type=varchar, value=KY]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %227 = constant() : () -> "varchar" ()
-                    {constant:value = "[type=varchar, value=NM]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
-                %228 = array(%225, %226, %227) : ("varchar", "varchar", "varchar") -> "array(varchar)" ()
-                    {array:element_type = "varchar", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
+                %228 = constant() : () -> "array(varchar)" ()
+                    {constant:value = "[type=array(varchar), value=[GA, KY, NM]]", ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %229 = in(%224, %228) : ("varchar", "array(varchar)") -> "boolean" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true"}
                 %230 = return(%229) : ("boolean") -> "boolean" ()
                     {ir.has_side_effects = "false", ir.repeatability = "DETERMINISTIC", ir.safe = "true", ir.terminal = "true"}
             })
-            {ir.has_side_effects = "false", ir.safe = "true"}
         %231 = project(%222) : ("multiset(row(bigint,varchar))") -> "multiset(row(bigint))" ({
             ^assignments (%232 : "row(bigint,varchar)")
                 %233 = field_reference(%232) : ("row(bigint,varchar)") -> "bigint" ()

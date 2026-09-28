@@ -15,7 +15,6 @@ package io.trino.sql.dialect.trino.operationmetadata;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.google.common.primitives.Primitives;
 import com.google.errorprone.annotations.DoNotCall;
@@ -485,7 +484,6 @@ public record TrinoAttributeMetadata<T>(TrinoAttributeSignature<T> trinoAttribut
             return false;
         }
 
-        @VisibleForTesting
         public static boolean isOrContainsTypeComparedByValue(Type type)
         {
             if (isComparedByValue(type)) {

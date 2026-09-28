@@ -38,6 +38,7 @@ import io.trino.sql.dialect.trino.operation.TrinoOperation;
 import io.trino.sql.dialect.trino.operation.TrinoOperationVisitor;
 import io.trino.sql.dialect.trino.operationmetadata.CastOperationMetadata.CastKind;
 import io.trino.sql.dialect.trino.operationmetadata.LogicalOperationMetadata.LogicalOperator;
+import io.trino.sql.dialect.trino.operationmetadata.TrinoAttributeMetadata.ConstantValue;
 import io.trino.sql.ir.Cast.Kind;
 import io.trino.sql.ir.Expression;
 import io.trino.sql.ir.Logical.Operator;
@@ -55,6 +56,7 @@ import io.trino.sql.planner.SymbolAllocator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.IntStream;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
@@ -62,6 +64,7 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.trino.spi.type.EmptyRowType.EMPTY_ROW;
+import static io.trino.spi.type.TypeUtils.readNativeValue;
 import static io.trino.sql.dialect.trino.TrinoDialect.trinoType;
 import static io.trino.sql.dialect.trino.operationmetadata.CallOperationMetadata.RESOLVED_FUNCTION;
 import static io.trino.sql.dialect.trino.operationmetadata.ConstantOperationMetadata.CONSTANT_VALUE;
@@ -291,13 +294,30 @@ public class ToOldIrScalarRewriter
             Expression input = context.getOperation(operation.input()).accept(this, context);
 
             TrinoOperation valueListOperation = context.getOperation(operation.valueList());
-            checkState(valueListOperation instanceof Array, "Expected In value list to be produced by Array operation");
-            List<Expression> values = valueListOperation.arguments().stream()
-                    .map(context::getOperation)
-                    .map(element -> element.accept(this, context))
-                    .collect(toImmutableList());
+            List<Expression> values = switch (valueListOperation) {
+                case Array array -> array.arguments().stream()
+                        .map(context::getOperation)
+                        .map(element -> element.accept(this, context))
+                        .collect(toImmutableList());
+                case Constant constant -> unpackConstantArray(constant);
+                default -> throw new IllegalStateException("Expected In value list to be produced by Array or Constant operation");
+            };
 
             return new io.trino.sql.ir.In(input, values);
+        }
+
+        private static List<Expression> unpackConstantArray(Constant constant)
+        {
+            ConstantValue constantValue = CONSTANT_VALUE.getAttribute(constant.attributes());
+            checkState(constantValue.getType() instanceof ArrayType, "Expected In value list constant to be of array type");
+            checkState(constantValue.getValue() != null, "Expected In value list constant to be non-null");
+
+            ArrayType arrayType = (ArrayType) constantValue.getType();
+            Type elementType = arrayType.getElementType();
+            io.trino.spi.block.Block valueBlock = (io.trino.spi.block.Block) constantValue.getValue();
+            return IntStream.range(0, valueBlock.getPositionCount())
+                    .mapToObj(position -> new io.trino.sql.ir.Constant(elementType, readNativeValue(elementType, valueBlock, position)))
+                    .collect(toImmutableList());
         }
 
         @Override
