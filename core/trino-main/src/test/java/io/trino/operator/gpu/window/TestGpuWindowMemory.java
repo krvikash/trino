@@ -148,6 +148,18 @@ final class TestGpuWindowMemory
     }
 
     @Test
+    void testSingleSortKeyWideTable()
+    {
+        // The gather of a wide table through the sort order exceeds the radix sort working memory of a narrow key
+        testWindow(
+                List.of(BIGINT, BIGINT, BIGINT, BIGINT, BIGINT),
+                new int[] {},
+                new int[] {0},
+                List.of(ASC_NULLS_LAST),
+                List.of(BoundTestedWindowFunction.of("row_number")));
+    }
+
+    @Test
     void testMultipleFunctions()
     {
         ImmutableList.Builder<Type> sourceTypes = ImmutableList.builder();

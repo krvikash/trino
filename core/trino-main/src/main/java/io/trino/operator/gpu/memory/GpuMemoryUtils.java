@@ -251,15 +251,23 @@ public final class GpuMemoryUtils
         return estimatedOutputDeviceBytes + gatherMapBytes;
     }
 
-    public static long getOrderByMemoryUsage(DType[] sortTypes, long sortKeyBytes, long totalBytes)
+    public static long getOrderByMemoryUsage(DType[] sortTypes, long sortKeyBytes, long totalBytes, long rowCount)
     {
         // cuDF uses radix sort for a single fixed-width key, comparison sort otherwise.
         // Radix sort only needs working memory proportional to the key column (+ gather map);
         // comparison sort needs working memory proportional to the full table.
+        long sortBytes;
         if (isRadixSortableSingleKey(sortTypes)) {
-            return 5 * sortKeyBytes + (totalBytes - sortKeyBytes);
+            sortBytes = 5 * sortKeyBytes + (totalBytes - sortKeyBytes);
         }
-        return (5 * totalBytes) / 2;
+        else {
+            sortBytes = (5 * totalBytes) / 2;
+        }
+        // Both sorts end by gathering the input table through an INT32 gather map, so the input,
+        // the sorted output and the gather map are all live at once. For a wide table sorted on
+        // a narrow key this exceeds the sort working memory.
+        long gatherBytes = 2 * totalBytes + rowCount * Integer.BYTES;
+        return Math.max(sortBytes, gatherBytes);
     }
 
     private static boolean isRadixSortableSingleKey(DType[] sortTypes)

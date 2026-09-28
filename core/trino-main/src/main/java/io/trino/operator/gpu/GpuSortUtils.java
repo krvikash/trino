@@ -76,7 +76,7 @@ public final class GpuSortUtils
 
         int flagCount = countNanFlags(sortTypes, sortOrders);
         if (flagCount == 0) {
-            return getOrderByMemoryUsage(sortDTypes, sortKeyBytes, totalBytes);
+            return getOrderByMemoryUsage(sortDTypes, sortKeyBytes, totalBytes, rowCount);
         }
         long flagBytes = multiplyExact(flagCount, rowCount);
         DType[] expandedTypes = new DType[sortDTypes.length + flagCount];
@@ -87,7 +87,7 @@ public final class GpuSortUtils
             }
             expandedTypes[index++] = sortDTypes[i];
         }
-        return getOrderByMemoryUsage(expandedTypes, addExact(sortKeyBytes, flagBytes), addExact(totalBytes, flagBytes));
+        return getOrderByMemoryUsage(expandedTypes, addExact(sortKeyBytes, flagBytes), addExact(totalBytes, flagBytes), rowCount);
     }
 
     private static int countNanFlags(List<Type> sortTypes, List<SortOrder> sortOrders)
