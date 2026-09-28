@@ -70,10 +70,12 @@ public final class GpuWindow
     // Peer grouping cuDF uses to resolve CURRENT ROW over multiple order columns.
     // Measured at 11.88 bytes per row, independent of the order column types and of how many peers there are.
     private static final int MULTI_COLUMN_ORDERED_FRAME_PEER_BYTES_PER_ROW = 3 * DType.INT32.getSizeInBytes();
-    // A partitioned unordered frame builds two sort_groupby_helpers per aggregation (groupby and the following gather),
-    // each with group labels (per row) and group offsets (per group)
-    private static final int UNORDERED_FRAME_GROUP_LABEL_BYTES_PER_ROW = 2 * DType.INT32.getSizeInBytes();
-    private static final int UNORDERED_FRAME_GROUP_OFFSET_BYTES_PER_GROUP = 2 * DType.INT32.getSizeInBytes();
+    // A partitioned unordered frame builds two sort_groupby_helpers per aggregation (groupby and the following gather)
+    private static final int UNORDERED_FRAME_SORT_HELPER_COUNT = 2;
+    // Each helper holds the key sort order and group labels per row
+    private static final int UNORDERED_FRAME_SORT_HELPER_BYTES_PER_ROW = 2 * DType.INT32.getSizeInBytes();
+    // and group offsets sized for one group per row
+    private static final int UNORDERED_FRAME_GROUP_OFFSET_BYTES_PER_GROUP = DType.INT32.getSizeInBytes();
 
     public static class Factory
             implements GpuOperation.Factory
@@ -418,13 +420,14 @@ public final class GpuWindow
         return bytes;
     }
 
-    // The per-group aggregation result is charged at one group per row, the most there can be
-    private static long estimateUnorderedFrameWorkingBytes(@Borrow Table sorted, RollingComputation computation, int rowCount)
+    // cuDF aggregates the sorted values in place. The unique partition keys and the per-group result are charged at
+    // one group per row, the most there can be.
+    private long estimateUnorderedFrameWorkingBytes(@Borrow Table sorted, RollingComputation computation, int rowCount)
     {
-        long groupingBytes = (long) rowCount * UNORDERED_FRAME_GROUP_LABEL_BYTES_PER_ROW
+        long sortHelperBytes = (long) rowCount * UNORDERED_FRAME_SORT_HELPER_BYTES_PER_ROW
                 + ((long) rowCount + 1) * UNORDERED_FRAME_GROUP_OFFSET_BYTES_PER_GROUP;
-        long sortedValueBytes = sorted.getColumn(computation.inputChannel()).getDeviceMemorySize();
-        return groupingBytes + sortedValueBytes + (long) rowCount * computation.outputBytesPerRow();
+        long uniqueKeyBytes = estimatePartitionKeyBytes(sorted);
+        return UNORDERED_FRAME_SORT_HELPER_COUNT * sortHelperBytes + uniqueKeyBytes + (long) rowCount * computation.outputBytesPerRow();
     }
 
     private long estimatePartitionKeyBytes(@Borrow Table sorted)

@@ -48,6 +48,7 @@ import static io.trino.operator.gpu.window.GpuWindowTestUtils.TESTED_GPU_WINDOW_
 import static io.trino.operator.gpu.window.GpuWindowTestUtils.compileWindow;
 import static io.trino.spi.connector.SortOrder.ASC_NULLS_LAST;
 import static io.trino.spi.type.BigintType.BIGINT;
+import static io.trino.spi.type.DecimalType.createDecimalType;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.sql.gen.TestColumnarFilters.NullsProvider.NO_NULLS;
 import static java.util.Objects.requireNonNull;
@@ -145,6 +146,20 @@ final class TestGpuWindowMemory
                     new int[] {},
                     List.of());
         }
+    }
+
+    @Test
+    void testNoOrderByMultiplePartitionBy()
+    {
+        // Two partition keys make the unique keys the groupby returns wider than the aggregated column.
+        testWindow(
+                List.of(BIGINT, BIGINT, createDecimalType(28, 2)),
+                new int[] {0, 1},
+                new int[] {},
+                List.of(),
+                List.of(BoundTestedWindowFunction.of("avg", 2)),
+                1,
+                MEGABYTE);
     }
 
     @Test
