@@ -110,9 +110,9 @@ public class PredicateUtils
      * Create a block with a conjunction (AND) of predicates from all component blocks. At least one component block must be provided.
      * The resulting block has the same name and parameters as the first component block.
      * <p>
-     * Note: Local operation results in the second and further component blocks will be re-mapped to new values. Re-mapping does not
-     * affect the semantics, but it helps avoid incorrect duplicate values in case when component blocks originate from the same
-     * predicate.
+     * Note: Local operation results in all component blocks are reallocated to fresh values before composition.
+     * This prevents duplicate declarations when component blocks originate from the same predicate and keeps the resulting block
+     * independent of the components' local result names.
      * <p>
      * Note: any correlated referenced in the component blocks will be preserved.
      * If the component blocks belong to different contexts, they might potentially contain identical correlated values with different semantics.
@@ -128,9 +128,9 @@ public class PredicateUtils
      * Create a block with a disjunction (OR) of predicates from all component blocks. At least one component block must be provided.
      * The resulting block has the same name and parameters as the first component block.
      * <p>
-     * Note: Local operation results in the second and further component blocks will be re-mapped to new values. Re-mapping does not
-     * affect the semantics, but it helps avoid incorrect duplicate values in case when component blocks originate from the same
-     * predicate.
+     * Note: Local operation results in all component blocks are reallocated to fresh values before composition.
+     * This prevents duplicate declarations when component blocks originate from the same predicate and keeps the resulting block
+     * independent of the components' local result names.
      * <p>
      * Note: any correlated referenced in the component blocks will be preserved.
      * If the component blocks belong to different contexts, they might potentially contain identical correlated values with different semantics.
