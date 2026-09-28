@@ -14,31 +14,25 @@
 package io.trino.operator.gpu.expression;
 
 import ai.rapids.cudf.ColumnVector;
-import ai.rapids.cudf.ColumnView;
-import ai.rapids.cudf.DType;
 import ai.rapids.cudf.Scalar;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSortedSet;
 import io.trino.plugin.base.gpu.ClosingRef;
-import io.trino.spi.TrinoException;
 import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
 
-import java.math.BigInteger;
 import java.util.Arrays;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
-import java.util.stream.IntStream;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static io.trino.operator.gpu.expression.CudfUtils.anyTrue;
+import static io.trino.operator.gpu.expression.CaseMappingUtils.charUtf8;
+import static io.trino.operator.gpu.expression.CaseMappingUtils.codePointRange;
+import static io.trino.operator.gpu.expression.CaseMappingUtils.failOnRejectedCodePoints;
+import static io.trino.operator.gpu.expression.CaseMappingUtils.maxCharUtf8;
 import static io.trino.operator.gpu.expression.GpuExpressions.nullSkippingCheck;
-import static io.trino.spi.StandardErrorCode.NOT_SUPPORTED;
 import static java.lang.Integer.compareUnsigned;
-import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
 
 public final class GpuLower
@@ -63,7 +57,7 @@ public final class GpuLower
     /// U+10400 -> 0xF0909080). This is what ColumnVector.codePoints() emits, so contains() matches them
     /// directly.
     private static final int[] REJECTED_CUDF_CHARS = UNSUPPORTED_CODE_POINTS.stream()
-            .mapToInt(GpuLower::charUtf8)
+            .mapToInt(CaseMappingUtils::charUtf8)
             .toArray();
 
     private static final int DOTTED_CAPITAL_I_CHAR_UTF8 = charUtf8(DOTTED_CAPITAL_I.codePointAt(0));
@@ -89,7 +83,7 @@ public final class GpuLower
             }
 
             if (compareUnsigned(maxChar, FIRST_UNSUPPORTED_CHAR_UTF8) >= 0) {
-                failOnRejectedCodePoints(input.borrow());
+                failOnRejectedCodePoints(input.borrow(), REJECTED_CUDF_CHARS, "lower() on GPU does not support code points whose lowercase mapping differs between cuDF and Trino");
             }
 
             try (ColumnVector withoutDottedCapitalI = replaceDottedCapitalI(input.borrow())) {
@@ -99,35 +93,12 @@ public final class GpuLower
         }
     }
 
-    /// The maximum code point in `char_utf8` form, or 0 when the column is empty or all-null.
-    /// Reinterprets the INT32 code points as UINT32 (a zero-copy view over the same buffer) so supplementary
-    /// characters, which pack to negative ints, order as the largest values rather than the smallest.
-    private static int maxCharUtf8(@Borrow ColumnVector column)
-    {
-        try (ColumnVector characters = column.codePoints();
-                ColumnView unsigned = characters.bitCastTo(DType.UINT32);
-                Scalar max = unsigned.max()) {
-            return max.isValid() ? max.getInt() : 0;
-        }
-    }
-
     /// Replaces the dotted capital I (İ) with i so the subsequent lower() matches Trino. See [#DOTTED_CAPITAL_I]
     private static @Move ColumnVector replaceDottedCapitalI(@Borrow ColumnVector input)
     {
         try (Scalar dottedCapitalI = Scalar.fromString(DOTTED_CAPITAL_I);
                 Scalar dotlessLowercaseI = Scalar.fromString("i")) {
             return input.stringReplace(dottedCapitalI, dotlessLowercaseI);
-        }
-    }
-
-    private static void failOnRejectedCodePoints(ColumnVector column)
-    {
-        try (ColumnVector characters = column.codePoints();
-                ColumnVector rejected = ColumnVector.fromInts(REJECTED_CUDF_CHARS);
-                ColumnVector matches = characters.contains(rejected)) {
-            if (anyTrue(matches)) {
-                throw new TrinoException(NOT_SUPPORTED, "lower() on GPU does not support code points whose lowercase mapping differs between cuDF and Trino");
-            }
         }
     }
 
@@ -156,20 +127,6 @@ public final class GpuLower
                 // Adlam (U+1E900–U+1E921)
                 .addAll(codePointRange(0x1E900, 0x1E921))
                 .build();
-    }
-
-    private static Iterator<Integer> codePointRange(int fromInclusive, int toInclusive)
-    {
-        return IntStream.rangeClosed(fromInclusive, toInclusive).boxed().iterator();
-    }
-
-    /// Pack the code point's UTF-8 bytes big-endian into an int, matching ColumnVector.codePoints().
-    private static int charUtf8(int codePoint)
-    {
-        byte[] utf8Bytes = Character.toString(codePoint).getBytes(UTF_8);
-        checkArgument(utf8Bytes.length >= 1 && utf8Bytes.length <= 4, "Expected 1 to 4 UTF-8 bytes for code point %s, got %s", codePoint, utf8Bytes.length);
-        // reads the UTF-8 bytes as a big-endian positive magnitude
-        return new BigInteger(1, utf8Bytes).intValue();
     }
 
     @Override
