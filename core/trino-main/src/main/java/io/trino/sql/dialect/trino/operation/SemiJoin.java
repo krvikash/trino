@@ -172,6 +172,22 @@ public final class SemiJoin
     }
 
     @Override
+    public Operation withRegions(List<Region> newRegions)
+    {
+        validateRegions(newRegions);
+        return new SemiJoin(
+                result.name(),
+                source,
+                filteringSource,
+                newRegions.get(0).getOnlyBlock(),
+                newRegions.get(1).getOnlyBlock(),
+                Optional.ofNullable(DISTRIBUTION_TYPE.getAttribute(attributes)),
+                Optional.ofNullable(DYNAMIC_FILTER_ID.getAttribute(attributes)),
+                Attributes.empty(),
+                Attributes.empty());
+    }
+
+    @Override
     public Operation withArgument(Value newArgument, int index)
     {
         validateArgument(newArgument, index);

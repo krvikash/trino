@@ -118,6 +118,17 @@ public final class Project
     }
 
     @Override
+    public Operation withRegions(List<Region> newRegions)
+    {
+        validateRegions(newRegions);
+        return new Project(
+                result.name(),
+                input,
+                newRegions.getFirst().getOnlyBlock(),
+                Attributes.empty());
+    }
+
+    @Override
     public Operation withArgument(Value newArgument, int index)
     {
         validateArgument(newArgument, index);

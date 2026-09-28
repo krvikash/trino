@@ -27,7 +27,6 @@ import io.trino.sql.newir.Value;
 
 import java.util.List;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
 import static io.trino.spi.type.EmptyRowType.EMPTY_ROW;
@@ -111,7 +110,7 @@ public final class Lambda
     @Override
     public Operation withRegions(List<Region> newRegions)
     {
-        checkArgument(newRegions.size() == 1, "regions lists size mismatch");
+        validateRegions(newRegions);
         return new Lambda(
                 result.name(),
                 getOnlyElement(newRegions).getOnlyBlock());

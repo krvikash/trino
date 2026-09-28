@@ -119,6 +119,19 @@ public class Sort
     }
 
     @Override
+    public Operation withRegions(List<Region> newRegions)
+    {
+        validateRegions(newRegions);
+        return new Sort(
+                result.name(),
+                input,
+                newRegions.getFirst().getOnlyBlock(),
+                SORT_ORDERS.getAttribute(attributes),
+                PARTIAL.getAttribute(attributes),
+                Attributes.empty());
+    }
+
+    @Override
     public Operation withArgument(Value newArgument, int index)
     {
         validateArgument(newArgument, index);

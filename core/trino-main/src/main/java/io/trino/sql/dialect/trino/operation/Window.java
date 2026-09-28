@@ -197,6 +197,22 @@ public class Window
     }
 
     @Override
+    public Operation withRegions(List<Region> newRegions)
+    {
+        validateRegions(newRegions);
+        return new Window(
+                result.name(),
+                input,
+                newRegions.get(0).getOnlyBlock(),
+                newRegions.get(1).getOnlyBlock(),
+                newRegions.get(2).getOnlyBlock(),
+                PRE_PARTITIONED_INDEXES.getAttribute(attributes),
+                Optional.ofNullable(SORT_ORDERS.getAttribute(attributes)),
+                PRE_SORTED_PREFIX.getAttribute(attributes),
+                Attributes.empty());
+    }
+
+    @Override
     public Operation withArgument(Value newArgument, int index)
     {
         validateArgument(newArgument, index);

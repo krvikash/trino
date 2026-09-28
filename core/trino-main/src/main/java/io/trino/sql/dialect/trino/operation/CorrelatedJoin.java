@@ -156,6 +156,20 @@ public final class CorrelatedJoin
     }
 
     @Override
+    public Operation withRegions(List<Region> newRegions)
+    {
+        validateRegions(newRegions);
+        return new CorrelatedJoin(
+                result.name(),
+                input,
+                newRegions.get(0).getOnlyBlock(),
+                newRegions.get(1).getOnlyBlock(),
+                newRegions.get(2).getOnlyBlock(),
+                JOIN_TYPE.getAttribute(attributes),
+                Attributes.empty());
+    }
+
+    @Override
     public Operation withArgument(Value newArgument, int index)
     {
         validateArgument(newArgument, index);

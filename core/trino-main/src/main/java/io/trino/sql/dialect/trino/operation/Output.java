@@ -126,6 +126,18 @@ public final class Output
     }
 
     @Override
+    public Operation withRegions(List<Region> newRegions)
+    {
+        validateRegions(newRegions);
+        return new Output(
+                result.name(),
+                input,
+                newRegions.getFirst().getOnlyBlock(),
+                COLUMN_NAMES.getAttribute(attributes),
+                Attributes.empty());
+    }
+
+    @Override
     public Operation withArgument(Value newArgument, int index)
     {
         validateArgument(newArgument, index);

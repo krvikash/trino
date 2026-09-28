@@ -171,6 +171,22 @@ public final class TopNRanking
     }
 
     @Override
+    public Operation withRegions(List<Region> newRegions)
+    {
+        validateRegions(newRegions);
+        return new TopNRanking(
+                result.name(),
+                input,
+                newRegions.get(0).getOnlyBlock(),
+                newRegions.get(1).getOnlyBlock(),
+                RANKING_TYPE.getAttribute(attributes),
+                MAX_RANKING_PER_PARTITION.getAttribute(attributes),
+                PARTIAL.getAttribute(attributes),
+                SORT_ORDERS.getAttribute(attributes),
+                Attributes.empty());
+    }
+
+    @Override
     public Operation withArgument(Value newArgument, int index)
     {
         validateArgument(newArgument, index);

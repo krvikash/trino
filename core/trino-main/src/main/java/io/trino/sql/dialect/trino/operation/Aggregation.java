@@ -186,6 +186,24 @@ public class Aggregation
     }
 
     @Override
+    public Operation withRegions(List<Region> newRegions)
+    {
+        validateRegions(newRegions);
+        return new Aggregation(
+                result.name(),
+                input,
+                newRegions.get(0).getOnlyBlock(),
+                newRegions.get(1).getOnlyBlock(),
+                GROUPING_SETS_COUNT.getAttribute(attributes),
+                GLOBAL_GROUPING_SETS.getAttribute(attributes),
+                Optional.ofNullable(GROUP_ID_INDEX.getAttribute(attributes)).map(OptionalInt::of).orElse(OptionalInt.empty()),
+                PRE_GROUPED_INDEXES.getAttribute(attributes),
+                AGGREGATION_STEP.getAttribute(attributes),
+                INPUT_REDUCING.getAttribute(attributes),
+                Attributes.empty());
+    }
+
+    @Override
     public Operation withArgument(Value newArgument, int index)
     {
         validateArgument(newArgument, index);

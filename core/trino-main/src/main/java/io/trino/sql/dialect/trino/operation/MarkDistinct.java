@@ -115,6 +115,17 @@ public final class MarkDistinct
     }
 
     @Override
+    public Operation withRegions(List<Region> newRegions)
+    {
+        validateRegions(newRegions);
+        return new MarkDistinct(
+                result.name(),
+                source,
+                newRegions.getFirst().getOnlyBlock(),
+                Attributes.empty());
+    }
+
+    @Override
     public Operation withArgument(Value newArgument, int index)
     {
         validateArgument(newArgument, index);

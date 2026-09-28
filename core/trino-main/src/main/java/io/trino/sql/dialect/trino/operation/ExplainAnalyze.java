@@ -114,6 +114,18 @@ public class ExplainAnalyze
     }
 
     @Override
+    public Operation withRegions(List<Region> newRegions)
+    {
+        validateRegions(newRegions);
+        return new ExplainAnalyze(
+                result.name(),
+                input,
+                newRegions.getFirst().getOnlyBlock(),
+                VERBOSE.getAttribute(attributes),
+                Attributes.empty());
+    }
+
+    @Override
     public Operation withArgument(Value newArgument, int index)
     {
         validateArgument(newArgument, index);

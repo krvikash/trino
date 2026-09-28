@@ -39,19 +39,27 @@ public abstract class TrinoOperation
 
     /**
      * Replace the operation's regions with newRegions.
-     * The newRegions list must be the size of the operation's regions.
-     * <p>
-     * Currently, it is only implemented for the Lambda and  Query operations, and used in CTE reuse to rewrite nested blocks.
-     * When we add optimizations for correlated queries, we will need to implement region substitution for relational operations
-     * so that we can rewrite nested queries.
+     * The new regions must have the same count and respective types as the current regions.
+     * The operation's result name and arguments are preserved.
      */
     public Operation withRegions(List<Region> newRegions)
     {
+        validateRegions(newRegions);
         if (!regions().isEmpty()) {
             throw new UnsupportedOperationException(name() + " does not support region substitution");
         }
-        checkArgument(newRegions.isEmpty(), "regions lists size mismatch");
         return this;
+    }
+
+    void validateRegions(List<Region> newRegions)
+    {
+        requireNonNull(newRegions, "newRegions is null");
+
+        List<Region> regions = regions();
+        checkArgument(newRegions.size() == regions.size(), "regions list size mismatch");
+        for (int i = 0; i < regions.size(); i++) {
+            checkArgument(newRegions.get(i).getFunctionType().equals(regions.get(i).getFunctionType()), "region type mismatch at index %s", i);
+        }
     }
 
     /**

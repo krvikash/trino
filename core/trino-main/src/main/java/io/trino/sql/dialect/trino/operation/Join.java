@@ -247,6 +247,30 @@ public final class Join
     }
 
     @Override
+    public Operation withRegions(List<Region> newRegions)
+    {
+        validateRegions(newRegions);
+        return new Join(
+                result.name(),
+                left,
+                right,
+                newRegions.get(0).getOnlyBlock(),
+                newRegions.get(1).getOnlyBlock(),
+                newRegions.get(2).getOnlyBlock(),
+                newRegions.get(3).getOnlyBlock(),
+                newRegions.get(4).getOnlyBlock(),
+                newRegions.get(5).getOnlyBlock(),
+                JOIN_TYPE.getAttribute(attributes),
+                MAY_SKIP_OUTPUT_DUPLICATES.getAttribute(attributes),
+                Optional.ofNullable(DISTRIBUTION_TYPE.getAttribute(attributes)),
+                Optional.ofNullable(SPILLABLE.getAttribute(attributes)),
+                DYNAMIC_FILTER_IDS.getAttribute(attributes),
+                Optional.ofNullable(STATISTICS_AND_COST_SUMMARY.getAttribute(attributes)),
+                Attributes.empty(),
+                Attributes.empty());
+    }
+
+    @Override
     public Operation withArgument(Value newArgument, int index)
     {
         validateArgument(newArgument, index);

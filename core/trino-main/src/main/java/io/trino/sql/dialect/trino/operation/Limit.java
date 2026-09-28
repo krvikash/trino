@@ -155,6 +155,21 @@ public class Limit
     }
 
     @Override
+    public Operation withRegions(List<Region> newRegions)
+    {
+        validateRegions(newRegions);
+        return new Limit(
+                result.name(),
+                input,
+                newRegions.getFirst().getOnlyBlock(),
+                Optional.ofNullable(SORT_ORDERS.getAttribute(attributes)),
+                COUNT.getAttribute(attributes),
+                PARTIAL.getAttribute(attributes),
+                PRE_SORTED_INDEXES.getAttribute(attributes),
+                Attributes.empty());
+    }
+
+    @Override
     public Operation withArgument(Value newArgument, int index)
     {
         validateArgument(newArgument, index);

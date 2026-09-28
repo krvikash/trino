@@ -283,6 +283,30 @@ public class Exchange
     }
 
     @Override
+    public Operation withRegions(List<Region> newRegions)
+    {
+        validateRegions(newRegions);
+        return new Exchange(
+                result.name(),
+                inputs,
+                newRegions.subList(0, inputs.size()).stream()
+                        .map(Region::getOnlyBlock)
+                        .collect(toImmutableList()),
+                newRegions.get(inputs.size()).getOnlyBlock(),
+                newRegions.get(inputs.size() + 1).getOnlyBlock(),
+                EXCHANGE_TYPE.getAttribute(attributes),
+                EXCHANGE_SCOPE.getAttribute(attributes),
+                PARTITIONING_HANDLE.getAttribute(attributes),
+                CONSTANT_VALUES.getAttribute(attributes),
+                REPLICATE_NULLS_AND_ANY.getAttribute(attributes),
+                Optional.ofNullable(BUCKET_TO_PARTITION.getAttribute(attributes)),
+                PARTITION_COUNT.getAttribute(attributes) == null ? OptionalInt.empty() : OptionalInt.of(PARTITION_COUNT.getAttribute(attributes)),
+                BUCKET_COUNT.getAttribute(attributes) == null ? OptionalInt.empty() : OptionalInt.of(BUCKET_COUNT.getAttribute(attributes)),
+                Optional.ofNullable(SORT_ORDERS.getAttribute(attributes)),
+                emptySourceAttributes(inputs.size()));
+    }
+
+    @Override
     public Operation withArgument(Value newArgument, int index)
     {
         validateArgument(newArgument, index);

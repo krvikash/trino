@@ -120,6 +120,20 @@ public final class Except
     }
 
     @Override
+    public Operation withRegions(List<Region> newRegions)
+    {
+        validateRegions(newRegions);
+        return new Except(
+                result.name(),
+                inputs,
+                newRegions.stream()
+                        .map(Region::getOnlyBlock)
+                        .collect(toImmutableList()),
+                DISTINCT.getAttribute(attributes),
+                emptySourceAttributes(inputs.size()));
+    }
+
+    @Override
     public Operation withArgument(Value newArgument, int index)
     {
         validateArgument(newArgument, index);

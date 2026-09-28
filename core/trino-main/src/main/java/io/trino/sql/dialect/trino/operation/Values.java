@@ -38,6 +38,7 @@ import static io.trino.sql.dialect.trino.operationmetadata.ValuesOperationMetada
 import static io.trino.sql.dialect.trino.operationmetadata.ValuesOperationMetadata.NAME;
 import static io.trino.sql.dialect.trino.operationmetadata.ValuesOperationMetadata.ROW_TYPE;
 import static io.trino.sql.newir.Region.singleBlockRegion;
+import static java.lang.Math.toIntExact;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
@@ -169,6 +170,24 @@ public final class Values
     public String prettyPrint(int indentLevel, PrintOptions printOptions)
     {
         return "pretty values";
+    }
+
+    @Override
+    public Operation withRegions(List<Region> newRegions)
+    {
+        validateRegions(newRegions);
+        Type rowType = ROW_TYPE.getAttribute(attributes);
+        if (rowType.equals(EMPTY_ROW)) {
+            return valuesWithoutFields(
+                    result.name(),
+                    toIntExact(CARDINALITY.getAttribute(attributes)));
+        }
+        return new Values(
+                result.name(),
+                (RowType) rowType,
+                newRegions.stream()
+                        .map(Region::getOnlyBlock)
+                        .collect(toImmutableList()));
     }
 
     @Override

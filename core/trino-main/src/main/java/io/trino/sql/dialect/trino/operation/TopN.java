@@ -123,6 +123,20 @@ public class TopN
     }
 
     @Override
+    public Operation withRegions(List<Region> newRegions)
+    {
+        validateRegions(newRegions);
+        return new TopN(
+                result.name(),
+                input,
+                newRegions.getFirst().getOnlyBlock(),
+                SORT_ORDERS.getAttribute(attributes),
+                LIMIT.getAttribute(attributes),
+                TOP_N_STEP.getAttribute(attributes),
+                Attributes.empty());
+    }
+
+    @Override
     public Operation withArgument(Value newArgument, int index)
     {
         validateArgument(newArgument, index);

@@ -114,6 +114,19 @@ public final class Union
     }
 
     @Override
+    public Operation withRegions(List<Region> newRegions)
+    {
+        validateRegions(newRegions);
+        return new Union(
+                result.name(),
+                inputs,
+                newRegions.stream()
+                        .map(Region::getOnlyBlock)
+                        .collect(toImmutableList()),
+                emptySourceAttributes(inputs.size()));
+    }
+
+    @Override
     public Operation withArgument(Value newArgument, int index)
     {
         validateArgument(newArgument, index);

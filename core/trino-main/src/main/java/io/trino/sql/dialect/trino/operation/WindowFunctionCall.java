@@ -30,7 +30,6 @@ import io.trino.sql.newir.Value;
 import java.util.List;
 import java.util.Optional;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static io.trino.spi.StandardErrorCode.IR_ERROR;
 import static io.trino.sql.dialect.ir.IrDialect.DEFAULT_BLOCK_PARAMETER_ATTRIBUTES;
 import static io.trino.sql.dialect.trino.OperationValidationUtils.validateRowSelector;
@@ -236,7 +235,7 @@ public class WindowFunctionCall
     @Override
     public Operation withRegions(List<Region> newRegions)
     {
-        checkArgument(newRegions.size() == 6, "regions lists size mismatch");
+        validateRegions(newRegions);
         return new WindowFunctionCall(
                 result.name(),
                 window,
