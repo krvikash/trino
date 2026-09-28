@@ -22,6 +22,7 @@ import io.trino.testing.containers.Minio;
 import org.intellij.lang.annotations.Language;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.Network;
+import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 
 import java.io.Closeable;
@@ -89,7 +90,9 @@ public final class TestingLakekeeperCatalog
                         "LAKEKEEPER__QUEUE_CONFIG__POLL_INTERVAL", "\"1s\""))
                 .withNetwork(network)
                 .withExposedPorts(LAKEKEEPER_PORT)
-                .withCommand("serve");
+                .withCommand("serve")
+                // the mapped port accepts connections before the server does, and the first bootstrap request then hits EOF
+                .waitingFor(Wait.forHttp("/health").forPort(LAKEKEEPER_PORT));
 
         lakekeeperCatalog.start();
         bootstrapServer();
