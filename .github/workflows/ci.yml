@@ -900,7 +900,7 @@ jobs:
     strategy:
       fail-fast: ${{ github.event_name == 'merge_group' }}
       matrix: ${{ fromJson(needs.build-test-matrix.outputs.matrix) }}
-    timeout-minutes: 90
+    timeout-minutes: ${{ matrix.timeout-minutes || 90 }}
     env:
       REPORT_TEST_SESSION_NAME: test-matrix
       REPORT_SERVICE_NAME: ${{ matrix.modules }}
