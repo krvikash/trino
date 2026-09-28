@@ -47,6 +47,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -140,6 +141,21 @@ public class TestDefaultJdbcMetadata
     {
         database.close();
         database = null;
+    }
+
+    @Test
+    public void testRollbackRunsEveryAction()
+    {
+        List<String> executed = new ArrayList<>();
+        metadata.addRollbackAction(() -> {
+            executed.add("before rollback");
+            metadata.addRollbackAction(() -> executed.add("during rollback"));
+        });
+
+        metadata.rollback();
+        metadata.addRollbackAction(() -> executed.add("after rollback"));
+
+        assertThat(executed).containsExactly("before rollback", "during rollback", "after rollback");
     }
 
     @Test
