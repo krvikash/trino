@@ -478,6 +478,10 @@ public final class GpuExpressionCompiler
                 return compileFormatDateTime(call, context);
             }
 
+            if (name.equals("starts_with")) {
+                return compileStartsWith(call, context);
+            }
+
             return Optional.empty();
         }
 
@@ -1157,6 +1161,31 @@ public final class GpuExpressionCompiler
             return toDType(sourceType).flatMap(sourceDType -> arguments.getFirst().accept(this, context)
                             .flatMap(source -> compileCast(source, sourceType, sourceDType, TIMESTAMP_MILLIS, DType.TIMESTAMP_MILLISECONDS)))
                     .flatMap(timestampMillis -> GpuFormatDateTime.create(timestampMillis, pattern.get()));
+        }
+
+        private Optional<GpuExpression> compileStartsWith(Call call, Void context)
+        {
+            if (!BOOLEAN.equals(call.type())) {
+                return Optional.empty();
+            }
+
+            List<Expression> arguments = call.arguments();
+            if (arguments.size() != 2) {
+                return Optional.empty();
+            }
+
+            if (!(arguments.getFirst().type() instanceof VarcharType)) {
+                return Optional.empty();
+            }
+
+            // cuDF startsWith only accepts a scalar prefix
+            Optional<String> prefix = extractVarcharConstant(arguments.get(1));
+            if (prefix.isEmpty()) {
+                return Optional.empty();
+            }
+
+            return arguments.getFirst().accept(this, context)
+                    .map(source -> new GpuStartsWith(source, prefix.get()));
         }
 
         private static Optional<String> extractPatternString(Type patternType, Object patternValue)

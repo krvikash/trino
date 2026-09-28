@@ -238,6 +238,21 @@ public class TestGpuExpressions
             "ワルシャワ近郊の美しい草原を雌鹿が歩いていた。",
             "Слава Україні");
 
+    private static final List<String> STARTS_WITH_EDGE_CASE_STRINGS = List.of(
+            "",
+            "a",
+            "abc",
+            "abd",
+            "xabc",
+            "한국어",
+            "あいう",
+            "中文",
+            "שלום",
+            "مرحبا",
+            "e\u0301clair",
+            "नमस्ते",
+            "𐐀abc");
+
     private static final List<Type> DATE_TIME_TYPES = ImmutableList.<Type>builder()
             .add(DATE)
             .addAll(IntStream.rangeClosed(0, TimestampType.MAX_PRECISION).mapToObj(TimestampType::createTimestampType).toList())
@@ -4995,6 +5010,36 @@ public class TestGpuExpressions
             return;
         }
         assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(varcharChannel));
+    }
+
+    @ParameterizedTest
+    @EnumSource(NullsProvider.class)
+    public void testStartsWith(NullsProvider nullsProvider)
+    {
+        int varcharChannel = 0;
+        List<Type> inputTypes = List.of(VARCHAR);
+        List<Page> inputPages = ImmutableList.<Page>builder()
+                .addAll(createVarcharPages(List.of(2 * testStrings.size()), nullsProvider))
+                .add(varcharPage(STARTS_WITH_EDGE_CASE_STRINGS))
+                .build();
+
+        for (String prefix : REPLACE_SEARCH_STRINGS) {
+            Expression expression = new Call(
+                    FUNCTION_RESOLUTION.resolveFunction("starts_with", fromTypes(VARCHAR, VARCHAR)),
+                    ImmutableList.of(field(varcharChannel, VARCHAR), new Constant(VARCHAR, Slices.utf8Slice(prefix))));
+            assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(varcharChannel));
+        }
+    }
+
+    @Test
+    public void testStartsWithNonConstantPrefix()
+    {
+        // cuDF startsWith takes a scalar prefix, so it must be a constant
+        List<Type> inputTypes = List.of(VARCHAR, VARCHAR);
+        Expression expression = new Call(
+                FUNCTION_RESOLUTION.resolveFunction("starts_with", fromTypes(VARCHAR, VARCHAR)),
+                ImmutableList.of(field(0, VARCHAR), field(1, VARCHAR)));
+        assertThat(compileExpression(expression, layoutFor(inputTypes), SQL_STANDARD, TEST_SESSION_TIME_ZONE_KEY)).isEmpty();
     }
 
     private static Page varcharPage(List<String> values)
