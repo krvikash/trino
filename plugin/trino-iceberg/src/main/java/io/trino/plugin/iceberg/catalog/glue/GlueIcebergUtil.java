@@ -124,7 +124,7 @@ public final class GlueIcebergUtil
         return tableInput.build();
     }
 
-    private static Optional<List<Column>> glueColumns(TypeManager typeManager, TableMetadata metadata)
+    public static Optional<List<Column>> glueColumns(TypeManager typeManager, TableMetadata metadata)
     {
         List<Types.NestedField> icebergColumns = metadata.schema().columns();
         ImmutableList.Builder<Column> glueColumns = builderWithExpectedSize(icebergColumns.size());
