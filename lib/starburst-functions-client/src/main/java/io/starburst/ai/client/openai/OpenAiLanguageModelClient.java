@@ -45,6 +45,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.Executor;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 import static io.starburst.ai.client.AiClientErrorCode.AI_CLIENT_ERROR;
@@ -145,6 +146,7 @@ public class OpenAiLanguageModelClient
                 client.chat().completions().createStreaming(params)) {
             streamResponse.stream()
                     .takeWhile(_ -> !isCancelled.get())
+                    .filter(new AccumulatableChunkFilter())
                     .peek(chatCompletionAccumulator::accumulate)
                     .filter(completion -> !completion.choices().isEmpty())
                     .map(completion -> completion.choices().getFirst())
@@ -288,6 +290,26 @@ public class OpenAiLanguageModelClient
                 }));
 
         return new ToolUseResponse(message.content().orElse(""), toolCallBuilder.build());
+    }
+
+    // ChatCompletionAccumulator rejects any chunk after the one carrying finish_reason, except a single
+    // usage chunk. Azure OpenAI can also send content filter annotation chunks after finish_reason.
+    private static class AccumulatableChunkFilter
+            implements Predicate<ChatCompletionChunk>
+    {
+        private boolean finished;
+        private boolean usageSeen;
+
+        @Override
+        public boolean test(ChatCompletionChunk chunk)
+        {
+            if (finished && (usageSeen || chunk.usage().isEmpty())) {
+                return false;
+            }
+            finished |= chunk.choices().stream().anyMatch(choice -> choice.finishReason().isPresent());
+            usageSeen |= chunk.usage().isPresent();
+            return true;
+        }
     }
 
     private static void checkFinishReason(ChatCompletion.Choice choice)
