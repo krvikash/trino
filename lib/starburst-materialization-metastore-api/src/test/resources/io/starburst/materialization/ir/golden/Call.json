@@ -1,0 +1,1 @@
+{"@type":"Call","function":{"name":{"catalogName":"system","schemaName":"builtin","functionName":"$operator$equal"},"returnType":"boolean","argumentTypes":["bigint","bigint"]},"arguments":[{"@type":"Reference","symbol":{"type":"bigint","name":"a"}},{"@type":"Reference","symbol":{"type":"bigint","name":"b"}}]}

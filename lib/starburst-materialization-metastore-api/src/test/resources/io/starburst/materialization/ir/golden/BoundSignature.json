@@ -1,0 +1,1 @@
+{"name":{"catalogName":"system","schemaName":"builtin","functionName":"$operator$less_than"},"returnType":"boolean","argumentTypes":["varchar","varchar"]}

@@ -32,7 +32,9 @@ import java.util.Map;
  */
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "@type")
 @JsonSubTypes({
+        @JsonSubTypes.Type(value = Call.class, name = Call.NAME),
         @JsonSubTypes.Type(value = Cast.class, name = Cast.NAME),
+        @JsonSubTypes.Type(value = FieldReference.class, name = FieldReference.NAME),
         @JsonSubTypes.Type(value = In.class, name = In.NAME),
         @JsonSubTypes.Type(value = IsNull.class, name = IsNull.NAME),
         @JsonSubTypes.Type(value = Logical.class, name = Logical.NAME),
@@ -40,7 +42,9 @@ import java.util.Map;
 })
 public sealed interface Expression
         extends IrNode
-        permits Cast,
+        permits Call,
+                Cast,
+                FieldReference,
                 In,
                 IsNull,
                 Logical,

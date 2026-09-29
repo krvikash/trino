@@ -16,6 +16,8 @@ package io.starburst.materialization.ir;
 import com.google.common.collect.ImmutableList;
 import com.google.common.io.Resources;
 import io.airlift.json.JsonCodec;
+import io.trino.spi.function.BoundSignature;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -24,8 +26,9 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.stream.Stream;
 
+import static io.starburst.materialization.ir.IrFixtures.builtinSignature;
 import static io.starburst.materialization.ir.IrFixtures.outputOverScan;
-import static io.starburst.materialization.ir.TestExpressionValidation.reference;
+import static io.starburst.materialization.ir.IrFixtures.reference;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.spi.type.VarcharType.VARCHAR;
@@ -43,7 +46,9 @@ class TestIrWireFormat
     static Stream<Arguments> expressions()
     {
         return Stream.of(
+                Arguments.of(Call.NAME, new Call(builtinSignature("$operator$EQUAL", BOOLEAN, BIGINT, BIGINT), ImmutableList.of(reference(BIGINT, "a"), reference(BIGINT, "b")))),
                 Arguments.of(Cast.NAME, new Cast(reference(VARCHAR, "a"), createVarcharType(10))),
+                Arguments.of(FieldReference.NAME, new FieldReference(reference(IrJson.PERSON_ROW, "info"), 0)),
                 Arguments.of(In.NAME, new In(reference(BIGINT, "a"), ImmutableList.of(reference(BIGINT, "b"), reference(BIGINT, "c")))),
                 Arguments.of(IsNull.NAME, new IsNull(reference(BIGINT, "a"))),
                 Arguments.of(Logical.NAME, new Logical(Logical.Operator.AND, ImmutableList.of(reference(BOOLEAN, "a"), reference(BOOLEAN, "b")))),
@@ -70,6 +75,12 @@ class TestIrWireFormat
     void testOperationWireFormat(String fixture, Operation operation)
     {
         assertMatchesFixture(fixture, IrJson.codec(Operation.class), operation);
+    }
+
+    @Test
+    void testBoundSignatureWireFormat()
+    {
+        assertMatchesFixture("BoundSignature", IrJson.codec(BoundSignature.class), builtinSignature("$operator$LESS_THAN", BOOLEAN, VARCHAR, VARCHAR));
     }
 
     static <T> void assertMatchesFixture(String fixture, JsonCodec<T> codec, T value)

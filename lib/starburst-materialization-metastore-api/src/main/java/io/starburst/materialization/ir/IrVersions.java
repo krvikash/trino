@@ -14,6 +14,7 @@
 package io.starburst.materialization.ir;
 
 import com.google.common.collect.ImmutableMap;
+import io.trino.spi.function.CatalogSchemaFunctionName;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -30,15 +31,18 @@ import static com.google.common.collect.ImmutableMap.toImmutableMap;
  * <ul>
  * <li>bare: an {@link Operation} node type, grandfathered unprefixed ({@code TableScan})</li>
  * <li>{@value #EXPRESSION_PREFIX}: an {@link Expression} node type ({@code expr:Reference})</li>
+ * <li>{@value #FUNCTION_PREFIX}: one {@link SupportedFunctions} entry's semantics, keyed by its
+ * {@code catalog.schema.function} name ({@code fn:system.builtin.$operator$equal})</li>
  * <li>{@value #CAST_PREFIX}: one {@link SupportedCasts} pair's conversion semantics ({@code cast:varchar->varchar})</li>
  * <li>{@value #LEAF_PREFIX}: a shared leaf serialized form, stamped by {@code Expression} nodes only
- * ({@code leaf:Symbol}, {@code leaf:Type})</li>
+ * ({@code leaf:Symbol}, {@code leaf:Type}, {@code leaf:BoundSignature})</li>
  * </ul>
  * Names are permanent: renaming one silently invalidates every stored definition that uses it.
  */
 public final class IrVersions
 {
     public static final String EXPRESSION_PREFIX = "expr:";
+    public static final String FUNCTION_PREFIX = "fn:";
     public static final String CAST_PREFIX = "cast:";
     public static final String LEAF_PREFIX = "leaf:";
 
@@ -46,6 +50,8 @@ public final class IrVersions
     public static final int SYMBOL_LEAF_VERSION = 1;
     public static final String TYPE_LEAF = LEAF_PREFIX + "Type";
     public static final int TYPE_LEAF_VERSION = 1;
+    public static final String BOUND_SIGNATURE_LEAF = LEAF_PREFIX + "BoundSignature";
+    public static final int BOUND_SIGNATURE_LEAF_VERSION = 1;
 
     /**
      * {@code Operation} versions, keyed by the grandfathered bare node name.
@@ -58,11 +64,19 @@ public final class IrVersions
      * {@code Expression} versions, keyed by the {@value #EXPRESSION_PREFIX} namespaced node name.
      */
     public static final Map<String, Integer> EXPRESSION_VERSIONS = ImmutableMap.of(
+            expressionKey(Call.NAME), Call.VERSION,
             expressionKey(Cast.NAME), Cast.VERSION,
+            expressionKey(FieldReference.NAME), FieldReference.VERSION,
             expressionKey(In.NAME), In.VERSION,
             expressionKey(IsNull.NAME), IsNull.VERSION,
             expressionKey(Logical.NAME), Logical.VERSION,
             expressionKey(Reference.NAME), Reference.VERSION);
+
+    /**
+     * {@link SupportedFunctions} versions, keyed by {@value #FUNCTION_PREFIX}{@code <catalog>.<schema>.<function>}.
+     */
+    public static final Map<String, Integer> FUNCTION_VERSIONS = SupportedFunctions.supported().stream()
+            .collect(toImmutableMap(IrVersions::functionKey, SupportedFunctions::semanticVersion));
 
     /**
      * {@link SupportedCasts} versions, keyed by {@value #CAST_PREFIX}{@code <source base type>-><target base type>}.
@@ -74,7 +88,8 @@ public final class IrVersions
 
     public static final Map<String, Integer> LEAF_VERSIONS = ImmutableMap.of(
             SYMBOL_LEAF, SYMBOL_LEAF_VERSION,
-            TYPE_LEAF, TYPE_LEAF_VERSION);
+            TYPE_LEAF, TYPE_LEAF_VERSION,
+            BOUND_SIGNATURE_LEAF, BOUND_SIGNATURE_LEAF_VERSION);
 
     /**
      * Every name this build can read, with the version it reads it at.
@@ -82,6 +97,7 @@ public final class IrVersions
     public static final Map<String, Integer> SUPPORTED = ImmutableMap.<String, Integer>builder()
             .putAll(OPERATION_VERSIONS)
             .putAll(EXPRESSION_VERSIONS)
+            .putAll(FUNCTION_VERSIONS)
             .putAll(CAST_VERSIONS)
             .putAll(LEAF_VERSIONS)
             .buildOrThrow();
@@ -91,6 +107,11 @@ public final class IrVersions
     static String expressionKey(String nodeName)
     {
         return EXPRESSION_PREFIX + nodeName;
+    }
+
+    static String functionKey(CatalogSchemaFunctionName name)
+    {
+        return FUNCTION_PREFIX + name;
     }
 
     static String castKey(String sourceBaseName, String targetBaseName)

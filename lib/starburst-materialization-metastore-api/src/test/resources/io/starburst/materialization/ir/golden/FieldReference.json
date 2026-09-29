@@ -1,0 +1,1 @@
+{"@type":"FieldReference","base":{"@type":"Reference","symbol":{"type":"row(\"name\" varchar,\"age\" bigint)","name":"info"}},"field":0}

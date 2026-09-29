@@ -18,6 +18,9 @@ import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.connector.substitution.ConnectorColumnId;
 import io.trino.spi.connector.substitution.ConnectorIdVersion;
 import io.trino.spi.connector.substitution.ConnectorTableId;
+import io.trino.spi.function.BoundSignature;
+import io.trino.spi.function.CatalogSchemaFunctionName;
+import io.trino.spi.type.Type;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
@@ -36,6 +39,16 @@ final class IrFixtures
                 stream(columns).map(Symbol::name).collect(toImmutableList()),
                 ImmutableList.copyOf(columns),
                 scan);
+    }
+
+    static Reference reference(Type type, String name)
+    {
+        return new Reference(new Symbol(type, name));
+    }
+
+    static BoundSignature builtinSignature(String functionName, Type returnType, Type... argumentTypes)
+    {
+        return new BoundSignature(new CatalogSchemaFunctionName("system", "builtin", functionName), returnType, ImmutableList.copyOf(argumentTypes));
     }
 
     record FixtureTableId(String tableName)

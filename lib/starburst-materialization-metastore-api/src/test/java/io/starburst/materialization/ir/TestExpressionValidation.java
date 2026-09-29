@@ -17,14 +17,17 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import io.starburst.materialization.ir.Logical.Operator;
 import io.starburst.materialization.ir.SupportedCasts.CastPair;
-import io.trino.spi.type.Type;
+import io.trino.spi.function.BoundSignature;
 import org.junit.jupiter.api.Test;
 
 import java.util.Set;
 
+import static io.starburst.materialization.ir.IrFixtures.builtinSignature;
+import static io.starburst.materialization.ir.IrFixtures.reference;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.spi.type.CharType.createCharType;
+import static io.trino.spi.type.DoubleType.DOUBLE;
 import static io.trino.spi.type.StandardTypes.CHAR;
 import static io.trino.spi.type.StandardTypes.TIMESTAMP_WITH_TIME_ZONE;
 import static io.trino.spi.type.StandardTypes.TIME_WITH_TIME_ZONE;
@@ -87,6 +90,69 @@ class TestExpressionValidation
     }
 
     @Test
+    void testCallOffTheAllowlistIsRejected()
+    {
+        BoundSignature random = builtinSignature("random", DOUBLE);
+        assertThat(SupportedFunctions.contains(random.getName())).isFalse();
+        assertThatThrownBy(() -> new Call(random, ImmutableList.of()))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Call: function system.builtin.random is not supported");
+    }
+
+    @Test
+    void testCallWithArityMismatchIsRejected()
+    {
+        assertThatThrownBy(() -> new Call(builtinSignature("$operator$EQUAL", BOOLEAN, BIGINT, BIGINT), ImmutableList.of(reference(BIGINT, "secret_column"))))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Call: function system.builtin.$operator$equal expects 2 arguments, got 1");
+    }
+
+    @Test
+    void testCallWithArgumentTypeMismatchIsRejected()
+    {
+        assertThatThrownBy(() -> new Call(
+                builtinSignature("$operator$EQUAL", BOOLEAN, BIGINT, BIGINT),
+                ImmutableList.of(reference(BIGINT, "a"), reference(IrJson.PERSON_ROW, "secret_column"))))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Call: argument 1 of function system.builtin.$operator$equal has type row, expected bigint");
+    }
+
+    @Test
+    void testComparisonOfTimestampsWithTimeZoneIsAccepted()
+    {
+        Call call = new Call(
+                builtinSignature("$operator$LESS_THAN", BOOLEAN, TIMESTAMP_TZ_MILLIS, TIMESTAMP_TZ_MILLIS),
+                ImmutableList.of(reference(TIMESTAMP_TZ_MILLIS, "a"), reference(TIMESTAMP_TZ_MILLIS, "b")));
+        assertThat(call.type()).isEqualTo(BOOLEAN);
+    }
+
+    @Test
+    void testFieldReferenceIntoRowIsAccepted()
+    {
+        FieldReference name = new FieldReference(reference(IrJson.PERSON_ROW, "info"), 0);
+        assertThat(name.type()).isEqualTo(createUnboundedVarcharType());
+    }
+
+    @Test
+    void testFieldReferenceIntoNonRowIsRejected()
+    {
+        assertThatThrownBy(() -> new FieldReference(reference(BIGINT, "secret_column"), 0))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("FieldReference: base has type bigint, expected a row type");
+    }
+
+    @Test
+    void testFieldReferenceOutOfBoundsIsRejected()
+    {
+        assertThatThrownBy(() -> new FieldReference(reference(IrJson.PERSON_ROW, "secret_column"), 2))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("FieldReference: field 2 is out of bounds for a row with 2 fields");
+        assertThatThrownBy(() -> new FieldReference(reference(IrJson.PERSON_ROW, "secret_column"), -1))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("FieldReference: field -1 is out of bounds for a row with 2 fields");
+    }
+
+    @Test
     void testLogicalWithOneTermIsRejected()
     {
         assertThatThrownBy(() -> new Logical(Operator.AND, ImmutableList.of(reference(BOOLEAN, "a"))))
@@ -130,10 +196,5 @@ class TestExpressionValidation
     void testIsNullIsBoolean()
     {
         assertThat(new IsNull(reference(BIGINT, "a")).type()).isEqualTo(BOOLEAN);
-    }
-
-    static Reference reference(Type type, String name)
-    {
-        return new Reference(new Symbol(type, name));
     }
 }
