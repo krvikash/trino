@@ -12,6 +12,7 @@ package io.starburst.ai.client.openai;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.openai.client.OpenAIClient;
 import com.openai.core.JsonValue;
@@ -294,7 +295,8 @@ public class OpenAiLanguageModelClient
 
     // ChatCompletionAccumulator rejects any chunk after the one carrying finish_reason, except a single
     // usage chunk. Azure OpenAI can also send content filter annotation chunks after finish_reason.
-    private static class AccumulatableChunkFilter
+    @VisibleForTesting
+    static class AccumulatableChunkFilter
             implements Predicate<ChatCompletionChunk>
     {
         private boolean finished;
