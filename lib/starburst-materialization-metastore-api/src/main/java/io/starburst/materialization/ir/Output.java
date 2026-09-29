@@ -52,4 +52,10 @@ public record Output(List<String> columnNames, List<Symbol> outputs, Operation s
     {
         return NAME;
     }
+
+    @Override
+    public List<Operation> children()
+    {
+        return ImmutableList.of(source);
+    }
 }

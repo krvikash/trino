@@ -28,20 +28,22 @@ import java.util.Map;
         @JsonSubTypes.Type(value = TableScan.class, name = TableScan.NAME),
 })
 public sealed interface Operation
+        extends IrNode
         permits Output, TableScan
 {
     /**
-     * Engine-side declaration of supported IR-node versions.
-     * <p>
-     * A stored {@code RawMaterializationDefinition.irVersions} map is compatible iff
-     * every (typeName, version) entry matches an entry in this map exactly.
-     * Unknown type names and version mismatches both fail the check.
+     * Engine-side declaration of supported {@code Operation} versions, keyed by the bare node name.
+     * This is the {@code Operation} subset of {@link IrVersions#SUPPORTED}, which the compatibility gate uses.
      */
-    Map<String, Integer> SUPPORTED = ImmutableMap.of(
-            Output.NAME, Output.VERSION,
-            TableScan.NAME, TableScan.VERSION);
+    Map<String, Integer> SUPPORTED = IrVersions.OPERATION_VERSIONS;
 
-    int version();
-
-    String name();
+    /**
+     * An {@code Operation} stamps its bare name. The unprefixed namespace of {@link IrVersions} belongs to
+     * {@code Operation} node types alone, and every stored row carries these names, so they never change.
+     */
+    @Override
+    default Map<String, Integer> versionEntries()
+    {
+        return ImmutableMap.of(name(), version());
+    }
 }

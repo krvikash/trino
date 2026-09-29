@@ -19,6 +19,7 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.databind.util.StdConverter;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.trino.spi.connector.substitution.ConnectorColumnId;
 
@@ -56,6 +57,12 @@ public record TableScan(
     public String name()
     {
         return NAME;
+    }
+
+    @Override
+    public List<Operation> children()
+    {
+        return ImmutableList.of();
     }
 
     public record Assignment(ConnectorColumnId id, Symbol symbol)
