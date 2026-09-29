@@ -128,9 +128,9 @@ public final class BenchmarkRunner
 
     /**
      * Per-iteration timing. {@code elapsedMillis} includes planning and queueing;
-     * {@code executionMillis} is execution-only.
+     * {@code executionMillis} is execution-only; {@code cpuMillis} is the query's total task CPU time.
      */
-    public record Measurement(long elapsedMillis, long executionMillis) {}
+    public record Measurement(long elapsedMillis, long executionMillis, long cpuMillis) {}
 
     /**
      * Leaf or in-stack frames marking idle / parked / polling threads — excluded from the
@@ -962,7 +962,7 @@ public final class BenchmarkRunner
             throw new AssertionError(formatResultMismatch(displayName, expectedLines, actualLines));
         }
         return new IterationResult(
-                new Measurement(stats.getElapsedTime().toMillis(), stats.getExecutionTime().toMillis()),
+                new Measurement(stats.getElapsedTime().toMillis(), stats.getExecutionTime().toMillis(), stats.getTotalCpuTime().toMillis()),
                 queryInfo);
     }
 
@@ -1104,28 +1104,30 @@ public final class BenchmarkRunner
         try (BufferedWriter writer = Files.newBufferedWriter(csvFile, UTF_8)) {
             writer.write("query");
             for (int i = 1; i <= maxMeasurements; i++) {
-                writer.write(",run_%d_elapsed,run_%d_execution".formatted(i, i));
+                writer.write(",run_%d_elapsed,run_%d_execution,run_%d_cpu".formatted(i, i, i));
             }
-            writer.write(",average_elapsed_ms,average_execution_ms,n_measurements");
+            writer.write(",average_elapsed_ms,average_execution_ms,average_cpu_ms,n_measurements");
             writer.newLine();
             for (Map.Entry<String, List<Measurement>> entry : measurementsByQuery.entrySet()) {
                 writer.write(entry.getKey());
                 List<Measurement> measurements = entry.getValue();
                 for (int i = 0; i < maxMeasurements; i++) {
                     if (i < measurements.size()) {
-                        writer.write(",%d,%d".formatted(measurements.get(i).elapsedMillis(), measurements.get(i).executionMillis()));
+                        Measurement measurement = measurements.get(i);
+                        writer.write(",%d,%d,%d".formatted(measurement.elapsedMillis(), measurement.executionMillis(), measurement.cpuMillis()));
                     }
                     else {
-                        writer.write(",,");
+                        writer.write(",,,");
                     }
                 }
                 if (measurements.isEmpty()) {
-                    writer.write(",,,0");
+                    writer.write(",,,,0");
                 }
                 else {
                     long averageElapsed = averageMillis(measurements, Measurement::elapsedMillis);
                     long averageExecution = averageMillis(measurements, Measurement::executionMillis);
-                    writer.write(",%d,%d,%d".formatted(averageElapsed, averageExecution, measurements.size()));
+                    long averageCpu = averageMillis(measurements, Measurement::cpuMillis);
+                    writer.write(",%d,%d,%d,%d".formatted(averageElapsed, averageExecution, averageCpu, measurements.size()));
                 }
                 writer.newLine();
             }
