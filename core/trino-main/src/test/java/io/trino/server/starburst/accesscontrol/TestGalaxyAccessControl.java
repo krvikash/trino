@@ -55,6 +55,7 @@ import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
+import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -71,6 +72,7 @@ import java.util.stream.IntStream;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
+import static com.google.common.reflect.Reflection.newProxy;
 import static io.starburst.stargate.accesscontrol.privilege.GrantKind.ALLOW;
 import static io.starburst.stargate.accesscontrol.privilege.GrantKind.DENY;
 import static io.starburst.stargate.accesscontrol.privilege.Privilege.CREATE_SCHEMA;
@@ -882,6 +884,48 @@ public abstract class TestGalaxyAccessControl
     {
         withTablePrivilege(UPDATE, "Cannot update columns \\[foo\\] in table.*", (context, name) ->
                 accessControl.checkCanUpdateTableColumns(context, name, Optional.empty(), ImmutableSet.of("foo")));
+    }
+
+    @Test
+    public void testLiveTableCannotBeUpdated()
+    {
+        CatalogSchemaTableName liveTable = new CatalogSchemaTableName(helper.getAnyCatalogName(), new SchemaTableName(newSchemaName(), newTableName()));
+        GalaxyAccessControl liveTableAccessControl = new GalaxyAccessControl(
+                1,
+                1_000,
+                identity -> withLiveTable(helper.getAccessController(identity), liveTable),
+                new GalaxyFunctionScopeResolver(),
+                new StacCatalogManagementAccessControl(helper.getAccessControllerSupplier()));
+        try {
+            SystemSecurityContext context = adminContext();
+            String liveTableDenial = "Ingest live table .* may not be modified";
+            checkNotAllowed(() -> liveTableAccessControl.checkCanUpdateTableColumns(context, liveTable, Optional.empty(), ImmutableSet.of("foo")), "Cannot update columns \\[foo\\] in table .*" + liveTableDenial);
+            checkNotAllowed(() -> liveTableAccessControl.checkCanUpdateTableColumns(context, liveTable, ImmutableSet.of("foo")), "Cannot update columns \\[foo\\] in table .*" + liveTableDenial);
+            checkNotAllowed(() -> liveTableAccessControl.checkCanInsertIntoTable(context, liveTable), "Cannot insert into table .*" + liveTableDenial);
+            checkNotAllowed(() -> liveTableAccessControl.checkCanDeleteFromTable(context, liveTable), "Cannot delete from table .*" + liveTableDenial);
+            checkNotAllowed(() -> liveTableAccessControl.checkCanTruncateTable(context, liveTable), "Cannot truncate table .*" + liveTableDenial);
+            checkNotAllowed(() -> liveTableAccessControl.checkCanDropTable(context, liveTable), "Cannot drop table .*" + liveTableDenial);
+            checkNotAllowed(() -> liveTableAccessControl.checkCanExecuteTableProcedure(context, liveTable, "optimize"), "Cannot execute procedure optimize.*" + liveTableDenial);
+        }
+        finally {
+            liveTableAccessControl.shutdown();
+        }
+    }
+
+    private static GalaxyAccessControllerApi withLiveTable(GalaxyAccessControllerApi delegate, CatalogSchemaTableName liveTable)
+    {
+        // Instead of implementing a DelegatingGalaxyAccessControllerApi, proxy isLiveTableStopped and delegate the rest
+        return newProxy(GalaxyAccessControllerApi.class, (_, method, args) -> {
+            if (method.getName().equals("isLiveTableStopped") && ((TableId) args[1]).getTableName().equals(liveTable.getSchemaTableName().getTableName())) {
+                return Optional.of(false);
+            }
+            try {
+                return method.invoke(delegate, args);
+            }
+            catch (InvocationTargetException e) {
+                throw e.getCause();
+            }
+        });
     }
 
     @Test

@@ -590,6 +590,7 @@ public class GalaxyAccessControl
     public void checkCanUpdateTableColumns(SystemSecurityContext context, CatalogSchemaTableName table, Optional<String> branch, Set<String> columns)
     {
         checkCatalogIsWritable(getSystemAccessController(context), table.getCatalogName(), explanation -> denyUpdateTableColumns(table.toString(), columns, explanation));
+        checkTableIngestionStateAllowsUpdates(context, table, explanation -> denyUpdateTableColumns(table.toString(), columns, explanation));
         checkHasPrivilegeOnColumns(context, UPDATE, false, table, columns, explanation -> denyUpdateTableColumns(table.toString(), columns, explanation));
     }
 
