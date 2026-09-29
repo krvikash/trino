@@ -24,7 +24,6 @@ import io.trino.parquet.reader.ParquetReader;
 import io.trino.parquet.reader.TestingParquetDataSource;
 import io.trino.parquet.writer.ParquetWriterOptions;
 import io.trino.plugin.warp.WarpErrorCode;
-import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.config.SharedConfig;
 import io.trino.plugin.warp.connector.TestingConnectorColumnHandle;
 import io.trino.plugin.warp.dispatcher.model.RegularColumn;
@@ -96,7 +95,6 @@ public class DispatcherPageSourceTest
     protected final DispatcherPageSourceStats stats = new DispatcherPageSourceStats();
     protected final Map<Integer, Type> proxiedCollectTypeByBlockIndex = Map.of(1, BIGINT);
     private DispatcherProxiedConnectorTransformer dispatcherProxiedConnectorTransformer;
-    private final GlobalConfig globalConfig = new GlobalConfig();
 
     private RowGroupCloseHandler closeHandler;
     private ReadErrorHandler readErrorHandler;
@@ -189,9 +187,54 @@ public class DispatcherPageSourceTest
         }
     }
 
-    /**
-     * SIC-2235 protect in case proxied return empty page source
-     */
+    @Test
+    public void mixedQuery_proxiedReturnsManyEmptyPagesAroundMatches()
+    {
+        RowRanges warpMatchRanges = createRowRanges(0, 1, 3, 4);
+
+        long[] warpMatches = {4, 5};
+        long[] proxiedMatches = {99, 100};
+
+        List<Page> proxiedPages = new ArrayList<>();
+        for (int i = 0; i < 6000; i++) {
+            proxiedPages.add(new Page(new LongArrayBlockBuilder(null, 0).build()));
+        }
+        proxiedPages.add(buildLongPage(proxiedMatches[0], -1));
+        for (int i = 0; i < 6000; i++) {
+            proxiedPages.add(new Page(new LongArrayBlockBuilder(null, 0).build()));
+        }
+        proxiedPages.add(buildLongPage(-1, proxiedMatches[1]));
+        prepareMock(
+                Lists.newArrayList(new TestPage(buildPageLong(warpMatches), warpMatchRanges)),
+                proxiedPages);
+
+        DispatcherPageSource dispatcherPageSource = getDispatcherPageSource(2, proxiedCollectTypeByBlockIndex);
+
+        actAndAssert(warpMatches, proxiedMatches, dispatcherPageSource);
+    }
+
+    @Test
+    public void mixedQuery_proxiedFinishesBeforeWarpRanges()
+    {
+        RowRanges warpMatchRanges = createRowRanges(0, 1, 5, 6);
+
+        prepareMock(
+                Lists.newArrayList(new TestPage(buildPageLong(new long[] {4, 5}), warpMatchRanges)),
+                Lists.newArrayList(buildLongPage(99, -1)));
+
+        DispatcherPageSource dispatcherPageSource = getDispatcherPageSource(2, proxiedCollectTypeByBlockIndex);
+
+        assertThatThrownBy(() -> {
+            while (!dispatcherPageSource.isFinished()) {
+                dispatcherPageSource.getNextSourcePage();
+            }
+        })
+                .isInstanceOfSatisfying(TrinoException.class, exception ->
+                        assertThat(exception.getErrorCode()).isEqualTo(WarpErrorCode.WARP_PROXIED_ROW_MISMATCH.toErrorCode()));
+        verify(readErrorHandler, times(1))
+                .handle(any(TrinoException.class), eq(rowGroupData), any(QueryContext.class));
+    }
+
     @Test
     public void mixedQuery_1ProxiedPages_singleRangeProxiedReturnEmptyPage()
     {
@@ -717,10 +760,10 @@ public class DispatcherPageSourceTest
                 new TestPage(buildLongPage(115, 116), createRowRanges(15, 17)));
         prepareMock(
                 warpPages,
-                List.of(buildLongPage(1, 2), buildLongPage(3, 4), buildLongPage(5, 6, 7, 8, 9, 10, 11, 12, 13)));
+                List.of(buildLongPage(1, 2), buildLongPage(3, 4), buildLongPage(5, 6, 7, 8, 9, 10, 11, 12, 13), buildLongPage(14, 15, 16, 17)));
 
         DispatcherPageSource dispatcherPageSource = getDispatcherPageSource(2, proxiedCollectTypeByBlockIndex);
-        actAndAssert(new long[] {100, 101, 105, 106, 110, 111}, new long[] {1, 2, 6, 7, 12, 13}, dispatcherPageSource);
+        actAndAssert(new long[] {100, 101, 105, 106, 110, 111, 115, 116}, new long[] {1, 2, 6, 7, 12, 13, 16, 17}, dispatcherPageSource);
     }
 
     @Test
@@ -937,10 +980,7 @@ public class DispatcherPageSourceTest
                 stats,
                 closeHandler,
                 null,
-                null,
-                0,
                 readErrorHandler,
-                globalConfig,
                 new ShapingLoggerFactory(new CatalogName("c"), new SharedConfig()));
     }
 

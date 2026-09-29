@@ -37,6 +37,7 @@ import java.util.stream.Collectors;
         "warp-speed.data-only-warming",
         "warp-speed.enable.lazy-for-selective",
         "warp-speed.config.is-single",
+        "warp-speed.config-empty-page-iterations",
 })
 public class GlobalConfig
 {
@@ -52,7 +53,6 @@ public class GlobalConfig
     private double filteringLowSelectivityThreshold = 0.01;
     private double filteringChunkSkipThreshold = 0.05;
     private long reservationUsageForSingleTxInBytes = 1024L * 1024 * 128;
-    private long emptyPageIterations = 5000;
     private int cloudExecutorPoolSize = Runtime.getRuntime().availableProcessors() * 100;
     private int prioritizeExecutorPoolSize = 1000;
     private String cardinalityBuckets = "1000,1000000"; // allows applying most selective predicate first when using predicate push-down
@@ -372,17 +372,6 @@ public class GlobalConfig
         this.shapingLoggerNumberOfSamples = shapingLoggerNumberOfSamples;
     }
 
-    @Config("warp-speed.config-empty-page-iterations")
-    public void setEmptyPageIterations(long emptyPageIterations)
-    {
-        this.emptyPageIterations = emptyPageIterations;
-    }
-
-    public long getEmptyPageIterations()
-    {
-        return emptyPageIterations;
-    }
-
     public long getPreAllocMemorySize()
     {
         return preAllocMemorySize;
@@ -423,7 +412,6 @@ public class GlobalConfig
                 ", shapingLoggerNumberOfSamplings=" + shapingLoggerNumberOfSamples +
                 ", debugWarmingSingleThreaded=" + debugWarmingSingleThreaded +
                 ", debugNoPredicateBuffer=" + debugNoPredicateBuffer +
-                ", emptyPageIterations=" + emptyPageIterations +
                 '}';
     }
 }

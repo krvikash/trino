@@ -547,7 +547,6 @@ public class WarpDispatcherPageSourceFactory
                         queryContext.getRemainingCollectColumns().stream().map(dispatcherProxiedConnectorTransformer::getColumnType),
                         queryContext.getNativeQueryCollectDataList().stream().map(QueryColumn::getType))
                 .collect(toImmutableList());
-        long deletedRowsCount = dispatcherProxiedConnectorTransformer.getDeletedRowsCount(dispatcherSplit.proxyConnectorSplit());
         return new DispatcherPageSource(
                 proxiedConnectorPageSourceProvider,
                 queryClassifier,
@@ -558,11 +557,8 @@ public class WarpDispatcherPageSourceFactory
                 pageSourceDecision,
                 pageSourceStats,
                 closeHandler,
-                dispatcherSplit,
                 dispatcherTableHandle,
-                deletedRowsCount,
                 readErrorHandler,
-                globalConfig,
                 shapingLoggerFactory);
     }
 

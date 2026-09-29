@@ -79,7 +79,17 @@ class ReadErrorHandlerTest
     @Test
     public void testHandle_UnrecoverableError()
     {
-        TrinoException trinoException = new TrinoException(WarpErrorCode.WARP_NATIVE_UNRECOVERABLE_ERROR, "error message");
+        assertDemotedTemporarily(new TrinoException(WarpErrorCode.WARP_NATIVE_UNRECOVERABLE_ERROR, "error message"));
+    }
+
+    @Test
+    public void testHandle_ProxiedRowMismatch()
+    {
+        assertDemotedTemporarily(new TrinoException(WarpErrorCode.WARP_PROXIED_ROW_MISMATCH, "error message"));
+    }
+
+    private void assertDemotedTemporarily(TrinoException trinoException)
+    {
         WarmUpElement failedElement = createWarmupElement(new RegularColumn("c1"));
         RowGroupKey rowGroupKey = mock(RowGroupKey.class);
         List<ColumnHandle> warmedColumnHandleList = mockColumns(List.of(Pair.of("c1", VarcharType.VARCHAR)));

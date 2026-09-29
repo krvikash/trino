@@ -36,6 +36,7 @@ import java.util.stream.Collectors;
 import static io.trino.plugin.warp.WarpErrorCode.WARP_NATIVE_READ_OUT_OF_BOUNDS;
 import static io.trino.plugin.warp.WarpErrorCode.WARP_NATIVE_UNRECOVERABLE_ERROR;
 import static io.trino.plugin.warp.WarpErrorCode.WARP_NATIVE_UNRECOVERABLE_MATCH_ERROR;
+import static io.trino.plugin.warp.WarpErrorCode.WARP_PROXIED_ROW_MISMATCH;
 import static io.trino.plugin.warp.WarpErrorCode.WARP_UNRECOVERABLE_COLLECT_FAILED;
 import static io.trino.plugin.warp.WarpErrorCode.WARP_UNRECOVERABLE_MATCH_FAILED;
 import static io.trino.plugin.warp.util.TrinoExceptionMapper.WARP_ERROR_CODE_OFFSET;
@@ -64,7 +65,8 @@ public class ReadErrorHandler
             if (errorCode.equals(WARP_NATIVE_UNRECOVERABLE_ERROR.toErrorCode()) ||
                     errorCode.equals(WARP_UNRECOVERABLE_MATCH_FAILED.toErrorCode()) ||
                     errorCode.equals(WARP_UNRECOVERABLE_COLLECT_FAILED.toErrorCode()) ||
-                    errorCode.equals(WARP_NATIVE_UNRECOVERABLE_MATCH_ERROR.toErrorCode())) {
+                    errorCode.equals(WARP_NATIVE_UNRECOVERABLE_MATCH_ERROR.toErrorCode()) ||
+                    errorCode.equals(WARP_PROXIED_ROW_MISMATCH.toErrorCode())) {
                 Set<WarmUpElement> queryContextWarmupElements = getQueryContextWarmupElements(queryContext);
                 logger.warn("unrecoverable error: demoting due error code %s rowGroupKey %s queryContextWarmupElements %s", errorCode.getName(), failedRowGroupData.getRowGroupKey(), queryContextWarmupElements);
                 rowGroupDataService.markAsFailed(failedRowGroupData.getRowGroupKey(), queryContextWarmupElements, failedRowGroupData.getPartitionKeys());

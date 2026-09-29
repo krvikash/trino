@@ -15,9 +15,7 @@ package io.trino.plugin.warp.dispatcher;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.inject.Provider;
-import io.airlift.log.Logger;
 import io.trino.plugin.warp.WarpErrorCode;
-import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.dispatcher.model.RowGroupData;
 import io.trino.plugin.warp.dispatcher.query.QueryContext;
 import io.trino.plugin.warp.dispatcher.query.classifier.QueryClassifier;
@@ -40,7 +38,6 @@ import java.util.ArrayDeque;
 import java.util.Arrays;
 import java.util.Deque;
 import java.util.List;
-import java.util.Locale;
 import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.function.LongConsumer;
@@ -56,13 +53,9 @@ import static java.util.Objects.requireNonNull;
 public class DispatcherPageSource
         implements ConnectorPageSource
 {
-    private static final Logger logger = Logger.get(DispatcherPageSource.class);
-
     private final ShapingLogger shapingLogger;
     protected final WarpStoragePageSource warpPageSource;
-    private final DispatcherSplit dispatcherSplit;
     private final DispatcherTableHandle dispatcherTableHandle;
-    private final long maxEmptyPageSourceIterations;
     private final PrefilledPageSource prefilledPageSource;
     private final QueryContext queryContext;
     private final RowGroupData rowGroupData;
@@ -84,8 +77,6 @@ public class DispatcherPageSource
     private SourcePage currentWarpSourcePage;
     private int currentWarpPagePosition; // Position upto which currentWarpPage has been consumed
     private Deque<RowRange> warpPageRanges;
-    private int emptyPagesCounter;
-    private boolean forceFinish;
     // Output layout is fixed per split; each output channel is served by exactly one of proxied, prefilled or warp
     private final int[] proxiedOutputChannels;
     private final int[] prefilledOutputChannels;
@@ -103,19 +94,14 @@ public class DispatcherPageSource
             PageSourceDecision pageSourceDecision,
             DispatcherPageSourceStats stats,
             RowGroupCloseHandler closeHandler,
-            DispatcherSplit dispatcherSplit,
             DispatcherTableHandle dispatcherTableHandle,
-            long deletedRowsCount,
             ReadErrorHandler readErrorHandler,
-            GlobalConfig globalConfig,
             ShapingLoggerFactory shapingLoggerFactory)
     {
         this.proxiedConnectorPageSourceProvider = proxiedConnectorPageSourceProvider;
         this.queryClassifier = queryClassifier;
         this.warpPageSource = warpPageSource;
-        this.dispatcherSplit = dispatcherSplit;
         this.dispatcherTableHandle = dispatcherTableHandle;
-        this.maxEmptyPageSourceIterations = Math.max(deletedRowsCount, globalConfig.getEmptyPageIterations());
         this.prefilledPageSource = new PrefilledPageSource(
                 queryContext.getPrefilledQueryCollectDataByBlockIndex(),
                 stats,
@@ -133,8 +119,6 @@ public class DispatcherPageSource
         this.startTime = System.nanoTime();
         this.shapingLogger = shapingLoggerFactory.getInstance(DispatcherPageSource.class);
         this.warpWithoutPrefilledAndProxiedCollectTypes = warpWithoutPrefilledAndProxiedCollectTypes;
-        this.emptyPagesCounter = 0;
-        this.forceFinish = false;
         this.proxiedOutputChannels = queryContext.getRemainingCollectColumnByBlockIndex().keySet().stream()
                 .sorted()
                 .mapToInt(Integer::intValue)
@@ -160,44 +144,6 @@ public class DispatcherPageSource
     @Override
     public SourcePage getNextSourcePage()
     {
-        if (emptyPagesCounter == maxEmptyPageSourceIterations) {
-            String info = String.format(
-                    Locale.US,
-                    "queryId=%s, pageSourceDecision=%s, currentProxiedPagePosition=%s, proxiedConnectorPageSource.isFinished=%s, proxiedPageRanges=%s, warpPageRanges.size=%s, currentWarpPagePosition=%s, " +
-                            "currentProxiedPage.getPositionCount()=%s, currentWarpPage.getPositionCount()=%s, warpWithoutPrefilledAndProxiedCollectTypes=%s, proxiedPagePositionsRead=%s, proxiedConnectorPageSource=%s, " +
-                            "currentProxiedPageLoadRecorded=%s, dispatcherTableHandle=%s, dispatcherSplit=%s, rowGroupKey=%s",
-                    queryContext.getQueryId(),
-                    pageSourceDecision,
-                    currentProxiedPagePosition,
-                    isFinishedText(proxiedConnectorPageSource),
-                    proxiedPageRanges,
-                    warpPageRanges.size(),
-                    currentWarpPagePosition,
-                    positionCountText(currentProxiedPage),
-                    positionCountText(currentWarpSourcePage),
-                    warpWithoutPrefilledAndProxiedCollectTypes,
-                    proxiedPagePositionsRead,
-                    proxiedConnectorPageSource,
-                    currentProxiedPage != null && isSameSourcePage(lastLoadRecordedProxiedPage, currentProxiedPage),
-                    dispatcherTableHandle,
-                    dispatcherSplit,
-                    rowGroupData.getRowGroupKey());
-            shapingLogger.info("returned more than emptyPagesCounter=%s emptyPages, set forced finished. info=%s", emptyPagesCounter, info);
-            forceFinish = true;
-        }
-
-        SourcePage dispatcherSourcePage = getDispatcherSourcePage();
-        if (dispatcherSourcePage.getPositionCount() == 0 && !isFinished()) {
-            emptyPagesCounter++;
-        }
-        else {
-            emptyPagesCounter = 0;
-        }
-        return dispatcherSourcePage;
-    }
-
-    private SourcePage getDispatcherSourcePage()
-    {
         try {
             if (PageSourceDecision.WARP.equals(pageSourceDecision)) {
                 SourcePage warpSourcePage = warpPageSource.getNextSourcePage();
@@ -212,8 +158,7 @@ public class DispatcherPageSource
                 }
             }
 
-            // Calling getNextPage if it's the first one to make proxied page source populate row ranges
-            // Or in case the current page is empty to avoid getting into infinite loop of empty pages
+            // Fetches the next proxied page when none is current or the current one is empty
             if (currentProxiedPage == null || currentProxiedPage.getPositionCount() == 0) {
                 getNextProxiedPage();
             }
@@ -227,14 +172,16 @@ public class DispatcherPageSource
                 }
                 else if (proxiedCurrentRange.isFullyBefore(warpCurrentRange)) {
                     proxiedPageRanges.removeFirst();
-                    seekProxiedPageSource(proxiedCurrentRange.getRowCount());
+                    skipCurrentProxiedPage(proxiedCurrentRange.getRowCount());
                 }
                 else { // There is some overlap in warpCurrentRange and proxiedCurrentRange
                     return mergeCurrentProxiedPage();
                 }
             }
-            if (forceFinish) {
-                logger.info("queryId=%s, no remaining overlapping ranges", queryContext.getQueryId());
+            if (!warpPageRanges.isEmpty() && proxiedConnectorPageSource.isFinished()) {
+                throw new TrinoException(
+                        WarpErrorCode.WARP_PROXIED_ROW_MISMATCH,
+                        format("Proxied page source finished after %s rows before warp match ranges %s", proxiedPagePositionsRead, warpPageRanges));
             }
             return SourcePage.create(0);
         }
@@ -293,15 +240,17 @@ public class DispatcherPageSource
         }
     }
 
-    private void seekProxiedPageSource(long rowsToSkip)
+    /**
+     * The proxied range queue holds at most the unconsumed tail of the current proxied page.
+     */
+    private void skipCurrentProxiedPage(long rowsToSkip)
     {
-        int pagePositionsLeft = currentProxiedPage.getPositionCount() - currentProxiedPagePosition;
-        while (rowsToSkip >= pagePositionsLeft && rowsToSkip > 0) {
-            rowsToSkip -= pagePositionsLeft;
-            getNextProxiedPage();
-            pagePositionsLeft = currentProxiedPage.getPositionCount();
+        if (rowsToSkip != currentProxiedPage.getPositionCount() - currentProxiedPagePosition) {
+            throw new TrinoException(
+                    WarpErrorCode.WARP_PROXIED_ROW_MISMATCH,
+                    format("rowsToSkip %s, currentProxiedPage positions %s, currentProxiedPagePosition %s", rowsToSkip, currentProxiedPage.getPositionCount(), currentProxiedPagePosition));
         }
-        currentProxiedPagePosition += toIntExact(rowsToSkip);
+        getNextProxiedPage();
     }
 
     private SourcePage buildMergedPage(Page overlapProxiedPage, Page overlapWarpPage, int positionCount)
@@ -485,7 +434,7 @@ public class DispatcherPageSource
     @Override
     public boolean isFinished()
     {
-        return forceFinish || (warpPageRanges.isEmpty() && warpPageSource.isFinished());
+        return warpPageRanges.isEmpty() && warpPageSource.isFinished();
     }
 
     @Override
@@ -590,9 +539,6 @@ public class DispatcherPageSource
     {
         long start = System.nanoTime();
         if (proxiedConnectorPageSource == null) {
-            if (forceFinish) {
-                logger.info("queryId=%s, creating new page source - SHOULD NOT HAPPEN", queryContext.getQueryId());
-            }
             proxiedConnectorPageSource = proxiedConnectorPageSourceProvider.get();
         }
         currentProxiedPage = null;
@@ -604,16 +550,10 @@ public class DispatcherPageSource
         }
         currentProxiedPagePosition = 0;
         if (currentProxiedPage == null) {
-            if (forceFinish) {
-                logger.info("queryId=%s, currentProxiedPage is null and pageSource isFinished? %s", queryContext.getQueryId(), proxiedConnectorPageSource.isFinished());
-            }
             // proxiedConnectorPageSource is finished, return an empty page
             currentProxiedPage = SourcePage.create(0);
         }
         else {
-            if (forceFinish) {
-                logger.info("queryId=%s, currentProxiedPage is not null and position is %s, proxiedPageRanges=%s", queryContext.getQueryId(), currentProxiedPage.getPositionCount(), proxiedPageRanges);
-            }
             proxiedPagePositionsRead += currentProxiedPage.getPositionCount();
             stats.incproxied_pages();
         }
@@ -656,22 +596,6 @@ public class DispatcherPageSource
         if (!condition) {
             throw new TrinoException(WarpErrorCode.WARP_MATCH_RANGES_ERROR, format(formatString, args));
         }
-    }
-
-    private static String isFinishedText(ConnectorPageSource pageSource)
-    {
-        if (pageSource == null) {
-            return "null";
-        }
-        return String.valueOf(pageSource.isFinished());
-    }
-
-    private static String positionCountText(SourcePage page)
-    {
-        if (page == null) {
-            return "null";
-        }
-        return String.valueOf(page.getPositionCount());
     }
 
     /**
