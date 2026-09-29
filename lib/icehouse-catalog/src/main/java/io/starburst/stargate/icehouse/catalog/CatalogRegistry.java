@@ -27,7 +27,7 @@ import static java.util.function.Function.identity;
  */
 public final class CatalogRegistry
 {
-    private final Map<CatalogKind, IcehouseCatalogFactory> factories;
+    private final Map<CommonIcebergCatalogType, IcehouseCatalogFactory> factories;
 
     @Inject
     public CatalogRegistry(Set<IcehouseCatalogFactory> factorySet)
@@ -36,14 +36,14 @@ public final class CatalogRegistry
                 .collect(toImmutableEnumMap(IcehouseCatalogFactory::kind, identity()));
     }
 
-    public IcehouseCatalogFactory factory(CatalogKind kind)
+    public IcehouseCatalogFactory factory(CommonIcebergCatalogType kind)
     {
         IcehouseCatalogFactory factory = factories.get(kind);
         checkArgument(factory != null, "No factory registered for catalog kind: %s", kind);
         return factory;
     }
 
-    public Set<CatalogKind> registeredKinds()
+    public Set<CommonIcebergCatalogType> registeredKinds()
     {
         return factories.keySet();
     }

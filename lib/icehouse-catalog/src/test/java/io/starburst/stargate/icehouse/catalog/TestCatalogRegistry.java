@@ -32,12 +32,12 @@ class TestCatalogRegistry
     @Test
     void registryLooksUpFactoryByKind()
     {
-        StubFactory glueFactory = new StubFactory(CatalogKind.GLUE);
+        StubFactory glueFactory = new StubFactory(CommonIcebergCatalogType.GLUE);
 
         CatalogRegistry registry = new CatalogRegistry(ImmutableSet.of(glueFactory));
 
-        assertThat(registry.registeredKinds()).containsOnly(CatalogKind.GLUE);
-        assertThat(registry.factory(CatalogKind.GLUE)).isSameAs(glueFactory);
+        assertThat(registry.registeredKinds()).containsOnly(CommonIcebergCatalogType.GLUE);
+        assertThat(registry.factory(CommonIcebergCatalogType.GLUE)).isSameAs(glueFactory);
     }
 
     @Test
@@ -45,7 +45,7 @@ class TestCatalogRegistry
     {
         CatalogRegistry registry = new CatalogRegistry(ImmutableSet.of());
 
-        assertThatThrownBy(() -> registry.factory(CatalogKind.GLUE))
+        assertThatThrownBy(() -> registry.factory(CommonIcebergCatalogType.GLUE))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("No factory registered for catalog kind: GLUE");
     }
@@ -53,15 +53,15 @@ class TestCatalogRegistry
     private static final class StubFactory
             implements IcehouseCatalogFactory
     {
-        private final CatalogKind kind;
+        private final CommonIcebergCatalogType kind;
 
-        StubFactory(CatalogKind kind)
+        StubFactory(CommonIcebergCatalogType kind)
         {
             this.kind = kind;
         }
 
         @Override
-        public CatalogKind kind()
+        public CommonIcebergCatalogType kind()
         {
             return kind;
         }

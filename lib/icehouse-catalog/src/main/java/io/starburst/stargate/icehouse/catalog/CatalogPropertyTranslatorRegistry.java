@@ -27,7 +27,7 @@ import static java.util.function.Function.identity;
  */
 public final class CatalogPropertyTranslatorRegistry
 {
-    private final Map<CatalogKind, CatalogPropertyTranslator> translators;
+    private final Map<CommonIcebergCatalogType, CatalogPropertyTranslator> translators;
 
     @Inject
     public CatalogPropertyTranslatorRegistry(Set<CatalogPropertyTranslator> translatorSet)
@@ -36,14 +36,14 @@ public final class CatalogPropertyTranslatorRegistry
                 .collect(toImmutableEnumMap(CatalogPropertyTranslator::kind, identity()));
     }
 
-    public CatalogPropertyTranslator translator(CatalogKind kind)
+    public CatalogPropertyTranslator translator(CommonIcebergCatalogType kind)
     {
         CatalogPropertyTranslator translator = translators.get(kind);
         checkArgument(translator != null, "No property translator registered for catalog kind: %s", kind);
         return translator;
     }
 
-    public Set<CatalogKind> registeredKinds()
+    public Set<CommonIcebergCatalogType> registeredKinds()
     {
         return translators.keySet();
     }

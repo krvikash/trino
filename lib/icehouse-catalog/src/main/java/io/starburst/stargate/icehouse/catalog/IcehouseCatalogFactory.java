@@ -24,7 +24,7 @@ import io.trino.filesystem.TrinoFileSystemFactory;
  */
 public interface IcehouseCatalogFactory
 {
-    CatalogKind kind();
+    CommonIcebergCatalogType kind();
 
     IcehouseCatalog create(
             AccountId accountId,

@@ -15,7 +15,7 @@ package io.starburst.stargate.icehouse.catalog.hms;
 
 import com.google.inject.Provider;
 import io.opentelemetry.api.trace.Tracer;
-import io.starburst.stargate.icehouse.catalog.CatalogKind;
+import io.starburst.stargate.icehouse.catalog.CommonIcebergCatalogType;
 import io.starburst.stargate.icehouse.catalog.IcehouseCatalog;
 import io.starburst.stargate.icehouse.catalog.IcehouseCatalogFactory;
 import io.starburst.stargate.icehouse.spi.maintenance.PlaintextTrinoProperties;
@@ -47,9 +47,9 @@ public final class HmsIcehouseCatalogFactory
     }
 
     @Override
-    public CatalogKind kind()
+    public CommonIcebergCatalogType kind()
     {
-        return CatalogKind.HIVE_METASTORE;
+        return CommonIcebergCatalogType.HIVE_METASTORE;
     }
 
     @Override

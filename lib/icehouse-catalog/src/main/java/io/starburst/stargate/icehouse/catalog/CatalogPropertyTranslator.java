@@ -21,11 +21,11 @@ import java.util.Map;
 /**
  * Translates Galaxy's unsealed catalog attributes into the Trino property map
  * the backend's catalog client expects. One implementation per
- * {@link CatalogKind}, registered via Guice multibinder.
+ * {@link CommonIcebergCatalogType}, registered via Guice multibinder.
  */
 public interface CatalogPropertyTranslator
 {
-    CatalogKind kind();
+    CommonIcebergCatalogType kind();
 
     PlaintextTrinoProperties translate(AccountId accountId, Map<String, String> unsealedAttributes);
 }

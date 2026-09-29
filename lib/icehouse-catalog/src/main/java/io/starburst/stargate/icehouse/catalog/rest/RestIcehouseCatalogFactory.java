@@ -15,7 +15,7 @@ package io.starburst.stargate.icehouse.catalog.rest;
 
 import com.google.common.collect.ImmutableMap;
 import io.airlift.configuration.ConfigurationFactory;
-import io.starburst.stargate.icehouse.catalog.CatalogKind;
+import io.starburst.stargate.icehouse.catalog.CommonIcebergCatalogType;
 import io.starburst.stargate.icehouse.catalog.IcehouseCatalog;
 import io.starburst.stargate.icehouse.catalog.IcehouseCatalogFactory;
 import io.starburst.stargate.icehouse.spi.maintenance.PlaintextTrinoProperties;
@@ -41,9 +41,9 @@ public final class RestIcehouseCatalogFactory
     private static final String ICEHOUSE_MAINTENANCE_USER = "icehouse-maintenance";
 
     @Override
-    public CatalogKind kind()
+    public CommonIcebergCatalogType kind()
     {
-        return CatalogKind.REST_CATALOG;
+        return CommonIcebergCatalogType.REST_CATALOG;
     }
 
     @Override

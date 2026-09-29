@@ -15,7 +15,7 @@ package io.starburst.stargate.icehouse.catalog.glue;
 
 import com.google.inject.Provider;
 import io.airlift.configuration.ConfigurationFactory;
-import io.starburst.stargate.icehouse.catalog.CatalogKind;
+import io.starburst.stargate.icehouse.catalog.CommonIcebergCatalogType;
 import io.starburst.stargate.icehouse.catalog.IcehouseCatalog;
 import io.starburst.stargate.icehouse.catalog.IcehouseCatalogFactory;
 import io.starburst.stargate.icehouse.spi.maintenance.PlaintextTrinoProperties;
@@ -50,9 +50,9 @@ public final class GlueIcehouseCatalogFactory
     }
 
     @Override
-    public CatalogKind kind()
+    public CommonIcebergCatalogType kind()
     {
-        return CatalogKind.GLUE;
+        return CommonIcebergCatalogType.GLUE;
     }
 
     @Override
