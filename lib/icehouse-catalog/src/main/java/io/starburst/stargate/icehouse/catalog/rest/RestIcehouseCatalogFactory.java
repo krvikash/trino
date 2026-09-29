@@ -70,7 +70,7 @@ public final class RestIcehouseCatalogFactory
     {
         ImmutableMap.Builder<String, String> properties = ImmutableMap.builder();
         properties.put(CatalogProperties.URI, config.getUri().toString());
-        properties.put(CatalogProperties.WAREHOUSE_LOCATION, config.getWarehouse());
+        config.getWarehouse().ifPresent(warehouse -> properties.put(CatalogProperties.WAREHOUSE_LOCATION, warehouse));
 
         switch (config.getSecurity()) {
             case OAUTH2 -> {

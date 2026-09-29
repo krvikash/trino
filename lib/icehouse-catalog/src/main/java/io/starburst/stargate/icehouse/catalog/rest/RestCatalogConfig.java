@@ -34,7 +34,7 @@ public class RestCatalogConfig
     }
 
     private URI uri;
-    private String warehouse;
+    private Optional<String> warehouse = Optional.empty();
     private Security security = Security.NONE;
     private Optional<String> oauth2Credential = Optional.empty();
     private Optional<String> oauth2Scope = Optional.empty();
@@ -55,8 +55,11 @@ public class RestCatalogConfig
         return this;
     }
 
-    @NotNull
-    public String getWarehouse()
+    /**
+     * Optional, matching Trino's Iceberg REST connector: many REST catalog
+     * implementations negotiate the warehouse and do not need it configured.
+     */
+    public Optional<String> getWarehouse()
     {
         return warehouse;
     }
@@ -65,7 +68,7 @@ public class RestCatalogConfig
     @ConfigDescription("Warehouse location or catalog identifier for the REST catalog")
     public RestCatalogConfig setWarehouse(String warehouse)
     {
-        this.warehouse = warehouse;
+        this.warehouse = Optional.ofNullable(warehouse);
         return this;
     }
 
