@@ -96,10 +96,17 @@ because it was never in a released version.
 - Check whether the affected code/feature has ever existed in *any* prior public release, not just
   the most recent one — absence from the latest `release-**` branch/tag alone doesn't prove the
   functionality never shipped, since an older release could have included it before it was later
-  removed or refactored. Check whether the introducing commit is reachable from any prior release
-  tag/branch (e.g. `git tag --contains <introducing-commit>` or `git log <older-release-tag>..<newer-release-tag> -- <path>`
-  across the relevant release history), not only the latest one. If the feature isn't reachable
-  from any released tag/branch, it hasn't shipped.
+  removed or refactored. Checking whether the introducing commit is reachable from any prior
+  release tag/branch (e.g. `git tag --contains <introducing-commit>` or `git log <older-release-tag>..<newer-release-tag> -- <path>`
+  across the relevant release history) is a **positive signal only**: if the introducing commit
+  *is* reachable from a released tag/branch, the feature has shipped. Its *absence* does **not**
+  prove the feature never shipped — a release backport can carry the same logical change under a
+  different commit SHA (e.g. a cherry-pick onto a release branch), so the original introducing
+  commit can be unreachable even though the feature is present in a release. When the introducing
+  commit isn't reachable from any released tag/branch, also check the release content itself before
+  concluding the feature is unreleased: whether the behavior is present when checking a released
+  version's code, the CHANGELOG/release notes for the feature by name, and whether a backport or
+  cherry-pick PR targeting a release branch exists.
 - Check the associated JIRA ticket/epic for a "Fix Version(s)"/"released in version X" field
   (checking its full fix-version history, not just the latest entry), or for release notes already
   published for the feature.
