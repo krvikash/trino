@@ -20,6 +20,8 @@ import io.trino.plugin.exchange.filesystem.containers.MinioStorage;
 import io.trino.spi.exchange.ExchangeManager;
 import org.junit.jupiter.api.AfterAll;
 
+import java.net.URI;
+
 import static io.airlift.testing.Closeables.closeAll;
 import static io.trino.plugin.exchange.filesystem.containers.MinioStorage.getExchangeManagerPropertiesWithKms;
 import static java.util.UUID.randomUUID;
@@ -38,6 +40,12 @@ public class TestS3FileSystemExchangeManagerSseKms
         return new FileSystemExchangeManagerFactory().create(
                 getExchangeManagerPropertiesWithKms(minioStorage),
                 new TestExchangeManagerContext());
+    }
+
+    @Override
+    protected void deleteFile(URI file)
+    {
+        minioStorage.deleteObject(file);
     }
 
     @AfterAll

@@ -21,11 +21,13 @@ import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.CreateBucketRequest;
+import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 
 import java.net.URI;
 import java.util.Map;
 import java.util.Optional;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static io.trino.testing.containers.TestContainers.getPathFromClassPathResource;
 import static java.util.Objects.requireNonNull;
 import static org.testcontainers.containers.Network.newNetwork;
@@ -88,16 +90,32 @@ public class MinioStorage
     {
         kms.ifPresent(KeyManagementServer::start);
         minio.start();
-        S3Client s3Client = S3Client.builder()
+        try (S3Client s3Client = createS3Client()) {
+            s3Client.createBucket(CreateBucketRequest.builder()
+                    .bucket(bucketName)
+                    .build());
+        }
+    }
+
+    public void deleteObject(URI file)
+    {
+        checkArgument(file.getHost().equals(bucketName), "File %s is not in bucket %s", file, bucketName);
+        try (S3Client s3Client = createS3Client()) {
+            s3Client.deleteObject(DeleteObjectRequest.builder()
+                    .bucket(bucketName)
+                    .key(file.getPath().substring(1))
+                    .build());
+        }
+    }
+
+    private S3Client createS3Client()
+    {
+        return S3Client.builder()
                 .endpointOverride(URI.create("http://localhost:" + minio.getMinioApiEndpoint().getPort()))
                 .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create(ACCESS_KEY, SECRET_KEY)))
                 .region(US_EAST_1)
                 .forcePathStyle(true)
                 .build();
-        CreateBucketRequest createBucketRequest = CreateBucketRequest.builder()
-                .bucket(bucketName)
-                .build();
-        s3Client.createBucket(createBucketRequest);
     }
 
     public Minio getMinio()
