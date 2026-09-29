@@ -30,9 +30,9 @@ class TestIrVersions
     }
 
     @Test
-    void testOperationSupportedIsBareNames()
+    void testOperationVersionsAreBareNames()
     {
-        assertThat(Operation.SUPPORTED).isEqualTo(ImmutableMap.of("Output", 1, "TableScan", 1));
-        assertThat(IrVersions.SUPPORTED).containsAllEntriesOf(Operation.SUPPORTED);
+        assertThat(IrVersions.OPERATION_VERSIONS).isEqualTo(ImmutableMap.of("Output", 1, "TableScan", 1));
+        assertThat(IrVersions.SUPPORTED).containsAllEntriesOf(IrVersions.OPERATION_VERSIONS);
     }
 }

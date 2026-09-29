@@ -32,12 +32,6 @@ public sealed interface Operation
         permits Output, TableScan
 {
     /**
-     * Engine-side declaration of supported {@code Operation} versions, keyed by the bare node name.
-     * This is the {@code Operation} subset of {@link IrVersions#SUPPORTED}, which the compatibility gate uses.
-     */
-    Map<String, Integer> SUPPORTED = IrVersions.OPERATION_VERSIONS;
-
-    /**
      * An {@code Operation} stamps its bare name. The unprefixed namespace of {@link IrVersions} belongs to
      * {@code Operation} node types alone, and every stored row carries these names, so they never change.
      */

@@ -15,36 +15,41 @@ versioning schemes provide that signal.
 
 | Scheme | What it versions | Where the version lives | Stored in |
 | --- | --- | --- | --- |
-| IR node versioning | The shape of each `Operation` IR node (the computation-plan tree) | `Operation.SUPPORTED` + per-node `version()` | `RawMaterializationDefinition.irVersions` |
+| IR node versioning | The shape of each `Operation` IR node (the computation-plan tree) | `IrVersions.SUPPORTED` + per-node `versionEntries()` | `RawMaterializationDefinition.irVersions` |
 | Connector id versioning | The serialization of each connector's table/column identity | `ConnectorIdVersion` returned by `ConnectorTableId`/`ConnectorColumnId` | `RawMaterializationDefinition.catalogIrVersions` |
 
 The IR tree is engine-owned and the same for all installs; connector ids are connector-owned and
 vary per catalog. They are versioned separately because they evolve independently and are checked
 against different sources of truth.
 
-## IR node versioning (`io.starburst.materialization.ir.Operation`)
+## IR node versioning (`io.starburst.materialization.ir.IrVersions`)
 
-The computation plan is a tree of sealed `Operation` nodes (currently `Output` and `TableScan`).
-Each node type declares:
+The computation plan is a tree of `IrNode`s, currently sealed `Operation` nodes (`Output` and
+`TableScan`). Each node type declares:
 
-- a stable `name()` — the JSON `@type` discriminator (e.g. `"Output"`, `"TableScan"`), and
-- an `int version()` — bumped on every backward-incompatible change to that node's serialized form.
+- a stable `name()` — the JSON `@type` discriminator (e.g. `"Output"`, `"TableScan"`), never renamed;
+- an `int version()` — bumped on every backward-incompatible change to that node's serialized form;
+- `children()` — the IR nodes directly under it; and
+- `versionEntries()` — the version-map entries the node itself stamps. An `Operation` stamps its bare
+  `name() -> version()`.
 
-`Operation.SUPPORTED` is the engine-side declaration of the `name -> version` pairs the **current
+`IrVersions.SUPPORTED` is the engine-side declaration of the `name -> version` pairs the **current
 build** understands:
 
 ```java
-Map<String, Integer> SUPPORTED = ImmutableMap.of(
-        Output.NAME, Output.VERSION,
-        TableScan.NAME, TableScan.VERSION);
+public static final Map<String, Integer> SUPPORTED = ImmutableMap.<String, Integer>builder()
+        .putAll(OPERATION_VERSIONS)
+        .buildOrThrow();
 ```
 
-**On write** (`VersionAwareMaterializationMetastore.createOrReplace`) the IR tree is walked and every
-node's `(name, version)` is collected into `RawMaterializationDefinition.irVersions`, stamped
-alongside the serialized JSON.
+where `OPERATION_VERSIONS` holds `Output.NAME -> Output.VERSION` and `TableScan.NAME -> TableScan.VERSION`.
+
+**On write** (`VersionAwareMaterializationMetastore.createOrReplace`) `IrVersions.collect` walks
+`children()` from the root and stores the union of every node's `versionEntries()` in
+`RawMaterializationDefinition.irVersions`, stamped alongside the serialized JSON.
 
 **On read** (`isIrCompatible`) a stored entry is compatible iff **every** `(name, version)` in
-`irVersions` matches `SUPPORTED` exactly:
+`irVersions` matches `IrVersions.SUPPORTED` exactly:
 
 - a name not present in `SUPPORTED` → incompatible (reader doesn't know that node type), and
 - a version mismatch → incompatible (reader knows the type but not this format).
@@ -137,7 +142,7 @@ without a bump, make it `Optional` or boxed.
 A stored `RawMaterializationDefinition` is usable by the current build iff **all** of the following
 hold (see `VersionAwareMaterializationMetastore.toTyped`):
 
-1. every `(name, version)` in `irVersions` matches `Operation.SUPPORTED` exactly (`isIrCompatible`);
+1. every `(name, version)` in `irVersions` matches `IrVersions.SUPPORTED` exactly (`isIrCompatible`);
 2. `computationPlanRootJson` deserializes with the installed connectors, and every node's constructor
    validation passes; and
 3. the `catalogIrVersions` re-collected from the deserialized tree equal the stored ones.

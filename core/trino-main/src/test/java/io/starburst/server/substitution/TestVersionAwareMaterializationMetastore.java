@@ -65,6 +65,20 @@ class TestVersionAwareMaterializationMetastore
     }
 
     @Test
+    void testStampsVersionsOfPlainScan()
+    {
+        InMemoryRawMaterializationMetastore raw = new InMemoryRawMaterializationMetastore();
+        versionAwareMetastore(raw).createOrReplace(materialization("mv", "source"));
+
+        RawMaterializationDefinition stored = getOnlyElement(raw.listMaterializations());
+        assertThat(stored.irVersions()).isEqualTo(ImmutableMap.of("Output", 1, "TableScan", 1));
+        assertThat(stored.catalogIrVersions()).isEqualTo(ImmutableMap.of(
+                new CatalogName(CATALOG), new ConnectorIdVersions(
+                        ImmutableSet.of(new ConnectorIdVersion("TestTableId", 1)),
+                        ImmutableSet.of(new ConnectorIdVersion("TestColumnId", 1)))));
+    }
+
+    @Test
     void testSkipsMaterializationWithIncompatibleIrVersion()
     {
         InMemoryRawMaterializationMetastore raw = new InMemoryRawMaterializationMetastore();

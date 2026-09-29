@@ -15,7 +15,8 @@ import com.google.inject.Inject;
 import io.airlift.json.JsonCodec;
 import io.airlift.log.Logger;
 import io.airlift.stats.CounterStat;
-import io.starburst.materialization.ir.Operation;
+import io.starburst.materialization.ir.IrNode;
+import io.starburst.materialization.ir.IrVersions;
 import io.starburst.materialization.ir.Output;
 import io.starburst.materialization.ir.TableScan;
 import io.starburst.materialization.metastore.MaterializationDefinition;
@@ -68,11 +69,10 @@ public class VersionAwareMaterializationMetastore
     public void createOrReplace(MaterializationDefinition def)
     {
         Output typed = def.computationPlanRoot();
-        IrVersions versions = collectVersions(typed);
         String irJson = irJsonCodec.toJson(typed);
         raw.createOrReplace(new RawMaterializationDefinition(
-                versions.irVersions(),
-                versions.catalogIrVersions(),
+                IrVersions.collect(typed),
+                collectConnectorIdVersions(typed),
                 irJson,
                 def.storageTableId(),
                 def.source(),
@@ -104,7 +104,7 @@ public class VersionAwareMaterializationMetastore
                     "Skipping materialization %s — stored version map %s does not match engine supported %s",
                     rawDefinition.source(),
                     rawDefinition.irVersions(),
-                    Operation.SUPPORTED);
+                    IrVersions.SUPPORTED);
             skippedCount.update(1);
             return Optional.empty();
         }
@@ -123,8 +123,10 @@ public class VersionAwareMaterializationMetastore
         }
         // A connector identity's version is a constant of the connector code, so re-collecting the versions from
         // the deserialized plan yields what the installed connectors produce today. Stored versions that differ
-        // mean the identity format changed since this materialization was written.
-        Map<CatalogName, ConnectorIdVersions> currentVersions = collectVersions(typed).catalogIrVersions();
+        // mean the identity format changed since this materialization was written. The IR name versions are
+        // deliberately not compared: isIrCompatible accepts a row stamped with any set of names this engine
+        // supports, and requiring equality would reject rows written by an engine that stamped a different set.
+        Map<CatalogName, ConnectorIdVersions> currentVersions = collectConnectorIdVersions(typed);
         if (!currentVersions.equals(rawDefinition.catalogIrVersions())) {
             log.debug(
                     "Skipping materialization %s — stored connector id versions %s do not match the versions the installed connectors produce %s",
@@ -150,7 +152,7 @@ public class VersionAwareMaterializationMetastore
     private static boolean isIrCompatible(RawMaterializationDefinition definition)
     {
         for (Map.Entry<String, Integer> e : definition.irVersions().entrySet()) {
-            Integer expected = Operation.SUPPORTED.get(e.getKey());
+            Integer expected = IrVersions.SUPPORTED.get(e.getKey());
             if (expected == null || !expected.equals(e.getValue())) {
                 return false;
             }
@@ -158,19 +160,16 @@ public class VersionAwareMaterializationMetastore
         return true;
     }
 
-    private static IrVersions collectVersions(Output computationPlanRoot)
+    private static Map<CatalogName, ConnectorIdVersions> collectConnectorIdVersions(Output computationPlanRoot)
     {
-        Map<String, Integer> versionMap = new HashMap<>();
         Map<CatalogName, ConnectorIdVersions> catalogVersions = new HashMap<>();
-        collectVersions(computationPlanRoot, versionMap, catalogVersions);
-        return new IrVersions(ImmutableMap.copyOf(versionMap), ImmutableMap.copyOf(catalogVersions));
+        collectConnectorIdVersions(computationPlanRoot, catalogVersions);
+        return ImmutableMap.copyOf(catalogVersions);
     }
 
-    private static void collectVersions(Operation node, Map<String, Integer> versionMap, Map<CatalogName, ConnectorIdVersions> catalogVersions)
+    private static void collectConnectorIdVersions(IrNode node, Map<CatalogName, ConnectorIdVersions> catalogVersions)
     {
-        versionMap.put(node.name(), node.version());
         switch (node) {
-            case Output output -> collectVersions(output.source(), versionMap, catalogVersions);
             case TableScan tableScan -> catalogVersions.compute(tableScan.table().catalogName(), (_, currentVersions) -> {
                 ConnectorIdVersion tableIdVersion = tableScan.table().connectorId().version();
                 Optional<ConnectorIdVersion> columnIdVersion = tableScan.assignments().keySet()
@@ -184,8 +183,10 @@ public class VersionAwareMaterializationMetastore
                     return currentVersions.add(tableIdVersion, columnIdVersion);
                 }
             });
+            case Output _ -> {}
+        }
+        for (IrNode child : node.children()) {
+            collectConnectorIdVersions(child, catalogVersions);
         }
     }
-
-    private record IrVersions(Map<String, Integer> irVersions, Map<CatalogName, ConnectorIdVersions> catalogIrVersions) {}
 }
