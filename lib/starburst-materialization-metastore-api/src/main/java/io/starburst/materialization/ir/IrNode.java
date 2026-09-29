@@ -22,7 +22,7 @@ import java.util.Map;
  * A node of a persisted materialization IR tree.
  */
 public sealed interface IrNode
-        permits Operation
+        permits Expression, Operation
 {
     /**
      * Stable wire discriminator: the JSON {@code @type} value. Never rename.

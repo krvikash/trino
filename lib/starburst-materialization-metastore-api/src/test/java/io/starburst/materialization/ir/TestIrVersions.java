@@ -13,8 +13,12 @@
  */
 package io.starburst.materialization.ir;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import org.junit.jupiter.api.Test;
+
+import java.util.List;
+import java.util.Map;
 
 import static io.starburst.materialization.ir.IrFixtures.outputOverScan;
 import static io.trino.spi.type.BigintType.BIGINT;
@@ -22,6 +26,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class TestIrVersions
 {
+    private static final List<String> PREFIXES = ImmutableList.of(
+            IrVersions.EXPRESSION_PREFIX,
+            IrVersions.LEAF_PREFIX);
+
     @Test
     void testOperationTreeStampsBareNames()
     {
@@ -34,5 +42,34 @@ class TestIrVersions
     {
         assertThat(IrVersions.OPERATION_VERSIONS).isEqualTo(ImmutableMap.of("Output", 1, "TableScan", 1));
         assertThat(IrVersions.SUPPORTED).containsAllEntriesOf(IrVersions.OPERATION_VERSIONS);
+    }
+
+    @Test
+    void testNamespacesAreDisjoint()
+    {
+        for (String prefix : PREFIXES) {
+            assertThat(prefix).endsWith(":");
+            assertThat(PREFIXES).filteredOn(other -> !other.equals(prefix) && other.startsWith(prefix)).isEmpty();
+        }
+        assertThat(IrVersions.OPERATION_VERSIONS.keySet()).allSatisfy(name -> assertThat(name).doesNotContain(":"));
+        assertEveryNameHasPrefix(IrVersions.EXPRESSION_VERSIONS, IrVersions.EXPRESSION_PREFIX);
+        assertEveryNameHasPrefix(IrVersions.LEAF_VERSIONS, IrVersions.LEAF_PREFIX);
+        assertThat(IrVersions.SUPPORTED).hasSize(
+                IrVersions.OPERATION_VERSIONS.size()
+                        + IrVersions.EXPRESSION_VERSIONS.size()
+                        + IrVersions.LEAF_VERSIONS.size());
+    }
+
+    @Test
+    void testReferenceStampsNodeAndSymbolLeaf()
+    {
+        assertThat(IrVersions.collect(new Reference(new Symbol(BIGINT, "a"))))
+                .isEqualTo(ImmutableMap.of("expr:Reference", 1, "leaf:Symbol", 1));
+    }
+
+    private static void assertEveryNameHasPrefix(Map<String, Integer> versions, String prefix)
+    {
+        assertThat(versions).isNotEmpty();
+        assertThat(versions.keySet()).allSatisfy(name -> assertThat(name).startsWith(prefix));
     }
 }

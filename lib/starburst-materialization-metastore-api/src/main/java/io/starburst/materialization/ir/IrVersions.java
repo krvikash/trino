@@ -24,10 +24,24 @@ import static com.google.common.base.Preconditions.checkState;
  * The single source of truth for IR version stamps.
  * <p>
  * A stored definition is readable iff every name it was stamped with is present in {@link #SUPPORTED} at the
- * same version. {@link #collect} stamps a tree with the union of its nodes' {@link IrNode#versionEntries()}.
+ * same version. {@link #collect} stamps a tree with the union of its nodes' {@link IrNode#versionEntries()}, so
+ * every wire-format decision the decoder makes must have a name. Names live in disjoint namespaces:
+ * <ul>
+ * <li>bare: an {@link Operation} node type, grandfathered unprefixed ({@code TableScan})</li>
+ * <li>{@value #EXPRESSION_PREFIX}: an {@link Expression} node type ({@code expr:Reference})</li>
+ * <li>{@value #LEAF_PREFIX}: a shared leaf serialized form, stamped by {@code Expression} nodes only
+ * ({@code leaf:Symbol})</li>
+ * </ul>
+ * Names are permanent: renaming one silently invalidates every stored definition that uses it.
  */
 public final class IrVersions
 {
+    public static final String EXPRESSION_PREFIX = "expr:";
+    public static final String LEAF_PREFIX = "leaf:";
+
+    public static final String SYMBOL_LEAF = LEAF_PREFIX + "Symbol";
+    public static final int SYMBOL_LEAF_VERSION = 1;
+
     /**
      * {@code Operation} versions, keyed by the grandfathered bare node name.
      */
@@ -36,13 +50,29 @@ public final class IrVersions
             TableScan.NAME, TableScan.VERSION);
 
     /**
+     * {@code Expression} versions, keyed by the {@value #EXPRESSION_PREFIX} namespaced node name.
+     */
+    public static final Map<String, Integer> EXPRESSION_VERSIONS = ImmutableMap.of(
+            expressionKey(Reference.NAME), Reference.VERSION);
+
+    public static final Map<String, Integer> LEAF_VERSIONS = ImmutableMap.of(
+            SYMBOL_LEAF, SYMBOL_LEAF_VERSION);
+
+    /**
      * Every name this build can read, with the version it reads it at.
      */
     public static final Map<String, Integer> SUPPORTED = ImmutableMap.<String, Integer>builder()
             .putAll(OPERATION_VERSIONS)
+            .putAll(EXPRESSION_VERSIONS)
+            .putAll(LEAF_VERSIONS)
             .buildOrThrow();
 
     private IrVersions() {}
+
+    static String expressionKey(String nodeName)
+    {
+        return EXPRESSION_PREFIX + nodeName;
+    }
 
     /**
      * Returns the names, with versions, that {@code root}'s tree uses.

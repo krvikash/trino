@@ -1,0 +1,1 @@
+{"@type":"Output","columnNames":["a"],"outputs":[{"type":"bigint","name":"a"}],"source":{"@type":"TableScan","table":{"catalogName":"catalog","connectorId":{"@type":"fixture_table","tableName":"table"}},"assignments":[{"id":{"@type":"fixture_column","columnName":"a"},"symbol":{"type":"bigint","name":"a"}}]}}

@@ -15,6 +15,7 @@ import com.google.inject.Inject;
 import io.airlift.json.JsonCodec;
 import io.airlift.log.Logger;
 import io.airlift.stats.CounterStat;
+import io.starburst.materialization.ir.Expression;
 import io.starburst.materialization.ir.IrNode;
 import io.starburst.materialization.ir.IrVersions;
 import io.starburst.materialization.ir.Output;
@@ -184,6 +185,8 @@ public class VersionAwareMaterializationMetastore
                 }
             });
             case Output _ -> {}
+            // Expressions refer to symbols, never to tables, so they carry no connector ids
+            case Expression _ -> {}
         }
         for (IrNode child : node.children()) {
             collectConnectorIdVersions(child, catalogVersions);
