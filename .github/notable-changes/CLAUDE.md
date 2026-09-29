@@ -93,11 +93,16 @@ found and fixed. That fix is NOT NOTABLE — the affected functionality never re
 because it was never in a released version.
 
 **How to determine "not yet publicly released":**
-- Check whether the affected code/feature exists as of the most recent release tag/branch (e.g.
-  `git log <release-tag>..HEAD -- <path>` or whether the introducing commit is reachable from the
-  latest `release-**` branch). If the feature isn't there yet, it hasn't shipped.
-- Check the associated JIRA ticket/epic for a "Fix Version(s)"/"released in version X" field, or
-  for release notes already published for the feature.
+- Check whether the affected code/feature has ever existed in *any* prior public release, not just
+  the most recent one — absence from the latest `release-**` branch/tag alone doesn't prove the
+  functionality never shipped, since an older release could have included it before it was later
+  removed or refactored. Check whether the introducing commit is reachable from any prior release
+  tag/branch (e.g. `git tag --contains <introducing-commit>` or `git log <older-release-tag>..<newer-release-tag> -- <path>`
+  across the relevant release history), not only the latest one. If the feature isn't reachable
+  from any released tag/branch, it hasn't shipped.
+- Check the associated JIRA ticket/epic for a "Fix Version(s)"/"released in version X" field
+  (checking its full fix-version history, not just the latest entry), or for release notes already
+  published for the feature.
 - If no release tooling is readily available from the PR context, use judgment from what's given
   (linked JIRA, file history, PR timestamps relative to the last release) rather than requiring
   exact tooling.
