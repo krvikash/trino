@@ -97,7 +97,7 @@ public class SasNasClient
             FileIterator it = fileSystem.listFiles(schemaLocation);
             while (it.hasNext()) {
                 FileEntry entry = it.next();
-                if (entry.location().fileName().toLowerCase(ENGLISH).endsWith(SAS7BDAT_EXTENSION)) {
+                if (isSasFile(entry.location())) {
                     String entryPath = entry.location().path();
                     if (entryPath.length() <= schemaDirPrefix.length()) {
                         continue;
@@ -167,7 +167,7 @@ public class SasNasClient
             FileIterator it = fileSystem.listFiles(dirLocation);
             while (it.hasNext()) {
                 Location fileLocation = it.next().location();
-                if (fileLocation.fileName().toLowerCase(ENGLISH).endsWith(SAS7BDAT_EXTENSION)) {
+                if (isSasFile(fileLocation)) {
                     tables.add(stripSas7bdatExtension(fileLocation.path().substring(schemaDirPrefix.length())).toLowerCase(ENGLISH));
                 }
             }
@@ -229,14 +229,14 @@ public class SasNasClient
         List<Location> matches = new ArrayList<>();
         while (it.hasNext()) {
             Location fileLocation = it.next().location();
+            if (!isSasFile(fileLocation)) {
+                continue;
+            }
             // listFiles is recursive; skip entries deeper than immediate children
             if (fileLocation.path().substring(prefix.length()).contains("/")) {
                 continue;
             }
             String fileName = fileLocation.fileName();
-            if (!fileName.toLowerCase(ENGLISH).endsWith(SAS7BDAT_EXTENSION)) {
-                continue;
-            }
             if (name.equalsIgnoreCase(stripSas7bdatExtension(fileName))) {
                 matches.add(fileLocation);
             }
@@ -272,6 +272,13 @@ public class SasNasClient
         return sasFileReader.getColumns().stream()
                 .map(SasColumn::getColumn)
                 .collect(toImmutableList());
+    }
+
+    protected static boolean isSasFile(Location location)
+    {
+        // Avoid fileName(): object stores list zero-byte "directory marker" objects (keys ending in
+        // "/") alongside regular objects, and fileName() rejects them
+        return location.path().toLowerCase(ENGLISH).endsWith(SAS7BDAT_EXTENSION);
     }
 
     protected static String stripSas7bdatExtension(String fileName)

@@ -13,6 +13,7 @@
  */
 package io.trino.plugin.sas;
 
+import com.google.common.collect.ImmutableSet;
 import io.airlift.configuration.Config;
 import io.airlift.configuration.ConfigDescription;
 import io.airlift.configuration.validation.FileExists;
@@ -23,9 +24,19 @@ import jakarta.validation.constraints.NotNull;
 import java.io.File;
 import java.net.URI;
 import java.util.Optional;
+import java.util.Set;
+
+import static java.util.Locale.ENGLISH;
 
 public class SasConfig
 {
+    public static final String FILE_SCHEME = "file";
+    public static final Set<String> S3_SCHEMES = ImmutableSet.of("s3", "s3a", "s3n");
+    private static final Set<String> SUPPORTED_SCHEMES = ImmutableSet.<String>builder()
+            .add(FILE_SCHEME)
+            .addAll(S3_SCHEMES)
+            .build();
+
     public enum MappingType
     {
         FS,
@@ -45,7 +56,7 @@ public class SasConfig
     }
 
     @Config("sas.data-directory")
-    @ConfigDescription("URI of the directory containing SAS7BDAT files (e.g. file:///data/sas or nfs://host/share)")
+    @ConfigDescription("URI of the directory containing SAS7BDAT files (e.g. file:///data/sas or s3://bucket/prefix)")
     public SasConfig setDataDirectory(URI dataDirectory)
     {
         this.dataDirectory = dataDirectory;
@@ -113,9 +124,9 @@ public class SasConfig
         return mappingType != MappingType.JSON || jsonFile.isPresent();
     }
 
-    @AssertTrue(message = "sas.data-directory must use the file:// scheme")
+    @AssertTrue(message = "sas.data-directory must use the file:// or s3:// scheme")
     public boolean isDataDirectorySchemeValid()
     {
-        return dataDirectory == null || "file".equalsIgnoreCase(dataDirectory.getScheme());
+        return dataDirectory == null || (dataDirectory.getScheme() != null && SUPPORTED_SCHEMES.contains(dataDirectory.getScheme().toLowerCase(ENGLISH)));
     }
 }

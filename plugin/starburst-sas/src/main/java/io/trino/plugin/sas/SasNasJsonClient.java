@@ -16,6 +16,7 @@ package io.trino.plugin.sas;
 import com.epam.parso.impl.SasFileReaderImpl;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Strings;
+import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableSet;
 import com.google.inject.Inject;
 import com.google.inject.name.Named;
@@ -37,6 +38,7 @@ import java.nio.file.Files;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Supplier;
 
 import static io.trino.plugin.sas.SasModule.ROOT_LOCATION_BINDING;
 import static io.trino.spi.StandardErrorCode.GENERIC_INTERNAL_ERROR;
@@ -47,28 +49,36 @@ public class SasNasJsonClient
         extends SasNasClient
 {
     private static final Logger log = Logger.get(SasNasJsonClient.class);
-    private JsonSchemaRoot json;
+    private final Optional<File> jsonFile;
+    // The mapping file only needs to exist where ConnectorMetadata methods below actually run,
+    // which is the coordinator; parsing it lazily means workers never have to read it at all.
+    private final Supplier<JsonSchemaRoot> json = Suppliers.memoize(this::loadJson);
 
     @Inject
     public SasNasJsonClient(@Named(ROOT_LOCATION_BINDING) Location rootLocation, SasConfig config, TrinoFileSystemFactory fileSystemFactory)
     {
         super(rootLocation, fileSystemFactory);
-        if (config.getJsonFile().isPresent()) {
-            File jsonFile = config.getJsonFile().get();
-            try (InputStream is = Files.newInputStream(jsonFile.toPath())) {
-                json = new ObjectMapper().readValue(is, JsonSchemaRoot.class);
-            }
-            catch (Exception e) {
-                throw new TrinoException(GENERIC_INTERNAL_ERROR, "Error reading JSON mapping file: " + jsonFile, e);
-            }
-            log.debug("Sas mapping: %s", json);
+        this.jsonFile = config.getJsonFile();
+    }
+
+    private JsonSchemaRoot loadJson()
+    {
+        File jsonFile = this.jsonFile.orElseThrow(() -> new TrinoException(GENERIC_INTERNAL_ERROR, "sas.json-file is not set"));
+        JsonSchemaRoot parsedJson;
+        try (InputStream is = Files.newInputStream(jsonFile.toPath())) {
+            parsedJson = new ObjectMapper().readValue(is, JsonSchemaRoot.class);
         }
+        catch (Exception e) {
+            throw new TrinoException(GENERIC_INTERNAL_ERROR, "Error reading JSON mapping file: " + jsonFile, e);
+        }
+        log.debug("Sas mapping: %s", parsedJson);
+        return parsedJson;
     }
 
     @Override
     public List<String> getSchemaNames(ConnectorIdentity identity)
     {
-        return json.listSchemas();
+        return json.get().listSchemas();
     }
 
     @Override
@@ -76,7 +86,7 @@ public class SasNasJsonClient
     {
         requireNonNull(schema, "schema is null");
 
-        JsonMappingSchema mapSchemas = json.mapSchemas().get(schema.toLowerCase(ENGLISH));
+        JsonMappingSchema mapSchemas = json.get().mapSchemas().get(schema.toLowerCase(ENGLISH));
         if (mapSchemas == null) {
             return ImmutableSet.of();
         }
@@ -99,10 +109,9 @@ public class SasNasJsonClient
             FileIterator it = fileSystem.listFiles(dirLocation);
             while (it.hasNext()) {
                 Location fileLocation = it.next().location();
-                String fileName = fileLocation.fileName();
                 // only immediate children; JSON mode does not recurse into subdirectories
-                if (fileName.toLowerCase(ENGLISH).endsWith(SAS7BDAT_EXTENSION) && !fileLocation.path().substring(dirPrefix.length()).contains("/")) {
-                    tables.add(stripSas7bdatExtension(fileName).toLowerCase(ENGLISH));
+                if (isSasFile(fileLocation) && !fileLocation.path().substring(dirPrefix.length()).contains("/")) {
+                    tables.add(stripSas7bdatExtension(fileLocation.fileName()).toLowerCase(ENGLISH));
                 }
             }
         }
@@ -118,7 +127,7 @@ public class SasNasJsonClient
         requireNonNull(schema, "schema is null");
         requireNonNull(tableName, "tableName is null");
 
-        JsonMappingSchema beanSchema = json.mapSchemas().get(schema.toLowerCase(ENGLISH));
+        JsonMappingSchema beanSchema = json.get().mapSchemas().get(schema.toLowerCase(ENGLISH));
         if (beanSchema == null) {
             throw new SchemaNotFoundException(schema);
         }

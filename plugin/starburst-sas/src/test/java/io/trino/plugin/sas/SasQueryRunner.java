@@ -23,6 +23,8 @@ import io.trino.tpch.TpchTable;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Consumer;
 
 import static io.airlift.testing.Closeables.closeAllSuppress;
 import static io.trino.testing.TestingSession.testSessionBuilder;
@@ -44,8 +46,14 @@ public final class SasQueryRunner
             extends DistributedQueryRunner.Builder<Builder>
     {
         private final Path dataDirectory;
+        private Map<String, String> catalogProperties;
+        private Consumer<Path> initialTablesUploader = _ -> {};
         private List<TpchTable<?>> initialTables = ImmutableList.of();
 
+        /**
+         * @param dataDirectory local directory the initial TPCH tables are generated into; it is also the
+         *         catalog's data directory unless {@link #setCatalogProperties} points the catalog elsewhere
+         */
         private Builder(Path dataDirectory)
         {
             super(testSessionBuilder()
@@ -53,11 +61,32 @@ public final class SasQueryRunner
                     .setSchema(TPCH_SCHEMA)
                     .build());
             this.dataDirectory = requireNonNull(dataDirectory, "dataDirectory is null");
+            this.catalogProperties = ImmutableMap.of("sas.data-directory", dataDirectory.toUri().toString());
         }
 
         public Builder setInitialTables(Iterable<TpchTable<?>> initialTables)
         {
             this.initialTables = ImmutableList.copyOf(requireNonNull(initialTables, "initialTables is null"));
+            return this;
+        }
+
+        /**
+         * Replaces the catalog properties, which by default only point {@code sas.data-directory} at the
+         * local data directory.
+         */
+        public Builder setCatalogProperties(Map<String, String> catalogProperties)
+        {
+            this.catalogProperties = ImmutableMap.copyOf(requireNonNull(catalogProperties, "catalogProperties is null"));
+            return this;
+        }
+
+        /**
+         * Invoked with the local data directory once all initial tables have been generated into it,
+         * so that a remote-storage catalog can upload them before the query runner is handed out.
+         */
+        public Builder setInitialTablesUploader(Consumer<Path> initialTablesUploader)
+        {
+            this.initialTablesUploader = requireNonNull(initialTablesUploader, "initialTablesUploader is null");
             return this;
         }
 
@@ -73,10 +102,7 @@ public final class SasQueryRunner
                 }
 
                 queryRunner.installPlugin(new SasPlugin());
-                queryRunner.createCatalog(
-                        CATALOG,
-                        "sas",
-                        ImmutableMap.of("sas.data-directory", dataDirectory.toUri().toString()));
+                queryRunner.createCatalog(CATALOG, "sas", catalogProperties);
 
                 if (!initialTables.isEmpty()) {
                     Path schemaDir = dataDirectory.resolve(TPCH_SCHEMA);
@@ -84,6 +110,7 @@ public final class SasQueryRunner
                     for (TpchTable<?> table : initialTables) {
                         loadTpchTable(queryRunner, schemaDir, table);
                     }
+                    initialTablesUploader.accept(dataDirectory);
                 }
 
                 return queryRunner;

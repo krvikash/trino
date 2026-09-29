@@ -18,9 +18,12 @@ import io.airlift.bootstrap.Bootstrap;
 import io.airlift.json.JsonModule;
 import io.trino.plugin.base.ConnectorContextModule;
 import io.trino.plugin.base.TypeDeserializerModule;
+import io.trino.plugin.base.jmx.ConnectorObjectNameGeneratorModule;
+import io.trino.plugin.base.jmx.MBeanServerModule;
 import io.trino.spi.connector.Connector;
 import io.trino.spi.connector.ConnectorContext;
 import io.trino.spi.connector.ConnectorFactory;
+import org.weakref.jmx.guice.MBeanModule;
 
 import java.util.Map;
 
@@ -43,6 +46,9 @@ public class SasConnectorFactory
         checkStrictSpiVersionMatch(context, this);
 
         Bootstrap app = new Bootstrap(
+                new MBeanModule(),
+                new MBeanServerModule(),
+                new ConnectorObjectNameGeneratorModule("io.trino.plugin.sas", "trino.plugin.sas"),
                 new JsonModule(),
                 new TypeDeserializerModule(),
                 new ConnectorContextModule(catalogName, context),

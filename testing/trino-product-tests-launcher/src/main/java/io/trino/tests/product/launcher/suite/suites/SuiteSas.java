@@ -16,6 +16,7 @@ package io.trino.tests.product.launcher.suite.suites;
 import com.google.common.collect.ImmutableList;
 import io.trino.tests.product.launcher.env.EnvironmentConfig;
 import io.trino.tests.product.launcher.env.environment.EnvMultinodeSas;
+import io.trino.tests.product.launcher.env.environment.EnvMultinodeSasMinio;
 import io.trino.tests.product.launcher.suite.Suite;
 import io.trino.tests.product.launcher.suite.SuiteTestRun;
 
@@ -32,6 +33,9 @@ public class SuiteSas
         return ImmutableList.of(
                 testOnEnvironment(EnvMultinodeSas.class)
                         .withGroups("configured_features", "sas")
+                        .build(),
+                testOnEnvironment(EnvMultinodeSasMinio.class)
+                        .withGroups("configured_features", "sas-s3")
                         .build());
     }
 }

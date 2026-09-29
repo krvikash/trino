@@ -85,4 +85,30 @@ final class TestSasConfig
                 .setJsonFile(jsonFile.toFile()));
         assertValidates(new SasConfig().setDataDirectory(URI.create("file:///data/sas")));
     }
+
+    @Test
+    void testDataDirectoryScheme()
+    {
+        assertValidates(new SasConfig().setDataDirectory(URI.create("file:///data/sas")));
+        assertValidates(new SasConfig().setDataDirectory(URI.create("s3://bucket/prefix")));
+        assertValidates(new SasConfig().setDataDirectory(URI.create("s3://bucket")));
+        assertValidates(new SasConfig().setDataDirectory(URI.create("s3a://bucket/prefix/")));
+        assertValidates(new SasConfig().setDataDirectory(URI.create("S3://bucket/prefix")));
+
+        assertFailsValidation(
+                new SasConfig().setDataDirectory(URI.create("gs://bucket/prefix")),
+                "dataDirectorySchemeValid",
+                "sas.data-directory must use the file:// or s3:// scheme",
+                AssertTrue.class);
+        assertFailsValidation(
+                new SasConfig().setDataDirectory(URI.create("hdfs://namenode/data/sas")),
+                "dataDirectorySchemeValid",
+                "sas.data-directory must use the file:// or s3:// scheme",
+                AssertTrue.class);
+        assertFailsValidation(
+                new SasConfig().setDataDirectory(URI.create("/data/sas")),
+                "dataDirectorySchemeValid",
+                "sas.data-directory must use the file:// or s3:// scheme",
+                AssertTrue.class);
+    }
 }

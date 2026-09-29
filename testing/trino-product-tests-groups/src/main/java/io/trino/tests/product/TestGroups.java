@@ -125,6 +125,7 @@ public final class TestGroups
     public static final String WARP_SPEED_AZURE_HIVE = "warp-speed-azure-hive";
     public static final String WARP_SPEED_GCS_HIVE = "warp-speed-gcs-hive";
     public static final String SAS = "sas";
+    public static final String SAS_S3 = "sas-s3";
 
     private TestGroups() {}
 
