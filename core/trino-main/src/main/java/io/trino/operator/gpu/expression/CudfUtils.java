@@ -25,6 +25,7 @@ import java.time.LocalDate;
 
 import static ai.rapids.cudf.BinaryOp.GREATER;
 import static ai.rapids.cudf.BinaryOp.LESS;
+import static ai.rapids.cudf.BinaryOp.LESS_EQUAL;
 import static ai.rapids.cudf.BinaryOp.NULL_LOGICAL_AND;
 import static ai.rapids.cudf.BinaryOp.NULL_LOGICAL_OR;
 import static io.trino.spi.StandardErrorCode.DIVISION_BY_ZERO;
@@ -159,18 +160,20 @@ final class CudfUtils
         // yields null regardless of the divisor.
         try (Scalar zero = Scalar.fromLong(0);
                 ColumnVector dividendNotNull = dividendColumn.isNotNull()) {
+            try (ColumnVector nonPositiveDivisor = divisorColumn.binaryOp(LESS_EQUAL, zero, DType.BOOL8);
+                    ColumnVector nonPositiveAndPresent = nonPositiveDivisor.binaryOp(NULL_LOGICAL_AND, dividendNotNull, DType.BOOL8)) {
+                // A single device sync on the common path, where every divisor is positive
+                if (!anyTrue(nonPositiveAndPresent)) {
+                    return;
+                }
+            }
             try (ColumnVector negativeDivisor = divisorColumn.binaryOp(LESS, zero, DType.BOOL8);
                     ColumnVector negativeAndPresent = negativeDivisor.binaryOp(NULL_LOGICAL_AND, dividendNotNull, DType.BOOL8)) {
                 if (anyTrue(negativeAndPresent)) {
                     throw new TrinoException(NOT_SUPPORTED, "Negative divisor is not supported");
                 }
             }
-            try (ColumnVector zeroDivisor = divisorColumn.equalTo(zero);
-                    ColumnVector zeroAndPresent = zeroDivisor.binaryOp(NULL_LOGICAL_AND, dividendNotNull, DType.BOOL8)) {
-                if (anyTrue(zeroAndPresent)) {
-                    throw new TrinoException(DIVISION_BY_ZERO, "Division by zero");
-                }
-            }
+            throw new TrinoException(DIVISION_BY_ZERO, "Division by zero");
         }
     }
 }
