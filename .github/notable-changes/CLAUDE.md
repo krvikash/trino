@@ -79,27 +79,39 @@ PRs targeting a `release-**` branch are **backports**. The default classificatio
 
 When in doubt, classify as notable. Anything worth the effort of a backport almost always matters for a customer who upgrades to that patch version.
 
-## GPU Execution Changes
+## Functionality Not Yet Publicly Released
 
-GPU support is released but hidden: the master switch, `@Config("gpu-execution")` on
-`FeaturesConfig.setGpuExecution()`, is annotated `@ConfigHidden`. The GPU-tuning knobs in the
-separate `io.trino.operator.gpu.GpuConfig` class (memory pool sizing, allocation mode, execution
-concurrency, etc.) are `@ConfigHidden` too, and `TestGpuConfig.testAllHiddenForNow()` fails the
-build if any of them is ever left un-hidden — but that test does not cover the `gpu-execution`
-property itself, since that one lives on `FeaturesConfig`, not `GpuConfig`. A customer can
-technically enable GPU execution, but only in close cooperation with the Starburst team — it is
-not self-service or documented.
+A bug fix (or any other change) to functionality that was added **after the most recent public
+release** and has not yet shipped in *any* released version should be classified **NOT NOTABLE**,
+regardless of the underlying bug's severity — including data-correctness bugs, crashes, or
+security-shaped issues. Customers were never exposed to the buggy behavior on a released version,
+so there is nothing to describe in that release's notes.
 
-**If a PR's change is about GPU execution and `gpu-execution` remains `@ConfigHidden`, classify
-it as NOT NOTABLE, regardless of the underlying bug's severity — this includes CVE/security
-fixes and release-branch backports. A code path a customer cannot reach without Starburst's
-direct help is not customer-facing, so it cannot be a customer-facing security issue, and a
-backport of it is not something a customer "hits" on upgrade. The security-fix and
-backport-notable rules above apply to customer-reachable behavior; they do not override this
-exclusion.**
+**Example:** GPU support for window functions is added to master shortly after a release cuts. A
+couple of days later, before the next release, a bug in that new window-function GPU path is
+found and fixed. That fix is NOT NOTABLE — the affected functionality never reached a customer,
+because it was never in a released version.
 
-If `gpu-execution` is ever made non-hidden (officialized), re-evaluate GPU-execution PRs under
-the normal rules above instead of this exclusion.
+**How to determine "not yet publicly released":**
+- Check whether the affected code/feature exists as of the most recent release tag/branch (e.g.
+  `git log <release-tag>..HEAD -- <path>` or whether the introducing commit is reachable from the
+  latest `release-**` branch). If the feature isn't there yet, it hasn't shipped.
+- Check the associated JIRA ticket/epic for a "Fix Version(s)"/"released in version X" field, or
+  for release notes already published for the feature.
+- If no release tooling is readily available from the PR context, use judgment from what's given
+  (linked JIRA, file history, PR timestamps relative to the last release) rather than requiring
+  exact tooling.
+- When it's genuinely unclear whether the functionality has shipped, default to the normal
+  classification rules (don't assume unreleased).
+
+**Boundary case — once functionality HAS shipped, this exclusion no longer applies.** If the
+affected functionality shipped in *any* prior public release — even if it is config-gated,
+experimental, or limited-GA (for example, GPU acceleration, which is publicly documented at
+docs.starburst.io and self-service via `gpu-execution=true`) — a subsequent bug fix to it must be
+evaluated under the normal classification rules above, not automatically excluded. This is the
+opposite of treating a released-but-gated feature as exempt: "not yet publicly released" means the
+feature has never appeared in a released version at all, not that it is hidden, optional, or
+config-gated within a version that *has* released.
 
 ## Tier 2 Tags for Cork
 
