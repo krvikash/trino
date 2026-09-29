@@ -58,6 +58,8 @@ public class ParquetEnvironment
                 .withConfigProperty("task.min-writer-count", "2")
                 .withConfigProperty("task.concurrency", "2")
                 .withConfigProperty("task.max-writer-count", "2")
+                // cork defaults to the legacy coercion; the expected results assume upstream's
+                .withConfigProperty("deprecated.legacy-varchar-to-char-coercion", "false")
                 .withFile("/etc/trino/hdfs-site.xml", hadoop.getHdfsClientSiteXml())
                 .withCatalog("hive", hiveCatalog(hadoop.getHiveMetastoreUri())
                         .withHadoopFileSystem()

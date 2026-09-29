@@ -49,6 +49,8 @@ abstract class AbstractTpcEnvironment
         trinoCluster = MultiNodeTrinoCluster.builder()
                 .withNetwork(network)
                 .withWorkerCount(1)
+                // cork defaults to the legacy coercion; the expected results assume upstream's
+                .withConfigProperty("deprecated.legacy-varchar-to-char-coercion", "false")
                 .withFile("/etc/trino/hdfs-site.xml", hadoop.getHdfsClientSiteXml())
                 .withCatalog("hive", hiveCatalog(hadoop.getHiveMetastoreUri())
                         .withHadoopFileSystem()
