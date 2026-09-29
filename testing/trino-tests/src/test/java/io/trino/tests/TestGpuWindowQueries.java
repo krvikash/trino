@@ -35,7 +35,7 @@ final class TestGpuWindowQueries
     }
 
     @Test
-    void testRowNumberOnGpu()
+    void testRowNumber()
     {
         assertThat(query(
                 """
@@ -46,7 +46,7 @@ final class TestGpuWindowQueries
     }
 
     @Test
-    void testRankOnGpu()
+    void testRank()
     {
         assertThat(query(
                 """
@@ -57,7 +57,7 @@ final class TestGpuWindowQueries
     }
 
     @Test
-    void testDenseRankOnGpu()
+    void testDenseRank()
     {
         assertThat(query(
                 """
@@ -68,7 +68,7 @@ final class TestGpuWindowQueries
     }
 
     @Test
-    void testMultipleRankingFunctionsOnGpu()
+    void testMultipleRankingFunctions()
     {
         assertThat(query(
                 """
@@ -82,7 +82,7 @@ final class TestGpuWindowQueries
     }
 
     @Test
-    void testNoPartitionByOnGpu()
+    void testNoPartitionBy()
     {
         assertThat(query(
                 """
@@ -93,7 +93,7 @@ final class TestGpuWindowQueries
     }
 
     @Test
-    void testRankNoOrderByOnGpu()
+    void testRankNoOrderBy()
     {
         assertThat(query(
                 """
@@ -104,7 +104,7 @@ final class TestGpuWindowQueries
     }
 
     @Test
-    void testDenseRankNoOrderByOnGpu()
+    void testDenseRankNoOrderBy()
     {
         assertThat(query(
                 """
@@ -128,7 +128,7 @@ final class TestGpuWindowQueries
     }
 
     @Test
-    void testRankWithTiesOnGpu()
+    void testRankWithTies()
     {
         assertThat(query(
                 """
@@ -142,7 +142,7 @@ final class TestGpuWindowQueries
     }
 
     @Test
-    void testRankOrderByFloatingPointOnGpu()
+    void testRankOrderByFloatingPoint()
     {
         assertThat(query(
                 """
@@ -153,7 +153,7 @@ final class TestGpuWindowQueries
     }
 
     @Test
-    void testAggregateWindowFunctionGpuIneligible()
+    void testSum()
     {
         assertThat(query(
                 """
@@ -164,7 +164,7 @@ final class TestGpuWindowQueries
     }
 
     @Test
-    void testAvgShortDecimalOnGpu()
+    void testAvgShortDecimal()
     {
         assertThat(query(
                 """
@@ -175,7 +175,7 @@ final class TestGpuWindowQueries
     }
 
     @Test
-    void testAvgLongDecimalOnGpu()
+    void testAvgLongDecimal()
     {
         assertThat(query(
                 """
@@ -186,7 +186,7 @@ final class TestGpuWindowQueries
     }
 
     @Test
-    void testAvgWideDecimalOnGpu()
+    void testAvgWideDecimal()
     {
         assertThat(query(
                 """
@@ -203,7 +203,7 @@ final class TestGpuWindowQueries
     }
 
     @Test
-    void testAvgWideDecimalRowsFrameGpu()
+    void testAvgWideDecimalRowsFrame()
     {
         assertThat(query(
                 """
@@ -217,7 +217,7 @@ final class TestGpuWindowQueries
     }
 
     @Test
-    void testAvgDecimalExplicitDefaultFrameOnGpu()
+    void testAvgDecimalExplicitDefaultFrame()
     {
         // RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW is the default frame, which the GPU supports
         assertThat(query(
@@ -232,7 +232,7 @@ final class TestGpuWindowQueries
     }
 
     @Test
-    void testAvgDecimalRowsFrameGpuIneligible()
+    void testAvgDecimalUnboundedPrecedingRowsFrame()
     {
         // ROWS frames differ from the default frame in how peer rows are handled, and are not supported on the GPU
         assertThat(query(
@@ -247,7 +247,7 @@ final class TestGpuWindowQueries
     }
 
     @Test
-    void testAvgDecimalWithRankingFunctionsOnGpu()
+    void testAvgDecimalWithRankingFunctions()
     {
         assertThat(query(
                 """
@@ -261,7 +261,7 @@ final class TestGpuWindowQueries
     }
 
     @Test
-    void testAvgDecimalOrderByFloatingPointGpuIneligible()
+    void testAvgDecimalOrderByFloatingPoint()
     {
         // cuDF orders NaN after every real value when deriving RANGE frame boundaries, so floating-point order
         // keys are not supported on the GPU
@@ -274,7 +274,7 @@ final class TestGpuWindowQueries
     }
 
     @Test
-    void testAvgDecimalOrderByDecimalOnGpu()
+    void testAvgDecimalOrderByDecimal()
     {
         assertThat(query(
                 """
@@ -285,7 +285,7 @@ final class TestGpuWindowQueries
     }
 
     @Test
-    void testAvgDecimalPartitionByVarcharOnGpu()
+    void testAvgDecimalPartitionByVarchar()
     {
         assertThat(query(
                 """
@@ -296,7 +296,7 @@ final class TestGpuWindowQueries
     }
 
     @Test
-    void testAvgDecimalPartitionByBigintOnGpu()
+    void testAvgDecimalPartitionByBigint()
     {
         assertThat(query(
                 """
@@ -307,7 +307,7 @@ final class TestGpuWindowQueries
     }
 
     @Test
-    void testAvgDecimalNoPartitionByOnGpu()
+    void testAvgDecimalNoPartitionBy()
     {
         assertThat(query(
                 """
@@ -318,7 +318,7 @@ final class TestGpuWindowQueries
     }
 
     @Test
-    void testAvgDecimalEmptyWindowOnGpu()
+    void testAvgDecimalEmptyWindow()
     {
         assertThat(query(
                 """
