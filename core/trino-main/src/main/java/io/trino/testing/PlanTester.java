@@ -1227,7 +1227,7 @@ public class PlanTester
                 statsCalculator,
                 costCalculator,
                 new NodeVersion("test"),
-                new DynamicNodeExecutionStrategy(optimizerConfig, plannerContext.getMetadata()),
+                new DynamicNodeExecutionStrategy(plannerContext.getMetadata()),
                 formatOptions);
     }
 

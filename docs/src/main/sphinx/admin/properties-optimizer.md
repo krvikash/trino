@@ -304,6 +304,7 @@ the rows that survive. This reduces work when most rows are discarded by the `LI
 - **Type:** {ref}`prop-type-string`
 - **Allowed values:** `DISTRIBUTED`, `SINGLE_NODE`
 - **Default value:** `DISTRIBUTED`
+- **Session property:** `query_distribution_mode`
 
 Whether a query runs on a single node, which skips remote exchanges at the cost of cross-node
 parallelism and data locality.

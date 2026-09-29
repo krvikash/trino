@@ -34,6 +34,7 @@ import io.trino.sql.planner.OptimizerConfig.DistinctAggregationsStrategy;
 import io.trino.sql.planner.OptimizerConfig.JoinDistributionType;
 import io.trino.sql.planner.OptimizerConfig.JoinReorderingStrategy;
 import io.trino.sql.planner.OptimizerConfig.MarkDistinctStrategy;
+import io.trino.sql.planner.OptimizerConfig.QueryDistributionMode;
 import io.trino.type.CharVarcharCoercion;
 
 import java.util.List;
@@ -237,6 +238,7 @@ public final class SystemSessionProperties
     public static final String MIN_INPUT_ROWS_PER_TASK = "min_input_rows_per_task";
     public static final String USE_EXACT_PARTITIONING = "use_exact_partitioning";
     public static final String USE_COST_BASED_PARTITIONING = "use_cost_based_partitioning";
+    public static final String QUERY_DISTRIBUTION_MODE = "query_distribution_mode";
     public static final String USE_SUB_PLAN_ALTERNATIVES = "use_sub_plan_alternatives";
     public static final String PUSH_FILTER_INTO_VALUES_MAX_ROW_COUNT = "push_filter_into_values_max_row_count";
     public static final String FORCE_SPILLING_JOIN = "force_spilling_join";
@@ -1249,6 +1251,12 @@ public final class SystemSessionProperties
                         USE_COST_BASED_PARTITIONING,
                         "When enabled the cost based optimizer is used to determine if repartitioning the output of an already partitioned stage is necessary",
                         optimizerConfig.isUseCostBasedPartitioning(),
+                        false),
+                enumProperty(
+                        QUERY_DISTRIBUTION_MODE,
+                        "Whether a query is planned as a single fragment scheduled on one worker",
+                        QueryDistributionMode.class,
+                        optimizerConfig.getQueryDistributionMode(),
                         false),
                 integerProperty(
                         PUSH_FILTER_INTO_VALUES_MAX_ROW_COUNT,
@@ -2353,6 +2361,11 @@ public final class SystemSessionProperties
     public static boolean isUseCostBasedPartitioning(Session session)
     {
         return session.getSystemProperty(USE_COST_BASED_PARTITIONING, Boolean.class);
+    }
+
+    public static QueryDistributionMode getQueryDistributionMode(Session session)
+    {
+        return session.getSystemProperty(QUERY_DISTRIBUTION_MODE, QueryDistributionMode.class);
     }
 
     public static boolean isUseSubPlanAlternatives(Session session)
