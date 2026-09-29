@@ -4121,9 +4121,6 @@ public class IcebergMetadata
 
         beginTransaction(icebergTable);
 
-        // beginTransaction refreshes icebergTable, so its current snapshot may already include commits made
-        // after analysis. The merge scans the handle's snapshot, and a data file replaced by such a commit
-        // would be missing from the previous delete files, failing its rewrite.
         List<PositionDeleteFiles> previousDeleteFiles = loadPreviousDeleteFiles(icebergTable, table.getSnapshotId());
         IcebergWritableTableHandle insertHandle = newWritableTableHandle(table.getSchemaTableName(), icebergTable, table.getTableSchemaJson(), branch, previousDeleteFiles);
         return new IcebergMergeTableHandle(table, insertHandle);
