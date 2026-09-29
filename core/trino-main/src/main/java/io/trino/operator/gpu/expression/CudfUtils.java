@@ -14,18 +14,24 @@
 package io.trino.operator.gpu.expression;
 
 import ai.rapids.cudf.ColumnVector;
+import ai.rapids.cudf.ColumnView;
 import ai.rapids.cudf.DType;
 import ai.rapids.cudf.Scalar;
 import io.trino.plugin.base.gpu.ClosingOnce;
+import io.trino.plugin.base.gpu.ClosingRef;
 import io.trino.spi.TrinoException;
 import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
 
+import java.math.BigInteger;
 import java.time.LocalDate;
 
+import static ai.rapids.cudf.BinaryOp.ADD;
 import static ai.rapids.cudf.BinaryOp.GREATER;
+import static ai.rapids.cudf.BinaryOp.GREATER_EQUAL;
 import static ai.rapids.cudf.BinaryOp.LESS;
 import static ai.rapids.cudf.BinaryOp.LESS_EQUAL;
+import static ai.rapids.cudf.BinaryOp.MOD;
 import static ai.rapids.cudf.BinaryOp.NULL_LOGICAL_AND;
 import static ai.rapids.cudf.BinaryOp.NULL_LOGICAL_OR;
 import static io.trino.spi.StandardErrorCode.DIVISION_BY_ZERO;
@@ -49,6 +55,8 @@ final class CudfUtils
     static final int MAX_CALENDAR_YEAR = 32767;
     static final long MIN_CALENDAR_EPOCH_DAY = LocalDate.of(MIN_CALENDAR_YEAR, 1, 1).toEpochDay();
     static final long MAX_CALENDAR_EPOCH_DAY = LocalDate.of(MAX_CALENDAR_YEAR, 12, 31).toEpochDay();
+
+    private static final DType UNSCALED = DType.create(DType.DTypeEnum.DECIMAL128, 0);
 
     private CudfUtils() {}
 
@@ -174,6 +182,39 @@ final class CudfUtils
                 }
             }
             throw new TrinoException(DIVISION_BY_ZERO, "Division by zero");
+        }
+    }
+
+    /// Returns what to add to the truncated quotient dividend / divisor to round it HALF_UP: +1 or -1,
+    /// following the dividend's sign, where the remainder is at least half the divisor, and 0 elsewhere.
+    /// cuDF's DIV truncates toward zero, so moving one step away from zero rounds the half up. The
+    /// divisor must be positive.
+    public static @Move ColumnVector halfUpCorrection(@Borrow ColumnView unscaledDividend, @Borrow ColumnVector unscaledDivisor)
+    {
+        try (Scalar zero = Scalar.fromDecimal(BigInteger.ZERO, UNSCALED);
+                Scalar plusOne = Scalar.fromDecimal(BigInteger.ONE, UNSCALED);
+                Scalar minusOne = Scalar.fromDecimal(BigInteger.valueOf(-1), UNSCALED);
+                ColumnVector roundAwayFromZero = roundAwayFromZero(unscaledDividend, unscaledDivisor);
+                ColumnVector dividendNonNegative = unscaledDividend.binaryOp(GREATER_EQUAL, zero, DType.BOOL8);
+                ColumnVector signedStep = dividendNonNegative.ifElse(plusOne, minusOne)) {
+            return roundAwayFromZero.ifElse(signedStep, zero);
+        }
+    }
+
+    // Mask that is true where the remainder is at least half the divisor, i.e. where the quotient
+    // must round away from zero (HALF_UP).
+    private static @Move ColumnVector roundAwayFromZero(@Borrow ColumnView unscaledDividend, @Borrow ColumnVector unscaledDivisor)
+    {
+        // Compare 2 * |remainder| against the divisor rather than |remainder| against divisor / 2,
+        // which would truncate the fraction for an odd divisor and get the exact half wrong. The
+        // divisor is a row count (INT64), so 2 * |remainder| < 2^64, far within DECIMAL128 and never
+        // overflowing.
+        try (ClosingRef<ColumnVector> remainder = ClosingRef.own(unscaledDividend.binaryOp(MOD, unscaledDivisor, UNSCALED));
+                ColumnVector absoluteRemainder = remainder.borrow().abs()) {
+            remainder.close();
+            try (ColumnVector twiceAbsoluteRemainder = absoluteRemainder.binaryOp(ADD, absoluteRemainder, UNSCALED)) {
+                return twiceAbsoluteRemainder.binaryOp(GREATER_EQUAL, unscaledDivisor, DType.BOOL8);
+            }
         }
     }
 }

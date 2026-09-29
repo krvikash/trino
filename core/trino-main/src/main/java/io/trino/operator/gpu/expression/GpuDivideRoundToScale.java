@@ -16,21 +16,17 @@ package io.trino.operator.gpu.expression;
 import ai.rapids.cudf.ColumnVector;
 import ai.rapids.cudf.ColumnView;
 import ai.rapids.cudf.DType;
-import ai.rapids.cudf.Scalar;
 import com.google.common.collect.ImmutableList;
-import io.trino.plugin.base.gpu.ClosingRef;
 import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
 
-import java.math.BigInteger;
 import java.util.List;
 import java.util.Objects;
 
 import static ai.rapids.cudf.BinaryOp.ADD;
 import static ai.rapids.cudf.BinaryOp.DIV;
-import static ai.rapids.cudf.BinaryOp.GREATER_EQUAL;
-import static ai.rapids.cudf.BinaryOp.MOD;
 import static io.trino.operator.gpu.expression.CudfUtils.failOnNonPositiveDivisor;
+import static io.trino.operator.gpu.expression.CudfUtils.halfUpCorrection;
 import static io.trino.operator.gpu.expression.GpuExpressions.anyNullOnNullInputs;
 import static io.trino.operator.gpu.expression.GpuExpressions.nullSkippingCheck;
 import static java.util.Objects.requireNonNull;
@@ -62,14 +58,14 @@ public final class GpuDivideRoundToScale
             failOnNonPositiveDivisor(dividendColumn, divisorColumn);
 
             // Work on the unscaled 128-bit integers. The rounding intermediates are confined to the
-            // roundingBump helpers so they are freed as soon as they are consumed, keeping only a few
+            // halfUpCorrection helpers so they are freed as soon as they are consumed, keeping only a few
             // device columns live at once.
             DType decimalType = dividendColumn.getType();
             try (ColumnVector unscaledDivisor = divisorColumn.castTo(UNSCALED);
                     ColumnView unscaledDividend = dividendColumn.bitCastTo(UNSCALED);
                     ColumnVector quotient = unscaledDividend.binaryOp(DIV, unscaledDivisor, UNSCALED);
-                    ColumnVector bump = roundingBump(unscaledDividend, unscaledDivisor);
-                    ColumnVector rounded = quotient.binaryOp(ADD, bump, UNSCALED);
+                    ColumnVector correction = halfUpCorrection(unscaledDividend, unscaledDivisor);
+                    ColumnVector rounded = quotient.binaryOp(ADD, correction, UNSCALED);
                     ColumnView result = rounded.bitCastTo(decimalType)) {
                 return result.copyToColumnVector();
             }
@@ -100,36 +96,5 @@ public final class GpuDivideRoundToScale
     public int hashCode()
     {
         return Objects.hash(getClass(), dividend, divisor);
-    }
-
-    // +1 / -1 following the dividend's sign, applied only where 2 * |remainder| >= divisor
-    // (rounding the half away from zero == HALF_UP); 0 elsewhere.
-    private static ColumnVector roundingBump(ColumnView unscaledDividend, ColumnVector unscaledDivisor)
-    {
-        try (Scalar zero = Scalar.fromDecimal(BigInteger.ZERO, UNSCALED);
-                Scalar plusOne = Scalar.fromDecimal(BigInteger.ONE, UNSCALED);
-                Scalar minusOne = Scalar.fromDecimal(BigInteger.valueOf(-1), UNSCALED);
-                ColumnVector roundAwayFromZero = roundAwayFromZero(unscaledDividend, unscaledDivisor);
-                ColumnVector dividendNonNegative = unscaledDividend.binaryOp(GREATER_EQUAL, zero, DType.BOOL8);
-                ColumnVector signedStep = dividendNonNegative.ifElse(plusOne, minusOne)) {
-            return roundAwayFromZero.ifElse(signedStep, zero);
-        }
-    }
-
-    // Mask that is true where the remainder is at least half the divisor, i.e. where the quotient
-    // must round away from zero (HALF_UP).
-    private static ColumnVector roundAwayFromZero(ColumnView unscaledDividend, ColumnVector unscaledDivisor)
-    {
-        // Compare 2 * |remainder| against the divisor rather than |remainder| against divisor / 2,
-        // which would truncate the fraction for an odd divisor and get the exact half wrong. The
-        // divisor is a row count (INT64), so 2 * |remainder| < 2^64, far within DECIMAL128 and never
-        // overflowing.
-        try (ClosingRef<ColumnVector> remainder = ClosingRef.own(unscaledDividend.binaryOp(MOD, unscaledDivisor, UNSCALED));
-                ColumnVector absoluteRemainder = remainder.borrow().abs()) {
-            remainder.close();
-            try (ColumnVector twiceAbsoluteRemainder = absoluteRemainder.binaryOp(ADD, absoluteRemainder, UNSCALED)) {
-                return twiceAbsoluteRemainder.binaryOp(GREATER_EQUAL, unscaledDivisor, DType.BOOL8);
-            }
-        }
     }
 }
