@@ -25,6 +25,7 @@ import io.trino.metadata.Catalog;
 import io.trino.metadata.CatalogManager;
 import io.trino.plugin.base.security.AllowAllSystemAccessControl;
 import io.trino.plugin.base.security.DefaultSystemAccessControl;
+import io.trino.plugin.base.security.ForwardingSystemAccessControl;
 import io.trino.plugin.base.security.ReadOnlySystemAccessControl;
 import io.trino.plugin.base.security.testing.TestingSystemAccessControlContext;
 import io.trino.server.starburst.accesscontrol.GalaxyAccessControl;
@@ -65,10 +66,12 @@ import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static io.airlift.tracing.Tracing.noopTracer;
 import static io.trino.connector.CatalogHandle.createRootCatalogHandle;
 import static io.trino.metadata.CatalogStatus.OPERATIONAL;
+import static io.trino.spi.StandardErrorCode.CONFIGURATION_INVALID;
 import static io.trino.spi.catalog.CatalogGovernance.DELEGATED;
 import static io.trino.spi.catalog.CatalogGovernance.GOVERNED;
 import static io.trino.spi.security.AccessDeniedException.denyCreateSchema;
 import static io.trino.testing.TestingEventListenerManager.emptyEventListenerManager;
+import static io.trino.testing.assertions.TrinoExceptionAssert.assertTrinoExceptionThrownBy;
 import static io.trino.transaction.InMemoryTransactionManager.createTestTransactionManager;
 import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -156,6 +159,69 @@ class TestStacBiacDelegatingSystemAccessControlSelector
     }
 
     @Test
+    void testGalaxyBehindADelegatingWrapperStillGovernsCatalogManagement()
+    {
+        SystemAccessControl wrappedGalaxy = ForwardingSystemAccessControl.of(() -> galaxyAccessControl);
+        // The delegated control is configured first, so it would have recorded the check before Galaxy ever threw
+        AccessControlManager accessControlManager = accessControlManager(delegatedAccessControl, wrappedGalaxy);
+
+        assertThatThrownBy(() -> accessControlManager.checkCanCreateCatalog(context(), "new_catalog"))
+                .isInstanceOf(GalaxyConsultedException.class);
+        assertThat(galaxyConsultations.consultations()).isEqualTo(1);
+    }
+
+    @Test
+    void testGalaxyBehindADelegatingWrapperStillGovernsGovernedCatalogs()
+    {
+        SystemAccessControl wrappedGalaxy = ForwardingSystemAccessControl.of(() -> galaxyAccessControl);
+        // The delegated control is configured first, so it would have recorded the catalog before Galaxy ever threw
+        AccessControlManager accessControlManager = accessControlManager(delegatedAccessControl, wrappedGalaxy);
+
+        assertThatThrownBy(() -> accessControlManager.checkCanCreateSchema(context(), new CatalogSchemaName(GOVERNED_CATALOG, "a_schema"), ImmutableMap.of()))
+                .isInstanceOf(GalaxyConsultedException.class);
+        assertThat(delegatedAccessControl.catalogsConsultedAbout()).isEmpty();
+    }
+
+    @Test
+    void testGalaxyBehindAWrapperHidingItsDelegateIsNotTreatedAsGalaxy()
+    {
+        SystemAccessControl hiddenGalaxy = new ForwardingSystemAccessControl()
+        {
+            @Override
+            protected SystemAccessControl delegate()
+            {
+                return galaxyAccessControl;
+            }
+
+            @Override
+            public SystemAccessControl unwrapped()
+            {
+                return this;
+            }
+        };
+
+        assertThat(selector.governsCatalog(hiddenGalaxy, GOVERNED_CATALOG)).isFalse();
+        assertThat(selector.governsCatalog(hiddenGalaxy, DELEGATED_CATALOG)).isTrue();
+        assertTrinoExceptionThrownBy(() -> accessControlManager(delegatedAccessControl, hiddenGalaxy))
+                .hasErrorCode(CONFIGURATION_INVALID)
+                .hasMessageContaining("No STAC access control is configured");
+    }
+
+    @Test
+    void testConfiguringIncorrectGalaxyAccessControlsIsRejected()
+    {
+        assertTrinoExceptionThrownBy(() -> accessControlManager(delegatedAccessControl))
+                .hasErrorCode(CONFIGURATION_INVALID)
+                .hasMessageContaining("No STAC access control is configured")
+                .hasMessageContaining(RefusingSystemAccessControl.class.getName());
+
+        assertTrinoExceptionThrownBy(() -> accessControlManager(delegatedAccessControl, galaxyAccessControl, galaxyAccessControl))
+                .hasErrorCode(CONFIGURATION_INVALID)
+                .hasMessageContaining("Multiple instances of STAC access control found")
+                .hasMessageContaining(RefusingSystemAccessControl.class.getName());
+    }
+
+    @Test
     void testAnOperationNamingNoCatalogIsCheckedByGalaxyAlone()
     {
         // The delegated control is configured first, so it would have recorded the check before Galaxy ever refused
@@ -170,10 +236,11 @@ class TestStacBiacDelegatingSystemAccessControlSelector
     @Test
     void testAnAccessControlCannotHideACatalogItDoesNotGovern()
     {
-        // The refusing control governs the delegated catalog only
-        AccessControlManager accessControlManager = accessControlManager(delegatedAccessControl);
+        // The refusing control governs the delegated catalog only. Configuring it as the sole access
+        // control is rejected, so the governed-aware wrapper is exercised on its own
+        SystemAccessControl governedAware = new GovernedAwareSystemAccessControl(delegatedAccessControl, selector);
 
-        assertThat(accessControlManager.filterCatalogs(context(), ImmutableSet.of(GOVERNED_CATALOG, DELEGATED_CATALOG)))
+        assertThat(governedAware.filterCatalogs(context().toSystemSecurityContext(), ImmutableSet.of(GOVERNED_CATALOG, DELEGATED_CATALOG)))
                 .containsExactly(GOVERNED_CATALOG);
         assertThat(delegatedAccessControl.catalogsFiltered()).containsExactly(DELEGATED_CATALOG);
     }

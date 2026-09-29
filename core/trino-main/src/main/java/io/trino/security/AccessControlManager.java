@@ -281,9 +281,11 @@ public class AccessControlManager
 
     public void setSystemAccessControls(List<SystemAccessControl> systemAccessControls)
     {
-        systemAccessControls.stream()
+        List<SystemAccessControl> configuredAccessControls = systemAccessControls.stream()
                 .map(AccessControlManager::unwrap)
-                .forEach(AccessControlManager::verifySystemAccessControl);
+                .collect(toImmutableList());
+        configuredAccessControls.forEach(AccessControlManager::verifySystemAccessControl);
+        accessControlSelector.verifySystemAccessControls(configuredAccessControls);
         List<SystemAccessControl> governedAwareSystemAccessControls = systemAccessControls.stream()
                 .map(this::governedAware)
                 .collect(toImmutableList());

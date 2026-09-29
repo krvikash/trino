@@ -59,6 +59,15 @@ public abstract class ForwardingSystemAccessControl
 
     protected abstract SystemAccessControl delegate();
 
+    /**
+     * Returns the access control this one forwards to, for callers that classify access controls by
+     * what they wrap. Implementations that do not want to reveal their delegate may return {@code this}.
+     */
+    public SystemAccessControl unwrapped()
+    {
+        return delegate();
+    }
+
     @Override
     public void checkCanImpersonateUser(Identity identity, String userName)
     {

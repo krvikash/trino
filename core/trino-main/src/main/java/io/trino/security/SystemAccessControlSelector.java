@@ -15,9 +15,13 @@ package io.trino.security;
 
 import io.trino.spi.security.SystemAccessControl;
 
+import java.util.List;
+
 public interface SystemAccessControlSelector
 {
     boolean governsCatalog(SystemAccessControl accessControl, String catalogName);
 
     boolean governsOperation(SystemAccessControl accessControl, SystemAccessControlOperation operation);
+
+    default void verifySystemAccessControls(List<SystemAccessControl> accessControls) {}
 }
