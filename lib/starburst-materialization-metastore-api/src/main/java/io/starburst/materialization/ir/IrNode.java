@@ -29,6 +29,11 @@ public sealed interface IrNode
      */
     String name();
 
+    /**
+     * Stamped under this node's name. Bump it when the node's own JSON payload changes (a field added, removed, renamed
+     * or re-encoded). A change inside a function or cast it references bumps that key instead; a change inside a leaf
+     * bumps the leaf key and, for an {@link Operation}, which stamps no leaf keys, this version too.
+     */
     int version();
 
     /**

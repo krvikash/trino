@@ -46,6 +46,8 @@ public final class IrVersions
     public static final String CAST_PREFIX = "cast:";
     public static final String LEAF_PREFIX = "leaf:";
 
+    // A leaf version covers that leaf's JSON form, not its Java API: bump it when a field is added, removed or renamed,
+    // or a value's encoding changes. A Symbol or Type change also bumps other keys; see the README's version-bump table.
     public static final String SYMBOL_LEAF = LEAF_PREFIX + "Symbol";
     public static final int SYMBOL_LEAF_VERSION = 1;
     public static final String TYPE_LEAF = LEAF_PREFIX + "Type";
