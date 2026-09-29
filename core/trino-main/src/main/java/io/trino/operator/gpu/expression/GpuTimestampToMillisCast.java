@@ -26,6 +26,7 @@ import java.util.Objects;
 
 import static ai.rapids.cudf.BinaryOp.ADD;
 import static ai.rapids.cudf.BinaryOp.GREATER;
+import static ai.rapids.cudf.BinaryOp.LESS;
 import static ai.rapids.cudf.DType.DURATION_MICROSECONDS;
 import static ai.rapids.cudf.DType.TIMESTAMP_MICROSECONDS;
 import static ai.rapids.cudf.DType.TIMESTAMP_MILLISECONDS;
@@ -54,9 +55,11 @@ public final class GpuTimestampToMillisCast
         try (ColumnVector timestamps = argument.evaluate(positionCount, inputColumns, bindings);
                 ColumnVector micros = timestamps.castTo(TIMESTAMP_MICROSECONDS)) {
             try (ColumnVector ticks = micros.castTo(DType.INT64);
+                    Scalar minInput = Scalar.fromLong((Long.MIN_VALUE / 1000) * 1000 - 500);
                     Scalar maxInput = Scalar.fromLong(Long.MAX_VALUE - 500);
-                    ColumnVector outOfRange = ticks.binaryOp(GREATER, maxInput, DType.BOOL8)) {
-                if (anyTrue(outOfRange)) {
+                    ColumnVector belowRange = ticks.binaryOp(LESS, minInput, DType.BOOL8);
+                    ColumnVector aboveRange = ticks.binaryOp(GREATER, maxInput, DType.BOOL8)) {
+                if (anyTrue(belowRange) || anyTrue(aboveRange)) {
                     throw new TrinoException(NUMERIC_VALUE_OUT_OF_RANGE, "Timestamp rounding argument out of range supported by GPU");
                 }
             }

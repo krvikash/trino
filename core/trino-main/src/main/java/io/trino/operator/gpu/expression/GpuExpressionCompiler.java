@@ -96,6 +96,7 @@ import static io.trino.spi.type.IntegerType.INTEGER;
 import static io.trino.spi.type.RealType.REAL;
 import static io.trino.spi.type.SmallintType.SMALLINT;
 import static io.trino.spi.type.TimeZoneKey.UTC_KEY;
+import static io.trino.spi.type.TimestampType.TIMESTAMP_MILLIS;
 import static io.trino.spi.type.TinyintType.TINYINT;
 import static io.trino.sql.ir.IrExpressions.matchComparison;
 import static io.trino.type.IntervalDayTimeType.INTERVAL_DAY_TIME;
@@ -471,6 +472,10 @@ public final class GpuExpressionCompiler
 
             if (name.equals("least") && call.arguments().size() >= 2) {
                 return compileLeast(call, context);
+            }
+
+            if (name.equals("format_datetime") && call.arguments().size() == 2) {
+                return compileFormatDateTime(call, context);
             }
 
             return Optional.empty();
@@ -1124,6 +1129,34 @@ public final class GpuExpressionCompiler
                 result = new GpuTrim(result, SPACE, GpuTrim.Side.TRAILING);
             }
             return Optional.of(result);
+        }
+
+        private Optional<GpuExpression> compileFormatDateTime(Call call, Void context)
+        {
+            if (!(call.type() instanceof VarcharType)) {
+                return Optional.empty();
+            }
+
+            List<Expression> arguments = call.arguments();
+            if (arguments.size() != 2) {
+                return Optional.empty();
+            }
+
+            Type sourceType = arguments.getFirst().type();
+            if (!(sourceType instanceof TimestampType)) {
+                return Optional.empty();
+            }
+
+            // cuDF takes a single host-side format, so the pattern must be known upfront
+            Optional<String> pattern = extractVarcharConstant(arguments.get(1));
+            // Joda-Time rejects an empty pattern, so leave it to the CPU to fail
+            if (pattern.isEmpty() || pattern.get().isEmpty()) {
+                return Optional.empty();
+            }
+
+            return toDType(sourceType).flatMap(sourceDType -> arguments.getFirst().accept(this, context)
+                            .flatMap(source -> compileCast(source, sourceType, sourceDType, TIMESTAMP_MILLIS, DType.TIMESTAMP_MILLISECONDS)))
+                    .flatMap(timestampMillis -> GpuFormatDateTime.create(timestampMillis, pattern.get()));
         }
 
         private static Optional<String> extractPatternString(Type patternType, Object patternValue)
