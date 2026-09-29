@@ -27,7 +27,7 @@ public class TestTpchSingleNodeAggregations
         return TpchQueryRunnerBuilder.builder()
                 .setWorkerCount(0)
                 .addExtraProperty("node-scheduler.include-coordinator", "true")
-                .addExtraProperty("experimental.force-single-node-query", "true")
+                .addExtraProperty("experimental.query-distribution-mode", "SINGLE_NODE")
                 .build();
     }
 }

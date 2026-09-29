@@ -31,7 +31,7 @@ public class TestHiveSingleNodeAggregations
                 // single node, the coordinator is the only worker
                 .setWorkerCount(0)
                 .addExtraProperty("node-scheduler.include-coordinator", "true")
-                .addExtraProperty("experimental.force-single-node-query", "true")
+                .addExtraProperty("experimental.query-distribution-mode", "SINGLE_NODE")
                 .setInitialTables(REQUIRED_TPCH_TABLES)
                 .build();
     }

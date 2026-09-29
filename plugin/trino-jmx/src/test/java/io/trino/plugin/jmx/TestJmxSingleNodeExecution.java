@@ -31,7 +31,7 @@ final class TestJmxSingleNodeExecution
         DistributedQueryRunner queryRunner = DistributedQueryRunner.builder(createSession())
                 .setWorkerCount(1)
                 .addExtraProperty("node-scheduler.include-coordinator", "false")
-                .addExtraProperty("experimental.force-single-node-query", "true")
+                .addExtraProperty("experimental.query-distribution-mode", "SINGLE_NODE")
                 .build();
         queryRunner.installPlugin(new JmxPlugin());
         queryRunner.createCatalog("jmx", "jmx");

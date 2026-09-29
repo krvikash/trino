@@ -51,7 +51,7 @@ public class TestGpuLocalExchangeSingleNode
             throws Exception
     {
         // Reads tpch.* directly; setInitialTables would trigger a CTAS that fails under
-        // experimental.force-single-node-query=true with "TableExecuteContext not registered".
+        // experimental.query-distribution-mode=SINGLE_NODE with "TableExecuteContext not registered".
         return MemoryQueryRunner.builder()
                 // One worker so per-task operator stats translate directly into total counts.
                 .setWorkerCount(1)
@@ -60,7 +60,7 @@ public class TestGpuLocalExchangeSingleNode
                 .addWorkerProperty("gpu.memory.pool-size", "4GB")
                 .addExtraProperty("node-scheduler.include-coordinator", "false")
                 // Keep everything in one fragment so local exchanges aren't replaced by remote ones.
-                .addExtraProperty("experimental.force-single-node-query", "true")
+                .addExtraProperty("experimental.query-distribution-mode", "SINGLE_NODE")
                 .build();
     }
 

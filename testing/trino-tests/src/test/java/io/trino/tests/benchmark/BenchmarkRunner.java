@@ -1497,7 +1497,7 @@ public final class BenchmarkRunner
         properties.put("query.max-memory-per-node", "80%");
         properties.put("query.max-memory", "1TB");
         properties.put("memory.heap-headroom-per-node", "20%");
-        properties.put("experimental.force-single-node-query", "true");
+        properties.put("experimental.query-distribution-mode", "SINGLE_NODE");
         // Restore the default overridden by DistributedQueryRunner.
         properties.put("join-distribution-type", new OptimizerConfig().getJoinDistributionType().name());
         if (bind8080) {

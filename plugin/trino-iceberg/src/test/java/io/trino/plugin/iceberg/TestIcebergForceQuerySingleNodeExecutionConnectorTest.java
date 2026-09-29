@@ -60,7 +60,7 @@ class TestIcebergForceQuerySingleNodeExecutionConnectorTest
         return super.createQueryRunnerBuilder()
                 .setWorkerCount(1)
                 .addExtraProperty("node-scheduler.include-coordinator", "false")
-                .addExtraProperty("experimental.force-single-node-query", "true");
+                .addExtraProperty("experimental.query-distribution-mode", "SINGLE_NODE");
     }
 
     // In distributed mode with SCALE_WRITERS=false and USE_PREFERRED_WRITE_PARTITIONING=false,

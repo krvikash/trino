@@ -44,7 +44,7 @@ final class TestGpuForceQuerySingleNodeExecution
                 .setWorkerCount(1)
                 // Enables GPU execution on the worker only, and keeps the coordinator out of scheduling.
                 .configureGpuDistributedExecution()
-                .addExtraProperty("experimental.force-single-node-query", "true")
+                .addExtraProperty("experimental.query-distribution-mode", "SINGLE_NODE")
                 .build();
     }
 

@@ -96,7 +96,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.parallel.ExecutionMode.SAME_THREAD;
 
-/// Tests that `experimental.force-single-node-query` gives each concurrent query its own worker.
+/// Tests that `experimental.query-distribution-mode=SINGLE_NODE` gives each concurrent query its own worker.
 @Execution(SAME_THREAD) // Each test expects to have the workers to itself
 final class TestForceQuerySingleNodePlacement
         extends AbstractTestQueryFramework
@@ -119,7 +119,7 @@ final class TestForceQuerySingleNodePlacement
         QueryRunner queryRunner = MemoryQueryRunner.builder()
                 .setWorkerCount(WORKER_COUNT)
                 .addExtraProperty("node-scheduler.include-coordinator", "false")
-                .addExtraProperty("experimental.force-single-node-query", "true")
+                .addExtraProperty("experimental.query-distribution-mode", "SINGLE_NODE")
                 // One callback thread per query, so a test can hold the listeners of a query
                 .addExtraProperty("query.max-state-machine-callback-threads", "1")
                 .setAdditionalModule(binder -> {

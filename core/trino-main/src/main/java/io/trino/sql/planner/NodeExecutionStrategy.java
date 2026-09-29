@@ -17,6 +17,7 @@ import com.google.inject.Inject;
 import io.trino.Session;
 import io.trino.metadata.Metadata;
 import io.trino.metadata.TableHandle;
+import io.trino.sql.planner.OptimizerConfig.QueryDistributionMode;
 
 import java.util.Collection;
 
@@ -30,21 +31,23 @@ public interface NodeExecutionStrategy
     class DynamicNodeExecutionStrategy
             implements NodeExecutionStrategy
     {
-        private final boolean preferSingleNodeExecution;
+        private final QueryDistributionMode queryDistributionMode;
         private final Metadata metadata;
 
         @Inject
         public DynamicNodeExecutionStrategy(OptimizerConfig optimizerConfig, Metadata metadata)
         {
-            this.preferSingleNodeExecution = optimizerConfig.isForceSingleNodeQuery();
+            this.queryDistributionMode = optimizerConfig.getQueryDistributionMode();
             this.metadata = metadata;
         }
 
         @Override
         public boolean shouldBeExecutedOnSingleNode(Session session, Collection<TableHandle> tables)
         {
-            return preferSingleNodeExecution
-                    && tables.stream().allMatch(handle -> metadata.supportsSingleNodeExecution(session, handle));
+            return switch (queryDistributionMode) {
+                case DISTRIBUTED -> false;
+                case SINGLE_NODE -> tables.stream().allMatch(handle -> metadata.supportsSingleNodeExecution(session, handle));
+            };
         }
     }
 }

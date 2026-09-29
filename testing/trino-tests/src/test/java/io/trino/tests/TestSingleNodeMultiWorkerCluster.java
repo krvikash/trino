@@ -30,7 +30,7 @@ final class TestSingleNodeMultiWorkerCluster
         return TpchQueryRunnerBuilder.builder()
                 .setWorkerCount(2)
                 .addExtraProperty("node-scheduler.include-coordinator", "false")
-                .addExtraProperty("experimental.force-single-node-query", "true")
+                .addExtraProperty("experimental.query-distribution-mode", "SINGLE_NODE")
                 .build();
     }
 

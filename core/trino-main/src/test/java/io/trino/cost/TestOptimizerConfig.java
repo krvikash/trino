@@ -14,6 +14,7 @@
 package io.trino.cost;
 
 import com.google.common.collect.ImmutableMap;
+import io.airlift.configuration.ConfigurationFactory;
 import io.airlift.units.DataSize;
 import io.airlift.units.Duration;
 import io.trino.sql.planner.OptimizerConfig;
@@ -31,8 +32,11 @@ import static io.airlift.units.DataSize.Unit.MEGABYTE;
 import static io.trino.sql.planner.OptimizerConfig.DistinctAggregationsStrategy.MARK_DISTINCT;
 import static io.trino.sql.planner.OptimizerConfig.JoinDistributionType.BROADCAST;
 import static io.trino.sql.planner.OptimizerConfig.JoinReorderingStrategy.NONE;
+import static io.trino.sql.planner.OptimizerConfig.QueryDistributionMode.DISTRIBUTED;
+import static io.trino.sql.planner.OptimizerConfig.QueryDistributionMode.SINGLE_NODE;
 import static java.util.concurrent.TimeUnit.MINUTES;
 import static java.util.concurrent.TimeUnit.SECONDS;
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class TestOptimizerConfig
 {
@@ -88,7 +92,7 @@ public class TestOptimizerConfig
                 .setTableScanNodePartitioningMinBucketToTaskRatio(0.5)
                 .setMergeProjectWithValues(true)
                 .setForceSingleNodeOutput(false)
-                .setForceSingleNodeQuery(false)
+                .setQueryDistributionMode(DISTRIBUTED)
                 .setAdaptivePartialAggregationEnabled(true)
                 .setAdaptivePartialAggregationUniqueRowsRatioThreshold(0.8)
                 .setCardinalityEstimationBasedPartialAggregationControllerEnabled(true)
@@ -147,7 +151,7 @@ public class TestOptimizerConfig
                 .put("optimizer.rewrite-sum-with-literal.enabled", "false")
                 .put("optimizer.enable-intermediate-aggregations", "true")
                 .put("optimizer.force-single-node-output", "true")
-                .put("experimental.force-single-node-query", "true")
+                .put("experimental.query-distribution-mode", "SINGLE_NODE")
                 .put("optimizer.distinct-aggregations-strategy", "mark_distinct")
                 .put("optimizer.prefer-partial-aggregation", "false")
                 .put("optimizer.optimize-top-n-ranking", "false")
@@ -228,7 +232,7 @@ public class TestOptimizerConfig
                 .setTableScanNodePartitioningMinBucketToTaskRatio(0.0)
                 .setMergeProjectWithValues(false)
                 .setForceSingleNodeOutput(true)
-                .setForceSingleNodeQuery(true)
+                .setQueryDistributionMode(SINGLE_NODE)
                 .setAdaptivePartialAggregationEnabled(false)
                 .setAdaptivePartialAggregationUniqueRowsRatioThreshold(0.99)
                 .setCardinalityEstimationBasedPartialAggregationControllerEnabled(false)
@@ -247,5 +251,17 @@ public class TestOptimizerConfig
                 .setUnsafePushdownAllowed(true)
                 .setPushPartialAggregationThroughExpandingJoin(false);
         assertFullMapping(properties, expected);
+    }
+
+    @Test
+    public void testLegacyForceSingleNodeQueryMapping()
+    {
+        assertThat(buildConfig("experimental.force-single-node-query", "true").getQueryDistributionMode()).isEqualTo(SINGLE_NODE);
+        assertThat(buildConfig("experimental.force-single-node-query", "false").getQueryDistributionMode()).isEqualTo(DISTRIBUTED);
+    }
+
+    private static OptimizerConfig buildConfig(String property, String value)
+    {
+        return new ConfigurationFactory(ImmutableMap.of(property, value)).build(OptimizerConfig.class);
     }
 }

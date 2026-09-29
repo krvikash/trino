@@ -29,7 +29,7 @@ import static io.trino.sql.planner.SystemPartitioningHandle.COORDINATOR_DISTRIBU
 import static io.trino.sql.planner.SystemPartitioningHandle.SINGLE_DISTRIBUTION;
 import static org.assertj.core.api.Assertions.assertThat;
 
-/// Tests `experimental.force-single-node-query`, where the whole query body runs on one node without any remote
+/// Tests `experimental.query-distribution-mode=SINGLE_NODE`, where the whole query body runs on one node without any remote
 /// exchange. Plan portions that must run on the coordinator still get a stage of their own, so that they do not
 /// drag the query body onto the coordinator with them.
 ///
@@ -49,7 +49,7 @@ final class TestForceQuerySingleNodeExecution
                 // Two workers, so a query body spread over the workers is distinguishable from one running on a single node.
                 .setWorkerCount(2)
                 .addExtraProperty("node-scheduler.include-coordinator", "false")
-                .addExtraProperty("experimental.force-single-node-query", "true")
+                .addExtraProperty("experimental.query-distribution-mode", "SINGLE_NODE")
                 .build();
         try {
             queryRunner.installPlugin(new BlackHolePlugin());

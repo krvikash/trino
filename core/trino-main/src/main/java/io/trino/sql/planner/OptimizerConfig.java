@@ -98,7 +98,7 @@ public class OptimizerConfig
     private double tableScanNodePartitioningMinBucketToTaskRatio = 0.5;
     private boolean mergeProjectWithValues = true;
     private boolean forceSingleNodeOutput;
-    private boolean forceSingleNodeQuery;
+    private QueryDistributionMode queryDistributionMode = QueryDistributionMode.DISTRIBUTED;
     private boolean useExactPartitioning;
     private boolean useCostBasedPartitioning = true;
     private boolean useSubPlanAlternatives = true;
@@ -155,6 +155,12 @@ public class OptimizerConfig
         PRE_AGGREGATE,
         SPLIT_TO_SUBQUERIES,
         AUTOMATIC,
+    }
+
+    public enum QueryDistributionMode
+    {
+        DISTRIBUTED,
+        SINGLE_NODE,
     }
 
     public double getCpuCostWeight()
@@ -797,16 +803,24 @@ public class OptimizerConfig
         return this;
     }
 
-    public boolean isForceSingleNodeQuery()
+    public QueryDistributionMode getQueryDistributionMode()
     {
-        return forceSingleNodeQuery;
+        return queryDistributionMode;
     }
 
-    @Config("experimental.force-single-node-query")
-    @ConfigDescription("Force every query to be planned as a single fragment scheduled on one worker; skips remote exchanges. Forfeits cross-node parallelism and data locality.")
+    @Config("experimental.query-distribution-mode")
+    @ConfigDescription("Select query execution: distributed or single node")
+    public OptimizerConfig setQueryDistributionMode(QueryDistributionMode queryDistributionMode)
+    {
+        this.queryDistributionMode = requireNonNull(queryDistributionMode, "queryDistributionMode is null");
+        return this;
+    }
+
+    @Deprecated
+    @LegacyConfig(value = "experimental.force-single-node-query", replacedBy = "experimental.query-distribution-mode")
     public OptimizerConfig setForceSingleNodeQuery(boolean value)
     {
-        this.forceSingleNodeQuery = value;
+        this.queryDistributionMode = value ? QueryDistributionMode.SINGLE_NODE : QueryDistributionMode.DISTRIBUTED;
         return this;
     }
 

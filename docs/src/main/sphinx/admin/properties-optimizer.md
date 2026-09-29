@@ -298,3 +298,14 @@ Enable late materialization between supporting operators by passing undecoded
 For example, an `ORDER BY ... LIMIT n` query reads only the sort columns to decide
 which rows can enter the result, and decodes the remaining selected columns only for
 the rows that survive. This reduces work when most rows are discarded by the `LIMIT`.
+
+## `experimental.query-distribution-mode`
+
+- **Type:** {ref}`prop-type-string`
+- **Allowed values:** `DISTRIBUTED`, `SINGLE_NODE`
+- **Default value:** `DISTRIBUTED`
+
+Whether a query runs on a single node, which skips remote exchanges at the cost of cross-node
+parallelism and data locality.
+- `DISTRIBUTED` plans every query across the cluster.
+- `SINGLE_NODE` runs every query on a single node.

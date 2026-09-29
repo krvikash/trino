@@ -34,7 +34,7 @@ public class TestTpchSingleNodeJoinQueries
         return TpchQueryRunnerBuilder.builder()
                 .setWorkerCount(0)
                 .addExtraProperty("node-scheduler.include-coordinator", "true")
-                .addExtraProperty("experimental.force-single-node-query", "true")
+                .addExtraProperty("experimental.query-distribution-mode", "SINGLE_NODE")
                 .build();
     }
 
@@ -52,7 +52,7 @@ public class TestTpchSingleNodeJoinQueries
         assertThat(PlanNodeSearcher.searchFrom(result.queryPlan().orElseThrow().getRoot())
                 .where(node -> node instanceof ExchangeNode exchange && exchange.getScope() == REMOTE)
                 .findAll())
-                .as("experimental.force-single-node-query must keep all source stages in one fragment")
+                .as("experimental.query-distribution-mode=SINGLE_NODE must keep all source stages in one fragment")
                 .isEmpty();
     }
 }

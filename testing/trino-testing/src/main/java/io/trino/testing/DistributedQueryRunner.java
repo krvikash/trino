@@ -908,7 +908,7 @@ public final class DistributedQueryRunner
                     // Single-node execution mode, mirroring how the local benchmark runs.
                     .setWorkerCount(0)
                     .addExtraProperty("node-scheduler.include-coordinator", "true")
-                    .addExtraProperty("experimental.force-single-node-query", "true");
+                    .addExtraProperty("experimental.query-distribution-mode", "SINGLE_NODE");
         }
 
         @CanIgnoreReturnValue
