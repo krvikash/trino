@@ -93,6 +93,58 @@ class TestVersionAwareMaterializationMetastore
         assertThat(metastore.getSkippedCount().getTotalCount()).isEqualTo(1);
     }
 
+    /**
+     * A stored row is read iff every name it is stamped with is supported at the same version, whichever set of
+     * names the writer stamped.
+     */
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("storedIrVersions")
+    void testIrVersionGate(String scenario, Map<String, Integer> extraIrVersions, boolean readable)
+    {
+        InMemoryRawMaterializationMetastore raw = new InMemoryRawMaterializationMetastore();
+        VersionAwareMaterializationMetastore metastore = versionAwareMetastore(raw);
+        MaterializationDefinition mv = materialization("mv", "source");
+        metastore.createOrReplace(mv);
+
+        RawMaterializationDefinition stored = getOnlyElement(raw.listMaterializations());
+        raw.createOrReplace(withIrVersions(stored, ImmutableMap.<String, Integer>builder()
+                .putAll(stored.irVersions())
+                .putAll(extraIrVersions)
+                .buildOrThrow()));
+
+        if (readable) {
+            assertThat(metastore.listMaterializations()).containsExactly(mv);
+            assertThat(metastore.getSkippedCount().getTotalCount()).isZero();
+        }
+        else {
+            assertThat(metastore.listMaterializations()).isEmpty();
+            assertThat(metastore.getSkippedCount().getTotalCount()).isEqualTo(1);
+        }
+    }
+
+    private static Stream<Arguments> storedIrVersions()
+    {
+        return Stream.of(
+                Arguments.of("supported expression names", ImmutableMap.of(
+                        "expr:Call", 1,
+                        "leaf:BoundSignature", 1,
+                        "fn:system.builtin.$operator$equal", 1,
+                        "expr:Cast", 1,
+                        "leaf:Type", 1,
+                        "cast:varchar->varchar", 1,
+                        "expr:Reference", 1,
+                        "leaf:Symbol", 1), true),
+                Arguments.of("unknown operation", ImmutableMap.of("Filter", 1), false),
+                Arguments.of("unknown expression node", ImmutableMap.of("expr:Case", 1), false),
+                Arguments.of("unknown function", ImmutableMap.of("fn:system.builtin.random", 1), false),
+                Arguments.of("unknown cast pair", ImmutableMap.of("cast:bigint->varchar", 1), false),
+                Arguments.of("unknown leaf", ImmutableMap.of("leaf:Constant", 1), false),
+                Arguments.of("expression node at another version", ImmutableMap.of("expr:Call", 2), false),
+                Arguments.of("function at another version", ImmutableMap.of("fn:system.builtin.$operator$equal", 2), false),
+                Arguments.of("cast pair at another version", ImmutableMap.of("cast:varchar->varchar", 2), false),
+                Arguments.of("leaf at another version", ImmutableMap.of("leaf:Symbol", 2), false));
+    }
+
     @Test
     void testSkipsMaterializationWithIncompatibleConnectorVersion()
     {

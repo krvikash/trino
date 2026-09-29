@@ -17,6 +17,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.inject.Key;
 import io.airlift.bootstrap.AutoCloseableCloser;
+import io.starburst.materialization.ir.IrVersions;
 import io.starburst.materialization.metastore.MaterializationSource.MaterializedViewSource;
 import io.starburst.materialization.metastore.MetastoreId;
 import io.starburst.materialization.metastore.RawMaterializationDefinition;
@@ -127,6 +128,27 @@ public abstract class AbstractRawMaterializationMetastoreTest
         assertThat(all).containsExactly(second);
         assertThat(all.get(0).gracePeriod()).isEmpty();
         assertThat(all.get(0).computationPlanRootJson()).isEqualTo("{\"plan\":\"updated\"}");
+    }
+
+    @Test
+    public void testExpressionIrVersionsRoundTrip()
+    {
+        RawMaterializationMetastore metastore = metastore();
+        RawMaterializationDefinition plain = definition("catalog", "schema", "mv_expressions");
+        // Namespaced keys carry ':', '.', '$' and '->', and every name this build supports is included
+        RawMaterializationDefinition withExpressions = new RawMaterializationDefinition(
+                IrVersions.SUPPORTED,
+                plain.catalogIrVersions(),
+                plain.computationPlanRootJson(),
+                plain.storageTableId(),
+                plain.source(),
+                plain.lastKnownFreshTime(),
+                plain.gracePeriod());
+        assertThat(withExpressions.irVersions()).containsKeys("fn:system.builtin.$operator$equal", "cast:varchar->varchar");
+
+        metastore.createOrReplace(withExpressions);
+
+        assertThat(metastore.listMaterializations()).containsExactly(withExpressions);
     }
 
     @Test

@@ -82,19 +82,27 @@ public class TestUtils
         return versionAwareMetastore(new InMemoryRawMaterializationMetastore(), afterListMaterializations);
     }
 
-    private static VersionAwareMaterializationMetastore versionAwareMetastore(RawMaterializationMetastore rawMetastore, Runnable afterListMaterializations)
+    /**
+     * A codec factory for IR JSON, resolving types through the testing type manager and connector identities
+     * through the handle resolver, as the server does.
+     */
+    public static JsonCodecFactory irJsonCodecFactory()
     {
         TypeManager typeManager = InternalTypeManager.TESTING_TYPE_MANAGER;
         // The Output codec must round-trip the connector-specific ConnectorTableId / ConnectorColumnId, which
         // are persisted polymorphically via the handle resolver (mirrors the server's HandleJsonModule wiring).
         HandleResolver handleResolver = new HandleResolver();
-        JsonCodec<Output> irJsonCodec = new JsonCodecFactory(irJsonMapper(new JsonMapperProvider()
+        return new JsonCodecFactory(irJsonMapper(new JsonMapperProvider()
                 .withJsonDeserializers(ImmutableMap.of(Type.class, new TypeDeserializer(typeManager)))
                 .withModules(ImmutableSet.of(
                         new AbstractTypedJacksonModule<>(ConnectorTableId.class, handleResolver::getId, handleResolver::getHandleClass) {},
                         new AbstractTypedJacksonModule<>(ConnectorColumnId.class, handleResolver::getId, handleResolver::getHandleClass) {}))
-                .get()))
-                .jsonCodec(Output.class);
+                .get()));
+    }
+
+    private static VersionAwareMaterializationMetastore versionAwareMetastore(RawMaterializationMetastore rawMetastore, Runnable afterListMaterializations)
+    {
+        JsonCodec<Output> irJsonCodec = irJsonCodecFactory().jsonCodec(Output.class);
         return new VersionAwareMaterializationMetastore(rawMetastore, irJsonCodec)
         {
             @Override
