@@ -22,12 +22,15 @@ import java.util.Map;
 
 import static io.starburst.materialization.ir.IrFixtures.outputOverScan;
 import static io.trino.spi.type.BigintType.BIGINT;
+import static io.trino.spi.type.VarcharType.VARCHAR;
+import static io.trino.spi.type.VarcharType.createVarcharType;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class TestIrVersions
 {
     private static final List<String> PREFIXES = ImmutableList.of(
             IrVersions.EXPRESSION_PREFIX,
+            IrVersions.CAST_PREFIX,
             IrVersions.LEAF_PREFIX);
 
     @Test
@@ -53,10 +56,12 @@ class TestIrVersions
         }
         assertThat(IrVersions.OPERATION_VERSIONS.keySet()).allSatisfy(name -> assertThat(name).doesNotContain(":"));
         assertEveryNameHasPrefix(IrVersions.EXPRESSION_VERSIONS, IrVersions.EXPRESSION_PREFIX);
+        assertEveryNameHasPrefix(IrVersions.CAST_VERSIONS, IrVersions.CAST_PREFIX);
         assertEveryNameHasPrefix(IrVersions.LEAF_VERSIONS, IrVersions.LEAF_PREFIX);
         assertThat(IrVersions.SUPPORTED).hasSize(
                 IrVersions.OPERATION_VERSIONS.size()
                         + IrVersions.EXPRESSION_VERSIONS.size()
+                        + IrVersions.CAST_VERSIONS.size()
                         + IrVersions.LEAF_VERSIONS.size());
     }
 
@@ -65,6 +70,19 @@ class TestIrVersions
     {
         assertThat(IrVersions.collect(new Reference(new Symbol(BIGINT, "a"))))
                 .isEqualTo(ImmutableMap.of("expr:Reference", 1, "leaf:Symbol", 1));
+    }
+
+    @Test
+    void testCastStampsPairKey()
+    {
+        assertThat(IrVersions.CAST_VERSIONS).containsEntry("cast:varchar->varchar", 1);
+        assertThat(IrVersions.collect(new Cast(new Reference(new Symbol(VARCHAR, "a")), createVarcharType(10))))
+                .isEqualTo(ImmutableMap.of(
+                        "expr:Cast", 1,
+                        "leaf:Type", 1,
+                        "cast:varchar->varchar", 1,
+                        "expr:Reference", 1,
+                        "leaf:Symbol", 1));
     }
 
     private static void assertEveryNameHasPrefix(Map<String, Integer> versions, String prefix)

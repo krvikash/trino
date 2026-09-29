@@ -13,6 +13,7 @@
  */
 package io.starburst.materialization.ir;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.io.Resources;
 import io.airlift.json.JsonCodec;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -24,7 +25,11 @@ import java.io.UncheckedIOException;
 import java.util.stream.Stream;
 
 import static io.starburst.materialization.ir.IrFixtures.outputOverScan;
+import static io.starburst.materialization.ir.TestExpressionValidation.reference;
 import static io.trino.spi.type.BigintType.BIGINT;
+import static io.trino.spi.type.BooleanType.BOOLEAN;
+import static io.trino.spi.type.VarcharType.VARCHAR;
+import static io.trino.spi.type.VarcharType.createVarcharType;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -38,7 +43,11 @@ class TestIrWireFormat
     static Stream<Arguments> expressions()
     {
         return Stream.of(
-                Arguments.of(Reference.NAME, new Reference(new Symbol(BIGINT, "a"))));
+                Arguments.of(Cast.NAME, new Cast(reference(VARCHAR, "a"), createVarcharType(10))),
+                Arguments.of(In.NAME, new In(reference(BIGINT, "a"), ImmutableList.of(reference(BIGINT, "b"), reference(BIGINT, "c")))),
+                Arguments.of(IsNull.NAME, new IsNull(reference(BIGINT, "a"))),
+                Arguments.of(Logical.NAME, new Logical(Logical.Operator.AND, ImmutableList.of(reference(BOOLEAN, "a"), reference(BOOLEAN, "b")))),
+                Arguments.of(Reference.NAME, reference(BIGINT, "a")));
     }
 
     @ParameterizedTest(name = "{0}")

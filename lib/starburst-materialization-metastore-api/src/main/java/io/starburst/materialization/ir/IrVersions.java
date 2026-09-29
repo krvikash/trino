@@ -19,6 +19,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static com.google.common.base.Preconditions.checkState;
+import static com.google.common.collect.ImmutableMap.toImmutableMap;
 
 /**
  * The single source of truth for IR version stamps.
@@ -29,18 +30,22 @@ import static com.google.common.base.Preconditions.checkState;
  * <ul>
  * <li>bare: an {@link Operation} node type, grandfathered unprefixed ({@code TableScan})</li>
  * <li>{@value #EXPRESSION_PREFIX}: an {@link Expression} node type ({@code expr:Reference})</li>
+ * <li>{@value #CAST_PREFIX}: one {@link SupportedCasts} pair's conversion semantics ({@code cast:varchar->varchar})</li>
  * <li>{@value #LEAF_PREFIX}: a shared leaf serialized form, stamped by {@code Expression} nodes only
- * ({@code leaf:Symbol})</li>
+ * ({@code leaf:Symbol}, {@code leaf:Type})</li>
  * </ul>
  * Names are permanent: renaming one silently invalidates every stored definition that uses it.
  */
 public final class IrVersions
 {
     public static final String EXPRESSION_PREFIX = "expr:";
+    public static final String CAST_PREFIX = "cast:";
     public static final String LEAF_PREFIX = "leaf:";
 
     public static final String SYMBOL_LEAF = LEAF_PREFIX + "Symbol";
     public static final int SYMBOL_LEAF_VERSION = 1;
+    public static final String TYPE_LEAF = LEAF_PREFIX + "Type";
+    public static final int TYPE_LEAF_VERSION = 1;
 
     /**
      * {@code Operation} versions, keyed by the grandfathered bare node name.
@@ -53,10 +58,23 @@ public final class IrVersions
      * {@code Expression} versions, keyed by the {@value #EXPRESSION_PREFIX} namespaced node name.
      */
     public static final Map<String, Integer> EXPRESSION_VERSIONS = ImmutableMap.of(
+            expressionKey(Cast.NAME), Cast.VERSION,
+            expressionKey(In.NAME), In.VERSION,
+            expressionKey(IsNull.NAME), IsNull.VERSION,
+            expressionKey(Logical.NAME), Logical.VERSION,
             expressionKey(Reference.NAME), Reference.VERSION);
 
+    /**
+     * {@link SupportedCasts} versions, keyed by {@value #CAST_PREFIX}{@code <source base type>-><target base type>}.
+     */
+    public static final Map<String, Integer> CAST_VERSIONS = SupportedCasts.supported().stream()
+            .collect(toImmutableMap(
+                    pair -> castKey(pair.sourceBaseName(), pair.targetBaseName()),
+                    pair -> SupportedCasts.semanticVersion(pair.sourceBaseName(), pair.targetBaseName())));
+
     public static final Map<String, Integer> LEAF_VERSIONS = ImmutableMap.of(
-            SYMBOL_LEAF, SYMBOL_LEAF_VERSION);
+            SYMBOL_LEAF, SYMBOL_LEAF_VERSION,
+            TYPE_LEAF, TYPE_LEAF_VERSION);
 
     /**
      * Every name this build can read, with the version it reads it at.
@@ -64,6 +82,7 @@ public final class IrVersions
     public static final Map<String, Integer> SUPPORTED = ImmutableMap.<String, Integer>builder()
             .putAll(OPERATION_VERSIONS)
             .putAll(EXPRESSION_VERSIONS)
+            .putAll(CAST_VERSIONS)
             .putAll(LEAF_VERSIONS)
             .buildOrThrow();
 
@@ -72,6 +91,11 @@ public final class IrVersions
     static String expressionKey(String nodeName)
     {
         return EXPRESSION_PREFIX + nodeName;
+    }
+
+    static String castKey(String sourceBaseName, String targetBaseName)
+    {
+        return CAST_PREFIX + sourceBaseName + "->" + targetBaseName;
     }
 
     /**

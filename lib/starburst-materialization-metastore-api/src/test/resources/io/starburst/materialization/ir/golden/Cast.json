@@ -1,0 +1,1 @@
+{"@type":"Cast","expression":{"@type":"Reference","symbol":{"type":"varchar","name":"a"}},"type":"varchar(10)"}

@@ -32,11 +32,19 @@ import java.util.Map;
  */
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "@type")
 @JsonSubTypes({
+        @JsonSubTypes.Type(value = Cast.class, name = Cast.NAME),
+        @JsonSubTypes.Type(value = In.class, name = In.NAME),
+        @JsonSubTypes.Type(value = IsNull.class, name = IsNull.NAME),
+        @JsonSubTypes.Type(value = Logical.class, name = Logical.NAME),
         @JsonSubTypes.Type(value = Reference.class, name = Reference.NAME),
 })
 public sealed interface Expression
         extends IrNode
-        permits Reference
+        permits Cast,
+                In,
+                IsNull,
+                Logical,
+                Reference
 {
     Type type();
 

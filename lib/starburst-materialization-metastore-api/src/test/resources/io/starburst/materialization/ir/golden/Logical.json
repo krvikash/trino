@@ -1,0 +1,1 @@
+{"@type":"Logical","operator":"AND","terms":[{"@type":"Reference","symbol":{"type":"boolean","name":"a"}},{"@type":"Reference","symbol":{"type":"boolean","name":"b"}}]}
