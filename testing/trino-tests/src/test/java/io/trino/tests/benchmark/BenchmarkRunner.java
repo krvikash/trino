@@ -134,7 +134,8 @@ public final class BenchmarkRunner
 
     /**
      * Leaf or in-stack frames marking idle / parked / polling threads — excluded from the
-     * self-time top table (raw flamegraph is unchanged).
+     * self-time top table (raw flamegraph is unchanged). A stack that also matches
+     * {@link #BLOCKED_FRAME_PATTERN} is kept regardless.
      */
     private static final Pattern IDLE_FRAME_PATTERN = Pattern.compile(String.join(
             "|",
@@ -160,7 +161,6 @@ public final class BenchmarkRunner
             "pthread_clockjoin",
             "__schedule",
             "ObjectMonitor::wait",
-            "ObjectMonitor::enter",
             "os::PlatformEvent::park",
             "epoll_wait",
             "kevent",
@@ -172,14 +172,25 @@ public final class BenchmarkRunner
             "ThreadPoolExecutor\\.getTask",
             "ForkJoinPool\\.awaitWork",
             "AbstractQueuedSynchronizer.*await",
-            // threads frozen at a safepoint poll (not executing); matched above the generic syscall leaf.
-            "SafepointSynchronize::block",
-            "LinuxWaitBarrier::wait",
             // scheduler wake-up signaling (waking a sleeping worker, not query work).
             "Unsafe_Unpark",
             "Unsafe\\.unpark",
             "LockSupport\\.unpark",
             "ForkJoinPool\\.signalWork"));
+
+    /**
+     * Frames marking a thread blocked on a contended monitor or lock. Wall-clock profiles keep
+     * these stacks so lock waits inside query operators stay visible; the park primitives
+     * underneath them would otherwise match {@link #IDLE_FRAME_PATTERN}.
+     */
+    private static final Pattern BLOCKED_FRAME_PATTERN = Pattern.compile(String.join(
+            "|",
+            "ObjectMonitor::enter",
+            "__lll_lock_wait",
+            "pthread_mutex_lock",
+            "ReentrantLock\\.lock",
+            "ReentrantReadWriteLock",
+            "StampedLock"));
 
     // -Xmx and -Xms are pinned to the same value so the heap doesn't grow during a query.
 
@@ -1019,7 +1030,7 @@ public final class BenchmarkRunner
                 String stack = line.substring(0, lastSpace);
                 int lastSemicolon = stack.lastIndexOf(';');
                 String leaf = lastSemicolon < 0 ? stack : stack.substring(lastSemicolon + 1);
-                if (IDLE_FRAME_PATTERN.matcher(leaf).find() || IDLE_FRAME_PATTERN.matcher(stack).find()) {
+                if (IDLE_FRAME_PATTERN.matcher(stack).find() && !BLOCKED_FRAME_PATTERN.matcher(stack).find()) {
                     continue;
                 }
                 keptSamples += count;
@@ -1031,7 +1042,7 @@ public final class BenchmarkRunner
         }
 
         StringBuilder flat = new StringBuilder(4096);
-        flat.append(format("# Flat self-time top-30 for %s (idle / parked stacks excluded)%n", displayName));
+        flat.append(format("# Flat self-time top-30 for %s (idle / parked stacks excluded; lock and safepoint waits kept)%n", displayName));
         flat.append(format(
                 "# Raw samples: %d  Kept after filter: %d (%.1f%%)%n",
                 totalSamples,
@@ -1156,6 +1167,7 @@ public final class BenchmarkRunner
                 profile event:           %s
                 profile interval:        %s
                 profile idle filter:     %s
+                profile blocked filter:  %s
                 java version:            %s
                 java vendor:             %s
                 os.name:                 %s
@@ -1174,6 +1186,7 @@ public final class BenchmarkRunner
                         profileEvent,
                         workload.profileInterval(),
                         IDLE_FRAME_PATTERN.pattern(),
+                        BLOCKED_FRAME_PATTERN.pattern(),
                         System.getProperty("java.version"),
                         System.getProperty("java.vendor"),
                         System.getProperty("os.name"),
