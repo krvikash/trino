@@ -137,7 +137,7 @@ final class TestGpuWindowMemory
                     MULTIPLE_PAGES,
                     // Larger margin for a partitioned avg without order by, because its estimate charges one partition per row, an upper bound that
                     // the multi-page input does not reach: every page repeats the same keys, which leaves about a quarter as many partitions as rows.
-                    4 * MEGABYTE);
+                    18 * MEGABYTE);
         }
         else {
             testWindow(

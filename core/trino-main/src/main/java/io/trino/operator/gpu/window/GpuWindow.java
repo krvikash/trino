@@ -372,18 +372,17 @@ public final class GpuWindow
         return partitionKeyBytes + scanWorkingBytes;
     }
 
-    // cuDF runs the rolling aggregations one after another, so an aggregation's working memory coexists with its own
-    // output and the outputs of the aggregations before it, but not with the outputs of the aggregations after it.
+    // cuDF runs the aggregations in HashMap order and keeps every output until all are done,
+    // so every output is charged as live alongside the largest working set
     private long estimateRollingAggregationPeakBytes(@Borrow Table sorted, int rowCount)
     {
-        long peakBytes = 0;
-        long previousOutputBytes = 0;
+        long outputBytes = 0;
+        long workingBytes = 0;
         for (RollingComputation computation : rollingComputations) {
-            long outputBytes = estimateRollingOutputBytes(computation, rowCount);
-            peakBytes = max(peakBytes, previousOutputBytes + outputBytes + estimateRollingAggregationWorkingBytes(sorted, computation, rowCount));
-            previousOutputBytes += outputBytes;
+            outputBytes += estimateRollingOutputBytes(computation, rowCount);
+            workingBytes = max(workingBytes, estimateRollingAggregationWorkingBytes(sorted, computation, rowCount));
         }
-        return peakBytes;
+        return outputBytes + workingBytes;
     }
 
     // Ordered frame outputs always get a validity mask, even for non-null input
