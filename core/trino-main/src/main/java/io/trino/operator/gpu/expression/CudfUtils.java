@@ -55,8 +55,7 @@ final class CudfUtils
     static final int MAX_CALENDAR_YEAR = 32767;
     static final long MIN_CALENDAR_EPOCH_DAY = LocalDate.of(MIN_CALENDAR_YEAR, 1, 1).toEpochDay();
     static final long MAX_CALENDAR_EPOCH_DAY = LocalDate.of(MAX_CALENDAR_YEAR, 12, 31).toEpochDay();
-
-    private static final DType UNSCALED = DType.create(DType.DTypeEnum.DECIMAL128, 0);
+    static final DType UNSCALED_DECIMAL128 = DType.create(DType.DTypeEnum.DECIMAL128, 0);
 
     private CudfUtils() {}
 
@@ -191,9 +190,9 @@ final class CudfUtils
     /// divisor must be positive.
     public static @Move ColumnVector halfUpCorrection(@Borrow ColumnView unscaledDividend, @Borrow ColumnVector unscaledDivisor)
     {
-        try (Scalar zero = Scalar.fromDecimal(BigInteger.ZERO, UNSCALED);
-                Scalar plusOne = Scalar.fromDecimal(BigInteger.ONE, UNSCALED);
-                Scalar minusOne = Scalar.fromDecimal(BigInteger.valueOf(-1), UNSCALED);
+        try (Scalar zero = Scalar.fromDecimal(BigInteger.ZERO, UNSCALED_DECIMAL128);
+                Scalar plusOne = Scalar.fromDecimal(BigInteger.ONE, UNSCALED_DECIMAL128);
+                Scalar minusOne = Scalar.fromDecimal(BigInteger.valueOf(-1), UNSCALED_DECIMAL128);
                 ColumnVector roundAwayFromZero = roundAwayFromZero(unscaledDividend, unscaledDivisor);
                 ColumnVector dividendNonNegative = unscaledDividend.binaryOp(GREATER_EQUAL, zero, DType.BOOL8);
                 ColumnVector signedStep = dividendNonNegative.ifElse(plusOne, minusOne)) {
@@ -209,10 +208,10 @@ final class CudfUtils
         // which would truncate the fraction for an odd divisor and get the exact half wrong. The
         // divisor is a row count (INT64), so 2 * |remainder| < 2^64, far within DECIMAL128 and never
         // overflowing.
-        try (ClosingRef<ColumnVector> remainder = ClosingRef.own(unscaledDividend.binaryOp(MOD, unscaledDivisor, UNSCALED));
+        try (ClosingRef<ColumnVector> remainder = ClosingRef.own(unscaledDividend.binaryOp(MOD, unscaledDivisor, UNSCALED_DECIMAL128));
                 ColumnVector absoluteRemainder = remainder.borrow().abs()) {
             remainder.close();
-            try (ColumnVector twiceAbsoluteRemainder = absoluteRemainder.binaryOp(ADD, absoluteRemainder, UNSCALED)) {
+            try (ColumnVector twiceAbsoluteRemainder = absoluteRemainder.binaryOp(ADD, absoluteRemainder, UNSCALED_DECIMAL128)) {
                 return twiceAbsoluteRemainder.binaryOp(GREATER_EQUAL, unscaledDivisor, DType.BOOL8);
             }
         }

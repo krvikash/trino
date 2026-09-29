@@ -25,6 +25,7 @@ import java.util.Objects;
 
 import static ai.rapids.cudf.BinaryOp.ADD;
 import static ai.rapids.cudf.BinaryOp.DIV;
+import static io.trino.operator.gpu.expression.CudfUtils.UNSCALED_DECIMAL128;
 import static io.trino.operator.gpu.expression.CudfUtils.failOnNonPositiveDivisor;
 import static io.trino.operator.gpu.expression.CudfUtils.halfUpCorrection;
 import static io.trino.operator.gpu.expression.GpuExpressions.anyNullOnNullInputs;
@@ -39,8 +40,6 @@ import static java.util.Objects.requireNonNull;
 public final class GpuDivideRoundToScale
         extends GpuExpression
 {
-    private static final DType UNSCALED = DType.create(DType.DTypeEnum.DECIMAL128, 0);
-
     private final GpuExpression dividend;
     private final GpuExpression divisor;
 
@@ -61,11 +60,11 @@ public final class GpuDivideRoundToScale
             // halfUpCorrection helpers so they are freed as soon as they are consumed, keeping only a few
             // device columns live at once.
             DType decimalType = dividendColumn.getType();
-            try (ColumnVector unscaledDivisor = divisorColumn.castTo(UNSCALED);
-                    ColumnView unscaledDividend = dividendColumn.bitCastTo(UNSCALED);
-                    ColumnVector quotient = unscaledDividend.binaryOp(DIV, unscaledDivisor, UNSCALED);
+            try (ColumnVector unscaledDivisor = divisorColumn.castTo(UNSCALED_DECIMAL128);
+                    ColumnView unscaledDividend = dividendColumn.bitCastTo(UNSCALED_DECIMAL128);
+                    ColumnVector quotient = unscaledDividend.binaryOp(DIV, unscaledDivisor, UNSCALED_DECIMAL128);
                     ColumnVector correction = halfUpCorrection(unscaledDividend, unscaledDivisor);
-                    ColumnVector rounded = quotient.binaryOp(ADD, correction, UNSCALED);
+                    ColumnVector rounded = quotient.binaryOp(ADD, correction, UNSCALED_DECIMAL128);
                     ColumnView result = rounded.bitCastTo(decimalType)) {
                 return result.copyToColumnVector();
             }

@@ -39,6 +39,7 @@ import static ai.rapids.cudf.BinaryOp.NOT_EQUAL;
 import static ai.rapids.cudf.BinaryOp.NULL_LOGICAL_AND;
 import static ai.rapids.cudf.BinaryOp.SUB;
 import static com.google.common.base.Preconditions.checkArgument;
+import static io.trino.operator.gpu.expression.CudfUtils.UNSCALED_DECIMAL128;
 import static io.trino.operator.gpu.expression.CudfUtils.anyTrue;
 import static io.trino.operator.gpu.expression.GpuExpressions.anyNullOnNullInputs;
 import static io.trino.operator.gpu.expression.GpuExpressions.nullSkippingCheck;
@@ -52,8 +53,6 @@ import static java.util.Objects.requireNonNull;
 public final class GpuDecimalDivide
         extends GpuExpression
 {
-    private static final DType UNSCALED = DType.create(DType.DTypeEnum.DECIMAL128, 0);
-
     private final GpuExpression dividend;
     private final GpuExpression divisor;
     private final int dividendPrecision;
@@ -163,10 +162,10 @@ public final class GpuDecimalDivide
     {
         try (ColumnVector column = operand.evaluate(positionCount, inputColumns, bindings);
                 ColumnView unscaled = column.bitCastTo(DType.create(column.getType().getTypeId(), 0))) {
-            if (unscaled.getType().equals(UNSCALED)) {
+            if (unscaled.getType().equals(UNSCALED_DECIMAL128)) {
                 return unscaled.copyToColumnVector();
             }
-            return unscaled.castTo(UNSCALED);
+            return unscaled.castTo(UNSCALED_DECIMAL128);
         }
     }
 
@@ -206,7 +205,7 @@ public final class GpuDecimalDivide
                     return roundedQuotient(numerator.borrow(), divisorMagnitude);
                 }
                 try (Scalar rescaleScalar = unscaledScalar(rescale);
-                        ClosingOnce<ColumnVector> rescaledDividend = ClosingOnce.own(numerator.borrow().binaryOp(MUL, rescaleScalar, UNSCALED))) {
+                        ClosingOnce<ColumnVector> rescaledDividend = ClosingOnce.own(numerator.borrow().binaryOp(MUL, rescaleScalar, UNSCALED_DECIMAL128))) {
                     numerator.close();
                     return roundedQuotient(rescaledDividend.borrow(), divisorMagnitude);
                 }
@@ -214,17 +213,17 @@ public final class GpuDecimalDivide
 
             // The rescaled dividend needs more than 38 digits, so divide first and rescale the remainder instead:
             //   |dividend| * 10^r / |divisor| = (|dividend| / |divisor|) * 10^r + (|dividend| mod |divisor|) * 10^r / |divisor|
-            quotient.set(numerator.borrow().binaryOp(DIV, divisorMagnitude, UNSCALED));
-            remainder.set(numerator.borrow().binaryOp(MOD, divisorMagnitude, UNSCALED));
+            quotient.set(numerator.borrow().binaryOp(DIV, divisorMagnitude, UNSCALED_DECIMAL128));
+            remainder.set(numerator.borrow().binaryOp(MOD, divisorMagnitude, UNSCALED_DECIMAL128));
             numerator.close();
             // Guard before the multiplication below, which would silently wrap around
             failOnOverflow(quotient.borrow(), quotientLimit);
             try (Scalar rescaleScalar = unscaledScalar(rescale);
-                    ClosingOnce<ColumnVector> rescaledQuotient = ClosingOnce.own(quotient.borrow().binaryOp(MUL, rescaleScalar, UNSCALED))) {
+                    ClosingOnce<ColumnVector> rescaledQuotient = ClosingOnce.own(quotient.borrow().binaryOp(MUL, rescaleScalar, UNSCALED_DECIMAL128))) {
                 quotient.close();
                 try (ClosingOnce<ColumnVector> fraction = ClosingOnce.own(roundedRescaledRemainder(remainder.borrow(), divisorMagnitude))) {
                     remainder.close();
-                    return rescaledQuotient.borrow().binaryOp(ADD, fraction.borrow(), UNSCALED);
+                    return rescaledQuotient.borrow().binaryOp(ADD, fraction.borrow(), UNSCALED_DECIMAL128);
                 }
             }
         }
@@ -244,11 +243,11 @@ public final class GpuDecimalDivide
 
     private static @Move ColumnVector roundedQuotient(@Borrow ColumnVector dividendMagnitude, @Borrow ColumnVector divisorMagnitude)
     {
-        try (ClosingOnce<ColumnVector> quotient = ClosingOnce.own(dividendMagnitude.binaryOp(DIV, divisorMagnitude, UNSCALED));
-                ClosingOnce<ColumnVector> remainder = ClosingOnce.own(dividendMagnitude.binaryOp(MOD, divisorMagnitude, UNSCALED));
+        try (ClosingOnce<ColumnVector> quotient = ClosingOnce.own(dividendMagnitude.binaryOp(DIV, divisorMagnitude, UNSCALED_DECIMAL128));
+                ClosingOnce<ColumnVector> remainder = ClosingOnce.own(dividendMagnitude.binaryOp(MOD, divisorMagnitude, UNSCALED_DECIMAL128));
                 ClosingOnce<ColumnVector> bump = ClosingOnce.own(roundingBump(remainder.borrow(), divisorMagnitude))) {
             remainder.close();
-            return quotient.borrow().binaryOp(ADD, bump.borrow(), UNSCALED);
+            return quotient.borrow().binaryOp(ADD, bump.borrow(), UNSCALED_DECIMAL128);
         }
     }
 
@@ -275,7 +274,7 @@ public final class GpuDecimalDivide
     private @Move ColumnVector narrowDivisorRemainder(@Borrow ColumnVector remainder, @Borrow ColumnVector divisorMagnitude)
     {
         try (Scalar rescaleScalar = unscaledScalar(rescale);
-                ClosingOnce<ColumnVector> rescaled = ClosingOnce.own(remainder.binaryOp(MUL, rescaleScalar, UNSCALED))) {
+                ClosingOnce<ColumnVector> rescaled = ClosingOnce.own(remainder.binaryOp(MUL, rescaleScalar, UNSCALED_DECIMAL128))) {
             return roundedQuotient(rescaled.borrow(), divisorMagnitude);
         }
     }
@@ -287,7 +286,7 @@ public final class GpuDecimalDivide
         try (Scalar zero = unscaledScalar(BigInteger.ZERO);
                 Scalar rescaleScalar = unscaledScalar(rescale);
                 ClosingOnce<ColumnVector> selected = ClosingOnce.own(narrowDivisor.ifElse(remainder, zero));
-                ClosingOnce<ColumnVector> rescaled = ClosingOnce.own(selected.borrow().binaryOp(MUL, rescaleScalar, UNSCALED))) {
+                ClosingOnce<ColumnVector> rescaled = ClosingOnce.own(selected.borrow().binaryOp(MUL, rescaleScalar, UNSCALED_DECIMAL128))) {
             selected.close();
             return roundedQuotient(rescaled.borrow(), divisorMagnitude);
         }
@@ -302,13 +301,13 @@ public final class GpuDecimalDivide
                     Scalar rescaleScalar = unscaledScalar(rescale);
                     // divisor = divisorHigh * 10^rescaleFactor + divisorLow. Keep the division defined on
                     // rows handled by the other branch, where divisorHigh may be zero.
-                    ClosingOnce<ColumnVector> divisorHigh = ClosingOnce.own(divisorMagnitude.binaryOp(DIV, rescaleScalar, UNSCALED));
+                    ClosingOnce<ColumnVector> divisorHigh = ClosingOnce.own(divisorMagnitude.binaryOp(DIV, rescaleScalar, UNSCALED_DECIMAL128));
                     ColumnVector safeDivisorHigh = narrowDivisor.ifElse(one, divisorHigh.borrow())) {
                 divisorHigh.close();
                 // Dropping divisorLow overestimates the quotient by less than divisorLow / divisorHigh.
                 // Here divisorHigh is at least 10^rescaleFactor and divisorLow is below it, so the
                 // estimate is either exact or one too high.
-                estimate.set(remainder.binaryOp(DIV, safeDivisorHigh, UNSCALED));
+                estimate.set(remainder.binaryOp(DIV, safeDivisorHigh, UNSCALED_DECIMAL128));
                 estimateRemainder.set(estimateRemainder(remainder, divisorMagnitude, safeDivisorHigh, estimate.borrow()));
             }
             try (Scalar zero = unscaledScalar(BigInteger.ZERO);
@@ -318,7 +317,7 @@ public final class GpuDecimalDivide
                     ClosingOnce<ColumnVector> correctedQuotient = ClosingOnce.own(correctedQuotient(estimate.borrow(), overestimated))) {
                 estimate.close();
                 estimateRemainder.close();
-                return correctedQuotient.borrow().binaryOp(ADD, bump.borrow(), UNSCALED);
+                return correctedQuotient.borrow().binaryOp(ADD, bump.borrow(), UNSCALED_DECIMAL128);
             }
         }
     }
@@ -333,23 +332,23 @@ public final class GpuDecimalDivide
     {
         try (ClosingOnce<ColumnVector> restRescaled = ClosingOnce.own(restRescaled(remainder, safeDivisorHigh));
                 ClosingOnce<ColumnVector> estimateTimesLow = ClosingOnce.own(estimateTimesLow(divisorMagnitude, estimate))) {
-            return restRescaled.borrow().binaryOp(SUB, estimateTimesLow.borrow(), UNSCALED);
+            return restRescaled.borrow().binaryOp(SUB, estimateTimesLow.borrow(), UNSCALED_DECIMAL128);
         }
     }
 
     private @Move ColumnVector restRescaled(@Borrow ColumnVector remainder, @Borrow ColumnVector safeDivisorHigh)
     {
         try (Scalar rescaleScalar = unscaledScalar(rescale);
-                ColumnVector rest = remainder.binaryOp(MOD, safeDivisorHigh, UNSCALED)) {
-            return rest.binaryOp(MUL, rescaleScalar, UNSCALED);
+                ColumnVector rest = remainder.binaryOp(MOD, safeDivisorHigh, UNSCALED_DECIMAL128)) {
+            return rest.binaryOp(MUL, rescaleScalar, UNSCALED_DECIMAL128);
         }
     }
 
     private @Move ColumnVector estimateTimesLow(@Borrow ColumnVector divisorMagnitude, @Borrow ColumnVector estimate)
     {
         try (Scalar rescaleScalar = unscaledScalar(rescale);
-                ColumnVector divisorLow = divisorMagnitude.binaryOp(MOD, rescaleScalar, UNSCALED)) {
-            return estimate.binaryOp(MUL, divisorLow, UNSCALED);
+                ColumnVector divisorLow = divisorMagnitude.binaryOp(MOD, rescaleScalar, UNSCALED_DECIMAL128)) {
+            return estimate.binaryOp(MUL, divisorLow, UNSCALED_DECIMAL128);
         }
     }
 
@@ -359,7 +358,7 @@ public final class GpuDecimalDivide
     {
         try (Scalar zero = unscaledScalar(BigInteger.ZERO);
                 ClosingOnce<ColumnVector> correction = ClosingOnce.own(overestimated.ifElse(divisorMagnitude, zero));
-                ClosingOnce<ColumnVector> correctedRemainder = ClosingOnce.own(estimateRemainder.binaryOp(ADD, correction.borrow(), UNSCALED))) {
+                ClosingOnce<ColumnVector> correctedRemainder = ClosingOnce.own(estimateRemainder.binaryOp(ADD, correction.borrow(), UNSCALED_DECIMAL128))) {
             correction.close();
             return roundingBump(correctedRemainder.borrow(), divisorMagnitude);
         }
@@ -371,7 +370,7 @@ public final class GpuDecimalDivide
         try (Scalar zero = unscaledScalar(BigInteger.ZERO);
                 Scalar minusOne = unscaledScalar(BigInteger.ONE.negate());
                 ColumnVector correction = overestimated.ifElse(minusOne, zero)) {
-            return estimate.binaryOp(ADD, correction, UNSCALED);
+            return estimate.binaryOp(ADD, correction, UNSCALED_DECIMAL128);
         }
     }
 
@@ -381,7 +380,7 @@ public final class GpuDecimalDivide
         try (Scalar zero = unscaledScalar(BigInteger.ZERO);
                 Scalar one = unscaledScalar(BigInteger.ONE);
                 // Compared as remainder >= divisor - remainder, because 2 * remainder can exceed DECIMAL128
-                ClosingOnce<ColumnVector> complement = ClosingOnce.own(divisorMagnitude.binaryOp(SUB, remainder, UNSCALED));
+                ClosingOnce<ColumnVector> complement = ClosingOnce.own(divisorMagnitude.binaryOp(SUB, remainder, UNSCALED_DECIMAL128));
                 ColumnVector roundUp = remainder.binaryOp(GREATER_EQUAL, complement.borrow(), DType.BOOL8)) {
             complement.close();
             return roundUp.ifElse(one, zero);
@@ -401,7 +400,7 @@ public final class GpuDecimalDivide
     private @Move ColumnVector applySign(@Borrow ColumnVector magnitude, @Borrow ColumnVector resultNegative)
     {
         try (Scalar minusOne = unscaledScalar(BigInteger.ONE.negate());
-                ClosingOnce<ColumnVector> negated = ClosingOnce.own(magnitude.binaryOp(MUL, minusOne, UNSCALED));
+                ClosingOnce<ColumnVector> negated = ClosingOnce.own(magnitude.binaryOp(MUL, minusOne, UNSCALED_DECIMAL128));
                 ClosingOnce<ColumnVector> signed = ClosingOnce.own(resultNegative.ifElse(negated.borrow(), magnitude))) {
             negated.close();
             try (ColumnView result = signed.borrow().bitCastTo(DType.create(DType.DTypeEnum.DECIMAL128, resultType.getScale()))) {
@@ -415,6 +414,6 @@ public final class GpuDecimalDivide
 
     private static @Move Scalar unscaledScalar(BigInteger value)
     {
-        return Scalar.fromDecimal(value, UNSCALED);
+        return Scalar.fromDecimal(value, UNSCALED_DECIMAL128);
     }
 }
