@@ -43,6 +43,7 @@
       - testing/trino-tests
   profile: gpu
   runners: [self-hosted, gha-fleet-ec2-1GPU-16CPU-64GB-amd64, latest]
+  timeout-minutes: 45
   when:
     pushes: true
     labeled: [gpu]
