@@ -99,6 +99,7 @@ import java.util.Set;
 import static com.google.common.base.CaseFormat.UPPER_CAMEL;
 import static com.google.common.base.CaseFormat.UPPER_UNDERSCORE;
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static io.starburst.materialization.ir.IrJsonMapper.irJsonMapper;
 import static io.starburst.server.substitution.MaterializedViewSubstitutionSessionProperties.MATERIALIZED_VIEW_SUBSTITUTION_CANDIDATES_REGEX_FILTER;
 import static io.starburst.server.substitution.MaterializedViewSubstitutionSessionProperties.MATERIALIZED_VIEW_SUBSTITUTION_ENABLED;
 import static io.starburst.server.substitution.MaterializedViewSubstitutionSessionProperties.MATERIALIZED_VIEW_SUBSTITUTION_MAX_STALENESS;
@@ -697,9 +698,9 @@ public class TestMvSubstitutionOptimizer
         SubstitutionMetadata substitutionMetadata = new SubstitutionMetadataManager(
                 createSubstitutionMetadata((ConnectorServicesProvider) planTester.getCatalogManager()));
         TypeManager typeManager = planTester.getPlannerContext().getTypeManager();
-        JsonCodec<Output> irJsonCodec = new JsonCodecFactory(new JsonMapperProvider()
+        JsonCodec<Output> irJsonCodec = new JsonCodecFactory(irJsonMapper(new JsonMapperProvider()
                 .withJsonDeserializers(ImmutableMap.of(Type.class, new TypeDeserializer(typeManager)))
-                .get())
+                .get()))
                 .jsonCodec(Output.class);
         MaterializationIndex index = new MaterializationIndex(new VersionAwareMaterializationMetastore(
                 new InMemoryRawMaterializationMetastore(),

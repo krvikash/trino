@@ -298,6 +298,7 @@ import static io.airlift.concurrent.Threads.daemonThreadsNamed;
 import static io.airlift.json.JsonCodec.jsonCodec;
 import static io.airlift.tracing.Tracing.noopTracer;
 import static io.opentelemetry.api.OpenTelemetry.noop;
+import static io.starburst.materialization.ir.IrJsonMapper.irJsonMapper;
 import static io.trino.connector.BuiltInCatalogsProvider.NO_BUILTIN_CATALOGS;
 import static io.trino.connector.CatalogServiceProviderModule.createAccessControlProvider;
 import static io.trino.connector.CatalogServiceProviderModule.createAlternativeChooser;
@@ -586,7 +587,7 @@ public class PlanTester
 
         this.materializationIndex = new MaterializationIndex(new VersionAwareMaterializationMetastore(
                 new InMemoryRawMaterializationMetastore(),
-                new JsonCodecFactory(mapper).jsonCodec(io.starburst.materialization.ir.Output.class)),
+                new JsonCodecFactory(irJsonMapper(mapper)).jsonCodec(io.starburst.materialization.ir.Output.class)),
                 new MaterializedViewSubstitutionConfig());
         this.substitutionMetadata = new SubstitutionMetadataManager(createSubstitutionMetadata(catalogManager));
         this.pageFunctionCompiler = new PageFunctionCompiler(functionManager, metadata, typeManager, 0);

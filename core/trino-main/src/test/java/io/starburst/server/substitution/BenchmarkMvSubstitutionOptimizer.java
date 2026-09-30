@@ -94,6 +94,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.IntStream;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static io.starburst.materialization.ir.IrJsonMapper.irJsonMapper;
 import static io.starburst.server.substitution.MaterializedViewSubstitutionSessionProperties.MATERIALIZED_VIEW_SUBSTITUTION_ENABLED;
 import static io.trino.connector.CatalogServiceProviderModule.createSubstitutionMetadata;
 import static io.trino.execution.querystats.PlanOptimizersStatsCollector.createPlanOptimizersStatsCollector;
@@ -342,9 +343,9 @@ public class BenchmarkMvSubstitutionOptimizer
         private MaterializationIndex buildIndex()
         {
             TypeManager typeManager = planTester.getPlannerContext().getTypeManager();
-            JsonCodec<Output> irJsonCodec = new JsonCodecFactory(new JsonMapperProvider()
+            JsonCodec<Output> irJsonCodec = new JsonCodecFactory(irJsonMapper(new JsonMapperProvider()
                     .withJsonDeserializers(ImmutableMap.of(Type.class, new TypeDeserializer(typeManager)))
-                    .get())
+                    .get()))
                     .jsonCodec(Output.class);
             return new MaterializationIndex(
                     new VersionAwareMaterializationMetastore(

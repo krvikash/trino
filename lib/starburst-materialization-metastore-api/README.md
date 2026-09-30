@@ -71,6 +71,14 @@ underlying `Type` serialization — is a backward-incompatible change to **every
 `Symbol`**. When that happens you must bump the `VERSION` of all such nodes (today `Output` and
 `TableScan`) so old definitions are skipped rather than misread.
 
+### Primitive components are required
+
+A primitive component (`int`, `boolean`, ...) must be present in the IR JSON, and not as `null`. Use
+`Optional` or a boxed type for a field that may be absent. Every IR codec is built from
+`IrJsonMapper`, which enforces this for every class in the document, connector identities included,
+since Jackson otherwise reads a missing or null primitive as zero or `false`, which a validating
+constructor cannot tell apart from a real value.
+
 ## Connector id versioning (`ConnectorIdVersion`)
 
 A `TableScan` references the source table by its connector-specific identity: a `ConnectorTableId`
@@ -121,6 +129,10 @@ safely skip definitions written by a newer connector build it doesn't yet unders
 
 Bump the `id` of the relevant `ConnectorIdVersion` constant whenever the connector's
 `ConnectorTableId` / `ConnectorColumnId` serialized fields change incompatibly.
+
+Adding a primitive component is such a change: a row written before it has no value for it, and the
+required-primitive rule rejects that row rather than reading it as zero or `false`. To add a field
+without a bump, make it `Optional` or boxed.
 
 ## Compatibility check summary
 

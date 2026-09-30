@@ -9,12 +9,15 @@
  */
 package io.starburst.server.substitution;
 
+import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.google.inject.Binder;
 import com.google.inject.Provider;
 import com.google.inject.Provides;
 import com.google.inject.Scopes;
 import com.google.inject.Singleton;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
+import io.airlift.json.JsonCodec;
+import io.airlift.json.JsonCodecFactory;
 import io.starburst.materialization.ir.Output;
 import io.starburst.materialization.metastore.InMemoryRawMaterializationMetastore;
 import io.starburst.materialization.metastore.MaterializationMetastore;
@@ -32,6 +35,7 @@ import static com.google.inject.multibindings.Multibinder.newSetBinder;
 import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
 import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.airlift.json.JsonCodecBinder.jsonCodecBinder;
+import static io.starburst.materialization.ir.IrJsonMapper.irJsonMapper;
 
 public class MvSubstitutionModule
         extends AbstractConfigurationAwareModule
@@ -80,7 +84,6 @@ public class MvSubstitutionModule
         @Override
         protected void setup(Binder binder)
         {
-            jsonCodecBinder(binder).bindJsonCodec(Output.class);
             newOptionalBinder(binder, RawMaterializationMetastore.class)
                     .setDefault().to(InMemoryRawMaterializationMetastore.class).in(Scopes.SINGLETON);
             binder.bind(VersionAwareMaterializationMetastore.class);
@@ -90,6 +93,13 @@ public class MvSubstitutionModule
             // Eagerly created; it pulls Optional<MaterializationIndex>, which builds and JMX-exports the index
             // when enabled and stays empty (building nothing) when disabled.
             binder.bind(MaterializationIndexMBeanExporter.class).in(Scopes.SINGLETON);
+        }
+
+        @Provides
+        @Singleton
+        JsonCodec<Output> irJsonCodec(JsonMapper mapper)
+        {
+            return new JsonCodecFactory(irJsonMapper(mapper)).jsonCodec(Output.class);
         }
 
         @Provides

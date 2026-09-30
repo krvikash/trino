@@ -42,6 +42,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
+import static io.starburst.materialization.ir.IrJsonMapper.irJsonMapper;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 
 public class TestUtils
@@ -87,12 +88,12 @@ public class TestUtils
         // The Output codec must round-trip the connector-specific ConnectorTableId / ConnectorColumnId, which
         // are persisted polymorphically via the handle resolver (mirrors the server's HandleJsonModule wiring).
         HandleResolver handleResolver = new HandleResolver();
-        JsonCodec<Output> irJsonCodec = new JsonCodecFactory(new JsonMapperProvider()
+        JsonCodec<Output> irJsonCodec = new JsonCodecFactory(irJsonMapper(new JsonMapperProvider()
                 .withJsonDeserializers(ImmutableMap.of(Type.class, new TypeDeserializer(typeManager)))
                 .withModules(ImmutableSet.of(
                         new AbstractTypedJacksonModule<>(ConnectorTableId.class, handleResolver::getId, handleResolver::getHandleClass) {},
                         new AbstractTypedJacksonModule<>(ConnectorColumnId.class, handleResolver::getId, handleResolver::getHandleClass) {}))
-                .get())
+                .get()))
                 .jsonCodec(Output.class);
         return new VersionAwareMaterializationMetastore(rawMetastore, irJsonCodec)
         {
