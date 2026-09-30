@@ -81,6 +81,9 @@ When in doubt, classify as notable. Anything worth the effort of a backport almo
 
 ## Functionality Not Yet Publicly Released
 
+This rule is an explicit exception to the `release-**` backport default above and takes precedence
+when both rules apply.
+
 A bug fix (or any other change) to functionality that was added **after the most recent public
 release** and has not yet shipped in *any* released version should be classified **NOT NOTABLE**,
 regardless of the underlying bug's severity — including data-correctness bugs, crashes, or
