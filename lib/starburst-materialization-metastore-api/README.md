@@ -43,13 +43,13 @@ Map<String, Integer> SUPPORTED = ImmutableMap.of(
 node's `(name, version)` is collected into `RawMaterializationDefinition.irVersions`, stamped
 alongside the serialized JSON.
 
-**On read** (`isCompatible`) a stored entry is compatible iff **every** `(name, version)` in
+**On read** (`isIrCompatible`) a stored entry is compatible iff **every** `(name, version)` in
 `irVersions` matches `SUPPORTED` exactly:
 
 - a name not present in `SUPPORTED` → incompatible (reader doesn't know that node type), and
 - a version mismatch → incompatible (reader knows the type but not this format).
 
-Incompatible entries are skipped (logged at INFO), never decoded.
+Incompatible entries are skipped (logged at debug and counted in `skippedCount`), never decoded.
 
 ### When to bump an IR node version
 
@@ -115,15 +115,13 @@ singletons; a wrapping connector returns the **union** of the wrapped connectors
 `RawMaterializationDefinition.catalogIrVersions` (a `CatalogName -> ConnectorIdVersions` map, where
 `ConnectorIdVersions` holds the set of table-id and column-id versions used).
 
-**On read** (`isCompatible`) for each catalog in the stored definition:
-
-- the catalog must still exist (`CatalogManager`), otherwise the entry is skipped, and
-- the connector's currently supported `tableIdVersions()` / `columnIdVersions()` must **contain
-  all** the stored versions; otherwise the entry is skipped.
-
-This lets a connector keep reading old definitions after a format change by continuing to advertise
-the old `ConnectorIdVersion` in its supported set (in addition to the new one), and lets the engine
-safely skip definitions written by a newer connector build it doesn't yet understand.
+**On read** (`toTyped`) the definition is deserialized — a connector that was uninstalled, or whose
+identity classes changed shape, fails here and the entry is skipped — and `catalogIrVersions` is
+re-collected from the deserialized tree. Because an identity's version is a constant of the connector
+code, the re-collected map is what the installed connectors produce today; the entry is skipped unless
+it **equals** the stored map. Only the connector-id versions are compared this way: the IR name map is
+checked by the gate above, which by design accepts a row stamped with a different set of supported
+names.
 
 ### When to bump a connector id version
 
@@ -137,11 +135,13 @@ without a bump, make it `Optional` or boxed.
 ## Compatibility check summary
 
 A stored `RawMaterializationDefinition` is usable by the current build iff **all** of the following
-hold (see `VersionAwareMaterializationMetastore.isCompatible`):
+hold (see `VersionAwareMaterializationMetastore.toTyped`):
 
-1. every IR `(name, version)` in `irVersions` matches `Operation.SUPPORTED` exactly;
-2. every catalog in `catalogIrVersions` still exists; and
-3. for each such catalog, the connector's `tableIdVersions()` and `columnIdVersions()` contain all
-   the stored table-id and column-id versions.
+1. every `(name, version)` in `irVersions` matches `Operation.SUPPORTED` exactly (`isIrCompatible`);
+2. `computationPlanRootJson` deserializes with the installed connectors, and every node's constructor
+   validation passes; and
+3. the `catalogIrVersions` re-collected from the deserialized tree equal the stored ones.
 
-If any check fails the materialization is skipped for substitution; it is never partially decoded.
+If any check fails the materialization is skipped for substitution — logged at debug and counted in
+`skippedCount` — and never partially decoded. The IR JSON is never logged: it can be large and
+carries customer schema details.
