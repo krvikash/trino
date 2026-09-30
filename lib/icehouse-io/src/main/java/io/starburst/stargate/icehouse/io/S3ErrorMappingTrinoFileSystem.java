@@ -26,6 +26,7 @@ import io.trino.filesystem.TrinoInput;
 import io.trino.filesystem.TrinoInputFile;
 import io.trino.filesystem.TrinoInputStream;
 import io.trino.filesystem.TrinoOutputFile;
+import io.trino.filesystem.TrinoOutputStream;
 import io.trino.filesystem.UriLocation;
 import io.trino.filesystem.encryption.EncryptionKey;
 import io.trino.memory.context.AggregatedMemoryContext;
@@ -35,7 +36,6 @@ import software.amazon.awssdk.services.s3.model.S3Exception;
 import software.amazon.awssdk.services.sts.model.StsException;
 
 import java.io.IOException;
-import java.io.OutputStream;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.Optional;
@@ -593,7 +593,7 @@ public class S3ErrorMappingTrinoFileSystem
         }
 
         @Override
-        public OutputStream create(AggregatedMemoryContext memoryContext)
+        public TrinoOutputStream create(AggregatedMemoryContext memoryContext)
                 throws IOException
         {
             try {
@@ -619,11 +619,11 @@ public class S3ErrorMappingTrinoFileSystem
     }
 
     public static class S3ErrorMappingOutputStream
-            extends OutputStream
+            extends TrinoOutputStream
     {
-        private final OutputStream delegate;
+        private final TrinoOutputStream delegate;
 
-        public S3ErrorMappingOutputStream(OutputStream delegate)
+        public S3ErrorMappingOutputStream(TrinoOutputStream delegate)
         {
             this.delegate = requireNonNull(delegate, "delegate is null");
         }
@@ -673,6 +673,19 @@ public class S3ErrorMappingTrinoFileSystem
         {
             try {
                 delegate.close();
+            }
+            catch (IOException | SdkException e) {
+                tryRethrowException(e);
+                throw e;
+            }
+        }
+
+        @Override
+        public void abort()
+                throws IOException
+        {
+            try {
+                delegate.abort();
             }
             catch (IOException | SdkException e) {
                 tryRethrowException(e);

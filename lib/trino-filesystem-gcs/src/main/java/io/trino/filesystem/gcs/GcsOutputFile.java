@@ -23,6 +23,7 @@ import com.google.common.collect.ImmutableCollection;
 import com.google.common.collect.ImmutableList;
 import io.trino.filesystem.Location;
 import io.trino.filesystem.TrinoOutputFile;
+import io.trino.filesystem.TrinoOutputStream;
 import io.trino.filesystem.encryption.EncryptionKey;
 import io.trino.memory.context.AggregatedMemoryContext;
 
@@ -104,7 +105,7 @@ public class GcsOutputFile
     }
 
     @Override
-    public OutputStream create(AggregatedMemoryContext memoryContext)
+    public TrinoOutputStream create(AggregatedMemoryContext memoryContext)
             throws IOException
     {
         Optional<WriteChannel> writeChannel = Optional.empty();

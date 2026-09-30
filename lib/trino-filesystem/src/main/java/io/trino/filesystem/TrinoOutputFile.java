@@ -18,7 +18,6 @@ import io.trino.memory.context.AggregatedMemoryContext;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.nio.file.FileAlreadyExistsException;
 import java.util.function.Supplier;
 
@@ -30,7 +29,7 @@ public interface TrinoOutputFile
     /**
      * This method delegates to {@link #create(AggregatedMemoryContext)}.
      */
-    default OutputStream create()
+    default TrinoOutputStream create()
             throws IOException
     {
         return create(newSimpleAggregatedMemoryContext());
@@ -96,10 +95,11 @@ public interface TrinoOutputFile
      * <p>
      * The file may be created immediately, or it may be created atomically when the
      * output stream is closed, depending on the file system implementation.
+     * Use {@link TrinoOutputStream#abort()} to release the stream without creating the file.
      *
      * @throws FileAlreadyExistsException if the file already exists (optional)
      */
-    OutputStream create(AggregatedMemoryContext memoryContext)
+    TrinoOutputStream create(AggregatedMemoryContext memoryContext)
             throws IOException;
 
     Location location();
