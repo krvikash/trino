@@ -20,7 +20,6 @@ import java.util.List;
 
 import static io.airlift.slice.SizeOf.estimatedSizeOf;
 import static io.airlift.slice.SizeOf.instanceSize;
-import static java.util.Comparator.naturalOrder;
 import static java.util.Objects.requireNonNull;
 
 public record SnowflakeArrowSplit(
@@ -40,12 +39,6 @@ public record SnowflakeArrowSplit(
         this.resultVersion = resultVersion;
         this.chunks = requireNonNull(chunks, "chunks are null");
         this.snowflakeSessionParameters = requireNonNull(snowflakeSessionParameters, "snowflakeSessionParameters are null");
-    }
-
-    @JsonIgnore
-    public long getLargestChunkUncompressedBytes()
-    {
-        return chunks.stream().map(Chunk::uncompressedByteSize).max(naturalOrder()).orElseThrow();
     }
 
     @JsonIgnore

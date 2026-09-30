@@ -131,11 +131,7 @@ public class SnowflakeArrowPageSource
                 .map(JdbcColumnHandle::getColumnType)
                 .collect(toImmutableList()));
 
-        this.bufferAllocator = ROOT_ALLOCATOR.newChildAllocator(
-                "snowflakeArrowSplit" + split.hashCode(),
-                // Allocator is used sequentially, largest chunk is what it will need to hold at most at the same time
-                split.getLargestChunkUncompressedBytes(),
-                Long.MAX_VALUE);
+        this.bufferAllocator = ROOT_ALLOCATOR.newChildAllocator("snowflakeArrowSplit" + split.hashCode(), 0, Long.MAX_VALUE);
 
         int[] decimalColumnScales = this.columns.stream()
                 .map(column -> column.getJdbcTypeHandle().decimalDigits()
