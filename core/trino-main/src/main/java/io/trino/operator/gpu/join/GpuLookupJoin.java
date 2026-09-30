@@ -46,7 +46,6 @@ import java.util.List;
 import java.util.Optional;
 
 import static com.google.common.base.Preconditions.checkState;
-import static com.google.common.base.Verify.verify;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.airlift.concurrent.MoreFutures.asVoid;
 import static io.airlift.concurrent.MoreFutures.getDone;
@@ -265,11 +264,8 @@ public final class GpuLookupJoin
                     };
                 }
             }
-            try {
-                verify(maps.length == 2, "Expected exactly 2 gather maps from join, got %s", maps.length);
-                GatherMap probeGatherMap = maps[0];
-                GatherMap buildGatherMap = maps[1];
-                long outputRowCount = probeGatherMap.getRowCount();
+            try (GatherMaps gatherMaps = GatherMaps.own(maps)) {
+                long outputRowCount = gatherMaps.probe().getRowCount();
                 // TODO support joins that produce more than 2B rows
                 checkState(outputRowCount < Integer.MAX_VALUE, "Join output exceeds Integer.MAX_VALUE rows: %s", outputRowCount);
                 int rows = toIntExact(outputRowCount);
@@ -286,15 +282,10 @@ public final class GpuLookupJoin
                 // cuDF Table rejects an empty column array; skip creating the probe
                 // output table when there are no probe output columns (e.g. COUNT(*)).
                 if (probeOutputChannels.length == 0) {
-                    return Optional.of(assembleOutput(null, probeGatherMap, joinBridge.buildOutputTable(), buildGatherMap, rows));
+                    return Optional.of(assembleOutput(null, gatherMaps.probe(), joinBridge.buildOutputTable(), gatherMaps.build(), rows));
                 }
-                try (Table probleTable = toTable(probePage, probeOutputChannels)) {
-                    return Optional.of(assembleOutput(probleTable, probeGatherMap, joinBridge.buildOutputTable(), buildGatherMap, rows));
-                }
-            }
-            finally {
-                for (GatherMap map : maps) {
-                    map.close();
+                try (Table probeTable = toTable(probePage, probeOutputChannels)) {
+                    return Optional.of(assembleOutput(probeTable, gatherMaps.probe(), joinBridge.buildOutputTable(), gatherMaps.build(), rows));
                 }
             }
         }
