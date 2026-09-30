@@ -122,6 +122,9 @@ public class StarburstResultStreamProvider
     {
         URIBuilder uriBuilder = new URIBuilder(chunk.fileUrl().orElseThrow());
         HttpGet httpRequest = new HttpGet(uriBuilder.build());
+        // The HTTP client does not decompress responses, so it no longer advertises gzip support. Without this header
+        // GCS serves objects stored with Content-Encoding: gzip decompressed, see SnowflakeGCSClient
+        httpRequest.addHeader("Accept-Encoding", "gzip");
 
         for (Map.Entry<String, String> entry : chunk.headers().entrySet()) {
             httpRequest.addHeader(entry.getKey(), entry.getValue());

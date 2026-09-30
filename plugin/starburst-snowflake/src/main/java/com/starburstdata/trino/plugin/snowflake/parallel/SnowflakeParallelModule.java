@@ -62,7 +62,8 @@ public class SnowflakeParallelModule
         @Singleton
         public static CloseableHttpClient getHttpClient()
         {
-            return HttpUtil.getHttpClient(new HttpClientSettingsKey(OCSPMode.FAIL_OPEN));
+            // Keep result chunks compressed while prefetched; they are decompressed at decode time, see StarburstResultStreamProvider#decompress
+            return HttpUtil.getHttpClientWithoutDecompression(new HttpClientSettingsKey(OCSPMode.FAIL_OPEN), null);
         }
     }
 
@@ -79,7 +80,7 @@ public class SnowflakeParallelModule
         @Singleton
         public static CloseableHttpClient getHttpClient(SnowflakeProxyConfig snowflakeProxyConfig)
         {
-            return HttpUtil.getHttpClient(new HttpClientSettingsKey(
+            HttpClientSettingsKey settingsKey = new HttpClientSettingsKey(
                     OCSPMode.FAIL_OPEN,
                     snowflakeProxyConfig.getProxyHost(),
                     snowflakeProxyConfig.getProxyPort(),
@@ -89,7 +90,9 @@ public class SnowflakeParallelModule
                     snowflakeProxyConfig.getPassword().orElse(null),
                     snowflakeProxyConfig.getProxyProtocol().name().toLowerCase(ENGLISH),
                     null,
-                    false));
+                    false);
+            // Keep result chunks compressed while prefetched; they are decompressed at decode time, see StarburstResultStreamProvider#decompress
+            return HttpUtil.getHttpClientWithoutDecompression(settingsKey, null);
         }
     }
 }
