@@ -12,7 +12,9 @@ package com.starburstdata.trino.plugin.stargate.parallel;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.starburstdata.trino.plugin.stargate.BaseStargateConnectorTest;
+import io.trino.operator.OperatorStats;
 import io.trino.testing.QueryRunner;
+import io.trino.testing.QueryRunner.MaterializedResultWithPlan;
 import io.trino.testing.TestingConnectorBehavior;
 import io.trino.testing.sql.TestTable;
 import org.intellij.lang.annotations.Language;
@@ -24,6 +26,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import static com.google.common.collect.MoreCollectors.onlyElement;
 import static com.starburstdata.trino.plugin.stargate.StargateQueryRunner.stargateConnectionUrl;
 import static com.starburstdata.trino.plugin.stargate.parallel.StargateParallelQueryRunner.MEMORY_TPCH_SCHEMA;
 import static com.starburstdata.trino.plugin.stargate.parallel.StargateParallelQueryRunner.createRemoteStarburstQueryRunnerWithMemory;
@@ -275,6 +278,21 @@ public class TestStargateParallelWithMemoryWritesEnabledConnectorTest
     public void testDropNotNullConstraint()
     {
         // TODO: fix/improve me
+    }
+
+    @Test
+    public void testScanReportsMemoryUsage()
+    {
+        MaterializedResultWithPlan result = getDistributedQueryRunner().executeWithPlan(getSession(), "SELECT * FROM nation");
+        OperatorStats tableScanStats = getDistributedQueryRunner().getCoordinator()
+                .getQueryManager()
+                .getFullQueryInfo(result.queryId())
+                .getQueryStats()
+                .getOperatorSummaries()
+                .stream()
+                .filter(summary -> summary.getOperatorType().equals("TableScanOperator"))
+                .collect(onlyElement());
+        assertThat(tableScanStats.getPeakUserMemoryReservation().toBytes()).isGreaterThan(0);
     }
 
     @Override

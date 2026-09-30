@@ -34,6 +34,7 @@ import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.connector.DynamicFilter;
 import io.trino.spi.connector.MemoryContext;
+import io.trino.spi.connector.MemoryUsageReportingPageSource;
 
 import java.util.List;
 import java.util.Map;
@@ -88,14 +89,16 @@ public class StargateParallelPageSourceProvider
         List<JdbcColumnHandle> columnHandles = handles.build();
         List<Integer> fieldIndex = remapColumns(columnHandles, stargateParallelSplit.getColumns());
 
-        return new MappedPageSource(
-                new StargateParallelPageSource(
-                        jdbcClient,
-                        new StargateInMemoryResultSet(stargateParallelSplit.getSerializedColumns(), rows.iterator()),
-                        session,
-                        tableHandle.getColumns().orElse(columnHandles),
-                        getEstimatedDataSize(stargateParallelSplit.getSegments())),
-                fieldIndex);
+        return new MemoryUsageReportingPageSource(
+                new MappedPageSource(
+                        new StargateParallelPageSource(
+                                jdbcClient,
+                                new StargateInMemoryResultSet(stargateParallelSplit.getSerializedColumns(), rows.iterator()),
+                                session,
+                                tableHandle.getColumns().orElse(columnHandles),
+                                getEstimatedDataSize(stargateParallelSplit.getSegments())),
+                        fieldIndex),
+                memoryContext);
     }
 
     private DataAttributes attributes(Map<String, Object> metadata)
