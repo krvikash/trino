@@ -125,6 +125,7 @@ public class DispatcherPageSourceProvider
                     tableCredentials,
                     columns,
                     dynamicFilter,
+                    memoryContext,
                     () -> getFilteringStats(session, dispatcherTableHandle, dynamicFilter.getCurrentPredicate()),
                     catalogName);
         }

@@ -123,6 +123,7 @@ public class WarpDispatcherPageSourceFactory
             Optional<ConnectorTableCredentials> tableCredentials,
             List<ColumnHandle> columns,
             DynamicFilter dynamicFilter,
+            MemoryContext memoryContext,
             Optional<FilteringStats> filteringStats,
             CustomStatsContext customStatsContext)
     {
@@ -157,8 +158,7 @@ public class WarpDispatcherPageSourceFactory
                     tableCredentials,
                     columns,
                     dynamicFilter,
-                    // TODO report memory usage
-                    MemoryContext.NO_LIMIT);
+                    memoryContext);
         }
 
         ConnectorPageSource connectorPageSource = getConnectorPageSource(
@@ -170,6 +170,7 @@ public class WarpDispatcherPageSourceFactory
                 tableCredentials,
                 columns,
                 dynamicFilter,
+                memoryContext,
                 filteringStats,
                 customStatsContext);
 
@@ -196,6 +197,7 @@ public class WarpDispatcherPageSourceFactory
             Optional<ConnectorTableCredentials> tableCredentials,
             List<ColumnHandle> columns,
             DynamicFilter dynamicFilter,
+            MemoryContext memoryContext,
             Optional<FilteringStats> filteringStats,
             CustomStatsContext customStatsContext)
     {
@@ -275,6 +277,7 @@ public class WarpDispatcherPageSourceFactory
                         tableCredentials,
                         columns,
                         dynamicFilter,
+                        memoryContext,
                         Optional.empty(),
                         closeHandler,
                         pageSourceDecision);
@@ -321,6 +324,7 @@ public class WarpDispatcherPageSourceFactory
                         tableCredentials,
                         columns,
                         dynamicFilter,
+                        memoryContext,
                         Optional.of(queryContext),
                         closeHandler,
                         PageSourceDecision.PROXY);
@@ -359,6 +363,7 @@ public class WarpDispatcherPageSourceFactory
                             dispatcherSplit,
                             afterLockRowGroupData,
                             pageSourceDecision,
+                            memoryContext,
                             customStatsContext,
                             closeHandler);
 
@@ -392,6 +397,7 @@ public class WarpDispatcherPageSourceFactory
                     tableCredentials,
                     columns,
                     dynamicFilter,
+                    memoryContext,
                     Optional.of(queryContext),
                     closeHandler,
                     PageSourceDecision.PROXY);
@@ -436,6 +442,7 @@ public class WarpDispatcherPageSourceFactory
             Optional<ConnectorTableCredentials> tableCredentials,
             List<ColumnHandle> columns,
             DynamicFilter dynamicFilter,
+            MemoryContext memoryContext,
             Optional<QueryContext> queryContext,
             RowGroupCloseHandler closeHandler,
             PageSourceDecision pageSourceDecision)
@@ -461,8 +468,7 @@ public class WarpDispatcherPageSourceFactory
                 tableCredentials,
                 columns,
                 dynamicFilter,
-                // TODO report memory usage
-                MemoryContext.NO_LIMIT);
+                memoryContext);
     }
 
     // a column whose total basic index footprint exceeds the storage cache capacity cannot stay
@@ -487,6 +493,7 @@ public class WarpDispatcherPageSourceFactory
             DispatcherSplit dispatcherSplit,
             RowGroupData rowGroupData,
             PageSourceDecision pageSourceDecision,
+            MemoryContext memoryContext,
             CustomStatsContext customStatsContext,
             RowGroupCloseHandler closeHandler)
     {
@@ -506,6 +513,7 @@ public class WarpDispatcherPageSourceFactory
                     tableCredentials,
                     ImmutableList.copyOf(queryContext.getRemainingCollectColumns()),
                     DynamicFilter.EMPTY,
+                    memoryContext,
                     Optional.empty(),
                     closeHandler,
                     PageSourceDecision.MIXED);

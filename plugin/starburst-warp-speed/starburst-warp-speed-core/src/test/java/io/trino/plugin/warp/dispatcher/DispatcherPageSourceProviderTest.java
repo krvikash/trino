@@ -56,8 +56,11 @@ import io.trino.spi.connector.ConnectorPageSource;
 import io.trino.spi.connector.ConnectorPageSourceProvider;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorSplit;
+import io.trino.spi.connector.ConnectorTableCredentials;
+import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.connector.DynamicFilter;
+import io.trino.spi.connector.EmptyPageSource;
 import io.trino.spi.connector.MemoryContext;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.predicate.Domain;
@@ -76,6 +79,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
 import static io.trino.plugin.warp.dispatcher.WarmupTestDataUtil.generateRowGroupData;
@@ -241,6 +245,45 @@ public class DispatcherPageSourceProviderTest
                 MemoryContext.NO_LIMIT);
         pageSource = ((DispatcherWrapperPageSource) pageSource).getConnectorPageSource();
         assertThat(pageSource).isInstanceOf(TestingConnectorPageSource.class);
+    }
+
+    @Test
+    public void testReadFlow_ProxiedPageSourceReportsToMemoryContext()
+            throws IOException
+    {
+        mockQueryClassifier(true, false, false);
+        proxiedPageSourceProvider = new ConnectorPageSourceProvider()
+        {
+            @Override
+            public ConnectorPageSource createPageSource(
+                    ConnectorTransactionHandle transaction,
+                    ConnectorSession session,
+                    ConnectorSplit split,
+                    ConnectorTableHandle table,
+                    Optional<ConnectorTableCredentials> tableCredentials,
+                    List<ColumnHandle> columns,
+                    DynamicFilter dynamicFilter,
+                    MemoryContext memoryContext)
+            {
+                memoryContext.setBytes(1234);
+                return new EmptyPageSource();
+            }
+        };
+        dispatcherPageSourceProvider = createDispatcherPageSourceProvider();
+
+        AtomicLong reservedBytes = new AtomicLong();
+        try (ConnectorPageSource pageSource = dispatcherPageSourceProvider.createPageSource(
+                connectorTransactionHandle,
+                connectorSession,
+                dispatcherSplit,
+                dispatcherTableHandle,
+                Optional.empty(),
+                columnHandles,
+                dynamicFilter,
+                reservedBytes::set)) {
+            assertThat(pageSource.getNextSourcePage()).isNull();
+        }
+        assertThat(reservedBytes).hasValue(1234);
     }
 
     @Test

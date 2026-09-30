@@ -24,6 +24,7 @@ import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorTableCredentials;
 import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.connector.DynamicFilter;
+import io.trino.spi.connector.MemoryContext;
 import io.trino.spi.connector.SourcePage;
 import io.trino.spi.metrics.Metric;
 import io.trino.spi.metrics.Metrics;
@@ -56,6 +57,7 @@ public class DispatcherWrapperPageSource
     private final List<ColumnHandle> columns;
     private final CustomStatsContext customStatsContext;
     private final DynamicFilter dynamicFilter;
+    private final MemoryContext memoryContext;
     private final Supplier<Optional<FilteringStats>> filteringStatsSupplier;
     private final String catalogName;
 
@@ -75,6 +77,7 @@ public class DispatcherWrapperPageSource
             Optional<ConnectorTableCredentials> tableCredentials,
             List<ColumnHandle> columns,
             DynamicFilter dynamicFilter,
+            MemoryContext memoryContext,
             Supplier<Optional<FilteringStats>> filteringStatsSupplier,
             String catalogName)
     {
@@ -89,6 +92,7 @@ public class DispatcherWrapperPageSource
         this.tableCredentials = tableCredentials;
         this.columns = columns;
         this.dynamicFilter = dynamicFilter;
+        this.memoryContext = memoryContext;
         this.filteringStatsSupplier = filteringStatsSupplier;
         this.catalogName = catalogName;
     }
@@ -105,6 +109,7 @@ public class DispatcherWrapperPageSource
                 tableCredentials,
                 columns,
                 dynamicFilter,
+                memoryContext,
                 filteringStatsSupplier.get(),
                 customStatsContext);
     }

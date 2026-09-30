@@ -70,6 +70,7 @@ import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.connector.DynamicFilter;
 import io.trino.spi.connector.EmptyPageSource;
+import io.trino.spi.connector.MemoryContext;
 import io.trino.spi.metrics.Metrics;
 import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.type.IntegerType;
@@ -246,6 +247,7 @@ public class DispatcherPageSourceFactoryTest
                 Optional.empty(),
                 columnHandleList,
                 DynamicFilter.EMPTY,
+                MemoryContext.NO_LIMIT,
                 Optional.empty(),
                 customStatsContext);
         verifyWarmCalled(
@@ -304,6 +306,7 @@ public class DispatcherPageSourceFactoryTest
                 Optional.empty(),
                 columnHandleList,
                 DynamicFilter.EMPTY,
+                MemoryContext.NO_LIMIT,
                 Optional.empty(),
                 customStatsContext);
         assertThat(rowGroupData.getWarmUpElements().stream().findAny().orElseThrow().getLastUsedTimestamp()).isGreaterThanOrEqualTo(now);
@@ -364,6 +367,7 @@ public class DispatcherPageSourceFactoryTest
                 Optional.empty(),
                 columnHandleList,
                 dynamicFilter,
+                MemoryContext.NO_LIMIT,
                 Optional.empty(),
                 customStatsContext);
         assertThat(pageSource).isNull();
@@ -408,6 +412,7 @@ public class DispatcherPageSourceFactoryTest
                 Optional.empty(),
                 columnHandleList,
                 dynamicFilter,
+                MemoryContext.NO_LIMIT,
                 Optional.empty(),
                 customStatsContext);
         verify(connectorPageSourceProvider, times(1))
@@ -485,6 +490,7 @@ public class DispatcherPageSourceFactoryTest
                 Optional.empty(),
                 columnHandles,
                 dynamicFilter,
+                MemoryContext.NO_LIMIT,
                 Optional.empty(),
                 customStatsContext);
         DispatcherPageSourceStats stats = (DispatcherPageSourceStats) customStatsContext.getStat(DispatcherPageSourceStats.createKey());
@@ -531,6 +537,7 @@ public class DispatcherPageSourceFactoryTest
                 Optional.empty(),
                 columnHandleList,
                 dynamicFilter,
+                MemoryContext.NO_LIMIT,
                 Optional.empty(),
                 customStatsContext);
         assertThat(pageSource).isInstanceOf(PrefilledPageSource.class);
@@ -571,6 +578,7 @@ public class DispatcherPageSourceFactoryTest
                 Optional.empty(),
                 partitionColumnHandleList,
                 dynamicFilter,
+                MemoryContext.NO_LIMIT,
                 Optional.empty(),
                 customStatsContext);
         assertThat(pageSource).isInstanceOf(PrefilledPageSource.class);
@@ -614,6 +622,7 @@ public class DispatcherPageSourceFactoryTest
                 Optional.empty(),
                 partitionColumnHandleList,
                 dynamicFilter,
+                MemoryContext.NO_LIMIT,
                 Optional.empty(),
                 customStatsContext);
         assertThat(pageSource).isInstanceOf(PrefilledPageSource.class);
@@ -650,6 +659,7 @@ public class DispatcherPageSourceFactoryTest
                 Optional.empty(),
                 partitionColumnHandleList,
                 dynamicFilter,
+                MemoryContext.NO_LIMIT,
                 Optional.empty(),
                 customStatsContext);
 
