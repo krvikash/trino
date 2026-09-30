@@ -82,6 +82,7 @@ public abstract class AbstractIcebergMergeSink
     private final MemoryContext memoryContext;
     protected final Map<Slice, FileDeletion> fileDeletions = new HashMap<>();
     private long fileDeletionsRetainedBytes;
+    private long readerMemoryUsage;
     protected long writtenBytes;
 
     protected AbstractIcebergMergeSink(
@@ -148,8 +149,20 @@ public abstract class AbstractIcebergMergeSink
         });
 
         writtenBytes = updateInsertPageSink.orElse(insertPageSink).getCompletedBytes();
+        reportMemoryUsage();
+    }
+
+    // Sets the memory held by readers of data files being rewritten
+    protected void setReaderMemoryUsage(long bytes)
+    {
+        readerMemoryUsage = bytes;
+        reportMemoryUsage();
+    }
+
+    private void reportMemoryUsage()
+    {
         long insertMemoryUsage = insertPageSink.getMemoryUsage() + updateInsertPageSink.map(ConnectorPageSink::getMemoryUsage).orElse(0L);
-        memoryContext.setBytes(insertMemoryUsage + fileDeletionsRetainedBytes);
+        memoryContext.setBytes(insertMemoryUsage + fileDeletionsRetainedBytes + readerMemoryUsage);
     }
 
     @Override

@@ -16,12 +16,15 @@ package io.trino.plugin.iceberg;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.airlift.concurrent.MoreFutures;
+import io.airlift.units.DataSize;
 import io.trino.filesystem.TrinoFileSystemFactory;
 import io.trino.metastore.HiveMetastore;
+import io.trino.operator.OperatorStats;
 import io.trino.plugin.hive.TestingHivePlugin;
 import io.trino.testing.AbstractTestQueryFramework;
 import io.trino.testing.MaterializedResult;
 import io.trino.testing.QueryRunner;
+import io.trino.testing.QueryRunner.MaterializedResultWithPlan;
 import io.trino.testing.sql.TestTable;
 import jakarta.annotation.Nullable;
 import org.apache.iceberg.BaseTable;
@@ -41,7 +44,9 @@ import java.util.concurrent.Future;
 import java.util.stream.IntStream;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static com.google.common.collect.MoreCollectors.onlyElement;
 import static io.airlift.concurrent.MoreFutures.tryGetFutureValue;
+import static io.airlift.units.DataSize.Unit.MEGABYTE;
 import static io.trino.plugin.iceberg.IcebergTestUtils.getFileSystemFactory;
 import static io.trino.plugin.iceberg.IcebergTestUtils.getHiveMetastore;
 import static io.trino.plugin.iceberg.util.EqualityDeleteUtils.writeEqualityDeleteForTable;
@@ -403,6 +408,29 @@ final class TestCopyOnWrite
             assertThat(getActiveFiles(table.getName())).hasSize(2);
             assertThat(query("SELECT * FROM " + table.getName()))
                     .matches("VALUES (12, 1), (14, 2)");
+        }
+    }
+
+    @Test
+    void testCopyOnWriteDeleteReportsReaderMemoryUsage()
+    {
+        try (TestTable table = newTrinoTable(
+                "test_copy_on_write_memory",
+                "(x int) WITH (merge_mode = 'copy-on-write')",
+                List.of("1", "2", "3"))) {
+            MaterializedResultWithPlan result = getDistributedQueryRunner().executeWithPlan(getSession(), "DELETE FROM " + table.getName() + " WHERE x = 1");
+            OperatorStats mergeWriterStats = getDistributedQueryRunner().getCoordinator()
+                    .getQueryManager()
+                    .getFullQueryInfo(result.queryId())
+                    .getQueryStats()
+                    .getOperatorSummaries()
+                    .stream()
+                    .filter(summary -> summary.getOperatorType().equals("MergeWriterOperator"))
+                    .collect(onlyElement());
+            // Reader memory is reported in 1 MB steps, well above the size of the deletion vector
+            assertThat(mergeWriterStats.getPeakUserMemoryReservation()).isGreaterThanOrEqualTo(DataSize.of(1, MEGABYTE));
+            assertThat(query("SELECT x FROM " + table.getName()))
+                    .matches("VALUES 2, 3");
         }
     }
 

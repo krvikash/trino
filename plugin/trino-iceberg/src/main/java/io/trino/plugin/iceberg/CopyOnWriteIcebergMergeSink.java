@@ -20,6 +20,7 @@ import io.trino.filesystem.Location;
 import io.trino.filesystem.TrinoFileSystem;
 import io.trino.filesystem.TrinoInputFile;
 import io.trino.memory.context.AggregatedMemoryContext;
+import io.trino.memory.context.LocalMemoryContext;
 import io.trino.plugin.iceberg.delete.DeleteFile;
 import io.trino.spi.Page;
 import io.trino.spi.TrinoException;
@@ -53,7 +54,7 @@ import java.util.OptionalLong;
 import java.util.concurrent.CompletableFuture;
 
 import static io.airlift.slice.Slices.wrappedBuffer;
-import static io.trino.memory.context.AggregatedMemoryContext.newSimpleAggregatedMemoryContext;
+import static io.trino.memory.context.AggregatedMemoryContext.newAggregatedMemoryContext;
 import static io.trino.plugin.iceberg.IcebergErrorCode.ICEBERG_WRITE_VALIDATION_FAILED;
 import static io.trino.plugin.iceberg.IcebergUtil.supportsRowLineage;
 import static java.util.UUID.randomUUID;
@@ -62,6 +63,8 @@ import static java.util.concurrent.CompletableFuture.completedFuture;
 public class CopyOnWriteIcebergMergeSink
         extends AbstractIcebergMergeSink
 {
+    private final AggregatedMemoryContext readerMemoryContext;
+
     public CopyOnWriteIcebergMergeSink(
             LocationProvider locationProvider,
             IcebergFileWriterFactory fileWriterFactory,
@@ -108,6 +111,7 @@ public class CopyOnWriteIcebergMergeSink
                 nameMapping,
                 formatVersion,
                 memoryContext);
+        this.readerMemoryContext = newAggregatedMemoryContext(this::setReaderMemoryUsage);
     }
 
     @Override
@@ -146,7 +150,8 @@ public class CopyOnWriteIcebergMergeSink
             throws IOException
     {
         boolean writtenRecords = false;
-        try (ConnectorPageSource connectorPageSource = createPageSource(dataFilePath, deletion, partitionSpec, partitionData)) {
+        AggregatedMemoryContext fileMemoryContext = readerMemoryContext.newAggregatedMemoryContext();
+        try (ConnectorPageSource connectorPageSource = createPageSource(dataFilePath, deletion, partitionSpec, partitionData, fileMemoryContext)) {
             while (!connectorPageSource.isFinished()) {
                 SourcePage sourcePage = connectorPageSource.getNextSourcePage();
                 if (sourcePage == null) {
@@ -176,6 +181,9 @@ public class CopyOnWriteIcebergMergeSink
                 }
             }
             throw t;
+        }
+        finally {
+            fileMemoryContext.close();
         }
 
         CommitTaskData task = new CommitTaskData(
@@ -224,7 +232,7 @@ public class CopyOnWriteIcebergMergeSink
         return recordCount;
     }
 
-    private ConnectorPageSource createPageSource(Location path, FileDeletion deletion, PartitionSpec partitionSpec, PartitionData partitionData)
+    private ConnectorPageSource createPageSource(Location path, FileDeletion deletion, PartitionSpec partitionSpec, PartitionData partitionData, AggregatedMemoryContext memoryContext)
             throws IOException
     {
         ImmutableList.Builder<DeleteFile> deleteFiles = ImmutableList.builder();
@@ -234,11 +242,10 @@ public class CopyOnWriteIcebergMergeSink
                 .map(DeleteFile::fromIceberg)
                 .map(deleteFile -> deleteFile.withDataSequenceNumber(dataSequenceNumbers.get(deleteFile.path())))
                 .forEach(deleteFiles::add);
-        IcebergPageSourceProvider icebergPageSourceProvider = pageSourceProviderFactory.createPageSourceProvider(MemoryContext.NO_LIMIT);
+        LocalMemoryContext sharedMemoryContext = memoryContext.newLocalMemoryContext(IcebergPageSourceProvider.class.getSimpleName());
+        IcebergPageSourceProvider icebergPageSourceProvider = pageSourceProviderFactory.createPageSourceProvider(sharedMemoryContext::setBytes);
         TrinoInputFile inputFile = fileSystem.newInputFile(path);
         long fileSize = inputFile.length();
-        // TODO (https://github.com/trinodb/trino/issues/29958) memory usage reporting
-        AggregatedMemoryContext memoryContext = newSimpleAggregatedMemoryContext();
         return icebergPageSourceProvider.createPageSource(
                 session,
                 supportsRowLineage(formatVersion) ? withRowLineageColumns(columns) : columns,
