@@ -9,6 +9,7 @@
  */
 package com.starburstdata.trino.plugin.snowflake.parallel;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.io.Closer;
@@ -39,6 +40,7 @@ import net.snowflake.client.jdbc.internal.apache.arrow.vector.util.TransferPair;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -307,7 +309,7 @@ public class SnowflakeArrowPageSource
     private CloseableArrowBatch decodeChunk(byte[] chunk)
     {
         try {
-            return decodeArrowInputStream(chunk);
+            return decodeArrowInputStream(chunk, bufferAllocator);
         }
         catch (IOException e) {
             throw new TrinoException(JDBC_ERROR, "Failed reading Arrow stream", e);
@@ -377,32 +379,42 @@ public class SnowflakeArrowPageSource
         return columnToVectorOrder.buildOrThrow();
     }
 
-    private CloseableArrowBatch decodeArrowInputStream(byte[] data)
+    @VisibleForTesting
+    static CloseableArrowBatch decodeArrowInputStream(byte[] data, BufferAllocator bufferAllocator)
             throws IOException
     {
+        // Vectors are tracked as soon as their ownership is transferred, so that a failure part way through the chunk
+        // (e.g. ClosedByInterruptException when the driver is interrupted during task teardown) releases the record
+        // batches decoded so far. Otherwise they would be leaked and never returned to the operating system.
+        List<List<ValueVector>> batch = new ArrayList<>();
         // Decompress lazily and stream straight into Arrow, so the uncompressed chunk is never materialized as a single byte[].
         try (InputStream input = StarburstResultStreamProvider.decompress(data);
                 ArrowStreamReader reader = new ArrowStreamReader(input, bufferAllocator);
                 VectorSchemaRoot vectorSchemaRoot = reader.getVectorSchemaRoot()) {
-            ImmutableList.Builder<List<ValueVector>> batchBuilder = ImmutableList.builder();
             while (reader.loadNextBatch()) {
-                ImmutableList.Builder<ValueVector> vectorBuilder = ImmutableList.builderWithExpectedSize(vectorSchemaRoot.getFieldVectors().size());
+                List<ValueVector> vectors = new ArrayList<>(vectorSchemaRoot.getFieldVectors().size());
+                batch.add(vectors);
                 for (FieldVector fieldVector : vectorSchemaRoot.getFieldVectors()) {
                     // transfer will not copy data but transfer ownership of memory, otherwise values will be gone
                     // once reader is gone
                     TransferPair transferPair = fieldVector.getTransferPair(bufferAllocator);
                     transferPair.transfer();
-                    vectorBuilder.add(transferPair.getTo());
+                    vectors.add(transferPair.getTo());
                 }
-                batchBuilder.add(vectorBuilder.build());
                 vectorSchemaRoot.clear();
             }
-            return new CloseableArrowBatch(batchBuilder.build());
         }
+        catch (Throwable t) {
+            new CloseableArrowBatch(batch).close();
+            throw t;
+        }
+        return new CloseableArrowBatch(batch.stream()
+                .map(ImmutableList::copyOf)
+                .collect(toImmutableList()));
     }
 
     @SuppressWarnings("UnusedVariable") // error-prone false positive
-    private record CloseableArrowBatch(List<List<ValueVector>> batch)
+    record CloseableArrowBatch(List<List<ValueVector>> batch)
             implements AutoCloseable
     {
         @Override
