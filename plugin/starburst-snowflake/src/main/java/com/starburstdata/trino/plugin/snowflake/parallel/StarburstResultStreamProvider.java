@@ -9,8 +9,10 @@
  */
 package com.starburstdata.trino.plugin.snowflake.parallel;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.inject.Inject;
 import com.starburstdata.trino.plugin.snowflake.SnowflakeConfig;
+import io.airlift.log.Logger;
 import io.trino.spi.TrinoException;
 import net.snowflake.client.api.exception.SnowflakeSQLException;
 import net.snowflake.client.internal.jdbc.RestRequest;
@@ -26,6 +28,7 @@ import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.net.URISyntaxException;
 import java.util.Map;
+import java.util.function.Supplier;
 
 import static io.trino.plugin.jdbc.JdbcErrorCode.JDBC_ERROR;
 import static java.util.Objects.requireNonNull;
@@ -37,9 +40,13 @@ import static net.snowflake.client.internal.jdbc.DefaultResultStreamProvider.det
  */
 public class StarburstResultStreamProvider
 {
+    private static final Logger log = Logger.get(StarburstResultStreamProvider.class);
+
     private static final int NETWORK_TIMEOUT_IN_MILLI = 0;
     private static final int AUTH_TIMEOUT_IN_SECONDS = 0;
     private static final int SOCKET_TIMEOUT_IN_MILLI = 0;
+    private static final long INITIAL_READ_RETRY_BACKOFF_MILLIS = 100;
+    private static final long MAX_READ_RETRY_BACKOFF_MILLIS = 5_000;
     private final CloseableHttpClient httpClient;
     private final int maxChunkRetries;
 
@@ -52,24 +59,51 @@ public class StarburstResultStreamProvider
 
     public byte[] getChunkData(Chunk chunk)
     {
-        HttpResponse response;
+        return readChunkData(() -> requestChunk(chunk), maxChunkRetries);
+    }
+
+    /**
+     * Returns the raw, still-compressed chunk bytes. Decompression is deferred to decode time (see {@link #decompress})
+     * so the prefetched buffer holds the compressed size rather than the larger uncompressed Arrow stream.
+     * <p>
+     * {@code RestRequest.executeWithRetries} only retries until a response is received. A failure while reading the
+     * response body (e.g. {@code Connection reset}) would otherwise fail the whole task, so the request is re-issued.
+     */
+    @VisibleForTesting
+    static byte[] readChunkData(Supplier<HttpResponse> request, int maxRetries)
+    {
+        for (int attempt = 0; ; attempt++) {
+            HttpResponse response = request.get();
+            try (InputStream inputStream = response.getEntity().getContent()) {
+                return inputStream.readAllBytes();
+            }
+            catch (IOException e) {
+                if (attempt >= maxRetries || Thread.currentThread().isInterrupted()) {
+                    throw new UncheckedIOException(e);
+                }
+                log.warn(e, "Failed reading Snowflake result chunk, retrying (attempt %s of %s)", attempt + 1, maxRetries);
+                try {
+                    Thread.sleep(Math.min(MAX_READ_RETRY_BACKOFF_MILLIS, INITIAL_READ_RETRY_BACKOFF_MILLIS << Math.min(attempt, 6)));
+                }
+                catch (InterruptedException interrupted) {
+                    Thread.currentThread().interrupt();
+                    e.addSuppressed(interrupted);
+                    throw new UncheckedIOException(e);
+                }
+            }
+        }
+    }
+
+    private HttpResponse requestChunk(Chunk chunk)
+    {
         try {
-            response = getResultChunk(chunk);
+            return getResultChunk(chunk);
         }
         catch (URISyntaxException | SnowflakeSQLException e) {
             throw new TrinoException(
                     JDBC_ERROR,
                     "Error encountered when requesting a result chunk URL: %s %s".formatted(chunk.fileUrl(), requireNonNullElse(e.getMessage(), e)),
                     e);
-        }
-
-        // Return the raw, still-compressed chunk bytes. Decompression is deferred to decode time (see decompress)
-        // so the prefetched buffer holds the compressed size rather than the larger uncompressed Arrow stream.
-        try (InputStream inputStream = response.getEntity().getContent()) {
-            return inputStream.readAllBytes();
-        }
-        catch (IOException e) {
-            throw new UncheckedIOException(e);
         }
     }
 
