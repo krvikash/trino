@@ -138,12 +138,6 @@ runs:
           key: ${{ github.repository }}/${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
           restore-keys: |
             ${{ github.repository }}/${{ runner.os }}-maven-
-      - name: Install starburst-testing-auto-configuration
-        # starburst-testing-auto-configuration is used by all tests and not implicitly built
-        # This module has very little dependencies, so no need to cache it, or build conditionally
-        shell: bash
-        run: |
-          .github/bin/retry ./mvnw -s .github/settings.xml clean install -B -V --quiet -T 1C -DskipTests -Dmaven.source.skip=true -Dair.check.skip-all -pl :starburst-testing-auto-configuration
       - name: Cache and Restore Maven wrapper
         id: cache-maven-wrapper
         if: ${{ format('{0}', inputs.cache) == 'true' }}
@@ -164,6 +158,11 @@ runs:
           key: ${{ runner.os }}-maven-wrapper-${{ hashFiles('.mvn/wrapper/maven-wrapper.properties') }}
           restore-keys: |
             ${{ runner.os }}-maven-wrapper-
+      - name: Install starburst-testing-auto-configuration
+        # starburst-testing-auto-configuration is used by all tests and not implicitly built
+        shell: bash
+        run: |
+          .github/bin/retry ./mvnw -s .github/settings.xml clean install -B -V --quiet -T 1C -DskipTests -Dmaven.source.skip=true -Dair.check.skip-all -pl :starburst-testing-auto-configuration
       - name: Verify Maven wrapper
         if: ${{ inputs.java-version != '' }}
         shell: bash
