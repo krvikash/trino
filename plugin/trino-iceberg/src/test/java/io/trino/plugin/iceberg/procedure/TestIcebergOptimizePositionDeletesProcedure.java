@@ -22,7 +22,6 @@ import io.trino.plugin.iceberg.IcebergFileFormat;
 import io.trino.plugin.iceberg.IcebergQueryRunner;
 import io.trino.plugin.iceberg.IcebergTestUtils;
 import io.trino.plugin.iceberg.PartitionData;
-import io.trino.plugin.iceberg.fileio.ForwardingOutputFile;
 import io.trino.testing.AbstractTestQueryFramework;
 import io.trino.testing.DistributedQueryRunner;
 import io.trino.testing.QueryRunner;
@@ -36,13 +35,9 @@ import org.apache.iceberg.Schema;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.data.GenericRecord;
 import org.apache.iceberg.data.Record;
-import org.apache.iceberg.data.TrinoGenericFileWriterFactory;
 import org.apache.iceberg.data.parquet.GenericParquetWriter;
 import org.apache.iceberg.deletes.EqualityDeleteWriter;
-import org.apache.iceberg.deletes.PositionDelete;
-import org.apache.iceberg.deletes.PositionDeleteWriter;
 import org.apache.iceberg.io.FileIO;
-import org.apache.iceberg.io.FileWriterFactory;
 import org.apache.iceberg.parquet.Parquet;
 import org.apache.iceberg.types.Type;
 import org.apache.iceberg.types.Types;
@@ -66,8 +61,6 @@ import static io.trino.plugin.iceberg.IcebergTestUtils.getHiveMetastore;
 import static io.trino.plugin.iceberg.IcebergUtil.getFileFormat;
 import static io.trino.plugin.iceberg.util.EqualityDeleteUtils.writeEqualityDeleteForTable;
 import static org.apache.iceberg.GenericDataFiles.setDataSequenceNumber;
-import static org.apache.iceberg.encryption.EncryptedFiles.encryptedOutput;
-import static org.apache.iceberg.encryption.EncryptionKeyMetadata.EMPTY;
 import static org.assertj.core.api.Assertions.assertThat;
 
 final class TestIcebergOptimizePositionDeletesProcedure
@@ -460,23 +453,6 @@ final class TestIcebergOptimizePositionDeletesProcedure
                 .withPartitionPath(partition)
                 .withRecordCount(1)
                 .build();
-    }
-
-    private DeleteFile writePositionDelete(Table table, String dataFilePath, String deleteFilePath, String partitionValue)
-            throws IOException
-    {
-        PartitionData partitionData = PartitionData.fromJson("{\"partitionValues\":[\"%s\"]}".formatted(partitionValue), new Type[] {Types.StringType.get()});
-        FileWriterFactory<?> writerFactory = TrinoGenericFileWriterFactory.builderFor(table);
-        ForwardingOutputFile outputFile = new ForwardingOutputFile(fileSystemFactory.create(SESSION), Location.of(deleteFilePath));
-        try (PositionDeleteWriter<?> appender = writerFactory.newPositionDeleteWriter(encryptedOutput(outputFile, EMPTY), table.spec(), partitionData)) {
-            @SuppressWarnings("rawtypes")
-            PositionDelete delete = PositionDelete.create();
-            delete.set(dataFilePath, 10);
-            //noinspection unchecked
-            appender.write(delete);
-            appender.close();
-            return appender.result().deleteFiles().stream().collect(onlyElement());
-        }
     }
 
     private DeleteFile writeEqualityDelete(Table table, String deleteFilePath, String partitionValue, Map<String, Object> deletes)
