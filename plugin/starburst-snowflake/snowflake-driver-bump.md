@@ -4,7 +4,7 @@ drivers.
 
 - `com.starburstdata.trino.plugin.snowflake.parallel.StarburstResultStreamProvider` - Fetches signed chunk URL
     using logic from `net.snowflake.client.jdbc.DefaultResultStreamProvider`.
-- `com.starburstdata.trino.plugin.snowflake.parallel.SnowflakeArrowPageSource#decodeArrowInputStream` - Reads
+- `com.starburstdata.trino.plugin.snowflake.parallel.SnowflakeArrowPageSource#openChunk` and `#loadNextRecordBatch` - Read
     arrow batches similar to `net.snowflake.client.jdbc.ArrowResultChunk#readArrowStream`.
 - `com.starburstdata.trino.plugin.snowflake.parallel.writer.ConverterFactory.createSnowflakeConverter` -
     Maps Arrow types to Snowflake converter which converts to Java native types. 

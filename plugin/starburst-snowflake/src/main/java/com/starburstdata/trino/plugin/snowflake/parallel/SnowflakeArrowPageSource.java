@@ -31,16 +31,12 @@ import net.snowflake.client.internal.core.SFException;
 import net.snowflake.client.internal.core.arrow.ArrowVectorConverter;
 import net.snowflake.client.jdbc.internal.apache.arrow.memory.BufferAllocator;
 import net.snowflake.client.jdbc.internal.apache.arrow.memory.RootAllocator;
-import net.snowflake.client.jdbc.internal.apache.arrow.vector.FieldVector;
 import net.snowflake.client.jdbc.internal.apache.arrow.vector.ValueVector;
 import net.snowflake.client.jdbc.internal.apache.arrow.vector.VectorSchemaRoot;
 import net.snowflake.client.jdbc.internal.apache.arrow.vector.ipc.ArrowStreamReader;
-import net.snowflake.client.jdbc.internal.apache.arrow.vector.util.TransferPair;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.UncheckedIOException;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -56,6 +52,7 @@ import static com.google.common.collect.MoreCollectors.toOptional;
 import static com.starburstdata.trino.plugin.snowflake.parallel.SnowflakeColumns.getPrimaryKeys;
 import static com.starburstdata.trino.plugin.snowflake.parallel.SnowflakeColumns.getScanColumns;
 import static com.starburstdata.trino.plugin.snowflake.parallel.SnowflakeParallelSessionProperties.getQuotedIdentifiersIgnoreCase;
+import static io.airlift.slice.SizeOf.sizeOf;
 import static io.trino.plugin.jdbc.DefaultJdbcMetadata.MERGE_ROW_ID;
 import static io.trino.plugin.jdbc.JdbcErrorCode.JDBC_ERROR;
 import static io.trino.plugin.jdbc.JdbcPageSourceProvider.buildMergeIdColumnAdaptation;
@@ -84,13 +81,12 @@ public class SnowflakeArrowPageSource
     private CompletableFuture<byte[]> chunkFuture;
     private boolean finished;
 
-    // Decoding state for the chunk currently being emitted as bounded pages. A chunk is decoded into
-    // one CloseableArrowBatch (a list of Arrow record batches) that is consumed across several
-    // getNextSourcePage() calls, one <= 1 MB page at a time, so a single ~160 MB chunk never
-    // materializes as one giant page/block.
-    private CloseableArrowBatch currentBatch;
+    // Decoding state for the chunk currently being emitted as bounded pages. The chunk is read one Arrow
+    // record batch at a time across several getNextSourcePage() calls, one <= 1 MB page at a time, so at
+    // most two record batches per split are held off-heap instead of the whole decoded chunk (~100-250 MB).
+    private ArrowStreamReader currentChunkReader;
+    private long currentChunkRetainedBytes;
     private List<BlockWriter> currentRecordBatchWriters;
-    private int currentRecordBatchIndex;
     private int currentRecordBatchRowCount;
     private int positionInRecordBatch;
 
@@ -177,7 +173,7 @@ public class SnowflakeArrowPageSource
     public CompletableFuture<?> isBlocked()
     {
         // While a decoded chunk is still being emitted we can make progress without waiting.
-        if (currentBatch != null) {
+        if (currentChunkReader != null) {
             return NOT_BLOCKED;
         }
         return requireNonNullElse(chunkFuture, NOT_BLOCKED);
@@ -218,7 +214,7 @@ public class SnowflakeArrowPageSource
         }
 
         // getNextPage is not called concurrently hence there is no need for synchronization here
-        if (currentBatch == null) {
+        if (currentChunkReader == null) {
             if (chunkFuture == null) {
                 chunkFuture = fetcher.fetchNextChunk();
                 if (chunkFuture == null) {
@@ -237,52 +233,48 @@ public class SnowflakeArrowPageSource
             catch (CompletionException e) {
                 throw new TrinoException(JDBC_ERROR, "Failed fetching Arrow chunk", e);
             }
-            currentBatch = decodeChunk(chunk);
-            currentRecordBatchIndex = 0;
-            currentRecordBatchRowCount = 0;
-            positionInRecordBatch = 0;
+            currentChunkReader = openChunk(chunk);
+            currentChunkRetainedBytes = sizeOf(chunk);
             currentRecordBatchWriters = null;
             // Prefetch the next chunk while this one is emitted as bounded pages.
             chunkFuture = fetcher.fetchNextChunk();
         }
 
         Page page = buildBoundedPage();
+        if (page.getPositionCount() == 0) {
+            // The chunk ended exactly at a page boundary; the next chunk is waited on via isBlocked()
+            return null;
+        }
         completedBytes += page.getSizeInBytes();
         return page;
     }
 
     /**
      * Emits at most one ~{@link io.trino.spi.block.PageBuilderStatus#DEFAULT_MAX_PAGE_SIZE_IN_BYTES}
-     * page from {@link #currentBatch}, resuming where the previous call left off. The chunk's Arrow
-     * record batches are consumed in slices of {@link #MAX_ROWS_PER_PAGE_SLICE} rows so that a single
+     * page from {@link #currentChunkReader}, resuming where the previous call left off. Each Arrow
+     * record batch is consumed in slices of {@link #MAX_ROWS_PER_PAGE_SLICE} rows so that a single
      * large record batch does not produce one oversized block.
      */
     private Page buildBoundedPage()
     {
-        List<List<ValueVector>> recordBatches = currentBatch.batch();
         try {
-            while (!pageBuilder.isFull() && currentRecordBatchIndex < recordBatches.size()) {
-                if (currentRecordBatchWriters == null) {
-                    List<ValueVector> vectors = recordBatches.get(currentRecordBatchIndex);
-                    checkState(!vectors.isEmpty(), "There must be at least one vector in the batch of vectors");
-                    currentRecordBatchRowCount = vectors.getFirst().getValueCount();
-                    currentRecordBatchWriters = createWriters(vectors);
-                    positionInRecordBatch = 0;
+            while (!pageBuilder.isFull()) {
+                if (currentRecordBatchWriters == null && !loadNextRecordBatch()) {
+                    // The whole chunk has been consumed; release its Arrow buffers.
+                    closeCurrentChunk();
+                    break;
                 }
 
                 int sliceLength = Math.min(currentRecordBatchRowCount - positionInRecordBatch, MAX_ROWS_PER_PAGE_SLICE);
-                if (sliceLength > 0) {
-                    pageBuilder.declarePositions(sliceLength);
-                    for (int columnIndex = 0; columnIndex < columns.size(); columnIndex++) {
-                        currentRecordBatchWriters.get(columnIndex).write(pageBuilder.getBlockBuilder(columnIndex), positionInRecordBatch, sliceLength);
-                    }
-                    positionInRecordBatch += sliceLength;
+                pageBuilder.declarePositions(sliceLength);
+                for (int columnIndex = 0; columnIndex < columns.size(); columnIndex++) {
+                    currentRecordBatchWriters.get(columnIndex).write(pageBuilder.getBlockBuilder(columnIndex), positionInRecordBatch, sliceLength);
                 }
+                positionInRecordBatch += sliceLength;
 
                 if (positionInRecordBatch >= currentRecordBatchRowCount) {
                     // Advance past the exhausted record batch in this same call, so a page that fills exactly
                     // at a batch boundary does not leave an exhausted batch that yields an empty page next call.
-                    currentRecordBatchIndex++;
                     currentRecordBatchWriters = null;
                 }
             }
@@ -290,15 +282,8 @@ public class SnowflakeArrowPageSource
         catch (SFException e) {
             throw new TrinoException(JDBC_ERROR, "Couldn't write Snowflake blocks", e);
         }
-
-        if (currentRecordBatchIndex >= recordBatches.size()) {
-            // The whole chunk has been consumed; release its Arrow buffers.
-            currentBatch.close();
-            currentBatch = null;
-            currentRecordBatchWriters = null;
-            currentRecordBatchIndex = 0;
-            currentRecordBatchRowCount = 0;
-            positionInRecordBatch = 0;
+        catch (IOException e) {
+            throw new TrinoException(JDBC_ERROR, "Failed reading Arrow stream", e);
         }
 
         Page page = pageBuilder.build();
@@ -306,20 +291,63 @@ public class SnowflakeArrowPageSource
         return page;
     }
 
-    private CloseableArrowBatch decodeChunk(byte[] chunk)
+    /**
+     * Loads the next non-empty record batch of the current chunk into the reader's {@link VectorSchemaRoot}.
+     * The vectors stay owned by the reader, so they are released by {@link #closeCurrentChunk()} even if
+     * reading fails part way, e.g. when the driver thread is interrupted during task teardown.
+     */
+    private boolean loadNextRecordBatch()
+            throws IOException
+    {
+        VectorSchemaRoot root = currentChunkReader.getVectorSchemaRoot();
+        while (currentChunkReader.loadNextBatch()) {
+            if (root.getRowCount() > 0) {
+                currentRecordBatchRowCount = root.getRowCount();
+                positionInRecordBatch = 0;
+                currentRecordBatchWriters = createWriters(root.getFieldVectors());
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private ArrowStreamReader openChunk(byte[] chunk)
     {
         try {
-            return decodeArrowInputStream(chunk, bufferAllocator);
+            // Decompress lazily and stream straight into Arrow, so the uncompressed chunk is never materialized as a single byte[].
+            return new ArrowStreamReader(StarburstResultStreamProvider.decompress(chunk), bufferAllocator);
         }
         catch (IOException e) {
             throw new TrinoException(JDBC_ERROR, "Failed reading Arrow stream", e);
         }
     }
 
+    private void closeCurrentChunk()
+    {
+        try {
+            currentChunkReader.close();
+        }
+        catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+        finally {
+            currentChunkReader = null;
+            currentChunkRetainedBytes = 0;
+            currentRecordBatchWriters = null;
+        }
+    }
+
+    @VisibleForTesting
+    BufferAllocator getBufferAllocator()
+    {
+        return bufferAllocator;
+    }
+
     @Override
     public long getMemoryUsage()
     {
         return bufferAllocator.getAllocatedMemory()
+                + currentChunkRetainedBytes
                 + splitRetainedSize
                 + pageBuilder.getRetainedSizeInBytes()
                 + fetcher.getRetainedSizeInBytes();
@@ -332,10 +360,10 @@ public class SnowflakeArrowPageSource
             // Registered resources are closed in reverse order, so each close() runs even if an earlier one throws.
             closer.register(bufferAllocator::close);
             closer.register(fetcher::close);
-            // The Arrow batch is closed first, before the allocator, otherwise the allocator close would fail on the still-open vectors.
-            if (currentBatch != null) {
-                closer.register(currentBatch::close);
-                currentBatch = null;
+            // The chunk reader is closed first, before the allocator, otherwise the allocator close would fail on the still-open vectors.
+            if (currentChunkReader != null) {
+                closer.register(currentChunkReader::close);
+                currentChunkReader = null;
             }
         }
         catch (IOException e) {
@@ -343,7 +371,7 @@ public class SnowflakeArrowPageSource
         }
     }
 
-    private List<BlockWriter> createWriters(List<ValueVector> vectors)
+    private List<BlockWriter> createWriters(List<? extends ValueVector> vectors)
     {
         Map<Integer, Integer> columnToVectorOrder = buildColumnOrder(vectors);
         ImmutableList.Builder<BlockWriter> writers = ImmutableList.builderWithExpectedSize(columns.size());
@@ -355,7 +383,7 @@ public class SnowflakeArrowPageSource
         return writers.build();
     }
 
-    private Map<Integer, Integer> buildColumnOrder(List<ValueVector> vectors)
+    private Map<Integer, Integer> buildColumnOrder(List<? extends ValueVector> vectors)
     {
         Map<String, Integer> vectorIndexes = IntStream.range(0, vectors.size())
                 .boxed()
@@ -377,52 +405,5 @@ public class SnowflakeArrowPageSource
         }
 
         return columnToVectorOrder.buildOrThrow();
-    }
-
-    @VisibleForTesting
-    static CloseableArrowBatch decodeArrowInputStream(byte[] data, BufferAllocator bufferAllocator)
-            throws IOException
-    {
-        // Vectors are tracked as soon as their ownership is transferred, so that a failure part way through the chunk
-        // (e.g. ClosedByInterruptException when the driver is interrupted during task teardown) releases the record
-        // batches decoded so far. Otherwise they would be leaked and never returned to the operating system.
-        List<List<ValueVector>> batch = new ArrayList<>();
-        // Decompress lazily and stream straight into Arrow, so the uncompressed chunk is never materialized as a single byte[].
-        try (InputStream input = StarburstResultStreamProvider.decompress(data);
-                ArrowStreamReader reader = new ArrowStreamReader(input, bufferAllocator);
-                VectorSchemaRoot vectorSchemaRoot = reader.getVectorSchemaRoot()) {
-            while (reader.loadNextBatch()) {
-                List<ValueVector> vectors = new ArrayList<>(vectorSchemaRoot.getFieldVectors().size());
-                batch.add(vectors);
-                for (FieldVector fieldVector : vectorSchemaRoot.getFieldVectors()) {
-                    // transfer will not copy data but transfer ownership of memory, otherwise values will be gone
-                    // once reader is gone
-                    TransferPair transferPair = fieldVector.getTransferPair(bufferAllocator);
-                    transferPair.transfer();
-                    vectors.add(transferPair.getTo());
-                }
-                vectorSchemaRoot.clear();
-            }
-        }
-        catch (Throwable t) {
-            new CloseableArrowBatch(batch).close();
-            throw t;
-        }
-        return new CloseableArrowBatch(batch.stream()
-                .map(ImmutableList::copyOf)
-                .collect(toImmutableList()));
-    }
-
-    @SuppressWarnings("UnusedVariable") // error-prone false positive
-    record CloseableArrowBatch(List<List<ValueVector>> batch)
-            implements AutoCloseable
-    {
-        @Override
-        public void close()
-        {
-            for (List<ValueVector> vectors : batch) {
-                vectors.forEach(ValueVector::close);
-            }
-        }
     }
 }
