@@ -13,15 +13,23 @@
  */
 package io.trino.plugin.iceberg.substitution;
 
+import com.google.common.collect.ImmutableList;
 import io.trino.spi.connector.substitution.ConnectorColumnId;
 import io.trino.spi.connector.substitution.ConnectorIdVersion;
 
 import java.util.List;
 
+import static java.util.Objects.requireNonNull;
+
 public record IcebergColumnId(int fieldId, List<Integer> path)
         implements ConnectorColumnId
 {
     public static final ConnectorIdVersion VERSION = new ConnectorIdVersion("IcebergColumnId", 1);
+
+    public IcebergColumnId
+    {
+        path = ImmutableList.copyOf(requireNonNull(path, "path is null"));
+    }
 
     @Override
     public ConnectorIdVersion version()
