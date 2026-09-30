@@ -63,7 +63,7 @@ import static java.util.concurrent.CompletableFuture.completedFuture;
 public class CopyOnWriteIcebergMergeSink
         extends AbstractIcebergMergeSink
 {
-    private final AggregatedMemoryContext readerMemoryContext;
+    private final AggregatedMemoryContext rewriteMemoryContext;
 
     public CopyOnWriteIcebergMergeSink(
             LocationProvider locationProvider,
@@ -111,7 +111,7 @@ public class CopyOnWriteIcebergMergeSink
                 nameMapping,
                 formatVersion,
                 memoryContext);
-        this.readerMemoryContext = newAggregatedMemoryContext(this::setReaderMemoryUsage);
+        this.rewriteMemoryContext = newAggregatedMemoryContext(this::setRewriteMemoryUsage);
     }
 
     @Override
@@ -150,8 +150,10 @@ public class CopyOnWriteIcebergMergeSink
             throws IOException
     {
         boolean writtenRecords = false;
-        AggregatedMemoryContext fileMemoryContext = readerMemoryContext.newAggregatedMemoryContext();
+        AggregatedMemoryContext fileMemoryContext = rewriteMemoryContext.newAggregatedMemoryContext();
+        LocalMemoryContext writerMemoryContext = fileMemoryContext.newLocalMemoryContext(IcebergFileWriter.class.getSimpleName());
         try (ConnectorPageSource connectorPageSource = createPageSource(dataFilePath, deletion, partitionSpec, partitionData, fileMemoryContext)) {
+            writerMemoryContext.setBytes(writer.getMemoryUsage());
             while (!connectorPageSource.isFinished()) {
                 SourcePage sourcePage = connectorPageSource.getNextSourcePage();
                 if (sourcePage == null) {
@@ -162,6 +164,7 @@ public class CopyOnWriteIcebergMergeSink
                 if (page.getPositionCount() > 0) {
                     writtenRecords = true;
                     writer.appendRows(page);
+                    writerMemoryContext.setBytes(writer.getMemoryUsage());
                 }
             }
             if (!writtenRecords) {
