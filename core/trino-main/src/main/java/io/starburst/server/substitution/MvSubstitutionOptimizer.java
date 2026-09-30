@@ -334,7 +334,7 @@ public class MvSubstitutionOptimizer
 
             Type storageType = metadata.getColumnMetadata(session, storageTableHandle.get(), storageColumnHandle).getType();
             if (!(typeCoercion.canCoerce(symbol.type(), storageType) || (
-            // VARCHAR is not strictly coercible to CHAR, but in this we can safely do it
+            // VARCHAR is not strictly coercible to CHAR, but in this case we can safely do it
             // as the source of the data was CHAR in the first place
                     storageType instanceof VarcharType && symbol.type() instanceof CharType))) {
                 return new SubstitutionAttempt.Rejected(STORAGE_TYPE_NOT_COERCIBLE);
@@ -346,10 +346,13 @@ public class MvSubstitutionOptimizer
                 projections.put(symbol, symbol.toSymbolReference());
             }
             else {
-                // The storage column type can differ from the query column type by a type-only coercion:
-                // e.g. the source table has varchar(10) while the Iceberg storage table has unbounded
-                // varchar. Scan the storage type and cast up to the query type in a projection above the
-                // scan, so the substituted subtree still produces the exact types the rest of the plan expects.
+                // The storage column type can differ from the query column type because the Iceberg storage
+                // table cannot represent every Trino type: varchar(10) is stored as unbounded varchar, and types
+                // such as char(n) or smallint are rewritten to varchar or integer by Iceberg's
+                // AbstractTrinoCatalog.typeForMaterializedViewStorageTable. The matcher rejects with
+                // COLUMN_TYPE_MISMATCH unless the MV read the base column as symbol.type(), so every stored value
+                // originated as that type. Scan the storage type and cast back to symbol.type() in a projection
+                // above the scan; the cast loses nothing that was stored.
                 io.trino.sql.planner.Symbol scanSymbol = context.symbolAllocator().newSymbol(symbol.name(), storageType);
                 outputs.add(scanSymbol);
                 assignments.put(scanSymbol, storageColumnHandle);
