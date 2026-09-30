@@ -109,6 +109,12 @@
         <dependency>
             <groupId>io.starburst.stargate</groupId>
             <artifactId>starburst-authentication</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>io.starburst.stargate</groupId>
+                    <artifactId>starburst-crypto</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
 
         <dependency>
