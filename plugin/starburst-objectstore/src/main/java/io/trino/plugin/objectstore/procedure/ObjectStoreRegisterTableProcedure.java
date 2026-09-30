@@ -47,6 +47,7 @@ import static io.trino.spi.StandardErrorCode.INVALID_PROCEDURE_ARGUMENT;
 import static io.trino.spi.StandardErrorCode.NOT_SUPPORTED;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static java.lang.invoke.MethodHandles.lookup;
+import static java.util.Locale.ENGLISH;
 import static java.util.Objects.requireNonNull;
 
 public final class ObjectStoreRegisterTableProcedure
@@ -64,10 +65,20 @@ public final class ObjectStoreRegisterTableProcedure
     private static final String TABLE_LOCATION = "TABLE_LOCATION";
     private static final String METADATA_FILE_NAME = "METADATA_FILE_NAME";
     private static final String METADATA_LOCATION = "METADATA_LOCATION";
+    private static final String TYPE = "TYPE";
 
     static {
         try {
-            REGISTER_TABLE = lookup().unreflect(ObjectStoreRegisterTableProcedure.class.getMethod("registerTable", ConnectorAccessControl.class, ConnectorSession.class, String.class, String.class, String.class, String.class, String.class));
+            REGISTER_TABLE = lookup().unreflect(ObjectStoreRegisterTableProcedure.class.getMethod(
+                    "registerTable",
+                    ConnectorAccessControl.class,
+                    ConnectorSession.class,
+                    String.class,
+                    String.class,
+                    String.class,
+                    String.class,
+                    String.class,
+                    String.class));
         }
         catch (ReflectiveOperationException e) {
             throw new TrinoException(GENERIC_INTERNAL_ERROR, e);
@@ -81,6 +92,12 @@ public final class ObjectStoreRegisterTableProcedure
     private final Procedure icebergRegisterTable;
     private final Procedure deltaRegisterTable;
     private final ObjectStoreSessionProperties sessionProperties;
+
+    private enum TableType
+    {
+        ICEBERG,
+        DELTA,
+    }
 
     @Inject
     public ObjectStoreRegisterTableProcedure(
@@ -115,7 +132,8 @@ public final class ObjectStoreRegisterTableProcedure
                         new Argument(TABLE_NAME, VARCHAR),
                         new Argument(TABLE_LOCATION, VARCHAR),
                         new Argument(METADATA_FILE_NAME, VARCHAR, false, null),
-                        new Argument(METADATA_LOCATION, VARCHAR, false, null)),
+                        new Argument(METADATA_LOCATION, VARCHAR, false, null),
+                        new Argument(TYPE, VARCHAR, false, null)),
                 REGISTER_TABLE.bindTo(this));
     }
 
@@ -126,7 +144,8 @@ public final class ObjectStoreRegisterTableProcedure
             String tableName,
             String location,
             String metadataFileName,
-            String metadataLocation)
+            String metadataLocation,
+            String type)
             throws Throwable
     {
         try (ThreadContextClassLoader ignored = new ThreadContextClassLoader(classLoader)) {
@@ -143,25 +162,35 @@ public final class ObjectStoreRegisterTableProcedure
             boolean isHudiTable = exists(fileSystem, tableLocation.appendPath(HUDI_METADATA_FOLDER_NAME));
 
             long possibleTableTypesCount = Stream.of(isIcebergTable, isDeltaLakeTable, isHudiTable).filter(bool -> bool).count();
-            if (possibleTableTypesCount > 1) {
+            if (type == null && possibleTableTypesCount > 1) {
                 throw new TrinoException(NOT_SUPPORTED, "Cannot determine any one of Iceberg, Delta Lake, Hudi table types");
             }
 
-            if (isIcebergTable) {
-                icebergRegisterTable.getMethodHandle().invoke(accessControl, sessionProperties.unwrap(ICEBERG, session), schemaName, tableName, location, metadataFileName, metadataLocation);
-                securityControl.tableCreated(session, schemaName, tableName);
+            TableType tableType;
+            try {
+                tableType = type != null
+                        ? TableType.valueOf(type.toUpperCase(ENGLISH))
+                        : isIcebergTable ? TableType.ICEBERG : isDeltaLakeTable ? TableType.DELTA : null;
             }
-            else if (isDeltaLakeTable) {
-                checkProcedureArgument(metadataFileName == null, "Unsupported metadata_file_name argument for Delta Lake table");
-                checkProcedureArgument(metadataLocation == null, "Unsupported metadata_location argument for Delta Lake table");
-                deltaRegisterTable.getMethodHandle().invoke(accessControl, sessionProperties.unwrap(DELTA, session), schemaName, tableName, location);
-                securityControl.tableCreated(session, schemaName, tableName);
+            catch (IllegalArgumentException _) {
+                throw new TrinoException(INVALID_PROCEDURE_ARGUMENT, "Invalid table type: " + type);
             }
-            else if (isHudiTable) {
-                throw new TrinoException(NOT_SUPPORTED, "Registering Hudi tables is unsupported");
-            }
-            else {
+
+            if (tableType == null) {
                 throw new TrinoException(NOT_SUPPORTED, "Unsupported table type");
+            }
+
+            switch (tableType) {
+                case ICEBERG -> {
+                    icebergRegisterTable.getMethodHandle().invoke(accessControl, sessionProperties.unwrap(ICEBERG, session), schemaName, tableName, location, metadataFileName, metadataLocation);
+                    securityControl.tableCreated(session, schemaName, tableName);
+                }
+                case DELTA -> {
+                    checkProcedureArgument(metadataFileName == null, "Unsupported metadata_file_name argument for Delta Lake table");
+                    checkProcedureArgument(metadataLocation == null, "Unsupported metadata_location argument for Delta Lake table");
+                    deltaRegisterTable.getMethodHandle().invoke(accessControl, sessionProperties.unwrap(DELTA, session), schemaName, tableName, location);
+                    securityControl.tableCreated(session, schemaName, tableName);
+                }
             }
         }
     }

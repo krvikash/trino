@@ -680,6 +680,69 @@ public abstract class BaseObjectStoreDeltaConnectorTest
         }
     }
 
+    @Test
+    public void testRegisterTableProcedureTableType()
+    {
+        String tableName = "test_register_table_table_type_" + randomNameSuffix();
+
+        assertUpdate("CREATE TABLE " + tableName + " AS SELECT 1 x", 1);
+
+        String tableLocation = getTableLocation(tableName);
+        dropTableFromMetastore("tpch", tableName);
+
+        assertUpdate("CALL system.register_table(schema_name=>CURRENT_SCHEMA, table_name=>'%s', table_location=>'%s', type=>'delta')".formatted(tableName, tableLocation));
+
+        assertQuery("SELECT * FROM " + tableName, "VALUES 1");
+
+        assertUpdate("DROP TABLE " + tableName);
+    }
+
+    @Test
+    public void testRegisterTableProcedureTableTypeResolvesAmbiguity()
+    {
+        String tableName = "test_register_table_table_type_ambiguous_" + randomNameSuffix();
+
+        assertUpdate("CREATE TABLE " + tableName + " AS SELECT 1 x", 1);
+
+        String tableLocation = getTableLocation(tableName);
+        dropTableFromMetastore("tpch", tableName);
+
+        // Make the location ambiguous by also planting an Iceberg metadata folder next to the real Delta Lake transaction log
+        String tableLocationKey = tableLocation.substring(minio.getS3Url().length() + 1);
+        minio.putObject(tableLocationKey + "/metadata/dummy_metadata.json", "dummy");
+
+        assertQueryFails(
+                "CALL system.register_table(schema_name=>CURRENT_SCHEMA, table_name=>'%s', table_location=>'%s')".formatted(tableName, tableLocation),
+                "Cannot determine any one of Iceberg, Delta Lake, Hudi table types");
+        assertUpdate("CALL system.register_table(schema_name=>CURRENT_SCHEMA, table_name=>'%s', table_location=>'%s', type=>'delta')".formatted(tableName, tableLocation));
+
+        assertQuery("SELECT * FROM " + tableName, "VALUES 1");
+
+        assertUpdate("DROP TABLE " + tableName);
+    }
+
+    @Test
+    public void testRegisterTableProcedureTableTypeDeltaLakeSpecificArgument()
+    {
+        String tableName = "test_register_table_table_type_delta_specific_argument_" + randomNameSuffix();
+
+        assertUpdate("CREATE TABLE " + tableName + " AS SELECT 1 x", 1);
+
+        String tableLocation = getTableLocation(tableName);
+        dropTableFromMetastore("tpch", tableName);
+
+        assertQueryFails(
+                "CALL system.register_table(schema_name=>CURRENT_SCHEMA, table_name=>'%s', table_location=>'%s', type=>'delta', metadata_file_name=>'dummy metadata_file_name argument')".formatted(tableName, tableLocation),
+                "Unsupported metadata_file_name argument.*");
+        assertQueryFails(
+                "CALL system.register_table(schema_name=>CURRENT_SCHEMA, table_name=>'%s', table_location=>'%s', type=>'delta', metadata_location=>'%s')".formatted(tableName, tableLocation, tableLocation + "/metadata"),
+                "Unsupported metadata_location argument.*");
+        assertQueryFails("SELECT * FROM " + tableName, ".*Table '.*' does not exist");
+
+        assertUpdate("CALL system.register_table(schema_name=>CURRENT_SCHEMA, table_name=>'%s', table_location=>'%s', type=>'delta')".formatted(tableName, tableLocation));
+        assertUpdate("DROP TABLE " + tableName);
+    }
+
     @Override
     protected Session withoutSmallFileThreshold(Session session)
     {

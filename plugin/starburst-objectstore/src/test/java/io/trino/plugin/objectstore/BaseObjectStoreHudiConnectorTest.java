@@ -413,7 +413,7 @@ public abstract class BaseObjectStoreHudiConnectorTest
         String tableLocation = getTableLocation("region");
         assertQueryFails(
                 "CALL system.register_table (CURRENT_SCHEMA, '" + ("test_register_table_" + randomNameSuffix()) + "', '" + tableLocation + "')",
-                "Registering Hudi tables is unsupported");
+                "Unsupported table type");
     }
 
     @Test

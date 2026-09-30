@@ -702,6 +702,82 @@ public abstract class BaseObjectStoreIcebergConnectorTest
         assertUpdate("DROP TABLE " + tableName);
     }
 
+    @Test
+    public void testRegisterTableProcedureTableType()
+    {
+        String tableName = "test_register_table_table_type_" + randomNameSuffix();
+
+        assertUpdate("CREATE TABLE " + tableName + " AS SELECT 1 x", 1);
+
+        String tableLocation = getTableLocation(tableName);
+        dropTableFromMetastore("tpch", tableName);
+
+        assertUpdate("CALL system.flush_metadata_cache(SCHEMA_NAME => CURRENT_SCHEMA, TABLE_NAME => '" + tableName + "')");
+
+        assertQueryFails("SELECT * FROM " + tableName, ".*Table '.*' does not exist");
+
+        assertUpdate("CALL system.register_table(schema_name=>CURRENT_SCHEMA, table_name=>'%s', table_location=>'%s', type=>'iceberg')".formatted(tableName, tableLocation));
+
+        assertQuery("SELECT * FROM " + tableName, "VALUES 1");
+
+        assertUpdate("DROP TABLE " + tableName);
+    }
+
+    @Test
+    public void testRegisterTableProcedureTableTypeLowerCase()
+    {
+        String tableName = "test_register_table_type_lower_" + randomNameSuffix();
+        assertUpdate("CREATE TABLE " + tableName + " AS SELECT 1 x", 1);
+
+        String tableLocation = getTableLocation(tableName);
+        dropTableFromMetastore("tpch", tableName);
+        assertUpdate("CALL system.register_table(schema_name=>CURRENT_SCHEMA, table_name=>'%s', table_location=>'%s', type=>'iceberg')".formatted(tableName, tableLocation));
+
+        assertQuery("SELECT * FROM " + tableName, "VALUES 1");
+
+        assertUpdate("DROP TABLE " + tableName);
+    }
+
+    @Test
+    public void testRegisterTableProcedureTableTypeResolvesAmbiguity()
+    {
+        String tableName = "test_register_table_table_type_ambiguous_" + randomNameSuffix();
+        assertUpdate("CREATE TABLE " + tableName + " AS SELECT 1 x", 1);
+
+        String tableLocation = getTableLocation(tableName);
+        dropTableFromMetastore("tpch", tableName);
+
+        // Make the location ambiguous by also planting a Delta Lake transaction log next to the Iceberg metadata
+        String tableLocationKey = tableLocation.substring(minio.getS3Url().length() + 1);
+        minio.putObject(tableLocationKey + "/_delta_log/dummy_transaction.json", "dummy");
+
+        assertQueryFails(
+                "CALL system.register_table(schema_name=>CURRENT_SCHEMA, table_name=>'%s', table_location=>'%s')".formatted(tableName, tableLocation),
+                "Cannot determine any one of Iceberg, Delta Lake, Hudi table types");
+        assertUpdate("CALL system.register_table(schema_name=>CURRENT_SCHEMA, table_name=>'%s', table_location=>'%s', type=>'iceberg')".formatted(tableName, tableLocation));
+
+        assertQuery("SELECT * FROM " + tableName, "VALUES 1");
+
+        assertUpdate("DROP TABLE " + tableName);
+    }
+
+    @Test
+    public void testRegisterTableProcedureInvalidTableType()
+    {
+        String tableName = "test_register_table_invalid_table_type_" + randomNameSuffix();
+        assertUpdate("CREATE TABLE " + tableName + " AS SELECT 1 x", 1);
+
+        String tableLocation = getTableLocation(tableName);
+        dropTableFromMetastore("tpch", tableName);
+
+        assertQueryFails(
+                "CALL system.register_table(schema_name=>CURRENT_SCHEMA, table_name=>'%s', table_location=>'%s', type=>'AVRO')".formatted(tableName, tableLocation),
+                "Invalid table type: AVRO");
+
+        assertUpdate("CALL system.register_table(schema_name=>CURRENT_SCHEMA, table_name=>'%s', table_location=>'%s')".formatted(tableName, tableLocation));
+        assertUpdate("DROP TABLE " + tableName);
+    }
+
     @Override
     protected Session withoutSmallFileThreshold(Session session)
     {
