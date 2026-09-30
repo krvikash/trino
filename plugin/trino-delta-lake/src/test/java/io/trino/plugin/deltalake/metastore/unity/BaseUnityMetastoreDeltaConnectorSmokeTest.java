@@ -502,6 +502,14 @@ abstract class BaseUnityMetastoreDeltaConnectorSmokeTest
 
     @Override
     @Test
+    @Flaky(issue = "https://starburstdata.atlassian.net/browse/ENG-28241", match = "listTables call failed with: 429")
+    public void testSelectInformationSchemaTables()
+    {
+        super.testSelectInformationSchemaTables();
+    }
+
+    @Override
+    @Test
     public void testShowCreateTable()
     {
         assertThat((String) computeScalar("SHOW CREATE TABLE region"))
