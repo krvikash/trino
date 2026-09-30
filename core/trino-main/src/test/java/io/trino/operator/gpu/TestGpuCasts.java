@@ -394,7 +394,17 @@ public class TestGpuCasts
         String[] smallintFinitelyOutOfRange = {"DOUBLE '32768.0'", "DOUBLE '-32769.0'", "DOUBLE '32767.5'", "DOUBLE '-32768.5'", "DOUBLE '1.0E7'"};
         String[] integerInRange = {"DOUBLE '-1.0'", "DOUBLE '1.0'", "DOUBLE '-2147483648.0'", "DOUBLE '2147483647.0'", "CAST(NULL AS DOUBLE)"};
         String[] integerFinitelyOutOfRange = {"DOUBLE '2147483648.0'", "DOUBLE '-2147483649.0'", "DOUBLE '1.0E20'"};
-        String[] bigintInRange = {"DOUBLE '-1.0'", "DOUBLE '1.0'", "CAST(NULL AS DOUBLE)"};
+        String[] bigintInRange = {
+                "DOUBLE '-1.0'",
+                "DOUBLE '1.0'",
+                "DOUBLE '2.5'",
+                "DOUBLE '-2.5'",
+                "DOUBLE '0.49999999999999994'",
+                "DOUBLE '-0.49999999999999994'",
+                "DOUBLE '4503599627370497.0'",
+                "DOUBLE '-4503599627370497.0'",
+                "CAST(NULL AS DOUBLE)",
+        };
         String[] bigintFinitelyOutOfRange = {"DOUBLE '1.0E20'", "DOUBLE '-1.0E20'", "DOUBLE '1.7976931348623157E308'"};
         String[] nonFiniteAnyTarget = {"DOUBLE 'NaN'", "DOUBLE 'Infinity'", "DOUBLE '-Infinity'"};
 

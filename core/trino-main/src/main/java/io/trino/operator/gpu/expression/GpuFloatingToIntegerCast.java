@@ -26,14 +26,15 @@ import io.trino.spi.gpu.borrow.Move;
 import java.util.List;
 import java.util.Objects;
 
-import static ai.rapids.cudf.BinaryOp.ADD;
 import static ai.rapids.cudf.BinaryOp.GREATER;
 import static ai.rapids.cudf.BinaryOp.LESS;
 import static ai.rapids.cudf.BinaryOp.NULL_LOGICAL_AND;
+import static io.trino.operator.gpu.expression.CudfUtils.Ties.AWAY_FROM_ZERO;
 import static io.trino.operator.gpu.expression.CudfUtils.anyTrue;
 import static io.trino.operator.gpu.expression.CudfUtils.floatingScalar;
 import static io.trino.operator.gpu.expression.CudfUtils.maxValue;
 import static io.trino.operator.gpu.expression.CudfUtils.minValue;
+import static io.trino.operator.gpu.expression.CudfUtils.roundToIntegral;
 import static io.trino.operator.gpu.expression.GpuExpressions.nullSkippingCheck;
 import static io.trino.spi.StandardErrorCode.INVALID_CAST_ARGUMENT;
 import static java.lang.String.format;
@@ -146,21 +147,12 @@ public final class GpuFloatingToIntegerCast
                     }
                 }
             }
-            // Round half-away-from-zero: trunc(x + sign(x) * 0.5), matching CPU's MathFunctions.round(double).
-            // The rounding arithmetic is always performed in FLOAT64 to match CPU semantics and to avoid
-            // precision loss for FLOAT32 inputs (e.g. float32 9999999.0f + 0.5f = 10000000.0f).
+            // The CPU rounds a REAL widened to DOUBLE, which holds every REAL exactly
             try (ClosingOnce<ColumnVector> wideSource = ClosingOnce.own(source.borrow().castTo(DType.FLOAT64))) {
                 source.close();
-                try (Scalar zero = floatingScalar(DType.FLOAT64, 0.0);
-                        Scalar halfStepTowardNegativeInfinity = floatingScalar(DType.FLOAT64, -0.5);
-                        Scalar halfStepTowardPositiveInfinity = floatingScalar(DType.FLOAT64, 0.5);
-                        ClosingOnce<ColumnVector> negativeMask = ClosingOnce.own(wideSource.borrow().binaryOp(LESS, zero, DType.BOOL8));
-                        ClosingOnce<ColumnVector> halfStepAwayFromZero = ClosingOnce.own(negativeMask.borrow().ifElse(halfStepTowardNegativeInfinity, halfStepTowardPositiveInfinity));
-                        ColumnVector shifted = wideSource.borrow().binaryOp(ADD, halfStepAwayFromZero.borrow(), DType.FLOAT64)) {
+                try (ColumnVector rounded = roundToIntegral(wideSource.borrow(), AWAY_FROM_ZERO)) {
                     wideSource.close();
-                    negativeMask.close();
-                    halfStepAwayFromZero.close();
-                    return shifted.castTo(targetDType);
+                    return rounded.castTo(targetDType);
                 }
             }
         }

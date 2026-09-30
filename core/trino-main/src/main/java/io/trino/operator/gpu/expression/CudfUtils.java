@@ -32,8 +32,11 @@ import static ai.rapids.cudf.BinaryOp.GREATER_EQUAL;
 import static ai.rapids.cudf.BinaryOp.LESS;
 import static ai.rapids.cudf.BinaryOp.LESS_EQUAL;
 import static ai.rapids.cudf.BinaryOp.MOD;
+import static ai.rapids.cudf.BinaryOp.MUL;
 import static ai.rapids.cudf.BinaryOp.NULL_LOGICAL_AND;
 import static ai.rapids.cudf.BinaryOp.NULL_LOGICAL_OR;
+import static ai.rapids.cudf.BinaryOp.SUB;
+import static com.google.common.base.Preconditions.checkArgument;
 import static io.trino.spi.StandardErrorCode.DIVISION_BY_ZERO;
 import static io.trino.spi.StandardErrorCode.NOT_SUPPORTED;
 import static io.trino.spi.StandardErrorCode.NUMERIC_VALUE_OUT_OF_RANGE;
@@ -104,6 +107,51 @@ final class CudfUtils
             case INT64 -> Long.MAX_VALUE;
             default -> throw new IllegalArgumentException("Unsupported integer DType: " + integerDType);
         };
+    }
+
+    enum Ties
+    {
+        /// `RoundingMode.HALF_UP`, as in `DoubleMath.roundToLong(value, HALF_UP)`
+        AWAY_FROM_ZERO,
+        /// `Math.round`
+        TOWARD_POSITIVE_INFINITY,
+    }
+
+    /// Rounds a FLOAT64 column to the nearest integral value, breaking ties as `ties` says. NaN and
+    /// the infinities come back unchanged.
+    ///
+    static @Move ColumnVector roundToIntegral(@Borrow ColumnVector value, Ties ties)
+    {
+        checkArgument(value.getType().equals(DType.FLOAT64), "Expected FLOAT64, got %s", value.getType());
+        try (Scalar zero = Scalar.fromDouble(0.0);
+                ColumnVector negative = value.binaryOp(LESS, zero, DType.BOOL8);
+                ColumnVector magnitude = value.abs();
+                ColumnVector floor = magnitude.floor();
+                ColumnVector fraction = magnitude.binaryOp(SUB, floor, DType.FLOAT64);
+                ColumnVector roundsUp = roundsUp(fraction, negative, ties);
+                Scalar one = Scalar.fromDouble(1.0);
+                ColumnVector floorPlusOne = floor.binaryOp(ADD, one, DType.FLOAT64);
+                ColumnVector roundedMagnitude = roundsUp.ifElse(floorPlusOne, floor);
+                Scalar minusOne = Scalar.fromDouble(-1.0);
+                ColumnVector negated = roundedMagnitude.binaryOp(MUL, minusOne, DType.FLOAT64)) {
+            return negative.ifElse(negated, roundedMagnitude);
+        }
+    }
+
+    private static @Move ColumnVector roundsUp(@Borrow ColumnVector fraction, @Borrow ColumnVector negative, Ties ties)
+    {
+        try (Scalar half = Scalar.fromDouble(0.5)) {
+            return switch (ties) {
+                case AWAY_FROM_ZERO -> fraction.binaryOp(GREATER_EQUAL, half, DType.BOOL8);
+                // Below zero, rounding the magnitude up moves away from positive infinity, so a tie keeps the floor
+                case TOWARD_POSITIVE_INFINITY -> {
+                    try (ColumnVector aboveHalf = fraction.binaryOp(GREATER, half, DType.BOOL8);
+                            ColumnVector atLeastHalf = fraction.binaryOp(GREATER_EQUAL, half, DType.BOOL8)) {
+                        yield negative.ifElse(aboveHalf, atLeastHalf);
+                    }
+                }
+            };
+        }
     }
 
     static boolean anyTrue(@Borrow ColumnVector boolColumn)
