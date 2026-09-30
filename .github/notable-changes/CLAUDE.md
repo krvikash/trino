@@ -93,28 +93,28 @@ found and fixed. That fix is NOT NOTABLE — the affected functionality never re
 because it was never in a released version.
 
 **How to determine "not yet publicly released":**
-- Check whether the affected code/feature has ever existed in *any* prior public release, not just
-  the most recent one — absence from the latest `release-**` branch/tag alone doesn't prove the
-  functionality never shipped, since an older release could have included it before it was later
-  removed or refactored. Checking whether the introducing commit is reachable from any prior
-  release tag/branch (e.g. `git tag --contains <introducing-commit>` or `git log <older-release-tag>..<newer-release-tag> -- <path>`
-  across the relevant release history) is a **positive signal only**: if the introducing commit
-  *is* reachable from a released tag/branch, the feature has shipped. Its *absence* does **not**
-  prove the feature never shipped — a release backport can carry the same logical change under a
-  different commit SHA (e.g. a cherry-pick onto a release branch), so the original introducing
-  commit can be unreachable even though the feature is present in a release. When the introducing
-  commit isn't reachable from any released tag/branch, also check the release content itself before
-  concluding the feature is unreleased: whether the behavior is present when checking a released
-  version's code, the CHANGELOG/release notes for the feature by name, and whether a backport or
-  cherry-pick PR targeting a release branch exists.
-- Check the associated JIRA ticket/epic for a "Fix Version(s)"/"released in version X" field
-  (checking its full fix-version history, not just the latest entry), or for release notes already
-  published for the feature.
-- If no release tooling is readily available from the PR context, use judgment from what's given
-  (linked JIRA, file history, PR timestamps relative to the last release) rather than requiring
-  exact tooling.
-- When it's genuinely unclear whether the functionality has shipped, default to the normal
-  classification rules (don't assume unreleased).
+- **Cork's own `release-**` branches/tags are not a reliable signal for this — do not use git-tag/
+  branch reachability against them.** They are stale artifacts of an old process, not a live record
+  of what shipped in SEP or Galaxy: e.g. `release-435-e`'s tip commit is literally titled "Move
+  release-435-e to starburst-enterprise-trino repo" (2024-04-03), and `release-434-e`, `release-438-e`,
+  `release-439-e`, `release-443-e` all stopped advancing in early 2024, years behind current cork
+  development. A commit being unreachable from these refs proves nothing about whether the
+  corresponding feature shipped. (Reliably tracking this would mean, for SEP, mapping
+  starburst-enterprise-trino version tags to starburst-enterprise release branches, and for Galaxy,
+  mapping galaxy-trino to stargate branches — cross-repo checks with no unified tooling today; treat
+  this as an open problem, not something to approximate with cork's local refs.)
+- Primary, practical signals — use these instead:
+  - The associated JIRA ticket/epic's "Fix Version(s)"/"released in version X" field (check its full
+    fix-version history, not just the latest entry), or release notes already published for the
+    feature.
+  - The CHANGELOG/release notes for the feature by name, in any released version.
+- If neither signal is available or conclusive from the PR context, use judgment from what's given
+  (linked JIRA, file history, PR timestamps relative to the last known release) rather than
+  requiring exact tooling.
+- **When it's genuinely unclear whether the functionality has shipped, default to the normal
+  classification rules (don't assume unreleased).** Given that cork has no reliable, unified way to
+  answer this across SEP and Galaxy, expect this fallback to apply often — treat it as the common
+  outcome, not a last resort, whenever JIRA fix-versions and release notes don't settle the question.
 
 **Boundary case — once functionality HAS shipped, this exclusion no longer applies.** If the
 affected functionality shipped in *any* prior public release — even if it is config-gated,
