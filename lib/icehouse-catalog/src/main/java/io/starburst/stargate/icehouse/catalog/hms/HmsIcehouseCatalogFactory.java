@@ -18,6 +18,7 @@ import io.opentelemetry.api.trace.Tracer;
 import io.starburst.stargate.icehouse.catalog.CommonIcebergCatalogType;
 import io.starburst.stargate.icehouse.catalog.IcehouseCatalog;
 import io.starburst.stargate.icehouse.catalog.IcehouseCatalogFactory;
+import io.starburst.stargate.icehouse.spi.catalog.IcebergCatalogType;
 import io.starburst.stargate.icehouse.spi.maintenance.PlaintextTrinoProperties;
 import io.starburst.stargate.id.AccountId;
 import io.starburst.stargate.id.CatalogId;
@@ -47,7 +48,7 @@ public final class HmsIcehouseCatalogFactory
     }
 
     @Override
-    public CommonIcebergCatalogType kind()
+    public IcebergCatalogType kind()
     {
         return CommonIcebergCatalogType.HIVE_METASTORE;
     }

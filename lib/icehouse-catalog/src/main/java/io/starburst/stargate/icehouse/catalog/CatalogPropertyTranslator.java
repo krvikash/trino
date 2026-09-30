@@ -13,6 +13,7 @@
  */
 package io.starburst.stargate.icehouse.catalog;
 
+import io.starburst.stargate.icehouse.spi.catalog.IcebergCatalogType;
 import io.starburst.stargate.icehouse.spi.maintenance.PlaintextTrinoProperties;
 import io.starburst.stargate.id.AccountId;
 
@@ -21,11 +22,11 @@ import java.util.Map;
 /**
  * Translates Galaxy's unsealed catalog attributes into the Trino property map
  * the backend's catalog client expects. One implementation per
- * {@link CommonIcebergCatalogType}, registered via Guice multibinder.
+ * {@link IcebergCatalogType}, registered via Guice multibinder.
  */
 public interface CatalogPropertyTranslator
 {
-    CommonIcebergCatalogType kind();
+    IcebergCatalogType kind();
 
     PlaintextTrinoProperties translate(AccountId accountId, Map<String, String> unsealedAttributes);
 }

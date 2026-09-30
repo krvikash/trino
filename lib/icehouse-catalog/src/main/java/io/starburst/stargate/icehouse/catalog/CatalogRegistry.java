@@ -14,12 +14,13 @@
 package io.starburst.stargate.icehouse.catalog;
 
 import com.google.inject.Inject;
+import io.starburst.stargate.icehouse.spi.catalog.IcebergCatalogType;
 
 import java.util.Map;
 import java.util.Set;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.collect.Maps.toImmutableEnumMap;
+import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static java.util.function.Function.identity;
 
 /**
@@ -27,23 +28,23 @@ import static java.util.function.Function.identity;
  */
 public final class CatalogRegistry
 {
-    private final Map<CommonIcebergCatalogType, IcehouseCatalogFactory> factories;
+    private final Map<IcebergCatalogType, IcehouseCatalogFactory> factories;
 
     @Inject
     public CatalogRegistry(Set<IcehouseCatalogFactory> factorySet)
     {
         this.factories = factorySet.stream()
-                .collect(toImmutableEnumMap(IcehouseCatalogFactory::kind, identity()));
+                .collect(toImmutableMap(IcehouseCatalogFactory::kind, identity()));
     }
 
-    public IcehouseCatalogFactory factory(CommonIcebergCatalogType kind)
+    public IcehouseCatalogFactory factory(IcebergCatalogType kind)
     {
         IcehouseCatalogFactory factory = factories.get(kind);
         checkArgument(factory != null, "No factory registered for catalog kind: %s", kind);
         return factory;
     }
 
-    public Set<CommonIcebergCatalogType> registeredKinds()
+    public Set<IcebergCatalogType> registeredKinds()
     {
         return factories.keySet();
     }

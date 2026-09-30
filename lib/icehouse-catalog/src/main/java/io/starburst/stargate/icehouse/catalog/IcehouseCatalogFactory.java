@@ -13,6 +13,7 @@
  */
 package io.starburst.stargate.icehouse.catalog;
 
+import io.starburst.stargate.icehouse.spi.catalog.IcebergCatalogType;
 import io.starburst.stargate.icehouse.spi.maintenance.PlaintextTrinoProperties;
 import io.starburst.stargate.id.AccountId;
 import io.starburst.stargate.id.CatalogId;
@@ -24,7 +25,7 @@ import io.trino.filesystem.TrinoFileSystemFactory;
  */
 public interface IcehouseCatalogFactory
 {
-    CommonIcebergCatalogType kind();
+    IcebergCatalogType kind();
 
     IcehouseCatalog create(
             AccountId accountId,

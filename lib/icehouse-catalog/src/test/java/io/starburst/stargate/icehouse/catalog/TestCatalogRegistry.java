@@ -15,6 +15,7 @@ package io.starburst.stargate.icehouse.catalog;
 
 import com.google.common.collect.ImmutableSet;
 import io.starburst.stargate.icehouse.spi.TableIdentifier;
+import io.starburst.stargate.icehouse.spi.catalog.IcebergCatalogType;
 import io.starburst.stargate.icehouse.spi.maintenance.PlaintextTrinoProperties;
 import io.starburst.stargate.id.AccountId;
 import io.starburst.stargate.id.CatalogId;
@@ -53,15 +54,15 @@ class TestCatalogRegistry
     private static final class StubFactory
             implements IcehouseCatalogFactory
     {
-        private final CommonIcebergCatalogType kind;
+        private final IcebergCatalogType kind;
 
-        StubFactory(CommonIcebergCatalogType kind)
+        StubFactory(IcebergCatalogType kind)
         {
             this.kind = kind;
         }
 
         @Override
-        public CommonIcebergCatalogType kind()
+        public IcebergCatalogType kind()
         {
             return kind;
         }

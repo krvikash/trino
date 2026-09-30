@@ -14,12 +14,13 @@
 package io.starburst.stargate.icehouse.catalog;
 
 import com.google.inject.Inject;
+import io.starburst.stargate.icehouse.spi.catalog.IcebergCatalogType;
 
 import java.util.Map;
 import java.util.Set;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.collect.Maps.toImmutableEnumMap;
+import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static java.util.function.Function.identity;
 
 /**
@@ -27,23 +28,23 @@ import static java.util.function.Function.identity;
  */
 public final class CatalogPropertyTranslatorRegistry
 {
-    private final Map<CommonIcebergCatalogType, CatalogPropertyTranslator> translators;
+    private final Map<IcebergCatalogType, CatalogPropertyTranslator> translators;
 
     @Inject
     public CatalogPropertyTranslatorRegistry(Set<CatalogPropertyTranslator> translatorSet)
     {
         this.translators = translatorSet.stream()
-                .collect(toImmutableEnumMap(CatalogPropertyTranslator::kind, identity()));
+                .collect(toImmutableMap(CatalogPropertyTranslator::kind, identity()));
     }
 
-    public CatalogPropertyTranslator translator(CommonIcebergCatalogType kind)
+    public CatalogPropertyTranslator translator(IcebergCatalogType kind)
     {
         CatalogPropertyTranslator translator = translators.get(kind);
         checkArgument(translator != null, "No property translator registered for catalog kind: %s", kind);
         return translator;
     }
 
-    public Set<CommonIcebergCatalogType> registeredKinds()
+    public Set<IcebergCatalogType> registeredKinds()
     {
         return translators.keySet();
     }
