@@ -37,6 +37,7 @@ public class RestCatalogConfig
     private Optional<String> warehouse = Optional.empty();
     private Security security = Security.NONE;
     private Optional<String> oauth2Credential = Optional.empty();
+    private Optional<URI> oauth2ServerUri = Optional.empty();
     private Optional<String> oauth2Scope = Optional.empty();
     private Optional<String> signingName = Optional.empty();
     private Optional<String> signingRegion = Optional.empty();
@@ -97,6 +98,19 @@ public class RestCatalogConfig
     public RestCatalogConfig setOauth2Credential(String oauth2Credential)
     {
         this.oauth2Credential = Optional.ofNullable(oauth2Credential);
+        return this;
+    }
+
+    public Optional<URI> getOauth2ServerUri()
+    {
+        return oauth2ServerUri;
+    }
+
+    @Config("iceberg.rest-catalog.oauth2.server-uri")
+    @ConfigDescription("OAuth2 token endpoint, for catalogs whose tokens come from an external identity provider")
+    public RestCatalogConfig setOauth2ServerUri(URI oauth2ServerUri)
+    {
+        this.oauth2ServerUri = Optional.ofNullable(oauth2ServerUri);
         return this;
     }
 

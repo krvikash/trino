@@ -29,6 +29,7 @@ import org.apache.iceberg.CatalogProperties;
 import org.apache.iceberg.rest.HTTPClient;
 import org.apache.iceberg.rest.RESTSessionCatalog;
 import org.apache.iceberg.rest.RESTUtil;
+import org.apache.iceberg.rest.auth.OAuth2Properties;
 
 import java.util.Map;
 
@@ -79,6 +80,7 @@ public final class RestIcehouseCatalogFactory
                         .orElseThrow(() -> new IllegalArgumentException(
                                 "iceberg.rest-catalog.oauth2.credential is required for OAUTH2 security")));
                 config.getOauth2Scope().ifPresent(scope -> properties.put("scope", scope));
+                config.getOauth2ServerUri().ifPresent(uri -> properties.put(OAuth2Properties.OAUTH2_SERVER_URI, uri.toString()));
             }
             case SIGV4 -> {
                 properties.put("rest.auth.type", "sigv4");

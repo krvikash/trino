@@ -34,6 +34,7 @@ public class TestRestCatalogConfig
                 .setWarehouse(null)
                 .setSecurity(Security.NONE)
                 .setOauth2Credential(null)
+                .setOauth2ServerUri(null)
                 .setOauth2Scope(null)
                 .setSigningName(null)
                 .setSigningRegion(null));
@@ -47,6 +48,7 @@ public class TestRestCatalogConfig
                 .put("iceberg.rest-catalog.warehouse", "my-warehouse")
                 .put("iceberg.rest-catalog.security", "OAUTH2")
                 .put("iceberg.rest-catalog.oauth2.credential", "client-id:client-secret")
+                .put("iceberg.rest-catalog.oauth2.server-uri", "https://idp.example.com/oauth2/token")
                 .put("iceberg.rest-catalog.oauth2.scope", "PRINCIPAL_ROLE:ALL")
                 .put("iceberg.rest-catalog.signing-name", "s3tables")
                 .put("iceberg.rest-catalog.signing-region", "us-east-1")
@@ -57,6 +59,7 @@ public class TestRestCatalogConfig
                 .setWarehouse("my-warehouse")
                 .setSecurity(Security.OAUTH2)
                 .setOauth2Credential("client-id:client-secret")
+                .setOauth2ServerUri(URI.create("https://idp.example.com/oauth2/token"))
                 .setOauth2Scope("PRINCIPAL_ROLE:ALL")
                 .setSigningName("s3tables")
                 .setSigningRegion("us-east-1");
