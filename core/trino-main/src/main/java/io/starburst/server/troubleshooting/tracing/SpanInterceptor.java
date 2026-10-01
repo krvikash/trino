@@ -9,10 +9,12 @@
  */
 package io.starburst.server.troubleshooting.tracing;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.inject.Inject;
 import com.google.inject.Provider;
 import io.opentelemetry.sdk.trace.ReadableSpan;
 import io.opentelemetry.sdk.trace.data.SpanData;
+import io.trino.server.ServerConfig;
 import io.trino.spi.QueryId;
 
 import java.io.InputStream;
@@ -27,14 +29,16 @@ import static java.util.Objects.requireNonNull;
 public class SpanInterceptor
 {
     private final Provider<SpanSerializer> spanSerializerProvider;
+    private final boolean coordinator;
     private ConcurrentMap<String, QueryId> queryIdByTraceId = new ConcurrentHashMap<>();
     private ConcurrentMap<QueryId, Set<SpanData>> spansByQueryIds = new ConcurrentHashMap<>();
     private ConcurrentMap<QueryId, QueryId> collectSpansForTheseQueryIds = new ConcurrentHashMap<>();
 
     @Inject
-    public SpanInterceptor(Provider<SpanSerializer> spanSerializerProvider)
+    public SpanInterceptor(Provider<SpanSerializer> spanSerializerProvider, ServerConfig serverConfig)
     {
         this.spanSerializerProvider = requireNonNull(spanSerializerProvider, "spanSerializerProvider is null");
+        this.coordinator = serverConfig.isCoordinator();
     }
 
     public void requestSpanCollect(QueryId queryId)
@@ -44,7 +48,11 @@ public class SpanInterceptor
 
     public void keepTracking(QueryId queryId, String traceId)
     {
-        queryIdByTraceId.put(traceId, queryId);
+        // The coordinator records every query because its query span starts before troubleshooting is requested.
+        // A worker records only requested queries because nothing removes its entries for other queries.
+        if (coordinator || collectSpansForTheseQueryIds.containsKey(queryId)) {
+            queryIdByTraceId.put(traceId, queryId);
+        }
     }
 
     public void saveSpanOnlyIfRequested(ReadableSpan span)
@@ -64,6 +72,18 @@ public class SpanInterceptor
     {
         collectSpansForTheseQueryIds.remove(queryId);
         queryIdByTraceId.entrySet().removeIf(entry -> entry.getValue().equals(queryId));
+    }
+
+    @VisibleForTesting
+    int getTrackedTraceCount()
+    {
+        return queryIdByTraceId.size();
+    }
+
+    @VisibleForTesting
+    Set<SpanData> getCollectedSpans(QueryId queryId)
+    {
+        return spansByQueryIds.getOrDefault(queryId, emptySet());
     }
 
     public InputStream getSpans(QueryId queryId)
