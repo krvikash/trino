@@ -221,28 +221,42 @@ If the CI fails on the Update PR, make relevant fixes, updating the fixup commit
 
 ### Run benchmarks on the Update PR
 
-Run this workflow https://github.com/starburstdata/benchmarks-gha/actions/workflows/benchmark-pr.yaml on update PR
-using following benchmarks:
-- `iceberg/sf1000_parquet_unpart_c5_series`
-- `iceberg/sf1000_parquet_part_c5_series`
+Benchmarking the update PR is done through **BaaS** (Benchmark-as-a-Service).
+The old `benchmarks-gha` `benchmark-pr.yaml` workflow is no longer used for this.
 
-```shell
-PR_LINK=$(gh pr list -H ${TARGET_BRANCH} --json url --jq '.[].url')
-gh workflow run --repo starburstdata/benchmarks-gha benchmark-pr.yaml -f PrLink=${PR_LINK} -fTestType="iceberg/sf1000_parquet_unpart_c5_series" -fUseOnDemandNodes=true
-gh workflow run --repo starburstdata/benchmarks-gha benchmark-pr.yaml -f PrLink=${PR_LINK} -fTestType="iceberg/sf1000_parquet_part_c5_series" -fUseOnDemandNodes=true
-```
+1. Open the **PR Benchmarks** page: https://baas.in.starburst.io/pr-benchmarks
+   (every action below - adding the PR, adding configs, running, and posting - requires the
+   `baas-admin` Cloudflare Access group; without it you can still view existing entries).
+2. Click **Add PR**, pick repository `starburstdata/cork` from the dropdown, enter the update PR
+   number, and submit. This adds a tracked entry but doesn't start anything yet.
+3. Expand the new row and click **Add default configs** to attach cork's current default benchmark
+   config set. The default set is admin-managed (edit it via the **PR Benchmark Defaults** button
+   on this same page) and can change over time, so use this button rather than hardcoding specific
+   benchmark/test-type names here.
+4. Click **Run New Configs** (dispatches every config entry that hasn't run yet) or **Run All**
+   (re-runs or starts every entry that isn't currently in flight) and confirm the cost-warning
+   dialog. BaaS resolves `refs/pull/<n>/head` fresh at dispatch time, so re-running after a
+   force-push to the PR always benchmarks the latest commit - no need to recompute a PR link
+   manually.
+5. Wait for the run(s) to finish. The row shows live status plus two columns once each run
+   completes:
+   - **Baseline comparison** - a one-to-one check against a baseline run at the exact commit where
+     the PR branched from `master` (the merge-base commit). BaaS reuses an existing matching-config
+     run at that commit if one exists, or provisions a fresh one on the spot if not. This is the
+     main "is this a regression" signal.
+   - **Trend** - an independent second check against the recurring schedule's own historical
+     regime for that config (many past scheduled runs, not just one baseline), anchored at the
+     commit the PR branched from. Catches a regression even if the single baseline run above
+     happened to be noisy or atypical.
+6. Click **Post to PR** to post a single sticky comment to the GitHub PR with a
+   `Config | Commit | Result | Trend` table. Each `Config` cell links straight into BaaS's own
+   comparison page for that config, with the regression verdict already computed, so you can open
+   it for the full per-query breakdown instead of eyeballing variance in a separate dashboard; each
+   `Commit` cell links the short SHA to the exact GitHub commit that was benchmarked.
 
-Above workflow on completion will add a comment to the PR with status of benchmark run, and a link to Tableau
-dashboard comparing results to the closest run of same config from the master branch. Tableau dashboard will
-have 2 tabs:
-
-1. `Sum` - Here make sure that new results are lower, keep in mind variance in results should be <5%.
-2. `Per Query` - Here queries are be sorted from the biggest difference to the baseline. Make sure that the
-   biggest difference are in favor of update, or they are lower than 3 seconds and rapidly going down in next
-   queries.
-
-We can say that there is no regression if both above points are satisfied.
-Slight regression would most likely present as a more than 5 sec increase in one (or more) of the queries.
+We can say there is no regression if the Result/Trend verdict is ✅ (`NO_SIGNIFICANT_CHANGE`,
+`IMPROVEMENT`, or `MINOR_IMPROVEMENT`). A ⚠️ (`MINOR_REGRESSION` / `INSUFFICIENT_DATA`) or ❌
+(`REGRESSION`) verdict needs investigation before merging the update.
 
 ### Check OSS release notes
 
