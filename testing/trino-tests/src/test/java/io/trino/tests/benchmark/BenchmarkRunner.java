@@ -267,6 +267,10 @@ public final class BenchmarkRunner
         command.add(minHeapFlag);
         command.add(maxHeapFlag);
         command.addAll(readJvmConfig());
+        // Galaxy and the SEP Helm chart enable this flag, which only Linux JVMs accept
+        if (System.getProperty("os.name").equals("Linux")) {
+            command.add("-XX:+UseTransparentHugePages");
+        }
         command.add("-D" + LAUNCHED_MARKER + "=true");
         command.add("-cp");
         command.add(System.getProperty("java.class.path"));
