@@ -502,7 +502,7 @@ abstract class BaseUnityMetastoreDeltaConnectorSmokeTest
 
     @Override
     @Test
-    @Flaky(issue = "https://starburstdata.atlassian.net/browse/ENG-28241", match = "listTables call failed with: 429")
+    @Flaky(issue = "https://starburstdata.atlassian.net/browse/ENG-28241", match = "listTables call failed with: (429|503)")
     public void testSelectInformationSchemaTables()
     {
         super.testSelectInformationSchemaTables();
