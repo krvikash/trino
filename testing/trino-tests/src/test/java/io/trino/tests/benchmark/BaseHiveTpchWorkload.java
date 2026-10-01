@@ -115,6 +115,7 @@ public abstract class BaseHiveTpchWorkload
             String dataLocation,
             BenchmarkRunner.ExecutionMode mode,
             boolean bind8080,
+            Map<String, String> serverProperties,
             Optional<Path> fsCacheDirectory,
             Optional<Path> warpIndexDirectory)
             throws Exception
@@ -135,7 +136,7 @@ public abstract class BaseHiveTpchWorkload
 
         builder.setWorkerCount(0);
         builder.setBaseDataDir(Optional.of(metastoreDir));
-        BenchmarkRunner.configureQueryRunner(builder, mode, bind8080);
+        BenchmarkRunner.configureQueryRunner(builder, mode, bind8080, serverProperties);
 
         DistributedQueryRunner runner = builder.build();
 

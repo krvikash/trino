@@ -366,6 +366,9 @@ public final class BenchmarkRunner
         @Option(names = "--warp-index", description = "Directory backing a Warp Speed local store. Queries run through the warp_speed connector proxying the workload's own connector, warp indexes the columns they read, and the filesystem cache is enabled.")
         String warpIndexDirectory;
 
+        @Option(names = "--engine-config", description = "An engine config property as key=value, overriding the harness default (can be repeated)")
+        Map<String, String> serverProperties = new LinkedHashMap<>();
+
         @Option(names = "--debug", description = "Enable debug logging")
         boolean debug;
 
@@ -478,6 +481,7 @@ public final class BenchmarkRunner
                     data,
                     mode,
                     /*bind8080*/ false,
+                    serverProperties,
                     fsCache,
                     warpIndex);
                     ListeningExecutorService executor = concurrency == 1 ? newDirectExecutorService() : listeningDecorator(newFixedThreadPool(concurrency))) {
@@ -842,6 +846,9 @@ public final class BenchmarkRunner
                 description = "Execution backend: ${COMPLETION-CANDIDATES}. Default: ${DEFAULT-VALUE}.")
         ExecutionMode mode = ExecutionMode.CPU;
 
+        @Option(names = "--engine-config", description = "An engine config property as key=value, overriding the harness default (can be repeated)")
+        Map<String, String> serverProperties = new LinkedHashMap<>();
+
         QueryRunnerCommand(Launcher launcher, Workload workload)
         {
             this.launcher = requireNonNull(launcher, "launcher is null");
@@ -860,7 +867,7 @@ public final class BenchmarkRunner
             enableDebugLogging();
             String data = canonicalize(workload.defaultDataLocation());
             workload.validateDataLocation(data);
-            try (DistributedQueryRunner queryRunner = workload.createRunner(data, mode, /*bind8080*/ true, Optional.empty(), Optional.empty())) {
+            try (DistributedQueryRunner queryRunner = workload.createRunner(data, mode, /*bind8080*/ true, serverProperties, Optional.empty(), Optional.empty())) {
                 log.info("======== SERVER STARTED (%s) ========", mode);
                 log.info("\n====\n%s\n====", queryRunner.getCoordinator().getBaseUrl());
                 verifyTableStatistics(queryRunner, workload);
@@ -942,7 +949,7 @@ public final class BenchmarkRunner
             if (dataLocation == null) {
                 workload.validateDataLocation(data);
             }
-            try (DistributedQueryRunner runner = workload.createRunner(data, ExecutionMode.CPU, /*bind8080*/ false, Optional.empty(), Optional.empty())) {
+            try (DistributedQueryRunner runner = workload.createRunner(data, ExecutionMode.CPU, /*bind8080*/ false, ImmutableMap.of(), Optional.empty(), Optional.empty())) {
                 if (dataLocation != null) {
                     workload.verifyDataset(runner);
                 }
@@ -1476,10 +1483,7 @@ public final class BenchmarkRunner
         }
     }
 
-    /**
-     * Apply connector-agnostic extras (resource sizing, GPU acceleration toggles, single-node, etc.).
-     */
-    public static void configureQueryRunner(DistributedQueryRunner.Builder<?> builder, ExecutionMode mode, boolean bind8080)
+    public static void configureQueryRunner(DistributedQueryRunner.Builder<?> builder, ExecutionMode mode, boolean bind8080, Map<String, String> serverProperties)
     {
         // TestingTrinoServer sets both task.concurrency and task.max-worker-threads to 4.
         // Here, we override them with the default values, which are determined based on the hardware
@@ -1487,24 +1491,28 @@ public final class BenchmarkRunner
         TaskManagerConfig taskManagerDefaults = new TaskManagerConfig();
         int taskConcurrency = taskManagerDefaults.getTaskConcurrency();
         int maxWorkerThreads = taskManagerDefaults.getMaxWorkerThreads();
-        builder.addExtraProperty("task.concurrency", Integer.toString(taskConcurrency));
-        builder.addExtraProperty("task.max-worker-threads", Integer.toString(maxWorkerThreads));
-        builder.addExtraProperty("query.max-memory-per-node", "80%");
-        builder.addExtraProperty("query.max-memory", "1TB");
-        builder.addExtraProperty("memory.heap-headroom-per-node", "20%");
-        builder.addExtraProperty("experimental.force-single-node-query", "true");
+        Map<String, String> properties = new LinkedHashMap<>();
+        properties.put("task.concurrency", Integer.toString(taskConcurrency));
+        properties.put("task.max-worker-threads", Integer.toString(maxWorkerThreads));
+        properties.put("query.max-memory-per-node", "80%");
+        properties.put("query.max-memory", "1TB");
+        properties.put("memory.heap-headroom-per-node", "20%");
+        properties.put("experimental.force-single-node-query", "true");
         // Restore the default overridden by DistributedQueryRunner.
-        builder.addExtraProperty("join-distribution-type", new OptimizerConfig().getJoinDistributionType().name());
+        properties.put("join-distribution-type", new OptimizerConfig().getJoinDistributionType().name());
         if (bind8080) {
             builder.addCoordinatorProperty("http-server.http.port", "8080");
         }
         switch (mode) {
-            case CPU -> builder
-                    .addExtraProperty("gpu-execution", "false");
-            case GPU -> builder
-                    .addExtraProperty("gpu-execution", "true")
-                    .addExtraProperty("task.gpu-execution.enabled", "true");
+            case CPU -> properties.put("gpu-execution", "false");
+            case GPU -> {
+                properties.put("gpu-execution", "true");
+                properties.put("task.gpu-execution.enabled", "true");
+            }
         }
+        // Engine config properties from the command line override the defaults above.
+        properties.putAll(serverProperties);
+        properties.forEach(builder::addExtraProperty);
     }
 
     // Configures an OS-local filesystem cache for a catalog's remote reads. No-op when the directory is absent.

@@ -106,6 +106,7 @@ public abstract class BaseIcebergTpcdsWorkload
             String dataLocation,
             BenchmarkRunner.ExecutionMode mode,
             boolean bind8080,
+            Map<String, String> serverProperties,
             Optional<Path> fsCacheDirectory,
             Optional<Path> warpIndexDirectory)
             throws Exception
@@ -114,7 +115,7 @@ public abstract class BaseIcebergTpcdsWorkload
             if (warpIndexDirectory.isPresent()) {
                 throw new IllegalArgumentException("--warp-index requires a local --data location for Iceberg benchmarks");
             }
-            return createRunnerForRemoteData(dataLocation, mode, bind8080, fsCacheDirectory);
+            return createRunnerForRemoteData(dataLocation, mode, bind8080, serverProperties, fsCacheDirectory);
         }
         Path minioDataDir = Path.of(dataLocation, "minio-data");
         Files.createDirectories(minioDataDir);
@@ -133,7 +134,7 @@ public abstract class BaseIcebergTpcdsWorkload
         IcebergQueryRunner.Builder builder = IcebergQueryRunner.builder()
                 .setMetastoreDirectory(Path.of(dataLocation).toFile())
                 .registerResource(minio);
-        DistributedQueryRunner runner = buildRunner(builder, icebergProperties, mode, bind8080, fsCacheDirectory);
+        DistributedQueryRunner runner = buildRunner(builder, icebergProperties, mode, bind8080, serverProperties, fsCacheDirectory);
 
         HiveMetastore hiveMetastore = ((IcebergConnector) runner.getCoordinator().getConnector("iceberg")).getInjector()
                 .getInstance(HiveMetastoreFactory.class)
@@ -151,7 +152,7 @@ public abstract class BaseIcebergTpcdsWorkload
     }
 
     // Reads the tables in place from S3 with the default AWS credential chain.
-    private DistributedQueryRunner createRunnerForRemoteData(String dataLocation, BenchmarkRunner.ExecutionMode mode, boolean bind8080, Optional<Path> fsCacheDirectory)
+    private DistributedQueryRunner createRunnerForRemoteData(String dataLocation, BenchmarkRunner.ExecutionMode mode, boolean bind8080, Map<String, String> serverProperties, Optional<Path> fsCacheDirectory)
             throws Exception
     {
         Map<String, String> icebergProperties = new HashMap<>();
@@ -159,7 +160,7 @@ public abstract class BaseIcebergTpcdsWorkload
         IcebergQueryRunner.Builder builder = IcebergQueryRunner.builder()
                 .setMetastoreDirectory(metastoreDirectory.toFile())
                 .registerResource(() -> deleteRecursively(metastoreDirectory, ALLOW_INSECURE));
-        DistributedQueryRunner runner = buildRunner(builder, icebergProperties, mode, bind8080, fsCacheDirectory);
+        DistributedQueryRunner runner = buildRunner(builder, icebergProperties, mode, bind8080, serverProperties, fsCacheDirectory);
 
         TrinoFileSystem fileSystem = ((IcebergConnector) runner.getCoordinator().getConnector("iceberg")).getInjector()
                 .getInstance(TrinoFileSystemFactory.class)
@@ -189,6 +190,7 @@ public abstract class BaseIcebergTpcdsWorkload
             Map<String, String> icebergProperties,
             BenchmarkRunner.ExecutionMode mode,
             boolean bind8080,
+            Map<String, String> serverProperties,
             Optional<Path> fsCacheDirectory)
             throws Exception
     {
@@ -197,7 +199,7 @@ public abstract class BaseIcebergTpcdsWorkload
         builder.setWorkerCount(0)
                 .disableSchemaInitializer()
                 .setTpcdsCatalogEnabled(true);
-        BenchmarkRunner.configureQueryRunner(builder, mode, bind8080);
+        BenchmarkRunner.configureQueryRunner(builder, mode, bind8080, serverProperties);
         BenchmarkRunner.applyFilesystemCache(builder, icebergProperties, fsCacheDirectory);
 
         if (mode == BenchmarkRunner.ExecutionMode.GPU) {

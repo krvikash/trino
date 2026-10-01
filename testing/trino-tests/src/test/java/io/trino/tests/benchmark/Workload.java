@@ -18,6 +18,7 @@ import io.trino.testing.DistributedQueryRunner;
 
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -60,12 +61,13 @@ public interface Workload
      * Build a query runner with all benchmark tables registered, applying mode-specific extras.
      * A warp index directory adds a warp_speed catalog proxying the workload's own connector;
      * benchmark queries then run against that catalog while setup and ANALYZE stay on the
-     * workload's catalog.
+     * workload's catalog. Engine config properties override the harness defaults.
      */
     DistributedQueryRunner createRunner(
             String dataLocation,
             BenchmarkRunner.ExecutionMode mode,
             boolean bind8080,
+            Map<String, String> serverProperties,
             Optional<Path> fsCacheDirectory,
             Optional<Path> warpIndexDirectory)
             throws Exception;

@@ -142,6 +142,7 @@ public final class BenchmarkIcebergClickBench
                 String dataLocation,
                 BenchmarkRunner.ExecutionMode mode,
                 boolean bind8080,
+                Map<String, String> serverProperties,
                 Optional<Path> fsCacheDirectory,
                 Optional<Path> warpIndexDirectory)
                 throws Exception
@@ -170,7 +171,7 @@ public final class BenchmarkIcebergClickBench
                     .setWorkerCount(0)
                     .disableSchemaInitializer()
                     .registerResource(minio);
-            BenchmarkRunner.configureQueryRunner(builder, mode, bind8080);
+            BenchmarkRunner.configureQueryRunner(builder, mode, bind8080, serverProperties);
             BenchmarkRunner.applyFilesystemCache(builder, icebergProperties, fsCacheDirectory);
 
             if (mode == BenchmarkRunner.ExecutionMode.GPU) {

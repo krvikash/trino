@@ -231,6 +231,7 @@ public final class BenchmarkHiveClickBench
                 String dataLocation,
                 BenchmarkRunner.ExecutionMode mode,
                 boolean bind8080,
+                Map<String, String> serverProperties,
                 Optional<Path> fsCacheDirectory,
                 Optional<Path> warpIndexDirectory)
                 throws Exception
@@ -241,7 +242,7 @@ public final class BenchmarkHiveClickBench
             DistributedQueryRunner.Builder<?> builder = DistributedQueryRunner.builder(testSessionBuilder().build());
 
             builder.setWorkerCount(0); // single-node
-            BenchmarkRunner.configureQueryRunner(builder, mode, bind8080);
+            BenchmarkRunner.configureQueryRunner(builder, mode, bind8080, serverProperties);
 
             DistributedQueryRunner queryRunner = builder.build();
 
