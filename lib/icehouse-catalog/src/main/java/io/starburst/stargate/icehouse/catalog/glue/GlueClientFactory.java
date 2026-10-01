@@ -14,6 +14,7 @@
 package io.starburst.stargate.icehouse.catalog.glue;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.io.Closer;
 import io.trino.plugin.hive.metastore.glue.GlueCatalogIdInterceptor;
 import jakarta.inject.Inject;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
@@ -29,6 +30,7 @@ import software.amazon.awssdk.services.sts.StsClient;
 import software.amazon.awssdk.services.sts.StsClientBuilder;
 import software.amazon.awssdk.services.sts.auth.StsAssumeRoleCredentialsProvider;
 import software.amazon.awssdk.services.sts.auth.StsWebIdentityTokenFileCredentialsProvider;
+import software.amazon.awssdk.utils.SdkAutoCloseable;
 
 import java.time.Duration;
 import java.util.Optional;
@@ -47,12 +49,16 @@ public final class GlueClientFactory
         this.executionInterceptors = requireNonNull(executionInterceptors, "executionInterceptors is null");
     }
 
-    public GlueClient createFromProperties(GlueClientConfig config)
+    /**
+     * The Glue client does not close the STS client or credentials provider created for it,
+     * so they are registered with {@code closer}, which the caller must close after the Glue client.
+     */
+    public GlueClient createFromProperties(GlueClientConfig config, Closer closer)
     {
-        return createGlueClient(config);
+        return createGlueClient(config, closer);
     }
 
-    private GlueClient createGlueClient(GlueClientConfig config)
+    private GlueClient createGlueClient(GlueClientConfig config, Closer closer)
     {
         GlueClientBuilder glue = GlueClient.builder();
         ImmutableList.Builder<ExecutionInterceptor> allInterceptors = ImmutableList.<ExecutionInterceptor>builder()
@@ -71,20 +77,22 @@ public final class GlueClientFactory
         Optional<StaticCredentialsProvider> staticCredentialsProvider = getStaticCredentialsProvider(config);
 
         if (config.isUseWebIdentityTokenCredentialsProvider()) {
-            glue.credentialsProvider(StsWebIdentityTokenFileCredentialsProvider.builder()
-                    .stsClient(getStsClient(config, staticCredentialsProvider))
+            StsClient stsClient = register(closer, getStsClient(config, staticCredentialsProvider));
+            glue.credentialsProvider(register(closer, StsWebIdentityTokenFileCredentialsProvider.builder()
+                    .stsClient(stsClient)
                     .asyncCredentialUpdateEnabled(true)
-                    .build());
+                    .build()));
         }
         else if (config.getIamRole().isPresent()) {
-            glue.credentialsProvider(StsAssumeRoleCredentialsProvider.builder()
+            StsClient stsClient = register(closer, getStsClient(config, staticCredentialsProvider));
+            glue.credentialsProvider(register(closer, StsAssumeRoleCredentialsProvider.builder()
                     .refreshRequest(request -> request
                             .roleArn(config.getIamRole().get())
                             .roleSessionName("trino-session")
                             .externalId(config.getExternalId().orElse(null)))
-                    .stsClient(getStsClient(config, staticCredentialsProvider))
+                    .stsClient(stsClient)
                     .asyncCredentialUpdateEnabled(true)
-                    .build());
+                    .build()));
         }
         else {
             staticCredentialsProvider.ifPresent(glue::credentialsProvider);
@@ -108,6 +116,12 @@ public final class GlueClientFactory
         glue.httpClientBuilder(httpClient);
 
         return glue.build();
+    }
+
+    private static <T extends SdkAutoCloseable> T register(Closer closer, T resource)
+    {
+        closer.register(resource::close);
+        return resource;
     }
 
     private static Optional<StaticCredentialsProvider> getStaticCredentialsProvider(GlueClientConfig config)

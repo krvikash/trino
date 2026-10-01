@@ -13,6 +13,7 @@
  */
 package io.starburst.stargate.icehouse.catalog.glue;
 
+import com.google.common.io.Closer;
 import com.google.inject.Provider;
 import io.airlift.configuration.ConfigurationFactory;
 import io.starburst.stargate.icehouse.catalog.CommonIcebergCatalogType;
@@ -29,6 +30,8 @@ import io.trino.spi.type.TypeManager;
 import jakarta.inject.Inject;
 import org.apache.iceberg.io.FileIO;
 import software.amazon.awssdk.services.glue.GlueClient;
+
+import java.io.IOException;
 
 import static java.util.Objects.requireNonNull;
 
@@ -63,10 +66,23 @@ public final class GlueIcehouseCatalogFactory
         try (ConfigurationFactory configFactory = new ConfigurationFactory(properties.properties())) {
             config = configFactory.build(GlueClientConfig.class);
         }
-        GlueClient glueClient = glueClientFactoryProvider.get().createFromProperties(config);
-        FileIO fileIo = new ForwardingFileIo(
-                fileSystemFactory.create(ConnectorIdentity.ofUser("icehouse-maintenance")),
-                true);
-        return new GlueIcehouseCatalog(glueClient, fileIo, config.isSkipArchive(), typeManager);
+        Closer closer = Closer.create();
+        try {
+            GlueClient glueClient = glueClientFactoryProvider.get().createFromProperties(config, closer);
+            closer.register(glueClient::close);
+            FileIO fileIo = new ForwardingFileIo(
+                    fileSystemFactory.create(ConnectorIdentity.ofUser("icehouse-maintenance")),
+                    true);
+            return new GlueIcehouseCatalog(glueClient, closer, fileIo, config.isSkipArchive(), typeManager);
+        }
+        catch (RuntimeException | Error e) {
+            try {
+                closer.close();
+            }
+            catch (IOException | RuntimeException closeException) {
+                e.addSuppressed(closeException);
+            }
+            throw e;
+        }
     }
 }

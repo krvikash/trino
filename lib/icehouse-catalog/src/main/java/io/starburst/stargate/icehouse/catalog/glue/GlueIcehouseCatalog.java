@@ -39,6 +39,7 @@ import software.amazon.awssdk.services.glue.model.GetTablesResponse;
 import software.amazon.awssdk.services.glue.model.GlueException;
 import software.amazon.awssdk.services.glue.model.InvalidInputException;
 
+import java.io.Closeable;
 import java.util.List;
 import java.util.Map;
 
@@ -52,7 +53,11 @@ import static java.util.Objects.requireNonNull;
  * go directly against the client; {@link #loadTable} constructs a per-table
  * {@link GlueTableOperations} that borrows the same client. The catalog is the
  * sole owner — closing a table-ops only flips its closed flag, and the catalog's
- * {@link #close()} closes the underlying GlueClient.
+ * {@link #close()} closes {@code glueClientResources}.
+ *
+ * <p>The catalog never closes {@code glueClient} directly: {@code glueClientResources}
+ * closes it, together with the STS client and credentials provider created for it,
+ * which the GlueClient does not close itself.
  *
  * <p>Listing uses a two-layer allowlist: {@code EXTERNAL_TABLE} tableType plus
  * the {@code table_type=ICEBERG} parameter.
@@ -65,17 +70,20 @@ public final class GlueIcehouseCatalog
     private static final String TABLE_TYPE_ICEBERG = "ICEBERG";
 
     private final GlueClient glueClient;
+    private final Closeable glueClientResources;
     private final FileIO fileIo;
     private final boolean skipArchive;
     private final TypeManager typeManager;
 
     public GlueIcehouseCatalog(
             GlueClient glueClient,
+            Closeable glueClientResources,
             FileIO fileIo,
             boolean skipArchive,
             TypeManager typeManager)
     {
         this.glueClient = requireNonNull(glueClient, "glueClient is null");
+        this.glueClientResources = requireNonNull(glueClientResources, "glueClientResources is null");
         this.fileIo = requireNonNull(fileIo, "fileIo is null");
         this.skipArchive = skipArchive;
         this.typeManager = requireNonNull(typeManager, "typeManager is null");
@@ -183,7 +191,7 @@ public final class GlueIcehouseCatalog
     public void close()
     {
         try {
-            glueClient.close();
+            glueClientResources.close();
         }
         catch (Exception e) {
             log.warn(e, "Failed to close Glue client");
