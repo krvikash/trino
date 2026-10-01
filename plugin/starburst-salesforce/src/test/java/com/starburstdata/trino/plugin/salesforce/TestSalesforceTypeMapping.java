@@ -23,7 +23,6 @@ import io.trino.testing.AbstractTestQueryFramework;
 import io.trino.testing.QueryRunner;
 import io.trino.testing.TestingSession;
 import io.trino.testing.sql.JdbcSqlExecutor;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.parallel.Execution;
@@ -66,7 +65,6 @@ import static org.junit.jupiter.api.parallel.ExecutionMode.SAME_THREAD;
 // Custom objects can be deleted by hand in Salesforce using the Object Manager
 @TestInstance(PER_CLASS)
 @Execution(SAME_THREAD) // Decimal tests share the same table
-@Disabled("Temporarily disabled because the backing Salesforce account is locked")
 public class TestSalesforceTypeMapping
         extends AbstractTestQueryFramework
 {
