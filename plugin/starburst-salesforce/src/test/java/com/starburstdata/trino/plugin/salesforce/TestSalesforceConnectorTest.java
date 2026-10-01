@@ -46,6 +46,7 @@ import io.trino.testing.sql.TestTable;
 import io.trino.tpch.TpchTable;
 import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
 import org.intellij.lang.annotations.Language;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -131,6 +132,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assumptions.abort;
 
+@Disabled("Temporarily disabled because the backing Salesforce account is locked")
 public class TestSalesforceConnectorTest
         extends AbstractTestQueryFramework
 {
