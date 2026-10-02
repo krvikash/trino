@@ -56,7 +56,7 @@ public final class GpuSortUtils
         // For ASC: isNotNan() → false(NaN) before true(non-NaN) — NaN at the front.
         // For DESC: isNan() → false(non-NaN) before true(NaN) — NaN at the back.
 
-        int flagCount = countNanFlags(sortTypes, sortOrders);
+        int flagCount = countNanSortKeys(sortTypes, sortOrders);
         if (flagCount == 0) {
             return table.orderBy(toOrderByArgs(sortChannels, sortOrders));
         }
@@ -73,7 +73,7 @@ public final class GpuSortUtils
         checkArgument(sortDTypes.length == sortOrders.size(), "sortDTypes and sortOrders sizes do not match");
         checkArgument(sortDTypes.length == sortTypes.size(), "sortDTypes and sortTypes sizes do not match");
 
-        int flagCount = countNanFlags(sortTypes, sortOrders);
+        int flagCount = countNanSortKeys(sortTypes, sortOrders);
         if (flagCount == 0) {
             return getOrderByMemoryUsage(sortDTypes, sortKeyBytes, totalBytes, rowCount);
         }
@@ -81,7 +81,7 @@ public final class GpuSortUtils
         DType[] expandedTypes = new DType[sortDTypes.length + flagCount];
         int index = 0;
         for (int i = 0; i < sortDTypes.length; i++) {
-            if (needsNanFlag(sortTypes.get(i), sortOrders.get(i))) {
+            if (needsNanSortKey(sortTypes.get(i), sortOrders.get(i))) {
                 expandedTypes[index++] = DType.BOOL8;
             }
             expandedTypes[index++] = sortDTypes[i];
@@ -89,11 +89,11 @@ public final class GpuSortUtils
         return getOrderByMemoryUsage(expandedTypes, addExact(sortKeyBytes, flagBytes), addExact(totalBytes, flagBytes), rowCount);
     }
 
-    private static int countNanFlags(List<Type> sortTypes, List<SortOrder> sortOrders)
+    private static int countNanSortKeys(List<Type> sortTypes, List<SortOrder> sortOrders)
     {
         int count = 0;
         for (int i = 0; i < sortTypes.size(); i++) {
-            if (needsNanFlag(sortTypes.get(i), sortOrders.get(i))) {
+            if (needsNanSortKey(sortTypes.get(i), sortOrders.get(i))) {
                 count++;
             }
         }
@@ -115,8 +115,8 @@ public final class GpuSortUtils
             int outputIndex = 0;
             for (int i = 0; i < sortChannels.length; i++) {
                 int channel = sortChannels[i];
-                if (needsNanFlag(sortTypes.get(i), sortOrders.get(i))) {
-                    allColumns[appendIndex] = createNanFlag(table.getColumn(channel), sortOrders.get(i).isAscending());
+                if (needsNanSortKey(sortTypes.get(i), sortOrders.get(i))) {
+                    allColumns[appendIndex] = createNanSortKey(table.getColumn(channel), sortOrders.get(i).isAscending());
                     adjustedChannels[outputIndex++] = appendIndex;
                     adjustedOrders.add(SortOrder.ASC_NULLS_FIRST);
                     appendIndex++;
@@ -133,12 +133,16 @@ public final class GpuSortUtils
         }
     }
 
-    private static boolean needsNanFlag(Type type, SortOrder sortOrder)
+    /// Whether cuDF orders NaN values of the key differently from Trino, so the key must be preceded by a NaN sort
+    /// key from [#createNanSortKey] wherever cuDF sorts or compares it in Trino order.
+    public static boolean needsNanSortKey(Type type, SortOrder sortOrder)
     {
         return typeHasNaN(type) && sortOrder.isNullsFirst();
     }
 
-    private static @Move ColumnVector createNanFlag(@Borrow ColumnView column, boolean isAscending)
+    /// Creates a BOOL8 column that, ordered with [SortOrder#ASC_NULLS_FIRST] right before the key, makes cuDF
+    /// order NaN values of the key the way Trino does.
+    public static @Move ColumnVector createNanSortKey(@Borrow ColumnView column, boolean isAscending)
     {
         // ASC: isNotNan() → false(NaN) < true(non-NaN) → NaN before reals
         // DESC: isNan() → false(non-NaN) < true(NaN) → NaN after reals
@@ -152,6 +156,12 @@ public final class GpuSortUtils
                 return isNull.ifElse(nullBool, flag.borrow());
             }
         }
+    }
+
+    /// Whether cuDF must treat nulls as smaller than every value to order them as the sort order does.
+    public static boolean isNullSmallest(SortOrder sortOrder)
+    {
+        return sortOrder.isAscending() == sortOrder.isNullsFirst();
     }
 
     private record SortableTable(@Own Table table, int[] sortChannels, List<SortOrder> sortOrders)
@@ -178,8 +188,8 @@ public final class GpuSortUtils
         for (int i = 0; i < sortChannels.length; i++) {
             SortOrder order = sortOrders.get(i);
             args[i] = order.isAscending()
-                    ? OrderByArg.asc(sortChannels[i], order.isNullsFirst())
-                    : OrderByArg.desc(sortChannels[i], !order.isNullsFirst());
+                    ? OrderByArg.asc(sortChannels[i], isNullSmallest(order))
+                    : OrderByArg.desc(sortChannels[i], isNullSmallest(order));
         }
         return args;
     }
