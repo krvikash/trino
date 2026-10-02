@@ -274,7 +274,7 @@ final class TestGpuDivideSumChunksRoundToScale
         return new ChunkSums(unsignedChunk(sum, 0), unsignedChunk(sum, 1), unsignedChunk(sum, 2), sum.shiftRight(96).longValueExact(), count);
     }
 
-    // chunk sums of `rows` rows of the same DECIMAL128 value, as the rolling sums of its 32-bit chunks produce
+    // chunk sums of `rows` rows of the same DECIMAL128 value, as the frame sums of its 32-bit chunks produce
     private static ChunkSums sumOfRepeated(BigInteger value, long rows)
     {
         return new ChunkSums(

@@ -91,7 +91,6 @@ import static io.trino.operator.gpu.window.GpuWindowTestUtils.compileWindow;
 import static io.trino.operator.gpu.window.GpuWindowTestUtils.createOperation;
 import static io.trino.spi.connector.SortOrder.ASC_NULLS_LAST;
 import static io.trino.spi.type.BigintType.BIGINT;
-import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.spi.type.CharType.createCharType;
 import static io.trino.spi.type.DecimalType.createDecimalType;
 import static io.trino.spi.type.Decimals.MAX_PRECISION;
@@ -681,7 +680,7 @@ final class TestGpuWindow
     @Test
     void testAvgInterleavedWithScanFunctions()
     {
-        // Rolling and scan computations run in separate batches, so their results must be put back in the order
+        // Prefix sum and scan computations run in separate batches, so their results must be put back in the order
         // of the functions rather than batch by batch
         DecimalType shortDecimal = createDecimalType(9, 2);
         DecimalType longDecimal = createDecimalType(19, 4);
@@ -897,8 +896,7 @@ final class TestGpuWindow
             List<BoundTestedWindowFunction> functions)
     {
         for (int[] partitionChannels : List.of(new int[] {partitionChannel}, new int[0])) {
-            // With order keys, the frame runs from the start of the partition to the last peer of the current row,
-            // which cuDF computes as a window bounded by order key values
+            // With order keys, the frame runs from the start of the partition to the last peer of the current row
             assertGpuWindowMatchesCpu(
                     inputPages,
                     sourceTypes,
@@ -906,8 +904,7 @@ final class TestGpuWindow
                     new int[] {orderChannel},
                     List.of(sortOrder),
                     functions);
-            // Without order keys, the frame is the whole partition, which cuDF computes as a window bounded by row offsets
-            // and unbounded in both directions.
+            // Without order keys, every row of the partition is a peer of the current row, so the frame is the whole partition.
             // Without partition keys either, that partition is the whole input.
             assertGpuWindowMatchesCpu(
                     inputPages,
@@ -950,10 +947,7 @@ final class TestGpuWindow
 
     private static boolean isUnsupported(List<BoundTestedWindowFunction> functions, int[] orderChannels, List<Type> sourceTypes)
     {
-        if (containsType(orderChannels, sourceTypes, VARBINARY) && containsFunction(functions, "rank", "dense_rank")) {
-            return true;
-        }
-        return containsType(orderChannels, sourceTypes, BOOLEAN, VARBINARY, REAL, DOUBLE) && containsFunction(functions, "avg");
+        return containsType(orderChannels, sourceTypes, VARBINARY) && containsFunction(functions, "rank", "dense_rank");
     }
 
     private static boolean containsType(int[] orderChannels, List<Type> sourceTypes, Type... types)

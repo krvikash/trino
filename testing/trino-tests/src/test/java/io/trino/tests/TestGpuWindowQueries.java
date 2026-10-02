@@ -263,14 +263,12 @@ final class TestGpuWindowQueries
     @Test
     void testAvgDecimalOrderByFloatingPoint()
     {
-        // cuDF orders NaN after every real value when deriving RANGE frame boundaries, so floating-point order
-        // keys are not supported on the GPU
         assertThat(query(
                 """
                 SELECT avg(price) OVER (PARTITION BY orderstatus ORDER BY totalprice)
                 FROM (SELECT orderstatus, totalprice, CAST(totalprice AS decimal(12, 2)) AS price FROM orders)
                 """))
-                .executesWithoutGpu();
+                .executesWithGpu(WindowNode.class);
     }
 
     @Test

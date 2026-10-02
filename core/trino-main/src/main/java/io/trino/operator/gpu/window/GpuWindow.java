@@ -13,17 +13,17 @@
  */
 package io.trino.operator.gpu.window;
 
-import ai.rapids.cudf.AggregationOverWindow;
 import ai.rapids.cudf.ColumnVector;
 import ai.rapids.cudf.DType;
 import ai.rapids.cudf.GroupByOptions;
 import ai.rapids.cudf.GroupByScanAggregation;
 import ai.rapids.cudf.GroupByScanAggregationOnColumn;
-import ai.rapids.cudf.RollingAggregation;
+import ai.rapids.cudf.OutOfBoundsPolicy;
+import ai.rapids.cudf.Scalar;
 import ai.rapids.cudf.ScanAggregation;
 import ai.rapids.cudf.Table;
-import ai.rapids.cudf.WindowOptions;
 import com.google.common.collect.ImmutableList;
+import com.google.common.primitives.Booleans;
 import com.google.common.primitives.Ints;
 import io.trino.operator.gpu.GpuOperation;
 import io.trino.operator.gpu.memory.AllocatedMemory;
@@ -40,15 +40,23 @@ import io.trino.spi.gpu.borrow.Move;
 import io.trino.spi.gpu.borrow.Own;
 import io.trino.spi.type.Type;
 
+import java.math.BigInteger;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Stream;
 
+import static ai.rapids.cudf.BinaryOp.SUB;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static io.trino.operator.gpu.GpuSortUtils.createNanSortKey;
 import static io.trino.operator.gpu.GpuSortUtils.estimateOrderByMemoryUsage;
+import static io.trino.operator.gpu.GpuSortUtils.isNullSmallest;
+import static io.trino.operator.gpu.GpuSortUtils.needsNanSortKey;
 import static io.trino.operator.gpu.GpuSortUtils.orderBy;
 import static io.trino.operator.gpu.memory.GpuMemoryUtils.nullMaskBytes;
 import static io.trino.plugin.base.gpu.GpuUtils.closeColumns;
@@ -62,20 +70,10 @@ import static java.util.Objects.requireNonNull;
 public final class GpuWindow
         implements GpuOperation
 {
-    // Preceding and following bound columns of an ordered frame, built for each aggregation
-    private static final int ORDERED_FRAME_BOUND_BYTES_PER_ROW = 2 * DType.INT32.getSizeInBytes();
-    // Group labels and offsets of a partitioned ordered frame, built for each aggregation.
-    // Transient and only sometimes live at the peak, but charged unconditionally.
-    private static final int ORDERED_FRAME_GROUPING_BYTES_PER_ROW = 2 * DType.INT32.getSizeInBytes();
-    // Peer grouping cuDF uses to resolve CURRENT ROW over multiple order columns.
-    // Measured at 11.88 bytes per row, independent of the order column types and of how many peers there are.
-    private static final int MULTI_COLUMN_ORDERED_FRAME_PEER_BYTES_PER_ROW = 3 * DType.INT32.getSizeInBytes();
-    // A partitioned unordered frame builds two sort_groupby_helpers per aggregation (groupby and the following gather)
-    private static final int UNORDERED_FRAME_SORT_HELPER_COUNT = 2;
-    // Each helper holds the key sort order and group labels per row
-    private static final int UNORDERED_FRAME_SORT_HELPER_BYTES_PER_ROW = 2 * DType.INT32.getSizeInBytes();
-    // and group offsets sized for one group per row
-    private static final int UNORDERED_FRAME_GROUP_OFFSET_BYTES_PER_GROUP = DType.INT32.getSizeInBytes();
+    private static final int INT32_BYTES = DType.INT32.getSizeInBytes();
+    private static final int BOOL8_BYTES = DType.BOOL8.getSizeInBytes();
+    // cuDF's sort_groupby_helper (sort_helper.cu) allocates three shared INT32 columns: _key_sorted_order, _group_offsets, _group_labels.
+    private static final int GROUPED_SCAN_SORT_HELPER_BYTES_PER_ROW = 3 * INT32_BYTES;
 
     public static class Factory
             implements GpuOperation.Factory
@@ -130,8 +128,11 @@ public final class GpuWindow
     private final List<SortOrder> orderSortOrders;
     private final List<ScanComputation> scanComputations;
     private final int[] scanOutputIndexes;
-    private final List<RollingComputation> rollingComputations;
-    private final int[] rollingOutputIndexes;
+    private final List<PrefixSumDifferenceComputation> prefixSumDifferenceComputations;
+    private final int[] prefixSumDifferenceOutputIndexes;
+    // The distinct input channels of the frame sums, and the index into them of the input channel of each frame sum
+    private final int[] prefixSumChannels;
+    private final int[] prefixSumIndexes;
 
     private final @Own TablesList bufferedTables = TablesList.create();
     private final ClosingRef<AllocatedMemory> allocated;
@@ -158,17 +159,12 @@ public final class GpuWindow
         }
     }
 
-    public record RollingComputation(
-            int inputChannel,
-            RollingAggregation rollingAggregation,
-            int outputBytesPerRow)
+    public record PrefixSumDifferenceComputation(int inputChannel)
             implements WindowComputation
     {
-        public RollingComputation
+        public PrefixSumDifferenceComputation
         {
             checkArgument(inputChannel >= 0, "inputChannel is negative");
-            requireNonNull(rollingAggregation, "rollingAggregation is null");
-            checkArgument(outputBytesPerRow > 0, "outputBytesPerRow must be positive");
         }
     }
 
@@ -191,24 +187,29 @@ public final class GpuWindow
 
         ImmutableList.Builder<ScanComputation> scanComputationBuilder = ImmutableList.builder();
         ImmutableList.Builder<Integer> scanOutputIndexesBuilder = ImmutableList.builder();
-        ImmutableList.Builder<RollingComputation> rollingComputationBuilder = ImmutableList.builder();
-        ImmutableList.Builder<Integer> rollingOutputIndexesBuilder = ImmutableList.builder();
+        ImmutableList.Builder<PrefixSumDifferenceComputation> prefixSumDifferenceComputationBuilder = ImmutableList.builder();
+        ImmutableList.Builder<Integer> prefixSumDifferenceOutputIndexesBuilder = ImmutableList.builder();
         for (int i = 0; i < computations.size(); i++) {
             switch (computations.get(i)) {
                 case ScanComputation computation -> {
                     scanComputationBuilder.add(computation);
                     scanOutputIndexesBuilder.add(i);
                 }
-                case RollingComputation computation -> {
-                    rollingComputationBuilder.add(computation);
-                    rollingOutputIndexesBuilder.add(i);
+                case PrefixSumDifferenceComputation computation -> {
+                    prefixSumDifferenceComputationBuilder.add(computation);
+                    prefixSumDifferenceOutputIndexesBuilder.add(i);
                 }
             }
         }
         this.scanComputations = scanComputationBuilder.build();
         this.scanOutputIndexes = Ints.toArray(scanOutputIndexesBuilder.build());
-        this.rollingComputations = rollingComputationBuilder.build();
-        this.rollingOutputIndexes = Ints.toArray(rollingOutputIndexesBuilder.build());
+        this.prefixSumDifferenceComputations = prefixSumDifferenceComputationBuilder.build();
+        this.prefixSumDifferenceOutputIndexes = Ints.toArray(prefixSumDifferenceOutputIndexesBuilder.build());
+        Map<Integer, Integer> prefixSumIndexByChannel = new LinkedHashMap<>();
+        this.prefixSumIndexes = prefixSumDifferenceComputations.stream()
+                .mapToInt(computation -> prefixSumIndexByChannel.computeIfAbsent(computation.inputChannel(), _ -> prefixSumIndexByChannel.size()))
+                .toArray();
+        this.prefixSumChannels = Ints.toArray(prefixSumIndexByChannel.keySet());
 
         this.allocated = ClosingRef.own(context.taskMemoryContext().allocate(getClass().getSimpleName(), MemoryAmount.ZERO));
     }
@@ -260,7 +261,7 @@ public final class GpuWindow
             long sortedBytes = sorted.map(Table::getDeviceMemorySize).orElse(0L);
             allocated.borrow().update(MemoryAmount.gpuDevice(sortedBytes + estimateComputePeakBytes(sorted, rowCount)));
 
-            @Own ColumnVector[] resultColumns = computeResultColumns(sorted);
+            @Own ColumnVector[] resultColumns = computeResultColumns(sorted, rowCount);
             for (ColumnVector column : resultColumns) {
                 closer.register(column::close);
             }
@@ -344,7 +345,7 @@ public final class GpuWindow
 
     private long estimateComputePeakBytes(Optional<@Borrow Table> sorted, int rowCount)
     {
-        if (scanComputations.isEmpty() && rollingComputations.isEmpty()) {
+        if (scanComputations.isEmpty() && prefixSumDifferenceComputations.isEmpty()) {
             return 0;
         }
 
@@ -353,10 +354,10 @@ public final class GpuWindow
                 .sum();
 
         checkState(sorted.isPresent(), "computation requires an input table");
-        // The scan batch runs before the rolling batch, so the scan outputs stay live throughout the rolling batch
+        // The scan batch runs before the prefix sum differences, so the scan outputs stay live throughout them
         return scanOutputBytes + max(
                 estimateScanAggregationWorkingBytes(sorted.get(), rowCount),
-                estimateRollingAggregationPeakBytes(sorted.get(), rowCount));
+                estimatePrefixSumDifferencePeakBytes(sorted.get(), rowCount));
     }
 
     private long estimateScanAggregationWorkingBytes(@Borrow Table sorted, int rowCount)
@@ -372,61 +373,57 @@ public final class GpuWindow
         return partitionKeyBytes + scanWorkingBytes;
     }
 
-    // cuDF runs the aggregations in HashMap order and keeps every output until all are done,
-    // so every output is charged as live alongside the largest working set
-    private long estimateRollingAggregationPeakBytes(@Borrow Table sorted, int rowCount)
+    // On top of the sorted input and the scan outputs, which stay live throughout
+    private long estimatePrefixSumDifferencePeakBytes(@Borrow Table sorted, int rowCount)
     {
-        long outputBytes = 0;
-        long workingBytes = 0;
-        for (RollingComputation computation : rollingComputations) {
-            outputBytes += estimateRollingOutputBytes(computation, rowCount);
-            workingBytes = max(workingBytes, estimateRollingAggregationWorkingBytes(sorted, computation, rowCount));
-        }
-        return outputBytes + workingBytes;
-    }
-
-    // Ordered frame outputs always get a validity mask, even for non-null input
-    private long estimateRollingOutputBytes(RollingComputation computation, int rowCount)
-    {
-        long bytes = (long) rowCount * computation.outputBytesPerRow();
-        if (orderChannels.length > 0) {
-            bytes += nullMaskBytes(rowCount);
-        }
-        return bytes;
-    }
-
-    // An unpartitioned unordered frame spans the whole input, which cuDF reduces to a scalar and broadcasts, so it needs nothing extra.
-    private long estimateRollingAggregationWorkingBytes(@Borrow Table sorted, RollingComputation computation, int rowCount)
-    {
-        if (orderChannels.length > 0) {
-            return estimateOrderedFrameWorkingBytes(rowCount);
-        }
-        if (partitionChannels.length == 0) {
+        if (prefixSumDifferenceComputations.isEmpty()) {
             return 0;
         }
-        return estimateUnorderedFrameWorkingBytes(sorted, computation, rowCount);
+        return max(estimateWindowLayoutPeakBytes(sorted, rowCount), estimatePrefixSumDifferenceWorkingBytes(sorted, rowCount));
     }
 
-    private long estimateOrderedFrameWorkingBytes(int rowCount)
+    private long estimateWindowLayoutPeakBytes(@Borrow Table sorted, int rowCount)
     {
-        long bytes = (long) rowCount * ORDERED_FRAME_BOUND_BYTES_PER_ROW;
+        long partitionStartBytes = (long) rowCount * INT32_BYTES;
+        // The grouped scan takes the row index and the sorted input as they are, since its keys are sorted, and returns
+        // a copy of the partition keys along with the partition start
+        long partitionStartPeakBytes = partitionStartBytes;
         if (partitionChannels.length > 0) {
-            bytes += (long) rowCount * ORDERED_FRAME_GROUPING_BYTES_PER_ROW;
+            long rowIndexBytes = (long) rowCount * INT32_BYTES;
+            long sortHelperBytes = (long) rowCount * GROUPED_SCAN_SORT_HELPER_BYTES_PER_ROW;
+            partitionStartPeakBytes = rowIndexBytes + sortHelperBytes + estimatePartitionKeyBytes(sorted) + partitionStartBytes;
         }
-        if (orderChannels.length > 1) {
-            bytes += (long) rowCount * MULTI_COLUMN_ORDERED_FRAME_PEER_BYTES_PER_ROW;
+
+        // The search for the peer group end keeps the partition start and the NaN sort keys live
+        long nanSortKeyBytes = 0;
+        for (int i = 0; i < orderChannels.length; i++) {
+            if (needsNanSortKey(orderTypes.get(i), orderSortOrders.get(i))) {
+                nanSortKeyBytes += (long) rowCount * BOOL8_BYTES + nullMaskBytes(rowCount);
+            }
         }
-        return bytes;
+        long peerGroupEndBytes = (long) rowCount * INT32_BYTES;
+        return max(partitionStartPeakBytes, partitionStartBytes + nanSortKeyBytes + peerGroupEndBytes);
     }
 
-    // cuDF aggregates the sorted values in place. The unique partition keys and the per-group result are charged at
-    // one group per row, the most there can be.
-    private long estimateUnorderedFrameWorkingBytes(@Borrow Table sorted, RollingComputation computation, int rowCount)
+    // The window layout, the prefix sums, both of their gathers and the frame sums are live together once the last
+    // frame sum is computed. Building the prefix sums takes less: two more copies of one input column at most.
+    private long estimatePrefixSumDifferenceWorkingBytes(@Borrow Table sorted, int rowCount)
     {
-        long sortHelperBytes = (long) rowCount * UNORDERED_FRAME_SORT_HELPER_BYTES_PER_ROW
-                + ((long) rowCount + 1) * UNORDERED_FRAME_GROUP_OFFSET_BYTES_PER_GROUP;
-        long uniqueKeyBytes = estimatePartitionKeyBytes(sorted);
-        return UNORDERED_FRAME_SORT_HELPER_COUNT * sortHelperBytes + uniqueKeyBytes + (long) rowCount * computation.outputBytesPerRow();
+        long windowLayoutBytes = 2L * rowCount * INT32_BYTES;
+        long prefixSumBytes = 0;
+        long prefixSumDifferenceBytes = 0;
+        for (int channel : prefixSumChannels) {
+            int valueBytes = sorted.getColumn(channel).getType().getSizeInBytes();
+            prefixSumBytes += ((long) rowCount + 1) * valueBytes;
+            prefixSumDifferenceBytes += estimatePrefixSumDifferenceBytes(valueBytes, rowCount);
+        }
+        return windowLayoutBytes + prefixSumBytes + 3 * prefixSumDifferenceBytes;
+    }
+
+    // A gather with NULLIFY always allocates a validity mask, so the gathered prefix sums and their difference have one
+    private static long estimatePrefixSumDifferenceBytes(int valueBytes, int rowCount)
+    {
+        return (long) rowCount * valueBytes + nullMaskBytes(rowCount);
     }
 
     private long estimatePartitionKeyBytes(@Borrow Table sorted)
@@ -438,22 +435,22 @@ public final class GpuWindow
         return bytes;
     }
 
-    private @Move ColumnVector[] computeResultColumns(Optional<@Borrow Table> sorted)
+    private @Move ColumnVector[] computeResultColumns(Optional<@Borrow Table> sorted, int rowCount)
     {
-        if (scanComputations.isEmpty() && rollingComputations.isEmpty()) {
+        if (scanComputations.isEmpty() && prefixSumDifferenceComputations.isEmpty()) {
             return new ColumnVector[0];
         }
         checkState(sorted.isPresent(), "input table is required");
 
-        @Own ColumnVector[] results = new ColumnVector[scanComputations.size() + rollingComputations.size()];
+        @Own ColumnVector[] results = new ColumnVector[scanComputations.size() + prefixSumDifferenceComputations.size()];
         try {
             @Own ColumnVector[] scanResults = computeScanAggregations(sorted.get());
             for (int i = 0; i < scanResults.length; i++) {
                 results[scanOutputIndexes[i]] = scanResults[i];
             }
-            @Own ColumnVector[] rollingResults = computeRollingAggregations(sorted.get());
-            for (int i = 0; i < rollingResults.length; i++) {
-                results[rollingOutputIndexes[i]] = rollingResults[i];
+            @Own ColumnVector[] prefixSumDifferenceResults = computePrefixSumDifferences(sorted.get(), rowCount);
+            for (int i = 0; i < prefixSumDifferenceResults.length; i++) {
+                results[prefixSumDifferenceOutputIndexes[i]] = prefixSumDifferenceResults[i];
             }
             return results;
         }
@@ -513,22 +510,35 @@ public final class GpuWindow
         }
     }
 
-    private @Move ColumnVector[] computeRollingAggregations(@Borrow Table sorted)
+    // With P the prefix sums over the whole input, preceded by a zero, the sum over the rows from start to end,
+    // exclusive, is P[end] - P[start]. The frame bounds never leave the partition of the row, so the prefix sums need
+    // not restart at partition boundaries.
+    private @Move ColumnVector[] computePrefixSumDifferences(@Borrow Table sorted, int rowCount)
     {
-        if (rollingComputations.isEmpty()) {
+        if (prefixSumDifferenceComputations.isEmpty()) {
             return new ColumnVector[0];
         }
 
-        @Own ColumnVector[] results = new ColumnVector[rollingComputations.size()];
-        try (WindowOptions options = buildWindowOptions()) {
-            AggregationOverWindow[] aggregations = new AggregationOverWindow[rollingComputations.size()];
-            for (int i = 0; i < rollingComputations.size(); i++) {
-                RollingComputation computation = rollingComputations.get(i);
-                aggregations[i] = computation.rollingAggregation().onColumn(computation.inputChannel()).overWindow(options);
-            }
-            try (Table aggregationResult = aggregateOverWindow(sorted, aggregations)) {
-                for (int i = 0; i < rollingComputations.size(); i++) {
-                    results[i] = aggregationResult.getColumn(i).incRefCount();
+        @Own ColumnVector[] results = new ColumnVector[prefixSumDifferenceComputations.size()];
+        try (WindowLayout layout = createWindowLayout(sorted, rowCount);
+                Table prefixSums = prefixSums(sorted, prefixSumChannels)) {
+            try (FrameBounds bounds = frameBounds(layout)) {
+                // Every bound is between 0 and the row count, so none is out of bounds, but NULLIFY keeps any mistake
+                // from reading outside the table
+                @Own ColumnVector[] prefixSumDifferences = new ColumnVector[prefixSumChannels.length];
+                try (Table prefixSumsAtEnd = prefixSums.gather(bounds.end(), OutOfBoundsPolicy.NULLIFY);
+                        Table prefixSumsAtStart = prefixSums.gather(bounds.start(), OutOfBoundsPolicy.NULLIFY)) {
+                    for (int i = 0; i < prefixSumChannels.length; i++) {
+                        @Borrow ColumnVector atStart = prefixSumsAtStart.getColumn(i);
+                        @Borrow ColumnVector atEnd = prefixSumsAtEnd.getColumn(i);
+                        prefixSumDifferences[i] = atEnd.binaryOp(SUB, atStart, atEnd.getType());
+                    }
+                    for (int i = 0; i < prefixSumDifferenceComputations.size(); i++) {
+                        results[i] = prefixSumDifferences[prefixSumIndexes[i]].incRefCount();
+                    }
+                }
+                finally {
+                    closeColumns(prefixSumDifferences);
                 }
             }
             return results;
@@ -539,42 +549,148 @@ public final class GpuWindow
         }
     }
 
-    private @Move WindowOptions buildWindowOptions()
+    private static @Move Table prefixSums(@Borrow Table sorted, int[] channels)
     {
-        // TODO: Support frame definitions other than default: https://starburstdata.atlassian.net/browse/ENG-28121
-        // Only the default frame (RANGE UNBOUNDED PRECEDING to CURRENT ROW) gets here. With order keys, cuDF bounds it
-        // by order key values, including peers. Without them, the frame is the whole partition, so an unbounded
-        // row-offset window suffices, which cuDF calls ROWS although the Trino frame is RANGE.
-        if (orderChannels.length > 0) {
-            int orderCount = orderChannels.length;
-            boolean[] ascending = new boolean[orderCount];
-            boolean[] nullsFirst = new boolean[orderCount];
-            for (int i = 0; i < orderCount; i++) {
-                ascending[i] = orderSortOrders.get(i).isAscending();
-                nullsFirst[i] = orderSortOrders.get(i).isNullsFirst();
+        @Own ColumnVector[] columns = new ColumnVector[channels.length];
+        try {
+            for (int i = 0; i < channels.length; i++) {
+                @Borrow ColumnVector input = sorted.getColumn(channels[i]);
+                try (Scalar zero = zero(input.getType());
+                        ColumnVector nonNullInput = input.replaceNulls(zero);
+                        // cuDF sum scans wrap around on overflow instead of failing, but no prefix sum here can overflow: a cuDF column holds
+                        // at most 2^31 - 1 rows, so the prefix sums are bounded by 2^31 - 1 for counts, by 10^28 * (2^31 - 1) < 2^127 for
+                        // DECIMAL128 values of precision at most 28, and by (2^31 - 1) * (2^32 - 1) < 2^63 for 32-bit chunks widened to INT64.
+                        ColumnVector scan = nonNullInput.scan(ScanAggregation.sum());
+                        ColumnVector leadingZero = ColumnVector.fromScalar(zero, 1)) {
+                    columns[i] = ColumnVector.concatenate(leadingZero, scan);
+                }
             }
-            return WindowOptions.builder()
-                    .unboundedPreceding()
-                    .currentRowFollowing()
-                    .orderByColumns(orderChannels, ascending, nullsFirst)
-                    .minPeriods(1)
-                    .build();
+            return new Table(columns);
         }
-        return WindowOptions.builder()
-                .unboundedPreceding()
-                .unboundedFollowing()
-                .minPeriods(1)
-                .build();
+        finally {
+            closeColumns(columns);
+        }
     }
 
-    private @Move Table aggregateOverWindow(@Borrow Table sorted, AggregationOverWindow[] aggregations)
+    private static @Move Scalar zero(DType type)
     {
-        GroupByOptions groupByOptions = sortedPartitionGroupByOptions(partitionChannels);
-        int[] partitionKeyIndices = partitionKeyIndices(partitionChannels);
-        if (orderChannels.length > 0) {
-            return sorted.groupBy(groupByOptions, partitionKeyIndices).aggregateWindowsOverRanges(aggregations);
+        if (type.equals(DType.INT64)) {
+            return Scalar.fromLong(0);
         }
-        return sorted.groupBy(groupByOptions, partitionKeyIndices).aggregateWindows(aggregations);
+        checkState(type.getTypeId() == DType.DTypeEnum.DECIMAL128, "Unsupported frame sum input type: %s", type);
+        return Scalar.fromDecimal(BigInteger.ZERO, type);
+    }
+
+    // The INT32 index of the first row of the frame of each row, and of the row after its last row, so the start is
+    // inclusive and the end exclusive. Both are within the partition of the row, and the end never precedes the start,
+    // so the two are equal for an empty frame.
+    private record FrameBounds(@Own ColumnVector start, @Own ColumnVector end)
+            implements AutoCloseable
+    {
+        public FrameBounds
+        {
+            requireNonNull(start, "start is null");
+            requireNonNull(end, "end is null");
+        }
+
+        @Override
+        public void close()
+        {
+            closeColumns(new ColumnVector[] {start, end});
+        }
+    }
+
+    private static @Move FrameBounds frameBounds(@Borrow WindowLayout layout)
+    {
+        // TODO: Support frame definitions other than default: https://starburstdata.atlassian.net/browse/ENG-28121
+        // RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+        return new FrameBounds(layout.partitionStart().incRefCount(), layout.peerGroupEnd().incRefCount());
+    }
+
+    // How the sorted input divides into partitions and peer groups, from which the frame bounds are resolved.
+    // Starts and ends are INT32 row indexes, with the start inclusive and the end exclusive.
+    private record WindowLayout(
+            @Own ColumnVector partitionStart,
+            @Own ColumnVector peerGroupEnd)
+            implements AutoCloseable
+    {
+        public WindowLayout
+        {
+            requireNonNull(partitionStart, "partitionStart is null");
+            requireNonNull(peerGroupEnd, "peerGroupEnd is null");
+        }
+
+        @Override
+        public void close()
+        {
+            closeColumns(new ColumnVector[] {partitionStart, peerGroupEnd});
+        }
+    }
+
+    private @Move WindowLayout createWindowLayout(@Borrow Table sorted, int rowCount)
+    {
+        try (Scalar zero = Scalar.fromInt(0);
+                ClosingRef<ColumnVector> partitionStart = ClosingRef.empty();
+                ClosingRef<ColumnVector> peerGroupEnd = ClosingRef.empty()) {
+            if (partitionChannels.length == 0) {
+                partitionStart.set(ColumnVector.fromScalar(zero, rowCount));
+            }
+            else {
+                try (ColumnVector rowIndex = ColumnVector.sequence(zero, rowCount)) {
+                    partitionStart.set(partitionStart(sorted, rowIndex));
+                }
+            }
+            peerGroupEnd.set(peerGroupEnd(sorted, partitionStart.borrow()));
+            return new WindowLayout(
+                    partitionStart.take(),
+                    peerGroupEnd.take());
+        }
+    }
+
+    // The running minimum of the row index within a partition is the index of the first row of the partition
+    private @Move ColumnVector partitionStart(@Borrow Table sorted, @Borrow ColumnVector rowIndex)
+    {
+        int[] rowIndexChannel = new int[] {sorted.getNumberOfColumns()}; // we append the row index right after the last input table column
+        try (Table scanInput = appendColumns(sorted, new ColumnVector[] {rowIndex});
+                Table groupedResult = groupedScan(scanInput, rowIndexChannel, partitionChannels, new GroupByScanAggregation[] {GroupByScanAggregation.min()})) {
+            return groupedResult.getColumn(partitionChannels.length).incRefCount();
+        }
+    }
+
+    // For each row, the INT32 index of the first row after its peer group.
+    private @Move ColumnVector peerGroupEnd(@Borrow Table sorted, @Borrow ColumnVector partitionStart)
+    {
+        // The input is sorted, so the end of the peer group of a row is the upper bound of its own keys. The search
+        // compares the keys as orderBy sorted them, with the same NaN sort keys first.
+        @Borrow List<ColumnVector> keys = new ArrayList<>();
+        List<Boolean> nullsSmallest = new ArrayList<>();
+        List<Boolean> descending = new ArrayList<>();
+        @Own List<ColumnVector> nanSortKeys = new ArrayList<>();
+        try {
+            keys.add(partitionStart);
+            nullsSmallest.add(false);
+            descending.add(false);
+            for (int i = 0; i < orderChannels.length; i++) {
+                @Borrow ColumnVector key = sorted.getColumn(orderChannels[i]);
+                SortOrder sortOrder = orderSortOrders.get(i);
+                if (needsNanSortKey(orderTypes.get(i), sortOrder)) {
+                    @Own ColumnVector nanSortKey = createNanSortKey(key, sortOrder.isAscending());
+                    nanSortKeys.add(nanSortKey);
+                    keys.add(nanSortKey);
+                    nullsSmallest.add(isNullSmallest(SortOrder.ASC_NULLS_FIRST));
+                    descending.add(false);
+                }
+                keys.add(key);
+                nullsSmallest.add(isNullSmallest(sortOrder));
+                descending.add(!sortOrder.isAscending());
+            }
+            try (Table peerKeys = new Table(keys.toArray(ColumnVector[]::new))) {
+                return peerKeys.upperBound(Booleans.toArray(nullsSmallest), peerKeys, Booleans.toArray(descending));
+            }
+        }
+        finally {
+            closeColumns(nanSortKeys.toArray(ColumnVector[]::new));
+        }
     }
 
     // Output layout: [sorted columns 0..N-1, result columns N..N+S-1].
