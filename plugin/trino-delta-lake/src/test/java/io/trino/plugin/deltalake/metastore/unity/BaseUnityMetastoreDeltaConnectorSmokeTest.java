@@ -284,6 +284,7 @@ abstract class BaseUnityMetastoreDeltaConnectorSmokeTest
     }
 
     @Test
+    @Flaky(issue = "https://starburstdata.atlassian.net/browse/ENG-28227", match = "HTTP request failed by code: 500")
     void testFieldNameWithHyphen()
     {
         String tableName = "test_field_name_with_hyphen" + randomNameSuffix();
