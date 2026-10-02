@@ -87,6 +87,8 @@ public class GalaxyTestHelper
     public static final String PUBLIC = "public";
     public static final String FEARLESS_LEADER = "fearless_leader";
     public static final String LACKEY_FOLLOWER = "lackey_follower";
+    // JUnit resource lock shared by the test classes that boot a Galaxy server stack in Docker
+    public static final String GALAXY_STACK_LOCK = "galaxy-stack";
 
     /*
      * TODO:

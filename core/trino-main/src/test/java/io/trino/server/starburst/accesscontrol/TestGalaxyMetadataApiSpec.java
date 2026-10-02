@@ -67,6 +67,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.api.parallel.ResourceLock;
 
 import java.util.Collection;
 import java.util.HashSet;
@@ -95,6 +96,7 @@ import static io.starburst.stargate.id.EntityKind.COLUMN;
 import static io.starburst.stargate.id.EntityKind.SCHEMA;
 import static io.starburst.stargate.id.EntityKind.TABLE;
 import static io.trino.server.starburst.accesscontrol.GalaxySecurityMetadata.PRIVILEGE_TRANSLATIONS;
+import static io.trino.server.starburst.security.GalaxyTestHelper.GALAXY_STACK_LOCK;
 import static io.trino.spi.connector.SchemaTableName.schemaTableName;
 import static io.trino.spi.security.Privilege.CREATE;
 import static java.lang.String.format;
@@ -106,6 +108,7 @@ import static org.junit.jupiter.api.parallel.ExecutionMode.SAME_THREAD;
 
 @TestInstance(PER_CLASS)
 @Execution(SAME_THREAD)
+@ResourceLock(GALAXY_STACK_LOCK)
 public abstract class TestGalaxyMetadataApiSpec
 {
     private static final Logger log = Logger.get(TestGalaxyMetadataApiSpec.class);

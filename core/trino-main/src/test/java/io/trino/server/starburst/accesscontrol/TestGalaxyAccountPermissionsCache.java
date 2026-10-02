@@ -42,6 +42,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.TestInstance.Lifecycle;
+import org.junit.jupiter.api.parallel.ResourceLock;
 
 import java.time.Duration;
 import java.util.Iterator;
@@ -54,6 +55,7 @@ import static io.starburst.stargate.accesscontrol.client.ContentsVisibility.DENY
 import static io.trino.server.starburst.accesscontrol.MetadataAccessControllerSupplier.extractTransactionId;
 import static io.trino.server.starburst.security.GalaxyIdentity.toDispatchSession;
 import static io.trino.server.starburst.security.GalaxyTestHelper.FEARLESS_LEADER;
+import static io.trino.server.starburst.security.GalaxyTestHelper.GALAXY_STACK_LOCK;
 import static io.trino.server.starburst.security.GalaxyTestHelper.PUBLIC;
 import static io.trino.server.starburst.security.GalaxyTestHelper.withNewTransactionId;
 import static io.trino.spi.security.Privilege.SELECT;
@@ -61,6 +63,7 @@ import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @TestInstance(Lifecycle.PER_CLASS)
+@ResourceLock(GALAXY_STACK_LOCK)
 public class TestGalaxyAccountPermissionsCache
 {
     private GalaxyTestHelper helper;

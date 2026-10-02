@@ -28,6 +28,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.api.parallel.ResourceLock;
 
 import java.util.Map;
 import java.util.function.BiConsumer;
@@ -36,6 +37,7 @@ import static io.starburst.stargate.accesscontrol.privilege.GrantKind.ALLOW;
 import static io.starburst.stargate.accesscontrol.privilege.Privilege.CREATE_CATALOG;
 import static io.starburst.stargate.accesscontrol.privilege.Privilege.CREATE_SCHEMA;
 import static io.trino.server.starburst.security.GalaxyTestHelper.FEARLESS_LEADER;
+import static io.trino.server.starburst.security.GalaxyTestHelper.GALAXY_STACK_LOCK;
 import static io.trino.server.starburst.security.GalaxyTestHelper.LACKEY_FOLLOWER;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
@@ -45,6 +47,7 @@ import static org.junit.jupiter.api.parallel.ExecutionMode.SAME_THREAD;
 
 @TestInstance(PER_CLASS)
 @Execution(SAME_THREAD)
+@ResourceLock(GALAXY_STACK_LOCK)
 public class TestStacCatalogManagementAccessControl
 {
     private GalaxyTestHelper helper;

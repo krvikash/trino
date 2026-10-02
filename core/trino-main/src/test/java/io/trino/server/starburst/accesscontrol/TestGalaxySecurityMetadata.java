@@ -49,6 +49,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.api.parallel.ResourceLock;
 
 import java.util.List;
 import java.util.Map;
@@ -62,6 +63,7 @@ import static io.trino.server.starburst.security.GalaxyIdentity.parseEmbeddedEna
 import static io.trino.server.starburst.security.GalaxyIdentity.toDispatchSession;
 import static io.trino.server.starburst.security.GalaxyTestHelper.ACCOUNT_ADMIN;
 import static io.trino.server.starburst.security.GalaxyTestHelper.FEARLESS_LEADER;
+import static io.trino.server.starburst.security.GalaxyTestHelper.GALAXY_STACK_LOCK;
 import static io.trino.server.starburst.security.GalaxyTestHelper.LACKEY_FOLLOWER;
 import static io.trino.server.starburst.security.GalaxyTestHelper.PUBLIC;
 import static io.trino.spi.StandardErrorCode.INVALID_ARGUMENTS;
@@ -78,6 +80,7 @@ import static org.junit.jupiter.api.parallel.ExecutionMode.SAME_THREAD;
 
 @TestInstance(PER_CLASS)
 @Execution(SAME_THREAD)
+@ResourceLock(GALAXY_STACK_LOCK)
 public abstract class TestGalaxySecurityMetadata
 {
     public static final Logger log = Logger.get(TestGalaxySecurityMetadata.class);
