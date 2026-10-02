@@ -957,8 +957,9 @@ public class TestHttpRemoteTask
             lastActivityNanos.set(System.nanoTime());
 
             if (failureScenario == FailureScenario.STUCK_TERMINATING) {
-                // the worker accepts the request, but never finishes terminating the task
+                // the worker accepts the request (a new status version), but never finishes terminating the task
                 taskState = abort ? TaskState.ABORTING : TaskState.CANCELING;
+                version++;
             }
             else {
                 taskState = abort ? TaskState.ABORTED : TaskState.CANCELED;
