@@ -51,6 +51,8 @@ public final class HadoopTestUtils
                     "|could only be written to 0 of the 1 minReplication" +
                     // "Error while processing statement: FAILED: Execution Error, return code 1 from org.apache.hadoop.hive.ql.exec.mr.MapRedTask. Error caching map.xml: java.nio.channels.ClosedByInterruptException"
                     "|return code [12] from \\Qorg.apache.hadoop.hive.ql.exec.mr.MapRedTask\\E" +
+                    // HiveServer2 occasionally closes a fresh JDBC connection during the SASL handshake
+                    "|Could not establish connection to jdbc:hive2://hadoop-master:10000" +
                     ")";
 
     public static final RetryPolicy<QueryResult> ERROR_COMMITTING_WRITE_TO_HIVE_RETRY_POLICY = RetryPolicy.<QueryResult>builder()
