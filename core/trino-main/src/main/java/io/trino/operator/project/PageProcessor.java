@@ -103,22 +103,7 @@ public class PageProcessor
             return WorkProcessor.of();
         }
 
-        if (dynamicFilterEvaluator == null) {
-            dynamicFilterEvaluator = dynamicFilterSupplier.map(Supplier::get).orElse(new SelectAllEvaluator());
-        }
-        SelectedPositions selectedPositions = positionsRange(0, page.getPositionCount());
-        if (dynamicFilterSupplier.isPresent()) {
-            FilterEvaluator.SelectionResult dynamicFilterResult = dynamicFilterEvaluator.evaluate(session, selectedPositions, page);
-            selectedPositions = dynamicFilterResult.selectedPositions();
-            metrics.recordDynamicFilterMetrics(dynamicFilterResult.filterTimeNanos(), selectedPositions.size());
-        }
-
-        if (filterEvaluator.isPresent()) {
-            FilterEvaluator.SelectionResult filterResult = filterEvaluator.get().evaluate(session, selectedPositions, page);
-            selectedPositions = filterResult.selectedPositions();
-            metrics.recordFilterTime(filterResult.filterTimeNanos());
-        }
-
+        SelectedPositions selectedPositions = evaluateFilter(session, metrics, page);
         if (selectedPositions.isEmpty()) {
             return WorkProcessor.of();
         }
@@ -148,6 +133,27 @@ public class PageProcessor
         }
 
         return projectionsProcessor.project(session, memoryContext, metrics, page, selectedPositions);
+    }
+
+    public SelectedPositions evaluateFilter(ConnectorSession session, PageProcessorMetrics metrics, SourcePage page)
+    {
+        if (dynamicFilterEvaluator == null) {
+            dynamicFilterEvaluator = dynamicFilterSupplier.map(Supplier::get).orElse(new SelectAllEvaluator());
+        }
+        SelectedPositions selectedPositions = positionsRange(0, page.getPositionCount());
+        if (dynamicFilterSupplier.isPresent()) {
+            FilterEvaluator.SelectionResult dynamicFilterResult = dynamicFilterEvaluator.evaluate(session, selectedPositions, page);
+            selectedPositions = dynamicFilterResult.selectedPositions();
+            metrics.recordDynamicFilterMetrics(dynamicFilterResult.filterTimeNanos(), selectedPositions.size());
+        }
+
+        if (filterEvaluator.isPresent()) {
+            FilterEvaluator.SelectionResult filterResult = filterEvaluator.get().evaluate(session, selectedPositions, page);
+            selectedPositions = filterResult.selectedPositions();
+            metrics.recordFilterTime(filterResult.filterTimeNanos());
+        }
+
+        return selectedPositions;
     }
 
     private static boolean isAllPositions(SelectedPositions selectedPositions, int positionCount)
