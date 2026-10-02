@@ -16,6 +16,7 @@ package io.trino.server.protocol.spooling.encoding.arrow;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.ColumnarMap;
 import org.apache.arrow.vector.complex.MapVector;
+import org.apache.arrow.vector.complex.StructVector;
 
 import static io.trino.server.protocol.spooling.encoding.arrow.ArrowWriter.roundToSegment;
 import static java.util.Objects.requireNonNull;
@@ -58,6 +59,10 @@ public final class MapWriter
             vector.startNewValue(position);
             int entries = mapBlock.getEntryCount(position);
             vector.endValue(position, entries);
+        }
+        StructVector entriesVector = (StructVector) vector.getDataVector();
+        for (int entry = 0; entry < keyBlock.getPositionCount(); entry++) {
+            entriesVector.setIndexDefined(entry);
         }
         keyWriter.write(keyBlock);
         valueWriter.write(valueBlock);

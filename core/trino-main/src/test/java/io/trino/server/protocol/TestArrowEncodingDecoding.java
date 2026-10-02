@@ -25,9 +25,13 @@ import io.trino.server.protocol.spooling.encoding.ArrowQueryDataEncoder;
 import io.trino.spi.Page;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
+import io.trino.spi.block.MapBlockBuilder;
+import io.trino.spi.type.MapType;
+import io.trino.spi.type.TypeOperators;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.arrow.memory.RootAllocator;
+import org.apache.arrow.vector.complex.MapVector;
 import org.apache.arrow.vector.compression.CompressionCodec;
 import org.apache.arrow.vector.compression.CompressionUtil;
 import org.apache.arrow.vector.ipc.ArrowStreamReader;
@@ -44,6 +48,8 @@ import java.util.Random;
 
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
 import static io.trino.spi.type.BigintType.BIGINT;
+import static io.trino.spi.type.DoubleType.DOUBLE;
+import static io.trino.spi.type.IntegerType.INTEGER;
 import static java.io.OutputStream.nullOutputStream;
 import static org.apache.arrow.vector.compression.CompressionUtil.CodecType.NO_COMPRESSION;
 import static org.apache.arrow.vector.compression.CompressionUtil.CodecType.ZSTD;
@@ -173,6 +179,37 @@ public class TestArrowEncodingDecoding
         try (QueryDataEncoder encoder = new ArrowQueryDataEncoder(childAllocator, new ArrowCompressionFactory(), ZSTD, columns, DataSize.of(16, DataSize.Unit.KILOBYTE).toBytes())) {
             encoder.encodeTo(nullOutputStream(), List.of(page));
             assertThat(childAllocator.getAllocatedMemory()).isZero();
+        }
+    }
+
+    @Test
+    void testMapEntriesAreNotNull()
+            throws IOException
+    {
+        // The Arrow format requires a map's entries struct to have no nulls
+        MapType mapType = new MapType(INTEGER, DOUBLE, new TypeOperators());
+        MapBlockBuilder blockBuilder = mapType.createBlockBuilder(null, 3);
+        blockBuilder.buildEntry((keyBuilder, valueBuilder) -> {
+            INTEGER.writeLong(keyBuilder, 1);
+            DOUBLE.writeDouble(valueBuilder, 1.0);
+        });
+        blockBuilder.appendNull();
+        blockBuilder.buildEntry((keyBuilder, valueBuilder) -> {
+            INTEGER.writeLong(keyBuilder, 2);
+            DOUBLE.writeDouble(valueBuilder, 2.0);
+            INTEGER.writeLong(keyBuilder, 3);
+            DOUBLE.writeDouble(valueBuilder, 3.0);
+        });
+        List<OutputColumn> columns = ImmutableList.of(new OutputColumn(0, "m", mapType));
+
+        byte[] encoded = encode(columns, MAX_BATCH_SIZE, new Page(blockBuilder.build()));
+
+        try (BufferAllocator readAllocator = allocator.newChildAllocator("test-read", 0, Long.MAX_VALUE);
+                ArrowStreamReader reader = new ArrowStreamReader(new ByteArrayInputStream(encoded), readAllocator)) {
+            assertThat(reader.loadNextBatch()).isTrue();
+            MapVector mapVector = (MapVector) reader.getVectorSchemaRoot().getVector(0);
+            assertThat(mapVector.getDataVector().getValueCount()).isEqualTo(3);
+            assertThat(mapVector.getDataVector().getNullCount()).isZero();
         }
     }
 
