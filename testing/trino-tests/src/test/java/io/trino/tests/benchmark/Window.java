@@ -36,7 +36,7 @@ public final class Window
 
     public static List<String> allQueries()
     {
-        return IntStream.rangeClosed(1, 12)
+        return IntStream.rangeClosed(1, 23)
                 .boxed()
                 .flatMap(queryNumber -> Stream.of(format("q%02d", queryNumber)))
                 .toList();
