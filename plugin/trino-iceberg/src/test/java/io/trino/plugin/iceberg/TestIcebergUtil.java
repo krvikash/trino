@@ -15,6 +15,7 @@ package io.trino.plugin.iceberg;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
+import io.trino.spi.connector.SchemaTableName;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.types.Types;
 import org.apache.iceberg.types.Types.NestedField;
@@ -22,6 +23,8 @@ import org.junit.jupiter.api.Test;
 
 import static io.trino.plugin.iceberg.IcebergUtil.getProjectedColumns;
 import static io.trino.plugin.iceberg.IcebergUtil.parseVersion;
+import static io.trino.plugin.iceberg.IcebergUtil.quotedTableName;
+import static io.trino.plugin.iceberg.IcebergUtil.toSchemaTableName;
 import static io.trino.type.InternalTypeManager.TESTING_TYPE_MANAGER;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -110,5 +113,20 @@ public class TestIcebergUtil
                         tuple(1, "id", 1, ImmutableList.of()),
                         tuple(4, "list", 2, ImmutableList.of(4)),
                         tuple(5, "element", 2, ImmutableList.of(4, 5)));
+    }
+
+    @Test
+    public void testToSchemaTableName()
+    {
+        assertThat(toSchemaTableName("schema.table")).isEqualTo(new SchemaTableName("schema", "table"));
+        assertThat(toSchemaTableName("\"schema\".\"table\"")).isEqualTo(new SchemaTableName("schema", "table"));
+        assertThat(toSchemaTableName("\"sch.ema\".\"ta.ble\"")).isEqualTo(new SchemaTableName("sch.ema", "ta.ble"));
+        assertThat(toSchemaTableName("\"sch\"\"ema\".\"ta\"\"ble\"")).isEqualTo(new SchemaTableName("sch\"ema", "ta\"ble"));
+
+        assertThatThrownBy(() -> toSchemaTableName("no_dot"))
+                .hasMessageContaining("Invalid quoted table name: no_dot");
+
+        assertThat(toSchemaTableName(quotedTableName(new SchemaTableName("sch.ema", "ta.ble"))))
+                .isEqualTo(new SchemaTableName("sch.ema", "ta.ble"));
     }
 }

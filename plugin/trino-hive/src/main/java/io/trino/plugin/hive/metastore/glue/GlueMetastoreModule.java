@@ -32,6 +32,7 @@ import io.trino.metastore.RawHiveMetastoreFactory;
 import io.trino.metastore.cache.CachingHiveMetastoreConfig;
 import io.trino.plugin.hive.AllowHiveTableRename;
 import io.trino.plugin.hive.HideDeltaLakeTables;
+import io.trino.plugin.hive.SchemaMappingPrefixes;
 import io.trino.spi.Node;
 import io.trino.spi.catalog.CatalogName;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
@@ -61,7 +62,6 @@ import static com.google.inject.multibindings.Multibinder.newSetBinder;
 import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
 import static com.google.inject.multibindings.ProvidesIntoOptional.Type.DEFAULT;
 import static io.airlift.bootstrap.ClosingBinder.closingBinder;
-import static io.airlift.configuration.ConfigBinder.configBinder;
 import static java.util.Objects.requireNonNull;
 import static org.weakref.jmx.guice.ExportBinder.newExporter;
 
@@ -71,7 +71,22 @@ public final class GlueMetastoreModule
     @Override
     protected void setup(Binder binder)
     {
-        configBinder(binder).bindConfig(GlueHiveMetastoreConfig.class);
+        GlueHiveMetastoreConfig glueConfig = buildConfigObject(GlueHiveMetastoreConfig.class);
+        if (!glueConfig.getSchemaMappingRules().isEmpty()) {
+            newOptionalBinder(binder, SchemaMappingPrefixes.class)
+                    .setBinding()
+                    .toInstance(SchemaMappingDelegates.parsePrefixes(glueConfig.getSchemaMappingRules()));
+            newOptionalBinder(binder, Key.get(HiveMetastoreFactory.class, RawHiveMetastoreFactory.class))
+                    .setBinding()
+                    .to(SchemaMappingGlueHiveMetastoreFactory.class)
+                    .in(Scopes.SINGLETON);
+        }
+        else {
+            newOptionalBinder(binder, Key.get(HiveMetastoreFactory.class, RawHiveMetastoreFactory.class))
+                    .setDefault()
+                    .to(GlueHiveMetastoreFactory.class)
+                    .in(Scopes.SINGLETON);
+        }
 
         binder.bind(GlueHiveMetastoreFactory.class).in(Scopes.SINGLETON);
         binder.bind(GlueHiveMetastore.class).in(Scopes.SINGLETON);
@@ -116,8 +131,12 @@ public final class GlueMetastoreModule
 
     @Provides
     @Singleton
-    public static GlueCache createGlueCache(CachingHiveMetastoreConfig config, CatalogName catalogName, Node currentNode)
+    public static GlueCache createGlueCache(CachingHiveMetastoreConfig config, GlueHiveMetastoreConfig glueConfig, CatalogName catalogName, Node currentNode)
     {
+        // Schema mapping is cached by the generic metastore cache, keyed on the prefixed names
+        if (!glueConfig.getSchemaMappingRules().isEmpty()) {
+            return GlueCache.NOOP;
+        }
         Duration metadataCacheTtl = config.getMetastoreCacheTtl();
         Duration statsCacheTtl = config.getStatsCacheTtl();
 

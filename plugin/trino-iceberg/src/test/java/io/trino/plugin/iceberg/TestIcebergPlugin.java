@@ -134,6 +134,22 @@ public class TestIcebergPlugin
     }
 
     @Test
+    public void testGlueMetastoreSchemaMappingRules()
+    {
+        ConnectorFactory factory = getConnectorFactory();
+
+        factory.create(
+                        "test",
+                        ImmutableMap.of(
+                                "iceberg.catalog.type", "glue",
+                                "hive.metastore.glue.region", "us-east-1",
+                                "hive.metastore.glue.schema-mapping-rules", "dev:0123456789",
+                                "bootstrap.quiet", "true"),
+                        new TestingConnectorContext())
+                .shutdown();
+    }
+
+    @Test
     public void testAllowAllAccessControl()
     {
         ConnectorFactory connectorFactory = getConnectorFactory();

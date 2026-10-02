@@ -646,6 +646,34 @@ public final class IcebergUtil
         return quotedName(name.getSchemaName()) + "." + quotedName(name.getTableName());
     }
 
+    public static SchemaTableName toSchemaTableName(String quotedTableName)
+    {
+        int dotIndex = -1;
+        boolean inQuotes = false;
+        for (int i = 0; i < quotedTableName.length(); i++) {
+            char c = quotedTableName.charAt(i);
+            if (c == '"') {
+                inQuotes = !inQuotes;
+            }
+            else if (c == '.' && !inQuotes) {
+                dotIndex = i;
+                break;
+            }
+        }
+        checkArgument(dotIndex >= 0, "Invalid quoted table name: %s", quotedTableName);
+        return new SchemaTableName(
+                unquoteName(quotedTableName.substring(0, dotIndex)),
+                unquoteName(quotedTableName.substring(dotIndex + 1)));
+    }
+
+    private static String unquoteName(String name)
+    {
+        if (name.startsWith("\"") && name.endsWith("\"") && name.length() >= 2) {
+            return name.substring(1, name.length() - 1).replace("\"\"", "\"");
+        }
+        return name;
+    }
+
     public static String quotedName(String name)
     {
         if (SIMPLE_NAME.matcher(name).matches()) {

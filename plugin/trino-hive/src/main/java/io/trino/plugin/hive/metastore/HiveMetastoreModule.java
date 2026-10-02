@@ -20,12 +20,15 @@ import io.trino.metastore.HiveMetastore;
 import io.trino.metastore.HiveMetastoreFactory;
 import io.trino.metastore.RawHiveMetastoreFactory;
 import io.trino.plugin.hive.AllowHiveTableRename;
+import io.trino.plugin.hive.SchemaMappingPrefixes;
 import io.trino.plugin.hive.metastore.file.FileMetastoreModule;
 import io.trino.plugin.hive.metastore.glue.GlueMetastoreModule;
 import io.trino.plugin.hive.metastore.thrift.ThriftMetastoreModule;
 import io.trino.plugin.hive.metastore.unity.UnityMetastoreModule;
 
 import java.util.Optional;
+
+import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
 
 public class HiveMetastoreModule
         extends AbstractConfigurationAwareModule
@@ -56,6 +59,8 @@ public class HiveMetastoreModule
                 case UNITY -> new UnityMetastoreModule(isConfiguredWithHive);
             });
         }
+
+        newOptionalBinder(binder, SchemaMappingPrefixes.class).setDefault().toInstance(SchemaMappingPrefixes.NONE);
 
         install(new CachingHiveMetastoreModule());
     }

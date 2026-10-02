@@ -573,7 +573,8 @@ public class HiveMetadata
         verifyOnline(tableName, Optional.empty(), getProtectMode(table), table.getParameters());
 
         return new HiveTableHandle(
-                tableName.getSchemaName(),
+                // Real database name, lowercased since unlike Glue, not every metastore enforces that.
+                table.getDatabaseName().toLowerCase(ENGLISH),
                 tableName.getTableName(),
                 table.getParameters(),
                 getPartitionKeyColumnHandles(table, typeManager),

@@ -102,6 +102,22 @@ public class TestHivePlugin
     }
 
     @Test
+    public void testGlueMetastoreSchemaMappingRules()
+    {
+        ConnectorFactory factory = getHiveConnectorFactory();
+
+        factory.create(
+                        "test",
+                        ImmutableMap.of(
+                                "hive.metastore", "glue",
+                                "hive.metastore.glue.region", "us-east-1",
+                                "hive.metastore.glue.schema-mapping-rules", "dev:0123456789",
+                                "bootstrap.quiet", "true"),
+                        new TestingConnectorContext())
+                .shutdown();
+    }
+
+    @Test
     public void testImmutablePartitionsAndInsertOverwriteMutuallyExclusive()
     {
         ConnectorFactory connectorFactory = getHiveConnectorFactory();

@@ -36,7 +36,13 @@ public class IcebergGlueCatalogModule
         configBinder(binder).bindConfigDefaults(GlueHiveMetastoreConfig.class, config -> config.setSkipArchive(true));
         configBinder(binder).bindConfig(IcebergGlueCatalogConfig.class);
         binder.bind(IcebergTableOperationsProvider.class).to(GlueIcebergTableOperationsProvider.class).in(Scopes.SINGLETON);
-        binder.bind(TrinoCatalogFactory.class).to(TrinoGlueCatalogFactory.class).in(Scopes.SINGLETON);
+        GlueHiveMetastoreConfig glueConfig = buildConfigObject(GlueHiveMetastoreConfig.class);
+        if (glueConfig.getSchemaMappingRules().isEmpty()) {
+            binder.bind(TrinoCatalogFactory.class).to(TrinoGlueCatalogFactory.class).in(Scopes.SINGLETON);
+        }
+        else {
+            binder.bind(TrinoCatalogFactory.class).to(SchemaMappingTrinoGlueCatalogFactory.class).in(Scopes.SINGLETON);
+        }
         newExporter(binder).export(TrinoCatalogFactory.class).withGeneratedName();
 
         install(new IcebergHiveMetastoreModule());

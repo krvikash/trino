@@ -18,11 +18,15 @@ import io.airlift.configuration.ConfigDescription;
 import io.airlift.configuration.ConfigSecuritySensitive;
 import io.airlift.configuration.DefunctConfig;
 import io.airlift.units.Duration;
+import io.trino.plugin.hive.metastore.glue.SchemaMappingDelegates.SchemaMappingRule;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 
 import java.net.URI;
+import java.util.List;
 import java.util.Optional;
+
+import static io.trino.plugin.hive.metastore.glue.SchemaMappingDelegates.parseRules;
 
 @DefunctConfig({
         "hive.metastore.glue.use-instance-credentials",
@@ -48,6 +52,7 @@ public class GlueHiveMetastoreConfig
     private Optional<String> awsSecretKey = Optional.empty();
     private boolean useWebIdentityTokenCredentialsProvider;
     private Optional<String> catalogId = Optional.empty();
+    private List<SchemaMappingRule> schemaMappingRules = List.of();
     private int partitionSegments = 5;
     private int threads = 40;
     private boolean assumeCanonicalPartitionKeys;
@@ -240,6 +245,21 @@ public class GlueHiveMetastoreConfig
     public GlueHiveMetastoreConfig setCatalogId(String catalogId)
     {
         this.catalogId = Optional.ofNullable(catalogId);
+        return this;
+    }
+
+    public List<SchemaMappingRule> getSchemaMappingRules()
+    {
+        return schemaMappingRules;
+    }
+
+    @Config("hive.metastore.glue.schema-mapping-rules")
+    @ConfigDescription("Comma separated prefix:catalogId rules exposing Glue databases under prefixed schema names; catalogId may be empty for the default account")
+    public GlueHiveMetastoreConfig setSchemaMappingRules(String schemaMappingRules)
+    {
+        if (schemaMappingRules != null) {
+            this.schemaMappingRules = parseRules(schemaMappingRules);
+        }
         return this;
     }
 
