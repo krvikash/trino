@@ -77,6 +77,24 @@ public final class ViewReaderUtil
     public static ViewReader createViewReader(
             SemiTransactionalHiveMetastore metastore,
             ConnectorSession session,
+            SchemaTableName viewName,
+            Table table,
+            TypeManager typeManager,
+            BiFunction<ConnectorSession, SchemaTableName, Optional<CatalogSchemaTableName>> tableRedirectionResolver,
+            MetadataProvider metadataProvider,
+            boolean runHiveViewRunAsInvoker,
+            HiveTimestampPrecision hiveViewsTimestampPrecision,
+            SchemaMappingPrefixes schemaMappingPrefixes)
+    {
+        return SchemaMappingViewReader.wrap(
+                createViewReader(metastore, session, table, typeManager, tableRedirectionResolver, metadataProvider, runHiveViewRunAsInvoker, hiveViewsTimestampPrecision),
+                schemaMappingPrefixes,
+                viewName);
+    }
+
+    private static ViewReader createViewReader(
+            SemiTransactionalHiveMetastore metastore,
+            ConnectorSession session,
             Table table,
             TypeManager typeManager,
             BiFunction<ConnectorSession, SchemaTableName, Optional<CatalogSchemaTableName>> tableRedirectionResolver,

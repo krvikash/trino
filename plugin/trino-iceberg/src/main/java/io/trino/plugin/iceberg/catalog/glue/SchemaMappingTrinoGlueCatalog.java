@@ -19,6 +19,8 @@ import com.google.common.collect.Iterators;
 import io.trino.metastore.Table;
 import io.trino.metastore.TableInfo;
 import io.trino.plugin.base.util.MaybeLazy;
+import io.trino.plugin.hive.SchemaMappingPrefixes;
+import io.trino.plugin.hive.SchemaMappingSqlRewriter;
 import io.trino.plugin.iceberg.ColumnIdentity;
 import io.trino.plugin.iceberg.catalog.TrinoCatalog;
 import io.trino.spi.TrinoException;
@@ -542,15 +544,10 @@ public class SchemaMappingTrinoGlueCatalog
         if (prefix.isEmpty()) {
             return definition;
         }
-        return new ConnectorViewDefinition(
-                definition.getOriginalSql(),
-                Optional.of(catalogName.toString()),
-                definition.getSchema().map(schema -> prefix + schema),
-                definition.getColumns(),
-                definition.getComment(),
-                definition.getOwner(),
-                definition.isRunAsInvoker(),
-                definition.getPath());
+        SchemaMappingPrefixes.SchemaPrefix schemaPrefix = new SchemaMappingPrefixes(delegatesByPrefix.keySet())
+                .findPrefix(prefix)
+                .orElseThrow();
+        return SchemaMappingSqlRewriter.prefixSchemaNames(definition, schemaPrefix, catalogName);
     }
 
     @Override

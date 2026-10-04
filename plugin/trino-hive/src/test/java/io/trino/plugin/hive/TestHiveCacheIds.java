@@ -112,7 +112,8 @@ public class TestHiveCacheIds
                 new CachingDirectoryLister(config),
                 new TransactionScopeCachingDirectoryListerFactory(config),
                 true,
-                true);
+                true,
+                SchemaMappingPrefixes.NONE);
 
         metadata = new HiveCacheMetadata(
                 createJsonCodec(HiveCacheTableId.class),

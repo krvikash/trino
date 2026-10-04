@@ -210,19 +210,19 @@ final class TestSchemaMappingTrinoGlueCatalog
     }
 
     @Test
-    void testViewBodyIsUnchanged()
+    void testViewBodyGetsPrefix()
     {
         SchemaTableName viewName = new SchemaTableName("egdp_prod_supply", "lodging_view");
         catalog.createView(SESSION, viewName, viewDefinition("SELECT id FROM supply.lodging"), ImmutableMap.of(), false);
         try {
             ConnectorViewDefinition definition = catalog.getView(SESSION, viewName).orElseThrow();
-            assertThat(definition.getOriginalSql()).isEqualTo("SELECT id FROM supply.lodging");
+            assertThat(definition.getOriginalSql()).isEqualTo("SELECT id FROM \"egdp_prod_supply\".lodging");
             assertThat(definition.getCatalog()).contains("iceberg");
             assertThat(definition.getSchema()).contains("egdp_prod_supply");
 
             Map<SchemaTableName, ConnectorViewDefinition> views = catalog.getViews(SESSION, Optional.of("egdp_prod_supply"));
             assertThat(views).containsOnlyKeys(viewName);
-            assertThat(views.get(viewName).getOriginalSql()).isEqualTo("SELECT id FROM supply.lodging");
+            assertThat(views.get(viewName).getOriginalSql()).isEqualTo("SELECT id FROM \"egdp_prod_supply\".lodging");
         }
         finally {
             catalog.dropView(SESSION, viewName);
