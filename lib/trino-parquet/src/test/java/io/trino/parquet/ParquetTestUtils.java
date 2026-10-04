@@ -126,7 +126,7 @@ public class ParquetTestUtils
             List<String> columnNames)
             throws IOException
     {
-        return createParquetReader(input, parquetMetadata, ParquetReaderOptions.defaultOptions(), memoryContext, types, columnNames, TupleDomain.all(), 0, input.getEstimatedSize());
+        return createParquetReader(input, parquetMetadata, ParquetReaderOptions.defaultOptions(), memoryContext, types, columnNames, TupleDomain.all());
     }
 
     public static ParquetReader createParquetReader(
@@ -137,21 +137,6 @@ public class ParquetTestUtils
             List<Type> types,
             List<String> columnNames,
             TupleDomain<String> predicate)
-            throws IOException
-    {
-        return createParquetReader(input, parquetMetadata, options, memoryContext, types, columnNames, predicate, 0, input.getEstimatedSize());
-    }
-
-    public static ParquetReader createParquetReader(
-            ParquetDataSource input,
-            ParquetMetadata parquetMetadata,
-            ParquetReaderOptions options,
-            AggregatedMemoryContext memoryContext,
-            List<Type> types,
-            List<String> columnNames,
-            TupleDomain<String> predicate,
-            long splitOffset,
-            long splitLength)
             throws IOException
     {
         FileMetadata fileMetaData = parquetMetadata.getFileMetaData();
@@ -171,8 +156,8 @@ public class ParquetTestUtils
                 columnName -> descriptorsByPath.get(ImmutableList.of(columnName.toLowerCase(ENGLISH))));
         TupleDomainParquetPredicate parquetPredicate = buildPredicate(fileSchema, parquetTupleDomain, descriptorsByPath, UTC, false, false, false);
         List<RowGroupInfo> rowGroups = getFilteredRowGroups(
-                splitOffset,
-                splitLength,
+                0,
+                input.getEstimatedSize(),
                 input,
                 parquetMetadata,
                 ImmutableList.of(parquetTupleDomain),
@@ -204,7 +189,7 @@ public class ParquetTestUtils
         ImmutableList.Builder<Page> pagesBuilder = ImmutableList.builder();
         for (int i = 0; i < pageCount; i++) {
             List<Block> blocks = types.stream()
-                    .map(type -> generateBlock(type, 0, positionsPerPage))
+                    .map(type -> generateBlock(type, positionsPerPage))
                     .collect(toImmutableList());
             pagesBuilder.add(new Page(blocks.toArray(Block[]::new)));
         }
@@ -307,11 +292,11 @@ public class ParquetTestUtils
         return valueIsValid;
     }
 
-    private static Block generateBlock(Type type, int baseIndex, int positions)
+    private static Block generateBlock(Type type, int positions)
     {
         BlockBuilder blockBuilder = type.createBlockBuilder(null, positions);
         for (int i = 0; i < positions; i++) {
-            writeNativeValue(type, blockBuilder, (long) baseIndex + i);
+            writeNativeValue(type, blockBuilder, (long) i);
         }
         return blockBuilder.build();
     }
