@@ -23,6 +23,7 @@ import io.trino.parquet.reader.MetadataReader;
 import io.trino.parquet.reader.ParquetReader;
 import io.trino.parquet.reader.TestingParquetDataSource;
 import io.trino.parquet.writer.ParquetWriterOptions;
+import io.trino.plugin.base.metrics.LongCount;
 import io.trino.plugin.warp.WarpErrorCode;
 import io.trino.plugin.warp.config.SharedConfig;
 import io.trino.plugin.warp.connector.TestingConnectorColumnHandle;
@@ -50,12 +51,14 @@ import io.trino.spi.PageBuilder;
 import io.trino.spi.TrinoException;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
+import io.trino.spi.block.DictionaryBlock;
 import io.trino.spi.block.LongArrayBlockBuilder;
 import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorPageSource;
 import io.trino.spi.connector.FixedPageSource;
 import io.trino.spi.connector.SourcePage;
+import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.type.BigintType;
 import io.trino.spi.type.IntegerType;
 import io.trino.spi.type.Type;
@@ -71,11 +74,14 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.LongStream;
 import java.util.stream.Stream;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static io.trino.memory.context.AggregatedMemoryContext.newSimpleAggregatedMemoryContext;
 import static io.trino.parquet.ParquetTestUtils.createParquetReader;
 import static io.trino.parquet.ParquetTestUtils.writeParquetFile;
+import static io.trino.parquet.reader.ParquetReader.SELECTED_POSITIONS_PUSHDOWNS;
 import static io.trino.plugin.warp.storage.write.StorageWriterServiceTest.buildLongPage;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -882,6 +888,128 @@ public class DispatcherPageSourceTest
                 new long[] {0, 1, 2, 3, 4, 5, 6, 7, 9, 10, 12, 13, 14},
                 dispatcherPageSource);
         dispatcherPageSource.close();
+    }
+
+    @Test
+    public void testTrySelectPositionsOnLazyMixedPageReachesParquetReader()
+            throws IOException
+    {
+        // parquet reader batch sizes grow 1, 2, 4, 8, so 15 rows split into proxied pages [0,1), [1,3), [3,7), [7,15)
+        int rowCount = 15;
+        BlockBuilder columnA = BIGINT.createFixedSizeBlockBuilder(rowCount);
+        BlockBuilder columnB = BIGINT.createFixedSizeBlockBuilder(rowCount);
+        for (int row = 0; row < rowCount; row++) {
+            BIGINT.writeLong(columnA, row);
+            BIGINT.writeLong(columnB, 1000 + row);
+        }
+        List<Type> types = ImmutableList.of(BIGINT, BIGINT);
+        List<String> columnNames = ImmutableList.of("columna", "columnb");
+        ParquetDataSource dataSource = new TestingParquetDataSource(
+                writeParquetFile(ParquetWriterOptions.builder().build(), types, columnNames, ImmutableList.of(new Page(rowCount, columnA.build(), columnB.build()))),
+                ParquetReaderOptions.defaultOptions());
+        ParquetMetadata parquetMetadata = MetadataReader.readFooter(dataSource, Optional.empty());
+        ParquetReader parquetReader = createParquetReader(
+                dataSource,
+                parquetMetadata,
+                ParquetReaderOptions.defaultOptions(),
+                newSimpleAggregatedMemoryContext(),
+                types,
+                columnNames,
+                TupleDomain.all(),
+                true);
+        proxiedConnectorPageSource = new ParquetProxiedPageSource(parquetReader);
+        warpPageSource = new TestingWarpPageSource(List.of(
+                new TestPage(buildPageLong(LongStream.range(100, 100 + rowCount).toArray()), createRowRanges(0, rowCount))));
+        DispatcherPageSource dispatcherPageSource = getDispatcherPageSource(3, Map.of(1, BIGINT, 2, BIGINT));
+
+        SourcePage resultPage = dispatcherPageSource.getNextSourcePage();
+        while (resultPage.getPositionCount() != 8) {
+            resultPage = dispatcherPageSource.getNextSourcePage();
+        }
+        // one proxied channel is loaded before the selection and the other loads from the narrowed backing page
+        assertThat(BIGINT.getLong(resultPage.getBlock(1), 0)).isEqualTo(7);
+        int[] positions = {-1, 0, 2, 5};
+        assertThat(resultPage.trySelectPositions(positions, 1, 3)).isTrue();
+        Arrays.fill(positions, 0);
+
+        assertThat(resultPage.getPositionCount()).isEqualTo(3);
+        // the parquet reader compacts its loaded block, and the mixed page takes that copy rather than a dictionary over the full block
+        assertThat(resultPage.getBlock(1)).isNotInstanceOf(DictionaryBlock.class);
+        long[][] expectedValuesByChannel = {{107, 109, 112}, {7, 9, 12}, {1007, 1009, 1012}};
+        for (int channel = 0; channel < expectedValuesByChannel.length; channel++) {
+            for (int position = 0; position < 3; position++) {
+                assertThat(BIGINT.getLong(resultPage.getBlock(channel), position)).isEqualTo(expectedValuesByChannel[channel][position]);
+            }
+        }
+        assertThat(parquetReader.getMetrics().getMetrics()).containsEntry(SELECTED_POSITIONS_PUSHDOWNS, new LongCount(1));
+        dispatcherPageSource.close();
+    }
+
+    @Test
+    public void testTrySelectPositionsOnIndexMaskedLazyMixedPage()
+            throws IOException
+    {
+        // the warp index masks rows 9 out of the 8-row parquet page before the engine narrows it further
+        int rowCount = 15;
+        BlockBuilder columnA = BIGINT.createFixedSizeBlockBuilder(rowCount);
+        BlockBuilder columnB = BIGINT.createFixedSizeBlockBuilder(rowCount);
+        for (int row = 0; row < rowCount; row++) {
+            BIGINT.writeLong(columnA, row);
+            BIGINT.writeLong(columnB, 1000 + row);
+        }
+        List<Type> types = ImmutableList.of(BIGINT, BIGINT);
+        List<String> columnNames = ImmutableList.of("columna", "columnb");
+        ParquetDataSource dataSource = new TestingParquetDataSource(
+                writeParquetFile(ParquetWriterOptions.builder().build(), types, columnNames, ImmutableList.of(new Page(rowCount, columnA.build(), columnB.build()))),
+                ParquetReaderOptions.defaultOptions());
+        ParquetMetadata parquetMetadata = MetadataReader.readFooter(dataSource, Optional.empty());
+        proxiedConnectorPageSource = new ParquetProxiedPageSource(createParquetReader(
+                dataSource,
+                parquetMetadata,
+                ParquetReaderOptions.defaultOptions(),
+                newSimpleAggregatedMemoryContext(),
+                types,
+                columnNames,
+                TupleDomain.all(),
+                true));
+        warpPageSource = new TestingWarpPageSource(List.of(
+                new TestPage(buildPageLong(new long[] {100, 101, 102, 103, 104, 105, 106, 107, 108, 110, 111, 112, 113, 114}), createRowRanges(0, 9, 10, 15))));
+        DispatcherPageSource dispatcherPageSource = getDispatcherPageSource(3, Map.of(1, BIGINT, 2, BIGINT));
+
+        SourcePage resultPage = dispatcherPageSource.getNextSourcePage();
+        while (resultPage.getPositionCount() != 7) {
+            resultPage = dispatcherPageSource.getNextSourcePage();
+        }
+        assertThat(resultPage.trySelectPositions(new int[] {1, 3, 6}, 0, 3)).isTrue();
+
+        assertThat(resultPage.getPositionCount()).isEqualTo(3);
+        long[][] expectedValuesByChannel = {{108, 111, 114}, {8, 11, 14}, {1008, 1011, 1014}};
+        for (int channel = 0; channel < expectedValuesByChannel.length; channel++) {
+            for (int position = 0; position < 3; position++) {
+                assertThat(BIGINT.getLong(resultPage.getBlock(channel), position)).isEqualTo(expectedValuesByChannel[channel][position]);
+            }
+        }
+        dispatcherPageSource.close();
+    }
+
+    @Test
+    public void testTrySelectPositionsDeclinedByBackingPageLeavesMixedPageUnchanged()
+    {
+        prepareMock(
+                Lists.newArrayList(new TestPage(buildPageLong(new long[] {100, 101, 102, 103}), createRowRanges(0, 4))),
+                Lists.newArrayList(buildLongPage(10, 11, 12, 13)));
+        DispatcherPageSource dispatcherPageSource = getDispatcherPageSource(2, proxiedCollectTypeByBlockIndex);
+
+        SourcePage resultPage = dispatcherPageSource.getNextSourcePage();
+        assertThat(resultPage.trySelectPositions(new int[] {1, 3}, 0, 2)).isFalse();
+
+        assertThat(resultPage.getPositionCount()).isEqualTo(4);
+        long[][] expectedValuesByChannel = {{100, 101, 102, 103}, {10, 11, 12, 13}};
+        for (int channel = 0; channel < expectedValuesByChannel.length; channel++) {
+            for (int position = 0; position < 4; position++) {
+                assertThat(BIGINT.getLong(resultPage.getBlock(channel), position)).isEqualTo(expectedValuesByChannel[channel][position]);
+            }
+        }
     }
 
     private PrefilledQueryCollectData createPrefilledQueryCollectData(long singleValue)

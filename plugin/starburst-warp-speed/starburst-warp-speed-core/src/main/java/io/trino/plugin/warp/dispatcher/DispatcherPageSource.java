@@ -748,5 +748,32 @@ public class DispatcherPageSource
             backingPage.selectPositions(positions, offset, size);
             positionCount = size;
         }
+
+        @Override
+        public boolean trySelectPositions(int[] positions, int offset, int size)
+        {
+            if (!backingPage.trySelectPositions(positions, offset, size)) {
+                return false;
+            }
+            // the caller owns the positions array and dictionary views retain it, so loaded blocks get a copy
+            int[] retainedPositions = null;
+            for (int i = 0; i < blocks.length; i++) {
+                Block block = blocks[i];
+                if (block == null) {
+                    continue;
+                }
+                if (backingIndexByOutputChannel[i] >= 0) {
+                    // the backing page already narrowed its loaded blocks, so take its view instead of wrapping the stale full block
+                    blocks[i] = backingPage.getBlock(backingIndexByOutputChannel[i]);
+                    continue;
+                }
+                if (retainedPositions == null) {
+                    retainedPositions = Arrays.copyOfRange(positions, offset, offset + size);
+                }
+                blocks[i] = block.getPositions(retainedPositions, 0, size);
+            }
+            positionCount = size;
+            return true;
+        }
     }
 }
