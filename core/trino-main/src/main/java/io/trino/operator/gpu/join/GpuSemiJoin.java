@@ -83,6 +83,7 @@ public final class GpuSemiJoin
     }
 
     private final UncheckedCloser closer = UncheckedCloser.create();
+    private final UncheckedCloser finish = UncheckedCloser.create();
     private final GpuTaskMemoryContext taskMemoryContext;
     private final GpuOperation source;
     private final ListenableFuture<GpuSemiJoinSet> setFuture;
@@ -97,7 +98,8 @@ public final class GpuSemiJoin
         this.probeKeyChannel = probeKeyChannel;
 
         closer.register(source);
-        closer.register(setSupplier::probeOperatorClosed);
+        closer.register(finish);
+        finish.register(setSupplier::probeOperatorFinished);
     }
 
     @Override
@@ -112,7 +114,10 @@ public final class GpuSemiJoin
         return switch (sourceResult) {
             case Blocked blocked -> blocked;
             case Yielded yielded -> yielded;
-            case Finished finished -> finished;
+            case Finished finished -> {
+                finish.close();
+                yield finished;
+            }
             case Data(AllocatedMemory memory, GpuPage page) -> {
                 try (ClosingRef<AllocatedMemory> allocation = ClosingRef.own(taskMemoryContext.allocate(getClass().getSimpleName(), MemoryAmount.ZERO));
                         memory;

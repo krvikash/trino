@@ -54,7 +54,7 @@ public final class GpuSemiJoinSetSupplier
     }
 
     /**
-     * Caller must call {@link #probeOperatorClosed()} exactly once after it is done using the set.
+     * Caller must call {@link #probeOperatorFinished()} exactly once after it is done using the set.
      */
     public ListenableFuture<GpuSemiJoinSet> getSetFuture()
     {
@@ -62,7 +62,7 @@ public final class GpuSemiJoinSetSupplier
         return nonCancellationPropagating(setFuture);
     }
 
-    public void probeOperatorClosed()
+    public void probeOperatorFinished()
     {
         // Sync to ensure that probe operator did indeed fully finish using the build side.
         CudaStreams.sync(Cuda.DEFAULT_STREAM);

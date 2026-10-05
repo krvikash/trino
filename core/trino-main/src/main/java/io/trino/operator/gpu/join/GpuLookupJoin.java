@@ -127,6 +127,7 @@ public final class GpuLookupJoin
     }
 
     private final UncheckedCloser closer = UncheckedCloser.create();
+    private final UncheckedCloser finish = UncheckedCloser.create();
     private final GpuTaskMemoryContext taskMemoryContext;
     private final GpuOperation source;
     private final ListenableFuture<GpuJoinBridge> bridgeFuture;
@@ -161,7 +162,8 @@ public final class GpuLookupJoin
         this.filteredJoin = filteredJoin;
 
         closer.register(source);
-        closer.register(bridgeManager::probeOperatorClosed);
+        closer.register(finish);
+        finish.register(bridgeManager::probeOperatorFinished);
     }
 
     @Override
@@ -178,7 +180,10 @@ public final class GpuLookupJoin
         return switch (sourceResult) {
             case Blocked blocked -> blocked;
             case Yielded yielded -> yielded;
-            case Finished finished -> finished;
+            case Finished finished -> {
+                finish.close();
+                yield finished;
+            }
             case Data(AllocatedMemory memory, GpuPage page) -> {
                 try (ClosingRef<AllocatedMemory> allocation = ClosingRef.own(taskMemoryContext.allocate(getClass().getSimpleName(), MemoryAmount.ZERO));
                         memory;

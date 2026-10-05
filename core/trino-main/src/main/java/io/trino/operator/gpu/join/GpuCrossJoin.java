@@ -114,6 +114,7 @@ public final class GpuCrossJoin
     }
 
     private final UncheckedCloser closer = UncheckedCloser.create();
+    private final UncheckedCloser finish = UncheckedCloser.create();
     private final GpuTaskMemoryContext taskMemoryContext;
     private final GpuOperation source;
     private final ListenableFuture<GpuCrossJoinBuildSide> buildSideFuture;
@@ -144,7 +145,8 @@ public final class GpuCrossJoin
 
         closer.register(source);
         closer.register(this::releaseProbePage);
-        closer.register(buildSideSupplier::probeOperatorClosed);
+        closer.register(finish);
+        finish.register(buildSideSupplier::probeOperatorFinished);
     }
 
     @Override
@@ -156,6 +158,7 @@ public final class GpuCrossJoin
         GpuCrossJoinBuildSide buildSide = getDone(buildSideFuture);
         if (buildSide.rowCount() == 0) {
             // No pairing is possible, so the probe input does not have to be drained
+            finish.close();
             return new Finished();
         }
 
@@ -170,6 +173,7 @@ public final class GpuCrossJoin
                     return yielded;
                 }
                 case Finished finished -> {
+                    finish.close();
                     return finished;
                 }
                 case Data(AllocatedMemory memory, GpuPage page) -> {

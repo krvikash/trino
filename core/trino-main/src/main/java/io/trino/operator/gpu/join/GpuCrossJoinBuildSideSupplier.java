@@ -55,7 +55,7 @@ public final class GpuCrossJoinBuildSideSupplier
     }
 
     /**
-     * Caller must call {@link #probeOperatorClosed()} exactly once after it is done using the build side.
+     * Caller must call {@link #probeOperatorFinished()} exactly once after it is done using the build side.
      */
     public ListenableFuture<GpuCrossJoinBuildSide> getBuildSideFuture()
     {
@@ -63,7 +63,7 @@ public final class GpuCrossJoinBuildSideSupplier
         return nonCancellationPropagating(buildSideFuture);
     }
 
-    public void probeOperatorClosed()
+    public void probeOperatorFinished()
     {
         // Sync to ensure that probe operator did indeed fully finish using the build side.
         CudaStreams.sync(Cuda.DEFAULT_STREAM);
