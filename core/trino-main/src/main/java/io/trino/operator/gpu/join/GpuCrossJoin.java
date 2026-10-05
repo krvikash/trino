@@ -286,7 +286,7 @@ public final class GpuCrossJoin
     {
         // The byte counts of one column, plus the validity mask copied along with them
         MemoryAmount byteCountsBytes = MemoryAmount.gpuDevice((long) rowCount * (Integer.BYTES + 1));
-        try (AllocatedMemory measurement = taskMemoryContext.allocate(getClass().getSimpleName(), byteCountsBytes);
+        try (AllocatedMemory _ = taskMemoryContext.allocate(getClass().getSimpleName(), byteCountsBytes);
                 ColumnVector byteCounts = variableWidthByteCounts(column);
                 Scalar maxByteCount = byteCounts.reduce(ReductionAggregation.max(), DType.INT32)) {
             // The reduction is invalid only when every row is null, and a null holds no bytes of its own
@@ -397,8 +397,8 @@ public final class GpuCrossJoin
 
     private void releaseProbePage()
     {
-        try (AllocatedMemory allocation = probeAllocation;
-                Table table = probeTable) {
+        try (var _ = probeAllocation;
+                var _ = probeTable) {
             probeAllocation = null;
             probeTable = null;
             probeRowCount = 0;
