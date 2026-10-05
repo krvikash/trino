@@ -503,6 +503,21 @@ public class TestPushPartialAggregationThroughJoin
     }
 
     @Test
+    public void testDoesNotPushGlobalPartialAggregationWhenJoinBarelyDoesNotExpand()
+    {
+        tester().assertThat(new PushPartialAggregationThroughJoin().pushPartialAggregationThroughJoinWithoutProjection())
+                .overrideStats(CHILD_ID.toString(), reducingJoinKeyStats())
+                .overrideStats(RIGHT_CHILD_ID.toString(), joinKeyStats("RIGHT_EQUI", SOURCE_ROWS / 100))
+                .overrideStats(JOIN_ID.toString(), new PlanNodeStatsEstimate(SOURCE_ROWS * 1.1 - 1, ImmutableMap.of()))
+                .on(p -> p.aggregation(ab -> ab
+                        .source(singleKeyJoin(p))
+                        .addAggregation(p.symbol("COUNT", BIGINT), aggregation("count", ImmutableList.of()), ImmutableList.of())
+                        .globalGrouping()
+                        .step(PARTIAL)))
+                .doesNotFire();
+    }
+
+    @Test
     public void testPushesPartialAggregationGroupedOnJoinKeyThroughExpandingJoin()
     {
         tester().assertThat(new PushPartialAggregationThroughJoin().pushPartialAggregationThroughJoinWithoutProjection())
@@ -641,6 +656,21 @@ public class TestPushPartialAggregationThroughJoin
                 .overrideStats(CHILD_ID.toString(), joinKeyStats("LEFT_EQUI", SOURCE_ROWS))
                 .overrideStats(RIGHT_CHILD_ID.toString(), joinKeyStats("RIGHT_EQUI", JOIN_KEY_NDV))
                 .overrideStats(JOIN_ID.toString(), new PlanNodeStatsEstimate(EXPANDING_JOIN_ROWS, ImmutableMap.of()))
+                .on(p -> p.aggregation(ab -> ab
+                        .source(singleKeyJoin(p))
+                        .addAggregation(p.symbol("COUNT", BIGINT), aggregation("count", ImmutableList.of()), ImmutableList.of())
+                        .globalGrouping()
+                        .step(PARTIAL)))
+                .matches(pushedGlobalCountOnRightJoinKey());
+    }
+
+    @Test
+    public void testPushesGlobalPartialAggregationToTheOnlyChildTheJoinExpands()
+    {
+        tester().assertThat(new PushPartialAggregationThroughJoin().pushPartialAggregationThroughJoinWithoutProjection())
+                .overrideStats(CHILD_ID.toString(), joinKeyStats("LEFT_EQUI", SOURCE_ROWS, SOURCE_ROWS / 100))
+                .overrideStats(RIGHT_CHILD_ID.toString(), joinKeyStats("RIGHT_EQUI", SOURCE_ROWS / 100, SOURCE_ROWS / 10000))
+                .overrideStats(JOIN_ID.toString(), new PlanNodeStatsEstimate(SOURCE_ROWS / 2, ImmutableMap.of()))
                 .on(p -> p.aggregation(ab -> ab
                         .source(singleKeyJoin(p))
                         .addAggregation(p.symbol("COUNT", BIGINT), aggregation("count", ImmutableList.of()), ImmutableList.of())

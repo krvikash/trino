@@ -184,13 +184,13 @@ public class TestAggregation
         assertThat(assertions.query(session,
                 """
                 SELECT count(*)
-                FROM (VALUES 1, 2, 3) l(k)
+                FROM (VALUES 1, 1, 2, 2, 3) l(k)
                 JOIN (VALUES 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2) r(k) ON l.k = r.k
                 """))
                 .matches(anyTree(node(JoinNode.class,
                         node(AggregationNode.class, anyTree(node(ValuesNode.class))),
                         anyTree(node(ValuesNode.class)))))
-                .matches("VALUES BIGINT '22'");
+                .matches("VALUES BIGINT '44'");
     }
 
     @Test

@@ -33,21 +33,20 @@
                         - AggregationNode (GPU)
                           - ExchangeNode LOCAL
                             - ExchangeNode REMOTE
-                              - AggregationNode
-                                - JoinNode (GPU)
-                                  - ExchangeNode REMOTE
-                                    - AggregationNode (GPU)
-                                      - ProjectNode (GPU)
-                                        - FilterNode (GPU)
-                                          - TableScanNode partsupp (GPU)
-                                  - ExchangeNode LOCAL
+                              - AggregationNode (GPU)
+                                - ProjectNode (GPU)
+                                  - JoinNode (GPU)
                                     - ExchangeNode REMOTE
-                                      - JoinNode (GPU)
-                                        - ExchangeNode REMOTE
-                                          - FilterNode (GPU)
-                                            - TableScanNode supplier (GPU)
-                                        - ExchangeNode LOCAL
+                                      - FilterNode (GPU)
+                                        - TableScanNode partsupp (GPU)
+                                    - ExchangeNode LOCAL
+                                      - ExchangeNode REMOTE
+                                        - JoinNode (GPU)
                                           - ExchangeNode REMOTE
-                                            - ProjectNode (GPU)
-                                              - FilterNode (GPU)
-                                                - TableScanNode nation (GPU)
+                                            - FilterNode (GPU)
+                                              - TableScanNode supplier (GPU)
+                                          - ExchangeNode LOCAL
+                                            - ExchangeNode REMOTE
+                                              - ProjectNode (GPU)
+                                                - FilterNode (GPU)
+                                                  - TableScanNode nation (GPU)

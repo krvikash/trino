@@ -22,11 +22,10 @@ remote exchange (GATHER, SINGLE, [])
                         final aggregation over ()
                             local exchange (GATHER, SINGLE, [])
                                 remote exchange (GATHER, SINGLE, [])
-                                    intermediate aggregation over ()
+                                    partial aggregation over ()
                                         join (INNER, REPLICATED):
-                                            partial aggregation over (suppkey_12)
-                                                dynamic filter ([suppkey_12::EQUAL])
-                                                    scan partsupp
+                                            dynamic filter ([suppkey_12::EQUAL])
+                                                scan partsupp
                                             local exchange (GATHER, SINGLE, [])
                                                 remote exchange (REPLICATE, BROADCAST, [])
                                                     join (INNER, REPLICATED):

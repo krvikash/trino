@@ -269,19 +269,20 @@ public class PushPartialAggregationThroughJoin
             return true;
         }
 
-        // Grouping a join input on its own join key leaves one row per key, so the join reads the collapsed
+        // Grouping an expanding join's input on its own join key leaves one row per key, so the join reads the collapsed
         // relation. A single grouping symbol keeps the group count exact, so wider grouping sets are excluded.
         Set<Symbol> pushedGroupingKeys = ImmutableSet.copyOf(pushedAggregation.getGroupingKeys());
         Set<Symbol> sourceJoinKeys = intersection(
                 getJoinRequiredSymbols(join),
                 ImmutableSet.copyOf(pushedAggregation.getSource().getOutputSymbols()));
+        boolean joinExpandsPushedInput = joinRowCount > 1.1 * sourceRowCount;
         boolean collapsesJoinInputOnJoinKey = false;
-        if (pushedGroupingKeys.size() == 1 && pushedGroupingKeys.equals(sourceJoinKeys)) {
+        if (joinExpandsPushedInput && pushedGroupingKeys.size() == 1 && pushedGroupingKeys.equals(sourceJoinKeys)) {
             double joinKeyDistinctValues = sourceStats.getSymbolStatistics(getOnlyElement(pushedGroupingKeys)).getDistinctValuesCount();
             collapsesJoinInputOnJoinKey = !isNaN(joinKeyDistinctValues) && joinKeyDistinctValues > 0 && joinKeyDistinctValues * JOIN_INPUT_COLLAPSE_RATIO <= sourceRowCount;
         }
 
-        if (joinRowCount > 1.1 * sourceRowCount
+        if (joinExpandsPushedInput
                 && !collapsesJoinInputOnJoinKey
                 && !(isPushPartialAggregationThroughExpandingJoin(context.getSession()) && join.isCrossJoin())) {
             return true;
