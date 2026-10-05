@@ -123,7 +123,6 @@ public final class GpuCrossJoin
     private @Own @Nullable AllocatedMemory probeAllocation;
     private @Own @Nullable Table probeTable;
     private int probeRowCount;
-    private long buildRowCount;
     private boolean buildMeasured;
     private long buildBytes;
     private long buildAverageBytesPerRow;
@@ -209,7 +208,7 @@ public final class GpuCrossJoin
         probePage.close();
         probeAllocation.update(MemoryAmount.gpuDevice(probeDeviceBytes));
 
-        buildRowCount = buildSide.rowCount();
+        long buildRowCount = buildSide.rowCount();
         @Nullable @Borrow Table buildTable = buildSide.outputTable().orElse(null);
         if (!buildMeasured) {
             // Measured once per operator, unlike the per-page probe side
