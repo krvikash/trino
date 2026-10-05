@@ -34,7 +34,9 @@ public class ExternalUriInfo
 {
     private static final String X_FORWARDED_PREFIX = "X-Forwarded-Prefix";
 
-    private final UriInfo uriInfo;
+    private final URI baseUri;
+    private final URI requestUri;
+    private final String requestPath;
     private final String forwardedPrefix;
 
     public ExternalUriInfo(@Context UriInfo uriInfo, @Context HttpHeaders httpHeaders)
@@ -44,7 +46,17 @@ public class ExternalUriInfo
 
     ExternalUriInfo(UriInfo uriInfo, String forwardedPrefix)
     {
-        this.uriInfo = requireNonNull(uriInfo, "uriInfo is null");
+        this(requireNonNull(uriInfo, "uriInfo is null").getBaseUri(),
+                uriInfo.getRequestUri(),
+                uriInfo.getPath(),
+                forwardedPrefix);
+    }
+
+    private ExternalUriInfo(URI baseUri, URI requestUri, String requestPath, String forwardedPrefix)
+    {
+        this.baseUri = requireNonNull(baseUri, "baseUri is null");
+        this.requestUri = requireNonNull(requestUri, "requestUri is null");
+        this.requestPath = requireNonNull(requestPath, "requestPath is null");
         this.forwardedPrefix = requireNonNullElse(forwardedPrefix, "");
     }
 
@@ -54,11 +66,22 @@ public class ExternalUriInfo
     }
 
     /**
+     * Creates an ExternalUriInfo from the server's base URI alone. There is no forwarded prefix,
+     * so {@link #fullRequestUri()} returns the scheme, host and port of the base URI. As with
+     * the constructors that take UriInfo, the path of the base URI is ignored: a path prefix
+     * only ever comes from {@code X-Forwarded-Prefix}.
+     */
+    public static ExternalUriInfo forBaseUri(URI baseUri)
+    {
+        return new ExternalUriInfo(baseUri, baseUri, "", "");
+    }
+
+    /**
      * Returns an external URI builder with the forwarded path prefix and no query parameters.
      */
     public ExternalUriBuilder baseUriBuilder()
     {
-        return new ExternalUriBuilder(uriInfo.getBaseUriBuilder()
+        return new ExternalUriBuilder(UriBuilder.fromUri(baseUri)
                 .replacePath(forwardedPrefix)
                 .replaceQuery(""));
     }
@@ -76,9 +99,9 @@ public class ExternalUriInfo
      */
     public URI fullRequestUri()
     {
-        return uriInfo.getRequestUriBuilder()
+        return UriBuilder.fromUri(requestUri)
                 .replacePath(forwardedPrefix)
-                .path(uriInfo.getPath())
+                .path(requestPath)
                 .build();
     }
 
