@@ -4992,7 +4992,7 @@ public class LocalExecutionPlanner
                 Optional<CudfAstExpression> compiledFilter,
                 PhysicalOperation probeSource,
                 Set<DynamicFilterId> localDynamicFilters,
-                LocalExecutionPlanContext context,
+                LocalExecutionPlanContext outputContext,
                 LocalExecutionPlanContext buildContext)
         {
             PlanNode buildNode = node.getRight();
@@ -5012,7 +5012,7 @@ public class LocalExecutionPlanner
             List<Integer> buildChannels = ImmutableList.copyOf(getChannelsForSymbols(buildSymbols, buildSource.getLayout()));
 
             boolean partitioned = !isBuildSideReplicated(node);
-            Optional<LocalDynamicFilterConsumer> localDynamicFilter = createDynamicFilter(buildSource, node, context, localDynamicFilters, partitioned);
+            Optional<LocalDynamicFilterConsumer> localDynamicFilter = createDynamicFilter(buildSource, node, outputContext, localDynamicFilters, partitioned);
             Optional<GpuDynamicFilterCollector> gpuDynamicFilter = localDynamicFilter
                     .map(filter -> buildGpuDynamicFilterCollector(filter, buildSource, partitioned));
             localDynamicFilter.ifPresent(filter -> filter.setPartitionCount(1));
@@ -5040,7 +5040,7 @@ public class LocalExecutionPlanner
             // contract such as BufferPages. We're a dummy operator so that Driver calls getOutput() allowing the build side to do its work.
             joinBuild = new PhysicalOperation(new SentinelSinkOperator.Factory(buildContext.getNextOperatorId(), node.getId()), ImmutableMap.of(), joinBuild);
 
-            context.addDriverFactory(false, joinBuild, buildContext);
+            outputContext.addDriverFactory(false, joinBuild, buildContext);
 
             List<Type> buildOutputTypes = buildOutputChannels.stream()
                     .map(buildSource.getTypes()::get)
@@ -5064,7 +5064,7 @@ public class LocalExecutionPlanner
                     joinOutputTypes,
                     probeSource,
                     makeLayout(node),
-                    context,
+                    outputContext,
                     node.getId());
         }
 
@@ -5174,7 +5174,7 @@ public class LocalExecutionPlanner
         PhysicalOperation complete(
                 PhysicalOperation probeSource,
                 Set<DynamicFilterId> localDynamicFilters,
-                LocalExecutionPlanContext context,
+                LocalExecutionPlanContext outputContext,
                 LocalExecutionPlanContext buildContext);
     }
 
