@@ -333,7 +333,7 @@ public final class GpuCrossJoin
     }
 
     /// Output row `emittedRows + i` pairs probe row `(emittedRows + i) / buildRowCount` with build
-    /// row `(emittedRows + i) % buildRowCount`, which is the ordering [Table#crossJoin] produces.
+    /// row `(emittedRows + i) % buildRowCount`.
     private @Move GpuPage buildChunk(GpuCrossJoinBuildSide buildSide, int rows, @Borrow AllocatedMemory allocation)
     {
         @Nullable @Borrow Table probeSource = probeTable;
