@@ -117,23 +117,25 @@ public final class GpuCrossJoin
     private final UncheckedCloser finish = UncheckedCloser.create();
     private final GpuTaskMemoryContext taskMemoryContext;
     private final GpuOperation source;
-    private final ListenableFuture<GpuCrossJoinBuildSide> buildSideFuture;
     private final int[] probeOutputChannels;
 
-    private @Own @Nullable AllocatedMemory probeAllocation;
-    private @Own @Nullable Table probeTable;
-    private int probeRowCount;
+    private final ListenableFuture<GpuCrossJoinBuildSide> buildSideFuture;
     private boolean buildMeasured;
     private long buildBytes;
     private long buildAverageBytesPerRow;
     private long buildMaxBytesPerRow;
-    private long emittedRows;
-    private long totalOutputRows;
-    private int outputChunkRows;
+
+    private @Own @Nullable AllocatedMemory probeAllocation;
+    private @Own @Nullable Table probeTable;
+    private int probeRowCount;
+    private long probeRowsToOutput;
     private long gatherMapBytesPerRow;
+    private int outputChunkRows;
     /// Device memory a chunk's output row is reserved at, until the chunk's page gives its actual size.
     /// Exact when the product is emitted as one chunk, an estimate when it is sliced.
     private long reservationBytesPerRow;
+
+    private long probeEmittedRows;
 
     private GpuCrossJoin(Context context, GpuOperation source, GpuCrossJoinBuildSideSupplier buildSideSupplier, int[] probeOutputChannels)
     {
@@ -161,7 +163,7 @@ public final class GpuCrossJoin
             return new Finished();
         }
 
-        if (emittedRows == totalOutputRows) {
+        if (probeEmittedRows == probeRowsToOutput) {
             releaseProbePage();
             @Own Result sourceResult = source.execute();
             switch (sourceResult) {
@@ -179,7 +181,7 @@ public final class GpuCrossJoin
                     try (memory; ClosingRef<GpuPage> probePage = ClosingRef.own(page)) {
                         startProbePage(buildSide, memory, probePage);
                     }
-                    if (totalOutputRows == 0) {
+                    if (probeRowsToOutput == 0) {
                         return new Yielded();
                     }
                 }
@@ -235,18 +237,18 @@ public final class GpuCrossJoin
             overheadBytesPerRow += VARIABLE_WIDTH_GATHER_BYTES_PER_ROW;
         }
 
-        emittedRows = 0;
-        totalOutputRows = probeRowCount * buildRowCount;
+        probeEmittedRows = 0;
+        probeRowsToOutput = probeRowCount * buildRowCount;
         // Every probe row is repeated once per build row and every build row once per probe row, so the
         // product's size follows from the two input sizes without looking at individual rows
         long totalOutputBytes = saturatedAdd(
                 saturatedAdd(
                         saturatedMultiply(probeDeviceBytes, buildRowCount),
                         saturatedMultiply(buildBytes, probeRowCount)),
-                saturatedMultiply(totalOutputRows, overheadBytesPerRow));
+                saturatedMultiply(probeRowsToOutput, overheadBytesPerRow));
         if (totalOutputBytes <= MAX_OUTPUT_CHUNK_BYTES) {
-            outputChunkRows = clamp(totalOutputRows, 1, MAX_OUTPUT_CHUNK_ROWS);
-            reservationBytesPerRow = ceilDiv(totalOutputBytes, totalOutputRows);
+            outputChunkRows = clamp(probeRowsToOutput, 1, MAX_OUTPUT_CHUNK_ROWS);
+            reservationBytesPerRow = ceilDiv(totalOutputBytes, probeRowsToOutput);
             return;
         }
         // A slice of the product holds an arbitrary run of rows, so its size is only estimated from the
@@ -323,11 +325,11 @@ public final class GpuCrossJoin
 
     private @Move Data emitChunk(GpuCrossJoinBuildSide buildSide)
     {
-        int rows = toIntExact(min(outputChunkRows, totalOutputRows - emittedRows));
+        int rows = toIntExact(min(outputChunkRows, probeRowsToOutput - probeEmittedRows));
         try (ClosingRef<AllocatedMemory> allocation = ClosingRef.own(taskMemoryContext.allocate(getClass().getSimpleName(), MemoryAmount.ZERO));
                 ClosingRef<GpuPage> outputPage = ClosingRef.own(buildChunk(buildSide, rows, allocation.borrow()))) {
             allocation.borrow().update(outputPage.borrow().retainedMemory());
-            emittedRows += rows;
+            probeEmittedRows += rows;
             return new Data(allocation.take(), outputPage.take());
         }
     }
@@ -347,7 +349,7 @@ public final class GpuCrossJoin
                 ClosingRef<Table> buildGathered = ClosingRef.empty()) {
             try (ClosingRef<ColumnVector> probeMap = ClosingRef.empty();
                     ClosingRef<ColumnVector> buildMap = ClosingRef.empty()) {
-                try (Scalar start = Scalar.fromLong(emittedRows);
+                try (Scalar start = Scalar.fromLong(probeEmittedRows);
                         Scalar step = Scalar.fromLong(1);
                         ColumnVector positions = ColumnVector.sequence(start, step, rows);
                         Scalar buildRows = Scalar.fromLong(buildSide.rowCount())) {
@@ -402,8 +404,8 @@ public final class GpuCrossJoin
             probeAllocation = null;
             probeTable = null;
             probeRowCount = 0;
-            emittedRows = 0;
-            totalOutputRows = 0;
+            probeEmittedRows = 0;
+            probeRowsToOutput = 0;
         }
     }
 
