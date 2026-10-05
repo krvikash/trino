@@ -189,8 +189,8 @@ public abstract class TarDownloadingJdkProvider
     {
         return RetryPolicy.builder()
                 .handle(UncheckedIOException.class)
-                .withMaxAttempts(5)
-                .withBackoff(1, 10, SECONDS)
+                .withMaxAttempts(10)
+                .withBackoff(1, 30, SECONDS)
                 .onFailedAttempt(event -> log.warn(event.getLastException(), "Could not download %s from %s", fullName, downloadUri))
                 .onRetry(event -> log.info("Retrying download of %s from %s, %d failed attempt(s)", fullName, downloadUri, event.getAttemptCount()))
                 .build();
