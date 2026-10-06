@@ -568,6 +568,9 @@ public final class ConnectorSensitiveProperties
                             "http-client.trust-store-password",
                             "ldap.ssl.keystore.password",
                             "ldap.ssl.truststore.password",
+                            "s3.aws-secret-key",
+                            "s3.http-proxy.password",
+                            "s3.sse.customer-key",
                             "vault.token"))
             .put("singlestore",
                     ImmutableSet.of(
