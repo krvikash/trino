@@ -45,7 +45,6 @@ public class RuleApplier
     {
         MemoChangesCollector changesCollector = new MemoChangesCollector();
         applyRule(operation, rule, changesCollector);
-        memo.pruneOrphanedGroups(changesCollector);
         return changesCollector.getChanges();
     }
 

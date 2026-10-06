@@ -39,6 +39,7 @@ import io.trino.sql.planner.exploratory.rule.Context;
 import io.trino.sql.planner.exploratory.rule.NewMemoOperation;
 import io.trino.sql.planner.exploratory.rule.OperationRule;
 import io.trino.sql.planner.exploratory.rule.Result;
+import io.trino.sql.planner.exploratory.rule.UpdateOperationAttributes;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -51,6 +52,7 @@ import static io.trino.sql.dialect.ir.IrDialect.SAFE;
 import static io.trino.sql.newir.DialectRegistry.TESTING_DIALECT_REGISTRY;
 import static io.trino.sql.planner.exploratory.MemoGroupMatcher.memoGroup;
 import static io.trino.sql.planner.exploratory.MemoOperationMatcher.GroupChildMatcher.groupChild;
+import static io.trino.sql.planner.exploratory.MemoOperationMatcher.ParameterChildMatcher.parameterChild;
 import static io.trino.sql.planner.exploratory.MemoOperationMatcher.memoOperation;
 import static io.trino.sql.planner.exploratory.MemoTestingHelper.TEST_MEMO_OPERATION;
 import static io.trino.sql.planner.exploratory.MemoTestingHelper.TEST_OPERATION_ATTRIBUTE_KEY;
@@ -210,15 +212,13 @@ class TestMemoChangesCollector
     public void testGroupPrune()
     {
         Memo memo = baseMemo();
-        MemoChangesCollector collector = new MemoChangesCollector();
+        MemoChangesCollector ignoredChanges = new MemoChangesCollector();
         MemoOperation orphanOperation = leafOperation();
-        int orphanGroupId = memo.insertOperation(orphanOperation, collector);
-        memo.pruneOrphanedGroups(collector);
+        int orphanGroupId = memo.insertOperation(orphanOperation, ignoredChanges);
 
-        assertThat(collector.getChanges())
-                .containsExactly(
-                        new SingletonGroupCreate(orphanOperation, orphanGroupId),
-                        new GroupPrune(orphanGroupId, ImmutableList.of(orphanOperation)));
+        assertThat(memo.pruneOrphanedGroups())
+                .containsExactly(new GroupPrune(orphanGroupId, ImmutableList.of(orphanOperation)));
+        assertMemoGroupsDoesNotContain(memo.groups(), orphanGroupId);
     }
 
     @Test
@@ -271,6 +271,31 @@ class TestMemoChangesCollector
     }
 
     @Test
+    public void testRuleApplicationDoesNotPruneOrphanedGroups()
+    {
+        Memo memo = baseMemo();
+        MemoChangesCollector ignoredChanges = new MemoChangesCollector();
+        MemoOperation operation = leafOperation();
+        int groupId = memo.insertOperation(operation, ignoredChanges);
+
+        List<MemoChange> changes = new RuleApplier(memo).applyRule(operation, new UpdateOperationAttributes());
+
+        assertThat(changes)
+                .isEmpty();
+
+        assertMemoGroupsContains(
+                memo.groups(),
+                ImmutableMap.of(
+                        groupId, memoGroup()
+                                .withOperations(
+                                        memoOperation()
+                                                .withName(TEST_MEMO_OPERATION.operationId().name())
+                                                .withAttributes(attributes(TEST_OPERATION_ATTRIBUTE_KEY, TEST_OPERATION_ATTRIBUTE_OBJECT))
+                                                .build())
+                                .build()));
+    }
+
+    @Test
     public void testRuleApplication()
     {
         Memo memo = baseMemo();
@@ -299,10 +324,29 @@ class TestMemoChangesCollector
                 new SingletonGroupCreate(expectedRewrittenChild, expectedRewrittenChildGroupId),
                 new SingletonGroupCreate(expectedRewrittenParent, expectedRewrittenParentGroupId),
                 new GroupMerge(parentGroupId, expectedRewrittenParentGroupId),
-                new OperationRemove(parentOperation, parentGroupId),
-                new GroupPrune(childGroupId, ImmutableList.of(childOperation)),
-                new GroupPrune(parentGroupId, ImmutableList.of(expectedRewrittenParent)),
-                new GroupPrune(expectedRewrittenChildGroupId, ImmutableList.of(expectedRewrittenChild)));
+                new OperationRemove(parentOperation, parentGroupId));
+
+        assertMemoGroupsContains(
+                memo.groups(),
+                ImmutableMap.of(
+                        expectedRewrittenChildGroupId, memoGroup()
+                                .withGroupParameterTypes(TEST_TYPE)
+                                .withOperations(
+                                        memoOperation()
+                                                .withName(RowOperationMetadata.NAME)
+                                                .withGroupParameterTypes(TEST_TYPE)
+                                                .withChildren(parameterChild(0))
+                                                .build())
+                                .build(),
+                        parentGroupId, memoGroup()
+                                .withGroupParameterTypes(TEST_TYPE, TEST_TYPE)
+                                .withOperations(
+                                        memoOperation()
+                                                .withName(RowOperationMetadata.NAME)
+                                                .withGroupParameterTypes(TEST_TYPE, TEST_TYPE)
+                                                .withChildren(groupChild(expectedRewrittenChildGroupId))
+                                                .build())
+                                .build()));
     }
 
     private static Memo baseMemo()

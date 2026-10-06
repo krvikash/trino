@@ -270,6 +270,7 @@ public class Pass<C extends Cost, R extends Requirement, P extends Property>
         // RuleApplicationContext. Restart from the recent group after every change affecting
         // this state so rules only inspect current operations with freshly computed contexts.
         boolean processCurrentState = true;
+        boolean pruningRequired = false;
         while (processCurrentState) {
             processCurrentState = false;
             StateKey<R> recentKey = recentStateKey(state.key());
@@ -282,6 +283,7 @@ public class Pass<C extends Cost, R extends Requirement, P extends Property>
                     RuleApplicationContext applicationContext = rule.getApplicationContext(operation, memo);
                     if (appliedRules.markIfNew(operation, rule, applicationContext)) {
                         List<MemoChange> changes = ruleApplier.applyRule(operation, rule);
+                        pruningRequired |= changes.stream().anyMatch(Pass::mayCreateOrphanedGroups);
                         processCurrentState = processChanges(changes, recentStateKey(state.key()));
                         if (processCurrentState) {
                             break;
@@ -296,6 +298,13 @@ public class Pass<C extends Cost, R extends Requirement, P extends Property>
 
         // get recent group key in case it was updated during rule application
         StateKey<R> recentKey = recentStateKey(state.key());
+
+        if (pruningRequired) {
+            // prune unreachable groups after exploration is completed
+            List<MemoChange> changes = memo.pruneOrphanedGroups();
+            processChanges(changes, recentKey);
+            checkState(optimizationStore.containsState(recentKey), "currently processed state was removed by orphaned-group pruning: %s", recentKey);
+        }
 
         GroupOptimizationState<C, R, P> baselineState = optimizationStore.getState(recentKey);
 
@@ -438,6 +447,20 @@ public class Pass<C extends Cost, R extends Requirement, P extends Property>
                 }
             }
         }
+    }
+
+    private static boolean mayCreateOrphanedGroups(MemoChange change)
+    {
+        return switch (change) {
+            case OperationRemove _ -> true;
+            case SingletonGroupCreate _,
+                 GroupMerge _,
+                 GroupPrune _,
+                 GroupAttributesChange _,
+                 OperationAttributesChange _,
+                 OperationInsert _,
+                 OperationSuccession _ -> false;
+        };
     }
 
     /**

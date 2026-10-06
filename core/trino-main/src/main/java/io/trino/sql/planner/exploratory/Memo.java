@@ -23,6 +23,7 @@ import com.google.common.collect.Sets;
 import io.trino.sql.newir.Attributes;
 import io.trino.sql.newir.DialectRegistry;
 import io.trino.sql.newir.Program;
+import io.trino.sql.planner.exploratory.MemoChangesCollector.MemoChange;
 import io.trino.sql.planner.exploratory.MemoOperation.GroupChild;
 import io.trino.sql.planner.exploratory.rule.Context;
 
@@ -370,6 +371,13 @@ public class Memo
         groups.keySet().retainAll(referencedGroups);
         operationToGroup.entrySet().removeIf(entry -> !referencedGroups.contains(entry.getValue()));
         groupToParents.entries().removeIf(entry -> !referencedGroups.contains(entry.getKey()) || !referencedGroups.contains(entry.getValue()));
+    }
+
+    List<MemoChange> pruneOrphanedGroups()
+    {
+        MemoChangesCollector changesCollector = new MemoChangesCollector();
+        pruneOrphanedGroups(changesCollector);
+        return changesCollector.getChanges();
     }
 
     @VisibleForTesting
