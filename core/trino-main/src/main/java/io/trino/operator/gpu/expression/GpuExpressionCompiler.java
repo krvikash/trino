@@ -314,6 +314,16 @@ public final class GpuExpressionCompiler
                     }
                     default -> Optional.empty();
                 };
+                case TimestampType from -> switch (toType) {
+                    case TimestampType to when to.getPrecision() == 3 && from.getPrecision() < 3 -> {
+                        if (fromDType.equals(toDType)) {
+                            yield Optional.of(input);
+                        }
+                        yield Optional.of(new GpuCast(input, toDType));
+                    }
+                    case TimestampType to when to.getPrecision() == 3 -> Optional.of(new GpuTimestampToMillisCast(input));
+                    default -> Optional.empty();
+                };
                 default -> Optional.empty();
             };
         }

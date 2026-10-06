@@ -71,6 +71,8 @@ import static io.trino.spi.type.IntegerType.INTEGER;
 import static io.trino.spi.type.NumberType.NUMBER;
 import static io.trino.spi.type.RealType.REAL;
 import static io.trino.spi.type.SmallintType.SMALLINT;
+import static io.trino.spi.type.TimestampType.TIMESTAMP_MILLIS;
+import static io.trino.spi.type.TimestampType.createTimestampType;
 import static io.trino.spi.type.TinyintType.TINYINT;
 import static io.trino.spi.type.TypeUtils.readNativeValue;
 import static io.trino.spi.type.TypeUtils.writeNativeValue;
@@ -570,6 +572,66 @@ public class TestGpuCasts
             assertThat(gpuCast(varcharType, createCharType(20))).isNotSupported();
             assertThat(gpuCast(varcharType, createCharType(40))).isNotSupported();
         }
+    }
+
+    @Test
+    void testCastFromTimestamp()
+    {
+        assertCastSucceedsForAll(createTimestampType(0), TIMESTAMP_MILLIS, new String[] {
+                "TIMESTAMP '2020-05-10 12:34:56'",
+                "TIMESTAMP '1969-12-31 23:59:59'",
+                "CAST(NULL AS TIMESTAMP(0))",
+        });
+        assertCastSucceedsForAll(createTimestampType(1), TIMESTAMP_MILLIS, new String[] {
+                "TIMESTAMP '2020-05-10 12:34:56.7'",
+                "TIMESTAMP '1969-12-31 23:59:59.9'",
+                "CAST(NULL AS TIMESTAMP(1))",
+        });
+        assertCastSucceedsForAll(TIMESTAMP_MILLIS, TIMESTAMP_MILLIS, new String[] {
+                "TIMESTAMP '2020-05-10 12:34:56.789'",
+                "TIMESTAMP '1969-12-31 23:59:59.999'",
+                "CAST(NULL AS TIMESTAMP(3))",
+        });
+        assertCastSucceedsForAll(createTimestampType(4), TIMESTAMP_MILLIS, new String[] {
+                "TIMESTAMP '2020-05-10 12:34:56.7894'",
+                "TIMESTAMP '2020-05-10 12:34:56.7895'",
+                "TIMESTAMP '2020-05-10 23:59:59.9995'",
+                "TIMESTAMP '1969-12-31 23:59:59.9994'",
+                "TIMESTAMP '1969-12-31 23:59:59.9995'",
+                "TIMESTAMP '1969-12-31 23:59:59.9985'",
+                "CAST(NULL AS TIMESTAMP(4))",
+        });
+        assertCastSucceedsForAll(createTimestampType(6), TIMESTAMP_MILLIS, new String[] {
+                "TIMESTAMP '1970-01-01 00:00:00.000499'",
+                "TIMESTAMP '1970-01-01 00:00:00.000500'",
+                "TIMESTAMP '1970-01-01 00:00:00.001500'",
+                "TIMESTAMP '1969-12-31 23:59:59.999499'",
+                "TIMESTAMP '1969-12-31 23:59:59.999500'",
+                "TIMESTAMP '1969-12-31 23:59:59.998500'",
+                "TIMESTAMP '0001-01-01 00:00:00.000500'",
+                "TIMESTAMP '9999-12-31 23:59:59.999500'",
+                "CAST(NULL AS TIMESTAMP(6))",
+        });
+        assertCastSucceedsForAll(createTimestampType(7), TIMESTAMP_MILLIS, new String[] {
+                "TIMESTAMP '1970-01-01 00:00:00.0004999'",
+                "TIMESTAMP '1970-01-01 00:00:00.0005000'",
+                "TIMESTAMP '1969-12-31 23:59:59.9994999'",
+                "TIMESTAMP '1969-12-31 23:59:59.9995000'",
+                "CAST(NULL AS TIMESTAMP(7))",
+        });
+        assertCastSucceedsForAll(createTimestampType(9), TIMESTAMP_MILLIS, new String[] {
+                "TIMESTAMP '1970-01-01 00:00:00.000499999'",
+                "TIMESTAMP '1970-01-01 00:00:00.000500000'",
+                "TIMESTAMP '1970-01-01 00:00:00.000500001'",
+                "TIMESTAMP '1969-12-31 23:59:59.999499999'",
+                "TIMESTAMP '1969-12-31 23:59:59.999500000'",
+                "TIMESTAMP '1969-12-31 23:59:59.999500001'",
+                "CAST(NULL AS TIMESTAMP(9))",
+        });
+        // Only casts to timestamp(3) are supported
+        assertThat(gpuCast(createTimestampType(6), createTimestampType(4))).isNotSupported();
+        assertThat(gpuCast(TIMESTAMP_MILLIS, createTimestampType(6))).isNotSupported();
+        assertThat(gpuCast(createTimestampType(0), createTimestampType(1))).isNotSupported();
     }
 
     private void assertCastSucceedsForAll(Type from, Type to, @Language("SQL") String[] sqlValues)

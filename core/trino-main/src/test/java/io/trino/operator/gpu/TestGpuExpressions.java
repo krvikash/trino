@@ -2892,6 +2892,98 @@ public class TestGpuExpressions
         testDateTimeExtract("day", DATE, nullsProvider);
     }
 
+    @Test
+    public void testTimestampToMillisCastOverflow()
+    {
+        TimestampType timestampType = createTimestampType(6);
+        List<Type> inputTypes = List.of(timestampType);
+        Expression expression = new Cast(field(0, timestampType), createTimestampType(3));
+        CompiledExpression gpuExpression = compileExpression(expression, layoutFor(inputTypes), SQL_STANDARD, TEST_SESSION_TIME_ZONE_KEY).orElseThrow();
+        for (long value : List.of(Long.MAX_VALUE - 499, Long.MAX_VALUE)) {
+            List<Page> inputPages = List.of(new Page(timestampCastInputBlock(Arrays.asList(null, 0L, value, null))));
+            assertTrinoExceptionThrownBy(() -> executeWithGpu(inputPages, inputTypes, expression, gpuExpression))
+                    .hasErrorCode(NUMERIC_VALUE_OUT_OF_RANGE)
+                    .hasMessage("Timestamp rounding argument out of range supported by GPU");
+        }
+    }
+
+    @Test
+    public void testTimestampToMillisCastRounding()
+    {
+        TimestampType timestampType = createTimestampType(6);
+        List<Page> inputPages = List.of(new Page(timestampCastInputBlock(Arrays.asList(
+                null, -1500L, -501L, -500L, 499L, 500L, Long.MAX_VALUE - 500))));
+        Expression expression = new Cast(field(0, timestampType), createTimestampType(3));
+        assertGpuMatchesCpu(inputPages, List.of(timestampType), expression, Set.of(0));
+    }
+
+    @Test
+    public void testTimestampToMillisCastAtLowerBound()
+    {
+        // The positive rounding shift cannot underflow. The CPU's unchecked negative rounding
+        // wraps at this bound, so assert the GPU result directly instead of comparing with the CPU.
+        TimestampType timestampType = createTimestampType(6);
+        TimestampType resultType = createTimestampType(3);
+        List<Type> inputTypes = List.of(timestampType);
+        Expression expression = new Cast(field(0, timestampType), resultType);
+        CompiledExpression gpuExpression = compileExpression(expression, layoutFor(inputTypes), SQL_STANDARD, TEST_SESSION_TIME_ZONE_KEY).orElseThrow();
+        List<Page> result = executeWithGpu(
+                List.of(new Page(writeNativeValue(timestampType, Long.MIN_VALUE))),
+                inputTypes,
+                expression,
+                gpuExpression);
+        assertSameDataInOrder(result, List.of(new Page(writeNativeValue(resultType, -9_223_372_036_854_775_000L))), List.of(resultType));
+    }
+
+    @Test
+    public void testTimestampToMillisCastAllNullAndEmptyInputs()
+    {
+        TimestampType timestampType = createTimestampType(6);
+        Expression expression = new Cast(field(0, timestampType), createTimestampType(3));
+        for (List<Long> values : List.of(Arrays.<Long>asList(null, null), List.<Long>of())) {
+            assertGpuMatchesCpu(List.of(new Page(timestampCastInputBlock(values))), List.of(timestampType), expression, Set.of(0));
+        }
+    }
+
+    @Test
+    public void testTimestampToMillisCastLazyEvaluation()
+    {
+        TimestampType timestampType = createTimestampType(6);
+        TimestampType resultType = createTimestampType(3);
+        List<Type> inputTypes = List.of(timestampType);
+        List<Page> inputPages = List.of(new Page(timestampCastInputBlock(Arrays.asList(Long.MAX_VALUE, 500L, null))));
+        Expression condition = comparison(ComparisonOperator.LESS_THAN, field(0, timestampType), new Constant(timestampType, 1000L));
+        Expression expression = new Case(
+                ImmutableList.of(new WhenClause(condition, new Cast(field(0, timestampType), resultType))),
+                new Constant(resultType, 0L));
+        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(0));
+
+        // A constant remains non-null when inputs are masked, so this branch must be filtered.
+        Expression constantExpression = new Case(
+                ImmutableList.of(new WhenClause(new IsNull(field(0, timestampType)), new Cast(new Constant(timestampType, Long.MAX_VALUE), resultType))),
+                new Constant(resultType, 0L));
+        assertGpuMatchesCpu(
+                List.of(new Page(timestampCastInputBlock(List.of(0L, 500L)))),
+                inputTypes,
+                constantExpression,
+                Set.of(0));
+    }
+
+    private static Block timestampCastInputBlock(List<Long> epochMicros)
+    {
+        TimestampType timestampType = createTimestampType(6);
+        BlockBuilder builder = timestampType.createBlockBuilder(null, epochMicros.size());
+        for (Long micros : epochMicros) {
+            if (micros == null) {
+                builder.appendNull();
+            }
+            else {
+                timestampType.writeLong(builder, micros);
+            }
+        }
+        return builder.build();
+    }
+
     @ParameterizedTest
     @EnumSource(NullsProvider.class)
     public void testYearExtract(NullsProvider nullsProvider)

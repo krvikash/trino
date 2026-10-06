@@ -22,6 +22,7 @@ import io.trino.metadata.TestingFunctionResolution;
 import io.trino.spi.function.OperatorType;
 import io.trino.sql.ir.Call;
 import io.trino.sql.ir.Case;
+import io.trino.sql.ir.Cast;
 import io.trino.sql.ir.Coalesce;
 import io.trino.sql.ir.ComparisonOperator;
 import io.trino.sql.ir.Constant;
@@ -215,6 +216,28 @@ final class TestFallibility
         assertThat(compile(dateAdd("millisecond", 1, T)).fallibility()).isEqualTo(FALLIBLE_EXCEPT_ALL_NULLS);
         // A zero shift keeps every input of the nanosecond carrier in range, so there is no check to fail
         assertThat(compile(dateAdd("millisecond", 0, T)).fallibility()).isEqualTo(INFALLIBLE);
+    }
+
+    @Test
+    void testTimestampToMillisCast()
+    {
+        GpuExpression expression = compile(new Cast(T, createTimestampType(3)));
+        assertThat(expression.fallibility()).isEqualTo(FALLIBLE_EXCEPT_ALL_NULLS);
+        assertThat(expression.nullOnNullInputs()).isTrue();
+
+        Constant constant = new Constant(createTimestampType(6), Long.MAX_VALUE);
+        GpuExpression constantCast = compile(new Cast(constant, createTimestampType(3)));
+        assertThat(constantCast.fallibility()).isEqualTo(FALLIBLE);
+        assertThat(constantCast.nullOnNullInputs()).isFalse();
+
+        GpuExpression nullCast = compile(new Cast(new Constant(createTimestampType(6), null), createTimestampType(3)));
+        assertThat(nullCast.fallibility()).isEqualTo(FALLIBLE_EXCEPT_ALL_NULLS);
+        assertThat(nullCast.nullOnNullInputs()).isTrue();
+
+        Expression fallibleArgument = new Call(
+                FUNCTION_RESOLUTION.resolveFunction("date_trunc", fromTypes(VARCHAR, constant.type())),
+                ImmutableList.of(new Constant(VARCHAR, utf8Slice("day")), constant));
+        assertThat(compile(new Cast(fallibleArgument, createTimestampType(3))).fallibility()).isEqualTo(FALLIBLE);
     }
 
     @Test
