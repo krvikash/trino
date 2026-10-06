@@ -25,8 +25,6 @@ import io.trino.spi.connector.SortOrder;
 import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
 import io.trino.spi.gpu.borrow.Own;
-import io.trino.spi.type.DoubleType;
-import io.trino.spi.type.RealType;
 import io.trino.spi.type.Type;
 
 import java.util.ArrayList;
@@ -37,6 +35,7 @@ import static io.trino.operator.gpu.memory.GpuMemoryUtils.getOrderByMemoryUsage;
 import static io.trino.plugin.base.gpu.GpuUtils.closeColumns;
 import static io.trino.spi.gpu.GpuTypeConversion.nullScalar;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
+import static io.trino.spi.type.TypeUtils.typeHasNaN;
 import static java.lang.Math.addExact;
 import static java.lang.Math.multiplyExact;
 import static java.util.Objects.requireNonNull;
@@ -136,7 +135,7 @@ public final class GpuSortUtils
 
     private static boolean needsNanFlag(Type type, SortOrder sortOrder)
     {
-        return (type instanceof DoubleType || type instanceof RealType) && sortOrder.isNullsFirst();
+        return typeHasNaN(type) && sortOrder.isNullsFirst();
     }
 
     private static @Move ColumnVector createNanFlag(@Borrow ColumnView column, boolean isAscending)
