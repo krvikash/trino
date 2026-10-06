@@ -212,6 +212,7 @@ abstract class BaseUnityMetastoreDeltaConnectorSmokeTest
     }
 
     @Test
+    @Flaky(issue = "https://starburstdata.atlassian.net/browse/ENG-26786", match = "HTTP request failed by code: 50[02]")
     void testCatalogManagedTable()
     {
         String tableName = "catalog_managed_table_" + randomNameSuffix();
@@ -239,7 +240,7 @@ abstract class BaseUnityMetastoreDeltaConnectorSmokeTest
     }
 
     @Test
-    @Flaky(issue = "https://starburstdata.atlassian.net/browse/ENG-26786", match = "HTTP request failed by code: 500")
+    @Flaky(issue = "https://starburstdata.atlassian.net/browse/ENG-26786", match = "HTTP request failed by code: 50[02]")
     void testReadTimestampNtz()
     {
         String tableName = "read_timestamp_ntz_" + randomNameSuffix();
@@ -284,7 +285,7 @@ abstract class BaseUnityMetastoreDeltaConnectorSmokeTest
     }
 
     @Test
-    @Flaky(issue = "https://starburstdata.atlassian.net/browse/ENG-28227", match = "HTTP request failed by code: 500")
+    @Flaky(issue = "https://starburstdata.atlassian.net/browse/ENG-28227", match = "HTTP request failed by code: 50[02]")
     void testFieldNameWithHyphen()
     {
         String tableName = "test_field_name_with_hyphen" + randomNameSuffix();
@@ -374,6 +375,7 @@ abstract class BaseUnityMetastoreDeltaConnectorSmokeTest
     }
 
     @Test
+    @Flaky(issue = "https://starburstdata.atlassian.net/browse/ENG-26786", match = "HTTP request failed by code: 50[02]")
     public void testVariantForExternalTable()
     {
         String tableName = "test_variant_" + randomNameSuffix();
@@ -388,6 +390,7 @@ abstract class BaseUnityMetastoreDeltaConnectorSmokeTest
     }
 
     @Test
+    @Flaky(issue = "https://starburstdata.atlassian.net/browse/ENG-26786", match = "HTTP request failed by code: 50[02]")
     public void testVariantForExternalTableCtas()
     {
         String tableName = "test_variant_ctas_" + randomNameSuffix();
@@ -418,6 +421,7 @@ abstract class BaseUnityMetastoreDeltaConnectorSmokeTest
 
     @Override
     @Test
+    @Flaky(issue = "https://starburstdata.atlassian.net/browse/ENG-26786", match = "HTTP request failed by code: 50[02]")
     public void testInsert()
     {
         String tableName = "delta_table_" + randomNameSuffix();
@@ -435,6 +439,7 @@ abstract class BaseUnityMetastoreDeltaConnectorSmokeTest
     }
 
     @Test
+    @Flaky(issue = "https://starburstdata.atlassian.net/browse/ENG-26786", match = "HTTP request failed by code: 50[02]")
     void testDisallowOtherWriteOperations()
     {
         String tableName = "delta_table_disallow_" + randomNameSuffix();
