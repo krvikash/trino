@@ -140,6 +140,7 @@ public class SparkIcebergContainer
                 "-c",
                 "rm -f /spark/jars/iceberg-spark-runtime-*.jar && exec spark-submit " +
                         "--master 'local[*]' " +
+                        "--driver-memory 3g " +
                         "--class org.apache.spark.sql.hive.thriftserver.HiveThriftServer2 " +
                         "--name 'Thrift JDBC/ODBC Server' " +
                         "--packages org.apache.spark:spark-avro_2.13:4.0.0 " +
