@@ -15,9 +15,13 @@ package io.trino.plugin.iceberg.procedure;
 
 import io.trino.testing.AbstractTestQueryFramework;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.parallel.Execution;
 
 import static io.trino.testing.TestingNames.randomNameSuffix;
+import static org.junit.jupiter.api.parallel.ExecutionMode.SAME_THREAD;
 
+// The tests share one metastore cache and the entire-cache flush of one test would empty it under another
+@Execution(SAME_THREAD)
 abstract class BaseTestIcebergFlushMetadataCacheProcedure
         extends AbstractTestQueryFramework
 {

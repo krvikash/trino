@@ -22,7 +22,6 @@ import org.apache.iceberg.jdbc.JdbcCatalog;
 import org.apache.iceberg.rest.DelegatingRestSessionCatalog;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import org.junit.jupiter.api.parallel.Execution;
 
 import java.nio.file.Path;
 import java.util.Optional;
@@ -30,9 +29,7 @@ import java.util.Optional;
 import static io.trino.plugin.iceberg.catalog.rest.RestCatalogTestUtils.backendCatalog;
 import static io.trino.testing.TestingNames.randomNameSuffix;
 import static java.util.Locale.ENGLISH;
-import static org.junit.jupiter.api.parallel.ExecutionMode.SAME_THREAD;
 
-@Execution(SAME_THREAD)
 final class TestIcebergRestCatalogFlushMetadataCacheProcedure
         extends BaseTestIcebergFlushMetadataCacheProcedure
 {
