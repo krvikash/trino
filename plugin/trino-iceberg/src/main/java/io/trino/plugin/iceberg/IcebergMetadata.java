@@ -486,6 +486,7 @@ import static io.trino.spi.type.DateType.DATE;
 import static io.trino.spi.type.IntegerType.INTEGER;
 import static io.trino.spi.type.SmallintType.SMALLINT;
 import static io.trino.spi.type.TimeType.TIME_MICROS;
+import static io.trino.spi.type.TimeZoneKey.getTimeZoneKey;
 import static io.trino.spi.type.TimestampType.TIMESTAMP_MICROS;
 import static io.trino.spi.type.TimestampType.TIMESTAMP_NANOS;
 import static io.trino.spi.type.TimestampWithTimeZoneType.TIMESTAMP_TZ_MICROS;
@@ -1191,6 +1192,10 @@ public class IcebergMetadata
                                                     column.getType(),
                                                     partitionColumnValueStrings.get(columnId).orElse(null),
                                                     column.getName());
+                                            // Metadata queries answered with these values must match a scan, which renders them in iceberg.time-zone
+                                            if (partitionValue instanceof LongTimestampWithTimeZone timestamp) {
+                                                partitionValue = LongTimestampWithTimeZone.fromEpochMillisAndFraction(timestamp.getEpochMillis(), timestamp.getPicosOfMilli(), getTimeZoneKey(dateTimeZone.getID()));
+                                            }
 
                                             return new NullableValue(column.getType(), partitionValue);
                                         }));

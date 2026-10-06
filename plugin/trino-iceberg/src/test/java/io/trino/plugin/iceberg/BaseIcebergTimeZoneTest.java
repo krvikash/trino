@@ -46,6 +46,7 @@ import java.util.stream.Stream;
 
 import static com.google.common.io.MoreFiles.deleteRecursively;
 import static com.google.common.io.RecursiveDeleteOption.ALLOW_INSECURE;
+import static io.trino.SystemSessionProperties.OPTIMIZE_METADATA_QUERIES;
 import static io.trino.hdfs.HdfsTestUtils.HDFS_FILE_SYSTEM_FACTORY;
 import static io.trino.plugin.hive.metastore.file.TestingFileHiveMetastore.createTestingFileHiveMetastore;
 import static io.trino.plugin.iceberg.IcebergTestUtils.getFileSystemFactory;
@@ -751,6 +752,30 @@ public abstract class BaseIcebergTimeZoneTest
                     .matches("VALUES " +
                             "(2, TIMESTAMP '2024-08-01 08:30:00.987654 Asia/Kolkata')," +
                             "(3, TIMESTAMP '2024-08-01 08:30:00.987654 Asia/Kolkata')");
+        }
+    }
+
+    @Test
+    void testSelectTimestampTzPartitionColumn()
+    {
+        try (TestTable testTable = newTrinoTable(
+                "test_timestamp_tz_partition_",
+                "(id int, timestamp_tz timestamp with time zone) WITH (partitioning = ARRAY['timestamp_tz'])",
+                ImmutableList.of("1, TIMESTAMP '2024-08-01 03:00:00.987654 UTC'"))) {
+            // Only partition columns are read
+            assertThat(query("SELECT timestamp_tz FROM " + testTable.getName()))
+                    .matches("VALUES TIMESTAMP '2024-08-01 08:30:00.987654 Asia/Kolkata'");
+            assertThat(query("SELECT id, timestamp_tz FROM " + testTable.getName()))
+                    .matches("VALUES (1, TIMESTAMP '2024-08-01 08:30:00.987654 Asia/Kolkata')");
+
+            // Answered from partition values
+            Session optimizeMetadataQueries = Session.builder(getSession())
+                    .setSystemProperty(OPTIMIZE_METADATA_QUERIES, "true")
+                    .build();
+            assertThat(query(optimizeMetadataQueries, "SELECT DISTINCT timestamp_tz FROM " + testTable.getName()))
+                    .matches("VALUES TIMESTAMP '2024-08-01 08:30:00.987654 Asia/Kolkata'");
+            assertThat(query(optimizeMetadataQueries, "SELECT max(timestamp_tz) FROM " + testTable.getName()))
+                    .matches("VALUES TIMESTAMP '2024-08-01 08:30:00.987654 Asia/Kolkata'");
         }
     }
 

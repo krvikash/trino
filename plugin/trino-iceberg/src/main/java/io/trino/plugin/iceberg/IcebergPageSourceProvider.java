@@ -700,10 +700,12 @@ public class IcebergPageSourceProvider
                     start == 0 && length == inputFile.length() &&
                     deletes.isEmpty() &&
                     icebergColumns.stream().allMatch(column -> partitionKeys.containsKey(column.getId()))) {
-                return generatePages(
-                        fileRecordCount,
-                        icebergColumns,
-                        partitionKeys);
+                return withOutputTimeZone(
+                        generatePages(
+                                fileRecordCount,
+                                icebergColumns,
+                                partitionKeys),
+                        icebergColumns);
             }
         }
         catch (IOException e) {
@@ -777,22 +779,28 @@ public class IcebergPageSourceProvider
             });
         }
 
-        if (!dateTimeZone.equals(UTC)) {
-            TransformConnectorPageSource.Builder transformerBuilder = TransformConnectorPageSource.builder();
-            int channel = 0;
-            for (IcebergColumnHandle column : icebergColumns) {
-                Type type = column.getType();
-                if (TimestampTzBlockTransformer.timestampTzBlockTransformationRequired(type)) {
-                    transformerBuilder.transform(channel, new TimestampTzBlockTransformer(type, dateTimeZone));
-                }
-                else {
-                    transformerBuilder.column(channel);
-                }
-                channel++;
-            }
-            pageSource = transformerBuilder.build(pageSource);
+        return withOutputTimeZone(pageSource, icebergColumns);
+    }
+
+    /// Readers produce `timestamp with time zone` values in UTC; this renders them in iceberg.time-zone
+    private ConnectorPageSource withOutputTimeZone(ConnectorPageSource pageSource, List<IcebergColumnHandle> icebergColumns)
+    {
+        if (dateTimeZone.equals(UTC)) {
+            return pageSource;
         }
-        return pageSource;
+        TransformConnectorPageSource.Builder transformerBuilder = TransformConnectorPageSource.builder();
+        int channel = 0;
+        for (IcebergColumnHandle column : icebergColumns) {
+            Type type = column.getType();
+            if (TimestampTzBlockTransformer.timestampTzBlockTransformationRequired(type)) {
+                transformerBuilder.transform(channel, new TimestampTzBlockTransformer(type, dateTimeZone));
+            }
+            else {
+                transformerBuilder.column(channel);
+            }
+            channel++;
+        }
+        return transformerBuilder.build(pageSource);
     }
 
     /**
