@@ -63,7 +63,7 @@ final class AzureVendedCredentialsProvider
         for (Entry<String, String> entry : properties) {
             if (entry.getKey().startsWith(ADLS_SAS_TOKEN_PREFIX)) {
                 String host = entry.getKey().substring(ADLS_SAS_TOKEN_PREFIX.length());
-                String account = host.contains(".") ? host.substring(0, host.indexOf('.')) : host;
+                String account = storageAccount(host);
                 String existing = sasTokens.putIfAbsent(account, entry.getValue());
                 if (existing != null && !existing.equals(entry.getValue())) {
                     throw new IllegalStateException("Conflicting SAS tokens returned for storage account: " + account);
@@ -77,5 +77,18 @@ final class AzureVendedCredentialsProvider
             }
         }
         return new AzureVendedCredentials(ImmutableMap.copyOf(sasTokens), Optional.ofNullable(earliest));
+    }
+
+    // Same split as AzureLocation, which keeps every label before the service label (OneLake workspace accounts contain dots)
+    private static String storageAccount(String accountOrHost)
+    {
+        int serviceSeparator = accountOrHost.indexOf(".dfs.");
+        if (serviceSeparator < 0) {
+            serviceSeparator = accountOrHost.indexOf(".blob.");
+        }
+        if (serviceSeparator <= 0) {
+            return accountOrHost;
+        }
+        return accountOrHost.substring(0, serviceSeparator);
     }
 }

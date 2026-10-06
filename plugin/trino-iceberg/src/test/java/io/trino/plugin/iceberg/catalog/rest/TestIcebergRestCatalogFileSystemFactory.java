@@ -197,6 +197,32 @@ final class TestIcebergRestCatalogFileSystemFactory
                 .containsEntry(EXTRA_CREDENTIALS_AZURE_SAS_TOKEN_PREFIX + "mystorageaccount", "sv=2022-test-sas-token");
     }
 
+    @ParameterizedTest
+    @ValueSource(strings = {
+            "1111aaaa2222bbbb3333cccc4444dddd.z54",
+            "1111aaaa2222bbbb3333cccc4444dddd.z54.dfs.fabric.microsoft.com",
+    })
+    void testAzureVendedCredentialsWithOneLakeWorkspacePrivateLink(String keySuffix)
+    {
+        AtomicReference<ConnectorIdentity> capturedIdentity = new AtomicReference<>();
+        TrinoFileSystemFactory delegate = identity -> {
+            capturedIdentity.set(identity);
+            return new MockTrinoFileSystem();
+        };
+
+        IcebergRestCatalogFileSystemFactory factory = createFactory(delegate, true);
+
+        Map<String, String> fileIoProperties = ImmutableMap.of(
+                AzureProperties.ADLS_SAS_TOKEN_PREFIX + keySuffix, "sv=2022-test-sas-token");
+
+        factory.create(ConnectorIdentity.ofUser("test"), fileIoProperties).newInputFile(Location.of("abfss://workspace@1111aaaa2222bbbb3333cccc4444dddd.z54.dfs.fabric.microsoft.com/some/path/file"));
+
+        ConnectorIdentity identity = capturedIdentity.get();
+        assertThat(identity).isNotNull();
+        assertThat(identity.getExtraCredentials())
+                .containsEntry(EXTRA_CREDENTIALS_AZURE_SAS_TOKEN_PREFIX + "1111aaaa2222bbbb3333cccc4444dddd.z54", "sv=2022-test-sas-token");
+    }
+
     @Test
     void testAzureVendedCredentialsWithMultipleAccounts()
     {
