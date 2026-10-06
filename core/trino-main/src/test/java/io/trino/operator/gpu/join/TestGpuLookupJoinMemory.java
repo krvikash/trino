@@ -205,32 +205,7 @@ class TestGpuLookupJoinMemory
                 GpuLookupJoin.Factory probeFactory = new GpuLookupJoin.Factory(manager, keyChannels, probeOutputChannels, joinType, buildOutputTypes, filteredJoin);
                 try (var probeSource = new SettableGpuOperation();
                         GpuOperation probe = probeFactory.create(context, probeSource)) {
-                    boolean finished = false;
-                    while (!finished) {
-                        switch (probe.execute()) {
-                            case Yielded() -> {
-                                if (!probeSource.hasPending()) {
-                                    memoryValidation.withoutValidation(() -> {
-                                        if (probePages.hasNext()) {
-                                            GpuPage next = getOnlyElement(copyToDevice(List.of(probePages.next()), types));
-                                            probeSource.setPending(context.taskMemoryContext().allocate("probe", next.retainedMemory()), next);
-                                        }
-                                        else {
-                                            probeSource.noMoreInput();
-                                        }
-                                    });
-                                }
-                            }
-                            case Data(AllocatedMemory memory, GpuPage page) -> {
-                                try (var closer = UncheckedCloser.create()) {
-                                    closer.register(memory);
-                                    closer.register(page);
-                                }
-                            }
-                            case Blocked _ -> throw new IllegalStateException("Unexpected blocked on probe side");
-                            case Finished() -> finished = true;
-                        }
-                    }
+                    drainJoinOutput(probe, probeSource, probePages, types, context, memoryValidation);
                 }
                 probeFactory.noMoreOperators();
 
@@ -238,6 +213,42 @@ class TestGpuLookupJoinMemory
                 memoryValidation.withoutValidation(() -> {
                     assertThat(build.execute()).isInstanceOf(Finished.class);
                 });
+            }
+        }
+    }
+
+    private static void drainJoinOutput(
+            GpuOperation top,
+            SettableGpuOperation probeSource,
+            Iterator<Page> probePages,
+            List<Type> types,
+            TestingGpuOperationContext context,
+            GpuDeviceMemoryUsageValidation memoryValidation)
+    {
+        boolean finished = false;
+        while (!finished) {
+            switch (top.execute()) {
+                case Yielded() -> {
+                    if (!probeSource.hasPending()) {
+                        memoryValidation.withoutValidation(() -> {
+                            if (probePages.hasNext()) {
+                                GpuPage next = getOnlyElement(copyToDevice(List.of(probePages.next()), types));
+                                probeSource.setPending(context.taskMemoryContext().allocate("probe", next.retainedMemory()), next);
+                            }
+                            else {
+                                probeSource.noMoreInput();
+                            }
+                        });
+                    }
+                }
+                case Data(AllocatedMemory memory, GpuPage page) -> {
+                    try (var closer = UncheckedCloser.create()) {
+                        closer.register(memory);
+                        closer.register(page);
+                    }
+                }
+                case Blocked _ -> throw new IllegalStateException("Unexpected blocked on probe side");
+                case Finished() -> finished = true;
             }
         }
     }
