@@ -53,6 +53,7 @@
 - { modules: plugin/trino-exchange-filesystem, profile: cloud-tests }
 - { modules: starburst-buffer-service/starburst-buffer-data-server, profile: cloud-tests }
 - { modules: lib/starburst-functions-client }
+- { modules: [lib/starburst-materialization-metastore-api, lib/starburst-materialization-metastore-server] }
 - { modules: plugin/starburst-functions }
 - { modules: plugin/starburst-objectstore, profile: "", runners: [self-hosted, gha-fleet-ec2-8cpu-64gb-amd64, latest] }
 - { modules: plugin/starburst-objectstore, profile: hive-tests, runners: [self-hosted, gha-fleet-ec2-8cpu-64gb-amd64, latest] }
