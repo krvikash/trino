@@ -27,6 +27,7 @@ import io.trino.plugin.jdbc.RemoteDatabaseEvent.Status;
 import io.trino.plugin.jdbc.RemoteLogTracingEvent;
 import io.trino.spi.predicate.Domain;
 import io.trino.spi.predicate.TupleDomain;
+import io.trino.sql.planner.assertions.PlanMatchPattern;
 import io.trino.sql.planner.plan.FilterNode;
 import io.trino.sql.planner.plan.TableScanNode;
 import io.trino.testing.QueryRunner;
@@ -919,6 +920,52 @@ public class TestRedshiftConnectorTest
             assertThat(query(withoutPushdown, "SELECT id FROM " + table.getName() + " WHERE data = 'ABC'"))
                     .matches("VALUES 1");
         }
+    }
+
+    @Test
+    public void testVarcharPredicatePushdownWithoutUnsafeVarcharPushdown()
+    {
+        Session session = Session.builder(getSession())
+                .setCatalogSessionProperty("redshift", "unsafe_varchar_pushdown_enabled", "false")
+                .build();
+        Session smallDomainCompactionThreshold = Session.builder(session)
+                .setCatalogSessionProperty("redshift", "domain_compaction_threshold", "1")
+                .build();
+
+        try (TestTable table = newTrinoTable(
+                "test_varchar_pushdown",
+                "(id integer, data varchar(5))",
+                List.of("1, 'ABC'", "2, 'ABC '", "3, 'ABD'"))) {
+            // Redshift ignores trailing spaces, so equality and IN are pushed down and re-applied by the engine
+            assertThat(query(session, "SELECT id FROM " + table.getName() + " WHERE data = 'ABC'"))
+                    .matches("VALUES 1")
+                    .isNotFullyPushedDown(node(FilterNode.class, tableScan(true)));
+            assertThat(query(session, "SELECT id FROM " + table.getName() + " WHERE data IN ('ABC', 'ABD')"))
+                    .matches("VALUES 1, 3")
+                    .isNotFullyPushedDown(node(FilterNode.class, tableScan(true)));
+
+            // Ranges and inequality cannot be pushed down
+            assertThat(query(session, "SELECT id FROM " + table.getName() + " WHERE data > 'ABC'"))
+                    .matches("VALUES 2, 3")
+                    .isNotFullyPushedDown(node(FilterNode.class, tableScan(false)));
+            assertThat(query(session, "SELECT id FROM " + table.getName() + " WHERE data <> 'ABC'"))
+                    .matches("VALUES 2, 3")
+                    .isNotFullyPushedDown(node(FilterNode.class, tableScan(false)));
+
+            // IN list compacted into a range
+            assertThat(query(smallDomainCompactionThreshold, "SELECT id FROM " + table.getName() + " WHERE data IN ('ABC', 'ABD')"))
+                    .matches("VALUES 1, 3")
+                    .isNotFullyPushedDown(node(FilterNode.class, tableScan(false)));
+        }
+    }
+
+    private static PlanMatchPattern tableScan(boolean pushedDown)
+    {
+        return node(TableScanNode.class)
+                .with(TableScanNode.class, tableScan -> {
+                    boolean hasConstraint = ((JdbcTableHandle) tableScan.getTable().connectorHandle()).getConstraint().isAll();
+                    return (hasConstraint && !pushedDown) || (!hasConstraint && pushedDown);
+                });
     }
 
     // override because we enabled the varchar unsafe pushdown
