@@ -310,7 +310,7 @@ class TestOptimizationStoreStableState
         store.putNewState(state);
         store.putNewAlternative(alternative);
         store.putNewCandidate(UNDEFINED, candidate);
-        store.replaceState(state.replaceWinners(winners(candidate)));
+        store.replaceState(state.replaceWinners(winners(candidate)).withParentsNotified());
         store.markParentAlternativesDirty(childStateKey, CHILD_COST_CHANGED);
         assertThat(store.getDirtyReasons(alternative.key())).containsExactly(CHILD_COST_CHANGED);
         assertThat(store.getCandidateKeys(alternative.key())).containsExactly(candidateKey);
@@ -338,6 +338,9 @@ class TestOptimizationStoreStableState
         assertThat(store.getCandidateKeys(alternative.key())).isEmpty();
         assertThat(store.containsCandidate(candidateKey)).isFalse();
         assertThat(store.getState(stateKey).winners()).hasSize(0);
+        assertThat(store.getState(stateKey).winnerCost()).isEmpty();
+        assertThat(store.getState(stateKey).bestKnownCost()).contains(candidate.cost());
+        assertThat(store.getState(stateKey).shouldNotifyParents()).isFalse();
     }
 
     @Test

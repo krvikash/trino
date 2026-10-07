@@ -69,6 +69,7 @@ class TestGroupOptimizationState
         assertThat(state.key()).isEqualTo(stateKey);
         assertThat(state.winners()).isEmpty();
         assertThat(state.winnerCost()).isEmpty();
+        assertThat(state.bestKnownCost()).isEmpty();
         assertThat(state.shouldNotifyParents()).isFalse();
     }
 
@@ -92,6 +93,7 @@ class TestGroupOptimizationState
         assertThat(updated.key()).isEqualTo(stateKey(2, UNDEFINED));
         assertThat(updated.winners()).containsExactly(candidate);
         assertThat(updated.winnerCost()).contains(UNKNOWN);
+        assertThat(updated.bestKnownCost()).contains(UNKNOWN);
 
         // winners are defensively copied into the state
         winners.add(candidate(alternative(alternativeLeafOperation())));
@@ -100,6 +102,7 @@ class TestGroupOptimizationState
         // the original state stays unchanged
         assertThat(state.groupId()).isEqualTo(1);
         assertThat(state.winners()).isEmpty();
+        assertThat(state.bestKnownCost()).isEmpty();
     }
 
     @Test
@@ -123,6 +126,7 @@ class TestGroupOptimizationState
         assertThat(mergedState.requirement()).isEqualTo(UNDEFINED);
         assertThat(mergedState.winners()).containsExactlyInAnyOrder(survivingCandidate, removedCandidate);
         assertThat(mergedState.winnerCost()).contains(UNKNOWN);
+        assertThat(mergedState.bestKnownCost()).contains(UNKNOWN);
 
         // source states stay unchanged
         assertThat(survivingState.winners()).containsExactly(survivingCandidate);
@@ -170,6 +174,7 @@ class TestGroupOptimizationState
         assertThat(mergedState.winners().inAdmissionOrder())
                 .containsExactly(survivingCandidate, secondRemovedCandidate, thirdRemovedCandidate);
         assertThat(mergedState.winnerCost()).contains(COST_0);
+        assertThat(mergedState.bestKnownCost()).contains(COST_0);
     }
 
     @Test
@@ -205,6 +210,7 @@ class TestGroupOptimizationState
         // only the matching candidate is removed
         assertThat(updated.winners()).containsExactly(secondCandidate);
         assertThat(updated.winnerCost()).contains(UNKNOWN);
+        assertThat(updated.bestKnownCost()).contains(UNKNOWN);
 
         // the original state stays unchanged
         assertThat(state.winners()).containsExactlyInAnyOrder(firstCandidate, secondCandidate);
@@ -244,6 +250,7 @@ class TestGroupOptimizationState
         assertThat(updated.winners().inAdmissionOrder())
                 .containsExactly(firstCandidate, secondCandidate, thirdCandidate, fourthCandidate);
         assertThat(updated.winnerCost()).contains(COST_0);
+        assertThat(updated.bestKnownCost()).contains(COST_0);
 
         assertThat(state.removeCandidates(ImmutableSet.of(candidateKey(firstCandidate.alternativeKey(), OTHER))))
                 .isSameAs(state);
@@ -272,15 +279,17 @@ class TestGroupOptimizationState
         assertThat(state.winners()).containsExactly(firstCandidate);
         assertThat(updated.winners()).containsExactlyInAnyOrder(firstCandidate, secondCandidate);
         assertThat(updated.winnerCost()).contains(UNKNOWN);
+        assertThat(updated.bestKnownCost()).contains(UNKNOWN);
     }
 
     @Test
-    public void testWinnerCostPresenceChangesNotifyParents()
+    public void testBestKnownCostPresenceNotifiesParents()
     {
         var candidate = candidate(alternative(leafOperation()));
         var state = state(stateKey(1, UNDEFINED))
                 .addCandidate(candidate);
 
+        assertThat(state.bestKnownCost()).contains(UNKNOWN);
         assertThat(state.shouldNotifyParents()).isTrue();
 
         state = state.withParentsNotified();
@@ -288,32 +297,32 @@ class TestGroupOptimizationState
 
         state = state.removeCandidates(ImmutableSet.of(candidateKey(candidate.alternativeKey(), UNDEFINED)));
         assertThat(state.winnerCost()).isEmpty();
-        assertThat(state.shouldNotifyParents()).isTrue();
-
-        state = state.withParentsNotified();
+        assertThat(state.bestKnownCost()).contains(UNKNOWN);
         assertThat(state.shouldNotifyParents()).isFalse();
     }
 
     @Test
     public void testParentNotificationTierDoesNotDrift()
     {
-        var state = stateWithWinnerCost(COST_0);
+        var state = stateWithWinnerCost(COST_3);
 
         assertThat(state.shouldNotifyParents()).isTrue();
         state = state.withParentsNotified();
         assertThat(state.shouldNotifyParents()).isFalse();
 
-        state = state.replaceWinners(winnersWithCost(COST_1));
-
-        // Costs 0 and 1 are in the same tier, so parent notification is suppressed.
-        assertThat(state.shouldNotifyParents()).isFalse();
-
         state = state.replaceWinners(winnersWithCost(COST_2));
 
-        // Costs 1 and 2 are in the same tier, but costs 0 and 2 are not.
-        // The notification anchor remains 0, so parents must now be notified.
+        // Costs 3 and 2 are in the same tier, so parent notification is suppressed.
+        assertThat(state.bestKnownCost()).contains(COST_2);
+        assertThat(state.shouldNotifyParents()).isFalse();
+
+        state = state.replaceWinners(winnersWithCost(COST_1));
+
+        // Costs 2 and 1 are in the same tier, but costs 3 and 1 are not.
+        // The notification anchor remains 3, so parents must now be notified.
         assertThat(TestingCostDomain.INSTANCE.sameTier(COST_1, COST_2)).isTrue();
-        assertThat(TestingCostDomain.INSTANCE.sameTier(COST_0, COST_2)).isFalse();
+        assertThat(TestingCostDomain.INSTANCE.sameTier(COST_3, COST_1)).isFalse();
+        assertThat(state.bestKnownCost()).contains(COST_1);
         assertThat(state.shouldNotifyParents()).isTrue();
 
         state = state.withParentsNotified();

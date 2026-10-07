@@ -48,9 +48,15 @@ import static java.util.Objects.requireNonNull;
  *     is found. The XO model relies on the active tier containing at least one
  *     non-recursive candidate. See {@link WinnersTier} for detailed membership
  *     and ordering semantics.</li>
- *     <li>{@code lastParentNotificationCost} - winner cost at which this state
- *     most recently emitted a parent-notification event. This does not imply
- *     that every parent has already processed the notification.</li>
+ *     <li>{@code bestKnownCost} - best winner cost observed during the current
+ *     relaxation. It is preserved while current candidates are temporarily
+ *     invalidated and can only improve.</li>
+ *     <li>{@code lastParentNotificationCost} - best known cost at which this state
+ *     most recently emitted a parent-notification event. It remains unchanged
+ *     through same-tier cost improvements, so later changes are compared with the
+ *     cost parents were actually notified about rather than a drifting anchor.
+ *     This does not imply that every parent has already processed the
+ *     notification.</li>
  * </ul>
  */
 public final class GroupOptimizationState<C extends Cost, R extends Requirement, P extends Property>
@@ -58,14 +64,24 @@ public final class GroupOptimizationState<C extends Cost, R extends Requirement,
     private final int groupId;
     private final R requirement; // canonicalized
     private final WinnersTier<C, R, P> winners;
+    private final Optional<C> bestKnownCost;
     private final Optional<C> lastParentNotificationCost;
 
-    private GroupOptimizationState(int groupId, R requirement, WinnersTier<C, R, P> winners, Optional<C> lastParentNotificationCost)
+    private GroupOptimizationState(
+            int groupId,
+            R requirement,
+            WinnersTier<C, R, P> winners,
+            Optional<C> bestKnownCost,
+            Optional<C> lastParentNotificationCost)
     {
         this.groupId = groupId;
         // requirement is canonical (callers come via initialize(...)/replaceWinners(...)/withGroupId(...), all of which preserve canonicalization)
         this.requirement = requireNonNull(requirement, "requirement is null");
         this.winners = new WinnersTier<>(requireNonNull(winners, "winners is null"));
+        this.bestKnownCost = betterCost(
+                this.winners.costs(),
+                requireNonNull(bestKnownCost, "bestKnownCost is null"),
+                this.winners.winnerCost());
         this.lastParentNotificationCost = requireNonNull(lastParentNotificationCost, "lastParentNotificationCost is null");
     }
 
@@ -73,7 +89,7 @@ public final class GroupOptimizationState<C extends Cost, R extends Requirement,
             StateKey<R> stateKey,
             CostDomain<C> costs)
     {
-        return new GroupOptimizationState<>(stateKey.groupId(), stateKey.requirement(), WinnersTier.empty(costs), Optional.empty());
+        return new GroupOptimizationState<>(stateKey.groupId(), stateKey.requirement(), WinnersTier.empty(costs), Optional.empty(), Optional.empty());
     }
 
     public int groupId()
@@ -96,34 +112,38 @@ public final class GroupOptimizationState<C extends Cost, R extends Requirement,
         return winners.winnerCost();
     }
 
+    public Optional<C> bestKnownCost()
+    {
+        return bestKnownCost;
+    }
+
     /**
-     * Notify when winner-cost presence changes or the current cost leaves the
+     * Notify when the best known cost appears or leaves the
      * tier recorded at the last notification. Same-tier changes are not
      * propagated because the {@link CostDomain#sameTier(Cost, Cost)} contract
      * makes them immaterial to dependent costing and plan selection.
      */
     public boolean shouldNotifyParents()
     {
-        Optional<C> currentWinnerCost = winnerCost();
-        if (currentWinnerCost.isEmpty() || lastParentNotificationCost.isEmpty()) {
-            return !currentWinnerCost.equals(lastParentNotificationCost);
+        if (bestKnownCost.isEmpty() || lastParentNotificationCost.isEmpty()) {
+            return !bestKnownCost.equals(lastParentNotificationCost);
         }
-        return !winners.costs().sameTier(currentWinnerCost.orElseThrow(), lastParentNotificationCost.orElseThrow());
+        return !winners.costs().sameTier(bestKnownCost.orElseThrow(), lastParentNotificationCost.orElseThrow());
     }
 
     public GroupOptimizationState<C, R, P> withParentsNotified()
     {
-        return new GroupOptimizationState<>(groupId, requirement, winners, winnerCost());
+        return new GroupOptimizationState<>(groupId, requirement, winners, bestKnownCost, bestKnownCost);
     }
 
     public GroupOptimizationState<C, R, P> withGroupId(int groupId)
     {
-        return new GroupOptimizationState<>(groupId, requirement, winners, lastParentNotificationCost);
+        return new GroupOptimizationState<>(groupId, requirement, winners, bestKnownCost, lastParentNotificationCost);
     }
 
     public GroupOptimizationState<C, R, P> replaceWinners(WinnersTier<C, R, P> winners)
     {
-        return new GroupOptimizationState<>(groupId, requirement, winners, lastParentNotificationCost);
+        return new GroupOptimizationState<>(groupId, requirement, winners, bestKnownCost, lastParentNotificationCost);
     }
 
     public static <C extends Cost, R extends Requirement, P extends Property> GroupOptimizationState<C, R, P> mergeStates(
@@ -138,9 +158,18 @@ public final class GroupOptimizationState<C extends Cost, R extends Requirement,
 
         WinnersTier<C, R, P> mergedWinners = survivingState.winners();
         removedState.winners().inAdmissionOrder().forEach(mergedWinners::add);
+        Optional<C> mergedBestKnownCost = betterCost(
+                mergedWinners.costs(),
+                survivingState.bestKnownCost,
+                removedState.bestKnownCost);
 
         // Parents of the removed state must be reprocessed
-        return survivingState.replaceWinners(mergedWinners);
+        return new GroupOptimizationState<>(
+                survivingState.groupId,
+                survivingState.requirement,
+                mergedWinners,
+                mergedBestKnownCost,
+                survivingState.lastParentNotificationCost);
     }
 
     public GroupOptimizationState<C, R, P> removeCandidates(Set<CandidateKey<R>> candidatesToRemove)
@@ -178,6 +207,20 @@ public final class GroupOptimizationState<C extends Cost, R extends Requirement,
     public StateKey<R> key()
     {
         return new StateKey<>(groupId, requirement);
+    }
+
+    private static <C extends Cost> Optional<C> betterCost(CostDomain<C> costs, Optional<C> firstCost, Optional<C> secondCost)
+    {
+        if (firstCost.isEmpty()) {
+            return secondCost;
+        }
+        if (secondCost.isEmpty()) {
+            return firstCost;
+        }
+        return switch (costs.compare(secondCost.orElseThrow(), firstCost.orElseThrow())) {
+            case BETTER -> secondCost;
+            case EQUAL, WORSE, INCOMPARABLE -> firstCost;
+        };
     }
 
     // not a record so that we can enforce canonicalization on construction
