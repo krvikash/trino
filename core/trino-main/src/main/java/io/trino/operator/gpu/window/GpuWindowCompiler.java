@@ -34,6 +34,7 @@ import io.trino.operator.gpu.expression.GpuIf;
 import io.trino.operator.gpu.expression.GpuIsNull;
 import io.trino.operator.gpu.expression.GpuNot;
 import io.trino.operator.gpu.expression.GpuStruct;
+import io.trino.operator.gpu.window.GpuWindow.WindowFrame;
 import io.trino.operator.project.InputChannels;
 import io.trino.spi.connector.SortOrder;
 import io.trino.spi.type.DecimalType;
@@ -156,13 +157,16 @@ public final class GpuWindowCompiler
             if (function.isIgnoreNulls()) {
                 return new CompileResult.Failure("ignore nulls function: " + resolvedFunction.name());
             }
-            if (!function.getFrame().equals(WindowNode.Frame.DEFAULT_FRAME)) {
-                return new CompileResult.Failure("non-default frame: " + resolvedFunction.name());
-            }
 
             Optional<CompiledWindowFunction> compiledFunction = switch (resolvedFunction.functionKind()) {
                 case WINDOW -> compileWindowFunction(resolvedFunction, function, peerKey, orderTypes);
-                case AGGREGATE -> compileAggregateFunction(resolvedFunction, function, sourceLayout);
+                case AGGREGATE -> {
+                    Optional<WindowFrame> frame = compileFrame(function.getFrame());
+                    if (frame.isEmpty()) {
+                        yield Optional.empty();
+                    }
+                    yield compileAggregateFunction(resolvedFunction, function, frame.get(), sourceLayout);
+                }
                 default -> Optional.empty();
             };
             if (compiledFunction.isEmpty()) {
@@ -205,19 +209,28 @@ public final class GpuWindowCompiler
         };
     }
 
+    private static Optional<WindowFrame> compileFrame(WindowNode.Frame frame)
+    {
+        if (frame.equals(WindowNode.Frame.DEFAULT_FRAME)) {
+            return Optional.of(WindowFrame.DEFAULT);
+        }
+        return Optional.empty();
+    }
+
     private static Optional<CompiledWindowFunction> compileAggregateFunction(
             ResolvedFunction resolvedFunction,
             WindowNode.Function function,
+            WindowFrame frame,
             Map<Symbol, Integer> sourceLayout)
     {
         String functionName = resolvedFunction.name().functionName();
         return switch (functionName) {
-            case "avg" -> compileAvgDecimal(function, sourceLayout);
+            case "avg" -> compileAvgDecimal(function, frame, sourceLayout);
             default -> Optional.empty();
         };
     }
 
-    private static Optional<CompiledWindowFunction> compileAvgDecimal(WindowNode.Function function, Map<Symbol, Integer> sourceLayout)
+    private static Optional<CompiledWindowFunction> compileAvgDecimal(WindowNode.Function function, WindowFrame frame, Map<Symbol, Integer> sourceLayout)
     {
         List<Expression> arguments = function.getArguments();
         if (arguments.size() != 1) {
@@ -234,7 +247,7 @@ public final class GpuWindowCompiler
 
         int sourceChannel = verifyNotNull(sourceLayout.get(symbol), "channel for symbol %s is not in source layout", symbol);
         if (decimalType.getPrecision() > MAX_DECIMAL128_SUM_AVG_PRECISION) {
-            return Optional.of(avgChunkedSumDecimal(sourceChannel, decimalType));
+            return Optional.of(avgChunkedSumDecimal(sourceChannel, decimalType, frame));
         }
         // Trino scale s means unscaled / 10^s; cuDF scale convention is unscaled * 10^scale, so negate
         DType decimal128Type = DType.create(DType.DTypeEnum.DECIMAL128, -decimalType.getScale());
@@ -263,13 +276,13 @@ public final class GpuWindowCompiler
 
         return Optional.of(new CompiledWindowFunction(
                 ImmutableList.of(
-                        new PrefixSumDifferenceComputation(sumInput),
-                        new PrefixSumDifferenceComputation(oneIfNotNull(sourceChannel))), // count non-null values
+                        new PrefixSumDifferenceComputation(sumInput, frame),
+                        new PrefixSumDifferenceComputation(oneIfNotNull(sourceChannel), frame)), // count non-null values
                 postProjection,
                 decimalType));
     }
 
-    private static CompiledWindowFunction avgChunkedSumDecimal(int sourceChannel, DecimalType decimalType)
+    private static CompiledWindowFunction avgChunkedSumDecimal(int sourceChannel, DecimalType decimalType, WindowFrame frame)
     {
         // Sum the four 32-bit chunks of the DECIMAL128 values separately, as sum(decimal) does. Chunks 0..2 are
         // unsigned, chunk 3 carries the sign of the value.
@@ -278,10 +291,10 @@ public final class GpuWindowCompiler
         for (int chunkIndex = 0; chunkIndex < 4; chunkIndex++) {
             DType chunkType = chunkIndex < 3 ? DType.UINT32 : DType.INT32;
             GpuExpression chunk = new GpuExtractInt32Chunk(new GetColumn(sourceChannel), chunkIndex, chunkType);
-            computations.add(new PrefixSumDifferenceComputation(new GpuCast(chunk, DType.INT64)));
+            computations.add(new PrefixSumDifferenceComputation(new GpuCast(chunk, DType.INT64), frame));
             chunkSums.add(new GetColumn(chunkIndex));
         }
-        computations.add(new PrefixSumDifferenceComputation(oneIfNotNull(sourceChannel))); // count non-null values
+        computations.add(new PrefixSumDifferenceComputation(oneIfNotNull(sourceChannel), frame)); // count non-null values
 
         CompiledExpression postProjection = new CompiledExpression(
                 // count == 0 ? null : (sum / count)
@@ -524,18 +537,19 @@ public final class GpuWindowCompiler
         }
     }
 
-    private record PrefixSumDifferenceComputation(GpuExpression input)
+    private record PrefixSumDifferenceComputation(GpuExpression input, WindowFrame frame)
             implements WindowComputation
     {
         public PrefixSumDifferenceComputation
         {
             requireNonNull(input, "input is null");
+            requireNonNull(frame, "frame is null");
         }
 
         @Override
         public GpuWindow.WindowComputation bindToChannel(int inputChannel)
         {
-            return new GpuWindow.PrefixSumDifferenceComputation(inputChannel);
+            return new GpuWindow.PrefixSumDifferenceComputation(inputChannel, frame);
         }
     }
 }

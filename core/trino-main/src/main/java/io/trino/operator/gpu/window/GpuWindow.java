@@ -23,6 +23,7 @@ import ai.rapids.cudf.Scalar;
 import ai.rapids.cudf.ScanAggregation;
 import ai.rapids.cudf.Table;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableListMultimap;
 import com.google.common.primitives.Booleans;
 import com.google.common.primitives.Ints;
 import io.trino.operator.gpu.GpuOperation;
@@ -39,6 +40,8 @@ import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
 import io.trino.spi.gpu.borrow.Own;
 import io.trino.spi.type.Type;
+import io.trino.sql.planner.plan.FrameBoundType;
+import io.trino.sql.planner.plan.WindowFrameType;
 
 import java.math.BigInteger;
 import java.util.ArrayList;
@@ -47,6 +50,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.stream.Stream;
 
 import static ai.rapids.cudf.BinaryOp.SUB;
@@ -60,8 +64,13 @@ import static io.trino.operator.gpu.GpuSortUtils.needsNanSortKey;
 import static io.trino.operator.gpu.GpuSortUtils.orderBy;
 import static io.trino.operator.gpu.memory.GpuMemoryUtils.nullMaskBytes;
 import static io.trino.plugin.base.gpu.GpuUtils.closeColumns;
+import static io.trino.plugin.base.gpu.GpuUtils.selectColumns;
 import static io.trino.plugin.base.gpu.GpuUtils.toGpuPage;
 import static io.trino.plugin.base.gpu.GpuUtils.toTable;
+import static io.trino.sql.planner.plan.FrameBoundType.CURRENT_ROW;
+import static io.trino.sql.planner.plan.FrameBoundType.UNBOUNDED_FOLLOWING;
+import static io.trino.sql.planner.plan.FrameBoundType.UNBOUNDED_PRECEDING;
+import static io.trino.sql.planner.plan.WindowFrameType.RANGE;
 import static java.lang.Math.addExact;
 import static java.lang.Math.max;
 import static java.lang.Math.toIntExact;
@@ -128,11 +137,11 @@ public final class GpuWindow
     private final List<SortOrder> orderSortOrders;
     private final List<ScanComputation> scanComputations;
     private final int[] scanOutputIndexes;
-    private final List<PrefixSumDifferenceComputation> prefixSumDifferenceComputations;
     private final int[] prefixSumDifferenceOutputIndexes;
     // The distinct input channels of the frame sums, and the index into them of the input channel of each frame sum
     private final int[] prefixSumChannels;
     private final int[] prefixSumIndexes;
+    private final List<FrameComputations> frameComputations;
 
     private final @Own TablesList bufferedTables = TablesList.create();
     private final ClosingRef<AllocatedMemory> allocated;
@@ -159,12 +168,75 @@ public final class GpuWindow
         }
     }
 
-    public record PrefixSumDifferenceComputation(int inputChannel)
+    public record FrameBound(FrameBoundType type, OptionalInt offsetChannel)
+    {
+        public FrameBound
+        {
+            requireNonNull(type, "type is null");
+            requireNonNull(offsetChannel, "offsetChannel is null");
+            checkArgument(offsetChannel.isPresent() == isOffset(type), "offsetChannel must be present exactly for an offset bound");
+            checkArgument(offsetChannel.orElse(0) >= 0, "offsetChannel is negative");
+        }
+
+        public static FrameBound unbounded(FrameBoundType type)
+        {
+            return new FrameBound(type, OptionalInt.empty());
+        }
+
+        public static FrameBound currentRow()
+        {
+            return new FrameBound(CURRENT_ROW, OptionalInt.empty());
+        }
+
+        private static boolean isOffset(FrameBoundType type)
+        {
+            return switch (type) {
+                case PRECEDING, FOLLOWING -> true;
+                case UNBOUNDED_PRECEDING, CURRENT_ROW, UNBOUNDED_FOLLOWING -> false;
+            };
+        }
+    }
+
+    public record WindowFrame(WindowFrameType type, FrameBound start, FrameBound end)
+    {
+        public static final WindowFrame DEFAULT = new WindowFrame(RANGE, FrameBound.unbounded(UNBOUNDED_PRECEDING), FrameBound.currentRow());
+
+        public WindowFrame
+        {
+            requireNonNull(type, "type is null");
+            requireNonNull(start, "start is null");
+            requireNonNull(end, "end is null");
+            checkArgument(start.type() != UNBOUNDED_FOLLOWING, "frame cannot start at UNBOUNDED FOLLOWING");
+            checkArgument(end.type() != UNBOUNDED_PRECEDING, "frame cannot end at UNBOUNDED PRECEDING");
+            // TODO: Support frame definitions other than default: https://starburstdata.atlassian.net/browse/ENG-28121
+            checkArgument(
+                    type == RANGE && start.type() == UNBOUNDED_PRECEDING && end.type() == CURRENT_ROW,
+                    "Unsupported frame: %s BETWEEN %s AND %s",
+                    type,
+                    start.type(),
+                    end.type());
+        }
+    }
+
+    public record PrefixSumDifferenceComputation(int inputChannel, WindowFrame frame)
             implements WindowComputation
     {
         public PrefixSumDifferenceComputation
         {
             checkArgument(inputChannel >= 0, "inputChannel is negative");
+            requireNonNull(frame, "frame is null");
+        }
+    }
+
+    // The prefix sum differences over one frame: the indexes of their computations, and the distinct prefix sums they
+    // take the differences of
+    private record FrameComputations(WindowFrame frame, int[] computationIndexes, int[] prefixSumIndexes)
+    {
+        public FrameComputations
+        {
+            requireNonNull(frame, "frame is null");
+            computationIndexes = computationIndexes.clone();
+            prefixSumIndexes = prefixSumIndexes.clone();
         }
     }
 
@@ -203,15 +275,34 @@ public final class GpuWindow
         }
         this.scanComputations = scanComputationBuilder.build();
         this.scanOutputIndexes = Ints.toArray(scanOutputIndexesBuilder.build());
-        this.prefixSumDifferenceComputations = prefixSumDifferenceComputationBuilder.build();
+        List<PrefixSumDifferenceComputation> prefixSumDifferenceComputations = prefixSumDifferenceComputationBuilder.build();
         this.prefixSumDifferenceOutputIndexes = Ints.toArray(prefixSumDifferenceOutputIndexesBuilder.build());
         Map<Integer, Integer> prefixSumIndexByChannel = new LinkedHashMap<>();
         this.prefixSumIndexes = prefixSumDifferenceComputations.stream()
                 .mapToInt(computation -> prefixSumIndexByChannel.computeIfAbsent(computation.inputChannel(), _ -> prefixSumIndexByChannel.size()))
                 .toArray();
         this.prefixSumChannels = Ints.toArray(prefixSumIndexByChannel.keySet());
+        this.frameComputations = groupByFrame(prefixSumDifferenceComputations, prefixSumIndexes);
 
         this.allocated = ClosingRef.own(context.taskMemoryContext().allocate(getClass().getSimpleName(), MemoryAmount.ZERO));
+    }
+
+    private static List<FrameComputations> groupByFrame(List<PrefixSumDifferenceComputation> computations, int[] prefixSumIndexes)
+    {
+        ImmutableListMultimap.Builder<WindowFrame, Integer> computationIndexesByFrame = ImmutableListMultimap.builder();
+        for (int i = 0; i < computations.size(); i++) {
+            computationIndexesByFrame.put(computations.get(i).frame(), i);
+        }
+        ImmutableList.Builder<FrameComputations> frameComputations = ImmutableList.builder();
+        computationIndexesByFrame.build().asMap().forEach((frame, indexes) -> {
+            int[] computationIndexes = Ints.toArray(indexes);
+            int[] framePrefixSumIndexes = Arrays.stream(computationIndexes)
+                    .map(computationIndex -> prefixSumIndexes[computationIndex])
+                    .distinct()
+                    .toArray();
+            frameComputations.add(new FrameComputations(frame, computationIndexes, framePrefixSumIndexes));
+        });
+        return frameComputations.build();
     }
 
     @Override
@@ -345,7 +436,7 @@ public final class GpuWindow
 
     private long estimateComputePeakBytes(Optional<@Borrow Table> sorted, int rowCount)
     {
-        if (scanComputations.isEmpty() && prefixSumDifferenceComputations.isEmpty()) {
+        if (scanComputations.isEmpty() && prefixSumDifferenceOutputIndexes.length == 0) {
             return 0;
         }
 
@@ -376,7 +467,7 @@ public final class GpuWindow
     // On top of the sorted input and the scan outputs, which stay live throughout
     private long estimatePrefixSumDifferencePeakBytes(@Borrow Table sorted, int rowCount)
     {
-        if (prefixSumDifferenceComputations.isEmpty()) {
+        if (prefixSumDifferenceOutputIndexes.length == 0) {
             return 0;
         }
         return max(estimateWindowLayoutPeakBytes(sorted, rowCount), estimatePrefixSumDifferenceWorkingBytes(sorted, rowCount));
@@ -437,12 +528,12 @@ public final class GpuWindow
 
     private @Move ColumnVector[] computeResultColumns(Optional<@Borrow Table> sorted, int rowCount)
     {
-        if (scanComputations.isEmpty() && prefixSumDifferenceComputations.isEmpty()) {
+        if (scanComputations.isEmpty() && prefixSumDifferenceOutputIndexes.length == 0) {
             return new ColumnVector[0];
         }
         checkState(sorted.isPresent(), "input table is required");
 
-        @Own ColumnVector[] results = new ColumnVector[scanComputations.size() + prefixSumDifferenceComputations.size()];
+        @Own ColumnVector[] results = new ColumnVector[scanComputations.size() + prefixSumDifferenceOutputIndexes.length];
         try {
             @Own ColumnVector[] scanResults = computeScanAggregations(sorted.get());
             for (int i = 0; i < scanResults.length; i++) {
@@ -515,26 +606,30 @@ public final class GpuWindow
     // partition boundaries.
     private @Move ColumnVector[] computePrefixSumDifferences(@Borrow Table sorted, int rowCount)
     {
-        if (prefixSumDifferenceComputations.isEmpty()) {
+        if (prefixSumDifferenceOutputIndexes.length == 0) {
             return new ColumnVector[0];
         }
 
-        @Own ColumnVector[] results = new ColumnVector[prefixSumDifferenceComputations.size()];
+        @Own ColumnVector[] results = new ColumnVector[prefixSumDifferenceOutputIndexes.length];
         try (WindowLayout layout = createWindowLayout(sorted, rowCount);
                 Table prefixSums = prefixSums(sorted, prefixSumChannels)) {
-            try (FrameBounds bounds = frameBounds(layout)) {
+            for (FrameComputations computations : frameComputations) {
+                int[] framePrefixSumIndexes = computations.prefixSumIndexes();
+                @Own ColumnVector[] prefixSumDifferences = new ColumnVector[framePrefixSumIndexes.length];
                 // Every bound is between 0 and the row count, so none is out of bounds, but NULLIFY keeps any mistake
                 // from reading outside the table
-                @Own ColumnVector[] prefixSumDifferences = new ColumnVector[prefixSumChannels.length];
-                try (Table prefixSumsAtEnd = prefixSums.gather(bounds.endExclusive(), OutOfBoundsPolicy.NULLIFY);
-                        Table prefixSumsAtStart = prefixSums.gather(bounds.startInclusive(), OutOfBoundsPolicy.NULLIFY)) {
-                    for (int i = 0; i < prefixSumChannels.length; i++) {
+                try (FrameBounds bounds = frameBounds(layout, computations.frame());
+                        Table framePrefixSums = selectColumns(prefixSums, framePrefixSumIndexes);
+                        Table prefixSumsAtEnd = framePrefixSums.gather(bounds.endExclusive(), OutOfBoundsPolicy.NULLIFY);
+                        Table prefixSumsAtStart = framePrefixSums.gather(bounds.startInclusive(), OutOfBoundsPolicy.NULLIFY)) {
+                    for (int i = 0; i < framePrefixSumIndexes.length; i++) {
                         @Borrow ColumnVector atStart = prefixSumsAtStart.getColumn(i);
                         @Borrow ColumnVector atEnd = prefixSumsAtEnd.getColumn(i);
                         prefixSumDifferences[i] = atEnd.binaryOp(SUB, atStart, atEnd.getType());
                     }
-                    for (int i = 0; i < prefixSumDifferenceComputations.size(); i++) {
-                        results[i] = prefixSumDifferences[prefixSumIndexes[i]].incRefCount();
+                    for (int computationIndex : computations.computationIndexes()) {
+                        int differenceIndex = Ints.indexOf(framePrefixSumIndexes, prefixSumIndexes[computationIndex]);
+                        results[computationIndex] = prefixSumDifferences[differenceIndex].incRefCount();
                     }
                 }
                 finally {
@@ -599,9 +694,9 @@ public final class GpuWindow
         }
     }
 
-    private static @Move FrameBounds frameBounds(@Borrow WindowLayout layout)
+    private static @Move FrameBounds frameBounds(@Borrow WindowLayout layout, WindowFrame frame)
     {
-        // TODO: Support frame definitions other than default: https://starburstdata.atlassian.net/browse/ENG-28121
+        checkArgument(frame.equals(WindowFrame.DEFAULT), "Unsupported frame: %s", frame);
         // RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
         return new FrameBounds(layout.partitionStartInclusive().incRefCount(), layout.peerGroupEndExclusive().incRefCount());
     }
