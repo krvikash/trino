@@ -185,12 +185,14 @@ output of its source.
 
 ### Index key invariant
 
-The index bucket key (`MaterializationIndex.computeHash`) is derived from the **set of leaf `TableId`s**
-in the tree and from nothing else — not from expressions, not from operator shape. Today the set has
-one element and the key is that element's hash. Do not fold predicates into `ComputationHash` and do
-not add `hash()` to expression nodes: a query cannot know an MV's predicate before matching it, so a
-predicate in the key makes candidates unfindable and rules out subsumption matching. When `Filter` /
-`Project` land, `computeHash` must descend past them to the leaves.
+The index bucket key (`MaterializationIndex.computeHash`) is derived from the **leaf `TableId`s** in the
+tree and the **kinds of operators** above them (today `Aggregation`), and from nothing else — not from
+expressions, grouping keys or functions. Operator kinds are known on both sides before matching, so they
+keep scan-only and aggregation MVs out of each other's buckets. Do not fold predicates into
+`ComputationHash` and do not add `hash()` to expression nodes: a query cannot know an MV's predicate
+before matching it, so a predicate in the key makes candidates unfindable and rules out subsumption
+matching. When `Filter` lands, revisit folding its kind in: compensating a query filter above an
+unfiltered MV needs both in one bucket.
 
 ## Safety model
 

@@ -17,6 +17,7 @@ import io.airlift.log.Logger;
 import io.airlift.stats.CounterStat;
 import io.airlift.stats.TimeStat;
 import io.airlift.units.Duration;
+import io.starburst.materialization.ir.Aggregation;
 import io.starburst.materialization.ir.Operation;
 import io.starburst.materialization.ir.Output;
 import io.starburst.materialization.ir.TableScan;
@@ -221,15 +222,13 @@ public class MaterializationIndex
         }
     }
 
-    static ComputationHash computeHash(Operation root)
+    static ComputationHash computeHash(Operation operation)
     {
-        if (root instanceof Output output) {
-            root = output.source();
-        }
-        if (root instanceof TableScan tableScan) {
-            return new ComputationHash(tableScan.table().hash());
-        }
-        throw new UnsupportedOperationException("Unsupported operation: " + root.getClass().getName());
+        return switch (operation) {
+            case TableScan tableScan -> new ComputationHash(tableScan.table().hash());
+            case Aggregation aggregate -> computeHash(aggregate.source()).aggregateOf();
+            case Output output -> computeHash(output.source());
+        };
     }
 
     private static CatalogSchemaTableName materializedViewName(MaterializationDefinition materialization)

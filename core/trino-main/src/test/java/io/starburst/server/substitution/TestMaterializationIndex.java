@@ -10,8 +10,14 @@
 package io.starburst.server.substitution;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
+import io.starburst.materialization.ir.Aggregation;
+import io.starburst.materialization.ir.Aggregation.AggregateFunctionCall;
+import io.starburst.materialization.ir.Aggregation.GroupingSets;
 import io.starburst.materialization.ir.Output;
+import io.starburst.materialization.ir.Reference;
 import io.starburst.materialization.ir.Symbol;
+import io.starburst.materialization.ir.TableId;
 import io.starburst.materialization.metastore.InMemoryRawMaterializationMetastore;
 import io.starburst.materialization.metastore.MaterializationDefinition;
 import io.starburst.materialization.metastore.MaterializationSource.MaterializedViewSource;
@@ -20,6 +26,7 @@ import io.starburst.server.substitution.TestUtils.SupportedTableId;
 import io.starburst.server.substitution.TestUtils.TestColumnId;
 import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.connector.substitution.ConnectorStorageTableId;
+import io.trino.spi.function.BoundSignature;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
@@ -28,14 +35,18 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static com.google.common.collect.Iterables.getOnlyElement;
+import static io.starburst.materialization.ir.Aggregation.Step.SINGLE;
 import static io.starburst.server.substitution.MaterializationIndex.computeHash;
 import static io.starburst.server.substitution.TestUtils.CATALOG;
 import static io.starburst.server.substitution.TestUtils.SCHEMA;
 import static io.starburst.server.substitution.TestUtils.copyWithIrJson;
 import static io.starburst.server.substitution.TestUtils.materialization;
 import static io.starburst.server.substitution.TestUtils.mvName;
+import static io.starburst.server.substitution.TestUtils.simpleAggregate;
 import static io.starburst.server.substitution.TestUtils.simpleTableScan;
 import static io.starburst.server.substitution.TestUtils.versionAwareMetastore;
+import static io.trino.metadata.GlobalFunctionCatalog.builtinFunctionName;
+import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -156,6 +167,34 @@ class TestMaterializationIndex
 
         assertThat(index.getMaterializations(hash(overSource1))).containsExactlyInAnyOrder(overSource1, alsoOverSource1);
         assertThat(index.getMaterializations(hash(overSource2))).containsExactly(overSource2);
+    }
+
+    @Test
+    void testAggregateComputationsHashApartFromScans()
+    {
+        SupportedTableId source = new SupportedTableId("source");
+        Output scan = simpleTableScan(source, new TestColumnId("name"));
+        Output aggregate = simpleAggregate(source, "sum");
+        Output nestedAggregate = aggregateOver(aggregate);
+
+        assertThat(computeHash(scan)).isEqualTo(new ComputationHash(new TableId(new CatalogName(CATALOG), source).hash()));
+        assertThat(ImmutableSet.of(computeHash(scan), computeHash(aggregate), computeHash(nestedAggregate))).hasSize(3);
+    }
+
+    @Test
+    void testAggregatesOverSameTableShareBucketApartFromScans()
+    {
+        MaterializationIndex index = new MaterializationIndex(versionAwareMetastore(), new MaterializedViewSubstitutionConfig());
+        MaterializationDefinition sum = materialization("sum_mv", simpleAggregate(new SupportedTableId("source"), "sum"));
+        MaterializationDefinition max = materialization("max_mv", simpleAggregate(new SupportedTableId("source"), "max"));
+        MaterializationDefinition scan = materialization("scan_mv", "source");
+
+        index.createOrReplace(sum);
+        index.createOrReplace(max);
+        index.createOrReplace(scan);
+
+        assertThat(index.getMaterializations(hash(sum))).containsExactlyInAnyOrder(sum, max);
+        assertThat(index.getMaterializations(hash(scan))).containsExactly(scan);
     }
 
     @Test
@@ -376,15 +415,15 @@ class TestMaterializationIndex
     }
 
     @Test
-    void testComputeHashRejectsNonTableScanRoot()
+    void testComputeHashLooksThroughOutput()
     {
-        Output nonScanRoot = new Output(
+        Output scan = simpleTableScan(new SupportedTableId("source"), new TestColumnId("name"));
+        Output outputOverOutput = new Output(
                 ImmutableList.of("name"),
                 ImmutableList.of(new Symbol(VARCHAR, "name")),
-                simpleTableScan(new SupportedTableId("source"), new TestColumnId("name")));
+                scan);
 
-        assertThatThrownBy(() -> computeHash(nonScanRoot))
-                .isInstanceOf(UnsupportedOperationException.class);
+        assertThat(computeHash(outputOverOutput)).isEqualTo(computeHash(scan));
     }
 
     @Test
@@ -424,6 +463,29 @@ class TestMaterializationIndex
 
         assertThat(index.getMaterializations(hash(later))).containsExactly(later);
         assertThat(index.getSkippedCount().getTotalCount()).isEqualTo(2);
+    }
+
+    /**
+     * {@code SELECT name, max(total) AS outer_total FROM (<aggregate>) GROUP BY name}
+     */
+    private static Output aggregateOver(Output aggregate)
+    {
+        Aggregation source = (Aggregation) aggregate.source();
+        Symbol name = source.groupingSets().groupingKeys().getFirst();
+        Symbol total = source.aggregations().getFirst().output();
+        Symbol outerTotal = new Symbol(BIGINT, "outer_total");
+        AggregateFunctionCall max = new AggregateFunctionCall(
+                outerTotal,
+                new BoundSignature(builtinFunctionName("max"), BIGINT, ImmutableList.of(BIGINT)),
+                ImmutableList.of(new Reference(total)),
+                false,
+                Optional.empty(),
+                Optional.empty(),
+                Optional.empty());
+        return new Output(
+                ImmutableList.of("name", "outer_total"),
+                ImmutableList.of(name, outerTotal),
+                new Aggregation(source, new GroupingSets(ImmutableList.of(name), 1, ImmutableSet.of()), ImmutableList.of(max), SINGLE, Optional.empty()));
     }
 
     private static ComputationHash hash(MaterializationDefinition materialization)
