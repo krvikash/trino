@@ -1,0 +1,49 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+inheritance: true
+
+reviews:
+  path_instructions:
+    - path: "**"
+      instructions: |
+        Before flagging, verify the premise against the code: that the method, enum constant, test
+        case or code path you cite exists and behaves as you claim. Review the current code, not an
+        earlier revision of the diff. Do not present an inference as a requirement ("must report",
+        "must handle") unless a test, spec or API contract establishes it.
+        Write fewer comments so each one matters. Leave to the compiler and CI what they check: do
+        not predict whether code compiles, whether a test will pass or fail, or whether a dependency
+        is available, even when CI has not run yet; an actual failure is more useful to the author
+        than a prediction of it. Never state that the author
+        ran or verified something unless they said so.
+        Do not re-raise a pre-existing problem that already has a TODO or a linked ticket.
+        Do not offer to open follow-up issues.
+        For a finding rated Major or Critical, state the concrete failure scenario in one or two
+        sentences up front. When changing your position after pushback, state what new evidence
+        changed it; disagreement alone is not evidence.
+        Mixed-version clusters and rolling upgrades are not supported: coordinator and workers
+        always run the same version, so do not flag missing backward compatibility of internal
+        serialization (plan fragments, task updates, JSON between nodes). Failing fast on a
+        missing property is correct.
+        Guice dependency cycles are a bug in themselves. Do not build a finding on "if there is a
+        cycle, initialization order is undefined".
+        Backports of trinodb/trino changes (the PR description links the upstream PR or commit):
+        the cherry-picked code was reviewed upstream. Report only what matters for taking the
+        change: differences from the upstream commit (mistakes resolving conflicts, dropped or added
+        hunks), missing prerequisite upstream commits, interactions with code that exists only in
+        this repository, and correctness defects in the upstream change itself. Do not suggest
+        style, refactoring or extra test coverage for upstream code. A fix belongs upstream and is
+        cherry-picked together with the backport, so do not request an edit that exists only here.
+        Changes originating in this repository get a normal review, even in files shared with
+        upstream.
+    - path: "**/src/test/**"
+      instructions: |
+        Do not flag cleanup skipped only because test setup or the test body throws, when the
+        leaked object belongs to that one test (a page, buffer, block, operator or similar
+        fixture). The first failure is more useful for troubleshooting than a secondary failure
+        from cleaning up a partially initialized fixture. Do flag such a leak when the object is
+        shared or long-lived and can break or hang later tests in the same JVM, e.g. a
+        QueryRunner, server, executor, thread or external process.
+    - path: "**/{benchmark,benchmarks}/**"
+      instructions: |
+        This is developer tooling. Do not ask for extra input validation, range checks or
+        rejection tests for command-line arguments or query selectors; an invalid input failing
+        with an unclear error is acceptable.
