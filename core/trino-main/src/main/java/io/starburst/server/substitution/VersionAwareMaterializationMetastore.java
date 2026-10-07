@@ -15,6 +15,7 @@ import com.google.inject.Inject;
 import io.airlift.json.JsonCodec;
 import io.airlift.log.Logger;
 import io.airlift.stats.CounterStat;
+import io.starburst.materialization.ir.Aggregation;
 import io.starburst.materialization.ir.Expression;
 import io.starburst.materialization.ir.IrNode;
 import io.starburst.materialization.ir.IrVersions;
@@ -184,6 +185,7 @@ public class VersionAwareMaterializationMetastore
                     return currentVersions.add(tableIdVersion, columnIdVersion);
                 }
             });
+            case Aggregation _ -> {}
             case Output _ -> {}
             // Expressions refer to symbols, never to tables, so they carry no connector ids
             case Expression _ -> {}

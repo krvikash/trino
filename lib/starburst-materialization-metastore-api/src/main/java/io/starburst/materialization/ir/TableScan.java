@@ -26,6 +26,7 @@ import io.trino.spi.connector.substitution.ConnectorColumnId;
 import java.util.List;
 import java.util.Map;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static java.util.Objects.requireNonNull;
@@ -45,6 +46,9 @@ public record TableScan(
     {
         requireNonNull(table, "table is null");
         assignments = ImmutableMap.copyOf(requireNonNull(assignments, "assignments is null"));
+        checkArgument(
+                assignments.values().stream().map(Symbol::name).distinct().count() == assignments.size(),
+                "TableScan: assignment name is bound more than once");
     }
 
     @Override

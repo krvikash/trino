@@ -24,9 +24,9 @@ against different sources of truth.
 
 ## IR versioning (`io.starburst.materialization.ir.IrVersions`)
 
-The computation plan is a tree of `IrNode`s: sealed `Operation` nodes (currently `Output` and
-`TableScan`) and sealed `Expression` nodes. No `Operation` holds an `Expression` yet; `Filter` and
-`Project` will. Each node type declares:
+The computation plan is a tree of `IrNode`s: sealed `Operation` nodes (currently `Output`,
+`TableScan` and `Aggregation`) and sealed `Expression` nodes. `Aggregation` holds `Expression`s as its
+arguments; `Filter` and `Project` will hold them too. Each node type declares:
 
 - a stable `name()` — the JSON `@type` discriminator (e.g. `"TableScan"`, `"Call"`), never renamed;
 - an `int version()` — bumped on every backward-incompatible change to that node's serialized form;
@@ -62,14 +62,16 @@ The wire is a flat `Map<String, Integer>`; namespaces keep it collision-free.
 | --- | --- | --- |
 | *(bare)* | `Operation` node type — **grandfathered, never rename** | `"TableScan": 1` |
 | `expr:<Name>` | `Expression` node type | `"expr:Call": 1` |
-| `fn:<catalog>.<schema>.<function>` | one `SupportedFunctions` entry's semantics | `"fn:system.builtin.$operator$equal": 1` |
+| `fn:<catalog>.<schema>.<function>` | one `SupportedFunctions` or `SupportedAggregateFunctions` entry's semantics | `"fn:system.builtin.$operator$equal": 1` |
 | `cast:<from>-><to>` | one `SupportedCasts` pair's conversion semantics, by base type name | `"cast:varchar->varchar": 1` |
-| `leaf:<Name>` | a shared leaf serialized form, stamped by `Expression` nodes only | `"leaf:Symbol": 1`, `"leaf:Type": 1`, `"leaf:BoundSignature": 1` |
+| `leaf:<Name>` | a shared leaf serialized form, stamped by `Expression` nodes and by `Aggregation` | `"leaf:Symbol": 1`, `"leaf:Type": 1`, `"leaf:BoundSignature": 1` |
 
-An `Operation` stamps its bare name only. An `Output(TableScan)` tree is therefore stamped exactly
-`{Output, TableScan}`, so plain MVs stay readable by engines that predate expressions. An `Expression`
-stamps `expr:<Name>`; `Reference` adds `leaf:Symbol`, `Cast` adds `leaf:Type` and its `cast:` key, `Call`
-adds `leaf:BoundSignature` and its `fn:` key.
+An `Operation` stamps its bare name. `Aggregation` also stamps `leaf:Symbol`, `leaf:BoundSignature` when
+it has an aggregate call, and the `fn:` key of each aggregate function it persists. An `Output(TableScan)`
+tree is therefore stamped exactly `{Output, TableScan}`, so plain MVs stay readable by engines that predate
+expressions. An `Expression` stamps `expr:<Name>`;
+`Reference` adds `leaf:Symbol`, `Cast` adds `leaf:Type` and its `cast:` key, `Call` adds
+`leaf:BoundSignature` and its `fn:` key.
 
 `fn:` keys are `"fn:" + CatalogSchemaFunctionName.toString()`. `SupportedFunctions` spells names as the
 engine does (`$operator$EQUAL`), but `CatalogSchemaFunctionName` and `SchemaFunctionName` lowercase
@@ -84,29 +86,42 @@ row incompatible.
 | --- | --- | --- |
 | New node type | new name at 1 | none invalidated |
 | Change an existing node's payload | bump **that** name | only MVs using it |
-| Add a function to `SupportedFunctions` | new `fn:` at 1 | none |
+| Add a function to `SupportedFunctions` or `SupportedAggregateFunctions` | new `fn:` at 1 | none |
 | A function's semantics change | bump that `fn:` | only MVs using it |
 | Remove a function | drop the entry | its MVs become incompatible |
 | Add a cast pair to `SupportedCasts` | new `cast:` at 1 | none |
 | A cast pair's conversion semantics change | bump that `cast:` | only MVs persisting that cast |
 | Remove a cast pair | drop the entry | its MVs become incompatible |
-| Change `Symbol`'s serialized form | bump `leaf:Symbol` **and** `Output` / `TableScan` (both embed `Symbol`s) | expression trees via the leaf key; every MV via the bare names |
-| Change `BoundSignature`'s serialized form | bump `leaf:BoundSignature` | only MVs containing a `Call` |
+| Change `Symbol`'s serialized form | bump `leaf:Symbol` **and** `Output` / `TableScan` (both embed `Symbol`s) | expression and aggregation trees via the leaf key; every MV via the bare names |
+| Change `BoundSignature`'s serialized form | bump `leaf:BoundSignature` | only MVs containing a `Call` or an aggregate call |
 | Change the `Type` string form | bump `leaf:Type`, `leaf:Symbol`, `leaf:BoundSignature` **and** `Output` / `TableScan` | effectively everything — `Type` strings are pervasive |
-| Add `Filter` / `Project` / `Aggregation` / `Join` | new bare names at 1 | none |
+| Add `Filter` / `Project` / `Join` | new bare names at 1, plus the leaf keys it embeds (as `Aggregation` does) | none |
 | **Rename any existing name** | **never** | silently invalidates stored definitions |
 
 ### Shared leaf types: `Symbol`, `Type` and `BoundSignature`
 
 Not every serialized value is an IR node. `Symbol` (a `name` plus an `io.trino.spi.type.Type`) is a
-leaf carried by `Output.outputs`, `TableScan.assignments` values and `Reference`; `Type` is also
-persisted directly by `Cast`; `BoundSignature` (trino-spi) is persisted by `Call`. Their JSON shapes
-are pinned by golden fixtures (`TestIrWireFormat`).
+leaf carried by `Output.outputs`, `TableScan.assignments` values, `Aggregation` (grouping keys, outputs,
+filters, masks, sort items and group id) and `Reference`; `Type` is also persisted directly by `Cast`;
+`BoundSignature` (trino-spi) is persisted by `Call` and by `Aggregation`'s aggregate calls. Their JSON
+shapes are pinned by golden fixtures (`TestIrWireFormat`).
 
-The `leaf:` keys cover expression trees only. They deliberately do **not** cover `Operation` nodes:
+The `leaf:` keys deliberately do **not** cover `Output` and `TableScan`: they predate the leaf keys, and
 stamping a new key on every existing tree would make every newly written plain MV unreadable to every
 already-deployed engine. So a `Symbol` or `Type` format change still bumps `Output` and `TableScan` by
-hand, in addition to the leaf keys — see the compound rows in the table above.
+hand, in addition to the leaf keys — see the compound rows in the table above. An `Operation` added after
+the leaf keys, such as `Aggregation`, stamps the leaf keys it embeds instead: every reader that knows it
+knows them.
+
+## Aggregation
+
+`Aggregation` mirrors the engine's `AggregationNode`: grouping sets (keys, set count, global sets), a
+`Step`, an optional group id, and one call per aggregate, each holding a `BoundSignature`, `Reference`
+arguments, `distinct`, and an optional filter, mask and ordering. Its outputs are the grouping keys followed
+by the aggregation outputs. The constructor enforces the engine's own invariants and no more: the function is
+in `SupportedAggregateFunctions`, arity matches the signature for the step, ORDER BY appears only at
+`SINGLE`, the group id is a grouping key, and the grouping sets are well formed. Argument and output types
+are not checked against the signature, as the engine does not check them.
 
 ## Expressions
 
@@ -142,18 +157,19 @@ Everything else is deliberately absent:
 - **`Lambda`, `Bind`, `Let`, `Match` — excluded.** Higher-order or optimizer-internal. `Match` is the
   lowering of `CASE x WHEN v THEN r`; `Let` wraps `BETWEEN` over a non-trivial operand (over a bare
   column it is a plain `Logical(AND, …)`).
-- **Aggregate and window functions are not expressions**, here or in the engine. A future `Aggregation`
-  `Operation` holds scalar `Expression`s as arguments.
+- **Aggregate and window functions are not expressions**, here or in the engine. The `Aggregation`
+  `Operation` holds scalar `Expression`s as arguments; like the engine's, they are symbol references, and
+  lambdas are not persisted yet.
 
 ### Symbol names are bindings, not identities
 
 Persisted symbol names are engine-generated (`orderkey_1`) and are **not** stable across engine
 versions or plan shapes. They are meaningful only as bindings within one persisted tree. A matcher must
-resolve a `Reference` back to whichever node in the same tree bound that symbol — today a `TableScan`
-assignment's `ConnectorColumnId` is the only binding site. It must **never** compare a symbol name
-against a query plan; that produces wrong results. Once another node type can bind a symbol rather
-than merely reference one, a definition must also be checked so that every symbol name is bound exactly
-once per tree and every `Reference` resolves to a binding (ENG-12666).
+resolve a `Reference` back to whichever node in the same tree bound that symbol — a `TableScan`
+assignment, keyed by its `ConnectorColumnId`, or an `Aggregation` aggregation output. It must **never**
+compare a symbol name against a query plan; that produces wrong results. Constructors check that every
+symbol name is bound once per tree and that every symbol a node uses, `Reference`s included, is an
+output of its source.
 
 ### Matching contract
 
@@ -180,9 +196,9 @@ predicate in the key makes candidates unfindable and rules out subsumption match
 
 **Fail closed.** An expression that cannot be represented must lead to *not indexing the MV*, never to
 indexing a tree whose meaning is uncertain. Constructors reject invalid trees, so an invalid tree cannot
-be built or deserialized; `SupportedFunctions.contains` and `SupportedCasts.contains` are
-side-effect-free predicates a producer consults to bail out first. The registries report "unsupported"
-as `false`, never by throwing. Validation messages name the node, the rule and the offending function or
+be built or deserialized; `SupportedFunctions.contains`, `SupportedAggregateFunctions.contains` and
+`SupportedCasts.contains` are side-effect-free predicates a producer consults to bail out first. The
+registries report "unsupported" as `false`, never by throwing. Validation messages name the node, the rule and the offending function or
 cast pair, never a symbol name or a row field name.
 
 With candidate validation on (config `materialized-view-substitution.candidate-validation.enabled`,
@@ -199,6 +215,8 @@ is never validated.
   `CAST(timestamp AS timestamp with time zone)` operator is deterministic yet reads the session time
   zone, and an MV's storage table holds values computed under the refresh session. Session dependence in
   a query merely fails a match; in an MV definition it returns wrong rows.
+- `SupportedAggregateFunctions` — the same allowlist for the aggregate functions an `Aggregation` may
+  persist.
 - `SupportedCasts` — an allowlist of `(source base type, target base type)` pairs, for the same reason.
   Two families are **permanently excluded** (`TestExpressionValidation` asserts their absence):
   - casts where exactly one side carries a time zone (`timestamp with time zone`,
@@ -223,9 +241,9 @@ signature over the stored bytes.
   constructor, `children()` and, if it persists a leaf form, function or cast pair, a `versionEntries()`
   override; add it to its interface's `permits` and `@JsonSubTypes`, to `IrVersions`, and a golden
   fixture to `TestIrWireFormat`. `TestIrExhaustiveness` fails until all of those are in place.
-- **Function:** measure first — each entry is permanent. Add it to `SupportedFunctions` at version 1
-  only if it is deterministic and session-independent, and pin its name in trino-main's
-  `TestSupportedNames`.
+- **Function:** measure first — each entry is permanent. Add a scalar function to `SupportedFunctions`,
+  or an aggregate function to `SupportedAggregateFunctions`, at version 1 only if it is deterministic and
+  session-independent, and pin its name in trino-main's `TestSupportedNames`.
 - **Cast pair:** add it to `SupportedCasts` at version 1, never in an excluded family, and pin it in
   trino-main's `TestSupportedNames`.
 

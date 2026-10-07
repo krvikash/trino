@@ -15,6 +15,7 @@ package io.starburst.materialization.ir;
 
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 
 import java.util.List;
 
@@ -34,6 +35,7 @@ public record Output(List<String> columnNames, List<Symbol> outputs, Operation s
         outputs = ImmutableList.copyOf(requireNonNull(outputs, "outputs is null"));
         requireNonNull(source, "source is null");
         checkArgument(columnNames.size() == outputs.size(), "columnNames and outputs must have the same size");
+        checkArgument(ImmutableSet.copyOf(source.outputs()).containsAll(outputs), "Output: output is not an output of the source");
     }
 
     public Output withSource(Operation newSource)

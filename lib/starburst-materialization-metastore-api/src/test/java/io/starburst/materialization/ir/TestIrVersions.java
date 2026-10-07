@@ -15,16 +15,19 @@ package io.starburst.materialization.ir;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import org.junit.jupiter.api.Test;
 
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 import static io.starburst.materialization.ir.IrFixtures.builtinSignature;
 import static io.starburst.materialization.ir.IrFixtures.outputOverScan;
 import static io.starburst.materialization.ir.IrFixtures.reference;
+import static io.starburst.materialization.ir.IrFixtures.tableScan;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.spi.type.VarcharType.VARCHAR;
@@ -49,7 +52,7 @@ class TestIrVersions
     @Test
     void testOperationVersionsAreBareNames()
     {
-        assertThat(IrVersions.OPERATION_VERSIONS).isEqualTo(ImmutableMap.of("Output", 1, "TableScan", 1));
+        assertThat(IrVersions.OPERATION_VERSIONS).isEqualTo(ImmutableMap.of("Aggregation", 1, "Output", 1, "TableScan", 1));
         assertThat(IrVersions.SUPPORTED).containsAllEntriesOf(IrVersions.OPERATION_VERSIONS);
     }
 
@@ -71,6 +74,34 @@ class TestIrVersions
                         + IrVersions.FUNCTION_VERSIONS.size()
                         + IrVersions.CAST_VERSIONS.size()
                         + IrVersions.LEAF_VERSIONS.size());
+    }
+
+    @Test
+    void testAggregationStampsLeavesItEmbedsWithoutReferences()
+    {
+        Symbol name = new Symbol(VARCHAR, "name");
+        Symbol rows = new Symbol(BIGINT, "rows");
+        Aggregation.AggregateFunctionCall countAll = new Aggregation.AggregateFunctionCall(
+                rows,
+                builtinSignature("count", BIGINT),
+                ImmutableList.of(),
+                false,
+                Optional.empty(),
+                Optional.empty(),
+                Optional.empty());
+        Aggregation aggregate = new Aggregation(
+                tableScan(name),
+                new Aggregation.GroupingSets(ImmutableList.of(name), 1, ImmutableSet.of()),
+                ImmutableList.of(countAll),
+                Aggregation.Step.SINGLE,
+                Optional.empty());
+
+        assertThat(IrVersions.collect(aggregate)).isEqualTo(ImmutableMap.of(
+                "Aggregation", 1,
+                "leaf:Symbol", 1,
+                "leaf:BoundSignature", 1,
+                "fn:system.builtin.count", 1,
+                "TableScan", 1));
     }
 
     @Test

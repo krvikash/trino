@@ -9,10 +9,12 @@
  */
 package io.starburst.server.substitution;
 
+import io.starburst.materialization.ir.SupportedAggregateFunctions;
 import io.starburst.materialization.ir.SupportedCasts;
 import io.starburst.materialization.ir.SupportedCasts.CastPair;
 import io.starburst.materialization.ir.SupportedFunctions;
 import io.trino.metadata.TestingFunctionResolution;
+import io.trino.spi.function.CatalogSchemaFunctionName;
 import io.trino.spi.type.Type;
 import org.junit.jupiter.api.Test;
 
@@ -30,13 +32,15 @@ import static io.trino.spi.type.DecimalType.createDecimalType;
 import static io.trino.spi.type.IntegerType.INTEGER;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.spi.type.VarcharType.createVarcharType;
+import static io.trino.sql.analyzer.TypeDescriptorProvider.fromTypes;
 import static io.trino.type.BooleanOperators.NOT_FUNCTION_NAME;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * {@link SupportedFunctions} and {@link SupportedCasts} spell engine names as literals because their module doesn't
- * depend on trino-main. This test pins each function to the engine constant that names it, and each cast pair to the
- * base names of types the engine casts between.
+ * {@link SupportedFunctions}, {@link SupportedAggregateFunctions} and {@link SupportedCasts} spell engine names as
+ * literals because their module doesn't depend on trino-main. This test pins each function to the engine constant
+ * that names it or the name the engine resolves it to, and each cast pair to the base names of types the engine
+ * casts between.
  */
 class TestSupportedNames
 {
@@ -58,6 +62,18 @@ class TestSupportedNames
     }
 
     @Test
+    void testAggregateFunctionNamesMatchEngine()
+    {
+        assertThat(SupportedAggregateFunctions.supported()).containsExactlyInAnyOrder(
+                resolvedAggregate("array_agg", BIGINT),
+                resolvedAggregate("avg", BIGINT),
+                resolvedAggregate("count", BIGINT),
+                resolvedAggregate("max", BIGINT),
+                resolvedAggregate("min", BIGINT),
+                resolvedAggregate("sum", BIGINT));
+    }
+
+    @Test
     void testCastBaseNamesMatchEngine()
     {
         assertThat(SupportedCasts.supported()).containsExactlyInAnyOrder(
@@ -66,6 +82,11 @@ class TestSupportedNames
                 resolvedCast(INTEGER, BIGINT),
                 resolvedCast(INTEGER, createDecimalType(10)),
                 resolvedCast(createVarcharType(10), VARCHAR));
+    }
+
+    private static CatalogSchemaFunctionName resolvedAggregate(String name, Type argumentType)
+    {
+        return FUNCTION_RESOLUTION.resolveFunction(name, fromTypes(argumentType)).name();
     }
 
     private static CastPair resolvedCast(Type source, Type target)

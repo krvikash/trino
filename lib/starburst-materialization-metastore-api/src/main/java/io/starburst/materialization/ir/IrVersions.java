@@ -31,11 +31,11 @@ import static com.google.common.collect.ImmutableMap.toImmutableMap;
  * <ul>
  * <li>bare: an {@link Operation} node type, grandfathered unprefixed ({@code TableScan})</li>
  * <li>{@value #EXPRESSION_PREFIX}: an {@link Expression} node type ({@code expr:Reference})</li>
- * <li>{@value #FUNCTION_PREFIX}: one {@link SupportedFunctions} entry's semantics, keyed by its
- * {@code catalog.schema.function} name ({@code fn:system.builtin.$operator$equal})</li>
+ * <li>{@value #FUNCTION_PREFIX}: one {@link SupportedFunctions} or {@link SupportedAggregateFunctions} entry's
+ * semantics, keyed by its {@code catalog.schema.function} name ({@code fn:system.builtin.$operator$equal})</li>
  * <li>{@value #CAST_PREFIX}: one {@link SupportedCasts} pair's conversion semantics ({@code cast:varchar->varchar})</li>
- * <li>{@value #LEAF_PREFIX}: a shared leaf serialized form, stamped by {@code Expression} nodes only
- * ({@code leaf:Symbol}, {@code leaf:Type}, {@code leaf:BoundSignature})</li>
+ * <li>{@value #LEAF_PREFIX}: a shared leaf serialized form, stamped by {@code Expression} nodes and by
+ * {@code Operation} nodes newer than the leaf keys ({@code leaf:Symbol}, {@code leaf:Type}, {@code leaf:BoundSignature})</li>
  * </ul>
  * Names are permanent: renaming one silently invalidates every stored definition that uses it.
  */
@@ -59,6 +59,7 @@ public final class IrVersions
      * {@code Operation} versions, keyed by the grandfathered bare node name.
      */
     public static final Map<String, Integer> OPERATION_VERSIONS = ImmutableMap.of(
+            Aggregation.NAME, Aggregation.VERSION,
             Output.NAME, Output.VERSION,
             TableScan.NAME, TableScan.VERSION);
 
@@ -75,10 +76,15 @@ public final class IrVersions
             expressionKey(Reference.NAME), Reference.VERSION);
 
     /**
-     * {@link SupportedFunctions} versions, keyed by {@value #FUNCTION_PREFIX}{@code <catalog>.<schema>.<function>}.
+     * {@link SupportedFunctions} and {@link SupportedAggregateFunctions} versions, keyed by
+     * {@value #FUNCTION_PREFIX}{@code <catalog>.<schema>.<function>}.
      */
-    public static final Map<String, Integer> FUNCTION_VERSIONS = SupportedFunctions.supported().stream()
-            .collect(toImmutableMap(IrVersions::functionKey, SupportedFunctions::semanticVersion));
+    public static final Map<String, Integer> FUNCTION_VERSIONS = ImmutableMap.<String, Integer>builder()
+            .putAll(SupportedFunctions.supported().stream()
+                    .collect(toImmutableMap(IrVersions::functionKey, SupportedFunctions::semanticVersion)))
+            .putAll(SupportedAggregateFunctions.supported().stream()
+                    .collect(toImmutableMap(IrVersions::functionKey, SupportedAggregateFunctions::semanticVersion)))
+            .buildOrThrow();
 
     /**
      * {@link SupportedCasts} versions, keyed by {@value #CAST_PREFIX}{@code <source base type>-><target base type>}.

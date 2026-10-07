@@ -14,9 +14,15 @@
 package io.starburst.materialization.ir;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.io.Resources;
 import io.airlift.json.JsonCodec;
+import io.starburst.materialization.ir.Aggregation.AggregateFunctionCall;
+import io.starburst.materialization.ir.Aggregation.GroupingSets;
+import io.starburst.materialization.ir.Aggregation.OrderingScheme;
+import io.starburst.materialization.ir.Aggregation.SortItem;
 import io.trino.spi.function.BoundSignature;
+import io.trino.spi.type.ArrayType;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -24,11 +30,14 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.util.Optional;
 import java.util.stream.Stream;
 
 import static io.starburst.materialization.ir.IrFixtures.builtinSignature;
 import static io.starburst.materialization.ir.IrFixtures.outputOverScan;
 import static io.starburst.materialization.ir.IrFixtures.reference;
+import static io.starburst.materialization.ir.IrFixtures.tableScan;
+import static io.trino.spi.connector.SortOrder.DESC_NULLS_LAST;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.spi.type.VarcharType.VARCHAR;
@@ -66,8 +75,30 @@ class TestIrWireFormat
     {
         Output output = outputOverScan(new Symbol(BIGINT, "a"));
         return Stream.of(
+                Arguments.of(Aggregation.NAME, aggregateWithEveryField()),
                 Arguments.of(Output.NAME, output),
                 Arguments.of(TableScan.NAME, output.source()));
+    }
+
+    private static Aggregation aggregateWithEveryField()
+    {
+        Symbol a = new Symbol(BIGINT, "a");
+        Symbol b = new Symbol(BOOLEAN, "b");
+        Symbol groupId = new Symbol(BIGINT, "g");
+        AggregateFunctionCall arrayAgg = new AggregateFunctionCall(
+                new Symbol(new ArrayType(BIGINT), "s"),
+                builtinSignature("array_agg", new ArrayType(BIGINT), BIGINT),
+                ImmutableList.of(new Reference(a)),
+                true,
+                Optional.of(b),
+                Optional.of(new OrderingScheme(ImmutableList.of(new SortItem(a, DESC_NULLS_LAST)))),
+                Optional.of(b));
+        return new Aggregation(
+                tableScan(a, b, groupId),
+                new GroupingSets(ImmutableList.of(a, groupId), 2, ImmutableSet.of(1)),
+                ImmutableList.of(arrayAgg),
+                Aggregation.Step.SINGLE,
+                Optional.of(groupId));
     }
 
     @ParameterizedTest(name = "{0}")

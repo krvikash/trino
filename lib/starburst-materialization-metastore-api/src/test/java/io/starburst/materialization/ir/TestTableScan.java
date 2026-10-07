@@ -13,6 +13,8 @@
  */
 package io.starburst.materialization.ir;
 
+import com.google.common.collect.ImmutableMap;
+import io.starburst.materialization.ir.IrFixtures.FixtureColumnId;
 import org.junit.jupiter.api.Test;
 
 import static io.starburst.materialization.ir.IrFixtures.tableScan;
@@ -20,6 +22,7 @@ import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class TestTableScan
 {
@@ -32,5 +35,17 @@ class TestTableScan
     void testOutputsAreAssignmentsInOrder()
     {
         assertThat(SCAN.outputs()).containsExactly(NAME, VALUE, FLAG);
+    }
+
+    @Test
+    void testRejectsNameBoundTwice()
+    {
+        assertThatThrownBy(() -> new TableScan(
+                SCAN.table(),
+                ImmutableMap.of(
+                        new FixtureColumnId("value"), VALUE,
+                        new FixtureColumnId("other"), new Symbol(BIGINT, VALUE.name()))))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("TableScan: assignment name is bound more than once");
     }
 }

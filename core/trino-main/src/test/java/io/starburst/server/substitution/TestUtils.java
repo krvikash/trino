@@ -15,7 +15,11 @@ import com.google.common.collect.ImmutableSet;
 import io.airlift.json.JsonCodec;
 import io.airlift.json.JsonCodecFactory;
 import io.airlift.json.JsonMapperProvider;
+import io.starburst.materialization.ir.Aggregation;
+import io.starburst.materialization.ir.Aggregation.AggregateFunctionCall;
+import io.starburst.materialization.ir.Aggregation.GroupingSets;
 import io.starburst.materialization.ir.Output;
+import io.starburst.materialization.ir.Reference;
 import io.starburst.materialization.ir.Symbol;
 import io.starburst.materialization.ir.TableId;
 import io.starburst.materialization.ir.TableScan;
@@ -33,6 +37,7 @@ import io.trino.spi.connector.substitution.ConnectorColumnId;
 import io.trino.spi.connector.substitution.ConnectorIdVersion;
 import io.trino.spi.connector.substitution.ConnectorStorageTableId;
 import io.trino.spi.connector.substitution.ConnectorTableId;
+import io.trino.spi.function.BoundSignature;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.TypeManager;
 import io.trino.type.InternalTypeManager;
@@ -42,7 +47,10 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
+import static io.starburst.materialization.ir.Aggregation.Step.SINGLE;
 import static io.starburst.materialization.ir.IrJsonMapper.irJsonMapper;
+import static io.trino.metadata.GlobalFunctionCatalog.builtinFunctionName;
+import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 
 public class TestUtils
@@ -144,6 +152,31 @@ public class TestUtils
                 new TableScan(
                         new TableId(new CatalogName(CATALOG), sourceTable),
                         ImmutableMap.of(sourceColumn, nameSymbol)));
+    }
+
+    /**
+     * {@code SELECT name, <function>(value) AS total FROM sourceTable GROUP BY name}, for a {@code function} from bigint to bigint.
+     */
+    public static Output simpleAggregate(ConnectorTableId sourceTable, String function)
+    {
+        Symbol nameSymbol = new Symbol(VARCHAR, "name");
+        Symbol valueSymbol = new Symbol(BIGINT, "value");
+        Symbol totalSymbol = new Symbol(BIGINT, "total");
+        TableScan scan = new TableScan(
+                new TableId(new CatalogName(CATALOG), sourceTable),
+                ImmutableMap.of(new TestColumnId("name"), nameSymbol, new TestColumnId("value"), valueSymbol));
+        AggregateFunctionCall aggregation = new AggregateFunctionCall(
+                totalSymbol,
+                new BoundSignature(builtinFunctionName(function), BIGINT, ImmutableList.of(BIGINT)),
+                ImmutableList.of(new Reference(valueSymbol)),
+                false,
+                Optional.empty(),
+                Optional.empty(),
+                Optional.empty());
+        return new Output(
+                ImmutableList.of("name", "total"),
+                ImmutableList.of(nameSymbol, totalSymbol),
+                new Aggregation(scan, new GroupingSets(ImmutableList.of(nameSymbol), 1, ImmutableSet.of()), ImmutableList.of(aggregation), SINGLE, Optional.empty()));
     }
 
     /**

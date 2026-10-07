@@ -25,12 +25,15 @@ import java.util.Map;
  **/
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "@type")
 @JsonSubTypes({
+        @JsonSubTypes.Type(value = Aggregation.class, name = Aggregation.NAME),
         @JsonSubTypes.Type(value = Output.class, name = Output.NAME),
         @JsonSubTypes.Type(value = TableScan.class, name = TableScan.NAME),
 })
 public sealed interface Operation
         extends IrNode
-        permits Output, TableScan
+        permits Aggregation,
+                Output,
+                TableScan
 {
     /**
      * An {@code Operation} stamps its bare name. The unprefixed namespace of {@link IrVersions} belongs to
