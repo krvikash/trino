@@ -14,8 +14,13 @@ import com.google.common.cache.CacheLoader;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import io.starburst.materialization.ir.Aggregation;
+import io.starburst.materialization.ir.Aggregation.GroupingSets;
+import io.starburst.materialization.ir.Aggregation.SortItem;
+import io.starburst.materialization.ir.Expression;
 import io.starburst.materialization.ir.Operation;
 import io.starburst.materialization.ir.Output;
+import io.starburst.materialization.ir.Reference;
 import io.starburst.materialization.ir.Symbol;
 import io.starburst.materialization.ir.TableId;
 import io.starburst.materialization.ir.TableScan;
@@ -43,8 +48,10 @@ import io.trino.spi.type.Type;
 import io.trino.spi.type.TypeManager;
 import io.trino.spi.type.VarcharType;
 import io.trino.sql.ir.Cast;
+import io.trino.sql.planner.OrderingScheme;
 import io.trino.sql.planner.optimizations.PlanNodeSearcher;
 import io.trino.sql.planner.optimizations.PlanOptimizer;
+import io.trino.sql.planner.plan.AggregationNode;
 import io.trino.sql.planner.plan.Assignments;
 import io.trino.sql.planner.plan.PlanNode;
 import io.trino.sql.planner.plan.PlanNodeId;
@@ -59,6 +66,8 @@ import io.trino.type.TypeCoercion;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -67,6 +76,7 @@ import java.util.regex.Pattern;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
+import static io.starburst.server.substitution.MaterializationIrExtractor.toIrStep;
 import static io.starburst.server.substitution.MaterializedViewSubstitutionSessionProperties.getMaterializedViewSubstitutionCandidatesRegexFilter;
 import static io.starburst.server.substitution.MaterializedViewSubstitutionSessionProperties.getMaterializedViewSubstitutionMaxStaleness;
 import static io.starburst.server.substitution.MaterializedViewSubstitutionSessionProperties.isMaterializedViewSubstitutionEnabled;
@@ -154,14 +164,16 @@ public class MvSubstitutionOptimizer
         if (computationHashes.isEmpty()) {
             return Optional.empty();
         }
-        return optimize(context, root, computationHashes, typeCoercion);
+        // Column ids depend only on the query, so they are resolved once for every node and candidate
+        QueryColumnIds queryColumnIds = new QueryColumnIds(substitutionMetadata, context.session());
+        return optimize(context, root, computationHashes, typeCoercion, queryColumnIds);
     }
 
-    private Optional<PlanNode> optimize(Context context, PlanNode planNode, Map<PlanNode, ComputationHash> computationHashes, TypeCoercion typeCoercion)
+    private Optional<PlanNode> optimize(Context context, PlanNode planNode, Map<PlanNode, ComputationHash> computationHashes, TypeCoercion typeCoercion, QueryColumnIds queryColumnIds)
     {
         ComputationHash hash = computationHashes.get(planNode);
         if (hash != null) {
-            Optional<PlanNode> substituted = trySubstituteAgainstCandidates(context, planNode, hash, typeCoercion);
+            Optional<PlanNode> substituted = trySubstituteAgainstCandidates(context, planNode, hash, typeCoercion, queryColumnIds);
             if (substituted.isPresent()) {
                 return substituted;
             }
@@ -170,7 +182,7 @@ public class MvSubstitutionOptimizer
         ImmutableList.Builder<PlanNode> newSources = ImmutableList.builder();
         boolean anySourceOptimized = false;
         for (PlanNode source : planNode.getSources()) {
-            Optional<PlanNode> optimized = optimize(context, source, computationHashes, typeCoercion);
+            Optional<PlanNode> optimized = optimize(context, source, computationHashes, typeCoercion, queryColumnIds);
             anySourceOptimized |= optimized.isPresent();
             newSources.add(optimized.orElse(source));
         }
@@ -181,7 +193,7 @@ public class MvSubstitutionOptimizer
         return Optional.of(planNode.replaceChildren(newSources.build()));
     }
 
-    private Optional<PlanNode> trySubstituteAgainstCandidates(Context context, PlanNode queryNode, ComputationHash hash, TypeCoercion typeCoercion)
+    private Optional<PlanNode> trySubstituteAgainstCandidates(Context context, PlanNode queryNode, ComputationHash hash, TypeCoercion typeCoercion, QueryColumnIds queryColumnIds)
     {
         MvSubstitutionCollector collector = context.mvSubstitutionCollector();
         Session session = context.session();
@@ -200,7 +212,7 @@ public class MvSubstitutionOptimizer
         }
 
         for (IndexedMaterialization candidate : candidates) {
-            SubstitutionAttempt attempt = trySubstitute(context, queryNode, candidate.definition(), typeCoercion);
+            SubstitutionAttempt attempt = trySubstitute(context, queryNode, candidate.definition(), candidate.columnNames(), typeCoercion, queryColumnIds);
             CatalogSchemaTableName candidateMvName = materializedViewName(candidate.definition());
             switch (attempt) {
                 case SubstitutionAttempt.Substituted substituted -> {
@@ -258,7 +270,13 @@ public class MvSubstitutionOptimizer
         return ((MaterializedViewSource) candidate.source()).materializedViewName();
     }
 
-    private SubstitutionAttempt trySubstitute(Context context, PlanNode queryNode, MaterializationDefinition candidate, TypeCoercion typeCoercion)
+    private SubstitutionAttempt trySubstitute(
+            Context context,
+            PlanNode queryNode,
+            MaterializationDefinition candidate,
+            Map<Symbol, String> candidateColumnNames,
+            TypeCoercion typeCoercion,
+            QueryColumnIds queryColumnIds)
     {
         Session session = context.session();
         // A rejection records the candidate's name, so the table-level access check comes before every other
@@ -280,11 +298,24 @@ public class MvSubstitutionOptimizer
             return new SubstitutionAttempt.Rejected(EXCLUDED_BY_FILTER);
         }
 
-        MatchOutcome matchOutcome = tryMatch(session, queryNode, candidate.computationPlanRoot().source());
+        MatchOutcome matchOutcome = tryMatch(session, queryNode, candidate.computationPlanRoot(), queryColumnIds);
         if (matchOutcome.result().isEmpty()) {
             return new SubstitutionAttempt.Rejected(matchOutcome.rejectionReason().orElseThrow());
         }
         MatchingResult matchingResult = matchOutcome.result().get();
+
+        Map<io.trino.sql.planner.Symbol, Symbol> querySymbolToMvSymbolMapping = matchingResult.querySymbolToMvSymbolMapping();
+        // An aggregation may list a grouping key twice, e.g. the one SingleDistinctAggregationToGroupBy builds for
+        // count(DISTINCT k) GROUP BY k; a scan produces each symbol once, which serves its parents the same
+        Map<io.trino.sql.planner.Symbol, String> mvColumnNames = new LinkedHashMap<>();
+        for (io.trino.sql.planner.Symbol symbol : queryNode.getOutputSymbols()) {
+            String mvColumnName = candidateColumnNames.get(querySymbolToMvSymbolMapping.get(symbol));
+            if (mvColumnName == null) {
+                // The MV computes this value but does not select it, e.g. a key it groups by
+                return new SubstitutionAttempt.Rejected(COLUMN_NOT_IN_MATERIALIZED_VIEW);
+            }
+            mvColumnNames.put(symbol, mvColumnName);
+        }
 
         CatalogSchemaTableName storageTable = candidate.storageTableId().tableName();
         Optional<TableHandle> storageTableHandle;
@@ -312,22 +343,14 @@ public class MvSubstitutionOptimizer
 
         Map<String, ColumnHandle> storageColumnHandles = metadata.getColumnHandles(session, storageTableHandle.get());
 
-        Map<io.trino.sql.planner.Symbol, Symbol> querySymbolToMvSymbolMapping = matchingResult.querySymbolToMvSymbolMapping();
         ImmutableList.Builder<io.trino.sql.planner.Symbol> outputs = ImmutableList.builder();
         ImmutableMap.Builder<io.trino.sql.planner.Symbol, ColumnHandle> assignments = ImmutableMap.builder();
-        Output candidateOutput = candidate.computationPlanRoot();
-
-        Map<Symbol, String> candidateColumnNames = new HashMap<>();
-        for (int i = 0; i < candidateOutput.outputs().size(); i++) {
-            candidateColumnNames.put(candidateOutput.outputs().get(i), candidateOutput.columnNames().get(i));
-        }
-
         ImmutableSet.Builder<String> readMvColumns = ImmutableSet.builder();
         Assignments.Builder projections = Assignments.builder();
         boolean needsCoercion = false;
-        for (io.trino.sql.planner.Symbol symbol : queryNode.getOutputSymbols()) {
-            Symbol computationSymbol = querySymbolToMvSymbolMapping.get(symbol);
-            String mvColumnName = candidateColumnNames.get(computationSymbol);
+        for (Map.Entry<io.trino.sql.planner.Symbol, String> entry : mvColumnNames.entrySet()) {
+            io.trino.sql.planner.Symbol symbol = entry.getKey();
+            String mvColumnName = entry.getValue();
             ColumnHandle storageColumnHandle = storageColumnHandles.get(mvColumnName);
             if (storageColumnHandle == null) {
                 return new SubstitutionAttempt.Rejected(STORAGE_COLUMN_MISSING);
@@ -408,10 +431,10 @@ public class MvSubstitutionOptimizer
         }
     }
 
-    private MatchOutcome tryMatch(Session session, PlanNode planNode, Operation operation)
+    private MatchOutcome tryMatch(Session session, PlanNode planNode, Output candidateOutput, QueryColumnIds queryColumnIds)
     {
-        MatchingVisitor visitor = new MatchingVisitor(substitutionMetadata, session);
-        if (!planNode.accept(visitor, operation)) {
+        MatchingVisitor visitor = new MatchingVisitor(substitutionMetadata, session, queryColumnIds, candidateOutput.outputs());
+        if (!planNode.accept(visitor, candidateOutput.source())) {
             return new MatchOutcome(Optional.empty(), Optional.of(visitor.outcome()));
         }
         return new MatchOutcome(Optional.of(new MatchingResult(visitor.buildQuerySymbolToMvSymbolMapping())), Optional.empty());
@@ -484,10 +507,21 @@ public class MvSubstitutionOptimizer
                 return hash;
             });
         }
+
+        @Override
+        public Optional<ComputationHash> visitAggregation(AggregationNode node, ImmutableMap.Builder<PlanNode, ComputationHash> context)
+        {
+            return node.getSource().accept(this, context).map(sourceHash -> {
+                ComputationHash hash = sourceHash.aggregateOf();
+                context.put(node, hash);
+                return hash;
+            });
+        }
     }
 
     /**
-     * Reports why a hashed subtree cannot be substituted at all, or nothing when it can. Only scans are hashed.
+     * Reports why a hashed subtree cannot be substituted at all, or nothing when it can: every scan in it must be
+     * eligible. Only scans and aggregations over them are hashed.
      */
     private static class SubstitutionSupportedVisitor
             extends PlanVisitor<Optional<MaterializedViewSubstitutionOutcome>, Void>
@@ -506,6 +540,12 @@ public class MvSubstitutionOptimizer
             }
             return Optional.empty();
         }
+
+        @Override
+        public Optional<MaterializedViewSubstitutionOutcome> visitAggregation(AggregationNode node, Void context)
+        {
+            return node.getSource().accept(this, context);
+        }
     }
 
     private static class MatchingVisitor
@@ -513,11 +553,16 @@ public class MvSubstitutionOptimizer
     {
         private final SubstitutionMetadata substitutionMetadata;
         private final Session session;
-        private final ImmutableMap.Builder<io.trino.sql.planner.Symbol, Symbol> querySymbolToMvSymbolMapping = ImmutableMap.builder();
+        private final QueryColumnIds queryColumnIds;
+        private final Set<Symbol> selectedMvSymbols;
+        // Each MV symbol is bound once in its tree, so it identifies a binding; names are never compared across the two plans
+        private final Map<io.trino.sql.planner.Symbol, Symbol> querySymbolToMvSymbolMapping = new HashMap<>();
         private MaterializedViewSubstitutionOutcome outcome = COMPUTATION_MISMATCH;
 
-        private MatchingVisitor(SubstitutionMetadata substitutionMetadata, Session session)
+        private MatchingVisitor(SubstitutionMetadata substitutionMetadata, Session session, QueryColumnIds queryColumnIds, List<Symbol> selectedMvSymbols)
         {
+            this.queryColumnIds = requireNonNull(queryColumnIds, "queryColumnIds is null");
+            this.selectedMvSymbols = ImmutableSet.copyOf(requireNonNull(selectedMvSymbols, "selectedMvSymbols is null"));
             this.substitutionMetadata = requireNonNull(substitutionMetadata, "substitutionMetadata is null");
             this.session = requireNonNull(session, "session is null");
         }
@@ -541,7 +586,7 @@ public class MvSubstitutionOptimizer
 
             Map<ConnectorColumnId, Symbol> mvAssignments = materializationTableScan.assignments();
             for (Map.Entry<io.trino.sql.planner.Symbol, ColumnHandle> entry : node.getAssignments().entrySet()) {
-                Optional<ConnectorColumnId> columnId = substitutionMetadata.getColumnId(session, node.getTable(), entry.getValue());
+                Optional<ConnectorColumnId> columnId = queryColumnIds.get(node.getTable(), entry.getValue());
                 if (columnId.isEmpty()) {
                     return false;
                 }
@@ -554,19 +599,168 @@ public class MvSubstitutionOptimizer
                     outcome = COLUMN_TYPE_MISMATCH;
                     return false;
                 }
-                querySymbolToMvSymbolMapping.put(entry.getKey(), mvSymbol);
+                if (!bind(entry.getKey(), mvSymbol)) {
+                    return false;
+                }
             }
             return true;
         }
 
+        @Override
+        public Boolean visitAggregation(AggregationNode node, Operation materializationComputation)
+        {
+            if (!(materializationComputation instanceof Aggregation materializationAggregate)) {
+                return false;
+            }
+            if (!node.getSource().accept(this, materializationAggregate.source())) {
+                return false;
+            }
+
+            GroupingSets groupingSets = materializationAggregate.groupingSets();
+            if (toIrStep(node.getStep()) != materializationAggregate.step()
+                    || node.getGroupingSetCount() != groupingSets.groupingSetCount()
+                    || !node.getGlobalGroupingSets().equals(groupingSets.globalGroupingSets())
+                    || !mapsTo(node.getGroupIdSymbol(), materializationAggregate.groupIdSymbol())) {
+                return false;
+            }
+
+            Set<Symbol> mappedGroupingKeys = new HashSet<>();
+            for (io.trino.sql.planner.Symbol groupingKey : node.getGroupingKeys()) {
+                Symbol mvSymbol = querySymbolToMvSymbolMapping.get(groupingKey);
+                if (mvSymbol == null) {
+                    return false;
+                }
+                mappedGroupingKeys.add(mvSymbol);
+            }
+            if (!mappedGroupingKeys.equals(ImmutableSet.copyOf(groupingSets.groupingKeys()))) {
+                return false;
+            }
+
+            // The MV may compute more aggregations than the query uses: with the same grouping, its rows are the query's rows
+            for (Map.Entry<io.trino.sql.planner.Symbol, AggregationNode.Aggregation> entry : node.getAggregations().entrySet()) {
+                // Equivalent calls differ only in their output symbol: prefer one the MV selects. A nested
+                // aggregate's outputs are read by the aggregate above, not selected, so any match serves there
+                Symbol mvOutput = null;
+                for (Aggregation.AggregateFunctionCall mvAggregation : materializationAggregate.aggregations()) {
+                    if (matches(entry.getValue(), mvAggregation)) {
+                        if (selectedMvSymbols.contains(mvAggregation.output())) {
+                            mvOutput = mvAggregation.output();
+                            break;
+                        }
+                        if (mvOutput == null) {
+                            mvOutput = mvAggregation.output();
+                        }
+                    }
+                }
+                if (mvOutput == null || !bind(entry.getKey(), mvOutput)) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        private boolean matches(AggregationNode.Aggregation queryAggregation, Aggregation.AggregateFunctionCall mvAggregation)
+        {
+            if (!queryAggregation.getResolvedFunction().signature().equals(mvAggregation.function())
+                    || queryAggregation.isDistinct() != mvAggregation.distinct()
+                    || queryAggregation.getArguments().size() != mvAggregation.arguments().size()
+                    || !mapsTo(queryAggregation.getFilter(), mvAggregation.filter())
+                    || !mapsTo(queryAggregation.getMask(), mvAggregation.mask())
+                    || !orderingMatches(queryAggregation.getOrderingScheme(), mvAggregation.orderingScheme())) {
+                return false;
+            }
+            for (int i = 0; i < queryAggregation.getArguments().size(); i++) {
+                if (!argumentMatches(queryAggregation.getArguments().get(i), mvAggregation.arguments().get(i))) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        private boolean argumentMatches(io.trino.sql.ir.Expression queryArgument, Expression mvArgument)
+        {
+            // A lambda argument has no persisted form yet
+            if (!(queryArgument instanceof io.trino.sql.ir.Reference queryReference)) {
+                return false;
+            }
+            return mvArgument instanceof Reference mvReference
+                    && mapsTo(io.trino.sql.planner.Symbol.from(queryReference), mvReference.symbol());
+        }
+
+        private boolean orderingMatches(Optional<OrderingScheme> queryOrdering, Optional<Aggregation.OrderingScheme> mvOrdering)
+        {
+            if (queryOrdering.isEmpty() || mvOrdering.isEmpty()) {
+                return queryOrdering.isEmpty() && mvOrdering.isEmpty();
+            }
+            List<io.trino.sql.planner.Symbol> orderBy = queryOrdering.get().orderBy();
+            List<SortItem> sortItems = mvOrdering.get().sortItems();
+            if (orderBy.size() != sortItems.size()) {
+                return false;
+            }
+            for (int i = 0; i < orderBy.size(); i++) {
+                SortItem sortItem = sortItems.get(i);
+                if (!mapsTo(orderBy.get(i), sortItem.symbol()) || queryOrdering.get().ordering(orderBy.get(i)) != sortItem.sortOrder()) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        private boolean mapsTo(Optional<io.trino.sql.planner.Symbol> querySymbol, Optional<Symbol> mvSymbol)
+        {
+            if (querySymbol.isEmpty() || mvSymbol.isEmpty()) {
+                return querySymbol.isEmpty() && mvSymbol.isEmpty();
+            }
+            return mapsTo(querySymbol.get(), mvSymbol.get());
+        }
+
+        private boolean mapsTo(io.trino.sql.planner.Symbol querySymbol, Symbol mvSymbol)
+        {
+            return mvSymbol.equals(querySymbolToMvSymbolMapping.get(querySymbol));
+        }
+
+        /**
+         * Records that {@code querySymbol} corresponds to {@code mvSymbol}. Observing a symbol again with the same
+         * counterpart is a match; a different counterpart is not.
+         */
+        private boolean bind(io.trino.sql.planner.Symbol querySymbol, Symbol mvSymbol)
+        {
+            Symbol previous = querySymbolToMvSymbolMapping.putIfAbsent(querySymbol, mvSymbol);
+            return previous == null || previous.equals(mvSymbol);
+        }
+
         private Map<io.trino.sql.planner.Symbol, Symbol> buildQuerySymbolToMvSymbolMapping()
         {
-            return querySymbolToMvSymbolMapping.buildOrThrow();
+            return ImmutableMap.copyOf(querySymbolToMvSymbolMapping);
         }
 
         private MaterializedViewSubstitutionOutcome outcome()
         {
             return outcome;
+        }
+    }
+
+    /**
+     * Memoizes {@link SubstitutionMetadata#getColumnId} for one optimizer pass: each lookup builds a connector session,
+     * and the same columns are otherwise resolved again for every node and candidate. Not thread-safe; one per pass.
+     */
+    private static class QueryColumnIds
+    {
+        private record Key(TableHandle table, ColumnHandle column) {}
+
+        private final SubstitutionMetadata substitutionMetadata;
+        private final Session session;
+        private final Map<Key, Optional<ConnectorColumnId>> columnIds = new HashMap<>();
+
+        private QueryColumnIds(SubstitutionMetadata substitutionMetadata, Session session)
+        {
+            this.substitutionMetadata = requireNonNull(substitutionMetadata, "substitutionMetadata is null");
+            this.session = requireNonNull(session, "session is null");
+        }
+
+        private Optional<ConnectorColumnId> get(TableHandle table, ColumnHandle column)
+        {
+            return columnIds.computeIfAbsent(new Key(table, column), _ -> substitutionMetadata.getColumnId(session, table, column));
         }
     }
 

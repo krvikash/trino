@@ -16,7 +16,11 @@ import io.airlift.json.JsonCodec;
 import io.airlift.json.JsonCodecFactory;
 import io.airlift.json.JsonMapperProvider;
 import io.opentelemetry.api.metrics.MeterProvider;
+import io.starburst.materialization.ir.Aggregation;
+import io.starburst.materialization.ir.Aggregation.AggregateFunctionCall;
+import io.starburst.materialization.ir.Aggregation.GroupingSets;
 import io.starburst.materialization.ir.Output;
+import io.starburst.materialization.ir.Reference;
 import io.starburst.materialization.ir.Symbol;
 import io.starburst.materialization.ir.TableId;
 import io.starburst.materialization.ir.TableScan;
@@ -51,6 +55,7 @@ import io.trino.spi.connector.substitution.ConnectorIdVersion;
 import io.trino.spi.connector.substitution.ConnectorStorageTableId;
 import io.trino.spi.connector.substitution.ConnectorSubstitutionMetadata;
 import io.trino.spi.connector.substitution.ConnectorTableId;
+import io.trino.spi.function.BoundSignature;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.TypeManager;
 import io.trino.sql.planner.Plan;
@@ -92,6 +97,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.starburst.materialization.ir.IrJsonMapper.irJsonMapper;
@@ -99,6 +105,8 @@ import static io.starburst.server.substitution.MaterializedViewSubstitutionSessi
 import static io.trino.connector.CatalogServiceProviderModule.createSubstitutionMetadata;
 import static io.trino.execution.querystats.PlanOptimizersStatsCollector.createPlanOptimizersStatsCollector;
 import static io.trino.jmh.Benchmarks.benchmark;
+import static io.trino.metadata.GlobalFunctionCatalog.builtinFunctionName;
+import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.sql.planner.LogicalPlanner.Stage.OPTIMIZED;
 import static io.trino.sql.planner.PlanOptimizers.columnPruningRules;
@@ -148,6 +156,17 @@ public class BenchmarkMvSubstitutionOptimizer
     private static final ConnectorIdVersion COLUMN_ID_VERSION = new ConnectorIdVersion("BenchColumnId", 1);
     private static final String NAME_COLUMN = "name";
     private static final Symbol NAME_SYMBOL = new Symbol(VARCHAR, NAME_COLUMN);
+    private static final String VALUE_COLUMN = "value";
+    private static final Symbol VALUE_SYMBOL = new Symbol(BIGINT, VALUE_COLUMN);
+    private static final String OTHER_VALUE_COLUMN = "other_value";
+    private static final Symbol OTHER_VALUE_SYMBOL = new Symbol(BIGINT, OTHER_VALUE_COLUMN);
+    private static final String REGION_COLUMN = "region";
+    private static final Symbol REGION_SYMBOL = new Symbol(VARCHAR, REGION_COLUMN);
+    private static final String TOTAL_COLUMN = "total";
+    private static final Symbol TOTAL_SYMBOL = new Symbol(BIGINT, TOTAL_COLUMN);
+    private static final String AGGREGATION_SOURCE = "agg_source";
+    private static final String WIDE_AGGREGATION_SOURCE = "wide_agg_source";
+    private static final int WIDE_AGGREGATION_WIDTH = 10;
     private static final String STORAGE_TABLE = "storage";
     private static final int WIDE_SCANS = 16;
     // Bucket hashes for non-matching ("filler") materializations. Kept above 2^32 so they can never
@@ -159,6 +178,16 @@ public class BenchmarkMvSubstitutionOptimizer
         SINGLE_SCAN,
         WIDE_16,
         DEEP_JOIN_16,
+        /**
+         * {@code SELECT name, sum(value) FROM agg_source GROUP BY name}; the materializations are aggregations over
+         * the same table, so the scenarios collide on the aggregation computation hash.
+         */
+        AGGREGATION,
+        /**
+         * {@code SELECT k0..k9, sum(v0)..sum(v9) FROM wide_agg_source GROUP BY k0..k9}: 10 grouping keys and 10
+         * aggregations, so a mismatch in the last of either is found only after everything before it matched.
+         */
+        WIDE_AGGREGATION,
     }
 
     public enum Scenario
@@ -188,6 +217,28 @@ public class BenchmarkMvSubstitutionOptimizer
          * different column id, so matching fails in the per-column mapping loop of the matching visitor.
          */
         MATCH_FAILS_COLUMNS,
+        /**
+         * {@link PlanShape#AGGREGATION} only: {@code mvCount} materializations on the matched table whose scan exposes
+         * every column the query reads, so matching reaches the aggregation, but the last aggregation is
+         * {@code count(value)} instead of {@code sum(value)}. Other shapes fall back to {@link #COLLISION_NONE_MATCH}.
+         */
+        AGG_FUNCTION_MISMATCH,
+        /**
+         * As {@link #AGG_FUNCTION_MISMATCH}, but the last aggregation is {@code sum(other_value)}.
+         */
+        AGG_ARGUMENT_MISMATCH,
+        /**
+         * As {@link #AGG_FUNCTION_MISMATCH}, but the last grouping key is {@code region} instead of the query's.
+         */
+        AGG_GROUPING_MISMATCH,
+    }
+
+    private enum AggregationVariant
+    {
+        MATCHING,
+        FUNCTION,
+        ARGUMENT,
+        GROUPING,
     }
 
     /**
@@ -250,6 +301,13 @@ public class BenchmarkMvSubstitutionOptimizer
                         IntStream.range(1, WIDE_SCANS)
                                 .mapToObj(i -> format(" JOIN source_%s t%s ON t0.name = t%s.name", i, i, i))
                                 .collect(joining());
+                case AGGREGATION -> format("SELECT name, sum(value) FROM %s GROUP BY name", AGGREGATION_SOURCE);
+                case WIDE_AGGREGATION -> format(
+                        "SELECT %s, %s FROM %s GROUP BY %s",
+                        wideColumns("k").collect(joining(", ")),
+                        wideColumns("v").map(column -> format("sum(%s)", column)).collect(joining(", ")),
+                        WIDE_AGGREGATION_SOURCE,
+                        wideColumns("k").collect(joining(", ")));
             };
             Plan inputPlan = benchmarkData.planTester.createPlan(
                     transactionSession,
@@ -291,13 +349,13 @@ public class BenchmarkMvSubstitutionOptimizer
     @State(Scope.Benchmark)
     public static class BenchmarkData
     {
-        @Param({"1", "10", "50", "100"})
+        @Param({"0", "1", "10", "50", "100"})
         private int mvCount;
 
-        @Param({"SINGLE_SCAN", "WIDE_16", "DEEP_JOIN_16"})
+        @Param({"SINGLE_SCAN", "WIDE_16", "DEEP_JOIN_16", "AGGREGATION", "WIDE_AGGREGATION"})
         private PlanShape planShape;
 
-        @Param({"NO_HASH_MATCH", "UNIQUE_MATCH", "COLLISION_LAST_MATCHES", "COLLISION_NONE_MATCH", "MATCH_FAILS_FRESHNESS", "MATCH_FAILS_COLUMNS"})
+        @Param({"NO_HASH_MATCH", "UNIQUE_MATCH", "COLLISION_LAST_MATCHES", "COLLISION_NONE_MATCH", "MATCH_FAILS_FRESHNESS", "MATCH_FAILS_COLUMNS", "AGG_FUNCTION_MISMATCH", "AGG_ARGUMENT_MISMATCH", "AGG_GROUPING_MISMATCH"})
         private Scenario scenario;
 
         private PlanTester planTester;
@@ -361,11 +419,19 @@ public class BenchmarkMvSubstitutionOptimizer
          */
         private String matchedTable()
         {
-            return planShape == PlanShape.SINGLE_SCAN ? "source" : "source_0";
+            return switch (planShape) {
+                case SINGLE_SCAN -> "source";
+                case AGGREGATION -> AGGREGATION_SOURCE;
+                case WIDE_AGGREGATION -> WIDE_AGGREGATION_SOURCE;
+                case WIDE_16, DEEP_JOIN_16 -> "source_0";
+            };
         }
 
         private void populateIndex(MaterializationIndex index)
         {
+            if (mvCount == 0) {
+                return;
+            }
             long matchedHash = matchedTable().hashCode();
             switch (scenario) {
                 case NO_HASH_MATCH -> {
@@ -403,6 +469,19 @@ public class BenchmarkMvSubstitutionOptimizer
                         index.createOrReplace(materialization("mv_match" + i, matchedTable(), matchedHash, true, "other"));
                     }
                 }
+                case AGG_FUNCTION_MISMATCH -> populateAggregationDecoys(index, AggregationVariant.FUNCTION, matchedHash);
+                case AGG_ARGUMENT_MISMATCH -> populateAggregationDecoys(index, AggregationVariant.ARGUMENT, matchedHash);
+                case AGG_GROUPING_MISMATCH -> populateAggregationDecoys(index, AggregationVariant.GROUPING, matchedHash);
+            }
+        }
+
+        private void populateAggregationDecoys(MaterializationIndex index, AggregationVariant variant, long matchedHash)
+        {
+            for (int i = 0; i < mvCount; i++) {
+                index.createOrReplace((planShape == PlanShape.AGGREGATION || planShape == PlanShape.WIDE_AGGREGATION)
+                        // same table and bucket as the query, so matching gets as far as the aggregation
+                        ? materialization("mv_" + i, matchedTable(), matchedHash, true, NAME_COLUMN, variant)
+                        : materialization("mv_" + i, "decoy_" + i, matchedHash, true));
             }
         }
 
@@ -417,18 +496,70 @@ public class BenchmarkMvSubstitutionOptimizer
         }
 
         /**
-         * A materialization whose computation is {@code SELECT name FROM <sourceTable>} reading {@code sourceColumn},
+         * A materialization whose computation is {@code SELECT name FROM <sourceTable>} (or, for the
+         * {@link PlanShape#AGGREGATION} shape, {@code SELECT name, sum(value) FROM <sourceTable> GROUP BY name}) reading {@code sourceColumn},
          * bucketed under {@code bucketHash}. When {@code fresh} is false it carries an expired grace period so the
          * optimizer rejects it at the freshness check.
          */
         private MaterializationDefinition materialization(String mvName, String sourceTable, long bucketHash, boolean fresh, String sourceColumn)
         {
-            Output computation = new Output(
-                    ImmutableList.of(NAME_COLUMN),
-                    ImmutableList.of(NAME_SYMBOL),
-                    new TableScan(
-                            new TableId(new CatalogName(CATALOG), new BenchTableId(sourceTable, bucketHash)),
-                            ImmutableMap.of(new BenchColumnId(sourceColumn), NAME_SYMBOL)));
+            return materialization(mvName, sourceTable, bucketHash, fresh, sourceColumn, AggregationVariant.MATCHING);
+        }
+
+        private MaterializationDefinition materialization(String mvName, String sourceTable, long bucketHash, boolean fresh, String sourceColumn, AggregationVariant variant)
+        {
+            TableId tableId = new TableId(new CatalogName(CATALOG), new BenchTableId(sourceTable, bucketHash));
+            Output computation;
+            if (planShape == PlanShape.AGGREGATION || planShape == PlanShape.WIDE_AGGREGATION) {
+                boolean wide = planShape == PlanShape.WIDE_AGGREGATION;
+                List<Symbol> keys = wide ? wideSymbols("k", VARCHAR) : ImmutableList.of(NAME_SYMBOL);
+                List<Symbol> values = wide ? wideSymbols("v", BIGINT) : ImmutableList.of(VALUE_SYMBOL);
+                List<Symbol> totals = wide ? wideSymbols("t", BIGINT) : ImmutableList.of(TOTAL_SYMBOL);
+                // the scan exposes every column any variant reads, so matching always reaches the aggregation
+                ImmutableMap.Builder<ConnectorColumnId, Symbol> assignments = ImmutableMap.builder();
+                for (int i = 0; i < keys.size(); i++) {
+                    assignments.put(new BenchColumnId(i == 0 && !sourceColumn.equals(NAME_COLUMN) ? sourceColumn : keys.get(i).name()), keys.get(i));
+                }
+                for (Symbol value : values) {
+                    assignments.put(new BenchColumnId(value.name()), value);
+                }
+                assignments.put(new BenchColumnId(OTHER_VALUE_COLUMN), OTHER_VALUE_SYMBOL);
+                assignments.put(new BenchColumnId(REGION_COLUMN), REGION_SYMBOL);
+
+                // only the last grouping key / aggregation differs, after everything before it matched
+                ImmutableList.Builder<Symbol> groupingKeys = ImmutableList.<Symbol>builder().addAll(keys.subList(0, keys.size() - 1));
+                groupingKeys.add(variant == AggregationVariant.GROUPING ? REGION_SYMBOL : keys.getLast());
+                ImmutableList.Builder<AggregateFunctionCall> calls = ImmutableList.builder();
+                for (int i = 0; i < values.size(); i++) {
+                    boolean last = i == values.size() - 1;
+                    String function = last && variant == AggregationVariant.FUNCTION ? "count" : "sum";
+                    Symbol argument = last && variant == AggregationVariant.ARGUMENT ? OTHER_VALUE_SYMBOL : values.get(i);
+                    calls.add(new AggregateFunctionCall(
+                            totals.get(i),
+                            new BoundSignature(builtinFunctionName(function), BIGINT, ImmutableList.of(BIGINT)),
+                            ImmutableList.of(new Reference(argument)),
+                            false,
+                            Optional.empty(),
+                            Optional.empty(),
+                            Optional.empty()));
+                }
+                List<Symbol> outputs = ImmutableList.<Symbol>builder().addAll(groupingKeys.build()).addAll(totals).build();
+                computation = new Output(
+                        outputs.stream().map(Symbol::name).collect(toImmutableList()),
+                        outputs,
+                        new Aggregation(
+                                new TableScan(tableId, assignments.buildOrThrow()),
+                                new GroupingSets(groupingKeys.build(), 1, ImmutableSet.of()),
+                                calls.build(),
+                                Aggregation.Step.SINGLE,
+                                Optional.empty()));
+            }
+            else {
+                computation = new Output(
+                        ImmutableList.of(NAME_COLUMN),
+                        ImmutableList.of(NAME_SYMBOL),
+                        new TableScan(tableId, ImmutableMap.of(new BenchColumnId(sourceColumn), NAME_SYMBOL)));
+            }
             StorageTableId storageTableId = new StorageTableId(
                     new CatalogName(CATALOG),
                     new ConnectorStorageTableId(SCHEMA, STORAGE_TABLE, "v1"));
@@ -468,26 +599,34 @@ public class BenchmarkMvSubstitutionOptimizer
     public void verify()
     {
         for (PlanShape planShape : PlanShape.values()) {
-            for (Scenario scenario : Scenario.values()) {
-                BenchmarkData data = new BenchmarkData();
-                data.mvCount = 10;
-                data.planShape = planShape;
-                data.scenario = scenario;
-                data.setup();
-                BenchmarkThreadData threadData = new BenchmarkThreadData();
-                threadData.setup(data);
-                try {
-                    PlanNode optimized = optimize(data, threadData);
-                    boolean substituted = storageScanCount(optimized) > 0;
-                    boolean expectSubstitution = scenario == Scenario.UNIQUE_MATCH || scenario == Scenario.COLLISION_LAST_MATCHES;
-                    assertThat(substituted)
-                            .as("substitution for %s / %s", planShape, scenario)
-                            .isEqualTo(expectSubstitution);
-                }
-                finally {
-                    data.tearDown();
+            // 0, 1 and 10 colliding aggregation materializations; 10 is enough for the scan shapes
+            for (int mvCount : planShape == PlanShape.AGGREGATION || planShape == PlanShape.WIDE_AGGREGATION ? new int[] {0, 1, 10} : new int[] {10}) {
+                for (Scenario scenario : Scenario.values()) {
+                    verify(planShape, scenario, mvCount);
                 }
             }
+        }
+    }
+
+    private void verify(PlanShape planShape, Scenario scenario, int mvCount)
+    {
+        BenchmarkData data = new BenchmarkData();
+        data.mvCount = mvCount;
+        data.planShape = planShape;
+        data.scenario = scenario;
+        data.setup();
+        BenchmarkThreadData threadData = new BenchmarkThreadData();
+        threadData.setup(data);
+        try {
+            PlanNode optimized = optimize(data, threadData);
+            boolean substituted = storageScanCount(optimized) > 0;
+            boolean expectSubstitution = mvCount > 0 && (scenario == Scenario.UNIQUE_MATCH || scenario == Scenario.COLLISION_LAST_MATCHES);
+            assertThat(substituted)
+                    .as("substitution for %s / %s / %s", planShape, scenario, mvCount)
+                    .isEqualTo(expectSubstitution);
+        }
+        finally {
+            data.tearDown();
         }
     }
 
@@ -505,6 +644,21 @@ public class BenchmarkMvSubstitutionOptimizer
         benchmark(BenchmarkMvSubstitutionOptimizer.class).run();
     }
 
+    private static Stream<String> wideColumns(String prefix)
+    {
+        return IntStream.range(0, WIDE_AGGREGATION_WIDTH).mapToObj(i -> prefix + i);
+    }
+
+    private static List<Symbol> wideSymbols(String prefix, Type type)
+    {
+        return wideColumns(prefix).map(column -> new Symbol(type, column)).collect(toImmutableList());
+    }
+
+    private static boolean isBigint(String column)
+    {
+        return column.equals(VALUE_COLUMN) || column.equals(OTHER_VALUE_COLUMN) || column.equals(TOTAL_COLUMN) || column.matches("[vt]\\d+");
+    }
+
     private static ConnectorFactory substitutionConnectorFactory()
     {
         Map<String, List<String>> tableColumns = tableColumns();
@@ -512,7 +666,7 @@ public class BenchmarkMvSubstitutionOptimizer
                 .withListSchemaNames(_ -> ImmutableList.of(SCHEMA))
                 .withListTables((_, _) -> ImmutableList.copyOf(tableColumns.keySet()))
                 .withGetColumns(schemaTableName -> tableColumns.getOrDefault(schemaTableName.getTableName(), ImmutableList.of()).stream()
-                        .map(column -> new ColumnMetadata(column, VARCHAR))
+                        .map(column -> new ColumnMetadata(column, isBigint(column) ? BIGINT : VARCHAR))
                         .collect(toImmutableList()))
                 .withGetTableHandle((_, schemaTableName) -> tableColumns.containsKey(schemaTableName.getTableName())
                         ? new MockConnectorTableHandle(schemaTableName)
@@ -558,7 +712,17 @@ public class BenchmarkMvSubstitutionOptimizer
     {
         ImmutableMap.Builder<String, List<String>> columns = ImmutableMap.builder();
         columns.put("source", ImmutableList.of(NAME_COLUMN));
-        columns.put(STORAGE_TABLE, ImmutableList.of(NAME_COLUMN));
+        columns.put(AGGREGATION_SOURCE, ImmutableList.of(NAME_COLUMN, VALUE_COLUMN, OTHER_VALUE_COLUMN, REGION_COLUMN));
+        columns.put(WIDE_AGGREGATION_SOURCE, ImmutableList.<String>builder()
+                .addAll(wideColumns("k").toList())
+                .addAll(wideColumns("v").toList())
+                .add(OTHER_VALUE_COLUMN, REGION_COLUMN)
+                .build());
+        columns.put(STORAGE_TABLE, ImmutableList.<String>builder()
+                .add(NAME_COLUMN, TOTAL_COLUMN)
+                .addAll(wideColumns("k").toList())
+                .addAll(wideColumns("t").toList())
+                .build());
         for (int i = 0; i < WIDE_SCANS; i++) {
             columns.put("source_" + i, ImmutableList.of(NAME_COLUMN));
         }

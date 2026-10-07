@@ -112,6 +112,35 @@ public class TestIcebergMvSubstitutionCandidateValidation
     }
 
     @Test
+    public void testCreateSupportedAggregationSucceeds()
+    {
+        assertUpdate("CREATE MATERIALIZED VIEW mv_supported_aggregation WITH (substitution_enabled = true) AS SELECT name, max(id) AS max_id, count(*) AS row_count FROM base_table GROUP BY name");
+        assertUpdate("DROP MATERIALIZED VIEW mv_supported_aggregation");
+    }
+
+    @Test
+    public void testCreateWithUnsupportedAggregationFails()
+    {
+        // GROUPING SETS put a GroupId node under the aggregation
+        assertQueryFails(
+                "CREATE MATERIALIZED VIEW mv_grouping_sets WITH (substitution_enabled = true) AS SELECT name, id, count(*) AS row_count FROM base_table GROUP BY GROUPING SETS ((name), (id))",
+                NOT_A_CANDIDATE);
+        assertQueryReturnsEmptyResult("SHOW TABLES LIKE 'mv_grouping_sets'");
+
+        // approx_distinct is not a supported aggregate function
+        assertQueryFails(
+                "CREATE MATERIALIZED VIEW mv_approx_distinct WITH (substitution_enabled = true) AS SELECT name, approx_distinct(id) AS ids FROM base_table GROUP BY name",
+                NOT_A_CANDIDATE);
+        assertQueryReturnsEmptyResult("SHOW TABLES LIKE 'mv_approx_distinct'");
+
+        // the argument is computed by a projection under the aggregation
+        assertQueryFails(
+                "CREATE MATERIALIZED VIEW mv_argument_expression WITH (substitution_enabled = true) AS SELECT name, max(id * 2) AS doubled FROM base_table GROUP BY name",
+                NOT_A_CANDIDATE);
+        assertQueryReturnsEmptyResult("SHOW TABLES LIKE 'mv_argument_expression'");
+    }
+
+    @Test
     public void testCreateWithSubstitutionDisabledIsNotValidated()
     {
         assertUpdate("CREATE MATERIALIZED VIEW mv_disabled WITH (substitution_enabled = false) AS SELECT id FROM memory.default.unsupported_src");

@@ -20,6 +20,7 @@ import io.airlift.units.Duration;
 import io.starburst.materialization.ir.Aggregation;
 import io.starburst.materialization.ir.Operation;
 import io.starburst.materialization.ir.Output;
+import io.starburst.materialization.ir.Symbol;
 import io.starburst.materialization.ir.TableScan;
 import io.starburst.materialization.metastore.MaterializationDefinition;
 import io.starburst.materialization.metastore.MaterializationMetastore;
@@ -245,14 +246,26 @@ public class MaterializationIndex
     }
 
     /**
-     * A definition as the index holds it. Lookups substitution needs from the definition alone belong here, computed
-     * once when it is indexed, rather than for every query it is matched against.
+     * A definition as the index holds it, with the lookups substitution needs from the definition alone computed once
+     * when it is indexed, rather than for every query it is matched against.
      */
-    public record IndexedMaterialization(MaterializationDefinition definition)
+    public record IndexedMaterialization(MaterializationDefinition definition, Map<Symbol, String> columnNames)
     {
         public IndexedMaterialization
         {
             requireNonNull(definition, "definition is null");
+            columnNames = ImmutableMap.copyOf(requireNonNull(columnNames, "columnNames is null"));
+        }
+
+        private static IndexedMaterialization of(MaterializationDefinition definition)
+        {
+            // An MV may select one symbol under two names; either storage column holds its value, so keep the first
+            Output output = definition.computationPlanRoot();
+            Map<Symbol, String> columnNames = new HashMap<>();
+            for (int i = 0; i < output.outputs().size(); i++) {
+                columnNames.putIfAbsent(output.outputs().get(i), output.columnNames().get(i));
+            }
+            return new IndexedMaterialization(definition, columnNames);
         }
     }
 
@@ -387,7 +400,7 @@ public class MaterializationIndex
             Map<CatalogSchemaTableName, ComputationHash> hashByMaterializedViewName = new HashMap<>();
             for (MaterializationDefinition materialization : materializations) {
                 ComputationHash hash = computeHash(materialization.computationPlanRoot());
-                byHash.computeIfAbsent(hash, _ -> new ArrayList<>()).add(new IndexedMaterialization(materialization));
+                byHash.computeIfAbsent(hash, _ -> new ArrayList<>()).add(IndexedMaterialization.of(materialization));
                 hashByMaterializedViewName.put(materializedViewName(materialization), hash);
             }
             return new Snapshot(toImmutableBuckets(byHash), ImmutableMap.copyOf(hashByMaterializedViewName));
@@ -403,7 +416,7 @@ public class MaterializationIndex
             if (oldHash != null && !oldHash.equals(newHash)) {
                 removeFromBucket(byHash, oldHash, mvName);
             }
-            IndexedMaterialization indexed = new IndexedMaterialization(materialization);
+            IndexedMaterialization indexed = IndexedMaterialization.of(materialization);
             List<IndexedMaterialization> bucket = byHash.get(newHash);
             ImmutableList.Builder<IndexedMaterialization> updated = ImmutableList.builder();
             boolean replaced = false;
@@ -453,7 +466,7 @@ public class MaterializationIndex
                 ImmutableList.Builder<IndexedMaterialization> updated = ImmutableList.builder();
                 for (IndexedMaterialization existing : bucket) {
                     if (materializedViewName(existing.definition()).equals(source)) {
-                        updated.add(new IndexedMaterialization(renameTo(existing.definition(), target, targetStorageTableId)));
+                        updated.add(IndexedMaterialization.of(renameTo(existing.definition(), target, targetStorageTableId)));
                     }
                     else {
                         updated.add(existing);

@@ -12,8 +12,11 @@ package io.starburst.server.substitution;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
+import io.starburst.materialization.ir.Aggregation;
 import io.starburst.materialization.ir.Operation;
 import io.starburst.materialization.ir.Output;
+import io.starburst.materialization.ir.Reference;
+import io.starburst.materialization.ir.SupportedAggregateFunctions;
 import io.starburst.materialization.ir.Symbol;
 import io.starburst.materialization.ir.TableId;
 import io.starburst.materialization.ir.TableScan;
@@ -26,15 +29,18 @@ import io.trino.execution.warnings.WarningCollector;
 import io.trino.spi.TrinoException;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.substitution.ConnectorColumnId;
+import io.trino.spi.function.BoundSignature;
 import io.trino.sql.PlannerContext;
 import io.trino.sql.analyzer.Analysis;
 import io.trino.sql.analyzer.Analyzer;
 import io.trino.sql.analyzer.AnalyzerFactory;
 import io.trino.sql.newir.FormatOptions;
 import io.trino.sql.planner.LogicalPlanner;
+import io.trino.sql.planner.OrderingScheme;
 import io.trino.sql.planner.PlanNodeIdAllocator;
 import io.trino.sql.planner.PlanOptimizersFactory;
 import io.trino.sql.planner.optimizations.PlanOptimizer;
+import io.trino.sql.planner.plan.AggregationNode;
 import io.trino.sql.planner.plan.OutputNode;
 import io.trino.sql.planner.plan.PlanNode;
 import io.trino.sql.planner.plan.PlanVisitor;
@@ -138,6 +144,52 @@ public class MaterializationIrExtractor
         return logicalPlanner.plan(analysis, OPTIMIZED, false, false);
     }
 
+    static Aggregation.Step toIrStep(AggregationNode.Step step)
+    {
+        return switch (step) {
+            case SINGLE -> Aggregation.Step.SINGLE;
+            case PARTIAL -> Aggregation.Step.PARTIAL;
+            case INTERMEDIATE -> Aggregation.Step.INTERMEDIATE;
+            case FINAL -> Aggregation.Step.FINAL;
+        };
+    }
+
+    private static Optional<Aggregation.AggregateFunctionCall> toAggregation(io.trino.sql.planner.Symbol output, AggregationNode.Aggregation aggregation)
+    {
+        BoundSignature function = aggregation.getResolvedFunction().signature();
+        if (!SupportedAggregateFunctions.contains(function.getName())) {
+            return Optional.empty();
+        }
+        ImmutableList.Builder<io.starburst.materialization.ir.Expression> arguments = ImmutableList.builder();
+        for (io.trino.sql.ir.Expression argument : aggregation.getArguments()) {
+            // A lambda argument has no persisted form yet
+            if (!(argument instanceof io.trino.sql.ir.Reference reference)) {
+                return Optional.empty();
+            }
+            arguments.add(new Reference(toSymbol(io.trino.sql.planner.Symbol.from(reference))));
+        }
+        return Optional.of(new Aggregation.AggregateFunctionCall(
+                toSymbol(output),
+                function,
+                arguments.build(),
+                aggregation.isDistinct(),
+                aggregation.getFilter().map(MaterializationIrExtractor::toSymbol),
+                aggregation.getOrderingScheme().map(MaterializationIrExtractor::toOrderingScheme),
+                aggregation.getMask().map(MaterializationIrExtractor::toSymbol)));
+    }
+
+    private static Aggregation.OrderingScheme toOrderingScheme(OrderingScheme orderingScheme)
+    {
+        return new Aggregation.OrderingScheme(orderingScheme.orderBy().stream()
+                .map(symbol -> new Aggregation.SortItem(toSymbol(symbol), orderingScheme.ordering(symbol)))
+                .collect(toImmutableList()));
+    }
+
+    private static Symbol toSymbol(io.trino.sql.planner.Symbol symbol)
+    {
+        return new Symbol(symbol.type(), symbol.name());
+    }
+
     private class Visitor
             extends PlanVisitor<Optional<Operation>, Void>
     {
@@ -183,6 +235,32 @@ public class MaterializationIrExtractor
                 assignments.put(columnId.get(), new Symbol(entry.getKey().type(), entry.getKey().name()));
             }
             return Optional.of(new TableScan(tableId, assignments.buildOrThrow()));
+        }
+
+        @Override
+        public Optional<Operation> visitAggregation(AggregationNode node, Void context)
+        {
+            Optional<Operation> source = node.getSource().accept(this, context);
+            if (source.isEmpty()) {
+                return Optional.empty();
+            }
+            ImmutableList.Builder<Aggregation.AggregateFunctionCall> aggregations = ImmutableList.builder();
+            for (Map.Entry<io.trino.sql.planner.Symbol, AggregationNode.Aggregation> entry : node.getAggregations().entrySet()) {
+                Optional<Aggregation.AggregateFunctionCall> aggregation = toAggregation(entry.getKey(), entry.getValue());
+                if (aggregation.isEmpty()) {
+                    return Optional.empty();
+                }
+                aggregations.add(aggregation.get());
+            }
+            return Optional.of(new Aggregation(
+                    source.get(),
+                    new Aggregation.GroupingSets(
+                            node.getGroupingKeys().stream().map(MaterializationIrExtractor::toSymbol).collect(toImmutableList()),
+                            node.getGroupingSetCount(),
+                            node.getGlobalGroupingSets()),
+                    aggregations.build(),
+                    toIrStep(node.getStep()),
+                    node.getGroupIdSymbol().map(MaterializationIrExtractor::toSymbol)));
         }
     }
 }

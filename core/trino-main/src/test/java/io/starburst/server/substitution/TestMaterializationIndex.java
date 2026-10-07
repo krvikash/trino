@@ -10,6 +10,7 @@
 package io.starburst.server.substitution;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import io.starburst.materialization.ir.Aggregation;
 import io.starburst.materialization.ir.Aggregation.AggregateFunctionCall;
@@ -280,6 +281,35 @@ class TestMaterializationIndex
         index.remove(mvName("absent"));
 
         assertThat(index.getMaterializations(hash(materialization("absent", "source")))).isEmpty();
+    }
+
+    @Test
+    void testIndexesColumnNamesKeepingFirstNameOfRepeatedSymbol()
+    {
+        MaterializationIndex index = new MaterializationIndex(versionAwareMetastore(), new MaterializedViewSubstitutionConfig());
+
+        Output scan = simpleTableScan(new SupportedTableId("source"), new TestColumnId("name"));
+        Symbol name = getOnlyElement(scan.outputs());
+        MaterializationDefinition mv = materialization("mv", new Output(ImmutableList.of("first", "second"), ImmutableList.of(name, name), scan.source()));
+        index.createOrReplace(mv);
+
+        assertThat(getOnlyElement(index.getIndexedMaterializations(hash(mv))).columnNames()).isEqualTo(ImmutableMap.of(name, "first"));
+    }
+
+    @Test
+    void testRenameKeepsIndexedColumnNames()
+    {
+        MaterializationIndex index = new MaterializationIndex(versionAwareMetastore(), new MaterializedViewSubstitutionConfig());
+
+        MaterializationDefinition mv = materialization("mv_old", "source");
+        index.createOrReplace(mv);
+        index.renameIfExists(
+                mvName("mv_old"),
+                mvName("mv_new"),
+                new StorageTableId(new CatalogName(CATALOG), new ConnectorStorageTableId(SCHEMA, "mv_storage", "v1")));
+
+        assertThat(getOnlyElement(index.getIndexedMaterializations(hash(mv))).columnNames())
+                .isEqualTo(ImmutableMap.of(getOnlyElement(mv.computationPlanRoot().outputs()), "name"));
     }
 
     @Test

@@ -177,7 +177,7 @@ output of its source.
   anything is normalized, normalize both sides at match time in trino-main.
 - Ignore `canSplit` and the cast kind on the query side.
 - The query-to-MV symbol mapping must be accumulated check-and-merge (same key → same value is a match;
-  a conflict is no match).
+  a conflict is no match), as `MatchingVisitor.bind` does.
 - Representability is not rewrite safety. The registries only answer whether an expression can be
   persisted with a meaning that is stable across sessions and engine versions. Whether a match licenses
   replacing a query subtree (for example, a predicate on the null-supplying side of an outer join) is
