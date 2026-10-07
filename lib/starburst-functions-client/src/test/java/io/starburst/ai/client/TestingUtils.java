@@ -15,7 +15,7 @@ import io.airlift.configuration.secrets.env.EnvironmentVariableSecretProvider;
 import io.airlift.http.client.HttpClient;
 import io.airlift.http.client.jetty.JettyHttpClient;
 import io.airlift.http.client.testing.TestingHttpClient;
-import io.airlift.json.ObjectMapperProvider;
+import io.airlift.json.JsonMapperProvider;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.trace.Tracer;
 import io.starburst.ai.client.bedrock.AwsBedrockClientFactory;
@@ -359,7 +359,7 @@ public final class TestingUtils
         OAuth2TokenCache oauth2TokenCache = useRealOAuth2HttpClient
                 ? new OAuth2TokenCache(Optional.of(new OAuth2TokenFetcher(new JettyHttpClient())), aiClientConfig)
                 : createTestOAuth2TokenCache(aiClientConfig);
-        OpenAiClientFactory openAiClientFactory = new OpenAiClientFactory(secretsResolver, aiClientConfig, llmExecutor, new ObjectMapperProvider().get(), oauth2TokenCache, tracer);
+        OpenAiClientFactory openAiClientFactory = new OpenAiClientFactory(secretsResolver, aiClientConfig, llmExecutor, new JsonMapperProvider().get(), oauth2TokenCache, tracer);
         VertexAiClientFactory vertexAiClientFactory = new VertexAiClientFactory(secretsResolver, aiClientConfig, llmExecutor, tracer);
         return new ReloadingModelClientProvider(
                 promptDao,

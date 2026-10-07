@@ -13,7 +13,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterators;
-import io.airlift.json.ObjectMapperProvider;
+import io.airlift.json.JsonMapperProvider;
 import io.airlift.slice.Slice;
 import io.starburst.ai.client.EmbeddingModelClient;
 import io.starburst.ai.client.EmbeddingType;
@@ -32,7 +32,7 @@ import static java.util.Objects.requireNonNull;
 public class AwsBedrockEmbeddingModelClient
         implements EmbeddingModelClient
 {
-    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapperProvider().get();
+    private static final ObjectMapper OBJECT_MAPPER = new JsonMapperProvider().get();
 
     private final BedrockRuntimeClient bedrockRuntimeClient;
     private final String modelName;

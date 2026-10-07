@@ -12,7 +12,7 @@ package io.starburst.schema.discovery.cli.commands;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.ListenableFuture;
-import io.airlift.json.ObjectMapperProvider;
+import io.airlift.json.JsonMapperProvider;
 import io.starburst.schema.discovery.SchemaDiscoveryController;
 import io.starburst.schema.discovery.formats.orc.OrcDataSourceFactory;
 import io.starburst.schema.discovery.formats.parquet.ParquetDataSourceFactory;
@@ -83,7 +83,7 @@ public final class ShallowDiscoveryCommand
             ListenableFuture<DiscoveredSchema> discoveredSchemaListenableFuture = controller.discoverTablesShallow(new GuessRequest(parsedUri, shallowDiscoveryOptions));
 
             DiscoveredSchema discoveredSchema = discoveredSchemaListenableFuture.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
-            System.out.println(new ObjectMapperProvider().get().writerWithDefaultPrettyPrinter().writeValueAsString(discoveredSchema));
+            System.out.println(new JsonMapperProvider().get().writerWithDefaultPrettyPrinter().writeValueAsString(discoveredSchema));
         }
         catch (URISyntaxException e) {
             throw new RuntimeException("Cannot parse URI: %s - %s".formatted(uri, e.getMessage()));

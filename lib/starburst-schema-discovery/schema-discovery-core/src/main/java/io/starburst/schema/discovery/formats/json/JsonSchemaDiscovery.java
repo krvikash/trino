@@ -13,7 +13,7 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
-import io.airlift.json.ObjectMapperProvider;
+import io.airlift.json.JsonMapperProvider;
 import io.starburst.schema.discovery.SchemaDiscovery;
 import io.starburst.schema.discovery.internal.Column;
 import io.starburst.schema.discovery.internal.FormatGuess;
@@ -36,7 +36,7 @@ import static io.starburst.schema.discovery.internal.TextFileLines.TestLinesMode
 public class JsonSchemaDiscovery
         implements SchemaDiscovery
 {
-    private static final ObjectMapper JSON_PARSER = new ObjectMapperProvider().get().enable(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS);
+    private static final ObjectMapper JSON_PARSER = new JsonMapperProvider().get().enable(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS);
     private static final FormatGuess FORMAT_MATCH_HIGH = () -> FormatGuess.Confidence.HIGH;
     private static final FormatGuess FORMAT_MATCH_LOW = () -> FormatGuess.Confidence.HIGH;
 

@@ -10,7 +10,7 @@
 package io.starburst.schema.discovery;
 
 import com.google.common.collect.ImmutableList;
-import io.airlift.json.ObjectMapperProvider;
+import io.airlift.json.JsonMapperProvider;
 import io.starburst.schema.discovery.SchemaExplorer.DiscoveryConfig;
 import io.starburst.schema.discovery.io.DiscoveryTrinoFileSystem;
 import io.starburst.schema.discovery.models.DiscoveredIdentifier;
@@ -38,7 +38,7 @@ public class TestSchemaExplorer
         ErroringTrinoFileSystem erroringFileSystem = new ErroringTrinoFileSystem("limits/t1", "limits/t1", 4, true);
         SchemaDiscoveryController controller = new SchemaDiscoveryController(
                 _ -> new DiscoveryTrinoFileSystem(erroringFileSystem), parquetDataSourceFactory, orcDataSourceFactory, TRINO);
-        SchemaExplorer schemaExplorer = new SchemaExplorer(controller, new ObjectMapperProvider().get(), new CommaDelimitedOptionsParser(ImmutableList.of(GeneralOptions.class)));
+        SchemaExplorer schemaExplorer = new SchemaExplorer(controller, new JsonMapperProvider().get(), new CommaDelimitedOptionsParser(ImmutableList.of(GeneralOptions.class)));
         DiscoveryConfig discoveryConfig = new DiscoveryConfig(
                 uriFromLocation(erroringFileSystem.directory()).toString(),
                 "",

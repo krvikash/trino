@@ -14,7 +14,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.util.concurrent.ListenableFuture;
-import io.airlift.json.ObjectMapperProvider;
+import io.airlift.json.JsonMapperProvider;
 import io.starburst.schema.discovery.SchemaDiscoveryController;
 import io.starburst.schema.discovery.cli.OutputType;
 import io.starburst.schema.discovery.formats.csv.CsvOptions;
@@ -99,7 +99,7 @@ public final class SchemaDiscoveryCommand
     @ArgGroup(exclusive = false)
     private Rescan rescan;
 
-    private final ObjectMapper objectMapper = new ObjectMapperProvider().get();
+    private final ObjectMapper objectMapper = new JsonMapperProvider().get();
 
     private static class Rescan
     {

@@ -12,7 +12,7 @@ package io.starburst.schema.discovery;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
-import io.airlift.json.ObjectMapperProvider;
+import io.airlift.json.JsonMapperProvider;
 import io.starburst.schema.discovery.internal.HiveType;
 import io.starburst.schema.discovery.internal.HiveTypes;
 import io.trino.metastore.type.TypeInfo;
@@ -27,7 +27,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 public class TestHiveTypeSerialization
 {
-    private final ObjectMapper mapper = new ObjectMapperProvider().get();
+    private final ObjectMapper mapper = new JsonMapperProvider().get();
 
     @Test
     public void testSerialization()

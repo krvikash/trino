@@ -19,7 +19,7 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.ImmutableSortedSet;
-import io.airlift.json.ObjectMapperProvider;
+import io.airlift.json.JsonMapperProvider;
 import io.airlift.log.Logger;
 
 import java.util.Comparator;
@@ -32,7 +32,7 @@ import static java.util.Objects.requireNonNull;
 public class MappingsUtil
 {
     private static final Logger LOG = Logger.get(MappingsUtil.class);
-    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapperProvider().get();
+    private static final ObjectMapper OBJECT_MAPPER = new JsonMapperProvider().get();
 
     private MappingsUtil() {}
 

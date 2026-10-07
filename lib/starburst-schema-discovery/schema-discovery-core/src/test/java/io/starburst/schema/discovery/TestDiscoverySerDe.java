@@ -13,7 +13,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
-import io.airlift.json.ObjectMapperProvider;
+import io.airlift.json.JsonMapperProvider;
 import io.starburst.schema.discovery.models.DiscoveredSchema;
 import io.starburst.schema.discovery.models.DiscoveredTable;
 import io.starburst.schema.discovery.models.SlashEndedPath;
@@ -32,7 +32,7 @@ public class TestDiscoverySerDe
     @Test
     public void testOldDiscoveryDeserialization()
     {
-        ObjectMapper objectMapper = new ObjectMapperProvider().get();
+        ObjectMapper objectMapper = new JsonMapperProvider().get();
         assertThatNoException().isThrownBy(() -> objectMapper.readValue(OLD_DISCOVERY_WITH_PARTITION_STRINGIFIED, new TypeReference<List<DiscoveredTable>>() {}));
     }
 
@@ -40,7 +40,7 @@ public class TestDiscoverySerDe
     public void testPathIsInSerializedSchema()
             throws JsonProcessingException
     {
-        ObjectMapper objectMapper = new ObjectMapperProvider().get();
+        ObjectMapper objectMapper = new JsonMapperProvider().get();
         DiscoveredTable discoveredTableNoSlash = DiscoveredTable.EMPTY_DISCOVERED_TABLE.withPath(asTablePath("local:///dir1/dir2/table"));
         DiscoveredTable discoveredTableSlash = DiscoveredTable.EMPTY_DISCOVERED_TABLE.withPath(asTablePath("local:///dir1/dir2/table2/"));
         DiscoveredSchema discoveredSchema = new DiscoveredSchema(SlashEndedPath.SINGLE_SLASH_EMPTY, ImmutableList.of(discoveredTableNoSlash, discoveredTableSlash), ImmutableList.of());

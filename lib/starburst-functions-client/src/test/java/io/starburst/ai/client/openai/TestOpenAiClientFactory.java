@@ -13,7 +13,7 @@ import com.google.common.collect.ImmutableMap;
 import com.openai.azure.AzureOpenAIServiceVersion;
 import io.airlift.configuration.secrets.SecretsResolver;
 import io.airlift.configuration.secrets.env.EnvironmentVariableSecretProvider;
-import io.airlift.json.ObjectMapperProvider;
+import io.airlift.json.JsonMapperProvider;
 import io.opentelemetry.api.OpenTelemetry;
 import io.starburst.ai.client.AiClientConfig;
 import io.starburst.ai.client.StaticPromptDao;
@@ -166,7 +166,7 @@ public class TestOpenAiClientFactory
                 secretsResolver,
                 aiClientConfig,
                 directExecutor(),
-                new ObjectMapperProvider().get(),
+                new JsonMapperProvider().get(),
                 oauth2TokenCache,
                 OpenTelemetry.noop().getTracer("test"));
 

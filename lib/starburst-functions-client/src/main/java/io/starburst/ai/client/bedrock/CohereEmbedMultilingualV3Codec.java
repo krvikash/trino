@@ -15,7 +15,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterators;
-import io.airlift.json.ObjectMapperProvider;
+import io.airlift.json.JsonMapperProvider;
 import io.airlift.slice.Slice;
 import io.airlift.slice.Slices;
 import io.starburst.ai.client.EmbeddingType;
@@ -36,7 +36,7 @@ public final class CohereEmbedMultilingualV3Codec
     public static final String MODEL_NAME = "cohere.embed-multilingual-v3";
 
     private static final int BATCH_SIZE = 96;
-    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapperProvider().get();
+    private static final ObjectMapper OBJECT_MAPPER = new JsonMapperProvider().get();
     private static final Map<EmbeddingType, String> EMBEDDING_TYPE_API_VALUES = ImmutableMap.<EmbeddingType, String>builder()
             .put(EmbeddingType.FLOAT, "float")
             .put(EmbeddingType.BINARY, "binary")

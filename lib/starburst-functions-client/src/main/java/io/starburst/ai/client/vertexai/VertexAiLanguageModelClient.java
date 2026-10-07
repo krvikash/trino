@@ -28,7 +28,7 @@ import com.google.genai.types.GenerateContentResponseUsageMetadata;
 import com.google.genai.types.Part;
 import com.google.genai.types.Schema;
 import com.google.genai.types.Tool;
-import io.airlift.json.ObjectMapperProvider;
+import io.airlift.json.JsonMapperProvider;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.SpanKind;
 import io.opentelemetry.api.trace.Tracer;
@@ -70,7 +70,7 @@ import static java.util.Objects.requireNonNull;
 public class VertexAiLanguageModelClient
         extends AbstractLanguageModelClient
 {
-    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapperProvider().get();
+    private static final ObjectMapper OBJECT_MAPPER = new JsonMapperProvider().get();
     // Documented sentinel telling Gemini 3.x this function-call part was not model-generated, so it
     // should not require (or validate) a real thoughtSignature on it.
     // https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/thinking/thought-signatures#using-rest-or-manual-handling

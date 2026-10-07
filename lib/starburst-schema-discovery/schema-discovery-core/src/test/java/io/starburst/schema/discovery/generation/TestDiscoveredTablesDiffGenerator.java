@@ -14,7 +14,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import io.airlift.json.ObjectMapperProvider;
+import io.airlift.json.JsonMapperProvider;
 import io.starburst.schema.discovery.TableChanges.TableName;
 import io.starburst.schema.discovery.generation.DiscoveredTablesDiffGenerator.ColumnPartitionProjection;
 import io.starburst.schema.discovery.generation.DiscoveredTablesDiffGenerator.DroppedColumn;
@@ -239,7 +239,7 @@ public class TestDiscoveredTablesDiffGenerator
     public void testSerialization()
             throws JsonProcessingException
     {
-        ObjectMapper objectMapper = new ObjectMapperProvider().get();
+        ObjectMapper objectMapper = new JsonMapperProvider().get();
 
         List<DiscoveredTablesDiffGenerator.DiffTable> diffTables = DiscoveredTablesDiffGenerator.generateDiff(
                 "",

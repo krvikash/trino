@@ -15,7 +15,7 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
-import io.airlift.json.ObjectMapperProvider;
+import io.airlift.json.JsonMapperProvider;
 import io.airlift.log.Logger;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.SpanKind;
@@ -109,7 +109,7 @@ public class AwsBedrockLanguageModelClient
             StopReason.MALFORMED_MODEL_OUTPUT,
             StopReason.MALFORMED_TOOL_USE);
 
-    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapperProvider().get();
+    private static final ObjectMapper OBJECT_MAPPER = new JsonMapperProvider().get();
     private static final Logger log = Logger.get(AwsBedrockLanguageModelClient.class);
 
     static final int MIN_CACHE_POINT_CHARS = 5_000;
