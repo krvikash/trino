@@ -127,6 +127,7 @@ import static io.trino.SystemSessionProperties.DETERMINE_PARTITION_COUNT_FOR_WRI
 import static io.trino.SystemSessionProperties.ENABLE_DYNAMIC_FILTERING;
 import static io.trino.SystemSessionProperties.IGNORE_STATS_CALCULATOR_FAILURES;
 import static io.trino.SystemSessionProperties.ITERATIVE_OPTIMIZER_TIMEOUT;
+import static io.trino.SystemSessionProperties.JOIN_DISTRIBUTION_TYPE;
 import static io.trino.SystemSessionProperties.MAX_HASH_PARTITION_COUNT;
 import static io.trino.SystemSessionProperties.MAX_WRITER_TASK_COUNT;
 import static io.trino.SystemSessionProperties.SCALE_WRITERS;
@@ -9455,6 +9456,28 @@ public abstract class BaseIcebergConnectorTest
         }
         finally {
             assertUpdate("DROP TABLE IF EXISTS test_bucketed_select");
+        }
+    }
+
+    @Test
+    public void testBucketedJoinOnDecimal()
+    {
+        try (TestTable table = newTrinoTable(
+                "test_bucketed_join_decimal_",
+                "WITH (partitioning = ARRAY['bucket(short_key, 13)', 'bucket(long_key, 17)']) AS " +
+                        "SELECT CAST(orderkey AS decimal(18, 0)) short_key, CAST(orderkey AS decimal(38, 0)) long_key FROM tpch.tiny.orders")) {
+            Session session = Session.builder(getSession())
+                    .setSystemProperty(JOIN_DISTRIBUTION_TYPE, "PARTITIONED")
+                    .setCatalogSessionProperty(ICEBERG_CATALOG, BUCKET_EXECUTION_ENABLED, "true")
+                    .build();
+            assertQuery(
+                    session,
+                    "SELECT count(*) FROM " + table.getName() + " JOIN (SELECT CAST(orderkey AS decimal(18, 0)) short_key FROM tpch.tiny.lineitem) USING (short_key)",
+                    "VALUES 60175");
+            assertQuery(
+                    session,
+                    "SELECT count(*) FROM " + table.getName() + " JOIN (SELECT CAST(orderkey AS decimal(38, 0)) long_key FROM tpch.tiny.lineitem) USING (long_key)",
+                    "VALUES 60175");
         }
     }
 
