@@ -81,6 +81,7 @@ import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.type.ArrayType;
 import io.trino.spi.type.MapType;
 import io.trino.spi.type.RowType;
+import io.trino.spi.type.TimeZoneKey;
 import io.trino.spi.type.TimestampType;
 import io.trino.spi.type.TimestampWithTimeZoneType;
 import io.trino.spi.type.TypeManager;
@@ -143,6 +144,7 @@ import static io.trino.plugin.hive.parquet.ParquetPageSourceFactory.PARQUET_ROW_
 import static io.trino.plugin.hive.parquet.ParquetPageSourceFactory.createDataSource;
 import static io.trino.plugin.hive.parquet.ParquetPageSourceFactory.getParquetMessageType;
 import static io.trino.spi.type.DateTimeEncoding.packDateTimeWithZone;
+import static io.trino.spi.type.TimeZoneKey.getTimeZoneKey;
 import static io.trino.spi.type.TypeUtils.writeNativeValue;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static java.lang.Math.min;
@@ -623,11 +625,12 @@ public class DeltaLakePageSourceProvider
             long fileSize,
             long fileModifiedTime)
     {
+        TimeZoneKey outputTimeZoneKey = getTimeZoneKey(outputTimeZone.getID());
         int delegateIndex = 0;
         TransformConnectorPageSource.Builder transform = TransformConnectorPageSource.builder();
         for (DeltaLakeColumnHandle column : deltaLakeColumns) {
             if (column.isBaseColumn() && partitionKeys.containsKey(column.basePhysicalColumnName())) {
-                Object prefilledValue = deserializePartitionValue(column, partitionKeys.get(column.basePhysicalColumnName()));
+                Object prefilledValue = deserializePartitionValue(column, partitionKeys.get(column.basePhysicalColumnName()), outputTimeZoneKey);
                 transform.constantValue(writeNativeValue(column.baseType(), prefilledValue));
             }
             else if (column.baseColumnName().equals(PATH_COLUMN_NAME)) {

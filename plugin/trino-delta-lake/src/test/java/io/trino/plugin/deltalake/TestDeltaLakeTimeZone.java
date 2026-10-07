@@ -121,6 +121,44 @@ final class TestDeltaLakeTimeZone
     }
 
     @Test
+    void testSelectTimestampTzPartitionColumn()
+    {
+        try (TestTable testTable = newTrinoTable(
+                "test_timestamp_tz_partition_",
+                "(id int, part_ts timestamp with time zone) WITH (partitioned_by = ARRAY['part_ts'])",
+                ImmutableList.<String>builder()
+                        .add("1, null")
+                        .add("2, TIMESTAMP '2023-08-01 12:00:00.123 UTC'")
+                        .add("3, TIMESTAMP '2023-08-01 20:00:00.123 America/New_York'")
+                        .build())) {
+            assertThat(query("SELECT * FROM " + testTable.getName()))
+                    .matches("VALUES " +
+                            "(1, null)," +
+                            "(2, TIMESTAMP '2023-08-01 17:30:00.123 Asia/Kolkata')," +
+                            "(3, TIMESTAMP '2023-08-02 05:30:00.123 Asia/Kolkata')");
+            assertThat(query("SELECT part_ts FROM " + testTable.getName()))
+                    .matches("VALUES " +
+                            "(CAST(null AS timestamp(3) with time zone))," +
+                            "(TIMESTAMP '2023-08-01 17:30:00.123 Asia/Kolkata')," +
+                            "(TIMESTAMP '2023-08-02 05:30:00.123 Asia/Kolkata')");
+            assertThat(query("SELECT id, hour(part_ts), CAST(part_ts AS date) FROM " + testTable.getName() + " WHERE id > 1"))
+                    .matches("VALUES (2, BIGINT '17', DATE '2023-08-01'), (3, BIGINT '5', DATE '2023-08-02')");
+            assertThat(query("SELECT id FROM " + testTable.getName() + " WHERE part_ts = TIMESTAMP '2023-08-01 21:00:00.123 Asia/Tokyo'"))
+                    .matches("VALUES 2");
+
+            // Verify select from the delta catalog where delta.time-zone is not set
+            String tableName = "test_timestamp_tz_partition_target_" + randomNameSuffix();
+            assertUpdate(WITHOUT_TIME_ZONE_SESSION, "CALL system.register_table('%s', '%s', '%s')".formatted(TPCH_SCHEMA, tableName, getTableLocation(testTable.getName())));
+            assertThat(query(WITHOUT_TIME_ZONE_SESSION, "SELECT * FROM " + tableName))
+                    .matches("VALUES " +
+                            "(1, null)," +
+                            "(2, TIMESTAMP '2023-08-01 12:00:00.123 UTC')," +
+                            "(3, TIMESTAMP '2023-08-02 00:00:00.123 UTC')");
+            assertUpdate(WITHOUT_TIME_ZONE_SESSION, "CALL system.unregister_table('%s', '%s')".formatted(TPCH_SCHEMA, tableName));
+        }
+    }
+
+    @Test
     void testSelectTimestampTzWithRowType()
     {
         String instantUtc = "TIMESTAMP '1970-01-01 00:00:00.123 UTC'";

@@ -33,6 +33,7 @@ import io.trino.plugin.deltalake.transactionlog.checkpoint.LastCheckpoint;
 import io.trino.spi.TrinoException;
 import io.trino.spi.type.DecimalType;
 import io.trino.spi.type.Decimals;
+import io.trino.spi.type.TimeZoneKey;
 import io.trino.spi.type.Type;
 import jakarta.annotation.Nullable;
 
@@ -173,7 +174,13 @@ public final class TransactionLogParser
     @Nullable
     public static Object deserializePartitionValue(DeltaLakeColumnHandle column, Optional<String> valueString)
     {
-        return valueString.map(value -> deserializeColumnValue(column, value, TransactionLogParser::readPartitionTimestamp, TransactionLogParser::readPartitionTimestampWithZone)).orElse(null);
+        return deserializePartitionValue(column, valueString, UTC_KEY);
+    }
+
+    @Nullable
+    public static Object deserializePartitionValue(DeltaLakeColumnHandle column, Optional<String> valueString, TimeZoneKey timeZoneKey)
+    {
+        return valueString.map(value -> deserializeColumnValue(column, value, TransactionLogParser::readPartitionTimestamp, timestamp -> readPartitionTimestampWithZone(timestamp, timeZoneKey))).orElse(null);
     }
 
     private static Long readPartitionTimestamp(String timestamp)
@@ -193,6 +200,11 @@ public final class TransactionLogParser
     @VisibleForTesting
     static Long readPartitionTimestampWithZone(String timestamp)
     {
+        return readPartitionTimestampWithZone(timestamp, UTC_KEY);
+    }
+
+    private static Long readPartitionTimestampWithZone(String timestamp, TimeZoneKey timeZoneKey)
+    {
         ZonedDateTime zonedDateTime;
         try {
             zonedDateTime = LocalDateTime.parse(timestamp, PARTITION_TIMESTAMP_FORMATTER).atZone(UTC);
@@ -201,7 +213,7 @@ public final class TransactionLogParser
             // TODO: avoid this exception-driven logic
             zonedDateTime = ZonedDateTime.parse(timestamp, ISO_ZONED_DATE_TIME);
         }
-        return packDateTimeWithZone(zonedDateTime.toInstant().toEpochMilli(), UTC_KEY);
+        return packDateTimeWithZone(zonedDateTime.toInstant().toEpochMilli(), timeZoneKey);
     }
 
     public static Object deserializeColumnValue(DeltaLakeColumnHandle column, String valueString, Function<String, Long> timestampReader, Function<String, Long> timestampWithZoneReader)
