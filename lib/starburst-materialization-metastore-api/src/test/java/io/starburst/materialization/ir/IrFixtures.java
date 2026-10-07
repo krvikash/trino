@@ -32,13 +32,17 @@ final class IrFixtures
 
     static Output outputOverScan(Symbol... columns)
     {
-        TableScan scan = new TableScan(
-                new TableId(new CatalogName("catalog"), new FixtureTableId("table")),
-                stream(columns).collect(toImmutableMap(symbol -> new FixtureColumnId(symbol.name()), symbol -> symbol)));
         return new Output(
                 stream(columns).map(Symbol::name).collect(toImmutableList()),
                 ImmutableList.copyOf(columns),
-                scan);
+                tableScan(columns));
+    }
+
+    static TableScan tableScan(Symbol... columns)
+    {
+        return new TableScan(
+                new TableId(new CatalogName("catalog"), new FixtureTableId("table")),
+                stream(columns).collect(toImmutableMap(symbol -> new FixtureColumnId(symbol.name()), symbol -> symbol)));
     }
 
     static Reference reference(Type type, String name)

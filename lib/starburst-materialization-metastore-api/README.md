@@ -93,7 +93,7 @@ row incompatible.
 | Change `Symbol`'s serialized form | bump `leaf:Symbol` **and** `Output` / `TableScan` (both embed `Symbol`s) | expression trees via the leaf key; every MV via the bare names |
 | Change `BoundSignature`'s serialized form | bump `leaf:BoundSignature` | only MVs containing a `Call` |
 | Change the `Type` string form | bump `leaf:Type`, `leaf:Symbol`, `leaf:BoundSignature` **and** `Output` / `TableScan` | effectively everything — `Type` strings are pervasive |
-| Add `Filter` / `Project` / `Aggregate` / `Join` | new bare names at 1 | none |
+| Add `Filter` / `Project` / `Aggregation` / `Join` | new bare names at 1 | none |
 | **Rename any existing name** | **never** | silently invalidates stored definitions |
 
 ### Shared leaf types: `Symbol`, `Type` and `BoundSignature`
@@ -142,7 +142,7 @@ Everything else is deliberately absent:
 - **`Lambda`, `Bind`, `Let`, `Match` — excluded.** Higher-order or optimizer-internal. `Match` is the
   lowering of `CASE x WHEN v THEN r`; `Let` wraps `BETWEEN` over a non-trivial operand (over a bare
   column it is a plain `Logical(AND, …)`).
-- **Aggregate and window functions are not expressions**, here or in the engine. A future `Aggregate`
+- **Aggregate and window functions are not expressions**, here or in the engine. A future `Aggregation`
   `Operation` holds scalar `Expression`s as arguments.
 
 ### Symbol names are bindings, not identities

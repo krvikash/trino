@@ -17,6 +17,7 @@ import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.google.common.collect.ImmutableMap;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -40,4 +41,9 @@ public sealed interface Operation
     {
         return ImmutableMap.of(name(), version());
     }
+
+    /**
+     * The symbols this node produces, in order. Every symbol a node uses must be one of its source's outputs.
+     */
+    List<Symbol> outputs();
 }

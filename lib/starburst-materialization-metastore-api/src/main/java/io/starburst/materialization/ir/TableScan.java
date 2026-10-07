@@ -48,6 +48,12 @@ public record TableScan(
     }
 
     @Override
+    public List<Symbol> outputs()
+    {
+        return ImmutableList.copyOf(assignments.values());
+    }
+
+    @Override
     public int version()
     {
         return VERSION;
