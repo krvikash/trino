@@ -22,6 +22,20 @@ import io.trino.sql.planner.exploratory.EnforcerPipeline;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * Interprets operations in the cost, requirement, and property domains of an
+ * XO physical model.
+ * <p>
+ * For each child, {@link #getCost} and {@link #getProperty} receive the minimal
+ * property promised by its child requirement, not an incidental stronger
+ * property of the selected child winner. To benefit from a stronger property,
+ * requirement decomposition must request it explicitly.
+ * <p>
+ * Costing is monotonic. For a fixed operation and requirement decomposition,
+ * improving child costs or adding derived knowledge must not increase the total
+ * cost of the implementation and its enforcers. More knowledge must not weaken
+ * the provided property or require more expensive enforcement.
+ */
 public interface XOCompanionDialect<C extends Cost, R extends Requirement, P extends Property>
 {
     /**
@@ -92,6 +106,8 @@ public interface XOCompanionDialect<C extends Cost, R extends Requirement, P ext
      * Build the enforcer pipeline needed to satisfy the given requirement on
      * top of an input with the given type, derived attributes, and property.
      * The result depends on that particular input state and requirement.
+     * For a Memo operation, {@code derivedBaseAttributes} must be the group
+     * attributes rather than the attributes of the particular base operation.
      */
     EnforcerPipeline<C, R, P> getEnforcers(
             Type baseType,
