@@ -159,8 +159,8 @@ public class MvSubstitutionOptimizer
     private Optional<PlanNode> optimize(Context context, PlanNode planNode, Map<PlanNode, ComputationHash> computationHashes, TypeCoercion typeCoercion)
     {
         ComputationHash hash = computationHashes.get(planNode);
-        if (hash != null && planNode instanceof TableScanNode queryTableScan) {
-            Optional<PlanNode> substituted = trySubstituteAgainstCandidates(context, queryTableScan, hash, typeCoercion);
+        if (hash != null) {
+            Optional<PlanNode> substituted = trySubstituteAgainstCandidates(context, planNode, hash, typeCoercion);
             if (substituted.isPresent()) {
                 return substituted;
             }
@@ -180,7 +180,7 @@ public class MvSubstitutionOptimizer
         return Optional.of(planNode.replaceChildren(newSources.build()));
     }
 
-    private Optional<PlanNode> trySubstituteAgainstCandidates(Context context, TableScanNode queryTableScan, ComputationHash hash, TypeCoercion typeCoercion)
+    private Optional<PlanNode> trySubstituteAgainstCandidates(Context context, PlanNode queryNode, ComputationHash hash, TypeCoercion typeCoercion)
     {
         MvSubstitutionCollector collector = context.mvSubstitutionCollector();
         Session session = context.session();
@@ -192,17 +192,18 @@ public class MvSubstitutionOptimizer
 
         // SCAN_NOT_SUBSTITUTABLE is a near miss only where a materialization covers this computation: a scan
         // no MV materializes could never have been substituted, so it is neither recorded nor counted.
-        if (!substitutionSupported(queryTableScan)) {
-            recordRejectedScanLevel(collector, SCAN_NOT_SUBSTITUTABLE);
+        Optional<MaterializedViewSubstitutionOutcome> unsupported = queryNode.accept(new SubstitutionSupportedVisitor(), null);
+        if (unsupported.isPresent()) {
+            recordRejectedScanLevel(collector, unsupported.get());
             return Optional.empty();
         }
 
         for (MaterializationDefinition candidate : candidates) {
-            SubstitutionAttempt attempt = trySubstitute(context, queryTableScan, candidate, typeCoercion);
+            SubstitutionAttempt attempt = trySubstitute(context, queryNode, candidate, typeCoercion);
             CatalogSchemaTableName candidateMvName = materializedViewName(candidate);
             switch (attempt) {
                 case SubstitutionAttempt.Substituted substituted -> {
-                    recordSubstituted(collector, session, queryTableScan, substituted);
+                    recordSubstituted(collector, session, queryNode, substituted);
                     return Optional.of(substituted.node());
                 }
                 case SubstitutionAttempt.Rejected rejected -> recordRejectedCandidate(collector, candidateMvName, rejected.reason());
@@ -211,9 +212,9 @@ public class MvSubstitutionOptimizer
         return Optional.empty();
     }
 
-    private void recordSubstituted(MvSubstitutionCollector collector, Session session, TableScanNode queryTableScan, SubstitutionAttempt.Substituted substituted)
+    private void recordSubstituted(MvSubstitutionCollector collector, Session session, PlanNode queryNode, SubstitutionAttempt.Substituted substituted)
     {
-        ReplacedPlan replacedPlan = new ReplacedPlan(queryTableScan, captureTableInfos(session, queryTableScan));
+        ReplacedPlan replacedPlan = new ReplacedPlan(queryNode, captureTableInfos(session, queryNode));
         collector.recordSubstituted(substituted.materializedView(), substituted.storageTable(), substituted.lastRefreshTime(), replacedPlan);
         recordOutcome(SUBSTITUTED);
     }
@@ -256,7 +257,7 @@ public class MvSubstitutionOptimizer
         return ((MaterializedViewSource) candidate.source()).materializedViewName();
     }
 
-    private SubstitutionAttempt trySubstitute(Context context, TableScanNode queryTableScan, MaterializationDefinition candidate, TypeCoercion typeCoercion)
+    private SubstitutionAttempt trySubstitute(Context context, PlanNode queryNode, MaterializationDefinition candidate, TypeCoercion typeCoercion)
     {
         Session session = context.session();
         // A rejection records the candidate's name, so the table-level access check comes before every other
@@ -278,7 +279,7 @@ public class MvSubstitutionOptimizer
             return new SubstitutionAttempt.Rejected(EXCLUDED_BY_FILTER);
         }
 
-        MatchOutcome matchOutcome = tryMatch(session, queryTableScan, candidate.computationPlanRoot().source());
+        MatchOutcome matchOutcome = tryMatch(session, queryNode, candidate.computationPlanRoot().source());
         if (matchOutcome.result().isEmpty()) {
             return new SubstitutionAttempt.Rejected(matchOutcome.rejectionReason().orElseThrow());
         }
@@ -323,7 +324,7 @@ public class MvSubstitutionOptimizer
         ImmutableSet.Builder<String> readMvColumns = ImmutableSet.builder();
         Assignments.Builder projections = Assignments.builder();
         boolean needsCoercion = false;
-        for (io.trino.sql.planner.Symbol symbol : queryTableScan.getOutputSymbols()) {
+        for (io.trino.sql.planner.Symbol symbol : queryNode.getOutputSymbols()) {
             Symbol computationSymbol = querySymbolToMvSymbolMapping.get(symbol);
             String mvColumnName = candidateColumnNames.get(computationSymbol);
             ColumnHandle storageColumnHandle = storageColumnHandles.get(mvColumnName);
@@ -371,7 +372,7 @@ public class MvSubstitutionOptimizer
         }
 
         TableScanNode storageScan = new TableScanNode(
-                needsCoercion ? context.idAllocator().getNextId() : queryTableScan.getId(),
+                needsCoercion ? context.idAllocator().getNextId() : queryNode.getId(),
                 storageTableHandle.get(),
                 outputs.build(),
                 assignments.buildOrThrow(),
@@ -381,7 +382,7 @@ public class MvSubstitutionOptimizer
                 Optional.empty());
         PlanNode resultNode = storageScan;
         if (needsCoercion) {
-            resultNode = new ProjectNode(queryTableScan.getId(), storageScan, projections.build());
+            resultNode = new ProjectNode(queryNode.getId(), storageScan, projections.build());
         }
         return new SubstitutionAttempt.Substituted(
                 resultNode,
@@ -441,7 +442,7 @@ public class MvSubstitutionOptimizer
         return pattern.matcher(materializedViewName.toString()).matches();
     }
 
-    private boolean substitutionSupported(TableScanNode tableScan)
+    private static boolean substitutionSupported(TableScanNode tableScan)
     {
         return !tableScan.isUpdateTarget() && tableScan.getEnforcedConstraint().isAll() && tableScan.getUseConnectorNodePartitioning().isEmpty();
     }
@@ -481,6 +482,28 @@ public class MvSubstitutionOptimizer
                 context.put(node, hash);
                 return hash;
             });
+        }
+    }
+
+    /**
+     * Reports why a hashed subtree cannot be substituted at all, or nothing when it can. Only scans are hashed.
+     */
+    private static class SubstitutionSupportedVisitor
+            extends PlanVisitor<Optional<MaterializedViewSubstitutionOutcome>, Void>
+    {
+        @Override
+        protected Optional<MaterializedViewSubstitutionOutcome> visitPlan(PlanNode node, Void context)
+        {
+            return Optional.of(COMPUTATION_MISMATCH);
+        }
+
+        @Override
+        public Optional<MaterializedViewSubstitutionOutcome> visitTableScan(TableScanNode node, Void context)
+        {
+            if (!substitutionSupported(node)) {
+                return Optional.of(SCAN_NOT_SUBSTITUTABLE);
+            }
+            return Optional.empty();
         }
     }
 
