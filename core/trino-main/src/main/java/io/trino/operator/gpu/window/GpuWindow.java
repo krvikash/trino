@@ -510,9 +510,9 @@ public final class GpuWindow
         }
     }
 
-    // With P the prefix sums over the whole input, preceded by a zero, the sum over the rows from start to end,
-    // exclusive, is P[end] - P[start]. The frame bounds never leave the partition of the row, so the prefix sums need
-    // not restart at partition boundaries.
+    // With P the prefix sums over the whole input, preceded by a zero, the sum over a frame is P[endExclusive] -
+    // P[startInclusive]. The frame bounds never leave the partition of the row, so the prefix sums need not restart at
+    // partition boundaries.
     private @Move ColumnVector[] computePrefixSumDifferences(@Borrow Table sorted, int rowCount)
     {
         if (prefixSumDifferenceComputations.isEmpty()) {
@@ -526,8 +526,8 @@ public final class GpuWindow
                 // Every bound is between 0 and the row count, so none is out of bounds, but NULLIFY keeps any mistake
                 // from reading outside the table
                 @Own ColumnVector[] prefixSumDifferences = new ColumnVector[prefixSumChannels.length];
-                try (Table prefixSumsAtEnd = prefixSums.gather(bounds.end(), OutOfBoundsPolicy.NULLIFY);
-                        Table prefixSumsAtStart = prefixSums.gather(bounds.start(), OutOfBoundsPolicy.NULLIFY)) {
+                try (Table prefixSumsAtEnd = prefixSums.gather(bounds.endExclusive(), OutOfBoundsPolicy.NULLIFY);
+                        Table prefixSumsAtStart = prefixSums.gather(bounds.startInclusive(), OutOfBoundsPolicy.NULLIFY)) {
                     for (int i = 0; i < prefixSumChannels.length; i++) {
                         @Borrow ColumnVector atStart = prefixSumsAtStart.getColumn(i);
                         @Borrow ColumnVector atEnd = prefixSumsAtEnd.getColumn(i);
@@ -581,22 +581,21 @@ public final class GpuWindow
         return Scalar.fromDecimal(BigInteger.ZERO, type);
     }
 
-    // The INT32 index of the first row of the frame of each row, and of the row after its last row, so the start is
-    // inclusive and the end exclusive. Both are within the partition of the row, and the end never precedes the start,
-    // so the two are equal for an empty frame.
-    private record FrameBounds(@Own ColumnVector start, @Own ColumnVector end)
+    // For each row, the INT32 row indexes bounding its frame. Both are within the partition of the row, and the end never
+    // precedes the start, so the two are equal for an empty frame.
+    private record FrameBounds(@Own ColumnVector startInclusive, @Own ColumnVector endExclusive)
             implements AutoCloseable
     {
         public FrameBounds
         {
-            requireNonNull(start, "start is null");
-            requireNonNull(end, "end is null");
+            requireNonNull(startInclusive, "startInclusive is null");
+            requireNonNull(endExclusive, "endExclusive is null");
         }
 
         @Override
         public void close()
         {
-            closeColumns(new ColumnVector[] {start, end});
+            closeColumns(new ColumnVector[] {startInclusive, endExclusive});
         }
     }
 
@@ -604,46 +603,46 @@ public final class GpuWindow
     {
         // TODO: Support frame definitions other than default: https://starburstdata.atlassian.net/browse/ENG-28121
         // RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
-        return new FrameBounds(layout.partitionStart().incRefCount(), layout.peerGroupEnd().incRefCount());
+        return new FrameBounds(layout.partitionStartInclusive().incRefCount(), layout.peerGroupEndExclusive().incRefCount());
     }
 
     // How the sorted input divides into partitions and peer groups, from which the frame bounds are resolved.
-    // Starts and ends are INT32 row indexes, with the start inclusive and the end exclusive.
+    // Starts and ends are INT32 row indexes.
     private record WindowLayout(
-            @Own ColumnVector partitionStart,
-            @Own ColumnVector peerGroupEnd)
+            @Own ColumnVector partitionStartInclusive,
+            @Own ColumnVector peerGroupEndExclusive)
             implements AutoCloseable
     {
         public WindowLayout
         {
-            requireNonNull(partitionStart, "partitionStart is null");
-            requireNonNull(peerGroupEnd, "peerGroupEnd is null");
+            requireNonNull(partitionStartInclusive, "partitionStartInclusive is null");
+            requireNonNull(peerGroupEndExclusive, "peerGroupEndExclusive is null");
         }
 
         @Override
         public void close()
         {
-            closeColumns(new ColumnVector[] {partitionStart, peerGroupEnd});
+            closeColumns(new ColumnVector[] {partitionStartInclusive, peerGroupEndExclusive});
         }
     }
 
     private @Move WindowLayout createWindowLayout(@Borrow Table sorted, int rowCount)
     {
         try (Scalar zero = Scalar.fromInt(0);
-                ClosingRef<ColumnVector> partitionStart = ClosingRef.empty();
-                ClosingRef<ColumnVector> peerGroupEnd = ClosingRef.empty()) {
+                ClosingRef<ColumnVector> partitionStartInclusive = ClosingRef.empty();
+                ClosingRef<ColumnVector> peerGroupEndExclusive = ClosingRef.empty()) {
             if (partitionChannels.length == 0) {
-                partitionStart.set(ColumnVector.fromScalar(zero, rowCount));
+                partitionStartInclusive.set(ColumnVector.fromScalar(zero, rowCount));
             }
             else {
                 try (ColumnVector rowIndex = ColumnVector.sequence(zero, rowCount)) {
-                    partitionStart.set(partitionStart(sorted, rowIndex));
+                    partitionStartInclusive.set(partitionStart(sorted, rowIndex));
                 }
             }
-            peerGroupEnd.set(peerGroupEnd(sorted, partitionStart.borrow()));
+            peerGroupEndExclusive.set(peerGroupEnd(sorted, partitionStartInclusive.borrow()));
             return new WindowLayout(
-                    partitionStart.take(),
-                    peerGroupEnd.take());
+                    partitionStartInclusive.take(),
+                    peerGroupEndExclusive.take());
         }
     }
 
