@@ -1,0 +1,54 @@
+name: Auto-merge Galaxy version bumps
+
+on:
+  schedule:
+    - cron: '17 6 * * *' # Runs daily at 6:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+defaults:
+  run:
+    shell: bash --noprofile --norc -euo pipefail {0}
+
+jobs:
+  approve:
+    runs-on: [self-hosted, gha-fleet-ec2-2cpu-1gb-amd64, latest]
+    steps:
+      - name: Approve and enable auto-merge on the latest bump PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          read -r pr approved auto_merge < <(gh pr list --state open --author starburstdata-automation \
+            --search 'in:title "Update Galaxy version to stargate"' --limit 100 \
+            --json number,title,reviewDecision,autoMergeRequest \
+            --jq '[.[] | select(.title | test("^\\[master\\] Update Galaxy version to stargate-[A-Za-z0-9-]+$"))]
+              | max_by(.number) // empty
+              | "\(.number) \(.reviewDecision == "APPROVED") \(.autoMergeRequest != null)"') || true
+
+          if [ -z "${pr:-}" ]; then
+            echo "No open Galaxy version bump PR found"
+            exit 0
+          fi
+
+          if [ "$approved" = "true" ] && [ "$auto_merge" = "true" ]; then
+            echo "#$pr: already approved with auto-merge enabled, skipping"
+            exit 0
+          fi
+
+          files=$(gh pr diff "$pr" --name-only)
+          if [ "$files" != "pom.xml" ]; then
+            echo "#$pr: changes files other than pom.xml, skipping"
+            exit 0
+          fi
+
+          if [ "$approved" != "true" ]; then
+            gh pr review "$pr" --approve
+            echo "#$pr: approved"
+          fi
+
+          gh pr merge "$pr" --auto
+          echo "#$pr: auto-merge enabled"
