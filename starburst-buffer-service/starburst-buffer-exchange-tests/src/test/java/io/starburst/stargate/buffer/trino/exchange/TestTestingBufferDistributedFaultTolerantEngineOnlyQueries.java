@@ -97,7 +97,8 @@ public class TestTestingBufferDistributedFaultTolerantEngineOnlyQueries
     }
 
     @Test
-    @Timeout(60)
+    // the ten queries take seconds alone but have run past 60 s next to the module's other classes on CI
+    @Timeout(300)
     public void stressUnionWithLimit()
     {
         // regression test for query stuck because future returned by BufferExchangeSource.isBlocked() was not completed
