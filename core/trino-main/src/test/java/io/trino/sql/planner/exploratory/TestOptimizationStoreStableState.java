@@ -158,10 +158,12 @@ class TestOptimizationStoreStableState
         memo.insertOperation(operation, ignoreChanges());
         var alternative = alternative(operation);
         assertThat(store.containsAlternative(alternative.key())).isFalse();
+        assertThat(store.findAlternative(alternative.key())).isEmpty();
 
         store.putNewAlternative(alternative);
 
         assertThat(store.containsAlternative(alternative.key())).isTrue();
+        assertThat(store.findAlternative(alternative.key())).contains(alternative);
     }
 
     @Test
@@ -235,11 +237,13 @@ class TestOptimizationStoreStableState
         var candidate = candidate(alternative(operation));
         var candidateKey = candidateKey(candidate.alternativeKey(), UNDEFINED);
         assertThat(store.containsCandidate(candidateKey)).isFalse();
+        assertThat(store.findCandidate(candidateKey)).isEmpty();
 
         store.putNewAlternative(candidate.implementation());
         store.putNewCandidate(UNDEFINED, candidate);
 
         assertThat(store.containsCandidate(candidateKey)).isTrue();
+        assertThat(store.findCandidate(candidateKey)).contains(candidate);
     }
 
     @Test

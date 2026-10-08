@@ -161,6 +161,20 @@ public class OptimizationStore<C extends Cost, R extends Requirement, P extends 
      * This is a stable-state API.
      * It is used by {@code Pass.process(...)} against current Memo state.
      * <p>
+     * Return the implementation alternative for the given key, if present.
+     * <p>
+     * The alternative's operation must be current in Memo.
+     */
+    public Optional<OperationImplementationAlternative<C, R, P>> findAlternative(AlternativeKey<R> alternativeKey)
+    {
+        verifyRecent(alternativeKey);
+        return Optional.ofNullable(alternativeKeyToAlternative.get(alternativeKey));
+    }
+
+    /**
+     * This is a stable-state API.
+     * It is used by {@code Pass.process(...)} against current Memo state.
+     * <p>
      * Return the implementation alternative for the given key.
      * <p>
      * The alternative's operation must be current in Memo and the alternative
@@ -247,6 +261,20 @@ public class OptimizationStore<C extends Cost, R extends Requirement, P extends 
     {
         verifyRecent(candidateKey.alternativeKey());
         return candidateKeyToCandidate.containsKey(candidateKey);
+    }
+
+    /**
+     * This is a stable-state API.
+     * It is used by {@code Pass.process(...)} against current Memo state.
+     * <p>
+     * Return the candidate for the given key, if present.
+     * <p>
+     * The candidate's alternative must be current in Memo.
+     */
+    public Optional<Candidate<C, R, P>> findCandidate(CandidateKey<R> candidateKey)
+    {
+        verifyRecent(candidateKey.alternativeKey());
+        return Optional.ofNullable(candidateKeyToCandidate.get(candidateKey));
     }
 
     /**
