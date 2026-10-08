@@ -74,6 +74,7 @@ import static io.trino.spi.type.DateType.DATE;
 import static io.trino.spi.type.Decimals.encodeScaledValue;
 import static io.trino.spi.type.Decimals.encodeShortScaledValue;
 import static io.trino.spi.type.DoubleType.DOUBLE;
+import static io.trino.spi.type.HyperLogLogType.HYPER_LOG_LOG;
 import static io.trino.spi.type.IntegerType.INTEGER;
 import static io.trino.spi.type.RealType.REAL;
 import static io.trino.spi.type.SmallintType.SMALLINT;
@@ -112,6 +113,7 @@ import static io.trino.spi.type.VariantType.VARIANT;
 import static io.trino.type.IntervalDayTimeType.INTERVAL_DAY_TIME;
 import static io.trino.type.IntervalYearMonthType.INTERVAL_YEAR_MONTH;
 import static io.trino.type.IpAddressType.IPADDRESS;
+import static io.trino.type.UnknownType.UNKNOWN;
 import static java.lang.System.arraycopy;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Collections.nCopies;
@@ -343,6 +345,34 @@ public abstract class AbstractTestEncodingDecoding
                 "\r\t\n",
                 "\uD83E\uDD83",
                 null);
+    }
+
+    @Test
+    public void testUnknownSerialization()
+            throws IOException
+    {
+        // Every value of the unknown type is null
+        Consumer<BlockBuilder> builder = blockBuilder -> {
+            blockBuilder.appendNull();
+            blockBuilder.appendNull();
+        };
+
+        assertRoundTrip(UNKNOWN, builder, null, null);
+    }
+
+    @Test
+    public void testHyperLogLogSerialization()
+            throws IOException
+    {
+        // Encoded as Arrow binary and as base64 over JSON, so both must decode back to bytes
+        Consumer<BlockBuilder> builder = blockBuilder -> {
+            HYPER_LOG_LOG.writeSlice(blockBuilder, Slices.wrappedBuffer(new byte[] {2, 12, 0, 0, 1}));
+            blockBuilder.appendNull();
+        };
+
+        assertThat(roundTrip(ImmutableList.of(typed("singleType", HYPER_LOG_LOG)), page(buildBlock(HYPER_LOG_LOG, 2, builder))))
+                .usingRecursiveComparison()
+                .isEqualTo(column(new byte[] {2, 12, 0, 0, 1}, null));
     }
 
     @Test
