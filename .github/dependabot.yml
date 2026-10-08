@@ -7,6 +7,14 @@ updates:
       - "/.github/actions/*"
     schedule:
       interval: "weekly"
+    allow:
+      # To refresh the allow list: compare .github/workflows and .github/actions with https://github.com/trinodb/trino,
+      # and add dependencies that exist only in this repo. Remove entries that upstream now also has.
+      - dependency-name: "aws-actions/aws-secretsmanager-get-secrets"
+      - dependency-name: "aws-actions/configure-aws-credentials"
+      - dependency-name: "azure/cli"
+      - dependency-name: "azure/login"
+      - dependency-name: "docker/login-action"
     cooldown:
       # Apply 7 day cooldown to avoid updating dependencies right away. This reduces the opportunity window
       # when supply chain is compromised.
@@ -16,6 +24,27 @@ updates:
     schedule:
       interval: "daily"
     open-pull-requests-limit: 10
+    allow:
+      # To refresh the allow list: compare every pom.xml with https://github.com/trinodb/trino.
+      # Add dependencies that have their own version here and are not managed upstream.
+      # Skip dependencies whose version comes from a property or BOM that upstream also defines
+      # (e.g. io.swagger.core.v3:* uses ${dep.swagger.version}); upstream bumps cover them.
+      # Remove entries that upstream now also has or manages.
+      - dependency-name: "com.datadoghq:dd-java-agent"
+      - dependency-name: "com.github.erosb:json-sKema"
+      - dependency-name: "com.github.mwiede:jsch"
+      - dependency-name: "com.github.oshi:oshi-core-java25"
+      - dependency-name: "com.google.genai:google-genai"
+      - dependency-name: "com.kx:javakdb"
+      - dependency-name: "com.openai:openai-java-client-okhttp"
+      - dependency-name: "com.openai:openai-java-core"
+      - dependency-name: "com.sap.cloud.db.jdbc:ngdbc"
+      - dependency-name: "io.unitycatalog:unitycatalog-client"
+      - dependency-name: "me.lemire.integercompression:JavaFastPFOR"
+      - dependency-name: "org.apache.ozone:ozone-filesystem-hadoop3"
+      - dependency-name: "org.scharp:sas7bdat"
+      - dependency-name: "tools.profiler:async-profiler"
+      - dependency-name: "xyz.rogfam:littleproxy"
     groups:
       airlift:
         patterns:
