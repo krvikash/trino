@@ -27,9 +27,11 @@ import io.trino.sql.planner.exploratory.rule.Result;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static com.google.common.collect.Sets.newIdentityHashSet;
 import static java.util.Objects.requireNonNull;
 
 public class RuleApplier
@@ -70,6 +72,11 @@ public class RuleApplier
                 .filter(Result::isPresent)
                 .collect(toImmutableList());
 
+        // Validate all results before updating Memo, so an invalid result never leaves Memo partially modified.
+        for (Result<NewMemoOperation> result : results) {
+            checkAcyclic(result.get(), rule, newIdentityHashSet(), newIdentityHashSet());
+        }
+
         List<MemoOperation> resultOperations = new ArrayList<>(results.size());
         for (Result<NewMemoOperation> result : results) {
             resultOperations.add(insertOperationRuleResult(result.get(), operationRecent, changesCollector));
@@ -85,6 +92,27 @@ public class RuleApplier
                 memo.removeOperation(recentRoot, changesCollector);
             }
         }
+    }
+
+    /**
+     * Verify that the NewMemoOperation graph returned by the rule has no cycles. Shared acyclic sub-graphs are allowed.
+     * Operations are compared by identity.
+     */
+    private static void checkAcyclic(NewMemoOperation operation, OperationRule rule, Set<NewMemoOperation> inProgress, Set<NewMemoOperation> validated)
+    {
+        if (validated.contains(operation)) {
+            return;
+        }
+        checkState(inProgress.add(operation), "Rule %s produced a cyclic NewMemoOperation graph", rule.getClass().getName());
+        for (Object child : operation.children()) {
+            if (child instanceof ChildGroupWithParameterLineage childGroup) {
+                for (NewMemoOperation childOperation : childGroup.childOperations()) {
+                    checkAcyclic(childOperation, rule, inProgress, validated);
+                }
+            }
+        }
+        inProgress.remove(operation);
+        validated.add(operation);
     }
 
     /**

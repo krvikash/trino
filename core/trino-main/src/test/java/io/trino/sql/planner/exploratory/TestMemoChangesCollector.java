@@ -349,6 +349,84 @@ class TestMemoChangesCollector
                                 .build()));
     }
 
+    @Test
+    public void testDirectlyRecursiveRuleResult()
+    {
+        Memo memo = baseMemo();
+        MemoOperation rootOperation = memo.getGroup(memo.rootGroup()).operations().getFirst();
+
+        assertThatThrownBy(() -> new RuleApplier(memo).applyRule(rootOperation, new DirectlyRecursiveRule()))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("Rule %s produced a cyclic NewMemoOperation graph", DirectlyRecursiveRule.class.getName());
+    }
+
+    @Test
+    public void testIndirectlyRecursiveRuleResult()
+    {
+        Memo memo = baseMemo();
+        MemoOperation rootOperation = memo.getGroup(memo.rootGroup()).operations().getFirst();
+
+        assertThatThrownBy(() -> new RuleApplier(memo).applyRule(rootOperation, new IndirectlyRecursiveRule()))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("Rule %s produced a cyclic NewMemoOperation graph", IndirectlyRecursiveRule.class.getName());
+    }
+
+    @Test
+    public void testRecursiveRuleResultDoesNotModifyMemo()
+    {
+        Memo memo = baseMemo();
+        MemoChangesCollector ignoredChanges = new MemoChangesCollector();
+        MemoOperation childOperation = parametrizedOperation(ImmutableList.of(TEST_TYPE, TEST_TYPE), 0);
+        int childGroupId = memo.insertOperation(childOperation, ignoredChanges);
+        MemoOperation parentOperation = parametrizedOperationWithChild(
+                ImmutableList.of(TEST_TYPE, TEST_TYPE),
+                childGroupId,
+                new ParameterLineage(ImmutableList.of(0, 1), ImmutableList.of()));
+        int parentGroupId = memo.insertOperation(parentOperation, ignoredChanges);
+        int memoSize = memo.size();
+
+        // the valid sibling precedes the cyclic one, so inserting while traversing would modify Memo before detecting the cycle
+        MemoOperation validSibling = parametrizedOperation(ImmutableList.of(TEST_TYPE, TEST_TYPE), 1);
+        assertThatThrownBy(() -> new RuleApplier(memo).applyRule(parentOperation, new CyclicSiblingRule(validSibling)))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("Rule %s produced a cyclic NewMemoOperation graph", CyclicSiblingRule.class.getName());
+
+        assertThat(memo.size()).isEqualTo(memoSize);
+        assertThat(memo.getGroupId(validSibling)).isEmpty();
+        assertThat(memo.getGroupId(childOperation)).hasValue(childGroupId);
+        assertThat(memo.getGroupId(parentOperation)).hasValue(parentGroupId);
+    }
+
+    @Test
+    public void testSharedNewMemoOperation()
+    {
+        Memo memo = baseMemo();
+        MemoChangesCollector ignoredChanges = new MemoChangesCollector();
+        MemoOperation childOperation = parametrizedOperation(ImmutableList.of(TEST_TYPE, TEST_TYPE), 0);
+        int childGroupId = memo.insertOperation(childOperation, ignoredChanges);
+        MemoOperation parentOperation = parametrizedOperationWithChild(
+                ImmutableList.of(TEST_TYPE, TEST_TYPE),
+                childGroupId,
+                new ParameterLineage(ImmutableList.of(0, 1), ImmutableList.of()));
+        int parentGroupId = memo.insertOperation(parentOperation, ignoredChanges);
+
+        MemoOperation sharedChild = parametrizedOperation(ImmutableList.of(TEST_TYPE, TEST_TYPE), 1);
+        int expectedSharedChildGroupId = memo.size();
+        MemoOperation expectedParent = parametrizedOperationWithChild(
+                ImmutableList.of(TEST_TYPE, TEST_TYPE),
+                expectedSharedChildGroupId,
+                new ParameterLineage(ImmutableList.of(0, 1), ImmutableList.of()));
+        int expectedParentGroupId = expectedSharedChildGroupId + 1;
+
+        List<MemoChange> changes = new RuleApplier(memo).applyRule(parentOperation, new SharedOperationRule(sharedChild));
+
+        // the shared operation is inserted once, and its group is not merged with itself
+        assertThat(changes).containsExactly(
+                new SingletonGroupCreate(sharedChild, expectedSharedChildGroupId),
+                new SingletonGroupCreate(expectedParent, expectedParentGroupId),
+                new GroupMerge(parentGroupId, expectedParentGroupId));
+    }
+
     private static Memo baseMemo()
     {
         return Memo.forProgram(program(valuesOfRows(ImmutableList.of(singleConstantRow("", BIGINT, 42L)))), TESTING_DIALECT_REGISTRY);
@@ -437,6 +515,82 @@ class TestMemoChangesCollector
         public boolean canReplaceSource()
         {
             return true;
+        }
+    }
+
+    private record DirectlyRecursiveRule()
+            implements OperationRule
+    {
+        @Override
+        public Pattern<MemoOperation> pattern()
+        {
+            return operation();
+        }
+
+        @Override
+        public Result<NewMemoOperation> apply(MemoOperation operation, Captures captures, Context context)
+        {
+            ParameterLineage parameterLineage = ParameterLineage.identity(operation.groupParameterTypes().size());
+            NewMemoOperation newOperation = operationLike(operation);
+            return Result.of(newOperation.withChild(0, newOperation, parameterLineage));
+        }
+    }
+
+    private record IndirectlyRecursiveRule()
+            implements OperationRule
+    {
+        @Override
+        public Pattern<MemoOperation> pattern()
+        {
+            return operation();
+        }
+
+        @Override
+        public Result<NewMemoOperation> apply(MemoOperation operation, Captures captures, Context context)
+        {
+            ParameterLineage parameterLineage = ParameterLineage.identity(operation.groupParameterTypes().size());
+            NewMemoOperation firstOperation = operationLike(operation);
+            NewMemoOperation secondOperation = operationLike(operation);
+            firstOperation.withChild(0, secondOperation, parameterLineage);
+            secondOperation.withChild(0, firstOperation, parameterLineage);
+            return Result.of(firstOperation);
+        }
+    }
+
+    private record CyclicSiblingRule(MemoOperation validSibling)
+            implements OperationRule
+    {
+        @Override
+        public Pattern<MemoOperation> pattern()
+        {
+            return operation();
+        }
+
+        @Override
+        public Result<NewMemoOperation> apply(MemoOperation operation, Captures captures, Context context)
+        {
+            ParameterLineage parameterLineage = ((GroupChild) operation.children().getFirst()).parameterLineage();
+            NewMemoOperation parent = operationLike(operation);
+            return Result.of(parent.withChildGroup(0, ImmutableList.of(operationLike(validSibling), parent), parameterLineage));
+        }
+    }
+
+    private record SharedOperationRule(MemoOperation sharedChild)
+            implements OperationRule
+    {
+        @Override
+        public Pattern<MemoOperation> pattern()
+        {
+            return operation();
+        }
+
+        @Override
+        public Result<NewMemoOperation> apply(MemoOperation operation, Captures captures, Context context)
+        {
+            ParameterLineage parameterLineage = ((GroupChild) operation.children().getFirst()).parameterLineage();
+            NewMemoOperation sharedNewOperation = operationLike(sharedChild);
+            return Result.of(operationLike(operation)
+                    .withChildGroup(0, ImmutableList.of(sharedNewOperation, sharedNewOperation), parameterLineage));
         }
     }
 }
