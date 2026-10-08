@@ -75,6 +75,7 @@ import static io.starburst.stargate.buffer.data.execution.ChunkTestHelper.verify
 import static io.starburst.stargate.buffer.data.spooling.SpoolTestHelper.createS3SpooledChunkReader;
 import static io.starburst.stargate.buffer.data.spooling.SpoolTestHelper.createS3SpoolingStorage;
 import static io.trino.testing.assertions.Assert.assertEventually;
+import static java.lang.Math.toIntExact;
 import static java.util.UUID.randomUUID;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
@@ -597,6 +598,67 @@ public class TestChunkManager
         assertThatThrownBy(() -> getFutureValue(chunkManager.addDataPages(EXCHANGE_0, 3, 3, 3, 3L, ImmutableList.of(utf8Slice("dummy"))).addDataPagesFuture()))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage("addDataPages called in ChunkManager after we started draining");
+    }
+
+    @Test
+    public void testDrainAllChunksSkipsFailedExchange()
+    {
+        MemoryAllocator memoryAllocator = defaultMemoryAllocator();
+        DataSize chunkMaxSize = DataSize.of(64, BYTE);
+        ChunkManager chunkManager = createChunkManager(
+                BUFFER_NODE_ID,
+                memoryAllocator,
+                DataSize.of(16, BYTE),
+                chunkMaxSize,
+                DataSize.of(8, BYTE));
+
+        chunkManager.registerExchange(EXCHANGE_0, STANDARD, Optional.empty());
+        chunkManager.registerExchange(EXCHANGE_1, STANDARD, Optional.empty());
+
+        // healthy exchange
+        getFutureValue(chunkManager.addDataPages(
+                EXCHANGE_0, 0, 0, 0, 0L, ImmutableList.of(utf8Slice("a"), utf8Slice("b"), utf8Slice("c"))).addDataPagesFuture());
+        getFutureValue(chunkManager.addDataPages(
+                EXCHANGE_0, 1, 1, 1, 1L, ImmutableList.of(utf8Slice("d"), utf8Slice("e"), utf8Slice("f"))).addDataPagesFuture());
+
+        // exchange put in inconsistent state by a data page which does not fit in a chunk (see incident-1169)
+        Slice tooLargePage = utf8Slice("x".repeat(toIntExact(chunkMaxSize.toBytes())));
+        getFutureValue(chunkManager.addDataPages(EXCHANGE_1, 0, 0, 0, 0L, ImmutableList.of(utf8Slice("dummy"))).addDataPagesFuture());
+        assertThatThrownBy(() -> getFutureValue(chunkManager.addDataPages(EXCHANGE_1, 1, 1, 1, 1L, ImmutableList.of(tooLargePage)).addDataPagesFuture()))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("requiredStorageSize %d larger than chunkMaxSizeInBytes %d".formatted(DATA_PAGE_HEADER_SIZE + tooLargePage.length(), chunkMaxSize.toBytes()));
+        assertEventually(new Duration(1, SECONDS), () -> assertThatThrownBy(() -> chunkManager.listClosedChunks(EXCHANGE_1, OptionalLong.empty()))
+                .isInstanceOf(DataServerException.class)
+                .hasMessage("exchange %s is in inconsistent state".formatted(EXCHANGE_1)));
+
+        Future<Integer> numClosedChunksFuture = executor.submit(() -> {
+            OptionalLong pagingId = OptionalLong.empty();
+            int numChunks = 0;
+            for (int i = 0; i < 10; ++i) {
+                ChunkList chunkList = getFutureValue(chunkManager.listClosedChunks(EXCHANGE_0, pagingId));
+                pagingId = chunkList.nextPagingId();
+                numChunks += chunkList.chunks().size();
+                if (pagingId.isEmpty()) {
+                    chunkManager.markAllClosedChunksReceived(EXCHANGE_0);
+                    return numChunks;
+                }
+
+                sleepUninterruptibly(100, MILLISECONDS);
+            }
+            return abort();
+        });
+
+        // failed exchange must not prevent draining of healthy ones
+        chunkManager.drainAllChunks();
+
+        assertThat(numClosedChunksFuture.isDone()).isTrue();
+        int numClosedChunks = getFutureValue(numClosedChunksFuture);
+        assertThat(numClosedChunks).isEqualTo(4);
+        assertThat(chunkManager.getSpooledChunksCount()).isEqualTo(numClosedChunks);
+
+        assertThatThrownBy(() -> chunkManager.listClosedChunks(EXCHANGE_1, OptionalLong.empty()))
+                .isInstanceOf(DataServerException.class)
+                .hasMessage("exchange %s is in inconsistent state".formatted(EXCHANGE_1));
     }
 
     @Test
