@@ -94,6 +94,11 @@ public final class HiveQueryRunner
         return new ConcreteBuilder();
     }
 
+    public static ConcreteBuilder builder(String schemaName)
+    {
+        return new ConcreteBuilder(createSession(Optional.of(new SelectedRole(ROLE, Optional.of("admin"))), schemaName));
+    }
+
     public static ConcreteBuilder builder(Session defaultSession)
     {
         return new ConcreteBuilder(defaultSession);
@@ -129,7 +134,7 @@ public final class HiveQueryRunner
 
         protected Builder()
         {
-            this(createSession(Optional.of(new SelectedRole(ROLE, Optional.of("admin")))));
+            this(createSession(Optional.of(new SelectedRole(ROLE, Optional.of("admin"))), TPCH_SCHEMA));
         }
 
         protected Builder(Session defaultSession)
@@ -363,7 +368,7 @@ public final class HiveQueryRunner
                 .build();
     }
 
-    private static Session createSession(Optional<SelectedRole> role)
+    private static Session createSession(Optional<SelectedRole> role, String schemaName)
     {
         return testSessionBuilder()
                 .setIdentity(Identity.forUser("hive")
@@ -371,7 +376,7 @@ public final class HiveQueryRunner
                                 .orElse(ImmutableMap.of()))
                         .build())
                 .setCatalog(HIVE_CATALOG)
-                .setSchema(TPCH_SCHEMA)
+                .setSchema(schemaName)
                 .build();
     }
 

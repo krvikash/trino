@@ -1147,6 +1147,7 @@
                                 <exclude>**/Test*Floci*.java</exclude>
                                 <exclude>**/TestIcebergGlueCatalogMaterializedViewAutoRefreshTest.java</exclude>
                                 <exclude>**/TestIcebergS3AndGlueAws.java</exclude>
+                                <exclude>**/TestIcebergS3AccessPoint.java</exclude>
                                 <exclude>**/TestIcebergS3TablesConnectorSmokeTest.java</exclude>
                                 <exclude>**/TestIcebergBigLakeMetastoreConnectorSmokeTest.java</exclude>
                                 <exclude>**/TestIcebergGcsConnectorSmokeTest.java</exclude>
@@ -1262,6 +1263,7 @@
                                 <include>**/TestIcebergCachingGlueCatalogAccessOperationsTest.java</include>
                                 <include>**/TestIcebergCachingGlueCatalogConnectorSmokeTest.java</include>
                                 <include>**/TestIcebergGlueFlushMetadataCacheProcedure.java</include>
+                                <include>**/TestIcebergS3AccessPoint.java</include>
                             </includes>
                         </configuration>
                     </plugin>

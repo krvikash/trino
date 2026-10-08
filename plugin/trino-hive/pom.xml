@@ -738,6 +738,7 @@
                                 <exclude>**/TestHiveGpuS3MinioQueries.java</exclude>
                                 <!-- end of gpu profile -->
                                 <exclude>**/TestHiveS3AndGlueAws.java</exclude>
+                                <exclude>**/TestHiveS3AccessPoint.java</exclude>
                                 <exclude>**/TestS3AndUnityMetastoreHiveConnectorSmokeTest.java</exclude>
                                 <exclude>**/TestFullParquetReader.java</exclude>
                                 <exclude>**/TestParquetReader.java</exclude>
@@ -823,6 +824,7 @@
                                 <include>**/TestCachedHiveGlueMetastore.java</include>
                                 <include>**/TestHiveGlueMetadataListing.java</include>
                                 <include>**/TestS3AndUnityMetastoreHiveConnectorSmokeTest.java</include>
+                                <include>**/TestHiveS3AccessPoint.java</include>
                                 <include>**/TestUnloadS3.java</include>
                                 <include>**/TestUnloadNativeS3.java</include>
                                 <include>**/TestUnloadGcs.java</include>
