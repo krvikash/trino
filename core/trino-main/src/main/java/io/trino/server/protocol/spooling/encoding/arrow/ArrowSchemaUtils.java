@@ -25,6 +25,7 @@ import io.trino.spi.type.DoubleType;
 import io.trino.spi.type.HyperLogLogType;
 import io.trino.spi.type.IntegerType;
 import io.trino.spi.type.MapType;
+import io.trino.spi.type.NumberType;
 import io.trino.spi.type.RealType;
 import io.trino.spi.type.RowType;
 import io.trino.spi.type.SmallintType;
@@ -40,6 +41,7 @@ import io.trino.spi.type.VarcharType;
 import io.trino.type.IntervalDayTimeType;
 import io.trino.type.IntervalYearMonthType;
 import io.trino.type.IpAddressType;
+import io.trino.type.JsonType;
 import io.trino.type.UnknownType;
 import org.apache.arrow.vector.types.DateUnit;
 import org.apache.arrow.vector.types.TimeUnit;
@@ -145,7 +147,7 @@ public final class ArrowSchemaUtils
             case BigintType _ -> BIGINT_ARROW_TYPE;
             case RealType _ -> REAL_ARROW_TYPE;
             case DoubleType _ -> DOUBLE_ARROW_TYPE;
-            case VarcharType _, CharType _ -> ArrowType.Utf8.INSTANCE;
+            case VarcharType _, CharType _, JsonType _, NumberType _ -> ArrowType.Utf8.INSTANCE;
             case VarbinaryType _ -> ArrowType.Binary.INSTANCE;
             case DateType _ -> DATE_ARROW_TYPE;
             case TimeType time -> switch (time.getPrecision()) {

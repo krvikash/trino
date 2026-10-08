@@ -76,6 +76,7 @@ import static io.trino.client.ClientStandardTypes.IPADDRESS;
 import static io.trino.client.ClientStandardTypes.JSON;
 import static io.trino.client.ClientStandardTypes.KDB_TREE;
 import static io.trino.client.ClientStandardTypes.MAP;
+import static io.trino.client.ClientStandardTypes.NUMBER;
 import static io.trino.client.ClientStandardTypes.P4_HYPER_LOG_LOG;
 import static io.trino.client.ClientStandardTypes.QDIGEST;
 import static io.trino.client.ClientStandardTypes.REAL;
@@ -143,6 +144,10 @@ public class ArrowDecodingUtils
     {
         switch (signature.getRawType()) {
             case VARCHAR:
+                // json and number both travel as text, and the JSON protocol hands them back as
+                // strings, so decoding them the same way keeps the two encodings interchangeable
+            case JSON:
+            case NUMBER:
                 return new VarcharDecoder(checkedCast(vector, VarCharVector.class));
             case CHAR:
                 return new CharDecoder(signature.getArguments().get(0).getLongLiteral(), checkedCast(vector, VarCharVector.class));
@@ -228,7 +233,6 @@ public class ArrowDecodingUtils
                 }
                 throw unsupportedTypeException(signature);
             }
-            case JSON:
             case GEOMETRY:
             case SPHERICAL_GEOGRAPHY:
             case COLOR:

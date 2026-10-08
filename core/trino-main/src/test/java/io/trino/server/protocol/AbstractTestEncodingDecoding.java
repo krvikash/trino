@@ -36,6 +36,7 @@ import io.trino.spi.type.DecimalType;
 import io.trino.spi.type.LongTimestampWithTimeZone;
 import io.trino.spi.type.MapType;
 import io.trino.spi.type.RowType;
+import io.trino.spi.type.TrinoNumber;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.TypeOperators;
 import io.trino.spi.variant.Variant;
@@ -76,6 +77,7 @@ import static io.trino.spi.type.Decimals.encodeShortScaledValue;
 import static io.trino.spi.type.DoubleType.DOUBLE;
 import static io.trino.spi.type.HyperLogLogType.HYPER_LOG_LOG;
 import static io.trino.spi.type.IntegerType.INTEGER;
+import static io.trino.spi.type.NumberType.NUMBER;
 import static io.trino.spi.type.RealType.REAL;
 import static io.trino.spi.type.SmallintType.SMALLINT;
 import static io.trino.spi.type.TimeType.TIME_MICROS;
@@ -113,6 +115,7 @@ import static io.trino.spi.type.VariantType.VARIANT;
 import static io.trino.type.IntervalDayTimeType.INTERVAL_DAY_TIME;
 import static io.trino.type.IntervalYearMonthType.INTERVAL_YEAR_MONTH;
 import static io.trino.type.IpAddressType.IPADDRESS;
+import static io.trino.type.JsonType.JSON;
 import static io.trino.type.UnknownType.UNKNOWN;
 import static java.lang.System.arraycopy;
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -344,6 +347,61 @@ public abstract class AbstractTestEncodingDecoding
                 "\0\0\0",
                 "\r\t\n",
                 "\uD83E\uDD83",
+                null);
+    }
+
+    @Test
+    public void testJsonSerialization()
+            throws IOException
+    {
+        Consumer<BlockBuilder> builder = blockBuilder -> {
+            JSON.writeSlice(blockBuilder, utf8Slice("{\"a\":1}"));
+            JSON.writeSlice(blockBuilder, utf8Slice("[1,2,3]"));
+            JSON.writeSlice(blockBuilder, utf8Slice("\"数据应用\""));
+            JSON.writeSlice(blockBuilder, utf8Slice("null"));
+            blockBuilder.appendNull();
+        };
+
+        assertRoundTrip(
+                JSON,
+                builder,
+                "{\"a\":1}",
+                "[1,2,3]",
+                "\"数据应用\"",
+                "null",
+                null);
+    }
+
+    @Test
+    public void testNumberSerialization()
+            throws IOException
+    {
+        // Arbitrary precision, so encodings send the decimal text rather than a fixed-width type
+        Consumer<BlockBuilder> builder = blockBuilder -> {
+            NUMBER.writeObject(blockBuilder, TrinoNumber.from(new BigDecimal("123.45")));
+            NUMBER.writeObject(blockBuilder, TrinoNumber.from(new BigDecimal("-0.001")));
+            NUMBER.writeObject(blockBuilder, TrinoNumber.from(new BigDecimal("0")));
+            NUMBER.writeObject(blockBuilder, TrinoNumber.from(new BigDecimal("123456789012345678901234567890.123456789")));
+            NUMBER.writeObject(blockBuilder, TrinoNumber.from(new BigDecimal("1e10")));
+            NUMBER.writeObject(blockBuilder, TrinoNumber.from(new BigDecimal("-1.23e-10")));
+            NUMBER.writeObject(blockBuilder, TrinoNumber.from(new TrinoNumber.Infinity(false)));
+            NUMBER.writeObject(blockBuilder, TrinoNumber.from(new TrinoNumber.Infinity(true)));
+            NUMBER.writeObject(blockBuilder, TrinoNumber.from(new TrinoNumber.NotANumber()));
+            blockBuilder.appendNull();
+        };
+
+        assertRoundTrip(
+                NUMBER,
+                builder,
+                "123.45",
+                "-0.001",
+                "0",
+                "123456789012345678901234567890.123456789",
+                "1E+10",
+                "-1.23E-10",
+                "+Infinity",
+                "-Infinity",
+                "NaN",
                 null);
     }
 

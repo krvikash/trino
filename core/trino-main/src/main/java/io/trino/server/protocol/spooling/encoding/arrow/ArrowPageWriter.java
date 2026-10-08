@@ -21,6 +21,7 @@ import io.trino.spi.type.ArrayType;
 import io.trino.spi.type.CharType;
 import io.trino.spi.type.DecimalType;
 import io.trino.spi.type.MapType;
+import io.trino.spi.type.NumberType;
 import io.trino.spi.type.RowType;
 import io.trino.spi.type.TimeWithTimeZoneType;
 import io.trino.spi.type.TimestampWithTimeZoneType;
@@ -28,6 +29,7 @@ import io.trino.spi.type.Type;
 import io.trino.spi.type.UuidType;
 import io.trino.spi.type.VarcharType;
 import io.trino.type.IpAddressType;
+import io.trino.type.JsonType;
 import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.BitVector;
 import org.apache.arrow.vector.DateDayVector;
@@ -199,10 +201,11 @@ public class ArrowPageWriter
             case TimeStampMicroVector vector -> new TimestampMicroWriter(vector);
             case TimeStampNanoVector vector -> new TimestampNanoWriter(vector);
 
-            // Type dependant writers
+            // Type dependent writers
             case DecimalVector vector when type instanceof DecimalType decimalType -> new DecimalWriter(vector, decimalType);
             case VarCharVector vector when type instanceof CharType charType -> new CharWriter(vector, charType);
-            case VarCharVector vector when type instanceof VarcharType -> new VarcharWriter(vector);
+            case VarCharVector vector when type instanceof VarcharType || type instanceof JsonType -> new VarcharWriter(vector);
+            case VarCharVector vector when type instanceof NumberType -> new NumberWriter(vector);
             case FixedSizeBinaryVector vector when type instanceof UuidType -> new UuidWriter(vector);
             case FixedSizeBinaryVector vector when type instanceof IpAddressType -> new IpAddressWriter(vector);
             case MapVector vector when type instanceof MapType mapType -> mapWriterForVector(vector, mapType);

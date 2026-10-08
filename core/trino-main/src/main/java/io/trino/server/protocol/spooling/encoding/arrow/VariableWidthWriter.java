@@ -22,6 +22,7 @@ import static java.util.Objects.requireNonNull;
 public abstract sealed class VariableWidthWriter<V extends VariableWidthVector>
         implements ArrowWriter
         permits CharWriter,
+                NumberWriter,
                 VarbinaryWriter,
                 VarcharWriter
 {
@@ -36,7 +37,7 @@ public abstract sealed class VariableWidthWriter<V extends VariableWidthVector>
     public void initialize(Block block)
     {
         vector.setInitialCapacity(block.getPositionCount());
-        vector.allocateNew(block.getSizeInBytes(), block.getPositionCount());
+        vector.allocateNew(estimatedDataBufferSizeInBytes(block), block.getPositionCount());
     }
 
     @Override
@@ -44,9 +45,18 @@ public abstract sealed class VariableWidthWriter<V extends VariableWidthVector>
     {
         // Mirrors initialize(): a data buffer sized from the block, plus the offset and validity buffers.
         int positionCount = block.getPositionCount();
-        return roundToSegment(block.getSizeInBytes())
+        return roundToSegment(estimatedDataBufferSizeInBytes(block))
                 + roundToSegment((long) (positionCount + 1) * Integer.BYTES)
                 + roundToSegment((positionCount + 7) / 8);
+    }
+
+    /**
+     * Estimates the size of the vector's data buffer for the given block: the value bytes only,
+     * without the offset and validity buffers.
+     */
+    protected long estimatedDataBufferSizeInBytes(Block block)
+    {
+        return block.getSizeInBytes();
     }
 
     @Override
