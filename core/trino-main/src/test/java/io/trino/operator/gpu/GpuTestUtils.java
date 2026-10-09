@@ -1051,7 +1051,7 @@ public final class GpuTestUtils
         assertThat(gpuExpression.inputChannels().getInputChannels())
                 .containsExactlyInAnyOrderElementsOf(expectedInputChannels);
 
-        assertGpuMatchesCpu(inputPages, inputTypes, expression, pageProcessor, gpuExpression, allowMultipleInputsForExceptionTesting, charVarcharCoercion);
+        assertGpuMatchesCpu(inputPages, inputTypes, expression, pageProcessor, gpuExpression, allowMultipleInputsForExceptionTesting, fullConnectorSession(charVarcharCoercion));
     }
 
     /**
@@ -1070,23 +1070,23 @@ public final class GpuTestUtils
 
     public static void assertGpuMatchesCpu(List<Page> inputPages, List<Type> inputTypes, Expression expression, PageProcessor cpuProcessor, CompiledExpression gpuExpression, boolean allowMultipleInputsForExceptionTesting)
     {
-        assertGpuMatchesCpu(inputPages, inputTypes, expression, cpuProcessor, gpuExpression, allowMultipleInputsForExceptionTesting, SQL_STANDARD);
+        assertGpuMatchesCpu(inputPages, inputTypes, expression, cpuProcessor, gpuExpression, allowMultipleInputsForExceptionTesting, FULL_CONNECTOR_SESSION);
     }
 
-    private static void assertGpuMatchesCpu(
+    public static void assertGpuMatchesCpu(
             List<Page> inputPages,
             List<Type> inputTypes,
             Expression expression,
             PageProcessor cpuProcessor,
             CompiledExpression gpuExpression,
             boolean allowMultipleInputsForExceptionTesting,
-            CharVarcharCoercion charVarcharCoercion)
+            ConnectorSession session)
     {
         assertDeclaredBehaviorOnAllNulls(inputPages, inputTypes, expression, gpuExpression);
 
         List<Page> cpuResults;
         try {
-            cpuResults = executeWithCpu(cpuProcessor, inputPages, fullConnectorSession(charVarcharCoercion));
+            cpuResults = executeWithCpu(cpuProcessor, inputPages, session);
         }
         catch (TrinoException cpuExecutionException) {
             // The boolean flag is a safety mechanism not to nullify test coverage over large input data set when one of the rows triggers execution exception

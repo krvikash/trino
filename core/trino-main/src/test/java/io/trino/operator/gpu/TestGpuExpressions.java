@@ -143,7 +143,6 @@ import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.spi.type.CharType.createCharType;
 import static io.trino.spi.type.Chars.truncateToLengthAndTrimSpaces;
 import static io.trino.spi.type.DateTimeEncoding.packDateTimeWithZone;
-import static io.trino.spi.type.DateTimeEncoding.unpackZoneKey;
 import static io.trino.spi.type.DateType.DATE;
 import static io.trino.spi.type.DecimalType.createDecimalType;
 import static io.trino.spi.type.DoubleType.DOUBLE;
@@ -155,7 +154,6 @@ import static io.trino.spi.type.TimeZoneKey.UTC_KEY;
 import static io.trino.spi.type.TimeZoneKey.getTimeZoneKey;
 import static io.trino.spi.type.TimeZoneKey.getTimeZoneKeyForOffset;
 import static io.trino.spi.type.TimestampType.createTimestampType;
-import static io.trino.spi.type.TimestampWithTimeZoneType.TIMESTAMP_TZ_MILLIS;
 import static io.trino.spi.type.TimestampWithTimeZoneType.createTimestampWithTimeZoneType;
 import static io.trino.spi.type.Timestamps.MICROSECONDS_PER_DAY;
 import static io.trino.spi.type.Timestamps.MILLISECONDS_PER_SECOND;
@@ -4200,37 +4198,15 @@ public class TestGpuExpressions
         assertThat(compileExpression(fromUnixTimeNanos, layoutFor(List.of(nanosType)), SQL_STANDARD, UTC_KEY)).isEmpty();
     }
 
-    /// `from_unixtime` compiles only in a UTC session, so both engines are run in one: the CPU
-    /// result then carries the zone as well as the instant, which `assertSameDataInOrder` compares
-    /// by instant alone.
+    /// `from_unixtime` compiles only in a UTC session, so both engines are run in one.
     private static void assertFromUnixTimeMatchesCpu(List<Page> inputPages)
     {
-        List<Type> inputTypes = List.of(DOUBLE);
         Expression expression = fromUnixTime(field(0, DOUBLE));
-        Map<Symbol, Integer> layout = layoutFor(inputTypes);
+        Map<Symbol, Integer> layout = layoutFor(List.of(DOUBLE));
         PageProcessor cpuProcessor = compileCpuExpression(expression, layout);
         CompiledExpression gpuExpression = compileExpression(expression, layout, SQL_STANDARD, UTC_KEY)
                 .orElseThrow(() -> new AssertionError("GPU expression compile failed for: " + expression));
-
-        List<Page> cpuResults;
-        try {
-            cpuResults = executeWithCpu(cpuProcessor, inputPages, UTC_CONNECTOR_SESSION);
-        }
-        catch (TrinoException cpuExecutionException) {
-            assertTrinoExceptionThrownBy(() -> executeWithGpu(inputPages, inputTypes, expression, gpuExpression))
-                    .hasErrorCode(cpuExecutionException::getErrorCode);
-            return;
-        }
-        List<Page> gpuResults = executeWithGpu(inputPages, inputTypes, expression, gpuExpression);
-        assertSameDataInOrder(gpuResults, cpuResults, List.of(TIMESTAMP_TZ_MILLIS));
-        for (Page page : gpuResults) {
-            Block block = page.getBlock(0);
-            for (int position = 0; position < block.getPositionCount(); position++) {
-                if (!block.isNull(position)) {
-                    assertThat(unpackZoneKey(TIMESTAMP_TZ_MILLIS.getLong(block, position))).isEqualTo(UTC_KEY);
-                }
-            }
-        }
+        assertGpuMatchesCpu(inputPages, List.of(DOUBLE), expression, cpuProcessor, gpuExpression, false, UTC_CONNECTOR_SESSION);
     }
 
     private static Expression fromUnixTime(Expression argument)
@@ -5480,19 +5456,11 @@ public class TestGpuExpressions
 
     private void testConstant(Expression constantExpression)
     {
-        List<Type> inputTypes = List.of(BIGINT);
         int positionsCount = 64;
         List<Page> inputPages = List.of(new Page(
                 positionsCount,
                 createBigintBlock(positionsCount, NullsProvider.NO_NULLS, 0, 100)));
-
-        CompiledExpression gpuExpression = compileExpression(constantExpression, layoutFor(List.of()), SQL_STANDARD, TEST_SESSION_TIME_ZONE_KEY)
-                .orElseThrow(() -> new AssertionError("GPU expression compile failed for: " + constantExpression));
-        assertThat(gpuExpression.inputChannels().getInputChannels()).isEmpty();
-
-        List<Page> gpuResults = executeWithGpu(inputPages, inputTypes, constantExpression, gpuExpression);
-        List<Page> cpuResults = executeWithCpu(inputPages, List.of(constantExpression), Map.of());
-        assertSameDataInOrder(gpuResults, cpuResults, List.of(constantExpression.type()));
+        assertGpuMatchesCpu(inputPages, List.of(BIGINT), constantExpression, Set.of());
     }
 
     /**
