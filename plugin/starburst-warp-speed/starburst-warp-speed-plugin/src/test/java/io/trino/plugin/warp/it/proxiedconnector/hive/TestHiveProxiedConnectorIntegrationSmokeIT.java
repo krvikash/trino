@@ -66,6 +66,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.IntStream;
 
+import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.trino.plugin.warp.config.ProxiedConnectorConfig.HIVE_CONNECTOR_NAME;
 import static io.trino.plugin.warp.config.ProxiedConnectorConfig.PROXIED_CONNECTOR;
 import static io.trino.plugin.warp.extension.config.WarpExtensionConfig.USE_HTTP_SERVER_PORT;
@@ -134,12 +135,17 @@ public class TestHiveProxiedConnectorIntegrationSmokeIT
     }
 
     @Test
-    // TODO stuck in endless loop
     public void testRowDereference()
     {
         createTable(DEFAULT_SCHEMA, "evolve_test", "(dummy bigint, a row(b bigint, c varchar), d bigint)");
-        computeActual("INSERT INTO evolve_test values (1, row(1, 'abc'), 1)");
-        computeActual(getSession(), "select * from evolve_test where a[1] > 1");
+        computeActual("INSERT INTO evolve_test VALUES (1, row(1, 'abc'), 1), (2, row(2, 'def'), 2)");
+        @Language("SQL") String query = "SELECT dummy FROM evolve_test WHERE a.b > 1";
+        // The first run reads through the proxied connector, since the stubs engine collects no rows.
+        assertThat(computeActual(getSession(), query).getOnlyColumnAsSet()).containsExactly(2L);
+        DispatcherTableHandle table = executeWithTableHandle(getSession(), query);
+        HiveColumnHandle columnHandle = (HiveColumnHandle) getOnlyElement(table.getFullPredicate().getDomains().orElseThrow().keySet());
+        assertThat(columnHandle.getName()).isEqualTo("a#b");
+        assertThat(columnHandle.isBaseColumn()).isFalse();
     }
 
     @Test

@@ -28,12 +28,15 @@ import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
 import static io.trino.plugin.warp.cloudvendors.config.CloudVendorConfig.STORE_PATH;
 import static io.trino.plugin.warp.config.ProxiedConnectorConfig.ICEBERG_CONNECTOR_NAME;
 import static io.trino.plugin.warp.config.ProxiedConnectorConfig.PROXIED_CONNECTOR;
+import static io.trino.plugin.warp.dispatcher.DispatcherPageSourceFactory.EXTERNAL_COLLECT;
+import static io.trino.plugin.warp.dispatcher.DispatcherPageSourceFactory.createFixedStatKey;
 import static io.trino.plugin.warp.extension.config.WarpExtensionConfig.USE_HTTP_SERVER_PORT;
 import static java.lang.String.format;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -219,5 +222,20 @@ public class TestIcebergProxiedConnectorIntegrationSmokeIT
         createTable(DEFAULT_SCHEMA, "timestamp_6", "(timestamp_col TIMESTAMP(6) with time zone, another_column TIMESTAMP(6) with time zone) WITH (format='PARQUET')");
         computeActual("INSERT INTO timestamp_6 VALUES (CAST('1969-12-31 15:03:00.123456 +01:00' as TIMESTAMP), CAST('1969-12-31 15:03:00.123456 +02:00' as TIMESTAMP))");
         computeActual("SELECT * FROM timestamp_6 WHERE timestamp_col = TIMESTAMP '1969-12-31 15:03:00.123456 +01:00' OR another_column = TIMESTAMP '1969-12-31 15:03:00.123456 +01:00'");
+    }
+
+    @Test
+    public void testNestedFieldsWithSameName()
+    {
+        createTable(DEFAULT_SCHEMA, "nested_same_name", "(x integer, s1 row(x integer), s2 row(x integer)) WITH (format='PARQUET')");
+        assertUpdate("INSERT INTO nested_same_name VALUES (1, row(2), row(3))", 1);
+        validateQueryStats(
+                "SELECT x, s1.x, s2.x FROM nested_same_name",
+                getSession(),
+                Map.of(),
+                List.of(
+                        createFixedStatKey(EXTERNAL_COLLECT, "x"),
+                        createFixedStatKey(EXTERNAL_COLLECT, "s1#x"),
+                        createFixedStatKey(EXTERNAL_COLLECT, "s2#x")));
     }
 }
