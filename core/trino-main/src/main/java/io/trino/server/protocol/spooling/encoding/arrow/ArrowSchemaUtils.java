@@ -105,33 +105,33 @@ public final class ArrowSchemaUtils
     public static Field toArrowField(String name, Type type, boolean nullable)
     {
         return switch (type) {
-            case ArrayType arrayType -> new Field(name, new FieldType(nullable, toArrowType(type), null), List.of(
-                    toArrowField("element", arrayType.getElementType(), nullable))); // Children
+            case ArrayType arrayType -> new Field(name, nullableField(toArrowType(type), nullable), List.of(
+                    toArrowField("element", arrayType.getElementType(), true))); // Children
 
             case MapType mapType -> {
                 Field child = new Field("entries", notNullable(ArrowType.Struct.INSTANCE), List.of(
                         toArrowField("key", mapType.getKeyType(), false), // Keys are not nullable
-                        toArrowField("value", mapType.getValueType(), nullable))); // Values can be
+                        toArrowField("value", mapType.getValueType(), true))); // Values can be
 
-                yield new Field(name, nullable(toArrowType(type)), List.of(child));
+                yield new Field(name, nullableField(toArrowType(type), nullable), List.of(child));
             }
             case RowType rowType -> {
                 List<Field> children = rowType.getFields().stream()
-                        .map(field -> toArrowField(field.getName().orElse(""), field.getType(), nullable))
+                        .map(field -> toArrowField(field.getName().orElse(""), field.getType(), true))
                         .collect(toImmutableList());
                 yield new Field(name, nullableField(toArrowType(type), nullable), children);
             }
             case TimeWithTimeZoneType timeZoneType -> {
                 List<Field> child = List.of(
-                        toArrowField(TIME_VECTOR_NAME, createTimeType(timeZoneType.getPrecision()), nullable),
-                        toArrowField(TIME_OFFSET_VECTOR_NAME, SMALLINT, nullable));
-                yield new Field(name, nullable(ArrowType.Struct.INSTANCE), child);
+                        toArrowField(TIME_VECTOR_NAME, createTimeType(timeZoneType.getPrecision()), true),
+                        toArrowField(TIME_OFFSET_VECTOR_NAME, SMALLINT, true));
+                yield new Field(name, nullableField(ArrowType.Struct.INSTANCE, nullable), child);
             }
             case TimestampWithTimeZoneType timestampWithTimeZoneType -> {
                 List<Field> child = List.of(
-                        toArrowField(TIMESTAMP_VECTOR_NAME, createTimestampType(timestampWithTimeZoneType.getPrecision()), nullable),
-                        toArrowField(TIMEZONE_VECTOR_NAME, VARCHAR, nullable));
-                yield new Field(name, nullable(ArrowType.Struct.INSTANCE), child);
+                        toArrowField(TIMESTAMP_VECTOR_NAME, createTimestampType(timestampWithTimeZoneType.getPrecision()), true),
+                        toArrowField(TIMEZONE_VECTOR_NAME, VARCHAR, true));
+                yield new Field(name, nullableField(ArrowType.Struct.INSTANCE, nullable), child);
             }
             default -> new Field(name, nullableField(toArrowType(type), nullable), null);
         };

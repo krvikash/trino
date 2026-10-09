@@ -215,9 +215,6 @@ public class TestArrowEncodingDecoding
     }
 
     // Not in AbstractTestEncodingDecoding: the JSON encoding doesn't support map-typed map keys.
-    // Map-typed map keys are declared nullable in the Arrow schema, which Arrow rejects, see
-    // https://github.com/starburstdata/cork/pull/4890. This test asserts the failure, so that it
-    // starts failing once that is fixed. Then remove the assertThatThrownBy wrapper.
     @Test
     void testMapOfMapKeysSerialization()
             throws IOException
@@ -247,17 +244,13 @@ public class TestArrowEncodingDecoding
         blockBuilder.appendNull();
 
         Page page = new Page(blockBuilder.build());
-        assertThatThrownBy(() -> {
-            List<List<Object>> values = roundTrip(columns, page);
-            assertThat(values.getFirst())
-                    .containsExactly(map(
-                            entry(map(entry(1, true), entry(2, false)), true),
-                            entry(map(entry(3, false)), null)));
+        List<List<Object>> values = roundTrip(columns, page);
+        assertThat(values.getFirst())
+                .containsExactly(map(
+                        entry(map(entry(1, true), entry(2, false)), true),
+                        entry(map(entry(3, false)), null)));
 
-            assertThat(values.getLast()).isEqualTo(nullRow());
-        })
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("Map data key type should be a non-nullable");
+        assertThat(values.getLast()).isEqualTo(nullRow());
     }
 
     private byte[] encode(List<OutputColumn> columns, long maxBatchSizeInBytes, Page page)

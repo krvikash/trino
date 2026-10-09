@@ -1018,6 +1018,60 @@ public abstract class AbstractTestEncodingDecoding
     }
 
     @Test
+    public void testMapOfTimestampWithTimeZoneKeysSerialization()
+            throws IOException
+    {
+        MapType mapType = new MapType(TIMESTAMP_TZ_SECONDS, BOOLEAN, new TypeOperators());
+        List<TypedColumn> columns = ImmutableList.of(typed("col0", mapType));
+        MapBlockBuilder blockBuilder = mapType.createBlockBuilder(null, 2);
+
+        blockBuilder.buildEntry((keyBuilder, valueBuilder) -> {
+            TIMESTAMP_TZ_SECONDS.writeLong(keyBuilder, packDateTimeWithZone(1741028237000L, UTC_KEY));
+            BOOLEAN.writeBoolean(valueBuilder, true);
+
+            TIMESTAMP_TZ_SECONDS.writeLong(keyBuilder, packDateTimeWithZone(1741028237000L, getTimeZoneKey("America/Bahia_Banderas")));
+            valueBuilder.appendNull();
+        });
+
+        blockBuilder.appendNull();
+
+        List<List<Object>> values = roundTrip(columns, page(blockBuilder.build()));
+        assertThat(values.getFirst())
+                .containsExactly(map(
+                        entry("2025-03-03 18:57:17 UTC", true),
+                        entry("2025-03-03 12:57:17 America/Bahia_Banderas", null)));
+
+        assertThat(values.getLast()).isEqualTo(nullRow());
+    }
+
+    @Test
+    public void testMapOfTimeWithTimeZoneKeysSerialization()
+            throws IOException
+    {
+        MapType mapType = new MapType(TIME_TZ_SECONDS, BOOLEAN, new TypeOperators());
+        List<TypedColumn> columns = ImmutableList.of(typed("col0", mapType));
+        MapBlockBuilder blockBuilder = mapType.createBlockBuilder(null, 2);
+
+        blockBuilder.buildEntry((keyBuilder, valueBuilder) -> {
+            TIME_TZ_SECONDS.writeLong(keyBuilder, packTimeWithTimeZone(NANOSECONDS_PER_SECOND, 60));
+            BOOLEAN.writeBoolean(valueBuilder, true);
+
+            TIME_TZ_SECONDS.writeLong(keyBuilder, packTimeWithTimeZone(86399 * NANOSECONDS_PER_SECOND, -14 * 60));
+            valueBuilder.appendNull();
+        });
+
+        blockBuilder.appendNull();
+
+        List<List<Object>> values = roundTrip(columns, page(blockBuilder.build()));
+        assertThat(values.getFirst())
+                .containsExactly(map(
+                        entry("00:00:01+01:00", true),
+                        entry("23:59:59-14:00", null)));
+
+        assertThat(values.getLast()).isEqualTo(nullRow());
+    }
+
+    @Test
     public void testMapOfVarbinaryKeysSerialization()
             throws IOException
     {
