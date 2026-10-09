@@ -299,6 +299,29 @@ public class WarmupRuleServiceTest
     }
 
     @Test
+    public void testNestedFieldRule()
+    {
+        createColumn(RowType.rowType(RowType.field("b", RowType.rowType(RowType.field("C", VarcharType.createVarcharType(10))))));
+        assertRuleApplied(createRule(WarmUpType.WARM_UP_TYPE_BASIC, new RegularColumn(COL1 + "#b#c"), Set.of()));
+    }
+
+    @Test
+    public void testNestedFieldRulePrefersExactCase()
+    {
+        RowType unsupportedField = RowType.rowType(RowType.field("d", VarcharType.createVarcharType(10)));
+        createColumn(RowType.rowType(RowType.field("C", unsupportedField), RowType.field("c", VarcharType.createVarcharType(10))));
+        assertRuleApplied(createRule(WarmUpType.WARM_UP_TYPE_BASIC, new RegularColumn(COL1 + "#c"), Set.of()));
+    }
+
+    @Test
+    public void testUnknownNestedFieldRule()
+    {
+        createColumn(RowType.rowType(RowType.field("b", RowType.rowType(RowType.field("c", VarcharType.createVarcharType(10))))));
+        assertRuleRejected(createRule(WarmUpType.WARM_UP_TYPE_BASIC, new RegularColumn(COL1 + "#b#d"), Set.of()), "Rule refer to a non-exist column");
+        assertRuleRejected(createRule(WarmUpType.WARM_UP_TYPE_BASIC, new RegularColumn(COL1 + "#b#c#d"), Set.of()), "Rule refer to a non-exist column");
+    }
+
+    @Test
     public void testCharRule()
     {
         createColumn(CharType.createCharType(7));

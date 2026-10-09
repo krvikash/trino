@@ -350,20 +350,39 @@ public class WarmupRuleService
             return Optional.of(columnMetadata.getType());
         }
         String[] parts = warmupRule.getWarpColumn().getName().split("#", -1);
-        if (parts.length == 2) {
-            columnMetadata = columnsMetadata.get(parts[0]);
-            if (columnMetadata != null) {
-                if (TypeUtils.isRowType(columnMetadata.getType())) {
-                    RowType rowType = (RowType) columnMetadata.getType();
-                    return rowType.getFields()
-                            .stream()
-                            .filter(field -> field.getName().equals(Optional.of(parts[1])))
-                            .map(Field::getType)
-                            .findAny();
-                }
-            }
+        if (parts.length < 2) {
+            return Optional.empty();
         }
-        return Optional.empty();
+        columnMetadata = columnsMetadata.get(parts[0]);
+        if (columnMetadata == null) {
+            return Optional.empty();
+        }
+        Optional<Type> type = Optional.of(columnMetadata.getType());
+        for (int i = 1; i < parts.length && type.isPresent(); i++) {
+            type = getFieldType(type.get(), parts[i]);
+        }
+        return type;
+    }
+
+    // Rule column names are lowercase, while row field names keep the case of the table schema.
+    private static Optional<Type> getFieldType(Type type, String fieldName)
+    {
+        if (!(type instanceof RowType rowType)) {
+            return Optional.empty();
+        }
+        Optional<Type> exactMatch = rowType.getFields()
+                .stream()
+                .filter(field -> field.getName().filter(fieldName::equals).isPresent())
+                .map(Field::getType)
+                .findFirst();
+        if (exactMatch.isPresent()) {
+            return exactMatch;
+        }
+        return rowType.getFields()
+                .stream()
+                .filter(field -> field.getName().filter(fieldName::equalsIgnoreCase).isPresent())
+                .map(Field::getType)
+                .findFirst();
     }
 
     private SchemaTableName getSchemaTableName(WarmupRule warmupRule)
