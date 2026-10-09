@@ -299,9 +299,29 @@ done
 ```
 
 If you are doing incremental update to version a commit which was not yet released in OSS you need to look at individual PRs
-pulled into update.
+pulled into update. There is no `release-NNN.md` for it yet, not even upstream: each upstream PR
+body may have a `## Release notes` section, and one PR usually covers several commits.
 
-TODO: provide helper snippet.
+```shell
+gh api "repos/trinodb/trino/commits/${TO}" >/dev/null   # gh needs read access to trinodb/trino
+for sha in $(git rev-list --reverse "${FROM}..${TO}" --invert-grep --grep '^\[maven-release-plugin]'); do
+    pr=$(gh api "repos/trinodb/trino/commits/${sha}/pulls" --jq '.[0] | "\(.number) \(.title)"' 2>/dev/null) \
+      && echo "${pr}" || echo "LOOKUP FAILED: ${sha}"
+done | sort -u
+```
+
+Then read each PR's description (`gh pr view --repo trinodb/trino <number>`), including its
+`## Release notes` section when it has one.
+Notes are not enough on their own: a PR's note can skip changes made by its other commits, and a
+PR marked "not user-visible" can still change behaviour. Also check the diff itself:
+
+```shell
+git diff "${FROM}..${TO}" -- core/trino-spi/src/main/java \
+  | grep -E '^-\s+(public|default)\s|^-    [A-Za-z<][^=;{(]* [a-z][A-Za-z0-9_]*\(' \
+  | grep -vE '^-\s+private\s'   # removed SPI, including implicitly public interface methods
+git diff "${FROM}..${TO}" -- '*/src/main/java/*' | grep -E '^-\s*@Config\(|^\+\s*@(Legacy|Defunct)Config\('
+git diff "${FROM}..${TO}" -- '*/src/main/java/*AccessControl*.java' '*/src/main/java/*/security/*.java'   # read in full: a changed checkCan body has no signature to grep for
+```
 
 ### get the cork PR reviewed and merged
 
