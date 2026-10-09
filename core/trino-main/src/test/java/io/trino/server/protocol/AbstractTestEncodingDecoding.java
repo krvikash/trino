@@ -1045,6 +1045,187 @@ public abstract class AbstractTestEncodingDecoding
     }
 
     @Test
+    public void testArrayOfMapsSerialization()
+            throws IOException
+    {
+        ArrayType arrayType = new ArrayType(new MapType(INTEGER, BOOLEAN, new TypeOperators()));
+        List<TypedColumn> columns = ImmutableList.of(typed("col0", arrayType));
+        ArrayBlockBuilder blockBuilder = arrayType.createBlockBuilder(null, 2);
+
+        blockBuilder.buildEntry(elementBuilder -> {
+            ((MapBlockBuilder) elementBuilder).buildEntry((keyBuilder, valueBuilder) -> {
+                INTEGER.writeLong(keyBuilder, 1);
+                BOOLEAN.writeBoolean(valueBuilder, true);
+
+                INTEGER.writeLong(keyBuilder, 2);
+                valueBuilder.appendNull();
+            });
+            ((MapBlockBuilder) elementBuilder).buildEntry((keyBuilder, valueBuilder) -> {
+                INTEGER.writeLong(keyBuilder, 3);
+                BOOLEAN.writeBoolean(valueBuilder, false);
+            });
+        });
+
+        blockBuilder.appendNull();
+
+        // More map entries (3) than array elements (2): the entries must not be sized from the element count
+        List<List<Object>> values = roundTrip(columns, page(blockBuilder.build()));
+        assertThat(values.getFirst())
+                .containsExactly(array(
+                        map(entry(1, true), entry(2, null)),
+                        map(entry(3, false))));
+
+        assertThat(values.getLast()).isEqualTo(nullRow());
+    }
+
+    @Test
+    public void testArrayOfLargeMapsSerialization()
+            throws IOException
+    {
+        // Far more map entries than array elements, so the entries can't fit in vectors sized from the array alone
+        int entryCount = 1000;
+        ArrayType arrayType = new ArrayType(new MapType(INTEGER, BOOLEAN, new TypeOperators()));
+        List<TypedColumn> columns = ImmutableList.of(typed("col0", arrayType));
+        ArrayBlockBuilder blockBuilder = arrayType.createBlockBuilder(null, 1);
+
+        blockBuilder.buildEntry(elementBuilder -> {
+            ((MapBlockBuilder) elementBuilder).buildEntry((keyBuilder, valueBuilder) -> {
+                INTEGER.writeLong(keyBuilder, 0);
+                BOOLEAN.writeBoolean(valueBuilder, true);
+            });
+            ((MapBlockBuilder) elementBuilder).buildEntry((keyBuilder, valueBuilder) -> {
+                for (int key = 1; key <= entryCount; key++) {
+                    INTEGER.writeLong(keyBuilder, key);
+                    BOOLEAN.writeBoolean(valueBuilder, key % 2 == 0);
+                }
+            });
+        });
+
+        Map<Object, Object> expectedLargeMap = new HashMap<>();
+        for (int key = 1; key <= entryCount; key++) {
+            expectedLargeMap.put(key, key % 2 == 0);
+        }
+
+        List<List<Object>> values = roundTrip(columns, page(blockBuilder.build()));
+        assertThat(values.getFirst())
+                .containsExactly(array(
+                        map(entry(0, true)),
+                        expectedLargeMap));
+    }
+
+    @Test
+    public void testRowOfMapSerialization()
+            throws IOException
+    {
+        MapType mapType = new MapType(INTEGER, BOOLEAN, new TypeOperators());
+        RowType rowType = RowType.rowType(
+                RowType.field("id", BIGINT),
+                RowType.field("m", mapType));
+        List<TypedColumn> columns = ImmutableList.of(typed("col0", rowType));
+        RowBlockBuilder blockBuilder = rowType.createBlockBuilder(null, 2);
+
+        blockBuilder.buildEntry(builders -> {
+            BIGINT.writeLong(builders.get(0), 1);
+            ((MapBlockBuilder) builders.get(1)).buildEntry((keyBuilder, valueBuilder) -> {
+                INTEGER.writeLong(keyBuilder, 1);
+                BOOLEAN.writeBoolean(valueBuilder, true);
+
+                INTEGER.writeLong(keyBuilder, 2);
+                valueBuilder.appendNull();
+
+                INTEGER.writeLong(keyBuilder, 3);
+                BOOLEAN.writeBoolean(valueBuilder, false);
+            });
+        });
+
+        blockBuilder.appendNull();
+
+        assertThat(roundTrip(columns, page(blockBuilder.build())))
+                .containsExactly(
+                        List.of(Row.builderWithExpectedSize(2)
+                                .addField("id", 1L)
+                                .addField("m", map(entry(1, true), entry(2, null), entry(3, false)))
+                                .build()),
+                        nullRow());
+    }
+
+    @Test
+    public void testMapOfLargeMapsSerialization()
+            throws IOException
+    {
+        // The inner maps have far more entries than the outer map, so their entries can't fit in vectors
+        // sized from the outer map alone
+        int entryCount = 1000;
+        MapType innerType = new MapType(INTEGER, BOOLEAN, new TypeOperators());
+        MapType mapType = new MapType(INTEGER, innerType, new TypeOperators());
+        List<TypedColumn> columns = ImmutableList.of(typed("col0", mapType));
+        MapBlockBuilder blockBuilder = mapType.createBlockBuilder(null, 1);
+
+        blockBuilder.buildEntry((keyBuilder, valueBuilder) -> {
+            INTEGER.writeLong(keyBuilder, 1);
+            ((MapBlockBuilder) valueBuilder).buildEntry((nestedKeyBuilder, nestedValueBuilder) -> {
+                INTEGER.writeLong(nestedKeyBuilder, 0);
+                BOOLEAN.writeBoolean(nestedValueBuilder, true);
+            });
+
+            INTEGER.writeLong(keyBuilder, 2);
+            ((MapBlockBuilder) valueBuilder).buildEntry((nestedKeyBuilder, nestedValueBuilder) -> {
+                for (int key = 1; key <= entryCount; key++) {
+                    INTEGER.writeLong(nestedKeyBuilder, key);
+                    BOOLEAN.writeBoolean(nestedValueBuilder, key % 2 == 0);
+                }
+            });
+        });
+
+        Map<Object, Object> expectedLargeMap = new HashMap<>();
+        for (int key = 1; key <= entryCount; key++) {
+            expectedLargeMap.put(key, key % 2 == 0);
+        }
+
+        List<List<Object>> values = roundTrip(columns, page(blockBuilder.build()));
+        assertThat(values.getFirst())
+                .containsExactly(map(
+                        entry(1, map(entry(0, true))),
+                        entry(2, expectedLargeMap)));
+    }
+
+    @Test
+    public void testRowOfMapOfLargeArraysSerialization()
+            throws IOException
+    {
+        // The arrays have far more elements than the map has entries, and the map is a field of a row,
+        // which makes the encoder size the map vector itself before writing it
+        int elementCount = 1000;
+        MapType mapType = new MapType(INTEGER, new ArrayType(INTEGER), new TypeOperators());
+        RowType rowType = RowType.rowType(RowType.field("m", mapType));
+        List<TypedColumn> columns = ImmutableList.of(typed("col0", rowType));
+        RowBlockBuilder blockBuilder = rowType.createBlockBuilder(null, 1);
+
+        blockBuilder.buildEntry(builders -> ((MapBlockBuilder) builders.get(0)).buildEntry((keyBuilder, valueBuilder) -> {
+            INTEGER.writeLong(keyBuilder, 1);
+            ((ArrayBlockBuilder) valueBuilder).buildEntry(elementBuilder -> INTEGER.writeLong(elementBuilder, 0));
+
+            INTEGER.writeLong(keyBuilder, 2);
+            ((ArrayBlockBuilder) valueBuilder).buildEntry(elementBuilder -> {
+                for (int element = 1; element <= elementCount; element++) {
+                    INTEGER.writeLong(elementBuilder, element);
+                }
+            });
+        }));
+
+        List<Integer> expectedLargeArray = new ArrayList<>();
+        for (int element = 1; element <= elementCount; element++) {
+            expectedLargeArray.add(element);
+        }
+
+        assertThat(roundTrip(columns, page(blockBuilder.build())))
+                .containsExactly(
+                        List.of(Row.builderWithExpectedSize(1)
+                                .addField("m", map(entry(1, array(0)), entry(2, expectedLargeArray)))
+                                .build()));
+    }
+
+    @Test
     public void testRowSerialization()
             throws IOException
     {
@@ -1209,7 +1390,7 @@ public abstract class AbstractTestEncodingDecoding
         return Arrays.asList(values);
     }
 
-    private static <K, V> Map<K, V> map(Entry<K, V>... entries)
+    static <K, V> Map<K, V> map(Entry<K, V>... entries)
     {
         Map<K, V> values = new HashMap<>();
         for (Entry<K, V> entry : entries) {
@@ -1269,7 +1450,7 @@ public abstract class AbstractTestEncodingDecoding
         return wrappedBuffer(bytes);
     }
 
-    private static <T> List<T> nullRow()
+    static <T> List<T> nullRow()
     {
         return new ArrayList<>(nCopies(1, null));
     }

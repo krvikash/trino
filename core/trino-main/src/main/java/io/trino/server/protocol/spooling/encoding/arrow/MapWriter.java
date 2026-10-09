@@ -64,7 +64,10 @@ public final class MapWriter
         for (int entry = 0; entry < keyBlock.getPositionCount(); entry++) {
             entriesVector.setIndexDefined(entry);
         }
+        // Size the key and value vectors from their own blocks
+        keyWriter.initialize(keyBlock);
         keyWriter.write(keyBlock);
+        valueWriter.initialize(valueBlock);
         valueWriter.write(valueBlock);
         vector.setValueCount(block.getPositionCount());
     }

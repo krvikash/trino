@@ -48,6 +48,7 @@ import java.util.Random;
 
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
 import static io.trino.spi.type.BigintType.BIGINT;
+import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.spi.type.DoubleType.DOUBLE;
 import static io.trino.spi.type.IntegerType.INTEGER;
 import static java.io.OutputStream.nullOutputStream;
@@ -211,6 +212,52 @@ public class TestArrowEncodingDecoding
             assertThat(mapVector.getDataVector().getValueCount()).isEqualTo(3);
             assertThat(mapVector.getDataVector().getNullCount()).isZero();
         }
+    }
+
+    // Not in AbstractTestEncodingDecoding: the JSON encoding doesn't support map-typed map keys.
+    // Map-typed map keys are declared nullable in the Arrow schema, which Arrow rejects, see
+    // https://github.com/starburstdata/cork/pull/4890. This test asserts the failure, so that it
+    // starts failing once that is fixed. Then remove the assertThatThrownBy wrapper.
+    @Test
+    void testMapOfMapKeysSerialization()
+            throws IOException
+    {
+        MapType keyType = new MapType(INTEGER, BOOLEAN, new TypeOperators());
+        MapType mapType = new MapType(keyType, BOOLEAN, new TypeOperators());
+        List<TypedColumn> columns = ImmutableList.of(TypedColumn.typed("col0", mapType));
+        MapBlockBuilder blockBuilder = mapType.createBlockBuilder(null, 2);
+
+        blockBuilder.buildEntry((keyBuilder, valueBuilder) -> {
+            ((MapBlockBuilder) keyBuilder).buildEntry((nestedKeyBuilder, nestedValueBuilder) -> {
+                INTEGER.writeLong(nestedKeyBuilder, 1);
+                BOOLEAN.writeBoolean(nestedValueBuilder, true);
+
+                INTEGER.writeLong(nestedKeyBuilder, 2);
+                BOOLEAN.writeBoolean(nestedValueBuilder, false);
+            });
+            BOOLEAN.writeBoolean(valueBuilder, true);
+
+            ((MapBlockBuilder) keyBuilder).buildEntry((nestedKeyBuilder, nestedValueBuilder) -> {
+                INTEGER.writeLong(nestedKeyBuilder, 3);
+                BOOLEAN.writeBoolean(nestedValueBuilder, false);
+            });
+            valueBuilder.appendNull();
+        });
+
+        blockBuilder.appendNull();
+
+        Page page = new Page(blockBuilder.build());
+        assertThatThrownBy(() -> {
+            List<List<Object>> values = roundTrip(columns, page);
+            assertThat(values.getFirst())
+                    .containsExactly(map(
+                            entry(map(entry(1, true), entry(2, false)), true),
+                            entry(map(entry(3, false)), null)));
+
+            assertThat(values.getLast()).isEqualTo(nullRow());
+        })
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Map data key type should be a non-nullable");
     }
 
     private byte[] encode(List<OutputColumn> columns, long maxBatchSizeInBytes, Page page)

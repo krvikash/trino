@@ -53,6 +53,8 @@ public final class ArrayWriter
             vector.startNewValue(position);
             vector.endValue(position, arrayBlock.getLength(position));
         }
+        // Size the element vector from its own block
+        elementWriter.initialize(elementsBlock);
         elementWriter.write(elementsBlock);
         vector.setValueCount(arrayBlock.getPositionCount());
     }

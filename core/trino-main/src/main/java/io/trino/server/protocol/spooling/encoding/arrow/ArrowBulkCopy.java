@@ -17,6 +17,7 @@ import io.airlift.slice.Slice;
 import io.trino.spi.block.Bitmap;
 import io.trino.spi.block.ValueBlock;
 import io.trino.spi.block.VariableWidthBlock;
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.BaseFixedWidthVector;
 import org.apache.arrow.vector.BaseVariableWidthVector;
 
@@ -42,7 +43,7 @@ final class ArrowBulkCopy
     {
         int typeWidth = vector.getTypeWidth();
         long bytes = (long) positionCount * typeWidth;
-        MemorySegment destination = MemorySegment.ofAddress(vector.getDataBufferAddress()).reinterpret(bytes);
+        MemorySegment destination = segment(vector.getDataBuffer(), bytes);
         MemorySegment.copy(source, (long) rawOffset * typeWidth, destination, 0, bytes);
     }
 
@@ -59,10 +60,10 @@ final class ArrowBulkCopy
 
         Slice slice = block.getRawSlice();
         MemorySegment source = MemorySegment.ofArray(slice.byteArray());
-        MemorySegment dataDestination = MemorySegment.ofAddress(vector.getDataBufferAddress()).reinterpret(dataBytes);
+        MemorySegment dataDestination = segment(vector.getDataBuffer(), dataBytes);
         MemorySegment.copy(source, (long) slice.byteArrayOffset() + dataStart, dataDestination, 0, dataBytes);
 
-        MemorySegment offsets = MemorySegment.ofAddress(vector.getOffsetBufferAddress()).reinterpret((long) (positionCount + 1) * Integer.BYTES);
+        MemorySegment offsets = segment(vector.getOffsetBuffer(), (long) (positionCount + 1) * Integer.BYTES);
         for (int position = 0; position <= positionCount; position++) {
             offsets.setAtIndex(ValueLayout.JAVA_INT, position, rawOffsets[base + position] - dataStart);
         }
@@ -70,22 +71,22 @@ final class ArrowBulkCopy
 
     static void writeValidity(BaseFixedWidthVector vector, ValueBlock block, int positionCount)
     {
-        writeValidity(vector.getValidityBufferAddress(), block, positionCount);
+        writeValidity(vector.getValidityBuffer(), block, positionCount);
     }
 
     static void writeValidity(BaseVariableWidthVector vector, ValueBlock block, int positionCount)
     {
-        writeValidity(vector.getValidityBufferAddress(), block, positionCount);
+        writeValidity(vector.getValidityBuffer(), block, positionCount);
     }
 
     /**
      * Fills the validity buffer from the block's nulls: all-ones when the block has no nulls, otherwise a packed
      * bitmap where a set bit means the position is valid (Trino's null flag inverted).
      */
-    private static void writeValidity(long validityBufferAddress, ValueBlock block, int positionCount)
+    private static void writeValidity(ArrowBuf validityBuffer, ValueBlock block, int positionCount)
     {
         int byteCount = (positionCount + 7) / 8;
-        MemorySegment validity = MemorySegment.ofAddress(validityBufferAddress).reinterpret(byteCount);
+        MemorySegment validity = segment(validityBuffer, byteCount);
         Optional<Bitmap> validityBitmap = block.getValidityBitmap();
         if (validityBitmap.isEmpty()) {
             validity.fill((byte) 0xFF);
@@ -106,5 +107,16 @@ final class ArrowBulkCopy
             int bitsInByte = Math.min(8, positionCount - position);
             validity.set(ValueLayout.JAVA_BYTE, byteIndex, (byte) Bitmap.getBits(rawWords, rawBitOffset, position, bitsInByte));
         }
+    }
+
+    /**
+     * The first {@code bytes} bytes of the buffer. The view is bounded by the buffer's capacity, so a copy into a
+     * vector that was not allocated large enough fails instead of writing past the end of the buffer.
+     */
+    private static MemorySegment segment(ArrowBuf buffer, long bytes)
+    {
+        return MemorySegment.ofAddress(buffer.memoryAddress())
+                .reinterpret(buffer.capacity())
+                .asSlice(0, bytes);
     }
 }

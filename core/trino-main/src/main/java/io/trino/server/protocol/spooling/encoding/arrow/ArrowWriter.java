@@ -63,6 +63,11 @@ public sealed interface ArrowWriter
     /**
      * Usually we want to call ValueVector.setInitialCapacity() to hint Arrow how many positions
      * will be there then we MUST call ValueVector.allocateNew() to get a memory allocation before writing.
+     * <p>
+     * Writers of nested types (arrays, maps, rows) initialize only their own vector here. Allocating it also
+     * allocates the child vectors, but with a capacity Arrow derives from the parent, which is too small when
+     * the children are nested types themselves. So these writers initialize each child writer from
+     * {@link #write(Block)} instead, with the child block, right before writing it.
      */
     void initialize(Block block);
 
