@@ -60,6 +60,7 @@ public class TestStarburstObjectStoreIcebergGlueCatalogAccessOperations
                     .put("great-lakes.table-type", TableType.ICEBERG.name())
                     .put("hive.metastore", "glue")
                     .put("hive.metastore.glue.default-warehouse-dir", "local://" + dataDir)
+                    .put("hive.metastore.glue.max-error-retries", "25")
                     .put("fs.local.enabled", "true")
                     .buildOrThrow());
 

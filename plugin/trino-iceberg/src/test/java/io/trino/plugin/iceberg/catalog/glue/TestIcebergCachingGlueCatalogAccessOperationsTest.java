@@ -39,6 +39,7 @@ final class TestIcebergCachingGlueCatalogAccessOperationsTest
                 .addExtraProperty("materialized-view-substitution.support.enabled", "false")
                 .addIcebergProperty("iceberg.catalog.type", "glue")
                 .addIcebergProperty("hive.metastore.glue.default-warehouse-dir", "local:///glue")
+                .addIcebergProperty("hive.metastore.glue.max-error-retries", "25")
                 .addIcebergProperty("iceberg.glue.metastore-cache.ttl", "30m")
                 .setSchemaInitializer(SchemaInitializer.builder().withSchemaName(testSchema).build())
                 .build();

@@ -72,6 +72,7 @@ final class TestIcebergCachingGlueCatalogConnectorSmokeTest
                                 "iceberg.catalog.type", "glue",
                                 "fs.s3.enabled", "true",
                                 "hive.metastore.glue.default-warehouse-dir", schemaPath(),
+                                "hive.metastore.glue.max-error-retries", "25",
                                 "iceberg.register-table-procedure.enabled", "true",
                                 "iceberg.writer-sort-buffer-size", "1MB",
                                 "iceberg.allowed-extra-properties", "write.metadata.delete-after-commit.enabled,write.metadata.previous-versions-max",

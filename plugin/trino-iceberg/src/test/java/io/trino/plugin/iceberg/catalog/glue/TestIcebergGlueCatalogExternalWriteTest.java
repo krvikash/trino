@@ -77,6 +77,7 @@ final class TestIcebergGlueCatalogExternalWriteTest
                 .put("iceberg.glue.metastore-cache.ttl", "30m")
                 .put("fs.s3.enabled", "true")
                 .put("hive.metastore.glue.default-warehouse-dir", "s3://%s/%s".formatted(bucketName, testPrefix))
+                .put("hive.metastore.glue.max-error-retries", "25")
                 .put("iceberg.file-format", PARQUET.name())
                 .buildOrThrow();
     }
