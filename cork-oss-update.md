@@ -225,7 +225,28 @@ git push --force-with-lease="${TARGET_BRANCH}:${EXPECT}" origin "HEAD:${TARGET_B
 
 ### Test out the PR on CI and iterate
 
-If the CI fails on the Update PR, make relevant fixes, updating the fixup commits
+If the CI fails on the Update PR, make relevant fixes as separate commits. Never amend a replayed
+OSS commit: reviewers read cork's changes, not the 200-600 imported commits, so each cork-side
+change has to be visible on its own until the PR is approved.
+
+| The fix is… | Commit it as |
+|---|---|
+| needed by exactly one incoming commit | `git commit --fixup=<sha>` (`fixup! <exact subject>`) |
+| needed by several commits, or by none in particular | `👷 <subject>` |
+| a regression already fixed upstream | cherry-pick the upstream fix with `-x` |
+| an upstream change cork should not take | `Revert "<subject>"`, with the reason in the body |
+
+Place each `fixup!` directly after its target. CI's `check-commit` compiles every commit except
+one that a later `fixup!` amends, so a fixup that repairs a compile break exempts its target but
+not the commits between them: every one of those goes red until the fixup is moved up. Do not
+squash until the PR is approved.
+
+In a revert, delete the `This reverts commit <sha>` line `git revert` adds and name the target
+by subject. That sha is the replayed commit's and changes on every rebase.
+
+When a problem is deferred rather than fixed in the update (an excluded upstream change, a
+revert to undo later, a connector bug for another team), file a Jira for it, link it to the
+update's tracking ticket and from the PR.
 
 ### Run benchmarks on the Update PR
 
