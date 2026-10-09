@@ -106,6 +106,7 @@ import static java.util.Objects.requireNonNullElse;
 
 @ThreadSafe
 class Query
+        implements ProtocolQuery
 {
     private static final Logger log = Logger.get(Query.class);
 
@@ -119,6 +120,8 @@ class Query
 
     @GuardedBy("this")
     private final ExchangeDataSource exchangeDataSource;
+
+    private final QueryDataProducerFactory queryDataProducerFactory;
 
     @GuardedBy("this")
     private QueryDataProducer queryDataProducer = QueryDataProducer.THROWING;
@@ -202,7 +205,7 @@ class Query
     @GuardedBy("this")
     private OptionalLong updateCount = OptionalLong.empty();
 
-    public static Query create(
+    static Query create(
             Session session,
             Slug slug,
             QueryManager queryManager,
@@ -211,7 +214,8 @@ class Query
             ExchangeManagerRegistry exchangeManagerRegistry,
             Executor dataProcessorExecutor,
             ScheduledExecutorService timeoutExecutor,
-            BlockEncodingSerde blockEncodingSerde)
+            BlockEncodingSerde blockEncodingSerde,
+            QueryDataProducerFactory queryDataProducerFactory)
     {
         ExchangeDataSource exchangeDataSource = new LazyExchangeDataSource(
                 session.getQueryId(),
@@ -223,7 +227,7 @@ class Query
                 getRetryPolicy(session),
                 exchangeManagerRegistry);
 
-        Query result = new Query(session, slug, queryManager, queryInfoUrl, exchangeDataSource, dataProcessorExecutor, timeoutExecutor, blockEncodingSerde);
+        Query result = new Query(session, slug, queryManager, queryInfoUrl, exchangeDataSource, dataProcessorExecutor, timeoutExecutor, blockEncodingSerde, queryDataProducerFactory);
 
         result.queryManager.setOutputInfoListener(result.getQueryId(), result::setQueryOutputInfo);
 
@@ -246,7 +250,8 @@ class Query
             ExchangeDataSource exchangeDataSource,
             Executor resultsProcessorExecutor,
             ScheduledExecutorService timeoutExecutor,
-            BlockEncodingSerde blockEncodingSerde)
+            BlockEncodingSerde blockEncodingSerde,
+            QueryDataProducerFactory queryDataProducerFactory)
     {
         requireNonNull(session, "session is null");
         requireNonNull(slug, "slug is null");
@@ -270,8 +275,10 @@ class Query
         this.supportsVariant = session.getClientCapabilities().contains(ClientCapabilities.VARIANT.toString());
         this.supportsVariantBinary = session.getClientCapabilities().contains(ClientCapabilities.VARIANT_BINARY.toString());
         this.serdeFactory = createExchangePagesSerdeFactory(blockEncodingSerde, session);
+        this.queryDataProducerFactory = requireNonNull(queryDataProducerFactory, "queryDataProducerFactory is null");
     }
 
+    @Override
     public void cancel()
     {
         queryManager.cancelQuery(queryId);
@@ -289,6 +296,7 @@ class Query
         queryManager.failQuery(queryId, throwable);
     }
 
+    @Override
     public synchronized void dispose()
     {
         exchangeDataSource.close();
@@ -311,6 +319,7 @@ class Query
         return queryManager.getFullQueryInfo(queryId);
     }
 
+    @Override
     public ListenableFuture<QueryResultsResponse> waitForResults(long token, ExternalUriInfo externalUriInfo, Duration wait)
     {
         ListenableFuture<Void> futureStateChange;
@@ -332,6 +341,7 @@ class Query
         return Futures.transform(futureStateChange, _ -> getNextResult(token, externalUriInfo), resultsProcessorExecutor);
     }
 
+    @Override
     public void markResultsConsumedIfReady()
     {
         if (resultsConsumed) {
@@ -720,7 +730,7 @@ class Query
             }
             columns = list.build();
             types = outputInfo.getColumnTypes();
-            queryDataProducer = QueryDataProducerFactory.create(session, types);
+            queryDataProducer = queryDataProducerFactory.create(session, columnNames, types);
         }
 
         outputInfo.drainInputs(exchangeDataSource::addInput);

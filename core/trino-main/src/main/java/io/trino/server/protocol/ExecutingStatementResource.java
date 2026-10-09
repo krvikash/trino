@@ -178,7 +178,7 @@ public class ExecutingStatementResource
             throw new NotFoundException("Query not found");
         }
 
-        query = queries.computeIfAbsent(queryId, _ -> queryFactory.createQuery(session, querySlug));
+        query = queries.computeIfAbsent(queryId, _ -> queryFactory.createQuery(session, querySlug, QueryDataProducerFactory.DEFAULT));
         return query;
     }
 

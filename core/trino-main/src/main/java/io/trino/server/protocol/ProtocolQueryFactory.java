@@ -59,7 +59,17 @@ public class ProtocolQueryFactory
         this.blockEncodingSerde = requireNonNull(blockEncodingSerde, "blockEncodingSerde is null");
     }
 
-    Query createQuery(Session session, Slug slug)
+    public ProtocolQuery create(Session session, Slug slug, QueryDataProducerFactory queryDataProducerFactory)
+    {
+        return createQuery(session, slug, queryDataProducerFactory);
+    }
+
+    /**
+     * Same as {@link #create}, exposing the implementation type to the REST resource, which also
+     * drives per-request concerns (slug validation, stage-level cancellation) that are not part of
+     * the {@link ProtocolQuery} contract.
+     */
+    Query createQuery(Session session, Slug slug, QueryDataProducerFactory queryDataProducerFactory)
     {
         return Query.create(
                 session,
@@ -70,6 +80,7 @@ public class ProtocolQueryFactory
                 exchangeManagerRegistry,
                 responseExecutor,
                 timeoutExecutor,
-                blockEncodingSerde);
+                blockEncodingSerde,
+                queryDataProducerFactory);
     }
 }
