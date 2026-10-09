@@ -20,6 +20,7 @@ import io.airlift.units.DataSize;
 import io.airlift.units.Duration;
 import io.trino.filesystem.s3.S3FileSystemConfig.ObjectCannedAcl;
 import io.trino.filesystem.s3.S3FileSystemConfig.S3AuthType;
+import io.trino.filesystem.s3.S3FileSystemConfig.S3ChecksumAlgorithm;
 import io.trino.filesystem.s3.S3FileSystemConfig.S3SseType;
 import io.trino.filesystem.s3.S3FileSystemConfig.StorageClassType;
 import jakarta.validation.constraints.AssertTrue;
@@ -62,6 +63,7 @@ public class TestS3FileSystemConfig
                 .setStorageClass(StorageClassType.STANDARD)
                 .setSignerType(null)
                 .setCannedAcl(ObjectCannedAcl.NONE)
+                .setChecksumAlgorithm(S3ChecksumAlgorithm.DEFAULT)
                 .setSseType(S3SseType.NONE)
                 .setRetryMode(LEGACY)
                 .setMaxErrorRetries(20)
@@ -101,6 +103,7 @@ public class TestS3FileSystemConfig
                 .put("s3.storage-class", "STANDARD_IA")
                 .put("s3.signer-type", "Aws4Signer")
                 .put("s3.canned-acl", "BUCKET_OWNER_FULL_CONTROL")
+                .put("s3.checksum-algorithm", "CRC32C")
                 .put("s3.retry-mode", "STANDARD")
                 .put("s3.max-error-retries", "12")
                 .put("s3.sse.type", "KMS")
@@ -139,6 +142,7 @@ public class TestS3FileSystemConfig
                 .setStorageClass(STANDARD_IA)
                 .setSignerType(Aws4Signer)
                 .setCannedAcl(ObjectCannedAcl.BUCKET_OWNER_FULL_CONTROL)
+                .setChecksumAlgorithm(S3ChecksumAlgorithm.CRC32C)
                 .setStreamingPartSize(DataSize.of(42, MEGABYTE))
                 .setRetryMode(STANDARD)
                 .setMaxErrorRetries(12)
