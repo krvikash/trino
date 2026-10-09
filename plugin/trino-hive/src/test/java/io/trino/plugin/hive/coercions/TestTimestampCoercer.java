@@ -484,6 +484,7 @@ public class TestTimestampCoercer
         assertReadingWithCoercionHybridToProlepticLegacyTimestampWithTimeZone("1582-10-04 00:00:00.000", zoneId); // just before the switch to Gregorian calendar
         assertReadingWithCoercionHybridToProlepticLegacyTimestampWithTimeZone("1582-10-04 15:15:15.123", zoneId);
         assertReadingWithCoercionHybridToProlepticLegacyTimestampWithTimeZone("1582-10-04 11:59:59.999", zoneId); // last day of Julian calendar
+        assertReadingWithCoercionHybridToProlepticLegacyTimestampWithTimeZone("1582-10-04 23:59:59.999", zoneId); // 1 ms before the switch in this zone
         assertReadingWithCoercionHybridToProlepticLegacyTimestampWithTimeZone("1582-10-15 12:00:00.000", zoneId); // first day after the switch to Gregorian calendar
 
         // Post-Gregorian dates (no rebasing needed but test coercer still works)
@@ -574,6 +575,7 @@ public class TestTimestampCoercer
         assertReadingWithCoercionHybridToProlepticLegacyLongTimestampWithTimeZone("1000-01-01 15:15:15.123456789", zoneId);
         assertReadingWithCoercionHybridToProlepticLegacyLongTimestampWithTimeZone("1582-10-04 15:15:15.123456789", zoneId);
         assertReadingWithCoercionHybridToProlepticLegacyLongTimestampWithTimeZone("1582-10-04 11:59:59.999999999", zoneId);
+        assertReadingWithCoercionHybridToProlepticLegacyLongTimestampWithTimeZone("1582-10-04 23:59:59.999999999", zoneId); // 1 ns before the switch in this zone
         assertReadingWithCoercionHybridToProlepticLegacyLongTimestampWithTimeZone("1582-10-15 12:00:00.000000000", zoneId);
         assertReadingWithCoercionHybridToProlepticLegacyLongTimestampWithTimeZone("1582-10-15 15:15:15.123456789", zoneId);
         assertReadingWithCoercionHybridToProlepticLegacyLongTimestampWithTimeZone("1582-10-15 23:59:59.999999999", zoneId);
