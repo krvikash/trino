@@ -14,12 +14,17 @@
 package io.trino.tests.benchmark;
 
 import io.airlift.log.Logger;
+import io.trino.filesystem.Location;
+import io.trino.filesystem.TrinoFileSystem;
+import io.trino.filesystem.TrinoFileSystemFactory;
 import io.trino.metastore.HiveMetastore;
 import io.trino.metastore.HiveMetastoreFactory;
 import io.trino.plugin.iceberg.IcebergConnector;
 import io.trino.plugin.iceberg.IcebergQueryRunner;
+import io.trino.spi.security.ConnectorIdentity;
 import io.trino.sql.query.QueryAssertions;
 import io.trino.testing.DistributedQueryRunner;
+import io.trino.testing.TestingAccessControlManager.TestingPrivilege;
 import io.trino.testing.containers.Minio;
 import io.trino.tpcds.Table;
 
@@ -31,6 +36,9 @@ import java.util.Map;
 import java.util.Optional;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static com.google.common.io.MoreFiles.deleteRecursively;
+import static com.google.common.io.RecursiveDeleteOption.ALLOW_INSECURE;
+import static io.trino.testing.TestingAccessControlManager.TestingPrivilegeType.INSERT_TABLE;
 import static io.trino.testing.containers.Minio.MINIO_REGION;
 import static io.trino.testing.containers.Minio.MINIO_ROOT_PASSWORD;
 import static io.trino.testing.containers.Minio.MINIO_ROOT_USER;
@@ -103,7 +111,10 @@ public abstract class BaseIcebergTpcdsWorkload
             throws Exception
     {
         if (isRemote(dataLocation)) {
-            throw new UnsupportedOperationException("Remote data locations are not supported for Iceberg benchmarks. Use a local path.");
+            if (warpIndexDirectory.isPresent()) {
+                throw new IllegalArgumentException("--warp-index requires a local --data location for Iceberg benchmarks");
+            }
+            return createRunnerForRemoteData(dataLocation, mode, bind8080, fsCacheDirectory);
         }
         Path minioDataDir = Path.of(dataLocation, "minio-data");
         Files.createDirectories(minioDataDir);
@@ -113,8 +124,6 @@ public abstract class BaseIcebergTpcdsWorkload
         minio.start();
 
         Map<String, String> icebergProperties = new HashMap<>();
-        icebergProperties.put("iceberg.register-table-procedure.enabled", "true");
-        icebergProperties.put("fs.s3.enabled", "true");
         icebergProperties.put("s3.aws-access-key", MINIO_ROOT_USER);
         icebergProperties.put("s3.aws-secret-key", MINIO_ROOT_PASSWORD);
         icebergProperties.put("s3.region", MINIO_REGION);
@@ -123,19 +132,8 @@ public abstract class BaseIcebergTpcdsWorkload
 
         IcebergQueryRunner.Builder builder = IcebergQueryRunner.builder()
                 .setMetastoreDirectory(Path.of(dataLocation).toFile())
-                .setWorkerCount(0)
-                .disableSchemaInitializer()
-                .setTpcdsCatalogEnabled(true)
                 .registerResource(minio);
-        BenchmarkRunner.configureQueryRunner(builder, mode, bind8080);
-        BenchmarkRunner.applyFilesystemCache(builder, icebergProperties, fsCacheDirectory);
-
-        if (mode == BenchmarkRunner.ExecutionMode.GPU) {
-            icebergProperties.put("iceberg.max-split-size", "512MB");
-            icebergProperties.put("iceberg.experimental.composite-splits.enabled", "true");
-        }
-        DistributedQueryRunner runner = builder.addIcebergProperties(icebergProperties).build();
-        runner.execute("CREATE SCHEMA IF NOT EXISTS iceberg.tpcds");
+        DistributedQueryRunner runner = buildRunner(builder, icebergProperties, mode, bind8080, fsCacheDirectory);
 
         HiveMetastore hiveMetastore = ((IcebergConnector) runner.getCoordinator().getConnector("iceberg")).getInjector()
                 .getInstance(HiveMetastoreFactory.class)
@@ -149,6 +147,65 @@ public abstract class BaseIcebergTpcdsWorkload
             benchmarkCatalog = WARP_CATALOG;
         }
 
+        return runner;
+    }
+
+    // Reads the tables in place from S3 with the default AWS credential chain.
+    private DistributedQueryRunner createRunnerForRemoteData(String dataLocation, BenchmarkRunner.ExecutionMode mode, boolean bind8080, Optional<Path> fsCacheDirectory)
+            throws Exception
+    {
+        Map<String, String> icebergProperties = new HashMap<>();
+        Path metastoreDirectory = Files.createTempDirectory("iceberg-tpcds-metastore");
+        IcebergQueryRunner.Builder builder = IcebergQueryRunner.builder()
+                .setMetastoreDirectory(metastoreDirectory.toFile())
+                .registerResource(() -> deleteRecursively(metastoreDirectory, ALLOW_INSECURE));
+        DistributedQueryRunner runner = buildRunner(builder, icebergProperties, mode, bind8080, fsCacheDirectory);
+
+        TrinoFileSystem fileSystem = ((IcebergConnector) runner.getCoordinator().getConnector("iceberg")).getInjector()
+                .getInstance(TrinoFileSystemFactory.class)
+                .create(ConnectorIdentity.ofUser("benchmark"));
+        List<String> tableLocations = fileSystem.listDirectories(Location.of(dataLocation)).stream()
+                .map(location -> location.toString().replaceFirst("/$", ""))
+                .collect(toImmutableList());
+        for (String table : TABLES) {
+            List<String> matches = tableLocations.stream()
+                    .filter(location -> location.substring(location.lastIndexOf('/') + 1).matches(table + "-[0-9a-f]{32}"))
+                    .collect(toImmutableList());
+            if (matches.size() != 1) {
+                throw new IllegalStateException("Expected one directory for table '%s' in %s, found %s".formatted(table, dataLocation, matches));
+            }
+            log.info("Registering table %s at %s", table, matches.getFirst());
+            runner.execute("CALL iceberg.system.register_table(schema_name => 'tpcds', table_name => '%s', table_location => '%s')".formatted(table, matches.getFirst()));
+        }
+
+        // Denying INSERT also denies ANALYZE, so runs never write statistics to the S3 dataset.
+        runner.getAccessControl().deny(new TestingPrivilege(Optional.empty(), _ -> true, INSERT_TABLE));
+        return runner;
+    }
+
+    // Adds the properties shared by local and remote data to icebergProperties and builds the runner.
+    private static DistributedQueryRunner buildRunner(
+            IcebergQueryRunner.Builder builder,
+            Map<String, String> icebergProperties,
+            BenchmarkRunner.ExecutionMode mode,
+            boolean bind8080,
+            Optional<Path> fsCacheDirectory)
+            throws Exception
+    {
+        icebergProperties.put("iceberg.register-table-procedure.enabled", "true");
+        icebergProperties.put("fs.s3.enabled", "true");
+        builder.setWorkerCount(0)
+                .disableSchemaInitializer()
+                .setTpcdsCatalogEnabled(true);
+        BenchmarkRunner.configureQueryRunner(builder, mode, bind8080);
+        BenchmarkRunner.applyFilesystemCache(builder, icebergProperties, fsCacheDirectory);
+
+        if (mode == BenchmarkRunner.ExecutionMode.GPU) {
+            icebergProperties.put("iceberg.max-split-size", "512MB");
+            icebergProperties.put("iceberg.experimental.composite-splits.enabled", "true");
+        }
+        DistributedQueryRunner runner = builder.addIcebergProperties(icebergProperties).build();
+        runner.execute("CREATE SCHEMA IF NOT EXISTS iceberg.tpcds");
         return runner;
     }
 
