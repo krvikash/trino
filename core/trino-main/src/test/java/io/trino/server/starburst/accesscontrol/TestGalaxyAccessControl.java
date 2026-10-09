@@ -79,9 +79,12 @@ import static io.starburst.stargate.accesscontrol.privilege.GrantKind.DENY;
 import static io.starburst.stargate.accesscontrol.privilege.Privilege.CREATE_SCHEMA;
 import static io.starburst.stargate.accesscontrol.privilege.Privilege.CREATE_TABLE;
 import static io.starburst.stargate.accesscontrol.privilege.Privilege.EXECUTE;
+import static io.starburst.stargate.accesscontrol.privilege.Privilege.MANAGE_SECURITY;
 import static io.starburst.stargate.accesscontrol.privilege.Privilege.VIEW_ALL_QUERY_HISTORY;
 import static io.trino.server.starburst.accesscontrol.GalaxyAccessControl.canSkipListEnabledRoles;
 import static io.trino.server.starburst.accesscontrol.GalaxySecurityMetadata.PRIVILEGE_TRANSLATIONS;
+import static io.trino.server.starburst.accesscontrol.GalaxySystemAccessControlConfig.AccessControlMode.GALAXY;
+import static io.trino.server.starburst.accesscontrol.GalaxySystemAccessControlConfig.AccessControlMode.SEP;
 import static io.trino.server.starburst.security.GalaxyIdentity.toDispatchSession;
 import static io.trino.server.starburst.security.GalaxyTestHelper.ACCOUNT_ADMIN;
 import static io.trino.server.starburst.security.GalaxyTestHelper.FEARLESS_LEADER;
@@ -898,7 +901,8 @@ public abstract class TestGalaxyAccessControl
                 1_000,
                 identity -> withLiveTable(helper.getAccessController(identity), liveTable),
                 new GalaxyFunctionScopeResolver(),
-                new StacCatalogManagementAccessControl(helper.getAccessControllerSupplier()));
+                new StacCatalogManagementAccessControl(helper.getAccessControllerSupplier()),
+                GALAXY);
         try {
             SystemSecurityContext context = adminContext();
             String liveTableDenial = "Ingest live table .* may not be modified";
@@ -1096,6 +1100,36 @@ public abstract class TestGalaxyAccessControl
         checkNotSupported("Galaxy does not support user impersonation", () -> accessControl.checkCanImpersonateUser(identity, "mickey_mouse@xample.com"));
         checkNotSupported("Galaxy does not support directly reading Trino cluster system information", () -> accessControl.checkCanReadSystemInformation(identity));
         checkNotSupported("Galaxy does not support directly writing Trino cluster system information", () -> accessControl.checkCanWriteSystemInformation(identity));
+    }
+
+    @Test
+    public void testSystemInformationInSepMode()
+    {
+        GalaxyAccessControl sepAccessControl = new GalaxyAccessControl(
+                1,
+                1_000,
+                helper.getAccessControllerSupplier(),
+                new GalaxyFunctionScopeResolver(),
+                new StacCatalogManagementAccessControl(helper.getAccessControllerSupplier()),
+                SEP);
+        GrantDetails manageSecurityGrant = new GrantDetails(MANAGE_SECURITY, fearlessRoleId, ALLOW, false, helper.getAccountClient().getAccountId());
+        try {
+            Identity adminIdentity = adminContext().getIdentity();
+            sepAccessControl.checkCanReadSystemInformation(adminIdentity);
+            sepAccessControl.checkCanWriteSystemInformation(adminIdentity);
+
+            Identity fearlessIdentity = fearlessContext().getIdentity();
+            checkNotAllowed(() -> sepAccessControl.checkCanReadSystemInformation(fearlessIdentity), "Cannot read system information: Reading system metadata requires the Manage Security privilege\\.");
+            checkNotAllowed(() -> sepAccessControl.checkCanWriteSystemInformation(fearlessIdentity), "Cannot write system information: Writing system metadata requires the Manage Security privilege\\.");
+
+            helper.getAccountClient().grantAccountPrivilege(manageSecurityGrant);
+            sepAccessControl.checkCanReadSystemInformation(fearlessIdentity);
+            sepAccessControl.checkCanWriteSystemInformation(fearlessIdentity);
+        }
+        finally {
+            helper.getAccountClient().revokeAccountPrivilege(manageSecurityGrant);
+            sepAccessControl.shutdown();
+        }
     }
 
     @ParameterizedTest

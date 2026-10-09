@@ -34,6 +34,7 @@ import io.starburst.stargate.id.RoleId;
 import io.starburst.stargate.id.SchemaId;
 import io.starburst.stargate.id.SharedSchemaNameAndAccepted;
 import io.starburst.stargate.id.TableId;
+import io.trino.server.starburst.accesscontrol.GalaxySystemAccessControlConfig.AccessControlMode;
 import io.trino.server.starburst.security.GalaxyIdentity;
 import io.trino.spi.QueryId;
 import io.trino.spi.StandardErrorCode;
@@ -85,6 +86,7 @@ import static io.starburst.stargate.accesscontrol.privilege.Privilege.CREATE_TAB
 import static io.starburst.stargate.accesscontrol.privilege.Privilege.DELETE;
 import static io.starburst.stargate.accesscontrol.privilege.Privilege.EXECUTE;
 import static io.starburst.stargate.accesscontrol.privilege.Privilege.INSERT;
+import static io.starburst.stargate.accesscontrol.privilege.Privilege.MANAGE_SECURITY;
 import static io.starburst.stargate.accesscontrol.privilege.Privilege.SELECT;
 import static io.starburst.stargate.accesscontrol.privilege.Privilege.UPDATE;
 import static io.starburst.stargate.accesscontrol.privilege.Privilege.VIEW_ALL_QUERY_HISTORY;
@@ -115,6 +117,7 @@ import static io.trino.spi.security.AccessDeniedException.denyDropTable;
 import static io.trino.spi.security.AccessDeniedException.denyDropView;
 import static io.trino.spi.security.AccessDeniedException.denyExecuteProcedure;
 import static io.trino.spi.security.AccessDeniedException.denyInsertTable;
+import static io.trino.spi.security.AccessDeniedException.denyReadSystemInformationAccess;
 import static io.trino.spi.security.AccessDeniedException.denyRefreshMaterializedView;
 import static io.trino.spi.security.AccessDeniedException.denyRefreshView;
 import static io.trino.spi.security.AccessDeniedException.denyRenameColumn;
@@ -132,6 +135,7 @@ import static io.trino.spi.security.AccessDeniedException.denyShowCreateSchema;
 import static io.trino.spi.security.AccessDeniedException.denyShowCreateTable;
 import static io.trino.spi.security.AccessDeniedException.denyTruncateTable;
 import static io.trino.spi.security.AccessDeniedException.denyUpdateTableColumns;
+import static io.trino.spi.security.AccessDeniedException.denyWriteSystemInformationAccess;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
@@ -157,18 +161,21 @@ public class GalaxyAccessControl
     private final ExecutorService backgroundExecutorService;
     private final FunctionScopeResolver functionScopeResolver;
     private final CatalogManagementAccessControl catalogManagementAccessControl;
+    private final AccessControlMode accessControlMode;
 
     public GalaxyAccessControl(
             int backgroundProcessingThreads,
             int visibilityBatchSize,
             GalaxyAccessControllerSupplier controllerSupplier,
             FunctionScopeResolver functionScopeResolver,
-            CatalogManagementAccessControl catalogManagementAccessControl)
+            CatalogManagementAccessControl catalogManagementAccessControl,
+            AccessControlMode accessControlMode)
     {
         this.backgroundProcessingThreads = backgroundProcessingThreads;
         this.visibilityBatchSize = visibilityBatchSize;
         this.functionScopeResolver = requireNonNull(functionScopeResolver, "functionScopeResolver is null");
         this.catalogManagementAccessControl = requireNonNull(catalogManagementAccessControl, "catalogManagementAccessControl is null");
+        this.accessControlMode = requireNonNull(accessControlMode, "accessControlMode is null");
         this.backgroundExecutorService = new ThreadPoolExecutor(
                 backgroundProcessingThreads,
                 backgroundProcessingThreads,
@@ -253,13 +260,29 @@ public class GalaxyAccessControl
     @Override
     public void checkCanReadSystemInformation(Identity identity)
     {
-        throw new TrinoException(NOT_SUPPORTED, "Galaxy does not support directly reading Trino cluster system information");
+        switch (accessControlMode) {
+            case GALAXY -> throw new TrinoException(NOT_SUPPORTED, "Galaxy does not support directly reading Trino cluster system information");
+            case SEP -> {
+                // TODO: check cluster privileges instead of MANAGE_SECURITY once they are supported
+                if (!hasAccountPrivilege(identity, MANAGE_SECURITY)) {
+                    denyReadSystemInformationAccess("Reading system metadata requires the Manage Security privilege.");
+                }
+            }
+        }
     }
 
     @Override
     public void checkCanWriteSystemInformation(Identity identity)
     {
-        throw new TrinoException(NOT_SUPPORTED, "Galaxy does not support directly writing Trino cluster system information");
+        switch (accessControlMode) {
+            case GALAXY -> throw new TrinoException(NOT_SUPPORTED, "Galaxy does not support directly writing Trino cluster system information");
+            case SEP -> {
+                // TODO: check cluster privileges instead of MANAGE_SECURITY once they are supported
+                if (!hasAccountPrivilege(identity, MANAGE_SECURITY)) {
+                    denyWriteSystemInformationAccess("Writing system metadata requires the Manage Security privilege.");
+                }
+            }
+        }
     }
 
     @Override

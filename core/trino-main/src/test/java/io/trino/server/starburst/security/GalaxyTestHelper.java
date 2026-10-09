@@ -175,7 +175,8 @@ public class GalaxyTestHelper
                 systemAccessControlConfig.getVisibilityBatchSize(),
                 accessControllerSupplier,
                 new GalaxyFunctionScopeResolver(),
-                new StacCatalogManagementAccessControl(accessControllerSupplier));
+                new StacCatalogManagementAccessControl(accessControllerSupplier),
+                systemAccessControlConfig.getAccessControlMode());
         metadataApi = new GalaxySecurityMetadata(client, catalogResolver, accessControllerSupplier, new GalaxyFunctionScopeResolver(), new GalaxyCatalogDdlObserver());
 
         // Make the roles

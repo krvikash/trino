@@ -66,6 +66,7 @@ import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static io.airlift.tracing.Tracing.noopTracer;
 import static io.trino.connector.CatalogHandle.createRootCatalogHandle;
 import static io.trino.metadata.CatalogStatus.OPERATIONAL;
+import static io.trino.server.starburst.accesscontrol.GalaxySystemAccessControlConfig.AccessControlMode.SEP;
 import static io.trino.spi.StandardErrorCode.CONFIGURATION_INVALID;
 import static io.trino.spi.catalog.CatalogGovernance.DELEGATED;
 import static io.trino.spi.catalog.CatalogGovernance.GOVERNED;
@@ -94,7 +95,8 @@ class TestStacBiacDelegatingSystemAccessControlSelector
             1,
             galaxyConsultations,
             new GalaxyFunctionScopeResolver(),
-            new StacCatalogManagementAccessControl(galaxyConsultations));
+            new StacCatalogManagementAccessControl(galaxyConsultations),
+            SEP);
     private final RefusingSystemAccessControl delegatedAccessControl = new RefusingSystemAccessControl(DELEGATED_CATALOG);
     private final StacBiacDelegatingSystemAccessControlSelector selector = new StacBiacDelegatingSystemAccessControlSelector(CATALOG_MANAGER);
 

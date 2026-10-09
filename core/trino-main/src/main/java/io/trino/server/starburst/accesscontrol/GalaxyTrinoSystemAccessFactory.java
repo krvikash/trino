@@ -19,6 +19,7 @@ import io.airlift.json.JsonModule;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.trace.Tracer;
 import io.starburst.stargate.accesscontrol.client.TrinoSecurityApi;
+import io.trino.server.starburst.accesscontrol.GalaxySystemAccessControlConfig.AccessControlMode;
 import io.trino.server.starburst.catalogs.CatalogResolver;
 import io.trino.server.starburst.catalogs.StaticCatalogResolver;
 import io.trino.spi.security.SystemAccessControl;
@@ -38,7 +39,7 @@ public class GalaxyTrinoSystemAccessFactory
     private final int backgroundProcessingThreads;
     private final FunctionScopeResolver functionScopeResolver;
     private final int visibilityBatchSize;
-    private final GalaxySystemAccessControlConfig.AccessControlMode accessControlMode;
+    private final AccessControlMode accessControlMode;
     private final TrinoSecurityApi trinoSecurityApi;
     private final OpenTelemetry openTelemetry;
     private final LazyGalaxyAccessControllerSupplier lazyGalaxyAccessControllerSupplier;
@@ -99,6 +100,6 @@ public class GalaxyTrinoSystemAccessFactory
             case SEP -> new StacCatalogManagementAccessControl(lazyGalaxyAccessControllerSupplier);
         };
 
-        return new GalaxyAccessControl(backgroundProcessingThreads, visibilityBatchSize, lazyGalaxyAccessControllerSupplier, functionScopeResolver, catalogManagementAccessControl);
+        return new GalaxyAccessControl(backgroundProcessingThreads, visibilityBatchSize, lazyGalaxyAccessControllerSupplier, functionScopeResolver, catalogManagementAccessControl, accessControlMode);
     }
 }
