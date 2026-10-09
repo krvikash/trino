@@ -30,7 +30,7 @@ import static java.util.Objects.requireNonNull;
 import static org.joda.time.DateTimeConstants.MILLIS_PER_SECOND;
 
 public final class TimestampSecWithTimeZoneWriter
-        implements ArrowWriter
+        extends ArrowWriter
 {
     // Assumed average size of a time zone id, used to estimate the variable-width timezone child.
     private static final int ESTIMATED_TIME_ZONE_ID_SIZE_IN_BYTES = 32;
@@ -47,13 +47,13 @@ public final class TimestampSecWithTimeZoneWriter
     }
 
     @Override
-    public void initialize(Block block)
+    protected void initialize(Block block)
     {
         vector.setInitialCapacity(block.getPositionCount());
     }
 
     @Override
-    public void write(Block block)
+    protected void writeValues(Block block)
     {
         for (int position = 0; position < block.getPositionCount(); position++) {
             if (block.isNull(position)) {

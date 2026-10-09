@@ -20,7 +20,7 @@ import static io.trino.server.protocol.spooling.encoding.arrow.ArrowWriter.round
 import static java.util.Objects.requireNonNull;
 
 public abstract sealed class VariableWidthWriter<V extends VariableWidthVector>
-        implements ArrowWriter
+        extends ArrowWriter
         permits CharWriter,
                 NumberWriter,
                 VarbinaryWriter,
@@ -34,7 +34,7 @@ public abstract sealed class VariableWidthWriter<V extends VariableWidthVector>
     }
 
     @Override
-    public void initialize(Block block)
+    protected void initialize(Block block)
     {
         vector.setInitialCapacity(block.getPositionCount());
         vector.allocateNew(estimatedDataBufferSizeInBytes(block), block.getPositionCount());

@@ -21,7 +21,7 @@ import static io.trino.server.protocol.spooling.encoding.arrow.ArrowWriter.round
 import static java.util.Objects.requireNonNull;
 
 public final class ArrayWriter
-        implements ArrowWriter
+        extends ArrowWriter
 {
     private final ListVector vector;
     private final ArrowWriter elementWriter;
@@ -33,7 +33,7 @@ public final class ArrayWriter
     }
 
     @Override
-    public void initialize(Block block)
+    protected void initialize(Block block)
     {
         ColumnarArray arrayBlock = ColumnarArray.toColumnarArray(block);
         vector.setInitialCapacity(arrayBlock.getElementsBlock().getPositionCount());
@@ -41,7 +41,7 @@ public final class ArrayWriter
     }
 
     @Override
-    public void write(Block block)
+    protected void writeValues(Block block)
     {
         ColumnarArray arrayBlock = ColumnarArray.toColumnarArray(block);
         Block elementsBlock = arrayBlock.getElementsBlock();
@@ -53,8 +53,6 @@ public final class ArrayWriter
             vector.startNewValue(position);
             vector.endValue(position, arrayBlock.getLength(position));
         }
-        // Size the element vector from its own block
-        elementWriter.initialize(elementsBlock);
         elementWriter.write(elementsBlock);
         vector.setValueCount(arrayBlock.getPositionCount());
     }

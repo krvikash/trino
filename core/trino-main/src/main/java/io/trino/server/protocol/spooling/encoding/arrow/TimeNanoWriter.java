@@ -28,7 +28,7 @@ public final class TimeNanoWriter
     }
 
     @Override
-    public void write(Block block)
+    protected void writeValues(Block block)
     {
         int positionCount = block.getPositionCount();
         for (int position = 0; position < positionCount; position++) {

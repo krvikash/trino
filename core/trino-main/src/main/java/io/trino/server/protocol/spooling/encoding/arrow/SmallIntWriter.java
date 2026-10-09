@@ -32,7 +32,7 @@ public final class SmallIntWriter
     }
 
     @Override
-    public void write(Block block)
+    protected void writeValues(Block block)
     {
         int positionCount = block.getPositionCount();
         if (block instanceof ShortArrayBlock valueBlock) {

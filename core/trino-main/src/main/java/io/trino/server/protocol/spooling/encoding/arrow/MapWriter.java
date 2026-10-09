@@ -22,7 +22,7 @@ import static io.trino.server.protocol.spooling.encoding.arrow.ArrowWriter.round
 import static java.util.Objects.requireNonNull;
 
 public final class MapWriter
-        implements ArrowWriter
+        extends ArrowWriter
 {
     private final MapVector vector;
     private final ArrowWriter keyWriter;
@@ -36,7 +36,7 @@ public final class MapWriter
     }
 
     @Override
-    public void initialize(Block block)
+    protected void initialize(Block block)
     {
         ColumnarMap mapBlock = ColumnarMap.toColumnarMap(block);
         Block valueBlock = mapBlock.getValuesBlock();
@@ -45,7 +45,7 @@ public final class MapWriter
     }
 
     @Override
-    public void write(Block block)
+    protected void writeValues(Block block)
     {
         ColumnarMap mapBlock = ColumnarMap.toColumnarMap(block);
         Block keyBlock = mapBlock.getKeysBlock();
@@ -64,10 +64,7 @@ public final class MapWriter
         for (int entry = 0; entry < keyBlock.getPositionCount(); entry++) {
             entriesVector.setIndexDefined(entry);
         }
-        // Size the key and value vectors from their own blocks
-        keyWriter.initialize(keyBlock);
         keyWriter.write(keyBlock);
-        valueWriter.initialize(valueBlock);
         valueWriter.write(valueBlock);
         vector.setValueCount(block.getPositionCount());
     }

@@ -19,7 +19,7 @@ import org.apache.arrow.vector.NullVector;
 import static java.util.Objects.requireNonNull;
 
 public final class NullWriter
-        implements ArrowWriter
+        extends ArrowWriter
 {
     private final NullVector vector;
 
@@ -29,7 +29,7 @@ public final class NullWriter
     }
 
     @Override
-    public void initialize(Block block)
+    protected void initialize(Block block)
     {
         vector.setInitialCapacity(block.getPositionCount());
         vector.allocateNew();
@@ -42,7 +42,7 @@ public final class NullWriter
     }
 
     @Override
-    public void write(Block block)
+    protected void writeValues(Block block)
     {
         int positionCount = block.getPositionCount();
         for (int position = 0; position < positionCount; position++) {

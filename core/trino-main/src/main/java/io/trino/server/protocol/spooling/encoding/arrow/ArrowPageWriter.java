@@ -145,7 +145,6 @@ public class ArrowPageWriter
         for (int i = 0; i < vectorWriters.size(); i++) {
             ArrowWriter writer = vectorWriters.get(i);
             Block block = page.getBlock(sourceChannels[i]);
-            writer.initialize(block);
             writer.write(block);
         }
         streamWriter.writeBatch();

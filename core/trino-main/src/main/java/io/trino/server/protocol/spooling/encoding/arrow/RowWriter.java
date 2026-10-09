@@ -23,7 +23,7 @@ import static io.trino.server.protocol.spooling.encoding.arrow.ArrowWriter.round
 import static java.util.Objects.requireNonNull;
 
 public final class RowWriter
-        implements ArrowWriter
+        extends ArrowWriter
 {
     private final StructVector vector;
     private final List<ArrowWriter> childWriters;
@@ -35,14 +35,14 @@ public final class RowWriter
     }
 
     @Override
-    public void initialize(Block block)
+    protected void initialize(Block block)
     {
         vector.setInitialCapacity(block.getPositionCount());
         vector.allocateNew();
     }
 
     @Override
-    public void write(Block block)
+    protected void writeValues(Block block)
     {
         int positionCount = block.getPositionCount();
         for (int position = 0; position < positionCount; position++) {
@@ -57,7 +57,6 @@ public final class RowWriter
         List<Block> fields = RowBlock.getRowFieldsFromBlock(block);
         for (int i = 0; i < fields.size(); i++) {
             Block childBlock = fields.get(i);
-            childWriters.get(i).initialize(childBlock);
             childWriters.get(i).write(childBlock);
         }
         vector.setValueCount(positionCount);

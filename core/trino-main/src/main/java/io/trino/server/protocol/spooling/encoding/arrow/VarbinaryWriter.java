@@ -31,7 +31,7 @@ public final class VarbinaryWriter
     }
 
     @Override
-    public void write(Block block)
+    protected void writeValues(Block block)
     {
         int positionCount = block.getPositionCount();
         if (block instanceof VariableWidthBlock valueBlock) {

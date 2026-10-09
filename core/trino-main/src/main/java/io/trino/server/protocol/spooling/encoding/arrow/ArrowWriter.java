@@ -24,7 +24,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 
 /**
- * Sealed interface for writing Trino values into Arrow vectors.
+ * Sealed abstract class for writing Trino values into Arrow vectors.
  *
  * <p>Time with time zone writers by precision:
  * <ul>
@@ -44,7 +44,7 @@ import static java.util.Objects.requireNonNull;
  * </ul>
  * timestamp(12) is not supported by Arrow.
  */
-public sealed interface ArrowWriter
+public abstract sealed class ArrowWriter
         permits ArrayWriter,
                 FixedWidthWriter,
                 MapWriter,
@@ -61,31 +61,38 @@ public sealed interface ArrowWriter
                 VariableWidthWriter
 {
     /**
+     * Allocates the vector for the block, then writes the block into it.
+     */
+    public final void write(Block block)
+    {
+        initialize(block);
+        writeValues(block);
+    }
+
+    /**
      * Usually we want to call ValueVector.setInitialCapacity() to hint Arrow how many positions
      * will be there then we MUST call ValueVector.allocateNew() to get a memory allocation before writing.
      * <p>
-     * Writers of nested types (arrays, maps, rows) initialize only their own vector here. Allocating it also
-     * allocates the child vectors, but with a capacity Arrow derives from the parent, which is too small when
-     * the children are nested types themselves. So these writers initialize each child writer from
-     * {@link #write(Block)} instead, with the child block, right before writing it.
+     * Writers of nested types (arrays, maps, rows) should initialize only their own vector here. Child writers
+     * should be initialized right before writing in {@link #write(Block)}, when the child block is computed.
      */
-    void initialize(Block block);
+    protected abstract void initialize(Block block);
 
     /**
      * This method implementation MUST end with ValueVector.setValueCount() call
      * which informs Arrow how many valid positions there are.
      */
-    void write(Block block);
+    protected abstract void writeValues(Block block);
 
     /**
      * Estimates how many bytes the Arrow vector would allocate for the given block, matching what
      * {@link #initialize(Block)} reserves. Used to split wide pages into batches that fit a memory budget;
      * the estimate need not be exact but should not undershoot what allocation actually reserves.
      */
-    long estimatedVectorSizeInBytes(Block block);
+    public abstract long estimatedVectorSizeInBytes(Block block);
 
     @Override
-    String toString();
+    public abstract String toString();
 
     /**
      * Rounds a buffer size up to a whole allocator segment, matching the SegmentRoundingPolicy configured in

@@ -29,7 +29,7 @@ import static java.lang.Math.floorDiv;
 import static java.util.Objects.requireNonNull;
 
 public final class TimeMicroWithTimeZoneWriter
-        implements ArrowWriter
+        extends ArrowWriter
 {
     private final StructVector vector;
     private final TimeMicroVector timeVector;
@@ -43,13 +43,13 @@ public final class TimeMicroWithTimeZoneWriter
     }
 
     @Override
-    public void initialize(Block block)
+    protected void initialize(Block block)
     {
         vector.setInitialCapacity(block.getPositionCount());
     }
 
     @Override
-    public void write(Block block)
+    protected void writeValues(Block block)
     {
         for (int position = 0; position < block.getPositionCount(); position++) {
             if (block.isNull(position)) {

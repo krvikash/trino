@@ -20,7 +20,7 @@ import static io.trino.server.protocol.spooling.encoding.arrow.ArrowWriter.round
 import static java.util.Objects.requireNonNull;
 
 public abstract sealed class FixedWidthWriter<V extends FixedWidthVector>
-        implements ArrowWriter
+        extends ArrowWriter
         permits BigintWriter,
                 BooleanWriter,
                 DateWriter,
@@ -51,7 +51,7 @@ public abstract sealed class FixedWidthWriter<V extends FixedWidthVector>
     }
 
     @Override
-    public void initialize(Block block)
+    protected void initialize(Block block)
     {
         vector.setInitialCapacity(block.getPositionCount());
         vector.allocateNew(block.getPositionCount());

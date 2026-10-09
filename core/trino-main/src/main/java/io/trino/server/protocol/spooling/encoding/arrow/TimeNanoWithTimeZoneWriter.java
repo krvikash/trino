@@ -27,7 +27,7 @@ import static io.trino.spi.type.TimeWithTimeZoneType.TIME_TZ_NANOS;
 import static java.util.Objects.requireNonNull;
 
 public final class TimeNanoWithTimeZoneWriter
-        implements ArrowWriter
+        extends ArrowWriter
 {
     private final StructVector vector;
     private final TimeNanoVector timeVector;
@@ -41,13 +41,13 @@ public final class TimeNanoWithTimeZoneWriter
     }
 
     @Override
-    public void initialize(Block block)
+    protected void initialize(Block block)
     {
         vector.setInitialCapacity(block.getPositionCount());
     }
 
     @Override
-    public void write(Block block)
+    protected void writeValues(Block block)
     {
         for (int position = 0; position < block.getPositionCount(); position++) {
             if (block.isNull(position)) {
