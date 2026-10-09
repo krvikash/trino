@@ -158,6 +158,7 @@ import static io.trino.spi.type.TimestampType.createTimestampType;
 import static io.trino.spi.type.TimestampWithTimeZoneType.TIMESTAMP_TZ_MILLIS;
 import static io.trino.spi.type.TimestampWithTimeZoneType.createTimestampWithTimeZoneType;
 import static io.trino.spi.type.Timestamps.MICROSECONDS_PER_DAY;
+import static io.trino.spi.type.Timestamps.MILLISECONDS_PER_SECOND;
 import static io.trino.spi.type.Timestamps.NANOSECONDS_PER_DAY;
 import static io.trino.spi.type.Timestamps.NANOSECONDS_PER_MICROSECOND;
 import static io.trino.spi.type.Timestamps.PICOSECONDS_PER_NANOSECOND;
@@ -4121,8 +4122,8 @@ public class TestGpuExpressions
                 -0.0025,
                 4.9999999999999994e-4,
                 -4.9999999999999994e-4,
-                GpuFromUnixTime.MIN_EPOCH_MILLIS,
-                GpuFromUnixTime.MAX_EPOCH_MILLIS,
+                GpuFromUnixTime.MIN_EPOCH_MILLIS / MILLISECONDS_PER_SECOND,
+                GpuFromUnixTime.MAX_EPOCH_MILLIS / MILLISECONDS_PER_SECOND,
                 Math.nextDown(0.0005),
                 Math.nextUp(0.0005),
                 null,
@@ -4154,8 +4155,8 @@ public class TestGpuExpressions
     void testFromUnixTimeOutOfRange()
     {
         List<Double> values = List.of(
-                GpuFromUnixTime.MIN_EPOCH_MILLIS - 1,
-                GpuFromUnixTime.MAX_EPOCH_MILLIS + 1,
+                (GpuFromUnixTime.MIN_EPOCH_MILLIS - 1.0) / MILLISECONDS_PER_SECOND,
+                (GpuFromUnixTime.MAX_EPOCH_MILLIS + 1.0) / MILLISECONDS_PER_SECOND,
                 Double.MAX_VALUE,
                 -Double.MAX_VALUE,
                 Double.POSITIVE_INFINITY,
