@@ -89,7 +89,7 @@ public class PredicateUtil
                     checkArgument(predicateType == PredicateType.PREDICATE_TYPE_STRING_VALUES, "predicateType is not string values as expected");
                     predicateSize += predicateSizeStringValues(numMatchElements);
                 }
-                else if (transformAllowed && isInversePredicate(sortedRangeSet, type)) {
+                else if (transformAllowed && functionType == FunctionType.FUNCTION_TYPE_NONE && isInversePredicate(sortedRangeSet, type)) {
                     predicateType = PredicateType.PREDICATE_TYPE_INVERSE_STRING;
                     numMatchElements--; // we ignore inifinity
                     predicateSize += predicateSizeStringInverseValues(numMatchElements);
@@ -105,9 +105,9 @@ public class PredicateUtil
                 if (nativeExpression.allSingleValue() && (predicateType == PredicateType.PREDICATE_TYPE_VALUES)) { // values and not ranges
                     predicateSize += predicateSizeValues(numMatchElements, elementRecTypeLength);
                 }
-                // never promote a CAST predicate to INVERSE_VALUES: native's fill_inverse_values() has
-                // no FUNCTION_TYPE_CAST handling and would misread the CAST-target-width payload.
-                else if (transformAllowed && functionType != FunctionType.FUNCTION_TYPE_CAST && isInversePredicate(sortedRangeSet, type)) {
+                // only promote a predicate without a function to INVERSE_VALUES: native's fill_inverse_values()
+                // compares raw column values and applies no function.
+                else if (transformAllowed && functionType == FunctionType.FUNCTION_TYPE_NONE && isInversePredicate(sortedRangeSet, type)) {
                     predicateType = PredicateType.PREDICATE_TYPE_INVERSE_VALUES;
                     numMatchElements--; // (-inf, 5),(5, 10),(10, inf) - we ignore infinity and take 5, 10
                     predicateSize += predicateSizeInverseValues(numMatchElements, elementRecTypeLength);

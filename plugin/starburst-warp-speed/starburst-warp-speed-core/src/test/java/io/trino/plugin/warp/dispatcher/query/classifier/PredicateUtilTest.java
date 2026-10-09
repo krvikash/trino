@@ -339,6 +339,44 @@ public class PredicateUtilTest
         assertThat(predicateData.getPredicateInfo().numValues()).isEqualTo(domain.getValues().getRanges().getRangeCount());
     }
 
+    @Test
+    public void testCalcPredicateData_dayOfYearNeverPromotedToInverseValues()
+    {
+        // day_of_year(date_col) < 3 OR day_of_year(date_col) > 3
+        Domain domain = Domain.create(ValueSet.ofRanges(Range.lessThan(BIGINT, 3L), Range.greaterThan(BIGINT, 3L)), false);
+        int sourceRecTypeLength = TypeUtils.getTypeLength(DateType.DATE, 0);
+        int functionTargetRecTypeLength = TypeUtils.getTypeLength(BIGINT, 0);
+        NativeExpression nativeExpression = new NativeExpression(
+                PREDICATE_TYPE_RANGES,
+                FunctionType.FUNCTION_TYPE_DAY_OF_YEAR,
+                domain,
+                false,
+                false,
+                List.of(),
+                TransformFunction.NONE);
+
+        PredicateData predicateData = PredicateUtil.calcPredicateData(nativeExpression, sourceRecTypeLength, true, DateType.DATE, functionTargetRecTypeLength);
+
+        assertThat(predicateData.getPredicateInfo().predicateType()).isEqualTo(PREDICATE_TYPE_RANGES);
+        assertThat(predicateData.getPredicateInfo().numValues()).isEqualTo(domain.getValues().getRanges().getRangeCount());
+    }
+
+    @Test
+    public void testCalcPredicateData_castStringNeverPromotedToInverseString()
+    {
+        // a string range predicate carrying a function keeps PREDICATE_TYPE_STRING_RANGES
+        Domain domain = Domain.create(ValueSet.ofRanges(
+                Range.lessThan(VarcharType.VARCHAR, Slices.utf8Slice("bla")),
+                Range.greaterThan(VarcharType.VARCHAR, Slices.utf8Slice("bla"))), false);
+        int recTypeLength = TypeUtils.getTypeLength(VarcharType.VARCHAR, 0);
+        NativeExpression nativeExpression = castNativeExpression(PREDICATE_TYPE_STRING_RANGES, domain, RecTypeCode.REC_TYPE_VARCHAR);
+
+        PredicateData predicateData = PredicateUtil.calcPredicateData(nativeExpression, recTypeLength, true, VarcharType.VARCHAR, recTypeLength);
+
+        assertThat(predicateData.getPredicateInfo().predicateType()).isEqualTo(PREDICATE_TYPE_STRING_RANGES);
+        assertThat(predicateData.getPredicateInfo().numValues()).isEqualTo(domain.getValues().getRanges().getRangeCount());
+    }
+
     private static NativeExpression castNativeExpression(PredicateType predicateType, Domain domain, RecTypeCode castTargetRecTypeCode)
     {
         return new NativeExpression(
