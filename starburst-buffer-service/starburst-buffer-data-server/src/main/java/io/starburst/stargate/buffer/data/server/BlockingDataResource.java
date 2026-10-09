@@ -84,6 +84,9 @@ import static io.starburst.stargate.buffer.data.client.HttpDataClient.SPOOLING_F
 import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.NO_CHECKSUM;
 import static io.starburst.stargate.buffer.data.client.TrinoMediaTypes.TRINO_CHUNK_DATA;
 import static io.starburst.stargate.buffer.data.execution.ChunkDataLease.CHUNK_SLICES_METADATA_SIZE;
+import static io.starburst.stargate.buffer.data.server.AddDataPagesInProgressTracker.Stage.ADDING_PAGES;
+import static io.starburst.stargate.buffer.data.server.AddDataPagesInProgressTracker.Stage.AWAITING_PAGE_WRITES;
+import static io.starburst.stargate.buffer.data.server.AddDataPagesInProgressTracker.Stage.READING_BODY;
 import static io.starburst.stargate.buffer.data.server.DataRequestHelper.getAsyncTimeout;
 import static io.starburst.stargate.buffer.data.server.DataRequestHelper.getClientId;
 import static io.starburst.stargate.buffer.data.server.HttpResponseHelper.errorResponse;
@@ -195,7 +198,7 @@ public class BlockingDataResource
         }
 
         // Concurrency control: check if we can accept more in-progress addDataPages requests
-        AddDataPagesInProgressTracker.InProgressLatch inProgressLatch = inProgressTracker.incrementAndGetLatch();
+        AddDataPagesInProgressTracker.InProgressLatch inProgressLatch = inProgressTracker.incrementAndGetLatch(exchangeId, taskId, attemptId, dataPagesId);
 
         try {
             // Reject requests when node is shutting down. Still consume the request body to unblock client.
@@ -250,6 +253,7 @@ public class BlockingDataResource
 
             // Block waiting for memory allocation
             Slice slice = awaitFuture(sliceLease.getSliceFuture(), asyncTimeout);
+            inProgressLatch.enterStage(READING_BODY);
 
             // Read data synchronously from input stream with deadline checking
             int bytesRead = 0;
@@ -279,6 +283,8 @@ public class BlockingDataResource
                     "Actual number of bytes read %s not equal to contentLength %s",
                     bytesRead,
                     contentLength);
+
+            inProgressLatch.enterStage(ADDING_PAGES);
 
             // Parse pages and validate checksum
             SliceInput sliceInput = slice.getInput();
@@ -387,6 +393,7 @@ public class BlockingDataResource
                         errorPrefix.get(),
                         e);
             }
+            inProgressLatch.enterStage(AWAITING_PAGE_WRITES);
 
             // Wait for all futures to complete before returning response.
             // Unlike the DataResource version, we don't optimize for early memory release when !shouldRetainMemory

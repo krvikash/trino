@@ -10,6 +10,7 @@
 package io.starburst.stargate.buffer.data.server;
 
 import io.starburst.stargate.buffer.data.server.AddDataPagesInProgressTracker.InProgressLatch;
+import io.starburst.stargate.buffer.data.server.AddDataPagesInProgressTracker.Stage;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -32,11 +33,11 @@ public class TestAddDataPagesInProgressTracker
 
         assertThat(tracker.getInProgressAddDataPagesRequests()).isEqualTo(0);
 
-        InProgressLatch latch1 = tracker.incrementAndGetLatch();
+        InProgressLatch latch1 = newLatch(tracker);
         assertThat(tracker.getInProgressAddDataPagesRequests()).isEqualTo(1);
         assertThat(latch1.currentRequestsCount()).isEqualTo(1);
 
-        InProgressLatch latch2 = tracker.incrementAndGetLatch();
+        InProgressLatch latch2 = newLatch(tracker);
         assertThat(tracker.getInProgressAddDataPagesRequests()).isEqualTo(2);
         assertThat(latch2.currentRequestsCount()).isEqualTo(2);
 
@@ -53,7 +54,7 @@ public class TestAddDataPagesInProgressTracker
         DataServerStats stats = new DataServerStats();
         AddDataPagesInProgressTracker tracker = new AddDataPagesInProgressTracker(stats);
 
-        InProgressLatch latch = tracker.incrementAndGetLatch();
+        InProgressLatch latch = newLatch(tracker);
         assertThat(tracker.getInProgressAddDataPagesRequests()).isEqualTo(1);
 
         // First release should work
@@ -75,8 +76,8 @@ public class TestAddDataPagesInProgressTracker
         DataServerStats stats = new DataServerStats();
         AddDataPagesInProgressTracker tracker = new AddDataPagesInProgressTracker(stats);
 
-        InProgressLatch latch1 = tracker.incrementAndGetLatch();
-        InProgressLatch latch2 = tracker.incrementAndGetLatch();
+        InProgressLatch latch1 = newLatch(tracker);
+        InProgressLatch latch2 = newLatch(tracker);
         assertThat(tracker.getInProgressAddDataPagesRequests()).isEqualTo(2);
 
         latch1.release();
@@ -92,10 +93,10 @@ public class TestAddDataPagesInProgressTracker
         DataServerStats stats = new DataServerStats();
         AddDataPagesInProgressTracker tracker = new AddDataPagesInProgressTracker(stats);
 
-        InProgressLatch latch1 = tracker.incrementAndGetLatch();
+        InProgressLatch latch1 = newLatch(tracker);
         assertThat(stats.getInProgressAddDataPagesRequests()).isEqualTo(1);
 
-        InProgressLatch latch2 = tracker.incrementAndGetLatch();
+        InProgressLatch latch2 = newLatch(tracker);
         assertThat(stats.getInProgressAddDataPagesRequests()).isEqualTo(2);
 
         latch1.release();
@@ -122,7 +123,7 @@ public class TestAddDataPagesInProgressTracker
             for (int i = 0; i < threadCount; i++) {
                 futures.add(executor.submit(() -> {
                     barrier.await(10, SECONDS);
-                    return tracker.incrementAndGetLatch();
+                    return newLatch(tracker);
                 }));
             }
 
@@ -154,7 +155,7 @@ public class TestAddDataPagesInProgressTracker
             // Create latches
             List<InProgressLatch> latches = new ArrayList<>();
             for (int i = 0; i < threadCount; i++) {
-                latches.add(tracker.incrementAndGetLatch());
+                latches.add(newLatch(tracker));
             }
 
             assertThat(tracker.getInProgressAddDataPagesRequests()).isEqualTo(threadCount);
@@ -186,5 +187,38 @@ public class TestAddDataPagesInProgressTracker
             executor.shutdown();
             executor.awaitTermination(10, SECONDS);
         }
+    }
+
+    @Test
+    public void testDescribeInProgressRequests()
+    {
+        DataServerStats stats = new DataServerStats();
+        AddDataPagesInProgressTracker tracker = new AddDataPagesInProgressTracker(stats);
+
+        assertThat(tracker.describeInProgressRequests()).isEmpty();
+
+        InProgressLatch latch1 = tracker.incrementAndGetLatch("exchange-1", 3, 0, 7);
+        InProgressLatch latch2 = tracker.incrementAndGetLatch("exchange-2", 5, 1, 9);
+        latch2.enterStage(Stage.AWAITING_PAGE_WRITES);
+
+        assertThat(tracker.describeInProgressRequests())
+                .satisfiesExactlyInAnyOrder(
+                        description -> assertThat(description).startsWith("exchange=exchange-1, taskId=3, attemptId=0, dataPagesId=7, stage=AWAITING_MEMORY,"),
+                        description -> assertThat(description).startsWith("exchange=exchange-2, taskId=5, attemptId=1, dataPagesId=9, stage=AWAITING_PAGE_WRITES,"));
+
+        latch1.release();
+        assertThat(tracker.describeInProgressRequests())
+                .singleElement()
+                .asString()
+                .startsWith("exchange=exchange-2,");
+
+        latch2.release();
+        latch2.release();
+        assertThat(tracker.describeInProgressRequests()).isEmpty();
+    }
+
+    private static InProgressLatch newLatch(AddDataPagesInProgressTracker tracker)
+    {
+        return tracker.incrementAndGetLatch("exchange", 0, 0, 0);
     }
 }

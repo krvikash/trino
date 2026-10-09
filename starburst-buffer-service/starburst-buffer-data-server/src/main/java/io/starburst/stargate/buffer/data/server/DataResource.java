@@ -102,6 +102,9 @@ import static io.starburst.stargate.buffer.data.client.HttpDataClient.SPOOLING_F
 import static io.starburst.stargate.buffer.data.client.PagesSerdeUtil.NO_CHECKSUM;
 import static io.starburst.stargate.buffer.data.client.TrinoMediaTypes.TRINO_CHUNK_DATA;
 import static io.starburst.stargate.buffer.data.execution.ChunkDataLease.CHUNK_SLICES_METADATA_SIZE;
+import static io.starburst.stargate.buffer.data.server.AddDataPagesInProgressTracker.Stage.ADDING_PAGES;
+import static io.starburst.stargate.buffer.data.server.AddDataPagesInProgressTracker.Stage.AWAITING_PAGE_WRITES;
+import static io.starburst.stargate.buffer.data.server.AddDataPagesInProgressTracker.Stage.READING_BODY;
 import static io.starburst.stargate.buffer.data.server.DataRequestHelper.getAsyncTimeout;
 import static io.starburst.stargate.buffer.data.server.DataRequestHelper.getClientId;
 import static io.starburst.stargate.buffer.data.server.HttpResponseHelper.errorResponse;
@@ -245,7 +248,7 @@ public class DataResource
             return;
         }
 
-        InProgressLatch inProgressLatch = inProgressTracker.incrementAndGetLatch();
+        InProgressLatch inProgressLatch = inProgressTracker.incrementAndGetLatch(exchangeId, taskId, attemptId, dataPagesId);
 
         try {
             if (bufferNodeStateManager.isDrainingStarted()) {
@@ -343,6 +346,7 @@ public class DataResource
                         @Override
                         public void onSuccess(Slice slice)
                         {
+                            inProgressLatch.enterStage(READING_BODY);
                             ReadListener readListener = new ReadListener()
                             {
                                 private final List<ListenableFuture<Void>> addDataPagesFutures = new ArrayList<>();
@@ -385,6 +389,7 @@ public class DataResource
                                 @Override
                                 public void onAllDataRead()
                                 {
+                                    inProgressLatch.enterStage(ADDING_PAGES);
                                     verify(bytesRead == contentLength,
                                             "Actual number of bytes read %s not equal to contentLength %s",
                                             bytesRead,
@@ -463,6 +468,7 @@ public class DataResource
                                         resumeWithError(errorPrefix.get(), e);
                                         return;
                                     }
+                                    inProgressLatch.enterStage(AWAITING_PAGE_WRITES);
 
                                     if (shouldRetainMemory) {
                                         // only release memory when all addDataPagesFutures complete

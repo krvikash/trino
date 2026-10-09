@@ -9,6 +9,7 @@
  */
 package io.starburst.stargate.buffer.data.server;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.inject.Inject;
 import io.airlift.log.Logger;
 import io.airlift.units.Duration;
@@ -16,12 +17,14 @@ import io.starburst.stargate.buffer.BufferNodeState;
 import io.starburst.stargate.buffer.data.execution.ChunkManager;
 import jakarta.annotation.PreDestroy;
 
+import java.lang.management.ThreadInfo;
 import java.util.Optional;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import static io.airlift.concurrent.Threads.daemonThreadsNamed;
+import static java.lang.management.ManagementFactory.getThreadMXBean;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
@@ -33,10 +36,13 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 public class DrainService
 {
     private static final Logger log = Logger.get(DrainService.class);
-    private static final Duration MAX_WAIT_NO_IN_PROGRESS_ADD_DATA_PAGES_REQUESTS = Duration.succinctDuration(2, TimeUnit.MINUTES);
+    private static final Duration DEFAULT_MAX_WAIT_NO_IN_PROGRESS_ADD_DATA_PAGES_REQUESTS = Duration.succinctDuration(2, TimeUnit.MINUTES);
+    private static final Duration DEFAULT_NO_PROGRESS_THREAD_DUMP_THRESHOLD = Duration.succinctDuration(30, TimeUnit.SECONDS);
 
     private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor(daemonThreadsNamed("data-server-drain-service"));
     private final Duration drainAllChunksTimeout;
+    private final Duration maxWaitNoInProgressAddDataPagesRequests;
+    private final Duration noProgressThreadDumpThreshold;
     private final BufferNodeStateManager bufferNodeStateManager;
     private final AddDataPagesInProgressTracker inProgressTracker;
     private final ChunkManager chunkManager;
@@ -50,11 +56,32 @@ public class DrainService
             ChunkManager chunkManager,
             Optional<DiscoveryBroadcast> discoveryBroadcast)
     {
+        this(dataServerConfig,
+                bufferNodeStateManager,
+                inProgressTracker,
+                chunkManager,
+                discoveryBroadcast,
+                DEFAULT_MAX_WAIT_NO_IN_PROGRESS_ADD_DATA_PAGES_REQUESTS,
+                DEFAULT_NO_PROGRESS_THREAD_DUMP_THRESHOLD);
+    }
+
+    @VisibleForTesting
+    DrainService(
+            DataServerConfig dataServerConfig,
+            BufferNodeStateManager bufferNodeStateManager,
+            AddDataPagesInProgressTracker inProgressTracker,
+            ChunkManager chunkManager,
+            Optional<DiscoveryBroadcast> discoveryBroadcast,
+            Duration maxWaitNoInProgressAddDataPagesRequests,
+            Duration noProgressThreadDumpThreshold)
+    {
         this.drainAllChunksTimeout = requireNonNull(dataServerConfig, "dataServerConfig is null").getDrainAllChunksTimeout();
         this.bufferNodeStateManager = requireNonNull(bufferNodeStateManager, "bufferNodeStateManager is null");
         this.inProgressTracker = requireNonNull(inProgressTracker, "inProgressTracker is null");
         this.chunkManager = requireNonNull(chunkManager, "chunkManager is null");
         this.discoveryBroadcast = requireNonNull(discoveryBroadcast, "discoveryBroadcast is null");
+        this.maxWaitNoInProgressAddDataPagesRequests = requireNonNull(maxWaitNoInProgressAddDataPagesRequests, "maxWaitNoInProgressAddDataPagesRequests is null");
+        this.noProgressThreadDumpThreshold = requireNonNull(noProgressThreadDumpThreshold, "noProgressThreadDumpThreshold is null");
     }
 
     @PreDestroy
@@ -66,7 +93,7 @@ public class DrainService
     public void awaitDrain()
     {
         drain();
-        long deadlineMillis = System.currentTimeMillis() + MAX_WAIT_NO_IN_PROGRESS_ADD_DATA_PAGES_REQUESTS.toMillis() + drainAllChunksTimeout.toMillis();
+        long deadlineMillis = System.currentTimeMillis() + maxWaitNoInProgressAddDataPagesRequests.toMillis() + drainAllChunksTimeout.toMillis();
         while (bufferNodeStateManager.getState() != BufferNodeState.DRAINED) {
             if (System.currentTimeMillis() > deadlineMillis) {
                 log.warn("Timed out waiting for buffer node to reach DRAINED state");
@@ -119,15 +146,30 @@ public class DrainService
     private boolean waitNoInProgressAddDataPagesRequests()
     {
         long waitStart = System.currentTimeMillis();
+        int lastInProgressAddDataPagesRequests = Integer.MAX_VALUE;
+        long lastProgressMillis = waitStart;
+        boolean threadDumpLogged = false;
         while (true) {
             int inProgressAddDataPagesRequests = inProgressTracker.getInProgressAddDataPagesRequests();
             if (inProgressAddDataPagesRequests == 0) {
                 log.info("No more remaining in flight addData requests");
                 break;
             }
-            if (System.currentTimeMillis() > waitStart + MAX_WAIT_NO_IN_PROGRESS_ADD_DATA_PAGES_REQUESTS.toMillis()) {
+            long now = System.currentTimeMillis();
+            if (inProgressAddDataPagesRequests < lastInProgressAddDataPagesRequests) {
+                lastInProgressAddDataPagesRequests = inProgressAddDataPagesRequests;
+                lastProgressMillis = now;
+            }
+            else if (!threadDumpLogged && now - lastProgressMillis > noProgressThreadDumpThreshold.toMillis()) {
+                log.warn("No in flight addData request completed in %s; %s remaining".formatted(noProgressThreadDumpThreshold, inProgressAddDataPagesRequests));
+                logInProgressRequests();
+                logThreadDump();
+                threadDumpLogged = true;
+            }
+            if (now > waitStart + maxWaitNoInProgressAddDataPagesRequests.toMillis()) {
                 chunkManager.logAddDataPagesInProgressDebugInfo();
-                log.error("Still %s in flight addData requests after waiting %s".formatted(inProgressAddDataPagesRequests, MAX_WAIT_NO_IN_PROGRESS_ADD_DATA_PAGES_REQUESTS));
+                logInProgressRequests();
+                log.error("Still %s in flight addData requests after waiting %s".formatted(inProgressAddDataPagesRequests, maxWaitNoInProgressAddDataPagesRequests));
                 return false;
             }
             log.info("Waiting until remaining %s in flight addData requests complete", inProgressAddDataPagesRequests);
@@ -140,5 +182,43 @@ public class DrainService
             }
         }
         return true;
+    }
+
+    private void logInProgressRequests()
+    {
+        inProgressTracker.describeInProgressRequests()
+                .forEach(request -> log.info("In flight addData request: %s", request));
+    }
+
+    private static void logThreadDump()
+    {
+        try {
+            // one entry per thread
+            for (ThreadInfo thread : getThreadMXBean().dumpAllThreads(true, true)) {
+                log.info("Thread dump: %s", formatThread(thread));
+            }
+        }
+        catch (RuntimeException e) {
+            // diagnostics must never prevent chunks from being drained
+            log.warn(e, "Failed to dump threads");
+        }
+    }
+
+    private static String formatThread(ThreadInfo thread)
+    {
+        StringBuilder builder = new StringBuilder()
+                .append('"').append(thread.getThreadName()).append('"')
+                .append(" id=").append(thread.getThreadId())
+                .append(' ').append(thread.getThreadState());
+        if (thread.getLockName() != null) {
+            builder.append(" on ").append(thread.getLockName());
+        }
+        if (thread.getLockOwnerName() != null) {
+            builder.append(" owned by \"").append(thread.getLockOwnerName()).append("\" id=").append(thread.getLockOwnerId());
+        }
+        for (StackTraceElement element : thread.getStackTrace()) {
+            builder.append("\n\tat ").append(element);
+        }
+        return builder.toString();
     }
 }

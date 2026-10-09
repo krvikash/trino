@@ -11,6 +11,7 @@ package io.starburst.stargate.buffer.data.server;
 
 import com.google.common.base.Ticker;
 import io.airlift.units.DataSize;
+import io.airlift.units.Duration;
 import io.starburst.stargate.buffer.BufferNodeInfo;
 import io.starburst.stargate.buffer.BufferNodeState;
 import io.starburst.stargate.buffer.data.execution.ChunkDataFactory;
@@ -21,10 +22,13 @@ import io.starburst.stargate.buffer.data.execution.SpooledChunksByExchange;
 import io.starburst.stargate.buffer.data.memory.MemoryAllocator;
 import io.starburst.stargate.buffer.data.memory.MemoryAllocatorConfig;
 import io.starburst.stargate.buffer.data.memory.TestingMemoryConfig;
+import io.starburst.stargate.buffer.data.server.AddDataPagesInProgressTracker.InProgressLatch;
+import io.starburst.stargate.buffer.data.server.AddDataPagesInProgressTracker.Stage;
 import io.starburst.stargate.buffer.data.spooling.SpoolingStorage;
 import io.starburst.stargate.buffer.discovery.client.BufferNodeInfoResponse;
 import io.starburst.stargate.buffer.discovery.client.DiscoveryApi;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.parallel.Execution;
 
 import java.net.URI;
 import java.time.Instant;
@@ -33,13 +37,21 @@ import java.util.Optional;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.logging.Handler;
+import java.util.logging.Level;
+import java.util.logging.LogRecord;
+import java.util.logging.Logger;
+import java.util.logging.SimpleFormatter;
 
 import static io.airlift.units.Duration.succinctDuration;
 import static io.starburst.stargate.buffer.data.spooling.SpoolTestHelper.createLocalSpoolingStorage;
 import static io.trino.testing.assertions.Assert.assertEventually;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.parallel.ExecutionMode.SAME_THREAD;
 
+@Execution(SAME_THREAD)
 public class TestDrainService
 {
     @Test
@@ -86,6 +98,161 @@ public class TestDrainService
         }
         finally {
             executor.shutdownNow();
+        }
+    }
+
+    @Test
+    public void testStuckInFlightRequestIsReportedWithThreadDump()
+    {
+        ExecutorService executor = Executors.newCachedThreadPool();
+        try (LogCapture logs = new LogCapture()) {
+            DataServerStats dataServerStats = new DataServerStats();
+            BufferNodeStateManager bufferNodeStateManager = new BufferNodeStateManager();
+            AddDataPagesInProgressTracker tracker = new AddDataPagesInProgressTracker(dataServerStats);
+            DrainService drainService = createDrainService(bufferNodeStateManager, tracker, createChunkManager(dataServerStats, executor), succinctDuration(1, SECONDS), succinctDuration(200, MILLISECONDS));
+            InProgressLatch latch = tracker.incrementAndGetLatch("exchange-1", 1, 2, 3);
+            latch.enterStage(Stage.AWAITING_PAGE_WRITES);
+
+            drainService.drain();
+
+            assertEventually(() -> assertThat(logs.messages()).anyMatch(message -> message.startsWith("Still 1 in flight addData requests after waiting")));
+            // no progress was made, so dump is logged exactly once, before giving up
+            assertThat(logs.messages().stream().filter(message -> message.startsWith("No in flight addData request completed in"))).hasSize(1);
+            assertThat(logs.messages()).anyMatch(message -> message.startsWith("Thread dump: ") && message.contains(Thread.currentThread().getName()));
+            assertThat(logs.messages()).anyMatch(message -> message.startsWith("In flight addData request: exchange=exchange-1, taskId=1, attemptId=2, dataPagesId=3, stage=AWAITING_PAGE_WRITES,"));
+            // drain proceeds even though the request never completed
+            assertEventually(() -> assertThat(bufferNodeStateManager.getState()).isEqualTo(BufferNodeState.DRAINED));
+            latch.release();
+        }
+        finally {
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
+    public void testInFlightRequestReportsCurrentStage()
+    {
+        ExecutorService executor = Executors.newCachedThreadPool();
+        try (LogCapture logs = new LogCapture()) {
+            DataServerStats dataServerStats = new DataServerStats();
+            AddDataPagesInProgressTracker tracker = new AddDataPagesInProgressTracker(dataServerStats);
+            DrainService drainService = createDrainService(new BufferNodeStateManager(), tracker, createChunkManager(dataServerStats, executor), succinctDuration(1, SECONDS), succinctDuration(30, SECONDS));
+            InProgressLatch latch = tracker.incrementAndGetLatch("exchange-1", 1, 2, 3);
+            latch.enterStage(Stage.READING_BODY);
+            latch.enterStage(Stage.ADDING_PAGES);
+
+            drainService.drain();
+
+            assertEventually(() -> assertThat(logs.messages()).anyMatch(message -> message.startsWith("In flight addData request:") && message.contains("stage=ADDING_PAGES")));
+            assertThat(logs.messages()).noneMatch(message -> message.startsWith("In flight addData request:") && message.contains("stage=READING_BODY"));
+            // thread dump threshold is not reached, in flight requests are reported only when giving up
+            assertThat(logs.messages()).noneMatch(message -> message.startsWith("Thread dump: "));
+            latch.release();
+        }
+        finally {
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
+    public void testCompletingRequestsBeforeThresholdDoesNotDumpThreads()
+    {
+        ExecutorService executor = Executors.newCachedThreadPool();
+        try (LogCapture logs = new LogCapture()) {
+            DataServerStats dataServerStats = new DataServerStats();
+            BufferNodeStateManager bufferNodeStateManager = new BufferNodeStateManager();
+            AddDataPagesInProgressTracker tracker = new AddDataPagesInProgressTracker(dataServerStats);
+            DrainService drainService = createDrainService(bufferNodeStateManager, tracker, createChunkManager(dataServerStats, executor), succinctDuration(30, SECONDS), succinctDuration(30, SECONDS));
+            InProgressLatch first = tracker.incrementAndGetLatch("exchange-1", 1, 0, 1);
+            InProgressLatch second = tracker.incrementAndGetLatch("exchange-1", 2, 0, 2);
+
+            drainService.drain();
+            assertEventually(() -> assertThat(logs.messages()).contains("Waiting until remaining 2 in flight addData requests complete"));
+            first.release();
+            assertEventually(() -> assertThat(logs.messages()).contains("Waiting until remaining 1 in flight addData requests complete"));
+            second.release();
+
+            assertEventually(() -> assertThat(bufferNodeStateManager.getState()).isEqualTo(BufferNodeState.DRAINED));
+            assertThat(logs.messages()).noneMatch(message -> message.startsWith("Thread dump: ") || message.startsWith("No in flight addData request completed in"));
+        }
+        finally {
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
+    public void testDrainWithoutInFlightRequestsLogsNoDiagnostics()
+    {
+        ExecutorService executor = Executors.newCachedThreadPool();
+        try (LogCapture logs = new LogCapture()) {
+            DataServerStats dataServerStats = new DataServerStats();
+            BufferNodeStateManager bufferNodeStateManager = new BufferNodeStateManager();
+            DrainService drainService = createDrainService(bufferNodeStateManager, dataServerStats, createChunkManager(dataServerStats, executor), Optional.empty());
+
+            drainService.awaitDrain();
+
+            assertThat(bufferNodeStateManager.getState()).isEqualTo(BufferNodeState.DRAINED);
+            assertThat(logs.messages()).contains("No more remaining in flight addData requests");
+            assertThat(logs.messages()).noneMatch(message -> message.startsWith("Thread dump: ") || message.startsWith("In flight addData request:") || message.startsWith("No in flight addData request completed in"));
+        }
+        finally {
+            executor.shutdownNow();
+        }
+    }
+
+    private static DrainService createDrainService(
+            BufferNodeStateManager bufferNodeStateManager,
+            AddDataPagesInProgressTracker tracker,
+            ChunkManager chunkManager,
+            Duration maxWaitNoInProgressAddDataPagesRequests,
+            Duration noProgressThreadDumpThreshold)
+    {
+        return new DrainService(
+                new DataServerConfig().setDrainAllChunksTimeout(succinctDuration(10, SECONDS)),
+                bufferNodeStateManager,
+                tracker,
+                chunkManager,
+                Optional.empty(),
+                maxWaitNoInProgressAddDataPagesRequests,
+                noProgressThreadDumpThreshold);
+    }
+
+    private static class LogCapture
+            implements AutoCloseable
+    {
+        private final Logger logger = Logger.getLogger(DrainService.class.getName());
+        private final SimpleFormatter formatter = new SimpleFormatter();
+        private final List<String> messages = new CopyOnWriteArrayList<>();
+        private final Handler handler = new Handler()
+        {
+            @Override
+            public void publish(LogRecord record)
+            {
+                messages.add(formatter.formatMessage(record));
+            }
+
+            @Override
+            public void flush() {}
+
+            @Override
+            public void close() {}
+        };
+
+        public LogCapture()
+        {
+            handler.setLevel(Level.ALL);
+            logger.addHandler(handler);
+        }
+
+        public List<String> messages()
+        {
+            return messages;
+        }
+
+        @Override
+        public void close()
+        {
+            logger.removeHandler(handler);
         }
     }
 
