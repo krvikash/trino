@@ -25,13 +25,14 @@ import io.trino.spi.gpu.borrow.Move;
 import java.util.List;
 import java.util.Objects;
 
+import static ai.rapids.cudf.BinaryOp.ADD;
 import static ai.rapids.cudf.BinaryOp.GREATER;
+import static ai.rapids.cudf.BinaryOp.GREATER_EQUAL;
 import static ai.rapids.cudf.BinaryOp.LESS;
 import static ai.rapids.cudf.BinaryOp.MUL;
 import static ai.rapids.cudf.BinaryOp.NULL_LOGICAL_OR;
-import static io.trino.operator.gpu.expression.CudfUtils.Ties.TOWARD_POSITIVE_INFINITY;
+import static ai.rapids.cudf.BinaryOp.TRUE_DIV;
 import static io.trino.operator.gpu.expression.CudfUtils.anyTrue;
-import static io.trino.operator.gpu.expression.CudfUtils.roundToIntegral;
 import static io.trino.operator.gpu.expression.GpuExpressions.nullSkippingCheck;
 import static io.trino.spi.StandardErrorCode.INVALID_FUNCTION_ARGUMENT;
 import static io.trino.spi.type.Timestamps.MILLISECONDS_PER_SECOND;
@@ -62,30 +63,45 @@ public final class GpuFromUnixTime
     {
         try (ClosingOnce<ColumnVector> unixTime = ClosingOnce.own(argument.evaluate(positionCount, inputColumns, bindings));
                 Scalar millisPerSecond = Scalar.fromDouble(MILLISECONDS_PER_SECOND);
-                ClosingOnce<ColumnVector> scaled = ClosingOnce.own(unixTime.borrow().binaryOp(MUL, millisPerSecond, DType.FLOAT64))) {
+                ClosingOnce<ColumnVector> scaled = ClosingOnce.own(unixTime.borrow().binaryOp(MUL, millisPerSecond, DType.FLOAT64));
+                ClosingOnce<ColumnVector> rounded = ClosingOnce.own(round(unixTime.borrow(), scaled.borrow()))) {
             unixTime.close();
-            try (ClosingOnce<ColumnVector> rounded = ClosingOnce.own(round(scaled.borrow()))) {
-                scaled.close();
-                verifyInRange(rounded.borrow());
-                try (ColumnVector epochMillis = rounded.borrow().castTo(DType.INT64)) {
-                    rounded.close();
-                    return epochMillis.castTo(DType.TIMESTAMP_MILLISECONDS);
-                }
+            scaled.close();
+            verifyInRange(rounded.borrow());
+            try (ColumnVector epochMillis = rounded.borrow().castTo(DType.INT64)) {
+                rounded.close();
+                return epochMillis.castTo(DType.TIMESTAMP_MILLISECONDS);
             }
         }
     }
 
-    /// Reproduces `Math.round`. NaN becomes zero, as `Math.round` does, and the CPU implementation
-    /// then packs the epoch. An infinity stays infinite and is rejected by the range check.
+    /// Reproduces `DateTimeFunctions.unixTimeToEpochMillis`, which rounds half away from zero and
+    /// treats `unixTime` as a tie when it is the double nearest the half millisecond. The CPU decides
+    /// by that comparison only within two ulps of a half and uses `Math.round` elsewhere, but away
+    /// from a half the comparison agrees with `Math.round`, so it is made for every value.
     ///
-    /// TODO: https://github.com/trinodb/trino/pull/31386 makes the CPU round like a cast to decimal
-    /// and reject NaN; if it lands, this can be simplified to match it
-    private static @Move ColumnVector round(@Borrow ColumnVector value)
+    /// `lowerMillis + 0.5` is exact below 2^52, so dividing it gives the double nearest the half
+    /// millisecond, as `(2 * lowerMillis + 1) / 2000.0` does on the CPU. From 2^52 up, and for an
+    /// infinity, the result is out of range either way and the range check rejects it. NaN becomes
+    /// zero, as it does on the CPU.
+    private static @Move ColumnVector round(@Borrow ColumnVector unixTime, @Borrow ColumnVector millis)
     {
-        try (ColumnVector rounded = roundToIntegral(value, TOWARD_POSITIVE_INFINITY);
+        try (ColumnVector lowerMillis = millis.floor();
+                Scalar half = Scalar.fromDouble(0.5);
+                ColumnVector halfMillis = lowerMillis.binaryOp(ADD, half, DType.FLOAT64);
+                Scalar millisPerSecond = Scalar.fromDouble(MILLISECONDS_PER_SECOND);
+                ColumnVector halfMillisecond = halfMillis.binaryOp(TRUE_DIV, millisPerSecond, DType.FLOAT64);
+                // A tie goes up, away from zero, only above zero
+                ColumnVector atOrAbove = unixTime.binaryOp(GREATER_EQUAL, halfMillisecond, DType.BOOL8);
+                ColumnVector above = unixTime.binaryOp(GREATER, halfMillisecond, DType.BOOL8);
+                Scalar zero = Scalar.fromDouble(0.0);
+                ColumnVector positive = unixTime.binaryOp(GREATER, zero, DType.BOOL8);
+                ColumnVector roundsUp = positive.ifElse(atOrAbove, above);
+                Scalar one = Scalar.fromDouble(1.0);
+                ColumnVector upperMillis = lowerMillis.binaryOp(ADD, one, DType.FLOAT64);
+                ColumnVector rounded = roundsUp.ifElse(upperMillis, lowerMillis);
                 // is_nan is false for a null, so a null row keeps its null through the selection
-                ColumnVector isNan = rounded.isNan();
-                Scalar zero = Scalar.fromDouble(0.0)) {
+                ColumnVector isNan = millis.isNan()) {
             return isNan.ifElse(zero, rounded);
         }
     }

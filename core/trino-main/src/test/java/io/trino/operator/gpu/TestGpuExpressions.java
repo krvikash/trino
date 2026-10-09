@@ -4047,12 +4047,10 @@ public class TestGpuExpressions
         }
     }
 
-    /// The CPU implementation of the long representation converts the milliseconds and the
-    /// picoseconds of the millisecond to double separately and adds the two, so the result is rounded
-    /// twice. `to_unixtime(TIMESTAMP '2020-05-10 12:34:56.12345 UTC')` is `1589114096.1234498e0`
-    /// rather than `1589114096.12345e0`, which one division of the whole instant would give.
+    /// 2020-05-10 12:34:56.12345 UTC, where converting the milliseconds and the picoseconds of the
+    /// millisecond separately and adding the two rounds to a different double.
     @Test
-    void testToUnixTimeRoundsTwice()
+    void testToUnixTimeRoundsOnce()
     {
         // 2020-05-10 12:34:56.12345 UTC, as epoch milliseconds plus 0.45 of a millisecond
         long epochMillis = 1589114096123L;
@@ -4102,9 +4100,8 @@ public class TestGpuExpressions
                 ImmutableList.of(argument));
     }
 
-    /// `Math.round` is not `floor(x + 0.5)`, so the input covers the halfway fractions, where the tie
-    /// is broken towards positive infinity, and the value just below a half, where `floor(x + 0.5)`
-    /// rounds up and `Math.round` does not.
+    /// The input covers the halfway fractions of both signs, the doubles nearest a half millisecond,
+    /// whose product with 1000 may land on either side of the half, and their neighbours.
     @Test
     void testFromUnixTime()
     {
@@ -4129,9 +4126,14 @@ public class TestGpuExpressions
                 -1.0,
                 1589093396.1234498,
                 -1589093396.1234498,
-                // The product with 1000 rounds to the halfway 1000.5 before Math.round sees it
+                // The product with 1000 rounds to the halfway 1000.5
                 1.0005,
-                -1589067296.1235));
+                -1589067296.1235,
+                1589067296.1235,
+                0.5005,
+                0.5004999,
+                1589067296.1235003,
+                -4.999999999999999e-4));
         Random random = new Random(42);
         for (int i = 0; i < 512; i++) {
             values.add(random.nextDouble(-2e12, 2e12));
@@ -4142,7 +4144,7 @@ public class TestGpuExpressions
         assertFromUnixTimeMatchesCpu(List.of(new Page(createFloatingPointBlock(DOUBLE, values))));
     }
 
-    /// `Math.round(NaN)` is zero, so the CPU implementation returns the epoch rather than failing.
+    /// The CPU implementation returns the epoch for NaN rather than failing.
     @Test
     void testFromUnixTimeNotANumber()
     {
@@ -4155,6 +4157,8 @@ public class TestGpuExpressions
         List<Double> values = List.of(
                 (GpuFromUnixTime.MIN_EPOCH_MILLIS - 1.0) / MILLISECONDS_PER_SECOND,
                 (GpuFromUnixTime.MAX_EPOCH_MILLIS + 1.0) / MILLISECONDS_PER_SECOND,
+                // Rounds away from zero to one millisecond below the minimum
+                -2251799813685.2485,
                 Double.MAX_VALUE,
                 -Double.MAX_VALUE,
                 Double.POSITIVE_INFINITY,
