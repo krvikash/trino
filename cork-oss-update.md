@@ -211,8 +211,16 @@ git commit -a -m "Update trino-base.txt after sync with Trino ${TO_VERSION} (${T
 
 Push the ready `update/cork/trino-${TO_VERSION}-${TO}` branch to `origin` remote.
 
+The branch is shared, so pin the lease to the remote state you inspected. A bare
+`--force-with-lease` compares with `origin/<branch>` at push time, and any fetch in between
+(an IDE's background fetch too) moves that ref, so the lease passes and the push deletes commits
+you never saw:
+
 ```shell
-git push origin "${TARGET_BRANCH}" --force-with-lease
+git fetch origin "${TARGET_BRANCH}"
+EXPECT=$(git rev-parse "origin/${TARGET_BRANCH}")
+git log --oneline "HEAD..${EXPECT}"         # must be empty, or include those commits first
+git push --force-with-lease="${TARGET_BRANCH}:${EXPECT}" origin "HEAD:${TARGET_BRANCH}"
 ```
 
 ### Test out the PR on CI and iterate
@@ -279,14 +287,33 @@ TODO: provide helper snippet.
 Seek the reviews from `@starburstdata/galaxy-trino-maintainers` on the `update/cork/trino-${TO_VERSION}-${TO_SHORT}` PR.
 When PR gets approved squash in the fixup commits and merge.
 
-**Note:** sometimes GitHub UI complains with *"This branch is out-of-date with the base branch"* and asks to rebase.
-It may happen even if everything is fine and seems like some bug in GitHub UI.
+Squash in place, onto the branch's current base. `FROM` is an OSS commit, not an ancestor of the
+branch after the rebase onto master, so squashing onto it would replay cork's history onto
+upstream. The squash must not change the tree:
 
-To work around the problem merge the PR from the command line:
 ```shell
-  git fetch origin && # update origin
-  git rebase origin/master && # rebase PR branch on top of current master
-  git push origin && # update PR branch
-  git push origin --force-with-lease head:master # merge PR to master
+git checkout "${TARGET_BRANCH}" &&
+PRE=$(git rev-parse HEAD) &&
+GIT_SEQUENCE_EDITOR=true git rebase --interactive --autosquash "$(git merge-base HEAD origin/master)" &&
+{ git diff --quiet "${PRE}" HEAD && echo "squash is tree-neutral" \
+  || echo "squash CHANGED the tree: do not push"; }
 ```
-This will mark PR as merged automatically.
+
+Push it (see *Update the update PR*) and wait for CI: the squash changes every sha.
+
+GitHub's *Rebase and merge* fails on PRs this size, so merge from the command line. A merge is a
+fast-forward, so it never needs force, and it must land a sha CI has already passed:
+
+```shell
+git fetch origin &&
+git checkout "${TARGET_BRANCH}" &&
+git rebase origin/master &&                 # no-op if master has not moved
+{ [ "$(git rev-parse HEAD)" = "$(git rev-parse "origin/${TARGET_BRANCH}")" ] \
+  || { echo "rebase moved the branch: push it and wait for CI first"; false; }; } &&
+gh pr checks --repo starburstdata/cork "${TARGET_BRANCH}" &&   # fails unless every check is green on this sha
+git push --atomic origin HEAD:master "HEAD:${TARGET_BRANCH}"   # both fast-forwards or neither: fails if the branch moved after the check
+```
+
+Run it as one paste: if any step fails, the push does not run.
+
+This marks the PR as merged automatically.
