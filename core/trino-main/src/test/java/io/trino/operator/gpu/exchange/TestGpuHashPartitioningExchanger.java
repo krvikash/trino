@@ -34,6 +34,7 @@ import java.util.Set;
 import java.util.stream.IntStream;
 
 import static io.trino.operator.gpu.GpuTestUtils.maybeSetGpuMemoryPoolForTests;
+import static io.trino.operator.gpu.exchange.GpuLocalExchange.newDeviceMemoryManager;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class TestGpuHashPartitioningExchanger
@@ -48,7 +49,7 @@ public class TestGpuHashPartitioningExchanger
     public void distributesAcrossBuffersByHashKey()
     {
         int partitions = 4;
-        LocalExchangeMemoryManager memory = new LocalExchangeMemoryManager(1 << 20);
+        LocalExchangeMemoryManager memory = newDeviceMemoryManager(1 << 20);
         List<GpuLocalExchangeBuffer> buffers = IntStream.range(0, partitions)
                 .mapToObj(_ -> new GpuLocalExchangeBuffer(memory, _ -> {}))
                 .toList();
@@ -74,7 +75,7 @@ public class TestGpuHashPartitioningExchanger
     public void multipleAcceptCallsAccumulateAllRows()
     {
         int partitions = 4;
-        LocalExchangeMemoryManager memory = new LocalExchangeMemoryManager(1 << 20);
+        LocalExchangeMemoryManager memory = newDeviceMemoryManager(1 << 20);
         List<GpuLocalExchangeBuffer> buffers = IntStream.range(0, partitions)
                 .mapToObj(_ -> new GpuLocalExchangeBuffer(memory, _ -> {}))
                 .toList();
@@ -111,7 +112,7 @@ public class TestGpuHashPartitioningExchanger
     public void zeroRowPartitionsDoNotReachBuffers()
     {
         int partitions = 4;
-        LocalExchangeMemoryManager memory = new LocalExchangeMemoryManager(1 << 20);
+        LocalExchangeMemoryManager memory = newDeviceMemoryManager(1 << 20);
         List<GpuLocalExchangeBuffer> buffers = IntStream.range(0, partitions)
                 .mapToObj(_ -> new GpuLocalExchangeBuffer(memory, _ -> {}))
                 .toList();
@@ -141,7 +142,7 @@ public class TestGpuHashPartitioningExchanger
     public void sameKeysFromDifferentCallsLandInSameBuffer()
     {
         int partitions = 4;
-        LocalExchangeMemoryManager memory = new LocalExchangeMemoryManager(1 << 20);
+        LocalExchangeMemoryManager memory = newDeviceMemoryManager(1 << 20);
         List<GpuLocalExchangeBuffer> buffers = IntStream.range(0, partitions)
                 .mapToObj(_ -> new GpuLocalExchangeBuffer(memory, _ -> {}))
                 .toList();

@@ -32,6 +32,7 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.airlift.units.DataSize.Unit.GIGABYTE;
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
 import static io.trino.SequencePageBuilder.createSequencePage;
+import static io.trino.memory.context.AggregatedMemoryContext.newSimpleAggregatedMemoryContext;
 import static io.trino.spi.connector.ConnectorMergeSink.DELETE_OPERATION_NUMBER;
 import static io.trino.spi.connector.ConnectorMergeSink.INSERT_OPERATION_NUMBER;
 import static io.trino.spi.type.BigintType.BIGINT;
@@ -66,7 +67,7 @@ class TestScaleWriterPartitioningExchanger
         PartitionFunction singlePartition = new BucketPartitionFunction((_, _) -> 0, new int[] {0});
         ScaleWriterPartitioningExchanger exchanger = new ScaleWriterPartitioningExchanger(
                 buffers,
-                new LocalExchangeMemoryManager(MAX_BYTES),
+                new LocalExchangeMemoryManager(MAX_BYTES, new LocalExchangeMemoryReservation(newSimpleAggregatedMemoryContext().newLocalMemoryContext("test"))),
                 MAX_BYTES,
                 identity(),
                 new MergePartitionFunction(singlePartition, singlePartition, new int[] {}, new int[] {1}),

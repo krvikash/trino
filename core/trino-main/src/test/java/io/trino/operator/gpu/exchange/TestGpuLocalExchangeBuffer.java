@@ -25,6 +25,7 @@ import org.junit.jupiter.api.Test;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static io.trino.operator.gpu.GpuTestUtils.maybeSetGpuMemoryPoolForTests;
+import static io.trino.operator.gpu.exchange.GpuLocalExchange.newDeviceMemoryManager;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class TestGpuLocalExchangeBuffer
@@ -38,7 +39,7 @@ public class TestGpuLocalExchangeBuffer
     @Test
     public void enqueueDequeueAccountsBytes()
     {
-        LocalExchangeMemoryManager memory = new LocalExchangeMemoryManager(1_000);
+        LocalExchangeMemoryManager memory = newDeviceMemoryManager(1_000);
         try (GpuLocalExchangeBuffer buffer = new GpuLocalExchangeBuffer(memory, _ -> {})) {
             addPage(buffer, emptyGpuPage(), 200);
             assertThat(memory.getBufferedBytes()).isEqualTo(200);
@@ -54,7 +55,7 @@ public class TestGpuLocalExchangeBuffer
     @Test
     public void finishUnblocksReader()
     {
-        LocalExchangeMemoryManager memory = new LocalExchangeMemoryManager(1_000);
+        LocalExchangeMemoryManager memory = newDeviceMemoryManager(1_000);
         try (GpuLocalExchangeBuffer buffer = new GpuLocalExchangeBuffer(memory, _ -> {})) {
             assertThat(buffer.waitForReading().isDone()).isFalse();
             buffer.finish();
@@ -66,7 +67,7 @@ public class TestGpuLocalExchangeBuffer
     @Test
     public void addAfterFinishClosesPageAndDoesNotCharge()
     {
-        LocalExchangeMemoryManager memory = new LocalExchangeMemoryManager(1_000);
+        LocalExchangeMemoryManager memory = newDeviceMemoryManager(1_000);
         try (GpuLocalExchangeBuffer buffer = new GpuLocalExchangeBuffer(memory, _ -> {})) {
             buffer.finish();
             addPage(buffer, emptyGpuPage(), 200);
@@ -78,7 +79,7 @@ public class TestGpuLocalExchangeBuffer
     public void onFinishCalledWhenDrained()
     {
         AtomicInteger calls = new AtomicInteger();
-        LocalExchangeMemoryManager memory = new LocalExchangeMemoryManager(1_000);
+        LocalExchangeMemoryManager memory = newDeviceMemoryManager(1_000);
         try (GpuLocalExchangeBuffer buffer = new GpuLocalExchangeBuffer(memory, _ -> calls.incrementAndGet())) {
             addPage(buffer, emptyGpuPage(), 50);
             buffer.finish();

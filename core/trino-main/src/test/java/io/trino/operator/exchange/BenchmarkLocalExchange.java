@@ -198,6 +198,7 @@ public class BenchmarkLocalExchange
                     POSITIONS_APPENDER_FACTORY,
                     TYPES,
                     MAX_BUFFERED_BYTES,
+                    taskContext.aggregateUserMemoryContext(),
                     HASH_COMPILER,
                     WRITER_SCALING_MIN_DATA_PROCESSED,
                     () -> 0L);

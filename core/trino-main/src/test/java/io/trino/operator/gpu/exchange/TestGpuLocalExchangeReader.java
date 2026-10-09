@@ -25,6 +25,7 @@ import org.junit.jupiter.api.Test;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static io.trino.operator.gpu.GpuTestUtils.maybeSetGpuMemoryPoolForTests;
+import static io.trino.operator.gpu.exchange.GpuLocalExchange.newDeviceMemoryManager;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class TestGpuLocalExchangeReader
@@ -38,7 +39,7 @@ public class TestGpuLocalExchangeReader
     @Test
     public void emptyBufferReportsBlocked()
     {
-        LocalExchangeMemoryManager memory = new LocalExchangeMemoryManager(1 << 20);
+        LocalExchangeMemoryManager memory = newDeviceMemoryManager(1 << 20);
         GpuLocalExchangeBuffer buffer = new GpuLocalExchangeBuffer(memory, _ -> {});
         GpuLocalExchangeReader reader = new GpuLocalExchangeReader(buffer);
 
@@ -49,7 +50,7 @@ public class TestGpuLocalExchangeReader
     @Test
     public void readerEmitsQueuedPageThenFinish()
     {
-        LocalExchangeMemoryManager memory = new LocalExchangeMemoryManager(1 << 20);
+        LocalExchangeMemoryManager memory = newDeviceMemoryManager(1 << 20);
         GpuLocalExchangeBuffer buffer = new GpuLocalExchangeBuffer(memory, _ -> {});
         GpuLocalExchangeReader reader = new GpuLocalExchangeReader(buffer);
 
@@ -67,7 +68,7 @@ public class TestGpuLocalExchangeReader
     @Test
     public void closeFinishesBufferAndDropsQueuedPages()
     {
-        LocalExchangeMemoryManager memory = new LocalExchangeMemoryManager(1 << 20);
+        LocalExchangeMemoryManager memory = newDeviceMemoryManager(1 << 20);
         AtomicInteger onFinishCalls = new AtomicInteger();
         GpuLocalExchangeBuffer buffer = new GpuLocalExchangeBuffer(memory, _ -> onFinishCalls.incrementAndGet());
         GpuLocalExchangeReader reader = new GpuLocalExchangeReader(buffer);

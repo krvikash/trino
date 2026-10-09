@@ -19,6 +19,7 @@ import com.google.common.util.concurrent.SettableFuture;
 import com.google.errorprone.annotations.ThreadSafe;
 import com.google.errorprone.annotations.concurrent.GuardedBy;
 import io.trino.operator.exchange.LocalExchangeMemoryManager;
+import io.trino.operator.exchange.LocalExchangeMemoryReservation;
 import io.trino.operator.gpu.GpuOperation;
 import io.trino.operator.gpu.GpuSourceOperation;
 import io.trino.operator.gpu.memory.AllocatedMemory;
@@ -39,6 +40,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.util.concurrent.Futures.immediateVoidFuture;
+import static io.trino.memory.context.AggregatedMemoryContext.newSimpleAggregatedMemoryContext;
 import static io.trino.sql.planner.SystemPartitioningHandle.FIXED_ARBITRARY_DISTRIBUTION;
 import static io.trino.sql.planner.SystemPartitioningHandle.FIXED_HASH_DISTRIBUTION;
 import static io.trino.sql.planner.SystemPartitioningHandle.SINGLE_DISTRIBUTION;
@@ -81,7 +83,7 @@ public class GpuLocalExchange
 
         if (partitioning.equals(SINGLE_DISTRIBUTION)) {
             checkArgument(partitionKeyChannels.length == 0, "Gather exchange must not have partition channels");
-            LocalExchangeMemoryManager memoryManager = new LocalExchangeMemoryManager(maxBufferedDeviceBytes);
+            LocalExchangeMemoryManager memoryManager = newDeviceMemoryManager(maxBufferedDeviceBytes);
             buffers = IntStream.range(0, 1)
                     .mapToObj(_ -> new GpuLocalExchangeBuffer(memoryManager, _ -> checkAllSourcesFinished()))
                     .collect(toImmutableList());
@@ -90,7 +92,7 @@ public class GpuLocalExchange
         else if (partitioning.equals(FIXED_HASH_DISTRIBUTION)) {
             int bufferCount = defaultConcurrency;
             int[] keyChannels = partitionKeyChannels.clone();
-            LocalExchangeMemoryManager memoryManager = new LocalExchangeMemoryManager(maxBufferedDeviceBytes);
+            LocalExchangeMemoryManager memoryManager = newDeviceMemoryManager(maxBufferedDeviceBytes);
             buffers = IntStream.range(0, bufferCount)
                     .mapToObj(_ -> new GpuLocalExchangeBuffer(memoryManager, _ -> checkAllSourcesFinished()))
                     .collect(toImmutableList());
@@ -99,7 +101,7 @@ public class GpuLocalExchange
         else if (partitioning.equals(FIXED_ARBITRARY_DISTRIBUTION)) {
             checkArgument(partitionKeyChannels.length == 0, "Round-robin exchange must not have partition channels");
             int bufferCount = defaultConcurrency;
-            LocalExchangeMemoryManager memoryManager = new LocalExchangeMemoryManager(maxBufferedDeviceBytes);
+            LocalExchangeMemoryManager memoryManager = newDeviceMemoryManager(maxBufferedDeviceBytes);
             buffers = IntStream.range(0, bufferCount)
                     .mapToObj(_ -> new GpuLocalExchangeBuffer(memoryManager, _ -> checkAllSourcesFinished()))
                     .collect(toImmutableList());
@@ -108,6 +110,13 @@ public class GpuLocalExchange
         else {
             throw new IllegalArgumentException("Unsupported partitioning for GpuLocalExchange: " + partitioning);
         }
+    }
+
+    // buffered pages carry their own AllocatedMemory charge, so the reservation is not charged to any memory pool
+    static LocalExchangeMemoryManager newDeviceMemoryManager(long maxBufferedDeviceBytes)
+    {
+        LocalExchangeMemoryReservation memoryReservation = new LocalExchangeMemoryReservation(newSimpleAggregatedMemoryContext().newLocalMemoryContext(GpuLocalExchange.class.getSimpleName()));
+        return new LocalExchangeMemoryManager(maxBufferedDeviceBytes, memoryReservation);
     }
 
     public int getBufferCount()

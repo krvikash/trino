@@ -36,6 +36,7 @@ import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.trino.operator.gpu.GpuTestUtils.copyToDevice;
 import static io.trino.operator.gpu.GpuTestUtils.createPages;
 import static io.trino.operator.gpu.GpuTestUtils.maybeSetGpuMemoryPoolForTests;
+import static io.trino.operator.gpu.exchange.GpuLocalExchange.newDeviceMemoryManager;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.spi.type.DecimalType.createDecimalType;
@@ -93,7 +94,7 @@ class TestGpuHashPartitioningExchangerMemory
         try (GpuDeviceMemoryUsageValidation memoryValidation = GpuDeviceMemoryUsageValidation.createAndRegister(context, 1024 * 1024)) {
             Iterator<Page> inputPages = createPages(types, NO_NULLS, PAGE_COUNT, ROWS_PER_PAGE, true);
 
-            LocalExchangeMemoryManager exchangeMemoryManager = new LocalExchangeMemoryManager(1L << 30);
+            LocalExchangeMemoryManager exchangeMemoryManager = newDeviceMemoryManager(1L << 30);
             List<GpuLocalExchangeBuffer> buffers = IntStream.range(0, partitionCount)
                     .mapToObj(_ -> new GpuLocalExchangeBuffer(exchangeMemoryManager, _ -> {}))
                     .toList();

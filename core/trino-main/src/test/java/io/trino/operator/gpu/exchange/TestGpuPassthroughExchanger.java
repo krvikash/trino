@@ -24,6 +24,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import static io.trino.operator.gpu.GpuTestUtils.maybeSetGpuMemoryPoolForTests;
+import static io.trino.operator.gpu.exchange.GpuLocalExchange.newDeviceMemoryManager;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class TestGpuPassthroughExchanger
@@ -37,7 +38,7 @@ public class TestGpuPassthroughExchanger
     @Test
     public void forwardsToSingleBuffer()
     {
-        LocalExchangeMemoryManager memory = new LocalExchangeMemoryManager(1 << 20);
+        LocalExchangeMemoryManager memory = newDeviceMemoryManager(1 << 20);
         GpuLocalExchangeBuffer buffer = new GpuLocalExchangeBuffer(memory, _ -> {});
         TestingGpuOperationContext context = new TestingGpuOperationContext();
         GpuExchanger exchanger = new GpuPassthroughExchanger(buffer, memory);

@@ -4407,6 +4407,7 @@ public class LocalExecutionPlanner
                     positionsAppenderFactory,
                     types,
                     maxLocalExchangeBufferSize,
+                    context.getTaskContext().aggregateUserMemoryContext(),
                     hashCompiler,
                     getWriterScalingMinDataProcessed(session),
                     () -> context.getTaskContext().getQueryMemoryReservation().toBytes());
@@ -4490,6 +4491,7 @@ public class LocalExecutionPlanner
                     positionsAppenderFactory,
                     types,
                     maxLocalExchangeBufferSize,
+                    context.getTaskContext().aggregateUserMemoryContext(),
                     hashCompiler,
                     getWriterScalingMinDataProcessed(session),
                     () -> context.getTaskContext().getQueryMemoryReservation().toBytes());

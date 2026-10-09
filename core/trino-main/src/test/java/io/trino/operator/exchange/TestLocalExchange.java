@@ -21,10 +21,12 @@ import io.trino.SequencePageBuilder;
 import io.trino.Session;
 import io.trino.block.BlockAssertions;
 import io.trino.connector.CatalogHandle;
+import io.trino.memory.MemoryPool;
 import io.trino.memory.context.LocalMemoryContext;
 import io.trino.operator.NullSafeHashCompiler;
 import io.trino.operator.OperatorContext;
 import io.trino.operator.PipelineContext;
+import io.trino.operator.TaskContext;
 import io.trino.operator.exchange.LocalExchange.LocalExchangeSinkFactory;
 import io.trino.operator.output.PositionsAppenderFactory;
 import io.trino.spi.Page;
@@ -40,6 +42,7 @@ import io.trino.spi.type.TypeOperators;
 import io.trino.sql.planner.PartitionFunctionProvider;
 import io.trino.sql.planner.PartitioningHandle;
 import io.trino.sql.planner.plan.PlanNodeId;
+import io.trino.testing.TestingTaskContext;
 import io.trino.testing.TestingTransactionHandle;
 import io.trino.type.BlockTypeOperators;
 import org.junit.jupiter.api.AfterAll;
@@ -61,12 +64,15 @@ import java.util.function.Supplier;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 import static io.airlift.concurrent.Threads.daemonThreadsNamed;
+import static io.airlift.units.DataSize.Unit.GIGABYTE;
 import static io.airlift.units.DataSize.Unit.KILOBYTE;
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
 import static io.trino.SystemSessionProperties.MERGE_PARTITIONED_PAGES;
 import static io.trino.SystemSessionProperties.QUERY_MAX_MEMORY_PER_NODE;
 import static io.trino.SystemSessionProperties.SKEWED_PARTITION_MIN_DATA_PROCESSED_REBALANCE_THRESHOLD;
+import static io.trino.memory.context.AggregatedMemoryContext.newSimpleAggregatedMemoryContext;
 import static io.trino.operator.InterpretedHashGenerator.createChannelsHashGenerator;
 import static io.trino.operator.PageAssertions.assertPageEquals;
 import static io.trino.operator.output.PositionsAppenderPageBuilder.MAX_POSITION_COUNT;
@@ -81,7 +87,6 @@ import static io.trino.sql.planner.SystemPartitioningHandle.SCALED_WRITER_ROUND_
 import static io.trino.sql.planner.SystemPartitioningHandle.SINGLE_DISTRIBUTION;
 import static io.trino.testing.TestingHandles.TEST_CATALOG_HANDLE;
 import static io.trino.testing.TestingSession.testSessionBuilder;
-import static io.trino.testing.TestingTaskContext.createTaskContext;
 import static java.util.concurrent.Executors.newScheduledThreadPool;
 import static java.util.stream.IntStream.range;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -115,7 +120,7 @@ public class TestLocalExchange
     public static void setUpClass()
     {
         scheduledExecutor = newScheduledThreadPool(2, daemonThreadsNamed(TestLocalExchange.class.getSimpleName() + "-scheduledExecutor-%s"));
-        pipelineContext = createTaskContext(scheduledExecutor, scheduledExecutor, SESSION)
+        pipelineContext = TestingTaskContext.createTaskContext(scheduledExecutor, scheduledExecutor, SESSION)
                 .addPipelineContext(0, true, true, false);
     }
 
@@ -152,6 +157,7 @@ public class TestLocalExchange
                 POSITIONS_APPENDER_FACTORY,
                 TYPES,
                 DataSize.ofBytes(retainedSizeOfPages(99)),
+                newSimpleAggregatedMemoryContext(),
                 HASH_COMPILER,
                 WRITER_SCALING_MIN_DATA_PROCESSED,
                 TOTAL_MEMORY_USED);
@@ -228,6 +234,7 @@ public class TestLocalExchange
                 POSITIONS_APPENDER_FACTORY,
                 TYPES,
                 LOCAL_EXCHANGE_MAX_BUFFERED_BYTES,
+                newSimpleAggregatedMemoryContext(),
                 HASH_COMPILER,
                 WRITER_SCALING_MIN_DATA_PROCESSED,
                 TOTAL_MEMORY_USED);
@@ -280,6 +287,7 @@ public class TestLocalExchange
                 POSITIONS_APPENDER_FACTORY,
                 TYPES,
                 DataSize.ofBytes(retainedSizeOfPages(4)),
+                newSimpleAggregatedMemoryContext(),
                 HASH_COMPILER,
                 DataSize.ofBytes(sizeOfPages(2)),
                 TOTAL_MEMORY_USED);
@@ -342,6 +350,7 @@ public class TestLocalExchange
                 POSITIONS_APPENDER_FACTORY,
                 TYPES,
                 DataSize.ofBytes(retainedSizeOfPages(4)),
+                newSimpleAggregatedMemoryContext(),
                 HASH_COMPILER,
                 DataSize.ofBytes(sizeOfPages(10)),
                 TOTAL_MEMORY_USED);
@@ -395,6 +404,7 @@ public class TestLocalExchange
                 POSITIONS_APPENDER_FACTORY,
                 TYPES,
                 DataSize.ofBytes(retainedSizeOfPages(2)),
+                newSimpleAggregatedMemoryContext(),
                 HASH_COMPILER,
                 DataSize.of(10, KILOBYTE),
                 TOTAL_MEMORY_USED);
@@ -506,6 +516,7 @@ public class TestLocalExchange
                 POSITIONS_APPENDER_FACTORY,
                 TYPES,
                 DataSize.ofBytes(retainedSizeOfPages(4)),
+                newSimpleAggregatedMemoryContext(),
                 HASH_COMPILER,
                 DataSize.ofBytes(sizeOfPages(2)),
                 totalMemoryUsed::get);
@@ -552,6 +563,7 @@ public class TestLocalExchange
                 POSITIONS_APPENDER_FACTORY,
                 TYPES,
                 DataSize.ofBytes(retainedSizeOfPages(20)),
+                newSimpleAggregatedMemoryContext(),
                 HASH_COMPILER,
                 DataSize.ofBytes(sizeOfPages(2)),
                 TOTAL_MEMORY_USED);
@@ -607,6 +619,7 @@ public class TestLocalExchange
                 POSITIONS_APPENDER_FACTORY,
                 TYPES,
                 DataSize.ofBytes(retainedSizeOfPages(2)),
+                newSimpleAggregatedMemoryContext(),
                 HASH_COMPILER,
                 DataSize.of(10, KILOBYTE),
                 TOTAL_MEMORY_USED);
@@ -705,6 +718,7 @@ public class TestLocalExchange
                 POSITIONS_APPENDER_FACTORY,
                 TYPES,
                 DataSize.ofBytes(retainedSizeOfPages(2)),
+                newSimpleAggregatedMemoryContext(),
                 HASH_COMPILER,
                 DataSize.of(50, MEGABYTE),
                 TOTAL_MEMORY_USED);
@@ -777,6 +791,7 @@ public class TestLocalExchange
                 POSITIONS_APPENDER_FACTORY,
                 TYPES,
                 DataSize.of(50, MEGABYTE),
+                newSimpleAggregatedMemoryContext(),
                 HASH_COMPILER,
                 DataSize.of(10, KILOBYTE),
                 TOTAL_MEMORY_USED);
@@ -851,6 +866,7 @@ public class TestLocalExchange
                 POSITIONS_APPENDER_FACTORY,
                 TYPES,
                 DataSize.ofBytes(retainedSizeOfPages(2)),
+                newSimpleAggregatedMemoryContext(),
                 HASH_COMPILER,
                 DataSize.of(10, KILOBYTE),
                 totalMemoryUsed::get);
@@ -940,6 +956,7 @@ public class TestLocalExchange
                 POSITIONS_APPENDER_FACTORY,
                 TYPES,
                 DataSize.ofBytes(retainedSizeOfPages(2)),
+                newSimpleAggregatedMemoryContext(),
                 HASH_COMPILER,
                 DataSize.of(10, KILOBYTE),
                 totalMemoryUsed::get);
@@ -1035,6 +1052,7 @@ public class TestLocalExchange
                 POSITIONS_APPENDER_FACTORY,
                 TYPES,
                 DataSize.ofBytes(retainedSizeOfPages(2)),
+                newSimpleAggregatedMemoryContext(),
                 HASH_COMPILER,
                 DataSize.of(50, KILOBYTE),
                 TOTAL_MEMORY_USED);
@@ -1085,6 +1103,7 @@ public class TestLocalExchange
                 POSITIONS_APPENDER_FACTORY,
                 TYPES,
                 DataSize.ofBytes(retainedSizeOfPages(1)),
+                newSimpleAggregatedMemoryContext(),
                 HASH_COMPILER,
                 WRITER_SCALING_MIN_DATA_PROCESSED,
                 TOTAL_MEMORY_USED);
@@ -1155,6 +1174,7 @@ public class TestLocalExchange
                 POSITIONS_APPENDER_FACTORY,
                 TYPES,
                 LOCAL_EXCHANGE_MAX_BUFFERED_BYTES,
+                newSimpleAggregatedMemoryContext(),
                 HASH_COMPILER,
                 WRITER_SCALING_MIN_DATA_PROCESSED,
                 TOTAL_MEMORY_USED);
@@ -1225,6 +1245,7 @@ public class TestLocalExchange
                 POSITIONS_APPENDER_FACTORY,
                 TYPES,
                 LOCAL_EXCHANGE_MAX_BUFFERED_BYTES,
+                newSimpleAggregatedMemoryContext(),
                 HASH_COMPILER,
                 WRITER_SCALING_MIN_DATA_PROCESSED,
                 TOTAL_MEMORY_USED);
@@ -1323,6 +1344,7 @@ public class TestLocalExchange
                 POSITIONS_APPENDER_FACTORY,
                 TYPES,
                 LOCAL_EXCHANGE_MAX_BUFFERED_BYTES,
+                newSimpleAggregatedMemoryContext(),
                 HASH_COMPILER,
                 WRITER_SCALING_MIN_DATA_PROCESSED,
                 TOTAL_MEMORY_USED);
@@ -1368,6 +1390,7 @@ public class TestLocalExchange
                 POSITIONS_APPENDER_FACTORY,
                 TYPES,
                 LOCAL_EXCHANGE_MAX_BUFFERED_BYTES,
+                newSimpleAggregatedMemoryContext(),
                 HASH_COMPILER,
                 WRITER_SCALING_MIN_DATA_PROCESSED,
                 TOTAL_MEMORY_USED);
@@ -1426,6 +1449,7 @@ public class TestLocalExchange
                 POSITIONS_APPENDER_FACTORY,
                 TYPES,
                 LOCAL_EXCHANGE_MAX_BUFFERED_BYTES,
+                newSimpleAggregatedMemoryContext(),
                 HASH_COMPILER,
                 WRITER_SCALING_MIN_DATA_PROCESSED,
                 TOTAL_MEMORY_USED);
@@ -1480,6 +1504,7 @@ public class TestLocalExchange
                 POSITIONS_APPENDER_FACTORY,
                 TYPES,
                 LOCAL_EXCHANGE_MAX_BUFFERED_BYTES,
+                newSimpleAggregatedMemoryContext(),
                 HASH_COMPILER,
                 WRITER_SCALING_MIN_DATA_PROCESSED,
                 TOTAL_MEMORY_USED);
@@ -1530,6 +1555,7 @@ public class TestLocalExchange
                 POSITIONS_APPENDER_FACTORY,
                 TYPES,
                 DataSize.ofBytes(2),
+                newSimpleAggregatedMemoryContext(),
                 HASH_COMPILER,
                 WRITER_SCALING_MIN_DATA_PROCESSED,
                 TOTAL_MEMORY_USED);
@@ -1590,6 +1616,283 @@ public class TestLocalExchange
             assertSinkFinished(sinkA);
             assertSinkFinished(sinkB);
         });
+    }
+
+    @Test
+    public void testBufferedPagesReservedInMemoryPool()
+    {
+        TaskContext taskContext = createTaskContext(DataSize.of(1, GIGABYTE));
+        MemoryPool memoryPool = taskContext.getQueryContext().getMemoryPool();
+        LocalExchange localExchange = new LocalExchange(
+                functionProvider,
+                SESSION,
+                2,
+                FIXED_PASSTHROUGH_DISTRIBUTION,
+                BUCKET_COUNT,
+                ImmutableList.of(),
+                ImmutableList.of(),
+                POSITIONS_APPENDER_FACTORY,
+                TYPES,
+                LOCAL_EXCHANGE_MAX_BUFFERED_BYTES,
+                taskContext.aggregateUserMemoryContext(),
+                HASH_COMPILER,
+                WRITER_SCALING_MIN_DATA_PROCESSED,
+                TOTAL_MEMORY_USED);
+
+        run(localExchange, exchange -> {
+            LocalExchangeSinkFactory sinkFactory = exchange.createSinkFactory();
+            sinkFactory.noMoreSinkFactories();
+            LocalExchangeSink sinkA = sinkFactory.createSink();
+            LocalExchangeSink sinkB = sinkFactory.createSink();
+            sinkFactory.close();
+
+            LocalExchangePageBuffer sourceA = exchange.getNextSource(newOperatorContext());
+            LocalExchangePageBuffer sourceB = exchange.getNextSource(newOperatorContext());
+
+            for (int i = 0; i < 10; i++) {
+                sinkA.addPage(createSingleValuePage(i, 100_000));
+                sinkB.addPage(createSingleValuePage(i, 100_000));
+                assertMemoryPoolReservation(memoryPool, exchange);
+            }
+            assertThat(memoryPool.getReservedBytes()).isGreaterThan(DataSize.of(10, MEGABYTE).toBytes());
+
+            for (int i = 0; i < 10; i++) {
+                assertThat(sourceA.removePage()).isNotNull();
+                assertThat(sourceB.removePage()).isNotNull();
+                assertMemoryPoolReservation(memoryPool, exchange);
+            }
+
+            sinkA.finish();
+            sinkB.finish();
+            assertSourceFinished(sourceA);
+            assertSourceFinished(sourceB);
+            assertThat(memoryPool.getReservedBytes()).isEqualTo(0);
+        });
+    }
+
+    @Test
+    public void testSinkBlockedWhenMemoryPoolIsFull()
+    {
+        DataSize memoryPoolSize = DataSize.of(8, MEGABYTE);
+        TaskContext taskContext = createTaskContext(memoryPoolSize);
+        MemoryPool memoryPool = taskContext.getQueryContext().getMemoryPool();
+        LocalMemoryContext otherMemoryContext = taskContext.aggregateUserMemoryContext().newLocalMemoryContext("other");
+        LocalExchange localExchange = new LocalExchange(
+                functionProvider,
+                SESSION,
+                1,
+                SINGLE_DISTRIBUTION,
+                BUCKET_COUNT,
+                ImmutableList.of(),
+                ImmutableList.of(),
+                POSITIONS_APPENDER_FACTORY,
+                TYPES,
+                LOCAL_EXCHANGE_MAX_BUFFERED_BYTES,
+                taskContext.aggregateUserMemoryContext(),
+                HASH_COMPILER,
+                WRITER_SCALING_MIN_DATA_PROCESSED,
+                TOTAL_MEMORY_USED);
+
+        run(localExchange, exchange -> {
+            LocalExchangeSinkFactory sinkFactory = exchange.createSinkFactory();
+            sinkFactory.noMoreSinkFactories();
+            LocalExchangeSink sink = sinkFactory.createSink();
+            sinkFactory.close();
+            LocalExchangePageBuffer source = exchange.getNextSource(newOperatorContext());
+
+            assertThat(otherMemoryContext.setBytes(memoryPoolSize.toBytes()).isDone()).isFalse();
+            assertSinkCanWrite(sink);
+
+            sink.addPage(createPage(0));
+            ListenableFuture<Void> writeFuture = assertSinkWriteBlocked(sink);
+
+            // reading pages does not unblock the sink while the pool is full
+            assertRemovePage(source, createPage(0));
+            assertSinkWriteBlocked(sink);
+
+            otherMemoryContext.setBytes(0);
+            assertThat(writeFuture.isDone()).isTrue();
+            assertSinkCanWrite(sink);
+
+            sink.finish();
+            assertSourceFinished(source);
+            assertThat(memoryPool.getReservedBytes()).isEqualTo(0);
+        });
+    }
+
+    @Test
+    public void testSinkStaysBlockedOnMemoryPoolAfterDrainingBelowExchangeCap()
+    {
+        DataSize memoryPoolSize = DataSize.of(8, MEGABYTE);
+        TaskContext taskContext = createTaskContext(memoryPoolSize);
+        MemoryPool memoryPool = taskContext.getQueryContext().getMemoryPool();
+        LocalMemoryContext otherMemoryContext = taskContext.aggregateUserMemoryContext().newLocalMemoryContext("other");
+        LocalExchange localExchange = new LocalExchange(
+                functionProvider,
+                SESSION,
+                1,
+                SINGLE_DISTRIBUTION,
+                BUCKET_COUNT,
+                ImmutableList.of(),
+                ImmutableList.of(),
+                POSITIONS_APPENDER_FACTORY,
+                TYPES,
+                DataSize.ofBytes(retainedSizeOfPages(2)),
+                taskContext.aggregateUserMemoryContext(),
+                HASH_COMPILER,
+                WRITER_SCALING_MIN_DATA_PROCESSED,
+                TOTAL_MEMORY_USED);
+
+        run(localExchange, exchange -> {
+            LocalExchangeSinkFactory sinkFactory = exchange.createSinkFactory();
+            sinkFactory.noMoreSinkFactories();
+            LocalExchangeSink sink = sinkFactory.createSink();
+            sinkFactory.close();
+            LocalExchangePageBuffer source = exchange.getNextSource(newOperatorContext());
+
+            assertThat(otherMemoryContext.setBytes(memoryPoolSize.toBytes()).isDone()).isFalse();
+
+            sink.addPage(createPage(0));
+            sink.addPage(createPage(1));
+            sink.addPage(createPage(2));
+            assertExchangeTotalBufferedBytes(exchange, 3);
+            ListenableFuture<Void> writeFuture = assertSinkWriteBlocked(sink);
+
+            // draining below the exchange cap does not unblock the sink while the pool is full
+            assertRemovePage(source, createPage(0));
+            assertRemovePage(source, createPage(1));
+            assertRemovePage(source, createPage(2));
+            assertExchangeTotalBufferedBytes(exchange, 0);
+            assertThat(writeFuture.isDone()).isTrue();
+            assertSinkWriteBlocked(sink);
+
+            otherMemoryContext.setBytes(0);
+            assertSinkCanWrite(sink);
+
+            sink.finish();
+            assertSourceFinished(source);
+            assertThat(memoryPool.getReservedBytes()).isEqualTo(0);
+        });
+    }
+
+    @Test
+    public void testCloseUnusedSourcesReleasesMemory()
+    {
+        TaskContext taskContext = createTaskContext(DataSize.of(1, GIGABYTE));
+        MemoryPool memoryPool = taskContext.getQueryContext().getMemoryPool();
+        LocalExchange localExchange = new LocalExchange(
+                functionProvider,
+                SESSION,
+                2,
+                FIXED_PASSTHROUGH_DISTRIBUTION,
+                BUCKET_COUNT,
+                ImmutableList.of(),
+                ImmutableList.of(),
+                POSITIONS_APPENDER_FACTORY,
+                TYPES,
+                LOCAL_EXCHANGE_MAX_BUFFERED_BYTES,
+                taskContext.aggregateUserMemoryContext(),
+                HASH_COMPILER,
+                WRITER_SCALING_MIN_DATA_PROCESSED,
+                TOTAL_MEMORY_USED);
+
+        run(localExchange, exchange -> {
+            LocalExchangeSinkFactory sinkFactory = exchange.createSinkFactory();
+            sinkFactory.noMoreSinkFactories();
+            LocalExchangeSink sinkA = sinkFactory.createSink();
+            LocalExchangeSink sinkB = sinkFactory.createSink();
+            sinkFactory.close();
+
+            sinkA.addPage(createPage(0));
+            sinkB.addPage(createPage(1));
+            assertExchangeTotalBufferedBytes(exchange, 2);
+            assertMemoryPoolReservation(memoryPool, exchange);
+
+            LocalExchangePageBuffer sourceA = exchange.getNextSource(newOperatorContext());
+            exchange.closeUnusedSources();
+            assertSource(sourceA, 1);
+            assertSourceFinished(exchange.getSource(1));
+            assertSinkCanWrite(sinkA);
+            assertThat(memoryPool.getReservedBytes()).isGreaterThan(0);
+
+            sourceA.finish();
+            assertRemovePage(sourceA, createPage(0));
+            assertSourceFinished(sourceA);
+            assertSinkFinished(sinkA);
+            assertSinkFinished(sinkB);
+            assertThat(memoryPool.getReservedBytes()).isEqualTo(0);
+        });
+    }
+
+    @Test
+    public void testMergingSourcesReservedInMemoryPool()
+    {
+        Session session = testSessionBuilder().setSystemProperty(MERGE_PARTITIONED_PAGES, "true").build();
+        TaskContext taskContext = createTaskContext(DataSize.of(1, GIGABYTE));
+        MemoryPool memoryPool = taskContext.getQueryContext().getMemoryPool();
+        LocalExchange localExchange = new LocalExchange(
+                functionProvider,
+                session,
+                2,
+                FIXED_HASH_DISTRIBUTION,
+                BUCKET_COUNT,
+                ImmutableList.of(0),
+                TYPES,
+                POSITIONS_APPENDER_FACTORY,
+                TYPES,
+                LOCAL_EXCHANGE_MAX_BUFFERED_BYTES,
+                taskContext.aggregateUserMemoryContext(),
+                HASH_COMPILER,
+                WRITER_SCALING_MIN_DATA_PROCESSED,
+                TOTAL_MEMORY_USED);
+
+        run(localExchange, exchange -> {
+            LocalExchangeSinkFactory sinkFactory = exchange.createSinkFactory();
+            sinkFactory.noMoreSinkFactories();
+            LocalExchangeSink sink = sinkFactory.createSink();
+            sinkFactory.close();
+
+            sink.addPage(createPage(0));
+            sink.addPage(createPage(0));
+            assertThat(exchange.getSource(0)).isInstanceOf(MergingLocalExchangePageBuffer.class);
+            assertMemoryPoolReservation(memoryPool, exchange);
+            assertThat(memoryPool.getReservedBytes()).isGreaterThan(0);
+
+            OperatorContext operatorContext = taskContext.addPipelineContext(0, true, true, false)
+                    .addDriverContext()
+                    .addOperatorContext(0, new PlanNodeId("0"), LocalExchangeSource.class.getSimpleName());
+            LocalExchangePageBuffer sourceA = exchange.getNextSource(operatorContext);
+            exchange.closeUnusedSources();
+            LocalExchangePageBuffer sourceB = exchange.getSource(1);
+            assertThat(sourceB.isFinished()).isTrue();
+            assertThat(sourceB.getBufferInfo().getBufferedBytes()).isEqualTo(0);
+            assertSinkCanWrite(sink);
+
+            sink.finish();
+            assertThat(sourceA.removePage()).isNotNull();
+            assertSourceFinished(sourceA);
+            assertSinkFinished(sink);
+
+            sourceA.close();
+            assertThat(memoryPool.getReservedBytes()).isEqualTo(0);
+        });
+    }
+
+    private TaskContext createTaskContext(DataSize memoryPoolSize)
+    {
+        return TestingTaskContext.builder(directExecutor(), scheduledExecutor, SESSION)
+                .setMemoryPoolSize(memoryPoolSize)
+                .build();
+    }
+
+    private static void assertMemoryPoolReservation(MemoryPool memoryPool, LocalExchange exchange)
+    {
+        long bufferedBytes = 0;
+        for (int i = 0; i < exchange.getBufferCount(); i++) {
+            bufferedBytes += exchange.getSource(i).getBufferInfo().getBufferedBytes();
+        }
+        // managers report up to two steps above the buffered bytes
+        assertThat(memoryPool.getReservedBytes()).isBetween(bufferedBytes, bufferedBytes + 2 * LocalExchangeMemoryManager.DEFAULT_REPORT_STEP_BYTES);
     }
 
     private PartitioningHandle getCustomScalingPartitioningHandle()

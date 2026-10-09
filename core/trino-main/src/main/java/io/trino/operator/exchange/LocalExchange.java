@@ -21,6 +21,7 @@ import com.google.errorprone.annotations.concurrent.GuardedBy;
 import io.airlift.slice.XxHash64;
 import io.airlift.units.DataSize;
 import io.trino.Session;
+import io.trino.memory.context.AggregatedMemoryContext;
 import io.trino.operator.HashGenerator;
 import io.trino.operator.NullSafeHashCompiler;
 import io.trino.operator.OperatorContext;
@@ -54,6 +55,7 @@ import static io.trino.SystemSessionProperties.getSkewedPartitionMinDataProcesse
 import static io.trino.SystemSessionProperties.getTaskScaleWritersMaxWriterMemoryPercentage;
 import static io.trino.SystemSessionProperties.isMergePartitionedPages;
 import static io.trino.operator.InterpretedHashGenerator.createChannelsHashGenerator;
+import static io.trino.operator.exchange.LocalExchangeMemoryManager.DEFAULT_REPORT_STEP_BYTES;
 import static io.trino.operator.exchange.LocalExchangeSink.finishedLocalExchangeSink;
 import static io.trino.sql.planner.PartitioningHandle.isScaledWriterHashDistribution;
 import static io.trino.sql.planner.SystemPartitioningHandle.FIXED_ARBITRARY_DISTRIBUTION;
@@ -73,6 +75,8 @@ public class LocalExchange
     private final Supplier<LocalExchanger> exchangerSupplier;
 
     private final List<LocalExchangePageBuffer> sources;
+
+    private final LocalExchangeMemoryReservation memoryReservation;
 
     @GuardedBy("this")
     private boolean allSourcesFinished;
@@ -100,22 +104,25 @@ public class LocalExchange
             PositionsAppenderFactory positionsAppenderFactory,
             List<Type> sourceTypes,
             DataSize maxBufferedBytes,
+            AggregatedMemoryContext memoryContext,
             NullSafeHashCompiler hashCompiler,
             DataSize writerScalingMinDataProcessed,
             Supplier<Long> totalMemoryUsed)
     {
         int bufferCount = computeBufferCount(partitioning, defaultConcurrency, partitionChannels);
+        memoryReservation = new LocalExchangeMemoryReservation(memoryContext.newLocalMemoryContext(LocalExchange.class.getSimpleName()));
 
         if (partitioning.equals(SINGLE_DISTRIBUTION) || partitioning.equals(FIXED_ARBITRARY_DISTRIBUTION)) {
-            LocalExchangeMemoryManager memoryManager = new LocalExchangeMemoryManager(maxBufferedBytes.toBytes());
+            LocalExchangeMemoryManager memoryManager = new LocalExchangeMemoryManager(maxBufferedBytes.toBytes(), memoryReservation);
             sources = IntStream.range(0, bufferCount)
                     .mapToObj(_ -> new LocalExchangeSource(memoryManager, _ -> checkAllSourcesFinished()))
                     .collect(toImmutableList());
             exchangerSupplier = () -> new RandomExchanger(asPageConsumers(sources), memoryManager);
         }
         else if (partitioning.equals(FIXED_PASSTHROUGH_DISTRIBUTION)) {
+            // split the report step so all managers together report at most two steps above the buffered bytes
             List<LocalExchangeMemoryManager> memoryManagers = IntStream.range(0, bufferCount)
-                    .mapToObj(_ -> new LocalExchangeMemoryManager(maxBufferedBytes.toBytes() / bufferCount))
+                    .mapToObj(_ -> new LocalExchangeMemoryManager(maxBufferedBytes.toBytes() / bufferCount, memoryReservation, DEFAULT_REPORT_STEP_BYTES / bufferCount))
                     .collect(toImmutableList());
             sources = memoryManagers.stream()
                     .map(memoryManager -> new LocalExchangeSource(memoryManager, _ -> checkAllSourcesFinished()))
@@ -128,7 +135,7 @@ public class LocalExchange
             };
         }
         else if (partitioning.equals(SCALED_WRITER_ROUND_ROBIN_DISTRIBUTION)) {
-            LocalExchangeMemoryManager memoryManager = new LocalExchangeMemoryManager(maxBufferedBytes.toBytes());
+            LocalExchangeMemoryManager memoryManager = new LocalExchangeMemoryManager(maxBufferedBytes.toBytes(), memoryReservation);
             sources = IntStream.range(0, bufferCount)
                     .mapToObj(_ -> new LocalExchangeSource(memoryManager, _ -> checkAllSourcesFinished()))
                     .collect(toImmutableList());
@@ -150,7 +157,7 @@ public class LocalExchange
                     1,
                     writerScalingMinDataProcessed.toBytes(),
                     getSkewedPartitionMinDataProcessedRebalanceThreshold(session).toBytes());
-            LocalExchangeMemoryManager memoryManager = new LocalExchangeMemoryManager(maxBufferedBytes.toBytes());
+            LocalExchangeMemoryManager memoryManager = new LocalExchangeMemoryManager(maxBufferedBytes.toBytes(), memoryReservation);
             sources = IntStream.range(0, bufferCount)
                     .mapToObj(_ -> new LocalExchangeSource(memoryManager, _ -> checkAllSourcesFinished()))
                     .collect(toImmutableList());
@@ -180,7 +187,7 @@ public class LocalExchange
         }
         else if (partitioning.equals(FIXED_HASH_DISTRIBUTION) || partitioning.getCatalogHandle().isPresent() ||
                 (partitioning.getConnectorHandle() instanceof MergePartitioningHandle)) {
-            LocalExchangeMemoryManager memoryManager = new LocalExchangeMemoryManager(maxBufferedBytes.toBytes());
+            LocalExchangeMemoryManager memoryManager = new LocalExchangeMemoryManager(maxBufferedBytes.toBytes(), memoryReservation);
             if (isMergePartitionedPages(session)) {
                 sources = IntStream.range(0, bufferCount)
                         .mapToObj(_ -> new MergingLocalExchangePageBuffer(memoryManager, _ -> checkAllSourcesFinished(), sourceTypes, positionsAppenderFactory))
@@ -235,6 +242,21 @@ public class LocalExchange
             mergingLocalExchangePageBuffer.init(operatorContext);
         }
         return result;
+    }
+
+    /**
+     * Closes the sources that were not handed out, since no operator will read them.
+     */
+    public void closeUnusedSources()
+    {
+        checkNotHoldsLock(this);
+
+        List<LocalExchangePageBuffer> unusedSources;
+        synchronized (this) {
+            unusedSources = sources.subList(nextSourceIndex, sources.size());
+            nextSourceIndex = sources.size();
+        }
+        unusedSources.forEach(LocalExchangePageBuffer::close);
     }
 
     private static Function<Page, Page> createPartitionPagePreparer(PartitioningHandle partitioning, List<Integer> partitionChannels)
@@ -299,6 +321,9 @@ public class LocalExchange
             openSinks = ImmutableList.copyOf(sinks);
             sinks.clear();
         }
+
+        // finished sources hold no pages
+        memoryReservation.close();
 
         // since all sources are finished there is no reason to allow new pages to be added
         // this can happen with a limit query

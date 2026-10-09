@@ -71,6 +71,7 @@ public class MergingLocalExchangePageBuffer
 
     private final AtomicLong bufferedBytes = new AtomicLong();
     private final AtomicInteger bufferedPages = new AtomicInteger();
+    @Nullable
     private LocalMemoryContext memoryContext;
 
     @Nullable
@@ -310,7 +311,10 @@ public class MergingLocalExchangePageBuffer
 
         // free all the remaining pages
         memoryManager.updateMemoryUsage(-remainingPagesRetainedSizeInBytes);
-        memoryContext.close();
+        // the memory context is created when an operator takes this buffer
+        if (memoryContext != null) {
+            memoryContext.close();
+        }
         // notify readers outside of lock since this may result in a callback
         if (notEmptyFuture != null) {
             notEmptyFuture.set(null);
