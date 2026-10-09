@@ -17,6 +17,7 @@ import com.google.common.base.Throwables;
 import io.airlift.log.Logger;
 import io.starburst.stargate.accesscontrol.client.ContentsVisibility;
 import io.starburst.stargate.accesscontrol.client.GalaxyLanguageFunctionDetails;
+import io.starburst.stargate.accesscontrol.client.LiveTableInfo;
 import io.starburst.stargate.accesscontrol.privilege.EntityPrivileges;
 import io.starburst.stargate.id.AccountId;
 import io.starburst.stargate.id.CatalogId;
@@ -353,9 +354,9 @@ public class GalaxySharedCacheAccessController
     }
 
     @Override
-    public Optional<Boolean> isLiveTableStopped(SystemSecurityContext context, TableId tableId)
+    public Optional<LiveTableInfo> getLiveTableInfo(SystemSecurityContext context, TableId tableId)
     {
-        return cache.isLiveTableStopped(tableId, toDispatchSession(context.getIdentity()));
+        return cache.getLiveTableInfo(tableId, toDispatchSession(context.getIdentity()));
     }
 
     @Override

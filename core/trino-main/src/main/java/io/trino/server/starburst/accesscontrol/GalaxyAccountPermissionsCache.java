@@ -40,6 +40,7 @@ import io.starburst.stargate.accesscontrol.cache.TrinoSecurityCacheKey;
 import io.starburst.stargate.accesscontrol.cache.UserIdAndRoleId;
 import io.starburst.stargate.accesscontrol.client.ContentsVisibility;
 import io.starburst.stargate.accesscontrol.client.GalaxyLanguageFunctionDetails;
+import io.starburst.stargate.accesscontrol.client.LiveTableInfo;
 import io.starburst.stargate.accesscontrol.client.OperationNotAllowedException;
 import io.starburst.stargate.accesscontrol.client.TrinoSecurityApi;
 import io.starburst.stargate.accesscontrol.privilege.EntityPrivileges;
@@ -392,9 +393,9 @@ public class GalaxyAccountPermissionsCache
         return get(transactionId, session, cacheKey(session, new CanExecuteFunction(functionId)));
     }
 
-    public Optional<Boolean> isLiveTableStopped(TableId tableId, DispatchSession session)
+    public Optional<LiveTableInfo> getLiveTableInfo(TableId tableId, DispatchSession session)
     {
-        return isLiveTableCache.isLiveTableStopped(client, tableId, session);
+        return isLiveTableCache.getLiveTableInfo(client, tableId, session);
     }
 
     public Set<GalaxyLanguageFunctionDetails> getAvailableFunctions(TransactionId transactionId, DispatchSession session)

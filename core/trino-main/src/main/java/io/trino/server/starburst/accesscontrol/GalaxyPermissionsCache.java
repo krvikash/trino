@@ -22,6 +22,7 @@ import com.google.errorprone.annotations.concurrent.GuardedBy;
 import com.google.inject.Inject;
 import io.starburst.stargate.accesscontrol.client.ContentsVisibility;
 import io.starburst.stargate.accesscontrol.client.GalaxyLanguageFunctionDetails;
+import io.starburst.stargate.accesscontrol.client.LiveTableInfo;
 import io.starburst.stargate.accesscontrol.client.TrinoSecurityApi;
 import io.starburst.stargate.accesscontrol.privilege.EntityPrivileges;
 import io.starburst.stargate.accesscontrol.privilege.GrantKind;
@@ -95,9 +96,9 @@ public class GalaxyPermissionsCache
         return new CacheStatsMBean(queryPermissionsCache);
     }
 
-    public Optional<Boolean> isLiveTableStopped(TrinoSecurityApi trinoSecurityApi, TableId tableId, DispatchSession session)
+    public Optional<LiveTableInfo> getLiveTableInfo(TrinoSecurityApi trinoSecurityApi, TableId tableId, DispatchSession session)
     {
-        return isLiveTableCache.isLiveTableStopped(trinoSecurityApi, tableId, session);
+        return isLiveTableCache.getLiveTableInfo(trinoSecurityApi, tableId, session);
     }
 
     /**

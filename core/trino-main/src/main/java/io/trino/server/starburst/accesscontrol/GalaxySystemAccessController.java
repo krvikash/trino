@@ -18,6 +18,7 @@ import io.starburst.stargate.accesscontrol.client.ColumnMaskExpression;
 import io.starburst.stargate.accesscontrol.client.ColumnMaskType;
 import io.starburst.stargate.accesscontrol.client.ContentsVisibility;
 import io.starburst.stargate.accesscontrol.client.GalaxyLanguageFunctionDetails;
+import io.starburst.stargate.accesscontrol.client.LiveTableInfo;
 import io.starburst.stargate.accesscontrol.client.TrinoSecurityApi;
 import io.starburst.stargate.accesscontrol.client.TypedColumnMaskExpression;
 import io.starburst.stargate.accesscontrol.privilege.EntityPrivileges;
@@ -285,9 +286,9 @@ public class GalaxySystemAccessController
     }
 
     @Override
-    public Optional<Boolean> isLiveTableStopped(SystemSecurityContext context, TableId tableId)
+    public Optional<LiveTableInfo> getLiveTableInfo(SystemSecurityContext context, TableId tableId)
     {
-        return galaxyPermissionsCache.isLiveTableStopped(accessControlClient, tableId, toDispatchSession(context.getIdentity()));
+        return galaxyPermissionsCache.getLiveTableInfo(accessControlClient, tableId, toDispatchSession(context.getIdentity()));
     }
 
     @Override

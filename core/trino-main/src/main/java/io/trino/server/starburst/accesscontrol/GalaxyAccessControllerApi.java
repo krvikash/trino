@@ -15,6 +15,7 @@ package io.trino.server.starburst.accesscontrol;
 
 import io.starburst.stargate.accesscontrol.client.ContentsVisibility;
 import io.starburst.stargate.accesscontrol.client.GalaxyLanguageFunctionDetails;
+import io.starburst.stargate.accesscontrol.client.LiveTableInfo;
 import io.starburst.stargate.accesscontrol.privilege.EntityPrivileges;
 import io.starburst.stargate.id.AccountId;
 import io.starburst.stargate.id.CatalogId;
@@ -84,7 +85,7 @@ public interface GalaxyAccessControllerApi
 
     Set<GalaxyLanguageFunctionDetails> getAvailableFunctions(SystemSecurityContext context);
 
-    Optional<Boolean> isLiveTableStopped(SystemSecurityContext context, TableId tableId);
+    Optional<LiveTableInfo> getLiveTableInfo(SystemSecurityContext context, TableId tableId);
 
     boolean isGalaxyEntityPrivilegesEnabled();
 

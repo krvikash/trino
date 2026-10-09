@@ -18,6 +18,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import io.airlift.log.Logger;
 import io.starburst.stargate.accesscontrol.client.CreateEntityPrivilege;
+import io.starburst.stargate.accesscontrol.client.LiveTableInfo;
 import io.starburst.stargate.accesscontrol.client.RevokeEntityPrivilege;
 import io.starburst.stargate.accesscontrol.client.TrinoSecurityApi;
 import io.starburst.stargate.accesscontrol.client.testing.TestUser;
@@ -896,13 +897,7 @@ public abstract class TestGalaxyAccessControl
     public void testLiveTableCannotBeUpdated()
     {
         CatalogSchemaTableName liveTable = new CatalogSchemaTableName(helper.getAnyCatalogName(), new SchemaTableName(newSchemaName(), newTableName()));
-        GalaxyAccessControl liveTableAccessControl = new GalaxyAccessControl(
-                1,
-                1_000,
-                identity -> withLiveTable(helper.getAccessController(identity), liveTable),
-                new GalaxyFunctionScopeResolver(),
-                new StacCatalogManagementAccessControl(helper.getAccessControllerSupplier()),
-                GALAXY);
+        GalaxyAccessControl liveTableAccessControl = liveTableAccessControl(liveTable, new LiveTableInfo(false, false));
         try {
             SystemSecurityContext context = adminContext();
             String liveTableDenial = "Ingest live table .* may not be modified";
@@ -919,12 +914,60 @@ public abstract class TestGalaxyAccessControl
         }
     }
 
-    private static GalaxyAccessControllerApi withLiveTable(GalaxyAccessControllerApi delegate, CatalogSchemaTableName liveTable)
+    @Test
+    public void testGalaxyRestMetastoreLiveTableOnlyAllowsDml()
     {
-        // Instead of implementing a DelegatingGalaxyAccessControllerApi, proxy isLiveTableStopped and delegate the rest
+        CatalogSchemaTableName liveTable = new CatalogSchemaTableName(helper.getAnyCatalogName(), new SchemaTableName(newSchemaName(), newTableName()));
+        GalaxyAccessControl liveTableAccessControl = liveTableAccessControl(liveTable, new LiveTableInfo(false, true));
+        try {
+            SystemSecurityContext context = adminContext();
+            String liveTableDenial = "Ingest live table .* only supports DML";
+            // Without table privileges, the regular privilege checks still deny
+            checkNotAllowed(() -> liveTableAccessControl.checkCanDeleteFromTable(context, liveTable), "Cannot delete from table .*does not have the privilege DELETE.*");
+            checkNotAllowed(() -> liveTableAccessControl.checkCanInsertIntoTable(context, liveTable), "Cannot insert into table .*does not have the privilege INSERT.*");
+
+            QualifiedObjectName tableName = new QualifiedObjectName(liveTable.getCatalogName(), liveTable.getSchemaTableName().getSchemaName(), liveTable.getSchemaTableName().getTableName());
+            Set<Privilege> dmlPrivileges = ImmutableSet.of(INSERT, DELETE, UPDATE);
+            securityMetadata.grantTablePrivileges(adminSession(), tableName, dmlPrivileges, trinoPrincipal(ACCOUNT_ADMIN), false);
+            try {
+                liveTableAccessControl.checkCanInsertIntoTable(adminContext(), liveTable);
+                liveTableAccessControl.checkCanDeleteFromTable(adminContext(), liveTable);
+                liveTableAccessControl.checkCanTruncateTable(adminContext(), liveTable);
+                liveTableAccessControl.checkCanUpdateTableColumns(adminContext(), liveTable, Optional.empty(), ImmutableSet.of("foo"));
+            }
+            finally {
+                securityMetadata.revokeTablePrivileges(adminSession(), tableName, dmlPrivileges, trinoPrincipal(ACCOUNT_ADMIN), false);
+            }
+
+            checkNotAllowed(() -> liveTableAccessControl.checkCanDropTable(context, liveTable), "Cannot drop table .*" + liveTableDenial);
+            checkNotAllowed(() -> liveTableAccessControl.checkCanRenameTable(context, liveTable, liveTable), "Cannot rename table from .*" + liveTableDenial);
+            checkNotAllowed(() -> liveTableAccessControl.checkCanAddColumn(context, liveTable), "Cannot add a column to table .*" + liveTableDenial);
+            checkNotAllowed(() -> liveTableAccessControl.checkCanSetTableComment(context, liveTable), "Cannot comment table to .*" + liveTableDenial);
+            checkNotAllowed(() -> liveTableAccessControl.checkCanExecuteTableProcedure(context, liveTable, "remove_orphan_files"), "Cannot execute procedure remove_orphan_files.*" + liveTableDenial);
+            checkNotAllowed(() -> liveTableAccessControl.checkCanExecuteTableProcedure(context, liveTable, "optimize"), "Cannot execute procedure optimize.*" + liveTableDenial);
+        }
+        finally {
+            liveTableAccessControl.shutdown();
+        }
+    }
+
+    private GalaxyAccessControl liveTableAccessControl(CatalogSchemaTableName liveTable, LiveTableInfo liveTableInfo)
+    {
+        return new GalaxyAccessControl(
+                1,
+                1_000,
+                identity -> withLiveTable(helper.getAccessController(identity), liveTable, liveTableInfo),
+                new GalaxyFunctionScopeResolver(),
+                new StacCatalogManagementAccessControl(helper.getAccessControllerSupplier()),
+                GALAXY);
+    }
+
+    private static GalaxyAccessControllerApi withLiveTable(GalaxyAccessControllerApi delegate, CatalogSchemaTableName liveTable, LiveTableInfo liveTableInfo)
+    {
+        // Instead of implementing a DelegatingGalaxyAccessControllerApi, proxy getLiveTableInfo and delegate the rest
         return newProxy(GalaxyAccessControllerApi.class, (_, method, args) -> {
-            if (method.getName().equals("isLiveTableStopped") && ((TableId) args[1]).getTableName().equals(liveTable.getSchemaTableName().getTableName())) {
-                return Optional.of(false);
+            if (method.getName().equals("getLiveTableInfo") && ((TableId) args[1]).getTableName().equals(liveTable.getSchemaTableName().getTableName())) {
+                return Optional.of(liveTableInfo);
             }
             try {
                 return method.invoke(delegate, args);

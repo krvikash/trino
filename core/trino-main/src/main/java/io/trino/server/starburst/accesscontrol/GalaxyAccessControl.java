@@ -20,6 +20,7 @@ import com.google.common.collect.ListMultimap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Multimaps;
 import io.starburst.stargate.accesscontrol.client.ContentsVisibility;
+import io.starburst.stargate.accesscontrol.client.LiveTableInfo;
 import io.starburst.stargate.accesscontrol.privilege.EntityPrivileges;
 import io.starburst.stargate.accesscontrol.privilege.GalaxyPrivilegeInfo;
 import io.starburst.stargate.accesscontrol.privilege.GrantKind;
@@ -582,7 +583,7 @@ public class GalaxyAccessControl
     @Override
     public void checkCanInsertIntoTable(SystemSecurityContext context, CatalogSchemaTableName table, Optional<String> branch)
     {
-        checkCatalogWritableAndHasTablePrivilege(context, table, INSERT, explanation -> denyInsertTable(table.toString(), explanation));
+        checkCatalogWritableAndHasTablePrivilege(context, table, INSERT, LiveTableMutation.DML, explanation -> denyInsertTable(table.toString(), explanation));
     }
 
     @Override
@@ -594,7 +595,7 @@ public class GalaxyAccessControl
     @Override
     public void checkCanDeleteFromTable(SystemSecurityContext context, CatalogSchemaTableName table, Optional<String> branch)
     {
-        checkCatalogWritableAndHasTablePrivilege(context, table, DELETE, explanation -> denyDeleteTable(table.toString(), explanation));
+        checkCatalogWritableAndHasTablePrivilege(context, table, DELETE, LiveTableMutation.DML, explanation -> denyDeleteTable(table.toString(), explanation));
     }
 
     @Override
@@ -606,14 +607,14 @@ public class GalaxyAccessControl
     @Override
     public void checkCanTruncateTable(SystemSecurityContext context, CatalogSchemaTableName table)
     {
-        checkCatalogWritableAndHasTablePrivilege(context, table, DELETE, explanation -> denyTruncateTable(table.toString(), explanation));
+        checkCatalogWritableAndHasTablePrivilege(context, table, DELETE, LiveTableMutation.DML, explanation -> denyTruncateTable(table.toString(), explanation));
     }
 
     @Override
     public void checkCanUpdateTableColumns(SystemSecurityContext context, CatalogSchemaTableName table, Optional<String> branch, Set<String> columns)
     {
         checkCatalogIsWritable(getSystemAccessController(context), table.getCatalogName(), explanation -> denyUpdateTableColumns(table.toString(), columns, explanation));
-        checkTableIngestionStateAllowsUpdates(context, table, explanation -> denyUpdateTableColumns(table.toString(), columns, explanation));
+        checkLiveTableAllowsMutation(context, table, LiveTableMutation.DML, explanation -> denyUpdateTableColumns(table.toString(), columns, explanation));
         checkHasPrivilegeOnColumns(context, UPDATE, false, table, columns, explanation -> denyUpdateTableColumns(table.toString(), columns, explanation));
     }
 
@@ -869,7 +870,7 @@ public class GalaxyAccessControl
         if (isSystemCatalog(table.getCatalogName())) {
             denyExecuteProcedure(procedure, "Table procedures are not permitted on the system catalog");
         }
-        checkTableIngestionStateAllowsUpdates(context, table, explanation -> denyExecuteProcedure(procedure, explanation));
+        checkLiveTableAllowsMutation(context, table, LiveTableMutation.OTHER, explanation -> denyExecuteProcedure(procedure, explanation));
         checkIsTableOwner(context, table, explanation -> denyExecuteProcedure(procedure, explanation));
     }
 
@@ -1062,16 +1063,29 @@ public class GalaxyAccessControl
         }
     }
 
-    private void checkTableIngestionStateAllowsUpdates(SystemSecurityContext context, CatalogSchemaTableName table, Consumer<String> denier)
+    private enum LiveTableMutation
+    {
+        DML,
+        OTHER,
+    }
+
+    private void checkLiveTableAllowsMutation(SystemSecurityContext context, CatalogSchemaTableName table, LiveTableMutation mutation, Consumer<String> denier)
     {
         GalaxyAccessControllerApi controller = getSystemAccessController(context.getIdentity());
         TableId tableId = toTableId(controller, table).orElseThrow(() -> new TableNotFoundException(table.getSchemaTableName()));
-        // TODO: In ingestion phase 1, only allow updates if it's a normal table.
-        //       In ingestion phase 2, allow updates as long as ingestion to the table is not running
-        // The phase 1 rule:
-        if (controller.isLiveTableStopped(context, tableId).isPresent()) {
-            denier.accept("Ingest live table table %s may not be modified".formatted(table));
+        Optional<LiveTableInfo> liveTableInfo = controller.getLiveTableInfo(context, tableId);
+        if (liveTableInfo.isEmpty()) {
+            return;
         }
+        // Galaxy REST metastore allows all DML operations
+        if (liveTableInfo.get().galaxyRestMetastore()) {
+            if (mutation != LiveTableMutation.DML) {
+                denier.accept("Ingest live table %s only supports DML operations".formatted(table));
+            }
+            return;
+        }
+        // Table publisher forbids all mutations
+        denier.accept("Ingest live table %s may not be modified".formatted(table));
     }
 
     private void checkHasCatalogPrivilege(SystemSecurityContext context, String catalogName, Privilege privilege, Consumer<String> denier)
@@ -1147,7 +1161,7 @@ public class GalaxyAccessControl
     private void checkCatalogWritableAndTableOwner(SystemSecurityContext context, CatalogSchemaTableName table, Consumer<String> denier)
     {
         checkCatalogIsWritable(getSystemAccessController(context), table.getCatalogName(), denier);
-        checkTableIngestionStateAllowsUpdates(context, table, denier);
+        checkLiveTableAllowsMutation(context, table, LiveTableMutation.OTHER, denier);
         checkIsTableOwner(context, table, denier);
     }
 
@@ -1172,10 +1186,10 @@ public class GalaxyAccessControl
         return DML_OPERATION_MATCHER.matcher(candidateString).matches();
     }
 
-    private void checkCatalogWritableAndHasTablePrivilege(SystemSecurityContext context, CatalogSchemaTableName table, Privilege privilege, Consumer<String> denier)
+    private void checkCatalogWritableAndHasTablePrivilege(SystemSecurityContext context, CatalogSchemaTableName table, Privilege privilege, LiveTableMutation mutation, Consumer<String> denier)
     {
         checkCatalogIsWritable(getSystemAccessController(context), table.getCatalogName(), denier);
-        checkTableIngestionStateAllowsUpdates(context, table, denier);
+        checkLiveTableAllowsMutation(context, table, mutation, denier);
         checkHasTablePrivilege(context, table, privilege, denier);
     }
 

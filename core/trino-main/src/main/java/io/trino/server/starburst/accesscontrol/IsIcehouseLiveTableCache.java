@@ -13,6 +13,7 @@
  */
 package io.trino.server.starburst.accesscontrol;
 
+import io.starburst.stargate.accesscontrol.client.LiveTableInfo;
 import io.starburst.stargate.accesscontrol.client.TrinoSecurityApi;
 import io.starburst.stargate.id.TableId;
 import io.starburst.stargate.identity.DispatchSession;
@@ -27,10 +28,8 @@ public interface IsIcehouseLiveTableCache
 {
     /**
      * If the table is not a live table, return Optional.empty()
-     * If it is stopped, return Optional.of(true)
-     * If it is not stopped, return Optional.of(false)
      */
-    Optional<Boolean> isLiveTableStopped(TrinoSecurityApi trinoSecurityApi, TableId tableId, DispatchSession session);
+    Optional<LiveTableInfo> getLiveTableInfo(TrinoSecurityApi trinoSecurityApi, TableId tableId, DispatchSession session);
 
     static IsIcehouseLiveTableCache create(GalaxySystemAccessControlConfig.AccessControlMode accessControlMode)
     {

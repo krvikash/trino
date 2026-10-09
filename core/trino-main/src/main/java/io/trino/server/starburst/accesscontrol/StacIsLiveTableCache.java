@@ -14,11 +14,11 @@
 package io.trino.server.starburst.accesscontrol;
 
 import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.CacheLoader;
-import com.google.common.cache.LoadingCache;
+import io.starburst.stargate.accesscontrol.client.LiveTableInfo;
 import io.starburst.stargate.accesscontrol.client.TrinoSecurityApi;
 import io.starburst.stargate.id.TableId;
 import io.starburst.stargate.identity.DispatchSession;
+import io.trino.cache.NonEvictableCache;
 
 import java.util.Optional;
 
@@ -27,27 +27,17 @@ import static io.trino.cache.SafeCaches.buildNonEvictableCache;
 public class StacIsLiveTableCache
         implements IsIcehouseLiveTableCache
 {
-    /**
-     * Optional.empty() means that the cache does not have this table yet, which prompts GalaxyPermissionsCache.isLiveTableStopped to call trinoSecurityApi.isLiveTableStopped and fill in the cache value.
-     * Optional.of(true) means that the table is a live table, which means that GalaxyPermissionsCache.isLiveTableStopped will have to call trinoSecurityApi.isLiveTableStopped to get the latest state.
-     * Optional.of(false) means that the table is not a live table. GalaxyPermissionsCache.isLiveTableStopped will return Optional.empty().
-     */
-    private final LoadingCache<TableId, Optional<Boolean>> isLiveTableCache;
-
-    public StacIsLiveTableCache()
-    {
-        isLiveTableCache = buildNonEvictableCache(CacheBuilder.newBuilder(), CacheLoader.from(_ -> Optional.empty()));
-    }
+    private final NonEvictableCache<TableId, Optional<LiveTableInfo>> liveTableInfoCache = buildNonEvictableCache(CacheBuilder.newBuilder());
 
     @Override
-    public Optional<Boolean> isLiveTableStopped(TrinoSecurityApi trinoSecurityApi, TableId tableId, DispatchSession session)
+    public Optional<LiveTableInfo> getLiveTableInfo(TrinoSecurityApi trinoSecurityApi, TableId tableId, DispatchSession session)
     {
-        Optional<Boolean> isLiveTable = isLiveTableCache.getUnchecked(tableId);
-        if (isLiveTable.isPresent() && !isLiveTable.get()) {
-            return Optional.empty();
+        Optional<LiveTableInfo> cached = liveTableInfoCache.getIfPresent(tableId);
+        if (cached != null) {
+            return cached;
         }
-        Optional<Boolean> isLiveTableStopped = trinoSecurityApi.isLiveTableStopped(session, tableId);
-        isLiveTableCache.put(tableId, Optional.of(isLiveTableStopped.isPresent()));
-        return isLiveTableStopped;
+        Optional<LiveTableInfo> liveTableInfo = trinoSecurityApi.getLiveTableInfo(session, tableId);
+        liveTableInfoCache.put(tableId, liveTableInfo);
+        return liveTableInfo;
     }
 }
