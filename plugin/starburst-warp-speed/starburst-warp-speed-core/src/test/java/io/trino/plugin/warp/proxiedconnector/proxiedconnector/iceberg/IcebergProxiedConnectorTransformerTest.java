@@ -17,6 +17,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import io.airlift.units.DataSize;
+import io.trino.plugin.iceberg.ColumnIdentity;
 import io.trino.plugin.iceberg.IcebergColumnHandle;
 import io.trino.plugin.iceberg.IcebergFileFormat;
 import io.trino.plugin.iceberg.IcebergSplit;
@@ -35,6 +36,7 @@ import io.trino.spi.connector.ConnectorSplit;
 import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.metrics.Metrics;
 import io.trino.spi.predicate.TupleDomain;
+import io.trino.spi.type.RowType;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.PartitionSpecParser;
 import org.junit.jupiter.api.Test;
@@ -47,6 +49,9 @@ import java.util.OptionalLong;
 import java.util.Set;
 import java.util.UUID;
 
+import static io.trino.plugin.iceberg.ColumnIdentity.TypeCategory.STRUCT;
+import static io.trino.plugin.iceberg.ColumnIdentity.primitiveColumnIdentity;
+import static io.trino.spi.type.IntegerType.INTEGER;
 import static io.trino.type.InternalTypeManager.TESTING_TYPE_MANAGER;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
@@ -321,6 +326,39 @@ public class IcebergProxiedConnectorTransformerTest
         IcebergProxiedConnectorTransformer icebergProxiedConnectorTransformerUnique = new IcebergProxiedConnectorTransformer(newConfig, TESTING_TYPE_MANAGER);
         dispatcherSplitAnotherSnapshot = icebergProxiedConnectorTransformerUnique.createDispatcherSplit(icebergSplit, dispatcherTableHandleAnotherSnapshot, session);
         assertThat(dispatcherSplitAnotherSnapshot.deletedFilesHash()).isNotEqualTo(dispatcherSplit.deletedFilesHash());
+    }
+
+    @Test
+    public void testNestedFieldNamesIncludeDereferencePath()
+    {
+        RowType firstRowType = RowType.rowType(RowType.field("x", INTEGER));
+        RowType secondRowType = RowType.rowType(RowType.field("t", firstRowType));
+        ColumnIdentity firstStruct = new ColumnIdentity(1, "s1", STRUCT, ImmutableList.of(primitiveColumnIdentity(2, "x")));
+        ColumnIdentity secondStruct = new ColumnIdentity(3, "s2", STRUCT, ImmutableList.of(
+                new ColumnIdentity(4, "t", STRUCT, ImmutableList.of(primitiveColumnIdentity(5, "x")))));
+
+        IcebergColumnHandle firstNested = IcebergColumnHandle.optional(firstStruct)
+                .fieldType(firstRowType, INTEGER)
+                .path(2)
+                .build();
+        IcebergColumnHandle secondNested = IcebergColumnHandle.optional(secondStruct)
+                .fieldType(secondRowType, INTEGER)
+                .path(4, 5)
+                .build();
+        IcebergColumnHandle topLevel = IcebergColumnHandle.optional(primitiveColumnIdentity(6, "x"))
+                .columnType(INTEGER)
+                .build();
+
+        RegularColumn firstColumn = icebergProxiedConnectorTransformer.getWarpRegularColumn(firstNested);
+        RegularColumn secondColumn = icebergProxiedConnectorTransformer.getWarpRegularColumn(secondNested);
+        RegularColumn topLevelColumn = icebergProxiedConnectorTransformer.getWarpRegularColumn(topLevel);
+
+        assertThat(firstColumn.getName()).isEqualTo("s1#x");
+        assertThat(firstColumn.getColumnId()).isEqualTo("2");
+        assertThat(secondColumn.getName()).isEqualTo("s2#t#x");
+        assertThat(secondColumn.getColumnId()).isEqualTo("5");
+        assertThat(topLevelColumn.getName()).isEqualTo("x");
+        assertThat(topLevelColumn.getColumnId()).isEqualTo("6");
     }
 
     @Override

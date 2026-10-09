@@ -16,6 +16,7 @@ package io.trino.plugin.warp.proxiedconnector.iceberg;
 import com.google.common.hash.Hashing;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
+import io.trino.plugin.iceberg.ColumnIdentity;
 import io.trino.plugin.iceberg.CompositeIcebergSplit;
 import io.trino.plugin.iceberg.CorruptedIcebergTableHandle;
 import io.trino.plugin.iceberg.IcebergColumnHandle;
@@ -193,7 +194,19 @@ public class IcebergProxiedConnectorTransformer
     public RegularColumn getWarpRegularColumn(ColumnHandle columnHandle)
     {
         IcebergColumnHandle icebergColumnHandle = (IcebergColumnHandle) columnHandle;
-        return new RegularColumn(icebergColumnHandle.getName(), String.valueOf(icebergColumnHandle.getId()));
+        return new RegularColumn(getDereferenceName(icebergColumnHandle), String.valueOf(icebergColumnHandle.getId()));
+    }
+
+    // Joins the base column and dereferenced field names with "#", as Hive names nested fields.
+    private static String getDereferenceName(IcebergColumnHandle icebergColumnHandle)
+    {
+        ColumnIdentity columnIdentity = icebergColumnHandle.getBaseColumnIdentity();
+        StringBuilder name = new StringBuilder(columnIdentity.getName());
+        for (int fieldId : icebergColumnHandle.getPath()) {
+            columnIdentity = columnIdentity.getChildByFieldId(fieldId);
+            name.append('#').append(columnIdentity.getName());
+        }
+        return name.toString();
     }
 
     @Override
