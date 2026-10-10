@@ -829,6 +829,31 @@ class NativeExpressionRulesHandlerTest
         assertPushdownStatsSum(0);
     }
 
+    /**
+     * hour(timestamp_col) = 13 pushes down as FUNCTION_TYPE_HOUR over the raw timestamp column.
+     */
+    @Test
+    public void testHourOfTimestampPushedDown()
+    {
+        WarpCall hourCall = new WarpCall(SupportedFunctions.HOUR.getName(), List.of(createExpectedVariable(timestampVariable)), BigintType.BIGINT);
+        WarpCall warpExpression = new WarpCall(
+                EQUAL_OPERATOR_FUNCTION_NAME.getName(),
+                List.of(hourCall, new WarpPrimitiveConstant(13L, BigintType.BIGINT)),
+                BOOLEAN);
+
+        NativeExpression expectedResult = new NativeExpression(
+                PREDICATE_TYPE_VALUES,
+                FunctionType.FUNCTION_TYPE_HOUR,
+                Domain.singleValue(BigintType.BIGINT, 13L),
+                false,
+                true,
+                List.of(),
+                TransformFunction.NONE);
+        Optional<NativeExpression> result = nativeExpressionRulesHandler.rewrite(warpExpression, timestampVariable.getType(), Collections.emptySet(), customStats);
+        assertThat(result).isEqualTo(Optional.of(expectedResult));
+        assertPushdownStatsSum(0);
+    }
+
     private WarpVariable createExpectedVariable(Variable variable)
     {
         return new WarpVariable(assignments.get(variable.getName()), variable.getType());

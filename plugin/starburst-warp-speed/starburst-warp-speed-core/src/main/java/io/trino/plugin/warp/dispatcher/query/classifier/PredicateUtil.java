@@ -287,13 +287,13 @@ public class PredicateUtil
     // A predicate's Domain (io.trino.spi.predicate.Domain) pairs the matched ValueSet with the Type
     // those values are expressed in. Usually that Type matches the source column, so recTypeLength
     // (the column's on-disk width) is also the payload width the fillers write at. CAST and the
-    // DAY/WEEK family (day(), day_of_week(), day_of_year(), week(), year_of_week()) are exceptions:
+    // DAY/WEEK family (day(), day_of_week(), day_of_year(), week(), year_of_week()) and hour() are exceptions:
     // Trino gives the domain the function's result type - e.g. bigint for day_of_year(date_col),
     // not the DATE column's 4-byte width - so the buffer must be sized off domain.getType() instead.
     public static boolean usesDomainWidth(FunctionType functionType)
     {
         return switch (functionType) {
-            case FUNCTION_TYPE_CAST, FUNCTION_TYPE_DAY, FUNCTION_TYPE_DAY_OF_WEEK, FUNCTION_TYPE_DAY_OF_YEAR, FUNCTION_TYPE_WEEK, FUNCTION_TYPE_YEAR_OF_WEEK -> true;
+            case FUNCTION_TYPE_CAST, FUNCTION_TYPE_DAY, FUNCTION_TYPE_DAY_OF_WEEK, FUNCTION_TYPE_DAY_OF_YEAR, FUNCTION_TYPE_WEEK, FUNCTION_TYPE_YEAR_OF_WEEK, FUNCTION_TYPE_HOUR -> true;
             default -> false;
         };
     }

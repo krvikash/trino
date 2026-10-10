@@ -67,6 +67,7 @@ public class SupportedFunctions
     public static final FunctionName YEAR = new FunctionName("year"); // This is an alias for day_of_year().
     public static final FunctionName YEAR_OF_WEEK = new FunctionName("year_of_week"); // Returns the year of the ISO week from x.
     public static final FunctionName YOW = new FunctionName("yow"); // This is an alias for year_of_week().
+    public static final FunctionName HOUR = new FunctionName("hour"); // Timestamp only, native has no date variant.
     public static final FunctionName CONTAINS = new FunctionName("contains");
 
     public static final FunctionName ELEMENT_AT = new FunctionName("element_at");
@@ -112,6 +113,8 @@ public class SupportedFunctions
         typeClasses.put("valid_types", Set.of(StandardTypes.REAL, StandardTypes.DOUBLE));
         Map<String, Set<String>> validDateTypes = new HashMap<>();
         validDateTypes.put("validDateTypes", Set.of(StandardTypes.DATE, StandardTypes.TIMESTAMP));
+        Map<String, Set<String>> validHourTypes = new HashMap<>();
+        validHourTypes.put("validHourTypes", Set.of(StandardTypes.TIMESTAMP));
 
         supportedFunctionsRules.put(IN_PREDICATE_FUNCTION_NAME, new InRewriter());
         supportedFunctionsRules.put(GREATER_THAN_OPERATOR_FUNCTION_NAME, createGenericRewriter("$greater_than(x, value)", true));
@@ -152,6 +155,7 @@ public class SupportedFunctions
             String query = format("%s(x : validDateTypes)", dateFunction.getName());
             supportedFunctionsRules.put(dateFunction, createGenericRewriter(query, true, validDateTypes));
         }
+        supportedFunctionsRules.put(HOUR, createGenericRewriter("hour(x : validHourTypes)", true, validHourTypes));
     }
 
     public Set<ConnectorExpressionRule<Call, WarpExpression>> getRule(FunctionName functionName)

@@ -27,6 +27,7 @@ public enum FunctionType
     FUNCTION_TYPE_WEEK,
     FUNCTION_TYPE_YEAR_OF_WEEK,
     FUNCTION_TYPE_TRANSFORMED,
+    FUNCTION_TYPE_HOUR,
     FUNCTION_TYPE_NUM_OF;
 
     FunctionType() {}

@@ -91,11 +91,20 @@ class PredicateBufferSizeConsistencyTest
                 FunctionType.FUNCTION_TYPE_DAY_OF_YEAR,
                 FunctionType.FUNCTION_TYPE_WEEK,
                 FunctionType.FUNCTION_TYPE_YEAR_OF_WEEK)) {
-            assertValuesBufferFillsWithoutOverflow(functionType);
+            assertValuesBufferFillsWithoutOverflow(functionType, DateType.DATE);
         }
     }
 
-    private static void assertValuesBufferFillsWithoutOverflow(FunctionType functionType)
+    /**
+     * hour(timestamp_col) IN (...) sizes the buffer off the bigint result, same as the DAY/WEEK family.
+     */
+    @Test
+    public void hourValuesBufferIsLargeEnoughToFill()
+    {
+        assertValuesBufferFillsWithoutOverflow(FunctionType.FUNCTION_TYPE_HOUR, TimestampType.createTimestampType(3));
+    }
+
+    private static void assertValuesBufferFillsWithoutOverflow(FunctionType functionType, Type sourceType)
     {
         Domain domain = Domain.create(
                 ValueSet.ofRanges(Range.equal(BigintType.BIGINT, 1L), Range.equal(BigintType.BIGINT, 5L), Range.equal(BigintType.BIGINT, 9L)),
@@ -109,13 +118,13 @@ class PredicateBufferSizeConsistencyTest
                 List.of(),
                 TransformFunction.NONE);
         StorageEngineConstants storageEngineConstants = new StubsStorageEngineConstants();
-        int sourceRecTypeLength = TypeUtils.getTypeLength(DateType.DATE, storageEngineConstants.getVarcharMaxLen());
+        int sourceRecTypeLength = TypeUtils.getTypeLength(sourceType, storageEngineConstants.getVarcharMaxLen());
         int functionTargetRecTypeLength = TypeUtils.getTypeLength(domain.getType(), storageEngineConstants.getVarcharMaxLen());
         PredicateData predicateData = PredicateUtil.calcPredicateData(
                 nativeExpression,
                 sourceRecTypeLength,
                 false,
-                DateType.DATE,
+                sourceType,
                 functionTargetRecTypeLength);
 
         BufferAllocator bufferAllocator = mock(BufferAllocator.class);

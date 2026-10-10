@@ -314,6 +314,16 @@ class VariableRewriter
         return supported;
     }
 
+    boolean hour(WarpExpression warpExpression, RewriteContext rewriteContext)
+    {
+        boolean supported = false;
+        if (isValuesPredicateType()) {
+            rewriteContext.nativeExpressionBuilder().functionType(FunctionType.FUNCTION_TYPE_HOUR);
+            supported = true;
+        }
+        return supported;
+    }
+
     public boolean lower(WarpExpression expression, RewriteContext rewriteContext)
     {
         rewriteContext

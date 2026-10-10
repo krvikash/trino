@@ -38,9 +38,13 @@ import io.trino.spi.type.TinyintType;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.VarcharType;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.stream.Stream;
 
 import static io.trino.plugin.warp.gen.constants.PredicateType.PREDICATE_TYPE_INVERSE_VALUES;
 import static io.trino.plugin.warp.gen.constants.PredicateType.PREDICATE_TYPE_RANGES;
@@ -50,6 +54,7 @@ import static io.trino.plugin.warp.gen.constants.PredicateType.PREDICATE_TYPE_VA
 import static io.trino.spi.predicate.ValueSet.ofRanges;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 public class PredicateUtilTest
 {
@@ -339,23 +344,31 @@ public class PredicateUtilTest
         assertThat(predicateData.getPredicateInfo().numValues()).isEqualTo(domain.getValues().getRanges().getRangeCount());
     }
 
-    @Test
-    public void testCalcPredicateData_dayOfYearNeverPromotedToInverseValues()
+    static Stream<Arguments> functionsOverRawColumn()
     {
-        // day_of_year(date_col) < 3 OR day_of_year(date_col) > 3
+        return Stream.of(
+                arguments(DateType.DATE, FunctionType.FUNCTION_TYPE_DAY_OF_YEAR),
+                arguments(TimestampType.createTimestampType(3), FunctionType.FUNCTION_TYPE_HOUR));
+    }
+
+    @ParameterizedTest
+    @MethodSource("functionsOverRawColumn")
+    public void testCalcPredicateData_functionNeverPromotedToInverseValues(Type sourceType, FunctionType functionType)
+    {
+        // function(column) <> 3
         Domain domain = Domain.create(ValueSet.ofRanges(Range.lessThan(BIGINT, 3L), Range.greaterThan(BIGINT, 3L)), false);
-        int sourceRecTypeLength = TypeUtils.getTypeLength(DateType.DATE, 0);
+        int sourceRecTypeLength = TypeUtils.getTypeLength(sourceType, 0);
         int functionTargetRecTypeLength = TypeUtils.getTypeLength(BIGINT, 0);
         NativeExpression nativeExpression = new NativeExpression(
                 PREDICATE_TYPE_RANGES,
-                FunctionType.FUNCTION_TYPE_DAY_OF_YEAR,
+                functionType,
                 domain,
                 false,
                 false,
                 List.of(),
                 TransformFunction.NONE);
 
-        PredicateData predicateData = PredicateUtil.calcPredicateData(nativeExpression, sourceRecTypeLength, true, DateType.DATE, functionTargetRecTypeLength);
+        PredicateData predicateData = PredicateUtil.calcPredicateData(nativeExpression, sourceRecTypeLength, true, sourceType, functionTargetRecTypeLength);
 
         assertThat(predicateData.getPredicateInfo().predicateType()).isEqualTo(PREDICATE_TYPE_RANGES);
         assertThat(predicateData.getPredicateInfo().numValues()).isEqualTo(domain.getValues().getRanges().getRangeCount());

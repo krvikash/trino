@@ -40,6 +40,7 @@ import static io.trino.plugin.warp.expression.rewrite.coordinator.connectortowar
 import static io.trino.plugin.warp.expression.rewrite.coordinator.connectortowarp.SupportedFunctions.DOW;
 import static io.trino.plugin.warp.expression.rewrite.coordinator.connectortowarp.SupportedFunctions.DOY;
 import static io.trino.plugin.warp.expression.rewrite.coordinator.connectortowarp.SupportedFunctions.ELEMENT_AT;
+import static io.trino.plugin.warp.expression.rewrite.coordinator.connectortowarp.SupportedFunctions.HOUR;
 import static io.trino.plugin.warp.expression.rewrite.coordinator.connectortowarp.SupportedFunctions.IS_NAN;
 import static io.trino.plugin.warp.expression.rewrite.coordinator.connectortowarp.SupportedFunctions.JSON_EXTRACT_SCALAR;
 import static io.trino.plugin.warp.expression.rewrite.coordinator.connectortowarp.SupportedFunctions.LOWER;
@@ -114,6 +115,7 @@ public class NativeExpressionRulesHandler
         functionToRewriteRules.put(WEEK_OF_YEAR.getName(), new RewriteRule(variableRewriter.getPattern(), variableRewriter::week));
         functionToRewriteRules.put(YEAR_OF_WEEK.getName(), new RewriteRule(variableRewriter.getPattern(), variableRewriter::yearOfWeek));
         functionToRewriteRules.put(YOW.getName(), new RewriteRule(variableRewriter.getPattern(), variableRewriter::yearOfWeek));
+        functionToRewriteRules.put(HOUR.getName(), new RewriteRule(variableRewriter.getPattern(), variableRewriter::hour));
         functionToRewriteRules.put(LOWER.getName(), new RewriteRule(variableRewriter.getPattern(), variableRewriter::lower));
         functionToRewriteRules.put(UPPER.getName(), new RewriteRule(variableRewriter.getPattern(), variableRewriter::upper));
         functionToRewriteRules.put(ELEMENT_AT.getName(), new RewriteRule(variableAndConstantRewriter.getPattern(), variableAndConstantRewriter::elementAt));
