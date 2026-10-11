@@ -218,9 +218,12 @@ public abstract class BaseWarpNativeFunctionPredicateTest
                 "CAST(d AS varchar) = '1.0E300'",
                 "CAST(d AS varchar) = 'Infinity'",
                 "CAST(d AS varchar) = '-Infinity'",
-                // Warp collects a stored -0.0 as 0.0, so CAST(d AS varchar) = '-0E0' and '0E0' diverge from Trino.
-                // Several reals share one varchar form, and warp inverts the literal to a single real, so CAST(r AS varchar) = '1.677722E7' diverges from Trino.
                 "CAST(d AS varchar) = '4.9E-324'",
+                "CAST(r AS varchar) = 'Infinity'",
+                "CAST(r AS varchar) = '-Infinity'",
+                "CAST(r AS varchar) = '1.677722E7'",
+                "CAST(r AS varchar) = '-1.677722E7'",
+                "CAST(r AS varchar) IN ('1.677722E7', '-1.677722E7', '4.24486E1')",
                 "CAST(d AS varchar) IN ('5.0E-1', '9.7E1', '-9.65E1')",
                 "CAST(r AS varchar) = '4.24486E1'",
                 "CAST(i AS varchar) = '-2147483648'",
@@ -320,6 +323,25 @@ public abstract class BaseWarpNativeFunctionPredicateTest
         assertPredicates(extraPredicates());
     }
 
+    // 0.0 and -0.0 are one domain value and NaN cannot be a range bound, so warp leaves casts of them to Trino.
+    @Test
+    public void testSignedZeroAndNaNCastPredicatesLeftToTrino()
+    {
+        SoftAssertions softly = new SoftAssertions();
+        for (String predicate : ImmutableList.of(
+                "CAST(d AS varchar) = '-0E0'",
+                "CAST(d AS varchar) = '0E0'",
+                "CAST(d AS varchar) = 'NaN'",
+                "CAST(r AS varchar) = '-0E0'",
+                "CAST(r AS varchar) = '0E0'",
+                "CAST(r AS varchar) = 'NaN'",
+                "CAST(r AS varchar) IN ('1.677722E7', '-0E0')",
+                "CAST(r AS varchar) IN ('1.677722E7', 'NaN')")) {
+            assertPredicateLeftToTrino(softly, predicate);
+        }
+        softly.assertAll();
+    }
+
     protected List<Column> columns()
     {
         List<String> ids = IntStream.rangeClosed(1, ROW_COUNT)
@@ -345,7 +367,7 @@ public abstract class BaseWarpNativeFunctionPredicateTest
                         "REAL '16777217.0'",
                         "REAL '42.4486'",
                         "REAL '-0.5'",
-                        "REAL '1.5'",
+                        "REAL '-16777220.0'",
                         "REAL '3.4028235E38'")))
                 .add(new Column("d", "double", ImmutableList.of(
                         "DOUBLE '0.0'",
@@ -524,6 +546,22 @@ public abstract class BaseWarpNativeFunctionPredicateTest
             String plan = (String) computeActual(warpSession(), "EXPLAIN " + query).getOnlyValue();
             softly.assertThat(externalCollect).describedAs("proxied connector collected [%s] %s%n%s", predicate, columnMetrics(metrics), plan).isEqualTo(varcharExternalCollect);
         }
+        softly.assertThat(actual).describedAs("warp result for [%s]", predicate).isEqualTo(expected);
+    }
+
+    private void assertPredicateLeftToTrino(SoftAssertions softly, String predicate)
+    {
+        @Language("SQL") String query = format("SELECT id FROM %s.%s WHERE %s ORDER BY id", DEFAULT_SCHEMA, TABLE, predicate);
+        List<Object> expected = computeActual(trinoSession(), query).getOnlyColumn().collect(toImmutableList());
+        softly.assertThat(expected.size())
+                .describedAs("Trino result for [%s] must select some rows but not all", predicate)
+                .isBetween(1, ROW_COUNT - 1);
+
+        QueryRunner.MaterializedResultWithPlan warpResult = getDistributedQueryRunner().executeWithPlan(warpSession(), query);
+        List<Object> actual = warpResult.result().getOnlyColumn().collect(toImmutableList());
+        Map<String, Long> metrics = DispatcherStubsIntegrationSmokeIT.getCustomMetrics(warpResult.queryId(), getDistributedQueryRunner());
+        softly.assertThat(metric(metrics, WARP_MATCH_COLUMNS)).describedAs("warp matched [%s] %s", predicate, columnMetrics(metrics)).isZero();
+        softly.assertThat(metric(metrics, EXTERNAL_MATCH_COLUMNS)).describedAs("proxied connector did not match [%s] %s", predicate, columnMetrics(metrics)).isPositive();
         softly.assertThat(actual).describedAs("warp result for [%s]", predicate).isEqualTo(expected);
     }
 

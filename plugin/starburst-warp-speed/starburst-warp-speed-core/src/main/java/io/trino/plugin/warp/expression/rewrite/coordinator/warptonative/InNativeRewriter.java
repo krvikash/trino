@@ -22,7 +22,6 @@ import io.trino.plugin.warp.expression.WarpExpression;
 import io.trino.plugin.warp.expression.WarpVariable;
 import io.trino.plugin.warp.expression.rewrite.ExpressionPatterns;
 import io.trino.plugin.warp.gen.constants.FunctionType;
-import io.trino.plugin.warp.gen.constants.PredicateType;
 import io.trino.plugin.warp.gen.stats.PushdownPredicatesStats;
 import io.trino.spi.predicate.Domain;
 import io.trino.spi.predicate.Range;
@@ -37,11 +36,9 @@ import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
 
-import static io.trino.plugin.warp.expression.rewrite.coordinator.warptonative.BaseOperatorRewriter.EQUAL_FUNCTION;
-import static io.trino.plugin.warp.expression.rewrite.coordinator.warptonative.VariableRewriter.calcPredicateType;
+import static io.trino.plugin.warp.expression.rewrite.coordinator.warptonative.VariableRewriter.calcDomainPredicateType;
 import static io.trino.plugin.warp.expression.rewrite.coordinator.warptonative.VariableRewriter.convertSingleValueToDomain;
 import static io.trino.spi.expression.StandardFunctions.ARRAY_CONSTRUCTOR_FUNCTION_NAME;
-import static io.trino.spi.expression.StandardFunctions.EQUAL_OPERATOR_FUNCTION_NAME;
 import static io.trino.spi.expression.StandardFunctions.IN_PREDICATE_FUNCTION_NAME;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static java.util.Objects.requireNonNull;
@@ -91,51 +88,37 @@ class InNativeRewriter
         Type domainType;
         List<Object> functionParams = Collections.emptyList();
         try {
-            Function<WarpConstant, Optional<Range>> convertToRangeFunc;
+            Function<WarpConstant, Optional<Domain>> convertToDomainFunc = constant -> Optional.of(Domain.singleValue(constant.getType(), constant.getValue()));
             NativeExpression.Builder nativeExpressionBuilder = rewriteContext.nativeExpressionBuilder();
             Type columnType = rewriteContext.columnType();
             if (columnType instanceof MapType mapType) {
-                convertToRangeFunc = constant -> Optional.of(Range.equal(constant.getType(), constant.getValue()));
                 domainType = mapType.getValueType();
             }
             else {
                 Type castType = inConstantValues.getFirst().getType();
                 boolean isCastExpression = !columnType.equals(castType);
                 if (isCastExpression) {
-                    boolean isCastToVarchar = castType instanceof VarcharType;
-                    if (isCastToVarchar) {
-                        convertToRangeFunc = constant -> {
-                            Slice slice = (Slice) constant.getValue();
-                            Domain singleValueDomain = convertSingleValueToDomain(slice, columnType, ((VarcharType) castType).getLength());
-                            if (singleValueDomain.isNone()) {
-                                return Optional.empty();
-                            }
-                            else {
-                                return Optional.of(singleValueDomain.getValues().getRanges().getOrderedRanges().getFirst());
-                            }
-                        };
+                    functionParams = nativeExpressionBuilder.getFunctionParams();
+                    if (castType instanceof VarcharType varcharType) {
+                        convertToDomainFunc = constant -> convertSingleValueToDomain((Slice) constant.getValue(), columnType, varcharType.getLength());
                         domainType = columnType;
-                        functionParams = nativeExpressionBuilder.getFunctionParams();
                     }
                     else {
-                        convertToRangeFunc = constant -> {
-                            Type type = constant.getType();
-                            Object value = constant.getValue();
-                            return Optional.of(EQUAL_FUNCTION.apply(type, value));
-                        };
                         domainType = castType;
-                        functionParams = nativeExpressionBuilder.getFunctionParams();
                     }
                 }
                 else {
-                    convertToRangeFunc = constant -> Optional.of(Range.equal(constant.getType(), constant.getValue()));
                     domainType = columnType;
                 }
             }
             List<Range> ranges = new ArrayList<>();
             for (WarpExpression value : inConstantValues) {
-                Optional<Range> range = convertToRangeFunc.apply((WarpConstant) value);
-                range.ifPresent(ranges::add);
+                Optional<Domain> valueDomain = convertToDomainFunc.apply((WarpConstant) value);
+                if (valueDomain.isEmpty()) {
+                    pushdownPredicatesStats.incunsupported_functions_native();
+                    return false;
+                }
+                ranges.addAll(valueDomain.get().getValues().getRanges().getOrderedRanges());
             }
             Domain domain;
             if (ranges.isEmpty()) {
@@ -144,9 +127,8 @@ class InNativeRewriter
             else {
                 domain = Domain.create(SortedRangeSet.copyOf(domainType, ranges), false);
             }
-            PredicateType predicateType = calcPredicateType(domainType, EQUAL_OPERATOR_FUNCTION_NAME.getName());
             nativeExpressionBuilder.domain(domain)
-                    .predicateType(predicateType)
+                    .predicateType(calcDomainPredicateType(domain))
                     .collectNulls(domain.isNullAllowed())
                     .functionParams(functionParams);
         }

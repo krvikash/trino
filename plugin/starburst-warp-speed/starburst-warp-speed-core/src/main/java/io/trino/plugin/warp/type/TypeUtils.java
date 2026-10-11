@@ -48,6 +48,8 @@ import static io.trino.spi.type.TimestampWithTimeZoneType.TIMESTAMP_TZ_MICROS;
 import static io.trino.spi.type.TimestampWithTimeZoneType.TIMESTAMP_TZ_MILLIS;
 import static io.trino.spi.type.TimestampWithTimeZoneType.TIMESTAMP_TZ_SECONDS;
 import static io.trino.spi.type.TinyintType.TINYINT;
+import static java.lang.Float.intBitsToFloat;
+import static java.lang.Math.toIntExact;
 
 public class TypeUtils
 {
@@ -234,6 +236,18 @@ public class TypeUtils
     public static boolean isDoubleType(Type type)
     {
         return type.equals(DOUBLE);
+    }
+
+    // 0.0 and -0.0 share one domain value but cast to different strings and are stored with their sign.
+    public static boolean isFloatingPointZero(Type type, Object value)
+    {
+        if (isDoubleType(type)) {
+            return (double) value == 0.0;
+        }
+        if (isRealType(type)) {
+            return intBitsToFloat(toIntExact((long) value)) == 0.0f;
+        }
+        return false;
     }
 
     public static boolean isStr(RecTypeCode code)

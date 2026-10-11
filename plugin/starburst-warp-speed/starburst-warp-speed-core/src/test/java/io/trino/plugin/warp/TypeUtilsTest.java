@@ -19,6 +19,7 @@ import io.trino.spi.type.CharType;
 import io.trino.spi.type.DoubleType;
 import io.trino.spi.type.IntegerType;
 import io.trino.spi.type.MapType;
+import io.trino.spi.type.RealType;
 import io.trino.spi.type.RowType;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.TypeOperators;
@@ -29,6 +30,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.stream.Stream;
 
+import static java.lang.Float.floatToIntBits;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 
@@ -110,5 +112,24 @@ public class TypeUtilsTest
     public void testIsWarmLuceneSupported(Type type, boolean expected)
     {
         assertThat(TypeUtils.isWarmLuceneSupported(type)).isEqualTo(expected);
+    }
+
+    static Stream<Arguments> floatingPointZeros()
+    {
+        return Stream.of(
+                arguments(DoubleType.DOUBLE, 0.0d, true),
+                arguments(DoubleType.DOUBLE, -0.0d, true),
+                arguments(DoubleType.DOUBLE, 1.5d, false),
+                arguments(RealType.REAL, (long) floatToIntBits(0.0f), true),
+                arguments(RealType.REAL, (long) floatToIntBits(-0.0f), true),
+                arguments(RealType.REAL, (long) floatToIntBits(1.5f), false),
+                arguments(IntegerType.INTEGER, 0L, false));
+    }
+
+    @ParameterizedTest
+    @MethodSource("floatingPointZeros")
+    public void testIsFloatingPointZero(Type type, Object value, boolean expected)
+    {
+        assertThat(TypeUtils.isFloatingPointZero(type, value)).isEqualTo(expected);
     }
 }

@@ -39,6 +39,7 @@ import io.trino.spi.expression.Variable;
 import io.trino.spi.predicate.Domain;
 import io.trino.spi.predicate.Range;
 import io.trino.spi.predicate.ValueSet;
+import io.trino.spi.type.ArrayType;
 import io.trino.spi.type.BigintType;
 import io.trino.spi.type.BooleanType;
 import io.trino.spi.type.DateType;
@@ -57,6 +58,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -66,14 +68,18 @@ import java.util.Optional;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.stream.Stream;
 
+import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.trino.plugin.warp.expression.rewrite.coordinator.connectortowarp.SupportedFunctions.ELEMENT_AT;
+import static io.trino.plugin.warp.gen.constants.PredicateType.PREDICATE_TYPE_NONE;
 import static io.trino.plugin.warp.gen.constants.PredicateType.PREDICATE_TYPE_RANGES;
 import static io.trino.plugin.warp.gen.constants.PredicateType.PREDICATE_TYPE_STRING_VALUES;
 import static io.trino.plugin.warp.gen.constants.PredicateType.PREDICATE_TYPE_VALUES;
+import static io.trino.spi.expression.StandardFunctions.ARRAY_CONSTRUCTOR_FUNCTION_NAME;
 import static io.trino.spi.expression.StandardFunctions.CAST_FUNCTION_NAME;
 import static io.trino.spi.expression.StandardFunctions.EQUAL_OPERATOR_FUNCTION_NAME;
 import static io.trino.spi.expression.StandardFunctions.GREATER_THAN_OPERATOR_FUNCTION_NAME;
 import static io.trino.spi.expression.StandardFunctions.GREATER_THAN_OR_EQUAL_OPERATOR_FUNCTION_NAME;
+import static io.trino.spi.expression.StandardFunctions.IN_PREDICATE_FUNCTION_NAME;
 import static io.trino.spi.expression.StandardFunctions.LESS_THAN_OPERATOR_FUNCTION_NAME;
 import static io.trino.spi.expression.StandardFunctions.LESS_THAN_OR_EQUAL_OPERATOR_FUNCTION_NAME;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
@@ -430,40 +436,201 @@ class NativeExpressionRulesHandlerTest
     }
 
     /**
-     * where cast(s_real as varchar) = '2.6248186293E2'
+     * where cast(s_real as varchar) = '2.624819E2' matches the run of reals that Trino casts to that string
      */
     @ParameterizedTest
     @MethodSource("equalOperatorParamsSupported")
     public void testCastRealToVarcharSupported(VarcharType varcharType)
     {
         float value = 2.624819e2f;
-        long intBits = floatToIntBits(value);
-        Slice slice = RealOperators.castToVarchar(varcharType.getLength().orElse(VarcharType.UNBOUNDED_LENGTH), intBits);
-        Variable columnType = realVariable;
-        ColumnHandle realColumn = assignments.get(columnType.getName());
+        int varcharLength = varcharType.getLength().orElse(VarcharType.UNBOUNDED_LENGTH);
+        Slice slice = RealOperators.castToVarchar(varcharLength, floatToIntBits(value));
+        Range expectedRange = realsCastingTo(slice, value, varcharLength);
+        assertThat(expectedRange.isSingleValue()).isFalse();
         WarpCall castCall = new WarpCall(
                 CAST_FUNCTION_NAME.getName(),
-                List.of(new WarpVariable(realColumn, columnType.getType())),
+                List.of(new WarpVariable(assignments.get(realVariable.getName()), realVariable.getType())),
                 varcharType);
         WarpCall warpExpression = new WarpCall(
                 EQUAL_OPERATOR_FUNCTION_NAME.getName(),
                 List.of(castCall, new WarpSliceConstant(slice, varcharType)),
                 BOOLEAN);
 
-        Domain domain = Domain.singleValue(RealType.REAL, intBits);
-
         NativeExpression expectedResult = new NativeExpression(
-                PREDICATE_TYPE_VALUES,
+                PREDICATE_TYPE_RANGES,
                 FunctionType.FUNCTION_TYPE_NONE,
-                domain,
+                Domain.create(ValueSet.ofRanges(expectedRange), false),
                 false,
                 false,
                 Collections.emptyList(),
                 TransformFunction.NONE);
 
-        Optional<NativeExpression> result = nativeExpressionRulesHandler.rewrite(warpExpression, columnType.getType(), Collections.emptySet(), customStats);
+        Optional<NativeExpression> result = nativeExpressionRulesHandler.rewrite(warpExpression, realVariable.getType(), Collections.emptySet(), customStats);
         assertThat(result).isEqualTo(Optional.of(expectedResult));
         assertPushdownStatsSum(0);
+    }
+
+    /**
+     * where cast(s_real as varchar) = '1.4E-45' matches the one real that Trino casts to that string
+     */
+    @Test
+    public void testCastRealToVarcharUniqueForm()
+    {
+        float value = Float.MIN_VALUE;
+        Slice slice = RealOperators.castToVarchar(VarcharType.UNBOUNDED_LENGTH, floatToIntBits(value));
+        Range expectedRange = realsCastingTo(slice, value, VarcharType.UNBOUNDED_LENGTH);
+        assertThat(expectedRange.isSingleValue()).isTrue();
+        WarpCall warpExpression = castToVarcharEquals(realVariable, slice);
+
+        NativeExpression expectedResult = new NativeExpression(
+                PREDICATE_TYPE_VALUES,
+                FunctionType.FUNCTION_TYPE_NONE,
+                Domain.singleValue(RealType.REAL, (long) floatToIntBits(value)),
+                false,
+                false,
+                Collections.emptyList(),
+                TransformFunction.NONE);
+
+        Optional<NativeExpression> result = nativeExpressionRulesHandler.rewrite(warpExpression, realVariable.getType(), Collections.emptySet(), customStats);
+        assertThat(result).isEqualTo(Optional.of(expectedResult));
+        assertPushdownStatsSum(0);
+    }
+
+    // Walks outward from the seed over every real that Trino's own cast prints as the slice.
+    private static Range realsCastingTo(Slice slice, float seed, int varcharLength)
+    {
+        float lowValue = seed;
+        while (RealOperators.castToVarchar(varcharLength, floatToIntBits(Math.nextDown(lowValue))).equals(slice)) {
+            lowValue = Math.nextDown(lowValue);
+        }
+        float highValue = seed;
+        while (RealOperators.castToVarchar(varcharLength, floatToIntBits(Math.nextUp(highValue))).equals(slice)) {
+            highValue = Math.nextUp(highValue);
+        }
+        return Range.range(RealType.REAL, (long) floatToIntBits(lowValue), true, (long) floatToIntBits(highValue), true);
+    }
+
+    /**
+     * where cast(s_double as varchar) = value stays with Trino for signed zero and NaN
+     */
+    @ParameterizedTest
+    @ValueSource(strings = {"0E0", "-0E0", "NaN"})
+    public void testCastDoubleZeroOrNaNToVarcharNotPushed(String value)
+    {
+        assertCastToVarcharNotPushed(doubleVariable1, value);
+    }
+
+    /**
+     * where cast(s_real as varchar) = value stays with Trino for signed zero and NaN
+     */
+    @ParameterizedTest
+    @ValueSource(strings = {"0E0", "-0E0", "NaN"})
+    public void testCastRealZeroOrNaNToVarcharNotPushed(String value)
+    {
+        assertCastToVarcharNotPushed(realVariable, value);
+    }
+
+    /**
+     * where cast(s_real as varchar) in ('2.624819E2', '1.4E-45') matches the run of reals and the single real
+     */
+    @Test
+    public void testCastRealToVarcharIn()
+    {
+        float runValue = 2.624819e2f;
+        Slice runSlice = RealOperators.castToVarchar(VarcharType.UNBOUNDED_LENGTH, floatToIntBits(runValue));
+        Range runRange = realsCastingTo(runSlice, runValue, VarcharType.UNBOUNDED_LENGTH);
+        float singleValue = Float.MIN_VALUE;
+        Slice singleSlice = RealOperators.castToVarchar(VarcharType.UNBOUNDED_LENGTH, floatToIntBits(singleValue));
+        WarpCall warpExpression = castToVarcharIn(realVariable, List.of(runSlice, singleSlice));
+
+        NativeExpression expectedResult = new NativeExpression(
+                PREDICATE_TYPE_RANGES,
+                FunctionType.FUNCTION_TYPE_NONE,
+                Domain.create(ValueSet.ofRanges(Range.equal(RealType.REAL, (long) floatToIntBits(singleValue)), runRange), false),
+                false,
+                false,
+                Collections.emptyList(),
+                TransformFunction.NONE);
+
+        Optional<NativeExpression> result = nativeExpressionRulesHandler.rewrite(warpExpression, realVariable.getType(), Collections.emptySet(), customStats);
+        assertThat(result).isEqualTo(Optional.of(expectedResult));
+        assertPushdownStatsSum(0);
+    }
+
+    /**
+     * where cast(s_real as varchar) in ('1.4E-45', '-0E0') stays with Trino
+     */
+    @Test
+    public void testCastRealToVarcharInWithZeroNotPushed()
+    {
+        Slice singleSlice = RealOperators.castToVarchar(VarcharType.UNBOUNDED_LENGTH, floatToIntBits(Float.MIN_VALUE));
+        assertNotPushed(castToVarcharIn(realVariable, List.of(singleSlice, Slices.utf8Slice("-0E0"))), realVariable);
+    }
+
+    /**
+     * where cast(s_double as varchar) in ('5', '7') matches no row
+     */
+    @Test
+    public void testCastDoubleToVarcharInNoneDomain()
+    {
+        WarpCall warpExpression = castToVarcharIn(doubleVariable1, List.of(Slices.utf8Slice("5"), Slices.utf8Slice("7")));
+
+        NativeExpression expectedResult = new NativeExpression(
+                PREDICATE_TYPE_NONE,
+                FunctionType.FUNCTION_TYPE_NONE,
+                Domain.none(DoubleType.DOUBLE),
+                false,
+                true,
+                Collections.emptyList(),
+                TransformFunction.NONE);
+
+        Optional<NativeExpression> result = nativeExpressionRulesHandler.rewrite(warpExpression, doubleVariable1.getType(), Collections.emptySet(), customStats);
+        assertThat(result).isEqualTo(Optional.of(expectedResult));
+        assertPushdownStatsSum(0);
+    }
+
+    private void assertCastToVarcharNotPushed(Variable column, String stringValue)
+    {
+        assertNotPushed(castToVarcharEquals(column, Slices.utf8Slice(stringValue)), column);
+    }
+
+    private void assertNotPushed(WarpCall warpExpression, Variable column)
+    {
+        Optional<NativeExpression> result = nativeExpressionRulesHandler.rewrite(warpExpression, column.getType(), Collections.emptySet(), customStats);
+        assertThat(result).isEmpty();
+        assertPushdownStatsSum(1);
+        PushdownPredicatesStats pushdownPredicatesStats = (PushdownPredicatesStats) metricsManager.get(PushdownPredicatesStats.createKey());
+        assertThat(pushdownPredicatesStats.getunsupported_functions_native()).isEqualTo(1);
+    }
+
+    private WarpCall castToVarcharEquals(Variable column, Slice slice)
+    {
+        return new WarpCall(
+                EQUAL_OPERATOR_FUNCTION_NAME.getName(),
+                List.of(castToVarchar(column), new WarpSliceConstant(slice, VarcharType.VARCHAR)),
+                BOOLEAN);
+    }
+
+    private WarpCall castToVarcharIn(Variable column, List<Slice> slices)
+    {
+        WarpCall arrayCall = new WarpCall(
+                ARRAY_CONSTRUCTOR_FUNCTION_NAME.getName(),
+                slices.stream()
+                        .map(slice -> (WarpExpression) new WarpSliceConstant(slice, VarcharType.VARCHAR))
+                        .collect(toImmutableList()),
+                new ArrayType(VarcharType.VARCHAR));
+        return new WarpCall(
+                IN_PREDICATE_FUNCTION_NAME.getName(),
+                List.of(castToVarchar(column), arrayCall),
+                BOOLEAN);
+    }
+
+    private WarpCall castToVarchar(Variable column)
+    {
+        return new WarpCall(
+                CAST_FUNCTION_NAME.getName(),
+                List.of(createExpectedVariable(column)),
+                VarcharType.VARCHAR);
     }
 
     /**
@@ -850,6 +1017,28 @@ class NativeExpressionRulesHandlerTest
                 List.of(),
                 TransformFunction.NONE);
         Optional<NativeExpression> result = nativeExpressionRulesHandler.rewrite(warpExpression, timestampVariable.getType(), Collections.emptySet(), customStats);
+        assertThat(result).isEqualTo(Optional.of(expectedResult));
+        assertPushdownStatsSum(0);
+    }
+
+    /**
+     * cast(real1 as varchar) = 'Infinity' matches the one infinite real
+     */
+    @Test
+    public void testCastRealInfinityToVarcharPushed()
+    {
+        WarpCall warpExpression = castToVarcharEquals(realVariable, Slices.utf8Slice("Infinity"));
+
+        NativeExpression expectedResult = new NativeExpression(
+                PREDICATE_TYPE_VALUES,
+                FunctionType.FUNCTION_TYPE_NONE,
+                Domain.singleValue(RealType.REAL, (long) floatToIntBits(Float.POSITIVE_INFINITY)),
+                false,
+                false,
+                Collections.emptyList(),
+                TransformFunction.NONE);
+
+        Optional<NativeExpression> result = nativeExpressionRulesHandler.rewrite(warpExpression, realVariable.getType(), Collections.emptySet(), customStats);
         assertThat(result).isEqualTo(Optional.of(expectedResult));
         assertPushdownStatsSum(0);
     }

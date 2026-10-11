@@ -60,6 +60,7 @@ import static io.trino.plugin.warp.type.TypeUtils.isBooleanType;
 import static io.trino.plugin.warp.type.TypeUtils.isCharType;
 import static io.trino.plugin.warp.type.TypeUtils.isDateType;
 import static io.trino.plugin.warp.type.TypeUtils.isDoubleType;
+import static io.trino.plugin.warp.type.TypeUtils.isFloatingPointZero;
 import static io.trino.plugin.warp.type.TypeUtils.isIntegerType;
 import static io.trino.plugin.warp.type.TypeUtils.isLongDecimalType;
 import static io.trino.plugin.warp.type.TypeUtils.isMapType;
@@ -72,6 +73,8 @@ import static io.trino.plugin.warp.type.TypeUtils.isTimestampType;
 import static io.trino.plugin.warp.type.TypeUtils.isTinyIntType;
 import static io.trino.plugin.warp.type.TypeUtils.isVarcharType;
 import static io.trino.spi.expression.StandardFunctions.EQUAL_OPERATOR_FUNCTION_NAME;
+import static java.lang.Float.floatToIntBits;
+import static java.lang.Float.intBitsToFloat;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 
@@ -91,8 +94,12 @@ class VariableRewriter
         this.pushdownPredicatesStats = pushdownPredicatesStats;
     }
 
-    static Domain convertSingleValueToDomain(Slice slice, Type columnType, Optional<Integer> castToTypeLengthOptional)
+    // Empty means Trino has to evaluate the cast itself, a none domain means no column value casts to the string.
+    static Optional<Domain> convertSingleValueToDomain(Slice slice, Type columnType, Optional<Integer> castToTypeLengthOptional)
     {
+        if (isRealType(columnType)) {
+            return convertSingleValueToRealDomain(slice, columnType);
+        }
         Object value;
         boolean castIsPossible = true;
         if (isIntegerType(columnType)) {
@@ -107,16 +114,14 @@ class VariableRewriter
                 castIsPossible = false;
             }
         }
-        else if (isRealType(columnType)) {
-            value = FromVarchar.toReal(slice);
-            if (isCastNonInvertible(slice, () -> ToVarchar.fromReal(slice.length(), (long) value))) {
-                castIsPossible = false;
-            }
-        }
         else if (isDoubleType(columnType)) {
             value = FromVarchar.toDouble(slice);
             if (isCastNonInvertible(slice, () -> ToVarchar.fromDouble(slice.length(), (double) value))) {
                 castIsPossible = false;
+            }
+            else if (isFloatingPointZero(columnType, value) || Double.isNaN((double) value)) {
+                // a Domain cannot hold NaN or tell the two zeros apart
+                return Optional.empty();
             }
         }
         else if (isBooleanType(columnType)) {
@@ -187,7 +192,44 @@ class VariableRewriter
             String errorMsg = format("cast:: original columnType=%s with cast to castToTypeLengthOptional=%s on valueAsString=%s", columnType, castToTypeLengthOptional, slice.toStringUtf8());
             throw new UnsupportedOperationException(errorMsg);
         }
-        return castIsPossible ? Domain.singleValue(columnType, value) : Domain.none(columnType);
+        if (castIsPossible) {
+            return Optional.of(Domain.singleValue(columnType, value));
+        }
+        return Optional.of(Domain.none(columnType));
+    }
+
+    // Neighbouring reals can cast to the same string, so the string maps to the run of reals that cast to it.
+    private static Optional<Domain> convertSingleValueToRealDomain(Slice slice, Type columnType)
+    {
+        float parsedValue = intBitsToFloat((int) FromVarchar.toReal(slice));
+        if (!realCastsToSlice(parsedValue, slice)) {
+            return Optional.of(Domain.none(columnType));
+        }
+        if (parsedValue == 0.0f || Float.isNaN(parsedValue)) {
+            // a Domain cannot hold NaN or tell the two zeros apart
+            return Optional.empty();
+        }
+        if (Float.isInfinite(parsedValue)) {
+            return Optional.of(Domain.singleValue(columnType, (long) floatToIntBits(parsedValue)));
+        }
+        float lowValue = parsedValue;
+        while (realCastsToSlice(Math.nextDown(lowValue), slice)) {
+            lowValue = Math.nextDown(lowValue);
+        }
+        float highValue = parsedValue;
+        while (realCastsToSlice(Math.nextUp(highValue), slice)) {
+            highValue = Math.nextUp(highValue);
+        }
+        if (lowValue == highValue) {
+            return Optional.of(Domain.singleValue(columnType, (long) floatToIntBits(parsedValue)));
+        }
+        Range range = Range.range(columnType, (long) floatToIntBits(lowValue), true, (long) floatToIntBits(highValue), true);
+        return Optional.of(Domain.create(ValueSet.ofRanges(range), false));
+    }
+
+    private static boolean realCastsToSlice(float value, Slice slice)
+    {
+        return !isCastNonInvertible(slice, () -> ToVarchar.fromReal(slice.length(), floatToIntBits(value)));
     }
 
     private static <T> boolean isCastNonInvertible(T originalValue, Callable<T> reverseCast)
@@ -217,14 +259,28 @@ class VariableRewriter
             }
         }
         else {
-            if (isStrType(constantType)) {
-                predicateType = PREDICATE_TYPE_STRING_RANGES;
-            }
-            else {
-                predicateType = PREDICATE_TYPE_RANGES;
-            }
+            predicateType = calcRangesPredicateType(constantType);
         }
         return predicateType;
+    }
+
+    public static PredicateType calcRangesPredicateType(Type type)
+    {
+        if (isStrType(type)) {
+            return PREDICATE_TYPE_STRING_RANGES;
+        }
+        return PREDICATE_TYPE_RANGES;
+    }
+
+    static PredicateType calcDomainPredicateType(Domain domain)
+    {
+        if (domain.isNone()) {
+            return PREDICATE_TYPE_NONE;
+        }
+        if (domain.getValues().isDiscreteSet()) {
+            return calcPredicateType(domain.getType(), EQUAL_OPERATOR_FUNCTION_NAME.getName());
+        }
+        return calcRangesPredicateType(domain.getType());
     }
 
     static boolean isCastValidForPushdown(VarcharType castToType, Type columnType)
@@ -365,17 +421,15 @@ class VariableRewriter
             else if (nativeExpressionBuilder.getDomain().isSingleValue()) {
                 // remove the 'cast' operator, and cast the value from Slice to column type
                 Slice slice = ((Slice) nativeExpressionBuilder.getDomain().getSingleValue());
-                Domain singleValueDomain = convertSingleValueToDomain(slice, columnType, ((VarcharType) castToType).getLength());
-                PredicateType predicateType;
-                if (singleValueDomain.isNone()) {
-                    predicateType = PREDICATE_TYPE_NONE;
+                Optional<Domain> inverseCastDomain = convertSingleValueToDomain(slice, columnType, ((VarcharType) castToType).getLength());
+                if (inverseCastDomain.isEmpty()) {
+                    pushdownPredicatesStats.incunsupported_functions_native();
+                    return false;
                 }
-                else {
-                    predicateType = calcPredicateType(columnType, EQUAL_OPERATOR_FUNCTION_NAME.getName());
-                }
-                nativeExpressionBuilder.domain(singleValueDomain)
+                Domain domain = inverseCastDomain.get();
+                nativeExpressionBuilder.domain(domain)
                         .functionType(FunctionType.FUNCTION_TYPE_NONE)
-                        .predicateType(predicateType);
+                        .predicateType(calcDomainPredicateType(domain));
                 supported = true;
             }
         }

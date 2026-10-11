@@ -21,6 +21,7 @@ import io.trino.spi.type.Decimals;
 import io.trino.spi.type.Int128;
 
 import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
 
 import static io.airlift.slice.Slices.utf8Slice;
 import static io.trino.plugin.warp.type.cast.DateTimeUtils.printDate;
@@ -29,11 +30,12 @@ import static java.lang.Float.intBitsToFloat;
 import static java.lang.Math.toIntExact;
 import static java.lang.String.format;
 import static java.nio.charset.StandardCharsets.US_ASCII;
+import static java.util.Locale.ENGLISH;
 
 public final class ToVarchar
 {
-    private static final ThreadLocal<DecimalFormat> DOUBLE_FORMAT = ThreadLocal.withInitial(() -> new DecimalFormat("0.0###################E0"));
-    private static final ThreadLocal<DecimalFormat> REAL_FORMAT = ThreadLocal.withInitial(() -> new DecimalFormat("0.0#####E0"));
+    private static final ThreadLocal<DecimalFormat> DOUBLE_FORMAT = ThreadLocal.withInitial(() -> new DecimalFormat("0.0###################E0", new DecimalFormatSymbols(ENGLISH)));
+    private static final ThreadLocal<DecimalFormat> REAL_FORMAT = ThreadLocal.withInitial(() -> new DecimalFormat("0.0#####E0", new DecimalFormatSymbols(ENGLISH)));
     private static final Slice TRUE = Slices.copiedBuffer("true", US_ASCII);
     private static final Slice FALSE = Slices.copiedBuffer("false", US_ASCII);
 
