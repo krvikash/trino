@@ -43,6 +43,8 @@ import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import static io.trino.plugin.warp.type.TypeUtils.isFloatingPointZero;
+
 class PrefilledCollectClassifier
         implements Classifier
 {
@@ -212,7 +214,7 @@ class PrefilledCollectClassifier
                 .forEach(entry -> {
                     PredicateContext predicateContext = entry.getValue();
                     Domain domain = predicateContext.getDomain();
-                    if (domain.isSingleValue()) {
+                    if (domain.isSingleValue() && !isFloatingPointZero(domain.getType(), domain.getSingleValue())) {
                         res.put(predicateContext.getWarpColumn(),
                                 SingleValue.create(domain.getType(), domain.getValues().getSingleValue()));
                     }

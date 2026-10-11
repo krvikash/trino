@@ -49,7 +49,6 @@ import static io.trino.spi.type.TimestampWithTimeZoneType.TIMESTAMP_TZ_MILLIS;
 import static io.trino.spi.type.TimestampWithTimeZoneType.TIMESTAMP_TZ_SECONDS;
 import static io.trino.spi.type.TinyintType.TINYINT;
 import static java.lang.Float.intBitsToFloat;
-import static java.lang.Math.toIntExact;
 
 public class TypeUtils
 {
@@ -245,7 +244,7 @@ public class TypeUtils
             return (double) value == 0.0;
         }
         if (isRealType(type)) {
-            return intBitsToFloat(toIntExact((long) value)) == 0.0f;
+            return intBitsToFloat((int) (long) value) == 0.0f;
         }
         return false;
     }

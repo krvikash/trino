@@ -77,6 +77,7 @@ public abstract class BaseWarpNativeFunctionPredicateTest
     private static final Duration WARMUP_WAIT = Duration.ofMinutes(2);
     private static final String WARP_MATCH_COLUMNS = "warp_match_columns";
     private static final String WARP_COLLECT_COLUMNS = "warp_collect_columns";
+    private static final String WARP_PREFILLED_COLLECT_COLUMNS = "warp_prefilled_collect_columns";
     private static final String EXTERNAL_MATCH_COLUMNS = "external_match_columns";
     private static final String EXTERNAL_COLLECT_COLUMNS = "external_collect_columns";
 
@@ -342,6 +343,19 @@ public abstract class BaseWarpNativeFunctionPredicateTest
         softly.assertAll();
     }
 
+    // Collecting a floating-point column equal to zero reads the stored sign instead of copying the predicate value.
+    @Test
+    public void testCollectSignedZero()
+    {
+        SoftAssertions softly = new SoftAssertions();
+        for (String predicate : ImmutableList.of("d = 0.0", "d = -0.0", "r = REAL '0.0'", "r = REAL '-0.0'")) {
+            Map<String, Long> metrics = runOnBothEngines(softly, "id, d, r", predicate).metrics();
+            softly.assertThat(metric(metrics, WARP_MATCH_COLUMNS)).describedAs("warp did not match [%s]", predicate).isPositive();
+            softly.assertThat(metric(metrics, WARP_PREFILLED_COLLECT_COLUMNS)).describedAs("warp prefilled [%s] %s", predicate, columnMetrics(metrics)).isZero();
+        }
+        softly.assertAll();
+    }
+
     protected List<Column> columns()
     {
         List<String> ids = IntStream.rangeClosed(1, ROW_COUNT)
@@ -510,16 +524,8 @@ public abstract class BaseWarpNativeFunctionPredicateTest
 
     private void assertPredicate(SoftAssertions softly, String predicate)
     {
-        @Language("SQL") String query = format("SELECT id FROM %s.%s WHERE %s ORDER BY id", DEFAULT_SCHEMA, TABLE, predicate);
-
-        List<Object> expected = computeActual(trinoSession(), query).getOnlyColumn().collect(toImmutableList());
-        softly.assertThat(expected.size())
-                .describedAs("Trino result for [%s] must select some rows but not all", predicate)
-                .isBetween(1, ROW_COUNT - 1);
-
-        QueryRunner.MaterializedResultWithPlan warpResult = getDistributedQueryRunner().executeWithPlan(warpSession(), query);
-        List<Object> actual = warpResult.result().getOnlyColumn().collect(toImmutableList());
-        Map<String, Long> metrics = DispatcherStubsIntegrationSmokeIT.getCustomMetrics(warpResult.queryId(), getDistributedQueryRunner());
+        PredicateRun run = runOnBothEngines(softly, "id", predicate);
+        Map<String, Long> metrics = run.metrics();
 
         softly.assertThat(metric(metrics, WARP_MATCH_COLUMNS)).describedAs("warp did not match [%s]", predicate).isPositive();
         softly.assertThat(metric(metrics, WARP_COLLECT_COLUMNS)).describedAs("warp did not collect [%s]", predicate).isPositive();
@@ -527,13 +533,13 @@ public abstract class BaseWarpNativeFunctionPredicateTest
         softly.assertThat(externalMatch).describedAs("proxied connector matched [%s] %s", predicate, columnMetrics(metrics)).isZero();
         if (externalMatch == 0) {
             // Trino re-applies the filter, so only the row count handed to the scan operator reveals rows warp matched wrongly.
-            AbstractLongAssert<?> handedRows = softly.assertThat(scanInputRows(warpResult.queryId())).describedAs("rows warp handed to Trino for [%s] %s", predicate, columnMetrics(metrics));
+            AbstractLongAssert<?> handedRows = softly.assertThat(scanInputRows(run.queryId())).describedAs("rows warp handed to Trino for [%s] %s", predicate, columnMetrics(metrics));
             if (matchedByLucene(metrics)) {
                 // Lucene matches on tokens, so it prefilters and may hand extra rows to Trino.
-                handedRows.isGreaterThanOrEqualTo(expected.size());
+                handedRows.isGreaterThanOrEqualTo(run.expectedRowCount());
             }
             else {
-                handedRows.isEqualTo(expected.size());
+                handedRows.isEqualTo(run.expectedRowCount());
             }
         }
         // Varchar columns are always collected by the proxied connector, every other column must be collected by warp.
@@ -543,27 +549,34 @@ public abstract class BaseWarpNativeFunctionPredicateTest
                 .mapToLong(Map.Entry::getValue)
                 .sum();
         if (externalCollect != varcharExternalCollect) {
-            String plan = (String) computeActual(warpSession(), "EXPLAIN " + query).getOnlyValue();
+            String plan = (String) computeActual(warpSession(), "EXPLAIN " + run.query()).getOnlyValue();
             softly.assertThat(externalCollect).describedAs("proxied connector collected [%s] %s%n%s", predicate, columnMetrics(metrics), plan).isEqualTo(varcharExternalCollect);
         }
-        softly.assertThat(actual).describedAs("warp result for [%s]", predicate).isEqualTo(expected);
     }
 
     private void assertPredicateLeftToTrino(SoftAssertions softly, String predicate)
     {
-        @Language("SQL") String query = format("SELECT id FROM %s.%s WHERE %s ORDER BY id", DEFAULT_SCHEMA, TABLE, predicate);
-        List<Object> expected = computeActual(trinoSession(), query).getOnlyColumn().collect(toImmutableList());
+        Map<String, Long> metrics = runOnBothEngines(softly, "id", predicate).metrics();
+        softly.assertThat(metric(metrics, WARP_MATCH_COLUMNS)).describedAs("warp matched [%s] %s", predicate, columnMetrics(metrics)).isZero();
+        softly.assertThat(metric(metrics, EXTERNAL_MATCH_COLUMNS)).describedAs("proxied connector did not match [%s] %s", predicate, columnMetrics(metrics)).isPositive();
+    }
+
+    // Runs the query through Trino alone and through warp, and checks that both return the same rows.
+    private PredicateRun runOnBothEngines(SoftAssertions softly, String selectList, String predicate)
+    {
+        @Language("SQL") String query = format("SELECT %s FROM %s.%s WHERE %s ORDER BY id", selectList, DEFAULT_SCHEMA, TABLE, predicate);
+        List<MaterializedRow> expected = computeActual(trinoSession(), query).getMaterializedRows();
         softly.assertThat(expected.size())
                 .describedAs("Trino result for [%s] must select some rows but not all", predicate)
                 .isBetween(1, ROW_COUNT - 1);
 
         QueryRunner.MaterializedResultWithPlan warpResult = getDistributedQueryRunner().executeWithPlan(warpSession(), query);
-        List<Object> actual = warpResult.result().getOnlyColumn().collect(toImmutableList());
         Map<String, Long> metrics = DispatcherStubsIntegrationSmokeIT.getCustomMetrics(warpResult.queryId(), getDistributedQueryRunner());
-        softly.assertThat(metric(metrics, WARP_MATCH_COLUMNS)).describedAs("warp matched [%s] %s", predicate, columnMetrics(metrics)).isZero();
-        softly.assertThat(metric(metrics, EXTERNAL_MATCH_COLUMNS)).describedAs("proxied connector did not match [%s] %s", predicate, columnMetrics(metrics)).isPositive();
-        softly.assertThat(actual).describedAs("warp result for [%s]", predicate).isEqualTo(expected);
+        softly.assertThat(warpResult.result().getMaterializedRows()).describedAs("warp result for [%s]", predicate).isEqualTo(expected);
+        return new PredicateRun(query, warpResult.queryId(), expected.size(), metrics);
     }
+
+    private record PredicateRun(String query, QueryId queryId, int expectedRowCount, Map<String, Long> metrics) {}
 
     private static boolean matchedByLucene(Map<String, Long> metrics)
     {

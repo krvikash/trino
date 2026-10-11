@@ -80,6 +80,8 @@ import org.apache.lucene.search.BooleanClause;
 import org.apache.lucene.search.BooleanQuery;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.nio.charset.Charset;
 import java.util.ArrayList;
@@ -629,6 +631,31 @@ public class QueryClassifierTest
                         .build())
                 .build();
         assertThat(queryMatchData).isEqualTo(expectedBasicQueryMatchData);
+    }
+
+    /**
+     * select v-double-basic from T where v-double-basic = 0.0 or -0.0 collects the column instead of prefilling it
+     */
+    @ParameterizedTest
+    @ValueSource(doubles = {0.0d, -0.0d})
+    public void testNotPrefilledFloatingPointZero(double zero)
+    {
+        TestingConnectorColumnHandle matchOnlyBasicColumn = warpColumnHandles.get("v-double-basic");
+        WarmUpElement matchWarmUpElement = weHandleToWarmUpElementByType.get(matchOnlyBasicColumn).get(WarmUpType.WARM_UP_TYPE_BASIC);
+        Domain matchDomain = Domain.singleValue(DoubleType.DOUBLE, zero);
+        TupleDomain<ColumnHandle> fullPredicate = TupleDomain.withColumnDomains(Map.of(matchOnlyBasicColumn, matchDomain));
+        when(dispatcherTableHandle.getFullPredicate()).thenReturn(fullPredicate);
+        PredicateContextData predicateContextData = predicateContextFactory.create(session, DynamicFilter.EMPTY, dispatcherTableHandle);
+        QueryContext queryContext = queryClassifier.classify(
+                new QueryContext(predicateContextData, ImmutableList.of(matchOnlyBasicColumn), true, "query-id"),
+                rowGroupData,
+                mockDispatcherTableHandle(schemaTableName),
+                session);
+
+        assertThat(queryContext.getRemainingCollectColumnByBlockIndex()).isEmpty();
+        assertThat(queryContext.getPrefilledQueryCollectDataByBlockIndex().values()).isEmpty();
+        assertThat(queryContext.getNativeQueryCollectDataList()).containsExactly(
+                createNativeQueryCollectData(matchWarmUpElement, 0, true));
     }
 
     /**

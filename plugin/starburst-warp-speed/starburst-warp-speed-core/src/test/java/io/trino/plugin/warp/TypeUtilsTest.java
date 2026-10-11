@@ -122,6 +122,7 @@ public class TypeUtilsTest
                 arguments(DoubleType.DOUBLE, 1.5d, false),
                 arguments(RealType.REAL, (long) floatToIntBits(0.0f), true),
                 arguments(RealType.REAL, (long) floatToIntBits(-0.0f), true),
+                arguments(RealType.REAL, Integer.toUnsignedLong(floatToIntBits(-0.0f)), true),
                 arguments(RealType.REAL, (long) floatToIntBits(1.5f), false),
                 arguments(IntegerType.INTEGER, 0L, false));
     }
