@@ -22,7 +22,7 @@ import io.trino.plugin.warp.expression.rewrite.ExpressionPatterns;
 import io.trino.plugin.warp.gen.constants.PredicateType;
 import io.trino.plugin.warp.gen.stats.PushdownPredicatesStats;
 import io.trino.spi.predicate.Domain;
-import io.trino.spi.predicate.Range;
+import io.trino.spi.predicate.ValueSet;
 import io.trino.spi.type.Type;
 
 import java.util.function.BiFunction;
@@ -56,7 +56,7 @@ class CallAndConstantRewriter
     boolean convert(
             WarpExpression warpExpression,
             RewriteContext rewriteContext,
-            BiFunction<Type, Object, Range> rangeBiFunction)
+            BiFunction<Type, Object, ValueSet> valueSetFunction)
     {
         if (rewriteContext.nativeExpressionBuilder().getDomain() != null) {
             pushdownPredicatesStats.incunsupported_functions_composite();
@@ -68,7 +68,7 @@ class CallAndConstantRewriter
         String functionName = ((WarpCall) warpExpression).getFunctionName();
         PredicateType predicateType = calcPredicateType(constantType, functionName);
 
-        Domain domain = convertConstantToDomain(warpConstant, rangeBiFunction);
+        Domain domain = convertConstantToDomain(warpConstant, valueSetFunction);
         NativeExpression.Builder nativeExpressionBuilder = rewriteContext.nativeExpressionBuilder();
         nativeExpressionBuilder.domain(domain)
                 .predicateType(predicateType)

@@ -22,6 +22,7 @@ import io.trino.plugin.warp.connector.TestingConnectorColumnHandle;
 import io.trino.plugin.warp.connector.TestingConnectorProxiedConnectorTransformer;
 import io.trino.plugin.warp.dispatcher.DispatcherProxiedConnectorTransformer;
 import io.trino.plugin.warp.dispatcher.model.RegularColumn;
+import io.trino.plugin.warp.dispatcher.model.TransformedColumn;
 import io.trino.plugin.warp.expression.NativeExpression;
 import io.trino.plugin.warp.expression.TransformFunction;
 import io.trino.plugin.warp.expression.WarpCall;
@@ -84,6 +85,7 @@ import static io.trino.plugin.warp.WarpSessionProperties.ENABLE_OR_PUSHDOWN;
 import static io.trino.plugin.warp.expression.rewrite.coordinator.connectortowarp.SupportedFunctions.CEIL;
 import static io.trino.plugin.warp.expression.rewrite.coordinator.connectortowarp.SupportedFunctions.CONTAINS;
 import static io.trino.plugin.warp.expression.rewrite.coordinator.connectortowarp.SupportedFunctions.IS_NAN;
+import static io.trino.plugin.warp.expression.rewrite.coordinator.connectortowarp.SupportedFunctions.LOWER;
 import static io.trino.spi.expression.StandardFunctions.AND_FUNCTION_NAME;
 import static io.trino.spi.expression.StandardFunctions.ARRAY_CONSTRUCTOR_FUNCTION_NAME;
 import static io.trino.spi.expression.StandardFunctions.CAST_FUNCTION_NAME;
@@ -92,6 +94,7 @@ import static io.trino.spi.expression.StandardFunctions.GREATER_THAN_OPERATOR_FU
 import static io.trino.spi.expression.StandardFunctions.IN_PREDICATE_FUNCTION_NAME;
 import static io.trino.spi.expression.StandardFunctions.IS_NULL_FUNCTION_NAME;
 import static io.trino.spi.expression.StandardFunctions.LESS_THAN_OPERATOR_FUNCTION_NAME;
+import static io.trino.spi.expression.StandardFunctions.NOT_EQUAL_OPERATOR_FUNCTION_NAME;
 import static io.trino.spi.expression.StandardFunctions.OR_FUNCTION_NAME;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.spi.type.DecimalType.createDecimalType;
@@ -292,6 +295,25 @@ public class ExpressionServiceTest
         List<WarpExpressionData> actual = expressionService.convertToWarpExpression(connectorSession, ceilExpression.getKey(), assignments, customStats).orElseThrow().warpExpressionDataLeaves();
         assertThat(actual.size()).isEqualTo(1);
         assertThat(actual.getFirst().getExpression()).isEqualTo(ceilExpression.getValue());
+        assertPushdownStatsSum(0);
+    }
+
+    /**
+     * lower(varchar1) <> 'bla' lands on the lower-cased transformed column
+     */
+    @Test
+    public void testLowerNotEqualUsesTransformedColumn()
+    {
+        Pair<Call, WarpCall> lowerExpression = createCallExpression(
+                LOWER,
+                NOT_EQUAL_OPERATOR_FUNCTION_NAME,
+                varcharVariable,
+                new Constant(Slices.utf8Slice("bla"), varcharType));
+
+        List<WarpExpressionData> actual = expressionService.convertToWarpExpression(connectorSession, lowerExpression.getKey(), assignments, customStats).orElseThrow().warpExpressionDataLeaves();
+        assertThat(actual.size()).isEqualTo(1);
+        assertThat(actual.getFirst().getExpression()).isEqualTo(lowerExpression.getValue());
+        assertThat(actual.getFirst().getWarpColumn()).isEqualTo(new TransformedColumn(varcharVariable.getName(), varcharVariable.getName(), TransformFunction.LOWER));
         assertPushdownStatsSum(0);
     }
 

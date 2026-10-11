@@ -72,8 +72,10 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.trino.plugin.warp.expression.rewrite.coordinator.connectortowarp.SupportedFunctions.ELEMENT_AT;
 import static io.trino.plugin.warp.gen.constants.PredicateType.PREDICATE_TYPE_NONE;
 import static io.trino.plugin.warp.gen.constants.PredicateType.PREDICATE_TYPE_RANGES;
+import static io.trino.plugin.warp.gen.constants.PredicateType.PREDICATE_TYPE_STRING_RANGES;
 import static io.trino.plugin.warp.gen.constants.PredicateType.PREDICATE_TYPE_STRING_VALUES;
 import static io.trino.plugin.warp.gen.constants.PredicateType.PREDICATE_TYPE_VALUES;
+import static io.trino.spi.expression.StandardFunctions.AND_FUNCTION_NAME;
 import static io.trino.spi.expression.StandardFunctions.ARRAY_CONSTRUCTOR_FUNCTION_NAME;
 import static io.trino.spi.expression.StandardFunctions.CAST_FUNCTION_NAME;
 import static io.trino.spi.expression.StandardFunctions.EQUAL_OPERATOR_FUNCTION_NAME;
@@ -82,6 +84,8 @@ import static io.trino.spi.expression.StandardFunctions.GREATER_THAN_OR_EQUAL_OP
 import static io.trino.spi.expression.StandardFunctions.IN_PREDICATE_FUNCTION_NAME;
 import static io.trino.spi.expression.StandardFunctions.LESS_THAN_OPERATOR_FUNCTION_NAME;
 import static io.trino.spi.expression.StandardFunctions.LESS_THAN_OR_EQUAL_OPERATOR_FUNCTION_NAME;
+import static io.trino.spi.expression.StandardFunctions.NOT_EQUAL_OPERATOR_FUNCTION_NAME;
+import static io.trino.spi.expression.StandardFunctions.OR_FUNCTION_NAME;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static java.lang.Float.floatToIntBits;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -90,12 +94,14 @@ import static org.junit.jupiter.params.provider.Arguments.arguments;
 class NativeExpressionRulesHandlerTest
 {
     public static final FunctionName CEIL = new FunctionName("ceiling");
+    public static final FunctionName LOWER = new FunctionName("lower");
     public static final FunctionName IS_NAN = new FunctionName("is_nan");
 
     private final Variable doubleVariable1 = new Variable("double1", DoubleType.DOUBLE);
     private final Variable doubleVariable2 = new Variable("double2", DoubleType.DOUBLE);
     private final Variable realVariable = new Variable("real1", RealType.REAL);
     private final Variable integerVariable = new Variable("integer1", IntegerType.INTEGER);
+    private final Variable booleanVariable = new Variable("boolean1", BOOLEAN);
     private final Variable bigintVariable = new Variable("bigint1", BigintType.BIGINT);
     private final Variable timestampVariable = new Variable("timestamp1", TimestampType.createTimestampType(3));
     private final Variable longTimestampVariable = new Variable("timestamp9", TimestampType.createTimestampType(9));
@@ -208,6 +214,7 @@ class NativeExpressionRulesHandlerTest
                 varcharVariable,
                 realVariable,
                 integerVariable,
+                booleanVariable,
                 bigintVariable,
                 timestampVariable,
                 longTimestampVariable,
@@ -1022,6 +1029,233 @@ class NativeExpressionRulesHandlerTest
     }
 
     /**
+     * cast(integer1 as bigint) <> 5 pushes down as FUNCTION_TYPE_CAST with two open ranges around 5.
+     */
+    @Test
+    public void testCastToBigintNotEqualPushedDown()
+    {
+        WarpCall warpExpression = castToBigintNotEqual(5L);
+
+        NativeExpression expectedResult = new NativeExpression(
+                PREDICATE_TYPE_RANGES,
+                FunctionType.FUNCTION_TYPE_CAST,
+                Domain.create(ValueSet.ofRanges(Range.lessThan(BigintType.BIGINT, 5L), Range.greaterThan(BigintType.BIGINT, 5L)), false),
+                false,
+                false,
+                List.of(RecTypeCode.REC_TYPE_BIGINT.ordinal()),
+                TransformFunction.NONE);
+        Optional<NativeExpression> result = nativeExpressionRulesHandler.rewrite(warpExpression, integerVariable.getType(), Collections.emptySet(), customStats);
+        assertThat(result).isEqualTo(Optional.of(expectedResult));
+        assertPushdownStatsSum(0);
+    }
+
+    /**
+     * ceil(double1) <> 5 stays with Trino because NaN satisfies it but lies outside both ranges.
+     */
+    @Test
+    public void testCeilNotEqualNotPushed()
+    {
+        WarpCall ceilCall = new WarpCall(CEIL.getName(), List.of(createExpectedVariable(doubleVariable1)), DoubleType.DOUBLE);
+        WarpCall warpExpression = new WarpCall(
+                NOT_EQUAL_OPERATOR_FUNCTION_NAME.getName(),
+                List.of(ceilCall, new WarpPrimitiveConstant(5d, DoubleType.DOUBLE)),
+                BOOLEAN);
+        assertNotPushed(warpExpression, doubleVariable1);
+    }
+
+    /**
+     * hour(timestamp_col) <> 13 pushes down as FUNCTION_TYPE_HOUR with two open ranges around 13.
+     */
+    @Test
+    public void testHourNotEqualPushedDown()
+    {
+        WarpCall hourCall = new WarpCall(SupportedFunctions.HOUR.getName(), List.of(createExpectedVariable(timestampVariable)), BigintType.BIGINT);
+        WarpCall warpExpression = new WarpCall(
+                NOT_EQUAL_OPERATOR_FUNCTION_NAME.getName(),
+                List.of(hourCall, new WarpPrimitiveConstant(13L, BigintType.BIGINT)),
+                BOOLEAN);
+
+        NativeExpression expectedResult = new NativeExpression(
+                PREDICATE_TYPE_RANGES,
+                FunctionType.FUNCTION_TYPE_HOUR,
+                Domain.create(ValueSet.ofRanges(Range.lessThan(BigintType.BIGINT, 13L), Range.greaterThan(BigintType.BIGINT, 13L)), false),
+                false,
+                false,
+                List.of(),
+                TransformFunction.NONE);
+        Optional<NativeExpression> result = nativeExpressionRulesHandler.rewrite(warpExpression, timestampVariable.getType(), Collections.emptySet(), customStats);
+        assertThat(result).isEqualTo(Optional.of(expectedResult));
+        assertPushdownStatsSum(0);
+    }
+
+    /**
+     * cast(double1 as varchar) <> '5.0E0' has no single value to invert, so it stays with Trino.
+     */
+    @Test
+    public void testCastToVarcharNotEqualNotPushed()
+    {
+        WarpCall warpExpression = new WarpCall(
+                NOT_EQUAL_OPERATOR_FUNCTION_NAME.getName(),
+                List.of(castToVarchar(doubleVariable1), new WarpSliceConstant(Slices.utf8Slice("5.0E0"), VarcharType.VARCHAR)),
+                BOOLEAN);
+        assertNotPushed(warpExpression, doubleVariable1);
+    }
+
+    /**
+     * boolean1 <> true stays with Trino because a boolean has no ranges to invert.
+     */
+    @Test
+    public void testBooleanNotEqualNotPushed()
+    {
+        WarpCall warpExpression = new WarpCall(
+                NOT_EQUAL_OPERATOR_FUNCTION_NAME.getName(),
+                List.of(createExpectedVariable(booleanVariable), new WarpPrimitiveConstant(true, BOOLEAN)),
+                BOOLEAN);
+        assertNotPushed(warpExpression, booleanVariable);
+    }
+
+    /**
+     * integer1 <> 5 pushes down as two open ranges around 5.
+     */
+    @Test
+    public void testIntegerNotEqualPushedDown()
+    {
+        WarpCall warpExpression = new WarpCall(
+                NOT_EQUAL_OPERATOR_FUNCTION_NAME.getName(),
+                List.of(createExpectedVariable(integerVariable), new WarpPrimitiveConstant(5L, IntegerType.INTEGER)),
+                BOOLEAN);
+
+        NativeExpression expectedResult = new NativeExpression(
+                PREDICATE_TYPE_RANGES,
+                FunctionType.FUNCTION_TYPE_NONE,
+                Domain.create(ValueSet.ofRanges(Range.lessThan(IntegerType.INTEGER, 5L), Range.greaterThan(IntegerType.INTEGER, 5L)), false),
+                false,
+                false,
+                List.of(),
+                TransformFunction.NONE);
+        Optional<NativeExpression> result = nativeExpressionRulesHandler.rewrite(warpExpression, integerVariable.getType(), Collections.emptySet(), customStats);
+        assertThat(result).isEqualTo(Optional.of(expectedResult));
+        assertPushdownStatsSum(0);
+    }
+
+    /**
+     * cast(integer1 as bigint) <> 5 AND cast(integer1 as bigint) <> 7 pushes down as three open ranges.
+     */
+    @Test
+    public void testCastToBigintNotEqualUnderAndPushedDown()
+    {
+        WarpCall warpExpression = new WarpCall(
+                AND_FUNCTION_NAME.getName(),
+                List.of(castToBigintNotEqual(5L), castToBigintNotEqual(7L)),
+                BOOLEAN);
+
+        NativeExpression expectedResult = new NativeExpression(
+                PREDICATE_TYPE_RANGES,
+                FunctionType.FUNCTION_TYPE_CAST,
+                Domain.create(ValueSet.ofRanges(
+                        Range.lessThan(BigintType.BIGINT, 5L),
+                        Range.range(BigintType.BIGINT, 5L, false, 7L, false),
+                        Range.greaterThan(BigintType.BIGINT, 7L)), false),
+                false,
+                false,
+                List.of(RecTypeCode.REC_TYPE_BIGINT.ordinal()),
+                TransformFunction.NONE);
+        Optional<NativeExpression> result = nativeExpressionRulesHandler.rewrite(warpExpression, integerVariable.getType(), Collections.emptySet(), customStats);
+        assertThat(result).isEqualTo(Optional.of(expectedResult));
+        assertPushdownStatsSum(0);
+    }
+
+    /**
+     * cast(integer1 as bigint) <> 5 OR cast(integer1 as bigint) <> 7 pushes down as the whole bigint range.
+     */
+    @Test
+    public void testCastToBigintNotEqualUnderOrPushedDown()
+    {
+        WarpCall warpExpression = new WarpCall(
+                OR_FUNCTION_NAME.getName(),
+                List.of(castToBigintNotEqual(5L), castToBigintNotEqual(7L)),
+                BOOLEAN);
+
+        NativeExpression expectedResult = new NativeExpression(
+                PREDICATE_TYPE_RANGES,
+                FunctionType.FUNCTION_TYPE_CAST,
+                Domain.create(ValueSet.all(BigintType.BIGINT), false),
+                false,
+                false,
+                List.of(RecTypeCode.REC_TYPE_BIGINT.ordinal()),
+                TransformFunction.NONE);
+        Optional<NativeExpression> result = nativeExpressionRulesHandler.rewrite(warpExpression, integerVariable.getType(), Collections.emptySet(), customStats);
+        assertThat(result).isEqualTo(Optional.of(expectedResult));
+        assertPushdownStatsSum(0);
+    }
+
+    /**
+     * cast(integer1 as real) <> 5.0 pushes down because an integer source never casts to NaN.
+     */
+    @Test
+    public void testCastToRealNotEqualPushedDown()
+    {
+        WarpCall castCall = new WarpCall(CAST_FUNCTION_NAME.getName(), List.of(createExpectedVariable(integerVariable)), RealType.REAL);
+        long realBits = floatToIntBits(5f);
+        WarpCall warpExpression = new WarpCall(
+                NOT_EQUAL_OPERATOR_FUNCTION_NAME.getName(),
+                List.of(castCall, new WarpPrimitiveConstant(realBits, RealType.REAL)),
+                BOOLEAN);
+
+        NativeExpression expectedResult = new NativeExpression(
+                PREDICATE_TYPE_RANGES,
+                FunctionType.FUNCTION_TYPE_CAST,
+                Domain.create(ValueSet.ofRanges(Range.lessThan(RealType.REAL, realBits), Range.greaterThan(RealType.REAL, realBits)), false),
+                false,
+                false,
+                List.of(RecTypeCode.REC_TYPE_REAL.ordinal()),
+                TransformFunction.NONE);
+        Optional<NativeExpression> result = nativeExpressionRulesHandler.rewrite(warpExpression, integerVariable.getType(), Collections.emptySet(), customStats);
+        assertThat(result).isEqualTo(Optional.of(expectedResult));
+        assertPushdownStatsSum(0);
+    }
+
+    /**
+     * ceil(real1) <> 5.0 stays with Trino because NaN satisfies it but lies outside both ranges.
+     */
+    @Test
+    public void testCeilRealNotEqualNotPushed()
+    {
+        WarpCall ceilCall = new WarpCall(CEIL.getName(), List.of(createExpectedVariable(realVariable)), RealType.REAL);
+        WarpCall warpExpression = new WarpCall(
+                NOT_EQUAL_OPERATOR_FUNCTION_NAME.getName(),
+                List.of(ceilCall, new WarpPrimitiveConstant((long) floatToIntBits(5f), RealType.REAL)),
+                BOOLEAN);
+        assertNotPushed(warpExpression, realVariable);
+    }
+
+    /**
+     * lower(varchar1) <> 'bla' pushes down as two open string ranges on the lower-cased transformed column.
+     */
+    @Test
+    public void testLowerVarcharNotEqualPushedDown()
+    {
+        WarpCall lowerCall = new WarpCall(LOWER.getName(), List.of(createExpectedVariable(varcharVariable)), varcharType);
+        Slice constant = Slices.utf8Slice("bla");
+        WarpCall warpExpression = new WarpCall(
+                NOT_EQUAL_OPERATOR_FUNCTION_NAME.getName(),
+                List.of(lowerCall, new WarpSliceConstant(constant, varcharType)),
+                BOOLEAN);
+
+        NativeExpression expectedResult = new NativeExpression(
+                PREDICATE_TYPE_STRING_RANGES,
+                FunctionType.FUNCTION_TYPE_NONE,
+                Domain.create(ValueSet.ofRanges(Range.lessThan(varcharType, constant), Range.greaterThan(varcharType, constant)), false),
+                false,
+                false,
+                List.of(),
+                TransformFunction.LOWER);
+        Optional<NativeExpression> result = nativeExpressionRulesHandler.rewrite(warpExpression, varcharVariable.getType(), Collections.emptySet(), customStats);
+        assertThat(result).isEqualTo(Optional.of(expectedResult));
+        assertPushdownStatsSum(0);
+    }
+
+    /**
      * cast(real1 as varchar) = 'Infinity' matches the one infinite real
      */
     @Test
@@ -1041,6 +1275,15 @@ class NativeExpressionRulesHandlerTest
         Optional<NativeExpression> result = nativeExpressionRulesHandler.rewrite(warpExpression, realVariable.getType(), Collections.emptySet(), customStats);
         assertThat(result).isEqualTo(Optional.of(expectedResult));
         assertPushdownStatsSum(0);
+    }
+
+    private WarpCall castToBigintNotEqual(long value)
+    {
+        WarpCall castCall = new WarpCall(CAST_FUNCTION_NAME.getName(), List.of(createExpectedVariable(integerVariable)), BigintType.BIGINT);
+        return new WarpCall(
+                NOT_EQUAL_OPERATOR_FUNCTION_NAME.getName(),
+                List.of(castCall, new WarpPrimitiveConstant(value, BigintType.BIGINT)),
+                BOOLEAN);
     }
 
     private WarpVariable createExpectedVariable(Variable variable)

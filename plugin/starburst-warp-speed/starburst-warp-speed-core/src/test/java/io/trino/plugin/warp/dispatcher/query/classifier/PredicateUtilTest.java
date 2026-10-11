@@ -46,6 +46,7 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.stream.Stream;
 
+import static io.trino.plugin.warp.gen.constants.PredicateType.PREDICATE_TYPE_INVERSE_STRING;
 import static io.trino.plugin.warp.gen.constants.PredicateType.PREDICATE_TYPE_INVERSE_VALUES;
 import static io.trino.plugin.warp.gen.constants.PredicateType.PREDICATE_TYPE_RANGES;
 import static io.trino.plugin.warp.gen.constants.PredicateType.PREDICATE_TYPE_STRING_RANGES;
@@ -388,6 +389,30 @@ public class PredicateUtilTest
 
         assertThat(predicateData.getPredicateInfo().predicateType()).isEqualTo(PREDICATE_TYPE_STRING_RANGES);
         assertThat(predicateData.getPredicateInfo().numValues()).isEqualTo(domain.getValues().getRanges().getRangeCount());
+    }
+
+    @Test
+    public void testCalcPredicateData_transformedStringRangesPromotedToInverseString()
+    {
+        // lower(varchar_col) <> 'bla' on the lower-cased transformed column
+        Domain domain = Domain.create(ValueSet.ofRanges(
+                Range.lessThan(VarcharType.VARCHAR, Slices.utf8Slice("bla")),
+                Range.greaterThan(VarcharType.VARCHAR, Slices.utf8Slice("bla"))), false);
+        int recTypeLength = TypeUtils.getTypeLength(VarcharType.VARCHAR, 0);
+        NativeExpression nativeExpression = new NativeExpression(
+                PREDICATE_TYPE_STRING_RANGES,
+                FunctionType.FUNCTION_TYPE_TRANSFORMED,
+                domain,
+                false,
+                false,
+                List.of(),
+                TransformFunction.LOWER);
+
+        PredicateData predicateData = PredicateUtil.calcPredicateData(nativeExpression, recTypeLength, true, VarcharType.VARCHAR, recTypeLength);
+
+        assertThat(predicateData.getPredicateInfo().predicateType()).isEqualTo(PREDICATE_TYPE_INVERSE_STRING);
+        assertThat(predicateData.getPredicateInfo().functionType()).isEqualTo(FunctionType.FUNCTION_TYPE_NONE);
+        assertThat(predicateData.getPredicateInfo().numValues()).isEqualTo(1);
     }
 
     private static NativeExpression castNativeExpression(PredicateType predicateType, Domain domain, RecTypeCode castTargetRecTypeCode)

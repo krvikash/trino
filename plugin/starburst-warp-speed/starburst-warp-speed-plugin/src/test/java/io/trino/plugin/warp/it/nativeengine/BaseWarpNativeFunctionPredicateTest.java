@@ -211,8 +211,13 @@ public abstract class BaseWarpNativeFunctionPredicateTest
                 "CAST(i AS bigint) = 42",
                 "CAST(i AS bigint) IN (-1, 2147483647)",
                 "CAST(i AS bigint) < 0",
+                "CAST(i AS bigint) <> 42",
+                "i <> 42",
+                "b <> 0",
                 "CAST(i AS double) = 42.0",
                 "CAST(i AS real) = REAL '-2.14748365E9'",
+                "CAST(i AS real) <> REAL '-2.14748365E9'",
+                "CAST(i AS double) <> 42.0",
                 "CAST(b AS double) < 0.0",
                 "CAST(b AS real) = REAL '9.223372E18'",
                 "CAST(d AS varchar) = '9.65E1'",
@@ -245,6 +250,10 @@ public abstract class BaseWarpNativeFunctionPredicateTest
                 "dow(dt) = 1",
                 "day_of_year(dt) = 366",
                 "day_of_year(dt) < 2",
+                "day_of_year(dt) <> 366",
+                "dt <> DATE '2024-02-29'",
+                "day(dt) <> 29",
+                "week(dt) <> 1",
                 "doy(dt) = 1",
                 "week(dt) = 53",
                 "week(dt) = 1",
@@ -254,6 +263,7 @@ public abstract class BaseWarpNativeFunctionPredicateTest
                 "CAST(vd AS date) = DATE '2024-02-29'",
                 "CAST(vd AS date) IN (DATE '1969-12-31', DATE '9999-12-31')",
                 "CAST(vd AS date) < DATE '1970-01-01'",
+                "CAST(vd AS date) <> DATE '2024-02-29'",
                 "CAST(vd AS date) BETWEEN DATE '2023-01-01' AND DATE '2023-12-31'",
                 "date(vd) = DATE '1900-01-01'"));
     }
@@ -283,6 +293,10 @@ public abstract class BaseWarpNativeFunctionPredicateTest
                 "hour(ts) IN (0, 1, 12, 13, 23)",
                 "hour(ts) < 2",
                 "hour(ts) <= 1",
+                "hour(ts) <> 23",
+                "hour(ts) <> 13",
+                "day_of_week(ts) <> 7",
+                "CAST(ts AS date) <> DATE '2000-02-29'",
                 "CAST(ts AS date) = DATE '2000-02-29'",
                 "CAST(ts AS date) = DATE '1969-12-31'",
                 "CAST(ts AS date) IN (DATE '1969-12-31', DATE '9999-12-31')",
@@ -305,6 +319,10 @@ public abstract class BaseWarpNativeFunctionPredicateTest
                 "upper(v) = 'STRASSE'",
                 "upper(v) = 'STRAßE'",
                 "upper(v) IN ('A', 'MAC')",
+                "lower(v) <> 'macbook pro'",
+                "v <> 'Mac'",
+                "upper(v) <> 'STRASSE'",
+                "json_extract_scalar(v, '$.a') <> 'y'",
                 "v LIKE 'Mac%'",
                 "v LIKE 'Ma_'",
                 "starts_with(v, 'Mac')",
@@ -340,6 +358,40 @@ public abstract class BaseWarpNativeFunctionPredicateTest
                 "CAST(r AS varchar) IN ('1.677722E7', 'NaN')")) {
             assertPredicateLeftToTrino(softly, predicate);
         }
+        softly.assertAll();
+    }
+
+    // NaN satisfies <> on a floating-point value, and a cast to varchar has no single value to invert, so warp leaves both to Trino.
+    @Test
+    public void testNotEqualPredicatesLeftToTrino()
+    {
+        SoftAssertions softly = new SoftAssertions();
+        for (String predicate : ImmutableList.of(
+                "d <> 0.5",
+                "r <> REAL '0.5'",
+                "ceiling(d) <> 97",
+                "ceiling(r) <> 0",
+                "CAST(d AS real) <> REAL '96.5'",
+                "CAST(d AS varchar) <> '9.65E1'",
+                "CAST(r AS varchar) <> '4.24486E1'",
+                "CAST(i AS varchar) <> '42'")) {
+            assertPredicateLeftToTrino(softly, predicate);
+        }
+        softly.assertAll();
+    }
+
+    // Selecting the column a <> predicate matches on takes the match-collect path.
+    @Test
+    public void testNotEqualCollectsMatchedColumn()
+    {
+        SoftAssertions softly = new SoftAssertions();
+        ImmutableMap.of(
+                        "i <> 42", "i",
+                        "CAST(i AS bigint) <> 42", "i",
+                        "dt <> DATE '2024-02-29'", "dt",
+                        "day(dt) <> 29", "dt",
+                        "hour(ts) <> 23", "ts")
+                .forEach((predicate, column) -> assertPredicate(softly, "id, " + column, predicate));
         softly.assertAll();
     }
 
@@ -517,14 +569,14 @@ public abstract class BaseWarpNativeFunctionPredicateTest
     {
         SoftAssertions softly = new SoftAssertions();
         for (String predicate : predicates) {
-            assertPredicate(softly, predicate);
+            assertPredicate(softly, "id", predicate);
         }
         softly.assertAll();
     }
 
-    private void assertPredicate(SoftAssertions softly, String predicate)
+    private void assertPredicate(SoftAssertions softly, String selectList, String predicate)
     {
-        PredicateRun run = runOnBothEngines(softly, "id", predicate);
+        PredicateRun run = runOnBothEngines(softly, selectList, predicate);
         Map<String, Long> metrics = run.metrics();
 
         softly.assertThat(metric(metrics, WARP_MATCH_COLUMNS)).describedAs("warp did not match [%s]", predicate).isPositive();

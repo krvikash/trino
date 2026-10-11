@@ -102,7 +102,8 @@ public class SupportedFunctions
             GREATER_THAN_OPERATOR_FUNCTION_NAME.getName(),
             GREATER_THAN_OR_EQUAL_OPERATOR_FUNCTION_NAME.getName(),
             LESS_THAN_OR_EQUAL_OPERATOR_FUNCTION_NAME.getName(),
-            LESS_THAN_OPERATOR_FUNCTION_NAME.getName());
+            LESS_THAN_OPERATOR_FUNCTION_NAME.getName(),
+            NOT_EQUAL_OPERATOR_FUNCTION_NAME.getName());
 
     @Inject
     public SupportedFunctions(MetricsManager metricsManager)

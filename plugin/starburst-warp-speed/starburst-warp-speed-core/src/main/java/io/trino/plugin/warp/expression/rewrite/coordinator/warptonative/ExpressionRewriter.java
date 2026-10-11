@@ -18,7 +18,6 @@ import io.trino.matching.Pattern;
 import io.trino.plugin.warp.expression.WarpConstant;
 import io.trino.plugin.warp.expression.WarpExpression;
 import io.trino.spi.predicate.Domain;
-import io.trino.spi.predicate.Range;
 import io.trino.spi.predicate.ValueSet;
 import io.trino.spi.type.Type;
 
@@ -30,13 +29,12 @@ interface ExpressionRewriter<T extends WarpExpression>
 
     Pattern<T> getPattern();
 
-    default Domain convertConstantToDomain(WarpConstant warpConstant, BiFunction<Type, Object, Range> rangeBiFunction)
+    default Domain convertConstantToDomain(WarpConstant warpConstant, BiFunction<Type, Object, ValueSet> valueSetFunction)
     {
         Type type = warpConstant.getType();
         try {
             Object value = warpConstant.getValue();
-            Range range = rangeBiFunction.apply(type, value);
-            return Domain.create(ValueSet.ofRanges(range), false);
+            return Domain.create(valueSetFunction.apply(type, value), false);
         }
         catch (Exception e) {
             logger.error("failed to get create domain from constant  warpConstant=%s, type=%s", warpConstant, type);

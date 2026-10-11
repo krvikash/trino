@@ -57,6 +57,7 @@ import static io.trino.spi.expression.StandardFunctions.GREATER_THAN_OR_EQUAL_OP
 import static io.trino.spi.expression.StandardFunctions.IN_PREDICATE_FUNCTION_NAME;
 import static io.trino.spi.expression.StandardFunctions.LESS_THAN_OPERATOR_FUNCTION_NAME;
 import static io.trino.spi.expression.StandardFunctions.LESS_THAN_OR_EQUAL_OPERATOR_FUNCTION_NAME;
+import static io.trino.spi.expression.StandardFunctions.NOT_EQUAL_OPERATOR_FUNCTION_NAME;
 import static io.trino.spi.expression.StandardFunctions.OR_FUNCTION_NAME;
 
 @Singleton
@@ -100,6 +101,8 @@ public class NativeExpressionRulesHandler
         functionToRewriteRules.put(LESS_THAN_OPERATOR_FUNCTION_NAME.getName(), new RewriteRule(variableAndConstantRewriter.getPattern(), variableAndConstantRewriter::lessThan));
         functionToRewriteRules.put(EQUAL_OPERATOR_FUNCTION_NAME.getName(), new RewriteRule(callAndConstantRewriter.getPattern(), callAndConstantRewriter::equal));
         functionToRewriteRules.put(EQUAL_OPERATOR_FUNCTION_NAME.getName(), new RewriteRule(variableAndConstantRewriter.getPattern(), variableAndConstantRewriter::equal));
+        functionToRewriteRules.put(NOT_EQUAL_OPERATOR_FUNCTION_NAME.getName(), new RewriteRule(callAndConstantRewriter.getPattern(), callAndConstantRewriter::notEqual));
+        functionToRewriteRules.put(NOT_EQUAL_OPERATOR_FUNCTION_NAME.getName(), new RewriteRule(variableAndConstantRewriter.getPattern(), variableAndConstantRewriter::notEqual));
         functionToRewriteRules.put(OR_FUNCTION_NAME.getName(), new RewriteRule(andOrRewriter.getPattern(), andOrRewriter::or));
         functionToRewriteRules.put(AND_FUNCTION_NAME.getName(), new RewriteRule(andOrRewriter.getPattern(), andOrRewriter::and));
         functionToRewriteRules.put(CAST_FUNCTION_NAME.getName(), new RewriteRule(variableRewriter.getPattern(), variableRewriter::cast));
@@ -156,14 +159,12 @@ public class NativeExpressionRulesHandler
             boolean isValid = false;
             String functionName = warpCall.getFunctionName();
             if (context.unsupportedNativeFunctions().contains(functionName)) {
-                context.customStats().compute("unsupported_functions_native", (_, value) -> value == null ? 1L : value + 1);
-                pushdownPredicatesStats.incunsupported_functions_native();
+                countUnsupported(context);
                 return false;
             }
             Set<RewriteRule> rewriteRules = functionToRewriteRules.get(functionName);
             if (rewriteRules.isEmpty()) {
-                context.customStats().compute("unsupported_functions_native", (_, value) -> value == null ? 1L : value + 1);
-                pushdownPredicatesStats.incunsupported_functions_native();
+                countUnsupported(context);
             }
             for (RewriteRule rule : rewriteRules) {
                 if (rule.pattern.matches(warpExpression, null)) {
@@ -175,10 +176,20 @@ public class NativeExpressionRulesHandler
             return isValid;
         }
         else {
-            context.customStats().compute("unsupported_functions_native", (_, value) -> value == null ? 1L : value + 1);
-            pushdownPredicatesStats.incunsupported_functions_native();
+            countUnsupported(context);
             return false;
         }
+    }
+
+    void countUnsupported(RewriteContext context)
+    {
+        context.customStats().compute("unsupported_functions_native", (_, value) -> {
+            if (value == null) {
+                return 1L;
+            }
+            return value + 1;
+        });
+        pushdownPredicatesStats.incunsupported_functions_native();
     }
 
     private record RewriteRule(

@@ -21,10 +21,12 @@ import io.trino.plugin.warp.dispatcher.model.RegularColumn;
 import io.trino.plugin.warp.dispatcher.model.WarpColumn;
 import io.trino.plugin.warp.dispatcher.query.PredicateContext;
 import io.trino.plugin.warp.expression.DomainExpression;
+import io.trino.plugin.warp.expression.NativeExpression;
 import io.trino.plugin.warp.expression.WarpCall;
 import io.trino.plugin.warp.expression.WarpExpression;
 import io.trino.plugin.warp.gen.constants.PredicateType;
 import io.trino.plugin.warp.type.TypeUtils;
+import io.trino.spi.predicate.Domain;
 import io.trino.spi.predicate.SortedRangeSet;
 
 import java.util.List;
@@ -89,12 +91,25 @@ public class PredicateContextData
             }
             else if (predicateContext.getExpression() instanceof WarpCall &&
                     (predicateContext.getWarpExpressionData().getNativeExpressionOptional().isEmpty() ||
-                            predicateContext.getWarpExpressionData().getNativeExpressionOptional().get().predicateType() == PredicateType.PREDICATE_TYPE_STRING_RANGES)) {
+                            isNonInverseStringRanges(predicateContext.getWarpExpressionData().getNativeExpressionOptional().get()))) {
                 res = true;
                 break;
             }
         }
         return res;
+    }
+
+    // an inverse string predicate on a function result goes to the basic matcher, like one on a plain column
+    private static boolean isNonInverseStringRanges(NativeExpression nativeExpression)
+    {
+        if (nativeExpression.predicateType() != PredicateType.PREDICATE_TYPE_STRING_RANGES) {
+            return false;
+        }
+        Domain domain = nativeExpression.domain();
+        if (domain.getValues() instanceof SortedRangeSet sortedRangeSet) {
+            return !isInversePredicate(sortedRangeSet, domain.getType());
+        }
+        return true;
     }
 
     /**
