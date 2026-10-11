@@ -119,6 +119,7 @@ public class TestHiveWarpNativeFunctionPredicates
                 "CAST(v20 AS varchar(20)) IN ('a', 'straße')",
                 "CAST(v20 AS varchar) = 'Mac'",
                 "lower(v20) = 'macbook pro'",
-                "upper(v20) = 'MACBOOK PRO'");
+                "upper(v20) = 'MACBOOK PRO'",
+                "upper(v20) = 'STRAßE'");
     }
 }

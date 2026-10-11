@@ -17,7 +17,7 @@ import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
-import io.airlift.slice.Slices;
+import io.airlift.slice.SliceUtf8;
 import io.trino.plugin.warp.dispatcher.model.TransformedColumn;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElementState;
@@ -36,7 +36,6 @@ import io.trino.plugin.warp.util.json.JsonPath;
 import io.trino.plugin.warp.warmup.exceptions.WarmupException;
 import io.trino.spi.type.Type;
 
-import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.BiFunction;
@@ -108,13 +107,12 @@ public class BlockAppenderFactory
         if (warmUpElement.getWarpColumn() instanceof TransformedColumn transformedColumn) {
             TransformFunction transformFunction = transformedColumn.getTransformFunction();
 
+            // Trino's lower and upper map code points one to one, so ß stays ß.
             if (Objects.equals(transformFunction, TransformFunction.LOWER) && warmUpElement.getRecTypeCode() == RecTypeCode.REC_TYPE_VARCHAR) {
-                Function<Slice, Slice> transformedLowerFunction = slice -> Slices.utf8Slice(slice.toStringUtf8().toLowerCase(Locale.ROOT));
-                res = new TransformedCrcStringBlockAppender(juffersWE, storageEngineConstants, bufferAllocator, type, false, transformedLowerFunction);
+                res = new TransformedCrcStringBlockAppender(juffersWE, storageEngineConstants, bufferAllocator, type, false, SliceUtf8::toLowerCase);
             }
             else if (Objects.equals(transformFunction, TransformFunction.UPPER) && warmUpElement.getRecTypeCode() == RecTypeCode.REC_TYPE_VARCHAR) {
-                Function<Slice, Slice> transformedUpperFunction = slice -> Slices.utf8Slice(slice.toStringUtf8().toUpperCase(Locale.ROOT));
-                res = new TransformedCrcStringBlockAppender(juffersWE, storageEngineConstants, bufferAllocator, type, false, transformedUpperFunction);
+                res = new TransformedCrcStringBlockAppender(juffersWE, storageEngineConstants, bufferAllocator, type, false, SliceUtf8::toUpperCase);
             }
             else if (Objects.equals(transformFunction, TransformFunction.DATE) && TypeUtils.isVarcharType(type)) {
                 Function<BlockPosHolder, Integer> transformedDateFunction = blockPosHolder -> {

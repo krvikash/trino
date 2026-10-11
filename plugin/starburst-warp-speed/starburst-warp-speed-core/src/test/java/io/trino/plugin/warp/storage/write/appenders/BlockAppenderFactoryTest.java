@@ -13,14 +13,17 @@
  */
 package io.trino.plugin.warp.storage.write.appenders;
 
+import io.trino.plugin.warp.dispatcher.model.TransformedColumn;
 import io.trino.plugin.warp.dispatcher.model.WarmUpElement;
 import io.trino.plugin.warp.dispatcher.warmup.transform.BlockTransformerFactory;
+import io.trino.plugin.warp.expression.TransformFunction;
 import io.trino.plugin.warp.gen.constants.RecTypeCode;
 import io.trino.plugin.warp.gen.constants.WarmUpType;
 import io.trino.plugin.warp.juffer.BufferAllocator;
 import io.trino.plugin.warp.storage.engine.StubsStorageEngineConstants;
 import io.trino.plugin.warp.storage.juffers.WriteJuffersWarmUpElement;
 import io.trino.plugin.warp.storage.lucene.LuceneIndexer;
+import io.trino.plugin.warp.storage.write.WarmupElementStats;
 import io.trino.plugin.warp.type.TypeUtils;
 import io.trino.spi.type.ArrayType;
 import io.trino.spi.type.BigintType;
@@ -35,6 +38,7 @@ import io.trino.spi.type.TinyintType;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.VarcharType;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -42,6 +46,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 import java.util.Optional;
 import java.util.stream.Stream;
 
+import static io.airlift.slice.Slices.utf8Slice;
 import static io.trino.plugin.warp.gen.constants.RecTypeCode.REC_TYPE_ARRAY_INT;
 import static io.trino.plugin.warp.gen.constants.RecTypeCode.REC_TYPE_BIGINT;
 import static io.trino.plugin.warp.gen.constants.RecTypeCode.REC_TYPE_BOOLEAN;
@@ -109,5 +114,33 @@ class BlockAppenderFactoryTest
         }
         BlockAppender blockAppender = blockAppenderFactory.createBlockAppender(warmUpElement, type, juffersWarmUpElement, luceneIndexerOpt);
         assertThat(blockAppender).isInstanceOf(expectedResult);
+    }
+
+    @Test
+    public void testUpperKeepsSharpS()
+    {
+        TransformedCrcStringBlockAppender blockAppender = createTransformedVarcharAppender(TransformFunction.UPPER);
+        assertThat(blockAppender.getSlice(utf8Slice("straße"))).isEqualTo(utf8Slice("STRAßE"));
+    }
+
+    @Test
+    public void testLowerKeepsSharpS()
+    {
+        TransformedCrcStringBlockAppender blockAppender = createTransformedVarcharAppender(TransformFunction.LOWER);
+        assertThat(blockAppender.getSlice(utf8Slice("STRAßE"))).isEqualTo(utf8Slice("straße"));
+    }
+
+    private TransformedCrcStringBlockAppender createTransformedVarcharAppender(TransformFunction transformFunction)
+    {
+        WarmUpElement warmUpElement = WarmUpElement.builder()
+                .warpColumn(new TransformedColumn("v", "v", transformFunction))
+                .warmUpType(WARM_UP_TYPE_BASIC)
+                .recTypeCode(REC_TYPE_VARCHAR)
+                .recTypeLength(TypeUtils.getTypeLength(VarcharType.VARCHAR, storageEngineConstants.getVarcharMaxLen()))
+                .warmupElementStats(new WarmupElementStats(0, Long.MIN_VALUE, Long.MAX_VALUE))
+                .build();
+        WriteJuffersWarmUpElement juffersWarmUpElement = mock(WriteJuffersWarmUpElement.class);
+        BlockAppender blockAppender = blockAppenderFactory.createBlockAppender(warmUpElement, VarcharType.VARCHAR, juffersWarmUpElement, Optional.empty());
+        return (TransformedCrcStringBlockAppender) blockAppender;
     }
 }

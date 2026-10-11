@@ -298,7 +298,8 @@ public abstract class BaseWarpNativeFunctionPredicateTest
                 "lower(v) IN ('a', 'äpfel')",
                 "upper(v) = 'MACBOOK PRO'",
                 "upper(v) = 'ÄPFEL'",
-                // Warp upper-cases with String.toUpperCase, which maps ß to SS, while Trino keeps ß, so upper(v) = 'STRASSE' and 'STRAßE' diverge.
+                "upper(v) = 'STRASSE'",
+                "upper(v) = 'STRAßE'",
                 "upper(v) IN ('A', 'MAC')",
                 "v LIKE 'Mac%'",
                 "v LIKE 'Ma_'",
