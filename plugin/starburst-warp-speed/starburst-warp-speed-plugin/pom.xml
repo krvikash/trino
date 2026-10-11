@@ -403,6 +403,7 @@
                 <configuration>
                     <systemPropertyVariables>
                         <junit.jupiter.execution.parallel.enabled>false</junit.jupiter.execution.parallel.enabled>
+                        <warp.native.library.directory>${project.build.directory}/tmp/starburst-warp-speed-native-${dep.warp-speed-native.version}</warp.native.library.directory>
                     </systemPropertyVariables>
                 </configuration>
             </plugin>

@@ -41,6 +41,8 @@ import java.nio.file.Path;
 public class WarpNativeStorageEngineModule
         implements WarpBaseModule
 {
+    // Overrides the plugin directory the native libraries are looked up under, used by tests that run outside a plugin install.
+    public static final String NATIVE_LIBRARY_DIRECTORY_PROPERTY = "warp.native.library.directory";
     private static final String SVE_SUFFIX = "_g3";
     private static final boolean SKIP_SVE = true;
     private static final Logger logger = Logger.get(WarpNativeStorageEngineModule.class);
@@ -85,9 +87,12 @@ public class WarpNativeStorageEngineModule
     public static Path getNativeLibrariesDirectory()
     {
         String currentArchitecture = System.getProperty("os.arch") + addSveSuffixIfNeeded();
-        Class<WarpNativeStorageEngineModule> klass = WarpNativeStorageEngineModule.class;
-        String pluginPath = klass.getProtectionDomain().getCodeSource().getLocation().getPath();
-        String pluginDirectory = pluginPath.substring(0, pluginPath.lastIndexOf(File.separator));
+        String pluginDirectory = System.getProperty(NATIVE_LIBRARY_DIRECTORY_PROPERTY);
+        if (pluginDirectory == null) {
+            Class<WarpNativeStorageEngineModule> klass = WarpNativeStorageEngineModule.class;
+            String pluginPath = klass.getProtectionDomain().getCodeSource().getLocation().getPath();
+            pluginDirectory = pluginPath.substring(0, pluginPath.lastIndexOf(File.separator));
+        }
 
         Path archSpecificPath = Path.of(pluginDirectory, currentArchitecture).toAbsolutePath();
         if (Files.exists(archSpecificPath)) {
