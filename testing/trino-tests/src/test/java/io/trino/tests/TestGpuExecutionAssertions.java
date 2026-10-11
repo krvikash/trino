@@ -15,6 +15,7 @@ package io.trino.tests;
 
 import io.trino.plugin.iceberg.IcebergQueryRunner;
 import io.trino.sql.planner.plan.TableScanNode;
+import io.trino.sql.planner.plan.WindowNode;
 import io.trino.sql.query.QueryAssertions.QueryAssert;
 import io.trino.testing.AbstractTestQueryFramework;
 import io.trino.testing.QueryRunner;
@@ -24,9 +25,9 @@ import static io.trino.tpch.TpchTable.NATION;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/// Verifies that the GPU execution assertions ([QueryAssert#executesWithGpu] and
-/// [QueryAssert#executesWithGpuCpuFallback]) actually discriminate between a table scan that executed fully on
-/// the GPU and one that was planned for the GPU but fell back to the CPU reader.
+/// Verifies that the GPU execution assertions ([QueryAssert#executesWithGpu],
+/// [QueryAssert#executesWithGpuCpuFallback] and [QueryAssert#executesAllWithGpu]) actually discriminate between
+/// plan nodes that executed fully on the GPU and ones that fell back to the CPU.
 class TestGpuExecutionAssertions
         extends AbstractTestQueryFramework
 {
@@ -65,5 +66,22 @@ class TestGpuExecutionAssertions
                 .executesWithGpu(TableScanNode.class))
                 .isInstanceOf(AssertionError.class)
                 .hasMessage("Query plan has 1 PlanNodes of class io.trino.sql.planner.plan.TableScanNode, but none of these was fully executed on GPU. These were [], and these were partially [TableScanNode]");
+    }
+
+    @Test
+    void testExecutesAllWithGpuRequiresEveryNodeOnGpu()
+    {
+        // The two window specifications are planned as two WindowNodes, which both run on the GPU
+        assertThat(query("SELECT rank() OVER (ORDER BY nationkey), rank() OVER (ORDER BY regionkey) FROM nation"))
+                .executesAllWithGpu(WindowNode.class);
+
+        // Ranking over a VARBINARY order key falls back to the CPU, so only one of the two WindowNodes runs on the GPU
+        String partialQuery = "SELECT rank() OVER (ORDER BY to_utf8(name)), rank() OVER (ORDER BY nationkey) FROM nation";
+        assertThat(query(partialQuery))
+                .executesWithGpu(WindowNode.class);
+        assertThatThrownBy(() -> assertThat(query(partialQuery))
+                .executesAllWithGpu(WindowNode.class))
+                .isInstanceOf(AssertionError.class)
+                .hasMessageStartingWith("Query plan has 2 PlanNodes of class io.trino.sql.planner.plan.WindowNode, but these were not fully executed on GPU: [");
     }
 }

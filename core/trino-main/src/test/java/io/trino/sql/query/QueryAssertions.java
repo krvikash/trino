@@ -627,6 +627,39 @@ public class QueryAssertions
             return assertGpuExecution(planNodeType, true);
         }
 
+        /// Asserts that the plan has at least one node of the given type and that every one of them executed fully on the GPU.
+        /// Unlike {@link #executesWithGpu}, this catches a query with several such nodes (e.g. window functions with
+        /// different window specifications) where only some fall back to the CPU.
+        @CanIgnoreReturnValue
+        public QueryAssert executesAllWithGpu(Class<? extends PlanNode> planNodeType)
+        {
+            QueryResultAndGpuExecutionStatus result = executeAndGetExecutionStats();
+
+            validateResultsWithGpuDisabled(result.result().result());
+
+            PlanNode queryPlan = result.result().queryPlan().orElseThrow(() -> new AssertionError("No plan")).getRoot();
+            List<PlanNode> nodesOfExpectedType = PlanNodeSearcher.searchFrom(queryPlan)
+                    .where(planNodeType::isInstance)
+                    .findAll();
+            if (nodesOfExpectedType.isEmpty()) {
+                throw new AssertionError("Query plan has no PlanNodes of %s".formatted(planNodeType));
+            }
+            List<String> notFullyOnGpu = nodesOfExpectedType.stream()
+                    .map(PlanNode::getId)
+                    .filter(id -> !isFullyOnGpu(result.gpuStatuses().get(id)))
+                    .map(PlanNodeId::toString)
+                    .sorted()
+                    .collect(toImmutableList());
+            if (!notFullyOnGpu.isEmpty()) {
+                throw new AssertionError("Query plan has %s PlanNodes of %s, but these were not fully executed on GPU: %s".formatted(
+                        nodesOfExpectedType.size(),
+                        planNodeType,
+                        notFullyOnGpu));
+            }
+
+            return this;
+        }
+
         private QueryAssert assertGpuExecution(Class<? extends PlanNode> planNodeType, boolean expectCpuFallback)
         {
             QueryResultAndGpuExecutionStatus result = executeAndGetExecutionStats();
@@ -635,10 +668,7 @@ public class QueryAssertions
             validateResultsWithGpuDisabled(result.result().result());
 
             PlanNode queryPlan = result.result().queryPlan().orElseThrow(() -> new AssertionError("No plan")).getRoot();
-            Predicate<PlanNodeId> fullyOnGpu = id -> {
-                PlanNodeGpuStatus gpuStatus = result.gpuStatuses().get(id);
-                return gpuStatus != null && (gpuStatus.gpuTaskCount() > 0 || gpuStatus.gpuSplitCount() > 0) && (gpuStatus.cpuTaskCount() == 0 && gpuStatus.cpuSplitCount() == 0);
-            };
+            Predicate<PlanNodeId> fullyOnGpu = id -> isFullyOnGpu(result.gpuStatuses().get(id));
             Predicate<PlanNodeId> gpuCpuFallback = id -> {
                 PlanNodeGpuStatus gpuStatus = result.gpuStatuses().get(id);
                 return gpuStatus != null && gpuStatus.gpuTaskCount() > 0 && gpuStatus.gpuSplitCount() == 0 && gpuStatus.cpuTaskCount() == 0 && gpuStatus.cpuSplitCount() > 0;
@@ -674,6 +704,11 @@ public class QueryAssertions
             }
 
             return this;
+        }
+
+        private static boolean isFullyOnGpu(PlanNodeGpuStatus gpuStatus)
+        {
+            return gpuStatus != null && (gpuStatus.gpuTaskCount() > 0 || gpuStatus.gpuSplitCount() > 0) && (gpuStatus.cpuTaskCount() == 0 && gpuStatus.cpuSplitCount() == 0);
         }
 
         @CanIgnoreReturnValue
