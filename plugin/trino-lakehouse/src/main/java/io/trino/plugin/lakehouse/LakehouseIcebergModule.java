@@ -27,6 +27,7 @@ import io.trino.plugin.hive.metastore.MetastoreTypeConfig;
 import io.trino.plugin.iceberg.CommitTaskData;
 import io.trino.plugin.iceberg.DefaultIcebergFileSystemFactory;
 import io.trino.plugin.iceberg.IcebergCacheSplitId;
+import io.trino.plugin.iceberg.IcebergCommitQueue;
 import io.trino.plugin.iceberg.IcebergConfig;
 import io.trino.plugin.iceberg.IcebergExecutorModule;
 import io.trino.plugin.iceberg.IcebergFileSystemFactory;
@@ -97,6 +98,7 @@ public class LakehouseIcebergModule
         binder.bind(IcebergTransactionManager.class).in(Scopes.SINGLETON);
         binder.bind(DeletionVectorWriter.class).to(DefaultDeletionVectorWriter.class).in(Scopes.SINGLETON);
         binder.bind(IcebergMetadataFactory.class).in(Scopes.SINGLETON);
+        binder.bind(IcebergCommitQueue.class).in(Scopes.SINGLETON);
         binder.bind(CreateChangelogView.class).in(Scopes.SINGLETON);
         binder.bind(IcebergFileWriterFactory.class).in(Scopes.SINGLETON);
         binder.bind(TableStatisticsReader.class).in(Scopes.SINGLETON);
