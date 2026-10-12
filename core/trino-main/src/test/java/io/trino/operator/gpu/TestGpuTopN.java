@@ -160,9 +160,9 @@ final class TestGpuTopN
         // NULLS_FIRST sort orders, placing NaN before real values (right after null).
         // NaN bit patterns don't matter here: DoubleType.writeDouble uses doubleToLongBits
         // which normalizes all NaN representations to canonical NaN before they reach the GPU.
-        BlockBuilder doubleBuilder = DOUBLE.createFixedSizeBlockBuilder(8);
+        // No 0.0: it ties with -0.0 on the sort key, so either may come first
+        BlockBuilder doubleBuilder = DOUBLE.createFixedSizeBlockBuilder(7);
         DOUBLE.writeDouble(doubleBuilder, -0.0);
-        DOUBLE.writeDouble(doubleBuilder, 0.0);
         DOUBLE.writeDouble(doubleBuilder, Double.NaN);
         DOUBLE.writeDouble(doubleBuilder, Double.NaN);
         DOUBLE.writeDouble(doubleBuilder, 1.0);
@@ -180,9 +180,8 @@ final class TestGpuTopN
                     List.of(sortOrder));
         }
 
-        BlockBuilder realBuilder = REAL.createFixedSizeBlockBuilder(8);
+        BlockBuilder realBuilder = REAL.createFixedSizeBlockBuilder(7);
         REAL.writeFloat(realBuilder, -0.0f);
-        REAL.writeFloat(realBuilder, 0.0f);
         REAL.writeFloat(realBuilder, Float.NaN);
         REAL.writeFloat(realBuilder, Float.NaN);
         REAL.writeFloat(realBuilder, 1.0f);
