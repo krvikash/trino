@@ -58,6 +58,7 @@ import io.trino.spi.type.TimestampWithTimeZoneType;
 import io.trino.spi.type.Timestamps;
 import io.trino.spi.type.TrinoNumber;
 import io.trino.spi.type.Type;
+import io.trino.spi.type.VarcharType;
 import io.trino.sql.gen.TestColumnarFilters.NullsProvider;
 import io.trino.sql.ir.Call;
 import io.trino.sql.ir.Case;
@@ -448,7 +449,7 @@ public class TestGpuExpressions
     {
         int varcharChannel = 0;
         List<Type> inputTypes = List.of(VARCHAR);
-        List<Page> inputPages = createVarcharPages(positionsCounts, nullsProvider);
+        List<Page> inputPages = createVarcharPages(VARCHAR, positionsCounts, nullsProvider);
 
         List<Optional<Character>> escapes = List.of(Optional.of('\\'), Optional.of('$'), Optional.empty());
         for (String pattern : testStrings) {
@@ -2889,10 +2890,10 @@ public class TestGpuExpressions
         // VARCHAR(10) -> VARCHAR(20) shares the same cudf STRING dtype, so visitCast should
         // skip emitting GpuCast and forward the inner expression directly.
         int channelA = 0;
-        Type sourceType = createVarcharType(10);
+        VarcharType sourceType = createVarcharType(10);
         Type targetType = createVarcharType(20);
         List<Type> inputTypes = List.of(sourceType);
-        List<Page> inputPages = createVarcharPages(List.of(64), nullsProvider);
+        List<Page> inputPages = createVarcharPages(sourceType, List.of(64), nullsProvider);
 
         Expression expression = new Cast(field(channelA, sourceType), targetType);
 
@@ -4875,7 +4876,7 @@ public class TestGpuExpressions
     {
         int varcharChannel = 0;
         List<Type> inputTypes = List.of(VARCHAR);
-        List<Page> inputPages = createVarcharPages(List.of(64), nullsProvider);
+        List<Page> inputPages = createVarcharPages(VARCHAR, List.of(64), nullsProvider);
 
         Expression expression = new Call(
                 FUNCTION_RESOLUTION.resolveFunction("length", fromTypes(VARCHAR)),
@@ -4987,7 +4988,7 @@ public class TestGpuExpressions
         int varcharChannel = 0;
         List<Type> inputTypes = List.of(VARCHAR);
         List<Page> inputPages = ImmutableList.<Page>builder()
-                .addAll(createVarcharPages(List.of(64), nullsProvider))
+                .addAll(createVarcharPages(VARCHAR, List.of(64), nullsProvider))
                 // A null-free page of hand-picked values guarantees the search string really occurs,
                 // whatever nulls the provider injects into the generated page
                 .add(varcharPage(REPLACE_EDGE_CASE_STRINGS))
@@ -5019,7 +5020,7 @@ public class TestGpuExpressions
         int varcharChannel = 0;
         List<Type> inputTypes = List.of(VARCHAR);
         List<Page> inputPages = ImmutableList.<Page>builder()
-                .addAll(createVarcharPages(List.of(2 * testStrings.size()), nullsProvider))
+                .addAll(createVarcharPages(VARCHAR, List.of(2 * testStrings.size()), nullsProvider))
                 .add(varcharPage(STARTS_WITH_EDGE_CASE_STRINGS))
                 .build();
 
@@ -5540,9 +5541,11 @@ public class TestGpuExpressions
                         new Constant(LIKE_PATTERN, LikePattern.compile(pattern, escape))));
     }
 
-    private List<Page> createVarcharPages(List<Integer> positionsCounts, NullsProvider nullsProvider)
+    private List<Page> createVarcharPages(VarcharType type, List<Integer> positionsCounts, NullsProvider nullsProvider)
     {
-        Iterator<String> strings = generateInputStrings().iterator();
+        Iterator<String> strings = generateInputStrings()
+                .filter(value -> type.isUnbounded() || value.codePointCount(0, value.length()) <= type.getBoundedLength())
+                .iterator();
         return positionsCounts.stream()
                 .map(positionsCount -> {
                     Optional<long[]> isValid = nullsProvider.getValidityWords(positionsCount);
