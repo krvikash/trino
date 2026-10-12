@@ -23,6 +23,7 @@ import io.trino.plugin.hive.LocationAccessControlModule;
 import io.trino.plugin.hive.SortingFileWriterConfig;
 import io.trino.plugin.hive.orc.OrcReaderConfig;
 import io.trino.plugin.hive.orc.OrcWriterConfig;
+import io.trino.plugin.hive.parquet.GpuParquetConfig;
 import io.trino.plugin.hive.parquet.ParquetReaderConfig;
 import io.trino.plugin.hive.parquet.ParquetWriterConfig;
 import io.trino.plugin.hive.util.SortTempFileFactory;
@@ -41,6 +42,7 @@ class LakehouseModule
         configBinder(binder).bindConfig(OrcWriterConfig.class);
         configBinder(binder).bindConfig(ParquetReaderConfig.class);
         configBinder(binder).bindConfig(ParquetWriterConfig.class);
+        configBinder(binder).bindConfig(GpuParquetConfig.class);
         configBinder(binder).bindConfig(SortingFileWriterConfig.class, "lakehouse");
 
         binder.bind(LakehouseConnector.class).in(Scopes.SINGLETON);
