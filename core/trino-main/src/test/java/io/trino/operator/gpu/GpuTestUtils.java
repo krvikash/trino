@@ -38,6 +38,7 @@ import io.trino.spi.block.Bitmap;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.block.VariableWidthBlockBuilder;
+import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.SourcePage;
 import io.trino.spi.gpu.Column;
 import io.trino.spi.gpu.Column.DeviceMemory;
@@ -855,7 +856,7 @@ public final class GpuTestUtils
         return executeWithCpu(compiledProcessor, inputPages, FULL_CONNECTOR_SESSION);
     }
 
-    public static List<Page> executeWithCpu(PageProcessor compiledProcessor, List<Page> inputPages, FullConnectorSession session)
+    public static List<Page> executeWithCpu(PageProcessor compiledProcessor, List<Page> inputPages, ConnectorSession session)
     {
         LocalMemoryContext context = newSimpleAggregatedMemoryContext().newLocalMemoryContext(PageProcessor.class.getSimpleName());
         ImmutableList.Builder<Page> outputPages = ImmutableList.builder();
