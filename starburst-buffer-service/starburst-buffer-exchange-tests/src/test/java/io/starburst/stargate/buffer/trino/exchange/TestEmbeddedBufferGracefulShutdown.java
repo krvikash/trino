@@ -14,6 +14,7 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.inject.Key;
+import io.airlift.bootstrap.LifeCycleManager;
 import io.airlift.units.Duration;
 import io.starburst.stargate.buffer.BufferNodeState;
 import io.starburst.stargate.buffer.data.execution.ChunkManager;
@@ -110,6 +111,55 @@ public class TestEmbeddedBufferGracefulShutdown
             TestShutdownAction shutdownAction = (TestShutdownAction) worker.getShutdownAction();
             shutdownAction.waitForShutdownComplete(SHUTDOWN_TIMEOUT_MILLIS);
             assertThat(shutdownAction.isWorkerShutdown()).isTrue();
+        }
+        finally {
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
+    @Timeout(value = EMBEDDED_BUFFER_TEST_TIMEOUT_MILLIS, unit = MILLISECONDS)
+    public void testEmbeddedBufferDrainsOnLifecycleStopWithoutGracefulShutdown()
+            throws Exception
+    {
+        // A worker pod deleted while still starting never got the graceful shutdown request
+        // (its preStop hook ran before the HTTP server was up), came up ACTIVE, accepted exchange data and was
+        // then sent SIGTERM. The JVM shutdown hook only stops the lifecycle, so the buffer must drain there.
+        ListeningExecutorService executor = MoreExecutors.listeningDecorator(newCachedThreadPool());
+        try (DistributedQueryRunner queryRunner = createRunnerWithWorkers(2)) {
+            TestingTrinoServer worker = getWorker(queryRunner);
+
+            BufferNodeStateManager bufferNodeStateManager = worker.getInstance(Key.get(BufferNodeStateManager.class));
+            ChunkManager chunkManager = worker.getInstance(Key.get(ChunkManager.class));
+            assertEventually(new Duration(BUFFER_NODE_STATE_TRANSITION_TIMEOUT_MILLIS, MILLISECONDS),
+                    () -> assertThat(bufferNodeStateManager.getState()).isEqualTo(BufferNodeState.ACTIVE));
+
+            List<ListenableFuture<MaterializedResult>> queryFutures = new ArrayList<>();
+            for (int i = 0; i < 5; i++) {
+                queryFutures.add(executor.submit(
+                        () -> queryRunner.execute(
+                                "SELECT COUNT(*), a.group_key " +
+                                        "FROM mock.default.test_table a, mock.default.test_table b " +
+                                        "GROUP BY a.group_key")));
+            }
+            assertThat(Futures.allAsList(queryFutures).isDone())
+                    .describedAs("Queries should still be running when the lifecycle is stopped")
+                    .isFalse();
+
+            // what the JVM shutdown hook does on SIGTERM
+            ListenableFuture<?> lifecycleStop = executor.submit(() -> worker.getInstance(Key.get(LifeCycleManager.class)).stop());
+
+            assertEventually(new Duration(BUFFER_NODE_STATE_TRANSITION_TIMEOUT_MILLIS, MILLISECONDS),
+                    () -> assertThat(bufferNodeStateManager.getState()).isEqualTo(BufferNodeState.DRAINED));
+            assertThat(chunkManager.getOpenChunks() + chunkManager.getClosedChunks())
+                    .describedAs("All in-memory chunks should be gone after drain")
+                    .isEqualTo(0);
+
+            lifecycleStop.get();
+            Futures.allAsList(queryFutures).get();
+            for (BasicQueryInfo info : queryRunner.getCoordinator().getQueryManager().getQueries()) {
+                assertThat(info.getState()).isEqualTo(FINISHED);
+            }
         }
         finally {
             executor.shutdownNow();
