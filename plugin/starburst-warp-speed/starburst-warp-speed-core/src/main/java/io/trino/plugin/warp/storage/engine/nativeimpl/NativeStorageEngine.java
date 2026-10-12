@@ -193,6 +193,7 @@ public class NativeStorageEngine
                 nativeConfig.getStorageCacheMemoryPercent(),
                 totalPhysicalMemory >> 20,
                 maxHeapMemory >> 20);
+        int initRes;
         try (Arena arena = Arena.ofConfined()) {
             // file API
             mFileOpen = linker.downcallHandle(
@@ -310,20 +311,22 @@ public class NativeStorageEngine
             envEnableConfig.set(ValueLayout.JAVA_BYTE, ENV_ENABLE_CONFIG_OFFSET_COMPRESSION, nativeConfig.getEnableCompression() ? (byte) 1 : (byte) 0);
             envEnableConfig.set(ValueLayout.JAVA_BYTE, ENV_ENABLE_CONFIG_OFFSET_WARM_DATA_DISABLED, (byte) 1);
 
-            int initRes = -1;
             try (NativeLogger.LogId logId = nativeLogger.getLogId(this.exceptionThrower)) {
                 // 0 - first loaded
                 // >0 - already loaded
                 // <0 - error
                 initRes = (int) mInitEnv.invokeExact(envProperties, envEnableConfig, logId.id());
-                this.isFirstLoaded = initRes == 0;
             }
-            this.isLoaded = (initRes >= 0);
         }
         catch (Throwable t) {
             logger.error(t, "failed loading native storage engine");
             throw new TrinoException(WarpErrorCode.WARP_GENERIC, "failed loading native storage engine", t);
         }
+        if (initRes < 0) {
+            throw new TrinoException(WarpErrorCode.WARP_CATALOG_FAILED_TO_LOAD, "native storage engine init failed, see the native log for the cause");
+        }
+        this.isFirstLoaded = initRes == 0;
+        this.isLoaded = true;
     }
 
     @Override
