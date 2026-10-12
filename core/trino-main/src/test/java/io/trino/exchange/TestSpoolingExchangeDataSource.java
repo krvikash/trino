@@ -13,6 +13,7 @@
  */
 package io.trino.exchange;
 
+import com.google.common.collect.ImmutableList;
 import io.airlift.slice.Slice;
 import io.trino.memory.context.AggregatedMemoryContext;
 import io.trino.memory.context.LocalMemoryContext;
@@ -22,6 +23,7 @@ import io.trino.spi.exchange.ExchangeSourceOutputSelector;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -45,6 +47,16 @@ public class TestSpoolingExchangeDataSource
 
         dataSource.close();
         assertThat(memoryContext.getBytes()).isEqualTo(0);
+    }
+
+    @Test
+    public void testAddInputUpdatesMemoryUsage()
+    {
+        LocalMemoryContext memoryContext = newSimpleAggregatedMemoryContext().newLocalMemoryContext("test");
+        SpoolingExchangeDataSource dataSource = new SpoolingExchangeDataSource(new TestingExchangeSource(PAGE, 123, () -> {}), memoryContext);
+
+        dataSource.addInput(new SpoolingExchangeInput(ImmutableList.of(), Optional.empty()));
+        assertThat(memoryContext.getBytes()).isEqualTo(123);
     }
 
     @Test

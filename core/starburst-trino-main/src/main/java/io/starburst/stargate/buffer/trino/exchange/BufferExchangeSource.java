@@ -126,33 +126,46 @@ public class BufferExchangeSource
         this.sourceChunksEstimatedSize = new AtomicLong(estimatedSizeOf(sourceChunks, SourceChunk::getRetainedSize));
     }
 
+    // runs where no memory report follows, so it starts a reader only when the consumer has nothing to read
     private void scheduleReadChunks()
     {
         List<ChunkReader> newChunkReaders;
         synchronized (this) {
-            if (closed || failure.get() != null) {
+            if (readSlicesHasElements) {
                 return;
             }
-            if (latestSourceOutputSelector == null) {
-                // wait for initial output selector before scheduling reading
-                return;
-            }
-            if (!memoryUsageExceeded.isDone()) {
-                // not enough memory
-                return;
-            }
-            newChunkReaders = doScheduleReadChunks();
+            newChunkReaders = doScheduleReadChunks(1);
         }
-        for (ChunkReader chunkReader : newChunkReaders) {
-            chunkReader.start();
+        newChunkReaders.forEach(ChunkReader::start);
+    }
+
+    // the exchange data source reports getMemoryUsage() after read() and addInput(), which includes the memory reserved here
+    private void scheduleReadAhead()
+    {
+        List<ChunkReader> newChunkReaders;
+        synchronized (this) {
+            newChunkReaders = doScheduleReadChunks(parallelism);
         }
+        newChunkReaders.forEach(ChunkReader::start);
     }
 
     @GuardedBy("this")
-    private List<ChunkReader> doScheduleReadChunks()
+    private List<ChunkReader> doScheduleReadChunks(int maxReaders)
     {
+        if (closed || failure.get() != null) {
+            return ImmutableList.of();
+        }
+        if (latestSourceOutputSelector == null) {
+            // wait for initial output selector before scheduling reading
+            return ImmutableList.of();
+        }
+        if (!memoryUsageExceeded.isDone()) {
+            // not enough memory
+            return ImmutableList.of();
+        }
+
         int selectedParallelism = switch (preserveOrderingMode) {
-            case ALLOW_REORDERING -> parallelism;
+            case ALLOW_REORDERING -> maxReaders;
             case PRESERVE_ORDERING -> 1;
             case UNKNOWN -> throw new IllegalStateException("preserverOrderingMode should be set by now");
         };
@@ -293,7 +306,7 @@ public class BufferExchangeSource
                 }
             }
 
-            scheduleReadChunks();
+            scheduleReadAhead();
         }
     }
 
@@ -353,7 +366,7 @@ public class BufferExchangeSource
         speculativeSourceOutputChoices.synchronizeWithNewOutputSelector(selector);
         this.latestSourceOutputSelector = selector;
         if (!sourceChunks.isEmpty()) {
-            scheduleReadChunks();
+            scheduleReadAhead();
         }
     }
 
@@ -413,7 +426,7 @@ public class BufferExchangeSource
 
     @Nullable
     @Override
-    public synchronized Slice read()
+    public Slice read()
     {
         SettableFuture<Void> memoryFutureToUnblock;
         Slice slice;
@@ -439,6 +452,7 @@ public class BufferExchangeSource
             // complete future outside the synchronized block
             memoryFutureToUnblock.set(null);
         }
+        scheduleReadAhead();
         return slice;
     }
 
@@ -511,6 +525,7 @@ public class BufferExchangeSource
                 + speculativeSourceOutputChoices.getRetainedSize()
                 + sourceChunksEstimatedSize.get()
                 + readSlicesMemoryUsage.get()
+                + readersReservedMemory.get()
                 + estimatedSizeOf(currentReaders, ChunkReader::getRetainedSize);
     }
 

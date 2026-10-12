@@ -109,6 +109,8 @@ public class SpoolingExchangeDataSource
         }
         spoolingExchangeInput.getOutputSelector().ifPresent(exchangeSource::setOutputSelector);
         exchangeSource.addSourceHandles(spoolingExchangeInput.getExchangeSourceHandles());
+        // the exchange source may start reading ahead on new input
+        updateMemoryUsage(exchangeSource.getMemoryUsage());
     }
 
     @Override
