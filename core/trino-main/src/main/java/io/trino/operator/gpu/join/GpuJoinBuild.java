@@ -13,7 +13,6 @@
  */
 package io.trino.operator.gpu.join;
 
-import ai.rapids.cudf.ColumnVector;
 import ai.rapids.cudf.HashJoin;
 import ai.rapids.cudf.Table;
 import ai.rapids.cudf.ast.AstExpression;
@@ -38,6 +37,7 @@ import java.util.Optional;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static io.trino.operator.gpu.memory.GpuMemoryUtils.getHashJoinAdditionalGpuDeviceMemoryUsage;
+import static io.trino.plugin.base.gpu.GpuUtils.selectColumns;
 import static io.trino.plugin.base.gpu.GpuUtils.toTable;
 import static java.lang.Math.toIntExact;
 import static java.util.Objects.requireNonNull;
@@ -281,14 +281,5 @@ public final class GpuJoinBuild
             closer.register(buildOutputTable);
             closer.register(matchMask);
         }
-    }
-
-    private static @Own Table selectColumns(@Borrow Table source, int[] channels)
-    {
-        ColumnVector[] selected = new ColumnVector[channels.length];
-        for (int i = 0; i < channels.length; i++) {
-            selected[i] = source.getColumn(channels[i]);
-        }
-        return new Table(selected);
     }
 }

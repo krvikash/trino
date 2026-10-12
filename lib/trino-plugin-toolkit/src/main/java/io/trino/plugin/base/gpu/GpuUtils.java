@@ -96,4 +96,13 @@ public final class GpuUtils
         }
         return new Table(selected);
     }
+
+    public static @Own Table selectColumns(@Borrow Table source, int[] channels)
+    {
+        @Borrow ColumnVector[] selected = new ColumnVector[channels.length];
+        for (int i = 0; i < channels.length; i++) {
+            selected[i] = source.getColumn(channels[i]);
+        }
+        return new Table(selected);
+    }
 }
