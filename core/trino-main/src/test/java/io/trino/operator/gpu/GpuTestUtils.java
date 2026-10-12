@@ -63,8 +63,6 @@ import io.trino.sql.planner.InternalDynamicFilter;
 import io.trino.sql.planner.Symbol;
 import io.trino.testing.MaterializedResult;
 import io.trino.testing.TestingSession;
-import io.trino.type.BlockTypeOperators;
-import io.trino.type.BlockTypeOperators.BlockPositionIsIdentical;
 import io.trino.type.CharVarcharCoercion;
 
 import java.math.BigInteger;
@@ -73,6 +71,7 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.Random;
@@ -187,8 +186,6 @@ public final class GpuTestUtils
                     Double.NaN),
             // -0.0, 0.0, NaN
             List.of(-0.0, 0.0, Double.NaN));
-
-    private static final BlockTypeOperators BLOCK_TYPE_OPERATORS = new BlockTypeOperators();
 
     public static final FullConnectorSession FULL_CONNECTOR_SESSION = createFullConnectorSession(SQL_STANDARD);
     private static final FullConnectorSession LEGACY_COERCION_CONNECTOR_SESSION = createFullConnectorSession(LEGACY);
@@ -991,25 +988,22 @@ public final class GpuTestUtils
         Stream.concat(actual.stream(), expected.stream())
                 .forEach(page -> assertThat(page.getChannelCount()).as("channel count").isEqualTo(types.size()));
 
-        List<BlockPositionIsIdentical> identicalOperators = types.stream()
-                .map(BLOCK_TYPE_OPERATORS::getIdenticalOperator)
-                .toList();
-
         Streams.forEachPair(
                 positions(actual),
                 positions(expected),
                 (actualPos, expectedPos) -> {
                     for (int channel = 0; channel < types.size(); channel++) {
-                        BlockPositionIsIdentical equivalence = identicalOperators.get(channel);
-                        Block actualBlock = actualPos.page.getBlock(channel);
-                        Block expectedBlock = expectedPos.page.getBlock(channel);
-                        if (!equivalence.isIdentical(actualBlock, actualPos.position, expectedBlock, expectedPos.position)) {
+                        Type type = types.get(channel);
+                        // Unlike the identical operator, the object values tell apart the time zones of one instant
+                        Object actualValue = type.getObjectValue(actualPos.page.getBlock(channel), actualPos.position);
+                        Object expectedValue = type.getObjectValue(expectedPos.page.getBlock(channel), expectedPos.position);
+                        if (!Objects.equals(actualValue, expectedValue)) {
                             throw new AssertionError("row %d channel %d (type %s): actual=«%s» expected=«%s»".formatted(
                                     actualPos.position,
                                     channel,
-                                    types.get(channel),
-                                    types.get(channel).getObjectValue(actualBlock, actualPos.position),
-                                    types.get(channel).getObjectValue(expectedBlock, expectedPos.position)));
+                                    type,
+                                    actualValue,
+                                    expectedValue));
                         }
                     }
                 });
