@@ -21,6 +21,7 @@ import java.util.List;
 
 import static io.trino.plugin.clickhouse.TestingClickHouseServer.ALTINITY_DEFAULT_IMAGE;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assumptions.abort;
 
 final class TestAltinityClickHouseTypeMapping
         extends BaseClickHouseTypeMapping
@@ -31,6 +32,13 @@ final class TestAltinityClickHouseTypeMapping
     {
         clickhouseServer = closeAfterClass(new TestingClickHouseServer(ALTINITY_DEFAULT_IMAGE));
         return ClickHouseQueryRunner.builder(clickhouseServer).build();
+    }
+
+    @Test
+    @Override
+    public void testDynamic()
+    {
+        abort("Dynamic type is not supported in Altinity Stable 23.3");
     }
 
     @Test
