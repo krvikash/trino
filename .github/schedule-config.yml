@@ -83,6 +83,7 @@
   matrix-properties:
     buildAll: true # buildAll is needed to build and package plugins required by TestConnectorSensitiveProperties
 - { modules: plugin/trino-ignite }
+- { modules: plugin/trino-lakehouse }
 - { modules: plugin/trino-postgresql }
 - { modules: plugin/trino-redis }
 - { modules: plugin/trino-resource-group-managers }

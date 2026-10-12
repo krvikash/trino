@@ -89,6 +89,10 @@ kdb:
   - changed-files:
     - any-glob-to-any-file: 'plugin/starburst-kdb/**'
 
+lakehouse:
+  - changed-files:
+    - any-glob-to-any-file: 'plugin/trino-lakehouse/**'
+
 loki:
   - changed-files:
     - any-glob-to-any-file: 'plugin/trino-loki/**'
