@@ -95,7 +95,11 @@ public final class DatabricksRetryUtils
         // exception-type check silently stops matching real transient errors across such a swap.
         String stackTrace = getStackTraceAsString(throwable);
         return stackTrace.contains("\"error_code\":\"TEMPORARILY_UNAVAILABLE\"")
-                || stackTrace.contains("\"error_code\":\"INTERNAL_ERROR\"");
+                || stackTrace.contains("\"error_code\":\"INTERNAL_ERROR\"")
+                // Unity's gateway answers a bodiless 503 ("call failed with: 503 - [no body]") during outages, with no error_code to match
+                || stackTrace.contains("call failed with: 503")
+                // a Unity read that outlasts the client's request timeout surfaces as HttpTimeoutException, which UNITY_API_RETRY_POLICY does not retry
+                || stackTrace.contains("java.net.http.HttpTimeoutException: request timed out");
     }
 
     private static boolean isThriftFuturesTimeout(Throwable throwable)

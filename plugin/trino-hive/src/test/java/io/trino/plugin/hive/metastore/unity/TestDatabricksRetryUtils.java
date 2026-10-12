@@ -17,12 +17,14 @@ import dev.failsafe.Failsafe;
 import dev.failsafe.RetryPolicy;
 import org.junit.jupiter.api.Test;
 
+import java.net.http.HttpTimeoutException;
 import java.sql.SQLException;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static io.trino.plugin.hive.metastore.unity.DatabricksRetryUtils.DATABRICKS_CLUSTER_UNAVAILABLE_RETRY_POLICY;
 import static io.trino.plugin.hive.metastore.unity.DatabricksRetryUtils.DATABRICKS_COMMUNICATION_FAILURE_RETRY_POLICY;
 import static io.trino.plugin.hive.metastore.unity.DatabricksRetryUtils.DATABRICKS_THRIFT_TIMEOUT_RETRY_POLICY;
+import static io.trino.plugin.hive.metastore.unity.DatabricksRetryUtils.UNITY_CATALOG_TRANSIENT_ERROR_RETRY_POLICY;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -81,6 +83,25 @@ final class TestDatabricksRetryUtils
     {
         assertNotRetried(DATABRICKS_CLUSTER_UNAVAILABLE_RETRY_POLICY, THRIFT_TRANSPORT_TIMEOUT_MESSAGE);
         assertNotRetried(DATABRICKS_COMMUNICATION_FAILURE_RETRY_POLICY, THRIFT_TRANSPORT_TIMEOUT_MESSAGE);
+    }
+
+    @Test
+    void testUnityRequestTimeoutIsRetriedAsUnityTransientError()
+    {
+        AtomicInteger attempts = new AtomicInteger();
+        Failsafe.with(UNITY_CATALOG_TRANSIENT_ERROR_RETRY_POLICY)
+                .run(() -> {
+                    if (attempts.incrementAndGet() == 1) {
+                        throw new RuntimeException("Error processing metadata", new HttpTimeoutException("request timed out"));
+                    }
+                });
+        assertThat(attempts).hasValue(2);
+    }
+
+    @Test
+    void testOtherTimeoutIsNotRetriedAsUnityTransientError()
+    {
+        assertNotRetried(UNITY_CATALOG_TRANSIENT_ERROR_RETRY_POLICY, "request timed out");
     }
 
     private static void assertNotRetried(RetryPolicy<Object> retryPolicy, String message)
