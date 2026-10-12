@@ -1025,6 +1025,12 @@ public class LakehouseMetadata
     }
 
     @Override
+    public boolean supportsSingleNodeExecution(ConnectorSession session, ConnectorTableHandle tableHandle)
+    {
+        return forHandle(tableHandle).supportsSingleNodeExecution(session, tableHandle);
+    }
+
+    @Override
     public WriterScalingOptions getNewTableWriterScalingOptions(ConnectorSession session, SchemaTableName tableName, Map<String, Object> tableProperties)
     {
         return forProperties(tableProperties).getNewTableWriterScalingOptions(session, tableName, tableProperties);
