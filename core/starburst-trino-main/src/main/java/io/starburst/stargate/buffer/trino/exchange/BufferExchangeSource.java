@@ -130,6 +130,9 @@ public class BufferExchangeSource
     {
         List<ChunkReader> newChunkReaders;
         synchronized (this) {
+            if (closed || failure.get() != null) {
+                return;
+            }
             if (latestSourceOutputSelector == null) {
                 // wait for initial output selector before scheduling reading
                 return;
@@ -237,6 +240,9 @@ public class BufferExchangeSource
     {
         AtomicReference<CompletableFuture<Void>> futureToUnblock = new AtomicReference<>();
         synchronized (this) {
+            if (closed) {
+                return;
+            }
             ExchangeId exchangeId = ExternalExchangeIds.internalExchangeId(externalExchangeId);
             verify(latestSourceOutputSelector != null, "latestSourceOutputSelector should have been set already");
             result.stream()
@@ -365,7 +371,7 @@ public class BufferExchangeSource
                 return NOT_BLOCKED;
             }
 
-            if (failure.get() != null) {
+            if (closed || failure.get() != null) {
                 return NOT_BLOCKED;
             }
 
