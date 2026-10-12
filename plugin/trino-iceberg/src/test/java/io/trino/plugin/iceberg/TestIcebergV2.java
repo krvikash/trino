@@ -655,6 +655,37 @@ public class TestIcebergV2
     }
 
     @Test
+    public void testEqualityDeleteNotPrunedByNonKeyColumnStats()
+            throws Exception
+    {
+        // https://github.com/trinodb/trino/issues/31399
+        try (TestTable table = newTrinoTable(
+                "test_equality_delete_non_key_column_stats_",
+                "(id integer, data varchar, extra integer) WITH (format_version = 2)")) {
+            String tableName = table.getName();
+            assertUpdate("INSERT INTO " + tableName + " VALUES (1, 'a', 10), (2, 'b', 20)", 2);
+
+            Table icebergTable = loadTable(tableName);
+            // The delete file follows the table schema and has therefore stats for all the columns,
+            // but only "id" is an equality field.
+            writeEqualityDeleteToNationTableWithDeleteColumns(
+                    icebergTable,
+                    Optional.empty(),
+                    Optional.empty(),
+                    ImmutableMap.of("id", 1),
+                    icebergTable.schema(),
+                    ImmutableList.of(icebergTable.schema().findField("id").fieldId()));
+            assertThat(loadTable(tableName).currentSnapshot().summary()).containsEntry("total-equality-deletes", "1");
+
+            assertThat(query("SELECT id FROM " + tableName)).matches("VALUES 2");
+
+            // The filter is pushed down to the scan, which has to keep the delete file even though the filter
+            // can't be satisfied by its null stats for "extra". Otherwise, the deleted row (1, 'a', 10) is resurrected.
+            assertThat(query("SELECT id FROM " + tableName + " WHERE extra >= 10")).matches("VALUES 2");
+        }
+    }
+
+    @Test
     public void testMultipleEqualityDeletesWithEquivalentSchemas()
             throws Exception
     {
