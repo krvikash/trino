@@ -34,6 +34,7 @@ import java.util.Map;
 @JsonSubTypes({
         @JsonSubTypes.Type(value = Call.class, name = Call.NAME),
         @JsonSubTypes.Type(value = Cast.class, name = Cast.NAME),
+        @JsonSubTypes.Type(value = Constant.class, name = Constant.NAME),
         @JsonSubTypes.Type(value = FieldReference.class, name = FieldReference.NAME),
         @JsonSubTypes.Type(value = In.class, name = In.NAME),
         @JsonSubTypes.Type(value = IsNull.class, name = IsNull.NAME),
@@ -44,6 +45,7 @@ public sealed interface Expression
         extends IrNode
         permits Call,
                 Cast,
+                Constant,
                 FieldReference,
                 In,
                 IsNull,
@@ -57,7 +59,7 @@ public sealed interface Expression
 
     /**
      * An {@code Expression} stamps its name under the {@value IrVersions#EXPRESSION_PREFIX} namespace. Nodes that
-     * also commit the decoder to a shared leaf form, a function or a cast pair add those entries on top.
+     * also commit the decoder to a shared leaf form, a function, a cast pair or a constant encoding add those entries on top.
      */
     @Override
     default Map<String, Integer> versionEntries()

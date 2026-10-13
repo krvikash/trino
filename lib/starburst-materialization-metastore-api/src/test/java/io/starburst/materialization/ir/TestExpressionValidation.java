@@ -15,14 +15,19 @@ package io.starburst.materialization.ir;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
+import io.starburst.materialization.ir.ConstantValue.BytesValue;
+import io.starburst.materialization.ir.ConstantValue.TimestampWithZoneValue;
 import io.starburst.materialization.ir.Logical.Operator;
 import io.starburst.materialization.ir.SupportedCasts.CastPair;
 import io.trino.spi.function.BoundSignature;
+import io.trino.spi.type.ArrayType;
 import org.junit.jupiter.api.Test;
 
 import java.util.Set;
 
+import static io.airlift.slice.Slices.utf8Slice;
 import static io.starburst.materialization.ir.IrFixtures.builtinSignature;
+import static io.starburst.materialization.ir.IrFixtures.constant;
 import static io.starburst.materialization.ir.IrFixtures.reference;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
@@ -190,6 +195,54 @@ class TestExpressionValidation
         assertThatThrownBy(() -> new In(reference(BIGINT, "a"), ImmutableList.of(reference(BIGINT, "b"), reference(BOOLEAN, "c"))))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("In: item 1 has type boolean, expected bigint");
+    }
+
+    @Test
+    void testConstantWithMismatchedKindIsRejected()
+    {
+        assertThatThrownBy(() -> new Constant(DOUBLE, new ConstantValue.LongValue(1)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Constant: cannot decode long constant of type double: expected kind double");
+    }
+
+    @Test
+    void testConstantOfUnsupportedTypeIsRejected()
+    {
+        assertThatThrownBy(() -> new Constant(new ArrayType(BIGINT), new ConstantValue.NullValue()))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Constant: cannot decode null constant of type array(bigint): type is not supported");
+    }
+
+    @Test
+    void testInOverConstantsIsAccepted()
+    {
+        In in = new In(reference(BIGINT, "a"), ImmutableList.of(constant(BIGINT, 1L), constant(BIGINT, 2L)));
+        assertThat(in.type()).isEqualTo(BOOLEAN);
+    }
+
+    @Test
+    void testComparisonWithConstantIsAccepted()
+    {
+        Call call = new Call(builtinSignature("$operator$LESS_THAN", BOOLEAN, BIGINT, BIGINT), ImmutableList.of(reference(BIGINT, "a"), constant(BIGINT, 42L)));
+        assertThat(call.type()).isEqualTo(BOOLEAN);
+    }
+
+    @Test
+    void testComparisonWithFoldedTimestampWithTimeZoneConstantIsAccepted()
+    {
+        Call call = new Call(
+                builtinSignature("$operator$LESS_THAN", BOOLEAN, TIMESTAMP_TZ_MILLIS, TIMESTAMP_TZ_MILLIS),
+                ImmutableList.of(reference(TIMESTAMP_TZ_MILLIS, "a"), new Constant(TIMESTAMP_TZ_MILLIS, new TimestampWithZoneValue(1_577_836_800_000L, 0, "America/New_York"))));
+        assertThat(call.type()).isEqualTo(BOOLEAN);
+    }
+
+    @Test
+    void testComparisonWithFoldedCharConstantIsAccepted()
+    {
+        Call call = new Call(
+                builtinSignature("$operator$EQUAL", BOOLEAN, createCharType(5), createCharType(5)),
+                ImmutableList.of(reference(createCharType(5), "a"), new Constant(createCharType(5), new BytesValue(utf8Slice("abc")))));
+        assertThat(call.type()).isEqualTo(BOOLEAN);
     }
 
     @Test

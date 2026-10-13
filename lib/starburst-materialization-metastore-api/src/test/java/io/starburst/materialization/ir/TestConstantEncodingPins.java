@@ -192,5 +192,8 @@ class TestConstantEncodingPins
                 .addAll(TRINO_MAIN_BASE_NAMES)
                 .build();
         assertThat(ConstantValues.encodingVersions().keySet()).isEqualTo(pinned);
+        assertThat(IrVersions.SUPPORTED.keySet())
+                .filteredOn(name -> name.startsWith(IrVersions.CONSTANT_TYPE_PREFIX))
+                .containsExactlyInAnyOrderElementsOf(pinned.stream().map(baseName -> IrVersions.CONSTANT_TYPE_PREFIX + baseName).collect(toImmutableSet()));
     }
 }

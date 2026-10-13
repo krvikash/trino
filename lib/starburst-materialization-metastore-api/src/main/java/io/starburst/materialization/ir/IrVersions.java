@@ -36,6 +36,9 @@ import static com.google.common.collect.ImmutableMap.toImmutableMap;
  * <li>{@value #CAST_PREFIX}: one {@link SupportedCasts} pair's conversion semantics ({@code cast:varchar->varchar})</li>
  * <li>{@value #LEAF_PREFIX}: a shared leaf serialized form, stamped by {@code Expression} nodes and by
  * {@code Operation} nodes newer than the leaf keys ({@code leaf:Symbol}, {@code leaf:Type}, {@code leaf:BoundSignature})</li>
+ * <li>{@value #CONSTANT_KIND_PREFIX}: one {@link ConstantValue} kind's payload shape ({@code const:long})</li>
+ * <li>{@value #CONSTANT_TYPE_PREFIX}: the assumed native representation of one base type a {@link Constant} may
+ * have, stamped for non-null constants only ({@code ctype:decimal})</li>
  * </ul>
  * Names are permanent: renaming one silently invalidates every stored definition that uses it.
  */
@@ -45,6 +48,8 @@ public final class IrVersions
     public static final String FUNCTION_PREFIX = "fn:";
     public static final String CAST_PREFIX = "cast:";
     public static final String LEAF_PREFIX = "leaf:";
+    public static final String CONSTANT_KIND_PREFIX = "const:";
+    public static final String CONSTANT_TYPE_PREFIX = "ctype:";
 
     // A leaf version covers that leaf's JSON form, not its Java API: bump it when a field is added, removed or renamed,
     // or a value's encoding changes. A Symbol or Type change also bumps other keys; see the README's version-bump table.
@@ -69,6 +74,7 @@ public final class IrVersions
     public static final Map<String, Integer> EXPRESSION_VERSIONS = ImmutableMap.of(
             expressionKey(Call.NAME), Call.VERSION,
             expressionKey(Cast.NAME), Cast.VERSION,
+            expressionKey(Constant.NAME), Constant.VERSION,
             expressionKey(FieldReference.NAME), FieldReference.VERSION,
             expressionKey(In.NAME), In.VERSION,
             expressionKey(IsNull.NAME), IsNull.VERSION,
@@ -100,6 +106,28 @@ public final class IrVersions
             BOUND_SIGNATURE_LEAF, BOUND_SIGNATURE_LEAF_VERSION);
 
     /**
+     * {@link ConstantValue} kind versions, keyed by {@value #CONSTANT_KIND_PREFIX}{@code <kind>}.
+     */
+    public static final Map<String, Integer> CONSTANT_KIND_VERSIONS = ImmutableMap.<String, Integer>builder()
+            .put(constantKindKey(ConstantValue.NullValue.KIND), ConstantValue.NullValue.VERSION)
+            .put(constantKindKey(ConstantValue.BooleanValue.KIND), ConstantValue.BooleanValue.VERSION)
+            .put(constantKindKey(ConstantValue.LongValue.KIND), ConstantValue.LongValue.VERSION)
+            .put(constantKindKey(ConstantValue.RealValue.KIND), ConstantValue.RealValue.VERSION)
+            .put(constantKindKey(ConstantValue.DoubleValue.KIND), ConstantValue.DoubleValue.VERSION)
+            .put(constantKindKey(ConstantValue.BytesValue.KIND), ConstantValue.BytesValue.VERSION)
+            .put(constantKindKey(ConstantValue.Int128Value.KIND), ConstantValue.Int128Value.VERSION)
+            .put(constantKindKey(ConstantValue.TimestampValue.KIND), ConstantValue.TimestampValue.VERSION)
+            .put(constantKindKey(ConstantValue.TimestampWithZoneValue.KIND), ConstantValue.TimestampWithZoneValue.VERSION)
+            .put(constantKindKey(ConstantValue.TimeWithZoneValue.KIND), ConstantValue.TimeWithZoneValue.VERSION)
+            .buildOrThrow();
+
+    /**
+     * {@link ConstantValues#encodingVersion} versions, keyed by {@value #CONSTANT_TYPE_PREFIX}{@code <base type>}.
+     */
+    public static final Map<String, Integer> CONSTANT_TYPE_VERSIONS = ConstantValues.encodingVersions().entrySet().stream()
+            .collect(toImmutableMap(entry -> constantTypeKey(entry.getKey()), Map.Entry::getValue));
+
+    /**
      * Every name this build can read, with the version it reads it at.
      */
     public static final Map<String, Integer> SUPPORTED = ImmutableMap.<String, Integer>builder()
@@ -108,6 +136,8 @@ public final class IrVersions
             .putAll(FUNCTION_VERSIONS)
             .putAll(CAST_VERSIONS)
             .putAll(LEAF_VERSIONS)
+            .putAll(CONSTANT_KIND_VERSIONS)
+            .putAll(CONSTANT_TYPE_VERSIONS)
             .buildOrThrow();
 
     private IrVersions() {}
@@ -125,6 +155,16 @@ public final class IrVersions
     static String castKey(String sourceBaseName, String targetBaseName)
     {
         return CAST_PREFIX + sourceBaseName + "->" + targetBaseName;
+    }
+
+    static String constantKindKey(String kind)
+    {
+        return CONSTANT_KIND_PREFIX + kind;
+    }
+
+    static String constantTypeKey(String baseName)
+    {
+        return CONSTANT_TYPE_PREFIX + baseName;
     }
 
     /**

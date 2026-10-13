@@ -58,6 +58,8 @@ class TestIrExhaustiveness
         assertThat(jsonSubTypes).hasSize(permitted.length);
         for (Class<?> kindClass : permitted) {
             String kind = staticField(kindClass, "KIND", String.class);
+            int version = staticField(kindClass, "VERSION", Integer.class);
+            assertThat(IrVersions.SUPPORTED).as("%s version", kindClass.getSimpleName()).containsEntry(IrVersions.CONSTANT_KIND_PREFIX + kind, version);
             assertThat(jsonSubTypes).as("%s JSON subtype", kindClass.getSimpleName()).containsEntry(kind, kindClass);
             assertThat(fixtureClasses).as("%s wire format case", kindClass.getSimpleName()).contains(kindClass);
             assertThat(TestIrWireFormat.fixtureExists(TestIrWireFormat.constantValueFixture(kind))).as("%s fixture", kindClass.getSimpleName()).isTrue();

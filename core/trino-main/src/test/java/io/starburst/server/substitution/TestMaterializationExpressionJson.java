@@ -14,6 +14,13 @@ import com.google.common.collect.ImmutableList;
 import io.airlift.json.JsonCodec;
 import io.starburst.materialization.ir.Call;
 import io.starburst.materialization.ir.Cast;
+import io.starburst.materialization.ir.Constant;
+import io.starburst.materialization.ir.ConstantValue.BooleanValue;
+import io.starburst.materialization.ir.ConstantValue.BytesValue;
+import io.starburst.materialization.ir.ConstantValue.LongValue;
+import io.starburst.materialization.ir.ConstantValue.TimeWithZoneValue;
+import io.starburst.materialization.ir.ConstantValue.TimestampWithZoneValue;
+import io.starburst.materialization.ir.ConstantValues;
 import io.starburst.materialization.ir.Expression;
 import io.starburst.materialization.ir.FieldReference;
 import io.starburst.materialization.ir.In;
@@ -24,10 +31,12 @@ import io.starburst.materialization.ir.Symbol;
 import io.trino.spi.function.BoundSignature;
 import io.trino.spi.function.CatalogSchemaFunctionName;
 import io.trino.spi.type.ArrayType;
+import io.trino.spi.type.Int128;
 import io.trino.spi.type.MapType;
 import io.trino.spi.type.RowType;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.TypeOperators;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -37,14 +46,24 @@ import java.util.function.UnaryOperator;
 import java.util.stream.Stream;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static io.airlift.slice.Slices.utf8Slice;
+import static io.airlift.slice.Slices.wrappedBuffer;
 import static io.starburst.server.substitution.TestUtils.irJsonCodecFactory;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
+import static io.trino.spi.type.CharType.createCharType;
+import static io.trino.spi.type.DecimalType.createDecimalType;
+import static io.trino.spi.type.TimeWithTimeZoneType.TIME_TZ_PICOS;
 import static io.trino.spi.type.TimestampWithTimeZoneType.TIMESTAMP_TZ_MILLIS;
+import static io.trino.spi.type.TimestampWithTimeZoneType.TIMESTAMP_TZ_NANOS;
+import static io.trino.spi.type.UuidType.UUID;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.spi.type.VarcharType.createVarcharType;
+import static io.trino.type.IntervalDayTimeType.INTERVAL_DAY_TIME;
+import static io.trino.type.IntervalYearMonthType.INTERVAL_YEAR_MONTH;
 import static io.trino.type.IpAddressType.IPADDRESS;
 import static io.trino.type.JsonType.JSON;
+import static io.trino.type.UnknownType.UNKNOWN;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -60,6 +79,8 @@ class TestMaterializationExpressionJson
 {
     private static final JsonCodec<Expression> CODEC = irJsonCodecFactory().jsonCodec(Expression.class);
     private static final String SECRET = "secret_";
+    // One past the largest representable epochMillis of a timestamp with time zone
+    private static final long SECRET_EPOCH_MILLIS = 1L << 51;
     private static final RowType INFO = RowType.from(ImmutableList.of(
             RowType.field(SECRET + "name", VARCHAR),
             RowType.field(SECRET + "age", BIGINT)));
@@ -86,7 +107,58 @@ class TestMaterializationExpressionJson
                 Arguments.of("in", new In(reference(BIGINT, "a"), ImmutableList.of(reference(BIGINT, "b"), reference(BIGINT, "c")))),
                 Arguments.of("nested row and array types", new IsNull(reference(nestedType, "a"))),
                 Arguments.of("json type", new IsNull(reference(JSON, "a"))),
-                Arguments.of("ipaddress type", new IsNull(reference(IPADDRESS, "a"))));
+                Arguments.of("ipaddress type", new IsNull(reference(IPADDRESS, "a"))),
+                Arguments.of("comparison with constant", call("$operator$LESS_THAN", BOOLEAN, reference(BIGINT, "a"), constant(BIGINT, 42L))),
+                Arguments.of("in over constants", new In(reference(BIGINT, "a"), ImmutableList.of(constant(BIGINT, 1L), constant(BIGINT, null)))),
+                Arguments.of("time zone constant", call(
+                        "$operator$LESS_THAN",
+                        BOOLEAN,
+                        reference(TIMESTAMP_TZ_NANOS, "a"),
+                        new Constant(TIMESTAMP_TZ_NANOS, new TimestampWithZoneValue(-1_000, 123_000, "America/New_York")))),
+                Arguments.of("long decimal constant", constant(createDecimalType(38, 10), Int128.valueOf("-12345678901234567890"))),
+                Arguments.of("char constant", new Constant(createCharType(5), new BytesValue(utf8Slice("abc")))));
+    }
+
+    /**
+     * Constants of the types that live in trino-main decode to the exact native value through the engine's types.
+     */
+    @ParameterizedTest(name = "{0} {1}")
+    @MethodSource("trinoMainConstants")
+    void testTrinoMainTypeConstant(Type type, Object nativeValue)
+    {
+        Constant constant = constant(type, nativeValue);
+        Constant read = (Constant) CODEC.fromJson(CODEC.toJson(constant));
+        assertThat(read).isEqualTo(constant);
+        assertThat(ConstantValues.decode(read.type(), read.value())).isEqualTo(nativeValue);
+    }
+
+    private static Stream<Arguments> trinoMainConstants()
+    {
+        return Stream.of(
+                Arguments.of(JSON, utf8Slice("{\"a\":[1,2]}")),
+                Arguments.of(IPADDRESS, wrappedBuffer(new byte[] {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, (byte) 0xFF, (byte) 0xFF, (byte) 192, (byte) 168, 0, 1})),
+                Arguments.of(INTERVAL_YEAR_MONTH, -14L),
+                Arguments.of(INTERVAL_DAY_TIME, -90_061_001L),
+                Arguments.of(JSON, null),
+                Arguments.of(IPADDRESS, null),
+                Arguments.of(INTERVAL_YEAR_MONTH, null),
+                Arguments.of(INTERVAL_DAY_TIME, null),
+                Arguments.of(UNKNOWN, null));
+    }
+
+    @Test
+    void testTrinoMainTypeConstantOutsideDomainIsRejected()
+    {
+        assertThatThrownBy(() -> new Constant(IPADDRESS, new BytesValue(wrappedBuffer(new byte[17]))))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Constant: cannot decode bytes constant of type ipaddress: expected 16 bytes");
+        assertThatThrownBy(() -> new Constant(INTERVAL_YEAR_MONTH, new LongValue(1L << 31)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Constant: cannot decode long constant of type interval year to month: value is out of range");
+        assertThatThrownBy(() -> new Constant(UNKNOWN, new BooleanValue(true)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Constant: cannot decode boolean constant of type unknown: type is not supported");
+        assertThat(ConstantValues.encode(UNKNOWN, false)).isEmpty();
     }
 
     /**
@@ -103,6 +175,7 @@ class TestMaterializationExpressionJson
                 .satisfies(failure -> {
                     String rootCauseMessage = Throwables.getRootCause(failure).getMessage();
                     assertThat(rootCauseMessage).doesNotContain(SECRET);
+                    assertThat(rootCauseMessage).doesNotContain(String.valueOf(SECRET_EPOCH_MILLIS));
                     expectedRootCauseMessage.ifPresent(expected -> assertThat(rootCauseMessage).isEqualTo(expected));
                 });
     }
@@ -113,6 +186,11 @@ class TestMaterializationExpressionJson
         IsNull secondTerm = new IsNull(reference(BIGINT, "b"));
         Expression logical = new Logical(Logical.Operator.AND, ImmutableList.of(new IsNull(reference(BIGINT, "a")), secondTerm));
         Expression cast = new Cast(reference(VARCHAR, "a"), createVarcharType(10));
+        Expression bigintConstant = constant(BIGINT, 42L);
+        Expression nullConstant = constant(BIGINT, null);
+        Expression timestampConstant = new Constant(TIMESTAMP_TZ_NANOS, new TimestampWithZoneValue(1_234, 0, "UTC"));
+        Expression timeConstant = new Constant(TIME_TZ_PICOS, new TimeWithZoneValue(0, 0));
+        Expression uuidConstant = constant(UUID, wrappedBuffer(new byte[16]));
         return Stream.of(
                 Arguments.of(
                         "function off the allowlist",
@@ -153,7 +231,42 @@ class TestMaterializationExpressionJson
                         "unresolvable reference type",
                         logical,
                         replacingToken("\"type\":\"bigint\"", "\"type\":\"no_such_type\""),
-                        Optional.empty()));
+                        Optional.empty()),
+                Arguments.of(
+                        "constant of a type off the codec",
+                        bigintConstant,
+                        replacingToken("\"type\":\"bigint\"", "\"type\":\"HyperLogLog\""),
+                        Optional.of("Constant: cannot decode long constant of type HyperLogLog: type is not supported")),
+                Arguments.of(
+                        "null constant of a type off the codec",
+                        nullConstant,
+                        replacingToken("\"type\":\"bigint\"", "\"type\":\"HyperLogLog\""),
+                        Optional.of("Constant: cannot decode null constant of type HyperLogLog: type is not supported")),
+                Arguments.of(
+                        "unknown constant kind",
+                        bigintConstant,
+                        replacingToken("\"kind\":\"long\"", "\"kind\":\"no_such_kind\""),
+                        Optional.empty()),
+                Arguments.of(
+                        "epochMillis outside the representable range",
+                        timestampConstant,
+                        replacingToken("\"epochMillis\":1234", "\"epochMillis\":" + SECRET_EPOCH_MILLIS),
+                        Optional.of("Constant: cannot decode timestampWithZone constant of type timestamp(9) with time zone")),
+                Arguments.of(
+                        "unknown zone id",
+                        timestampConstant,
+                        replacingToken("\"zoneId\":\"UTC\"", "\"zoneId\":\"" + SECRET + "zone\""),
+                        Optional.of("Constant: cannot decode timestampWithZone constant of type timestamp(9) with time zone")),
+                Arguments.of(
+                        "offsetMinutes outside the packed range",
+                        timeConstant,
+                        replacingToken("\"offsetMinutes\":0", "\"offsetMinutes\":1024"),
+                        Optional.of("Constant: cannot decode timeWithZone constant of type time(12) with time zone: offsetMinutes is out of range")),
+                Arguments.of(
+                        "uuid of the wrong length",
+                        uuidConstant,
+                        replacingToken("\"base64\":\"AAAAAAAAAAAAAAAAAAAAAA==\"", "\"base64\":\"AAAAAAAAAAAAAAAAAAAAAAA=\""),
+                        Optional.of("Constant: cannot decode bytes constant of type uuid: expected 16 bytes")));
     }
 
     /**
@@ -171,6 +284,11 @@ class TestMaterializationExpressionJson
     private static Reference reference(Type type, String name)
     {
         return new Reference(new Symbol(type, SECRET + name));
+    }
+
+    private static Constant constant(Type type, Object nativeValue)
+    {
+        return new Constant(type, ConstantValues.encode(type, nativeValue).orElseThrow());
     }
 
     private static Call equal(Expression left, Expression right)

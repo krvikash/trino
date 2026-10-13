@@ -28,7 +28,7 @@ import java.util.Base64;
 import static java.util.Objects.requireNonNull;
 
 /**
- * The persisted payload of a {@code Constant}: a native value in a durable form of its own, never the engine's
+ * The persisted payload of a {@link Constant}: a native value in a durable form of its own, never the engine's
  * {@code Block} wire format. The {@code kind} discriminator is explicit so a reader can assert it agrees with the
  * constant's type instead of deriving it. {@link ConstantValues} converts between native values and payloads.
  * <p>

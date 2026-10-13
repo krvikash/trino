@@ -35,6 +35,7 @@ import java.util.stream.Stream;
 
 import static io.airlift.slice.Slices.utf8Slice;
 import static io.starburst.materialization.ir.IrFixtures.builtinSignature;
+import static io.starburst.materialization.ir.IrFixtures.constant;
 import static io.starburst.materialization.ir.IrFixtures.outputOverScan;
 import static io.starburst.materialization.ir.IrFixtures.reference;
 import static io.starburst.materialization.ir.IrFixtures.tableScan;
@@ -58,6 +59,7 @@ class TestIrWireFormat
         return Stream.of(
                 Arguments.of(Call.NAME, new Call(builtinSignature("$operator$EQUAL", BOOLEAN, BIGINT, BIGINT), ImmutableList.of(reference(BIGINT, "a"), reference(BIGINT, "b")))),
                 Arguments.of(Cast.NAME, new Cast(reference(VARCHAR, "a"), createVarcharType(10))),
+                Arguments.of(Constant.NAME, constant(BIGINT, 42L)),
                 Arguments.of(FieldReference.NAME, new FieldReference(reference(IrJson.PERSON_ROW, "info"), 0)),
                 Arguments.of(In.NAME, new In(reference(BIGINT, "a"), ImmutableList.of(reference(BIGINT, "b"), reference(BIGINT, "c")))),
                 Arguments.of(IsNull.NAME, new IsNull(reference(BIGINT, "a"))),

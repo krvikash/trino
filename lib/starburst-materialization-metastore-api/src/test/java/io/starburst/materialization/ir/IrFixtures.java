@@ -21,6 +21,7 @@ import io.trino.spi.connector.substitution.ConnectorTableId;
 import io.trino.spi.function.BoundSignature;
 import io.trino.spi.function.CatalogSchemaFunctionName;
 import io.trino.spi.type.Type;
+import jakarta.annotation.Nullable;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
@@ -48,6 +49,11 @@ final class IrFixtures
     static Reference reference(Type type, String name)
     {
         return new Reference(new Symbol(type, name));
+    }
+
+    static Constant constant(Type type, @Nullable Object nativeValue)
+    {
+        return new Constant(type, ConstantValues.encode(type, nativeValue).orElseThrow());
     }
 
     static BoundSignature builtinSignature(String functionName, Type returnType, Type... argumentTypes)

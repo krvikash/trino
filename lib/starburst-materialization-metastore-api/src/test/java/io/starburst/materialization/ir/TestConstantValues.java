@@ -164,6 +164,7 @@ class TestConstantValues
         ConstantValue read = CODEC.fromJson(CODEC.toJson(value));
         assertThat(read).isEqualTo(value);
         assertThat(ConstantValues.decode(type, read)).isEqualTo(nativeValue);
+        assertThat(new Constant(type, read).value()).isEqualTo(value);
     }
 
     static Stream<Arguments> sessionSensitiveValues()

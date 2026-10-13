@@ -103,7 +103,7 @@ import static java.util.Objects.requireNonNull;
  * session that planned it. {@link #decode} and the payload kinds support these types.
  * <p>
  * Every supported base name carries the version of this module's belief about its native representation, stamped
- * as a {@code ctype:} key by every non-null {@code Constant} of that type. When a type's native representation
+ * as a {@code ctype:} key by every non-null {@link Constant} of that type. When a type's native representation
  * changes, bump its entry in {@code TYPE_ENCODING_VERSIONS}, update its pin in {@code TestConstantEncodingPins},
  * and update the affected golden fixtures.
  */
@@ -220,7 +220,7 @@ public final class ConstantValues
     }
 
     /**
-     * Every base type name a {@code Constant} may hold, with its {@link #encodingVersion(Type)}. This includes the
+     * Every base type name a {@link Constant} may hold, with its {@link #encodingVersion(Type)}. This includes the
      * session-sensitive base types, which {@link #encode} never produces.
      */
     public static Map<String, Integer> encodingVersions()

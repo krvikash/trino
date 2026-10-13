@@ -135,7 +135,7 @@ public abstract class AbstractRawMaterializationMetastoreTest
     {
         RawMaterializationMetastore metastore = metastore();
         RawMaterializationDefinition plain = definition("catalog", "schema", "mv_expressions");
-        // Namespaced keys carry ':', '.', '$' and '->', and every name this build supports is included
+        // Namespaced keys carry ':', '.', '$', '->' and spaces, and every name this build supports is included
         RawMaterializationDefinition withExpressions = new RawMaterializationDefinition(
                 IrVersions.SUPPORTED,
                 plain.catalogIrVersions(),
@@ -144,7 +144,7 @@ public abstract class AbstractRawMaterializationMetastoreTest
                 plain.source(),
                 plain.lastKnownFreshTime(),
                 plain.gracePeriod());
-        assertThat(withExpressions.irVersions()).containsKeys("fn:system.builtin.$operator$equal", "cast:varchar->varchar");
+        assertThat(withExpressions.irVersions()).containsKeys("fn:system.builtin.$operator$equal", "cast:varchar->varchar", "ctype:timestamp with time zone");
 
         metastore.createOrReplace(withExpressions);
 
