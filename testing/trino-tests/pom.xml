@@ -766,6 +766,7 @@
                                 <exclude>**/TestGpuVarbinaryJoinQueries.java</exclude>
                                 <exclude>**/TestGpuWindowRangeFrames.java</exclude>
                                 <exclude>**/TestGpuWindowFrameIndependentFunctions.java</exclude>
+                                <exclude>**/TestGpuWindowRowsFrames.java</exclude>
                             </excludes>
                         </configuration>
                     </plugin>
@@ -808,6 +809,7 @@
                                 <include>**/TestGpuVarbinaryJoinQueries.java</include>
                                 <include>**/TestGpuWindowRangeFrames.java</include>
                                 <include>**/TestGpuWindowFrameIndependentFunctions.java</include>
+                                <include>**/TestGpuWindowRowsFrames.java</include>
                             </includes>
                         </configuration>
                     </plugin>

@@ -47,164 +47,18 @@ final class TestGpuWindowQueries
     }
 
     @Test
-    void testAvgShortDecimal()
+    void testAllFunctions()
     {
-        assertThat(query(
-                """
-                SELECT avg(price) OVER (PARTITION BY orderstatus ORDER BY orderkey)
-                FROM (SELECT orderstatus, orderkey, CAST(totalprice AS decimal(12, 2)) AS price FROM orders)
-                """))
-                .executesWithGpu(WindowNode.class);
-    }
-
-    @Test
-    void testAvgLongDecimal()
-    {
-        assertThat(query(
-                """
-                SELECT avg(price) OVER (PARTITION BY orderstatus ORDER BY orderkey)
-                FROM (SELECT orderstatus, orderkey, CAST(totalprice AS decimal(28, 2)) AS price FROM orders)
-                """))
-                .executesWithGpu(WindowNode.class);
-    }
-
-    @Test
-    void testAvgWideDecimal()
-    {
-        assertThat(query(
-                """
-                SELECT avg(price) OVER (PARTITION BY orderstatus ORDER BY orderkey)
-                FROM (SELECT orderstatus, orderkey, CAST(totalprice AS decimal(29, 2)) AS price FROM orders)
-                """))
-                .executesWithGpu(WindowNode.class);
-        assertThat(query(
-                """
-                SELECT avg(price) OVER (PARTITION BY orderstatus ORDER BY orderkey)
-                FROM (SELECT orderstatus, orderkey, CAST(totalprice AS decimal(38, 6)) AS price FROM orders)
-                """))
-                .executesWithGpu(WindowNode.class);
-    }
-
-    @Test
-    void testAvgWideDecimalRowsFrame()
-    {
-        assertThat(query(
-                """
-                SELECT avg(price) OVER (
-                    PARTITION BY orderstatus
-                    ORDER BY orderkey
-                    ROWS BETWEEN 2 PRECEDING AND CURRENT ROW)
-                FROM (SELECT orderstatus, orderkey, CAST(totalprice AS decimal(38, 6)) AS price FROM orders)
-                """))
-                .executesWithoutGpu();
-    }
-
-    @Test
-    void testAvgDecimalExplicitDefaultFrame()
-    {
-        // RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW is the default frame, which the GPU supports
-        assertThat(query(
-                """
-                SELECT avg(price) OVER (
-                    PARTITION BY orderstatus
-                    ORDER BY orderkey
-                    RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)
-                FROM (SELECT orderstatus, orderkey, CAST(totalprice AS decimal(12, 2)) AS price FROM orders)
-                """))
-                .executesWithGpu(WindowNode.class);
-    }
-
-    @Test
-    void testAvgDecimalUnboundedPrecedingRowsFrame()
-    {
-        // ROWS frames differ from the default frame in how peer rows are handled, and are not supported on the GPU
-        assertThat(query(
-                """
-                SELECT avg(price) OVER (
-                    PARTITION BY orderstatus
-                    ORDER BY orderkey
-                    ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)
-                FROM (SELECT orderstatus, orderkey, CAST(totalprice AS decimal(12, 2)) AS price FROM orders)
-                """))
-                .executesWithoutGpu();
-    }
-
-    @Test
-    void testAvgDecimalWithRankingFunctions()
-    {
+        // Window functions are tested on a single node in TestGpuWindowRangeFrames and TestGpuWindowRowsFrames. Here
+        // they run on workers, with the coordinator excluded from scheduling.
         assertThat(query(
                 """
                 SELECT
                     avg(price) OVER (PARTITION BY orderstatus ORDER BY orderkey),
                     rank() OVER (PARTITION BY orderstatus ORDER BY orderkey),
+                    dense_rank() OVER (PARTITION BY orderstatus ORDER BY orderkey),
                     row_number() OVER (PARTITION BY orderstatus ORDER BY orderkey)
                 FROM (SELECT orderstatus, orderkey, CAST(totalprice AS decimal(12, 2)) AS price FROM orders)
-                """))
-                .executesWithGpu(WindowNode.class);
-    }
-
-    @Test
-    void testAvgDecimalOrderByFloatingPoint()
-    {
-        assertThat(query(
-                """
-                SELECT avg(price) OVER (PARTITION BY orderstatus ORDER BY totalprice)
-                FROM (SELECT orderstatus, totalprice, CAST(totalprice AS decimal(12, 2)) AS price FROM orders)
-                """))
-                .executesWithGpu(WindowNode.class);
-    }
-
-    @Test
-    void testAvgDecimalOrderByDecimal()
-    {
-        assertThat(query(
-                """
-                SELECT avg(price) OVER (PARTITION BY orderstatus ORDER BY price)
-                FROM (SELECT orderstatus, CAST(totalprice AS decimal(12, 2)) AS price FROM orders)
-                """))
-                .executesWithGpu(WindowNode.class);
-    }
-
-    @Test
-    void testAvgDecimalPartitionByVarchar()
-    {
-        assertThat(query(
-                """
-                SELECT avg(price) OVER (PARTITION BY orderpriority ORDER BY orderkey)
-                FROM (SELECT orderpriority, orderkey, CAST(totalprice AS decimal(12, 2)) AS price FROM orders)
-                """))
-                .executesWithGpu(WindowNode.class);
-    }
-
-    @Test
-    void testAvgDecimalPartitionByBigint()
-    {
-        assertThat(query(
-                """
-                SELECT avg(price) OVER (PARTITION BY custkey ORDER BY orderkey)
-                FROM (SELECT custkey, orderkey, CAST(totalprice AS decimal(12, 2)) AS price FROM orders)
-                """))
-                .executesWithGpu(WindowNode.class);
-    }
-
-    @Test
-    void testAvgDecimalNoPartitionBy()
-    {
-        assertThat(query(
-                """
-                SELECT avg(price) OVER (ORDER BY orderkey)
-                FROM (SELECT orderkey, CAST(totalprice AS decimal(12, 2)) AS price FROM orders)
-                """))
-                .executesWithGpu(WindowNode.class);
-    }
-
-    @Test
-    void testAvgDecimalEmptyWindow()
-    {
-        assertThat(query(
-                """
-                SELECT avg(price) OVER ()
-                FROM (SELECT CAST(totalprice AS decimal(12, 2)) AS price FROM orders)
                 """))
                 .executesWithGpu(WindowNode.class);
     }

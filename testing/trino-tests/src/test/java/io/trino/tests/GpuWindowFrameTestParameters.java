@@ -13,13 +13,23 @@
  */
 package io.trino.tests;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import io.trino.spi.connector.SortOrder;
+import io.trino.spi.type.DecimalType;
 import org.junit.jupiter.params.provider.Arguments;
 
+import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
+
+import static com.google.common.collect.ImmutableList.toImmutableList;
+import static io.trino.spi.type.DecimalType.createDecimalType;
+import static io.trino.spi.type.Decimals.MAX_PRECISION;
+import static java.util.stream.Collectors.joining;
 
 final class GpuWindowFrameTestParameters
 {
@@ -27,6 +37,8 @@ final class GpuWindowFrameTestParameters
 
     /// Aggregations, whose results depend on the frame
     static final List<String> AGGREGATIONS = List.of(
+            "avg(argument_decimal_9_2)",
+            "avg(argument_decimal_19_4)",
             "avg(argument_decimal_28_2)",
             "avg(argument_decimal_38_6)");
 
@@ -38,6 +50,106 @@ final class GpuWindowFrameTestParameters
             "avg(CAST(argument_decimal_38_6 AS double))");
 
     static final List<String> ORDERINGS = Arrays.stream(SortOrder.values()).map(SortOrder::toString).toList();
+
+    /// Short and long decimals, across the precisions at which the GPU computes avg differently
+    static final List<DecimalType> AVG_DECIMAL_TYPES = List.of(
+            createDecimalType(1, 0),
+            createDecimalType(18, 0),
+            createDecimalType(18, 9),
+            createDecimalType(18, 18),
+            createDecimalType(19, 0),
+            createDecimalType(19, 10),
+            createDecimalType(28, 0),
+            createDecimalType(28, 14),
+            createDecimalType(28, 28),
+            createDecimalType(29, 0),
+            createDecimalType(29, 2),
+            createDecimalType(29, 6),
+            createDecimalType(29, 29),
+            createDecimalType(38, 0),
+            createDecimalType(38, 2),
+            createDecimalType(38, 6),
+            createDecimalType(38, 38));
+
+    static Stream<DecimalType> avgDecimalSumTypes()
+    {
+        return Stream.of(
+                createDecimalType(18, 0),
+                createDecimalType(28, 0),
+                createDecimalType(29, 0),
+                createDecimalType(29, 2),
+                createDecimalType(29, 6),
+                createDecimalType(29, 29));
+    }
+
+    static IntStream decimalPrecisions()
+    {
+        return IntStream.rangeClosed(1, MAX_PRECISION);
+    }
+
+    /// A query of avg of a decimal column per type, each holding the unscaled values of the rows, over each window,
+    /// such as {@code PARTITION BY partition_key ORDER BY order_key}. The input has columns {@code row_id},
+    /// {@code partition_key}, {@code order_key} and {@code value_<column>}.
+    static String avgQuery(List<DecimalType> types, List<AvgRow> rows, List<String> windows)
+    {
+        String functions = IntStream.range(0, types.size()).boxed()
+                .flatMap(column -> windows.stream().map(window -> "avg(value_%s) OVER (%s)".formatted(column, window)))
+                .collect(joining(",\n"));
+        String values = IntStream.range(0, rows.size())
+                .mapToObj(rowId -> Stream.concat(
+                                Stream.of(rowId, rows.get(rowId).partitionKey(), rows.get(rowId).orderKey())
+                                        .map(value -> value == null ? "CAST(NULL AS bigint)" : "BIGINT '%s'".formatted(value)),
+                                types.stream().map(type -> decimalLiteral(type, rows.get(rowId).unscaledValue())))
+                        .collect(joining(", ", "(", ")")))
+                .collect(joining(",\n"));
+        String valueColumns = IntStream.range(0, types.size())
+                .mapToObj(column -> "value_" + column)
+                .collect(joining(", "));
+        return """
+               SELECT
+                   row_id,
+               %s
+               FROM (
+                   VALUES
+               %s)
+                   input(row_id, partition_key, order_key, %s)
+               """.formatted(functions.indent(4).stripTrailing(), values.indent(8).stripTrailing(), valueColumns);
+    }
+
+    private static String decimalLiteral(DecimalType type, BigInteger unscaledValue)
+    {
+        if (unscaledValue == null) {
+            return "CAST(NULL AS %s)".formatted(type.getDisplayName());
+        }
+        return "CAST(DECIMAL '%s' AS %s)".formatted(new BigDecimal(unscaledValue, type.getScale()).toPlainString(), type.getDisplayName());
+    }
+
+    // Each list is a partition, with order keys increasing from the start of the input
+    static List<AvgRow> partitions(List<List<BigInteger>> partitions)
+    {
+        ImmutableList.Builder<AvgRow> rows = ImmutableList.builder();
+        long orderKey = 0;
+        for (int partitionKey = 0; partitionKey < partitions.size(); partitionKey++) {
+            for (BigInteger value : partitions.get(partitionKey)) {
+                rows.add(new AvgRow((long) partitionKey, orderKey++, value));
+            }
+        }
+        return rows.build();
+    }
+
+    static List<BigInteger> unscaledValues(long... values)
+    {
+        return Arrays.stream(values)
+                .mapToObj(BigInteger::valueOf)
+                .collect(toImmutableList());
+    }
+
+    record AvgRow(Long partitionKey, Long orderKey, BigInteger unscaledValue) {}
+
+    public static AvgRow avgRow(Long partitionKey, Long orderKey, BigInteger unscaledValue)
+    {
+        return new AvgRow(partitionKey, orderKey, unscaledValue);
+    }
 
     static Stream<Arguments> cartesianProduct(List<?>... dimensions)
     {

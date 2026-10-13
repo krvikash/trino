@@ -185,7 +185,9 @@ enum GpuWindowTable
             """);
 
     private static final List<Type> ARGUMENT_TYPES = List.of(
-            // Above precision 28 the GPU sums decimals differently
+            // Short and long decimals, as above precision 28 the GPU sums decimals differently. Argument ranks need at most 7 integer digits.
+            createDecimalType(9, 2),
+            createDecimalType(19, 4),
             createDecimalType(28, 2),
             createDecimalType(38, 6));
     // 2020-01-01 00:00:00 UTC
