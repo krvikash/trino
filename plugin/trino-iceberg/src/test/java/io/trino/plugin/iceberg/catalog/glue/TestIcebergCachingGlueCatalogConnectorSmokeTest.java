@@ -18,9 +18,14 @@ import io.trino.plugin.iceberg.BaseIcebergConnectorSmokeTest;
 import io.trino.plugin.iceberg.IcebergQueryRunner;
 import io.trino.plugin.iceberg.SchemaInitializer;
 import io.trino.testing.QueryRunner;
+import io.trino.testing.services.junit.Flaky;
 import org.apache.iceberg.FileFormat;
 import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.RepeatedTest;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
+import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.api.parallel.ExecutionMode;
 import software.amazon.awssdk.services.glue.GlueClient;
 import software.amazon.awssdk.services.glue.model.EntityNotFoundException;
 import software.amazon.awssdk.services.s3.S3Client;
@@ -120,6 +125,17 @@ final class TestIcebergCachingGlueCatalogConnectorSmokeTest
     {
         assertThatThrownBy(super::testRenameSchema)
                 .hasStackTraceContaining("renameNamespace is not supported for Iceberg Glue catalogs");
+    }
+
+    @RepeatedTest(4)
+    @Timeout(120)
+    @Execution(ExecutionMode.SAME_THREAD)
+    @Override
+    @Flaky(issue = "https://starburstdata.atlassian.net/browse/ENG-23896", match = "Task \\d did not complete in time")
+    public void testDeleteRowsConcurrently()
+            throws Exception
+    {
+        super.testDeleteRowsConcurrently();
     }
 
     @Override
