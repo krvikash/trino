@@ -22,6 +22,7 @@ import io.starburst.materialization.ir.TableScan;
 import io.starburst.materialization.metastore.MaterializationDefinition;
 import io.starburst.materialization.metastore.MaterializationSource.MaterializedViewSource;
 import io.starburst.materialization.metastore.StorageTableId;
+import io.starburst.server.substitution.MaterializationIndex.IndexedMaterialization;
 import io.starburst.server.substitution.MaterializedViewSubstitution.ReplacedPlan;
 import io.trino.Session;
 import io.trino.cache.NonEvictableLoadingCache;
@@ -185,7 +186,7 @@ public class MvSubstitutionOptimizer
         MvSubstitutionCollector collector = context.mvSubstitutionCollector();
         Session session = context.session();
 
-        List<MaterializationDefinition> candidates = materializationIndex.getMaterializations(hash);
+        List<IndexedMaterialization> candidates = materializationIndex.getIndexedMaterializations(hash);
         if (candidates.isEmpty()) {
             return Optional.empty();
         }
@@ -198,9 +199,9 @@ public class MvSubstitutionOptimizer
             return Optional.empty();
         }
 
-        for (MaterializationDefinition candidate : candidates) {
-            SubstitutionAttempt attempt = trySubstitute(context, queryNode, candidate, typeCoercion);
-            CatalogSchemaTableName candidateMvName = materializedViewName(candidate);
+        for (IndexedMaterialization candidate : candidates) {
+            SubstitutionAttempt attempt = trySubstitute(context, queryNode, candidate.definition(), typeCoercion);
+            CatalogSchemaTableName candidateMvName = materializedViewName(candidate.definition());
             switch (attempt) {
                 case SubstitutionAttempt.Substituted substituted -> {
                     recordSubstituted(collector, session, queryNode, substituted);

@@ -101,6 +101,13 @@ public class MaterializationIndex
 
     public List<MaterializationDefinition> getMaterializations(ComputationHash hash)
     {
+        return getIndexedMaterializations(hash).stream()
+                .map(IndexedMaterialization::definition)
+                .collect(toImmutableList());
+    }
+
+    public List<IndexedMaterialization> getIndexedMaterializations(ComputationHash hash)
+    {
         return published.getMaterializations(hash);
     }
 
@@ -237,6 +244,18 @@ public class MaterializationIndex
         return ((MaterializedViewSource) materialization.source()).materializedViewName();
     }
 
+    /**
+     * A definition as the index holds it. Lookups substitution needs from the definition alone belong here, computed
+     * once when it is indexed, rather than for every query it is matched against.
+     */
+    public record IndexedMaterialization(MaterializationDefinition definition)
+    {
+        public IndexedMaterialization
+        {
+            requireNonNull(definition, "definition is null");
+        }
+    }
+
     private static MaterializationDefinition renameTo(MaterializationDefinition current, CatalogSchemaTableName newName, StorageTableId newStorageTableId)
     {
         return new MaterializationDefinition(
@@ -313,16 +332,16 @@ public class MaterializationIndex
     {
         private static final Snapshot EMPTY = new Snapshot(ImmutableMap.of(), ImmutableMap.of());
 
-        private final Map<ComputationHash, List<MaterializationDefinition>> materializationsByHash;
+        private final Map<ComputationHash, List<IndexedMaterialization>> materializationsByHash;
         private final Map<CatalogSchemaTableName, ComputationHash> hashByMaterializedViewName;
 
-        private Snapshot(Map<ComputationHash, List<MaterializationDefinition>> materializationsByHash, Map<CatalogSchemaTableName, ComputationHash> hashByMaterializedViewName)
+        private Snapshot(Map<ComputationHash, List<IndexedMaterialization>> materializationsByHash, Map<CatalogSchemaTableName, ComputationHash> hashByMaterializedViewName)
         {
             this.materializationsByHash = ImmutableMap.copyOf(materializationsByHash);
             this.hashByMaterializedViewName = ImmutableMap.copyOf(hashByMaterializedViewName);
         }
 
-        private List<MaterializationDefinition> getMaterializations(ComputationHash hash)
+        private List<IndexedMaterialization> getMaterializations(ComputationHash hash)
         {
             return materializationsByHash.getOrDefault(hash, ImmutableList.of());
         }
@@ -354,9 +373,9 @@ public class MaterializationIndex
         private Map<CatalogSchemaTableName, MaterializationDefinition> byMaterializedViewName()
         {
             ImmutableMap.Builder<CatalogSchemaTableName, MaterializationDefinition> byName = ImmutableMap.builder();
-            for (List<MaterializationDefinition> bucket : materializationsByHash.values()) {
-                for (MaterializationDefinition materialization : bucket) {
-                    byName.put(materializedViewName(materialization), materialization);
+            for (List<IndexedMaterialization> bucket : materializationsByHash.values()) {
+                for (IndexedMaterialization materialization : bucket) {
+                    byName.put(materializedViewName(materialization.definition()), materialization.definition());
                 }
             }
             return byName.buildOrThrow();
@@ -364,11 +383,11 @@ public class MaterializationIndex
 
         private static Snapshot build(List<MaterializationDefinition> materializations)
         {
-            Map<ComputationHash, List<MaterializationDefinition>> byHash = new HashMap<>();
+            Map<ComputationHash, List<IndexedMaterialization>> byHash = new HashMap<>();
             Map<CatalogSchemaTableName, ComputationHash> hashByMaterializedViewName = new HashMap<>();
             for (MaterializationDefinition materialization : materializations) {
                 ComputationHash hash = computeHash(materialization.computationPlanRoot());
-                byHash.computeIfAbsent(hash, _ -> new ArrayList<>()).add(materialization);
+                byHash.computeIfAbsent(hash, _ -> new ArrayList<>()).add(new IndexedMaterialization(materialization));
                 hashByMaterializedViewName.put(materializedViewName(materialization), hash);
             }
             return new Snapshot(toImmutableBuckets(byHash), ImmutableMap.copyOf(hashByMaterializedViewName));
@@ -380,17 +399,18 @@ public class MaterializationIndex
             ComputationHash newHash = computeHash(materialization.computationPlanRoot());
             ComputationHash oldHash = hashByMaterializedViewName.get(mvName);
 
-            Map<ComputationHash, List<MaterializationDefinition>> byHash = new HashMap<>(this.materializationsByHash);
+            Map<ComputationHash, List<IndexedMaterialization>> byHash = new HashMap<>(this.materializationsByHash);
             if (oldHash != null && !oldHash.equals(newHash)) {
                 removeFromBucket(byHash, oldHash, mvName);
             }
-            List<MaterializationDefinition> bucket = byHash.get(newHash);
-            ImmutableList.Builder<MaterializationDefinition> updated = ImmutableList.builder();
+            IndexedMaterialization indexed = new IndexedMaterialization(materialization);
+            List<IndexedMaterialization> bucket = byHash.get(newHash);
+            ImmutableList.Builder<IndexedMaterialization> updated = ImmutableList.builder();
             boolean replaced = false;
             if (bucket != null) {
-                for (MaterializationDefinition existing : bucket) {
-                    if (materializedViewName(existing).equals(mvName)) {
-                        updated.add(materialization);
+                for (IndexedMaterialization existing : bucket) {
+                    if (materializedViewName(existing.definition()).equals(mvName)) {
+                        updated.add(indexed);
                         replaced = true;
                     }
                     else {
@@ -399,7 +419,7 @@ public class MaterializationIndex
                 }
             }
             if (!replaced) {
-                updated.add(materialization);
+                updated.add(indexed);
             }
             byHash.put(newHash, updated.build());
 
@@ -414,7 +434,7 @@ public class MaterializationIndex
             if (hash == null) {
                 return this;
             }
-            Map<ComputationHash, List<MaterializationDefinition>> byHash = new HashMap<>(this.materializationsByHash);
+            Map<ComputationHash, List<IndexedMaterialization>> byHash = new HashMap<>(this.materializationsByHash);
             removeFromBucket(byHash, hash, mvName);
             Map<CatalogSchemaTableName, ComputationHash> hashByMaterializedViewName = new HashMap<>(this.hashByMaterializedViewName);
             hashByMaterializedViewName.remove(mvName);
@@ -427,13 +447,13 @@ public class MaterializationIndex
             if (hash == null) {
                 return this;
             }
-            Map<ComputationHash, List<MaterializationDefinition>> byHash = new HashMap<>(this.materializationsByHash);
-            List<MaterializationDefinition> bucket = byHash.get(hash);
+            Map<ComputationHash, List<IndexedMaterialization>> byHash = new HashMap<>(this.materializationsByHash);
+            List<IndexedMaterialization> bucket = byHash.get(hash);
             if (bucket != null) {
-                ImmutableList.Builder<MaterializationDefinition> updated = ImmutableList.builder();
-                for (MaterializationDefinition existing : bucket) {
-                    if (materializedViewName(existing).equals(source)) {
-                        updated.add(renameTo(existing, target, targetStorageTableId));
+                ImmutableList.Builder<IndexedMaterialization> updated = ImmutableList.builder();
+                for (IndexedMaterialization existing : bucket) {
+                    if (materializedViewName(existing.definition()).equals(source)) {
+                        updated.add(new IndexedMaterialization(renameTo(existing.definition(), target, targetStorageTableId)));
                     }
                     else {
                         updated.add(existing);
@@ -447,14 +467,14 @@ public class MaterializationIndex
             return new Snapshot(ImmutableMap.copyOf(byHash), ImmutableMap.copyOf(hashByMaterializedViewName));
         }
 
-        private static void removeFromBucket(Map<ComputationHash, List<MaterializationDefinition>> byHash, ComputationHash hash, CatalogSchemaTableName mvName)
+        private static void removeFromBucket(Map<ComputationHash, List<IndexedMaterialization>> byHash, ComputationHash hash, CatalogSchemaTableName mvName)
         {
-            List<MaterializationDefinition> bucket = byHash.get(hash);
+            List<IndexedMaterialization> bucket = byHash.get(hash);
             if (bucket == null) {
                 return;
             }
-            List<MaterializationDefinition> filtered = bucket.stream()
-                    .filter(materialization -> !materializedViewName(materialization).equals(mvName))
+            List<IndexedMaterialization> filtered = bucket.stream()
+                    .filter(materialization -> !materializedViewName(materialization.definition()).equals(mvName))
                     .collect(toImmutableList());
             if (filtered.isEmpty()) {
                 byHash.remove(hash);
@@ -464,9 +484,9 @@ public class MaterializationIndex
             }
         }
 
-        private static Map<ComputationHash, List<MaterializationDefinition>> toImmutableBuckets(Map<ComputationHash, List<MaterializationDefinition>> byHash)
+        private static Map<ComputationHash, List<IndexedMaterialization>> toImmutableBuckets(Map<ComputationHash, List<IndexedMaterialization>> byHash)
         {
-            ImmutableMap.Builder<ComputationHash, List<MaterializationDefinition>> immutable = ImmutableMap.builder();
+            ImmutableMap.Builder<ComputationHash, List<IndexedMaterialization>> immutable = ImmutableMap.builder();
             byHash.forEach((hash, bucket) -> immutable.put(hash, ImmutableList.copyOf(bucket)));
             return immutable.buildOrThrow();
         }
