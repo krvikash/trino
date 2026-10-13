@@ -156,7 +156,8 @@ public class TestIcebergCacheIds
                 icebergConfig,
                 ConnectorExpressionEvaluator.NO_OP,
                 icebergIncrementalMvRefreshConfig,
-                new IcebergCommitQueue(icebergConfig));
+                new IcebergCommitQueue(icebergConfig),
+                new IncrementalColumnWatermarkReader(TESTING_TYPE_MANAGER));
         icebergMetadata = new IcebergCacheMetadata(
                 createJsonCodec(IcebergCacheTableId.class),
                 createJsonCodec(IcebergColumnHandle.class));

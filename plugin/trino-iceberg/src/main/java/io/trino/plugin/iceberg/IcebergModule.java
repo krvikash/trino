@@ -145,6 +145,7 @@ public class IcebergModule
 
         binder.bind(ForwardingFileIoFactory.class).in(Scopes.SINGLETON);
         binder.bind(TableStatisticsReader.class).in(Scopes.SINGLETON);
+        binder.bind(IncrementalColumnWatermarkReader.class).in(Scopes.SINGLETON);
         binder.bind(TableStatisticsWriter.class).in(Scopes.SINGLETON);
         binder.bind(PartitionStatisticsReader.class).in(Scopes.SINGLETON);
         binder.bind(PartitionStatisticsWriter.class).in(Scopes.SINGLETON);

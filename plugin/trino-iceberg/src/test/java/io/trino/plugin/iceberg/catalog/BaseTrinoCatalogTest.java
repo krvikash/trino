@@ -76,6 +76,7 @@ import static io.trino.plugin.iceberg.IcebergSchemaProperties.LOCATION_PROPERTY;
 import static io.trino.plugin.iceberg.IcebergTableProperties.FILE_FORMAT_PROPERTY;
 import static io.trino.plugin.iceberg.IcebergTableProperties.FORMAT_VERSION_PROPERTY;
 import static io.trino.plugin.iceberg.IcebergTestUtils.CREATE_CHANGELOG_VIEW;
+import static io.trino.plugin.iceberg.IcebergTestUtils.INCREMENTAL_COLUMN_WATERMARK_READER;
 import static io.trino.plugin.iceberg.IcebergTestUtils.OPTIMIZE_POSITION_DELETES;
 import static io.trino.plugin.iceberg.IcebergTestUtils.REMOVE_DANGLING_DELETE_FILES;
 import static io.trino.plugin.iceberg.IcebergTestUtils.TABLE_STATISTICS_READER;
@@ -185,7 +186,8 @@ public abstract class BaseTrinoCatalogTest
                     ZERO,
                     ConnectorExpressionEvaluator.NO_OP,
                     false,
-                    new IcebergCommitQueue(new IcebergConfig()));
+                    new IcebergCommitQueue(new IcebergConfig()),
+                    INCREMENTAL_COLUMN_WATERMARK_READER);
             assertThat(icebergMetadata.schemaExists(SESSION, namespace)).as("icebergMetadata.schemaExists(namespace)")
                     .isFalse();
             assertThat(icebergMetadata.schemaExists(SESSION, schema)).as("icebergMetadata.schemaExists(schema)")
@@ -239,7 +241,8 @@ public abstract class BaseTrinoCatalogTest
                     ZERO,
                     ConnectorExpressionEvaluator.NO_OP,
                     false,
-                    new IcebergCommitQueue(new IcebergConfig()));
+                    new IcebergCommitQueue(new IcebergConfig()),
+                    INCREMENTAL_COLUMN_WATERMARK_READER);
 
             assertThat(icebergMetadata.getSchemaProperties(SESSION, namespace))
                     .doesNotContainKey("invalid_property");

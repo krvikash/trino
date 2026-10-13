@@ -65,6 +65,7 @@ import static io.trino.metastore.cache.CachingHiveMetastore.createPerTransaction
 import static io.trino.plugin.iceberg.IcebergTestUtils.CREATE_CHANGELOG_VIEW;
 import static io.trino.plugin.iceberg.IcebergTestUtils.ENCRYPTION_MANAGER_FACTORY;
 import static io.trino.plugin.iceberg.IcebergTestUtils.FILE_IO_FACTORY;
+import static io.trino.plugin.iceberg.IcebergTestUtils.INCREMENTAL_COLUMN_WATERMARK_READER;
 import static io.trino.plugin.iceberg.IcebergTestUtils.OPTIMIZE_POSITION_DELETES;
 import static io.trino.plugin.iceberg.IcebergTestUtils.REMOVE_DANGLING_DELETE_FILES;
 import static io.trino.plugin.iceberg.IcebergTestUtils.TABLE_STATISTICS_READER;
@@ -160,7 +161,8 @@ final class TestCompositeIcebergSplitSource
                 ZERO,
                 ConnectorExpressionEvaluator.NO_OP,
                 false,
-                new IcebergCommitQueue(new IcebergConfig()));
+                new IcebergCommitQueue(new IcebergConfig()),
+                INCREMENTAL_COLUMN_WATERMARK_READER);
 
         return queryRunner;
     }

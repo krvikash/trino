@@ -17,13 +17,17 @@ import com.google.common.collect.ImmutableMap;
 import io.airlift.slice.Slice;
 import io.trino.plugin.hive.HiveTransactionHandle;
 import io.trino.plugin.hive.TestingHivePlugin;
+import io.trino.plugin.iceberg.IncrementalColumnWatermarkReader.StoredWatermark;
 import io.trino.spi.Page;
 import io.trino.spi.connector.ConnectorInsertTableHandle;
 import io.trino.spi.connector.ConnectorPageSink;
 import io.trino.spi.connector.ConnectorPageSinkProvider;
 import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.SchemaTableName;
+import io.trino.spi.type.TypeId;
+import io.trino.sql.tree.ExplainType;
 import io.trino.testing.AbstractTestQueryFramework;
+import io.trino.testing.MaterializedRow;
 import io.trino.testing.QueryRunner;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
@@ -35,11 +39,13 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
+import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.trino.block.BlockAssertions.createLongsBlock;
 import static io.trino.plugin.iceberg.IcebergErrorCode.ICEBERG_COMMIT_ERROR;
 import static io.trino.plugin.iceberg.IcebergQueryRunner.ICEBERG_CATALOG;
 import static io.trino.plugin.iceberg.IcebergTestUtils.SESSION;
 import static io.trino.plugin.iceberg.IcebergTestUtils.getConnectorService;
+import static io.trino.plugin.iceberg.IncrementalColumnWatermarkReader.parseStoredWatermark;
 import static io.trino.spi.RefreshType.INCREMENTAL_COLUMN;
 import static io.trino.spi.connector.RetryMode.NO_RETRIES;
 import static io.trino.testing.TestingNames.randomNameSuffix;
@@ -63,7 +69,10 @@ public class TestIcebergIncrementalColumnMaterializedViewRefresh
     {
         QueryRunner queryRunner = IcebergQueryRunner.builder()
                 .setIcebergProperties(ImmutableMap.of(
-                        "iceberg.materialized-view-incremental-column-refresh.enabled", "true"))
+                        "iceberg.materialized-view-incremental-column-refresh.enabled", "true",
+                        // Lets testIncrementalColumnWatermarkFallsBackWhenMetricsDisabled turn off column
+                        // metrics on a materialized view's storage table via ALTER TABLE.
+                        "iceberg.allowed-extra-properties", "write.metadata.metrics.column.event_timestamp"))
                 .build();
         queryRunner.installPlugin(new TestingHivePlugin(queryRunner.getCoordinator().getBaseDataDir().resolve("iceberg_data")));
         queryRunner.createCatalog(HIVE_CATALOG, "hive", ImmutableMap.of("hive.security", "allow-all"));
@@ -181,6 +190,89 @@ public class TestIcebergIncrementalColumnMaterializedViewRefresh
                 ".*The following properties cannot be updated: incremental_column.*");
 
         assertUpdate("DROP MATERIALIZED VIEW " + mvName);
+        assertUpdate("DROP TABLE " + source);
+    }
+
+    @Test
+    public void testRenameOfSourceIncrementalColumnRequiresReplace()
+    {
+        String source = ICEBERG_TEST_SCHEMA + ".rename_src_" + randomNameSuffix();
+        String mvName = "rename_mv_" + randomNameSuffix();
+        String qualifiedMvName = ICEBERG_TEST_SCHEMA + "." + mvName;
+        assertUpdate("CREATE TABLE " + source + " (id BIGINT, event_timestamp BIGINT)");
+        assertUpdate("INSERT INTO " + source + " VALUES (1, 100), (2, 200)", 2);
+        assertUpdate(
+                "CREATE MATERIALIZED VIEW " + qualifiedMvName +
+                        " WITH (incremental_column = 'event_timestamp') AS SELECT id, event_timestamp FROM " + source);
+        assertUpdate("REFRESH MATERIALIZED VIEW " + qualifiedMvName, 2);
+
+        assertUpdate("ALTER TABLE " + source + " RENAME COLUMN event_timestamp TO event_time");
+        assertUpdate("INSERT INTO " + source + " VALUES (3, 300)", 1);
+        assertQueryFails(
+                "REFRESH MATERIALIZED VIEW " + qualifiedMvName,
+                ".*Column 'event_timestamp' cannot be resolved.*");
+
+        assertUpdate(
+                "CREATE OR REPLACE MATERIALIZED VIEW " + qualifiedMvName +
+                        " WITH (incremental_column = 'event_time') AS SELECT id, event_time FROM " + source);
+        assertUpdate("REFRESH MATERIALIZED VIEW " + qualifiedMvName, 3);
+        assertStoredWatermarkValue(mvName, Optional.of("300"));
+
+        assertUpdate("INSERT INTO " + source + " VALUES (4, 400)", 1);
+        String plan = getExplainPlan("REFRESH MATERIALIZED VIEW " + qualifiedMvName, ExplainType.Type.DISTRIBUTED);
+        assertThat(plan).doesNotContain("CrossJoin");
+        assertUpdate("REFRESH MATERIALIZED VIEW " + qualifiedMvName, 1);
+        assertThat(query("SELECT id, event_time FROM " + qualifiedMvName + " ORDER BY id"))
+                .matches("VALUES (BIGINT '1', BIGINT '100'), (BIGINT '2', BIGINT '200'), (BIGINT '3', BIGINT '300'), (BIGINT '4', BIGINT '400')");
+
+        assertUpdate("DROP MATERIALIZED VIEW " + qualifiedMvName);
+        assertUpdate("DROP TABLE " + source);
+    }
+
+    @Test
+    public void testCreateRejectsRowIncrementalColumn()
+    {
+        String source = ICEBERG_TEST_SCHEMA + ".row_reject_src_" + randomNameSuffix();
+        String mvName = ICEBERG_TEST_SCHEMA + ".row_reject_mv_" + randomNameSuffix();
+        assertUpdate("CREATE TABLE " + source + " (id BIGINT, event ROW(event_timestamp BIGINT, name VARCHAR))");
+        assertQueryFails(
+                "CREATE MATERIALIZED VIEW " + mvName +
+                        " WITH (incremental_column = 'event.event_timestamp') AS SELECT id, event FROM " + source,
+                ".*incremental_column 'event.event_timestamp' is not part of the materialized view output columns.*");
+        assertQueryFails(
+                "CREATE MATERIALIZED VIEW " + mvName +
+                        " WITH (incremental_column = 'event') AS SELECT id, event FROM " + source,
+                ".*incremental_column type is not supported: row\\(\"event_timestamp\" bigint, \"name\" varchar\\).*");
+        assertUpdate("DROP TABLE " + source);
+    }
+
+    @Test
+    public void testIncrementalColumnProjectedFromNestedField()
+    {
+        String source = ICEBERG_TEST_SCHEMA + ".nested_field_src_" + randomNameSuffix();
+        String mvName = "nested_field_mv_" + randomNameSuffix();
+        String qualifiedMvName = ICEBERG_TEST_SCHEMA + "." + mvName;
+        assertUpdate("CREATE TABLE " + source + " (id BIGINT, event ROW(event_timestamp BIGINT, name VARCHAR))");
+        assertUpdate("INSERT INTO " + source + " VALUES (1, ROW(100, 'a')), (2, ROW(200, 'b'))", 2);
+
+        assertUpdate(
+                "CREATE MATERIALIZED VIEW " + qualifiedMvName +
+                        " WITH (incremental_column = 'event_timestamp') AS SELECT id, event.event_timestamp AS event_timestamp FROM " + source);
+        assertUpdate("REFRESH MATERIALIZED VIEW " + qualifiedMvName, 2);
+        assertWatermark(mvName, "200");
+
+        assertUpdate("INSERT INTO " + source + " VALUES (3, ROW(300, 'c'))", 1);
+        String plan = getExplainPlan("REFRESH MATERIALIZED VIEW " + qualifiedMvName, ExplainType.Type.DISTRIBUTED);
+        assertThat(plan).doesNotContain("CrossJoin");
+        String sourceTableName = source.substring(source.lastIndexOf('.') + 1);
+        assertThat(plan).containsPattern("ScanFilter\\[table = .*" + sourceTableName + ".*filterPredicate = \\(bigint '200' < event_event_timestamp\\)]");
+
+        assertUpdate("REFRESH MATERIALIZED VIEW " + qualifiedMvName, 1);
+        assertWatermark(mvName, "300");
+        assertThat(query("SELECT id, event_timestamp FROM " + qualifiedMvName + " ORDER BY id"))
+                .matches("VALUES (BIGINT '1', BIGINT '100'), (BIGINT '2', BIGINT '200'), (BIGINT '3', BIGINT '300')");
+
+        assertUpdate("DROP MATERIALIZED VIEW " + qualifiedMvName);
         assertUpdate("DROP TABLE " + source);
     }
 
@@ -363,6 +455,176 @@ public class TestIcebergIncrementalColumnMaterializedViewRefresh
         assertUpdate("DROP MATERIALIZED VIEW " + mvName);
         assertUpdate("DROP TABLE " + hiveSource);
         assertUpdate("DROP TABLE " + hiveSource2);
+    }
+
+    /**
+     * Iceberg rounds string upper bounds up, so VARCHAR keeps the correlated subquery — correct, but
+     * it does not push down, which shows up as a surviving CrossJoin.
+     */
+    @Test
+    public void testIncrementalRefreshOnVarcharDoesNotPushPredicate()
+    {
+        String source = ICEBERG_TEST_SCHEMA + ".varchar_fallback_src_" + randomNameSuffix();
+        String mvName = "varchar_fallback_mv_" + randomNameSuffix();
+        String qualifiedMvName = ICEBERG_TEST_SCHEMA + "." + mvName;
+        assertUpdate("CREATE TABLE " + source + " (id BIGINT, checkpoint VARCHAR)");
+        assertUpdate("INSERT INTO " + source + " VALUES (1, 'a'), (2, 'b')", 2);
+
+        assertUpdate(
+                "CREATE MATERIALIZED VIEW " + qualifiedMvName +
+                        " WITH (incremental_column = 'checkpoint') AS SELECT id, checkpoint FROM " + source);
+        assertUpdate("REFRESH MATERIALIZED VIEW " + qualifiedMvName, 2);
+
+        // Without a change to the source since the last refresh, the MV is considered fresh and
+        // REFRESH short-circuits to a trivial zero-row plan with no CrossJoin at all — insert
+        // first so the plan below reflects a real (fallback) refresh, not a skipped one.
+        assertUpdate("INSERT INTO " + source + " VALUES (3, 'c')", 1);
+
+        String plan = getExplainPlan("REFRESH MATERIALIZED VIEW " + qualifiedMvName, ExplainType.Type.DISTRIBUTED);
+        assertThat(plan).contains("CrossJoin");
+
+        assertUpdate("DROP MATERIALIZED VIEW " + qualifiedMvName);
+        assertUpdate("DROP TABLE " + source);
+    }
+
+    /**
+     * A file carrying no upper bound must fail closed, rather than read as "no rows" (which re-appends
+     * everything) or as a stale value (which drops rows).
+     */
+    @Test
+    public void testIncrementalColumnWatermarkFallsBackWhenMetricsDisabled()
+    {
+        String source = ICEBERG_TEST_SCHEMA + ".metrics_fallback_src_" + randomNameSuffix();
+        String mvName = "metrics_fallback_mv_" + randomNameSuffix();
+        String qualifiedMvName = ICEBERG_TEST_SCHEMA + "." + mvName;
+        assertUpdate("CREATE TABLE " + source + " (id BIGINT, event_timestamp BIGINT)");
+        assertUpdate("INSERT INTO " + source + " VALUES (1, 100), (2, 200)", 2);
+
+        // Trino's Parquet writer ignores Iceberg's MetricsConfig (trinodb/trino#9791), so metrics can
+        // only be turned off for an ORC-backed storage table.
+        assertUpdate(
+                "CREATE MATERIALIZED VIEW " + qualifiedMvName +
+                        " WITH (incremental_column = 'event_timestamp', format = 'ORC') AS SELECT id, event_timestamp FROM " + source);
+        assertUpdate("REFRESH MATERIALIZED VIEW " + qualifiedMvName, 2);
+
+        // The storage table is always built with extra properties disallowed, so they cannot be set at
+        // CREATE MATERIALIZED VIEW time.
+        assertUpdate("ALTER TABLE " + storageTableName(ICEBERG_TEST_SCHEMA, mvName) +
+                " SET PROPERTIES extra_properties = MAP(ARRAY['write.metadata.metrics.column.event_timestamp'], ARRAY['none'])");
+
+        // Iceberg table properties are not retroactive, so this refresh still filters by the stored
+        // watermark 200. The row it appends lands in a file written without event_timestamp bounds, so it stores none.
+        assertUpdate("INSERT INTO " + source + " VALUES (3, 50), (4, 300)", 2);
+        assertUpdate("REFRESH MATERIALIZED VIEW " + qualifiedMvName, 1);
+
+        // The previous refresh stored no watermark, so this one has nothing to push down.
+        assertUpdate("INSERT INTO " + source + " VALUES (5, 400)", 1);
+        String plan = getExplainPlan("REFRESH MATERIALIZED VIEW " + qualifiedMvName, ExplainType.Type.DISTRIBUTED);
+        assertThat(plan).contains("CrossJoin");
+
+        assertUpdate("REFRESH MATERIALIZED VIEW " + qualifiedMvName, 1);
+        assertThat(query("SELECT id, event_timestamp FROM " + qualifiedMvName + " ORDER BY id"))
+                .matches("VALUES (BIGINT '1', BIGINT '100'), (BIGINT '2', BIGINT '200'), (BIGINT '4', BIGINT '300'), (BIGINT '5', BIGINT '400')");
+
+        assertUpdate("DROP MATERIALIZED VIEW " + qualifiedMvName);
+        assertUpdate("DROP TABLE " + source);
+    }
+
+    /**
+     * An all-null file also carries no upper bound, but holds no row that could exceed the maximum, so it
+     * must not make it unprovable. The two are told apart by the file's null and record counts.
+     * <p>
+     * Partitioning by {@code id} is what makes the all-null file deterministic: one file per partition.
+     */
+    @Test
+    public void testIncrementalColumnWatermarkIgnoresAllNullStorageFile()
+    {
+        String source = ICEBERG_TEST_SCHEMA + ".all_null_src_" + randomNameSuffix();
+        String mvName = "all_null_mv_" + randomNameSuffix();
+        String qualifiedMvName = ICEBERG_TEST_SCHEMA + "." + mvName;
+        assertUpdate("CREATE TABLE " + source + " (id BIGINT, event_timestamp BIGINT)");
+        assertUpdate("INSERT INTO " + source + " VALUES (1, 100), (2, NULL)", 2);
+
+        assertUpdate(
+                "CREATE MATERIALIZED VIEW " + qualifiedMvName +
+                        " WITH (incremental_column = 'event_timestamp', partitioning = ARRAY['id']) AS SELECT id, event_timestamp FROM " + source);
+        assertUpdate("REFRESH MATERIALIZED VIEW " + qualifiedMvName, 2);
+
+        assertWatermark(mvName, "100");
+
+        assertUpdate("INSERT INTO " + source + " VALUES (3, 300)", 1);
+        String plan = getExplainPlan("REFRESH MATERIALIZED VIEW " + qualifiedMvName, ExplainType.Type.DISTRIBUTED);
+        assertThat(plan).doesNotContain("CrossJoin");
+        String sourceTableName = source.substring(source.lastIndexOf('.') + 1);
+        assertThat(plan).containsPattern("ScanFilter\\[table = .*" + sourceTableName + ".*filterPredicate = \\(bigint '100' < event_timestamp\\)]");
+
+        assertUpdate("REFRESH MATERIALIZED VIEW " + qualifiedMvName, 1);
+        assertWatermark(mvName, "300");
+        assertThat(query("SELECT id, event_timestamp FROM " + qualifiedMvName + " ORDER BY id"))
+                .matches("VALUES (BIGINT '1', BIGINT '100'), (BIGINT '2', CAST(NULL AS BIGINT)), (BIGINT '3', BIGINT '300')");
+
+        assertUpdate("DROP MATERIALIZED VIEW " + qualifiedMvName);
+        assertUpdate("DROP TABLE " + source);
+    }
+
+    @Test
+    public void testIncrementalColumnWatermarkIsStoredForMixedCaseColumn()
+    {
+        String source = ICEBERG_TEST_SCHEMA + ".mixed_case_watermark_src_" + randomNameSuffix();
+        String mvName = "mixed_case_watermark_mv_" + randomNameSuffix();
+        String qualifiedMvName = ICEBERG_TEST_SCHEMA + "." + mvName;
+        assertUpdate("CREATE TABLE " + source + " (id BIGINT, event_timestamp BIGINT)");
+        assertUpdate("INSERT INTO " + source + " VALUES (1, 100), (2, 200)", 2);
+
+        assertUpdate(
+                "CREATE MATERIALIZED VIEW " + qualifiedMvName +
+                        " WITH (incremental_column = 'EventTimestamp') AS SELECT id, event_timestamp AS \"EventTimestamp\" FROM " + source);
+
+        assertUpdate("REFRESH MATERIALIZED VIEW " + qualifiedMvName, 2);
+        assertWatermark(mvName, "200");
+
+        assertUpdate("INSERT INTO " + source + " VALUES (3, 300)", 1);
+        String plan = getExplainPlan("REFRESH MATERIALIZED VIEW " + qualifiedMvName, ExplainType.Type.DISTRIBUTED);
+        assertThat(plan).doesNotContain("CrossJoin");
+
+        assertUpdate("REFRESH MATERIALIZED VIEW " + qualifiedMvName, 1);
+        assertWatermark(mvName, "300");
+        assertThat(query("SELECT id, \"EventTimestamp\" FROM " + qualifiedMvName + " ORDER BY id"))
+                .matches("VALUES (BIGINT '1', BIGINT '100'), (BIGINT '2', BIGINT '200'), (BIGINT '3', BIGINT '300')");
+
+        assertUpdate("DROP MATERIALIZED VIEW " + qualifiedMvName);
+        assertUpdate("DROP TABLE " + source);
+    }
+
+    @Test
+    public void testIncrementalColumnWatermarkIsStoredInSnapshotSummary()
+    {
+        String source = ICEBERG_TEST_SCHEMA + ".stored_watermark_src_" + randomNameSuffix();
+        String mvName = "stored_watermark_mv_" + randomNameSuffix();
+        String qualifiedMvName = ICEBERG_TEST_SCHEMA + "." + mvName;
+        assertUpdate("CREATE TABLE " + source + " (id BIGINT, event_timestamp BIGINT)");
+        assertUpdate("INSERT INTO " + source + " VALUES (1, 100), (2, 200)", 2);
+
+        assertUpdate(
+                "CREATE MATERIALIZED VIEW " + qualifiedMvName +
+                        " WITH (incremental_column = 'event_timestamp') AS SELECT id, event_timestamp FROM " + source);
+
+        assertUpdate("REFRESH MATERIALIZED VIEW " + qualifiedMvName, 2);
+        assertWatermark(mvName, "200");
+
+        assertUpdate("INSERT INTO " + source + " VALUES (3, 300)", 1);
+        String plan = getExplainPlan("REFRESH MATERIALIZED VIEW " + qualifiedMvName, ExplainType.Type.DISTRIBUTED);
+        assertThat(plan).doesNotContain("CrossJoin");
+        String sourceTableName = source.substring(source.lastIndexOf('.') + 1);
+        assertThat(plan).containsPattern("ScanFilter\\[table = .*" + sourceTableName + ".*filterPredicate = \\(bigint '200' < event_timestamp\\)]");
+
+        assertUpdate("REFRESH MATERIALIZED VIEW " + qualifiedMvName, 1);
+        assertWatermark(mvName, "300");
+        assertThat(query("SELECT id, event_timestamp FROM " + qualifiedMvName + " ORDER BY id"))
+                .matches("VALUES (BIGINT '1', BIGINT '100'), (BIGINT '2', BIGINT '200'), (BIGINT '3', BIGINT '300')");
+
+        assertUpdate("DROP MATERIALIZED VIEW " + qualifiedMvName);
+        assertUpdate("DROP TABLE " + source);
     }
 
     @Test
@@ -587,7 +849,8 @@ public class TestIcebergIncrementalColumnMaterializedViewRefresh
     public void testIncrementalRefreshByColumnType(IncrementalColumnTypeCase testCase)
     {
         String sourceTable = ICEBERG_TEST_SCHEMA + ".typed_src_" + randomNameSuffix();
-        String mvName = ICEBERG_TEST_SCHEMA + ".typed_mv_" + randomNameSuffix();
+        String mvName = "typed_mv_" + randomNameSuffix();
+        String qualifiedMvName = ICEBERG_TEST_SCHEMA + "." + mvName;
         assertUpdate("CREATE TABLE " + sourceTable + " (id BIGINT, checkpoint " + testCase.columnType() + ")");
         assertUpdate(
                 "INSERT INTO " + sourceTable + " VALUES " +
@@ -596,11 +859,11 @@ public class TestIcebergIncrementalColumnMaterializedViewRefresh
                 2);
 
         assertUpdate(
-                "CREATE MATERIALIZED VIEW " + mvName +
+                "CREATE MATERIALIZED VIEW " + qualifiedMvName +
                         " WITH (incremental_column = 'checkpoint') AS SELECT id, checkpoint FROM " + sourceTable);
 
-        // First refresh: storage is empty, so all rows are appended.
-        assertUpdate("REFRESH MATERIALIZED VIEW " + mvName, 2);
+        assertUpdate("REFRESH MATERIALIZED VIEW " + qualifiedMvName, 2);
+        assertStoredWatermarkValue(mvName, testCase.storedWatermarkAfterFirstRefresh());
 
         // Mix rows below and above the current checkpoint.
         assertUpdate(
@@ -609,13 +872,38 @@ public class TestIcebergIncrementalColumnMaterializedViewRefresh
                         "(4, " + testCase.aboveCheckpointLow() + "), " +
                         "(5, " + testCase.aboveCheckpointHigh() + ")",
                 3);
-        assertUpdate("REFRESH MATERIALIZED VIEW " + mvName, 2);
+        assertUpdate("REFRESH MATERIALIZED VIEW " + qualifiedMvName, 2);
 
-        assertThat(query("SELECT id FROM " + mvName + " ORDER BY id"))
+        assertThat(query("SELECT id FROM " + qualifiedMvName + " ORDER BY id"))
                 .matches("VALUES BIGINT '1', BIGINT '2', BIGINT '4', BIGINT '5'");
+        assertStoredWatermarkValue(mvName, testCase.storedWatermarkAfterSecondRefresh());
 
-        assertUpdate("DROP MATERIALIZED VIEW " + mvName);
+        assertIncrementalRefreshPushdown(testCase, sourceTable, qualifiedMvName);
+
+        assertUpdate("DROP MATERIALIZED VIEW " + qualifiedMvName);
         assertUpdate("DROP TABLE " + sourceTable);
+    }
+
+    /**
+     * Asserting per type keeps the connector's exactness gate, the engine's literal rendering and the set
+     * of types accepted for {@code incremental_column} from drifting apart.
+     */
+    private void assertIncrementalRefreshPushdown(IncrementalColumnTypeCase testCase, String sourceTable, String mvName)
+    {
+        // Without a change to the source since the last refresh, the MV is considered fresh and
+        // REFRESH short-circuits to a trivial zero-row plan (LogicalPlanner#planStatement) with no
+        // TableScan or join at all — insert first so the plan below reflects a real refresh.
+        assertUpdate("INSERT INTO " + sourceTable + " VALUES (6, " + testCase.aboveCheckpointHigh() + ")", 1);
+
+        String plan = getExplainPlan("REFRESH MATERIALIZED VIEW " + mvName, ExplainType.Type.DISTRIBUTED);
+        if (!testCase.watermarkPushedDown()) {
+            assertThat(plan).contains("CrossJoin");
+            return;
+        }
+        assertThat(plan).doesNotContain("CrossJoin");
+        String sourceTableName = sourceTable.substring(sourceTable.lastIndexOf('.') + 1);
+        assertThat(countOccurrences(plan, sourceTableName)).isEqualTo(1);
+        assertThat(plan).containsPattern("ScanFilter\\[table = .*" + sourceTableName + ".*filterPredicate = \\(.* < checkpoint\\)]");
     }
 
     /**
@@ -632,49 +920,272 @@ public class TestIcebergIncrementalColumnMaterializedViewRefresh
                         "INTEGER '100'",
                         "INTEGER '200'",
                         "INTEGER '300'",
-                        "INTEGER '400'"),
+                        "INTEGER '400'",
+                        Optional.of("200"),
+                        Optional.of("400")),
                 new IncrementalColumnTypeCase(
                         "BIGINT",
                         "BIGINT '50'",
                         "BIGINT '100'",
                         "BIGINT '200'",
                         "BIGINT '300'",
-                        "BIGINT '400'"),
+                        "BIGINT '400'",
+                        Optional.of("200"),
+                        Optional.of("400")),
+                // Outside the INTEGER range, so the literal is typed BIGINT rather than widened from INTEGER.
+                new IncrementalColumnTypeCase(
+                        "BIGINT",
+                        "BIGINT '5000000000'",
+                        "BIGINT '6000000000'",
+                        "BIGINT '7000000000'",
+                        "BIGINT '8000000000'",
+                        "BIGINT '9000000000'",
+                        Optional.of("7000000000"),
+                        Optional.of("9000000000")),
                 new IncrementalColumnTypeCase(
                         "DATE",
                         "DATE '2025-12-31'",
                         "DATE '2026-01-01'",
                         "DATE '2026-02-01'",
                         "DATE '2026-03-01'",
-                        "DATE '2026-04-01'"),
+                        "DATE '2026-04-01'",
+                        Optional.of("20485"),
+                        Optional.of("20544")),
+                // Spans the Unix epoch, so the watermark's epoch-day representation is negative.
+                new IncrementalColumnTypeCase(
+                        "DATE",
+                        "DATE '1965-06-14'",
+                        "DATE '1969-06-14'",
+                        "DATE '1969-12-31'",
+                        "DATE '1970-01-01'",
+                        "DATE '1975-06-14'",
+                        Optional.of("-1"),
+                        Optional.of("1990")),
+                new IncrementalColumnTypeCase(
+                        "TIME(0)",
+                        "TIME '01:00:00'",
+                        "TIME '02:00:00'",
+                        "TIME '03:00:00'",
+                        "TIME '04:00:00'",
+                        "TIME '05:00:00'",
+                        Optional.of("10800000000000000"),
+                        Optional.of("18000000000000000")),
+                new IncrementalColumnTypeCase(
+                        "TIME(3)",
+                        "TIME '01:00:00.100'",
+                        "TIME '02:00:00.200'",
+                        "TIME '03:00:00.300'",
+                        "TIME '04:00:00.400'",
+                        "TIME '05:00:00.500'",
+                        Optional.of("10800300000000000"),
+                        Optional.of("18000500000000000")),
                 new IncrementalColumnTypeCase(
                         "TIME(6)",
                         "TIME '01:00:00.000000'",
                         "TIME '02:00:00.000000'",
                         "TIME '03:00:00.000000'",
                         "TIME '04:00:00.000000'",
-                        "TIME '05:00:00.000000'"),
+                        "TIME '05:00:00.000000'",
+                        Optional.of("10800000000000000"),
+                        Optional.of("18000000000000000")),
+                new IncrementalColumnTypeCase(
+                        "TIMESTAMP(0)",
+                        "TIMESTAMP '2025-12-01 00:00:00'",
+                        "TIMESTAMP '2026-01-01 00:00:00'",
+                        "TIMESTAMP '2026-02-01 00:00:00'",
+                        "TIMESTAMP '2026-03-01 00:00:00'",
+                        "TIMESTAMP '2026-04-01 00:00:00'",
+                        Optional.of("1769904000000000"),
+                        Optional.of("1775001600000000")),
+                new IncrementalColumnTypeCase(
+                        "TIMESTAMP(3)",
+                        "TIMESTAMP '2025-12-01 00:00:00.100'",
+                        "TIMESTAMP '2026-01-01 00:00:00.200'",
+                        "TIMESTAMP '2026-02-01 00:00:00.300'",
+                        "TIMESTAMP '2026-03-01 00:00:00.400'",
+                        "TIMESTAMP '2026-04-01 00:00:00.500'",
+                        Optional.of("1769904000300000"),
+                        Optional.of("1775001600500000")),
                 new IncrementalColumnTypeCase(
                         "TIMESTAMP(6)",
                         "TIMESTAMP '2025-12-01 00:00:00.000000'",
                         "TIMESTAMP '2026-01-01 00:00:00.000000'",
                         "TIMESTAMP '2026-02-01 00:00:00.000000'",
                         "TIMESTAMP '2026-03-01 00:00:00.000000'",
-                        "TIMESTAMP '2026-04-01 00:00:00.000000'"),
+                        "TIMESTAMP '2026-04-01 00:00:00.000000'",
+                        Optional.of("1769904000000000"),
+                        Optional.of("1775001600000000")),
                 new IncrementalColumnTypeCase(
                         "VARCHAR",
                         "VARCHAR 'a'",
                         "VARCHAR 'b'",
                         "VARCHAR 'c'",
                         "VARCHAR 'd'",
-                        "VARCHAR 'e'"),
+                        "VARCHAR 'e'",
+                        Optional.empty(),
+                        Optional.empty()),
                 new IncrementalColumnTypeCase(
                         "DECIMAL(10, 2)",
                         "DECIMAL '0.50'",
                         "DECIMAL '1.00'",
                         "DECIMAL '2.00'",
                         "DECIMAL '3.00'",
-                        "DECIMAL '4.00'"));
+                        "DECIMAL '4.00'",
+                        Optional.of("200"),
+                        Optional.of("400")),
+                new IncrementalColumnTypeCase(
+                        "INTEGER",
+                        "INTEGER '-2147483648'",
+                        "INTEGER '-1000'",
+                        "INTEGER '-500'",
+                        "INTEGER '0'",
+                        "INTEGER '2147483647'",
+                        Optional.of("-500"),
+                        Optional.of("2147483647")),
+                // Spans the whole BIGINT range, so the watermark hits Long.MIN_VALUE and Long.MAX_VALUE.
+                new IncrementalColumnTypeCase(
+                        "BIGINT",
+                        "BIGINT '-9223372036854775808'",
+                        "BIGINT '-5000000000'",
+                        "BIGINT '-100'",
+                        "BIGINT '0'",
+                        "BIGINT '9223372036854775807'",
+                        Optional.of("-100"),
+                        Optional.of("9223372036854775807")),
+                // DECIMAL(18,0) is the widest short decimal, carried as a long.
+                new IncrementalColumnTypeCase(
+                        "DECIMAL(18, 0)",
+                        "DECIMAL '-999999999999999999'",
+                        "DECIMAL '-1'",
+                        "DECIMAL '0'",
+                        "DECIMAL '1'",
+                        "DECIMAL '999999999999999999'",
+                        Optional.of("0"),
+                        Optional.of("999999999999999999")),
+                // DECIMAL(19,0) is the narrowest long decimal, carried as an Int128.
+                new IncrementalColumnTypeCase(
+                        "DECIMAL(19, 0)",
+                        "DECIMAL '-9999999999999999999'",
+                        "DECIMAL '-1'",
+                        "DECIMAL '0'",
+                        "DECIMAL '1'",
+                        "DECIMAL '9999999999999999999'",
+                        Optional.of("0"),
+                        Optional.of("9999999999999999999")),
+                new IncrementalColumnTypeCase(
+                        "DECIMAL(38, 0)",
+                        "DECIMAL '-99999999999999999999999999999999999999'",
+                        "DECIMAL '-1'",
+                        "DECIMAL '0'",
+                        "DECIMAL '1'",
+                        "DECIMAL '99999999999999999999999999999999999999'",
+                        Optional.of("0"),
+                        Optional.of("99999999999999999999999999999999999999")),
+                // Straddles the epoch, so the watermark's epoch-microsecond representation is negative.
+                new IncrementalColumnTypeCase(
+                        "TIMESTAMP(6)",
+                        "TIMESTAMP '1900-01-01 00:00:00.000000'",
+                        "TIMESTAMP '1960-01-01 00:00:00.123456'",
+                        "TIMESTAMP '1969-12-31 23:59:59.999999'",
+                        "TIMESTAMP '1970-01-01 00:00:00.000000'",
+                        "TIMESTAMP '1970-01-01 00:00:00.000001'",
+                        Optional.of("-1"),
+                        Optional.of("1")),
+                new IncrementalColumnTypeCase(
+                        "TIME(6)",
+                        "TIME '00:00:00.000000'",
+                        "TIME '12:00:00.000000'",
+                        "TIME '20:00:00.000000'",
+                        "TIME '23:59:59.999998'",
+                        "TIME '23:59:59.999999'",
+                        Optional.of("72000000000000000"),
+                        Optional.of("86399999999000000")),
+                new IncrementalColumnTypeCase(
+                        "DATE",
+                        "DATE '0001-01-01'",
+                        "DATE '1000-01-01'",
+                        "DATE '1969-12-31'",
+                        "DATE '1970-01-01'",
+                        "DATE '9999-12-31'",
+                        Optional.of("-1"),
+                        Optional.of("2932896")),
+                new IncrementalColumnTypeCase(
+                        "DECIMAL(38, 10)",
+                        "DECIMAL '0.5000000000'",
+                        "DECIMAL '123456789012345678.1000000000'",
+                        "DECIMAL '223456789012345678.2000000000'",
+                        "DECIMAL '323456789012345678.3000000000'",
+                        "DECIMAL '423456789012345678.4000000000'",
+                        Optional.of("2234567890123456782000000000"),
+                        Optional.of("4234567890123456784000000000")));
+    }
+
+    /**
+     * ORC pads a timestamp upper bound out to the end of its millisecond and Avro states no bounds at
+     * all. Whatever the storage format, a row above the previous maximum must survive.
+     */
+    @ParameterizedTest
+    @ValueSource(strings = {"PARQUET", "ORC", "AVRO"})
+    public void testIncrementalColumnWatermarkNeverDropsRows(String storageFormat)
+    {
+        String source = ICEBERG_TEST_SCHEMA + ".format_src_" + randomNameSuffix();
+        String mvName = "format_mv_" + randomNameSuffix();
+        String qualifiedMvName = ICEBERG_TEST_SCHEMA + "." + mvName;
+        assertUpdate("CREATE TABLE " + source + " (id BIGINT, event_timestamp TIMESTAMP(6))");
+        assertUpdate("INSERT INTO " + source + " VALUES (1, TIMESTAMP '2026-01-01 00:00:00.000000')", 1);
+        assertUpdate(
+                "CREATE MATERIALIZED VIEW " + qualifiedMvName +
+                        " WITH (incremental_column = 'event_timestamp', format = '" + storageFormat + "') AS SELECT id, event_timestamp FROM " + source);
+        assertUpdate("REFRESH MATERIALIZED VIEW " + qualifiedMvName, 1);
+
+        // Strictly above the true maximum, but inside the millisecond an ORC upper bound is padded to.
+        assertUpdate("INSERT INTO " + source + " VALUES (2, TIMESTAMP '2026-01-01 00:00:00.000500')", 1);
+        assertUpdate("REFRESH MATERIALIZED VIEW " + qualifiedMvName, 1);
+
+        assertThat(query("SELECT id FROM " + qualifiedMvName + " ORDER BY id"))
+                .matches("VALUES BIGINT '1', BIGINT '2'");
+        assertStoredWatermarkValue(mvName, storageFormat.equals("PARQUET") ? Optional.of("1767225600000500") : Optional.empty());
+
+        assertUpdate("DROP MATERIALIZED VIEW " + qualifiedMvName);
+        assertUpdate("DROP TABLE " + source);
+    }
+
+    private String storageTableName(String schema, String mvName)
+    {
+        MaterializedRow row = getOnlyElement(computeActual(
+                "SELECT storage_catalog, storage_schema, storage_table FROM system.metadata.materialized_views " +
+                        "WHERE catalog_name = '" + ICEBERG_CATALOG + "' AND schema_name = '" + schema + "' AND name = '" + mvName + "'")
+                .getMaterializedRows());
+        // The storage table name contains a literal '$', so only that part may be quoted — quoting
+        // the whole catalog.schema.table string makes it a single identifier containing dots.
+        return row.getField(0) + "." + row.getField(1) + ".\"" + row.getField(2) + "\"";
+    }
+
+    private void assertStoredWatermarkValue(String mvName, Optional<String> expectedValue)
+    {
+        assertThat(latestStoredWatermark(mvName).map(watermark -> parseStoredWatermark(watermark).value()))
+                .isEqualTo(expectedValue);
+    }
+
+    private void assertWatermark(String mvName, String expectedValue)
+    {
+        assertThat(latestStoredWatermark(mvName))
+                .hasValueSatisfying(watermark -> assertThat(parseStoredWatermark(watermark))
+                        .isEqualTo(new StoredWatermark(2, TypeId.of("bigint"), expectedValue)));
+    }
+
+    private Optional<String> latestStoredWatermark(String mvName)
+    {
+        MaterializedRow row = getOnlyElement(computeActual(
+                "SELECT element_at(summary, 'trino-incremental-column-watermark') FROM " + ICEBERG_TEST_SCHEMA + ".\"" + mvName + "$snapshots\" " +
+                        "ORDER BY committed_at DESC, snapshot_id DESC LIMIT 1")
+                .getMaterializedRows());
+        return Optional.ofNullable((String) row.getField(0));
+    }
+
+    private static int countOccurrences(String text, String token)
+    {
+        return (text.length() - text.replace(token, "").length()) / token.length();
     }
 
     public record IncrementalColumnTypeCase(
@@ -683,8 +1194,16 @@ public class TestIcebergIncrementalColumnMaterializedViewRefresh
             String initialLow,
             String initialHigh,
             String aboveCheckpointLow,
-            String aboveCheckpointHigh)
+            String aboveCheckpointHigh,
+            Optional<String> storedWatermarkAfterFirstRefresh,
+            Optional<String> storedWatermarkAfterSecondRefresh)
     {
+        // A refresh pushes down exactly when the refresh before it managed to store a watermark.
+        boolean watermarkPushedDown()
+        {
+            return storedWatermarkAfterSecondRefresh().isPresent();
+        }
+
         @Override
         public String toString()
         {

@@ -69,6 +69,7 @@ public class IcebergMetadataFactory
     private final int materializedViewRefreshMaxSnapshotsToExpire;
     private final Duration materializedViewRefreshSnapshotRetentionPeriod;
     private final boolean materializedViewIncrementalColumnRefreshEnabled;
+    private final IncrementalColumnWatermarkReader incrementalColumnWatermarkReader;
     private final DeletionVectorWriter deletionVectorWriter;
     private final RemoveDanglingDeleteFiles removeDanglingDeleteFiles;
     private final CreateChangelogView createChangelogView;
@@ -99,7 +100,8 @@ public class IcebergMetadataFactory
             IcebergConfig config,
             ConnectorExpressionEvaluator evaluator,
             IcebergIncrementalMvRefreshConfig icebergIncrementalMvRefreshConfig,
-            IcebergCommitQueue commitQueue)
+            IcebergCommitQueue commitQueue,
+            IncrementalColumnWatermarkReader incrementalColumnWatermarkReader)
     {
         this.locationAccessControl = requireNonNull(locationAccessControl, "locationAccessControl is null");
         this.aiModelAccessControl = requireNonNull(aiModelAccessControl, "aiModelAccessControl is null");
@@ -141,6 +143,7 @@ public class IcebergMetadataFactory
         this.evaluator = requireNonNull(evaluator, "evaluator is null");
         this.materializedViewIncrementalColumnRefreshEnabled = icebergIncrementalMvRefreshConfig.isMaterializedViewIncrementalColumnRefreshEnabled();
         this.commitQueue = requireNonNull(commitQueue, "commitQueue is null");
+        this.incrementalColumnWatermarkReader = requireNonNull(incrementalColumnWatermarkReader, "incrementalColumnWatermarkReader is null");
     }
 
     public IcebergMetadata create(ConnectorIdentity identity)
@@ -174,6 +177,7 @@ public class IcebergMetadataFactory
                 materializedViewRefreshSnapshotRetentionPeriod,
                 evaluator,
                 materializedViewIncrementalColumnRefreshEnabled,
-                commitQueue);
+                commitQueue,
+                incrementalColumnWatermarkReader);
     }
 }

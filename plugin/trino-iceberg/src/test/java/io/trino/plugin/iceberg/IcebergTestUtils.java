@@ -121,6 +121,8 @@ public final class IcebergTestUtils
             newDirectExecutorService(),
             PARTITION_STATISTICS_READER);
 
+    public static final IncrementalColumnWatermarkReader INCREMENTAL_COLUMN_WATERMARK_READER = new IncrementalColumnWatermarkReader(TESTING_TYPE_MANAGER);
+
     public static final ForwardingFileIoFactory FILE_IO_FACTORY = new ForwardingFileIoFactory(newDirectExecutorService());
 
     public static final BlocksHashFactory BLOCKS_HASH_FACTORY = new FlatHashStrategyCompiler(new TypeOperators(), new NullSafeHashCompiler(new TypeOperators())).createBlocksHashFactory();
