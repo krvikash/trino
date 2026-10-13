@@ -182,11 +182,11 @@ public class FlatGroupByHash
         if (isRunLengthEncoded(blocks)) {
             return new AddRunLengthEncodedPageWork(blocks);
         }
-        if (canProcessDictionary(blocks)) {
-            return new AddDictionaryPageWork(blocks);
-        }
         if (canProcessLowCardinalityDictionary(blocks)) {
             return new AddLowCardinalityDictionaryPageWork(blocks);
+        }
+        if (canProcessDictionary(blocks)) {
+            return new AddDictionaryPageWork(blocks);
         }
 
         return new AddNonDictionaryPageWork(blocks);
@@ -205,11 +205,11 @@ public class FlatGroupByHash
         if (isRunLengthEncoded(blocks)) {
             return new GetRunLengthEncodedGroupIdsWork(blocks);
         }
-        if (canProcessDictionary(blocks)) {
-            return new GetDictionaryGroupIdsWork(blocks);
-        }
         if (canProcessLowCardinalityDictionary(blocks)) {
             return new GetLowCardinalityDictionaryGroupIdsWork(blocks);
+        }
+        if (canProcessDictionary(blocks)) {
+            return new GetDictionaryGroupIdsWork(blocks);
         }
 
         return new GetNonDictionaryGroupIdsWork(blocks);

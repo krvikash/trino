@@ -678,6 +678,23 @@ public class TestGroupByHash
     }
 
     @Test
+    public void testSingleChannelLowCardinalityDictionaryAddPage()
+    {
+        // Dictionary processing must not take precedence over the cheaper low cardinality path
+        GroupByHash groupByHash = new FlatGroupByHash(ImmutableList.of(VARCHAR), shouldCacheHashValue(false, List.of(VARCHAR)), 100, true, new FlatHashStrategyCompiler(new TypeOperators(), new NullSafeHashCompiler(new TypeOperators())), NOOP);
+        Work<?> work = groupByHash.addPage(new Page(BlockAssertions.createStringDictionaryBlock(0, 1000)));
+        assertThat(work).isInstanceOf(FlatGroupByHash.AddLowCardinalityDictionaryPageWork.class);
+        work.process();
+        assertThat(groupByHash.getGroupCount()).isEqualTo(200);
+
+        Page highCardinalityPage = new Page(DictionaryBlock.create(1000, createStringSequenceBlock(0, 1000), IntStream.range(0, 1000).toArray()));
+        work = groupByHash.addPage(highCardinalityPage);
+        assertThat(work).isInstanceOf(FlatGroupByHash.AddDictionaryPageWork.class);
+        work.process();
+        assertThat(groupByHash.getGroupCount()).isEqualTo(1000);
+    }
+
+    @Test
     public void testLowCardinalityDictionariesGetGroupIds()
     {
         // Compare group ids results from page with dictionaries only (processed via low cardinality work) and the same page processed normally
@@ -764,6 +781,7 @@ public class TestGroupByHash
         Block varcharBlock = BlockAssertions.createStringsBlock("1", "2", "3", "4", "5", "6", "7", "8");
         Block varcharDictionaryBlock = BlockAssertions.createStringDictionaryBlock(1, 8);
         Block varcharRleBlock = RunLengthEncodedBlock.create(new VariableWidthBlock(1, Slices.EMPTY_SLICE, new int[] {0, 1}, Optional.empty()), 8);
+        Block varcharBigDictionaryBlock = DictionaryBlock.create(8, createStringSequenceBlock(0, 1000), new int[] {0, 1, 2, 3, 4, 5, 6, 7});
 
         Block bigintBigDictionaryBlock = BlockAssertions.createLongDictionaryBlock(1, 8, 1000);
         Block bigintSingletonDictionaryBlock = BlockAssertions.createLongDictionaryBlock(1, 500000, 1);
@@ -826,7 +844,9 @@ public class TestGroupByHash
         Page singleVarcharPage = new Page(varcharBlock);
         assertGroupByHashWork(singleVarcharPage, ImmutableList.of(VARCHAR), FlatGroupByHash.GetNonDictionaryGroupIdsWork.class);
         Page singleVarcharDictionaryPage = new Page(varcharDictionaryBlock);
-        assertGroupByHashWork(singleVarcharDictionaryPage, ImmutableList.of(VARCHAR), FlatGroupByHash.GetDictionaryGroupIdsWork.class);
+        assertGroupByHashWork(singleVarcharDictionaryPage, ImmutableList.of(VARCHAR), FlatGroupByHash.GetLowCardinalityDictionaryGroupIdsWork.class);
+        Page singleVarcharBigDictionaryPage = new Page(varcharBigDictionaryBlock);
+        assertGroupByHashWork(singleVarcharBigDictionaryPage, ImmutableList.of(VARCHAR), FlatGroupByHash.GetDictionaryGroupIdsWork.class);
         Page singleVarcharRlePage = new Page(varcharRleBlock);
         assertGroupByHashWork(singleVarcharRlePage, ImmutableList.of(VARCHAR), FlatGroupByHash.GetRunLengthEncodedGroupIdsWork.class);
 
