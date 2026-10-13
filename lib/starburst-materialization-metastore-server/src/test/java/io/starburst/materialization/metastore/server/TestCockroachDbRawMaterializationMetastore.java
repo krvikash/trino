@@ -29,7 +29,9 @@ public class TestCockroachDbRawMaterializationMetastore
     @Override
     protected JdbcDatabaseContainer<?> createDbContainer()
     {
-        return new CockroachContainer("cockroachdb/cockroach:v24.1.5");
+        // The image's init script exits when its "database exists" probe times out while the node is still starting
+        return new CockroachContainer("cockroachdb/cockroach:v24.1.5")
+                .withStartupAttempts(3);
     }
 
     @Override
