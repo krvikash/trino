@@ -20,6 +20,7 @@ import io.starburst.stargate.id.TableId;
 import io.starburst.stargate.identity.DispatchSession;
 import io.trino.cache.NonEvictableCache;
 
+import java.time.Duration;
 import java.util.Optional;
 
 import static io.trino.cache.SafeCaches.buildNonEvictableCache;
@@ -27,7 +28,9 @@ import static io.trino.cache.SafeCaches.buildNonEvictableCache;
 public class StacIsLiveTableCache
         implements IsIcehouseLiveTableCache
 {
-    private final NonEvictableCache<TableId, Optional<LiveTableInfo>> liveTableInfoCache = buildNonEvictableCache(CacheBuilder.newBuilder());
+    private final NonEvictableCache<TableId, Optional<LiveTableInfo>> liveTableInfoCache = buildNonEvictableCache(CacheBuilder.newBuilder()
+            .maximumSize(10_000)
+            .expireAfterWrite(Duration.ofHours(4)));
 
     @Override
     public Optional<LiveTableInfo> getLiveTableInfo(TrinoSecurityApi trinoSecurityApi, TableId tableId, DispatchSession session)
