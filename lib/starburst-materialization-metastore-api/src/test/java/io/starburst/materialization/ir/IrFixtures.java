@@ -14,13 +14,17 @@
 package io.starburst.materialization.ir;
 
 import com.google.common.collect.ImmutableList;
+import io.airlift.slice.Slice;
+import io.trino.spi.block.Block;
 import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.connector.substitution.ConnectorColumnId;
 import io.trino.spi.connector.substitution.ConnectorIdVersion;
 import io.trino.spi.connector.substitution.ConnectorTableId;
 import io.trino.spi.function.BoundSignature;
 import io.trino.spi.function.CatalogSchemaFunctionName;
+import io.trino.spi.type.AbstractVariableWidthType;
 import io.trino.spi.type.Type;
+import io.trino.spi.type.TypeDescriptor;
 import jakarta.annotation.Nullable;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
@@ -29,6 +33,11 @@ import static java.util.Arrays.stream;
 
 final class IrFixtures
 {
+    /**
+     * Stands in for trino-main's {@code JsonPathType}: registries compare base names only.
+     */
+    static final Type JSON_PATH = new JsonPathType();
+
     private IrFixtures() {}
 
     static Output outputOverScan(Symbol... columns)
@@ -59,6 +68,27 @@ final class IrFixtures
     static BoundSignature builtinSignature(String functionName, Type returnType, Type... argumentTypes)
     {
         return new BoundSignature(new CatalogSchemaFunctionName("system", "builtin", functionName), returnType, ImmutableList.copyOf(argumentTypes));
+    }
+
+    private static final class JsonPathType
+            extends AbstractVariableWidthType
+    {
+        JsonPathType()
+        {
+            super(new TypeDescriptor("JsonPath"), Slice.class);
+        }
+
+        @Override
+        public String getDisplayName()
+        {
+            return "JsonPath";
+        }
+
+        @Override
+        public Object getObjectValue(Block block, int position)
+        {
+            throw new UnsupportedOperationException();
+        }
     }
 
     record FixtureTableId(String tableName)

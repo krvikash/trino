@@ -42,16 +42,24 @@ import static java.util.Objects.requireNonNull;
  * than match against it. Adding a pair needs no bump, since a reader that does not know its key skips every
  * definition stamped with it.
  * <p>
+ * {@code varchar -> JsonPath} is the one un-fold pair: a folded {@code JsonPath} constant's holder is a trino-main
+ * class this module cannot encode, so it is persisted as a cast over its {@code varchar} source text, which is exact
+ * because the cast is deterministic and session-independent and a {@code JsonPath} retains that text.
+ * <p>
  * Unsupported pairs are reported as {@code false}, never thrown, so a producer can decline to index a definition.
  */
 public final class SupportedCasts
 {
+    // JsonPathType lives in trino-main
+    private static final String JSON_PATH = "JsonPath";
+
     private static final Map<CastPair, Integer> CASTS = ImmutableMap.<CastPair, Integer>builder()
             .put(new CastPair(BIGINT, DECIMAL), 1)
             .put(new CastPair(DECIMAL, DECIMAL), 1)
             .put(new CastPair(INTEGER, BIGINT), 1)
             .put(new CastPair(INTEGER, DECIMAL), 1)
             .put(new CastPair(VARCHAR, VARCHAR), 1)
+            .put(new CastPair(VARCHAR, JSON_PATH), 1)
             .buildOrThrow();
 
     private SupportedCasts() {}

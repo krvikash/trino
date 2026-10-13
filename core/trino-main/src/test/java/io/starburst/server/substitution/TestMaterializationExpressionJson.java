@@ -62,6 +62,7 @@ import static io.trino.spi.type.VarcharType.createVarcharType;
 import static io.trino.type.IntervalDayTimeType.INTERVAL_DAY_TIME;
 import static io.trino.type.IntervalYearMonthType.INTERVAL_YEAR_MONTH;
 import static io.trino.type.IpAddressType.IPADDRESS;
+import static io.trino.type.JsonPathType.JSON_PATH;
 import static io.trino.type.JsonType.JSON;
 import static io.trino.type.UnknownType.UNKNOWN;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -116,7 +117,17 @@ class TestMaterializationExpressionJson
                         reference(TIMESTAMP_TZ_NANOS, "a"),
                         new Constant(TIMESTAMP_TZ_NANOS, new TimestampWithZoneValue(-1_000, 123_000, "America/New_York")))),
                 Arguments.of("long decimal constant", constant(createDecimalType(38, 10), Int128.valueOf("-12345678901234567890"))),
-                Arguments.of("char constant", new Constant(createCharType(5), new BytesValue(utf8Slice("abc")))));
+                Arguments.of("char constant", new Constant(createCharType(5), new BytesValue(utf8Slice("abc")))),
+                Arguments.of("json_extract_scalar over varchar", call(
+                        "json_extract_scalar",
+                        VARCHAR,
+                        reference(VARCHAR, "info"),
+                        new Cast(constant(VARCHAR, utf8Slice("$.name")), JSON_PATH))),
+                Arguments.of("json_extract over json", call(
+                        "json_extract",
+                        JSON,
+                        reference(JSON, "info"),
+                        new Cast(constant(VARCHAR, utf8Slice("$.name")), JSON_PATH))));
     }
 
     /**

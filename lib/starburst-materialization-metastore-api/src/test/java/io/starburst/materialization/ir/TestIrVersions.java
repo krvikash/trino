@@ -26,6 +26,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
+import static io.airlift.slice.Slices.utf8Slice;
+import static io.starburst.materialization.ir.IrFixtures.JSON_PATH;
 import static io.starburst.materialization.ir.IrFixtures.builtinSignature;
 import static io.starburst.materialization.ir.IrFixtures.constant;
 import static io.starburst.materialization.ir.IrFixtures.outputOverScan;
@@ -158,6 +160,29 @@ class TestIrVersions
                         "expr:Constant", 1,
                         "leaf:Type", 1,
                         "const:null", 1));
+    }
+
+    @Test
+    void testJsonPathExtractionStampsFunctionAndUnfoldCast()
+    {
+        Call extract = new Call(
+                builtinSignature("json_extract_scalar", VARCHAR, VARCHAR, JSON_PATH),
+                ImmutableList.of(reference(VARCHAR, "info"), new Cast(constant(VARCHAR, utf8Slice("$.name")), JSON_PATH)));
+        assertThat(IrJson.codec(Expression.class).fromJson(IrJson.codec(Expression.class).toJson(extract))).isEqualTo(extract);
+        assertThat(IrVersions.collect(extract)).isEqualTo(ImmutableMap.builder()
+                .put("expr:Call", 1)
+                .put("leaf:BoundSignature", 1)
+                .put("fn:system.builtin.json_extract_scalar", 1)
+                .put("expr:Reference", 1)
+                .put("leaf:Symbol", 1)
+                .put("expr:Cast", 1)
+                .put("leaf:Type", 1)
+                .put("cast:varchar->JsonPath", 1)
+                .put("expr:Constant", 1)
+                .put("const:bytes", 1)
+                .put("ctype:varchar", 1)
+                .buildOrThrow());
+        assertThat(IrVersions.FUNCTION_VERSIONS).containsEntry("fn:system.builtin.json_extract", 1);
     }
 
     @Test

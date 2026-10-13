@@ -68,6 +68,7 @@ final class IrJson
                     createCharType(5),
                     TIMESTAMP_MILLIS,
                     TIMESTAMP_TZ_MILLIS,
+                    IrFixtures.JSON_PATH,
                     PERSON_ROW,
                     new ArrayType(BIGINT))
             .stream()

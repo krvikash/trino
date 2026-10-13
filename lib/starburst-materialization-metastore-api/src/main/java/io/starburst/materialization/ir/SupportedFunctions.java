@@ -52,6 +52,8 @@ public final class SupportedFunctions
             .put(builtin("$operator$SUBTRACT"), 1)
             .put(builtin("$operator$MULTIPLY"), 1)
             .put(builtin("$operator$DIVIDE"), 1)
+            .put(builtin("json_extract_scalar"), 1)
+            .put(builtin("json_extract"), 1)
             .buildOrThrow();
 
     private SupportedFunctions() {}

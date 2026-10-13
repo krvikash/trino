@@ -56,6 +56,13 @@ class TestExpressionValidation
     }
 
     @Test
+    void testUnfoldedJsonPathCastIsAccepted()
+    {
+        Cast cast = new Cast(constant(createUnboundedVarcharType(), utf8Slice("$.name")), IrFixtures.JSON_PATH);
+        assertThat(cast.type()).isEqualTo(IrFixtures.JSON_PATH);
+    }
+
+    @Test
     void testCastOffTheAllowlistIsRejected()
     {
         assertThatThrownBy(() -> new Cast(reference(BIGINT, "secret_column"), createVarcharType(10)))

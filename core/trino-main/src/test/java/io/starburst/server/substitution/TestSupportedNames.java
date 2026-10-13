@@ -34,13 +34,15 @@ import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.spi.type.VarcharType.createVarcharType;
 import static io.trino.sql.analyzer.TypeDescriptorProvider.fromTypes;
 import static io.trino.type.BooleanOperators.NOT_FUNCTION_NAME;
+import static io.trino.type.JsonPathType.JSON_PATH;
+import static io.trino.type.JsonType.JSON;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * {@link SupportedFunctions}, {@link SupportedAggregateFunctions} and {@link SupportedCasts} spell engine names as
  * literals because their module doesn't depend on trino-main. This test pins each function to the engine constant
- * that names it or the name the engine resolves it to, and each cast pair to the base names of types the engine
- * casts between.
+ * that names it or, where the engine has none, to the engine's own resolution of it, and each cast pair to the base
+ * names of types the engine casts between.
  */
 class TestSupportedNames
 {
@@ -58,7 +60,9 @@ class TestSupportedNames
                 builtinFunctionName(ADD),
                 builtinFunctionName(SUBTRACT),
                 builtinFunctionName(MULTIPLY),
-                builtinFunctionName(DIVIDE));
+                builtinFunctionName(DIVIDE),
+                resolvedName("json_extract_scalar", VARCHAR, JSON_PATH),
+                resolvedName("json_extract", JSON, JSON_PATH));
     }
 
     @Test
@@ -81,7 +85,13 @@ class TestSupportedNames
                 resolvedCast(createDecimalType(10, 2), createDecimalType(12, 2)),
                 resolvedCast(INTEGER, BIGINT),
                 resolvedCast(INTEGER, createDecimalType(10)),
-                resolvedCast(createVarcharType(10), VARCHAR));
+                resolvedCast(createVarcharType(10), VARCHAR),
+                resolvedCast(VARCHAR, JSON_PATH));
+    }
+
+    private static CatalogSchemaFunctionName resolvedName(String name, Type... argumentTypes)
+    {
+        return FUNCTION_RESOLUTION.resolveFunction(name, fromTypes(argumentTypes)).name();
     }
 
     private static CatalogSchemaFunctionName resolvedAggregate(String name, Type argumentType)
