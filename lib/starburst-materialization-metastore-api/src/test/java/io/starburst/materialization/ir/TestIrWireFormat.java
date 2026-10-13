@@ -33,6 +33,7 @@ import java.io.UncheckedIOException;
 import java.util.Optional;
 import java.util.stream.Stream;
 
+import static io.airlift.slice.Slices.utf8Slice;
 import static io.starburst.materialization.ir.IrFixtures.builtinSignature;
 import static io.starburst.materialization.ir.IrFixtures.outputOverScan;
 import static io.starburst.materialization.ir.IrFixtures.reference;
@@ -106,6 +107,33 @@ class TestIrWireFormat
     void testOperationWireFormat(String fixture, Operation operation)
     {
         assertMatchesFixture(fixture, IrJson.codec(Operation.class), operation);
+    }
+
+    static Stream<Arguments> constantValues()
+    {
+        return Stream.of(
+                Arguments.of(new ConstantValue.NullValue()),
+                Arguments.of(new ConstantValue.BooleanValue(true)),
+                Arguments.of(new ConstantValue.LongValue(-42)),
+                Arguments.of(new ConstantValue.RealValue(Float.floatToIntBits(-1.5f))),
+                Arguments.of(new ConstantValue.DoubleValue(Double.doubleToLongBits(-1.5))),
+                Arguments.of(new ConstantValue.BytesValue(utf8Slice("abc"))),
+                Arguments.of(new ConstantValue.Int128Value(-1, -12345)),
+                Arguments.of(new ConstantValue.TimestampValue(-1_000_001, 123_000)),
+                Arguments.of(new ConstantValue.TimestampWithZoneValue(-1_000, 123_000_000, "America/New_York")),
+                Arguments.of(new ConstantValue.TimeWithZoneValue(12_345_000_000_000L, -480)));
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("constantValues")
+    void testConstantValueWireFormat(ConstantValue value)
+    {
+        assertMatchesFixture(constantValueFixture(value.kind()), IrJson.codec(ConstantValue.class), value);
+    }
+
+    static String constantValueFixture(String kind)
+    {
+        return "ConstantValue_" + kind;
     }
 
     @Test

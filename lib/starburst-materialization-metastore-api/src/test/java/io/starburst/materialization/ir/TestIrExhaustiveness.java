@@ -29,6 +29,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Every IR node type must be registered in {@link IrVersions#SUPPORTED}, in its interface's {@link JsonSubTypes}
  * and in the {@link TestIrWireFormat} fixtures, so a node cannot be added without a version and a pinned wire format.
+ * The same holds for every {@link ConstantValue} kind.
  */
 class TestIrExhaustiveness
 {
@@ -42,6 +43,25 @@ class TestIrExhaustiveness
     void testOperationsAreRegistered()
     {
         assertRegistered(Operation.class, "", TestIrWireFormat.operations());
+    }
+
+    @Test
+    void testConstantKindsAreRegistered()
+    {
+        Map<String, Class<?>> jsonSubTypes = Arrays.stream(ConstantValue.class.getAnnotation(JsonSubTypes.class).value())
+                .collect(toImmutableMap(JsonSubTypes.Type::name, JsonSubTypes.Type::value));
+        Set<Class<?>> fixtureClasses = TestIrWireFormat.constantValues()
+                .map(arguments -> arguments.get()[0].getClass())
+                .collect(toImmutableSet());
+
+        Class<?>[] permitted = ConstantValue.class.getPermittedSubclasses();
+        assertThat(jsonSubTypes).hasSize(permitted.length);
+        for (Class<?> kindClass : permitted) {
+            String kind = staticField(kindClass, "KIND", String.class);
+            assertThat(jsonSubTypes).as("%s JSON subtype", kindClass.getSimpleName()).containsEntry(kind, kindClass);
+            assertThat(fixtureClasses).as("%s wire format case", kindClass.getSimpleName()).contains(kindClass);
+            assertThat(TestIrWireFormat.fixtureExists(TestIrWireFormat.constantValueFixture(kind))).as("%s fixture", kindClass.getSimpleName()).isTrue();
+        }
     }
 
     private static void assertRegistered(Class<?> nodeInterface, String prefix, Stream<Arguments> wireFormatCases)
