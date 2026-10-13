@@ -37,6 +37,12 @@ arguments; `Filter` and `Project` will hold them too. Each node type declares:
 `IrVersions.SUPPORTED` at the same version, so every wire-format decision the decoder makes must have a
 name: if the decoder branches on it, it must be stamped.
 
+**The null carve-out.** A SQL NULL `Constant` stamps `const:null` only, never its type's `ctype:` key:
+no native-representation change can alter what a stored null means, so stamping `ctype:` would
+invalidate definitions such a change cannot affect. Decoding still requires the null's *type* to be
+supported, so a null of a type this build does not support passes the gate and is then rejected on
+deserialization — also a skip, never a misread. Do not close this in the other direction.
+
 **On write** (`VersionAwareMaterializationMetastore.createOrReplace`) `IrVersions.collect` walks
 `children()` from the root and stores the union of every node's `versionEntries()` in
 `RawMaterializationDefinition.irVersions`.
@@ -56,7 +62,7 @@ MV's data reflects the whole defining query.
 
 ### Namespaces
 
-The wire is a flat `Map<String, Integer>`; namespaces keep it collision-free.
+The wire is a flat `Map<String, Integer>`; seven namespaces keep it collision-free.
 
 | Namespace | Versions | Example |
 | --- | --- | --- |
@@ -65,13 +71,20 @@ The wire is a flat `Map<String, Integer>`; namespaces keep it collision-free.
 | `fn:<catalog>.<schema>.<function>` | one `SupportedFunctions` or `SupportedAggregateFunctions` entry's semantics | `"fn:system.builtin.$operator$equal": 1` |
 | `cast:<from>-><to>` | one `SupportedCasts` pair's conversion semantics, by base type name | `"cast:varchar->varchar": 1` |
 | `leaf:<Name>` | a shared leaf serialized form, stamped by `Expression` nodes and by `Aggregation` | `"leaf:Symbol": 1`, `"leaf:Type": 1`, `"leaf:BoundSignature": 1` |
+| `const:<kind>` | one `ConstantValue` kind's payload shape | `"const:timestampWithZone": 1` |
+| `ctype:<baseName>` | this module's belief about one base type's native representation | `"ctype:decimal": 1`, `"ctype:timestamp with time zone": 1` |
 
 An `Operation` stamps its bare name. `Aggregation` also stamps `leaf:Symbol`, `leaf:BoundSignature` when
 it has an aggregate call, and the `fn:` key of each aggregate function it persists. An `Output(TableScan)`
 tree is therefore stamped exactly `{Output, TableScan}`, so plain MVs stay readable by engines that predate
 expressions. An `Expression` stamps `expr:<Name>`;
 `Reference` adds `leaf:Symbol`, `Cast` adds `leaf:Type` and its `cast:` key, `Call` adds
-`leaf:BoundSignature` and its `fn:` key.
+`leaf:BoundSignature` and its `fn:` key, and `Constant` adds `leaf:Type`, its `const:` key and,
+unless it is null, its type's `ctype:` key.
+
+`const:` and `ctype:` version different hazards, and both are needed: `const:` covers a change to a
+kind's JSON payload; `ctype:` covers the engine changing what a type's native value *is* — the most
+dangerous failure here, since a stored `long` would be silently reinterpreted.
 
 `fn:` keys are `"fn:" + CatalogSchemaFunctionName.toString()`. `SupportedFunctions` spells names as the
 engine does (`$operator$EQUAL`), but `CatalogSchemaFunctionName` and `SchemaFunctionName` lowercase
@@ -92,6 +105,10 @@ row incompatible.
 | Add a cast pair to `SupportedCasts` | new `cast:` at 1 | none |
 | A cast pair's conversion semantics change | bump that `cast:` | only MVs persisting that cast |
 | Remove a cast pair | drop the entry | its MVs become incompatible |
+| New constant kind | new `const:` at 1 | none invalidated |
+| Change an existing kind's payload | bump **that** `const:` | only MVs using it |
+| A type's native representation changes | bump that `ctype:` | only MVs with a non-null constant of that type |
+| Admit a new base type to the constant codec | new `ctype:` at 1 | none |
 | Change `Symbol`'s serialized form | bump `leaf:Symbol` **and** `Output` / `TableScan` (both embed `Symbol`s) | expression and aggregation trees via the leaf key; every MV via the bare names |
 | Change `BoundSignature`'s serialized form | bump `leaf:BoundSignature` | only MVs containing a `Call` or an aggregate call |
 | Change the `Type` string form | bump `leaf:Type`, `leaf:Symbol`, `leaf:BoundSignature` **and** `Output` / `TableScan` | effectively everything — `Type` strings are pervasive |
@@ -135,12 +152,12 @@ shape the stored side cannot express is a missed substitution, not a normalizati
 | `Reference` | `Symbol symbol` | `symbol.type()` | — |
 | `Call` | `BoundSignature function`, `List<Expression> arguments` | `function.getReturnType()` | name in `SupportedFunctions`; arity and each argument type match the signature |
 | `Cast` | `Expression expression`, `Type type` | `type` | `(source base, target base)` in `SupportedCasts` |
+| `Constant` | `Type type`, `ConstantValue value` | `type` | `ConstantValues.decode(type, value)` succeeds |
 | `FieldReference` | `Expression base`, `int field` | the field's type | `base` is a `RowType`; `field` in bounds |
 | `Logical` | `Operator operator` (`AND` / `OR`), `List<Expression> terms` | `boolean` | at least two terms, all `boolean` |
 | `In` | `Expression value`, `List<Expression> valueList` | `boolean` | non-empty; every item's type equals `value`'s |
 | `IsNull` | `Expression value` | `boolean` | — |
 
-`Constant` is the next node to land, with its value codec and the JSON-path functions it enables.
 Everything else is deliberately absent:
 
 - **No `Comparison` or `Not` node.** The engine has none: comparisons and `NOT` are `Call`s
@@ -160,6 +177,71 @@ Everything else is deliberately absent:
 - **Aggregate and window functions are not expressions**, here or in the engine. The `Aggregation`
   `Operation` holds scalar `Expression`s as arguments; like the engine's, they are symbol references, and
   lambdas are not persisted yet.
+
+### Constants
+
+A `Constant` persists its `Type` and a `ConstantValue` payload — never the engine's `Block` wire
+format, whose encoding set is config-, CPU- and build-dependent and carries no version, and never SQL
+literal text, which would need a parser at read time and is lossy for `varbinary`, `NaN`, `-0.0` and
+`char` padding. The payload's `kind` is explicit on the wire, so the decoder asserts it equals the kind
+the type dispatches to, and fails loudly, instead of deriving it.
+
+**Dispatch rule.** Mirror the native representation, except where it embeds a bit packing or a
+build-local ordinal table; there, store the semantic fields. A type is supported iff its base name
+*and* its `getJavaType()` holder match a row below — a holder alone never admits a type — and there is
+no fallthrough: anything unmatched is unsupported.
+
+| kind | applies to (holder and base name) | payload |
+| --- | --- | --- |
+| `null` | SQL NULL of any type below, and of `unknown` | `{"kind":"null"}` |
+| `boolean` | `boolean`: `boolean` | `{"kind":"boolean","value":true}` |
+| `long` | `long`: `tinyint`, `smallint`, `integer`, `bigint`, `date`, short `decimal`, `time`, `timestamp(p ≤ 6)`, `interval year to month`, `interval day to second` | `{"kind":"long","value":-42}` |
+| `real` | `long`: `real` | `{"kind":"real","bits":<floatToIntBits>}` |
+| `double` | `double`: `double` | `{"kind":"double","bits":<doubleToLongBits>}` |
+| `bytes` | `Slice`: `varchar`, `char`, `varbinary`, `json`, `uuid`, `ipaddress` | `{"kind":"bytes","base64":"YWJj"}` |
+| `int128` | `Int128`: long `decimal` | `{"kind":"int128","high":-1,"low":-12345}` |
+| `timestamp` | `LongTimestamp`: `timestamp(p > 6)` | `{"kind":"timestamp","epochMicros":…,"picosOfMicro":…}` |
+| `timestampWithZone` | both holders: `timestamp(p) with time zone` | `{"kind":"timestampWithZone","epochMillis":…,"picosOfMilli":…,"zoneId":"America/New_York"}` |
+| `timeWithZone` | both holders: `time(p) with time zone` | `{"kind":"timeWithZone","picoseconds":…,"offsetMinutes":-480}` |
+
+Unsupported: `array`, `map`, `row` and `multiset` (native `Block` / `SqlMap` / `SqlRow`), opaque
+`Slice` types (`hyperloglog`, digests, geometry), `JsonPath` and every other type whose holder is a
+trino-main class, and every plugin type. `ConstantValues.encode` reports them as empty, never by
+throwing, so a producer declines to index the definition. The session-sensitive base types
+(`timestamp with time zone`, `time with time zone`, `char`) are decodable and listed above, but
+`encode` never produces them; see [Folded session-sensitive constants](#safety-model).
+
+Details the codec pins, with a golden fixture per kind:
+
+- `double` and `real` store canonical bits (`doubleToLongBits`, `floatToIntBits`), which represent
+  `NaN`, `±Inf` and `-0.0` exactly. A `double` `NaN` with a non-canonical payload is stored as the
+  canonical `NaN`, which `Double.equals` treats as the same value; a `real` is natively a `long`, so one
+  whose bits are a non-canonical `NaN` does not round-trip and is not encoded. `real` has its own kind
+  so it can never be read as an arithmetic `long`, and decodes sign-extended, as `RealType` requires.
+- Both `timestamp with time zone` forms store the zone by `TimeZoneKey.getId()`, never by the key
+  ordinal, which comes from a build-local table. The short form stores `picosOfMilli = 0`.
+- Both `time with time zone` forms store picoseconds of day and a signed offset; the packed short form
+  is unpacked.
+- `bytes` are the raw slice bytes, with no UTF-8 validation and no second representation (a `uuid`
+  is not converted to its string form). What the bytes stand for is pinned in
+  `TestConstantEncodingPins` (and its trino-main twin for `json` / `ipaddress`): UTF-8 for `varchar` and
+  `json`, the bytes themselves for `varbinary`, big-endian bytes with the most significant bits first for
+  `uuid`, and 16 network-order bytes with IPv4 in its mapped form for `ipaddress`.
+- `decode` enforces each type's domain before building the native value: 16 bytes for `uuid` and
+  `ipaddress`, the code-point length bound of `char(n)` and `varchar(n)`, no trailing space in a
+  `char`, decimal precision, the integer ranges of `tinyint` / `smallint` / `integer` / `date` /
+  `interval year to month`, picoseconds within a day, `offsetMinutes` within the packed 11-bit range,
+  and every value a multiple of its precision's unit. The representable `epochMillis` range of a
+  `timestamp with time zone` is left to trino-spi, which enforces it at construction.
+- Decode failures name the type and the kind, with a short reason, never the value: a trino-spi message
+  that quotes the value is replaced, and not chained as a cause.
+
+`Constant`'s constructor decodes its payload, so a payload this build cannot decode fails inside
+deserialization and the row is skipped, rather than failing later inside the matcher.
+
+**When a type's native representation changes** (`TestConstantEncodingPins` fails): bump its entry in
+`ConstantValues`' encoding versions, which is its `ctype:` key, teach the codec the new form, and
+update the pin and the affected fixtures. Never just update the pin.
 
 ### Symbol names are bindings, not identities
 
@@ -232,6 +314,37 @@ is never validated.
   Stamping the creating session's time zone and char/varchar coercion mode into the definition would
   lift both exclusions; it needs a new `RawMaterializationDefinition` field.
 
+**Folded session-sensitive constants are not produced.** The optimizer folds a coerced literal into a
+`Constant` before the definition is extracted, leaving no `Cast` for the exclusions above to see. For
+`timestamp with time zone`, `time with time zone` and `char(n)` the folded value depends on the planning
+session: `tstz_col < TIMESTAMP '2020-01-01 00:00:00'` folds the literal under the session time zone, and
+`char_col = 'abc'` folds it to a `char(n)` constant under either `legacy_varchar_to_char_coercion` mode
+(under `SQL_STANDARD` the optimizer removes the column-side cast for `=`, `<>` and `IS NOT DISTINCT FROM`;
+an ordering comparison keeps a `char -> varchar` cast, which `SupportedCasts` excludes). An MV's rows may
+have been written by sessions with other settings, so a constant resolved under the planning session
+cannot be assumed to agree with them. `ConstantValues.encode` therefore returns empty for these three base
+types, null values included, and a producer declines to index a definition that holds such a constant.
+Cost: a predicate comparing a time-zone-bearing or `char` column to a literal is not indexable.
+
+The rejection is by type. Constants of other types can also derive from the planning session and are
+encoded: a `timestamp` or `date` constant the optimizer leaves when it removes the cast from a `timestamp`
+or `date` column compared with a `timestamp with time zone` literal, and the value a session function such
+as `current_user` or `current_date` folds to. They are correct only while the extracting session agrees
+with the sessions that wrote the stored rows (ENG-27908).
+
+Lifting the rejection requires enforcing that the session that extracts a definition equals the session
+that wrote the stored rows (tracked in ENG-27908). `decode`, the payload kinds and the `ctype:` keys for
+these types are part of the format, so lifting it changes `encode` only.
+
+**The un-fold exception.** Normalization is never baked into the persisted format, with exactly one
+named exception, which is a representability workaround: a folded `Constant` whose native holder is a
+trino-main class cannot cross this module's dependency boundary, so it is persisted un-folded, as
+`Cast(Constant(varchar, sourceText), <type>)`. The only such type admitted is `JsonPath`, the path
+argument of `json_extract_scalar` / `json_extract`, and there the un-fold is exact: a `JsonPath` keeps
+its source text, and the `varchar -> JsonPath` cast is deterministic and session-independent, so
+re-evaluating it reproduces the identical value. A matcher un-folds or re-folds both sides alike.
+Admitting any other such type needs the same exactness argument, written down first.
+
 The persisted format needs no canonical byte form, since nothing hashes or compares stored bytes:
 validating constructors and [required primitives](#primitive-components-are-required) make a malformed
 document unreadable, and the metastore is a trusted store. Tamper evidence, if ever added, is a
@@ -248,6 +361,12 @@ signature over the stored bytes.
   session-independent, and pin its name in trino-main's `TestSupportedNames`.
 - **Cast pair:** add it to `SupportedCasts` at version 1, never in an excluded family, and pin it in
   trino-main's `TestSupportedNames`.
+- **Constant type:** add the base name to `ConstantValues`' dispatch and encoding versions (a new
+  `ctype:` at 1, and a new `ConstantValue` kind with its `const:` key only if no existing payload
+  fits), a pin row in `TestConstantEncodingPins` (and a meaning row if its holder carries a unit, scale,
+  packing or byte format), boundary and domain-rejection rows in `TestConstantValues`, and, for a new kind, a
+  golden fixture. A type whose constants depend on a session setting is also added to
+  `ConstantValues.SESSION_SENSITIVE_BASE_TYPES`.
 
 ### Primitive components are required
 

@@ -20,7 +20,8 @@
  * reader makes is stamped as a name in {@link io.starburst.materialization.ir.IrVersions}, and a stored definition
  * is read only if this build supports every stamped name at the stamped version. Which functions and casts may be
  * persisted is decided by {@link io.starburst.materialization.ir.SupportedFunctions} and
- * {@link io.starburst.materialization.ir.SupportedCasts}. Constructors validate eagerly, so an invalid tree can be
+ * {@link io.starburst.materialization.ir.SupportedCasts}; which constant values may be persisted, and in what form,
+ * by {@link io.starburst.materialization.ir.ConstantValues}. Constructors validate eagerly, so an invalid tree can be
  * neither built nor deserialized.
  * <p>
  * Symbol names are engine-generated bindings within one tree, never identities to compare against a query plan.
