@@ -36,6 +36,7 @@ import java.util.List;
 import static com.google.common.base.Strings.repeat;
 import static io.trino.operator.gpu.GpuTestUtils.TESTED_GPU_TYPES;
 import static io.trino.spi.type.DecimalType.createDecimalType;
+import static java.lang.Math.floorMod;
 import static java.lang.String.format;
 import static java.util.Locale.ENGLISH;
 import static java.util.stream.Collectors.joining;
@@ -44,6 +45,8 @@ import static java.util.stream.Collectors.joining;
 ///
 /// - {@code row_id}: unique
 /// - {@code partition_rank}, {@code order_rank}, {@code argument_rank}: ranks, NULL for NULL
+/// - {@code second_partition_rank}, {@code second_order_rank}: ranks of the second keys, which subdivide partitions
+///   and peer groups
 /// - {@code start_offset}, {@code end_offset}: frame offsets
 ///
 /// The table holds each key rank as a value of every tested GPU type, and the argument rank as a value of every
@@ -51,7 +54,8 @@ import static java.util.stream.Collectors.joining;
 /// {@link #withOrderKey(Type)}, with columns:
 ///
 /// - {@code row_id}, {@code start_offset}, {@code end_offset}
-/// - {@code partition_key}: of the key type next to the order key type
+/// - {@code partition_key}, {@code second_partition_key}, {@code second_order_key}: of other key types, see
+///   {@link #partitionKeyType(Type)}, {@link #secondPartitionKeyType(Type)} and {@link #secondOrderKeyType(Type)}
 /// - {@code order_key}: of the order key type
 /// - {@code argument_<type>}: of each argument type, such as {@code argument_decimal_38_6}
 enum GpuWindowTable
@@ -65,6 +69,8 @@ enum GpuWindowTable
                 IF(partition_number = 4, NULL, partition_number) AS partition_rank,
                 IF(row_index >= partition_size - 2, NULL, CAST(floor(sqrt(row_index)) AS bigint)) AS order_rank,
                 IF(row_index % 3 = 1, NULL, IF(row_index % 2 = 0, -1, 1) * (row_index * 7919 % 100003)) AS argument_rank,
+                IF(row_index % 4 = 3, NULL, row_index % 2) AS second_partition_rank,
+                IF(row_index % 5 = 4, NULL, row_index % 2) AS second_order_rank,
                 row_index % 3 AS start_offset,
                 (row_index + 1) % 3 AS end_offset
             FROM UNNEST(ARRAY[1, 2, 3, 5, 8, 13]) WITH ORDINALITY partitions(partition_size, partition_number)
@@ -88,6 +94,8 @@ enum GpuWindowTable
                     ELSE row_index / 10
                 END AS order_rank,
                 IF(partition_number = 1 OR (row_index / 10) % 3 = 1 OR row_index % 7 = 0, NULL, row_index) AS argument_rank,
+                IF(row_index % 13 = 0, NULL, row_index % 2) AS second_partition_rank,
+                IF(row_index % 5 = 0, NULL, row_index % 3) AS second_order_rank,
                 1 AS start_offset,
                 1 AS end_offset
             FROM UNNEST(ARRAY[20, 40, 30, 10, 20, 50, 5000]) WITH ORDINALITY partitions(partition_size, partition_number)
@@ -102,6 +110,8 @@ enum GpuWindowTable
                 BIGINT '0' AS partition_rank,
                 BIGINT '0' AS order_rank,
                 BIGINT '1' AS argument_rank,
+                BIGINT '0' AS second_partition_rank,
+                BIGINT '0' AS second_order_rank,
                 BIGINT '1' AS start_offset,
                 BIGINT '1' AS end_offset
             """),
@@ -114,6 +124,8 @@ enum GpuWindowTable
                 CAST(NULL AS bigint) AS partition_rank,
                 CAST(NULL AS bigint) AS order_rank,
                 CAST(NULL AS bigint) AS argument_rank,
+                CAST(NULL AS bigint) AS second_partition_rank,
+                CAST(NULL AS bigint) AS second_order_rank,
                 row_index % 3 AS start_offset,
                 (row_index + 1) % 3 AS end_offset
             FROM UNNEST(sequence(0, 19)) partition_rows(row_index)
@@ -126,6 +138,8 @@ enum GpuWindowTable
                 BIGINT '0' AS partition_rank,
                 BIGINT '0' AS order_rank,
                 BIGINT '0' AS argument_rank,
+                BIGINT '0' AS second_partition_rank,
+                BIGINT '0' AS second_order_rank,
                 BIGINT '0' AS start_offset,
                 BIGINT '0' AS end_offset
             WHERE false
@@ -161,7 +175,22 @@ enum GpuWindowTable
     /// The view of the table with {@code partition_key} of the type
     String withPartitionKey(Type partitionKeyType)
     {
-        return withOrderKey(TESTED_GPU_TYPES.get((TESTED_GPU_TYPES.indexOf(partitionKeyType) + TESTED_GPU_TYPES.size() - 1) % TESTED_GPU_TYPES.size()));
+        return withOrderKey(keyType(partitionKeyType, -1));
+    }
+
+    static Type partitionKeyType(Type orderKeyType)
+    {
+        return keyType(orderKeyType, 1);
+    }
+
+    static Type secondPartitionKeyType(Type orderKeyType)
+    {
+        return keyType(orderKeyType, 2);
+    }
+
+    static Type secondOrderKeyType(Type orderKeyType)
+    {
+        return keyType(orderKeyType, -2);
     }
 
     void create(QueryRunner queryRunner)
@@ -170,6 +199,8 @@ enum GpuWindowTable
         for (Type type : TESTED_GPU_TYPES) {
             columns.append(format(",\n%s AS %s", value(type, "partition_rank"), name("partition_key", type)));
             columns.append(format(",\n%s AS %s", value(type, "order_rank"), name("order_key", type)));
+            columns.append(format(",\n%s AS %s", value(type, "second_partition_rank"), name("second_partition_key", type)));
+            columns.append(format(",\n%s AS %s", value(type, "second_order_rank"), name("second_order_key", type)));
         }
         for (Type type : ARGUMENT_TYPES) {
             columns.append(format(",\n%s AS %s", value(type, "argument_rank"), name("argument", type)));
@@ -191,15 +222,25 @@ enum GpuWindowTable
                 shape.indent(4)));
 
         for (Type orderKeyType : TESTED_GPU_TYPES) {
-            Type partitionKeyType = TESTED_GPU_TYPES.get((TESTED_GPU_TYPES.indexOf(orderKeyType) + 1) % TESTED_GPU_TYPES.size());
             queryRunner.execute(format(
-                    "CREATE VIEW %s AS SELECT row_id, %s AS partition_key, %s AS order_key, %s, start_offset, end_offset FROM %s",
+                    """
+                    CREATE VIEW %s AS
+                    SELECT row_id, %s AS partition_key, %s AS order_key, %s AS second_partition_key, %s AS second_order_key, %s, start_offset, end_offset
+                    FROM %s
+                    """,
                     withOrderKey(orderKeyType),
-                    name("partition_key", partitionKeyType),
+                    name("partition_key", partitionKeyType(orderKeyType)),
                     name("order_key", orderKeyType),
+                    name("second_partition_key", secondPartitionKeyType(orderKeyType)),
+                    name("second_order_key", secondOrderKeyType(orderKeyType)),
                     ARGUMENT_TYPES.stream().map(type -> name("argument", type)).collect(joining(", ")),
                     tableName()));
         }
+    }
+
+    private static Type keyType(Type type, int offset)
+    {
+        return TESTED_GPU_TYPES.get(floorMod(TESTED_GPU_TYPES.indexOf(type) + offset, TESTED_GPU_TYPES.size()));
     }
 
     private static String name(String prefix, Type type)

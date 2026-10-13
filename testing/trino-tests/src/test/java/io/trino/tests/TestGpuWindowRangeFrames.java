@@ -198,9 +198,29 @@ final class TestGpuWindowRangeFrames
                 .executesWithoutGpu();
     }
 
+    @ParameterizedTest(name = "{0} {1} {2} {3}")
+    @MethodSource("aggregationsOrderKeyTypesAndOrderingPairs")
+    void testMultipleKeys(String function, Type orderKeyType, String ordering, String secondOrdering)
+    {
+        // The second keys subdivide partitions and peer groups
+        assertThat(query(
+                """
+                SELECT
+                    row_id,
+                    %1$s OVER (PARTITION BY partition_key, second_partition_key ORDER BY order_key %3$s, second_order_key %4$s)
+                FROM %2$s
+                """.formatted(function, TIES.withOrderKey(orderKeyType), ordering, secondOrdering)))
+                .executesAllWithGpu(WindowNode.class);
+    }
+
     static Stream<Arguments> aggregationsOrderKeyTypesAndOrderings()
     {
         return cartesianProduct(AGGREGATIONS, TESTED_GPU_TYPES, ORDERINGS);
+    }
+
+    static Stream<Arguments> aggregationsOrderKeyTypesAndOrderingPairs()
+    {
+        return cartesianProduct(AGGREGATIONS, TESTED_GPU_TYPES, ORDERINGS, ORDERINGS);
     }
 
     static Stream<Arguments> aggregationsAndKeyTypes()

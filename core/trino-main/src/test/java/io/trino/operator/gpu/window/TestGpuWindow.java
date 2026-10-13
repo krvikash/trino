@@ -148,19 +148,6 @@ final class TestGpuWindow
     }
 
     @ParameterizedTest
-    @MethodSource("fourColumnsWithNullProviderAndSortOrder")
-    void testMultiColumnKeys(WindowFunctionTestCase testCase, NullsProvider nullsProvider, SortOrder firstSortOrder, SortOrder secondSortOrder)
-    {
-        assertGpuWindowMatchesCpu(
-                createPages(testCase.sourceTypes(), nullsProvider, 1, POSITION_COUNT),
-                testCase.sourceTypes(),
-                new int[] {0, 1},
-                new int[] {2, 3},
-                List.of(firstSortOrder, secondSortOrder),
-                List.of(testCase.function()));
-    }
-
-    @ParameterizedTest
     @MethodSource("twoColumns")
     void testMultipleInputPages(WindowFunctionTestCase testCase)
     {
@@ -207,36 +194,6 @@ final class TestGpuWindow
                 new int[] {1},
                 List.of(ASC_NULLS_LAST),
                 List.of(BoundTestedWindowFunction.of(function, argumentChannels)));
-    }
-
-    @Test
-    void testRankBreaksPeersOnSecondOrderKey()
-    {
-        assertGpuWindowMatchesCpu(
-                List.of(new Page(
-                        createLongsBlock(1L, 1L, 1L, 1L),
-                        createLongsBlock(10L, 10L, 10L, 20L),
-                        createLongsBlock(3L, 1L, 2L, 1L))),
-                List.of(BIGINT, BIGINT, BIGINT),
-                new int[] {0},
-                new int[] {1, 2},
-                List.of(ASC_NULLS_LAST, ASC_NULLS_LAST),
-                List.of(BoundTestedWindowFunction.of("rank"), BoundTestedWindowFunction.of("dense_rank")));
-    }
-
-    @Test
-    void testRankGroupsRowsWithEqualOrderKeyTuple()
-    {
-        assertGpuWindowMatchesCpu(
-                List.of(new Page(
-                        createLongsBlock(1L, 1L, 1L, 1L, 2L, 2L),
-                        createLongsBlock(10L, 10L, 20L, 20L, 10L, 10L),
-                        createLongsBlock(5L, 5L, 7L, 8L, 1L, 1L))),
-                List.of(BIGINT, BIGINT, BIGINT),
-                new int[] {0},
-                new int[] {1, 2},
-                List.of(ASC_NULLS_LAST, ASC_NULLS_LAST),
-                List.of(BoundTestedWindowFunction.of("rank"), BoundTestedWindowFunction.of("dense_rank")));
     }
 
     @ParameterizedTest
@@ -555,17 +512,6 @@ final class TestGpuWindow
     static Stream<WindowFunctionTestCase> twoColumns()
     {
         return allTypesAndFunctionsTestCases(2).stream();
-    }
-
-    static Stream<Object[]> fourColumnsWithNullProviderAndSortOrder()
-    {
-        return Lists.cartesianProduct(
-                        allTypesAndFunctionsTestCases(4),
-                        ImmutableList.copyOf(NullsProvider.values()),
-                        ImmutableList.copyOf(SortOrder.values()),
-                        ImmutableList.copyOf(SortOrder.values()))
-                .stream()
-                .map(List::toArray);
     }
 
     private static List<WindowFunctionTestCase> allTypesAndFunctionsTestCases(int channelCount)

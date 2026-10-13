@@ -39,6 +39,7 @@ import static io.trino.tests.GpuWindowTable.EMPTY;
 import static io.trino.tests.GpuWindowTable.MIXED;
 import static io.trino.tests.GpuWindowTable.SINGLE_ROW;
 import static io.trino.tests.GpuWindowTable.TIES;
+import static io.trino.tests.GpuWindowTable.secondOrderKeyType;
 import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.joining;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -157,6 +158,28 @@ final class TestGpuWindowFrameIndependentFunctions
                 .executesWithoutGpu();
     }
 
+    @ParameterizedTest(name = "{0} {1} {2} {3}")
+    @MethodSource("rankingFunctionsOrderKeyTypesAndOrderingPairs")
+    void testMultipleKeys(String function, Type orderKeyType, String ordering, String secondOrdering)
+    {
+        // The second keys subdivide partitions and peer groups
+        String sql =
+                """
+                SELECT
+                    row_id,
+                    %1$s OVER (PARTITION BY partition_key, second_partition_key ORDER BY order_key %3$s, second_order_key %4$s%5$s)
+                FROM %2$s
+                """.formatted(function, TIES.withOrderKey(orderKeyType), ordering, secondOrdering, tieBreaker(function));
+        if (PEER_RANKING_FUNCTIONS.contains(function) && (orderKeyType.equals(VARBINARY) || secondOrderKeyType(orderKeyType).equals(VARBINARY))) {
+            assertThat(query(sql))
+                    .executesWithoutGpu();
+        }
+        else {
+            assertThat(query(sql))
+                    .executesAllWithGpu(WindowNode.class);
+        }
+    }
+
     @ParameterizedTest(name = "{0} {1} {2}")
     @MethodSource("tablesOrderKeyTypesAndOrderings")
     void testAllFunctions(GpuWindowTable table, Type orderKeyType, String ordering)
@@ -184,6 +207,14 @@ final class TestGpuWindowFrameIndependentFunctions
         return Stream.of(
                         cartesianProduct(PEER_RANKING_FUNCTIONS, tables, withoutVarbinary(TESTED_GPU_TYPES), ORDERINGS),
                         cartesianProduct(POSITION_RANKING_FUNCTIONS, tables, TESTED_GPU_TYPES, ORDERINGS))
+                .flatMap(identity());
+    }
+
+    static Stream<Arguments> rankingFunctionsOrderKeyTypesAndOrderingPairs()
+    {
+        return Stream.of(
+                        cartesianProduct(PEER_RANKING_FUNCTIONS, TESTED_GPU_TYPES, ORDERINGS, ORDERINGS),
+                        cartesianProduct(POSITION_RANKING_FUNCTIONS, TESTED_GPU_TYPES, ORDERINGS, ORDERINGS))
                 .flatMap(identity());
     }
 
