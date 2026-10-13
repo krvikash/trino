@@ -23,6 +23,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class TestOAuthEndpointSsrfFilter
 {
     private final OAuthEndpointSsrfFilter filter = new OAuthEndpointSsrfFilter(new SsrfEgressOAuthServerUrlValidator());
+    private final OAuthEndpointSsrfFilter httpAllowedFilter = new OAuthEndpointSsrfFilter(new HttpAllowingOAuthServerUrlValidator());
 
     @Test
     void rejectsInternalLiteralHost()
@@ -44,6 +45,32 @@ class TestOAuthEndpointSsrfFilter
         assertThatThrownBy(() -> filter.filterRequest(request("http://8.8.8.8/token")))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Only HTTPS URLs are allowed.")
+                .hasCauseInstanceOf(RejectedUrlException.class);
+    }
+
+    @Test
+    void allowsHttpWhenConfigured()
+    {
+        assertThatCode(() -> httpAllowedFilter.filterRequest(request("http://8.8.8.8/token")))
+                .doesNotThrowAnyException();
+        assertThatCode(() -> httpAllowedFilter.filterRequest(request("http://8.8.8.8:8080/token")))
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    void rejectsInternalHostWhenHttpAllowed()
+    {
+        assertThatThrownBy(() -> httpAllowedFilter.filterRequest(request("http://169.254.169.254/token")))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("URL is invalid or blocked.")
+                .hasCauseInstanceOf(RejectedUrlException.class);
+        assertThatThrownBy(() -> httpAllowedFilter.filterRequest(request("https://10.0.0.1/token")))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("URL is invalid or blocked.")
+                .hasCauseInstanceOf(RejectedUrlException.class);
+        assertThatThrownBy(() -> httpAllowedFilter.filterRequest(request("http://localhost/token")))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("URL must have a valid host.")
                 .hasCauseInstanceOf(RejectedUrlException.class);
     }
 

@@ -62,16 +62,10 @@ class TestOpenAiConnectionInfoValidation
     }
 
     @Test
-    void rejectsNonHttpsTokenUrl()
+    void acceptsHttpTokenUrl()
     {
-        assertThatThrownBy(() -> newOAuth2Config("http://idp.example/token"))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("https");
-
-        // http://localhost is no longer accepted; the token request carries the client secret.
-        assertThatThrownBy(() -> newOAuth2Config("http://localhost:9000/token"))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("https");
+        assertThatCode(() -> newOAuth2Config("http://idp.example/token"))
+                .doesNotThrowAnyException();
     }
 
     @Test
@@ -83,6 +77,9 @@ class TestOpenAiConnectionInfoValidation
         assertThatThrownBy(() -> newOAuth2Config("https:///token"))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("scheme and host");
+        assertThatThrownBy(() -> newOAuth2Config("ftp://idp.example/token"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("must use http:// or https://");
     }
 
     @Test
@@ -189,24 +186,15 @@ class TestOpenAiConnectionInfoValidation
     }
 
     @Test
-    void rejectsHttpEndpointAlongsideOAuth2UnlessLocalhost()
+    void acceptsHttpEndpoint()
     {
-        assertThatThrownBy(() -> new OpenAiConnectionInfo(
-                Optional.of("http://llm.example/v1"),
-                Optional.empty(),
-                ImmutableMap.of(),
-                Optional.of(VALID_OAUTH2)))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("endpoint must use https://");
-
         assertThatCode(() -> new OpenAiConnectionInfo(
-                Optional.of("http://localhost:9000/v1"),
+                Optional.of("http://llm.example/v1"),
                 Optional.empty(),
                 ImmutableMap.of(),
                 Optional.of(VALID_OAUTH2)))
                 .doesNotThrowAnyException();
 
-        // The endpoint scheme is only constrained when a bearer token is sent to it.
         assertThatCode(() -> new OpenAiConnectionInfo(
                 Optional.of("http://llm.example/v1"),
                 Optional.of("sk-abc"),

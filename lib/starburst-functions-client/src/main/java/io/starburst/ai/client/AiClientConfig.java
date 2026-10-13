@@ -38,6 +38,7 @@ public class AiClientConfig
     private Duration oauth2RefreshSkew = new Duration(60, TimeUnit.SECONDS);
     private Duration oauthTokenCacheDuration = new Duration(30, TimeUnit.MINUTES);
     private int oauth2MaxCachedTokens = 1000;
+    private boolean oauth2AllowHttp;
     private boolean tracingIncludeMessagesEnabled;
 
     @NotNull
@@ -261,6 +262,20 @@ public class AiClientConfig
     public AiClientConfig setOauth2MaxCachedTokens(int oauth2MaxCachedTokens)
     {
         this.oauth2MaxCachedTokens = oauth2MaxCachedTokens;
+        return this;
+    }
+
+    public boolean isOauth2AllowHttp()
+    {
+        return oauth2AllowHttp;
+    }
+
+    @Config("ai.client.oauth.allow-http")
+    @ConfigDescription("Allow OAuth2 token URLs and OAuth2-authenticated model endpoints to use http://. " +
+            "Client secrets and access tokens are then sent in cleartext; enable only on a trusted network.")
+    public AiClientConfig setOauth2AllowHttp(boolean oauth2AllowHttp)
+    {
+        this.oauth2AllowHttp = oauth2AllowHttp;
         return this;
     }
 

@@ -37,6 +37,7 @@ import io.starburst.ai.model.LanguageModelConnectionSpec;
 import io.trino.spi.TrinoException;
 
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.Optional;
@@ -77,6 +78,7 @@ public class OpenAiClientFactory
     private final OAuth2TokenCache oauth2TokenCache;
     private final Tracer tracer;
     private final boolean includeMessagesInTracing;
+    private final boolean oauth2AllowHttp;
 
     @Inject
     public OpenAiClientFactory(
@@ -96,6 +98,7 @@ public class OpenAiClientFactory
         this.oauth2TokenCache = requireNonNull(oauth2TokenCache, "oauth2TokenCache is null");
         this.tracer = requireNonNull(tracer, "tracer is null");
         this.includeMessagesInTracing = config.isTracingIncludeMessagesEnabled();
+        this.oauth2AllowHttp = config.isOauth2AllowHttp();
     }
 
     @Override
@@ -169,6 +172,30 @@ public class OpenAiClientFactory
         return new OpenAiEmbeddingModelClient(modelName, spec.dimensions(), createOpenAiClient(spec.id(), updatedConnectionInfo, azureOpenAiConnectionInfo));
     }
 
+    private static void validateOAuth2Endpoint(String endpoint, boolean allowHttp)
+    {
+        URI uri;
+        try {
+            uri = new URI(endpoint);
+        }
+        catch (URISyntaxException e) {
+            throw new TrinoException(INVALID_MODEL_CONFIGURATION, "OAuth2 model endpoint is not a valid URI", e);
+        }
+        if (uri.getScheme() == null || uri.getHost() == null) {
+            throw new TrinoException(INVALID_MODEL_CONFIGURATION, "OAuth2 model endpoint must include a scheme and host");
+        }
+        if ("https".equalsIgnoreCase(uri.getScheme())) {
+            return;
+        }
+        if (!"http".equalsIgnoreCase(uri.getScheme())) {
+            throw new TrinoException(INVALID_MODEL_CONFIGURATION, "OAuth2 model endpoint must use http:// or https://");
+        }
+        boolean isLocalhost = "localhost".equalsIgnoreCase(uri.getHost()) || "127.0.0.1".equals(uri.getHost());
+        if (!allowHttp && !isLocalhost) {
+            throw new TrinoException(INVALID_MODEL_CONFIGURATION, "OAuth2 model endpoint must use https:// (http:// is allowed only for localhost unless ai.client.oauth.allow-http is enabled)");
+        }
+    }
+
     private static String providerName(Optional<AzureOpenAiConnectionInfo> azureOpenAiConnectionInfo)
     {
         return azureOpenAiConnectionInfo.isPresent() ? PROVIDER_NAME_AZURE_OPENAI : PROVIDER_NAME_OPENAI;
@@ -194,6 +221,7 @@ public class OpenAiClientFactory
             if (oauthNotSupported) {
                 throw new TrinoException(INVALID_MODEL_CONFIGURATION, "OAuth2 is not supported for Azure OpenAI deployment endpoints; use apiKey. OAuth2 is supported for the Azure Foundry Responses API endpoint shape.");
             }
+            connectionInfo.endpoint().ifPresent(endpoint -> validateOAuth2Endpoint(endpoint, oauth2AllowHttp));
             String bearer = oauth2TokenCache.accessToken(modelId, resolveOAuth2Secrets(connectionInfo.oauthConfig().get(), secretsResolver));
             // credential() sets the Authorization header; a header set via putAllHeaders() below would take
             // precedence at build() time, but additionalHeaders() can never contain "Authorization" here

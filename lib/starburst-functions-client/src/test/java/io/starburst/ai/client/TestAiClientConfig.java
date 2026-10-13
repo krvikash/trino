@@ -45,6 +45,7 @@ public class TestAiClientConfig
                 .setOauth2RefreshSkew(new Duration(60, TimeUnit.SECONDS))
                 .setOauthTokenCacheDuration(new Duration(30, TimeUnit.MINUTES))
                 .setOauth2MaxCachedTokens(1000)
+                .setOauth2AllowHttp(false)
                 .setTracingIncludeMessagesEnabled(false));
     }
 
@@ -68,6 +69,7 @@ public class TestAiClientConfig
                 .put("ai.client.oauth.refresh-skew", "2m")
                 .put("ai.client.oauth.token-cache-duration", "12m")
                 .put("ai.client.oauth.max-cached-tokens", "500")
+                .put("ai.client.oauth.allow-http", "true")
                 .put("ai.client.tracing.include-messages", "true")
                 .buildOrThrow();
         AiClientConfig expected = new AiClientConfig()
@@ -87,6 +89,7 @@ public class TestAiClientConfig
                 .setOauth2RefreshSkew(new Duration(2, TimeUnit.MINUTES))
                 .setOauthTokenCacheDuration(new Duration(12, TimeUnit.MINUTES))
                 .setOauth2MaxCachedTokens(500)
+                .setOauth2AllowHttp(true)
                 .setTracingIncludeMessagesEnabled(true);
 
         assertFullMapping(properties, expected);

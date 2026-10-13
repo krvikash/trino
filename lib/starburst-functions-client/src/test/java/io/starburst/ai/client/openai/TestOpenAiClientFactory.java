@@ -202,4 +202,65 @@ public class TestOpenAiClientFactory
                 .isInstanceOf(TrinoException.class)
                 .hasMessageContaining("OAuth2 is not supported for Azure OpenAI deployment endpoints");
     }
+
+    @Test
+    void testOAuth2HttpEndpointRejectedUnlessAllowed()
+    {
+        assertThatThrownBy(() -> createLanguageModelClient(new AiClientConfig(), "http://llm.example.com/v1"))
+                .isInstanceOf(TrinoException.class)
+                .hasMessageContaining("OAuth2 model endpoint must use https://");
+
+        // Passing validation reaches the token fetch, which the test OAuth2TokenCache refuses
+        assertThatThrownBy(() -> createLanguageModelClient(new AiClientConfig(), "http://localhost:1234/v1"))
+                .hasMessageNotContaining("OAuth2 model endpoint must use https://");
+        assertThatThrownBy(() -> createLanguageModelClient(new AiClientConfig().setOauth2AllowHttp(true), "http://llm.example.com/v1"))
+                .hasMessageNotContaining("OAuth2 model endpoint must use https://");
+        assertThatThrownBy(() -> createLanguageModelClient(new AiClientConfig().setOauth2AllowHttp(true), "ftp://llm.example.com/v1"))
+                .isInstanceOf(TrinoException.class)
+                .hasMessageContaining("OAuth2 model endpoint must use http:// or https://");
+        assertThatThrownBy(() -> createLanguageModelClient(new AiClientConfig(), "https:///v1"))
+                .isInstanceOf(TrinoException.class)
+                .hasMessageContaining("OAuth2 model endpoint must include a scheme and host");
+        assertThatThrownBy(() -> createLanguageModelClient(new AiClientConfig().setOauth2AllowHttp(true), "http:///v1"))
+                .isInstanceOf(TrinoException.class)
+                .hasMessageContaining("OAuth2 model endpoint must include a scheme and host");
+    }
+
+    private static void createLanguageModelClient(AiClientConfig aiClientConfig, String endpoint)
+    {
+        SecretsResolver secretsResolver = new SecretsResolver(ImmutableMap.of("env", new EnvironmentVariableSecretProvider()));
+        OpenAiClientFactory factory = new OpenAiClientFactory(
+                secretsResolver,
+                aiClientConfig,
+                directExecutor(),
+                new JsonMapperProvider().get(),
+                TestingUtils.createTestOAuth2TokenCache(aiClientConfig),
+                OpenTelemetry.noop().getTracer("test"));
+        OAuth2Config oauthConfig = new OAuth2Config(
+                OAuth2GrantType.CLIENT_CREDENTIALS,
+                "https://idp.example.com/token",
+                "client-id",
+                "${ENV:CLIENT_SECRET}",
+                Optional.empty(),
+                Optional.empty());
+        OpenAiConnectionInfo connectionInfo = new OpenAiConnectionInfo(
+                Optional.of(endpoint),
+                Optional.empty(),
+                Map.of(),
+                Optional.of(oauthConfig));
+        LanguageModelConnectionSpec spec = new LanguageModelConnectionSpec(
+                "model",
+                "gpt-4o-mini",
+                Optional.empty(),
+                Optional.empty(),
+                Optional.empty(),
+                Optional.empty(),
+                false,
+                Optional.empty(),
+                Map.of(),
+                connectionInfo,
+                false,
+                Optional.empty());
+        factory.createLanguageModelClient(spec, connectionInfo, new StaticPromptDao(), TokenUsageListener.NOOP);
+    }
 }

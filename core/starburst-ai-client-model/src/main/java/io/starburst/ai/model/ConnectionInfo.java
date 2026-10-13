@@ -69,8 +69,6 @@ public sealed interface ConnectionInfo
                         throw new IllegalArgumentException("Authorization header cannot be set in additionalHeaders when oauthConfig is configured");
                     }
                 }
-                endpoint.filter(value -> !value.isBlank())
-                        .ifPresent(value -> validateHttpsOrLocalhostUrl("endpoint", value));
             }
         }
     }
@@ -163,41 +161,20 @@ public sealed interface ConnectionInfo
         }
     }
 
-    static void validateHttpsOrLocalhostUrl(String name, String url)
-    {
-        URI uri = parseUrl(name, url);
-        String lowerScheme = uri.getScheme().toLowerCase(Locale.ROOT);
-        String lowerHost = uri.getHost().toLowerCase(Locale.ROOT);
-        if (lowerScheme.equals("https")) {
-            return;
-        }
-        if (lowerScheme.equals("http") && (lowerHost.equals("localhost") || lowerHost.equals("127.0.0.1"))) {
-            return;
-        }
-        throw new IllegalArgumentException(name + " must use https:// (http:// is allowed only for localhost): " + url);
-    }
-
-    // Does not resolve the URL or check for internal addresses
     private static void validateTokenUrl(String tokenUrl)
-    {
-        URI uri = parseUrl("oauthConfig.tokenUrl", tokenUrl);
-        if (!uri.getScheme().equalsIgnoreCase("https")) {
-            throw new IllegalArgumentException("oauthConfig.tokenUrl must use https://: " + tokenUrl);
-        }
-    }
-
-    private static URI parseUrl(String name, String url)
     {
         URI uri;
         try {
-            uri = new URI(url);
+            uri = new URI(tokenUrl);
         }
         catch (URISyntaxException e) {
-            throw new IllegalArgumentException(name + " is not a valid URI: " + url, e);
+            throw new IllegalArgumentException("oauthConfig.tokenUrl is not a valid URI: " + tokenUrl, e);
         }
         if (uri.getScheme() == null || uri.getHost() == null) {
-            throw new IllegalArgumentException(name + " must include a scheme and host: " + url);
+            throw new IllegalArgumentException("oauthConfig.tokenUrl must include a scheme and host: " + tokenUrl);
         }
-        return uri;
+        if (!uri.getScheme().equalsIgnoreCase("https") && !uri.getScheme().equalsIgnoreCase("http")) {
+            throw new IllegalArgumentException("oauthConfig.tokenUrl must use http:// or https://: " + tokenUrl);
+        }
     }
 }

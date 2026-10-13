@@ -23,6 +23,7 @@ import io.starburst.ai.client.bedrock.AwsBedrockEmbeddingCodecsModule;
 import io.starburst.ai.client.openai.OpenAiClientFactory;
 import io.starburst.ai.client.openai.oauth.DisableRedirectsFilter;
 import io.starburst.ai.client.openai.oauth.ForAiOAuth2;
+import io.starburst.ai.client.openai.oauth.HttpAllowingOAuthServerUrlValidator;
 import io.starburst.ai.client.openai.oauth.OAuth2TokenCache;
 import io.starburst.ai.client.openai.oauth.OAuth2TokenFetcher;
 import io.starburst.ai.client.openai.oauth.OAuthEndpointSsrfFilter;
@@ -89,7 +90,7 @@ public class AiClientModule
         newOptionalBinder(binder, OAuth2TokenFetcher.class);
         // Token refresh rides on the client cache reload, hence the dependency on cache refresh
         if (aiClientConfig.isOauth2Enabled() && aiClientConfig.isClientCacheRefreshEnabled()) {
-            install(new AiOAuth2EnabledModule());
+            install(new AiOAuth2EnabledModule(aiClientConfig.isOauth2AllowHttp()));
         }
         switch (aiClientConfig.getStorageType()) {
             case NONE -> binder.bind(ModelConnectionSpecsLoader.class).toInstance(ModelConnectionSpecsLoader.EMPTY_LOADER);
@@ -147,6 +148,13 @@ public class AiClientModule
     private static class AiOAuth2EnabledModule
             implements Module
     {
+        private final boolean allowHttp;
+
+        public AiOAuth2EnabledModule(boolean allowHttp)
+        {
+            this.allowHttp = allowHttp;
+        }
+
         @Override
         public void configure(Binder binder)
         {
@@ -159,7 +167,12 @@ public class AiClientModule
                     // SSRF egress guard: block token requests that resolve to internal addresses.
                     .withFilter(OAuthEndpointSsrfFilter.class)
                     .withFilter(DisableRedirectsFilter.class);
-            newOptionalBinder(binder, OAuthServerUrlValidator.class).setDefault().to(SsrfEgressOAuthServerUrlValidator.class).in(Scopes.SINGLETON);
+            if (allowHttp) {
+                newOptionalBinder(binder, OAuthServerUrlValidator.class).setDefault().to(HttpAllowingOAuthServerUrlValidator.class).in(Scopes.SINGLETON);
+            }
+            else {
+                newOptionalBinder(binder, OAuthServerUrlValidator.class).setDefault().to(SsrfEgressOAuthServerUrlValidator.class).in(Scopes.SINGLETON);
+            }
             binder.bind(OAuth2TokenFetcher.class).in(Scopes.SINGLETON);
         }
     }
