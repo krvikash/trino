@@ -13,6 +13,7 @@
  */
 package io.trino.plugin.base.util;
 
+import com.google.common.collect.ImmutableList;
 import org.junit.jupiter.api.Test;
 
 import java.sql.Date;
@@ -20,19 +21,23 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoField;
 import java.time.zone.ZoneOffsetTransition;
 import java.time.zone.ZoneRules;
 import java.util.Calendar;
+import java.util.SimpleTimeZone;
 import java.util.TimeZone;
 
 import static io.trino.plugin.base.util.CalendarUtils.convertHybridDaysToProlepticGregorian;
 import static io.trino.plugin.base.util.CalendarUtils.convertHybridMillisToProlepticGregorian;
+import static io.trino.plugin.base.util.CalendarUtils.lastSwitchJulianDayInMillis;
 import static java.lang.Math.toIntExact;
 import static java.time.ZoneOffset.UTC;
 import static java.util.concurrent.TimeUnit.DAYS;
+import static java.util.concurrent.TimeUnit.HOURS;
 import static org.assertj.core.api.Assertions.assertThat;
 
 final class TestCalendarUtils
@@ -69,6 +74,33 @@ final class TestCalendarUtils
     }
 
     @Test
+    void testLastSwitchJulianDayInMillis()
+    {
+        ImmutableList.Builder<TimeZone> timeZones = ImmutableList.builder();
+        for (String zoneId : ZoneId.getAvailableZoneIds()) {
+            timeZones.add(TimeZone.getTimeZone(ZoneId.of(zoneId)));
+        }
+        for (int hours = -18; hours <= 18; hours++) {
+            timeZones.add(TimeZone.getTimeZone(ZoneOffset.ofHours(hours)));
+        }
+        // daylight saving time in effect on the switch day, and starting or ending on it
+        timeZones.add(new SimpleTimeZone(toIntExact(HOURS.toMillis(1)), "Custom", Calendar.MARCH, -1, Calendar.SUNDAY, 0, Calendar.NOVEMBER, -1, Calendar.SUNDAY, 0));
+        timeZones.add(new SimpleTimeZone(toIntExact(HOURS.toMillis(1)), "Custom", Calendar.OCTOBER, 15, 0, 0, Calendar.NOVEMBER, 1, 0, 0));
+        timeZones.add(new SimpleTimeZone(toIntExact(-HOURS.toMillis(10)), "Custom", Calendar.SEPTEMBER, 1, 0, 0, Calendar.OCTOBER, 15, 0, 1000));
+        timeZones.add(new SimpleTimeZone(toIntExact(HOURS.toMillis(10)), "Custom", Calendar.OCTOBER, 14, 0, toIntExact(HOURS.toMillis(23)), Calendar.NOVEMBER, 1, 0, 0));
+        for (TimeZone timeZone : timeZones.build()) {
+            Calendar switchDay = new Calendar.Builder()
+                    .setCalendarType("gregory")
+                    .setDate(1582, Calendar.OCTOBER, 15)
+                    .setTimeZone(timeZone)
+                    .build();
+            assertThat(lastSwitchJulianDayInMillis(timeZone))
+                    .as("switch instant in %s", timeZone)
+                    .isEqualTo(switchDay.getTimeInMillis());
+        }
+    }
+
+    @Test
     void testConvertingTimestampFromHybridToProlepticGregorianCalendar()
     {
         testConvertGregorianTimestampToAndFromHybridDays(ZoneId.of("UTC"));
@@ -95,6 +127,7 @@ final class TestCalendarUtils
         assertTimestampConversion("1000-01-01 15:15:15.123", zoneId);
         assertTimestampConversion("1000-01-01 23:59:59.999", zoneId);
         assertTimestampConversion("1582-10-04 15:15:15.123", zoneId);
+        assertTimestampConversion("1582-10-04 23:59:59.999", zoneId); // last millisecond before the switch in this zone
         assertTimestampConversion("1582-10-15 15:15:15.123", zoneId);
         assertTimestampConversion("1582-10-15 23:59:59.999", zoneId);
         assertTimestampConversion("1582-10-16 00:00:00.000", zoneId);

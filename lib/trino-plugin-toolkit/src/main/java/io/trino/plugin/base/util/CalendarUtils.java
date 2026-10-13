@@ -13,9 +13,7 @@
  */
 package io.trino.plugin.base.util;
 
-import com.google.common.cache.CacheLoader;
-import com.google.common.cache.LoadingCache;
-import io.trino.cache.EvictableCacheBuilder;
+import com.google.common.annotations.VisibleForTesting;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -49,21 +47,18 @@ public final class CalendarUtils
     private static final TimeZone UTC_TZ = TimeZone.getTimeZone(ZoneId.of("UTC"));
     private static final LocalDate LAST_SWITCH_JULIAN_DAY = LocalDate.of(1582, 10, 15);
 
-    private static long lastSwitchJulianDayInMillis(TimeZone timeZone)
-    {
-        // last day of Julian calendar is 1582-10-4, and the next day is 1582-10-15 in Gregorian calendar.
-        // the switch day is 1582-10-15
-        Calendar cal = new Calendar.Builder()
-                .setCalendarType("gregory")
-                .setDate(1582, Calendar.OCTOBER, 15)
-                .setTimeZone(timeZone)
-                .build();
-        return cal.getTimeInMillis();
-    }
+    private static final long LAST_SWITCH_JULIAN_LOCAL_MILLIS = LAST_SWITCH_JULIAN_DAY.toEpochDay() * MILLISECONDS_PER_DAY;
+    // offsets are less than a day, so both calendars are the same from here in all time zones
+    private static final long LAST_SWITCH_JULIAN_MILLIS_IN_ALL_TIME_ZONES = LAST_SWITCH_JULIAN_LOCAL_MILLIS + MILLISECONDS_PER_DAY;
 
-    private static final LoadingCache<TimeZone, Long> switchDaysByTimeZone = EvictableCacheBuilder.newBuilder()
-            .maximumSize(100)
-            .build(CacheLoader.from(CalendarUtils::lastSwitchJulianDayInMillis));
+    @VisibleForTesting
+    static long lastSwitchJulianDayInMillis(TimeZone timeZone)
+    {
+        // first instant of 1582-10-15 in the time zone. Calendar resolves the local date time using the offsets at the wall time
+        // (ZoneInfo) or at the time shifted by the raw offset (other TimeZone types, e.g. SimpleTimeZone). The two agree for region
+        // zones, as none has a transition in 1582, and TestCalendarUtils checks this against Calendar
+        return LAST_SWITCH_JULIAN_LOCAL_MILLIS - timeZone.getOffset(LAST_SWITCH_JULIAN_LOCAL_MILLIS - timeZone.getRawOffset());
+    }
 
     private CalendarUtils() {}
 
@@ -100,8 +95,9 @@ public final class CalendarUtils
 
     public static long convertHybridMillisToProlepticGregorian(long hybridMillis, TimeZone timeZone)
     {
-        ZoneId zoneId = timeZone.toZoneId();
-        if (hybridMillis >= switchDaysByTimeZone.getUnchecked(timeZone)) {
+        // both calendars are the same from the switch day in the time zone. The first check avoids computing it for most values;
+        // the switch day in UTC alone is not enough, as it starts later than in time zones east of UTC and earlier than west of it
+        if (hybridMillis >= LAST_SWITCH_JULIAN_MILLIS_IN_ALL_TIME_ZONES || hybridMillis >= lastSwitchJulianDayInMillis(timeZone)) {
             return hybridMillis;
         }
         // based on Apache Spark's implementation
@@ -121,6 +117,7 @@ public final class CalendarUtils
                         Math.floorMod(hybridMillis, MILLISECONDS_PER_SECOND) * NANOSECONDS_PER_MILLISECOND)
                 .with(ChronoField.ERA, calendar.get(ERA))
                 .plusDays(calendar.get(DAY_OF_MONTH) - 1);
+        ZoneId zoneId = timeZone.toZoneId();
         ZonedDateTime zonedDateTime = localDateTime.atZone(zoneId);
 
         ZoneOffsetTransition zoneOffsetTransition = zoneId.getRules().getTransition(localDateTime);
