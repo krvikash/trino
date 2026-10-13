@@ -63,24 +63,18 @@ import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.stream.IntStream;
-import java.util.stream.LongStream;
 import java.util.stream.Stream;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 import static io.airlift.concurrent.Threads.daemonThreadsNamed;
-import static io.airlift.slice.Slices.utf8Slice;
 import static io.trino.SessionTestUtils.TEST_SESSION;
 import static io.trino.block.BlockAssertions.createLongSequenceBlock;
 import static io.trino.block.BlockAssertions.createLongsBlock;
 import static io.trino.operator.OperatorAssertion.toPages;
 import static io.trino.operator.gpu.BufferPages.TARGET_ROW_COUNT;
-import static io.trino.operator.gpu.GpuTestUtils.FLOATING_POINT_EDGE_CASES;
-import static io.trino.operator.gpu.GpuTestUtils.TESTED_GPU_FLOATING_POINT_TYPES;
 import static io.trino.operator.gpu.GpuTestUtils.TESTED_GPU_TYPES;
 import static io.trino.operator.gpu.GpuTestUtils.assertSameDataWithoutOrder;
-import static io.trino.operator.gpu.GpuTestUtils.createBlock;
-import static io.trino.operator.gpu.GpuTestUtils.createFloatingPointBlock;
 import static io.trino.operator.gpu.GpuTestUtils.drainToPages;
 import static io.trino.operator.gpu.GpuTestUtils.executeGpuOperation;
 import static io.trino.operator.gpu.GpuTestUtils.maybeSetGpuMemoryPoolForTests;
@@ -89,7 +83,6 @@ import static io.trino.operator.gpu.window.GpuWindowTestUtils.compileWindow;
 import static io.trino.operator.gpu.window.GpuWindowTestUtils.createOperation;
 import static io.trino.spi.connector.SortOrder.ASC_NULLS_LAST;
 import static io.trino.spi.type.BigintType.BIGINT;
-import static io.trino.spi.type.CharType.createCharType;
 import static io.trino.spi.type.DecimalType.createDecimalType;
 import static io.trino.spi.type.Decimals.MAX_PRECISION;
 import static io.trino.spi.type.VarbinaryType.VARBINARY;
@@ -158,96 +151,6 @@ final class TestGpuWindow
                 new int[] {1},
                 List.of(ASC_NULLS_LAST),
                 List.of(testCase.function()));
-    }
-
-    @ParameterizedTest
-    @FieldSource("io.trino.operator.gpu.window.GpuWindowTestUtils#TESTED_GPU_WINDOW_FUNCTIONS")
-    void testCharKeysUsePaddedSemantics(TestedWindowFunction function)
-    {
-        Type charType = createCharType(2);
-        BlockBuilder charBlockBuilder = charType.createBlockBuilder(null, 4);
-        for (String value : List.of("a", "a", "a\u0001", "a\u0001")) {
-            charType.writeSlice(charBlockBuilder, utf8Slice(value));
-        }
-
-        int keyChannelCount = 2;
-        int[] argumentChannels = IntStream.range(keyChannelCount, keyChannelCount + function.argumentTypes().size()).toArray();
-
-        assertGpuWindowMatchesCpu(
-                List.of(appendArgumentBlocks(
-                        function,
-                        createLongsBlock(1L, 1L, 1L, 1L),
-                        charBlockBuilder.build())),
-                appendArgumentTypes(function, List.of(BIGINT, charType)),
-                new int[] {0},
-                new int[] {1},
-                List.of(ASC_NULLS_LAST),
-                List.of(BoundTestedWindowFunction.of(function, argumentChannels)));
-
-        assertGpuWindowMatchesCpu(
-                List.of(appendArgumentBlocks(
-                        function,
-                        charBlockBuilder.build(),
-                        createLongsBlock(1L, 2L, 3L, 4L))),
-                appendArgumentTypes(function, List.of(charType, BIGINT)),
-                new int[] {0},
-                new int[] {1},
-                List.of(ASC_NULLS_LAST),
-                List.of(BoundTestedWindowFunction.of(function, argumentChannels)));
-    }
-
-    @ParameterizedTest
-    @MethodSource("floatingPointTestCases")
-    void testOrderByFloatingPointEdgeCases(TestedWindowFunction function, Type type, SortOrder sortOrder, List<Double> values)
-    {
-        ImmutableList.Builder<Type> sourceTypes = ImmutableList.builder();
-        sourceTypes.add(BIGINT, type);
-        ImmutableList.Builder<Block> blocks = ImmutableList.builder();
-        blocks.add(createLongsBlock(Collections.nCopies(values.size(), 1L)));
-        blocks.add(createFloatingPointBlock(type, values));
-
-        int[] argumentChannels = new int[function.argumentTypes().size()];
-        int nextArgumentChannel = 2;
-        for (int argument = 0; argument < function.argumentTypes().size(); argument++) {
-            Type argumentType = function.argumentTypes().get(argument);
-            sourceTypes.add(argumentType);
-            blocks.add(createBlock(argumentType, values.size(), NO_NULLS));
-            argumentChannels[argument] = nextArgumentChannel++;
-        }
-        assertGpuWindowMatchesCpu(
-                List.of(new Page(blocks.build().toArray(Block[]::new))),
-                sourceTypes.build(),
-                new int[] {0},
-                new int[] {1},
-                List.of(sortOrder),
-                List.of(BoundTestedWindowFunction.of(function, argumentChannels)));
-    }
-
-    @ParameterizedTest
-    @MethodSource("floatingPointTestCases")
-    void testPartitionByFloatingPointEdgeCases(TestedWindowFunction function, Type type, SortOrder sortOrder, List<Double> values)
-    {
-        ImmutableList.Builder<Type> sourceTypes = ImmutableList.builder();
-        sourceTypes.add(type, BIGINT);
-        ImmutableList.Builder<Block> blocks = ImmutableList.builder();
-        blocks.add(createFloatingPointBlock(type, values));
-        blocks.add(createLongsBlock(LongStream.range(0, values.size()).boxed().toList()));
-
-        int[] argumentChannels = new int[function.argumentTypes().size()];
-        int nextArgumentChannel = 2;
-        for (int argument = 0; argument < function.argumentTypes().size(); argument++) {
-            Type argumentType = function.argumentTypes().get(argument);
-            sourceTypes.add(argumentType);
-            blocks.add(createBlock(argumentType, values.size(), NO_NULLS));
-            argumentChannels[argument] = nextArgumentChannel++;
-        }
-        assertGpuWindowMatchesCpu(
-                List.of(new Page(blocks.build().toArray(Block[]::new))),
-                sourceTypes.build(),
-                new int[] {0},
-                new int[] {1},
-                List.of(sortOrder),
-                List.of(BoundTestedWindowFunction.of(function, argumentChannels)));
     }
 
     @Test
@@ -550,39 +453,9 @@ final class TestGpuWindow
         return builder.build();
     }
 
-    static Stream<Object[]> floatingPointTestCases()
-    {
-        return Lists.cartesianProduct(
-                        TESTED_GPU_WINDOW_FUNCTIONS,
-                        TESTED_GPU_FLOATING_POINT_TYPES,
-                        ImmutableList.copyOf(SortOrder.values()).reverse(),
-                        FLOATING_POINT_EDGE_CASES)
-                .stream()
-                .map(List::toArray);
-    }
-
     private static List<Page> createPages(List<Type> types, NullsProvider nullsProvider, int pageCount, int positionsPerPage)
     {
         return ImmutableList.copyOf(GpuTestUtils.createPages(types, nullsProvider, pageCount, positionsPerPage, true));
-    }
-
-    private static List<Type> appendArgumentTypes(TestedWindowFunction function, List<Type> sourceTypes)
-    {
-        return ImmutableList.<Type>builder()
-                .addAll(sourceTypes)
-                .addAll(function.argumentTypes())
-                .build();
-    }
-
-    private static Page appendArgumentBlocks(TestedWindowFunction function, Block... sourceBlocks)
-    {
-        ImmutableList.Builder<Block> blocks = ImmutableList.builder();
-        blocks.add(sourceBlocks);
-        int positionCount = sourceBlocks[0].getPositionCount();
-        for (Type argumentType : function.argumentTypes()) {
-            blocks.add(createBlock(argumentType, positionCount, NO_NULLS));
-        }
-        return new Page(blocks.build().toArray(Block[]::new));
     }
 
     private static void assertAvgMatchesCpu(DecimalType decimalType, Long... unscaledValues)

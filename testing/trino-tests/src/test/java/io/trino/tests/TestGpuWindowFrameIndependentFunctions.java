@@ -35,6 +35,7 @@ import static io.trino.spi.type.VarbinaryType.VARBINARY;
 import static io.trino.tests.GpuWindowFrameTestParameters.ORDERINGS;
 import static io.trino.tests.GpuWindowFrameTestParameters.cartesianProduct;
 import static io.trino.tests.GpuWindowTable.ALL_NULLS;
+import static io.trino.tests.GpuWindowTable.EDGE_VALUES;
 import static io.trino.tests.GpuWindowTable.EMPTY;
 import static io.trino.tests.GpuWindowTable.MIXED;
 import static io.trino.tests.GpuWindowTable.SINGLE_ROW;
@@ -181,6 +182,35 @@ final class TestGpuWindowFrameIndependentFunctions
     }
 
     @ParameterizedTest(name = "{0} {1} {2}")
+    @MethodSource("rankingFunctionsOrderKeyTypesAndOrderings")
+    void testEdgeValueOrderKeys(String function, Type orderKeyType, String ordering)
+    {
+        assertThat(query(
+                """
+                SELECT
+                    row_id,
+                    %1$s OVER (PARTITION BY partition_key ORDER BY order_key %3$s%4$s),
+                    %1$s OVER (ORDER BY order_key %3$s%4$s)
+                FROM %2$s
+                """.formatted(function, EDGE_VALUES.withOrderKey(orderKeyType), ordering, tieBreaker(function))))
+                .executesAllWithGpu(WindowNode.class);
+    }
+
+    @ParameterizedTest(name = "{0} {1}")
+    @MethodSource("rankingFunctionsAndPartitionKeyTypes")
+    void testEdgeValuePartitionKeys(String function, Type partitionKeyType)
+    {
+        assertThat(query(
+                """
+                SELECT
+                    row_id,
+                    %1$s OVER (PARTITION BY partition_key ORDER BY row_id)
+                FROM %2$s
+                """.formatted(function, EDGE_VALUES.withPartitionKey(partitionKeyType))))
+                .executesAllWithGpu(WindowNode.class);
+    }
+
+    @ParameterizedTest(name = "{0} {1} {2}")
     @MethodSource("tablesOrderKeyTypesAndOrderings")
     void testAllFunctions(GpuWindowTable table, Type orderKeyType, String ordering)
     {
@@ -210,12 +240,25 @@ final class TestGpuWindowFrameIndependentFunctions
                 .flatMap(identity());
     }
 
+    static Stream<Arguments> rankingFunctionsOrderKeyTypesAndOrderings()
+    {
+        return Stream.of(
+                        cartesianProduct(PEER_RANKING_FUNCTIONS, withoutVarbinary(TESTED_GPU_TYPES), ORDERINGS),
+                        cartesianProduct(POSITION_RANKING_FUNCTIONS, TESTED_GPU_TYPES, ORDERINGS))
+                .flatMap(identity());
+    }
+
     static Stream<Arguments> rankingFunctionsOrderKeyTypesAndOrderingPairs()
     {
         return Stream.of(
                         cartesianProduct(PEER_RANKING_FUNCTIONS, TESTED_GPU_TYPES, ORDERINGS, ORDERINGS),
                         cartesianProduct(POSITION_RANKING_FUNCTIONS, TESTED_GPU_TYPES, ORDERINGS, ORDERINGS))
                 .flatMap(identity());
+    }
+
+    static Stream<Arguments> rankingFunctionsAndPartitionKeyTypes()
+    {
+        return cartesianProduct(rankingFunctions(), TESTED_GPU_TYPES);
     }
 
     static Stream<Arguments> peerRankingFunctionsAndPartitionKeyTypes()
@@ -238,7 +281,7 @@ final class TestGpuWindowFrameIndependentFunctions
 
     static Stream<Arguments> tablesOrderKeyTypesAndOrderings()
     {
-        return cartesianProduct(List.of(MIXED, TIES, ALL_NULLS), withoutVarbinary(TESTED_GPU_TYPES), ORDERINGS);
+        return cartesianProduct(List.of(MIXED, TIES, EDGE_VALUES, ALL_NULLS), withoutVarbinary(TESTED_GPU_TYPES), ORDERINGS);
     }
 
     // Position ranking functions number peers in any order, so the row ID breaks ties between them. Peer ranking

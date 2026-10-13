@@ -47,17 +47,6 @@ final class TestGpuWindowQueries
     }
 
     @Test
-    void testRankOrderByFloatingPoint()
-    {
-        assertThat(query(
-                """
-                SELECT rank() OVER (ORDER BY totalprice)
-                FROM orders
-                """))
-                .executesWithGpu(WindowNode.class);
-    }
-
-    @Test
     void testAvgShortDecimal()
     {
         assertThat(query(

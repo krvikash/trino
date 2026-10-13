@@ -32,6 +32,7 @@ import static io.trino.tests.GpuWindowFrameTestParameters.AGGREGATIONS;
 import static io.trino.tests.GpuWindowFrameTestParameters.ORDERINGS;
 import static io.trino.tests.GpuWindowFrameTestParameters.cartesianProduct;
 import static io.trino.tests.GpuWindowTable.ALL_NULLS;
+import static io.trino.tests.GpuWindowTable.EDGE_VALUES;
 import static io.trino.tests.GpuWindowTable.EMPTY;
 import static io.trino.tests.GpuWindowTable.MIXED;
 import static io.trino.tests.GpuWindowTable.SINGLE_ROW;
@@ -210,6 +211,36 @@ final class TestGpuWindowRangeFrames
                     %1$s OVER (PARTITION BY partition_key, second_partition_key ORDER BY order_key %3$s, second_order_key %4$s)
                 FROM %2$s
                 """.formatted(function, TIES.withOrderKey(orderKeyType), ordering, secondOrdering)))
+                .executesAllWithGpu(WindowNode.class);
+    }
+
+    @ParameterizedTest(name = "{0} {1} {2}")
+    @MethodSource("aggregationsOrderKeyTypesAndOrderings")
+    void testEdgeValueOrderKeys(String function, Type orderKeyType, String ordering)
+    {
+        assertThat(query(
+                """
+                SELECT
+                    row_id,
+                    %1$s OVER (PARTITION BY partition_key ORDER BY order_key %3$s),
+                    %1$s OVER (ORDER BY order_key %3$s)
+                FROM %2$s
+                """.formatted(function, EDGE_VALUES.withOrderKey(orderKeyType), ordering)))
+                .executesAllWithGpu(WindowNode.class);
+    }
+
+    @ParameterizedTest(name = "{0} {1}")
+    @MethodSource("aggregationsAndKeyTypes")
+    void testEdgeValuePartitionKeys(String function, Type partitionKeyType)
+    {
+        assertThat(query(
+                """
+                SELECT
+                    row_id,
+                    %1$s OVER (PARTITION BY partition_key ORDER BY row_id),
+                    %1$s OVER (PARTITION BY partition_key)
+                FROM %2$s
+                """.formatted(function, EDGE_VALUES.withPartitionKey(partitionKeyType))))
                 .executesAllWithGpu(WindowNode.class);
     }
 
