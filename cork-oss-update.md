@@ -30,6 +30,8 @@ Galaxy and SEP.
 This instruction is for updating Cork from OSS.
 Any other downstream repositories likely have separate update instructions.
 
+Use the [cork-oss-update](https://github.com/starburstdata/skill-vault-library/tree/main/skills/cork-oss-update) skill to automate steps in this procedure.
+
 ### Prerequisites
 
 1. Make sure you have GNU versions of sed and find installed and in PATH. The PATH is usually displayed at the end of brew install.
