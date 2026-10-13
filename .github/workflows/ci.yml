@@ -58,6 +58,44 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  check-commit-messages:
+    if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
+    runs-on: [self-hosted, gha-fleet-ec2-2cpu-8gb-amd64, latest]
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/checkout@v7.0.1
+        with:
+          repository: airlift/github-actions
+          ref: 1652e24519f5c7cec59d841070bf9beffadabdf9 # v1
+          path: airlift-github-actions
+          persist-credentials: false
+      # Not airlift/github-actions/check-commit-messages directly: it checks every commit, but cork cannot reword commits
+      # cherry-picked from Trino, and the trino-base.txt commit subject carries a full sha.
+      - name: Check commit messages
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: |
+          commits=$(git rev-list --reverse --no-merges "origin/${BASE_REF}..HEAD")
+          failed=false
+          for commit in ${commits}; do
+            message=$(git show -s --format=%B "${commit}")
+            subject=${message%%$'\n'*}
+            if grep -qE '^\(cherry picked from commit [0-9a-f]{40}\)$' <<< "${message}" || [[ "${subject}" == "Update trino-base.txt after sync with Trino "* ]]; then
+              continue
+            fi
+            echo "${commit:0:12} ${subject}"
+            printf '%s\n' "${message}" > "${RUNNER_TEMP}/commit-message"
+            python3 airlift-github-actions/check-commit-messages/check.py --message-file "${RUNNER_TEMP}/commit-message" > /dev/null || failed=true
+          done
+          if [[ "${failed}" == true ]]; then
+            exit 1
+          fi
+
   path-filters:
     runs-on: [self-hosted, gha-fleet-ec2-4cpu-16gb-amd64, latest]
     outputs:
@@ -2283,6 +2321,7 @@ jobs:
       - build-test-matrix
       - check-cherry-pick-sources
       - check-commit
+      - check-commit-messages
       - check-commits-dispatcher
       - error-prone-checks
       - maven-checks
@@ -2306,6 +2345,7 @@ jobs:
           echo '${{ needs.build-test-matrix.result }}' | grep -xE 'success|skipped' || { echo 'Job "build-test-matrix" failed' >&2; exit 1; }
           echo '${{ needs.check-cherry-pick-sources.result }}' | grep -xE 'success|skipped' || { echo 'Job "check-cherry-pick-sources" failed' >&2; exit 1; }
           echo '${{ needs.check-commit.result }}' | grep -xE 'success|skipped' || { echo 'Job "check-commit" failed' >&2; exit 1; }
+          echo '${{ needs.check-commit-messages.result }}' | grep -xE 'success|skipped' || { echo 'Job "check-commit-messages" failed' >&2; exit 1; }
           echo '${{ needs.check-commits-dispatcher.result }}' | grep -xE 'success|skipped' || { echo 'Job "check-commits-dispatcher" failed' >&2; exit 1; }
           echo '${{ needs.error-prone-checks.result }}' | grep -xE 'success|skipped' || { echo 'Job "error-prone-checks" failed' >&2; exit 1; }
           echo '${{ needs.maven-checks.result }}' | grep -xE 'success|skipped' || { echo 'Job "maven-checks" failed' >&2; exit 1; }
