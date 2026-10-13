@@ -186,6 +186,23 @@ final class TestGpuWindowRangeFrames
     }
 
     @ParameterizedTest
+    @FieldSource("io.trino.tests.GpuWindowFrameTestParameters#AGGREGATIONS")
+    void testDuplicateFunctions(String function)
+    {
+        // The planner merges only calls written the same, so a call with the default NULLS LAST spelled out is
+        // computed again in the same window
+        assertThat(query(
+                """
+                SELECT
+                    row_id,
+                    %1$s OVER (PARTITION BY partition_key ORDER BY order_key),
+                    %1$s OVER (PARTITION BY partition_key ORDER BY order_key NULLS LAST)
+                FROM %2$s
+                """.formatted(function, TIES.withOrderKey(BIGINT))))
+                .executesAllWithGpu(WindowNode.class);
+    }
+
+    @ParameterizedTest
     @FieldSource("io.trino.tests.GpuWindowFrameTestParameters#GPU_UNSUPPORTED_AGGREGATIONS")
     void testUnsupportedAggregations(String function)
     {

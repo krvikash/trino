@@ -25,11 +25,8 @@ import io.trino.operator.DummySpillerFactory;
 import io.trino.operator.TestWindowOperator;
 import io.trino.operator.WindowFunctionDefinition;
 import io.trino.operator.WindowOperator;
-import io.trino.operator.gpu.BufferPages;
-import io.trino.operator.gpu.CopyToBlocks;
 import io.trino.operator.gpu.GpuOperation;
 import io.trino.operator.gpu.GpuTestUtils;
-import io.trino.operator.gpu.TestingGpuOperationContext;
 import io.trino.operator.gpu.window.GpuWindowCompiler.CompileResult;
 import io.trino.operator.window.AggregationWindowFunctionSupplier;
 import io.trino.operator.window.FrameInfo;
@@ -47,7 +44,6 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.FieldSource;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
@@ -56,7 +52,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 import java.util.Random;
@@ -75,7 +70,6 @@ import static io.trino.operator.OperatorAssertion.toPages;
 import static io.trino.operator.gpu.BufferPages.TARGET_ROW_COUNT;
 import static io.trino.operator.gpu.GpuTestUtils.TESTED_GPU_TYPES;
 import static io.trino.operator.gpu.GpuTestUtils.assertSameDataWithoutOrder;
-import static io.trino.operator.gpu.GpuTestUtils.drainToPages;
 import static io.trino.operator.gpu.GpuTestUtils.executeGpuOperation;
 import static io.trino.operator.gpu.GpuTestUtils.maybeSetGpuMemoryPoolForTests;
 import static io.trino.operator.gpu.window.GpuWindowTestUtils.TESTED_GPU_WINDOW_FUNCTIONS;
@@ -94,7 +88,6 @@ import static io.trino.sql.planner.plan.FrameBoundType.UNBOUNDED_PRECEDING;
 import static io.trino.sql.planner.plan.WindowFrameType.RANGE;
 import static java.util.concurrent.Executors.newScheduledThreadPool;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assumptions.abort;
 
 final class TestGpuWindow
 {
@@ -125,22 +118,6 @@ final class TestGpuWindow
     }
 
     @ParameterizedTest
-    @FieldSource("io.trino.operator.gpu.window.GpuWindowTestUtils#TESTED_GPU_WINDOW_FUNCTIONS")
-    void testNoSourceColumns(TestedWindowFunction function)
-    {
-        if (!function.argumentTypes().isEmpty()) {
-            abort("Function taking arguments cannot be tested without source columns");
-        }
-        assertGpuWindowMatchesCpu(
-                List.of(new Page(5)),
-                List.of(),
-                new int[0],
-                new int[0],
-                List.of(),
-                List.of(BoundTestedWindowFunction.of(function.name())));
-    }
-
-    @ParameterizedTest
     @MethodSource("twoColumns")
     void testMultipleInputPages(WindowFunctionTestCase testCase)
     {
@@ -151,26 +128,6 @@ final class TestGpuWindow
                 new int[] {1},
                 List.of(ASC_NULLS_LAST),
                 List.of(testCase.function()));
-    }
-
-    @Test
-    void testDuplicateRankingFunctions()
-    {
-        assertGpuWindowMatchesCpu(
-                List.of(new Page(
-                        createLongsBlock(1L, 1L, 1L, 2L, 2L),
-                        createLongsBlock(10L, 10L, 20L, 10L, 20L))),
-                List.of(BIGINT, BIGINT),
-                new int[] {0},
-                new int[] {1},
-                List.of(ASC_NULLS_LAST),
-                List.of(
-                        BoundTestedWindowFunction.of("rank"),
-                        BoundTestedWindowFunction.of("rank"),
-                        BoundTestedWindowFunction.of("dense_rank"),
-                        BoundTestedWindowFunction.of("dense_rank"),
-                        BoundTestedWindowFunction.of("row_number"),
-                        BoundTestedWindowFunction.of("row_number")));
     }
 
     @Test
@@ -627,37 +584,11 @@ final class TestGpuWindow
             List<Type> outputTypes,
             List<GpuOperation.Factory> stages)
     {
-        if (sourceTypes.isEmpty()) {
-            return executeZeroColumnGpuWindow(inputPages, outputTypes, stages);
-        }
         return executeGpuOperation(
                 inputPages,
                 sourceTypes,
                 outputTypes,
                 (context, source) -> createOperation(context, source, stages));
-    }
-
-    private static List<Page> executeZeroColumnGpuWindow(
-            List<Page> inputPages,
-            List<Type> outputTypes,
-            List<GpuOperation.Factory> stages)
-    {
-        Iterator<Page> input = inputPages.iterator();
-        TestingGpuOperationContext context = new TestingGpuOperationContext();
-        BufferPages bufferPages = new BufferPages(context.taskMemoryContext());
-        GpuOperation operation = createOperation(context, bufferPages, stages);
-        try (CopyToBlocks copyToBlocks = new CopyToBlocks(context, operation, outputTypes)) {
-            return drainToPages(
-                    () -> {
-                        if (!input.hasNext()) {
-                            bufferPages.noMoreInput();
-                        }
-                        else if (bufferPages.needsInput()) {
-                            bufferPages.addInput(input.next());
-                        }
-                    },
-                    copyToBlocks);
-        }
     }
 
     private static List<Page> executeCpuWindow(

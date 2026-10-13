@@ -144,6 +144,23 @@ final class TestGpuWindowFrameIndependentFunctions
                 .executesAllWithGpu(WindowNode.class);
     }
 
+    @ParameterizedTest
+    @MethodSource("rankingFunctions")
+    void testDuplicateFunctions(String function)
+    {
+        // The planner merges only calls written the same, so a call with the default NULLS LAST spelled out is
+        // computed again in the same window
+        assertThat(query(
+                """
+                SELECT
+                    row_id,
+                    %1$s OVER (PARTITION BY partition_key ORDER BY order_key%3$s),
+                    %1$s OVER (PARTITION BY partition_key ORDER BY order_key NULLS LAST%3$s)
+                FROM %2$s
+                """.formatted(function, TIES.withOrderKey(BIGINT), tieBreaker(function))))
+                .executesAllWithGpu(WindowNode.class);
+    }
+
     @ParameterizedTest(name = "{0} {1}")
     @MethodSource("peerRankingFunctionsAndOrderings")
     void testPeerRankingFunctionsWithVarbinaryOrderKey(String function, String ordering)
