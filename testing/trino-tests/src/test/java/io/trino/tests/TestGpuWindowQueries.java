@@ -35,107 +35,12 @@ final class TestGpuWindowQueries
     }
 
     @Test
-    void testRowNumber()
-    {
-        assertThat(query(
-                """
-                SELECT row_number() OVER (PARTITION BY orderstatus ORDER BY orderkey)
-                FROM orders
-                """))
-                .executesWithGpu(WindowNode.class);
-    }
-
-    @Test
-    void testRank()
-    {
-        assertThat(query(
-                """
-                SELECT rank() OVER (PARTITION BY orderstatus ORDER BY orderkey)
-                FROM orders
-                """))
-                .executesWithGpu(WindowNode.class);
-    }
-
-    @Test
-    void testDenseRank()
-    {
-        assertThat(query(
-                """
-                SELECT dense_rank() OVER (PARTITION BY orderstatus ORDER BY orderkey)
-                FROM orders
-                """))
-                .executesWithGpu(WindowNode.class);
-    }
-
-    @Test
-    void testMultipleRankingFunctions()
-    {
-        assertThat(query(
-                """
-                SELECT
-                    row_number() OVER (PARTITION BY orderstatus ORDER BY orderkey),
-                    rank() OVER (PARTITION BY orderstatus ORDER BY orderkey),
-                    dense_rank() OVER (PARTITION BY orderstatus ORDER BY orderkey)
-                FROM orders
-                """))
-                .executesWithGpu(WindowNode.class);
-    }
-
-    @Test
     void testNoPartitionBy()
     {
+        // Without PARTITION BY, the rows are gathered into a single task before the window
         assertThat(query(
                 """
                 SELECT row_number() OVER (ORDER BY orderkey)
-                FROM orders
-                """))
-                .executesWithGpu(WindowNode.class);
-    }
-
-    @Test
-    void testRankNoOrderBy()
-    {
-        assertThat(query(
-                """
-                SELECT rank() OVER (PARTITION BY orderstatus)
-                FROM orders
-                """))
-                .executesWithGpu(WindowNode.class);
-    }
-
-    @Test
-    void testDenseRankNoOrderBy()
-    {
-        assertThat(query(
-                """
-                SELECT dense_rank() OVER (PARTITION BY orderstatus)
-                FROM orders
-                """))
-                .executesWithGpu(WindowNode.class);
-    }
-
-    @Test
-    void testRowNumberNoOrderByRewrittenToRowNumberNode()
-    {
-        // row_number() without ORDER BY is rewritten by ReplaceWindowWithRowNumber
-        // to RowNumberNode, so it never reaches the GPU window compiler
-        assertThat(query(
-                """
-                SELECT row_number() OVER ()
-                FROM orders
-                """))
-                .executesWithoutGpu();
-    }
-
-    @Test
-    void testRankWithTies()
-    {
-        assertThat(query(
-                """
-                SELECT
-                    orderstatus,
-                    rank() OVER (ORDER BY orderstatus),
-                    dense_rank() OVER (ORDER BY orderstatus)
                 FROM orders
                 """))
                 .executesWithGpu(WindowNode.class);

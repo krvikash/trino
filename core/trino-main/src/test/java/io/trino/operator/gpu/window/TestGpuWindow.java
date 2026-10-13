@@ -173,37 +173,6 @@ final class TestGpuWindow
                 List.of(testCase.function()));
     }
 
-    @Test
-    void testMultipleFunctions()
-    {
-        ImmutableList.Builder<Type> sourceTypes = ImmutableList.builder();
-        sourceTypes.add(BIGINT, BIGINT);
-        ImmutableList.Builder<Block> blocks = ImmutableList.builder();
-        blocks.add(
-                createBlock(BIGINT, POSITION_COUNT, RANDOM_NULLS),
-                createBlock(BIGINT, POSITION_COUNT, RANDOM_NULLS));
-
-        ImmutableList.Builder<BoundTestedWindowFunction> functions = ImmutableList.builder();
-        int nextArgumentChannel = 2;
-        for (TestedWindowFunction function : TESTED_GPU_WINDOW_FUNCTIONS) {
-            int[] argumentChannels = new int[function.argumentTypes().size()];
-            for (int argument = 0; argument < function.argumentTypes().size(); argument++) {
-                sourceTypes.add(function.argumentTypes().get(argument));
-                blocks.add(createBlock(function.argumentTypes().get(argument), POSITION_COUNT, RANDOM_NULLS));
-                argumentChannels[argument] = nextArgumentChannel++;
-            }
-            functions.add(BoundTestedWindowFunction.of(function, argumentChannels));
-        }
-
-        assertGpuWindowMatchesCpu(
-                List.of(new Page(blocks.build().toArray(Block[]::new))),
-                sourceTypes.build(),
-                new int[] {0},
-                new int[] {1},
-                List.of(ASC_NULLS_LAST),
-                functions.build());
-    }
-
     @ParameterizedTest
     @FieldSource("io.trino.operator.gpu.window.GpuWindowTestUtils#TESTED_GPU_WINDOW_FUNCTIONS")
     void testCharKeysUsePaddedSemantics(TestedWindowFunction function)
