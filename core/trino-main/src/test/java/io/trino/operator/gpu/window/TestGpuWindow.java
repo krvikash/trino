@@ -92,8 +92,6 @@ import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.CharType.createCharType;
 import static io.trino.spi.type.DecimalType.createDecimalType;
 import static io.trino.spi.type.Decimals.MAX_PRECISION;
-import static io.trino.spi.type.DoubleType.DOUBLE;
-import static io.trino.spi.type.RealType.REAL;
 import static io.trino.spi.type.VarbinaryType.VARBINARY;
 import static io.trino.sql.analyzer.TypeDescriptorProvider.fromTypes;
 import static io.trino.sql.gen.TestColumnarFilters.NullsProvider.NO_NULLS;
@@ -513,22 +511,6 @@ final class TestGpuWindow
                 List.of(BoundTestedWindowFunction.of("avg", 2)));
     }
 
-    @ParameterizedTest
-    @MethodSource("unsupportedAvgArgumentTypes")
-    void testAvgUnsupportedArgumentTypeFallsBackToCpu(Type argumentType)
-    {
-        CompileResult result = compileWindow(
-                List.of(BIGINT, argumentType),
-                new int[] {0},
-                new int[] {0},
-                List.of(ASC_NULLS_LAST),
-                List.of(BoundTestedWindowFunction.of("avg", 1)));
-
-        assertThat(result).isInstanceOfSatisfying(
-                CompileResult.Failure.class,
-                failure -> assertThat(failure.reason()).contains("unsupported window function"));
-    }
-
     @Test
     void testAvgMultipleDecimalFunctions()
     {
@@ -599,14 +581,6 @@ final class TestGpuWindow
                         ImmutableList.copyOf(SortOrder.values()))
                 .stream()
                 .map(List::toArray);
-    }
-
-    static Stream<Type> unsupportedAvgArgumentTypes()
-    {
-        return Stream.of(
-                BIGINT,
-                DOUBLE,
-                REAL);
     }
 
     static Stream<WindowFunctionTestCase> twoColumns()

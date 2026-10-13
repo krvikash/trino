@@ -184,6 +184,20 @@ final class TestGpuWindowRangeFrames
                 .executesAllWithGpu(WindowNode.class);
     }
 
+    @ParameterizedTest
+    @FieldSource("io.trino.tests.GpuWindowFrameTestParameters#GPU_UNSUPPORTED_AGGREGATIONS")
+    void testUnsupportedAggregations(String function)
+    {
+        assertThat(query(
+                """
+                SELECT
+                    row_id,
+                    %1$s OVER (PARTITION BY partition_key ORDER BY order_key)
+                FROM %2$s
+                """.formatted(function, MIXED.withOrderKey(BIGINT))))
+                .executesWithoutGpu();
+    }
+
     static Stream<Arguments> aggregationsOrderKeyTypesAndOrderings()
     {
         return cartesianProduct(AGGREGATIONS, TESTED_GPU_TYPES, ORDERINGS);

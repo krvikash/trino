@@ -153,17 +153,6 @@ final class TestGpuWindowQueries
     }
 
     @Test
-    void testSum()
-    {
-        assertThat(query(
-                """
-                SELECT sum(orderkey) OVER (PARTITION BY orderstatus ORDER BY orderkey)
-                FROM orders
-                """))
-                .executesWithoutGpu();
-    }
-
-    @Test
     void testAvgShortDecimal()
     {
         assertThat(query(

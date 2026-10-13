@@ -30,6 +30,13 @@ final class GpuWindowFrameTestParameters
             "avg(argument_decimal_28_2)",
             "avg(argument_decimal_38_6)");
 
+    /// Aggregations that the GPU does not support
+    static final List<String> GPU_UNSUPPORTED_AGGREGATIONS = List.of(
+            "sum(argument_decimal_38_6)",
+            "avg(CAST(argument_decimal_38_6 AS bigint))",
+            "avg(CAST(argument_decimal_38_6 AS real))",
+            "avg(CAST(argument_decimal_38_6 AS double))");
+
     static final List<String> ORDERINGS = Arrays.stream(SortOrder.values()).map(SortOrder::toString).toList();
 
     static Stream<Arguments> cartesianProduct(List<?>... dimensions)
