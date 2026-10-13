@@ -627,6 +627,90 @@ public class TestIcebergIncrementalColumnMaterializedViewRefresh
         assertUpdate("DROP TABLE " + source);
     }
 
+    /**
+     * OPTIMIZE preserves every row's value, so it carries the watermark forward. Otherwise routine
+     * maintenance would permanently demote the view back to the correlated-subquery plan.
+     */
+    @Test
+    public void testIncrementalColumnWatermarkSurvivesOptimize()
+    {
+        String source = ICEBERG_TEST_SCHEMA + ".optimize_watermark_src_" + randomNameSuffix();
+        String mvName = "optimize_watermark_mv_" + randomNameSuffix();
+        String qualifiedMvName = ICEBERG_TEST_SCHEMA + "." + mvName;
+        assertUpdate("CREATE TABLE " + source + " (id BIGINT, event_timestamp BIGINT)");
+        assertUpdate("INSERT INTO " + source + " VALUES (1, 100), (2, 200)", 2);
+
+        assertUpdate(
+                "CREATE MATERIALIZED VIEW " + qualifiedMvName +
+                        " WITH (incremental_column = 'event_timestamp') AS SELECT id, event_timestamp FROM " + source);
+        assertUpdate("REFRESH MATERIALIZED VIEW " + qualifiedMvName, 2);
+
+        // A second refresh, so the storage table holds two data files for OPTIMIZE to actually rewrite.
+        assertUpdate("INSERT INTO " + source + " VALUES (3, 300)", 1);
+        assertUpdate("REFRESH MATERIALIZED VIEW " + qualifiedMvName, 1);
+        assertWatermark(mvName, "300");
+
+        assertUpdate("ALTER MATERIALIZED VIEW " + qualifiedMvName + " EXECUTE optimize");
+        assertWatermark(mvName, "300");
+
+        assertUpdate("INSERT INTO " + source + " VALUES (4, 400)", 1);
+        String plan = getExplainPlan("REFRESH MATERIALIZED VIEW " + qualifiedMvName, ExplainType.Type.DISTRIBUTED);
+        assertThat(plan).doesNotContain("CrossJoin");
+        String sourceTableName = source.substring(source.lastIndexOf('.') + 1);
+        assertThat(plan).containsPattern("ScanFilter\\[table = .*" + sourceTableName + ".*filterPredicate = \\(bigint '300' < event_timestamp\\)]");
+
+        assertUpdate("REFRESH MATERIALIZED VIEW " + qualifiedMvName, 1);
+        assertWatermark(mvName, "400");
+        assertThat(query("SELECT id, event_timestamp FROM " + qualifiedMvName + " ORDER BY id"))
+                .matches("VALUES (BIGINT '1', BIGINT '100'), (BIGINT '2', BIGINT '200'), (BIGINT '3', BIGINT '300'), (BIGINT '4', BIGINT '400')");
+
+        assertUpdate("DROP MATERIALIZED VIEW " + qualifiedMvName);
+        assertUpdate("DROP TABLE " + source);
+    }
+
+    /**
+     * The other half of that rule: a DELETE lowers the real maximum, so a watermark carried across it would
+     * exceed what the table holds and the next refresh would skip source rows. Dropping it costs pushdown for
+     * one refresh.
+     */
+    @Test
+    public void testIncrementalColumnWatermarkDroppedByStorageTableDelete()
+    {
+        String source = ICEBERG_TEST_SCHEMA + ".delete_watermark_src_" + randomNameSuffix();
+        String mvName = "delete_watermark_mv_" + randomNameSuffix();
+        String qualifiedMvName = ICEBERG_TEST_SCHEMA + "." + mvName;
+        assertUpdate("CREATE TABLE " + source + " (id BIGINT, event_timestamp BIGINT)");
+        assertUpdate("INSERT INTO " + source + " VALUES (1, 100), (2, 200), (3, 300)", 3);
+
+        assertUpdate(
+                "CREATE MATERIALIZED VIEW " + qualifiedMvName +
+                        " WITH (incremental_column = 'event_timestamp') AS SELECT id, event_timestamp FROM " + source);
+        assertUpdate("REFRESH MATERIALIZED VIEW " + qualifiedMvName, 3);
+        assertWatermark(mvName, "300");
+
+        assertUpdate("DELETE FROM " + storageTableName(ICEBERG_TEST_SCHEMA, mvName) + " WHERE event_timestamp = 300", 1);
+        assertThat(latestStoredWatermark(mvName)).isEmpty();
+
+        assertUpdate("INSERT INTO " + source + " VALUES (4, 250)", 1);
+        String plan = getExplainPlan("REFRESH MATERIALIZED VIEW " + qualifiedMvName, ExplainType.Type.DISTRIBUTED);
+        assertThat(plan).contains("CrossJoin");
+
+        // Had the stale watermark of 300 been carried across the DELETE, both rows would be skipped.
+        assertUpdate("REFRESH MATERIALIZED VIEW " + qualifiedMvName, 2);
+        assertThat(query("SELECT id, event_timestamp FROM " + qualifiedMvName + " ORDER BY id"))
+                .matches("VALUES (BIGINT '1', BIGINT '100'), (BIGINT '2', BIGINT '200'), (BIGINT '3', BIGINT '300'), (BIGINT '4', BIGINT '250')");
+
+        assertWatermark(mvName, "300");
+        assertUpdate("INSERT INTO " + source + " VALUES (5, 400)", 1);
+        plan = getExplainPlan("REFRESH MATERIALIZED VIEW " + qualifiedMvName, ExplainType.Type.DISTRIBUTED);
+        assertThat(plan).doesNotContain("CrossJoin");
+        assertUpdate("REFRESH MATERIALIZED VIEW " + qualifiedMvName, 1);
+        assertWatermark(mvName, "400");
+
+        assertUpdate("DROP MATERIALIZED VIEW " + qualifiedMvName);
+        assertUpdate("DROP TABLE " + source);
+    }
+
     @Test
     public void testIncrementalColumnRejectedOnAggregatingMV()
     {

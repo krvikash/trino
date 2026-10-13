@@ -583,10 +583,8 @@ public class IcebergMetadata
     private static final CronDefinition CRON_DEFINITION = CronDefinitionBuilder.instanceDefinitionFor(CronType.UNIX);
     private static final CronParser CRON_PARSER = new CronParser(CRON_DEFINITION);
 
-    // Any procedure added here that commits a NEW snapshot must call
-    // IcebergMaterializedViewSummary.carryForwardMaterializedViewDependencies on its SnapshotUpdate before
-    // committing, otherwise the materialized view's dependency summary is dropped and the next refresh is
-    // demoted from incremental to full.
+    // A procedure added here that commits a NEW snapshot must call carryForwardMaterializedViewDependencies
+    // on its SnapshotUpdate before committing, if and only if it preserves the values of every live row.
     private static final Set<IcebergTableProcedureId> MATERIALIZED_VIEW_STORAGE_ALLOWED_PROCEDURES = Sets.immutableEnumSet(
             OPTIMIZE,
             OPTIMIZE_MANIFESTS,

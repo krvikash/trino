@@ -33,6 +33,7 @@ import static io.trino.plugin.iceberg.IcebergMaterializedViewSummary.DEPENDS_ON_
 import static io.trino.plugin.iceberg.IcebergMaterializedViewSummary.DEPENDS_ON_TABLE_FUNCTIONS;
 import static io.trino.plugin.iceberg.IcebergMaterializedViewSummary.TRINO_QUERY_START_TIME;
 import static io.trino.plugin.iceberg.IcebergMaterializedViewSummary.carryForwardMaterializedViewDependencies;
+import static io.trino.plugin.iceberg.IncrementalColumnWatermarkReader.TRINO_INCREMENTAL_COLUMN_WATERMARK;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class TestIcebergMaterializedViewSummary
@@ -47,7 +48,8 @@ public class TestIcebergMaterializedViewSummary
                 DEPENDS_ON_TABLES, "catalog.schema.table=1",
                 DEPENDS_ON_TABLE_FUNCTIONS, "false",
                 DEPENDS_ON_NON_DETERMINISTIC_FUNCTIONS, "false",
-                TRINO_QUERY_START_TIME, "2026-01-01T00:00:00Z");
+                TRINO_QUERY_START_TIME, "2026-01-01T00:00:00Z",
+                TRINO_INCREMENTAL_COLUMN_WATERMARK, "{\"fieldId\":2,\"type\":\"bigint\",\"value\":\"200\"}");
 
         assertThat(snapshotUpdate.validateAncestry(List.of(new FakeSnapshot(parentSummary)))).isTrue();
         assertThat(snapshotUpdate.properties()).containsExactlyInAnyOrderEntriesOf(parentSummary);

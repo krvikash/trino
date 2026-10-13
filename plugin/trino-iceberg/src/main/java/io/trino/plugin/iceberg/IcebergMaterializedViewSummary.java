@@ -25,6 +25,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import static io.trino.plugin.iceberg.IncrementalColumnWatermarkReader.TRINO_INCREMENTAL_COLUMN_WATERMARK;
+
 public final class IcebergMaterializedViewSummary
 {
     // Snapshot summary properties tracking the tables/functions a materialized view depends on, and its snapshot ids.
@@ -38,7 +40,8 @@ public final class IcebergMaterializedViewSummary
             DEPENDS_ON_TABLES,
             DEPENDS_ON_TABLE_FUNCTIONS,
             DEPENDS_ON_NON_DETERMINISTIC_FUNCTIONS,
-            TRINO_QUERY_START_TIME);
+            TRINO_QUERY_START_TIME,
+            TRINO_INCREMENTAL_COLUMN_WATERMARK);
 
     private IcebergMaterializedViewSummary() {}
 
@@ -48,6 +51,12 @@ public final class IcebergMaterializedViewSummary
      * optimize_manifests) would otherwise drop these properties, which would break freshness computation and
      * demote the next incremental refresh to a full refresh. This is a no-op for ordinary tables, which do not
      * carry these properties.
+     * <p>
+     * Only an operation that <em>preserves the values of every live row</em> may call this; rewriting files
+     * or manifests qualifies, removing rows does not. {@link IncrementalColumnWatermarkReader#TRINO_INCREMENTAL_COLUMN_WATERMARK}
+     * bounds the rows the snapshot holds, so carrying it across an operation that drops rows would leave it
+     * over-reporting, and the next refresh would silently skip source rows. Dropping the properties only
+     * costs the next refresh its fast path; keeping stale ones costs correctness.
      * <p>
      * The properties are copied from the commit's actual parent snapshot at validation time, once table metadata
      * has been refreshed, rather than from whatever snapshot the operation originally scanned. That way a
