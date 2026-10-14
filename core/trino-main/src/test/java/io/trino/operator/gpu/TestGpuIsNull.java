@@ -37,7 +37,7 @@ import static org.junit.jupiter.api.parallel.ExecutionMode.CONCURRENT;
 
 @TestInstance(PER_CLASS)
 @Execution(CONCURRENT)
-final class TestGpuExpressions
+final class TestGpuIsNull
 {
     @BeforeAll
     static void maybeSetGpuMemoryPool()

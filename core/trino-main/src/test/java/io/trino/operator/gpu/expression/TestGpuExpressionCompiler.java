@@ -80,9 +80,9 @@ import static org.junit.jupiter.params.provider.Arguments.arguments;
  * {@code assertGpuMatchesCpu} already fails when compilation returns empty, so the coverage would
  * be duplicated. A negative assertion that some combination deliberately does <em>not</em> compile
  * and so falls back to the CPU cannot be covered by {@code assertGpuMatchesCpu}; put the explicit
- * assertion in the corresponding execution test instead.
- *
- * @see io.trino.operator.gpu.TestGpuExpressions for tests covering expression execution
+ * assertion in the corresponding execution test instead. Execution tests live in
+ * {@code io.trino.operator.gpu}, one class per function or expression, such as
+ * {@link io.trino.operator.gpu.TestGpuCase}.
  */
 class TestGpuExpressionCompiler
 {
