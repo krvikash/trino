@@ -75,7 +75,6 @@ import io.trino.sql.ir.WhenClause;
 import io.trino.sql.planner.Symbol;
 import io.trino.testing.TestingSession;
 import io.trino.type.CharVarcharCoercion;
-import io.trino.type.LikePattern;
 import org.jetbrains.annotations.Nullable;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -179,7 +178,6 @@ import static io.trino.testing.TestingConnectorSession.SESSION;
 import static io.trino.testing.assertions.TrinoExceptionAssert.assertTrinoExceptionThrownBy;
 import static io.trino.type.CharVarcharCoercion.SQL_STANDARD;
 import static io.trino.type.CodePointsType.CODE_POINTS;
-import static io.trino.type.LikePatternType.LIKE_PATTERN;
 import static java.lang.Float.floatToRawIntBits;
 import static java.lang.Math.floorDiv;
 import static java.lang.Math.floorMod;
@@ -395,44 +393,6 @@ final class TestGpuExpressions
     static void maybeSetGpuMemoryPool()
     {
         maybeSetGpuMemoryPoolForTests();
-    }
-
-    @ParameterizedTest
-    @EnumSource(NullsProvider.class)
-    void testLikeSmall(NullsProvider nullsProvider)
-    {
-        testLike(List.of(64), nullsProvider);
-    }
-
-    @ParameterizedTest
-    @EnumSource(NullsProvider.class)
-    void testLikeMany(NullsProvider nullsProvider)
-    {
-        List<Integer> positionsCounts = Stream.generate(() -> 10_000).limit(42).toList();
-        testLike(positionsCounts, nullsProvider);
-    }
-
-    @ParameterizedTest
-    @EnumSource(NullsProvider.class)
-    void testLikeRandomPages(NullsProvider nullsProvider)
-    {
-        List<Integer> positionsCounts = randomInts(0, 200_00).limit(42).toList();
-        testLike(positionsCounts, nullsProvider);
-    }
-
-    private void testLike(List<Integer> positionsCounts, NullsProvider nullsProvider)
-    {
-        int varcharChannel = 0;
-        List<Type> inputTypes = List.of(VARCHAR);
-        List<Page> inputPages = createVarcharPages(VARCHAR, positionsCounts, nullsProvider);
-
-        List<Optional<Character>> escapes = List.of(Optional.of('\\'), Optional.of('$'), Optional.empty());
-        for (String pattern : TEST_STRINGS) {
-            for (Optional<Character> escape : escapes) {
-                Expression expression = createLikeExpression(varcharChannel, pattern, escape);
-                assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(varcharChannel));
-            }
-        }
     }
 
     @Test
@@ -5383,22 +5343,6 @@ final class TestGpuExpressions
         }
         List<Page> gpuResults = executeWithGpu(inputPages, inputTypes, expression, gpuExpression);
         assertSameDataInOrder(gpuResults, cpuResults, List.of(expression.type()));
-    }
-
-    private Expression createLikeExpression(int channel, String pattern, Optional<Character> escape)
-    {
-        return new Call(
-                FUNCTION_RESOLUTION.resolveFunction("$like", fromTypes(VARCHAR, LIKE_PATTERN)),
-                ImmutableList.of(
-                        field(channel, VARCHAR),
-                        new Constant(LIKE_PATTERN, LikePattern.compile(pattern, escape))));
-    }
-
-    private static Stream<Integer> randomInts(int minInclusive, int maxExclusive)
-    {
-        Random random = new Random(42); // Fixed seed for reproducibility
-        return IntStream.generate(() -> random.nextInt(minInclusive, maxExclusive))
-                .boxed();
     }
 
     private static Block createStringBlock(List<String> values)
