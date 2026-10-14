@@ -26,6 +26,7 @@ import io.trino.plugin.memory.MemoryPlugin;
 import io.trino.plugin.tpch.TpchPlugin;
 import io.trino.spi.security.PrincipalType;
 import io.trino.testing.DistributedQueryRunner;
+import io.trino.testing.LocalSpoolingManager.LocalSpoolingPlugin;
 import io.trino.tpch.TpchTable;
 
 import java.io.File;
@@ -39,7 +40,9 @@ import static io.trino.plugin.hive.metastore.file.TestingFileHiveMetastore.creat
 import static io.trino.testing.TestingSession.testSessionBuilder;
 import static io.trino.tpch.TpchTable.CUSTOMER;
 import static io.trino.tpch.TpchTable.NATION;
+import static io.trino.util.Ciphers.createRandomAesEncryptionKey;
 import static java.lang.String.format;
+import static java.util.Base64.getEncoder;
 
 public class DataframeQueryRunner
 {
@@ -52,6 +55,8 @@ public class DataframeQueryRunner
     {
         DistributedQueryRunner queryRunner = DistributedQueryRunner.builder(getDefaultSession())
                 .setCoordinatorProperties(ImmutableMap.copyOf(coordinatorProperties))
+                // Extra properties are common for the coordinator and workers
+                .addExtraProperties(spoolingProperties())
                 .build();
 
         queryRunner.installPlugin(new TpchPlugin());
@@ -94,6 +99,10 @@ public class DataframeQueryRunner
 
         queryRunner.createCatalog("iceberg", "iceberg", icebergProperties);
         queryRunner.execute("CREATE SCHEMA iceberg.default");
+
+        // Segments are spooled to a temporary directory, so no object storage is needed
+        queryRunner.installPlugin(new LocalSpoolingPlugin());
+        queryRunner.loadSpoolingManager("test-local", ImmutableMap.of());
     }
 
     static void main()
@@ -104,6 +113,24 @@ public class DataframeQueryRunner
 
         Logger log = Logger.get(DataframeQueryRunner.class);
         log.info("======== SERVER STARTED ========");
+    }
+
+    // Enables the arrow-preview{,+zstd,+lz4} spooled encodings
+    private static Map<String, String> spoolingProperties()
+    {
+        return ImmutableMap.<String, String>builder()
+                .put("protocol.spooling.enabled", "true")
+                .put("protocol.spooling.shared-secret-key", getEncoder().encodeToString(createRandomAesEncryptionKey().getEncoded()))
+                // Fetch segments through the coordinator, LocalSpoolingManager doesn't support direct access
+                .put("protocol.spooling.retrieval-mode", "coordinator_proxy")
+                .put("protocol.spooling.inlining.enabled", "true")
+                .put("protocol.spooling.inlining.max-size", "1MB")
+                .put("protocol.spooling.inlining.max-rows", "1000")
+                .put("protocol.spooling.initial-segment-size", "1MB")
+                .put("protocol.spooling.encoding.arrow.enabled", "true")
+                .put("protocol.spooling.encoding.arrow+zstd.enabled", "true")
+                .put("protocol.spooling.encoding.arrow+lz4.enabled", "true")
+                .buildOrThrow();
     }
 
     private static Session getDefaultSession()
