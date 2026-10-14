@@ -10,6 +10,7 @@
 package com.starburstdata.plugin.openapi;
 
 import com.google.common.base.Joiner;
+import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableListMultimap;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
@@ -42,6 +43,7 @@ import static com.google.common.net.UrlEscapers.urlFormParameterEscaper;
 import static com.google.common.net.UrlEscapers.urlPathSegmentEscaper;
 import static com.starburstdata.plugin.openapi.OpenApiMetadata.SCHEMA_NAME;
 import static io.trino.spi.StandardErrorCode.FUNCTION_IMPLEMENTATION_ERROR;
+import static io.trino.spi.StandardErrorCode.INVALID_FUNCTION_ARGUMENT;
 import static io.trino.spi.StandardErrorCode.MISSING_ARGUMENT;
 import static io.trino.spi.function.table.Descriptor.descriptor;
 import static java.lang.String.join;
@@ -145,7 +147,7 @@ class OpenApiRequestTableFunction
             switch (serializedValue) {
                 case SerializedString(String string) -> {
                     switch (parameterHandle.parameterStyle()) {
-                        case ParameterStyle.SIMPLE_PATH -> pathParameterToValueBuilder.put(name, string);
+                        case ParameterStyle.SIMPLE_PATH -> pathParameterToValueBuilder.put(name, checkPathParameterValue(name, string));
                         case ParameterStyle.FORM_EXPLODED_QUERY, ParameterStyle.FORM_UNEXPLODED_QUERY -> queryParameterValuesBuilder.put(
                                 name,
                                 urlFormParameterEscaper().escape(string));
@@ -182,6 +184,17 @@ class OpenApiRequestTableFunction
                     e);
         }
         return uriWithQueryParameters(uriWithPathParameters, queryParameterValuesBuilder.build());
+    }
+
+    // Pagination rebuilds the URI with HttpUriBuilder, which decodes an escaped '/', so the value is split on it too
+    private static String checkPathParameterValue(String name, String value)
+    {
+        if (Splitter.on('/').splitToStream(value).anyMatch(segment -> segment.equals(".") || segment.equals(".."))) {
+            throw new TrinoException(
+                    INVALID_FUNCTION_ARGUMENT,
+                    "Path parameter '%s' must not contain '.' or '..' segments".formatted(name));
+        }
+        return value;
     }
 
     private static URI uriWithQueryParameters(URI uri, Multimap<String, String> queryParameters)

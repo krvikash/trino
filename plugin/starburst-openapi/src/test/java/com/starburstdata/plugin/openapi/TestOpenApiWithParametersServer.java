@@ -115,6 +115,23 @@ public class TestOpenApiWithParametersServer
     }
 
     @Test
+    public void testPathParameterDotSegments()
+    {
+        for (String value : ImmutableList.of(".", "..", "../admin", "a/../../admin", "./x")) {
+            assertQueryFails(
+                    "SELECT * FROM TABLE(openapi.api.repeat_path_param_one_param_two(param_one => '%s', param_two => 'x'))".formatted(value),
+                    "\\QPath parameter 'paramOne' must not contain '.' or '..' segments\\E");
+        }
+        assertThat(query(
+                """
+                SELECT paramOne FROM TABLE(openapi.api.repeat_path_param_one_param_two(
+                        param_one => '..a.',
+                        param_two => 'x'))
+                """))
+                .matches("VALUES VARCHAR '..a.'");
+    }
+
+    @Test
     public void testDateValidation()
     {
         assertQueryFails(
