@@ -439,6 +439,10 @@ public final class GpuExpressionCompiler
                 return compileConcat(call, context);
             }
 
+            if (name.equals("concat_ws")) {
+                return compileConcatWs(call, context);
+            }
+
             if (name.equals("regexp_replace")) {
                 return compileRegexpReplace(call, context);
             }
@@ -984,6 +988,30 @@ public final class GpuExpressionCompiler
 
             // The remaining overloads take varbinary (carried as LIST<INT8> on the GPU), array or map arguments
             return Optional.empty();
+        }
+
+        private Optional<GpuExpression> compileConcatWs(Call call, Void context)
+        {
+            List<Expression> arguments = call.arguments();
+            // defensive check: concat_ws takes a separator and at least 1 value
+            if (arguments.size() < 2) {
+                return Optional.empty();
+            }
+
+            // TODO support a non-constant separator; a NULL constant one makes every row NULL and is left to the CPU
+            Optional<String> separator = extractVarcharConstant(arguments.getFirst());
+            if (separator.isEmpty()) {
+                return Optional.empty();
+            }
+
+            List<Expression> values = arguments.subList(1, arguments.size());
+            // The other overload takes array(varchar) values
+            if (!values.stream().allMatch(value -> value.type() instanceof VarcharType)) {
+                return Optional.empty();
+            }
+
+            return compileAll(values, context)
+                    .map(compiled -> new GpuConcatWs(separator.get(), compiled));
         }
 
         private Optional<GpuExpression> compileRegexpReplace(Call call, Void context)
