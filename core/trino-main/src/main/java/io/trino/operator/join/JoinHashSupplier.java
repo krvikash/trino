@@ -20,6 +20,7 @@ import io.trino.operator.InterpretedHashGenerator;
 import io.trino.operator.PagesHashStrategy;
 import io.trino.spi.Page;
 import io.trino.spi.block.Block;
+import io.trino.spi.type.Type;
 import io.trino.sql.gen.JoinFilterFunctionCompiler.JoinFilterFunctionFactory;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 
@@ -59,6 +60,7 @@ public class JoinHashSupplier
             HashArraySizeSupplier hashArraySizeSupplier,
             OptionalInt singleBigintJoinChannel,
             List<Integer> joinChannels,
+            List<Type> types,
             InterpretedHashGenerator hashGenerator)
     {
         this.session = requireNonNull(session, "session is null");
@@ -85,7 +87,10 @@ public class JoinHashSupplier
         this.pageInstancesRetainedSizeInBytes = getPageInstancesRetainedSizeInBytes(channels);
 
         this.pagesHash = switch (getPagesHashType(singleBigintJoinChannel)) {
-            case BIGINT -> new BigintPagesHash(pagesHashStrategy, blockPositionIndex, positionLinksFactoryBuilder, hashArraySizeSupplier, pages, singleBigintJoinChannel.orElseThrow());
+            case BIGINT -> {
+                int joinChannel = singleBigintJoinChannel.orElseThrow();
+                yield new BigintPagesHash(pagesHashStrategy, blockPositionIndex, positionLinksFactoryBuilder, hashArraySizeSupplier, pages, joinChannel, types.get(joinChannel));
+            }
             case DEFAULT -> new DefaultPagesHash(pagesHashStrategy, blockPositionIndex, channels, joinChannels, hashGenerator, positionLinksFactoryBuilder, hashArraySizeSupplier);
         };
         this.positionLinks = positionLinksFactoryBuilder.isEmpty() ? Optional.empty() : Optional.of(positionLinksFactoryBuilder.build());
@@ -122,6 +127,7 @@ public class JoinHashSupplier
             long blocksSizeInBytes,
             OptionalInt sortChannel,
             OptionalInt singleBigintJoinChannel,
+            List<Type> types,
             HashArraySizeSupplier hashArraySizeSupplier)
     {
         long result = 0;
@@ -133,7 +139,7 @@ public class JoinHashSupplier
         }
         result += getPageInstancesRetainedSizeInBytes(channels);
         result += switch (getPagesHashType(singleBigintJoinChannel)) {
-            case BIGINT -> BigintPagesHash.getEstimatedRetainedSizeInBytes(positionCount, hashArraySizeSupplier, channels, blocksSizeInBytes);
+            case BIGINT -> BigintPagesHash.getEstimatedRetainedSizeInBytes(positionCount, hashArraySizeSupplier, channels, blocksSizeInBytes, types.get(singleBigintJoinChannel.orElseThrow()));
             case DEFAULT -> DefaultPagesHash.getEstimatedRetainedSizeInBytes(positionCount, hashArraySizeSupplier, channels, blocksSizeInBytes);
         };
         return result;

@@ -38,6 +38,7 @@ import static io.trino.SequencePageBuilder.createSequencePage;
 import static io.trino.SessionTestUtils.TEST_SESSION;
 import static io.trino.operator.HashArraySizeSupplier.defaultHashArraySizeSupplier;
 import static io.trino.spi.type.BigintType.BIGINT;
+import static io.trino.spi.type.DateType.DATE;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static java.lang.String.format;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -131,8 +132,8 @@ public class TestPagesIndex
     public void testGetEstimatedLookupSourceSizeInBytes()
     {
         for (OptionalInt sortChannel : Arrays.asList(OptionalInt.empty(), OptionalInt.of(0), OptionalInt.of(1))) {
-            for (int joinChannel : Arrays.asList(0, 1)) {
-                List<Type> types = ImmutableList.of(BIGINT, VARCHAR);
+            for (int joinChannel : Arrays.asList(0, 1, 2)) {
+                List<Type> types = ImmutableList.of(BIGINT, VARCHAR, DATE);
                 JoinPagesIndex pagesIndex = newJoinPagesIndex(types, false);
                 int pageCount = 100;
                 for (int i = 0; i < pageCount; i++) {
@@ -164,7 +165,7 @@ public class TestPagesIndex
 
                 long channelsArraySize = sizeOf(pagesIndex.getChannel(0).elements()) * types.size();
                 long blocksSize = 0;
-                for (int channel = 0; channel < 2; channel++) {
+                for (int channel = 0; channel < types.size(); channel++) {
                     blocksSize += pagesIndex.getChannel(channel).stream()
                             .mapToLong(Block::getRetainedSizeInBytes)
                             .sum();

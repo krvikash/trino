@@ -43,11 +43,16 @@ import io.trino.operator.InterpretedHashGenerator;
 import io.trino.operator.PagesHashStrategy;
 import io.trino.operator.join.BigintPagesHash;
 import io.trino.operator.join.BlockPositionIndex;
+import io.trino.operator.join.ByteJoinKeyValues;
 import io.trino.operator.join.DefaultPagesHash;
+import io.trino.operator.join.IntJoinKeyValues;
 import io.trino.operator.join.JoinHash;
 import io.trino.operator.join.JoinHashSupplier;
+import io.trino.operator.join.JoinKeyValues;
+import io.trino.operator.join.LongJoinKeyValues;
 import io.trino.operator.join.LookupSourceSupplier;
 import io.trino.operator.join.PagesHash;
+import io.trino.operator.join.ShortJoinKeyValues;
 import io.trino.operator.join.nonspilling.PartitionedLookupSource;
 import io.trino.spi.Page;
 import io.trino.spi.PageBuilder;
@@ -212,9 +217,14 @@ public class JoinCompiler
                 JoinHash.class,
                 PagesHash.class,
                 BigintPagesHash.class,
+                JoinKeyValues.class,
+                LongJoinKeyValues.class,
+                IntJoinKeyValues.class,
+                ShortJoinKeyValues.class,
+                ByteJoinKeyValues.class,
                 DefaultPagesHash.class,
                 PartitionedLookupSource.class);
-        return new LookupSourceSupplierFactory(joinHashSupplierClass, new PagesHashStrategyFactory(pagesHashStrategyClass), singleBigintJoinChannel);
+        return new LookupSourceSupplierFactory(joinHashSupplierClass, new PagesHashStrategyFactory(pagesHashStrategyClass), singleBigintJoinChannel, types);
     }
 
     private static FieldDefinition generateInstanceSize(ClassDefinition definition)
@@ -898,17 +908,19 @@ public class JoinCompiler
         private final Constructor<? extends LookupSourceSupplier> constructor;
         private final PagesHashStrategyFactory pagesHashStrategyFactory;
         private final OptionalInt singleBigintJoinChannel;
+        private final List<Type> types;
 
-        public LookupSourceSupplierFactory(Class<? extends LookupSourceSupplier> joinHashSupplierClass, PagesHashStrategyFactory pagesHashStrategyFactory, OptionalInt singleBigintJoinChannel)
+        public LookupSourceSupplierFactory(Class<? extends LookupSourceSupplier> joinHashSupplierClass, PagesHashStrategyFactory pagesHashStrategyFactory, OptionalInt singleBigintJoinChannel, List<Type> types)
         {
             this.pagesHashStrategyFactory = pagesHashStrategyFactory;
             try {
-                constructor = joinHashSupplierClass.getConstructor(Session.class, PagesHashStrategy.class, List.class, BlockPositionIndex.class, Optional.class, OptionalInt.class, List.class, HashArraySizeSupplier.class, OptionalInt.class, List.class, InterpretedHashGenerator.class);
+                constructor = joinHashSupplierClass.getConstructor(Session.class, PagesHashStrategy.class, List.class, BlockPositionIndex.class, Optional.class, OptionalInt.class, List.class, HashArraySizeSupplier.class, OptionalInt.class, List.class, List.class, InterpretedHashGenerator.class);
             }
             catch (NoSuchMethodException e) {
                 throw new RuntimeException(e);
             }
             this.singleBigintJoinChannel = requireNonNull(singleBigintJoinChannel, "singleBigintJoinChannel is null");
+            this.types = ImmutableList.copyOf(types);
         }
 
         public LookupSourceSupplier createLookupSourceSupplier(
@@ -924,7 +936,7 @@ public class JoinCompiler
         {
             PagesHashStrategy pagesHashStrategy = pagesHashStrategyFactory.createPagesHashStrategy(channels);
             try {
-                return constructor.newInstance(session, pagesHashStrategy, channels, blockPositionIndex, filterFunctionFactory, sortChannel, searchFunctionFactories, hashArraySizeSupplier, singleBigintJoinChannel, joinChannels, hashGenerator);
+                return constructor.newInstance(session, pagesHashStrategy, channels, blockPositionIndex, filterFunctionFactory, sortChannel, searchFunctionFactories, hashArraySizeSupplier, singleBigintJoinChannel, joinChannels, types, hashGenerator);
             }
             catch (ReflectiveOperationException e) {
                 throw new RuntimeException(e);

@@ -22,6 +22,7 @@ import io.trino.spi.block.DictionaryBlock;
 import io.trino.spi.block.PreSizedBlockBuilder;
 import io.trino.spi.block.RunLengthEncodedBlock;
 import io.trino.spi.block.ValueBlock;
+import io.trino.spi.type.Type;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 
 import java.util.Arrays;
@@ -32,15 +33,18 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static io.airlift.slice.SizeOf.instanceSize;
 import static io.airlift.slice.SizeOf.sizeOf;
 import static io.airlift.slice.SizeOf.sizeOfIntArray;
-import static io.airlift.slice.SizeOf.sizeOfLongArray;
 import static io.trino.operator.join.PagesHash.getHashPosition;
 import static io.trino.spi.type.BigintType.BIGINT;
+import static io.trino.spi.type.DateType.DATE;
+import static io.trino.spi.type.IntegerType.INTEGER;
+import static io.trino.spi.type.SmallintType.SMALLINT;
+import static io.trino.spi.type.TinyintType.TINYINT;
 import static java.lang.Math.toIntExact;
 import static java.util.Objects.requireNonNull;
 
 /**
  * This implementation assumes:
- * -There is only one join channel and it is of type bigint
+ * -There is only one join channel and it is of type bigint, integer, date, smallint or tinyint
  * -arrays used in the hash are always a power of 2.
  */
 public final class BigintPagesHash
@@ -53,7 +57,7 @@ public final class BigintPagesHash
 
     private final int mask;
     private final int[] keys;
-    private final long[] values;
+    private final JoinKeyValues values;
     // Resolves a row number to its (block index, position) for output.
     private final BlockPositionIndex blockPositionIndex;
     private final long size;
@@ -64,7 +68,8 @@ public final class BigintPagesHash
             PositionLinks.FactoryBuilder positionLinks,
             HashArraySizeSupplier hashArraySizeSupplier,
             List<Page> pages,
-            int joinChannel)
+            int joinChannel,
+            Type joinType)
     {
         this.pagesHashStrategy = requireNonNull(pagesHashStrategy, "pagesHashStrategy is null");
         this.blockPositionIndex = requireNonNull(blockPositionIndex, "blockPositionIndex is null");
@@ -80,13 +85,14 @@ public final class BigintPagesHash
 
         mask = hashSize - 1;
         keys = new int[hashSize];
-        values = new long[positionCount];
+        values = createValues(joinType, positionCount);
         Arrays.fill(keys, -1);
 
         // (block, position) come from the page structure.
         // Per page the non-null positions are pulled out first; the all-non-null case runs the full range
         // branch-free, otherwise only the non-null positions are processed.
         int[] hashPositions = new int[maxPagePositions];
+        int[] collisionPositions = new int[maxPagePositions];
         Block[] nullableBlocks = new Block[1];
         int offset = 0;
         for (Page page : pages) {
@@ -95,53 +101,68 @@ public final class BigintPagesHash
             int nullableCount = block.mayHaveNull() ? 1 : 0;
             nullableBlocks[0] = block;
             Optional<int[]> nonNullPositions = NullablePositions.getNonNullPositions(nullableBlocks, nullableCount, pagePositions);
+            // A batched pass materializes values and starting hash buckets (sequential, no hash-table access), then a
+            // separate pass inserts so probe stalls are not serialized behind hash computation.
             if (nonNullPositions.isEmpty()) {
-                indexRange(positionLinks, block, offset, pagePositions, hashPositions);
+                values.copyFrom(block, offset, pagePositions, mask, hashPositions);
+                indexRange(positionLinks, offset, pagePositions, hashPositions, collisionPositions);
             }
             else {
-                indexPositions(positionLinks, block, offset, nonNullPositions.get(), hashPositions);
+                values.copyFrom(block, offset, nonNullPositions.get(), mask, hashPositions);
+                indexPositions(positionLinks, offset, nonNullPositions.get(), hashPositions, collisionPositions);
             }
             offset += pagePositions;
         }
 
         size = pagesHashStrategy.getSizeInBytes() +
-                sizeOf(keys) + sizeOf(values) + blockPositionIndex.getRetainedSizeInBytes();
+                sizeOf(keys) + values.getRetainedSizeInBytes() + blockPositionIndex.getRetainedSizeInBytes();
     }
 
-    // A batched pass materializes values and starting hash buckets (sequential, no hash-table access), then a
-    // separate pass inserts so probe stalls are not serialized behind hash computation.
-    private void indexRange(PositionLinks.FactoryBuilder positionLinks, Block block, int offset, int pagePositions, int[] hashPositions)
+    private void indexRange(PositionLinks.FactoryBuilder positionLinks, int offset, int pagePositions, int[] hashPositions, int[] collisionPositions)
     {
+        int collisionCount = 0;
         for (int position = 0; position < pagePositions; position++) {
-            long value = BIGINT.getLong(block, position);
-            values[offset + position] = value;
-            hashPositions[position] = getHashPosition(value, mask);
+            int hashPosition = hashPositions[position];
+            if (keys[hashPosition] == -1) {
+                keys[hashPosition] = offset + position;
+            }
+            else {
+                collisionPositions[collisionCount++] = position;
+            }
         }
-        for (int position = 0; position < pagePositions; position++) {
-            insertValue(positionLinks, offset + position, hashPositions[position]);
+        insertCollisions(positionLinks, offset, hashPositions, collisionPositions, collisionCount);
+    }
+
+    private void indexPositions(PositionLinks.FactoryBuilder positionLinks, int offset, int[] positions, int[] hashPositions, int[] collisionPositions)
+    {
+        int collisionCount = 0;
+        for (int position : positions) {
+            int hashPosition = hashPositions[position];
+            if (keys[hashPosition] == -1) {
+                keys[hashPosition] = offset + position;
+            }
+            else {
+                collisionPositions[collisionCount++] = position;
+            }
+        }
+        insertCollisions(positionLinks, offset, hashPositions, collisionPositions, collisionCount);
+    }
+
+    // Inserts rows whose starting bucket was taken, so the claim loop makes no JoinKeyValues call.
+    private void insertCollisions(PositionLinks.FactoryBuilder positionLinks, int offset, int[] hashPositions, int[] collisionPositions, int collisionCount)
+    {
+        for (int i = 0; i < collisionCount; i++) {
+            int position = collisionPositions[i];
+            insertValue(positionLinks, offset + position, hashPositions[position], values.get(offset + position));
         }
     }
 
-    private void indexPositions(PositionLinks.FactoryBuilder positionLinks, Block block, int offset, int[] positions, int[] hashPositions)
+    private void insertValue(PositionLinks.FactoryBuilder positionLinks, int addressIndex, int pos, long value)
     {
-        for (int position : positions) {
-            long value = BIGINT.getLong(block, position);
-            values[offset + position] = value;
-            hashPositions[position] = getHashPosition(value, mask);
-        }
-        for (int position : positions) {
-            insertValue(positionLinks, offset + position, hashPositions[position]);
-        }
-    }
-
-    private void insertValue(PositionLinks.FactoryBuilder positionLinks, int addressIndex, int pos)
-    {
-        // value already materialized by the batched pass
-        long value = values[addressIndex];
         // look for an empty slot or a slot containing this key
         while (keys[pos] != -1) {
             int currentKey = keys[pos];
-            if (value == values[currentKey]) {
+            if (value == values.get(currentKey)) {
                 // found a slot for this key
                 // link the new key position to the current key position
                 addressIndex = positionLinks.link(addressIndex, currentKey);
@@ -177,11 +198,11 @@ public final class BigintPagesHash
     @Override
     public int getAddressIndex(int position, Page hashChannelsPage)
     {
-        long value = BIGINT.getLong(hashChannelsPage.getBlock(0), position);
+        long value = readValue(hashChannelsPage.getBlock(0), position);
         int pos = getHashPosition(value, mask);
 
         while (keys[pos] != -1) {
-            if (value == values[keys[pos]]) {
+            if (value == values.get(keys[pos])) {
                 return keys[pos];
             }
             // increment position and mask to handler wrap around
@@ -199,7 +220,7 @@ public final class BigintPagesHash
         long[] incomingValues = new long[positionCount];
         int[] hashPositions = new int[positionCount];
 
-        extractAndHashValues(positions, hashChannelsPage, positionCount, incomingValues, hashPositions);
+        values.readKeys(hashChannelsPage.getBlock(0), positions, positionCount, mask, incomingValues, hashPositions);
 
         int[] found = new int[positionCount];
         int foundCount = 0;
@@ -236,7 +257,7 @@ public final class BigintPagesHash
             int position = (hashPositions[index] + 1) & mask; // hashPositions[index] position has already been checked
 
             while (keys[position] != -1) {
-                if (values[keys[position]] == incomingValues[index]) {
+                if (values.get(keys[position]) == incomingValues[index]) {
                     result[index] = keys[position];
                     break;
                 }
@@ -252,7 +273,7 @@ public final class BigintPagesHash
         int remainingCount = 0;
         for (int i = 0; i < foundCount; i++) {
             int index = found[i];
-            if (values[foundKeys[index]] == incomingValues[index]) {
+            if (values.get(foundKeys[index]) == incomingValues[index]) {
                 result[index] = foundKeys[index];
             }
             else {
@@ -269,28 +290,52 @@ public final class BigintPagesHash
         }
     }
 
-    private void extractAndHashValues(int[] positions, Page hashChannelsPage, int positionCount, long[] incomingValues, int[] hashPositions)
+    private long readValue(Block block, int position)
     {
-        switch (hashChannelsPage.getBlock(0)) {
-            case RunLengthEncodedBlock rleBlock -> {
-                long value = BIGINT.getLong(rleBlock.getUnderlyingValueBlock(), 0);
-                Arrays.fill(incomingValues, value);
-                Arrays.fill(hashPositions, getHashPosition(value, mask));
-            }
-            case DictionaryBlock dictionaryBlock -> {
-                ValueBlock valueBlock = dictionaryBlock.getUnderlyingValueBlock();
-                for (int i = 0; i < positionCount; i++) {
-                    incomingValues[i] = BIGINT.getLong(valueBlock, dictionaryBlock.getUnderlyingValuePosition(positions[i]));
-                    hashPositions[i] = getHashPosition(incomingValues[i], mask);
-                }
-            }
-            case ValueBlock valueBlock -> {
-                for (int i = 0; i < positionCount; i++) {
-                    incomingValues[i] = BIGINT.getLong(valueBlock, positions[i]);
-                    hashPositions[i] = getHashPosition(incomingValues[i], mask);
-                }
-            }
+        return switch (block) {
+            case RunLengthEncodedBlock rleBlock -> values.readKey(rleBlock.getValue(), 0);
+            case DictionaryBlock dictionaryBlock -> values.readKey(dictionaryBlock.getDictionary(), dictionaryBlock.getId(position));
+            case ValueBlock valueBlock -> values.readKey(valueBlock, position);
+        };
+    }
+
+    private static JoinKeyValues createValues(Type joinType, int positionCount)
+    {
+        if (joinType == BIGINT) {
+            return new LongJoinKeyValues(positionCount);
         }
+        if (joinType == INTEGER || joinType == DATE) {
+            return new IntJoinKeyValues(positionCount);
+        }
+        if (joinType == SMALLINT) {
+            return new ShortJoinKeyValues(positionCount);
+        }
+        if (joinType == TINYINT) {
+            return new ByteJoinKeyValues(positionCount);
+        }
+        throw unsupportedType(joinType);
+    }
+
+    private static long getEstimatedValuesRetainedSizeInBytes(Type joinType, int positionCount)
+    {
+        if (joinType == BIGINT) {
+            return LongJoinKeyValues.getEstimatedRetainedSizeInBytes(positionCount);
+        }
+        if (joinType == INTEGER || joinType == DATE) {
+            return IntJoinKeyValues.getEstimatedRetainedSizeInBytes(positionCount);
+        }
+        if (joinType == SMALLINT) {
+            return ShortJoinKeyValues.getEstimatedRetainedSizeInBytes(positionCount);
+        }
+        if (joinType == TINYINT) {
+            return ByteJoinKeyValues.getEstimatedRetainedSizeInBytes(positionCount);
+        }
+        throw unsupportedType(joinType);
+    }
+
+    private static IllegalArgumentException unsupportedType(Type joinType)
+    {
+        return new IllegalArgumentException("Unsupported join key type: " + joinType);
     }
 
     @Override
@@ -313,7 +358,8 @@ public final class BigintPagesHash
             int positionCount,
             HashArraySizeSupplier hashArraySizeSupplier,
             List<ObjectArrayList<Block>> channels,
-            long blocksSizeInBytes)
+            long blocksSizeInBytes,
+            Type joinType)
     {
         int blockCount = 0;
         if (!channels.isEmpty()) {
@@ -323,7 +369,7 @@ public final class BigintPagesHash
         return (channels.size() > 0 ? sizeOf(channels.get(0).elements()) * channels.size() : 0) +
                 blocksSizeInBytes +
                 sizeOfIntArray(hashArraySizeSupplier.getHashArraySize(positionCount)) +
-                sizeOfLongArray(positionCount) +
+                getEstimatedValuesRetainedSizeInBytes(joinType, positionCount) +
                 blockPositionIndexSize;
     }
 }

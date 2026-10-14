@@ -39,6 +39,10 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Verify.verify;
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.trino.spi.type.BigintType.BIGINT;
+import static io.trino.spi.type.DateType.DATE;
+import static io.trino.spi.type.IntegerType.INTEGER;
+import static io.trino.spi.type.SmallintType.SMALLINT;
+import static io.trino.spi.type.TinyintType.TINYINT;
 import static io.trino.sql.planner.plan.ExchangeNode.Scope.LOCAL;
 import static io.trino.sql.planner.plan.ExchangeNode.Scope.REMOTE;
 import static io.trino.sql.planner.plan.ExchangeNode.Type.GATHER;
@@ -72,10 +76,16 @@ public final class JoinUtils
 
     public static OptionalInt getSingleBigintJoinChannel(List<Integer> joinChannels, List<Type> types)
     {
-        if (joinChannels.size() == 1 && types.get(getOnlyElement(joinChannels)) == BIGINT) {
+        if (joinChannels.size() == 1 && isBigintPagesHashType(types.get(getOnlyElement(joinChannels)))) {
             return OptionalInt.of(getOnlyElement(joinChannels));
         }
         return OptionalInt.empty();
+    }
+
+    // REAL and DOUBLE stay out because their equality is not bit equality.
+    private static boolean isBigintPagesHashType(Type type)
+    {
+        return type == BIGINT || type == INTEGER || type == DATE || type == SMALLINT || type == TINYINT;
     }
 
     public static boolean pageMayHaveNull(Page page)

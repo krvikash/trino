@@ -338,6 +338,7 @@ public class JoinPagesIndex
                 pagesMemorySize,
                 sortChannel,
                 getSingleBigintJoinChannel(joinChannels, types),
+                types,
                 hashArraySizeSupplier);
         // JoinPagesIndex is retained during LookupSource creation, hence any extra memory retained by it must be accounted here
         long pagesIndexAdditionalRetainedSizeInBytes = getExtraPagesIndexMemoryWithLookupSourceBuild();
