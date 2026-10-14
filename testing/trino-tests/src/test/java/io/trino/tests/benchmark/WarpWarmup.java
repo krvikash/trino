@@ -14,127 +14,221 @@
 package io.trino.tests.benchmark;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import io.airlift.log.Logger;
 import io.trino.testing.DistributedQueryRunner;
 import io.trino.testing.MaterializedRow;
 
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.function.Function;
 
+import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
+import static io.trino.tests.benchmark.BenchmarkRunner.isOutOfMemory;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
+import static java.util.concurrent.TimeUnit.MINUTES;
+import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.stream.Collectors.joining;
 
 /**
- * Warms the warp index by running each benchmark query until warp starts no further work.
+ * Warms the warp index. Every tracked run starts and ends with warp warming idle, so the counter
+ * difference across a run is exactly the warming that run caused. A query is warm once a run loses
+ * no warming work.
  */
 final class WarpWarmup
 {
     private static final Logger log = Logger.get(WarpWarmup.class);
 
     private static final int MAX_ROUNDS = 10;
-    private static final long IDLE_POLL_MILLIS = 10_000;
-    private static final int IDLE_STABLE_POLLS = 3;
-    private static final long ROUND_TIMEOUT_NANOS = 2L * 60 * 60 * 1_000_000_000;
+    private static final long IDLE_POLL_MILLIS = 10;
+    private static final long STALL_TIMEOUT_NANOS = MINUTES.toNanos(5);
 
     /**
-     * Counters sampled around every warm round. The scheduled/started/accomplished/failed group
-     * says how much warming a round produced, the skip counters say what warp turned down, and the
-     * element and row group counts say how much the index grew. All are cumulative, so a round or
-     * a query is measured as the difference between two samples.
+     * Cumulative warming service counters summed over nodes. Scheduled minus finished is the number
+     * of warming tasks in flight.
      */
-    private static final List<String> COUNTERS = ImmutableList.of(
+    private static final List<String> WARMING_COUNTERS = ImmutableList.of(
             "warm_scheduled",
+            "warm_finished",
             "warm_started",
             "warm_accomplished",
             "warm_failed",
-            "warm_skipped_due_key_conflict",
             "warm_skipped_due_reaching_threshold",
             "warmup_elements_count",
             "row_group_count");
 
+    /**
+     * Warming tasks the executor rejects for a full queue or too many pending tasks on one row group.
+     */
+    private static final String REJECTED_COUNTER = "task_skipped_due_queue_size";
+
+    private static final List<String> COUNTERS = ImmutableList.<String>builder()
+            .addAll(WARMING_COUNTERS)
+            .add(REJECTED_COUNTER)
+            .build();
+
     private final DistributedQueryRunner runner;
-    private final String statsTable;
+    private final String sampleSql;
+    private final Set<String> warmQueries = new HashSet<>();
+    private final Map<String, Long> measuredWarming = new LinkedHashMap<>();
+    private Map<String, Long> idleSample;
 
     WarpWarmup(DistributedQueryRunner runner)
     {
         this.runner = requireNonNull(runner, "runner is null");
-        // the MBean's catalog property carries a hash suffix, so resolve the table name once
-        this.statsTable = (String) runner.execute(
-                "SELECT table_name FROM jmx.information_schema.tables" +
-                        " WHERE table_schema = 'current' AND table_name LIKE 'io.trino.plugin.warp.gen.stats:%warmingservicestats%'").getOnlyValue();
-        log.info("Warp warming stats table: %s", statsTable);
+        String warmingTable = resolveStatsTable(runner, "warmingservicestats");
+        String executorTable = resolveStatsTable(runner, "workertaskexecutorservicestats");
+        log.info("Warp warming stats tables: %s, %s", warmingTable, executorTable);
+        String warmingProjections = WARMING_COUNTERS.stream()
+                .map(counter -> format("coalesce(sum(%s), 0)", counter))
+                .collect(joining(", "));
+        this.sampleSql = format(
+                "SELECT * FROM (SELECT %s FROM jmx.current.\"%s\") CROSS JOIN (SELECT coalesce(sum(%s), 0) FROM jmx.current.\"%s\")",
+                warmingProjections,
+                warmingTable,
+                REJECTED_COUNTER,
+                executorTable);
+        // queries run before the benchmark, such as ANALYZE, may still be warming
+        this.idleSample = awaitWarmingIdle();
     }
 
     /**
-     * Runs a query until a round warms nothing further.
+     * Runs a suite warmup query and records whether it left warming work behind.
      */
-    void warmQuery(String query, String sql)
+    void trackWarmupRun(String query, String sql)
+    {
+        warmQueries.remove(query);
+        WarmingRun run = trackRun(sql);
+        if (run.lost() == 0) {
+            warmQueries.add(query);
+        }
+        log.info("%s warmup run: %s", query, run.describe());
+    }
+
+    /**
+     * Reruns each query whose last run lost warming work until a run loses none.
+     */
+    void warmQueries(List<String> queries, Function<String, String> sqlForQuery)
     {
         long startNanos = System.nanoTime();
-        Map<String, Long> beforeQuery = sample();
-        int round = 1;
-        for (; round <= MAX_ROUNDS; round++) {
-            Map<String, Long> beforeRound = sample();
-            runner.execute(sql);
-            awaitWarmingIdle();
-            Map<String, Long> afterRound = sample();
-            // a round without a new warmup element leaves the index as the next round would find it
-            if (delta(beforeRound, afterRound, "warm_accomplished") == 0) {
-                break;
-            }
+        List<String> unwarmedQueries = queries.stream()
+                .filter(query -> !warmQueries.contains(query))
+                .collect(toImmutableList());
+        int runs = 0;
+        for (String query : unwarmedQueries) {
+            runs += warmQuery(query, sqlForQuery.apply(query));
         }
-        if (round > MAX_ROUNDS) {
-            log.warn("%s: warp warming still active after %d rounds, measuring anyway", query, MAX_ROUNDS);
-            round = MAX_ROUNDS;
-        }
-        Map<String, Long> afterQuery = sample();
         log.info(
-                "%s warp warmup: %d rounds in %d s, scheduled=%d started=%d accomplished=%d failed=%d skipped=%d, warming created %d elements over %d row groups",
-                query,
-                round,
-                (System.nanoTime() - startNanos) / 1_000_000_000,
-                delta(beforeQuery, afterQuery, "warm_scheduled"),
-                delta(beforeQuery, afterQuery, "warm_started"),
-                delta(beforeQuery, afterQuery, "warm_accomplished"),
-                delta(beforeQuery, afterQuery, "warm_failed"),
-                delta(beforeQuery, afterQuery, "warm_skipped_due_key_conflict") + delta(beforeQuery, afterQuery, "warm_skipped_due_reaching_threshold"),
-                delta(beforeQuery, afterQuery, "warmup_elements_count"),
-                delta(beforeQuery, afterQuery, "row_group_count"));
+                "Warp warmup: %d of %d queries rerun, %d runs in %d s",
+                unwarmedQueries.size(),
+                queries.size(),
+                runs,
+                NANOSECONDS.toSeconds(System.nanoTime() - startNanos));
     }
 
-    private static long delta(Map<String, Long> before, Map<String, Long> after, String counter)
+    private int warmQuery(String query, String sql)
     {
-        return after.get(counter) - before.get(counter);
+        for (int round = 1; round <= MAX_ROUNDS; round++) {
+            WarmingRun run;
+            try {
+                run = trackRun(sql);
+            }
+            catch (RuntimeException e) {
+                if (!isOutOfMemory(e)) {
+                    throw e;
+                }
+                log.warn(e, "%s warp warmup round %d: out of memory, measuring anyway", query, round);
+                return round;
+            }
+            log.info("%s warp warmup round %d: %s", query, round, run.describe());
+            if (run.lost() == 0) {
+                warmQueries.add(query);
+                return round;
+            }
+            if (run.count("warm_accomplished") == 0) {
+                log.warn("%s: warp lost %d warming tasks and accomplished none, measuring anyway", query, run.lost());
+                return round;
+            }
+        }
+        log.warn("%s: warp still loses warming work after %d rounds, measuring anyway", query, MAX_ROUNDS);
+        return MAX_ROUNDS;
     }
 
     /**
-     * Warming runs asynchronously after query execution, so idle means the warming counters stay
-     * unchanged across consecutive polls.
+     * Waits for warming left by a query's warmup iterations before its measured runs start.
      */
-    private void awaitWarmingIdle()
+    void startMeasuredRuns()
     {
-        long deadline = System.nanoTime() + ROUND_TIMEOUT_NANOS;
-        Map<String, Long> previous = ImmutableMap.of();
-        int stablePolls = 0;
+        idleSample = awaitWarmingIdle();
+    }
+
+    /**
+     * Records warming started since {@link #startMeasuredRuns}, which the query's measured timings include.
+     */
+    void checkMeasuredRuns(String query)
+    {
+        Map<String, Long> before = idleSample;
+        idleSample = awaitWarmingIdle();
+        WarmingRun measuredRuns = new WarmingRun(before, idleSample, 0, 0);
+        if (measuredRuns.count("warm_started") > 0) {
+            measuredWarming.put(query, measuredRuns.count("warm_started"));
+            log.warn("%s: warp warmed during the measured runs, so their timings include warming: %s", query, measuredRuns.describeWarming());
+        }
+    }
+
+    /**
+     * Reports the queries whose measured runs started warming.
+     */
+    void reportMeasuredRuns()
+    {
+        if (measuredWarming.isEmpty()) {
+            log.info("Warp did not warm during the measured runs");
+            return;
+        }
+        log.warn(
+                "Warp warmed during the measured runs of %d queries: %s",
+                measuredWarming.size(),
+                measuredWarming.entrySet().stream()
+                        .map(entry -> format("%s (%d tasks)", entry.getKey(), entry.getValue()))
+                        .collect(joining(", ")));
+    }
+
+    private WarmingRun trackRun(String sql)
+    {
+        Map<String, Long> before = idleSample;
+        long startNanos = System.nanoTime();
+        try {
+            runner.execute(sql);
+        }
+        catch (RuntimeException e) {
+            // the next tracked run starts from idle even after a failed query
+            try {
+                idleSample = awaitWarmingIdle();
+            }
+            catch (RuntimeException idleFailure) {
+                e.addSuppressed(idleFailure);
+            }
+            throw e;
+        }
+        long queryNanos = System.nanoTime() - startNanos;
+        idleSample = awaitWarmingIdle();
+        return new WarmingRun(before, idleSample, queryNanos, System.nanoTime() - startNanos - queryNanos);
+    }
+
+    /**
+     * Idle means no warming task in flight across two consecutive samples with equal counters. A
+     * finishing task counts itself finished before it schedules its next task, and the second
+     * sample catches that next task.
+     */
+    private Map<String, Long> awaitWarmingIdle()
+    {
+        Map<String, Long> previous = sample();
+        long lastChangeNanos = System.nanoTime();
         while (true) {
-            Map<String, Long> current = sample();
-            if (current.equals(previous)) {
-                stablePolls++;
-                if (stablePolls == IDLE_STABLE_POLLS) {
-                    return;
-                }
-            }
-            else {
-                stablePolls = 0;
-                previous = current;
-            }
-            if (System.nanoTime() - deadline > 0) {
-                log.warn("Warp warming did not go idle within the round timeout, moving on");
-                return;
-            }
             try {
                 Thread.sleep(IDLE_POLL_MILLIS);
             }
@@ -142,18 +236,71 @@ final class WarpWarmup
                 Thread.currentThread().interrupt();
                 throw new RuntimeException("Interrupted while waiting for warp warming", e);
             }
+            Map<String, Long> current = sample();
+            long inFlight = current.get("warm_scheduled") - current.get("warm_finished");
+            if (!current.equals(previous)) {
+                lastChangeNanos = System.nanoTime();
+            }
+            else if (inFlight == 0) {
+                return current;
+            }
+            else if (System.nanoTime() - lastChangeNanos > STALL_TIMEOUT_NANOS) {
+                throw new IllegalStateException(format(
+                        "Warp warming made no progress for %d minutes with %d tasks in flight: %s",
+                        NANOSECONDS.toMinutes(STALL_TIMEOUT_NANOS),
+                        inFlight,
+                        current));
+            }
+            previous = current;
         }
     }
 
     private Map<String, Long> sample()
     {
-        String projections = COUNTERS.stream()
-                .map(counter -> format("coalesce(sum(%s), 0)", counter))
-                .collect(joining(", "));
-        MaterializedRow row = runner.execute(format("SELECT %s FROM jmx.current.\"%s\"", projections, statsTable))
+        MaterializedRow row = runner.execute(sampleSql)
                 .getMaterializedRows()
                 .getFirst();
         return COUNTERS.stream()
                 .collect(toImmutableMap(counter -> counter, counter -> ((Number) row.getField(COUNTERS.indexOf(counter))).longValue()));
+    }
+
+    private static String resolveStatsTable(DistributedQueryRunner runner, String type)
+    {
+        // the MBean's name property carries a hash suffix, so resolve the table name once
+        return (String) runner.execute(
+                "SELECT DISTINCT table_name FROM jmx.information_schema.tables" +
+                        " WHERE table_schema = 'current' AND table_name LIKE 'io.trino.plugin.warp.gen.stats:%" + type + "%'").getOnlyValue();
+    }
+
+    private record WarmingRun(Map<String, Long> before, Map<String, Long> after, long queryNanos, long idleWaitNanos)
+    {
+        long count(String counter)
+        {
+            return after.get(counter) - before.get(counter);
+        }
+
+        long lost()
+        {
+            return count(REJECTED_COUNTER) + count("warm_failed") + count("warm_skipped_due_reaching_threshold");
+        }
+
+        String describe()
+        {
+            return format("query %d ms, warming tail %d ms, %s", NANOSECONDS.toMillis(queryNanos), NANOSECONDS.toMillis(idleWaitNanos), describeWarming());
+        }
+
+        String describeWarming()
+        {
+            return format(
+                    "started=%d accomplished=%d lost=%d (rejected=%d failed=%d threshold=%d), %d elements over %d row groups",
+                    count("warm_started"),
+                    count("warm_accomplished"),
+                    lost(),
+                    count(REJECTED_COUNTER),
+                    count("warm_failed"),
+                    count("warm_skipped_due_reaching_threshold"),
+                    count("warmup_elements_count"),
+                    count("row_group_count"));
+        }
     }
 }
