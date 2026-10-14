@@ -522,6 +522,11 @@ public final class GpuExpressionCompiler
                         .map(GpuToHex::new);
             }
 
+            if (name.equals("sha1") && call.arguments().size() == 1 && getOnlyElement(call.arguments()).type() == VARBINARY) {
+                return getOnlyElement(call.arguments()).accept(this, context)
+                        .map(GpuSha1::new);
+            }
+
             return Optional.empty();
         }
 
