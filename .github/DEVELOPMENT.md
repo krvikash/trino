@@ -271,6 +271,10 @@ mvnd test-compile exec:exec -Dair.check.skip-all=true -Dmaven.compiler.proc=full
     -Dexec.args="-cp %classpath <benchmark class>"
 ```
 
+## GPU development
+
+To develop and test GPU code on an AWS GPU host, see [`dev/gpu/README.md`](../dev/gpu/README.md).
+
 ## Additional IDE configuration
 
 When using IntelliJ to develop Trino, we recommend starting with all of the
