@@ -54,6 +54,7 @@ import io.trino.spi.type.LongTimestampWithTimeZone;
 import io.trino.spi.type.TimeZoneKey;
 import io.trino.spi.type.TimestampType;
 import io.trino.spi.type.TimestampWithTimeZoneType;
+import io.trino.spi.type.Timestamps;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.VarcharType;
 import io.trino.sql.gen.TestColumnarFilters.NullsProvider;
@@ -101,12 +102,16 @@ import static io.trino.spi.type.IntegerType.INTEGER;
 import static io.trino.spi.type.RealType.REAL;
 import static io.trino.spi.type.SmallintType.SMALLINT;
 import static io.trino.spi.type.TimeZoneKey.UTC_KEY;
+import static io.trino.spi.type.TimestampType.createTimestampType;
 import static io.trino.spi.type.TimestampWithTimeZoneType.createTimestampWithTimeZoneType;
 import static io.trino.spi.type.Timestamps.MICROSECONDS_PER_DAY;
+import static io.trino.spi.type.Timestamps.NANOSECONDS_PER_DAY;
 import static io.trino.spi.type.Timestamps.NANOSECONDS_PER_MICROSECOND;
 import static io.trino.spi.type.Timestamps.NANOSECONDS_PER_MILLISECOND;
+import static io.trino.spi.type.Timestamps.PICOSECONDS_PER_NANOSECOND;
 import static io.trino.spi.type.TinyintType.TINYINT;
 import static io.trino.spi.type.TypeUtils.readNativeValue;
+import static io.trino.spi.type.TypeUtils.writeNativeValue;
 import static io.trino.spi.type.VarbinaryType.VARBINARY;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.spi.type.VarcharType.createVarcharType;
@@ -114,6 +119,8 @@ import static io.trino.testing.assertions.TrinoExceptionAssert.assertTrinoExcept
 import static io.trino.type.CharVarcharCoercion.LEGACY;
 import static io.trino.type.CharVarcharCoercion.SQL_STANDARD;
 import static java.lang.Math.clamp;
+import static java.lang.Math.floorDiv;
+import static java.lang.Math.floorMod;
 import static java.lang.Math.min;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -1284,6 +1291,124 @@ public final class GpuTestUtils
             mergedBlocks[channel] = builder.build();
         }
         return new Page(totalPositions, mergedBlocks);
+    }
+
+    public static List<Page> cartesianProduct(Type leftType, List<?> leftValues, Type rightType, List<?> rightValues)
+    {
+        List<Page> pages = new ArrayList<>();
+        for (Object leftValue : leftValues) {
+            for (Object rightValue : rightValues) {
+                pages.add(new Page(
+                        writeNativeValue(leftType, leftValue),
+                        writeNativeValue(rightType, rightValue)));
+            }
+        }
+        return pages;
+    }
+
+    /// A page of `a` and `b` where `b` mixes zero, positive and negative divisors with the NULLs
+    /// `nullsProvider` asks for.
+    public static List<Page> divisorPages(NullsProvider nullsProvider)
+    {
+        int positionsCount = 64;
+        Random random = new Random(42);
+        BlockBuilder aBuilder = BIGINT.createBlockBuilder(null, positionsCount);
+        BlockBuilder bBuilder = BIGINT.createBlockBuilder(null, positionsCount);
+        long[] isValid = nullsProvider.getValidityWords(positionsCount).orElse(Bitmap.allocateWords(positionsCount, true));
+        for (int i = 0; i < positionsCount; i++) {
+            BIGINT.writeLong(aBuilder, random.nextLong(-1000, 1000));
+            if (!Bitmap.isSet(isValid, 0, i)) {
+                bBuilder.appendNull();
+            }
+            else {
+                BIGINT.writeLong(bBuilder, switch (i % 3) {
+                    case 0 -> 0L;
+                    case 1 -> random.nextLong(1, 100);
+                    default -> -random.nextLong(1, 100);
+                });
+            }
+        }
+        return List.of(new Page(positionsCount, aBuilder.build(), bBuilder.build()));
+    }
+
+    /// Builds a block repeating each of `values` `repeats` times in turn, cycling until
+    /// `positionsCount` positions are filled, with NULLs wherever `nullsProvider` asks for one.
+    public static Block createRepeatingValuesBlock(Type type, int positionsCount, NullsProvider nullsProvider, List<Object> values, int repeats)
+    {
+        Optional<long[]> validity = nullsProvider.getValidityWords(positionsCount);
+        BlockBuilder builder = type.createBlockBuilder(null, positionsCount);
+        for (int i = 0; i < positionsCount; i++) {
+            if (validity.isPresent() && !Bitmap.isSet(validity.get(), 0, i)) {
+                builder.appendNull();
+            }
+            else {
+                writeNativeValue(type, builder, values.get((i / repeats) % values.size()));
+            }
+        }
+        return builder.build();
+    }
+
+    public static Block createInRangeDateTimeBlock(Type type, int positionsCount, NullsProvider nullsProvider)
+    {
+        // Constrain to roughly years [-10000, +10000] so cuDF's INT16 year extraction does not overflow.
+        Random random = new Random(42);
+        Optional<Bitmap> isValid = nullsProvider.getValidityWords(positionsCount).map(valid -> new Bitmap(valid, 0, positionsCount));
+        BlockBuilder builder = type.createBlockBuilder(null, positionsCount);
+        for (int i = 0; i < positionsCount; i++) {
+            if (isValid.isPresent() && !isValid.get().isSet(i)) {
+                builder.appendNull();
+            }
+            else if (type == DATE) {
+                // Days since epoch in ±10000 years (~3.65M days).
+                type.writeLong(builder, random.nextInt(7_300_001) - 3_650_000);
+            }
+            else if (type instanceof TimestampType timestampType && timestampType.isShort()) {
+                // Trino short TimestampType stores epochMicros; pick microsecond values in ±10000 years.
+                long maxMicros = 10_000L * 365L * 24L * 60L * 60L * 1_000_000L;
+                long micros = (random.nextLong() % maxMicros);
+                // Precision p < 6 requires the last (6-p) decimal digits to be zero.
+                long scale = 1L;
+                for (int p = timestampType.getPrecision(); p < TimestampType.MAX_SHORT_PRECISION; p++) {
+                    scale *= 10;
+                }
+                type.writeLong(builder, (micros / scale) * scale);
+            }
+            else if (type instanceof TimestampType timestampType) {
+                // Limit to values that can be represented in 64-bit with nanosecond precision, also after e.g. date_trunc(day)
+                long epochNanos = clamp(random.nextLong(), Long.MIN_VALUE + NANOSECONDS_PER_DAY, Long.MAX_VALUE);
+                // Align to the declared precision (zero the last 9-p decimal digits of nanos).
+                epochNanos = Timestamps.round(epochNanos, 9 - timestampType.getPrecision());
+                long epochMicros = floorDiv(epochNanos, NANOSECONDS_PER_MICROSECOND);
+                int picosOfMicro = floorMod(epochNanos, NANOSECONDS_PER_MICROSECOND) * PICOSECONDS_PER_NANOSECOND;
+                type.writeObject(builder, new LongTimestamp(epochMicros, picosOfMicro));
+            }
+            else {
+                throw new IllegalArgumentException("Unsupported type: " + type);
+            }
+        }
+        return builder.build();
+    }
+
+    public static List<Page> createVarcharPages(VarcharType type, List<Integer> positionsCounts, NullsProvider nullsProvider)
+    {
+        Iterator<String> strings = generateInputStrings(20)
+                .filter(value -> type.isUnbounded() || value.codePointCount(0, value.length()) <= type.getBoundedLength())
+                .iterator();
+        return positionsCounts.stream()
+                .map(positionsCount -> {
+                    Optional<long[]> isValid = nullsProvider.getValidityWords(positionsCount);
+                    VariableWidthBlockBuilder builder = new VariableWidthBlockBuilder(null, positionsCount, positionsCount * 10);
+                    for (int i = 0; i < positionsCount; i++) {
+                        if (isValid.isPresent() && !Bitmap.isSet(isValid.get(), 0, i)) {
+                            builder.appendNull();
+                        }
+                        else {
+                            builder.writeEntry(Slices.utf8Slice(strings.next()));
+                        }
+                    }
+                    return new Page(positionsCount, builder.build());
+                })
+                .collect(toImmutableList());
     }
 
     public record PagePosition(Page page, int position) {}
