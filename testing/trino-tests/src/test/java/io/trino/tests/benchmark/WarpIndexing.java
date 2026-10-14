@@ -35,13 +35,14 @@ import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.stream.Collectors.joining;
 
 /**
- * Warms the warp index. Every tracked run starts and ends with warp warming idle, so the counter
- * difference across a run is exactly the warming that run caused. A query is warm once a run loses
- * no warming work.
+ * Builds the warp index before measured runs. Warp calls index building warming, which is the name
+ * its JMX counters use. Every tracked run starts and ends with warp warming idle, so the counter
+ * difference across a run is exactly the warming that run caused. Warp drops some index tasks, for
+ * example when its task queue is full. A query is indexed once warp drops none of its tasks.
  */
-final class WarpWarmup
+final class WarpIndexing
 {
-    private static final Logger log = Logger.get(WarpWarmup.class);
+    private static final Logger log = Logger.get(WarpIndexing.class);
 
     private static final int MAX_ROUNDS = 10;
     private static final long IDLE_POLL_MILLIS = 10;
@@ -73,11 +74,11 @@ final class WarpWarmup
 
     private final DistributedQueryRunner runner;
     private final String sampleSql;
-    private final Set<String> warmQueries = new HashSet<>();
+    private final Set<String> indexedQueries = new HashSet<>();
     private final Map<String, Long> measuredWarming = new LinkedHashMap<>();
     private Map<String, Long> idleSample;
 
-    WarpWarmup(DistributedQueryRunner runner)
+    WarpIndexing(DistributedQueryRunner runner)
     {
         this.runner = requireNonNull(runner, "runner is null");
         String warmingTable = resolveStatsTable(runner, "warmingservicestats");
@@ -97,40 +98,40 @@ final class WarpWarmup
     }
 
     /**
-     * Runs a suite warmup query and records whether it left warming work behind.
+     * Runs a suite warmup query and records whether warp dropped any of its index tasks.
      */
-    void trackWarmupRun(String query, String sql)
+    void runAndTrack(String query, String sql)
     {
-        warmQueries.remove(query);
+        indexedQueries.remove(query);
         WarmingRun run = trackRun(sql);
         if (run.lost() == 0) {
-            warmQueries.add(query);
+            indexedQueries.add(query);
         }
         log.info("%s warmup run: %s", query, run.describe());
     }
 
     /**
-     * Reruns each query whose last run lost warming work until a run loses none.
+     * Reruns each query whose last run had index tasks dropped until warp drops none.
      */
-    void warmQueries(List<String> queries, Function<String, String> sqlForQuery)
+    void finishIndexing(List<String> queries, Function<String, String> sqlForQuery)
     {
         long startNanos = System.nanoTime();
-        List<String> unwarmedQueries = queries.stream()
-                .filter(query -> !warmQueries.contains(query))
+        List<String> unindexedQueries = queries.stream()
+                .filter(query -> !indexedQueries.contains(query))
                 .collect(toImmutableList());
         int runs = 0;
-        for (String query : unwarmedQueries) {
-            runs += warmQuery(query, sqlForQuery.apply(query));
+        for (String query : unindexedQueries) {
+            runs += indexQuery(query, sqlForQuery.apply(query));
         }
         log.info(
-                "Warp warmup: %d of %d queries rerun, %d runs in %d s",
-                unwarmedQueries.size(),
+                "Warp indexing: %d of %d queries rerun, %d runs in %d s",
+                unindexedQueries.size(),
                 queries.size(),
                 runs,
                 NANOSECONDS.toSeconds(System.nanoTime() - startNanos));
     }
 
-    private int warmQuery(String query, String sql)
+    private int indexQuery(String query, String sql)
     {
         for (int round = 1; round <= MAX_ROUNDS; round++) {
             WarmingRun run;
@@ -141,12 +142,12 @@ final class WarpWarmup
                 if (!isOutOfMemory(e)) {
                     throw e;
                 }
-                log.warn(e, "%s warp warmup round %d: out of memory, measuring anyway", query, round);
+                log.warn(e, "%s warp indexing round %d: out of memory, measuring anyway", query, round);
                 return round;
             }
-            log.info("%s warp warmup round %d: %s", query, round, run.describe());
+            log.info("%s warp indexing round %d: %s", query, round, run.describe());
             if (run.lost() == 0) {
-                warmQueries.add(query);
+                indexedQueries.add(query);
                 return round;
             }
             if (run.count("warm_accomplished") == 0) {
@@ -154,7 +155,7 @@ final class WarpWarmup
                 return round;
             }
         }
-        log.warn("%s: warp still loses warming work after %d rounds, measuring anyway", query, MAX_ROUNDS);
+        log.warn("%s: warp still drops index tasks after %d rounds, measuring anyway", query, MAX_ROUNDS);
         return MAX_ROUNDS;
     }
 

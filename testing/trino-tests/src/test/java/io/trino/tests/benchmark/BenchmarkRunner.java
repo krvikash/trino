@@ -501,7 +501,7 @@ public final class BenchmarkRunner
                           .map(workload::normalizeQuery)
                           .toList();
 
-                Optional<WarpWarmup> warpWarmup = warpIndex.map(_ -> new WarpWarmup(runner));
+                Optional<WarpIndexing> warpIndexing = warpIndex.map(_ -> new WarpIndexing(runner));
                 List<String> suiteQueries = workload.defaultQueries();
                 for (int round = 1; round <= suiteWarmup; round++) {
                     log.info("Suite prewarm round %d/%d (%d queries)", round, suiteWarmup, suiteQueries.size());
@@ -513,8 +513,8 @@ public final class BenchmarkRunner
                         log.debug("Starting warmup run of %s", query);
                         try {
                             String sql = workload.readQuery(query);
-                            if (warpWarmup.isPresent()) {
-                                warpWarmup.get().trackWarmupRun(query, sql);
+                            if (warpIndexing.isPresent()) {
+                                warpIndexing.get().runAndTrack(query, sql);
                             }
                             else {
                                 runner.execute(sql);
@@ -530,11 +530,11 @@ public final class BenchmarkRunner
                     }
                 }
 
-                if (warpWarmup.isPresent()) {
+                if (warpIndexing.isPresent()) {
                     List<String> warpQueries = queriesRun.stream()
                             .filter(query -> !skipped.contains(query))
                             .collect(toImmutableList());
-                    warpWarmup.get().warmQueries(warpQueries, workload::readQuery);
+                    warpIndexing.get().finishIndexing(warpQueries, workload::readQuery);
                 }
 
                 session.writeRunMetadata(queriesRun, warmup, runs);
@@ -548,14 +548,14 @@ public final class BenchmarkRunner
                         measurementsByQuery.put(query, List.of());
                         continue;
                     }
-                    List<Measurement> measurements = benchmarkQuery(runner, query, session, explainOutputDir, executor, concurrency, warpWarmup);
+                    List<Measurement> measurements = benchmarkQuery(runner, query, session, explainOutputDir, executor, concurrency, warpIndexing);
                     measurementsByQuery.put(query, measurements);
                     if (!measurements.isEmpty()) {
                         totalElapsedMillis += averageMillis(measurements, Measurement::elapsedMillis);
                         totalExecutionMillis += averageMillis(measurements, Measurement::executionMillis);
                     }
                 }
-                warpWarmup.ifPresent(WarpWarmup::reportMeasuredRuns);
+                warpIndexing.ifPresent(WarpIndexing::reportMeasuredRuns);
                 log.info("Sum of averages for all queries: %s ms (execution %s ms)", totalElapsedMillis, totalExecutionMillis);
                 writeTimingsCsv(benchmarkDataDir, measurementsByQuery);
 
@@ -579,7 +579,7 @@ public final class BenchmarkRunner
                 Path explainOutputDir,
                 ListeningExecutorService executor,
                 int concurrency,
-                Optional<WarpWarmup> warpWarmup)
+                Optional<WarpIndexing> warpIndexing)
                 throws IOException
         {
             String sql = workload.readQuery(query);
@@ -595,7 +595,7 @@ public final class BenchmarkRunner
                     IterationResult warmupIteration = measureAndValidate(runner, sql, query, expectedLines);
                     log.debug("Warmup run of %s took %s ms", query, warmupIteration.measurement().elapsedMillis());
                 }
-                warpWarmup.ifPresent(WarpWarmup::startMeasuredRuns);
+                warpIndexing.ifPresent(WarpIndexing::startMeasuredRuns);
                 session.start();
                 boolean trackGpuMemory = mode == ExecutionMode.GPU && concurrency == 1;
                 boolean trackConcurrentGpuMemory = mode == ExecutionMode.GPU && concurrency > 1;
@@ -638,7 +638,7 @@ public final class BenchmarkRunner
                 // Halt sampling before rendering plans so PlanPrinter frames don't pollute the
                 // flamegraph; the buffer is preserved for the dump that runs after the try block.
                 session.stop();
-                warpWarmup.ifPresent(warming -> warming.checkMeasuredRuns(query));
+                warpIndexing.ifPresent(indexing -> indexing.checkMeasuredRuns(query));
                 for (int i = 0; i < measuredIterations.size(); i++) {
                     IterationResult iteration = measuredIterations.get(i);
                     explainWriter.write("=== %s run %d/%d ===%n".formatted(query, i + 1, measuredIterations.size()));
