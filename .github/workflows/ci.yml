@@ -239,6 +239,27 @@ jobs:
         with:
           base_ref: ${{ github.event.pull_request.base.ref }}
 
+  check-cherry-pick-sources:
+    if: github.event_name == 'pull_request'
+    runs-on: [self-hosted, gha-fleet-ec2-2cpu-8gb-amd64, latest]
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0 # checkout all commits to be able to determine merge base
+      - name: Verify cherry-picked commits are on master of a known repository
+        env:
+          # github.token can read only this repository
+          GH_TOKEN: ${{ secrets.GITHUBACCESSTOKEN }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::error::GITHUBACCESSTOKEN secret is not available"
+            exit 1
+          fi
+          .github/bin/check-cherry-pick-sources.py "refs/remotes/origin/${BASE_REF}..${HEAD_SHA}"
+
   error-prone-checks:
     needs: path-filters
     if: github.event_name != 'pull_request' || needs.path-filters.outputs.non_docs == 'true'
@@ -2255,6 +2276,7 @@ jobs:
       - build-pt
       - build-pt-junit
       - build-test-matrix
+      - check-cherry-pick-sources
       - check-commit
       - check-commits-dispatcher
       - error-prone-checks
@@ -2277,6 +2299,7 @@ jobs:
           echo '${{ needs.build-pt.result }}' | grep -xE 'success|skipped' || { echo 'Job "build-pt" failed' >&2; exit 1; }
           echo '${{ needs.build-pt-junit.result }}' | grep -xE 'success|skipped' || { echo 'Job "build-pt-junit" failed' >&2; exit 1; }
           echo '${{ needs.build-test-matrix.result }}' | grep -xE 'success|skipped' || { echo 'Job "build-test-matrix" failed' >&2; exit 1; }
+          echo '${{ needs.check-cherry-pick-sources.result }}' | grep -xE 'success|skipped' || { echo 'Job "check-cherry-pick-sources" failed' >&2; exit 1; }
           echo '${{ needs.check-commit.result }}' | grep -xE 'success|skipped' || { echo 'Job "check-commit" failed' >&2; exit 1; }
           echo '${{ needs.check-commits-dispatcher.result }}' | grep -xE 'success|skipped' || { echo 'Job "check-commits-dispatcher" failed' >&2; exit 1; }
           echo '${{ needs.error-prone-checks.result }}' | grep -xE 'success|skipped' || { echo 'Job "error-prone-checks" failed' >&2; exit 1; }
