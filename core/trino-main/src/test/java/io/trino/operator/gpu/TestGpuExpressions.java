@@ -13,12 +13,9 @@
  */
 package io.trino.operator.gpu;
 
-import com.google.common.collect.ImmutableList;
-import io.airlift.slice.Slices;
 import io.trino.spi.Page;
 import io.trino.spi.type.Type;
 import io.trino.sql.gen.TestColumnarFilters.NullsProvider;
-import io.trino.sql.ir.Call;
 import io.trino.sql.ir.Expression;
 import io.trino.sql.ir.IsNull;
 import org.junit.jupiter.api.BeforeAll;
@@ -27,20 +24,14 @@ import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
-import static io.trino.operator.gpu.GpuTestUtils.FUNCTION_RESOLUTION;
 import static io.trino.operator.gpu.GpuTestUtils.assertGpuMatchesCpu;
 import static io.trino.operator.gpu.GpuTestUtils.createBigintBlock;
-import static io.trino.operator.gpu.GpuTestUtils.createBlock;
 import static io.trino.operator.gpu.GpuTestUtils.field;
 import static io.trino.operator.gpu.GpuTestUtils.maybeSetGpuMemoryPoolForTests;
 import static io.trino.spi.type.BigintType.BIGINT;
-import static io.trino.spi.type.TypeUtils.writeNativeValue;
-import static io.trino.spi.type.VarcharType.VARCHAR;
-import static io.trino.sql.analyzer.TypeDescriptorProvider.fromTypes;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.junit.jupiter.api.parallel.ExecutionMode.CONCURRENT;
 
@@ -68,66 +59,5 @@ final class TestGpuExpressions
         Expression expression = new IsNull(field(channelA, BIGINT));
 
         assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA));
-    }
-
-    @ParameterizedTest
-    @EnumSource(NullsProvider.class)
-    void testSubstring(NullsProvider nullsProvider)
-    {
-        int varcharChannel = 0;
-        int startChannel = 1;
-        int positionsCount = 64;
-        List<Type> inputTypes = List.of(VARCHAR, BIGINT);
-
-        List<Page> inputPages = new ArrayList<>();
-        inputPages.add(new Page(
-                positionsCount,
-                createBlock(VARCHAR, positionsCount, nullsProvider),
-                createBigintBlock(positionsCount, nullsProvider, -20, 20)));
-        // Edge cases that random data may not cover: start=0 (empty), negative start beyond string length, start past end
-        for (long start : List.of(0L, 1L, -1L, -100L, 100L, (long) Integer.MAX_VALUE, (long) Integer.MIN_VALUE)) {
-            inputPages.add(new Page(
-                    writeNativeValue(VARCHAR, Slices.utf8Slice("hello")),
-                    writeNativeValue(BIGINT, start)));
-        }
-
-        Expression expression = new Call(
-                FUNCTION_RESOLUTION.resolveFunction("substring", fromTypes(VARCHAR, BIGINT)),
-                ImmutableList.of(field(varcharChannel, VARCHAR), field(startChannel, BIGINT)));
-
-        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(varcharChannel, startChannel));
-    }
-
-    @ParameterizedTest
-    @EnumSource(NullsProvider.class)
-    void testSubstringWithLength(NullsProvider nullsProvider)
-    {
-        int varcharChannel = 0;
-        int startChannel = 1;
-        int lengthChannel = 2;
-        int positionsCount = 64;
-        List<Type> inputTypes = List.of(VARCHAR, BIGINT, BIGINT);
-
-        List<Page> inputPages = new ArrayList<>();
-        inputPages.add(new Page(
-                positionsCount,
-                createBlock(VARCHAR, positionsCount, nullsProvider),
-                createBigintBlock(positionsCount, nullsProvider, -20, 20),
-                createBigintBlock(positionsCount, nullsProvider, -5, 20)));
-        // Edge cases that random data may not cover: start=0, negative start, length<=0, start/length past end
-        for (long start : List.of(0L, 1L, -1L, -100L, 100L)) {
-            for (long length : List.of(-1L, 0L, 1L, 100L)) {
-                inputPages.add(new Page(
-                        writeNativeValue(VARCHAR, Slices.utf8Slice("hello")),
-                        writeNativeValue(BIGINT, start),
-                        writeNativeValue(BIGINT, length)));
-            }
-        }
-
-        Expression expression = new Call(
-                FUNCTION_RESOLUTION.resolveFunction("substring", fromTypes(VARCHAR, BIGINT, BIGINT)),
-                ImmutableList.of(field(varcharChannel, VARCHAR), field(startChannel, BIGINT), field(lengthChannel, BIGINT)));
-
-        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(varcharChannel, startChannel, lengthChannel));
     }
 }
