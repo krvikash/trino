@@ -471,7 +471,7 @@
             <dependency>
                 <groupId>com.datadoghq</groupId>
                 <artifactId>dd-java-agent</artifactId>
-                <version>1.66.0</version>
+                <version>1.67.0</version>
             </dependency>
 
             <dependency>
