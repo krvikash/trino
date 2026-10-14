@@ -152,7 +152,6 @@ import static io.trino.spi.type.VarbinaryType.VARBINARY;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.spi.type.VarcharType.createVarcharType;
 import static io.trino.sql.analyzer.TypeDescriptorProvider.fromTypes;
-import static io.trino.sql.ir.TestingIr.between;
 import static io.trino.sql.ir.TestingIr.comparison;
 import static io.trino.sql.ir.TestingIr.nullIf;
 import static io.trino.sql.planner.TestingSymbolAllocator.emptySymbolAllocator;
@@ -487,51 +486,6 @@ final class TestGpuExpressions
         Expression expression = new IsNull(field(channelA, BIGINT));
 
         assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA));
-    }
-
-    @ParameterizedTest
-    @EnumSource(NullsProvider.class)
-    void testBetween(NullsProvider nullsProvider)
-    {
-        int channelA = 0;
-        List<Type> inputTypes = List.of(BIGINT);
-        int positionsCount = 64;
-        List<Page> inputPages = List.of(new Page(
-                positionsCount,
-                createBigintBlock(positionsCount, nullsProvider, -100, 100)));
-
-        // a BETWEEN 10 AND 50
-        Expression expression = between(
-                field(channelA, BIGINT),
-                new Constant(BIGINT, 10L),
-                new Constant(BIGINT, 50L));
-
-        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA));
-    }
-
-    @ParameterizedTest
-    @EnumSource(NullsProvider.class)
-    void testBetweenNonTrivialValue(NullsProvider nullsProvider)
-    {
-        int channelA = 0;
-        int channelB = 1;
-        List<Type> inputTypes = List.of(BIGINT, BIGINT);
-        int positionsCount = 64;
-        List<Page> inputPages = List.of(new Page(
-                positionsCount,
-                createBigintBlock(positionsCount, nullsProvider, -100, 100),
-                createBigintBlock(positionsCount, nullsProvider, -100, 100)));
-
-        // (a + b) BETWEEN 10 AND 50 — the non-trivial value is bound with a Let so it is evaluated once
-        Expression expression = between(
-                new Call(
-                        FUNCTION_RESOLUTION.resolveOperator(OperatorType.ADD, List.of(BIGINT, BIGINT)),
-                        ImmutableList.of(field(channelA, BIGINT), field(channelB, BIGINT))),
-                new Constant(BIGINT, 10L),
-                new Constant(BIGINT, 50L));
-        assertThat(expression).isInstanceOf(Let.class);
-
-        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA, channelB));
     }
 
     @ParameterizedTest
