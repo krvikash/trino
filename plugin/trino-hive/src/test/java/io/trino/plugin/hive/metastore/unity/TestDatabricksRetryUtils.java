@@ -37,6 +37,10 @@ final class TestDatabricksRetryUtils
                     "Thrift Header : Futures timed out after [60000 milliseconds]";
     private static final String GENERIC_HTTP_500_MESSAGE =
             "HTTP request failed by code: 500, status line: HTTP/1.1 500 Internal Server Error.";
+    // Unity Catalog's answer when its GCP token exchange for GCS credential vending fails (ENG-29207)
+    private static final String GCS_CREDENTIAL_VENDING_403_MESSAGE =
+            "generateTemporaryPathCredentials call failed with: 403 - {\"error_code\":\"PERMISSION_DENIED\",\"message\":\"[GcpJsonResponseException] ()\"," +
+                    "\"details\":[{\"@type\":\"type.googleapis.com/google.rpc.RequestInfo\",\"request_id\":\"4218bc0f-9459-4011-868a-9cddaf011187\",\"serving_data\":\"\"}]}";
 
     @Test
     void testThriftTransportTimeoutIsRetried()
@@ -83,6 +87,27 @@ final class TestDatabricksRetryUtils
     {
         assertNotRetried(DATABRICKS_CLUSTER_UNAVAILABLE_RETRY_POLICY, THRIFT_TRANSPORT_TIMEOUT_MESSAGE);
         assertNotRetried(DATABRICKS_COMMUNICATION_FAILURE_RETRY_POLICY, THRIFT_TRANSPORT_TIMEOUT_MESSAGE);
+    }
+
+    @Test
+    void testGcsCredentialVendingFailureIsRetriedAsUnityTransientError()
+    {
+        AtomicInteger attempts = new AtomicInteger();
+        Failsafe.with(UNITY_CATALOG_TRANSIENT_ERROR_RETRY_POLICY)
+                .run(() -> {
+                    if (attempts.incrementAndGet() == 1) {
+                        throw new RuntimeException("Failed to write Delta Lake transaction log entry", new RuntimeException(GCS_CREDENTIAL_VENDING_403_MESSAGE));
+                    }
+                });
+        assertThat(attempts).hasValue(2);
+    }
+
+    @Test
+    void testUnityPermissionDeniedIsNotRetried()
+    {
+        assertNotRetried(
+                UNITY_CATALOG_TRANSIENT_ERROR_RETRY_POLICY,
+                "generateTemporaryPathCredentials call failed with: 403 - {\"error_code\":\"PERMISSION_DENIED\",\"message\":\"User does not have EXTERNAL USE LOCATION on External Location ci-external\"}");
     }
 
     @Test

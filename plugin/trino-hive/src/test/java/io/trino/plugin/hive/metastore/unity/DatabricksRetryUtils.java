@@ -96,6 +96,8 @@ public final class DatabricksRetryUtils
         String stackTrace = getStackTraceAsString(throwable);
         return stackTrace.contains("\"error_code\":\"TEMPORARILY_UNAVAILABLE\"")
                 || stackTrace.contains("\"error_code\":\"INTERNAL_ERROR\"")
+                // a failed GCP token exchange in Unity's GCS credential vending surfaces as 403 PERMISSION_DENIED with a bare GcpJsonResponseException
+                || stackTrace.contains("\"error_code\":\"PERMISSION_DENIED\",\"message\":\"[GcpJsonResponseException]")
                 // Unity's gateway answers a bodiless 503 ("call failed with: 503 - [no body]") during outages, with no error_code to match
                 || stackTrace.contains("call failed with: 503")
                 // a Unity read that outlasts the client's request timeout surfaces as HttpTimeoutException, which UNITY_API_RETRY_POLICY does not retry
