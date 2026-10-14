@@ -20,6 +20,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.util.List;
 import java.util.stream.Stream;
@@ -28,6 +29,7 @@ import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.tests.GpuWindowFrameTestParameters.AGGREGATIONS;
 import static io.trino.tests.GpuWindowFrameTestParameters.cartesianProduct;
 import static io.trino.tests.GpuWindowTable.MIXED;
+import static io.trino.tests.GpuWindowTable.TIES;
 import static org.assertj.core.api.Assertions.assertThat;
 
 final class TestGpuWindowRowsFrames
@@ -49,6 +51,23 @@ final class TestGpuWindowRowsFrames
         for (GpuWindowTable table : GpuWindowTable.values()) {
             table.create(getQueryRunner());
         }
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {
+            "ROWS BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING",
+            "ROWS BETWEEN 1 PRECEDING AND 1 FOLLOWING",
+    })
+    void testUnsupportedFrames(String frame)
+    {
+        assertThat(query(
+                """
+                SELECT
+                    row_id,
+                    avg(argument_decimal_38_6) OVER (PARTITION BY partition_key ORDER BY order_key %1$s)
+                FROM %2$s
+                """.formatted(frame, TIES.withOrderKey(BIGINT))))
+                .executesWithoutGpu();
     }
 
     @ParameterizedTest(name = "{0} {1}")

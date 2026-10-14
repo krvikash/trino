@@ -233,6 +233,23 @@ final class TestGpuWindowRangeFrames
                 .executesWithoutGpu();
     }
 
+    @ParameterizedTest
+    @ValueSource(strings = {
+            "RANGE BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING",
+            "RANGE BETWEEN 1 PRECEDING AND 1 FOLLOWING",
+    })
+    void testUnsupportedFrames(String frame)
+    {
+        assertThat(query(
+                """
+                SELECT
+                    row_id,
+                    avg(argument_decimal_38_6) OVER (PARTITION BY partition_key ORDER BY order_key %1$s)
+                FROM %2$s
+                """.formatted(frame, TIES.withOrderKey(BIGINT))))
+                .executesWithoutGpu();
+    }
+
     @ParameterizedTest(name = "{0} {1} {2} {3}")
     @MethodSource("aggregationsOrderKeyTypesAndOrderingPairs")
     void testMultipleKeys(String function, Type orderKeyType, String ordering, String secondOrdering)
