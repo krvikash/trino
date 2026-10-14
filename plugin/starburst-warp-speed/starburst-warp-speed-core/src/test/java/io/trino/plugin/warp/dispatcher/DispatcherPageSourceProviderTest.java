@@ -54,6 +54,7 @@ import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorPageSource;
 import io.trino.spi.connector.ConnectorPageSourceProvider;
+import io.trino.spi.connector.ConnectorPageSourceProviderFactory;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorSplit;
 import io.trino.spi.connector.ConnectorTableCredentials;
@@ -61,6 +62,7 @@ import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.connector.DynamicFilter;
 import io.trino.spi.connector.EmptyPageSource;
+import io.trino.spi.connector.GpuPageSourceSupport;
 import io.trino.spi.connector.MemoryContext;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.gpu.ConnectorGpuMemoryContext;
@@ -287,6 +289,27 @@ public class DispatcherPageSourceProviderTest
         assertThat(proxiedProvider.lastDynamicFilter).isSameAs(gpuDynamicFilter);
         assertThat(proxiedProvider.lastMemoryContext).isSameAs(memoryContext);
         assertThat(proxiedProvider.lastIoExecutor).isSameAs(ioExecutor);
+    }
+
+    @Test
+    public void testGpuPageSourceSupportComesFromProxiedConnector()
+    {
+        RecordingPageSourceProviderFactory proxiedFactory = new RecordingPageSourceProviderFactory();
+        DispatcherPageSourceProviderFactory factory = new DispatcherPageSourceProviderFactory(
+                proxiedFactory,
+                createWarpDispatcherPageSourceFactory(),
+                mock(StorageEngineTxService.class),
+                metricsManager,
+                globalConfig,
+                new CatalogName("warp"));
+
+        assertThat(factory.getGpuPageSourceSupport(dispatcherTableHandle, columnHandles)).isEqualTo(GpuPageSourceSupport.SUPPORTED);
+        assertThat(proxiedFactory.lastTable).isSameAs(dispatcherTableHandle.getProxyConnectorTableHandle());
+        assertThat(proxiedFactory.lastColumns).isSameAs(columnHandles);
+
+        ConnectorTableHandle proxiedTableHandle = new ConnectorTableHandle() {};
+        assertThat(factory.getGpuPageSourceSupport(proxiedTableHandle, columnHandles)).isEqualTo(GpuPageSourceSupport.SUPPORTED);
+        assertThat(proxiedFactory.lastTable).isSameAs(proxiedTableHandle);
     }
 
     @SuppressWarnings("CheckReturnValue")
@@ -868,6 +891,27 @@ public class DispatcherPageSourceProviderTest
             lastMemoryContext = memoryContext;
             lastIoExecutor = ioExecutor;
             return Optional.of(pageSource);
+        }
+    }
+
+    private static final class RecordingPageSourceProviderFactory
+            implements ConnectorPageSourceProviderFactory
+    {
+        private ConnectorTableHandle lastTable;
+        private List<ColumnHandle> lastColumns;
+
+        @Override
+        public GpuPageSourceSupport getGpuPageSourceSupport(ConnectorTableHandle connectorTableHandle, List<ColumnHandle> columns)
+        {
+            lastTable = connectorTableHandle;
+            lastColumns = columns;
+            return GpuPageSourceSupport.SUPPORTED;
+        }
+
+        @Override
+        public ConnectorPageSourceProvider createPageSourceProvider(MemoryContext memoryContext)
+        {
+            throw new UnsupportedOperationException();
         }
     }
 }

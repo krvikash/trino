@@ -23,12 +23,16 @@ import io.trino.plugin.warp.dispatcher.DispatcherPageSourceProvider.ScanFilterin
 import io.trino.plugin.warp.juffer.StorageEngineTxService;
 import io.trino.plugin.warp.metrics.MetricsManager;
 import io.trino.spi.catalog.CatalogName;
+import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorPageSourceProvider;
 import io.trino.spi.connector.ConnectorPageSourceProviderFactory;
+import io.trino.spi.connector.ConnectorTableHandle;
+import io.trino.spi.connector.GpuPageSourceSupport;
 import io.trino.spi.connector.MemoryContext;
 import org.gaul.modernizer_maven_annotations.SuppressModernizer;
 
 import java.time.Duration;
+import java.util.List;
 
 import static java.util.Objects.requireNonNull;
 
@@ -59,6 +63,16 @@ public class DispatcherPageSourceProviderFactory
         this.metricsManager = requireNonNull(metricsManager);
         this.globalConfig = requireNonNull(globalConfig);
         this.catalogName = requireNonNull(catalogName).toString();
+    }
+
+    @Override
+    public GpuPageSourceSupport getGpuPageSourceSupport(ConnectorTableHandle connectorTableHandle, List<ColumnHandle> columns)
+    {
+        // GPU scans of Warp tables are served by the proxied connector, see DispatcherPageSourceProvider.createGpuPageSource
+        if (connectorTableHandle instanceof DispatcherTableHandle dispatcherTableHandle) {
+            return connectorPageSourceProviderFactory.getGpuPageSourceSupport(dispatcherTableHandle.getProxyConnectorTableHandle(), columns);
+        }
+        return connectorPageSourceProviderFactory.getGpuPageSourceSupport(connectorTableHandle, columns);
     }
 
     @Override
