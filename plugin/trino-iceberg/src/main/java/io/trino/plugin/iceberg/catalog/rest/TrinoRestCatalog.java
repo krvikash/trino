@@ -1146,6 +1146,11 @@ public class TrinoRestCatalog
 
     private Namespace toNamespace(String schemaName)
     {
+        return toNamespace(schemaName, nestedNamespaceEnabled);
+    }
+
+    static Namespace toNamespace(String schemaName, boolean nestedNamespaceEnabled)
+    {
         if (!nestedNamespaceEnabled && schemaName.contains(NAMESPACE_SEPARATOR)) {
             throw new TrinoException(NOT_SUPPORTED, "Nested namespace is not enabled for this catalog");
         }
@@ -1333,7 +1338,7 @@ public class TrinoRestCatalog
         return childNamespaces.stream().flatMap(childNamespace -> listNamespaceIfExists(sessionContext, childNamespace).stream()).toList();
     }
 
-    private static Namespace toTrinoNamespace(Namespace namespace)
+    static Namespace toTrinoNamespace(Namespace namespace)
     {
         return Namespace.of(Arrays.stream(namespace.levels()).map(level -> level.toLowerCase(ENGLISH)).toArray(String[]::new));
     }

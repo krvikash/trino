@@ -152,6 +152,30 @@ final class TestRestResponseCache
     }
 
     @Test
+    void testInvalidateAllMatchingPredicate()
+    {
+        RestResponseCache cache = new RestResponseCache(new Duration(10, TimeUnit.MINUTES), DataSize.of(10, DataSize.Unit.MEGABYTE), DataSize.of(10, DataSize.Unit.MEGABYTE));
+        cache.get(ObjectType.TABLE, TABLE_A, PARAMS, () -> new RawResponse("{\"v\":1}"));
+        cache.get(ObjectType.TABLE, TABLE_B, PARAMS, () -> new RawResponse("{\"v\":1}"));
+
+        cache.invalidateAll(TABLE_A::equals);
+
+        AtomicInteger reloadCount = new AtomicInteger();
+        cache.get(ObjectType.TABLE, TABLE_A, PARAMS, () -> {
+            reloadCount.incrementAndGet();
+            return new RawResponse("{\"v\":2}");
+        });
+        assertThat(reloadCount.get())
+                .as("TABLE_A should have been invalidated")
+                .isEqualTo(1);
+
+        Optional<CachedResponse> cached = cache.get(ObjectType.TABLE, TABLE_B, PARAMS, () -> {
+            throw new AssertionError("TABLE_B should still be cached");
+        });
+        assertThat(cached).isPresent();
+    }
+
+    @Test
     void testOversizedEntryIsNotCached()
     {
         String largeJson = "x".repeat(10_000);

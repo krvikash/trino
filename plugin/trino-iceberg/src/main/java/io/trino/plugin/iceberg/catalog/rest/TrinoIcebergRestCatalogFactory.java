@@ -29,6 +29,7 @@ import io.trino.plugin.iceberg.catalog.rest.IcebergRestCatalogConfig.SessionType
 import io.trino.plugin.iceberg.fileio.ForwardingFileIoFactory;
 import io.trino.spi.NodeVersion;
 import io.trino.spi.catalog.CatalogName;
+import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.security.ConnectorIdentity;
 import io.trino.spi.type.TypeManager;
 import org.apache.iceberg.CatalogProperties;
@@ -47,6 +48,8 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
+import static io.trino.plugin.iceberg.catalog.rest.TrinoRestCatalog.toNamespace;
+import static io.trino.plugin.iceberg.catalog.rest.TrinoRestCatalog.toTrinoNamespace;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.apache.iceberg.rest.auth.OAuth2Properties.CREDENTIAL;
@@ -185,5 +188,22 @@ public class TrinoIcebergRestCatalogFactory
         restResponseCache.ifPresent(RestResponseCache::invalidateAll);
         remoteNamespaceMappingCache.invalidateAll();
         remoteTableMappingCache.invalidateAll();
+    }
+
+    public void flushMetadataCache(SchemaTableName schemaTableName)
+    {
+        TableIdentifier tableIdentifier = TableIdentifier.of(toNamespace(schemaTableName.getSchemaName(), nestedNamespaceEnabled), schemaTableName.getTableName());
+        if (caseInsensitiveNameMatching) {
+            // Responses are cached under remote identifiers, which may differ in case from the Trino name. The table
+            // mapping cannot be relied on to find them, as it may have expired while the responses are still cached.
+            restResponseCache.ifPresent(cache -> cache.invalidateAll(remoteIdentifier ->
+                    remoteIdentifier.name().equalsIgnoreCase(tableIdentifier.name()) &&
+                            toTrinoNamespace(remoteIdentifier.namespace()).equals(tableIdentifier.namespace())));
+            remoteNamespaceMappingCache.invalidate(tableIdentifier.namespace());
+            remoteTableMappingCache.invalidate(tableIdentifier);
+        }
+        else {
+            restResponseCache.ifPresent(cache -> cache.invalidate(tableIdentifier));
+        }
     }
 }

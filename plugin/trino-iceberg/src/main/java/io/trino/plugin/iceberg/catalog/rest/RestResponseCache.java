@@ -35,10 +35,12 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 import static com.google.common.base.MoreObjects.toStringHelper;
 import static com.google.common.base.Throwables.throwIfUnchecked;
+import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.airlift.slice.SizeOf.estimatedSizeOf;
 import static io.airlift.slice.SizeOf.instanceSize;
 import static io.airlift.slice.SizeOf.sizeOf;
@@ -158,6 +160,13 @@ public class RestResponseCache
     public void invalidate(TableIdentifier identifier)
     {
         cache.invalidate(identifier);
+    }
+
+    public void invalidateAll(Predicate<TableIdentifier> predicate)
+    {
+        cache.invalidateAll(cache.asMap().keySet().stream()
+                .filter(predicate)
+                .collect(toImmutableList()));
     }
 
     public void invalidateAll()

@@ -40,6 +40,6 @@ public class IcebergRestMetastoreCacheInvalidator
     @Override
     public void invalidateCache(ConnectorSession session, SchemaTableName tableName)
     {
-        catalogFactory.flushMetadataCache();
+        catalogFactory.flushMetadataCache(tableName);
     }
 }
