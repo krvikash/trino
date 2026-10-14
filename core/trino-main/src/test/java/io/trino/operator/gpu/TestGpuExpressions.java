@@ -195,7 +195,7 @@ import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 @TestInstance(PER_CLASS)
 @Execution(CONCURRENT)
-public class TestGpuExpressions
+final class TestGpuExpressions
 {
     /// `from_unixtime` returns the session time zone, and the GPU representation holds only UTC, so
     /// the CPU side of its comparison has to run in a UTC session too.
@@ -390,21 +390,21 @@ public class TestGpuExpressions
             .collect(toImmutableList());
 
     @BeforeAll
-    public static void maybeSetGpuMemoryPool()
+    static void maybeSetGpuMemoryPool()
     {
         maybeSetGpuMemoryPoolForTests();
     }
 
     @ParameterizedTest
     @EnumSource(NullsProvider.class)
-    public void testLikeSmall(NullsProvider nullsProvider)
+    void testLikeSmall(NullsProvider nullsProvider)
     {
         testLike(List.of(64), nullsProvider);
     }
 
     @ParameterizedTest
     @EnumSource(NullsProvider.class)
-    public void testLikeMany(NullsProvider nullsProvider)
+    void testLikeMany(NullsProvider nullsProvider)
     {
         List<Integer> positionsCounts = Stream.generate(() -> 10_000).limit(42).toList();
         testLike(positionsCounts, nullsProvider);
@@ -412,7 +412,7 @@ public class TestGpuExpressions
 
     @ParameterizedTest
     @EnumSource(NullsProvider.class)
-    public void testLikeRandomPages(NullsProvider nullsProvider)
+    void testLikeRandomPages(NullsProvider nullsProvider)
     {
         List<Integer> positionsCounts = randomInts(0, 200_00).limit(42).toList();
         testLike(positionsCounts, nullsProvider);
@@ -434,7 +434,7 @@ public class TestGpuExpressions
     }
 
     @Test
-    public void testBooleanConstant()
+    void testBooleanConstant()
     {
         testConstant(new Constant(BOOLEAN, true));
         testConstant(new Constant(BOOLEAN, false));
@@ -442,7 +442,7 @@ public class TestGpuExpressions
     }
 
     @Test
-    public void testTinyintConstant()
+    void testTinyintConstant()
     {
         testConstant(new Constant(TINYINT, 42L));
         testConstant(new Constant(TINYINT, -1L));
@@ -451,7 +451,7 @@ public class TestGpuExpressions
     }
 
     @Test
-    public void testSmallintConstant()
+    void testSmallintConstant()
     {
         testConstant(new Constant(SMALLINT, 1234L));
         testConstant(new Constant(SMALLINT, -5678L));
@@ -459,7 +459,7 @@ public class TestGpuExpressions
     }
 
     @Test
-    public void testIntegerConstant()
+    void testIntegerConstant()
     {
         testConstant(new Constant(INTEGER, 123456L));
         testConstant(new Constant(INTEGER, -789012L));
@@ -468,7 +468,7 @@ public class TestGpuExpressions
     }
 
     @Test
-    public void testBigintConstant()
+    void testBigintConstant()
     {
         testConstant(new Constant(BIGINT, 1234567890123L));
         testConstant(new Constant(BIGINT, -9876543210L));
@@ -477,7 +477,7 @@ public class TestGpuExpressions
     }
 
     @Test
-    public void testRealConstant()
+    void testRealConstant()
     {
         testConstant(new Constant(REAL, (long) Float.floatToIntBits(3.14f)));
         testConstant(new Constant(REAL, (long) Float.floatToIntBits(-2.5f)));
@@ -489,7 +489,7 @@ public class TestGpuExpressions
     }
 
     @Test
-    public void testDoubleConstant()
+    void testDoubleConstant()
     {
         testConstant(new Constant(DOUBLE, 3.14159265359));
         testConstant(new Constant(DOUBLE, -2.71828));
@@ -501,7 +501,7 @@ public class TestGpuExpressions
     }
 
     @Test
-    public void testVarcharConstant()
+    void testVarcharConstant()
     {
         testConstant(new Constant(VARCHAR, Slices.utf8Slice("hello")));
         testConstant(new Constant(VARCHAR, Slices.utf8Slice("")));
@@ -511,7 +511,7 @@ public class TestGpuExpressions
 
     @ParameterizedTest
     @EnumSource(NullsProvider.class)
-    public void testReference(NullsProvider nullsProvider)
+    void testReference(NullsProvider nullsProvider)
     {
         Expression expression = new Reference(BIGINT, "ref0");
         int positionsCount = 64;
@@ -522,7 +522,7 @@ public class TestGpuExpressions
     }
 
     @Test
-    public void testRealToIntegerCastPrecision()
+    void testRealToIntegerCastPrecision()
     {
         // Odd integers in [2^23, 2^24) are exactly representable in float32 but adding 0.5
         // requires 25 significand bits, exceeding float32's 24. IEEE 754 round-to-nearest-even
@@ -549,7 +549,7 @@ public class TestGpuExpressions
     }
 
     @Test
-    public void testNumericOperatorsCorrectnessSmoke()
+    void testNumericOperatorsCorrectnessSmoke()
     {
         List<Type> testedTypes = List.of(
                 TINYINT,
@@ -909,7 +909,7 @@ public class TestGpuExpressions
 
     @ParameterizedTest
     @EnumSource(NullsProvider.class)
-    public void testArithmeticOperators(NullsProvider nullsProvider)
+    void testArithmeticOperators(NullsProvider nullsProvider)
     {
         testArithmetic(OperatorType.ADD, nullsProvider);
         testArithmetic(OperatorType.SUBTRACT, nullsProvider);
@@ -920,7 +920,7 @@ public class TestGpuExpressions
 
     @ParameterizedTest
     @EnumSource(NullsProvider.class)
-    public void testShortDecimalAdd(NullsProvider nullsProvider)
+    void testShortDecimalAdd(NullsProvider nullsProvider)
     {
         testShortDecimalAdd(createDecimalType(5, 2), createDecimalType(5, 2), nullsProvider);
         testShortDecimalAdd(createDecimalType(3, 0), createDecimalType(4, 0), nullsProvider);
@@ -938,7 +938,7 @@ public class TestGpuExpressions
 
     @ParameterizedTest
     @EnumSource(NullsProvider.class)
-    public void testShortDecimalSubtract(NullsProvider nullsProvider)
+    void testShortDecimalSubtract(NullsProvider nullsProvider)
     {
         testShortDecimalSubtract(createDecimalType(5, 2), createDecimalType(5, 2), nullsProvider);
         testShortDecimalSubtract(createDecimalType(3, 0), createDecimalType(4, 0), nullsProvider);
@@ -956,7 +956,7 @@ public class TestGpuExpressions
 
     @ParameterizedTest
     @EnumSource(NullsProvider.class)
-    public void testShortDecimalMultiply(NullsProvider nullsProvider)
+    void testShortDecimalMultiply(NullsProvider nullsProvider)
     {
         testShortDecimalMultiply(createDecimalType(5, 2), createDecimalType(5, 2), nullsProvider);
         testShortDecimalMultiply(createDecimalType(3, 0), createDecimalType(4, 0), nullsProvider);
@@ -975,7 +975,7 @@ public class TestGpuExpressions
 
     @ParameterizedTest
     @EnumSource(NullsProvider.class)
-    public void testLongDecimalAdd(NullsProvider nullsProvider)
+    void testLongDecimalAdd(NullsProvider nullsProvider)
     {
         testDecimalBinaryOp(OperatorType.ADD, createDecimalType(27, 5), createDecimalType(27, 5), nullsProvider);
         testDecimalBinaryOp(OperatorType.ADD, createDecimalType(27, 0), createDecimalType(3, 0), nullsProvider);
@@ -985,7 +985,7 @@ public class TestGpuExpressions
 
     @ParameterizedTest
     @EnumSource(NullsProvider.class)
-    public void testLongDecimalSubtract(NullsProvider nullsProvider)
+    void testLongDecimalSubtract(NullsProvider nullsProvider)
     {
         testDecimalBinaryOp(OperatorType.SUBTRACT, createDecimalType(27, 5), createDecimalType(27, 5), nullsProvider);
         testDecimalBinaryOp(OperatorType.SUBTRACT, createDecimalType(27, 0), createDecimalType(3, 0), nullsProvider);
@@ -995,7 +995,7 @@ public class TestGpuExpressions
 
     @ParameterizedTest
     @EnumSource(NullsProvider.class)
-    public void testLongDecimalMultiply(NullsProvider nullsProvider)
+    void testLongDecimalMultiply(NullsProvider nullsProvider)
     {
         testDecimalBinaryOp(OperatorType.MULTIPLY, createDecimalType(25, 4), createDecimalType(13, 2), nullsProvider);
         testDecimalBinaryOp(OperatorType.MULTIPLY, createDecimalType(20, 2), createDecimalType(18, 2), nullsProvider);
@@ -1005,7 +1005,7 @@ public class TestGpuExpressions
 
     @ParameterizedTest
     @EnumSource(NullsProvider.class)
-    public void testShortDecimalDivide(NullsProvider nullsProvider)
+    void testShortDecimalDivide(NullsProvider nullsProvider)
     {
         testDecimalDivide(createDecimalType(5, 2), createDecimalType(5, 2), nullsProvider);
         testDecimalDivide(createDecimalType(3, 0), createDecimalType(4, 0), nullsProvider);
@@ -1017,7 +1017,7 @@ public class TestGpuExpressions
 
     @ParameterizedTest
     @EnumSource(NullsProvider.class)
-    public void testLongDecimalDivide(NullsProvider nullsProvider)
+    void testLongDecimalDivide(NullsProvider nullsProvider)
     {
         testDecimalDivide(createDecimalType(38, 4), createDecimalType(38, 4), nullsProvider);
         testDecimalDivide(createDecimalType(38, 0), createDecimalType(38, 0), nullsProvider);
@@ -1028,7 +1028,7 @@ public class TestGpuExpressions
 
     @ParameterizedTest
     @EnumSource(NullsProvider.class)
-    public void testMixedWidthDecimalDivide(NullsProvider nullsProvider)
+    void testMixedWidthDecimalDivide(NullsProvider nullsProvider)
     {
         testDecimalDivide(createDecimalType(25, 4), createDecimalType(13, 2), nullsProvider);
         testDecimalDivide(createDecimalType(13, 2), createDecimalType(25, 4), nullsProvider);
@@ -1044,7 +1044,7 @@ public class TestGpuExpressions
     /// necessary; and the fourth is well past it.
     @ParameterizedTest
     @EnumSource(NullsProvider.class)
-    public void testDecimalDivideAtLargestRescaleFactor(NullsProvider nullsProvider)
+    void testDecimalDivideAtLargestRescaleFactor(NullsProvider nullsProvider)
     {
         testDecimalDivide(createDecimalType(26, 0), createDecimalType(6, 6), nullsProvider);
         testDecimalDivide(createDecimalType(27, 0), createDecimalType(6, 6), nullsProvider);
@@ -1053,7 +1053,7 @@ public class TestGpuExpressions
     }
 
     @Test
-    public void testDecimalDivideByZero()
+    void testDecimalDivideByZero()
     {
         DecimalType type = createDecimalType(38, 4);
         Page input = new Page(decimalBlock(type, List.of(BigInteger.valueOf(12345))), decimalBlock(type, List.of(BigInteger.ZERO)));
@@ -1065,7 +1065,7 @@ public class TestGpuExpressions
     }
 
     @Test
-    public void testDecimalDivideNullOperands()
+    void testDecimalDivideNullOperands()
     {
         // A null dividend yields null even for a zero divisor, so the division by zero must not be reported.
         // A null divisor yields null too, which relies on cuDF selecting the false branch of an ifElse
@@ -1091,7 +1091,7 @@ public class TestGpuExpressions
     }
 
     @Test
-    public void testDecimalDivideOverflow()
+    void testDecimalDivideOverflow()
     {
         DecimalType type = createDecimalType(38, 0);
         // decimal(38,0) / decimal(38,0) is decimal(38,6) and takes the long-division path, so dividing by
@@ -1104,7 +1104,7 @@ public class TestGpuExpressions
     }
 
     @Test
-    public void testDecimalDivideUnsupportedRescale()
+    void testDecimalDivideUnsupportedRescale()
     {
         // decimal(30,0) / decimal(20,10) is decimal(38,6), rescaling the dividend by 10^16; neither the
         // rescaled dividend nor the long-division intermediates fit in DECIMAL128
@@ -1266,7 +1266,7 @@ public class TestGpuExpressions
 
     @ParameterizedTest
     @MethodSource("comparisonTestCases")
-    public void testComparison(Type type, ComparisonOperator operator, NullsProvider nullsProvider)
+    void testComparison(Type type, ComparisonOperator operator, NullsProvider nullsProvider)
     {
         if (type == NUMBER) {
             // type currently not supported
@@ -1296,7 +1296,7 @@ public class TestGpuExpressions
         assertGpuMatchesCpu(inputPages, inputTypes, expression, inputChannels);
     }
 
-    public static Stream<Object[]> comparisonTestCases()
+    private static Stream<Object[]> comparisonTestCases()
     {
         return Lists.cartesianProduct(
                         List.of(
@@ -1322,7 +1322,7 @@ public class TestGpuExpressions
 
     @ParameterizedTest
     @EnumSource(NullsProvider.class)
-    public void testAnd(NullsProvider nullsProvider)
+    void testAnd(NullsProvider nullsProvider)
     {
         int channelA = 0;
         int channelB = 1;
@@ -1349,7 +1349,7 @@ public class TestGpuExpressions
 
     @ParameterizedTest
     @EnumSource(NullsProvider.class)
-    public void testOr(NullsProvider nullsProvider)
+    void testOr(NullsProvider nullsProvider)
     {
         int channelA = 0;
         int channelB = 1;
@@ -1375,7 +1375,7 @@ public class TestGpuExpressions
     }
 
     @Test
-    public void testAndNullSemantics()
+    void testAndNullSemantics()
     {
         List<Type> inputTypes = List.of(BOOLEAN, BOOLEAN);
         List<Page> inputPages = List.of(new Page(booleanBlock(TRUTH_TABLE_LEFT), booleanBlock(TRUTH_TABLE_RIGHT)));
@@ -1385,7 +1385,7 @@ public class TestGpuExpressions
     }
 
     @Test
-    public void testOrNullSemantics()
+    void testOrNullSemantics()
     {
         List<Type> inputTypes = List.of(BOOLEAN, BOOLEAN);
         List<Page> inputPages = List.of(new Page(booleanBlock(TRUTH_TABLE_LEFT), booleanBlock(TRUTH_TABLE_RIGHT)));
@@ -1396,7 +1396,7 @@ public class TestGpuExpressions
 
     @ParameterizedTest
     @EnumSource(NullsProvider.class)
-    public void testNot(NullsProvider nullsProvider)
+    void testNot(NullsProvider nullsProvider)
     {
         int channelA = 0;
         List<Type> inputTypes = List.of(BIGINT);
@@ -1419,7 +1419,7 @@ public class TestGpuExpressions
 
     @ParameterizedTest
     @EnumSource(NullsProvider.class)
-    public void testIsNull(NullsProvider nullsProvider)
+    void testIsNull(NullsProvider nullsProvider)
     {
         int channelA = 0;
         List<Type> inputTypes = List.of(BIGINT);
@@ -1435,7 +1435,7 @@ public class TestGpuExpressions
 
     @ParameterizedTest
     @EnumSource(NullsProvider.class)
-    public void testBetween(NullsProvider nullsProvider)
+    void testBetween(NullsProvider nullsProvider)
     {
         int channelA = 0;
         List<Type> inputTypes = List.of(BIGINT);
@@ -1455,7 +1455,7 @@ public class TestGpuExpressions
 
     @ParameterizedTest
     @EnumSource(NullsProvider.class)
-    public void testBetweenNonTrivialValue(NullsProvider nullsProvider)
+    void testBetweenNonTrivialValue(NullsProvider nullsProvider)
     {
         int channelA = 0;
         int channelB = 1;
@@ -1480,7 +1480,7 @@ public class TestGpuExpressions
 
     @ParameterizedTest
     @EnumSource(NullsProvider.class)
-    public void testNestedLet(NullsProvider nullsProvider)
+    void testNestedLet(NullsProvider nullsProvider)
     {
         List<Type> inputTypes = List.of(BIGINT, BIGINT, BIGINT);
         int positionsCount = 64;
@@ -1505,7 +1505,7 @@ public class TestGpuExpressions
 
     @ParameterizedTest
     @EnumSource(NullsProvider.class)
-    public void testLetShadowsExternalSymbol(NullsProvider nullsProvider)
+    void testLetShadowsExternalSymbol(NullsProvider nullsProvider)
     {
         List<Type> inputTypes = List.of(BIGINT, BIGINT);
         int positionsCount = 64;
@@ -1527,7 +1527,7 @@ public class TestGpuExpressions
 
     @ParameterizedTest
     @EnumSource(NullsProvider.class)
-    public void testLetShadowsOuterBinding(NullsProvider nullsProvider)
+    void testLetShadowsOuterBinding(NullsProvider nullsProvider)
     {
         List<Type> inputTypes = List.of(BIGINT, BIGINT);
         int positionsCount = 64;
@@ -1553,7 +1553,7 @@ public class TestGpuExpressions
 
     @ParameterizedTest
     @EnumSource(NullsProvider.class)
-    public void testSiblingLets(NullsProvider nullsProvider)
+    void testSiblingLets(NullsProvider nullsProvider)
     {
         List<Type> inputTypes = List.of(BIGINT, BIGINT);
         int positionsCount = 64;
@@ -1595,7 +1595,7 @@ public class TestGpuExpressions
 
     @ParameterizedTest
     @MethodSource("coalesceTestCases")
-    public void testCoalesce(Type type, NullsProvider nullsProvider)
+    void testCoalesce(Type type, NullsProvider nullsProvider)
     {
         int channelA = 0;
         int channelB = 1;
@@ -1616,7 +1616,7 @@ public class TestGpuExpressions
         assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA, channelB));
     }
 
-    public static Stream<Object[]> coalesceTestCases()
+    private static Stream<Object[]> coalesceTestCases()
     {
         return Lists.cartesianProduct(TESTED_GPU_TYPES, ImmutableList.copyOf(NullsProvider.values()))
                 .stream()
@@ -1625,7 +1625,7 @@ public class TestGpuExpressions
 
     @ParameterizedTest
     @EnumSource(NullsProvider.class)
-    public void testCoalesceManyOperands(NullsProvider nullsProvider)
+    void testCoalesceManyOperands(NullsProvider nullsProvider)
     {
         List<Type> inputTypes = List.of(BIGINT, BIGINT, BIGINT, BIGINT);
         int positionsCount = 64;
@@ -1649,7 +1649,7 @@ public class TestGpuExpressions
 
     @ParameterizedTest
     @EnumSource(NullsProvider.class)
-    public void testCoalesceWithCoercedOperand(NullsProvider nullsProvider)
+    void testCoalesceWithCoercedOperand(NullsProvider nullsProvider)
     {
         // COALESCE(bigint, integer) is coerced by the analyzer, so the IR carries a Cast operand.
         int channelA = 0;
@@ -1669,7 +1669,7 @@ public class TestGpuExpressions
     }
 
     @Test
-    public void testCoalesceSelectsFirstNonNullOperand()
+    void testCoalesceSelectsFirstNonNullOperand()
     {
         int positionsCount = 60;
         List<Type> inputTypes = List.of(BIGINT, BIGINT);
@@ -1719,7 +1719,7 @@ public class TestGpuExpressions
 
     @ParameterizedTest
     @MethodSource("leastTestCases")
-    public void testLeast(Type type, NullsProvider nullsProvider)
+    void testLeast(Type type, NullsProvider nullsProvider)
     {
         int channelA = 0;
         int channelB = 1;
@@ -1737,7 +1737,7 @@ public class TestGpuExpressions
         assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA, channelB));
     }
 
-    public static Stream<Object[]> leastTestCases()
+    private static Stream<Object[]> leastTestCases()
     {
         return Lists.cartesianProduct(
                         List.of(
@@ -1766,7 +1766,7 @@ public class TestGpuExpressions
 
     @ParameterizedTest
     @EnumSource(NullsProvider.class)
-    public void testLeastManyArguments(NullsProvider nullsProvider)
+    void testLeastManyArguments(NullsProvider nullsProvider)
     {
         int channelA = 0;
         int channelB = 1;
@@ -1789,7 +1789,7 @@ public class TestGpuExpressions
     }
 
     @Test
-    public void testLeastWithNullConstant()
+    void testLeastWithNullConstant()
     {
         // A NULL operand makes every row NULL, regardless of the other operands.
         int channelA = 0;
@@ -1807,7 +1807,7 @@ public class TestGpuExpressions
     }
 
     @Test
-    public void testLeastCharPaddedSemantics()
+    void testLeastCharPaddedSemantics()
     {
         // U+0001 is less than space (U+0020), so least() would return wrong results without proper CHAR padding
         Type charType = createCharType(2);
@@ -1827,7 +1827,7 @@ public class TestGpuExpressions
 
     @ParameterizedTest
     @EnumSource(ComparisonOperator.class)
-    public void testComparisonCharPaddedSemantics(ComparisonOperator operator)
+    void testComparisonCharPaddedSemantics(ComparisonOperator operator)
     {
         if (operator == ComparisonOperator.IDENTICAL) {
             return;
@@ -1847,7 +1847,7 @@ public class TestGpuExpressions
     }
 
     @Test
-    public void testComparisonAfterWideningCharCast()
+    void testComparisonAfterWideningCharCast()
     {
         CharType sourceType = createCharType(1);
         CharType targetType = createCharType(2);
@@ -1876,7 +1876,7 @@ public class TestGpuExpressions
 
     @ParameterizedTest
     @EnumSource(NullsProvider.class)
-    public void testIf(NullsProvider nullsProvider)
+    void testIf(NullsProvider nullsProvider)
     {
         int channelA = 0;
         int channelB = 1;
@@ -1897,7 +1897,7 @@ public class TestGpuExpressions
     }
 
     @Test
-    public void testIfLazyEvaluation()
+    void testIfLazyEvaluation()
     {
         // IF(b != 0, a / b, a) must not throw division-by-zero on rows where b = 0,
         // because the CPU short-circuits and never evaluates the divide for those rows.
@@ -1934,7 +1934,7 @@ public class TestGpuExpressions
 
     @ParameterizedTest
     @EnumSource(NullsProvider.class)
-    public void testIfLazyEvaluationDefeatsInputMasking(NullsProvider nullsProvider)
+    void testIfLazyEvaluationDefeatsInputMasking(NullsProvider nullsProvider)
     {
         // IF(b != 0, 10 / coalesce(b, 0), 42): the true branch reads b, but coalesce
         // resurrects a non-null 0 from a NULL b. CPU short-circuits and never invokes the
@@ -2353,7 +2353,7 @@ public class TestGpuExpressions
     }
 
     @Test
-    public void testCaseEmptyInput()
+    void testCaseEmptyInput()
     {
         List<Type> inputTypes = List.of(BIGINT);
         List<Page> inputPages = List.of(new Page(
@@ -2373,7 +2373,7 @@ public class TestGpuExpressions
     }
 
     @Test
-    public void testCaseNoMatch()
+    void testCaseNoMatch()
     {
         int channelA = 0;
         List<Type> inputTypes = List.of(BIGINT);
@@ -2395,7 +2395,7 @@ public class TestGpuExpressions
     }
 
     @Test
-    public void testCaseNoMatchNoElse()
+    void testCaseNoMatchNoElse()
     {
         int channelA = 0;
         List<Type> inputTypes = List.of(BIGINT);
@@ -2417,7 +2417,7 @@ public class TestGpuExpressions
     }
 
     @Test
-    public void testCaseNullCondition()
+    void testCaseNullCondition()
     {
         // CASE WHEN null THEN 1 WHEN null THEN 2 ELSE 3 END
         // Both conditions are literal NULLs, treated as FALSE → all rows hit default.
@@ -2437,7 +2437,7 @@ public class TestGpuExpressions
     }
 
     @Test
-    public void testCaseNullConditionGuardsFallibleResult()
+    void testCaseNullConditionGuardsFallibleResult()
     {
         // CASE WHEN b > 0 THEN a / coalesce(b, 0) WHEN true THEN 7 ELSE -3 END
         // When b is NULL, the condition (b > 0) evaluates to NULL → treated as FALSE.
@@ -2475,7 +2475,7 @@ public class TestGpuExpressions
     }
 
     @Test
-    public void testCaseNoInputColumns()
+    void testCaseNoInputColumns()
     {
         // CASE WHEN true THEN 1 WHEN false THEN 2 ELSE 3 END
         int positionsCount = 64;
@@ -2495,7 +2495,7 @@ public class TestGpuExpressions
 
     @ParameterizedTest
     @EnumSource(NullsProvider.class)
-    public void testCaseManyBranches(NullsProvider nullsProvider)
+    void testCaseManyBranches(NullsProvider nullsProvider)
     {
         int channelA = 0;
         List<Type> inputTypes = List.of(BIGINT);
@@ -2517,7 +2517,7 @@ public class TestGpuExpressions
     }
 
     @Test
-    public void testCaseLazyCondition()
+    void testCaseLazyCondition()
     {
         // CASE WHEN b = 0 THEN 1 WHEN (a / b) > 5 THEN 2 ELSE 3 END
         // Rows where b = 0 match the first branch. The second branch's condition (a / b)
@@ -2554,7 +2554,7 @@ public class TestGpuExpressions
     }
 
     @Test
-    public void testCaseLazyResult()
+    void testCaseLazyResult()
     {
         // CASE WHEN b != 0 THEN a / b WHEN true THEN 0 END
         // a / b is only evaluated on rows where b != 0.
@@ -2591,7 +2591,7 @@ public class TestGpuExpressions
     }
 
     @Test
-    public void testCaseFailingCondition()
+    void testCaseFailingCondition()
     {
         // CASE WHEN false THEN 1 WHEN (a / b) > 5 THEN 2 ELSE 3 END
         // First branch doesn't match, so the second condition (a / b) IS evaluated with b = 0.
@@ -2618,7 +2618,7 @@ public class TestGpuExpressions
     }
 
     @Test
-    public void testCaseFailingResult()
+    void testCaseFailingResult()
     {
         // CASE WHEN true THEN a / b WHEN true THEN 0 END
         // First branch matches and evaluates a / b with b = 0 → DIVISION_BY_ZERO.
@@ -2644,7 +2644,7 @@ public class TestGpuExpressions
     }
 
     @Test
-    public void testCaseComplexResultExpressions()
+    void testCaseComplexResultExpressions()
     {
         int channelA = 0;
         List<Type> inputTypes = List.of(BIGINT);
@@ -2674,7 +2674,7 @@ public class TestGpuExpressions
 
     @ParameterizedTest
     @MethodSource("nullIfTestCases")
-    public void testNullIf(Type type, List<Object> values, NullsProvider nullsProvider)
+    void testNullIf(Type type, List<Object> values, NullsProvider nullsProvider)
     {
         int channelA = 0;
         int channelB = 1;
@@ -2696,7 +2696,7 @@ public class TestGpuExpressions
         assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA, channelB));
     }
 
-    public static Stream<Arguments> nullIfTestCases()
+    private static Stream<Arguments> nullIfTestCases()
     {
         Map<Type, List<Object>> valuesByType = ImmutableMap.of(
                 BIGINT, ImmutableList.of(-1L, 0L, 7L, 42L),
@@ -2712,7 +2712,7 @@ public class TestGpuExpressions
 
     @ParameterizedTest
     @EnumSource(NullsProvider.class)
-    public void testNullIfWithNullSecondOperand(NullsProvider nullsProvider)
+    void testNullIfWithNullSecondOperand(NullsProvider nullsProvider)
     {
         int channelA = 0;
         List<Type> inputTypes = List.of(BIGINT);
@@ -2732,7 +2732,7 @@ public class TestGpuExpressions
 
     @ParameterizedTest
     @EnumSource(NullsProvider.class)
-    public void testNullIfWithNonTrivialValue(NullsProvider nullsProvider)
+    void testNullIfWithNonTrivialValue(NullsProvider nullsProvider)
     {
         int channelA = 0;
         int channelB = 1;
@@ -2755,7 +2755,7 @@ public class TestGpuExpressions
 
     @ParameterizedTest
     @MethodSource("nullIfWithIntegerZeroTestCases")
-    public void testNullIfWithIntegerZero(Type type, List<Object> values, NullsProvider nullsProvider)
+    void testNullIfWithIntegerZero(Type type, List<Object> values, NullsProvider nullsProvider)
     {
         int channelA = 0;
         List<Type> inputTypes = List.of(type);
@@ -2773,7 +2773,7 @@ public class TestGpuExpressions
         assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA));
     }
 
-    public static Stream<Arguments> nullIfWithIntegerZeroTestCases()
+    private static Stream<Arguments> nullIfWithIntegerZeroTestCases()
     {
         // decimal(38,4) is a long decimal, carried on cuDF's DECIMAL128 rather than the INT64 that
         // short decimals use, so it exercises a different code path than the decimal in testNullIf.
@@ -2791,7 +2791,7 @@ public class TestGpuExpressions
 
     @ParameterizedTest
     @EnumSource(NullsProvider.class)
-    public void testNullIfWithMixedOperandTypes(NullsProvider nullsProvider)
+    void testNullIfWithMixedOperandTypes(NullsProvider nullsProvider)
     {
         int channelA = 0;
         int channelB = 1;
@@ -2831,7 +2831,7 @@ public class TestGpuExpressions
 
     @ParameterizedTest
     @MethodSource("charToVarcharCastTestCases")
-    public void testCastCharToVarchar(Type targetType, CharVarcharCoercion charVarcharCoercion, NullsProvider nullsProvider)
+    void testCastCharToVarchar(Type targetType, CharVarcharCoercion charVarcharCoercion, NullsProvider nullsProvider)
     {
         int channelA = 0;
         List<Type> inputTypes = List.of(CHAR_CAST_SOURCE_TYPE);
@@ -2845,7 +2845,7 @@ public class TestGpuExpressions
         assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA), charVarcharCoercion);
     }
 
-    public static Stream<Object[]> charToVarcharCastTestCases()
+    private static Stream<Object[]> charToVarcharCastTestCases()
     {
         return Lists.cartesianProduct(
                         // Target lengths above, at and below the source char length, plus unbounded varchar
@@ -2858,7 +2858,7 @@ public class TestGpuExpressions
 
     @ParameterizedTest
     @EnumSource(NullsProvider.class)
-    public void testTypeOnlyCast(NullsProvider nullsProvider)
+    void testTypeOnlyCast(NullsProvider nullsProvider)
     {
         // VARCHAR(10) -> VARCHAR(20) shares the same cudf STRING dtype, so visitCast should
         // skip emitting GpuCast and forward the inner expression directly.
@@ -2875,7 +2875,7 @@ public class TestGpuExpressions
 
     @ParameterizedTest
     @EnumSource(NullsProvider.class)
-    public void testDateTimeExtract(NullsProvider nullsProvider)
+    void testDateTimeExtract(NullsProvider nullsProvider)
     {
         for (String functionName : List.of("day", "hour", "minute", "second")) {
             for (int precision = 0; precision <= MAX_GPU_TIMESTAMP_PRECISION; precision++) {
@@ -2887,7 +2887,7 @@ public class TestGpuExpressions
     }
 
     @Test
-    public void testTimestampToMillisCastOverflow()
+    void testTimestampToMillisCastOverflow()
     {
         TimestampType timestampType = createTimestampType(6);
         List<Type> inputTypes = List.of(timestampType);
@@ -2902,7 +2902,7 @@ public class TestGpuExpressions
     }
 
     @Test
-    public void testTimestampToMillisCastRounding()
+    void testTimestampToMillisCastRounding()
     {
         TimestampType timestampType = createTimestampType(6);
         List<Page> inputPages = List.of(new Page(timestampCastInputBlock(Arrays.asList(
@@ -2912,7 +2912,7 @@ public class TestGpuExpressions
     }
 
     @Test
-    public void testTimestampToMillisCastAtLowerBound()
+    void testTimestampToMillisCastAtLowerBound()
     {
         // Inputs below this bound round to a millisecond that cannot be represented in Trino's
         // microseconds. The CPU's unchecked negative rounding wraps here, so check the GPU directly.
@@ -2930,7 +2930,7 @@ public class TestGpuExpressions
     }
 
     @Test
-    public void testTimestampToMillisCastAllNullAndEmptyInputs()
+    void testTimestampToMillisCastAllNullAndEmptyInputs()
     {
         TimestampType timestampType = createTimestampType(6);
         Expression expression = new Cast(field(0, timestampType), createTimestampType(3));
@@ -2940,7 +2940,7 @@ public class TestGpuExpressions
     }
 
     @Test
-    public void testTimestampToMillisCastLazyEvaluation()
+    void testTimestampToMillisCastLazyEvaluation()
     {
         TimestampType timestampType = createTimestampType(6);
         TimestampType resultType = createTimestampType(3);
@@ -2980,7 +2980,7 @@ public class TestGpuExpressions
 
     @ParameterizedTest
     @EnumSource(NullsProvider.class)
-    public void testYearExtract(NullsProvider nullsProvider)
+    void testYearExtract(NullsProvider nullsProvider)
     {
         // cuDF's year() returns INT16, so it can only represent years within cuDF's calendar.
         // Random test data spans the full long/int range and would overflow, so generate inputs in a
@@ -3009,7 +3009,7 @@ public class TestGpuExpressions
     }
 
     @Test
-    public void testYearExtractOutOfRangeThrows()
+    void testYearExtractOutOfRangeThrows()
     {
         // Year 100000 is outside cuDF's INT16 year range, so GPU must throw. CPU would happily return 100000.
         int channelA = 0;
@@ -3031,7 +3031,7 @@ public class TestGpuExpressions
     /// cuDF's calendar reaches year -32767 through year 32767, so the last year at either end has
     /// to be answered and the first year past it rejected rather than silently answered wrong.
     @Test
-    public void testYearExtractAtCudfCalendarBound()
+    void testYearExtractAtCudfCalendarBound()
     {
         assertYearExtractMatchesCpu(LocalDate.of(-32767, 1, 1));
         assertYearExtractMatchesCpu(LocalDate.of(32767, 12, 31));
@@ -3128,7 +3128,7 @@ public class TestGpuExpressions
 
     @ParameterizedTest
     @EnumSource(NullsProvider.class)
-    public void testDateTrunc(NullsProvider nullsProvider)
+    void testDateTrunc(NullsProvider nullsProvider)
     {
         for (String unit : Arrays.stream(Field.values()).map(Field::trinoDateTruncUnit).toList()) {
             for (int precision = 0; precision <= MAX_GPU_TIMESTAMP_PRECISION; precision++) {
@@ -3166,7 +3166,7 @@ public class TestGpuExpressions
 
     @ParameterizedTest
     @EnumSource(NullsProvider.class)
-    public void testFormatDateTime(NullsProvider nullsProvider)
+    void testFormatDateTime(NullsProvider nullsProvider)
     {
         // Without a year field every value is formattable, so the whole range is covered
         for (String pattern : List.of("MM-dd HH:mm:ss.SSS", "'at' hh 'o''clock', 100% [ss]")) {
@@ -3186,7 +3186,7 @@ public class TestGpuExpressions
     }
 
     @Test
-    public void testFormatDateTimeYear()
+    void testFormatDateTimeYear()
     {
         Random random = new Random(7);
         for (String pattern : List.of("yyyy-MM-dd HH:mm:ss.SSS", "yy/MM/dd", "DDD", "''yyyy''")) {
@@ -3215,7 +3215,7 @@ public class TestGpuExpressions
     }
 
     @Test
-    public void testFormatDateTimeYearOutOfRange()
+    void testFormatDateTimeYearOutOfRange()
     {
         String pattern = "yyyy-MM-dd HH:mm:ss.SSS";
         long firstEpochMicros = LocalDateTime.of(0, 1, 1, 0, 0).toEpochSecond(UTC) * 1_000_000;
@@ -3290,7 +3290,7 @@ public class TestGpuExpressions
     }
 
     @Test
-    public void testFormatDateTimeRoundsToMillis()
+    void testFormatDateTimeRoundsToMillis()
     {
         // Values near millisecond, second and year boundaries, including negative ones, where rounding carries over
         long[] epochNanos = {
@@ -3324,7 +3324,7 @@ public class TestGpuExpressions
     }
 
     @Test
-    public void testFormatDateTimeFixedValues()
+    void testFormatDateTimeFixedValues()
     {
         TimestampType timestampType = createTimestampType(3);
 
@@ -3410,7 +3410,7 @@ public class TestGpuExpressions
     }
 
     @Test
-    public void testFormatDateTimeAllCharacters()
+    void testFormatDateTimeAllCharacters()
     {
         // Every character other than a quote and the ASCII letters, which Joda-Time reads as fields, is literal text
         String pattern = IntStream.range(0, 1024)
@@ -3423,7 +3423,7 @@ public class TestGpuExpressions
     }
 
     @Test
-    public void testFormatDateTimeRandomPatterns()
+    void testFormatDateTimeRandomPatterns()
     {
         // Patterns the GPU compiles must print like the CPU, and patterns the CPU rejects must not compile for the GPU
         List<String> tokens = List.of(
@@ -3500,7 +3500,7 @@ public class TestGpuExpressions
     }
 
     @Test
-    public void testFormatDateTimeDayOfWeek()
+    void testFormatDateTimeDayOfWeek()
     {
         // Midnight, the last second before noon, and noon on each day of a week, before and after 1970
         List<Long> epochMicros = new ArrayList<>();
@@ -3518,7 +3518,7 @@ public class TestGpuExpressions
     }
 
     @Test
-    public void testFormatDateTimeUnsupportedPattern()
+    void testFormatDateTimeUnsupportedPattern()
     {
         Type timestampType = createTimestampType(3);
         // Fields with an unsupported width, text/locale/time-zone fields, lookalikes of supported fields, patterns
@@ -3565,7 +3565,7 @@ public class TestGpuExpressions
     }
 
     @Test
-    public void testDateTruncWithUnitInDifferentCases()
+    void testDateTruncWithUnitInDifferentCases()
     {
         for (String unit : List.of("minute", "MINUTE", "MiNuTe")) {
             testDateTrunc(unit, createTimestampType(6), NullsProvider.RANDOM_NULLS);
@@ -3573,7 +3573,7 @@ public class TestGpuExpressions
     }
 
     @Test
-    public void testDateTruncMicrosecondUnderflow()
+    void testDateTruncMicrosecondUnderflow()
     {
         TimestampType type = createTimestampType(6);
         for (Field field : Field.values()) {
@@ -3591,7 +3591,7 @@ public class TestGpuExpressions
     }
 
     @Test
-    public void testDateTruncUnderflowWithNulls()
+    void testDateTruncUnderflowWithNulls()
     {
         TimestampType type = createTimestampType(6);
         String unit = "day";
@@ -3604,7 +3604,7 @@ public class TestGpuExpressions
     }
 
     @Test
-    public void testDateTruncNanosecondUnderflow()
+    void testDateTruncNanosecondUnderflow()
     {
         TimestampType type = createTimestampType(9);
         long firstConvertibleNanos = BigInteger.valueOf(Long.MIN_VALUE)
@@ -3691,7 +3691,7 @@ public class TestGpuExpressions
     }
 
     @Test
-    public void testLower()
+    void testLower()
     {
         // Exercise every code point (in MAX_BATCH_SIZE pages) except those cuDF and Trino disagree on.
         List<String> supportedCodePoints = IntStream.rangeClosed(Character.MIN_CODE_POINT, Character.MAX_CODE_POINT)
@@ -3706,7 +3706,7 @@ public class TestGpuExpressions
     }
 
     @Test
-    public void testLowerRejectedCodePoints()
+    void testLowerRejectedCodePoints()
     {
         Type type = VARCHAR;
         for (int codePoint : UNSUPPORTED_CODE_POINTS) {
@@ -3722,7 +3722,7 @@ public class TestGpuExpressions
     }
 
     @Test
-    public void testUnsupportedCodePointsDisagreeBetweenCudfAndTrino()
+    void testUnsupportedCodePointsDisagreeBetweenCudfAndTrino()
     {
         // Confirms UNSUPPORTED_CODE_POINTS is still accurate: if cuDF ever fixes one of these mappings to
         // match Trino, this test starts failing for that code point and the entry can be pruned from the list.
@@ -3740,7 +3740,7 @@ public class TestGpuExpressions
     }
 
     @Test
-    public void testLowerReconcilesAndHandlesNulls()
+    void testLowerReconcilesAndHandlesNulls()
     {
         assertGpuMatchesCpu(
                 List.of(new Page(varcharsBlock(Arrays.asList("HELLO", "Æther", "İstanbul", null, "ŁĄKA", "", "MiXeD123")))),
@@ -3762,7 +3762,7 @@ public class TestGpuExpressions
     }
 
     @Test
-    public void testUpper()
+    void testUpper()
     {
         // Exercise every code point (in MAX_BATCH_SIZE pages) except those cuDF and Trino disagree on. (these are covered by testUpperRejectedCodePoints
         List<String> supportedCodePoints = IntStream.rangeClosed(Character.MIN_CODE_POINT, Character.MAX_CODE_POINT)
@@ -3777,7 +3777,7 @@ public class TestGpuExpressions
     }
 
     @Test
-    public void testUpperMatchesCpu()
+    void testUpperMatchesCpu()
     {
         // cuDF maps ß to "SS"; the GPU must keep Trino's ß, wherever it sits and whatever surrounds it
         assertUpperMatchesCpu(
@@ -3817,7 +3817,7 @@ public class TestGpuExpressions
     }
 
     @Test
-    public void testUpperRejectedCodePoints()
+    void testUpperRejectedCodePoints()
     {
         for (int codePoint : GpuUpper.UNSUPPORTED_CODE_POINTS) {
             String value = Character.toString(codePoint);
@@ -3834,7 +3834,7 @@ public class TestGpuExpressions
     }
 
     @Test
-    public void testUnsupportedUpperCodePointsDisagreeBetweenCudfAndTrino()
+    void testUnsupportedUpperCodePointsDisagreeBetweenCudfAndTrino()
     {
         // Confirms GpuUpper.UNSUPPORTED_CODE_POINTS is still accurate: if cuDF ever fixes one of these mappings to
         // match Trino, this test starts failing for that code point and the entry can be pruned from the list.
@@ -3908,7 +3908,7 @@ public class TestGpuExpressions
 
     @ParameterizedTest
     @EnumSource(NullsProvider.class)
-    public void testLastDayOfMonth(NullsProvider nullsProvider)
+    void testLastDayOfMonth(NullsProvider nullsProvider)
     {
         testLastDayOfMonth(DATE, nullsProvider);
         for (int precision = 0; precision <= MAX_GPU_TIMESTAMP_PRECISION; precision++) {
@@ -3935,7 +3935,7 @@ public class TestGpuExpressions
     }
 
     @Test
-    public void testLastDayOfMonthCornerCases()
+    void testLastDayOfMonthCornerCases()
     {
         List<LocalDate> dates = List.of(
                 LocalDate.of(2000, 2, 15),  // leap year Feb
@@ -3991,7 +3991,7 @@ public class TestGpuExpressions
     }
 
     @Test
-    public void testLastDayOfMonthOutOfRangeThrows()
+    void testLastDayOfMonthOutOfRangeThrows()
     {
         int channelA = 0;
         Type type = DATE;
@@ -4196,7 +4196,7 @@ public class TestGpuExpressions
 
     @ParameterizedTest
     @EnumSource(NullsProvider.class)
-    public void testDateAdd(NullsProvider nullsProvider)
+    void testDateAdd(NullsProvider nullsProvider)
     {
         for (GpuDateAdd.Unit unit : GpuDateAdd.Unit.values()) {
             for (Type dateTimeType : DATE_TIME_TYPES) {
@@ -4223,7 +4223,7 @@ public class TestGpuExpressions
     /// Month ends, leap days and the epoch boundary, where the day of month has to be clamped to
     /// the last day of the resulting month.
     @Test
-    public void testDateAddCalendarEdgeCases()
+    void testDateAddCalendarEdgeCases()
     {
         List<LocalDate> dates = List.of(
                 LocalDate.of(2024, 1, 31),
@@ -4262,7 +4262,7 @@ public class TestGpuExpressions
 
     /// cuDF clamps the day of month to the last day of the resulting month, the way Trino does.
     @Test
-    public void testDateAddClampsDayOfMonth()
+    void testDateAddClampsDayOfMonth()
     {
         assertDateAddOnGpu("month", 1, LocalDate.of(2024, 1, 31), LocalDate.of(2024, 2, 29));
         assertDateAddOnGpu("month", 1, LocalDate.of(2023, 1, 31), LocalDate.of(2023, 2, 28));
@@ -4299,7 +4299,7 @@ public class TestGpuExpressions
     /// A shift moves a timestamp in the direction of its sign, so an input sitting at the bound it
     /// moves away from is still valid and must not be rejected.
     @Test
-    public void testDateAddAtCarrierBound()
+    void testDateAddAtCarrierBound()
     {
         // cuDF's calendar, and so a calendar unit, reaches only to year -32767 and year 32767
         long minCalendarDay = LocalDate.of(-32767, 1, 1).toEpochDay();
@@ -4332,7 +4332,7 @@ public class TestGpuExpressions
     /// calendar alone that rejects these inputs, and the CPU implementation answers them. That band
     /// is the one place the GPU is deliberately stricter.
     @Test
-    public void testDateAddOutsideCudfCalendar()
+    void testDateAddOutsideCudfCalendar()
     {
         Type timestampType = createTimestampType(6);
         for (String unit : List.of("month", "quarter", "year")) {
@@ -4371,7 +4371,7 @@ public class TestGpuExpressions
     /// date_add runs on the GPU only for a constant shift that can be applied without leaving the
     /// representable range; everything else is left to the CPU.
     @Test
-    public void testDateAddFallsBackOnUnusableShift()
+    void testDateAddFallsBackOnUnusableShift()
     {
         Type timestampType = createTimestampType(6);
         Map<Symbol, Integer> layout = ImmutableMap.of(
@@ -4407,7 +4407,7 @@ public class TestGpuExpressions
     /// these back to the carrier bound makes the engines disagree, because rounding a bound that is
     /// not a multiple of the step moves the result past what the CPU can rescale.
     @Test
-    public void testDateAddAtOverflowBound()
+    void testDateAddAtOverflowBound()
     {
         // timestamp(0): the largest result is 9223372036854 seconds, MAX_EPOCH_MILLIS / 1000
         assertDateAddBound(createTimestampType(0), 1, 9_223_371_950_454_000_000L, 9_223_371_950_455_000_000L);
@@ -4437,7 +4437,7 @@ public class TestGpuExpressions
     /// Results in the last 192 microseconds of the range leave the microsecond carrier once the
     /// sub-millisecond part is added back. Both engines reject them.
     @Test
-    public void testDateAddPastLargestRepresentableResult()
+    void testDateAddPastLargestRepresentableResult()
     {
         Type timestampType = createTimestampType(6);
         for (long epochMicros : List.of(Long.MAX_VALUE - MICROSECONDS_PER_DAY + 1, 9_223_371_950_454_775_999L)) {
@@ -4448,7 +4448,7 @@ public class TestGpuExpressions
     /// An everyday input whose result is not representable: the shift, not the input, is what leaves
     /// the carrier's range.
     @Test
-    public void testDateAddResultOutOfRange()
+    void testDateAddResultOutOfRange()
     {
         long epochDay = LocalDate.of(2024, 1, 1).toEpochDay();
         // Roughly the whole INT32 day count, in either direction
@@ -4472,7 +4472,7 @@ public class TestGpuExpressions
     /// valid result the GPU cannot produce. It fails rather than returning cuDF's wrong answer,
     /// where the CPU implementation succeeds.
     @Test
-    public void testDateAddCalendarResultOutOfRange()
+    void testDateAddCalendarResultOutOfRange()
     {
         assertGpuDateAddThrows("year", 1, DATE, LocalDate.of(32767, 12, 1).toEpochDay());
         assertGpuDateAddThrows("month", 1, DATE, LocalDate.of(32767, 12, 31).toEpochDay());
@@ -4483,7 +4483,7 @@ public class TestGpuExpressions
     /// representable and it is cuDF's calendar, less the reserve for a twelve month shift, that
     /// binds. The bounds are epoch days, the carrier's own ticks for a date.
     @Test
-    public void testDateAddOutOfRangeMessageNamesTheBound()
+    void testDateAddOutOfRangeMessageNamesTheBound()
     {
         Expression expression = dateAdd("year", new Constant(BIGINT, 1L), DATE);
         CompiledExpression gpuExpression = compileExpression(expression, layoutFor(List.of(DATE)), SQL_STANDARD, TEST_SESSION_TIME_ZONE_KEY)
@@ -4502,7 +4502,7 @@ public class TestGpuExpressions
     /// range itself nor hide a row that is. Nothing else pins this, because the helpers that compare
     /// against the CPU take single-row inputs on the exception path.
     @Test
-    public void testDateAddWithNullRows()
+    void testDateAddWithNullRows()
     {
         Long outOfRange = LocalDate.of(32768, 1, 1).toEpochDay();
         Long inRange = LocalDate.of(2024, 1, 31).toEpochDay();
@@ -4518,7 +4518,7 @@ public class TestGpuExpressions
     /// implementation gets as far as writing the block and fails with GENERIC_INTERNAL_ERROR, so the
     /// query fails either way, with a different error code.
     @Test
-    public void testDateAddPastLargestDate()
+    void testDateAddPastLargestDate()
     {
         assertGpuDateAddThrows("day", 1, DATE, Integer.MAX_VALUE);
         assertGpuDateAddThrows("day", -1, DATE, Integer.MIN_VALUE);
@@ -4527,7 +4527,7 @@ public class TestGpuExpressions
     /// Trino matches the unit case-insensitively, so every spelling has to run on the GPU and agree
     /// with the CPU rather than quietly falling back.
     @Test
-    public void testDateAddUnitInDifferentCases()
+    void testDateAddUnitInDifferentCases()
     {
         List<LocalDate> dates = List.of(LocalDate.of(2024, 1, 31), LocalDate.of(2024, 2, 29), LocalDate.of(2023, 12, 31));
         for (String unit : List.of("month", "MONTH", "Month", "mOnTh")) {
@@ -4545,7 +4545,7 @@ public class TestGpuExpressions
     /// timestamp(7) to timestamp(9) ride the nanosecond carrier, which spans roughly 1677 to 2262.
     /// Inside it the CPU implementation never runs out of range, so every unit has to agree.
     @Test
-    public void testDateAddNanosecondCarrier()
+    void testDateAddNanosecondCarrier()
     {
         long epochMicros = LocalDate.of(2024, 1, 31).toEpochDay() * MICROSECONDS_PER_DAY + 123_456;
         for (int precision = 7; precision <= 9; precision++) {
@@ -4571,7 +4571,7 @@ public class TestGpuExpressions
     /// The CPU implementation keeps picosOfMicro across a shift, and so must the GPU, which carries
     /// it in the low three digits of the nanosecond count.
     @Test
-    public void testDateAddKeepsSubMicrosecondDigits()
+    void testDateAddKeepsSubMicrosecondDigits()
     {
         long epochMicros = LocalDate.of(2024, 1, 31).toEpochDay() * MICROSECONDS_PER_DAY;
         for (int precision = 7; precision <= 9; precision++) {
@@ -4594,7 +4594,7 @@ public class TestGpuExpressions
     /// Long.MAX_VALUE nanoseconds is 2262-04-11. A result past it has no nanosecond representation,
     /// so it fails here even though the CPU implementation, which works in microseconds, returns it.
     @Test
-    public void testDateAddPastNanosecondCarrier()
+    void testDateAddPastNanosecondCarrier()
     {
         TimestampType timestampType = createTimestampType(9);
         long shiftNanos = MICROSECONDS_PER_DAY * NANOSECONDS_PER_MICROSECOND;
@@ -4683,7 +4683,7 @@ public class TestGpuExpressions
     /// A shift past the largest representable timestamp fails on the CPU, which holds the result in
     /// milliseconds and rescales it with an exact multiplication. The GPU must fail the same way.
     @Test
-    public void testDateAddOverflow()
+    void testDateAddOverflow()
     {
         Map<Type, Long> largestTimestamp = Map.of(
                 createTimestampType(0), Long.MAX_VALUE / 1_000_000 * 1_000_000,
@@ -4827,7 +4827,7 @@ public class TestGpuExpressions
 
     @ParameterizedTest
     @EnumSource(NullsProvider.class)
-    public void testStringLength(NullsProvider nullsProvider)
+    void testStringLength(NullsProvider nullsProvider)
     {
         int varcharChannel = 0;
         List<Type> inputTypes = List.of(VARCHAR);
@@ -4842,7 +4842,7 @@ public class TestGpuExpressions
 
     @ParameterizedTest
     @EnumSource(NullsProvider.class)
-    public void testSubstring(NullsProvider nullsProvider)
+    void testSubstring(NullsProvider nullsProvider)
     {
         int varcharChannel = 0;
         int startChannel = 1;
@@ -4870,7 +4870,7 @@ public class TestGpuExpressions
 
     @ParameterizedTest
     @EnumSource(NullsProvider.class)
-    public void testSubstringWithLength(NullsProvider nullsProvider)
+    void testSubstringWithLength(NullsProvider nullsProvider)
     {
         int varcharChannel = 0;
         int startChannel = 1;
@@ -4903,7 +4903,7 @@ public class TestGpuExpressions
 
     @ParameterizedTest
     @EnumSource(NullsProvider.class)
-    public void testReplace(NullsProvider nullsProvider)
+    void testReplace(NullsProvider nullsProvider)
     {
         for (String search : REPLACE_SEARCH_STRINGS) {
             testReplace(nullsProvider, search, Optional.empty());
@@ -4912,7 +4912,7 @@ public class TestGpuExpressions
 
     @ParameterizedTest
     @EnumSource(NullsProvider.class)
-    public void testReplaceWithReplacement(NullsProvider nullsProvider)
+    void testReplaceWithReplacement(NullsProvider nullsProvider)
     {
         for (String search : REPLACE_SEARCH_STRINGS) {
             for (String replacement : List.of("", "X", "ab", "aa", "łąka", "ワ")) {
@@ -4922,7 +4922,7 @@ public class TestGpuExpressions
     }
 
     @Test
-    public void testReplaceWithNonConstantArgument()
+    void testReplaceWithNonConstantArgument()
     {
         // cuDF's literal string replace takes a scalar target and replacement, so both must be constants
         List<Type> inputTypes = List.of(VARCHAR, VARCHAR);
@@ -4970,7 +4970,7 @@ public class TestGpuExpressions
 
     @ParameterizedTest
     @EnumSource(NullsProvider.class)
-    public void testStartsWith(NullsProvider nullsProvider)
+    void testStartsWith(NullsProvider nullsProvider)
     {
         int varcharChannel = 0;
         List<Type> inputTypes = List.of(VARCHAR);
@@ -4988,7 +4988,7 @@ public class TestGpuExpressions
     }
 
     @Test
-    public void testStartsWithNonConstantPrefix()
+    void testStartsWithNonConstantPrefix()
     {
         // cuDF startsWith takes a scalar prefix, so it must be a constant
         List<Type> inputTypes = List.of(VARCHAR, VARCHAR);
@@ -5009,7 +5009,7 @@ public class TestGpuExpressions
 
     @ParameterizedTest
     @EnumSource(NullsProvider.class)
-    public void testTrimWhitespace(NullsProvider nullsProvider)
+    void testTrimWhitespace(NullsProvider nullsProvider)
     {
         for (TrimInput input : TRIM_INPUTS) {
             Type type = input.type();
@@ -5026,7 +5026,7 @@ public class TestGpuExpressions
 
     @ParameterizedTest
     @EnumSource(NullsProvider.class)
-    public void testTrimCodePoints(NullsProvider nullsProvider)
+    void testTrimCodePoints(NullsProvider nullsProvider)
     {
         for (TrimInput input : TRIM_INPUTS) {
             Type type = input.type();
@@ -5044,7 +5044,7 @@ public class TestGpuExpressions
     }
 
     @Test
-    public void testTrimNonConstantCodePointsDoesNotCompile()
+    void testTrimNonConstantCodePointsDoesNotCompile()
     {
         List<Type> inputTypes = List.of(VARCHAR, VARCHAR);
         // The characters to trim are only known per row, so the whole call falls back to the CPU
@@ -5060,7 +5060,7 @@ public class TestGpuExpressions
     }
 
     @Test
-    public void testTrimNullCodePointsDoesNotCompile()
+    void testTrimNullCodePointsDoesNotCompile()
     {
         List<Type> inputTypes = List.of(VARCHAR);
         // A null set of characters makes the call return null; that is left to the CPU
@@ -5075,7 +5075,7 @@ public class TestGpuExpressions
     /// Trino's and cuDF's whitespace definitions differ, and choosing the wrong one is silently wrong
     /// rather than an error, so the agreement is checked for every code point instead of a sample.
     @Test
-    public void testTrimWhitespaceMatchesCpuForAllCodePoints()
+    void testTrimWhitespaceMatchesCpuForAllCodePoints()
     {
         for (CodePointShape shape : CodePointShape.values()) {
             List<Page> inputPages = createAllCodePointPages(shape);
@@ -5189,7 +5189,7 @@ public class TestGpuExpressions
 
     @ParameterizedTest
     @EnumSource(NullsProvider.class)
-    public void testConcat(NullsProvider nullsProvider)
+    void testConcat(NullsProvider nullsProvider)
     {
         testConcat(2, nullsProvider);
         testConcat(4, nullsProvider);
@@ -5243,7 +5243,7 @@ public class TestGpuExpressions
 
     @ParameterizedTest
     @EnumSource(NullsProvider.class)
-    public void testCharConcat(NullsProvider nullsProvider)
+    void testCharConcat(NullsProvider nullsProvider)
     {
         CharType leftType = createCharType(5);
         CharType rightType = createCharType(7);
@@ -5270,7 +5270,7 @@ public class TestGpuExpressions
     }
 
     @Test
-    public void testConcatOutputLengthLimit()
+    void testConcatOutputLengthLimit()
     {
         List<Type> inputTypes = List.of(VARCHAR, VARCHAR);
         Expression expression = new Call(
@@ -5334,7 +5334,7 @@ public class TestGpuExpressions
 
     @ParameterizedTest
     @EnumSource(NullsProvider.class)
-    public void testIn(NullsProvider nullsProvider)
+    void testIn(NullsProvider nullsProvider)
     {
         testIn(BIGINT, List.of(-50L, 0L, 25L, 50L, 75L), nullsProvider);
         testIn(INTEGER, List.of(-50L, 0L, 25L, 50L, 75L), nullsProvider);
@@ -5355,7 +5355,7 @@ public class TestGpuExpressions
 
     @ParameterizedTest
     @EnumSource(NullsProvider.class)
-    public void testInWithNull(NullsProvider nullsProvider)
+    void testInWithNull(NullsProvider nullsProvider)
     {
         testIn(BIGINT, Arrays.asList(10L, null, 50L), nullsProvider);
         testIn(BIGINT, Collections.singletonList(null), nullsProvider);
