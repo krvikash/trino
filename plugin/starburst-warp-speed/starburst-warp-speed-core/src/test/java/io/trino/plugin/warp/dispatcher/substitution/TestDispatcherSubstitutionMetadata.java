@@ -33,6 +33,7 @@ import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.Set;
 
+import static io.trino.testing.InterfaceTestUtils.assertAllMethodsOverridden;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class TestDispatcherSubstitutionMetadata
@@ -69,6 +70,12 @@ public class TestDispatcherSubstitutionMetadata
                 Optional.empty(),
                 Metrics.EMPTY,
                 false);
+    }
+
+    @Test
+    public void testEverythingImplemented()
+    {
+        assertAllMethodsOverridden(ConnectorSubstitutionMetadata.class, DispatcherSubstitutionMetadata.class);
     }
 
     @Test
