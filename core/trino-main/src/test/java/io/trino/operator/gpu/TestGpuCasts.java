@@ -41,6 +41,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
@@ -61,6 +62,7 @@ import static io.trino.operator.gpu.expression.GpuExpressionCompiler.compileExpr
 import static io.trino.spi.StandardErrorCode.NUMERIC_VALUE_OUT_OF_RANGE;
 import static io.trino.spi.type.CharType.createCharType;
 import static io.trino.spi.type.Chars.truncateToLengthAndTrimSpaces;
+import static io.trino.spi.type.DateType.DATE;
 import static io.trino.spi.type.TimestampType.createTimestampType;
 import static io.trino.spi.type.TypeUtils.writeNativeValue;
 import static io.trino.spi.type.VarcharType.VARCHAR;
@@ -138,6 +140,64 @@ final class TestGpuCasts
         assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA));
     }
 
+    @ParameterizedTest
+    @EnumSource(NullsProvider.class)
+    void testCastDateToVarchar(NullsProvider nullsProvider)
+    {
+        int positionsCount = 256;
+        List<Object> dates = Stream.of(
+                        LocalDate.of(0, 1, 1),
+                        LocalDate.of(1, 1, 1),
+                        LocalDate.of(999, 12, 31),
+                        LocalDate.of(1969, 12, 31),
+                        LocalDate.of(1970, 1, 1),
+                        LocalDate.of(2000, 2, 29),
+                        LocalDate.of(2024, 10, 14),
+                        LocalDate.of(9999, 12, 31))
+                .map(date -> (Object) date.toEpochDay())
+                .collect(toImmutableList());
+        List<Page> inputPages = List.of(new Page(
+                positionsCount,
+                createRepeatingValuesBlock(DATE, positionsCount, nullsProvider, dates, 1)));
+        for (Type targetType : List.of(VARCHAR, createVarcharType(10))) {
+            assertGpuMatchesCpu(inputPages, List.of(DATE), new Cast(field(0, DATE), targetType), Set.of(0));
+        }
+    }
+
+    @Test
+    void testCastDateToVarcharYearOutOfRange()
+    {
+        List<Type> inputTypes = List.of(DATE);
+        Expression expression = new Cast(field(0, DATE), VARCHAR);
+        CompiledExpression gpuExpression = compileExpression(expression, layoutFor(inputTypes), SQL_STANDARD, TEST_SESSION_TIME_ZONE_KEY).orElseThrow();
+        for (LocalDate date : List.of(LocalDate.of(-1, 12, 31), LocalDate.of(10000, 1, 1), LocalDate.of(-12345, 6, 7))) {
+            List<Page> inputPages = List.of(new Page(dateBlock(Arrays.asList(null, 0L, date.toEpochDay()))));
+            assertTrinoExceptionThrownBy(() -> executeWithGpu(inputPages, inputTypes, expression, gpuExpression))
+                    .hasErrorCode(NUMERIC_VALUE_OUT_OF_RANGE)
+                    .hasMessage("Year outside of range supported by GPU for formatting");
+        }
+    }
+
+    @Test
+    void testCastDateToVarcharAllNullAndEmptyInputs()
+    {
+        Expression expression = new Cast(field(0, DATE), VARCHAR);
+        for (List<Long> values : List.of(Arrays.<Long>asList(null, null), List.<Long>of())) {
+            assertGpuMatchesCpu(List.of(new Page(dateBlock(values))), List.of(DATE), expression, Set.of(0));
+        }
+    }
+
+    @Test
+    void testCastDateToVarcharLazyEvaluation()
+    {
+        long outOfRange = LocalDate.of(10000, 1, 1).toEpochDay();
+        Expression condition = comparison(ComparisonOperator.LESS_THAN, field(0, DATE), new Constant(DATE, outOfRange));
+        Expression expression = new Case(
+                ImmutableList.of(new WhenClause(condition, new Cast(field(0, DATE), VARCHAR))),
+                new Constant(VARCHAR, Slices.utf8Slice("out of range")));
+        assertGpuMatchesCpu(List.of(new Page(dateBlock(Arrays.asList(outOfRange, 0L, null)))), List.of(DATE), expression, Set.of(0));
+    }
+
     @Test
     void testTimestampToMillisCastOverflow()
     {
@@ -213,6 +273,20 @@ final class TestGpuCasts
                 inputTypes,
                 constantExpression,
                 Set.of(0));
+    }
+
+    private static Block dateBlock(List<Long> epochDays)
+    {
+        BlockBuilder builder = DATE.createBlockBuilder(null, epochDays.size());
+        for (Long days : epochDays) {
+            if (days == null) {
+                builder.appendNull();
+            }
+            else {
+                DATE.writeLong(builder, days);
+            }
+        }
+        return builder.build();
     }
 
     private static Block timestampCastInputBlock(List<Long> epochMicros)

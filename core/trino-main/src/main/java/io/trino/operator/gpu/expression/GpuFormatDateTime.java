@@ -77,7 +77,7 @@ public final class GpuFormatDateTime
         this.yearRange = requireNonNull(yearRange, "yearRange is null");
     }
 
-    public static Optional<GpuFormatDateTime> create(GpuExpression source, String jodaPattern)
+    public static Optional<GpuExpression> create(GpuExpression source, String jodaPattern)
     {
         return translateJodaToCudfPattern(jodaPattern).map(translation -> new GpuFormatDateTime(source, translation.cudfFormat(), translation.yearRange()));
     }
@@ -216,7 +216,7 @@ public final class GpuFormatDateTime
                 return;
             }
             if (min.getLong() < startEpochMillis || max.getLong() >= endEpochMillis) {
-                throw new TrinoException(NUMERIC_VALUE_OUT_OF_RANGE, "format_datetime() year outside of range supported by GPU");
+                throw new TrinoException(NUMERIC_VALUE_OUT_OF_RANGE, "Year outside of range supported by GPU for formatting");
             }
         }
     }

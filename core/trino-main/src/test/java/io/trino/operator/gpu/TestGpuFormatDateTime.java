@@ -176,7 +176,7 @@ final class TestGpuFormatDateTime
 
     private void assertFormatDateTimeGpuThrows(TimestampType timestampType, String pattern, long epochMicros)
     {
-        assertFormatDateTimeGpuThrows(timestampType, pattern, epochMicros, "format_datetime() year outside of range supported by GPU");
+        assertFormatDateTimeGpuThrows(timestampType, pattern, epochMicros, "Year outside of range supported by GPU for formatting");
     }
 
     private void assertFormatDateTimeGpuThrows(TimestampType timestampType, String pattern, long epochMicros, String expectedMessage)

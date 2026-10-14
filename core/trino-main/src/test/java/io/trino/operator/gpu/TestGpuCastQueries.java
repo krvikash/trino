@@ -65,6 +65,7 @@ import static io.trino.spi.StandardErrorCode.NUMERIC_VALUE_OUT_OF_RANGE;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.spi.type.CharType.createCharType;
+import static io.trino.spi.type.DateType.DATE;
 import static io.trino.spi.type.DecimalType.createDecimalType;
 import static io.trino.spi.type.DoubleType.DOUBLE;
 import static io.trino.spi.type.IntegerType.INTEGER;
@@ -632,6 +633,27 @@ public class TestGpuCastQueries
         assertThat(gpuCast(createTimestampType(6), createTimestampType(4))).isNotSupported();
         assertThat(gpuCast(TIMESTAMP_MILLIS, createTimestampType(6))).isNotSupported();
         assertThat(gpuCast(createTimestampType(0), createTimestampType(1))).isNotSupported();
+    }
+
+    @Test
+    void testCastFromDate()
+    {
+        String[] values = {
+                "DATE '2020-05-10'",
+                "DATE '1970-01-01'",
+                "DATE '1969-12-31'",
+                "DATE '0000-01-01'",
+                "DATE '0001-02-03'",
+                "DATE '0999-12-31'",
+                "DATE '9999-12-31'",
+                "CAST(NULL AS DATE)",
+        };
+        assertCastSucceedsForAll(DATE, VARCHAR, values);
+        assertCastSucceedsForAll(DATE, createVarcharType(10), values);
+        assertCastSucceedsForAll(DATE, createVarcharType(20), values);
+        // The CPU fails on every non-null value
+        assertThat(gpuCast(DATE, createVarcharType(9))).isNotSupported();
+        assertThat(gpuCast(DATE, createCharType(10))).isNotSupported();
     }
 
     private void assertCastSucceedsForAll(Type from, Type to, @Language("SQL") String[] sqlValues)

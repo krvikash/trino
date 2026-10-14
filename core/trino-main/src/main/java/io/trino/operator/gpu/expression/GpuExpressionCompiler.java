@@ -121,6 +121,8 @@ public final class GpuExpressionCompiler
     private static final int SMALLINT_DECIMAL_DIGITS = 5;
     private static final int INTEGER_DECIMAL_DIGITS = 10;
     private static final int BIGINT_DECIMAL_DIGITS = 19;
+    // The format of io.trino.type.DateOperators#castToVarchar
+    private static final String DATE_FORMAT = "yyyy-MM-dd";
 
     public static Optional<CompiledExpression> compileExpression(Expression expression, Map<Symbol, Integer> layout, CharVarcharCoercion charVarcharCoercion, TimeZoneKey sessionTimeZoneKey)
     {
@@ -313,6 +315,11 @@ public final class GpuExpressionCompiler
                         verify(DType.STRING.equals(fromDType) && DType.STRING.equals(toDType), "Unexpected from/to DTypes: %s, %s", fromDType, toDType);
                         yield Optional.of(input);
                     }
+                    default -> Optional.empty();
+                };
+                case DateType _ -> switch (toType) {
+                    // Shorter targets fail on the CPU for every non-null value
+                    case VarcharType v when DATE_FORMAT.length() <= v.getLength().orElse(Integer.MAX_VALUE) -> GpuFormatDateTime.create(new GpuCast(input, DType.TIMESTAMP_MILLISECONDS), DATE_FORMAT);
                     default -> Optional.empty();
                 };
                 case TimestampType from -> switch (toType) {
