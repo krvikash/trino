@@ -21,7 +21,6 @@ import com.google.common.cache.LoadingCache;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Streams;
 import io.airlift.slice.Slice;
 import io.airlift.slice.Slices;
 import io.trino.FullConnectorSession;
@@ -115,6 +114,7 @@ import static io.trino.operator.gpu.GpuTestUtils.MAX_GPU_TIMESTAMP_PRECISION;
 import static io.trino.operator.gpu.GpuTestUtils.TESTED_GPU_TIMESTAMP_WITH_TIME_ZONE_TYPES;
 import static io.trino.operator.gpu.GpuTestUtils.TESTED_GPU_TYPES;
 import static io.trino.operator.gpu.GpuTestUtils.TEST_SESSION_TIME_ZONE_KEY;
+import static io.trino.operator.gpu.GpuTestUtils.TEST_STRINGS;
 import static io.trino.operator.gpu.GpuTestUtils.assertDeclaredBehaviorOnAllNulls;
 import static io.trino.operator.gpu.GpuTestUtils.assertGpuMatchesCpu;
 import static io.trino.operator.gpu.GpuTestUtils.assertSameDataInOrder;
@@ -126,6 +126,7 @@ import static io.trino.operator.gpu.GpuTestUtils.decimalBlock;
 import static io.trino.operator.gpu.GpuTestUtils.executeWithCpu;
 import static io.trino.operator.gpu.GpuTestUtils.executeWithGpu;
 import static io.trino.operator.gpu.GpuTestUtils.field;
+import static io.trino.operator.gpu.GpuTestUtils.generateInputStrings;
 import static io.trino.operator.gpu.GpuTestUtils.getOnlyColumn;
 import static io.trino.operator.gpu.GpuTestUtils.layoutFor;
 import static io.trino.operator.gpu.GpuTestUtils.maybeSetGpuMemoryPoolForTests;
@@ -206,7 +207,7 @@ public class TestGpuExpressions
     private static final Boolean[] TRUTH_TABLE_LEFT = {true, true, true, false, false, false, null, null, null};
     private static final Boolean[] TRUTH_TABLE_RIGHT = {true, false, null, true, false, null, true, false, null};
 
-    /// Search strings for `replace`, chosen to occur in `testStrings` and in `REPLACE_EDGE_CASE_STRINGS`:
+    /// Search strings for `replace`, chosen to occur in `TEST_STRINGS` and in `REPLACE_EDGE_CASE_STRINGS`:
     /// single and multi character, ASCII and multi-byte, plus an empty and a never-matching one.
     private static final List<String> REPLACE_SEARCH_STRINGS = ImmutableList.of(
             "", "a", "b", "z", "ab", "aa", "papa", "abcdefghij", "%", "test", "ą", "łąką", "ワ", "а", "no such substring");
@@ -258,33 +259,6 @@ public class TestGpuExpressions
             .addAll(IntStream.rangeClosed(0, TimestampType.MAX_PRECISION).mapToObj(TimestampType::createTimestampType).toList())
             .addAll(IntStream.rangeClosed(0, TimestampWithTimeZoneType.MAX_PRECISION).mapToObj(TimestampWithTimeZoneType::createTimestampWithTimeZoneType).toList())
             .addAll(IntStream.rangeClosed(0, TimeType.MAX_PRECISION).mapToObj(TimeType::createTimeType).toList())
-            .build();
-
-    /**
-     * Useful test strings, including interesting inputs and patterns for LIKE testing.
-     */
-    private final List<String> testStrings = ImmutableList.<String>builder()
-            .add("test1", "other", "test2", "nothing", "testing", "%test%")
-            .add("a", "xyz", "ab", "z", "yz", "abcd", "", "abcdefg", "xabc", "xyxw", "xaxxxbx", "abcdefghij")
-            .add("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
-            .add("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaab")
-            .add("aabbaabbaabbaabbaabbaabbaabbaabbaabbaabbaabbaabbaabbaabb")
-            .add("aaaabbbbaaaabbbbaaaabbbb")
-            .add("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
-            .add("aaaabbbbaaaabbbbaaaa", "aaaabbbbaaaabbbbcccc")
-            .add("abababababacabababa", "bbbbbbbbxax", "bbbxxxxaz")
-            .add("a".repeat(20) + "b".repeat(20) + "a".repeat(20) + "b".repeat(20) + "the quick brown fox jumps over the lazy dog")
-            .add("ababaa", "papaya", "papapaya", "papapapaya", "papapapapaya", "papapapapapaya")
-            .add("xyza1234567890123456")
-            .add("%", "_", "-", "xxxxx_xxxxx")
-            .add("__", "a%", "a_", "%a", "%z", "_z", "_%", "_a%", "_ab_", "_a%b_", "_%_%_%_%")
-            .add("%a%a%a%a%a%a%", "%a%b%a%b%a%b%", "%aaaa%bbbb%aaaa%bbbb%aaaa%bbbb%")
-            .add("%aaaaaaaaaaaaaaaaaaaaaaaaaa%", "%aab%bba%aab%bba%", "%abaca%")
-            .add("%bcccccccca%", "%bbxxxxxa%", "%aaaaaaxaaaaaa%", "%abaaa%", "%paya%")
-            .add("%a________________", "-%", "-_", "--", "%$_%")
-            .add("Łania szła piękną łąką pod Warszawą")
-            .add("ワルシャワ近郊の美しい草原を雌鹿が歩いていた。")
-            .add("Слава Україні")
             .build();
 
     private static final int CODE_POINTS_PER_PAGE = 65536;
@@ -407,10 +381,10 @@ public class TestGpuExpressions
 
     /// `char(8)` values in Trino's representation, which strips trailing spaces: empty and all-space
     /// values, leading and interior spaces, lengths on either side of the tested target lengths, and
-    /// `testStrings` cut to the char length, contributing multi-byte characters.
+    /// `TEST_STRINGS` cut to the char length, contributing multi-byte characters.
     private final List<Object> charCastValues = Stream.concat(
                     Stream.of("", " ", "        ", "a", "ab ", "abc", "abcdefgh", " abc", "a b c"),
-                    testStrings.stream())
+                    TEST_STRINGS.stream())
             .map(value -> (Object) truncateToLengthAndTrimSpaces(Slices.utf8Slice(value), CHAR_CAST_SOURCE_TYPE))
             .distinct()
             .collect(toImmutableList());
@@ -451,7 +425,7 @@ public class TestGpuExpressions
         List<Page> inputPages = createVarcharPages(VARCHAR, positionsCounts, nullsProvider);
 
         List<Optional<Character>> escapes = List.of(Optional.of('\\'), Optional.of('$'), Optional.empty());
-        for (String pattern : testStrings) {
+        for (String pattern : TEST_STRINGS) {
             for (Optional<Character> escape : escapes) {
                 Expression expression = createLikeExpression(varcharChannel, pattern, escape);
                 assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(varcharChannel));
@@ -5001,7 +4975,7 @@ public class TestGpuExpressions
         int varcharChannel = 0;
         List<Type> inputTypes = List.of(VARCHAR);
         List<Page> inputPages = ImmutableList.<Page>builder()
-                .addAll(createVarcharPages(VARCHAR, List.of(2 * testStrings.size()), nullsProvider))
+                .addAll(createVarcharPages(VARCHAR, List.of(2 * TEST_STRINGS.size()), nullsProvider))
                 .add(varcharPage(STARTS_WITH_EDGE_CASE_STRINGS))
                 .build();
 
@@ -5516,7 +5490,7 @@ public class TestGpuExpressions
 
     private List<Page> createVarcharPages(VarcharType type, List<Integer> positionsCounts, NullsProvider nullsProvider)
     {
-        Iterator<String> strings = generateInputStrings()
+        Iterator<String> strings = generateInputStrings(20)
                 .filter(value -> type.isUnbounded() || value.codePointCount(0, value.length()) <= type.getBoundedLength())
                 .iterator();
         return positionsCounts.stream()
@@ -5534,25 +5508,6 @@ public class TestGpuExpressions
                     return new Page(positionsCount, builder.build());
                 })
                 .collect(toImmutableList());
-    }
-
-    private Stream<String> generateInputStrings()
-    {
-        Random random = new Random(42);
-        Stream<String> randomStrings = Stream.generate(() -> {
-            int length = random.nextInt(21);
-            char[] chars = new char[length];
-            for (int i = 0; i < length; i++) {
-                chars[i] = (char) random.nextInt(0, Character.MIN_SURROGATE - 1);
-            }
-            return new String(chars);
-        });
-
-        return Streams.zip(
-                        Stream.generate(() -> testStrings).flatMap(List::stream),
-                        randomStrings,
-                        List::of)
-                .flatMap(List::stream);
     }
 
     private static Stream<Integer> randomInts(int minInclusive, int maxExclusive)

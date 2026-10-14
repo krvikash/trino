@@ -187,6 +187,31 @@ public final class GpuTestUtils
             // -0.0, 0.0, NaN
             List.of(-0.0, 0.0, Double.NaN));
 
+    /// Useful test strings, including interesting inputs and patterns for LIKE testing.
+    public static final List<String> TEST_STRINGS = ImmutableList.<String>builder()
+            .add("test1", "other", "test2", "nothing", "testing", "%test%")
+            .add("a", "xyz", "ab", "z", "yz", "abcd", "", "abcdefg", "xabc", "xyxw", "xaxxxbx", "abcdefghij")
+            .add("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+            .add("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaab")
+            .add("aabbaabbaabbaabbaabbaabbaabbaabbaabbaabbaabbaabbaabbaabb")
+            .add("aaaabbbbaaaabbbbaaaabbbb")
+            .add("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+            .add("aaaabbbbaaaabbbbaaaa", "aaaabbbbaaaabbbbcccc")
+            .add("abababababacabababa", "bbbbbbbbxax", "bbbxxxxaz")
+            .add("a".repeat(20) + "b".repeat(20) + "a".repeat(20) + "b".repeat(20) + "the quick brown fox jumps over the lazy dog")
+            .add("ababaa", "papaya", "papapaya", "papapapaya", "papapapapaya", "papapapapapaya")
+            .add("xyza1234567890123456")
+            .add("%", "_", "-", "xxxxx_xxxxx")
+            .add("__", "a%", "a_", "%a", "%z", "_z", "_%", "_a%", "_ab_", "_a%b_", "_%_%_%_%")
+            .add("%a%a%a%a%a%a%", "%a%b%a%b%a%b%", "%aaaa%bbbb%aaaa%bbbb%aaaa%bbbb%")
+            .add("%aaaaaaaaaaaaaaaaaaaaaaaaaa%", "%aab%bba%aab%bba%", "%abaca%")
+            .add("%bcccccccca%", "%bbxxxxxa%", "%aaaaaaxaaaaaa%", "%abaaa%", "%paya%")
+            .add("%a________________", "-%", "-_", "--", "%$_%")
+            .add("Łania szła piękną łąką pod Warszawą")
+            .add("ワルシャワ近郊の美しい草原を雌鹿が歩いていた。")
+            .add("Слава Україні")
+            .build();
+
     public static final FullConnectorSession FULL_CONNECTOR_SESSION = createFullConnectorSession(SQL_STANDARD);
     private static final FullConnectorSession LEGACY_COERCION_CONNECTOR_SESSION = createFullConnectorSession(LEGACY);
 
@@ -682,7 +707,7 @@ public final class GpuTestUtils
 
     private static List<Block> createStringBlocks(List<Integer> positionsCounts, NullsProvider nullsProvider, Optional<Integer> lengthLimit, boolean trimTrailingSpaces)
     {
-        Iterator<String> strings = generateInputStrings().iterator();
+        Iterator<String> strings = generateInputStrings(50).iterator();
         return positionsCounts.stream()
                 .map(positionsCount -> {
                     Optional<long[]> isValid = nullsProvider.getValidityWords(positionsCount);
@@ -759,38 +784,14 @@ public final class GpuTestUtils
     }
 
     /**
-     * Generate infinite stream of test strings by cycling through testStrings
-     * and mixing with random strings for variety.
+     * Generate infinite stream of test strings by cycling through {@link #TEST_STRINGS}
+     * and mixing with random strings of up to {@code maxRandomLength} chars for variety.
      */
-    private static Stream<String> generateInputStrings()
+    public static Stream<String> generateInputStrings(int maxRandomLength)
     {
-        List<String> testStrings = ImmutableList.<String>builder()
-                .add("test1", "other", "test2", "nothing", "testing", "%test%")
-                .add("a", "xyz", "ab", "z", "yz", "abcd", "", "abcdefg", "xabc", "xyxw", "xaxxxbx", "abcdefghij")
-                .add("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
-                .add("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaab")
-                .add("aabbaabbaabbaabbaabbaabbaabbaabbaabbaabbaabbaabbaabbaabb")
-                .add("aaaabbbbaaaabbbbaaaabbbb")
-                .add("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
-                .add("aaaabbbbaaaabbbbaaaa", "aaaabbbbaaaabbbbcccc")
-                .add("abababababacabababa", "bbbbbbbbxax", "bbbxxxxaz")
-                .add("a".repeat(20) + "b".repeat(20) + "a".repeat(20) + "b".repeat(20) + "the quick brown fox jumps over the lazy dog")
-                .add("ababaa", "papaya", "papapaya", "papapapaya", "papapapapaya", "papapapapapaya")
-                .add("xyza1234567890123456")
-                .add("%", "_", "-", "xxxxx_xxxxx")
-                .add("__", "a%", "a_", "%a", "%z", "_z", "_%", "_a%", "_ab_", "_a%b_", "_%_%_%_%")
-                .add("%a%a%a%a%a%a%", "%a%b%a%b%a%b%", "%aaaa%bbbb%aaaa%bbbb%aaaa%bbbb%")
-                .add("%aaaaaaaaaaaaaaaaaaaaaaaaaa%", "%aab%bba%aab%bba%", "%abaca%")
-                .add("%bcccccccca%", "%bbxxxxxa%", "%aaaaaaxaaaaaa%", "%abaaa%", "%paya%")
-                .add("%a________________", "-%", "-_", "--", "%$_%")
-                .add("Łania szła piękną łąką pod Warszawą")
-                .add("ワルシャワ近郊の美しい草原を雌鹿が歩いていた。")
-                .add("Слава Україні")
-                .build();
-
         Random random = new Random(42); // Fixed seed for reproducibility
         Stream<String> randomStrings = Stream.generate(() -> {
-            int length = random.nextInt(51); // 0-50 chars
+            int length = random.nextInt(maxRandomLength + 1);
             char[] chars = new char[length];
             for (int i = 0; i < length; i++) {
                 // Generate random valid Unicode characters (avoid surrogates)
@@ -801,7 +802,7 @@ public final class GpuTestUtils
 
         // Interleave test strings with random strings
         return Streams.zip(
-                        Stream.generate(() -> testStrings).flatMap(List::stream),
+                        Stream.generate(() -> TEST_STRINGS).flatMap(List::stream),
                         randomStrings,
                         List::of)
                 .flatMap(List::stream);
