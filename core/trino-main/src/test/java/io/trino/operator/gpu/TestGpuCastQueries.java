@@ -88,7 +88,7 @@ import static org.junit.jupiter.api.parallel.ExecutionMode.CONCURRENT;
 
 @TestInstance(PER_CLASS)
 @Execution(CONCURRENT)
-public class TestGpuCasts
+public class TestGpuCastQueries
 {
     private static final DecimalType DECIMAL_13_2 = createDecimalType(13, 2);
     private static final DecimalType DECIMAL_27_5 = createDecimalType(27, 5);
