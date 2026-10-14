@@ -398,6 +398,12 @@ public final class GpuExpressionCompiler
                 }
             }
 
+            if (name.equals("mod") && call.arguments().size() == 2) {
+                // Same semantics as the % operator, except that the CPU fails integer mod by zero with an ArithmeticException
+                // instead of a DIVISION_BY_ZERO error
+                return compileBinaryArithmetic(call, OperatorType.MODULO, context);
+            }
+
             if (call.arguments().size() == 1 && isDateTimeType(getOnlyElement(call.arguments()).type())) {
                 switch (name) {
                     case "year", "day", "hour", "minute", "second" -> {
