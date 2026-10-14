@@ -50,6 +50,7 @@ import java.util.List;
 import java.util.Map;
 
 import static io.trino.jmh.Benchmarks.benchmark;
+import static io.trino.operator.gpu.BenchmarkGpuUtils.setGpuMemoryPoolForBenchmarks;
 import static io.trino.operator.gpu.GpuTestUtils.TEST_SESSION_TIME_ZONE_KEY;
 import static io.trino.operator.gpu.GpuTestUtils.createBigintBlock;
 import static io.trino.operator.gpu.GpuTestUtils.createBlock;
@@ -130,8 +131,12 @@ public class BenchmarkGpuExpressions
         @Setup(Level.Trial)
         public void setup()
         {
-            maybeSetGpuMemoryPoolForTests();
+            setGpuMemoryPoolForBenchmarks();
+            createData();
+        }
 
+        private void createData()
+        {
             bigints = bigintColumn(positionCount);
             closer.register(bigints::close);
             bigintsWithinIntRange = bigintColumnWithinIntRange(positionCount);
@@ -183,8 +188,9 @@ public class BenchmarkGpuExpressions
     @Test
     public void ensureBenchmarkValid()
     {
+        maybeSetGpuMemoryPoolForTests();
         BenchmarkData data = new BenchmarkData();
-        data.setup();
+        data.createData();
         try {
             BenchmarkGpuExpressions benchmark = new BenchmarkGpuExpressions();
             benchmark.betweenBigintConstantBounds(data);
