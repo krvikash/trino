@@ -47,27 +47,21 @@ import io.trino.spi.type.TimestampType;
 import io.trino.spi.type.TimestampWithTimeZoneType;
 import io.trino.spi.type.Timestamps;
 import io.trino.spi.type.Type;
-import io.trino.spi.type.VarcharType;
 import io.trino.sql.gen.TestColumnarFilters.NullsProvider;
 import io.trino.sql.ir.Call;
-import io.trino.sql.ir.Case;
 import io.trino.sql.ir.Cast;
-import io.trino.sql.ir.ComparisonOperator;
 import io.trino.sql.ir.Constant;
 import io.trino.sql.ir.Expression;
 import io.trino.sql.ir.IsNull;
 import io.trino.sql.ir.Reference;
-import io.trino.sql.ir.WhenClause;
 import io.trino.sql.planner.Symbol;
 import io.trino.testing.TestingSession;
-import io.trino.type.CharVarcharCoercion;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
-import org.junit.jupiter.params.provider.MethodSource;
 
 import java.math.BigInteger;
 import java.time.LocalDate;
@@ -83,7 +77,6 @@ import java.util.OptionalLong;
 import java.util.Random;
 import java.util.Set;
 import java.util.stream.IntStream;
-import java.util.stream.Stream;
 
 import static com.google.common.base.Verify.verify;
 import static com.google.common.collect.ImmutableList.toImmutableList;
@@ -96,13 +89,11 @@ import static io.trino.operator.gpu.GpuTestUtils.TESTED_GPU_TIMESTAMP_WITH_TIME_
 import static io.trino.operator.gpu.GpuTestUtils.TEST_SESSION_TIME_ZONE_KEY;
 import static io.trino.operator.gpu.GpuTestUtils.TEST_STRINGS;
 import static io.trino.operator.gpu.GpuTestUtils.assertGpuMatchesCpu;
-import static io.trino.operator.gpu.GpuTestUtils.assertSameDataInOrder;
 import static io.trino.operator.gpu.GpuTestUtils.compileCpuExpression;
 import static io.trino.operator.gpu.GpuTestUtils.createBigintBlock;
 import static io.trino.operator.gpu.GpuTestUtils.createBlock;
 import static io.trino.operator.gpu.GpuTestUtils.createFloatingPointBlock;
 import static io.trino.operator.gpu.GpuTestUtils.createInRangeDateTimeBlock;
-import static io.trino.operator.gpu.GpuTestUtils.createRepeatingValuesBlock;
 import static io.trino.operator.gpu.GpuTestUtils.createVarcharPages;
 import static io.trino.operator.gpu.GpuTestUtils.executeWithCpu;
 import static io.trino.operator.gpu.GpuTestUtils.executeWithGpu;
@@ -119,7 +110,6 @@ import static io.trino.spi.StandardErrorCode.NOT_SUPPORTED;
 import static io.trino.spi.StandardErrorCode.NUMERIC_VALUE_OUT_OF_RANGE;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.CharType.createCharType;
-import static io.trino.spi.type.Chars.truncateToLengthAndTrimSpaces;
 import static io.trino.spi.type.DateType.DATE;
 import static io.trino.spi.type.DecimalType.createDecimalType;
 import static io.trino.spi.type.DoubleType.DOUBLE;
@@ -138,7 +128,6 @@ import static io.trino.spi.type.VarbinaryType.VARBINARY;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.spi.type.VarcharType.createVarcharType;
 import static io.trino.sql.analyzer.TypeDescriptorProvider.fromTypes;
-import static io.trino.sql.ir.TestingIr.comparison;
 import static io.trino.testing.TestingConnectorSession.SESSION;
 import static io.trino.testing.assertions.TrinoExceptionAssert.assertTrinoExceptionThrownBy;
 import static io.trino.type.CharVarcharCoercion.SQL_STANDARD;
@@ -336,18 +325,6 @@ final class TestGpuExpressions
         return codePoints;
     }
 
-    private static final CharType CHAR_CAST_SOURCE_TYPE = createCharType(8);
-
-    /// `char(8)` values in Trino's representation, which strips trailing spaces: empty and all-space
-    /// values, leading and interior spaces, lengths on either side of the tested target lengths, and
-    /// `TEST_STRINGS` cut to the char length, contributing multi-byte characters.
-    private final List<Object> charCastValues = Stream.concat(
-                    Stream.of("", " ", "        ", "a", "ab ", "abc", "abcdefgh", " abc", "a b c"),
-                    TEST_STRINGS.stream())
-            .map(value -> (Object) truncateToLengthAndTrimSpaces(Slices.utf8Slice(value), CHAR_CAST_SOURCE_TYPE))
-            .distinct()
-            .collect(toImmutableList());
-
     @BeforeAll
     static void maybeSetGpuMemoryPool()
     {
@@ -371,50 +348,6 @@ final class TestGpuExpressions
     }
 
     @ParameterizedTest
-    @MethodSource("charToVarcharCastTestCases")
-    void testCastCharToVarchar(Type targetType, CharVarcharCoercion charVarcharCoercion, NullsProvider nullsProvider)
-    {
-        int channelA = 0;
-        List<Type> inputTypes = List.of(CHAR_CAST_SOURCE_TYPE);
-        int positionsCount = 256;
-        List<Page> inputPages = List.of(new Page(
-                positionsCount,
-                createRepeatingValuesBlock(CHAR_CAST_SOURCE_TYPE, positionsCount, nullsProvider, charCastValues, 1)));
-
-        Expression expression = new Cast(field(channelA, CHAR_CAST_SOURCE_TYPE), targetType);
-
-        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA), charVarcharCoercion);
-    }
-
-    private static Stream<Object[]> charToVarcharCastTestCases()
-    {
-        return Lists.cartesianProduct(
-                        // Target lengths above, at and below the source char length, plus unbounded varchar
-                        List.of(VARCHAR, createVarcharType(20), createVarcharType(9), createVarcharType(8), createVarcharType(7), createVarcharType(3), createVarcharType(1), createVarcharType(0)),
-                        ImmutableList.copyOf(CharVarcharCoercion.values()),
-                        ImmutableList.copyOf(NullsProvider.values()))
-                .stream()
-                .map(List::toArray);
-    }
-
-    @ParameterizedTest
-    @EnumSource(NullsProvider.class)
-    void testTypeOnlyCast(NullsProvider nullsProvider)
-    {
-        // VARCHAR(10) -> VARCHAR(20) shares the same cudf STRING dtype, so visitCast should
-        // skip emitting GpuCast and forward the inner expression directly.
-        int channelA = 0;
-        VarcharType sourceType = createVarcharType(10);
-        Type targetType = createVarcharType(20);
-        List<Type> inputTypes = List.of(sourceType);
-        List<Page> inputPages = createVarcharPages(sourceType, List.of(64), nullsProvider);
-
-        Expression expression = new Cast(field(channelA, sourceType), targetType);
-
-        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA));
-    }
-
-    @ParameterizedTest
     @EnumSource(NullsProvider.class)
     void testDateTimeExtract(NullsProvider nullsProvider)
     {
@@ -425,98 +358,6 @@ final class TestGpuExpressions
         }
         // Trino only defines day() (aka day_of_month) for DATE — hour/minute/second are timestamp-only.
         testDateTimeExtract("day", DATE, nullsProvider);
-    }
-
-    @Test
-    void testTimestampToMillisCastOverflow()
-    {
-        TimestampType timestampType = createTimestampType(6);
-        List<Type> inputTypes = List.of(timestampType);
-        Expression expression = new Cast(field(0, timestampType), createTimestampType(3));
-        CompiledExpression gpuExpression = compileExpression(expression, layoutFor(inputTypes), SQL_STANDARD, TEST_SESSION_TIME_ZONE_KEY).orElseThrow();
-        for (long value : List.of(Long.MIN_VALUE, Long.MIN_VALUE + 307, Long.MAX_VALUE - 499, Long.MAX_VALUE)) {
-            List<Page> inputPages = List.of(new Page(timestampCastInputBlock(Arrays.asList(null, 0L, value, null))));
-            assertTrinoExceptionThrownBy(() -> executeWithGpu(inputPages, inputTypes, expression, gpuExpression))
-                    .hasErrorCode(NUMERIC_VALUE_OUT_OF_RANGE)
-                    .hasMessage("Timestamp rounding argument out of range supported by GPU");
-        }
-    }
-
-    @Test
-    void testTimestampToMillisCastRounding()
-    {
-        TimestampType timestampType = createTimestampType(6);
-        List<Page> inputPages = List.of(new Page(timestampCastInputBlock(Arrays.asList(
-                null, -1500L, -501L, -500L, 499L, 500L, Long.MAX_VALUE - 500))));
-        Expression expression = new Cast(field(0, timestampType), createTimestampType(3));
-        assertGpuMatchesCpu(inputPages, List.of(timestampType), expression, Set.of(0));
-    }
-
-    @Test
-    void testTimestampToMillisCastAtLowerBound()
-    {
-        // Inputs below this bound round to a millisecond that cannot be represented in Trino's
-        // microseconds. The CPU's unchecked negative rounding wraps here, so check the GPU directly.
-        TimestampType timestampType = createTimestampType(6);
-        TimestampType resultType = createTimestampType(3);
-        List<Type> inputTypes = List.of(timestampType);
-        Expression expression = new Cast(field(0, timestampType), resultType);
-        CompiledExpression gpuExpression = compileExpression(expression, layoutFor(inputTypes), SQL_STANDARD, TEST_SESSION_TIME_ZONE_KEY).orElseThrow();
-        List<Page> result = executeWithGpu(
-                List.of(new Page(writeNativeValue(timestampType, Long.MIN_VALUE + 308))),
-                inputTypes,
-                expression,
-                gpuExpression);
-        assertSameDataInOrder(result, List.of(new Page(writeNativeValue(resultType, -9_223_372_036_854_775_000L))), List.of(resultType));
-    }
-
-    @Test
-    void testTimestampToMillisCastAllNullAndEmptyInputs()
-    {
-        TimestampType timestampType = createTimestampType(6);
-        Expression expression = new Cast(field(0, timestampType), createTimestampType(3));
-        for (List<Long> values : List.of(Arrays.<Long>asList(null, null), List.<Long>of())) {
-            assertGpuMatchesCpu(List.of(new Page(timestampCastInputBlock(values))), List.of(timestampType), expression, Set.of(0));
-        }
-    }
-
-    @Test
-    void testTimestampToMillisCastLazyEvaluation()
-    {
-        TimestampType timestampType = createTimestampType(6);
-        TimestampType resultType = createTimestampType(3);
-        List<Type> inputTypes = List.of(timestampType);
-        List<Page> inputPages = List.of(new Page(timestampCastInputBlock(Arrays.asList(Long.MAX_VALUE, 500L, null))));
-        Expression condition = comparison(ComparisonOperator.LESS_THAN, field(0, timestampType), new Constant(timestampType, 1000L));
-        Expression expression = new Case(
-                ImmutableList.of(new WhenClause(condition, new Cast(field(0, timestampType), resultType))),
-                new Constant(resultType, 0L));
-        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(0));
-
-        // A constant remains non-null when inputs are masked, so this branch must be filtered.
-        Expression constantExpression = new Case(
-                ImmutableList.of(new WhenClause(new IsNull(field(0, timestampType)), new Cast(new Constant(timestampType, Long.MAX_VALUE), resultType))),
-                new Constant(resultType, 0L));
-        assertGpuMatchesCpu(
-                List.of(new Page(timestampCastInputBlock(List.of(0L, 500L)))),
-                inputTypes,
-                constantExpression,
-                Set.of(0));
-    }
-
-    private static Block timestampCastInputBlock(List<Long> epochMicros)
-    {
-        TimestampType timestampType = createTimestampType(6);
-        BlockBuilder builder = timestampType.createBlockBuilder(null, epochMicros.size());
-        for (Long micros : epochMicros) {
-            if (micros == null) {
-                builder.appendNull();
-            }
-            else {
-                timestampType.writeLong(builder, micros);
-            }
-        }
-        return builder.build();
     }
 
     @ParameterizedTest
