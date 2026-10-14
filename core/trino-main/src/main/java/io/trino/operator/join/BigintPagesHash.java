@@ -199,16 +199,7 @@ public final class BigintPagesHash
     public int getAddressIndex(int position, Page hashChannelsPage)
     {
         long value = readValue(hashChannelsPage.getBlock(0), position);
-        int pos = getHashPosition(value, mask);
-
-        while (keys[pos] != -1) {
-            if (value == values.get(keys[pos])) {
-                return keys[pos];
-            }
-            // increment position and mask to handler wrap around
-            pos = (pos + 1) & mask;
-        }
-        return -1;
+        return findPosition(value, getHashPosition(value, mask));
     }
 
     @Override
@@ -235,15 +226,15 @@ public final class BigintPagesHash
         for (int i = 0; i < positionCount; i++) {
             int key = result[i];
             if (key != -1 && values.get(key) != incomingValues[i]) {
-                result[i] = findRemainingPosition(incomingValues[i], hashPositions[i]);
+                // hashPosition has already been checked
+                result[i] = findPosition(incomingValues[i], (hashPositions[i] + 1) & mask);
             }
         }
         return result;
     }
 
-    private int findRemainingPosition(long value, int hashPosition)
+    private int findPosition(long value, int position)
     {
-        int position = (hashPosition + 1) & mask; // hashPosition has already been checked
         while (keys[position] != -1) {
             if (values.get(keys[position]) == value) {
                 return keys[position];
