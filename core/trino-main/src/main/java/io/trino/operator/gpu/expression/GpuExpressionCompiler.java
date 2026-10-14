@@ -506,6 +506,10 @@ public final class GpuExpressionCompiler
                 return compileFormatDateTime(call, context);
             }
 
+            if (name.equals("date_format")) {
+                return compileDateFormat(call, context);
+            }
+
             if (name.equals("starts_with")) {
                 return compileStartsWith(call, context);
             }
@@ -1309,6 +1313,50 @@ public final class GpuExpressionCompiler
             return toDType(sourceType).flatMap(sourceDType -> arguments.getFirst().accept(this, context)
                             .flatMap(source -> compileCast(source, sourceType, sourceDType, TIMESTAMP_MILLIS, DType.TIMESTAMP_MILLISECONDS)))
                     .flatMap(timestampMillis -> GpuFormatDateTime.create(timestampMillis, pattern.get()));
+        }
+
+        private Optional<GpuExpression> compileDateFormat(Call call, Void context)
+        {
+            if (!(call.type() instanceof VarcharType)) {
+                return Optional.empty();
+            }
+
+            List<Expression> arguments = call.arguments();
+            if (arguments.size() != 2) {
+                return Optional.empty();
+            }
+
+            // cuDF takes a single host-side format, so the format must be known upfront
+            Optional<String> format = extractVarcharConstant(arguments.get(1));
+            if (format.isEmpty()) {
+                return Optional.empty();
+            }
+
+            // The CPU formats at millisecond precision, rounding half up. A timestamp with time zone is formatted in
+            // its zone, and the GPU representation holds only values in UTC, so formatting the instant matches.
+            Optional<DType> sourceDType = switch (arguments.getFirst().type()) {
+                case TimestampType timestampType -> toDType(timestampType);
+                case TimestampWithTimeZoneType timestampWithTimeZoneType -> GpuTimestampWithTimeZone.instantDType(timestampWithTimeZoneType.getPrecision());
+                default -> Optional.empty();
+            };
+            if (sourceDType.isEmpty()) {
+                return Optional.empty();
+            }
+            return arguments.getFirst().accept(this, context)
+                    .map(source -> toTimestampMillis(source, sourceDType.get()))
+                    .flatMap(timestampMillis -> GpuDateFormat.create(timestampMillis, format.get()));
+        }
+
+        /// Rounds half up to milliseconds, as [io.trino.type.DateTimes#roundToEpochMillis] and
+        /// [io.trino.spi.type.Timestamps#epochMicrosToMillisWithRounding] do.
+        private static GpuExpression toTimestampMillis(GpuExpression source, DType sourceDType)
+        {
+            return switch (sourceDType.getTypeId()) {
+                case TIMESTAMP_SECONDS -> new GpuCast(source, DType.TIMESTAMP_MILLISECONDS);
+                case TIMESTAMP_MILLISECONDS -> source;
+                case TIMESTAMP_MICROSECONDS, TIMESTAMP_NANOSECONDS -> new GpuTimestampToMillisCast(source);
+                default -> throw new IllegalArgumentException("Unexpected timestamp type: " + sourceDType);
+            };
         }
 
         private Optional<GpuExpression> compileStartsWith(Call call, Void context)

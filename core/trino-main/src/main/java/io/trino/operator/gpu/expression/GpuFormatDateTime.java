@@ -77,7 +77,7 @@ public final class GpuFormatDateTime
         }
     }
 
-    private GpuFormatDateTime(GpuExpression source, String cudfFormat, YearRange yearRange)
+    GpuFormatDateTime(GpuExpression source, String cudfFormat, YearRange yearRange)
     {
         this.source = requireNonNull(source, "source is null");
         this.cudfFormat = requireNonNull(cudfFormat, "cudfFormat is null");
@@ -147,7 +147,7 @@ public final class GpuFormatDateTime
         return Optional.of(new Translation(cudfFormat.toString(), yearRange));
     }
 
-    private static void appendLiteral(int codePoint, StringBuilder cudfFormat)
+    static void appendLiteral(int codePoint, StringBuilder cudfFormat)
     {
         // '%' literal needs to be escaped
         if (codePoint == '%') {

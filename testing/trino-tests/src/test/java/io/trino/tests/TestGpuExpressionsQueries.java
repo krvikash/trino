@@ -291,6 +291,13 @@ final class TestGpuExpressionsQueries
     }
 
     @Test
+    void testDateFormat()
+    {
+        assertThat(query("SELECT date_format(a_timestamp, '%Y-%m-%d %H:%i:%s.%f') FROM expressions")).executesWithGpu(ProjectNode.class);
+        assertThat(query("SELECT date_format(a_timestamp, '%y/%j %T') FROM expressions")).executesWithGpu(ProjectNode.class);
+    }
+
+    @Test
     void testLength()
     {
         assertThat(query("SELECT length(a_varchar) FROM expressions")).executesWithGpu(ProjectNode.class);
