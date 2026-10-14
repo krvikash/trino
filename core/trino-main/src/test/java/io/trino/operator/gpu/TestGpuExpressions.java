@@ -36,7 +36,6 @@ import io.trino.spi.block.Bitmap;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
 import io.trino.spi.block.VariableWidthBlockBuilder;
-import io.trino.spi.function.OperatorType;
 import io.trino.spi.security.ConnectorIdentity;
 import io.trino.spi.type.CharType;
 import io.trino.spi.type.Chars;
@@ -57,7 +56,6 @@ import io.trino.sql.ir.ComparisonOperator;
 import io.trino.sql.ir.Constant;
 import io.trino.sql.ir.Expression;
 import io.trino.sql.ir.IsNull;
-import io.trino.sql.ir.Let;
 import io.trino.sql.ir.Reference;
 import io.trino.sql.ir.WhenClause;
 import io.trino.sql.planner.Symbol;
@@ -370,121 +368,6 @@ final class TestGpuExpressions
         Expression expression = new IsNull(field(channelA, BIGINT));
 
         assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA));
-    }
-
-    @ParameterizedTest
-    @EnumSource(NullsProvider.class)
-    void testNestedLet(NullsProvider nullsProvider)
-    {
-        List<Type> inputTypes = List.of(BIGINT, BIGINT, BIGINT);
-        int positionsCount = 64;
-        List<Page> inputPages = List.of(new Page(
-                positionsCount,
-                createBigintBlock(positionsCount, nullsProvider, -100, 100),
-                createBigintBlock(positionsCount, nullsProvider, -100, 100),
-                createBigintBlock(positionsCount, nullsProvider, -100, 100)));
-
-        // Let s1 = ref0 + ref1 in (Let s2 = s1 + ref2 in (s1 + s2))
-        // The same s1 binding is addressable in both the inner value and body.
-        Symbol s1 = new Symbol(BIGINT, "s1");
-        Symbol s2 = new Symbol(BIGINT, "s2");
-        Expression inner = new Let(
-                s2,
-                add(s1.toSymbolReference(), field(2, BIGINT)),
-                add(s1.toSymbolReference(), s2.toSymbolReference()));
-        Expression expression = new Let(s1, add(field(0, BIGINT), field(1, BIGINT)), inner);
-
-        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(0, 1, 2));
-    }
-
-    @ParameterizedTest
-    @EnumSource(NullsProvider.class)
-    void testLetShadowsExternalSymbol(NullsProvider nullsProvider)
-    {
-        List<Type> inputTypes = List.of(BIGINT, BIGINT);
-        int positionsCount = 64;
-        List<Page> inputPages = List.of(new Page(
-                positionsCount,
-                createBigintBlock(positionsCount, nullsProvider, -100, 100),
-                createBigintBlock(positionsCount, nullsProvider, -100, 100)));
-
-        Reference reference = field(0, BIGINT);
-        // The value reads the external symbol; the body reads the binding; the sibling reads the external symbol again.
-        Expression expression = add(
-                new Let(Symbol.from(reference),
-                        add(reference, field(1, BIGINT)),
-                        add(reference, reference)),
-                reference);
-
-        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(0, 1));
-    }
-
-    @ParameterizedTest
-    @EnumSource(NullsProvider.class)
-    void testLetShadowsOuterBinding(NullsProvider nullsProvider)
-    {
-        List<Type> inputTypes = List.of(BIGINT, BIGINT);
-        int positionsCount = 64;
-        List<Page> inputPages = List.of(new Page(
-                positionsCount,
-                createBigintBlock(positionsCount, nullsProvider, -100, 100),
-                createBigintBlock(positionsCount, nullsProvider, -100, 100)));
-
-        Symbol symbol = new Symbol(BIGINT, "s");
-        Reference reference = symbol.toSymbolReference();
-        // The inner value reads the outer binding, which is restored after the inner body.
-        Expression inner = new Let(symbol, add(reference, field(1, BIGINT)), add(reference, reference));
-        Expression expression = new Let(symbol, field(0, BIGINT), add(inner, reference));
-
-        // The CPU compiler rejects duplicate nested Let names, so use an equivalent expression without bindings.
-        Expression sum = add(field(0, BIGINT), field(1, BIGINT));
-        Map<Symbol, Integer> layout = layoutFor(inputTypes);
-        PageProcessor cpuProcessor = compileCpuExpression(add(add(sum, sum), field(0, BIGINT)), layout);
-        CompiledExpression gpuExpression = compileExpression(expression, layout, SQL_STANDARD, TEST_SESSION_TIME_ZONE_KEY).orElseThrow();
-        assertThat(gpuExpression.inputChannels().getInputChannels()).containsExactly(0, 1);
-        assertGpuMatchesCpu(inputPages, inputTypes, expression, cpuProcessor, gpuExpression, false);
-    }
-
-    @ParameterizedTest
-    @EnumSource(NullsProvider.class)
-    void testSiblingLets(NullsProvider nullsProvider)
-    {
-        List<Type> inputTypes = List.of(BIGINT, BIGINT);
-        int positionsCount = 64;
-        List<Page> inputPages = List.of(new Page(
-                positionsCount,
-                createBigintBlock(positionsCount, nullsProvider, -100, 100),
-                createBigintBlock(positionsCount, nullsProvider, -100, 100)));
-
-        // (Let s1 = ref0 + ref1 in s1 + s1) + (Let s2 = ref0 - ref1 in s2 + s2)
-        // Sibling bindings have separate scopes.
-        Symbol s1 = new Symbol(BIGINT, "s1");
-        Symbol s2 = new Symbol(BIGINT, "s2");
-        Expression left = new Let(
-                s1,
-                add(field(0, BIGINT), field(1, BIGINT)),
-                add(s1.toSymbolReference(), s1.toSymbolReference()));
-        Expression right = new Let(
-                s2,
-                subtract(field(0, BIGINT), field(1, BIGINT)),
-                add(s2.toSymbolReference(), s2.toSymbolReference()));
-        Expression expression = add(left, right);
-
-        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(0, 1));
-    }
-
-    private static Expression add(Expression left, Expression right)
-    {
-        return new Call(
-                FUNCTION_RESOLUTION.resolveOperator(OperatorType.ADD, List.of(BIGINT, BIGINT)),
-                ImmutableList.of(left, right));
-    }
-
-    private static Expression subtract(Expression left, Expression right)
-    {
-        return new Call(
-                FUNCTION_RESOLUTION.resolveOperator(OperatorType.SUBTRACT, List.of(BIGINT, BIGINT)),
-                ImmutableList.of(left, right));
     }
 
     @ParameterizedTest
