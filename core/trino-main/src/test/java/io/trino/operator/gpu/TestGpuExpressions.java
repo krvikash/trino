@@ -2042,13 +2042,13 @@ final class TestGpuExpressions
         assertGpuMatchesCpu(divisorPages(nullsProvider), List.of(BIGINT, BIGINT), expression, Set.of(channelB));
     }
 
-    /// `10 / coalesce(divisor, 7)`, which can raise on any row: the check the divide runs is masked by
-    /// the dividend being non-NULL, and a constant dividend never is.
     private static Expression not(Expression expression)
     {
         return new Call(FUNCTION_RESOLUTION.resolveFunction("$not", fromTypes(BOOLEAN)), ImmutableList.of(expression));
     }
 
+    /// `10 / coalesce(divisor, 7)`, which can raise on any row: the check the divide runs is masked by
+    /// the dividend being non-NULL, and a constant dividend never is.
     private static Expression divideConstantByCoalesce(Expression divisor)
     {
         return new Call(
