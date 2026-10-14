@@ -15,6 +15,7 @@ package io.trino.operator.gpu.expression;
 
 import ai.rapids.cudf.BinaryOp;
 import ai.rapids.cudf.DType;
+import ai.rapids.cudf.PadSide;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import io.airlift.log.Logger;
@@ -106,6 +107,7 @@ import static io.trino.type.LikeFunctions.LIKE_FUNCTION_NAME;
 import static io.trino.type.LikePatternType.LIKE_PATTERN;
 import static java.lang.Character.MAX_SURROGATE;
 import static java.lang.Character.MIN_SURROGATE;
+import static java.lang.Math.toIntExact;
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -487,6 +489,14 @@ public final class GpuExpressionCompiler
 
             if (name.equals("starts_with")) {
                 return compileStartsWith(call, context);
+            }
+
+            if (name.equals("lpad")) {
+                return compilePad(call, PadSide.LEFT, context);
+            }
+
+            if (name.equals("rpad")) {
+                return compilePad(call, PadSide.RIGHT, context);
             }
 
             return Optional.empty();
@@ -1193,6 +1203,45 @@ public final class GpuExpressionCompiler
 
             return arguments.getFirst().accept(this, context)
                     .map(source -> new GpuStartsWith(source, prefix.get()));
+        }
+
+        private Optional<GpuExpression> compilePad(Call call, PadSide side, Void context)
+        {
+            List<Expression> arguments = call.arguments();
+            if (arguments.size() != 3) {
+                return Optional.empty();
+            }
+
+            // lpad also has a char(x) overload, which stays on the CPU
+            if (!(arguments.getFirst().type() instanceof VarcharType)) {
+                return Optional.empty();
+            }
+
+            // cuDF pads every row to the same width, so the target length must be known upfront.
+            // The CPU rejects a target length outside [0..Integer.MAX_VALUE], so leave it to the CPU to fail.
+            if (!(arguments.get(1) instanceof Constant(Type lengthType, Object lengthValue))
+                    || lengthType != BIGINT
+                    || lengthValue == null
+                    || (long) lengthValue < 0
+                    || (long) lengthValue > Integer.MAX_VALUE) {
+                return Optional.empty();
+            }
+            int length = toIntExact((long) lengthValue);
+
+            // cuDF pads with a single character only. The CPU rejects an empty padding string, so leave it to the CPU to fail.
+            Optional<String> padString = extractVarcharConstant(arguments.get(2));
+            if (padString.isEmpty() || padString.get().length() != 1) {
+                return Optional.empty();
+            }
+            char fill = padString.get().charAt(0);
+            // cuDF JNI passes the fill as modified UTF-8, which differs from UTF-8 for NUL and surrogates
+            if (fill == 0 || Character.isSurrogate(fill)) {
+                return Optional.empty();
+            }
+
+            // Like the CPU, strings longer than the target length are truncated to it rather than padded
+            return arguments.getFirst().accept(this, context)
+                    .map(source -> new GpuPad(new GpuTruncateToLength(source, length), length, side, padString.get()));
         }
 
         private static Optional<String> extractPatternString(Type patternType, Object patternValue)
