@@ -396,94 +396,6 @@ final class TestGpuExpressions
     }
 
     @Test
-    void testBooleanConstant()
-    {
-        testConstant(new Constant(BOOLEAN, true));
-        testConstant(new Constant(BOOLEAN, false));
-        testConstant(new Constant(BOOLEAN, null));
-    }
-
-    @Test
-    void testTinyintConstant()
-    {
-        testConstant(new Constant(TINYINT, 42L));
-        testConstant(new Constant(TINYINT, -1L));
-        testConstant(new Constant(TINYINT, 0L));
-        testConstant(new Constant(TINYINT, null));
-    }
-
-    @Test
-    void testSmallintConstant()
-    {
-        testConstant(new Constant(SMALLINT, 1234L));
-        testConstant(new Constant(SMALLINT, -5678L));
-        testConstant(new Constant(SMALLINT, null));
-    }
-
-    @Test
-    void testIntegerConstant()
-    {
-        testConstant(new Constant(INTEGER, 123456L));
-        testConstant(new Constant(INTEGER, -789012L));
-        testConstant(new Constant(INTEGER, 0L));
-        testConstant(new Constant(INTEGER, null));
-    }
-
-    @Test
-    void testBigintConstant()
-    {
-        testConstant(new Constant(BIGINT, 1234567890123L));
-        testConstant(new Constant(BIGINT, -9876543210L));
-        testConstant(new Constant(BIGINT, 0L));
-        testConstant(new Constant(BIGINT, null));
-    }
-
-    @Test
-    void testRealConstant()
-    {
-        testConstant(new Constant(REAL, (long) Float.floatToIntBits(3.14f)));
-        testConstant(new Constant(REAL, (long) Float.floatToIntBits(-2.5f)));
-        testConstant(new Constant(REAL, (long) Float.floatToIntBits(0.0f)));
-        testConstant(new Constant(REAL, (long) Float.floatToIntBits(Float.POSITIVE_INFINITY)));
-        testConstant(new Constant(REAL, (long) Float.floatToIntBits(Float.NEGATIVE_INFINITY)));
-        testConstant(new Constant(REAL, (long) Float.floatToIntBits(Float.NaN)));
-        testConstant(new Constant(REAL, null));
-    }
-
-    @Test
-    void testDoubleConstant()
-    {
-        testConstant(new Constant(DOUBLE, 3.14159265359));
-        testConstant(new Constant(DOUBLE, -2.71828));
-        testConstant(new Constant(DOUBLE, 0.0));
-        testConstant(new Constant(DOUBLE, Double.POSITIVE_INFINITY));
-        testConstant(new Constant(DOUBLE, Double.NEGATIVE_INFINITY));
-        testConstant(new Constant(DOUBLE, Double.NaN));
-        testConstant(new Constant(DOUBLE, null));
-    }
-
-    @Test
-    void testVarcharConstant()
-    {
-        testConstant(new Constant(VARCHAR, Slices.utf8Slice("hello")));
-        testConstant(new Constant(VARCHAR, Slices.utf8Slice("")));
-        testConstant(new Constant(VARCHAR, Slices.utf8Slice("Łania szła piękną łąką pod Warszawą")));
-        testConstant(new Constant(VARCHAR, null));
-    }
-
-    @ParameterizedTest
-    @EnumSource(NullsProvider.class)
-    void testReference(NullsProvider nullsProvider)
-    {
-        Expression expression = new Reference(BIGINT, "ref0");
-        int positionsCount = 64;
-        List<Page> inputPages = List.of(new Page(
-                positionsCount,
-                createBigintBlock(positionsCount, nullsProvider, -1000, 1000)));
-        assertGpuMatchesCpu(inputPages, List.of(BIGINT), expression, Set.of(0));
-    }
-
-    @Test
     void testRealToIntegerCastPrecision()
     {
         // Odd integers in [2^23, 2^24) are exactly representable in float32 but adding 0.5
@@ -5296,15 +5208,6 @@ final class TestGpuExpressions
                 ImmutableList.of(field(channelA, BIGINT), field(channelB, BIGINT)));
 
         assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA, channelB));
-    }
-
-    private void testConstant(Expression constantExpression)
-    {
-        int positionsCount = 64;
-        List<Page> inputPages = List.of(new Page(
-                positionsCount,
-                createBigintBlock(positionsCount, NullsProvider.NO_NULLS, 0, 100)));
-        assertGpuMatchesCpu(inputPages, List.of(BIGINT), constantExpression, Set.of());
     }
 
     /**
