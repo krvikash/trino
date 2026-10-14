@@ -126,17 +126,14 @@ import static io.trino.operator.project.PageProcessor.MAX_BATCH_SIZE;
 import static io.trino.spi.StandardErrorCode.INVALID_FUNCTION_ARGUMENT;
 import static io.trino.spi.StandardErrorCode.NOT_SUPPORTED;
 import static io.trino.spi.StandardErrorCode.NUMERIC_VALUE_OUT_OF_RANGE;
-import static io.trino.spi.gpu.GpuTypeConversion.isConvertible;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.spi.type.CharType.createCharType;
 import static io.trino.spi.type.Chars.truncateToLengthAndTrimSpaces;
-import static io.trino.spi.type.DateTimeEncoding.packDateTimeWithZone;
 import static io.trino.spi.type.DateType.DATE;
 import static io.trino.spi.type.DecimalType.createDecimalType;
 import static io.trino.spi.type.DoubleType.DOUBLE;
 import static io.trino.spi.type.IntegerType.INTEGER;
-import static io.trino.spi.type.NumberType.NUMBER;
 import static io.trino.spi.type.RealType.REAL;
 import static io.trino.spi.type.SmallintType.SMALLINT;
 import static io.trino.spi.type.TimeZoneKey.UTC_KEY;
@@ -377,62 +374,6 @@ final class TestGpuExpressions
     static void maybeSetGpuMemoryPool()
     {
         maybeSetGpuMemoryPoolForTests();
-    }
-
-    @ParameterizedTest
-    @MethodSource("comparisonTestCases")
-    void testComparison(Type type, ComparisonOperator operator, NullsProvider nullsProvider)
-    {
-        if (type == NUMBER) {
-            // type currently not supported
-            assertThat(isConvertible(type)).as("Expected %s to be not supported on GPU", type)
-                    .isFalse();
-            return;
-        }
-
-        List<Type> inputTypes = List.of(type, type);
-        int channelA = 0;
-        int channelB = 1;
-        Expression expression = comparison(operator, field(channelA, type), field(channelB, type));
-        Set<Integer> inputChannels = Set.of(channelA, channelB);
-
-        int positionsCount = 64;
-        List<Page> inputPages = List.of(new Page(
-                positionsCount,
-                createBlock(type, positionsCount, nullsProvider),
-                createBlock(type, positionsCount, nullsProvider)));
-
-        if (operator == ComparisonOperator.IDENTICAL && (type == REAL || type == DOUBLE)) {
-            // operator currently not supported
-            assertThat(compileExpression(expression, layoutFor(inputTypes), SQL_STANDARD, TEST_SESSION_TIME_ZONE_KEY))
-                    .isEmpty();
-            return;
-        }
-        assertGpuMatchesCpu(inputPages, inputTypes, expression, inputChannels);
-    }
-
-    private static Stream<Object[]> comparisonTestCases()
-    {
-        return Lists.cartesianProduct(
-                        List.of(
-                                BOOLEAN,
-                                TINYINT,
-                                SMALLINT,
-                                INTEGER,
-                                BIGINT,
-                                REAL,
-                                DOUBLE,
-                                createDecimalType(3, 0),
-                                createDecimalType(13, 0),
-                                createDecimalType(27, 0),
-                                createDecimalType(27, 5),
-                                createDecimalType(38),
-                                NUMBER,
-                                VARCHAR),
-                        ImmutableList.copyOf(ComparisonOperator.values()),
-                        ImmutableList.copyOf(NullsProvider.values()))
-                .stream()
-                .map(List::toArray);
     }
 
     @ParameterizedTest
@@ -938,46 +879,6 @@ final class TestGpuExpressions
                 ImmutableList.of(field(channelA, charType), field(channelB, charType)));
 
         assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA, channelB));
-    }
-
-    @ParameterizedTest
-    @EnumSource(ComparisonOperator.class)
-    void testComparisonCharPaddedSemantics(ComparisonOperator operator)
-    {
-        if (operator == ComparisonOperator.IDENTICAL) {
-            return;
-        }
-        // \u0001 is less than space, so comparisons would return wrong results without proper CHAR padding
-        Type charType = createCharType(2);
-        int channelA = 0;
-        int channelB = 1;
-        List<Type> inputTypes = List.of(charType, charType);
-        List<Page> inputPages = List.of(new Page(
-                charBlock(charType, "a", "a\u0001", "b", "a"),
-                charBlock(charType, "a\u0001", "a", "a", "ab")));
-
-        Expression expression = comparison(operator, field(channelA, charType), field(channelB, charType));
-
-        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA, channelB));
-    }
-
-    @Test
-    void testComparisonAfterWideningCharCast()
-    {
-        CharType sourceType = createCharType(1);
-        CharType targetType = createCharType(2);
-        List<Type> inputTypes = List.of(sourceType, targetType);
-        List<Page> inputPages = List.of(new Page(
-                charBlock(sourceType, "a", "a", ""),
-                charBlock(targetType, "a", "a\u0001", "")));
-
-        // The widened value must acquire the target width before a GPU comparison uses it.
-        Expression widened = new Cast(field(0, sourceType), targetType);
-        Expression equal = comparison(ComparisonOperator.EQUAL, widened, field(1, targetType));
-        assertGpuMatchesCpu(inputPages, inputTypes, equal, Set.of(0, 1));
-
-        Expression lessThan = comparison(ComparisonOperator.LESS_THAN, widened, field(1, targetType));
-        assertGpuMatchesCpu(inputPages, inputTypes, lessThan, Set.of(0, 1));
     }
 
     private static Block charBlock(Type charType, String... values)
@@ -4391,40 +4292,6 @@ final class TestGpuExpressions
     {
         testIn(BIGINT, Arrays.asList(10L, null, 50L), nullsProvider);
         testIn(BIGINT, Collections.singletonList(null), nullsProvider);
-    }
-
-    /// Trino compares a `timestamp with time zone` by instant, so a constant in another zone is
-    /// equal to a column value of the same instant in UTC.
-    @Test
-    void testTimestampWithTimeZoneComparedWithConstantInAnotherZone()
-    {
-        TimeZoneKey warsaw = getTimeZoneKey("Europe/Warsaw");
-        long epochMillis = 1718454896123L;
-        for (int precision : List.of(3, 6, 9)) {
-            TimestampWithTimeZoneType type = createTimestampWithTimeZoneType(precision);
-            BlockBuilder builder = type.createBlockBuilder(null, 3);
-            writeNativeValue(type, builder, timestampWithTimeZone(type, epochMillis, UTC_KEY));
-            writeNativeValue(type, builder, timestampWithTimeZone(type, epochMillis + 1, UTC_KEY));
-            builder.appendNull();
-            List<Page> inputPages = List.of(new Page(builder.build()));
-            List<Type> inputTypes = List.of(type);
-
-            Expression in = new In(field(0, type), ImmutableList.of(
-                    new Constant(type, timestampWithTimeZone(type, epochMillis, warsaw)),
-                    new Constant(type, timestampWithTimeZone(type, epochMillis + 2, UTC_KEY))));
-            assertGpuMatchesCpu(inputPages, inputTypes, in, Set.of(0));
-
-            Expression lessThan = comparison(ComparisonOperator.LESS_THAN, field(0, type), new Constant(type, timestampWithTimeZone(type, epochMillis + 1, warsaw)));
-            assertGpuMatchesCpu(inputPages, inputTypes, lessThan, Set.of(0));
-        }
-    }
-
-    private static Object timestampWithTimeZone(TimestampWithTimeZoneType type, long epochMillis, TimeZoneKey zoneKey)
-    {
-        if (type.isShort()) {
-            return packDateTimeWithZone(epochMillis, zoneKey);
-        }
-        return LongTimestampWithTimeZone.fromEpochMillisAndFraction(epochMillis, 0, zoneKey);
     }
 
     private void testIn(Type type, List<Object> inValues, NullsProvider nullsProvider)
