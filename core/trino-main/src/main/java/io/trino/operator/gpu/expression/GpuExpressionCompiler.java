@@ -471,6 +471,10 @@ public final class GpuExpressionCompiler
                 return compileDateAdd(call, context);
             }
 
+            if (name.equals("date_diff") && call.arguments().size() == 3) {
+                return compileDateDiff(call, context);
+            }
+
             if (name.equals("to_unixtime")) {
                 return compileToUnixTime(call, context);
             }
@@ -937,6 +941,33 @@ public final class GpuExpressionCompiler
             return toDType(dateTimeType).flatMap(dType ->
                     dateTimeArgument.accept(this, context).flatMap(compiled ->
                             GpuDateAdd.create(compiled, dType, unit.get(), value)));
+        }
+
+        private Optional<GpuExpression> compileDateDiff(Call call, Void context)
+        {
+            // date_diff(unit, date_time1, date_time2)
+            if (!(call.arguments().get(0) instanceof Constant(Type unitType, Object unitValue)) ||
+                    !(unitType instanceof VarcharType) ||
+                    unitValue == null) {
+                return Optional.empty();
+            }
+            Optional<GpuDateDiff.Unit> unit = GpuDateDiff.Unit.forTrinoDateDiffUnit(((Slice) unitValue).toStringUtf8());
+            if (unit.isEmpty()) {
+                return Optional.empty();
+            }
+
+            Expression startArgument = call.arguments().get(1);
+            Expression endArgument = call.arguments().get(2);
+            Type dateTimeType = startArgument.type();
+            if (!dateTimeType.equals(endArgument.type()) ||
+                    (!dateTimeType.equals(DATE) && !(dateTimeType instanceof TimestampType))) {
+                return Optional.empty();
+            }
+
+            return toDType(dateTimeType).flatMap(dType ->
+                    startArgument.accept(this, context).flatMap(start ->
+                            endArgument.accept(this, context).flatMap(end ->
+                                    GpuDateDiff.create(start, end, dType, unit.get()))));
         }
 
         private Optional<GpuExpression> compileSubstring(Call call, Void context)
