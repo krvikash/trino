@@ -29,7 +29,7 @@ import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 /// Table-tests the Joda-Time to cuDF format translation without a GPU. See
 /// [io.trino.operator.gpu.TestGpuExpressions] for tests comparing the formatted values with the CPU.
-class TestGpuFormatDateTime
+class TestGpuFormatDateTimeCompilation
 {
     @BeforeAll
     static void maybeSetGpuMemoryPool()
