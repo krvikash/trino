@@ -22,6 +22,7 @@ import io.trino.spi.connector.ConnectorSplitSource;
 import io.trino.spi.connector.ConnectorTableHandle;
 import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.connector.Constraint;
+import io.trino.spi.function.table.ConnectorTableFunctionHandle;
 
 import java.util.Set;
 
@@ -62,5 +63,14 @@ public class DispatcherSplitManager
                 dispatcherTableHandle,
                 session,
                 dispatcherProxiedConnectorTransformer);
+    }
+
+    @Override
+    public ConnectorSplitSource getSplits(
+            ConnectorTransactionHandle transaction,
+            ConnectorSession session,
+            ConnectorTableFunctionHandle function)
+    {
+        return proxyConnectorSplitManager.getSplits(transaction, session, function);
     }
 }
