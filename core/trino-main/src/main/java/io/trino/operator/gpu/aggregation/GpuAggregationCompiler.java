@@ -277,6 +277,8 @@ public final class GpuAggregationCompiler
         return switch (name) {
             // For count, all steps produce the same type
             case "count" -> compileCount(arguments, sourceLayout, outputType, maskChannel);
+            // For count_if, all steps produce the same type
+            case "count_if" -> compileCountIf(arguments, sourceLayout, step, outputType, maskChannel);
             // For currently supported sum, all steps produce the same type
             case "sum" -> compileSum(arguments, sourceLayout, step, outputType, signature.getReturnType(), maskChannel);
             // For min and max, all steps produce the same type
@@ -314,6 +316,23 @@ public final class GpuAggregationCompiler
                                 return AggregateCompilation.single(outputType, input, channel -> new GpuCountNonNull(channel, outputType, dType));
                             });
                 });
+    }
+
+    private static Optional<AggregateCompilation> compileCountIf(List<Expression> arguments, Map<Symbol, Integer> sourceLayout, Step step, Type outputType, OptionalInt maskChannel)
+    {
+        return getSingleColumnReference(arguments, sourceLayout)
+                .flatMap(column -> toDType(outputType).map(dType -> {
+                    GpuExpression input = new GetColumn(column.channel());
+                    if (step.isInputRaw()) {
+                        verify(column.type() == BooleanType.BOOLEAN, "Unexpected count_if argument type at step %s: %s", step, column.type());
+                        // Nulls out FALSE so that counting non-null values counts TRUE values
+                        input = maskExpression(column.channel(), column.channel(), BooleanType.BOOLEAN);
+                    }
+                    if (maskChannel.isPresent()) {
+                        input = new Mask(new GetColumn(maskChannel.orElseThrow()), input, column.type());
+                    }
+                    return AggregateCompilation.single(outputType, input, channel -> new GpuCountNonNull(channel, outputType, dType));
+                }));
     }
 
     private static Optional<AggregateCompilation> compileSum(

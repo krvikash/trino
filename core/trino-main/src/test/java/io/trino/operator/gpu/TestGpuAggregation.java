@@ -705,6 +705,32 @@ final class TestGpuAggregation
     }
 
     @Test
+    void testCountIfGlobalEmpty()
+    {
+        Page inputPage = createEmptyPage(List.of(BOOLEAN));
+        assertGlobalMatchesCpu(List.of(inputPage), "count_if", List.of(BOOLEAN), SINGLE);
+    }
+
+    @ParameterizedTest
+    @EnumSource(NullsProvider.class)
+    void testCountIfGlobal(NullsProvider nullsProvider)
+    {
+        Block block = createBlock(BOOLEAN, 100, nullsProvider);
+        Page inputPage = new Page(block);
+        assertGlobalMatchesCpu(List.of(inputPage), "count_if", List.of(BOOLEAN), SINGLE);
+    }
+
+    @ParameterizedTest
+    @EnumSource(NullsProvider.class)
+    void testGroupByCountIf(NullsProvider nullsProvider)
+    {
+        Block groupByBlock = createGroupByBlock(100, 5);
+        Block valueBlock = createBlock(BOOLEAN, 100, nullsProvider);
+        Page inputPage = new Page(groupByBlock, valueBlock);
+        assertGroupByMatchesCpu(List.of(inputPage), "count_if", List.of(BOOLEAN), SINGLE);
+    }
+
+    @Test
     void testMaskedCountAllGlobal()
     {
         Block valueBlock = createBigintBlock(100, RANDOM_NULLS, 0, 100);
@@ -718,6 +744,14 @@ final class TestGpuAggregation
         Block valueBlock = createBigintBlock(100, RANDOM_NULLS, 0, 100);
         Block maskBlock = createMaskBlock(100);
         assertMaskedGlobalMatchesCpu(new Page(valueBlock, maskBlock), "count", List.of(BIGINT));
+    }
+
+    @Test
+    void testMaskedCountIfGlobal()
+    {
+        Block valueBlock = createBlock(BOOLEAN, 100, RANDOM_NULLS);
+        Block maskBlock = createMaskBlock(100);
+        assertMaskedGlobalMatchesCpu(new Page(valueBlock, maskBlock), "count_if", List.of(BOOLEAN));
     }
 
     @Test
@@ -770,6 +804,15 @@ final class TestGpuAggregation
         assertMaskedGroupByMatchesCpu(new Page(groupByBlock, valueBlock, maskBlock), "count", List.of());
     }
 
+    @Test
+    void testGroupByMaskedCountIf()
+    {
+        Block groupByBlock = createGroupByBlock(100, 5);
+        Block valueBlock = createBlock(BOOLEAN, 100, RANDOM_NULLS);
+        Block maskBlock = createMaskBlock(100);
+        assertMaskedGroupByMatchesCpu(new Page(groupByBlock, valueBlock, maskBlock), "count_if", List.of(BOOLEAN));
+    }
+
     @ParameterizedTest
     @FieldSource("io.trino.operator.gpu.GpuTestUtils#TESTED_GPU_TYPES")
     void testAnyValueGlobalEmpty(Type type)
@@ -811,6 +854,13 @@ final class TestGpuAggregation
     void testCountPartialFinalGlobalForAllTypes(Type type)
     {
         runPartialFinalGlobal("count", type, false);
+    }
+
+    @ParameterizedTest
+    @FieldSource("io.trino.operator.gpu.GpuTestUtils#TESTED_GPU_TYPES")
+    void testCountIfPartialFinalGlobalForAllTypes(Type type)
+    {
+        runPartialFinalGlobal("count_if", type, false);
     }
 
     @ParameterizedTest
@@ -868,6 +918,13 @@ final class TestGpuAggregation
     void testGroupByCountPartialFinalForAllTypes(Type type)
     {
         runPartialFinalGrouped("count", type, false);
+    }
+
+    @ParameterizedTest
+    @FieldSource("io.trino.operator.gpu.GpuTestUtils#TESTED_GPU_TYPES")
+    void testGroupByCountIfPartialFinalForAllTypes(Type type)
+    {
+        runPartialFinalGrouped("count_if", type, false);
     }
 
     @ParameterizedTest

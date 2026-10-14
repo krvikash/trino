@@ -111,6 +111,28 @@ public class TestGpuAggregationQueries
     }
 
     @Test
+    public void testGpuCountIf()
+    {
+        // rand() < 42 is always true but prevents constant folding;
+        // AND i % 3 != 0 makes ~1/3 of rows null
+
+        assertThat(query(
+                """
+                SELECT count_if(a)
+                FROM (SELECT IF(rand()<42 AND i % 3 != 0, i % 2 = 0) AS a FROM (UNNEST(sequence(0, 100))) t(i))
+                """))
+                .executesWithGpu(AggregationNode.class);
+
+        assertThat(query(
+                """
+                SELECT b, count_if(a)
+                FROM (SELECT IF(rand()<42 AND i % 3 != 0, i % 2 = 0) AS a, i % 10 AS b FROM (UNNEST(sequence(0, 100))) t(i))
+                GROUP BY b
+                """))
+                .executesWithGpu(AggregationNode.class);
+    }
+
+    @Test
     public void testGpuBoolOr()
     {
         // rand() < 42 is always true but prevents constant folding;
