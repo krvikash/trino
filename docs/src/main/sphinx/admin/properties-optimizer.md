@@ -3,7 +3,7 @@
 ## `optimizer.dictionary-aggregation`
 
 - **Type:** {ref}`prop-type-boolean`
-- **Default value:** `false`
+- **Default value:** `true`
 - **Session property:** `dictionary_aggregation`
 
 Enables optimization for aggregations on dictionaries.

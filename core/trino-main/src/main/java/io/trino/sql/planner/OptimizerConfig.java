@@ -74,7 +74,7 @@ public class OptimizerConfig
     private boolean optimizeMetadataQueries;
     private long approximateRowCountForMetadataQueries = 10_000;
     private boolean pushTableWriteThroughUnion = true;
-    private boolean dictionaryAggregation;
+    private boolean dictionaryAggregation = true;
     private MarkDistinctStrategy markDistinctStrategy;
     private DistinctAggregationsStrategy distinctAggregationsStrategy;
     private boolean preferPartialAggregation = true;
