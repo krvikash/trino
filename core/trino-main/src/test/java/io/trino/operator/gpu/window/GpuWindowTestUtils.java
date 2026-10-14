@@ -19,6 +19,8 @@ import com.google.common.collect.ImmutableSet;
 import io.trino.metadata.ResolvedFunction;
 import io.trino.metadata.TestingFunctionResolution;
 import io.trino.operator.gpu.GpuOperation;
+import io.trino.operator.gpu.window.GpuWindow.FrameBound;
+import io.trino.operator.gpu.window.GpuWindow.WindowFrame;
 import io.trino.spi.connector.SortOrder;
 import io.trino.spi.type.Type;
 import io.trino.sql.planner.OrderingScheme;
@@ -123,9 +125,32 @@ public final class GpuWindowTestUtils
                         .map(Symbol::toSymbolReference)
                         .collect(toImmutableList()),
                 Optional.empty(),
-                WindowNode.Frame.DEFAULT_FRAME,
+                frame(spec.frame(), sourceSymbols),
                 false,
                 false);
+    }
+
+    private static WindowNode.Frame frame(WindowFrame frame, Symbol[] sourceSymbols)
+    {
+        if (frame.equals(WindowFrame.DEFAULT)) {
+            return WindowNode.Frame.DEFAULT_FRAME;
+        }
+        return new WindowNode.Frame(
+                frame.type(),
+                frame.start().type(),
+                offsetSymbol(frame.start(), sourceSymbols),
+                Optional.empty(),
+                frame.end().type(),
+                offsetSymbol(frame.end(), sourceSymbols),
+                Optional.empty());
+    }
+
+    private static Optional<Symbol> offsetSymbol(FrameBound bound, Symbol[] sourceSymbols)
+    {
+        if (bound.offsetChannel().isEmpty()) {
+            return Optional.empty();
+        }
+        return Optional.of(sourceSymbols[bound.offsetChannel().orElseThrow()]);
     }
 
     public static GpuOperation createOperation(GpuOperation.Context context, GpuOperation source, List<GpuOperation.Factory> stages)

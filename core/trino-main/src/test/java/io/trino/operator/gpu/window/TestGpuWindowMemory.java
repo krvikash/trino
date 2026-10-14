@@ -14,6 +14,7 @@
 package io.trino.operator.gpu.window;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterators;
 import io.trino.operator.gpu.GpuOperation;
 import io.trino.operator.gpu.GpuOperation.Blocked;
 import io.trino.operator.gpu.GpuOperation.Data;
@@ -23,8 +24,11 @@ import io.trino.operator.gpu.GpuProject;
 import io.trino.operator.gpu.SettableGpuOperation;
 import io.trino.operator.gpu.TestingGpuOperationContext;
 import io.trino.operator.gpu.memory.GpuDeviceMemoryUsageValidation;
+import io.trino.operator.gpu.window.GpuWindow.FrameBound;
+import io.trino.operator.gpu.window.GpuWindow.WindowFrame;
 import io.trino.operator.gpu.window.GpuWindowCompiler.CompileResult;
 import io.trino.spi.Page;
+import io.trino.spi.block.Block;
 import io.trino.spi.connector.SortOrder;
 import io.trino.spi.gpu.GpuPage;
 import io.trino.spi.type.Type;
@@ -42,6 +46,7 @@ import java.util.stream.Stream;
 
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.trino.operator.gpu.GpuTestUtils.copyToDevice;
+import static io.trino.operator.gpu.GpuTestUtils.createBigintBlock;
 import static io.trino.operator.gpu.GpuTestUtils.createPages;
 import static io.trino.operator.gpu.GpuTestUtils.maybeSetGpuMemoryPoolForTests;
 import static io.trino.operator.gpu.window.GpuWindowTestUtils.TESTED_GPU_WINDOW_FUNCTIONS;
@@ -51,6 +56,11 @@ import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.DecimalType.createDecimalType;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.sql.gen.TestColumnarFilters.NullsProvider.NO_NULLS;
+import static io.trino.sql.planner.plan.FrameBoundType.FOLLOWING;
+import static io.trino.sql.planner.plan.FrameBoundType.PRECEDING;
+import static io.trino.sql.planner.plan.FrameBoundType.UNBOUNDED_FOLLOWING;
+import static io.trino.sql.planner.plan.FrameBoundType.UNBOUNDED_PRECEDING;
+import static io.trino.sql.planner.plan.WindowFrameType.ROWS;
 import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.parallel.ExecutionMode.SAME_THREAD;
@@ -197,6 +207,37 @@ final class TestGpuWindowMemory
                 functions.build());
     }
 
+    @ParameterizedTest
+    @MethodSource("rowsFrames")
+    void testRowsFrame(WindowFrame frame)
+    {
+        // Partition key, order key, start and end offsets, and the arguments
+        List<Type> sourceTypes = List.of(BIGINT, BIGINT, BIGINT, BIGINT, createDecimalType(28, 2), createDecimalType(38, 6));
+        List<BoundTestedWindowFunction> functions = List.of(
+                BoundTestedWindowFunction.of("avg", 4).withFrame(frame),
+                BoundTestedWindowFunction.of("avg", 5).withFrame(frame));
+        testWindow(sourceTypes, new int[] {0}, new int[] {1}, List.of(ASC_NULLS_LAST), functions);
+        testWindow(sourceTypes, new int[] {}, new int[] {1}, List.of(ASC_NULLS_LAST), functions);
+    }
+
+    @Test
+    void testRowsAndRangeFrames()
+    {
+        // The default RANGE frame and the ranking functions need the peer groups, and the ROWS frames the row index and
+        // the partition end, so the window layout has both parts. Frames sum different arguments, so their peaks differ.
+        List<Type> sourceTypes = List.of(BIGINT, BIGINT, BIGINT, BIGINT, BIGINT, createDecimalType(28, 2), createDecimalType(38, 6));
+        List<BoundTestedWindowFunction> functions = List.of(
+                BoundTestedWindowFunction.of("avg", 5),
+                BoundTestedWindowFunction.of("avg", 6),
+                BoundTestedWindowFunction.of("rank"),
+                BoundTestedWindowFunction.of("row_number"),
+                BoundTestedWindowFunction.of("avg", 5).withFrame(rowsFrame(FrameBound.offset(PRECEDING, 3), FrameBound.offset(FOLLOWING, 4))),
+                BoundTestedWindowFunction.of("avg", 6).withFrame(rowsFrame(FrameBound.offset(PRECEDING, 3), FrameBound.offset(FOLLOWING, 4))),
+                BoundTestedWindowFunction.of("avg", 6).withFrame(rowsFrame(FrameBound.unbounded(UNBOUNDED_PRECEDING), FrameBound.offset(FOLLOWING, 4))),
+                BoundTestedWindowFunction.of("avg", 5).withFrame(rowsFrame(FrameBound.currentRow(), FrameBound.unbounded(UNBOUNDED_FOLLOWING))));
+        testWindow(sourceTypes, new int[] {0, 1}, new int[] {2}, List.of(ASC_NULLS_LAST), functions);
+    }
+
     private void testWindow(
             WindowFunctionTestCase testCase,
             int[] partitionChannels,
@@ -232,6 +273,28 @@ final class TestGpuWindowMemory
                 List.of(testCase.function()),
                 pageCount,
                 MEGABYTE);
+    }
+
+    static Stream<WindowFrame> rowsFrames()
+    {
+        // The offsets are in channels 2 and 3
+        return Stream.of(
+                rowsFrame(FrameBound.unbounded(UNBOUNDED_PRECEDING), FrameBound.currentRow()),
+                rowsFrame(FrameBound.currentRow(), FrameBound.unbounded(UNBOUNDED_FOLLOWING)),
+                rowsFrame(FrameBound.unbounded(UNBOUNDED_PRECEDING), FrameBound.unbounded(UNBOUNDED_FOLLOWING)),
+                rowsFrame(FrameBound.currentRow(), FrameBound.currentRow()),
+                rowsFrame(FrameBound.offset(PRECEDING, 2), FrameBound.currentRow()),
+                rowsFrame(FrameBound.currentRow(), FrameBound.offset(FOLLOWING, 3)),
+                rowsFrame(FrameBound.offset(PRECEDING, 2), FrameBound.offset(FOLLOWING, 3)),
+                rowsFrame(FrameBound.offset(PRECEDING, 2), FrameBound.offset(PRECEDING, 3)),
+                rowsFrame(FrameBound.offset(FOLLOWING, 2), FrameBound.offset(FOLLOWING, 3)),
+                rowsFrame(FrameBound.unbounded(UNBOUNDED_PRECEDING), FrameBound.offset(PRECEDING, 3)),
+                rowsFrame(FrameBound.offset(FOLLOWING, 2), FrameBound.unbounded(UNBOUNDED_FOLLOWING)));
+    }
+
+    private static WindowFrame rowsFrame(FrameBound start, FrameBound end)
+    {
+        return new WindowFrame(ROWS, start, end);
     }
 
     static Stream<WindowFunctionTestCase> singlePartitionKeyAndOrderByTestCases()
@@ -304,7 +367,7 @@ final class TestGpuWindowMemory
     {
         TestingGpuOperationContext context = new TestingGpuOperationContext();
         try (GpuDeviceMemoryUsageValidation memoryValidation = GpuDeviceMemoryUsageValidation.createAndRegister(context, marginBytes)) {
-            Iterator<Page> inputPages = createPages(inputTypes, NO_NULLS, pageCount, ROWS_PER_PAGE, true);
+            Iterator<Page> inputPages = withValidOffsets(createPages(inputTypes, NO_NULLS, pageCount, ROWS_PER_PAGE, true), functions);
 
             CompileResult result = compileWindow(inputTypes, partitionChannels, orderChannels, orderSortOrders, functions);
             List<GpuOperation.Factory> stages = switch (result) {
@@ -340,6 +403,27 @@ final class TestGpuWindowMemory
                 }
             }
         }
+    }
+
+    // The planner fails the query for a negative frame offset, so the random values of the offset channels are replaced
+    // with small non-negative ones
+    private static Iterator<Page> withValidOffsets(Iterator<Page> pages, List<BoundTestedWindowFunction> functions)
+    {
+        int[] offsetChannels = functions.stream()
+                .flatMap(function -> Stream.of(function.frame().start(), function.frame().end()))
+                .flatMapToInt(bound -> bound.offsetChannel().stream())
+                .distinct()
+                .toArray();
+        return Iterators.transform(pages, page -> {
+            Block[] blocks = new Block[page.getChannelCount()];
+            for (int channel = 0; channel < blocks.length; channel++) {
+                blocks[channel] = page.getBlock(channel);
+            }
+            for (int channel : offsetChannels) {
+                blocks[channel] = createBigintBlock(page.getPositionCount(), NO_NULLS, 0, 1000);
+            }
+            return new Page(blocks);
+        });
     }
 
     // Builds a pipeline from the compiled stages, ensuring only GpuWindow memory reservations are validated.

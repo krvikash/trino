@@ -13,19 +13,27 @@
  */
 package io.trino.operator.gpu.window;
 
+import io.trino.operator.gpu.window.GpuWindow.WindowFrame;
+
 import static java.util.Objects.requireNonNull;
 
-public record BoundTestedWindowFunction(String name, int[] argumentChannels)
+public record BoundTestedWindowFunction(String name, int[] argumentChannels, WindowFrame frame)
 {
     public BoundTestedWindowFunction
     {
         requireNonNull(name, "name is null");
         requireNonNull(argumentChannels, "argumentChannels is null");
+        requireNonNull(frame, "frame is null");
     }
 
     public static BoundTestedWindowFunction of(String name, int... argumentChannels)
     {
-        return new BoundTestedWindowFunction(name, argumentChannels);
+        return new BoundTestedWindowFunction(name, argumentChannels, WindowFrame.DEFAULT);
+    }
+
+    public BoundTestedWindowFunction withFrame(WindowFrame frame)
+    {
+        return new BoundTestedWindowFunction(name, argumentChannels, frame);
     }
 
     public static BoundTestedWindowFunction of(TestedWindowFunction function, int... argumentChannels)

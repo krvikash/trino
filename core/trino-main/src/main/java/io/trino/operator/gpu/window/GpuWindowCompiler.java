@@ -34,6 +34,7 @@ import io.trino.operator.gpu.expression.GpuIf;
 import io.trino.operator.gpu.expression.GpuIsNull;
 import io.trino.operator.gpu.expression.GpuNot;
 import io.trino.operator.gpu.expression.GpuStruct;
+import io.trino.operator.gpu.window.GpuWindow.FrameBound;
 import io.trino.operator.gpu.window.GpuWindow.WindowFrame;
 import io.trino.operator.project.InputChannels;
 import io.trino.spi.connector.SortOrder;
@@ -44,6 +45,7 @@ import io.trino.sql.ir.Expression;
 import io.trino.sql.ir.Reference;
 import io.trino.sql.planner.OrderingScheme;
 import io.trino.sql.planner.Symbol;
+import io.trino.sql.planner.plan.FrameBoundType;
 import io.trino.sql.planner.plan.WindowNode;
 
 import java.util.IdentityHashMap;
@@ -58,6 +60,7 @@ import static com.google.common.base.Verify.verifyNotNull;
 import static io.trino.metadata.GlobalFunctionCatalog.isBuiltinFunctionName;
 import static io.trino.spi.gpu.GpuTypeConversion.isConvertible;
 import static io.trino.spi.type.BigintType.BIGINT;
+import static io.trino.sql.planner.plan.WindowFrameType.ROWS;
 import static java.util.Objects.requireNonNull;
 
 public final class GpuWindowCompiler
@@ -161,7 +164,7 @@ public final class GpuWindowCompiler
             Optional<CompiledWindowFunction> compiledFunction = switch (resolvedFunction.functionKind()) {
                 case WINDOW -> compileWindowFunction(resolvedFunction, function, peerKey, orderTypes);
                 case AGGREGATE -> {
-                    Optional<WindowFrame> frame = compileFrame(function.getFrame());
+                    Optional<WindowFrame> frame = compileFrame(function.getFrame(), sourceLayout);
                     if (frame.isEmpty()) {
                         yield Optional.empty();
                     }
@@ -209,12 +212,37 @@ public final class GpuWindowCompiler
         };
     }
 
-    private static Optional<WindowFrame> compileFrame(WindowNode.Frame frame)
+    private static Optional<WindowFrame> compileFrame(WindowNode.Frame frame, Map<Symbol, Integer> sourceLayout)
     {
         if (frame.equals(WindowNode.Frame.DEFAULT_FRAME)) {
             return Optional.of(WindowFrame.DEFAULT);
         }
-        return Optional.empty();
+        if (frame.getType() != ROWS) {
+            return Optional.empty();
+        }
+        Optional<FrameBound> start = compileFrameBound(frame.getStartType(), frame.getStartValue(), sourceLayout);
+        Optional<FrameBound> end = compileFrameBound(frame.getEndType(), frame.getEndValue(), sourceLayout);
+        if (start.isEmpty() || end.isEmpty()) {
+            return Optional.empty();
+        }
+        return Optional.of(new WindowFrame(ROWS, start.get(), end.get()));
+    }
+
+    private static Optional<FrameBound> compileFrameBound(FrameBoundType type, Optional<Symbol> offset, Map<Symbol, Integer> sourceLayout)
+    {
+        return switch (type) {
+            case UNBOUNDED_PRECEDING, UNBOUNDED_FOLLOWING -> Optional.of(FrameBound.unbounded(type));
+            case CURRENT_ROW -> Optional.of(FrameBound.currentRow());
+            case PRECEDING, FOLLOWING -> {
+                Symbol offsetSymbol = offset.orElseThrow(() -> new IllegalArgumentException("frame offset is missing"));
+                if (offsetSymbol.type() != BIGINT) {
+                    // defensive check: the planner projects the offset to BIGINT and fails the query for a null or negative offset
+                    yield Optional.empty();
+                }
+                int offsetChannel = verifyNotNull(sourceLayout.get(offsetSymbol), "channel for frame offset symbol %s is not in source layout", offsetSymbol);
+                yield Optional.of(FrameBound.offset(type, offsetChannel));
+            }
+        };
     }
 
     private static Optional<CompiledWindowFunction> compileAggregateFunction(

@@ -20,6 +20,8 @@ import io.trino.spi.gpu.borrow.Move;
 import io.trino.spi.gpu.borrow.Own;
 import jakarta.annotation.Nullable;
 
+import java.util.Optional;
+
 import static com.google.common.base.Preconditions.checkState;
 import static io.trino.plugin.base.gpu.ClosingOnce.closeUnchecked;
 import static io.trino.plugin.base.util.Closables.closeAllSuppress;
@@ -74,6 +76,14 @@ public final class ClosingRef<T extends AutoCloseable>
         @Own T transferred = value;
         value = null;
         return transferred;
+    }
+
+    public @Move Optional<T> takeIfPresent()
+    {
+        if (isEmpty()) {
+            return Optional.empty();
+        }
+        return Optional.of(take());
     }
 
     public void set(@Move T newValue)

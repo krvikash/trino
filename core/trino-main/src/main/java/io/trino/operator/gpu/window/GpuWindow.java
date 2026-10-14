@@ -53,6 +53,9 @@ import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.stream.Stream;
 
+import static ai.rapids.cudf.BinaryOp.ADD;
+import static ai.rapids.cudf.BinaryOp.NULL_MAX;
+import static ai.rapids.cudf.BinaryOp.NULL_MIN;
 import static ai.rapids.cudf.BinaryOp.SUB;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
@@ -71,6 +74,7 @@ import static io.trino.sql.planner.plan.FrameBoundType.CURRENT_ROW;
 import static io.trino.sql.planner.plan.FrameBoundType.UNBOUNDED_FOLLOWING;
 import static io.trino.sql.planner.plan.FrameBoundType.UNBOUNDED_PRECEDING;
 import static io.trino.sql.planner.plan.WindowFrameType.RANGE;
+import static io.trino.sql.planner.plan.WindowFrameType.ROWS;
 import static java.lang.Math.addExact;
 import static java.lang.Math.max;
 import static java.lang.Math.toIntExact;
@@ -80,6 +84,7 @@ public final class GpuWindow
         implements GpuOperation
 {
     private static final int INT32_BYTES = DType.INT32.getSizeInBytes();
+    private static final int INT64_BYTES = DType.INT64.getSizeInBytes();
     private static final int BOOL8_BYTES = DType.BOOL8.getSizeInBytes();
     // cuDF's sort_groupby_helper (sort_helper.cu) allocates three shared INT32 columns: _key_sorted_order, _group_offsets, _group_labels.
     private static final int GROUPED_SCAN_SORT_HELPER_BYTES_PER_ROW = 3 * INT32_BYTES;
@@ -142,6 +147,8 @@ public final class GpuWindow
     private final int[] prefixSumChannels;
     private final int[] prefixSumIndexes;
     private final List<FrameComputations> frameComputations;
+    private final boolean hasRowsFrame;
+    private final boolean hasRangeFrame;
 
     private final @Own TablesList bufferedTables = TablesList.create();
     private final ClosingRef<AllocatedMemory> allocated;
@@ -188,6 +195,16 @@ public final class GpuWindow
             return new FrameBound(CURRENT_ROW, OptionalInt.empty());
         }
 
+        public static FrameBound offset(FrameBoundType type, int offsetChannel)
+        {
+            return new FrameBound(type, OptionalInt.of(offsetChannel));
+        }
+
+        public boolean isOffset()
+        {
+            return isOffset(type);
+        }
+
         private static boolean isOffset(FrameBoundType type)
         {
             return switch (type) {
@@ -208,13 +225,18 @@ public final class GpuWindow
             requireNonNull(end, "end is null");
             checkArgument(start.type() != UNBOUNDED_FOLLOWING, "frame cannot start at UNBOUNDED FOLLOWING");
             checkArgument(end.type() != UNBOUNDED_PRECEDING, "frame cannot end at UNBOUNDED PRECEDING");
-            // TODO: Support frame definitions other than default: https://starburstdata.atlassian.net/browse/ENG-28121
+            // TODO: Support RANGE and GROUPS frames: https://starburstdata.atlassian.net/browse/ENG-28121
             checkArgument(
-                    type == RANGE && start.type() == UNBOUNDED_PRECEDING && end.type() == CURRENT_ROW,
+                    type == ROWS || (type == RANGE && start.type() == UNBOUNDED_PRECEDING && end.type() == CURRENT_ROW),
                     "Unsupported frame: %s BETWEEN %s AND %s",
                     type,
                     start.type(),
                     end.type());
+        }
+
+        public boolean hasOffset()
+        {
+            return start.isOffset() || end.isOffset();
         }
     }
 
@@ -283,6 +305,8 @@ public final class GpuWindow
                 .toArray();
         this.prefixSumChannels = Ints.toArray(prefixSumIndexByChannel.keySet());
         this.frameComputations = groupByFrame(prefixSumDifferenceComputations, prefixSumIndexes);
+        this.hasRowsFrame = frameComputations.stream().anyMatch(frameComputation -> frameComputation.frame().type() == ROWS);
+        this.hasRangeFrame = frameComputations.stream().anyMatch(frameComputation -> frameComputation.frame().type() == RANGE);
 
         this.allocated = ClosingRef.own(context.taskMemoryContext().allocate(getClass().getSimpleName(), MemoryAmount.ZERO));
     }
@@ -475,40 +499,90 @@ public final class GpuWindow
 
     private long estimateWindowLayoutPeakBytes(@Borrow Table sorted, int rowCount)
     {
-        long partitionStartBytes = (long) rowCount * INT32_BYTES;
+        long int32ColumnBytes = (long) rowCount * INT32_BYTES;
+        // The row index, if the ROWS frames need it, is live from the start
+        long rowIndexBytes = hasRowsFrame ? int32ColumnBytes : 0;
         // The grouped scan takes the row index and the sorted input as they are, since its keys are sorted, and returns
         // a copy of the partition keys along with the partition start
-        long partitionStartPeakBytes = partitionStartBytes;
+        long partitionStartPeakBytes = rowIndexBytes + int32ColumnBytes;
         if (partitionChannels.length > 0) {
-            long rowIndexBytes = (long) rowCount * INT32_BYTES;
             long sortHelperBytes = (long) rowCount * GROUPED_SCAN_SORT_HELPER_BYTES_PER_ROW;
-            partitionStartPeakBytes = rowIndexBytes + sortHelperBytes + estimatePartitionKeyBytes(sorted) + partitionStartBytes;
+            partitionStartPeakBytes = int32ColumnBytes + sortHelperBytes + estimatePartitionKeyBytes(sorted) + int32ColumnBytes;
+        }
+        long peakBytes = partitionStartPeakBytes;
+
+        // The partition start, and for ROWS frames the row index and the partition end, stay live from here on
+        long liveBytes = int32ColumnBytes;
+        if (hasRowsFrame) {
+            liveBytes += 2 * int32ColumnBytes;
+            peakBytes = max(peakBytes, liveBytes);
         }
 
-        // The search for the peer group end keeps the partition start and the NaN sort keys live
-        long nanSortKeyBytes = 0;
-        for (int i = 0; i < orderChannels.length; i++) {
-            if (needsNanSortKey(orderTypes.get(i), orderSortOrders.get(i))) {
-                nanSortKeyBytes += (long) rowCount * BOOL8_BYTES + nullMaskBytes(rowCount);
+        // The search for the peer group end keeps the NaN sort keys live
+        if (hasRangeFrame) {
+            long nanSortKeyBytes = 0;
+            for (int i = 0; i < orderChannels.length; i++) {
+                if (needsNanSortKey(orderTypes.get(i), orderSortOrders.get(i))) {
+                    nanSortKeyBytes += (long) rowCount * BOOL8_BYTES + nullMaskBytes(rowCount);
+                }
             }
+            peakBytes = max(peakBytes, liveBytes + nanSortKeyBytes + int32ColumnBytes);
         }
-        long peerGroupEndBytes = (long) rowCount * INT32_BYTES;
-        return max(partitionStartPeakBytes, partitionStartBytes + nanSortKeyBytes + peerGroupEndBytes);
+        return peakBytes;
     }
 
-    // The window layout, the prefix sums, both of their gathers and the frame sums are live together once the last
-    // frame sum is computed. Building the prefix sums takes less: two more copies of one input column at most.
+    private long estimateWindowLayoutBytes(int rowCount)
+    {
+        int columnCount = 1; // partition start
+        if (hasRowsFrame) {
+            columnCount += 2; // row index and partition end
+        }
+        if (hasRangeFrame) {
+            columnCount += 1; // peer group end
+        }
+        return (long) columnCount * rowCount * INT32_BYTES;
+    }
+
+    // The frames are processed one at a time, and the frame sums of each stay live until the end. The window layout and
+    // the prefix sums are live throughout, so the peak is when the frame bounds and the gathers of the prefix sums of
+    // a frame are live, or when its frame bounds are computed. Building the prefix sums takes less: two more copies of
+    // one input column at most.
     private long estimatePrefixSumDifferenceWorkingBytes(@Borrow Table sorted, int rowCount)
     {
-        long windowLayoutBytes = 2L * rowCount * INT32_BYTES;
         long prefixSumBytes = 0;
-        long prefixSumDifferenceBytes = 0;
         for (int channel : prefixSumChannels) {
             int valueBytes = sorted.getColumn(channel).getType().getSizeInBytes();
             prefixSumBytes += ((long) rowCount + 1) * valueBytes;
-            prefixSumDifferenceBytes += estimatePrefixSumDifferenceBytes(valueBytes, rowCount);
         }
-        return windowLayoutBytes + prefixSumBytes + 3 * prefixSumDifferenceBytes;
+
+        long allFrameSumBytes = 0;
+        long framePeakBytes = 0;
+        for (FrameComputations computations : frameComputations) {
+            long frameSumBytes = 0;
+            for (int prefixSumIndex : computations.prefixSumIndexes()) {
+                int valueBytes = sorted.getColumn(prefixSumChannels[prefixSumIndex]).getType().getSizeInBytes();
+                frameSumBytes += estimatePrefixSumDifferenceBytes(valueBytes, rowCount);
+            }
+            allFrameSumBytes += frameSumBytes;
+            // Bounds computed from an offset come out of binary operations, which may allocate validity masks
+            long frameBoundsBytes = 2 * ((long) rowCount * INT32_BYTES + nullMaskBytes(rowCount));
+            framePeakBytes = max(framePeakBytes, max(
+                    estimateFrameBoundsPeakBytes(computations.frame(), rowCount),
+                    frameBoundsBytes + 2 * frameSumBytes));
+        }
+        return estimateWindowLayoutBytes(rowCount) + prefixSumBytes + allFrameSumBytes + framePeakBytes;
+    }
+
+    private static long estimateFrameBoundsPeakBytes(WindowFrame frame, int rowCount)
+    {
+        if (!frame.hasOffset()) {
+            // Both bounds, of which the end of a frame ending at the current row is a new column
+            return 2L * rowCount * INT32_BYTES;
+        }
+        // An offset bound computed after the other bound: the other bound, the INT32 base row index, the clamped offset,
+        // the INT64 bound before and after clamping to the partition, and its cast to INT32. All but the base row index
+        // come out of binary operations or casts of their results, which may allocate validity masks.
+        return rowCount * (3L * INT32_BYTES + 3L * INT64_BYTES) + 5 * nullMaskBytes(rowCount);
     }
 
     // A gather with NULLIFY always allocates a validity mask, so the gathered prefix sums and their difference have one
@@ -618,7 +692,7 @@ public final class GpuWindow
                 @Own ColumnVector[] prefixSumDifferences = new ColumnVector[framePrefixSumIndexes.length];
                 // Every bound is between 0 and the row count, so none is out of bounds, but NULLIFY keeps any mistake
                 // from reading outside the table
-                try (FrameBounds bounds = frameBounds(layout, computations.frame());
+                try (FrameBounds bounds = frameBounds(sorted, layout, computations.frame());
                         Table framePrefixSums = selectColumns(prefixSums, framePrefixSumIndexes);
                         Table prefixSumsAtEnd = framePrefixSums.gather(bounds.endExclusive(), OutOfBoundsPolicy.NULLIFY);
                         Table prefixSumsAtStart = framePrefixSums.gather(bounds.startInclusive(), OutOfBoundsPolicy.NULLIFY)) {
@@ -694,50 +768,158 @@ public final class GpuWindow
         }
     }
 
-    private static @Move FrameBounds frameBounds(@Borrow WindowLayout layout, WindowFrame frame)
+    private static @Move FrameBounds frameBounds(@Borrow Table sorted, @Borrow WindowLayout layout, WindowFrame frame)
     {
-        checkArgument(frame.equals(WindowFrame.DEFAULT), "Unsupported frame: %s", frame);
-        // RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
-        return new FrameBounds(layout.partitionStartInclusive().incRefCount(), layout.peerGroupEndExclusive().incRefCount());
+        try (ClosingRef<ColumnVector> startInclusive = ClosingRef.own(frameBound(sorted, layout, frame.type(), frame.start(), BoundSide.START_INCLUSIVE));
+                ClosingRef<ColumnVector> endExclusive = ClosingRef.own(frameBound(sorted, layout, frame.type(), frame.end(), BoundSide.END_EXCLUSIVE))) {
+            if (frame.hasOffset()) {
+                // An offset bound can make the frame end before it starts, e.g. ROWS BETWEEN 1 PRECEDING AND 2 PRECEDING,
+                // or past the partition, e.g. ROWS BETWEEN 2 FOLLOWING AND 1 FOLLOWING. Such frames are empty.
+                endExclusive.replace(startInclusive.borrow().binaryOp(NULL_MAX, endExclusive.borrow(), DType.INT32));
+            }
+            return new FrameBounds(startInclusive.take(), endExclusive.take());
+        }
     }
 
-    // How the sorted input divides into partitions and peer groups, from which the frame bounds are resolved.
-    // Starts and ends are INT32 row indexes.
+    private enum BoundSide
+    {
+        START_INCLUSIVE,
+        END_EXCLUSIVE,
+    }
+
+    private static @Move ColumnVector frameBound(@Borrow Table sorted, @Borrow WindowLayout layout, WindowFrameType frameType, FrameBound bound, BoundSide side)
+    {
+        return switch (bound.type()) {
+            case UNBOUNDED_PRECEDING -> {
+                checkArgument(side == BoundSide.START_INCLUSIVE, "Frame cannot end at UNBOUNDED PRECEDING");
+                yield layout.partitionStartInclusive().incRefCount();
+            }
+            case UNBOUNDED_FOLLOWING -> {
+                checkArgument(side == BoundSide.END_EXCLUSIVE, "Frame cannot start at UNBOUNDED FOLLOWING");
+                yield layout.partitionEndExclusive().orElseThrow().incRefCount();
+            }
+            case CURRENT_ROW -> switch (frameType) {
+                case ROWS -> currentRowBound(layout, side);
+                case RANGE -> {
+                    checkArgument(side == BoundSide.END_EXCLUSIVE, "RANGE frame starting at CURRENT ROW is not supported");
+                    yield layout.peerGroupEndExclusive().orElseThrow().incRefCount();
+                }
+                case GROUPS -> throw new IllegalArgumentException("GROUPS frame is not supported");
+            };
+            case PRECEDING, FOLLOWING -> {
+                checkArgument(frameType == ROWS, "Offset bound of a %s frame is not supported", frameType);
+                yield rowsOffsetBound(sorted, layout, bound, side);
+            }
+        };
+    }
+
+    // The frame starts k rows before or after the current row, and ends k rows before or after the row after it, but
+    // neither leaves the partition
+    private static @Move ColumnVector rowsOffsetBound(@Borrow Table sorted, @Borrow WindowLayout layout, FrameBound bound, BoundSide side)
+    {
+        @Borrow ColumnVector offset = sorted.getColumn(bound.offsetChannel().orElseThrow());
+        checkState(offset.getType().equals(DType.INT64), "Unsupported frame offset type: %s", offset.getType());
+
+        try (ColumnVector rowIndex = currentRowBound(layout, side)) {
+            return switch (bound.type()) {
+                case PRECEDING -> {
+                    // The subtraction runs in INT64, and the planner fails the query for a negative offset, so it cannot overflow
+                    try (ColumnVector unclamped = rowIndex.binaryOp(SUB, offset, DType.INT64);
+                            ColumnVector clamped = unclamped.binaryOp(NULL_MAX, layout.partitionStartInclusive(), DType.INT64)) {
+                        yield clamped.castTo(DType.INT32);
+                    }
+                }
+                case FOLLOWING -> {
+                    // An offset can be as large as Long.MAX_VALUE, so adding it to the row index could overflow INT64. No frame
+                    // reaches more than rowCount rows past the current row, so clamping the offset to rowCount gives the same
+                    // frame, and the sum, at most twice rowCount, fits.
+                    try (Scalar rowCount = Scalar.fromLong(layout.rowCount());
+                            ColumnVector clampedOffset = offset.binaryOp(NULL_MIN, rowCount, DType.INT64);
+                            ColumnVector unclamped = rowIndex.binaryOp(ADD, clampedOffset, DType.INT64);
+                            ColumnVector clamped = unclamped.binaryOp(NULL_MIN, layout.partitionEndExclusive().orElseThrow(), DType.INT64)) {
+                        yield clamped.castTo(DType.INT32);
+                    }
+                }
+                case UNBOUNDED_PRECEDING, CURRENT_ROW, UNBOUNDED_FOLLOWING -> throw new IllegalArgumentException("Not an offset bound: " + bound);
+            };
+        }
+    }
+
+    // The bound at the current row: the row index for the start, and the next row index for the end
+    private static @Move ColumnVector currentRowBound(@Borrow WindowLayout layout, BoundSide side)
+    {
+        return switch (side) {
+            case START_INCLUSIVE -> layout.rowIndex().orElseThrow().incRefCount();
+            case END_EXCLUSIVE -> nextRowIndex(layout);
+        };
+    }
+
+    private static @Move ColumnVector nextRowIndex(@Borrow WindowLayout layout)
+    {
+        try (Scalar one = Scalar.fromInt(1)) {
+            return layout.rowIndex().orElseThrow().binaryOp(ADD, one, DType.INT32);
+        }
+    }
+
+    // How the sorted input divides into partitions and peer groups, from which the frame bounds are resolved. Starts and
+    // ends are INT32 row indexes. The row index and the partition end are present only for ROWS frames, and the peer
+    // group end only for RANGE frames.
     private record WindowLayout(
+            int rowCount,
+            Optional<@Own ColumnVector> rowIndex,
             @Own ColumnVector partitionStartInclusive,
-            @Own ColumnVector peerGroupEndExclusive)
+            Optional<@Own ColumnVector> partitionEndExclusive,
+            Optional<@Own ColumnVector> peerGroupEndExclusive)
             implements AutoCloseable
     {
         public WindowLayout
         {
+            requireNonNull(rowIndex, "rowIndex is null");
             requireNonNull(partitionStartInclusive, "partitionStartInclusive is null");
+            requireNonNull(partitionEndExclusive, "partitionEndExclusive is null");
             requireNonNull(peerGroupEndExclusive, "peerGroupEndExclusive is null");
         }
 
         @Override
         public void close()
         {
-            closeColumns(partitionStartInclusive, peerGroupEndExclusive);
+            closeColumns(rowIndex.orElse(null), partitionStartInclusive, partitionEndExclusive.orElse(null), peerGroupEndExclusive.orElse(null));
         }
     }
 
     private @Move WindowLayout createWindowLayout(@Borrow Table sorted, int rowCount)
     {
         try (Scalar zero = Scalar.fromInt(0);
+                ClosingRef<ColumnVector> rowIndex = ClosingRef.empty();
                 ClosingRef<ColumnVector> partitionStartInclusive = ClosingRef.empty();
+                ClosingRef<ColumnVector> partitionEndExclusive = ClosingRef.empty();
                 ClosingRef<ColumnVector> peerGroupEndExclusive = ClosingRef.empty()) {
+            if (hasRowsFrame) {
+                rowIndex.set(ColumnVector.sequence(zero, rowCount));
+            }
             if (partitionChannels.length == 0) {
                 partitionStartInclusive.set(ColumnVector.fromScalar(zero, rowCount));
             }
+            else if (hasRowsFrame) {
+                partitionStartInclusive.set(partitionStart(sorted, rowIndex.borrow()));
+            }
             else {
-                try (ColumnVector rowIndex = ColumnVector.sequence(zero, rowCount)) {
-                    partitionStartInclusive.set(partitionStart(sorted, rowIndex));
+                try (ColumnVector partitionRowIndex = ColumnVector.sequence(zero, rowCount)) {
+                    partitionStartInclusive.set(partitionStart(sorted, partitionRowIndex));
                 }
             }
-            peerGroupEndExclusive.set(peerGroupEnd(sorted, partitionStartInclusive.borrow()));
+            if (hasRowsFrame) {
+                partitionEndExclusive.set(partitionEnd(partitionStartInclusive.borrow(), rowCount));
+            }
+            if (hasRangeFrame) {
+                peerGroupEndExclusive.set(peerGroupEnd(sorted, partitionStartInclusive.borrow()));
+            }
             return new WindowLayout(
+                    rowCount,
+                    rowIndex.takeIfPresent(),
                     partitionStartInclusive.take(),
-                    peerGroupEndExclusive.take());
+                    partitionEndExclusive.takeIfPresent(),
+                    peerGroupEndExclusive.takeIfPresent());
         }
     }
 
@@ -748,6 +930,22 @@ public final class GpuWindow
         try (Table scanInput = appendColumns(sorted, new ColumnVector[] {rowIndex});
                 Table groupedResult = groupedScan(scanInput, rowIndexChannel, partitionChannels, new GroupByScanAggregation[] {GroupByScanAggregation.min()})) {
             return groupedResult.getColumn(partitionChannels.length).incRefCount();
+        }
+    }
+
+    // For each row, the INT32 index of the first row after its partition
+    private @Move ColumnVector partitionEnd(@Borrow ColumnVector partitionStart, int rowCount)
+    {
+        if (partitionChannels.length == 0) {
+            try (Scalar rowCountScalar = Scalar.fromInt(rowCount)) {
+                return ColumnVector.fromScalar(rowCountScalar, rowCount);
+            }
+        }
+        // The partition start is ascending, so the end of the partition of a row is the upper bound of its partition start
+        try (Table partitionStarts = new Table(partitionStart)) {
+            boolean[] nullsSmallest = new boolean[] {false}; // there are no nulls in the partition start
+            boolean[] descending = new boolean[] {false};
+            return partitionStarts.upperBound(nullsSmallest, partitionStarts, descending);
         }
     }
 
