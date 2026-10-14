@@ -99,6 +99,7 @@ import static io.trino.spi.type.SmallintType.SMALLINT;
 import static io.trino.spi.type.TimeZoneKey.UTC_KEY;
 import static io.trino.spi.type.TimestampType.TIMESTAMP_MILLIS;
 import static io.trino.spi.type.TinyintType.TINYINT;
+import static io.trino.spi.type.VarbinaryType.VARBINARY;
 import static io.trino.sql.ir.IrExpressions.matchComparison;
 import static io.trino.type.IntervalDayTimeType.INTERVAL_DAY_TIME;
 import static io.trino.type.IntervalYearMonthType.INTERVAL_YEAR_MONTH;
@@ -514,6 +515,11 @@ public final class GpuExpressionCompiler
                     return argument.accept(this, context)
                             .map(GpuToUtf8::new);
                 }
+            }
+
+            if (name.equals("to_hex") && call.arguments().size() == 1 && getOnlyElement(call.arguments()).type() == VARBINARY) {
+                return getOnlyElement(call.arguments()).accept(this, context)
+                        .map(GpuToHex::new);
             }
 
             return Optional.empty();
