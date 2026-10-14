@@ -26,6 +26,7 @@ import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.spi.type.DateType.DATE;
 import static io.trino.spi.type.DoubleType.DOUBLE;
+import static io.trino.spi.type.IntegerType.INTEGER;
 import static io.trino.spi.type.RealType.REAL;
 import static io.trino.spi.type.TimestampType.TIMESTAMP_MILLIS;
 import static io.trino.spi.type.VarcharType.VARCHAR;
@@ -48,6 +49,9 @@ public final class SequencePageBuilder
 
             if (type.equals(BIGINT)) {
                 blocks[i] = BlockAssertions.createLongSequenceBlock(initialValue, initialValue + length);
+            }
+            else if (type.equals(INTEGER)) {
+                blocks[i] = BlockAssertions.createLongSequenceBlock(initialValue, initialValue + length, INTEGER);
             }
             else if (type.equals(REAL)) {
                 blocks[i] = BlockAssertions.createSequenceBlockOfReal(initialValue, initialValue + length);

@@ -33,6 +33,8 @@ import io.trino.operator.join.nonspilling.HashBuilderOperator.HashBuilderOperato
 import io.trino.spi.Page;
 import io.trino.spi.PageBuilder;
 import io.trino.spi.block.Block;
+import io.trino.spi.block.DictionaryBlock;
+import io.trino.spi.block.RunLengthEncodedBlock;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.TypeOperators;
 import io.trino.sql.planner.plan.PlanNodeId;
@@ -74,6 +76,7 @@ import static io.trino.operator.InterpretedHashGenerator.createChannelsHashGener
 import static io.trino.operator.JoinOperatorType.innerJoin;
 import static io.trino.operator.OperatorFactories.join;
 import static io.trino.spi.type.BigintType.BIGINT;
+import static io.trino.spi.type.IntegerType.INTEGER;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static java.lang.String.format;
 import static java.util.concurrent.Executors.newCachedThreadPool;
@@ -87,7 +90,7 @@ import static org.openjdk.jmh.annotations.Mode.AverageTime;
 @Threads(Threads.MAX)
 @OutputTimeUnit(MILLISECONDS)
 @BenchmarkMode(AverageTime)
-@Fork(3)
+@Fork(2)
 @Warmup(iterations = 5)
 @Measurement(iterations = 10, time = 2, timeUnit = SECONDS)
 public class BenchmarkHashBuildAndJoinOperators
@@ -105,6 +108,12 @@ public class BenchmarkHashBuildAndJoinOperators
 
         @Param({"varchar", "bigint", "all"})
         protected String hashColumns = "bigint";
+
+        @Param({"bigint", "integer"})
+        protected String keyType = "bigint";
+
+        @Param({"plain", "mixed"})
+        protected String encoding = "plain";
 
         @Param({"1", "5"})
         protected int buildRowsRepetition = 1;
@@ -160,7 +169,12 @@ public class BenchmarkHashBuildAndJoinOperators
 
         protected void initializeBuildPages()
         {
-            RowPagesBuilder buildPagesBuilder = rowPagesBuilder(ImmutableList.of(VARCHAR, BIGINT, BIGINT));
+            Type keyColumnType = switch (keyType) {
+                case "bigint" -> BIGINT;
+                case "integer" -> INTEGER;
+                default -> throw new UnsupportedOperationException(format("Unknown keyType value [%s]", keyType));
+            };
+            RowPagesBuilder buildPagesBuilder = rowPagesBuilder(ImmutableList.of(VARCHAR, keyColumnType, keyColumnType));
 
             int maxValue = buildRowsNumber / buildRowsRepetition + 40;
             int rows = 0;
@@ -172,7 +186,24 @@ public class BenchmarkHashBuildAndJoinOperators
             }
 
             types = buildPagesBuilder.getTypes();
-            buildPages = buildPagesBuilder.build();
+            List<Page> pages = buildPagesBuilder.build();
+            buildPages = IntStream.range(0, pages.size())
+                    .mapToObj(pageIndex -> encodeBuildPage(pages.get(pageIndex), pageIndex))
+                    .collect(toImmutableList());
+        }
+
+        private Page encodeBuildPage(Page page, int pageIndex)
+        {
+            return switch (encoding) {
+                case "plain" -> page;
+                case "mixed" -> {
+                    if (pageIndex % 2 == 0) {
+                        yield page;
+                    }
+                    yield toDictionaryPage(page);
+                }
+                default -> throw new UnsupportedOperationException(format("Unknown encoding value [%s]", encoding));
+            };
         }
     }
 
@@ -237,7 +268,7 @@ public class BenchmarkHashBuildAndJoinOperators
 
         protected void initializeProbePages()
         {
-            RowPagesBuilder probePagesBuilder = rowPagesBuilder(ImmutableList.of(VARCHAR, BIGINT, BIGINT));
+            RowPagesBuilder probePagesBuilder = rowPagesBuilder(types);
 
             Random random = new Random(42);
             int remainingRows = PROBE_ROWS_NUMBER;
@@ -279,8 +310,46 @@ public class BenchmarkHashBuildAndJoinOperators
                     rowsInPage++;
                 }
             }
-            probePages = probePagesBuilder.build();
+            List<Page> pages = probePagesBuilder.build();
+            probePages = IntStream.range(0, pages.size())
+                    .mapToObj(pageIndex -> encodeProbePage(pages.get(pageIndex), pageIndex))
+                    .collect(toImmutableList());
         }
+
+        private Page encodeProbePage(Page page, int pageIndex)
+        {
+            return switch (encoding) {
+                case "plain" -> page;
+                case "mixed" -> switch (pageIndex % 3) {
+                    case 0 -> page;
+                    case 1 -> toDictionaryPage(page);
+                    default -> toRunLengthEncodedPage(page);
+                };
+                default -> throw new UnsupportedOperationException(format("Unknown encoding value [%s]", encoding));
+            };
+        }
+    }
+
+    private static Page toDictionaryPage(Page page)
+    {
+        int positionCount = page.getPositionCount();
+        int[] ids = IntStream.range(0, positionCount)
+                .map(position -> positionCount - 1 - position)
+                .toArray();
+        Block[] blocks = new Block[page.getChannelCount()];
+        for (int channel = 0; channel < blocks.length; channel++) {
+            blocks[channel] = DictionaryBlock.create(positionCount, page.getBlock(channel), ids);
+        }
+        return new Page(blocks);
+    }
+
+    private static Page toRunLengthEncodedPage(Page page)
+    {
+        Block[] blocks = new Block[page.getChannelCount()];
+        for (int channel = 0; channel < blocks.length; channel++) {
+            blocks[channel] = RunLengthEncodedBlock.create(page.getBlock(channel).getSingleValueBlock(0), page.getPositionCount());
+        }
+        return new Page(blocks);
     }
 
     @Benchmark
