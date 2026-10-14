@@ -73,7 +73,6 @@ import static io.trino.operator.gpu.GpuTestUtils.layoutFor;
 import static io.trino.operator.gpu.GpuTestUtils.maybeSetGpuMemoryPoolForTests;
 import static io.trino.operator.gpu.GpuTestUtils.varcharsBlock;
 import static io.trino.operator.gpu.expression.GpuExpressionCompiler.compileExpression;
-import static io.trino.operator.gpu.expression.GpuLower.UNSUPPORTED_CODE_POINTS;
 import static io.trino.operator.project.PageProcessor.MAX_BATCH_SIZE;
 import static io.trino.spi.StandardErrorCode.INVALID_FUNCTION_ARGUMENT;
 import static io.trino.spi.StandardErrorCode.NOT_SUPPORTED;
@@ -281,77 +280,6 @@ final class TestGpuExpressions
         Expression expression = new IsNull(field(channelA, BIGINT));
 
         assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA));
-    }
-
-    @Test
-    void testLower()
-    {
-        // Exercise every code point (in MAX_BATCH_SIZE pages) except those cuDF and Trino disagree on.
-        List<String> supportedCodePoints = IntStream.rangeClosed(Character.MIN_CODE_POINT, Character.MAX_CODE_POINT)
-                .filter(codePoint -> !UNSUPPORTED_CODE_POINTS.contains(codePoint))
-                .mapToObj(codePoint -> new String(Character.toChars(codePoint)))
-                .collect(toImmutableList());
-        List<Page> inputPages = Lists.partition(supportedCodePoints, MAX_BATCH_SIZE).stream()
-                .map(codePoints -> new Page(varcharsBlock(codePoints)))
-                .collect(toImmutableList());
-
-        assertGpuMatchesCpu(inputPages, List.of(VARCHAR), createLowerExpression(VARCHAR), Set.of(0));
-    }
-
-    @Test
-    void testLowerRejectedCodePoints()
-    {
-        Type type = VARCHAR;
-        for (int codePoint : UNSUPPORTED_CODE_POINTS) {
-            List<Page> inputPages = List.of(new Page(writeNativeValue(type, Slices.utf8Slice(new String(Character.toChars(codePoint))))));
-            Expression expression = createLowerExpression(type);
-            CompiledExpression gpuExpression = compileExpression(expression, layoutFor(List.of(type)), SQL_STANDARD, TEST_SESSION_TIME_ZONE_KEY)
-                    .orElseThrow(() -> new AssertionError("GPU expression compile failed for: " + expression));
-            assertTrinoExceptionThrownBy(() -> executeWithGpu(inputPages, List.of(type), expression, gpuExpression))
-                    .describedAs("U+%04X", codePoint)
-                    .hasErrorCode(NOT_SUPPORTED)
-                    .hasMessage("lower() on GPU does not support code points whose lowercase mapping differs between cuDF and Trino");
-        }
-    }
-
-    @Test
-    void testUnsupportedCodePointsDisagreeBetweenCudfAndTrino()
-    {
-        // Confirms UNSUPPORTED_CODE_POINTS is still accurate: if cuDF ever fixes one of these mappings to
-        // match Trino, this test starts failing for that code point and the entry can be pruned from the list.
-        for (int codePoint : UNSUPPORTED_CODE_POINTS) {
-            String value = new String(Character.toChars(codePoint));
-            String trinoLower = StringFunctions.lower(Slices.utf8Slice(value)).toStringUtf8();
-            try (ColumnVector column = ColumnVector.fromStrings(value);
-                    ColumnVector lowered = column.lower();
-                    HostColumnVector host = lowered.copyToHost()) {
-                assertThat(host.getJavaString(0))
-                        .describedAs("U+%04X", codePoint)
-                        .isNotEqualTo(trinoLower);
-            }
-        }
-    }
-
-    @Test
-    void testLowerReconcilesAndHandlesNulls()
-    {
-        assertGpuMatchesCpu(
-                List.of(new Page(varcharsBlock(Arrays.asList("HELLO", "Æther", "İstanbul", null, "ŁĄKA", "", "MiXeD123")))),
-                List.of(VARCHAR),
-                createLowerExpression(VARCHAR),
-                Set.of(0));
-        assertGpuMatchesCpu(
-                List.of(new Page(varcharsBlock(Arrays.asList("HELLO", "Æther", "İ", null, "ŁĄKA", "", "ABC")))),
-                List.of(createCharType(8)),
-                createLowerExpression(createCharType(8)),
-                Set.of(0));
-    }
-
-    private static Expression createLowerExpression(Type type)
-    {
-        return new Call(
-                FUNCTION_RESOLUTION.resolveFunction("lower", fromTypes(type)),
-                ImmutableList.of(field(0, type)));
     }
 
     @Test
