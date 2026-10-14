@@ -21,6 +21,7 @@ import java.util.stream.Stream;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Verify.verify;
 import static io.trino.plugin.iceberg.TableType.DATA;
+import static io.trino.plugin.iceberg.TableType.ERRORS;
 import static io.trino.plugin.iceberg.TableType.MATERIALIZED_VIEW_STORAGE;
 import static io.trino.plugin.iceberg.TableType.PARTITIONS;
 import static java.util.Locale.ENGLISH;
@@ -77,10 +78,8 @@ public final class IcebergTableName
 
     public static boolean isDataTable(String validIcebergTableName)
     {
-        Matcher match = TABLE_PATTERN.matcher(validIcebergTableName);
-        checkArgument(match.matches(), "Invalid Iceberg table name: %s", validIcebergTableName);
-        String typeString = match.group("type");
-        return typeString == null;
+        TableType tableType = tableTypeFrom(validIcebergTableName);
+        return tableType == DATA || tableType == ERRORS;
     }
 
     public static boolean isMaterializedViewStorage(String validIcebergTableName)

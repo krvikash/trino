@@ -320,11 +320,15 @@ public abstract class BaseIcebergSystemTables
         createTableWithoutSnapshot(tableName);
         try {
             for (TableType tableType : TableType.values()) {
-                // ERRORS is not served by the Iceberg connector
-                if (tableType == TableType.DATA || tableType == TableType.MATERIALIZED_VIEW_STORAGE || tableType == TableType.ERRORS) {
+                if (tableType == TableType.DATA || tableType == TableType.MATERIALIZED_VIEW_STORAGE) {
                     continue;
                 }
                 String metadataTable = tableNameWithType(tableName.getTableName(), tableType);
+                if (tableType == TableType.ERRORS) {
+                    // ERRORS is not served by the Iceberg connector
+                    assertQueryFails("SELECT * FROM test_schema.\"" + metadataTable + "\"", ".* Table .* does not exist");
+                    continue;
+                }
                 assertThatCode(() -> computeActual("SELECT * FROM test_schema.\"" + metadataTable + "\""))
                         .describedAs(tableType.name())
                         .doesNotThrowAnyException();
