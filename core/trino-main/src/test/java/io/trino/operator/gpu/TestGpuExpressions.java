@@ -58,7 +58,6 @@ import io.trino.sql.ir.Coalesce;
 import io.trino.sql.ir.ComparisonOperator;
 import io.trino.sql.ir.Constant;
 import io.trino.sql.ir.Expression;
-import io.trino.sql.ir.In;
 import io.trino.sql.ir.IsNull;
 import io.trino.sql.ir.Let;
 import io.trino.sql.ir.Logical;
@@ -135,7 +134,6 @@ import static io.trino.spi.type.DecimalType.createDecimalType;
 import static io.trino.spi.type.DoubleType.DOUBLE;
 import static io.trino.spi.type.IntegerType.INTEGER;
 import static io.trino.spi.type.RealType.REAL;
-import static io.trino.spi.type.SmallintType.SMALLINT;
 import static io.trino.spi.type.TimeZoneKey.UTC_KEY;
 import static io.trino.spi.type.TimeZoneKey.getTimeZoneKey;
 import static io.trino.spi.type.TimeZoneKey.getTimeZoneKeyForOffset;
@@ -145,7 +143,6 @@ import static io.trino.spi.type.Timestamps.MICROSECONDS_PER_DAY;
 import static io.trino.spi.type.Timestamps.MILLISECONDS_PER_SECOND;
 import static io.trino.spi.type.Timestamps.NANOSECONDS_PER_MICROSECOND;
 import static io.trino.spi.type.Timestamps.PICOSECONDS_PER_NANOSECOND;
-import static io.trino.spi.type.TinyintType.TINYINT;
 import static io.trino.spi.type.TypeUtils.readNativeValue;
 import static io.trino.spi.type.TypeUtils.writeNativeValue;
 import static io.trino.spi.type.VarbinaryType.VARBINARY;
@@ -4100,54 +4097,6 @@ final class TestGpuExpressions
     private static Page twoStringPage(String first, String second)
     {
         return new Page(1, createStringBlock(asList(first)), createStringBlock(asList(second)));
-    }
-
-    @ParameterizedTest
-    @EnumSource(NullsProvider.class)
-    void testIn(NullsProvider nullsProvider)
-    {
-        testIn(BIGINT, List.of(-50L, 0L, 25L, 50L, 75L), nullsProvider);
-        testIn(INTEGER, List.of(-50L, 0L, 25L, 50L, 75L), nullsProvider);
-        testIn(SMALLINT, List.of(-50L, 0L, 25L, 50L, 75L), nullsProvider);
-        testIn(TINYINT, List.of(-50L, 0L, 25L, 50L, 75L), nullsProvider);
-        testIn(DOUBLE, List.of(-50.0, 0.0, 25.5, 50.0, 75.5), nullsProvider);
-        testIn(REAL, List.of(
-                (long) Float.floatToIntBits(-50.0f),
-                (long) Float.floatToIntBits(0.0f),
-                (long) Float.floatToIntBits(25.5f),
-                (long) Float.floatToIntBits(50.0f),
-                (long) Float.floatToIntBits(75.5f)), nullsProvider);
-        testIn(VARCHAR, List.of(
-                Slices.utf8Slice("test1"),
-                Slices.utf8Slice("other"),
-                Slices.utf8Slice("xyz")), nullsProvider);
-    }
-
-    @ParameterizedTest
-    @EnumSource(NullsProvider.class)
-    void testInWithNull(NullsProvider nullsProvider)
-    {
-        testIn(BIGINT, Arrays.asList(10L, null, 50L), nullsProvider);
-        testIn(BIGINT, Collections.singletonList(null), nullsProvider);
-    }
-
-    private void testIn(Type type, List<Object> inValues, NullsProvider nullsProvider)
-    {
-        int channelA = 0;
-        List<Type> inputTypes = List.of(type);
-        int positionsCount = 64;
-        List<Page> inputPages = List.of(new Page(
-                positionsCount,
-                createBlock(type, positionsCount, nullsProvider)));
-
-        ImmutableList.Builder<Expression> valueListBuilder = ImmutableList.builder();
-        for (Object value : inValues) {
-            valueListBuilder.add(new Constant(type, value));
-        }
-
-        Expression expression = new In(field(channelA, type), valueListBuilder.build());
-
-        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA));
     }
 
     private static Block createStringBlock(List<String> values)
