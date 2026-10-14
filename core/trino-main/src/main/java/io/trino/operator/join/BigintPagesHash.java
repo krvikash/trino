@@ -222,72 +222,36 @@ public final class BigintPagesHash
 
         values.readKeys(hashChannelsPage.getBlock(0), positions, positionCount, mask, incomingValues, hashPositions);
 
-        int[] found = new int[positionCount];
-        int foundCount = 0;
-        int[] result = new int[positionCount];
-        Arrays.fill(result, -1);
-        int[] foundKeys = new int[positionCount];
-
         // Search for positions in the hash array. This is the most CPU-consuming part as
         // it relies on random memory accesses
-        findPositions(positionCount, hashPositions, foundKeys);
-        // Found positions are put into `found` array
+        int[] result = new int[positionCount];
         for (int i = 0; i < positionCount; i++) {
-            if (foundKeys[i] != -1) {
-                found[foundCount++] = i;
-            }
+            result[i] = keys[hashPositions[i]];
         }
 
         // At this step we determine if the found keys were indeed the proper ones or it is a hash collision.
-        // The result array is updated for the found ones, while the collisions land into `remaining` array.
-        int remainingCount = checkFoundPositions(incomingValues, found, foundCount, result, foundKeys);
-        int[] remaining = found; // Rename for readability
-
-        // At this point for any reasoable load factor of a hash array (< .75), there is no more than
+        // For any reasoable load factor of a hash array (< .75), there is no more than
         // 10 - 15% of positions left. We search for them in a sequential order and update the result array.
-        findRemainingPositions(incomingValues, hashPositions, result, remaining, remainingCount);
-
+        for (int i = 0; i < positionCount; i++) {
+            int key = result[i];
+            if (key != -1 && values.get(key) != incomingValues[i]) {
+                result[i] = findRemainingPosition(incomingValues[i], hashPositions[i]);
+            }
+        }
         return result;
     }
 
-    private void findRemainingPositions(long[] incomingValues, int[] hashPositions, int[] result, int[] remaining, int remainingCount)
+    private int findRemainingPosition(long value, int hashPosition)
     {
-        for (int i = 0; i < remainingCount; i++) {
-            int index = remaining[i];
-            int position = (hashPositions[index] + 1) & mask; // hashPositions[index] position has already been checked
-
-            while (keys[position] != -1) {
-                if (values.get(keys[position]) == incomingValues[index]) {
-                    result[index] = keys[position];
-                    break;
-                }
-                // increment position and mask to handler wrap around
-                position = (position + 1) & mask;
+        int position = (hashPosition + 1) & mask; // hashPosition has already been checked
+        while (keys[position] != -1) {
+            if (values.get(keys[position]) == value) {
+                return keys[position];
             }
+            // increment position and mask to handler wrap around
+            position = (position + 1) & mask;
         }
-    }
-
-    private int checkFoundPositions(long[] incomingValues, int[] found, int foundCount, int[] result, int[] foundKeys)
-    {
-        int[] remaining = found; // Rename for readability
-        int remainingCount = 0;
-        for (int i = 0; i < foundCount; i++) {
-            int index = found[i];
-            if (values.get(foundKeys[index]) == incomingValues[index]) {
-                result[index] = foundKeys[index];
-            }
-            else {
-                remaining[remainingCount++] = index;
-            }
-        }
-        return remainingCount;
-    }
-
-    private void findPositions(int positionCount, int[] hashPositions, int[] foundKeys)
-    {
-        for (int i = 0; i < positionCount; i++) {
-            foundKeys[i] = keys[hashPositions[i]];
-        }
+        return -1;
     }
 
     private long readValue(Block block, int position)
