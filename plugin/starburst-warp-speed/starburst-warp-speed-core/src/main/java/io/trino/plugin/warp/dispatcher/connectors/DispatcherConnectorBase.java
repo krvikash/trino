@@ -96,9 +96,21 @@ public abstract class DispatcherConnectorBase
     }
 
     @Override
+    public List<PropertyMetadata<?>> getViewProperties()
+    {
+        return proxiedConnector.getViewProperties();
+    }
+
+    @Override
     public List<PropertyMetadata<?>> getMaterializedViewProperties()
     {
         return proxiedConnector.getMaterializedViewProperties();
+    }
+
+    @Override
+    public List<PropertyMetadata<?>> getBranchProperties()
+    {
+        return proxiedConnector.getBranchProperties();
     }
 
     @Override

@@ -182,9 +182,21 @@ public class StarburstWarpConnector
     }
 
     @Override
+    public List<PropertyMetadata<?>> getViewProperties()
+    {
+        return warpConnector.getViewProperties();
+    }
+
+    @Override
     public List<PropertyMetadata<?>> getMaterializedViewProperties()
     {
         return warpConnector.getMaterializedViewProperties();
+    }
+
+    @Override
+    public List<PropertyMetadata<?>> getBranchProperties()
+    {
+        return warpConnector.getBranchProperties();
     }
 
     @Override
