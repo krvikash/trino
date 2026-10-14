@@ -96,6 +96,7 @@ public class BenchmarkHashBuildAndJoinOperators
     private static final int HASH_JOIN_OPERATOR_ID = 2;
     private static final PlanNodeId TEST_PLAN_NODE_ID = new PlanNodeId("test");
     private static final NullSafeHashCompiler HASH_COMPILER = new NullSafeHashCompiler(new TypeOperators());
+    private static final JoinPagesIndex.TestingFactory PAGES_INDEX_FACTORY = new JoinPagesIndex.TestingFactory(false);
 
     @State(Scope.Benchmark)
     public static class BuildContext
@@ -321,7 +322,7 @@ public class BenchmarkHashBuildAndJoinOperators
                 Optional.empty(),
                 OptionalInt.empty(),
                 ImmutableList.of(),
-                new JoinPagesIndex.TestingFactory(false),
+                PAGES_INDEX_FACTORY,
                 incrementalLoadFactorHashArraySizeSupplier(buildContext.getSession()));
 
         Operator[] operators = IntStream.range(0, partitionCount)
