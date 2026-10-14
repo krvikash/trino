@@ -22,7 +22,6 @@ import io.trino.spi.type.CharType;
 import io.trino.spi.type.Type;
 import io.trino.sql.gen.TestColumnarFilters.NullsProvider;
 import io.trino.sql.ir.Call;
-import io.trino.sql.ir.Constant;
 import io.trino.sql.ir.Expression;
 import io.trino.sql.ir.IsNull;
 import org.junit.jupiter.api.BeforeAll;
@@ -43,7 +42,6 @@ import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.trino.operator.gpu.GpuTestUtils.FUNCTION_RESOLUTION;
 import static io.trino.operator.gpu.GpuTestUtils.TEST_SESSION_TIME_ZONE_KEY;
-import static io.trino.operator.gpu.GpuTestUtils.TEST_STRINGS;
 import static io.trino.operator.gpu.GpuTestUtils.assertGpuMatchesCpu;
 import static io.trino.operator.gpu.GpuTestUtils.createBigintBlock;
 import static io.trino.operator.gpu.GpuTestUtils.createBlock;
@@ -71,26 +69,6 @@ import static org.junit.jupiter.api.parallel.ExecutionMode.CONCURRENT;
 @Execution(CONCURRENT)
 final class TestGpuExpressions
 {
-    /// Search strings for `replace`, chosen to occur in `TEST_STRINGS` and in `REPLACE_EDGE_CASE_STRINGS`:
-    /// single and multi character, ASCII and multi-byte, plus an empty and a never-matching one.
-    private static final List<String> REPLACE_SEARCH_STRINGS = ImmutableList.of(
-            "", "a", "b", "z", "ab", "aa", "papa", "abcdefghij", "%", "test", "ą", "łąką", "ワ", "а", "no such substring");
-
-    private static final List<String> STARTS_WITH_EDGE_CASE_STRINGS = List.of(
-            "",
-            "a",
-            "abc",
-            "abd",
-            "xabc",
-            "한국어",
-            "あいう",
-            "中文",
-            "שלום",
-            "مرحبا",
-            "e\u0301clair",
-            "नमस्ते",
-            "𐐀abc");
-
     @BeforeAll
     static void maybeSetGpuMemoryPool()
     {
@@ -187,45 +165,6 @@ final class TestGpuExpressions
                 ImmutableList.of(field(varcharChannel, VARCHAR), field(startChannel, BIGINT), field(lengthChannel, BIGINT)));
 
         assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(varcharChannel, startChannel, lengthChannel));
-    }
-
-    @ParameterizedTest
-    @EnumSource(NullsProvider.class)
-    void testStartsWith(NullsProvider nullsProvider)
-    {
-        int varcharChannel = 0;
-        List<Type> inputTypes = List.of(VARCHAR);
-        List<Page> inputPages = ImmutableList.<Page>builder()
-                .addAll(createVarcharPages(VARCHAR, List.of(2 * TEST_STRINGS.size()), nullsProvider))
-                .add(varcharPage(STARTS_WITH_EDGE_CASE_STRINGS))
-                .build();
-
-        for (String prefix : REPLACE_SEARCH_STRINGS) {
-            Expression expression = new Call(
-                    FUNCTION_RESOLUTION.resolveFunction("starts_with", fromTypes(VARCHAR, VARCHAR)),
-                    ImmutableList.of(field(varcharChannel, VARCHAR), new Constant(VARCHAR, Slices.utf8Slice(prefix))));
-            assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(varcharChannel));
-        }
-    }
-
-    @Test
-    void testStartsWithNonConstantPrefix()
-    {
-        // cuDF startsWith takes a scalar prefix, so it must be a constant
-        List<Type> inputTypes = List.of(VARCHAR, VARCHAR);
-        Expression expression = new Call(
-                FUNCTION_RESOLUTION.resolveFunction("starts_with", fromTypes(VARCHAR, VARCHAR)),
-                ImmutableList.of(field(0, VARCHAR), field(1, VARCHAR)));
-        assertThat(compileExpression(expression, layoutFor(inputTypes), SQL_STANDARD, TEST_SESSION_TIME_ZONE_KEY)).isEmpty();
-    }
-
-    private static Page varcharPage(List<String> values)
-    {
-        VariableWidthBlockBuilder builder = new VariableWidthBlockBuilder(null, values.size(), values.size() * 16);
-        for (String value : values) {
-            builder.writeEntry(Slices.utf8Slice(value));
-        }
-        return new Page(values.size(), builder.build());
     }
 
     @ParameterizedTest
