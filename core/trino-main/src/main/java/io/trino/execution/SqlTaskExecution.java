@@ -114,6 +114,9 @@ public class SqlTaskExecution
 
     // number of created PrioritizedSplitRunners that haven't yet finished
     private final AtomicLong remainingSplitRunners = new AtomicLong();
+    // number of partitioned split runners that haven't yet finished
+    private final AtomicLong remainingPartitionedSplitRunners = new AtomicLong();
+    private final Runnable notifyStatusChanged;
 
     public SqlTaskExecution(
             TaskStateMachine taskStateMachine,
@@ -123,7 +126,8 @@ public class SqlTaskExecution
             LocalExecutionPlan localExecutionPlan,
             TaskExecutor taskExecutor,
             Tracer tracer,
-            Executor notificationExecutor)
+            Executor notificationExecutor,
+            Runnable notifyStatusChanged)
     {
         this.taskStateMachine = requireNonNull(taskStateMachine, "taskStateMachine is null");
         this.taskId = taskStateMachine.getTaskId();
@@ -133,6 +137,7 @@ public class SqlTaskExecution
 
         this.taskExecutor = requireNonNull(taskExecutor, "taskExecutor is null");
         this.notificationExecutor = requireNonNull(notificationExecutor, "notificationExecutor is null");
+        this.notifyStatusChanged = requireNonNull(notifyStatusChanged, "notifyStatusChanged is null");
 
         this.driverAndTaskTerminationTracker = new DriverAndTaskTerminationTracker(taskStateMachine);
 
@@ -367,7 +372,7 @@ public class SqlTaskExecution
                 // create a new driver for the split
                 runners.add(partitionedDriverRunnerFactory.createPartitionedDriverRunner(scheduledSplit));
             }
-            enqueueDriverSplitRunner(false, runners.build());
+            enqueueDriverSplitRunner(false, runners.build(), true);
 
             // If all driver runners have been enqueued for this plan node and driver life cycle combination,
             // move on to the next plan node.
@@ -401,12 +406,20 @@ public class SqlTaskExecution
 
     private synchronized void enqueueDriverSplitRunner(boolean forceRunSplit, List<DriverSplitRunner> runners)
     {
+        enqueueDriverSplitRunner(forceRunSplit, runners, false);
+    }
+
+    private synchronized void enqueueDriverSplitRunner(boolean forceRunSplit, List<DriverSplitRunner> runners, boolean partitioned)
+    {
         // schedule driver to be executed
         List<ListenableFuture<Void>> finishedFutures = taskExecutor.enqueueSplits(taskHandle, forceRunSplit, runners);
         checkState(finishedFutures.size() == runners.size(), "Expected %s futures but got %s", runners.size(), finishedFutures.size());
 
         // record new split runners
         remainingSplitRunners.addAndGet(runners.size());
+        if (partitioned) {
+            remainingPartitionedSplitRunners.addAndGet(runners.size());
+        }
 
         // when split runner completes, update state and fire events
         for (ListenableFuture<Void> finishedFuture : finishedFutures) {
@@ -420,6 +433,12 @@ public class SqlTaskExecution
                         if (remainingSplitRunners.decrementAndGet() == 0) {
                             checkTaskCompletion();
                         }
+                        // the coordinator holds back splits while its last status shows the task's split queue full,
+                        // and a status without another change comes only after the status refresh wait; a task that
+                        // completed has notified already
+                        if (partitioned && remainingPartitionedSplitRunners.decrementAndGet() == 0 && taskStateMachine.getState() == TaskState.RUNNING) {
+                            notifyStatusChanged.run();
+                        }
                     }
                 }
 
@@ -427,6 +446,9 @@ public class SqlTaskExecution
                 public void onFailure(Throwable cause)
                 {
                     try (SetThreadName _ = new SetThreadName("Task-" + taskId)) {
+                        if (partitioned) {
+                            remainingPartitionedSplitRunners.decrementAndGet();
+                        }
                         taskStateMachine.failed(cause);
 
                         // record driver is finished

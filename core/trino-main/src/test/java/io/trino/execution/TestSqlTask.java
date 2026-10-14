@@ -173,6 +173,35 @@ public class TestSqlTask
 
     @Test
     @Timeout(30)
+    public void testDrainedSplitQueueChangesStatus()
+            throws Exception
+    {
+        // a task whose splits all finished, more splits pending, reports a new status: the coordinator holds back
+        // splits while its last view of the task's split queue shows it full
+        SqlTask sqlTask = createInitialTask();
+        long version = sqlTask.getTaskStatus().version();
+        sqlTask.updateTask(
+                TEST_SESSION,
+                Span.getInvalid(),
+                Optional.of(PLAN_FRAGMENT),
+                ImmutableMap.of(),
+                ImmutableList.of(new SplitAssignment(TABLE_SCAN_NODE_ID, ImmutableSet.of(SPLIT), false)),
+                PipelinedOutputBuffers.createInitial(PARTITIONED).withBuffer(OUT, 0).withNoMoreBufferIds(),
+                ImmutableMap.of(),
+                false);
+        // the split's page reaches the buffer; its driver then finishes, with the task still running
+        sqlTask.getTaskResults(OUT, 0, DataSize.of(1, MEGABYTE)).get();
+        TaskStatus status = sqlTask.getTaskStatus(version).get();
+        while (status.runningPartitionedDrivers() + status.queuedPartitionedDrivers() > 0) {
+            status = sqlTask.getTaskStatus(status.version()).get();
+        }
+        assertThat(status.state()).isEqualTo(TaskState.RUNNING);
+        assertThat(status.version()).isGreaterThan(version);
+        sqlTask.cancel();
+    }
+
+    @Test
+    @Timeout(30)
     public void testSimpleQuery()
             throws Exception
     {
@@ -384,7 +413,8 @@ public class TestSqlTask
                 Span.getInvalid(),
                 Optional.of(PLAN_FRAGMENT_WITH_DYNAMIC_FILTER_SOURCE),
                 ImmutableMap.of(),
-                ImmutableList.of(new SplitAssignment(TABLE_SCAN_NODE_ID, ImmutableSet.of(SPLIT), false)),
+                // no split: a split's driver finishing would change the status too (its drained split queue)
+                ImmutableList.of(new SplitAssignment(TABLE_SCAN_NODE_ID, ImmutableSet.of(), false)),
                 PipelinedOutputBuffers.createInitial(PARTITIONED)
                         .withBuffer(OUT, 0)
                         .withNoMoreBufferIds(),

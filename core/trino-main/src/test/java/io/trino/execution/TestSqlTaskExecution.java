@@ -141,7 +141,8 @@ public class TestSqlTaskExecution
                     localExecutionPlan,
                     taskExecutor,
                     noopTracer(),
-                    taskNotificationExecutor);
+                    taskNotificationExecutor,
+                    () -> {});
             sqlTaskExecution.start();
 
             //

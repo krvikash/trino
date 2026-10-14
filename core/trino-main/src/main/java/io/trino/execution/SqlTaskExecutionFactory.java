@@ -104,6 +104,7 @@ public class SqlTaskExecutionFactory
                 localExecutionPlan,
                 taskExecutor,
                 tracer,
-                taskNotificationExecutor);
+                taskNotificationExecutor,
+                notifyStatusChanged);
     }
 }
