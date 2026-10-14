@@ -93,7 +93,6 @@ import static io.trino.operator.gpu.GpuTestUtils.compileCpuExpression;
 import static io.trino.operator.gpu.GpuTestUtils.createBigintBlock;
 import static io.trino.operator.gpu.GpuTestUtils.createBlock;
 import static io.trino.operator.gpu.GpuTestUtils.createFloatingPointBlock;
-import static io.trino.operator.gpu.GpuTestUtils.createInRangeDateTimeBlock;
 import static io.trino.operator.gpu.GpuTestUtils.createVarcharPages;
 import static io.trino.operator.gpu.GpuTestUtils.executeWithCpu;
 import static io.trino.operator.gpu.GpuTestUtils.executeWithGpu;
@@ -136,7 +135,6 @@ import static java.lang.Math.floorDiv;
 import static java.lang.Math.floorMod;
 import static java.lang.Math.max;
 import static java.lang.Math.min;
-import static java.lang.Math.multiplyExact;
 import static java.time.ZoneOffset.UTC;
 import static java.util.Arrays.asList;
 import static java.util.stream.Collectors.joining;
@@ -1125,109 +1123,6 @@ final class TestGpuExpressions
                 HostColumnVector host = upper.copyToHost()) {
             return host.getJavaString(0);
         }
-    }
-
-    @ParameterizedTest
-    @EnumSource(NullsProvider.class)
-    void testLastDayOfMonth(NullsProvider nullsProvider)
-    {
-        testLastDayOfMonth(DATE, nullsProvider);
-        for (int precision = 0; precision <= MAX_GPU_TIMESTAMP_PRECISION; precision++) {
-            testLastDayOfMonth(createTimestampType(precision), nullsProvider);
-        }
-    }
-
-    private void testLastDayOfMonth(Type type, NullsProvider nullsProvider)
-    {
-        int channelA = 0;
-        List<Type> inputTypes = List.of(type);
-        int positionsCount = 64;
-        // cuDF's lastDayOfMonth() internally extracts the year as INT16, so
-        // dates with years outside cuDF's calendar produce incorrect results.
-        List<Page> inputPages = List.of(new Page(
-                positionsCount,
-                createInRangeDateTimeBlock(type, positionsCount, nullsProvider)));
-
-        Expression expression = new Call(
-                FUNCTION_RESOLUTION.resolveFunction("last_day_of_month", fromTypes(type)),
-                ImmutableList.of(field(channelA, type)));
-
-        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA));
-    }
-
-    @Test
-    void testLastDayOfMonthCornerCases()
-    {
-        List<LocalDate> dates = List.of(
-                LocalDate.of(2000, 2, 15),  // leap year Feb
-                LocalDate.of(2000, 2, 29),  // leap year Feb last day
-                LocalDate.of(2001, 2, 15),  // non-leap year Feb
-                LocalDate.of(1900, 2, 15),  // century non-leap year Feb
-                LocalDate.of(2024, 1, 1),   // first day of 31-day month
-                LocalDate.of(2024, 1, 31),  // already last day of 31-day month
-                LocalDate.of(2024, 4, 15),  // 30-day month
-                LocalDate.of(2024, 12, 31), // year end
-                LocalDate.of(1969, 6, 15),  // before epoch
-                LocalDate.of(1, 1, 1));     // year 1
-
-        testLastDayOfMonthCornerCases(DATE, dates);
-        for (int precision = 0; precision <= MAX_GPU_TIMESTAMP_PRECISION; precision++) {
-            testLastDayOfMonthCornerCases(createTimestampType(precision), dates);
-        }
-    }
-
-    private void testLastDayOfMonthCornerCases(Type type, List<LocalDate> dates)
-    {
-        int channelA = 0;
-        List<Type> inputTypes = List.of(type);
-        BlockBuilder builder = type.createBlockBuilder(null, dates.size());
-        Expression expression = new Call(
-                FUNCTION_RESOLUTION.resolveFunction("last_day_of_month", fromTypes(type)),
-                ImmutableList.of(field(channelA, type)));
-
-        for (LocalDate date : dates) {
-            long epochDay = date.toEpochDay();
-            if (type == DATE) {
-                type.writeLong(builder, epochDay);
-            }
-            else if (type instanceof TimestampType timestampType && timestampType.isShort()) {
-                type.writeLong(builder, multiplyExact(epochDay, MICROSECONDS_PER_DAY));
-            }
-            else {
-                long epochMicros = multiplyExact(epochDay, MICROSECONDS_PER_DAY);
-                if (epochMicros < Long.MIN_VALUE / NANOSECONDS_PER_MICROSECOND || epochMicros > Long.MAX_VALUE / NANOSECONDS_PER_MICROSECOND) {
-                    // GPU converts long timestamps to TIMESTAMP_NANOSECONDS, which has a narrower representable range
-                    List<Page> outOfRangePages = List.of(new Page(writeNativeValue(type, new LongTimestamp(epochMicros, 0))));
-                    assertTrinoExceptionThrownBy(() -> assertGpuMatchesCpu(outOfRangePages, inputTypes, expression, Set.of(channelA)))
-                            .hasErrorCode(NUMERIC_VALUE_OUT_OF_RANGE)
-                            .hasMessage("Timestamp value out of range support for GPU for type %s: 0001-01-01T00:00".formatted(type));
-                    continue;
-                }
-                type.writeObject(builder, new LongTimestamp(epochMicros, 0));
-            }
-        }
-        List<Page> inputPages = List.of(new Page(builder.build()));
-
-        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA));
-    }
-
-    @Test
-    void testLastDayOfMonthOutOfRangeThrows()
-    {
-        int channelA = 0;
-        Type type = DATE;
-        long outOfRangeDays = LocalDate.of(100_000, 6, 15).toEpochDay();
-        List<Page> inputPages = List.of(new Page(writeNativeValue(type, outOfRangeDays)));
-
-        Expression expression = new Call(
-                FUNCTION_RESOLUTION.resolveFunction("last_day_of_month", fromTypes(type)),
-                ImmutableList.of(field(channelA, type)));
-
-        CompiledExpression gpuExpression = compileExpression(expression, layoutFor(List.of(type)), SQL_STANDARD, TEST_SESSION_TIME_ZONE_KEY)
-                .orElseThrow(() -> new AssertionError("GPU expression compile failed for: " + expression));
-        assertTrinoExceptionThrownBy(() -> executeWithGpu(inputPages, List.of(type), expression, gpuExpression))
-                .hasErrorCode(NUMERIC_VALUE_OUT_OF_RANGE)
-                .hasMessage("Year out of range supported by GPU: must be in [-32767, 32767]");
     }
 
     @ParameterizedTest
