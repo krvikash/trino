@@ -507,6 +507,15 @@ public final class GpuExpressionCompiler
                 return compilePad(call, PadSide.RIGHT, context);
             }
 
+            if (name.equals("to_utf8") && call.arguments().size() == 1) {
+                Expression argument = getOnlyElement(call.arguments());
+                // The GPU carries char(n) padded with spaces, which is the padding to_utf8(char(n)) adds on the CPU
+                if (argument.type() instanceof VarcharType || argument.type() instanceof CharType) {
+                    return argument.accept(this, context)
+                            .map(GpuToUtf8::new);
+                }
+            }
+
             return Optional.empty();
         }
 
