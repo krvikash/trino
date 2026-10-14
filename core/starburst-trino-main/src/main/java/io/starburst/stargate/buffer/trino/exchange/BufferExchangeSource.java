@@ -127,16 +127,24 @@ public class BufferExchangeSource
     }
 
     // runs where no memory report follows, so it starts a reader only when the consumer has nothing to read
+    // and wakes the consumer, whose next poll reports the new reservation
     private void scheduleReadChunks()
     {
         List<ChunkReader> newChunkReaders;
+        CompletableFuture<Void> futureToUnblock = null;
         synchronized (this) {
             if (readSlicesHasElements) {
                 return;
             }
             newChunkReaders = doScheduleReadChunks(1);
+            if (!newChunkReaders.isEmpty()) {
+                futureToUnblock = isBlockedReference.get();
+            }
         }
         newChunkReaders.forEach(ChunkReader::start);
+        if (futureToUnblock != null) {
+            futureToUnblock.complete(null);
+        }
     }
 
     // the exchange data source reports getMemoryUsage() after read() and addInput(), which includes the memory reserved here

@@ -33,6 +33,7 @@ import org.junit.jupiter.api.TestInstance;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.stream.IntStream;
@@ -121,6 +122,28 @@ public class TestBufferExchangeSource
         dataApi.respond(PARALLELISM, ImmutableList.of(dataPage()));
         assertThat(dataApi.requestCount()).isEqualTo(PARALLELISM + 1);
         assertThat(source.isBlocked()).isDone();
+    }
+
+    @Test
+    public void testReaderStartedAfterEmptyChunkUnblocksConsumer()
+    {
+        TestingDataApiFacade dataApi = new TestingDataApiFacade(executor);
+        BufferExchangeSource source = createSource(dataApi);
+        source.setOutputSelector(OUTPUT_SELECTOR);
+        source.addSourceHandles(ImmutableList.of(sourceHandle(PARALLELISM + 1)));
+
+        for (int request = 0; request < PARALLELISM - 1; request++) {
+            dataApi.respond(request, ImmutableList.of());
+        }
+        CompletableFuture<Void> blocked = source.isBlocked();
+        assertThat(blocked).isNotDone();
+
+        dataApi.respond(PARALLELISM - 1, ImmutableList.of());
+        assertThat(dataApi.requestCount()).isEqualTo(PARALLELISM + 1);
+        assertThat(blocked).isDone();
+        assertThat(source.read()).isNull();
+        assertThat(source.getMemoryUsage()).isBetween((long) CHUNK_SIZE, 2L * CHUNK_SIZE);
+        assertThat(source.isBlocked()).isNotDone();
     }
 
     @Test
