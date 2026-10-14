@@ -112,10 +112,7 @@ public abstract class BaseIcebergTpcdsWorkload
             throws Exception
     {
         if (isRemote(dataLocation)) {
-            if (warpIndexDirectory.isPresent()) {
-                throw new IllegalArgumentException("--warp-index requires a local --data location for Iceberg benchmarks");
-            }
-            return createRunnerForRemoteData(dataLocation, mode, bind8080, serverProperties, fsCacheDirectory);
+            return createRunnerForRemoteData(dataLocation, mode, bind8080, serverProperties, fsCacheDirectory, warpIndexDirectory);
         }
         Path minioDataDir = Path.of(dataLocation, "minio-data");
         Files.createDirectories(minioDataDir);
@@ -142,17 +139,14 @@ public abstract class BaseIcebergTpcdsWorkload
         registerTables(minio, hiveMetastore, "starburst-benchmarks-data", dataLocation, "tpcds", TABLES, "iceberg-tpcds-sf%d-parquet".formatted(scaleFactor));
 
         if (warpIndexDirectory.isPresent()) {
-            Map<String, String> warpProxiedProperties = new HashMap<>(icebergProperties);
-            warpProxiedProperties.put("iceberg.catalog.type", "TESTING_FILE_METASTORE");
-            createWarpCatalog(runner, "iceberg", warpProxiedProperties, Path.of(dataLocation), Path.of(dataLocation, "iceberg"), warpIndexDirectory.get());
-            benchmarkCatalog = WARP_CATALOG;
+            addWarpCatalog(runner, icebergProperties, Path.of(dataLocation), warpIndexDirectory.get());
         }
 
         return runner;
     }
 
     // Reads the tables in place from S3 with the default AWS credential chain.
-    private DistributedQueryRunner createRunnerForRemoteData(String dataLocation, BenchmarkRunner.ExecutionMode mode, boolean bind8080, Map<String, String> serverProperties, Optional<Path> fsCacheDirectory)
+    private DistributedQueryRunner createRunnerForRemoteData(String dataLocation, BenchmarkRunner.ExecutionMode mode, boolean bind8080, Map<String, String> serverProperties, Optional<Path> fsCacheDirectory, Optional<Path> warpIndexDirectory)
             throws Exception
     {
         Map<String, String> icebergProperties = new HashMap<>();
@@ -177,6 +171,10 @@ public abstract class BaseIcebergTpcdsWorkload
             }
             log.info("Registering table %s at %s", table, matches.getFirst());
             runner.execute("CALL iceberg.system.register_table(schema_name => 'tpcds', table_name => '%s', table_location => '%s')".formatted(table, matches.getFirst()));
+        }
+
+        if (warpIndexDirectory.isPresent()) {
+            addWarpCatalog(runner, icebergProperties, metastoreDirectory, warpIndexDirectory.get());
         }
 
         // Denying INSERT also denies ANALYZE, so runs never write statistics to the S3 dataset.
@@ -209,6 +207,14 @@ public abstract class BaseIcebergTpcdsWorkload
         DistributedQueryRunner runner = builder.addIcebergProperties(icebergProperties).build();
         runner.execute("CREATE SCHEMA IF NOT EXISTS iceberg.tpcds");
         return runner;
+    }
+
+    private void addWarpCatalog(DistributedQueryRunner runner, Map<String, String> icebergProperties, Path metastoreDirectory, Path warpIndexDirectory)
+    {
+        Map<String, String> warpProxiedProperties = new HashMap<>(icebergProperties);
+        warpProxiedProperties.put("iceberg.catalog.type", "TESTING_FILE_METASTORE");
+        createWarpCatalog(runner, "iceberg", warpProxiedProperties, metastoreDirectory, metastoreDirectory.resolve("iceberg"), warpIndexDirectory);
+        benchmarkCatalog = WARP_CATALOG;
     }
 
     @Override
