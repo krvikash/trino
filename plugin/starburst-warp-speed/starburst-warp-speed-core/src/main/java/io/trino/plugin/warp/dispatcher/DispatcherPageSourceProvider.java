@@ -34,6 +34,9 @@ import io.trino.spi.connector.ConnectorTransactionHandle;
 import io.trino.spi.connector.DynamicFilter;
 import io.trino.spi.connector.MemoryContext;
 import io.trino.spi.connector.SchemaTableName;
+import io.trino.spi.gpu.ConnectorGpuMemoryContext;
+import io.trino.spi.gpu.ConnectorGpuPageSource;
+import io.trino.spi.gpu.IoExecutor;
 import io.trino.spi.predicate.TupleDomain;
 
 import java.util.List;
@@ -72,6 +75,43 @@ public class DispatcherPageSourceProvider
         this.globalConfig = requireNonNull(globalConfig);
         this.catalogName = requireNonNull(catalogName);
         this.filteringStatsCache = requireNonNull(filteringStatsCache);
+    }
+
+    @Override
+    public Optional<ConnectorGpuPageSource> createGpuPageSource(
+            ConnectorTransactionHandle transactionHandle,
+            ConnectorSession session,
+            ConnectorSplit split,
+            ConnectorTableHandle table,
+            Optional<ConnectorTableCredentials> tableCredentials,
+            List<ColumnHandle> columns,
+            DynamicFilter dynamicFilter,
+            ConnectorGpuMemoryContext memoryContext,
+            IoExecutor ioExecutor)
+    {
+        if (split instanceof DispatcherSplit dispatcherSplit && table instanceof DispatcherTableHandle dispatcherTableHandle) {
+            // Warp's index and warmup are not GPU-aware, so the proxied connector serves the scan
+            return connectorPageSourceProvider.createGpuPageSource(
+                    transactionHandle,
+                    session,
+                    dispatcherSplit.proxyConnectorSplit(),
+                    dispatcherTableHandle.getProxyConnectorTableHandle(),
+                    tableCredentials,
+                    columns,
+                    dynamicFilter,
+                    memoryContext,
+                    ioExecutor);
+        }
+        return connectorPageSourceProvider.createGpuPageSource(
+                transactionHandle,
+                session,
+                split,
+                table,
+                tableCredentials,
+                columns,
+                dynamicFilter,
+                memoryContext,
+                ioExecutor);
     }
 
     @Override

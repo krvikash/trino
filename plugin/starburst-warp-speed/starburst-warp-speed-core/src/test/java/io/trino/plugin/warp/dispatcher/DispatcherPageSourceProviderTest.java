@@ -63,6 +63,10 @@ import io.trino.spi.connector.DynamicFilter;
 import io.trino.spi.connector.EmptyPageSource;
 import io.trino.spi.connector.MemoryContext;
 import io.trino.spi.connector.SchemaTableName;
+import io.trino.spi.gpu.ConnectorGpuMemoryContext;
+import io.trino.spi.gpu.ConnectorGpuPageSource;
+import io.trino.spi.gpu.EmptyGpuPageSource;
+import io.trino.spi.gpu.IoExecutor;
 import io.trino.spi.predicate.Domain;
 import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.type.IntegerType;
@@ -79,6 +83,9 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
@@ -86,6 +93,7 @@ import static io.trino.plugin.warp.dispatcher.WarmupTestDataUtil.generateRowGrou
 import static io.trino.plugin.warp.dispatcher.WarmupTestDataUtil.mockColumns;
 import static io.trino.plugin.warp.dispatcher.WarmupTestDataUtil.mockDispatcherTableHandle;
 import static io.trino.plugin.warp.util.NodeUtils.mockNodeManager;
+import static io.trino.testing.InterfaceTestUtils.assertAllMethodsOverridden;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -173,6 +181,112 @@ public class DispatcherPageSourceProviderTest
         dispatcherPageSourceProvider = createDispatcherPageSourceProvider();
 
         dynamicFilter = DynamicFilter.EMPTY;
+    }
+
+    @Test
+    public void testEverythingImplemented()
+            throws NoSuchMethodException
+    {
+        assertAllMethodsOverridden(
+                ConnectorPageSourceProvider.class,
+                DispatcherPageSourceProvider.class,
+                Set.of(
+                        // Deprecated methods
+                        ConnectorPageSourceProvider.class.getMethod(
+                                "createPageSource",
+                                ConnectorTransactionHandle.class,
+                                ConnectorSession.class,
+                                ConnectorSplit.class,
+                                ConnectorTableHandle.class,
+                                Optional.class,
+                                List.class,
+                                DynamicFilter.class)));
+    }
+
+    @Test
+    public void testCreateGpuPageSourceReadsFromProxiedConnector()
+    {
+        RecordingGpuPageSourceProvider proxiedProvider = new RecordingGpuPageSourceProvider();
+        DispatcherPageSourceProvider provider = createGpuDispatcherPageSourceProvider(proxiedProvider);
+        Optional<ConnectorTableCredentials> tableCredentials = Optional.of(new ConnectorTableCredentials() {});
+        DynamicFilter gpuDynamicFilter = new CompletedDynamicFilter(TupleDomain.none());
+        ConnectorGpuMemoryContext memoryContext = _ -> {
+            throw new UnsupportedOperationException();
+        };
+        IoExecutor ioExecutor = new IoExecutor()
+        {
+            @Override
+            public <T> CompletableFuture<T> submit(Callable<T> task)
+            {
+                throw new UnsupportedOperationException();
+            }
+        };
+
+        Optional<ConnectorGpuPageSource> result = provider.createGpuPageSource(
+                connectorTransactionHandle,
+                connectorSession,
+                dispatcherSplit,
+                dispatcherTableHandle,
+                tableCredentials,
+                columnHandles,
+                gpuDynamicFilter,
+                memoryContext,
+                ioExecutor);
+
+        assertThat(result).containsSame(proxiedProvider.pageSource);
+        assertThat(proxiedProvider.lastTransaction).isSameAs(connectorTransactionHandle);
+        assertThat(proxiedProvider.lastSession).isSameAs(connectorSession);
+        assertThat(proxiedProvider.lastSplit).isSameAs(dispatcherSplit.proxyConnectorSplit());
+        assertThat(proxiedProvider.lastTable).isSameAs(dispatcherTableHandle.getProxyConnectorTableHandle());
+        assertThat(proxiedProvider.lastTableCredentials).isSameAs(tableCredentials);
+        assertThat(proxiedProvider.lastColumns).isSameAs(columnHandles);
+        assertThat(proxiedProvider.lastDynamicFilter).isSameAs(gpuDynamicFilter);
+        assertThat(proxiedProvider.lastMemoryContext).isSameAs(memoryContext);
+        assertThat(proxiedProvider.lastIoExecutor).isSameAs(ioExecutor);
+    }
+
+    @Test
+    public void testCreateGpuPageSourcePassesThroughNonDispatcherSplitAndTable()
+    {
+        RecordingGpuPageSourceProvider proxiedProvider = new RecordingGpuPageSourceProvider();
+        DispatcherPageSourceProvider provider = createGpuDispatcherPageSourceProvider(proxiedProvider);
+        ConnectorSplit rawSplit = new ConnectorSplit() {};
+        ConnectorTableHandle rawTable = new ConnectorTableHandle() {};
+        Optional<ConnectorTableCredentials> tableCredentials = Optional.of(new ConnectorTableCredentials() {});
+        DynamicFilter gpuDynamicFilter = new CompletedDynamicFilter(TupleDomain.none());
+        ConnectorGpuMemoryContext memoryContext = _ -> {
+            throw new UnsupportedOperationException();
+        };
+        IoExecutor ioExecutor = new IoExecutor()
+        {
+            @Override
+            public <T> CompletableFuture<T> submit(Callable<T> task)
+            {
+                throw new UnsupportedOperationException();
+            }
+        };
+
+        Optional<ConnectorGpuPageSource> result = provider.createGpuPageSource(
+                connectorTransactionHandle,
+                connectorSession,
+                rawSplit,
+                rawTable,
+                tableCredentials,
+                columnHandles,
+                gpuDynamicFilter,
+                memoryContext,
+                ioExecutor);
+
+        assertThat(result).containsSame(proxiedProvider.pageSource);
+        assertThat(proxiedProvider.lastTransaction).isSameAs(connectorTransactionHandle);
+        assertThat(proxiedProvider.lastSession).isSameAs(connectorSession);
+        assertThat(proxiedProvider.lastSplit).isSameAs(rawSplit);
+        assertThat(proxiedProvider.lastTable).isSameAs(rawTable);
+        assertThat(proxiedProvider.lastTableCredentials).isSameAs(tableCredentials);
+        assertThat(proxiedProvider.lastColumns).isSameAs(columnHandles);
+        assertThat(proxiedProvider.lastDynamicFilter).isSameAs(gpuDynamicFilter);
+        assertThat(proxiedProvider.lastMemoryContext).isSameAs(memoryContext);
+        assertThat(proxiedProvider.lastIoExecutor).isSameAs(ioExecutor);
     }
 
     @SuppressWarnings("CheckReturnValue")
@@ -633,15 +747,25 @@ public class DispatcherPageSourceProviderTest
 
     private DispatcherPageSourceProvider createDispatcherPageSourceProvider()
     {
-        StorageEngineTxService txService = mock(StorageEngineTxService.class);
+        return new DispatcherPageSourceProvider(
+                proxiedPageSourceProvider,
+                createWarpDispatcherPageSourceFactory(),
+                mock(StorageEngineTxService.class),
+                metricsManager,
+                globalConfig,
+                "warp",
+                filteringStatsCache);
+    }
 
+    private WarpDispatcherPageSourceFactory createWarpDispatcherPageSourceFactory()
+    {
         NativeStorageStateHandler nativeStorageStateHandler = mock(NativeStorageStateHandler.class);
         when(nativeStorageStateHandler.isStorageAvailable()).thenReturn(true);
 
         QueryArgs queryArgs = mock(QueryArgs.class);
         StorageCollectorService storageCollectorService = mock(StorageCollectorService.class);
         when(storageCollectorService.getQueryArgs(any(), any())).thenReturn(queryArgs);
-        WarpDispatcherPageSourceFactory pageSourceFactory = new WarpDispatcherPageSourceFactory(
+        return new WarpDispatcherPageSourceFactory(
                 storageEngineConstants,
                 rowGroupDataService,
                 metricsManager,
@@ -659,15 +783,6 @@ public class DispatcherPageSourceProviderTest
                         new ShapingLoggerFactory(new CatalogName("f"), new SharedConfig())),
                 nativeStorageStateHandler,
                 new ShapingLoggerFactory(new CatalogName("catalog-name"), new SharedConfig()));
-
-        return new DispatcherPageSourceProvider(
-                proxiedPageSourceProvider,
-                pageSourceFactory,
-                txService,
-                metricsManager,
-                globalConfig,
-                "warp",
-                filteringStatsCache);
     }
 
     @SuppressModernizer // entries are never invalidated, so the eviction races that EvictableCacheBuilder guards against cannot happen
@@ -702,5 +817,57 @@ public class DispatcherPageSourceProviderTest
                 eq(dispatcherTableHandle),
                 eq(connectorSession)))
                 .thenReturn(queryContext);
+    }
+
+    private DispatcherPageSourceProvider createGpuDispatcherPageSourceProvider(ConnectorPageSourceProvider proxiedProvider)
+    {
+        return new DispatcherPageSourceProvider(
+                proxiedProvider,
+                createWarpDispatcherPageSourceFactory(),
+                mock(StorageEngineTxService.class),
+                metricsManager,
+                globalConfig,
+                "warp",
+                filteringStatsCache);
+    }
+
+    private static final class RecordingGpuPageSourceProvider
+            implements ConnectorPageSourceProvider
+    {
+        private final ConnectorGpuPageSource pageSource = new EmptyGpuPageSource();
+
+        private ConnectorTransactionHandle lastTransaction;
+        private ConnectorSession lastSession;
+        private ConnectorSplit lastSplit;
+        private ConnectorTableHandle lastTable;
+        private Optional<ConnectorTableCredentials> lastTableCredentials;
+        private List<ColumnHandle> lastColumns;
+        private DynamicFilter lastDynamicFilter;
+        private ConnectorGpuMemoryContext lastMemoryContext;
+        private IoExecutor lastIoExecutor;
+
+        @Override
+        public Optional<ConnectorGpuPageSource> createGpuPageSource(
+                ConnectorTransactionHandle transaction,
+                ConnectorSession session,
+                ConnectorSplit split,
+                ConnectorTableHandle table,
+                Optional<ConnectorTableCredentials> tableCredentials,
+                List<ColumnHandle> columns,
+                DynamicFilter dynamicFilter,
+                ConnectorGpuMemoryContext memoryContext,
+                IoExecutor ioExecutor)
+        {
+            lastTransaction = transaction;
+            lastSession = session;
+            lastSplit = split;
+            lastTable = table;
+            lastTableCredentials = tableCredentials;
+            lastColumns = columns;
+            lastDynamicFilter = dynamicFilter;
+            lastMemoryContext = memoryContext;
+            lastIoExecutor = ioExecutor;
+            return Optional.of(pageSource);
+        }
     }
 }
