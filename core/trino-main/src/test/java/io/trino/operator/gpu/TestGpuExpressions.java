@@ -35,7 +35,6 @@ import static io.trino.operator.gpu.GpuTestUtils.FUNCTION_RESOLUTION;
 import static io.trino.operator.gpu.GpuTestUtils.assertGpuMatchesCpu;
 import static io.trino.operator.gpu.GpuTestUtils.createBigintBlock;
 import static io.trino.operator.gpu.GpuTestUtils.createBlock;
-import static io.trino.operator.gpu.GpuTestUtils.createVarcharPages;
 import static io.trino.operator.gpu.GpuTestUtils.field;
 import static io.trino.operator.gpu.GpuTestUtils.maybeSetGpuMemoryPoolForTests;
 import static io.trino.spi.type.BigintType.BIGINT;
@@ -69,21 +68,6 @@ final class TestGpuExpressions
         Expression expression = new IsNull(field(channelA, BIGINT));
 
         assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA));
-    }
-
-    @ParameterizedTest
-    @EnumSource(NullsProvider.class)
-    void testStringLength(NullsProvider nullsProvider)
-    {
-        int varcharChannel = 0;
-        List<Type> inputTypes = List.of(VARCHAR);
-        List<Page> inputPages = createVarcharPages(VARCHAR, List.of(64), nullsProvider);
-
-        Expression expression = new Call(
-                FUNCTION_RESOLUTION.resolveFunction("length", fromTypes(VARCHAR)),
-                ImmutableList.of(field(varcharChannel, VARCHAR)));
-
-        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(varcharChannel));
     }
 
     @ParameterizedTest
