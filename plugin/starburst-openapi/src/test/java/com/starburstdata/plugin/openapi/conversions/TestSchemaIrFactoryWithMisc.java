@@ -10,6 +10,7 @@
 package com.starburstdata.plugin.openapi.conversions;
 
 import com.google.common.collect.ImmutableMap;
+import com.starburstdata.plugin.openapi.OpenApiConfig.CastPolicy;
 import com.starburstdata.plugin.openapi.OpenApiDescription;
 import com.starburstdata.plugin.openapi.SpecException;
 import com.starburstdata.plugin.openapi.conversions.ir.BooleanIr;
@@ -18,16 +19,24 @@ import com.starburstdata.plugin.openapi.conversions.ir.ObjectIr;
 import com.starburstdata.plugin.openapi.conversions.ir.SchemaIr;
 import com.starburstdata.plugin.openapi.conversions.ir.StringIr;
 import io.swagger.v3.oas.models.OpenAPI;
+import io.swagger.v3.oas.models.media.ObjectSchema;
 import io.swagger.v3.oas.models.media.Schema;
+import io.swagger.v3.oas.models.media.StringSchema;
+import io.trino.spi.TrinoException;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
 import static com.starburstdata.plugin.openapi.OpenApiConfig.CastPolicy.DROP;
 import static com.starburstdata.plugin.openapi.OpenApiConfig.CastPolicy.ERROR;
 import static com.starburstdata.plugin.openapi.SpecUtil.castSchemaMap;
+import static com.starburstdata.plugin.openapi.conversions.SchemaIrFactory.MAX_EXPANDED_SCHEMAS;
+import static com.starburstdata.plugin.openapi.conversions.SchemaIrFactory.MAX_REFERENCE_DEPTH;
+import static io.trino.spi.StandardErrorCode.CONFIGURATION_INVALID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.InstanceOfAssertFactories.list;
@@ -111,6 +120,38 @@ public class TestSchemaIrFactoryWithMisc
     }
 
     @Test
+    public void testReferenceDepthAtLimit()
+            throws SpecException
+    {
+        Map<String, Schema<?>> chain = referenceChain(MAX_REFERENCE_DEPTH - 1, 1);
+        assertThat(new SchemaIrFactory(ERROR, chain).convert(reference(0))).isNotNull();
+    }
+
+    @Test
+    public void testReferenceDepthAboveLimit()
+    {
+        Map<String, Schema<?>> chain = referenceChain(MAX_REFERENCE_DEPTH, 1);
+        for (CastPolicy castPolicy : List.of(ERROR, DROP)) {
+            assertThatThrownBy(() -> new SchemaIrFactory(castPolicy, chain).convert(reference(0)))
+                    .isInstanceOfSatisfying(TrinoException.class, e -> assertThat(e.getErrorCode()).isEqualTo(CONFIGURATION_INVALID.toErrorCode()))
+                    .hasMessageContaining("nested more than %s deep", MAX_REFERENCE_DEPTH);
+        }
+    }
+
+    @Test
+    @Timeout(10)
+    public void testExponentialExpansion()
+    {
+        // 10 sibling references per level over 10 levels expands to 10^10 schemas
+        Map<String, Schema<?>> chain = referenceChain(10, 10);
+        for (CastPolicy castPolicy : List.of(ERROR, DROP)) {
+            assertThatThrownBy(() -> new SchemaIrFactory(castPolicy, chain).convert(reference(0)))
+                    .isInstanceOfSatisfying(TrinoException.class, e -> assertThat(e.getErrorCode()).isEqualTo(CONFIGURATION_INVALID.toErrorCode()))
+                    .hasMessageContaining("expand to more than %s", MAX_EXPANDED_SCHEMAS);
+        }
+    }
+
+    @Test
     public void testBooleanSchema()
             throws SpecException
     {
@@ -136,5 +177,25 @@ public class TestSchemaIrFactoryWithMisc
                 .extracting(SpecException::path)
                 .asInstanceOf(list(String.class))
                 .containsExactly("enum");
+    }
+
+    // Following the reference to s0 and then every level visits depth + 1 references
+    private static Map<String, Schema<?>> referenceChain(int depth, int fanOut)
+    {
+        ImmutableMap.Builder<String, Schema<?>> chain = ImmutableMap.builder();
+        for (int level = 0; level < depth; level++) {
+            ObjectSchema schema = new ObjectSchema();
+            for (int property = 0; property < fanOut; property++) {
+                schema.addProperty("p" + property, reference(level + 1));
+            }
+            chain.put("s" + level, schema);
+        }
+        chain.put("s" + depth, new StringSchema());
+        return chain.buildOrThrow();
+    }
+
+    private static Schema<?> reference(int level)
+    {
+        return new Schema<>().$ref("#/components/schemas/s" + level);
     }
 }

@@ -9,6 +9,7 @@
  */
 package com.starburstdata.plugin.openapi.conversions;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -22,6 +23,7 @@ import com.starburstdata.plugin.openapi.conversions.ir.ObjectIr;
 import com.starburstdata.plugin.openapi.conversions.ir.SchemaIr;
 import com.starburstdata.plugin.openapi.conversions.ir.StringIr;
 import io.swagger.v3.oas.models.media.Schema;
+import io.trino.spi.TrinoException;
 
 import java.util.HashSet;
 import java.util.List;
@@ -30,6 +32,7 @@ import java.util.Map.Entry;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Stream;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
@@ -47,6 +50,7 @@ import static com.starburstdata.plugin.openapi.conversions.ir.StringIr.Format.DA
 import static com.starburstdata.plugin.openapi.conversions.ir.StringIr.Format.DATE_TIME;
 import static com.starburstdata.plugin.openapi.conversions.ir.StringIr.Format.NONE;
 import static com.starburstdata.plugin.openapi.conversions.ir.StringIr.Format.UUID;
+import static io.trino.spi.StandardErrorCode.CONFIGURATION_INVALID;
 import static java.lang.Boolean.TRUE;
 import static java.lang.String.format;
 import static java.lang.String.join;
@@ -61,8 +65,14 @@ import static java.util.Objects.requireNonNull;
  */
 public class SchemaIrFactory
 {
+    @VisibleForTesting
+    static final int MAX_REFERENCE_DEPTH = 32;
+    @VisibleForTesting
+    static final long MAX_EXPANDED_SCHEMAS = 1_000_000;
+
     private final CastPolicy castPolicy;
     private final Map<String, Schema<?>> referenceableSchemas;
+    private final AtomicLong expandedSchemas = new AtomicLong();
 
     public SchemaIrFactory(
             CastPolicy castPolicy,
@@ -83,6 +93,11 @@ public class SchemaIrFactory
             Set<String> visitedReferences)
             throws SpecException
     {
+        if (expandedSchemas.incrementAndGet() > MAX_EXPANDED_SCHEMAS) {
+            throw new TrinoException(
+                    CONFIGURATION_INVALID,
+                    "Schemas expand to more than %s elements".formatted(MAX_EXPANDED_SCHEMAS));
+        }
         // https://spec.openapis.org/oas/v3.0.4.html#schema-object
         // Schema is a union of keywords to use to _validate_ JSON objects.
         // Using select keywords we will derive the "meaning" of JSON objects.
@@ -127,6 +142,11 @@ public class SchemaIrFactory
                 throw new SpecException("References non-existent schema %s".formatted(key))
                         .withCause(new NoSuchElementException())
                         .fromMember("$ref");
+            }
+            if (visitedReferences.size() >= MAX_REFERENCE_DEPTH) {
+                throw new TrinoException(
+                        CONFIGURATION_INVALID,
+                        "Schema references are nested more than %s deep at %s".formatted(MAX_REFERENCE_DEPTH, ref));
             }
             try {
                 return convert(
