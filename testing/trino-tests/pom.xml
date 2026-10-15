@@ -119,6 +119,12 @@
 
         <dependency>
             <groupId>io.airlift</groupId>
+            <artifactId>jaxrs</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>io.airlift</groupId>
             <artifactId>json</artifactId>
             <scope>test</scope>
         </dependency>
@@ -180,6 +186,30 @@
         <dependency>
             <groupId>io.opentelemetry</groupId>
             <artifactId>opentelemetry-sdk-trace</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>io.starburst.stargate</groupId>
+            <artifactId>access-control-client</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>io.starburst.stargate</groupId>
+            <artifactId>access-control-client-models</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>io.starburst.stargate</groupId>
+            <artifactId>cockroach-testing</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>io.starburst.stargate</groupId>
+            <artifactId>stargate-ids</artifactId>
             <scope>test</scope>
         </dependency>
 
