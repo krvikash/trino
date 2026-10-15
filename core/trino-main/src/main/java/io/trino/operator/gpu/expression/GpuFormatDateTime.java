@@ -68,6 +68,13 @@ public final class GpuFormatDateTime
         FOUR_DIGIT,
         /// Years 1 to 9999, for `%G` (year of the ISO week)
         FOUR_DIGIT_WEEK_YEAR,
+        /**/;
+
+        /// The narrowest range covers all the others
+        YearRange narrowest(YearRange other)
+        {
+            return compareTo(other) >= 0 ? this : other;
+        }
     }
 
     private GpuFormatDateTime(GpuExpression source, String cudfFormat, YearRange yearRange)
@@ -122,17 +129,13 @@ public final class GpuFormatDateTime
                     return Optional.empty();
                 }
                 cudfFormat.append(specifier.get());
-                YearRange tokenYearRange = switch (token) {
+                yearRange = yearRange.narrowest(switch (token) {
                     case "xxxx" -> YearRange.FOUR_DIGIT_WEEK_YEAR;
                     case "yy", "yyyy" -> YearRange.FOUR_DIGIT;
                     case "ww" -> YearRange.ISO_WEEK;
                     case "DDD" -> YearRange.CUDF_CALENDAR;
                     default -> YearRange.UNCHECKED;
-                };
-                // The narrowest range covers all the others
-                if (tokenYearRange.compareTo(yearRange) > 0) {
-                    yearRange = tokenYearRange;
-                }
+                });
             }
             else {
                 appendLiteral(c, cudfFormat);
