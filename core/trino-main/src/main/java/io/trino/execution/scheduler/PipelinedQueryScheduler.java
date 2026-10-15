@@ -920,10 +920,12 @@ public class PipelinedQueryScheduler
         {
             DistributedStagesSchedulerStateMachine stateMachine = new DistributedStagesSchedulerStateMachine(queryStateMachine.getQueryId(), executor);
 
+            NodeSelector partitioningNodeSelector = nodeScheduler.createNodeSelector(queryStateMachine.getSession());
             Map<PartitioningKey, NodePartitionMap> partitioningCacheMap = new HashMap<>();
             Function<PartitioningKey, NodePartitionMap> partitioningCache = partitioningKey ->
                     partitioningCacheMap.computeIfAbsent(partitioningKey, partitioning -> nodePartitioningManager.getNodePartitioningMap(
                             queryStateMachine.getSession(),
+                            partitioningNodeSelector,
                             // TODO: support hash distributed writer scaling (https://github.com/trinodb/trino/issues/10791)
                             partitioning.handle.equals(SCALED_WRITER_HASH_DISTRIBUTION) ? FIXED_HASH_DISTRIBUTION : partitioning.handle,
                             partitioning.partitionCount));
@@ -1006,6 +1008,7 @@ public class PipelinedQueryScheduler
                         .map(stage -> requireNonNull(stageExecutions.get(stage.getStageId()), () -> "stage execution not found for stage: " + stage))
                         .collect(toImmutableList());
 
+                NodeSelector stageNodeSelector = nodeScheduler.createNodeSelector(queryStateMachine.getSession());
                 StageScheduler scheduler = createStageScheduler(
                         queryStateMachine,
                         stageExecution,
@@ -1013,7 +1016,7 @@ public class PipelinedQueryScheduler
                         spoolingOutputExchanges,
                         children,
                         partitioningCache,
-                        nodeScheduler,
+                        stageNodeSelector,
                         nodePartitioningManager,
                         splitBatchSize,
                         dynamicFilterService,
@@ -1164,7 +1167,7 @@ public class PipelinedQueryScheduler
                 Map<PlanFragmentId, Exchange> outputExchanges,
                 List<StageExecution> childStageExecutions,
                 Function<PartitioningKey, NodePartitionMap> partitioningCache,
-                NodeScheduler nodeScheduler,
+                NodeSelector nodeSelector,
                 NodePartitioningManager nodePartitioningManager,
                 int splitBatchSize,
                 DynamicFilterService dynamicFilterService,
@@ -1243,7 +1246,6 @@ public class PipelinedQueryScheduler
                     }
 
                     SplitSource splitSource = entry.getValue();
-                    NodeSelector nodeSelector = nodeScheduler.createNodeSelector(session);
                     SplitPlacementPolicy placementPolicy = new DynamicSplitPlacementPolicy(nodeSelector, stageExecution::getAllTasks);
 
                     return newSourcePartitionedSchedulerAsStageScheduler(
@@ -1265,7 +1267,6 @@ public class PipelinedQueryScheduler
                         .filter(catalog -> catalog != REMOTE_CATALOG_HANDLE)
                         .collect(toImmutableSet());
                 checkState(allCatalogHandles.size() <= 1, "table scans that are within one stage should read from same catalog");
-                NodeSelector nodeSelector = nodeScheduler.createNodeSelector(session);
                 return new MultiSourcePartitionedScheduler(
                         stageExecution,
                         partitionedSplitSources,
@@ -1290,7 +1291,7 @@ public class PipelinedQueryScheduler
                         stageExecution,
                         sourceTasksProvider,
                         writerTasksProvider,
-                        nodeScheduler.createNodeSelector(session),
+                        nodeSelector,
                         executor,
                         getWriterScalingMinDataProcessed(session),
                         partitionCount);
@@ -1344,7 +1345,7 @@ public class PipelinedQueryScheduler
             List<InternalNode> stageNodeList;
             if (fragment.getRemoteSourceNodes().stream().allMatch(node -> node.getExchangeType() == REPLICATE)) {
                 // no remote source
-                bucketNodeMap = nodePartitioningManager.getBucketNodeMap(session, partitioningHandle, forceSingleNodeQuery, partitionCount);
+                bucketNodeMap = nodePartitioningManager.getBucketNodeMap(session, nodeSelector, partitioningHandle, forceSingleNodeQuery, partitionCount);
                 stageNodeList = bucketNodeMap.getDistinctNodes();
             }
             else {
@@ -1362,7 +1363,7 @@ public class PipelinedQueryScheduler
                     stageNodeList,
                     bucketNodeMap,
                     splitBatchSize,
-                    nodeScheduler.createNodeSelector(session),
+                    nodeSelector,
                     dynamicFilterService,
                     tableExecuteContextManager,
                     planNodesToTableNames,
