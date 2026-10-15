@@ -18,7 +18,6 @@ import io.trino.spi.security.ConnectorIdentity;
 import io.trino.spi.type.TimeZoneKey;
 
 import java.time.Instant;
-import java.util.Collections;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
@@ -26,8 +25,6 @@ import java.util.Optional;
 public class DefaultFakeConnectorSession
         implements ConnectorSession
 {
-    public static final ConnectorSession INSTANCE = new DefaultFakeConnectorSession(Collections.emptyMap());
-
     private final Map<String, Object> defaultValues;
 
     public DefaultFakeConnectorSession(Map<String, Object> defaultValues)

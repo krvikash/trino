@@ -40,6 +40,7 @@ import io.trino.spi.type.VarcharType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -55,6 +56,8 @@ import static org.mockito.Mockito.when;
 
 public class PredicateContextFactoryTest
 {
+    public static final ConnectorSession SESSION = new DefaultFakeConnectorSession(Collections.emptyMap());
+
     private PredicateContextFactory predicateContextFactory;
 
     @BeforeEach
@@ -71,7 +74,6 @@ public class PredicateContextFactoryTest
     @Test
     public void test2ColumnsOnDomain()
     {
-        ConnectorSession session = DefaultFakeConnectorSession.INSTANCE;
         DynamicFilter dynamicFilter = DynamicFilter.EMPTY;
         DispatcherTableHandle dispatcherTableHandle = mock(DispatcherTableHandle.class);
         when(dispatcherTableHandle.getSimplifiedColumns()).thenReturn(new SimplifiedColumns(Set.of()));
@@ -80,7 +82,7 @@ public class PredicateContextFactoryTest
         TestingConnectorColumnHandle c2 = new TestingConnectorColumnHandle(IntegerType.INTEGER, "b");
         TupleDomain<ColumnHandle> fullPredicate = TupleDomain.withColumnDomains(Map.of(c1, domain, c2, domain));
         when(dispatcherTableHandle.getFullPredicate()).thenReturn(fullPredicate);
-        PredicateContextData predicateContextData = predicateContextFactory.create(session, dynamicFilter, dispatcherTableHandle);
+        PredicateContextData predicateContextData = predicateContextFactory.create(SESSION, dynamicFilter, dispatcherTableHandle);
         List<WarpExpression> expectedChildren = List.of(
                 convertDomainToDomainPredicateData(c1, domain),
                 convertDomainToDomainPredicateData(c2, domain));
@@ -95,7 +97,6 @@ public class PredicateContextFactoryTest
     @Test
     public void testSingleColumnOnDomain()
     {
-        ConnectorSession session = DefaultFakeConnectorSession.INSTANCE;
         DynamicFilter dynamicFilter = DynamicFilter.EMPTY;
         DispatcherTableHandle dispatcherTableHandle = mock(DispatcherTableHandle.class);
         when(dispatcherTableHandle.getSimplifiedColumns()).thenReturn(new SimplifiedColumns(Set.of()));
@@ -103,7 +104,7 @@ public class PredicateContextFactoryTest
         TestingConnectorColumnHandle c1 = new TestingConnectorColumnHandle(IntegerType.INTEGER, "a");
         TupleDomain<ColumnHandle> fullPredicate = TupleDomain.withColumnDomains(Map.of(c1, domain));
         when(dispatcherTableHandle.getFullPredicate()).thenReturn(fullPredicate);
-        PredicateContextData predicateContextData = predicateContextFactory.create(session, dynamicFilter, dispatcherTableHandle);
+        PredicateContextData predicateContextData = predicateContextFactory.create(SESSION, dynamicFilter, dispatcherTableHandle);
         assertThat(predicateContextData.getRootExpression()).isEqualTo(convertDomainToDomainPredicateData(c1, domain));
     }
 
@@ -113,7 +114,6 @@ public class PredicateContextFactoryTest
     @Test
     public void orExpression()
     {
-        ConnectorSession session = DefaultFakeConnectorSession.INSTANCE;
         DynamicFilter dynamicFilter = DynamicFilter.EMPTY;
         DispatcherTableHandle dispatcherTableHandle = mock(DispatcherTableHandle.class);
         when(dispatcherTableHandle.getSimplifiedColumns()).thenReturn(new SimplifiedColumns(Set.of()));
@@ -129,7 +129,7 @@ public class PredicateContextFactoryTest
                         convertToWarpExpressionData(expB)));
         when(dispatcherTableHandle.getWarpExpression()).thenReturn(Optional.of(warpExpression));
         when(dispatcherTableHandle.getFullPredicate()).thenReturn(TupleDomain.all());
-        PredicateContextData result = predicateContextFactory.create(session, dynamicFilter, dispatcherTableHandle);
+        PredicateContextData result = predicateContextFactory.create(SESSION, dynamicFilter, dispatcherTableHandle);
         assertThat(result.getRootExpression()).isEqualTo(expression);
     }
 
@@ -139,7 +139,6 @@ public class PredicateContextFactoryTest
     @Test
     public void andExpression()
     {
-        ConnectorSession session = DefaultFakeConnectorSession.INSTANCE;
         DynamicFilter dynamicFilter = DynamicFilter.EMPTY;
         DispatcherTableHandle dispatcherTableHandle = mock(DispatcherTableHandle.class);
         when(dispatcherTableHandle.getSimplifiedColumns()).thenReturn(new SimplifiedColumns(Set.of()));
@@ -155,7 +154,7 @@ public class PredicateContextFactoryTest
                         convertToWarpExpressionData(expB)));
         when(dispatcherTableHandle.getWarpExpression()).thenReturn(Optional.of(warpExpression));
         when(dispatcherTableHandle.getFullPredicate()).thenReturn(TupleDomain.all());
-        PredicateContextData result = predicateContextFactory.create(session, dynamicFilter, dispatcherTableHandle);
+        PredicateContextData result = predicateContextFactory.create(SESSION, dynamicFilter, dispatcherTableHandle);
         assertThat(result.getRootExpression()).isEqualTo(expression);
     }
 
@@ -165,7 +164,6 @@ public class PredicateContextFactoryTest
     @Test
     public void singleDomainWithAndExpression()
     {
-        ConnectorSession session = DefaultFakeConnectorSession.INSTANCE;
         DynamicFilter dynamicFilter = DynamicFilter.EMPTY;
         DispatcherTableHandle dispatcherTableHandle = mock(DispatcherTableHandle.class);
         when(dispatcherTableHandle.getSimplifiedColumns()).thenReturn(new SimplifiedColumns(Set.of()));
@@ -184,7 +182,7 @@ public class PredicateContextFactoryTest
                 List.of(convertToWarpExpressionData(expA),
                         convertToWarpExpressionData(expB)));
         when(dispatcherTableHandle.getWarpExpression()).thenReturn(Optional.of(warpExpression));
-        PredicateContextData result = predicateContextFactory.create(session, dynamicFilter, dispatcherTableHandle);
+        PredicateContextData result = predicateContextFactory.create(SESSION, dynamicFilter, dispatcherTableHandle);
         WarpCall expectedExpression = new WarpCall(AND_FUNCTION_NAME.getName(), List.of(expA, expB, convertDomainToDomainPredicateData(x, domain)), BOOLEAN);
         assertThat(((WarpCall) result.getRootExpression()).getFunctionName()).isEqualTo(expectedExpression.getFunctionName());
         assertThat(((WarpCall) result.getRootExpression()).getArguments()).containsExactlyInAnyOrderElementsOf(expectedExpression.getArguments());
@@ -196,7 +194,6 @@ public class PredicateContextFactoryTest
     @Test
     public void singleDomainWithOrExpression()
     {
-        ConnectorSession session = DefaultFakeConnectorSession.INSTANCE;
         DynamicFilter dynamicFilter = DynamicFilter.EMPTY;
         DispatcherTableHandle dispatcherTableHandle = mock(DispatcherTableHandle.class);
         when(dispatcherTableHandle.getSimplifiedColumns()).thenReturn(new SimplifiedColumns(Set.of()));
@@ -215,7 +212,7 @@ public class PredicateContextFactoryTest
                 List.of(convertToWarpExpressionData(expA),
                         convertToWarpExpressionData(expB)));
         when(dispatcherTableHandle.getWarpExpression()).thenReturn(Optional.of(warpExpression));
-        PredicateContextData result = predicateContextFactory.create(session, dynamicFilter, dispatcherTableHandle);
+        PredicateContextData result = predicateContextFactory.create(SESSION, dynamicFilter, dispatcherTableHandle);
         WarpCall expectedExpression = new WarpCall(AND_FUNCTION_NAME.getName(), List.of(expression, convertDomainToDomainPredicateData(x, domain)), BOOLEAN);
         assertThat(((WarpCall) result.getRootExpression()).getFunctionName()).isEqualTo(expectedExpression.getFunctionName());
         assertThat(((WarpCall) result.getRootExpression()).getArguments()).containsExactlyInAnyOrderElementsOf(expectedExpression.getArguments());
@@ -227,7 +224,6 @@ public class PredicateContextFactoryTest
     @Test
     public void domainWithSingleExpression()
     {
-        ConnectorSession session = DefaultFakeConnectorSession.INSTANCE;
         DynamicFilter dynamicFilter = DynamicFilter.EMPTY;
         DispatcherTableHandle dispatcherTableHandle = mock(DispatcherTableHandle.class);
         when(dispatcherTableHandle.getSimplifiedColumns()).thenReturn(new SimplifiedColumns(Set.of()));
@@ -241,7 +237,7 @@ public class PredicateContextFactoryTest
 
         io.trino.plugin.warp.expression.rewrite.WarpExpression warpExpression = new io.trino.plugin.warp.expression.rewrite.WarpExpression(expA, List.of(convertToWarpExpressionData(expA)));
         when(dispatcherTableHandle.getWarpExpression()).thenReturn(Optional.of(warpExpression));
-        PredicateContextData result = predicateContextFactory.create(session, dynamicFilter, dispatcherTableHandle);
+        PredicateContextData result = predicateContextFactory.create(SESSION, dynamicFilter, dispatcherTableHandle);
         WarpCall expectedExpression = new WarpCall(
                 AND_FUNCTION_NAME.getName(),
                 List.of(
@@ -258,7 +254,6 @@ public class PredicateContextFactoryTest
     @Test
     public void domainsWithSingleExpression()
     {
-        ConnectorSession session = DefaultFakeConnectorSession.INSTANCE;
         DynamicFilter dynamicFilter = DynamicFilter.EMPTY;
         DispatcherTableHandle dispatcherTableHandle = mock(DispatcherTableHandle.class);
         when(dispatcherTableHandle.getSimplifiedColumns()).thenReturn(new SimplifiedColumns(Set.of()));
@@ -273,7 +268,7 @@ public class PredicateContextFactoryTest
 
         io.trino.plugin.warp.expression.rewrite.WarpExpression warpExpression = new io.trino.plugin.warp.expression.rewrite.WarpExpression(expA, List.of(convertToWarpExpressionData(expA)));
         when(dispatcherTableHandle.getWarpExpression()).thenReturn(Optional.of(warpExpression));
-        PredicateContextData result = predicateContextFactory.create(session, dynamicFilter, dispatcherTableHandle);
+        PredicateContextData result = predicateContextFactory.create(SESSION, dynamicFilter, dispatcherTableHandle);
         WarpCall expectedExpression = new WarpCall(
                 AND_FUNCTION_NAME.getName(),
                 List.of(
@@ -291,7 +286,6 @@ public class PredicateContextFactoryTest
     @Test
     public void domainsWithOrExpression()
     {
-        ConnectorSession session = DefaultFakeConnectorSession.INSTANCE;
         DynamicFilter dynamicFilter = DynamicFilter.EMPTY;
         DispatcherTableHandle dispatcherTableHandle = mock(DispatcherTableHandle.class);
         when(dispatcherTableHandle.getSimplifiedColumns()).thenReturn(new SimplifiedColumns(Set.of()));
@@ -311,7 +305,7 @@ public class PredicateContextFactoryTest
                 List.of(convertToWarpExpressionData(expA),
                         convertToWarpExpressionData(expB)));
         when(dispatcherTableHandle.getWarpExpression()).thenReturn(Optional.of(warpExpression));
-        PredicateContextData result = predicateContextFactory.create(session, dynamicFilter, dispatcherTableHandle);
+        PredicateContextData result = predicateContextFactory.create(SESSION, dynamicFilter, dispatcherTableHandle);
         WarpCall expectedExpression = new WarpCall(
                 AND_FUNCTION_NAME.getName(),
                 List.of(
@@ -329,7 +323,6 @@ public class PredicateContextFactoryTest
     @Test
     public void domainsWithAndExpression()
     {
-        ConnectorSession session = DefaultFakeConnectorSession.INSTANCE;
         DynamicFilter dynamicFilter = DynamicFilter.EMPTY;
         DispatcherTableHandle dispatcherTableHandle = mock(DispatcherTableHandle.class);
         when(dispatcherTableHandle.getSimplifiedColumns()).thenReturn(new SimplifiedColumns(Set.of()));
@@ -349,7 +342,7 @@ public class PredicateContextFactoryTest
                 List.of(convertToWarpExpressionData(expA),
                         convertToWarpExpressionData(expB)));
         when(dispatcherTableHandle.getWarpExpression()).thenReturn(Optional.of(warpExpression));
-        PredicateContextData result = predicateContextFactory.create(session, dynamicFilter, dispatcherTableHandle);
+        PredicateContextData result = predicateContextFactory.create(SESSION, dynamicFilter, dispatcherTableHandle);
         WarpCall expectedExpression = new WarpCall(
                 AND_FUNCTION_NAME.getName(),
                 List.of(
