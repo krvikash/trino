@@ -9,6 +9,10 @@
  */
 package io.starburst.ai.client;
 
+import io.trino.testing.services.junit.Flaky;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
+
 import static io.starburst.ai.client.VendorTestModels.AZURE_OPEN_AI_RESPONSES_API_MODEL_PROVIDERS;
 import static io.starburst.ai.client.VendorTestModels.LANGUAGE_MODEL_ID;
 import static io.starburst.ai.client.VendorTestModels.LANGUAGE_MODEL_ID_NON_STREAMING;
@@ -35,5 +39,14 @@ public class TestToolUseAzureOpenAiResponsesApi
                 {LANGUAGE_MODEL_ID},
                 {LANGUAGE_MODEL_ID_NON_STREAMING},
         };
+    }
+
+    @ParameterizedTest
+    @MethodSource("modelIds")
+    @Override
+    @Flaky(issue = "https://starburstdata.atlassian.net/browse/ENG-29405", match = "StreamResetException: stream was reset: INTERNAL_ERROR")
+    public void testToolCallWithNoParameters(String modelId)
+    {
+        super.testToolCallWithNoParameters(modelId);
     }
 }
