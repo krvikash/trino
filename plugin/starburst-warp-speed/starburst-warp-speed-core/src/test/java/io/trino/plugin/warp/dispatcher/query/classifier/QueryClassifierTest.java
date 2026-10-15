@@ -18,6 +18,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import io.airlift.slice.Slice;
 import io.airlift.slice.Slices;
+import io.trino.plugin.warp.WarpSessionProperties;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.config.NativeConfig;
 import io.trino.plugin.warp.config.SharedConfig;
@@ -76,6 +77,7 @@ import io.trino.spi.type.DoubleType;
 import io.trino.spi.type.IntegerType;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.VarcharType;
+import io.trino.testing.TestingConnectorSession;
 import org.apache.lucene.search.BooleanClause;
 import org.apache.lucene.search.BooleanQuery;
 import org.junit.jupiter.api.BeforeEach;
@@ -93,7 +95,7 @@ import java.util.Optional;
 import java.util.Set;
 
 import static io.trino.plugin.warp.WarpSessionProperties.ENABLE_COLLECT_FROM_INDEX;
-import static io.trino.plugin.warp.WarpSessionProperties.ENABLE_MATCH_COLLECT;
+import static io.trino.plugin.warp.WarpSessionProperties.ENABLE_MAPPED_MATCH_COLLECT;
 import static io.trino.plugin.warp.WarpSessionProperties.PREDICATE_SIMPLIFY_THRESHOLD;
 import static io.trino.plugin.warp.dispatcher.WarmupTestDataUtil.createLuceneQueryMatchData;
 import static io.trino.plugin.warp.dispatcher.WarmupTestDataUtil.mockColumnHandle;
@@ -245,8 +247,7 @@ public class QueryClassifierTest
                 .build();
         predicateContextFactory = new PredicateContextFactory(globalConfig, dispatcherProxiedConnectorTransformer);
 
-        session = mock(ConnectorSession.class);
-        when(session.getProperty(eq(ENABLE_MATCH_COLLECT), eq(Boolean.class))).thenReturn(true);
+        session = createSession(ImmutableMap.of());
         queryClassifier = new QueryClassifier(
                 classifierFactory,
                 matchCollectIdService,
@@ -603,7 +604,7 @@ public class QueryClassifierTest
         ImmutableList<ColumnHandle> remainingCollectColumns = ImmutableList.of(matchOnlyBasicColumn);
         TupleDomain<ColumnHandle> fullPredicate = TupleDomain.withColumnDomains(Map.of(matchOnlyBasicColumn, matchDomain));
 
-        globalConfig.setPredicateSimplifyThreshold(0);
+        session = createSession(ImmutableMap.of(PREDICATE_SIMPLIFY_THRESHOLD, 0));
         when(dispatcherTableHandle.getFullPredicate()).thenReturn(fullPredicate);
         PredicateContextData predicateContextData = predicateContextFactory.create(session, DynamicFilter.EMPTY, dispatcherTableHandle);
 
@@ -782,7 +783,7 @@ public class QueryClassifierTest
     public void testGetBasicQueryContext()
     {
         int predicateThreshold = 1;
-        when(session.getProperty(eq(PREDICATE_SIMPLIFY_THRESHOLD), eq(Integer.class))).thenReturn(predicateThreshold);
+        session = createSession(ImmutableMap.of(PREDICATE_SIMPLIFY_THRESHOLD, predicateThreshold));
         TestingConnectorColumnHandle onlyDataColumnHandle = warpColumnHandles.get("v-int-data");
         TestingConnectorColumnHandle dataBasicIntColumn = warpColumnHandles.get("v-int-data-basic");
         DispatcherTableHandle dispatcherTableHandle = mockDispatcherTableHandle(schemaTableName);
@@ -809,7 +810,7 @@ public class QueryClassifierTest
     public void testGetBasicQueryContextSimplifiedDynamicFilter()
     {
         int predicateThreshold = 1;
-        when(session.getProperty(eq(PREDICATE_SIMPLIFY_THRESHOLD), eq(Integer.class))).thenReturn(predicateThreshold);
+        session = createSession(ImmutableMap.of(PREDICATE_SIMPLIFY_THRESHOLD, predicateThreshold));
         TestingConnectorColumnHandle onlyDataColumnHandle = warpColumnHandles.get("v-int-data");
         DispatcherTableHandle dispatcherTableHandle = mockDispatcherTableHandle(schemaTableName);
         Domain domain = Domain.create(SortedRangeSet.copyOf(
@@ -910,7 +911,7 @@ public class QueryClassifierTest
 
     private QueryContext classifyScanWithAnUnfilteredCollectColumn(boolean collectFromIndex)
     {
-        when(session.getProperty(eq(ENABLE_COLLECT_FROM_INDEX), eq(Boolean.class))).thenReturn(collectFromIndex);
+        session = createSession(ImmutableMap.of(ENABLE_COLLECT_FROM_INDEX, collectFromIndex));
         TestingConnectorColumnHandle matchColumn = warpColumnHandles.get("v-int-data-basic");
         TestingConnectorColumnHandle collectColumn = warpColumnHandles.get("v-int-data-basic-2");
         TupleDomain<ColumnHandle> fullPredicate = TupleDomain.withColumnDomains(
@@ -923,6 +924,18 @@ public class QueryClassifierTest
                 rowGroupData,
                 dispatcherTableHandle,
                 session);
+    }
+
+    private ConnectorSession createSession(Map<String, Object> propertyValues)
+    {
+        return TestingConnectorSession.builder()
+                .setPropertyMetadata(new WarpSessionProperties(new SharedConfig(), globalConfig).getSessionProperties())
+                .setPropertyValues(ImmutableMap.<String, Object>builder()
+                        // tests expect ordinary match collect
+                        .put(ENABLE_MAPPED_MATCH_COLLECT, false)
+                        .putAll(propertyValues)
+                        .buildOrThrow())
+                .build();
     }
 
     private DispatcherTableHandle mockDispatcherTableHandle(SchemaTableName schemaTableName)

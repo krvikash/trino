@@ -14,6 +14,7 @@
 package io.trino.plugin.warp.dispatcher;
 
 import io.trino.plugin.warp.TestingTxService;
+import io.trino.plugin.warp.WarpSessionProperties;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.config.NativeConfig;
 import io.trino.plugin.warp.config.SharedConfig;
@@ -75,6 +76,7 @@ import io.trino.spi.metrics.Metrics;
 import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.type.IntegerType;
 import io.trino.spi.type.VarcharType;
+import io.trino.testing.TestingConnectorSession;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -89,8 +91,6 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static io.trino.plugin.warp.WarpSessionProperties.ENABLE_MATCH_COLLECT;
-import static io.trino.plugin.warp.WarpSessionProperties.PREDICATE_SIMPLIFY_THRESHOLD;
 import static io.trino.plugin.warp.dispatcher.WarmupTestDataUtil.generateRowGroupData;
 import static io.trino.plugin.warp.dispatcher.WarmupTestDataUtil.mockColumns;
 import static io.trino.plugin.warp.util.NodeUtils.mockNodeManager;
@@ -133,9 +133,9 @@ public class DispatcherPageSourceFactoryTest
                 List.of(),
                 "",
                 mock(ConnectorSplit.class));
-        connectorSession = mock(ConnectorSession.class);
-        when(connectorSession.getProperty(eq(PREDICATE_SIMPLIFY_THRESHOLD), any())).thenReturn(1_000_000);
-        when(connectorSession.getProperty(eq(ENABLE_MATCH_COLLECT), any())).thenReturn(true);
+        connectorSession = TestingConnectorSession.builder()
+                .setPropertyMetadata(new WarpSessionProperties(new SharedConfig(), new GlobalConfig()).getSessionProperties())
+                .build();
         connectorPageSourceProvider = mock(ConnectorPageSourceProvider.class);
         proxiedTransactionHandle = mock(TestingConnectorTransactionHandle.class);
 

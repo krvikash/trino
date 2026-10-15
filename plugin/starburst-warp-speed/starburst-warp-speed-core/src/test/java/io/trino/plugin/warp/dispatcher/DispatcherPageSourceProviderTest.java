@@ -18,6 +18,7 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.airlift.slice.Slices;
+import io.trino.plugin.warp.WarpSessionProperties;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.config.MetricsConfig;
 import io.trino.plugin.warp.config.SharedConfig;
@@ -74,6 +75,7 @@ import io.trino.spi.predicate.TupleDomain;
 import io.trino.spi.type.IntegerType;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.VarcharType;
+import io.trino.testing.TestingConnectorSession;
 import io.trino.testing.TestingMetadata;
 import org.gaul.modernizer_maven_annotations.SuppressModernizer;
 import org.junit.jupiter.api.BeforeEach;
@@ -145,8 +147,9 @@ public class DispatcherPageSourceProviderTest
         workerWarmingService = mock(WorkerWarmingService.class);
         StorageEngine storageEngine = new StubsStorageEngine();
         storageEngineConstants = spy(new StubsStorageEngineConstants());
-        connectorSession = mock(ConnectorSession.class);
-        when(connectorSession.getQueryId()).thenReturn("test-query-id");
+        connectorSession = TestingConnectorSession.builder()
+                .setPropertyMetadata(new WarpSessionProperties(new SharedConfig(), new GlobalConfig()).getSessionProperties())
+                .build();
         dispatcherProxiedConnectorTransformer = mock(DispatcherProxiedConnectorTransformer.class);
         when(dispatcherProxiedConnectorTransformer.isValidForAcceleration(any())).thenReturn(true);
 

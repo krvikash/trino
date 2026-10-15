@@ -178,7 +178,7 @@ public final class WarpSessionProperties
             ConnectorSession session,
             NativeConfig nativeConfig)
     {
-        String properties = getProperty(session, UNSUPPORTED_NATIVE_FUNCTIONS, String.class);
+        String properties = session.getProperty(UNSUPPORTED_NATIVE_FUNCTIONS, String.class);
         if (properties == null) {
             return nativeConfig.getUnsupportedNativeFunctions();
         }
@@ -199,7 +199,7 @@ public final class WarpSessionProperties
 
     public static Set<String> getUnsupportedFunctions(ConnectorSession session, GlobalConfig globalConfig)
     {
-        String properties = getProperty(session, UNSUPPORTED_FUNCTIONS, String.class);
+        String properties = session.getProperty(UNSUPPORTED_FUNCTIONS, String.class);
         if (properties == null) {
             return globalConfig.getUnsupportedFunctions();
         }
@@ -218,80 +218,62 @@ public final class WarpSessionProperties
 
     public static boolean isEmptyQuery(ConnectorSession session)
     {
-        if (session == null) {
-            return false;
-        }
-        Boolean ret = getProperty(session, EMPTY_QUERY, Boolean.class);
-        return ret != null ? ret : false;
+        return session.getProperty(EMPTY_QUERY, Boolean.class);
     }
 
     public static boolean isBypassEnabled(ConnectorSession session)
     {
-        if (session == null) {
-            return false;
-        }
-        Boolean ret = getProperty(session, ENABLE_BYPASS, Boolean.class);
-        return ret != null ? ret : false;
+        return session.getProperty(ENABLE_BYPASS, Boolean.class);
     }
 
     public static boolean isDefaultWarmingIndex(ConnectorSession session)
     {
-        return getProperty(session, ENABLE_DEFAULT_WARMING_INDEX, Boolean.class);
+        return session.getProperty(ENABLE_DEFAULT_WARMING_INDEX, Boolean.class);
     }
 
     public static Boolean getEnableImportExport(ConnectorSession session)
     {
-        return session == null ? null : getProperty(session, ENABLE_IMPORT_EXPORT, Boolean.class);
+        return session == null ? null : session.getProperty(ENABLE_IMPORT_EXPORT, Boolean.class);
     }
 
     public static boolean getEnabledMappedMatchCollect(ConnectorSession session)
     {
-        Boolean ret = getProperty(session, ENABLE_MAPPED_MATCH_COLLECT, Boolean.class);
-        return ret != null ? ret : false;
+        return session.getProperty(ENABLE_MAPPED_MATCH_COLLECT, Boolean.class);
     }
 
     public static boolean getEnabledVarcharMappedMatchCollect(ConnectorSession session)
     {
-        Boolean ret = getProperty(session, ENABLE_VARCHAR_MAPPED_MATCH_COLLECT, Boolean.class);
-        return ret != null ? ret : false;
+        return session.getProperty(ENABLE_VARCHAR_MAPPED_MATCH_COLLECT, Boolean.class);
     }
 
     public static boolean getEnabledInverseWithNulls(ConnectorSession session)
     {
-        Boolean ret = getProperty(session, ENABLE_INVERSE_WITH_NULLS, Boolean.class);
-        return ret != null ? ret : false;
+        return session.getProperty(ENABLE_INVERSE_WITH_NULLS, Boolean.class);
     }
 
     public static boolean isCollectFromIndexEnabled(ConnectorSession session)
     {
-        Boolean value = getProperty(session, ENABLE_COLLECT_FROM_INDEX, Boolean.class);
-        if (value == null) {
-            return false;
-        }
-        return value;
+        return session.getProperty(ENABLE_COLLECT_FROM_INDEX, Boolean.class);
     }
 
     public static boolean getEnableMatchCollect(ConnectorSession session)
     {
-        Boolean ret = getProperty(session, ENABLE_MATCH_COLLECT, Boolean.class);
-        return ret != null ? ret : false;
+        return session.getProperty(ENABLE_MATCH_COLLECT, Boolean.class);
     }
 
     public static boolean getEnableOrPushdown(ConnectorSession session)
     {
-        Boolean res = getProperty(session, ENABLE_OR_PUSHDOWN, Boolean.class);
-        return (res != null) ? res : false;
+        return session.getProperty(ENABLE_OR_PUSHDOWN, Boolean.class);
     }
 
     public static boolean isMinMaxFilter(ConnectorSession session)
     {
-        Boolean res = getProperty(session, MIN_MAX_FILTER, Boolean.class);
-        return (res != null) ? res : false;
+        return session.getProperty(MIN_MAX_FILTER, Boolean.class);
     }
 
     public static boolean isDebugNoPredicateBuffer(ConnectorSession session, GlobalConfig globalConfig)
     {
-        Boolean res = getProperty(session, DEBUG_NO_PREDICATE_BUFFER, Boolean.class);
+        Boolean res = session.getProperty(DEBUG_NO_PREDICATE_BUFFER, Boolean.class);
         return (res != null) ? res : globalConfig.isDebugNoPredicateBuffer();
     }
 
@@ -299,11 +281,11 @@ public final class WarpSessionProperties
             ConnectorSession session,
             CloudVendorConfig config)
     {
-        if (session == null || getProperty(session, IMPORT_EXPORT_S3_PATH, String.class) == null) {
+        if (session == null || session.getProperty(IMPORT_EXPORT_S3_PATH, String.class) == null) {
             return getS3ImportExportPath(config.getStorePath());
         }
         else {
-            return getS3ImportExportPath(getProperty(session, IMPORT_EXPORT_S3_PATH, String.class));
+            return getS3ImportExportPath(session.getProperty(IMPORT_EXPORT_S3_PATH, String.class));
         }
     }
 
@@ -317,7 +299,7 @@ public final class WarpSessionProperties
             ConnectorSession session,
             GlobalConfig globalConfig)
     {
-        Object obj = getProperty(session, PREDICATE_SIMPLIFY_THRESHOLD, Integer.class);
+        Object obj = session.getProperty(PREDICATE_SIMPLIFY_THRESHOLD, Integer.class);
         if (obj != null) {
             return (int) obj;
         }
@@ -340,22 +322,11 @@ public final class WarpSessionProperties
 
     private static double getDoubleProperty(ConnectorSession session, String name, double configValue)
     {
-        Double value = getProperty(session, name, Double.class);
+        Double value = session.getProperty(name, Double.class);
         if (value == null) {
             return configValue;
         }
         return value;
-    }
-
-    private static <T> T getProperty(ConnectorSession session, String name, Class<T> type)
-    {
-        try {
-            return session.getProperty(name, type);
-        }
-        catch (TrinoException e) {
-            logger.debug("session doesn't contains the property %s", name);
-        }
-        return null;
     }
 
     public List<PropertyMetadata<?>> getSessionProperties()
