@@ -18,7 +18,7 @@ import io.airlift.configuration.ConfigDescription;
 
 public class IcebergIncrementalMvRefreshConfig
 {
-    private boolean materializedViewIncrementalColumnRefreshEnabled;
+    private boolean materializedViewIncrementalColumnRefreshEnabled = true;
 
     public boolean isMaterializedViewIncrementalColumnRefreshEnabled()
     {

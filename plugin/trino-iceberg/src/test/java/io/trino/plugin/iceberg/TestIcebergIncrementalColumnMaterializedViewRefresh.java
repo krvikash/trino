@@ -53,8 +53,7 @@ import static io.trino.testing.assertions.TrinoExceptionAssert.assertTrinoExcept
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Integration tests for the incremental-column materialized view refresh feature
- * gated by {@code iceberg.materialized-view-incremental-column-refresh.enabled}.
+ * Integration tests for the incremental-column materialized view refresh feature.
  */
 public class TestIcebergIncrementalColumnMaterializedViewRefresh
         extends AbstractTestQueryFramework
@@ -69,7 +68,6 @@ public class TestIcebergIncrementalColumnMaterializedViewRefresh
     {
         QueryRunner queryRunner = IcebergQueryRunner.builder()
                 .setIcebergProperties(ImmutableMap.of(
-                        "iceberg.materialized-view-incremental-column-refresh.enabled", "true",
                         // Lets testIncrementalColumnWatermarkFallsBackWhenMetricsDisabled turn off column
                         // metrics on a materialized view's storage table via ALTER TABLE.
                         "iceberg.allowed-extra-properties", "write.metadata.metrics.column.event_timestamp"))

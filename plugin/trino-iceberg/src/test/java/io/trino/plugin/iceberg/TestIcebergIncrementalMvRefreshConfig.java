@@ -28,18 +28,18 @@ public class TestIcebergIncrementalMvRefreshConfig
     public void testDefaults()
     {
         assertRecordedDefaults(recordDefaults(IcebergIncrementalMvRefreshConfig.class)
-                .setMaterializedViewIncrementalColumnRefreshEnabled(false));
+                .setMaterializedViewIncrementalColumnRefreshEnabled(true));
     }
 
     @Test
     public void testExplicitPropertyMappings()
     {
         Map<String, String> properties = ImmutableMap.<String, String>builder()
-                .put("iceberg.materialized-view-incremental-column-refresh.enabled", "true")
+                .put("iceberg.materialized-view-incremental-column-refresh.enabled", "false")
                 .buildOrThrow();
 
         IcebergIncrementalMvRefreshConfig expected = new IcebergIncrementalMvRefreshConfig()
-                .setMaterializedViewIncrementalColumnRefreshEnabled(true);
+                .setMaterializedViewIncrementalColumnRefreshEnabled(false);
 
         assertFullMapping(properties, expected);
     }

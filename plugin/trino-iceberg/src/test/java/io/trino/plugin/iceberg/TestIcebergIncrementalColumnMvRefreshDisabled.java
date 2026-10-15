@@ -25,12 +25,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Verifies that the {@code incremental_column} MV property is hidden and has no
- * effect when {@code iceberg.materialized-view-incremental-column-refresh.enabled=false}
- * (the default).
+ * effect when {@code iceberg.materialized-view-incremental-column-refresh.enabled=false}.
  */
 public class TestIcebergIncrementalColumnMvRefreshDisabled
         extends AbstractTestQueryFramework
 {
+    private static final String ENABLED_CATALOG = "iceberg_incremental_column_enabled";
     private static final String TEST_SCHEMA = "incremental_column_disabled_" + randomNameSuffix();
 
     @Override
@@ -41,6 +41,9 @@ public class TestIcebergIncrementalColumnMvRefreshDisabled
                 .setIcebergProperties(ImmutableMap.of(
                         "iceberg.materialized-view-incremental-column-refresh.enabled", "false"))
                 .build();
+        queryRunner.createCatalog(ENABLED_CATALOG, "iceberg", ImmutableMap.of(
+                "iceberg.materialized-view-incremental-column-refresh.enabled", "true",
+                "hive.metastore.catalog.dir", "local:///" + ICEBERG_CATALOG));
         queryRunner.execute("CREATE SCHEMA " + ICEBERG_CATALOG + "." + TEST_SCHEMA);
         return queryRunner;
     }
@@ -61,6 +64,43 @@ public class TestIcebergIncrementalColumnMvRefreshDisabled
                 "CREATE MATERIALIZED VIEW " + mvName +
                         " WITH (incremental_column = 'ts') AS SELECT id, ts FROM " + source,
                 ".*Catalog 'iceberg' materialized view property 'incremental_column' does not exist.*");
+        assertUpdate("DROP TABLE " + source);
+    }
+
+    @Test
+    public void testIncrementalColumnPropertyNotListedWhenFlagOff()
+    {
+        assertThat(computeActual("SELECT property_name FROM system.metadata.materialized_view_properties WHERE catalog_name = '" + ICEBERG_CATALOG + "'").getOnlyColumnAsSet())
+                .contains("partitioning")
+                .doesNotContain("incremental_column");
+        assertThat(computeActual("SELECT property_name FROM system.metadata.materialized_view_properties WHERE catalog_name = '" + ENABLED_CATALOG + "'").getOnlyColumnAsSet())
+                .contains("incremental_column");
+    }
+
+    @Test
+    public void testExistingIncrementalColumnIgnoredWhenFlagOff()
+    {
+        String source = TEST_SCHEMA + ".existing_src_" + randomNameSuffix();
+        String mvName = TEST_SCHEMA + ".existing_mv_" + randomNameSuffix();
+        assertUpdate("CREATE TABLE " + source + " (id BIGINT, ts BIGINT)");
+        assertUpdate("INSERT INTO " + source + " VALUES (1, 100), (2, 200)", 2);
+        assertUpdate(
+                "CREATE MATERIALIZED VIEW " + ENABLED_CATALOG + "." + mvName +
+                        " WITH (incremental_column = 'ts') AS SELECT id, ts FROM " + ICEBERG_CATALOG + "." + source);
+        assertUpdate("REFRESH MATERIALIZED VIEW " + ENABLED_CATALOG + "." + mvName, 2);
+
+        assertThat((String) computeScalar("SHOW CREATE MATERIALIZED VIEW " + ENABLED_CATALOG + "." + mvName))
+                .contains("incremental_column = 'ts'");
+        assertThat((String) computeScalar("SHOW CREATE MATERIALIZED VIEW " + mvName))
+                .doesNotContain("incremental_column =");
+
+        // ts below the current watermark: an incremental_column refresh would skip this row
+        assertUpdate("INSERT INTO " + source + " VALUES (3, 50)", 1);
+        getQueryRunner().execute("REFRESH MATERIALIZED VIEW " + mvName);
+        assertThat(query("SELECT id, ts FROM " + mvName))
+                .matches("VALUES (BIGINT '1', BIGINT '100'), (BIGINT '2', BIGINT '200'), (BIGINT '3', BIGINT '50')");
+
+        assertUpdate("DROP MATERIALIZED VIEW " + mvName);
         assertUpdate("DROP TABLE " + source);
     }
 
