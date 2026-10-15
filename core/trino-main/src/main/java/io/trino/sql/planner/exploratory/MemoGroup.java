@@ -45,6 +45,8 @@ public class MemoGroup
     private final List<Type> groupParameterTypes;
 
     // Logically equivalent operations
+    // TODO Index operations by equality and maintain group attributes and child-group references incrementally.
+    //  Linear scans make insertion, removal, merge, and rewrite work proportional to group size and operation arity.
     private final List<MemoOperation> operations = new ArrayList<>();
 
     // Logical properties of the group, always up to date with attributes declared by operations in the group.

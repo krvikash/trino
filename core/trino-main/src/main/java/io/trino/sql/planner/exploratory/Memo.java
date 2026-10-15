@@ -34,6 +34,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.LongConsumer;
 import java.util.stream.Stream;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -69,6 +70,8 @@ import static java.util.Objects.requireNonNull;
  */
 public class Memo
 {
+    private static final LongConsumer IGNORE_WORK = _ -> {};
+
     private int rootGroup;
     private final Map<Integer, MemoGroup> groups;
     private final Map<MemoOperation, Integer> operationToGroup;
@@ -109,6 +112,17 @@ public class Memo
     public int size()
     {
         return groups.size();
+    }
+
+    long operationTokens()
+    {
+        long tokens = 0;
+        for (MemoGroup group : groups.values()) {
+            for (MemoOperation operation : group.operations()) {
+                tokens += OptimizationLimits.operationTokens(operation);
+            }
+        }
+        return tokens;
     }
 
     public MemoGroup getGroup(int groupId)
@@ -186,15 +200,23 @@ public class Memo
      * Returns the resulting merged group id, being the id of the first group.
      * The method is cycle-proof.
      */
+    @VisibleForTesting
     int mergeGroups(int firstGroupId, int secondGroupId, MemoChangesCollector changesCollector)
     {
+        return mergeGroups(firstGroupId, secondGroupId, changesCollector, IGNORE_WORK);
+    }
+
+    int mergeGroups(int firstGroupId, int secondGroupId, MemoChangesCollector changesCollector, LongConsumer consumeWork)
+    {
+        requireNonNull(consumeWork, "consumeWork is null");
         // a queue of all operations that need to be updated after merge because they reference a group that was merged into another group
         Deque<MemoOperation> operationsToUpdate = new ArrayDeque<>();
 
-        int resultGroupId = mergeGroups(firstGroupId, secondGroupId, operationsToUpdate, changesCollector);
+        int resultGroupId = mergeGroups(firstGroupId, secondGroupId, operationsToUpdate, changesCollector, consumeWork);
 
         while (!operationsToUpdate.isEmpty()) {
             MemoOperation operationToUpdate = operationsToUpdate.poll();
+            consumeWork.accept(OptimizationLimits.operationTokens(operationToUpdate));
             // get the recent version of the operation.
             // due to the non-tree structure of Memo, some operations may be enqueued for update multiple times if they reference multiple merged groups.
             // when the operation is dequeued for update, we must make sure that we use the most recent version of the operation
@@ -213,7 +235,7 @@ public class Memo
             if (foundGroupId != null) {
                 // operation already exists in Memo. merge groups recursively and remove previous operation version from the merged group
                 int updatedGroupId = operationToGroup.get(operationToUpdate);
-                mergeGroups(foundGroupId, updatedGroupId, operationsToUpdate, changesCollector);
+                mergeGroups(foundGroupId, updatedGroupId, operationsToUpdate, changesCollector, consumeWork);
                 changesCollector.recordOperationSuccession(operationToUpdate, updatedOperation, foundGroupId);
                 removeOperation(operationToUpdate, changesCollector);
             }
@@ -237,7 +259,12 @@ public class Memo
         return resultGroupId;
     }
 
-    private int mergeGroups(int firstGroupId, int secondGroupId, Deque<MemoOperation> operationsToUpdate, MemoChangesCollector changesCollector)
+    private int mergeGroups(
+            int firstGroupId,
+            int secondGroupId,
+            Deque<MemoOperation> operationsToUpdate,
+            MemoChangesCollector changesCollector,
+            LongConsumer consumeWork)
     {
         if (firstGroupId == secondGroupId) {
             return firstGroupId;
@@ -249,6 +276,9 @@ public class Memo
         Attributes firstGroupAttributesBefore = firstGroup.attributes();
         MemoGroup secondGroup = groups.get(secondGroupId);
         Attributes secondGroupAttributesBefore = secondGroup.attributes();
+
+        // Charge the merge and every operation moved from the removed group before mutation.
+        consumeWork.accept(1L + secondGroup.operations().size());
 
         // merge second group into first group so that first group becomes the merge result and first group id becomes the merged group id
         firstGroup.mergeWith(secondGroup, dialectRegistry);
@@ -265,9 +295,12 @@ public class Memo
         groups.remove(secondGroupId);
         groupToRecentId.put(secondGroupId, firstGroupId);
 
-        firstGroup.operations().forEach(operation -> operationToGroup.put(operation, firstGroupId));
+        List<MemoOperation> mergedOperations = firstGroup.operations();
+        consumeWork.accept(mergedOperations.size());
+        mergedOperations.forEach(operation -> operationToGroup.put(operation, firstGroupId));
 
         // update groupToParents mapping for the merged groups and their child groups
+        consumeWork.accept(groupToParents.get(secondGroupId).size());
         groupToParents.get(firstGroupId).addAll(groupToParents.get(secondGroupId));
         // in a cyclic memo, either of the merged groups might have secondGroupId as parent
         // remap those stale references into firstGroupId
@@ -276,27 +309,31 @@ public class Memo
             groupToParents.remove(firstGroupId, secondGroupId);
         }
         groupToParents.removeAll(secondGroupId);
-        firstGroup.getChildGroups()
-                .forEach(childGroupId -> {
-                    // in a cyclic memo, child reference might point back to the same group
-                    // references to secondGroupId are stale and should be translated to firstGroupId
-                    if (childGroupId.equals(secondGroupId)) {
-                        childGroupId = firstGroupId;
-                    }
-                    groupToParents.put(childGroupId, firstGroupId);
-                    groupToParents.remove(childGroupId, secondGroupId);
-                });
+        Set<Integer> childGroups = firstGroup.getChildGroups();
+        consumeWork.accept(childGroups.size());
+        childGroups.forEach(childGroupId -> {
+            // in a cyclic memo, child reference might point back to the same group
+            // references to secondGroupId are stale and should be translated to firstGroupId
+            if (childGroupId.equals(secondGroupId)) {
+                childGroupId = firstGroupId;
+            }
+            groupToParents.put(childGroupId, firstGroupId);
+            groupToParents.remove(childGroupId, secondGroupId);
+        });
 
         // identify and enqueue operations that need to be updated
         // TODO consider scanning only the removed group's parents instead of the surviving group's parents.
         // in a cyclic memo, parents of firstGroupId might include the same group
         // in such a case, we will correctly enqueue the current group's operations for update
-        groupToParents.get(firstGroupId).stream()
-                .map(groups::get)
-                .flatMap(group -> group.operations().stream())
-                .filter(operation -> operation.children().stream()
-                        .anyMatch(child -> child instanceof GroupChild groupChild && groupChild.groupId() == secondGroupId))
-                .forEach(operationsToUpdate::add);
+        for (int parentGroupId : groupToParents.get(firstGroupId)) {
+            for (MemoOperation operation : groups.get(parentGroupId).operations()) {
+                consumeWork.accept(OptimizationLimits.operationTokens(operation));
+                if (operation.children().stream()
+                        .anyMatch(child -> child instanceof GroupChild groupChild && groupChild.groupId() == secondGroupId)) {
+                    operationsToUpdate.add(operation);
+                }
+            }
+        }
 
         return firstGroupId;
     }

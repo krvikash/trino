@@ -16,6 +16,8 @@ package io.trino.sql.planner.exploratory;
 import io.trino.matching.Capture;
 import io.trino.matching.Pattern;
 import io.trino.sql.planner.exploratory.MemoChangesCollector.MemoChange;
+import io.trino.sql.planner.exploratory.MemoChangesCollector.OperationInsert;
+import io.trino.sql.planner.exploratory.MemoChangesCollector.SingletonGroupCreate;
 import io.trino.sql.planner.exploratory.MemoOperation.Child;
 import io.trino.sql.planner.exploratory.MemoOperation.GroupChild;
 import io.trino.sql.planner.exploratory.MemoOperation.ParameterLineage;
@@ -34,22 +36,28 @@ import java.util.Set;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.Sets.newIdentityHashSet;
+import static com.google.common.math.LongMath.saturatedAdd;
 import static java.util.Objects.requireNonNull;
 
 public class RuleApplier
 {
     private final Memo memo;
+    private final OptimizationBudget budget;
 
-    public RuleApplier(Memo memo)
+    RuleApplier(Memo memo, OptimizationBudget budget)
     {
         this.memo = requireNonNull(memo, "memo is null");
+        this.budget = requireNonNull(budget, "budget is null");
     }
 
     public List<MemoChange> applyRule(MemoOperation operation, OperationRule rule)
     {
         MemoChangesCollector changesCollector = new MemoChangesCollector();
         applyRule(operation, rule, changesCollector);
-        return changesCollector.getChanges();
+        List<MemoChange> changes = changesCollector.getChanges();
+        // Failure here is terminal because Memo has already been modified.
+        budget.consumeMemoGrowthTokens(memoGrowthTokensAdded(changes));
+        return changes;
     }
 
     private void applyRule(MemoOperation operation, OperationRule rule, MemoChangesCollector changesCollector)
@@ -67,6 +75,7 @@ public class RuleApplier
         // Collect matches first, then update Memo, so matching never observes a partially modified Memo.
         List<Result<NewMemoOperation>> results = pattern.match(operationRecent, ruleContext)
                 .map(match -> {
+                    budget.consumeOptimizationWork(1);
                     MemoOperation rootOperation = match.capture(rootCapture);
                     checkState(rootOperation == operationRecent, "Expected root operation to be the same as the matched operation");
                     return rule.apply(rootOperation, match.captures(), ruleContext);
@@ -74,10 +83,16 @@ public class RuleApplier
                 .filter(Result::isPresent)
                 .collect(toImmutableList());
 
-        // Validate all results before updating Memo, so an invalid result never leaves Memo partially modified.
+        // Reject structurally invalid or unreasonably large result graphs before updating Memo.
+        long proposedMemoGrowthTokens = 0;
         for (Result<NewMemoOperation> result : results) {
-            checkAcyclic(result.get(), rule, newIdentityHashSet(), newIdentityHashSet());
+            proposedMemoGrowthTokens = saturatedAdd(
+                    proposedMemoGrowthTokens,
+                    validateAndMeasureResult(result.get(), rule, newIdentityHashSet(), newIdentityHashSet()));
         }
+        // Reject a result that cannot fit even in an empty Memo budget before inserting it.
+        // Actual growth is charged after insertion: deduplicated and attribute-only results add no Memo growth tokens.
+        budget.checkRuleResultWithinMemoGrowthLimit(proposedMemoGrowthTokens);
 
         List<MemoOperation> resultOperations = new ArrayList<>(results.size());
         for (Result<NewMemoOperation> result : results) {
@@ -97,35 +112,67 @@ public class RuleApplier
     }
 
     /**
-     * Verify that the NewMemoOperation graph returned by the rule has no cycles. Shared acyclic sub-graphs are allowed.
-     * Operations are compared by identity.
+     * Validate the NewMemoOperation graph and return its proposed Memo-growth tokens.
+     * Shared acyclic subgraphs are allowed and measured once by identity.
      */
-    private static void checkAcyclic(NewMemoOperation operation, OperationRule rule, Set<NewMemoOperation> inProgress, Set<NewMemoOperation> validated)
+    private long validateAndMeasureResult(
+            NewMemoOperation operation,
+            OperationRule rule,
+            Set<NewMemoOperation> inProgress,
+            Set<NewMemoOperation> validated)
     {
+        budget.consumeOptimizationWork(1);
         if (validated.contains(operation)) {
-            return;
+            return 0;
         }
+        List<Object> children = operation.children();
+        budget.consumeOptimizationWork(children.size());
+        long memoGrowthTokens = OptimizationLimits.operationTokens(operation);
         checkState(inProgress.add(operation), "Rule %s produced a cyclic NewMemoOperation graph", rule.getClass().getName());
-        for (Object child : operation.children()) {
+        for (Object child : children) {
             if (child instanceof ChildGroupWithParameterLineage childGroup) {
                 for (NewMemoOperation childOperation : childGroup.childOperations()) {
-                    checkAcyclic(childOperation, rule, inProgress, validated);
+                    memoGrowthTokens = saturatedAdd(
+                            memoGrowthTokens,
+                            validateAndMeasureResult(childOperation, rule, inProgress, validated));
                 }
             }
         }
         inProgress.remove(operation);
         validated.add(operation);
+        return memoGrowthTokens;
+    }
+
+    private static long memoGrowthTokensAdded(List<MemoChange> changes)
+    {
+        long tokens = 0;
+        for (MemoChange change : changes) {
+            if (change instanceof SingletonGroupCreate(MemoOperation operation, _)) {
+                tokens = saturatedAdd(tokens, OptimizationLimits.operationTokens(operation));
+            }
+            else if (change instanceof OperationInsert(MemoOperation operation, _)) {
+                tokens = saturatedAdd(tokens, OptimizationLimits.operationTokens(operation));
+            }
+        }
+        return tokens;
     }
 
     /**
      * Insert the new operation resulting from applying the rule, and merge its group with the root operation's group.
      */
-    private MemoOperation insertOperationRuleResult(NewMemoOperation newMemoOperation, MemoOperation rootOperation, MemoChangesCollector changesCollector)
+    private MemoOperation insertOperationRuleResult(
+            NewMemoOperation newMemoOperation,
+            MemoOperation rootOperation,
+            MemoChangesCollector changesCollector)
     {
         MemoOperation newOperation = getOperation(newMemoOperation, changesCollector, new IdentityHashMap<>());
         int insertedGroupId = memo.insertOperation(newOperation, changesCollector);
         // root operation may have changed due to merges in getOperation(), so get the recent ID
-        memo.mergeGroups(memo.getGroupId(memo.getRecentVersion(rootOperation)).orElseThrow(), insertedGroupId, changesCollector);
+        memo.mergeGroups(
+                memo.getGroupId(memo.getRecentVersion(rootOperation)).orElseThrow(),
+                insertedGroupId,
+                changesCollector,
+                budget::consumeOptimizationWork);
 
         return newOperation;
     }
@@ -142,6 +189,7 @@ public class RuleApplier
             MemoChangesCollector changesCollector,
             Map<NewMemoOperation, MemoOperation> createdOperations)
     {
+        budget.consumeOptimizationWork(1);
         MemoOperation cachedOperation = createdOperations.get(newMemoOperation);
         if (cachedOperation != null) {
             MemoOperation recentOperation = memo.getRecentVersion(cachedOperation);
@@ -158,7 +206,11 @@ public class RuleApplier
                             childOperation = getOperation(operations.get(i), changesCollector, createdOperations);
                             int nextChildGroupId = memo.insertOperation(childOperation, changesCollector);
                             // childGroupId may have changed due to merges in getOperation(), so get the recent ID
-                            childGroupId = memo.mergeGroups(memo.getRecentId(childGroupId), nextChildGroupId, changesCollector);
+                            childGroupId = memo.mergeGroups(
+                                    memo.getRecentId(childGroupId),
+                                    nextChildGroupId,
+                                    changesCollector,
+                                    budget::consumeOptimizationWork);
                         }
                         return new GroupChild(childGroupId, lineage);
                     }

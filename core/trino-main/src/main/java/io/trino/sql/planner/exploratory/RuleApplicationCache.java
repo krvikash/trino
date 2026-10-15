@@ -23,7 +23,7 @@ import java.util.Set;
 
 import static io.trino.sql.planner.exploratory.rule.RuleApplicationContext.EMPTY;
 
-// TODO limit the size of the cache (ENG-20614)
+// TODO improve and bound the rule application cache (ENG-20614)
 //  - go to cache AFTER a rule was matched to the operation (before apply()),
 //    not before the match attempt
 //  - do not match every rule to every operation. Pre-filter by operation type

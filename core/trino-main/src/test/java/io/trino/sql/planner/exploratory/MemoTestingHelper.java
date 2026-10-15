@@ -80,6 +80,13 @@ public final class MemoTestingHelper
         return new MemoChangesCollector();
     }
 
+    public static RuleApplier ruleApplier(Memo memo)
+    {
+        OptimizationBudget budget = new OptimizationBudget(OptimizationLimits.defaultFor(memo.operationTokens(), 1));
+        budget.consumeMemoGrowthTokens(memo.operationTokens());
+        return new RuleApplier(memo, budget);
+    }
+
     public static List<Operation> singleConstantRow(String suffix, io.trino.spi.type.Type type, Object value)
     {
         Constant constantOperation = new Constant("%constant" + suffix, type, value);

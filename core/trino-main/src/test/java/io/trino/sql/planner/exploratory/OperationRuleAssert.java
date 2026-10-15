@@ -24,6 +24,7 @@ import java.util.function.Function;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
+import static io.trino.sql.planner.exploratory.MemoTestingHelper.ruleApplier;
 import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -90,7 +91,7 @@ public final class OperationRuleAssert
 
         public void doesNotFire()
         {
-            assertThat(applyRuleOnce(new RuleApplier(testingMemo.memo()), targetOperation()))
+            assertThat(applyRuleOnce(ruleApplier(testingMemo.memo()), targetOperation()))
                     .as("Expected rule %s not to fire", rule.getClass().getSimpleName())
                     .isFalse();
         }
@@ -100,7 +101,7 @@ public final class OperationRuleAssert
          */
         public void matches(MemoMatcher expected)
         {
-            assertThat(applyRuleOnce(new RuleApplier(testingMemo.memo()), targetOperation()))
+            assertThat(applyRuleOnce(ruleApplier(testingMemo.memo()), targetOperation()))
                     .as("Expected rule %s to fire", rule.getClass().getSimpleName())
                     .isTrue();
             expected.matches(testingMemo);
@@ -113,7 +114,7 @@ public final class OperationRuleAssert
         public TestingMemo appliesUntilFixpoint()
         {
             Memo memo = testingMemo.memo();
-            RuleApplier applier = new RuleApplier(memo);
+            RuleApplier applier = ruleApplier(memo);
             RuleApplicationCache cache = new RuleApplicationCache();
             boolean firedAtLeastOnce = false;
             for (int iteration = 0; ; iteration++) {

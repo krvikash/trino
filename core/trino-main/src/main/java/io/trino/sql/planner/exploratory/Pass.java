@@ -82,12 +82,9 @@ public class Pass<C extends Cost, R extends Requirement, P extends Property>
     private final OptimizationStore<C, R, P> optimizationStore;
     private final R rootRequirement;
     private final PhysicalModel<C, R, P> physicalModel;
+    private final OptimizationBudget budget;
 
     // TODO cost boundaries (max, min) and cost-based pruning of search space
-    // TODO limit the size of the cache (see a TODO in RuleApplicationCache)
-    // TODO add hard exploration and materialization limits (ENG-27912).
-    //  The rule application cache bounds repeats of one context, not the number of
-    //  distinct contexts, so it is not a termination mechanism.
     private final RuleApplicationCache appliedRules = new RuleApplicationCache();
 
     // TODO Consider smarter state queue ordering.
@@ -98,16 +95,19 @@ public class Pass<C extends Cost, R extends Requirement, P extends Property>
             Program program,
             List<OperationRule> rules,
             DialectRegistry dialectRegistry,
-            PhysicalModel<C, R, P> physicalModel)
+            PhysicalModel<C, R, P> physicalModel,
+            OptimizationLimits limits)
     {
         requireNonNull(program, "program is null");
         requireNonNull(dialectRegistry, "dialectRegistry is null");
         checkArgument(getReusedOperations(program).isEmpty(), "XO does not support programs with reuse yet");
         this.memo = Memo.forProgram(program, dialectRegistry);
-        this.ruleApplier = new RuleApplier(memo);
         this.rules = ImmutableList.copyOf(requireNonNull(rules, "rules is null"));
         this.physicalModel = requireNonNull(physicalModel, "physicalModel is null");
         this.optimizationStore = new OptimizationStore<>(memo, physicalModel);
+        this.budget = new OptimizationBudget(requireNonNull(limits, "limits is null"));
+        budget.consumeMemoGrowthTokens(memo.operationTokens());
+        this.ruleApplier = new RuleApplier(memo, budget);
         // rootRequirement is canonical by the RequirementDomain contract
         this.rootRequirement = physicalModel.requirements().rootRequirement();
     }
@@ -118,7 +118,18 @@ public class Pass<C extends Cost, R extends Requirement, P extends Property>
             DialectRegistry dialectRegistry,
             PhysicalModel<C, R, P> physicalModel)
     {
-        return new Pass<>(program, rules, dialectRegistry, physicalModel);
+        requireNonNull(rules, "rules is null");
+        return initialize(program, rules, dialectRegistry, physicalModel, OptimizationLimits.defaultFor(program, rules.size()));
+    }
+
+    public static <C extends Cost, R extends Requirement, P extends Property> Pass<C, R, P> initialize(
+            Program program,
+            List<OperationRule> rules,
+            DialectRegistry dialectRegistry,
+            PhysicalModel<C, R, P> physicalModel,
+            OptimizationLimits limits)
+    {
+        return new Pass<>(program, rules, dialectRegistry, physicalModel, limits);
     }
 
     public Program run()
@@ -136,10 +147,7 @@ public class Pass<C extends Cost, R extends Requirement, P extends Property>
         validateStatesAtBestKnownCost();
 
         // extract the optimized program
-        // TODO fail with XO_ERROR when a reachable state has no winner (ENG-27912).
-        //  Extraction assumes every reachable (Group, Requirement) has at least one
-        //  candidate, and takes the first winner without checking.
-        ProgramExtractor<C, R, P> programExtractor = new ProgramExtractor<>(memo, rootRequirement, optimizationStore);
+        ProgramExtractor<C, R, P> programExtractor = new ProgramExtractor<>(memo, rootRequirement, optimizationStore, budget);
         return programExtractor.extractProgram();
     }
 
@@ -260,6 +268,7 @@ public class Pass<C extends Cost, R extends Requirement, P extends Property>
      */
     private void process(GroupOptimizationState<C, R, P> state)
     {
+        budget.consumeOptimizationWork(1);
         verifyRecent(state.key());
 
         // explore the state exhaustively. Newly added operations or operations inherited from merged groups will be explored in a loop.
@@ -280,8 +289,10 @@ public class Pass<C extends Cost, R extends Requirement, P extends Property>
             // TODO when exploration becomes stale because group attributes changed in the meantime, and we need to re-apply rule with new knowledge, that should be indicated by RuleApplicationContext
             for (MemoOperation operation : operations) {
                 for (OperationRule rule : rules) { // TODO index rules and pre-select them by root operation type
+                    budget.consumeOptimizationWork(1);
                     RuleApplicationContext applicationContext = rule.getApplicationContext(operation, memo);
                     if (appliedRules.markIfNew(operation, rule, applicationContext)) {
+                        budget.consumeOptimizationWork(1);
                         List<MemoChange> changes = ruleApplier.applyRule(operation, rule);
                         pruningRequired |= changes.stream().anyMatch(Pass::mayCreateOrphanedGroups);
                         processCurrentState = processChanges(changes, recentStateKey(state.key()));
@@ -301,6 +312,7 @@ public class Pass<C extends Cost, R extends Requirement, P extends Property>
 
         if (pruningRequired) {
             // prune unreachable groups after exploration is completed
+            budget.consumeOptimizationWork(memo.size() + memo.operationTokens());
             List<MemoChange> changes = memo.pruneOrphanedGroups();
             processChanges(changes, recentKey);
             checkState(optimizationStore.containsState(recentKey), "currently processed state was removed by orphaned-group pruning: %s", recentKey);
@@ -320,7 +332,9 @@ public class Pass<C extends Cost, R extends Requirement, P extends Property>
         Set<AlternativeKey<R>> processedAlternativeKeys = new HashSet<>();
 
         for (MemoOperation operation : operationsToImplement) {
+            budget.consumeOptimizationWork(1);
             List<List<R>> requirementDecompositionAlternatives = decomposeRequirement(operation, requirement, memo.dialectRegistry(), physicalModel);
+            budget.consumeOptimizationWork(requirementDecompositionAlternatives.size());
             // process all requirement decompositions
             for (List<R> requirementAlternative : requirementDecompositionAlternatives) {
                 checkState(
@@ -333,6 +347,7 @@ public class Pass<C extends Cost, R extends Requirement, P extends Property>
                 if (!processedAlternativeKeys.add(alternativeKey)) {
                     continue;
                 }
+                budget.consumeOptimizationWork(operation.children().size());
                 // canonicalized
                 List<R> childRequirements = alternativeKey.childRequirements();
 
@@ -415,6 +430,7 @@ public class Pass<C extends Cost, R extends Requirement, P extends Property>
                             requirement,
                             memo.dialectRegistry(),
                             physicalModel);
+                    budget.consumeOptimizationWork(enforcerPipeline.steps().size());
                     checkState(!isTerminalOperation(operation) || enforcerPipeline.steps().isEmpty(), "Terminal operation must not require enforcers above itself: %s", operation.operationId().name());
 
                     Candidate<C, R, P> candidate = new Candidate<>(alternative, enforcerPipeline, physicalModel.costs());
@@ -500,6 +516,8 @@ public class Pass<C extends Cost, R extends Requirement, P extends Property>
 
     Set<Integer> processChangesInternal(List<MemoChange> changes)
     {
+        budget.consumeOptimizationWork(changes.size());
+
         // Collect canonicalized, deduplicated group Ids to update.
         Set<Integer> recentGroupsToUpdate = new LinkedHashSet<>();
 

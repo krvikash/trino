@@ -43,6 +43,7 @@ import java.util.Set;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.Lists.transform;
 import static io.trino.spi.StandardErrorCode.NOT_SUPPORTED;
+import static io.trino.spi.StandardErrorCode.XO_ERROR;
 import static io.trino.sql.dialect.ir.IrDialect.DEFAULT_BLOCK_PARAMETER_ATTRIBUTES;
 import static io.trino.sql.newir.Region.singleBlockRegion;
 import static java.util.Objects.requireNonNull;
@@ -76,14 +77,16 @@ public class ProgramExtractor<C extends Cost, R extends Requirement, P extends P
     private final Memo memo; // TODO do we need Memo, or just OptimizationStore and root group id?
     private final R rootRequirement;
     private final OptimizationStore<C, R, P> optimizationStore;
+    private final OptimizationBudget budget;
     // Intentionally retained across extractions so generated value names share one namespace.
     private final ValueNameAllocator nameAllocator = new ValueNameAllocator();
 
-    public ProgramExtractor(Memo memo, R rootRequirement, OptimizationStore<C, R, P> optimizationStore)
+    ProgramExtractor(Memo memo, R rootRequirement, OptimizationStore<C, R, P> optimizationStore, OptimizationBudget budget)
     {
         this.memo = requireNonNull(memo, "memo is null");
         this.rootRequirement = requireNonNull(rootRequirement, "rootRequirement is null");
         this.optimizationStore = requireNonNull(optimizationStore, "optimizationStore is null");
+        this.budget = requireNonNull(budget, "budget is null");
     }
 
     public Program extractProgram()
@@ -132,6 +135,7 @@ public class ProgramExtractor<C extends Cost, R extends Requirement, P extends P
             Map<Integer, ReusedGroupImplementation> reusedGroupImplementations,
             Set<StateKey<R>> activeStates)
     {
+        budget.consumeExtractionAttempt();
         boolean isReuseGroup = memo.isReuse(groupId);
         if (isReuseGroup && reusedGroupImplementations.containsKey(groupId)) {
             // the reused subprogram is already extracted, and we should reuse its result.
@@ -154,8 +158,10 @@ public class ProgramExtractor<C extends Cost, R extends Requirement, P extends P
         GroupOptimizationState<C, R, P> state = optimizationStore.getState(groupId, requirement);
         // TODO make better accessors for candidates (first, next...)
         List<Candidate<C, R, P>> winners = state.winners().inIncreasingCostOrder();
-        // TODO Detect missing winners in Pass and fail before constructing ProgramExtractor (ENG-27912).
-        checkState(!winners.isEmpty(), "No winner for state %s", state.key());
+        // TODO When extraction backtracking is implemented, select the first finite winner and fail with XO_ERROR if none exists.
+        if (winners.isEmpty()) {
+            throw new TrinoException(XO_ERROR, "No winner for state %s".formatted(state.key()));
+        }
         // TODO for now we only take the first candidate. We can't yet backtrack to resolve cycles
         checkState(activeStates.add(state.key()), "Cyclic winner for state %s", state.key());
         Candidate<C, R, P> candidate = winners.getFirst();
@@ -202,7 +208,7 @@ public class ProgramExtractor<C extends Cost, R extends Requirement, P extends P
             switch (memoOperation.children().get(i)) {
                 case ParameterChild(int groupParameterIndex) -> {
                     Block.Builder childBlockBuilder = new Block.Builder(Optional.empty(), properParameters);
-                    childBlockBuilder.addOperation(new Return(nameAllocator.newName(), parameters.get(groupParameterIndex), DEFAULT_BLOCK_PARAMETER_ATTRIBUTES));
+                    addOperation(childBlockBuilder, new Return(nameAllocator.newName(), parameters.get(groupParameterIndex), DEFAULT_BLOCK_PARAMETER_ATTRIBUTES));
                     regions.add(singleBlockRegion(childBlockBuilder.build()));
                 }
                 case GroupChild(int childGroupId, ParameterLineage(List<Integer> passedGroupParameters, List<Integer> passedProperParameters)) -> {
@@ -228,7 +234,7 @@ public class ProgramExtractor<C extends Cost, R extends Requirement, P extends P
         }
 
         Operation operation = memoOperation.toOperation(operationName, arguments, regions, groupAttributes, memo.dialectRegistry());
-        blockBuilder.addOperation(operation);
+        addOperation(blockBuilder, operation);
         operation = applyEnforcers(enforcerPipeline, operation, blockBuilder);
 
         if (isReuseGroup) {
@@ -255,9 +261,15 @@ public class ProgramExtractor<C extends Cost, R extends Requirement, P extends P
                     List.of(current.result()),
                     enforcer.regions(), // TODO need to reallocate Values to avoid name clashes
                     enforcer.attributes());
-            blockBuilder.addOperation(current);
+            addOperation(blockBuilder, current);
         }
         return current;
+    }
+
+    private void addOperation(Block.Builder blockBuilder, Operation operation)
+    {
+        budget.consumeOutputOperation();
+        blockBuilder.addOperation(operation);
     }
 
     private record ReusedGroupImplementation(int blockId, Operation operation)

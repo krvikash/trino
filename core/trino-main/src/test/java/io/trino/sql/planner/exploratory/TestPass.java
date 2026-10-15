@@ -52,16 +52,20 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.Optional;
 
+import static io.trino.spi.StandardErrorCode.XO_ERROR;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.sql.newir.DialectRegistry.TESTING_DIALECT_REGISTRY;
 import static io.trino.sql.planner.exploratory.MemoTestingHelper.program;
 import static io.trino.sql.planner.exploratory.MemoTestingHelper.singleConstantRow;
 import static io.trino.sql.planner.exploratory.MemoTestingHelper.valuesOfRows;
 import static io.trino.sql.planner.exploratory.physical.dummy.DummyCost.ZERO;
+import static io.trino.testing.assertions.TrinoExceptionAssert.assertTrinoExceptionThrownBy;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class TestPass
 {
+    private static final long LARGE_LIMIT = 1_000_000;
+
     @Test
     public void testAppliesRulesUntilFixpoint()
     {
@@ -92,6 +96,78 @@ class TestPass
                         assertThat(query.query().operations())
                                 .extracting(Operation::name)
                                 .containsExactly(ValuesOperationMetadata.NAME, OutputOperationMetadata.NAME));
+    }
+
+    @Test
+    public void testInitialMemoGrowthTokenLimitIncludesOperationArity()
+    {
+        Program program = program(valuesOfRows(List.of(singleConstantRow("", BIGINT, 1L))));
+        Memo memo = Memo.forProgram(program, TESTING_DIALECT_REGISTRY);
+        long operationCount = memo.groups().values().stream()
+                .mapToLong(group -> group.operations().size())
+                .sum();
+
+        assertThat(memo.operationTokens()).isGreaterThan(operationCount);
+        assertTrinoExceptionThrownBy(() -> Pass.initialize(
+                program,
+                List.of(),
+                TESTING_DIALECT_REGISTRY,
+                new RecordingPhysicalModel(),
+                new OptimizationLimits(memo.operationTokens() - 1, LARGE_LIMIT, LARGE_LIMIT, LARGE_LIMIT)))
+                .hasErrorCode(XO_ERROR)
+                .hasMessage(
+                        "Memo growth tokens limit exceeded: limit %s, consumed 0, requested %s"
+                                .formatted(memo.operationTokens() - 1, memo.operationTokens()));
+    }
+
+    @Test
+    public void testOptimizationWorkLimit()
+    {
+        Program program = program(valuesOfRows(List.of(singleConstantRow("", BIGINT, 1L))));
+        RecordingUpdateOperationAttributes rule = new RecordingUpdateOperationAttributes();
+
+        assertTrinoExceptionThrownBy(() -> Pass.initialize(
+                        program,
+                        List.of(rule),
+                        TESTING_DIALECT_REGISTRY,
+                        new RecordingPhysicalModel(),
+                        new OptimizationLimits(LARGE_LIMIT, 2, LARGE_LIMIT, LARGE_LIMIT))
+                .run())
+                .hasErrorCode(XO_ERROR)
+                .hasMessage("Optimization work limit exceeded: limit 2, consumed 2, requested 1");
+        assertThat(rule.updates()).isZero();
+    }
+
+    @Test
+    public void testExtractionAttemptLimit()
+    {
+        Program program = program(valuesOfRows(List.of(singleConstantRow("", BIGINT, 1L))));
+
+        assertTrinoExceptionThrownBy(() -> Pass.initialize(
+                        program,
+                        List.of(),
+                        TESTING_DIALECT_REGISTRY,
+                        new RecordingPhysicalModel(),
+                        new OptimizationLimits(LARGE_LIMIT, LARGE_LIMIT, 0, LARGE_LIMIT))
+                .run())
+                .hasErrorCode(XO_ERROR)
+                .hasMessage("Extraction attempts limit exceeded: limit 0, consumed 0, requested 1");
+    }
+
+    @Test
+    public void testOutputOperationLimit()
+    {
+        Program program = program(valuesOfRows(List.of(singleConstantRow("", BIGINT, 1L))));
+
+        assertTrinoExceptionThrownBy(() -> Pass.initialize(
+                        program,
+                        List.of(),
+                        TESTING_DIALECT_REGISTRY,
+                        new RecordingPhysicalModel(),
+                        new OptimizationLimits(LARGE_LIMIT, LARGE_LIMIT, LARGE_LIMIT, 0))
+                .run())
+                .hasErrorCode(XO_ERROR)
+                .hasMessage("Output operations limit exceeded: limit 0, consumed 0, requested 1");
     }
 
     private static final class RecordingUpdateOperationAttributes

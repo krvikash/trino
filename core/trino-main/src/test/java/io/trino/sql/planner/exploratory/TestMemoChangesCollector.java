@@ -44,7 +44,9 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 
 import java.util.List;
+import java.util.concurrent.atomic.AtomicLong;
 
+import static io.trino.spi.StandardErrorCode.XO_ERROR;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.sql.dialect.ir.IrDialect.IR;
 import static io.trino.sql.dialect.ir.IrDialect.REPEATABILITY;
@@ -60,6 +62,7 @@ import static io.trino.sql.planner.exploratory.MemoTestingHelper.TEST_OPERATION_
 import static io.trino.sql.planner.exploratory.MemoTestingHelper.TEST_OPERATION_ATTRIBUTE_OBJECT;
 import static io.trino.sql.planner.exploratory.MemoTestingHelper.TEST_TYPE;
 import static io.trino.sql.planner.exploratory.MemoTestingHelper.program;
+import static io.trino.sql.planner.exploratory.MemoTestingHelper.ruleApplier;
 import static io.trino.sql.planner.exploratory.MemoTestingHelper.singleConstantRow;
 import static io.trino.sql.planner.exploratory.MemoTestingHelper.valuesOfRows;
 import static io.trino.sql.planner.exploratory.MemoTestingUtil.assertMemoGroupsContains;
@@ -67,12 +70,15 @@ import static io.trino.sql.planner.exploratory.MemoTestingUtil.assertMemoGroupsD
 import static io.trino.sql.planner.exploratory.MemoTestingUtil.attributes;
 import static io.trino.sql.planner.exploratory.rule.NewMemoOperation.operationLike;
 import static io.trino.sql.planner.exploratory.rule.Patterns.operation;
+import static io.trino.testing.assertions.TrinoExceptionAssert.assertTrinoExceptionThrownBy;
 import static java.lang.Boolean.TRUE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class TestMemoChangesCollector
 {
+    private static final long LARGE_LIMIT = 1_000_000;
+
     @Test
     public void testSingletonGroupCreate()
     {
@@ -94,13 +100,15 @@ class TestMemoChangesCollector
         int firstGroupId = memo.insertOperation(firstOperation, collector);
         MemoOperation secondOperation = leafOperationWithDialect("another_dialect");
         int secondGroupId = memo.insertOperation(secondOperation, collector);
-        memo.mergeGroups(firstGroupId, secondGroupId, collector);
+        AtomicLong mergeWork = new AtomicLong();
+        memo.mergeGroups(firstGroupId, secondGroupId, collector, mergeWork::addAndGet);
 
         assertThat(collector.getChanges())
                 .containsExactly(
                         new SingletonGroupCreate(firstOperation, firstGroupId),
                         new SingletonGroupCreate(secondOperation, secondGroupId),
                         new GroupMerge(firstGroupId, secondGroupId));
+        assertThat(mergeWork).hasValue(4);
     }
 
     @Test
@@ -166,7 +174,8 @@ class TestMemoChangesCollector
         MemoOperation rewrittenUniqueParent = singleChildOperation("unique_parent", survivingGroupId);
 
         MemoChangesCollector collector = new MemoChangesCollector();
-        memo.mergeGroups(survivingGroupId, removedGroupId, collector);
+        AtomicLong mergeWork = new AtomicLong();
+        memo.mergeGroups(survivingGroupId, removedGroupId, collector, mergeWork::addAndGet);
 
         assertThat(collector.getChanges()).containsExactly(
                 new GroupMerge(survivingGroupId, removedGroupId),
@@ -178,6 +187,7 @@ class TestMemoChangesCollector
                 new GroupMerge(deduplicatedParentSurvivingGroupId, deduplicatedParentRemovedGroupId),
                 new OperationSuccession(deduplicatedParentOverRemoved, deduplicatedParentOverSurviving, deduplicatedParentSurvivingGroupId),
                 new OperationRemove(deduplicatedParentOverRemoved, deduplicatedParentSurvivingGroupId));
+        assertThat(mergeWork).hasValue(22);
 
         memo.validateGroupToParentsMapping();
         assertMemoGroupsContains(
@@ -279,7 +289,7 @@ class TestMemoChangesCollector
         MemoOperation operation = leafOperation();
         int groupId = memo.insertOperation(operation, ignoredChanges);
 
-        List<MemoChange> changes = new RuleApplier(memo).applyRule(operation, new UpdateOperationAttributes());
+        List<MemoChange> changes = ruleApplier(memo).applyRule(operation, new UpdateOperationAttributes());
 
         assertThat(changes)
                 .isEmpty();
@@ -317,7 +327,7 @@ class TestMemoChangesCollector
                 new ParameterLineage(ImmutableList.of(0), ImmutableList.of()));
         int expectedRewrittenParentGroupId = expectedRewrittenChildGroupId + 1;
 
-        List<MemoChange> changes = new RuleApplier(memo).applyRule(
+        List<MemoChange> changes = ruleApplier(memo).applyRule(
                 parentOperation,
                 new TestingRule(expectedRewrittenParent, expectedRewrittenChild));
 
@@ -356,7 +366,7 @@ class TestMemoChangesCollector
         Memo memo = baseMemo();
         MemoOperation rootOperation = memo.getGroup(memo.rootGroup()).operations().getFirst();
 
-        assertThatThrownBy(() -> new RuleApplier(memo).applyRule(rootOperation, new DirectlyRecursiveRule()))
+        assertThatThrownBy(() -> ruleApplier(memo).applyRule(rootOperation, new DirectlyRecursiveRule()))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage("Rule %s produced a cyclic NewMemoOperation graph", DirectlyRecursiveRule.class.getName());
     }
@@ -367,7 +377,7 @@ class TestMemoChangesCollector
         Memo memo = baseMemo();
         MemoOperation rootOperation = memo.getGroup(memo.rootGroup()).operations().getFirst();
 
-        assertThatThrownBy(() -> new RuleApplier(memo).applyRule(rootOperation, new IndirectlyRecursiveRule()))
+        assertThatThrownBy(() -> ruleApplier(memo).applyRule(rootOperation, new IndirectlyRecursiveRule()))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage("Rule %s produced a cyclic NewMemoOperation graph", IndirectlyRecursiveRule.class.getName());
     }
@@ -381,7 +391,7 @@ class TestMemoChangesCollector
 
         // the valid sibling precedes the cyclic one, so inserting while traversing would modify Memo before detecting the cycle
         MemoOperation validSibling = parametrizedOperation(ImmutableList.of(TEST_TYPE, TEST_TYPE), 1);
-        assertThatThrownBy(() -> new RuleApplier(memo).applyRule(parentChildMemo.parentOperation(), new CyclicSiblingRule(validSibling)))
+        assertThatThrownBy(() -> ruleApplier(memo).applyRule(parentChildMemo.parentOperation(), new CyclicSiblingRule(validSibling)))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage("Rule %s produced a cyclic NewMemoOperation graph", CyclicSiblingRule.class.getName());
 
@@ -400,6 +410,20 @@ class TestMemoChangesCollector
         int parentGroupId = parentChildMemo.parentGroupId();
 
         MemoOperation sharedChild = parametrizedOperation(ImmutableList.of(TEST_TYPE, TEST_TYPE), 1);
+        long initialMemoGrowthTokens = memo.operationTokens();
+        long proposedMemoGrowthTokens = 4;
+        OptimizationBudget tooSmallBudget = new OptimizationBudget(
+                new OptimizationLimits(proposedMemoGrowthTokens - 1, LARGE_LIMIT, LARGE_LIMIT, LARGE_LIMIT));
+        int initialMemoSize = memo.size();
+
+        // a result larger than the whole Memo limit is rejected before Memo is modified
+        assertTrinoExceptionThrownBy(() -> new RuleApplier(memo, tooSmallBudget).applyRule(parentOperation, new SharedOperationRule(sharedChild)))
+                .hasErrorCode(XO_ERROR)
+                .hasMessage(
+                        "Memo growth tokens limit exceeded by one rule application: limit %s, requested %s"
+                                .formatted(proposedMemoGrowthTokens - 1, proposedMemoGrowthTokens));
+        assertThat(memo.size()).isEqualTo(initialMemoSize);
+
         int expectedSharedChildGroupId = memo.size();
         MemoOperation expectedParent = parametrizedOperationWithChild(
                 ImmutableList.of(TEST_TYPE, TEST_TYPE),
@@ -407,13 +431,53 @@ class TestMemoChangesCollector
                 new ParameterLineage(ImmutableList.of(0, 1), ImmutableList.of()));
         int expectedParentGroupId = expectedSharedChildGroupId + 1;
 
-        List<MemoChange> changes = new RuleApplier(memo).applyRule(parentOperation, new SharedOperationRule(sharedChild));
+        OptimizationBudget budget = new OptimizationBudget(
+                new OptimizationLimits(initialMemoGrowthTokens + proposedMemoGrowthTokens, LARGE_LIMIT, LARGE_LIMIT, LARGE_LIMIT));
+        budget.consumeMemoGrowthTokens(initialMemoGrowthTokens);
+        List<MemoChange> changes = new RuleApplier(memo, budget).applyRule(parentOperation, new SharedOperationRule(sharedChild));
 
         // the shared operation is inserted once, and its group is not merged with itself
         assertThat(changes).containsExactly(
                 new SingletonGroupCreate(sharedChild, expectedSharedChildGroupId),
                 new SingletonGroupCreate(expectedParent, expectedParentGroupId),
                 new GroupMerge(parentGroupId, expectedParentGroupId));
+        assertThat(budget.consumedMemoGrowthTokens()).isEqualTo(initialMemoGrowthTokens + proposedMemoGrowthTokens);
+
+        // applying the rule again only finds existing operations, so it fits the exhausted budget
+        List<MemoChange> repeatedChanges = new RuleApplier(memo, budget).applyRule(parentOperation, new SharedOperationRule(sharedChild));
+        assertThat(repeatedChanges)
+                .noneMatch(change -> change instanceof SingletonGroupCreate || change instanceof OperationInsert);
+        assertThat(budget.consumedMemoGrowthTokens()).isEqualTo(initialMemoGrowthTokens + proposedMemoGrowthTokens);
+    }
+
+    @Test
+    public void testDeeplySharedNewMemoOperationIsProcessedLinearly()
+    {
+        ParentChildMemo parentChildMemo = parentChildMemo();
+        Memo memo = parentChildMemo.memo();
+
+        int depth = 20;
+        // One rule result is produced by the matched pattern.
+        long ruleApplicationWork = 1;
+        // Validation visits the result root and both references at every shared level.
+        long validationVisits = 1 + 2L * depth;
+        // The leaf and every wrapper have one child slot.
+        long validationChildSlots = 1 + depth;
+        // Insertion visits the result root and both references at every shared level, including cache hits.
+        long insertionVisits = 1 + 2L * depth;
+        // The root merge charges merge setup, merged operations, child groups, and one parent-operation scan.
+        long rootMergeWork = 8;
+        long expectedWork = ruleApplicationWork + validationVisits + validationChildSlots + insertionVisits + rootMergeWork;
+        OptimizationBudget budget = new OptimizationBudget(
+                new OptimizationLimits(LARGE_LIMIT, expectedWork, LARGE_LIMIT, LARGE_LIMIT));
+        budget.consumeMemoGrowthTokens(memo.operationTokens());
+
+        new RuleApplier(memo, budget).applyRule(
+                parentChildMemo.parentOperation(),
+                new DeeplySharedOperationRule(parentChildMemo.childOperation(), depth));
+
+        assertThat(budget.consumedOptimizationWork()).isEqualTo(expectedWork);
+        memo.validateGroupToParentsMapping();
     }
 
     @Test
@@ -422,7 +486,7 @@ class TestMemoChangesCollector
     {
         ParentChildMemo parentChildMemo = parentChildMemo();
 
-        new RuleApplier(parentChildMemo.memo()).applyRule(
+        ruleApplier(parentChildMemo.memo()).applyRule(
                 parentChildMemo.parentOperation(),
                 new DeeplySharedOperationRule(parentChildMemo.childOperation(), 40));
 
@@ -448,7 +512,7 @@ class TestMemoChangesCollector
         int sharedParentGroupId = memo.insertOperation(sharedParent, ignoredChanges);
         MemoOperation sharedChild = parametrizedOperation(ImmutableList.of(TEST_TYPE, TEST_TYPE), 1);
 
-        List<MemoChange> changes = new RuleApplier(memo).applyRule(
+        List<MemoChange> changes = ruleApplier(memo).applyRule(
                 sourceOperation,
                 new SharedOperationMergedBeforeReuseRule(sharedChild, existingChild, sharedParent));
 
