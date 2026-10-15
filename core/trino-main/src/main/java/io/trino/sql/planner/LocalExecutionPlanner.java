@@ -4927,23 +4927,12 @@ public class LocalExecutionPlanner
                 return Optional.empty();
             }
 
-            GpuLookupJoin.JoinType joinType;
-            switch (node.getType()) {
-                case INNER -> {
-                    joinType = GpuLookupJoin.JoinType.INNER;
-                }
-                case LEFT -> {
-                    joinType = GpuLookupJoin.JoinType.LEFT;
-                }
-                case RIGHT -> {
-                    joinType = GpuLookupJoin.JoinType.RIGHT;
-                }
-                default -> {
-                    log.debug("Could not convert join type for GPU execution: %s", node.getType());
-                    context.markAsGpuIneligible(node.getId(), "Unsupported join type");
-                    return Optional.empty();
-                }
-            }
+            GpuLookupJoin.JoinType joinType = switch (node.getType()) {
+                case INNER -> GpuLookupJoin.JoinType.INNER;
+                case LEFT -> GpuLookupJoin.JoinType.LEFT;
+                case RIGHT -> GpuLookupJoin.JoinType.RIGHT;
+                case FULL -> GpuLookupJoin.JoinType.FULL;
+            };
 
             // Must have at least one equi-clause
             if (node.getCriteria().isEmpty()) {
@@ -5025,8 +5014,7 @@ public class LocalExecutionPlanner
             Optional<AstExpression> filter = compiledFilter.map(ast -> ast.toCudfAst(probeSource.getLayout(), buildLayout));
 
             // Keeps the build rows no probe matched, so it needs a match mask and a sibling driver draining it
-            boolean lookupSideOuter = joinType == GpuLookupJoin.JoinType.RIGHT;
-            GpuJoinBridgeManager bridgeManager = new GpuJoinBridgeManager(lookupSideOuter);
+            GpuJoinBridgeManager bridgeManager = new GpuJoinBridgeManager(joinType.isBuildOuter());
 
             PhysicalOperation joinBuild = addGpuOperation(
                     new GpuJoinBuild.Factory(
@@ -5084,12 +5072,12 @@ public class LocalExecutionPlanner
                     makeLayout(node),
                     probeContext.get(),
                     node.getId());
-            return addGpuRightJoinExchange(node, join, new GpuJoinOuterDrain.Factory(bridgeManager, probeOutputTypes), joinOutputTypes, outputContext, probeContext.get());
+            return addGpuBuildOuterJoinExchange(node, join, new GpuJoinOuterDrain.Factory(bridgeManager, probeOutputTypes), joinOutputTypes, outputContext, probeContext.get());
         }
 
         /// Ends the probe pipeline in a local exchange that a single drain pipeline also writes into, so the
         /// operators after the join run once, reading the matched and the unmatched rows from the exchange.
-        private PhysicalOperation addGpuRightJoinExchange(
+        private PhysicalOperation addGpuBuildOuterJoinExchange(
                 JoinNode node,
                 PhysicalOperation join,
                 GpuJoinOuterDrain.Factory drainFactory,

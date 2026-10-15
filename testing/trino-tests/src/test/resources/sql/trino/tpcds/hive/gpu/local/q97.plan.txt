@@ -2,10 +2,10 @@
   - AggregationNode (GPU)
     - ExchangeNode LOCAL (GPU)
       - AggregationNode (GPU)
-        - ProjectNode
-          - JoinNode
+        - ProjectNode (GPU)
+          - JoinNode (GPU)
             - AggregationNode (GPU)
-              - ExchangeNode LOCAL
+              - ExchangeNode LOCAL (GPU)
                 - AggregationNode (GPU)
                   - JoinNode (GPU)
                     - FilterNode (GPU)
@@ -15,7 +15,7 @@
                         - FilterNode (GPU)
                           - TableScanNode date_dim (GPU)
             - AggregationNode (GPU)
-              - ExchangeNode LOCAL
+              - ExchangeNode LOCAL (GPU)
                 - AggregationNode (GPU)
                   - JoinNode (GPU)
                     - FilterNode (GPU)

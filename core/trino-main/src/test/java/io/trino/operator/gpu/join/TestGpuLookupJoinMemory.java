@@ -51,6 +51,7 @@ import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.trino.operator.gpu.GpuTestUtils.copyToDevice;
 import static io.trino.operator.gpu.GpuTestUtils.createPages;
 import static io.trino.operator.gpu.GpuTestUtils.maybeSetGpuMemoryPoolForTests;
+import static io.trino.operator.gpu.join.GpuLookupJoin.JoinType.FULL;
 import static io.trino.operator.gpu.join.GpuLookupJoin.JoinType.LEFT;
 import static io.trino.operator.gpu.join.GpuLookupJoin.JoinType.RIGHT;
 import static io.trino.spi.type.BigintType.BIGINT;
@@ -90,6 +91,13 @@ class TestGpuLookupJoinMemory
     {
         // The drain has no build rows to emit, so the output is empty
         testProbe(RIGHT, List.of(BIGINT), new int[] {0}, new int[] {0}, new int[] {}, ImmutableList.of(BIGINT), 0, 1);
+    }
+
+    @Test
+    void testEmptyBuildFullJoin()
+    {
+        // The probe rows are emitted with NULL build columns, and the drain has no build rows to emit
+        testProbe(FULL, List.of(BIGINT), new int[] {0}, new int[] {0}, new int[] {}, ImmutableList.of(BIGINT), 0, 1);
     }
 
     @ParameterizedTest
@@ -181,7 +189,7 @@ class TestGpuLookupJoinMemory
         TestingGpuOperationContext context = new TestingGpuOperationContext();
         long marginBytes = (largerMargin ? 9L : 1L) * 1024 * 1024;
         try (GpuDeviceMemoryUsageValidation memoryValidation = GpuDeviceMemoryUsageValidation.createAndRegister(context, marginBytes)) {
-            GpuJoinBridgeManager manager = new GpuJoinBridgeManager(joinType == RIGHT);
+            GpuJoinBridgeManager manager = new GpuJoinBridgeManager(joinType.isBuildOuter());
             GpuJoinBuild.Factory buildFactory = new GpuJoinBuild.Factory(manager, keyChannels, buildOutputChannels, filter, Optional.empty());
 
             try (var buildSource = new SettableGpuOperation();
@@ -214,7 +222,7 @@ class TestGpuLookupJoinMemory
                 Iterator<Page> probePages = createPages(types, nullsProvider, probePageCount, PROBE_ROWS_PER_PAGE, true);
                 List<Type> probeOutputTypes = IntStream.of(probeOutputChannels).mapToObj(types::get).collect(toImmutableList());
                 GpuLookupJoin.Factory probeFactory = new GpuLookupJoin.Factory(manager, keyChannels, probeOutputChannels, joinType, buildOutputTypes, filteredJoin);
-                if (joinType == RIGHT) {
+                if (joinType.isBuildOuter()) {
                     try (var probeSource = new SettableGpuOperation();
                             GpuOperation probe = probeFactory.create(context, probeSource)) {
                         probeFactory.noMoreOperators();

@@ -55,4 +55,18 @@ public class TestHiveGpuJoinQueries
                     .executesWithGpu(JoinNode.class);
         }
     }
+
+    @Test
+    public void testGpuFullJoinWithProbeSplitsMissingOnSomeNodes()
+    {
+        // Two probe rows leave most nodes without a probe split; their drain must still emit the build rows, alongside
+        // the probe row that matches no build row
+        try (TestTable probe = newTrinoTable("gpu_full_probe_", "(k bigint) WITH (bucketed_by = ARRAY['k'], bucket_count = 8)", ImmutableList.of("1", "100"));
+                TestTable build = newTrinoTable("gpu_full_build_", "(k bigint) WITH (bucketed_by = ARRAY['k'], bucket_count = 8)")) {
+            assertUpdate("INSERT INTO " + build.getName() + " SELECT nationkey FROM nation", 25);
+
+            assertThat(query(noJoinReordering(), "SELECT p.k, b.k FROM %s p FULL JOIN %s b ON p.k = b.k".formatted(probe.getName(), build.getName())))
+                    .executesWithGpu(JoinNode.class);
+        }
+    }
 }

@@ -3,8 +3,8 @@
     - ExchangeNode LOCAL
       - ExchangeNode REMOTE
         - AggregationNode (GPU)
-          - ProjectNode
-            - JoinNode
+          - ProjectNode (GPU)
+            - JoinNode (GPU)
               - AggregationNode (GPU)
                 - ExchangeNode LOCAL
                   - ExchangeNode REMOTE

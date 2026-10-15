@@ -11,8 +11,8 @@
                     - WindowNode
                       - ExchangeNode LOCAL
                         - ExchangeNode REMOTE
-                          - ProjectNode
-                            - JoinNode
+                          - ProjectNode (GPU)
+                            - JoinNode (GPU)
                               - ProjectNode
                                 - WindowNode
                                   - AggregationNode (GPU)

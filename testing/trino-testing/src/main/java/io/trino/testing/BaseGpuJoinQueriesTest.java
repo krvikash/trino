@@ -24,6 +24,7 @@ import io.trino.sql.planner.plan.PlanNodeId;
 import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.Test;
 
+import static io.trino.sql.planner.plan.JoinType.FULL;
 import static io.trino.sql.planner.plan.JoinType.RIGHT;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assumptions.abort;
@@ -93,15 +94,10 @@ public abstract class BaseGpuJoinQueriesTest
         Plan plan = getDistributedQueryRunner().getQueryPlan(resultWithQueryId.queryId());
         JoinNode joinNode = (JoinNode) PlanNodeSearcher.searchFrom(plan.getRoot()).where(node -> node instanceof JoinNode).findFirst().get();
 
-        if (joinNode.getType() == RIGHT) {
-            assertThat(outerDrainDriverCountAtTaskLevel(resultWithQueryId.queryId(), joinNode.getId()))
-                    .isEqualTo(1);
-        }
-        else {
-            // FULL join still runs on the CPU LookupOuterOperator
-            assertThat(extractOperatorStatsAtTaskLevel(resultWithQueryId.queryId(), joinNode.getId(), "LookupOuterOperator").getTotalDrivers())
-                    .isEqualTo(expectedDriversAtTaskLevel);
-        }
+        // RIGHT and FULL joins drain the unmatched build rows in a single GPU driver rather than the CPU LookupOuterOperator
+        assertThat(joinNode.getType()).isIn(RIGHT, FULL);
+        assertThat(outerDrainDriverCountAtTaskLevel(resultWithQueryId.queryId(), joinNode.getId()))
+                .isEqualTo(1);
     }
 
     private int outerDrainDriverCountAtTaskLevel(QueryId queryId, PlanNodeId joinNodeId)
@@ -222,6 +218,115 @@ public abstract class BaseGpuJoinQueriesTest
                 SELECT o.orderkey, c.custkey
                 FROM orders o
                 RIGHT JOIN customer c ON o.custkey = c.custkey AND o.orderkey < c.custkey
+                """))
+                .executesWithGpu(JoinNode.class);
+    }
+
+    @Test
+    public void testGpuFullJoinWithLimit()
+    {
+        Session session = Session.builder(noJoinReordering())
+                .setSystemProperty("task_concurrency", "4")
+                .build();
+        // Orders of odd customers match no build row, and even customers with no orders match no probe row
+        String join = "SELECT o.orderkey, c.custkey FROM orders o FULL JOIN (SELECT custkey FROM customer WHERE custkey % 2 = 0) c ON o.custkey = c.custkey";
+
+        // The limit closes probe drivers mid-input, so the outer build side is dropped; the rows already produced
+        // satisfy the limit, so the result is still correct
+        assertThat(computeActual(session, join + " LIMIT 5").getRowCount()).isEqualTo(5);
+
+        // Only never-matched build rows pass the filter, so nothing closes the probes early
+        String buildOuterOnly = join + " WHERE o.orderkey IS NULL";
+        assertThat(query(session, buildOuterOnly)).executesWithGpu(JoinNode.class);
+        assertThat(computeActual(session, buildOuterOnly + " LIMIT 5").getRowCount()).isEqualTo(5);
+
+        // Only probe rows with no match pass the filter, and they come from the probe drivers
+        String probeOuterOnly = join + " WHERE c.custkey IS NULL";
+        assertThat(query(session, probeOuterOnly)).executesWithGpu(JoinNode.class);
+        assertThat(computeActual(session, probeOuterOnly + " LIMIT 5").getRowCount()).isEqualTo(5);
+    }
+
+    @Test
+    public void testGpuChainedFullJoins()
+    {
+        Session session = noJoinReordering();
+        assertThat(query(session,
+                """
+                SELECT t.orderkey, t.custkey AS probe_custkey, c2.custkey AS build_custkey
+                FROM (
+                        SELECT o.orderkey, c.custkey
+                        FROM orders o FULL JOIN (SELECT custkey FROM customer WHERE custkey % 2 = 0) c ON o.custkey = c.custkey) t
+                FULL JOIN (SELECT custkey FROM customer WHERE custkey < 500) c2 ON t.custkey = c2.custkey
+                """))
+                .executesWithGpu(JoinNode.class);
+    }
+
+    @Test
+    public void testGpuFullJoinFusedWithLeftJoinOnEmptyBuild()
+    {
+        // The LEFT join above pads its empty build side with NULL columns sized from buildOutputTypes,
+        // so mixing up the probe and build type lists is visible on the drained rows too
+        Session session = noJoinReordering();
+        assertThat(query(session,
+                """
+                SELECT t.orderkey, t.custkey, c2.name
+                FROM (
+                        SELECT o.orderkey, c.custkey
+                        FROM orders o FULL JOIN (SELECT custkey FROM customer WHERE custkey % 2 = 0) c ON o.custkey = c.custkey) t
+                LEFT JOIN (SELECT custkey, name FROM customer WHERE custkey < 0) c2 ON t.custkey = c2.custkey
+                """))
+                .executesWithGpu(JoinNode.class);
+    }
+
+    @Test
+    public void testGpuFullJoinWithOperationsAbove()
+    {
+        // The filter cannot be pushed through the join, so the probe rows with no match and the drained rows must go
+        // through it and the projection
+        Session session = noJoinReordering();
+        assertThat(query(session,
+                """
+                SELECT o.orderkey, c.custkey * 2
+                FROM orders o FULL JOIN (SELECT custkey FROM customer WHERE custkey % 2 = 0) c ON o.custkey = c.custkey
+                WHERE o.orderkey IS NULL OR c.custkey IS NULL OR c.custkey % 3 = 0
+                """))
+                .executesWithGpu(JoinNode.class);
+    }
+
+    @Test
+    public void testGpuFullJoinOverLocalExchange()
+    {
+        Session session = Session.builder(noJoinReordering())
+                .setSystemProperty("task_concurrency", "4")
+                .build();
+        // Probe fed by a round-robin local exchange
+        assertThat(query(session,
+                """
+                SELECT t.custkey, c.custkey
+                FROM (SELECT custkey FROM orders WHERE orderkey < 1000 UNION ALL SELECT custkey FROM orders WHERE orderkey > 59000) t
+                FULL JOIN (SELECT custkey FROM customer WHERE custkey % 2 = 0) c ON t.custkey = c.custkey
+                """))
+                .executesWithGpu(JoinNode.class);
+        // Probe fed by a gathering local exchange, so the probe runs one driver and the operators above the join run several
+        assertThat(query(session,
+                """
+                SELECT t.custkey, c.custkey
+                FROM (SELECT custkey FROM orders ORDER BY orderkey LIMIT 100) t
+                FULL JOIN (SELECT custkey FROM customer WHERE custkey % 2 = 0) c ON t.custkey = c.custkey
+                """))
+                .executesWithGpu(JoinNode.class);
+    }
+
+    @Test
+    public void testGpuFullJoinWithFilter()
+    {
+        // Orders that fail the filter are emitted with no customer, and customers whose orders all fail the filter
+        // are drained alongside those with no orders
+        assertThat(query(noJoinReordering(),
+                """
+                SELECT o.orderkey, c.custkey
+                FROM orders o
+                FULL JOIN customer c ON o.custkey = c.custkey AND o.orderkey < c.custkey
                 """))
                 .executesWithGpu(JoinNode.class);
     }

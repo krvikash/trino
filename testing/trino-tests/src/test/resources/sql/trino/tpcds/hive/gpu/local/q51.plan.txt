@@ -4,9 +4,9 @@
       - TopNNode (GPU)
         - FilterNode
           - WindowNode
-            - ExchangeNode LOCAL
-              - ProjectNode
-                - JoinNode
+            - ExchangeNode LOCAL (GPU)
+              - ProjectNode (GPU)
+                - JoinNode (GPU)
                   - ProjectNode
                     - WindowNode
                       - AggregationNode (GPU)

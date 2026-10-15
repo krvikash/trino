@@ -26,6 +26,7 @@ import io.trino.operator.gpu.GpuOperation.Data;
 import io.trino.operator.gpu.GpuOperation.Finished;
 import io.trino.operator.gpu.GpuOperation.Yielded;
 import io.trino.operator.gpu.TestingGpuOperationContext;
+import io.trino.operator.gpu.join.GpuLookupJoin.JoinType;
 import io.trino.operator.gpu.memory.AllocatedMemory;
 import io.trino.spi.Page;
 import io.trino.spi.block.Block;
@@ -49,12 +50,15 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static io.trino.operator.gpu.GpuTestUtils.drainToPages;
 import static io.trino.operator.gpu.GpuTestUtils.maybeSetGpuMemoryPoolForTests;
+import static io.trino.operator.gpu.join.GpuLookupJoin.JoinType.FULL;
+import static io.trino.operator.gpu.join.GpuLookupJoin.JoinType.RIGHT;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static org.assertj.core.api.Assertions.assertThat;
 
-/// Correctness tests for the GPU RIGHT join. The build side is the preserved (right) side, the probe side is
-/// the left side, and output columns are the probe output columns followed by the build output columns.
-final class TestGpuRightJoin
+/// Correctness tests for the GPU RIGHT and FULL joins, which preserve the build (right) side. The probe side is
+/// the left side, which a FULL join preserves too, and output columns are the probe output columns followed by the
+/// build output columns.
+final class TestGpuBuildOuterJoin
 {
     private static final int[] CHANNEL_0 = {0};
     private static final int[] EMPTY_CHANNELS = {};
@@ -80,7 +84,8 @@ final class TestGpuRightJoin
         try (BuildDriver build = new BuildDriver(manager, buildTypes, CHANNEL_0, EMPTY_CHANNELS, List.of(buildPage))) {
             assertThat(build.run()).isInstanceOf(Blocked.class);
 
-            List<Page> output = runRightJoin(
+            List<Page> output = runBuildOuterJoin(
+                    RIGHT,
                     manager,
                     probeTypes,
                     CHANNEL_0,
@@ -111,7 +116,8 @@ final class TestGpuRightJoin
         try (BuildDriver build = new BuildDriver(manager, buildTypes, CHANNEL_0, new int[] {1}, List.of(buildPage))) {
             assertThat(build.run()).isInstanceOf(Blocked.class);
 
-            List<Page> output = runRightJoin(
+            List<Page> output = runBuildOuterJoin(
+                    RIGHT,
                     manager,
                     probeTypes,
                     CHANNEL_0,
@@ -145,7 +151,7 @@ final class TestGpuRightJoin
             assertThat(build.run()).isInstanceOf(Blocked.class);
 
             GpuLookupJoin.Factory joinFactory = new GpuLookupJoin.Factory(
-                    manager, CHANNEL_0, CHANNEL_0, GpuLookupJoin.JoinType.RIGHT, List.of(BIGINT), true);
+                    manager, CHANNEL_0, CHANNEL_0, RIGHT, List.of(BIGINT), true);
             GpuJoinOuterDrain.Factory drainFactory = new GpuJoinOuterDrain.Factory(manager, List.of(BIGINT));
             List<Page> output = new ArrayList<>(runProbe(joinFactory, types, types, List.of(probePage)));
             output.addAll(runOuterDrain(drainFactory, types));
@@ -171,7 +177,8 @@ final class TestGpuRightJoin
         try (BuildDriver build = new BuildDriver(manager, buildTypes, CHANNEL_0, EMPTY_CHANNELS, List.of(buildPage))) {
             assertThat(build.run()).isInstanceOf(Blocked.class);
 
-            List<Page> output = runRightJoin(
+            List<Page> output = runBuildOuterJoin(
+                    RIGHT,
                     manager,
                     probeTypes,
                     CHANNEL_0,
@@ -205,7 +212,8 @@ final class TestGpuRightJoin
         try (BuildDriver build = new BuildDriver(manager, buildTypes, CHANNEL_0, new int[] {1}, List.of(buildPage))) {
             assertThat(build.run()).isInstanceOf(Blocked.class);
 
-            List<Page> output = runRightJoin(
+            List<Page> output = runBuildOuterJoin(
+                    RIGHT,
                     manager,
                     probeTypes,
                     CHANNEL_0,
@@ -235,7 +243,7 @@ final class TestGpuRightJoin
             assertThat(build.run()).isInstanceOf(Blocked.class);
 
             GpuLookupJoin.Factory joinFactory = new GpuLookupJoin.Factory(
-                    manager, CHANNEL_0, CHANNEL_0, GpuLookupJoin.JoinType.RIGHT, List.of(BIGINT), false);
+                    manager, CHANNEL_0, CHANNEL_0, RIGHT, List.of(BIGINT), false);
             GpuJoinOuterDrain.Factory drainFactory = new GpuJoinOuterDrain.Factory(manager, probeOutputTypes);
             // Closing the factory releases the barrier bootstrap so the drain can fire
             joinFactory.noMoreOperators();
@@ -262,7 +270,8 @@ final class TestGpuRightJoin
         try (BuildDriver build = new BuildDriver(manager, buildTypes, CHANNEL_0, EMPTY_CHANNELS, List.of())) {
             assertThat(build.run()).isInstanceOf(Blocked.class);
 
-            List<Page> output = runRightJoin(
+            List<Page> output = runBuildOuterJoin(
+                    RIGHT,
                     manager,
                     probeTypes,
                     CHANNEL_0,
@@ -292,7 +301,8 @@ final class TestGpuRightJoin
         try (BuildDriver build = new BuildDriver(manager, buildTypes, CHANNEL_0, new int[] {1}, List.of(buildPage))) {
             assertThat(build.run()).isInstanceOf(Blocked.class);
 
-            List<Page> output = runRightJoin(
+            List<Page> output = runBuildOuterJoin(
+                    RIGHT,
                     manager,
                     probeTypes,
                     CHANNEL_0,
@@ -323,7 +333,8 @@ final class TestGpuRightJoin
         try (BuildDriver build = new BuildDriver(manager, buildTypes, CHANNEL_0, new int[] {1}, List.of(buildPage))) {
             assertThat(build.run()).isInstanceOf(Blocked.class);
 
-            List<Page> output = runRightJoin(
+            List<Page> output = runBuildOuterJoin(
+                    RIGHT,
                     manager,
                     probeTypes,
                     CHANNEL_0,
@@ -354,7 +365,8 @@ final class TestGpuRightJoin
         try (BuildDriver build = new BuildDriver(manager, buildTypes, CHANNEL_0, new int[] {1}, List.of(buildPage))) {
             assertThat(build.run()).isInstanceOf(Blocked.class);
 
-            List<Page> output = runRightJoin(
+            List<Page> output = runBuildOuterJoin(
+                    RIGHT,
                     manager,
                     probeTypes,
                     CHANNEL_0,
@@ -385,7 +397,8 @@ final class TestGpuRightJoin
         try (BuildDriver build = new BuildDriver(manager, buildTypes, CHANNEL_0, new int[] {1}, List.of(buildPage))) {
             assertThat(build.run()).isInstanceOf(Blocked.class);
 
-            List<Page> output = runRightJoin(
+            List<Page> output = runBuildOuterJoin(
+                    RIGHT,
                     manager,
                     probeTypes,
                     CHANNEL_0,
@@ -422,7 +435,7 @@ final class TestGpuRightJoin
             assertThat(build.run()).isInstanceOf(Blocked.class);
 
             GpuLookupJoin.Factory joinFactory = new GpuLookupJoin.Factory(
-                    manager, CHANNEL_0, CHANNEL_0, GpuLookupJoin.JoinType.RIGHT, List.of(), false);
+                    manager, CHANNEL_0, CHANNEL_0, RIGHT, List.of(), false);
             GpuJoinOuterDrain.Factory drainFactory = new GpuJoinOuterDrain.Factory(manager, probeTypes);
 
             // Larger than BufferPages.TARGET_ROW_COUNT, so the driver records its match before its source finishes
@@ -460,8 +473,428 @@ final class TestGpuRightJoin
         }
     }
 
-    /// Runs the RIGHT join as two drivers, mirroring the real plan: the probe output followed by the drained output.
-    private static List<Page> runRightJoin(
+    @Test
+    void testFullJoinSingleKey()
+    {
+        // Matched (1), (3), (5), probe rows (2), (4) with no build row, plus drained (null) for build key 7
+        List<Type> buildTypes = List.of(BIGINT);
+        List<Type> probeTypes = List.of(BIGINT);
+
+        Page buildPage = new Page(longBlock(1L, 3L, 5L, 7L));
+        Page probePage = new Page(longBlock(1L, 2L, 3L, 4L, 5L));
+
+        GpuJoinBridgeManager manager = new GpuJoinBridgeManager(true);
+
+        try (BuildDriver build = new BuildDriver(manager, buildTypes, CHANNEL_0, EMPTY_CHANNELS, List.of(buildPage))) {
+            assertThat(build.run()).isInstanceOf(Blocked.class);
+
+            List<Page> output = runBuildOuterJoin(
+                    FULL,
+                    manager,
+                    probeTypes,
+                    CHANNEL_0,
+                    CHANNEL_0,
+                    List.of(),
+                    List.of(BIGINT),
+                    List.of(probePage));
+
+            assertThat(build.run()).isInstanceOf(Finished.class);
+
+            assertThat(bigintColumnValues(output, 0)).containsExactlyInAnyOrder(1L, 2L, 3L, 4L, 5L, null);
+        }
+    }
+
+    @Test
+    void testFullJoinWithBuildOutput()
+    {
+        // Build key = col0, build output = col1; probe keys 2 and 4 match no build row, build key 5 matches no probe row
+        List<Type> buildTypes = List.of(BIGINT, BIGINT);
+        List<Type> probeTypes = List.of(BIGINT);
+
+        Page buildPage = new Page(longBlock(1L, 3L, 5L), longBlock(10L, 30L, 50L));
+        Page probePage = new Page(longBlock(1L, 2L, 3L, 4L));
+
+        GpuJoinBridgeManager manager = new GpuJoinBridgeManager(true);
+
+        try (BuildDriver build = new BuildDriver(manager, buildTypes, CHANNEL_0, new int[] {1}, List.of(buildPage))) {
+            assertThat(build.run()).isInstanceOf(Blocked.class);
+
+            List<Page> output = runBuildOuterJoin(
+                    FULL,
+                    manager,
+                    probeTypes,
+                    CHANNEL_0,
+                    CHANNEL_0,
+                    List.of(BIGINT),
+                    List.of(BIGINT, BIGINT),
+                    List.of(probePage));
+
+            assertThat(build.run()).isInstanceOf(Finished.class);
+
+            assertThat(probeKeyBuildValRows(output)).containsExactlyInAnyOrder("1:10", "2:null", "3:30", "4:null", "null:50");
+        }
+    }
+
+    @Test
+    void testFullJoinFilterRejectsKeyMatch()
+    {
+        // ON probe.key = build.key AND probe.val < build.val: build (1, 10) matches the key but fails the filter, so it
+        // must be drained like (3, 40); probe (3, 50) matches the key of (3, 40) but fails the filter, so it is emitted
+        // with a NULL build side
+        List<Type> types = List.of(BIGINT, BIGINT);
+        Page buildPage = new Page(longBlock(1L, 1L, 2L, 3L), longBlock(10L, 20L, 30L, 40L));
+        Page probePage = new Page(longBlock(1L, 2L, 3L), longBlock(15L, 5L, 50L));
+        AstExpression filter = new BinaryOperation(
+                LESS,
+                new ColumnReference(1, TableReference.LEFT),
+                new ColumnReference(1, TableReference.RIGHT));
+
+        GpuJoinBridgeManager manager = new GpuJoinBridgeManager(true);
+
+        try (BuildDriver build = new BuildDriver(manager, types, CHANNEL_0, new int[] {1}, Optional.of(filter), List.of(buildPage))) {
+            assertThat(build.run()).isInstanceOf(Blocked.class);
+
+            GpuLookupJoin.Factory joinFactory = new GpuLookupJoin.Factory(
+                    manager, CHANNEL_0, CHANNEL_0, FULL, List.of(BIGINT), true);
+            GpuJoinOuterDrain.Factory drainFactory = new GpuJoinOuterDrain.Factory(manager, List.of(BIGINT));
+            List<Page> output = new ArrayList<>(runProbe(joinFactory, types, types, List.of(probePage)));
+            output.addAll(runOuterDrain(drainFactory, types));
+
+            assertThat(build.run()).isInstanceOf(Finished.class);
+
+            assertThat(probeKeyBuildValRows(output)).containsExactlyInAnyOrder("1:20", "2:30", "3:null", "null:10", "null:40");
+        }
+    }
+
+    @Test
+    void testFullJoinAllBuildRowsMatched()
+    {
+        // Every build row matches, so the drain emits nothing; the probe rows with no match are still emitted
+        List<Type> buildTypes = List.of(BIGINT);
+        List<Type> probeTypes = List.of(BIGINT);
+
+        Page buildPage = new Page(longBlock(1L, 3L));
+        Page probePage = new Page(longBlock(1L, 2L, 3L, 4L));
+
+        GpuJoinBridgeManager manager = new GpuJoinBridgeManager(true);
+
+        try (BuildDriver build = new BuildDriver(manager, buildTypes, CHANNEL_0, EMPTY_CHANNELS, List.of(buildPage))) {
+            assertThat(build.run()).isInstanceOf(Blocked.class);
+
+            List<Page> output = runBuildOuterJoin(
+                    FULL,
+                    manager,
+                    probeTypes,
+                    CHANNEL_0,
+                    CHANNEL_0,
+                    List.of(),
+                    List.of(BIGINT),
+                    List.of(probePage));
+
+            assertThat(build.run()).isInstanceOf(Finished.class);
+
+            assertThat(bigintColumnValues(output, 0)).containsExactlyInAnyOrder(1L, 2L, 3L, 4L);
+        }
+    }
+
+    @Test
+    void testFullJoinNoProbeRowMatched()
+    {
+        // Every build index in the gather map is out of bounds, so no build row is marked and all are drained
+        List<Type> buildTypes = List.of(BIGINT, BIGINT);
+        List<Type> probeTypes = List.of(BIGINT);
+
+        Page buildPage = new Page(longBlock(1L, 3L), longBlock(10L, 30L));
+        Page probePage = new Page(longBlock(2L, 4L, 4L));
+
+        GpuJoinBridgeManager manager = new GpuJoinBridgeManager(true);
+
+        try (BuildDriver build = new BuildDriver(manager, buildTypes, CHANNEL_0, new int[] {1}, List.of(buildPage))) {
+            assertThat(build.run()).isInstanceOf(Blocked.class);
+
+            List<Page> output = runBuildOuterJoin(
+                    FULL,
+                    manager,
+                    probeTypes,
+                    CHANNEL_0,
+                    CHANNEL_0,
+                    List.of(BIGINT),
+                    List.of(BIGINT, BIGINT),
+                    List.of(probePage));
+
+            assertThat(build.run()).isInstanceOf(Finished.class);
+
+            assertThat(probeKeyBuildValRows(output)).containsExactlyInAnyOrder("2:null", "4:null", "4:null", "null:10", "null:30");
+        }
+    }
+
+    @Test
+    void testFullJoinEmptyProbe()
+    {
+        // Every build row is unmatched and drained with a NULL probe
+        List<Type> buildTypes = List.of(BIGINT, BIGINT);
+        List<Type> probeTypes = List.of(BIGINT);
+
+        Page buildPage = new Page(longBlock(1L, 3L), longBlock(10L, 30L));
+
+        GpuJoinBridgeManager manager = new GpuJoinBridgeManager(true);
+
+        try (BuildDriver build = new BuildDriver(manager, buildTypes, CHANNEL_0, new int[] {1}, List.of(buildPage))) {
+            assertThat(build.run()).isInstanceOf(Blocked.class);
+
+            List<Page> output = runBuildOuterJoin(
+                    FULL,
+                    manager,
+                    probeTypes,
+                    CHANNEL_0,
+                    CHANNEL_0,
+                    List.of(BIGINT),
+                    List.of(BIGINT, BIGINT),
+                    List.of());
+
+            assertThat(build.run()).isInstanceOf(Finished.class);
+
+            assertThat(probeKeyBuildValRows(output)).containsExactlyInAnyOrder("null:10", "null:30");
+        }
+    }
+
+    @Test
+    void testFullJoinNoProbeDrivers()
+    {
+        // No probe splits, so no probe driver is created; the outer driver must still drain every build row
+        List<Type> buildTypes = List.of(BIGINT, BIGINT);
+        List<Type> probeOutputTypes = List.of(BIGINT);
+
+        Page buildPage = new Page(longBlock(1L, 3L), longBlock(10L, 30L));
+
+        GpuJoinBridgeManager manager = new GpuJoinBridgeManager(true);
+
+        try (BuildDriver build = new BuildDriver(manager, buildTypes, CHANNEL_0, new int[] {1}, List.of(buildPage))) {
+            assertThat(build.run()).isInstanceOf(Blocked.class);
+
+            GpuLookupJoin.Factory joinFactory = new GpuLookupJoin.Factory(
+                    manager, CHANNEL_0, CHANNEL_0, FULL, List.of(BIGINT), false);
+            GpuJoinOuterDrain.Factory drainFactory = new GpuJoinOuterDrain.Factory(manager, probeOutputTypes);
+            // Closing the factory releases the barrier bootstrap so the drain can fire
+            joinFactory.noMoreOperators();
+
+            List<Page> output = runOuterDrain(drainFactory, List.of(BIGINT, BIGINT));
+
+            assertThat(build.run()).isInstanceOf(Finished.class);
+
+            assertThat(probeKeyBuildValRows(output)).containsExactlyInAnyOrder("null:10", "null:30");
+        }
+    }
+
+    @Test
+    void testFullJoinEmptyBuild()
+    {
+        // With no build rows, every probe row is emitted with a NULL build side and the drain emits nothing
+        List<Type> buildTypes = List.of(BIGINT, BIGINT);
+        List<Type> probeTypes = List.of(BIGINT);
+
+        Page probePage = new Page(longBlock(1L, 2L, 3L));
+
+        GpuJoinBridgeManager manager = new GpuJoinBridgeManager(true);
+
+        try (BuildDriver build = new BuildDriver(manager, buildTypes, CHANNEL_0, new int[] {1}, List.of())) {
+            assertThat(build.run()).isInstanceOf(Blocked.class);
+
+            List<Page> output = runBuildOuterJoin(
+                    FULL,
+                    manager,
+                    probeTypes,
+                    CHANNEL_0,
+                    CHANNEL_0,
+                    List.of(BIGINT),
+                    List.of(BIGINT, BIGINT),
+                    List.of(probePage));
+
+            assertThat(build.run()).isInstanceOf(Finished.class);
+
+            assertThat(probeKeyBuildValRows(output)).containsExactlyInAnyOrder("1:null", "2:null", "3:null");
+        }
+    }
+
+    @Test
+    void testFullJoinDuplicateBuildKeys()
+    {
+        // Two build rows share key 1; each build row must appear exactly once
+        List<Type> buildTypes = List.of(BIGINT, BIGINT);
+        List<Type> probeTypes = List.of(BIGINT);
+
+        Page buildPage = new Page(longBlock(1L, 1L, 3L), longBlock(10L, 11L, 30L));
+        Page probePage = new Page(longBlock(1L, 2L));
+
+        GpuJoinBridgeManager manager = new GpuJoinBridgeManager(true);
+
+        try (BuildDriver build = new BuildDriver(manager, buildTypes, CHANNEL_0, new int[] {1}, List.of(buildPage))) {
+            assertThat(build.run()).isInstanceOf(Blocked.class);
+
+            List<Page> output = runBuildOuterJoin(
+                    FULL,
+                    manager,
+                    probeTypes,
+                    CHANNEL_0,
+                    CHANNEL_0,
+                    List.of(BIGINT),
+                    List.of(BIGINT, BIGINT),
+                    List.of(probePage));
+
+            assertThat(build.run()).isInstanceOf(Finished.class);
+
+            assertThat(probeKeyBuildValRows(output)).containsExactlyInAnyOrder("1:10", "1:11", "2:null", "null:30");
+        }
+    }
+
+    @Test
+    void testFullJoinMultipleProbePages()
+    {
+        // Matches accumulate across probe pages before the drain computes the complement once
+        List<Type> buildTypes = List.of(BIGINT, BIGINT);
+        List<Type> probeTypes = List.of(BIGINT);
+
+        Page buildPage = new Page(longBlock(1L, 2L, 3L, 4L, 5L), longBlock(10L, 20L, 30L, 40L, 50L));
+        Page probePage1 = new Page(longBlock(1L, 2L, 6L));
+        Page probePage2 = new Page(longBlock(4L, 7L));
+
+        GpuJoinBridgeManager manager = new GpuJoinBridgeManager(true);
+
+        try (BuildDriver build = new BuildDriver(manager, buildTypes, CHANNEL_0, new int[] {1}, List.of(buildPage))) {
+            assertThat(build.run()).isInstanceOf(Blocked.class);
+
+            List<Page> output = runBuildOuterJoin(
+                    FULL,
+                    manager,
+                    probeTypes,
+                    CHANNEL_0,
+                    CHANNEL_0,
+                    List.of(BIGINT),
+                    List.of(BIGINT, BIGINT),
+                    List.of(probePage1, probePage2));
+
+            assertThat(build.run()).isInstanceOf(Finished.class);
+
+            assertThat(probeKeyBuildValRows(output))
+                    .containsExactlyInAnyOrder("1:10", "2:20", "6:null", "4:40", "7:null", "null:30", "null:50");
+        }
+    }
+
+    @Test
+    void testFullJoinMultipleProbeMatchesSameBuildRow()
+    {
+        // A build row matched by several probe rows must not be drained, nor double-counted
+        List<Type> buildTypes = List.of(BIGINT, BIGINT);
+        List<Type> probeTypes = List.of(BIGINT);
+
+        Page buildPage = new Page(longBlock(1L, 2L), longBlock(10L, 20L));
+        Page probePage = new Page(longBlock(1L, 1L, 3L, 1L));
+
+        GpuJoinBridgeManager manager = new GpuJoinBridgeManager(true);
+
+        try (BuildDriver build = new BuildDriver(manager, buildTypes, CHANNEL_0, new int[] {1}, List.of(buildPage))) {
+            assertThat(build.run()).isInstanceOf(Blocked.class);
+
+            List<Page> output = runBuildOuterJoin(
+                    FULL,
+                    manager,
+                    probeTypes,
+                    CHANNEL_0,
+                    CHANNEL_0,
+                    List.of(BIGINT),
+                    List.of(BIGINT, BIGINT),
+                    List.of(probePage));
+
+            assertThat(build.run()).isInstanceOf(Finished.class);
+
+            assertThat(probeKeyBuildValRows(output))
+                    .containsExactlyInAnyOrder("1:10", "1:10", "1:10", "3:null", "null:20");
+        }
+    }
+
+    @Test
+    void testFullJoinNoProbeOutputColumns()
+    {
+        // COUNT(*)-style probe: no probe output columns, so the output has only the build column, which is NULL for
+        // the probe row with no match
+        List<Type> buildTypes = List.of(BIGINT, BIGINT);
+        List<Type> probeTypes = List.of(BIGINT);
+
+        Page buildPage = new Page(longBlock(1L, 3L), longBlock(10L, 30L));
+        Page probePage = new Page(longBlock(1L, 2L));
+
+        GpuJoinBridgeManager manager = new GpuJoinBridgeManager(true);
+
+        try (BuildDriver build = new BuildDriver(manager, buildTypes, CHANNEL_0, new int[] {1}, List.of(buildPage))) {
+            assertThat(build.run()).isInstanceOf(Blocked.class);
+
+            List<Page> output = runBuildOuterJoin(
+                    FULL,
+                    manager,
+                    probeTypes,
+                    CHANNEL_0,
+                    EMPTY_CHANNELS,
+                    List.of(BIGINT),
+                    List.of(BIGINT),
+                    List.of(probePage));
+
+            assertThat(build.run()).isInstanceOf(Finished.class);
+
+            for (Page page : output) {
+                assertThat(page.getChannelCount()).isEqualTo(1);
+            }
+            assertThat(bigintColumnValues(output, 0)).containsExactlyInAnyOrder(10L, null, 30L);
+        }
+    }
+
+    @Test
+    void testFullJoinAbortedProbeDriverDropsOuterSide()
+    {
+        List<Type> probeTypes = List.of(BIGINT);
+        List<Type> outputTypes = List.of(BIGINT);
+
+        Page buildPage = new Page(longBlock(1L, 2L, 3L, 4L));
+
+        GpuJoinBridgeManager manager = new GpuJoinBridgeManager(true);
+
+        try (BuildDriver build = new BuildDriver(manager, List.of(BIGINT), CHANNEL_0, EMPTY_CHANNELS, List.of(buildPage))) {
+            assertThat(build.run()).isInstanceOf(Blocked.class);
+
+            GpuLookupJoin.Factory joinFactory = new GpuLookupJoin.Factory(
+                    manager, CHANNEL_0, CHANNEL_0, FULL, List.of(), false);
+            GpuJoinOuterDrain.Factory drainFactory = new GpuJoinOuterDrain.Factory(manager, probeTypes);
+
+            // Larger than BufferPages.TARGET_ROW_COUNT, so the driver records its match before its source finishes
+            Page probePageA = new Page(constantLongBlock(1L, 150_000));
+            Page probePageB = new Page(longBlock(3L, 9L));
+
+            List<Page> innerOutput;
+            try (ProbeDriver driverA = new ProbeDriver(joinFactory, probeTypes, outputTypes);
+                    ProbeDriver driverB = new ProbeDriver(joinFactory, probeTypes, outputTypes)) {
+                joinFactory.noMoreOperators();
+
+                // Torn down before finishing
+                driverA.feedAndRecordFirstPage(probePageA);
+                driverA.close();
+
+                // Finishes and merges its match; with a peer aborted the outer build side is dropped
+                innerOutput = driverB.runToCompletion(probePageB);
+            }
+
+            // The drain observes the abort and emits nothing
+            List<Page> output = new ArrayList<>(innerOutput);
+            output.addAll(runOuterDrain(drainFactory, outputTypes));
+
+            assertThat(build.run()).isInstanceOf(Finished.class);
+
+            // Build key 3, matched by driver B, and probe key 9, which matches no build row; no build row is drained
+            assertThat(bigintColumnValues(output, 0)).containsExactlyInAnyOrder(3L, 9L);
+        }
+    }
+
+    /// Runs the join as two drivers, mirroring the real plan: the probe output followed by the drained output.
+    private static List<Page> runBuildOuterJoin(
+            JoinType joinType,
             GpuJoinBridgeManager manager,
             List<Type> probeTypes,
             int[] probeKeyChannels,
@@ -472,7 +905,7 @@ final class TestGpuRightJoin
     {
         List<Type> probeOutputTypes = IntStream.of(probeOutputChannels).mapToObj(probeTypes::get).collect(toImmutableList());
         GpuLookupJoin.Factory joinFactory = new GpuLookupJoin.Factory(
-                manager, probeKeyChannels, probeOutputChannels, GpuLookupJoin.JoinType.RIGHT, buildOutputTypes, false);
+                manager, probeKeyChannels, probeOutputChannels, joinType, buildOutputTypes, false);
         GpuJoinOuterDrain.Factory drainFactory = new GpuJoinOuterDrain.Factory(manager, probeOutputTypes);
 
         List<Page> output = new ArrayList<>(runProbe(joinFactory, probeTypes, outputTypes, probePages));
@@ -532,6 +965,19 @@ final class TestGpuRightJoin
             }
         }
         return rows;
+    }
+
+    /// Flattens one BIGINT column of the pages, with `null` for NULL positions.
+    private static List<Long> bigintColumnValues(List<Page> output, int channel)
+    {
+        List<Long> values = new ArrayList<>();
+        for (Page page : output) {
+            Block block = page.getBlock(channel);
+            for (int i = 0; i < page.getPositionCount(); i++) {
+                values.add(block.isNull(i) ? null : BIGINT.getLong(block, i));
+            }
+        }
+        return values;
     }
 
     /// Drives a {@link GpuJoinBuild} pipeline. Tests must call {@link #run} once before running probes, to
@@ -611,7 +1057,7 @@ final class TestGpuRightJoin
         return builder.build();
     }
 
-    /// One RIGHT-join probe driver, driven either by {@link #feedAndRecordFirstPage}, which leaves the source
+    /// One probe driver, driven either by {@link #feedAndRecordFirstPage}, which leaves the source
     /// unfinished so {@link #close} is an abort, or by {@link #runToCompletion}.
     private static final class ProbeDriver
             implements AutoCloseable

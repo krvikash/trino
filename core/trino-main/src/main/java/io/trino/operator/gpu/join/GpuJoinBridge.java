@@ -30,7 +30,7 @@ public sealed interface GpuJoinBridge
 
     int buildRowCount();
 
-    /// Present only for a RIGHT join over a non-empty build side.
+    /// Present only for a RIGHT or FULL join over a non-empty build side.
     @Nullable
     @Borrow
     GpuJoinMatchMask matchMask();

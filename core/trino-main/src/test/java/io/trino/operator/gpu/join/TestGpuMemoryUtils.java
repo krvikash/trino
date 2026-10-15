@@ -331,7 +331,7 @@ class TestGpuMemoryUtils
             try (HashJoin hashJoin = new HashJoin(buildKeyTable, /*compareNullsEqual=*/ false)) {
                 equalityMatchCount = switch (joinType) {
                     case INNER, RIGHT -> probeKeyTable.innerJoinRowCount(hashJoin);
-                    case LEFT -> probeKeyTable.leftJoinRowCount(hashJoin);
+                    case LEFT, FULL -> probeKeyTable.leftJoinRowCount(hashJoin);
                 };
             }
             if (equalityMatchCount == 0) {
@@ -340,9 +340,9 @@ class TestGpuMemoryUtils
                 return;
             }
             long reported = switch (joinType) {
-                // RIGHT emits INNER output per page, so it uses the inner-join estimate, matching GpuLookupJoin
+                // RIGHT and FULL emit INNER and LEFT output per page, so they use those estimates, matching GpuLookupJoin
                 case INNER, RIGHT -> getMixedInnerJoinGpuDeviceMemoryUsage(buildKeyTable, buildSourceTable, probeSourceTable, equalityMatchCount);
-                case LEFT -> getMixedLeftJoinGpuDeviceMemoryUsage(buildKeyTable, buildSourceTable, probeSourceTable, equalityMatchCount);
+                case LEFT, FULL -> getMixedLeftJoinGpuDeviceMemoryUsage(buildKeyTable, buildSourceTable, probeSourceTable, equalityMatchCount);
             };
 
             long memoryBefore = Rmm.getTotalBytesAllocated();
@@ -357,7 +357,7 @@ class TestGpuMemoryUtils
                         buildSourceTable,
                         filter,
                         NullEquality.UNEQUAL);
-                case LEFT -> Table.mixedLeftJoinGatherMaps(
+                case LEFT, FULL -> Table.mixedLeftJoinGatherMaps(
                         probeKeyTable,
                         buildKeyTable,
                         probeSourceTable,
