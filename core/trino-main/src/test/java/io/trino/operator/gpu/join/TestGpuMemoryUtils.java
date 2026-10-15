@@ -63,7 +63,6 @@ import static io.trino.plugin.base.gpu.GpuUtils.toTable;
 import static io.trino.spi.gpu.GpuTypeConversion.toGpuMapping;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
-import static io.trino.spi.type.VarbinaryType.VARBINARY;
 import static io.trino.sql.gen.TestColumnarFilters.NullsProvider.NO_NULLS;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -303,10 +302,6 @@ class TestGpuMemoryUtils
                 2048, 10_000);
 
         for (Type type : TESTED_GPU_TYPES) {
-            // TODO https://starburstdata.atlassian.net/browse/ENG-27258 temporary guard; cudf 26.06.x mixed joins corrupt memory on nested VARBINARY (LIST<UINT8>) keys.
-            if (type == VARBINARY) {
-                continue;
-            }
             for (NullsProvider nullsProvider : NullsProvider.values()) {
                 for (Map.Entry<Integer, Integer> rowCounts : testedRowCounts.entrySet()) {
                     int firstRowCount = rowCounts.getKey();

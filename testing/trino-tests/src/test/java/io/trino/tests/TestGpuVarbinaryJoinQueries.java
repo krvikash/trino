@@ -69,8 +69,8 @@ public class TestGpuVarbinaryJoinQueries
                 .executesWithGpu(JoinNode.class)
                 .matches("SELECT to_utf8(CAST(i AS varchar)) FROM (UNNEST(sequence(0, 20))) t(i)");
 
-        // TODO ENG-27258 temporary guard: the non-equi p.n + b.n > 5 makes it a mixed join, which the guard
-        // must keep on CPU; without the guard it runs on GPU and faults.
+        // The non-equi p.n + b.n > 5 makes it a mixed join. The GPU join filter compiler has no arithmetic,
+        // so it stays on CPU.
         assertThat(query(
                 """
                 SELECT p.v
@@ -80,5 +80,16 @@ public class TestGpuVarbinaryJoinQueries
                 """))
                 .executesWithoutGpu()
                 .matches("SELECT to_utf8(CAST(i AS varchar)) FROM (UNNEST(sequence(3, 20))) t(i)");
+
+        // A bare comparison p.n > b.m compiles, so this mixed join runs on GPU.
+        assertThat(query(
+                """
+                SELECT p.v
+                FROM (SELECT to_utf8(CAST(i AS varchar)) AS v, i AS n FROM (UNNEST(sequence(0, 20))) t(i)) p
+                JOIN (SELECT to_utf8(CAST(i AS varchar)) AS v, 20 - i AS m FROM (UNNEST(sequence(0, 20))) t(i)) b
+                    ON p.v = b.v AND p.n > b.m
+                """))
+                .executesWithGpu(JoinNode.class)
+                .matches("SELECT to_utf8(CAST(i AS varchar)) FROM (UNNEST(sequence(11, 20))) t(i)");
     }
 }
