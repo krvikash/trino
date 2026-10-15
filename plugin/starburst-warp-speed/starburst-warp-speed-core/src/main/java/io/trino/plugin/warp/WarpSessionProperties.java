@@ -38,7 +38,6 @@ import static io.trino.spi.session.PropertyMetadata.doubleProperty;
 import static io.trino.spi.session.PropertyMetadata.integerProperty;
 import static io.trino.spi.session.PropertyMetadata.stringProperty;
 
-@SuppressWarnings("ConstantConditions")
 @Singleton
 public final class WarpSessionProperties
 {
