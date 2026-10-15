@@ -13,6 +13,7 @@
  */
 package io.trino.plugin.objectstore;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMultimap;
@@ -159,7 +160,8 @@ public class ObjectStoreSessionProperties
                 wrappedPropertyValue -> propertyMetadata.getJavaType().cast(wrappedPropertyValue.value()));
     }
 
-    private class DelegateSession
+    @VisibleForTesting
+    final class DelegateSession
             implements ConnectorSession
     {
         private final TableType forType;
