@@ -38,6 +38,7 @@ import io.trino.execution.querystats.PlanOptimizersStatsCollector;
 import io.trino.execution.scheduler.NodeScheduler;
 import io.trino.execution.scheduler.PipelinedQueryScheduler;
 import io.trino.execution.scheduler.QueryScheduler;
+import io.trino.execution.scheduler.SingleNodeQueryPlacements;
 import io.trino.execution.scheduler.SplitSchedulerStats;
 import io.trino.execution.scheduler.TaskExecutionStats;
 import io.trino.execution.scheduler.faulttolerant.EventDrivenFaultTolerantQueryScheduler;
@@ -152,6 +153,7 @@ public class SqlQueryExecution
     private final AtomicReference<QueryScheduler> queryScheduler = new AtomicReference<>();
     private final AtomicReference<EffectivePlan> queryPlan = new AtomicReference<>();
     private final NodeTaskMap nodeTaskMap;
+    private final SingleNodeQueryPlacements singleNodeQueryPlacements;
     private final ExecutionPolicy executionPolicy;
     private final SplitSchedulerStats schedulerStats;
     private final Analysis analysis;
@@ -195,6 +197,7 @@ public class SqlQueryExecution
             InternalNodeManager nodeManager,
             NodeExecutionStrategy nodeExecutionStrategy,
             NodeTaskMap nodeTaskMap,
+            SingleNodeQueryPlacements singleNodeQueryPlacements,
             ExecutionPolicy executionPolicy,
             SplitSchedulerStats schedulerStats,
             ScheduledSplitsPerTableTracker scheduledSplitsPerTableTracker,
@@ -232,6 +235,7 @@ public class SqlQueryExecution
             this.nodeManager = requireNonNull(nodeManager, "nodeManager is null");
             this.nodeExecutionStrategy = requireNonNull(nodeExecutionStrategy, "nodeExecutionStrategy is null");
             this.nodeTaskMap = requireNonNull(nodeTaskMap, "nodeTaskMap is null");
+            this.singleNodeQueryPlacements = requireNonNull(singleNodeQueryPlacements, "singleNodeQueryPlacements is null");
             this.executionPolicy = requireNonNull(executionPolicy, "executionPolicy is null");
             this.schedulerStats = requireNonNull(schedulerStats, "schedulerStats is null");
             this.scheduledSplitsPerTableTracker = requireNonNull(scheduledSplitsPerTableTracker, "scheduledSplitsPerTableCollector is null");
@@ -618,6 +622,7 @@ public class SqlQueryExecution
                     nodeManager,
                     plan.isForceSingleNodeQuery(),
                     nodeTaskMap,
+                    singleNodeQueryPlacements,
                     executionPolicy,
                     tracer,
                     schedulerStats,
@@ -885,6 +890,7 @@ public class SqlQueryExecution
         private final ScheduledExecutorService schedulerExecutor;
         private final InternalNodeManager nodeManager;
         private final NodeTaskMap nodeTaskMap;
+        private final SingleNodeQueryPlacements singleNodeQueryPlacements;
         private final Map<String, ExecutionPolicy> executionPolicies;
         private final StatsCalculator statsCalculator;
         private final CostCalculator costCalculator;
@@ -921,6 +927,7 @@ public class SqlQueryExecution
                 @ForScheduler ScheduledExecutorService schedulerExecutor,
                 InternalNodeManager nodeManager,
                 NodeTaskMap nodeTaskMap,
+                SingleNodeQueryPlacements singleNodeQueryPlacements,
                 Map<String, ExecutionPolicy> executionPolicies,
                 SplitSchedulerStats schedulerStats,
                 StatsCalculator statsCalculator,
@@ -955,6 +962,7 @@ public class SqlQueryExecution
             this.schedulerExecutor = requireNonNull(schedulerExecutor, "schedulerExecutor is null");
             this.nodeManager = requireNonNull(nodeManager, "nodeManager is null");
             this.nodeTaskMap = requireNonNull(nodeTaskMap, "nodeTaskMap is null");
+            this.singleNodeQueryPlacements = requireNonNull(singleNodeQueryPlacements, "singleNodeQueryPlacements is null");
             this.executionPolicies = requireNonNull(executionPolicies, "executionPolicies is null");
             requireNonNull(planOptimizersFactory, "planOptimizersFactory is null");
             this.planOptimizers = planOptimizersFactory.getPlanOptimizers();
@@ -1013,6 +1021,7 @@ public class SqlQueryExecution
                     nodeManager,
                     nodeExecutionStrategy,
                     nodeTaskMap,
+                    singleNodeQueryPlacements,
                     executionPolicy,
                     schedulerStats,
                     scheduledSplitsPerTableTracker,

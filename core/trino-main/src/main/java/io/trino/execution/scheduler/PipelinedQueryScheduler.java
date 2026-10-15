@@ -54,6 +54,7 @@ import io.trino.execution.TableExecuteContextManager;
 import io.trino.execution.TaskFailureListener;
 import io.trino.execution.TaskId;
 import io.trino.execution.TaskStatus;
+import io.trino.execution.scheduler.SingleNodeQueryPlacements.Phase;
 import io.trino.execution.scheduler.policy.ExecutionPolicy;
 import io.trino.execution.scheduler.policy.ExecutionSchedule;
 import io.trino.execution.scheduler.policy.StagesScheduleResult;
@@ -187,6 +188,7 @@ public class PipelinedQueryScheduler
     private final QueryStateMachine queryStateMachine;
     private final NodePartitioningManager nodePartitioningManager;
     private final NodeScheduler nodeScheduler;
+    private final SingleNodeQueryPlacements singleNodeQueryPlacements;
     private final int splitBatchSize;
     private final ExecutorService executor;
     private final ScheduledExecutorService schedulerExecutor;
@@ -234,6 +236,7 @@ public class PipelinedQueryScheduler
             InternalNodeManager nodeManager,
             boolean forceSingleNodeQuery,
             NodeTaskMap nodeTaskMap,
+            SingleNodeQueryPlacements singleNodeQueryPlacements,
             ExecutionPolicy executionPolicy,
             Tracer tracer,
             SplitSchedulerStats schedulerStats,
@@ -249,6 +252,7 @@ public class PipelinedQueryScheduler
         this.queryStateMachine = requireNonNull(queryStateMachine, "queryStateMachine is null");
         this.nodePartitioningManager = requireNonNull(nodePartitioningManager, "nodePartitioningManager is null");
         this.nodeScheduler = requireNonNull(nodeScheduler, "nodeScheduler is null");
+        this.singleNodeQueryPlacements = requireNonNull(singleNodeQueryPlacements, "singleNodeQueryPlacements is null");
         this.splitBatchSize = splitBatchSize;
         this.executor = requireNonNull(queryExecutor, "queryExecutor is null");
         this.schedulerExecutor = requireNonNull(schedulerExecutor, "schedulerExecutor is null");
@@ -263,6 +267,9 @@ public class PipelinedQueryScheduler
         this.exchangeManagerRegistry = requireNonNull(exchangeManagerRegistry, "exchangeManagerRegistry is null");
         this.exchangeMetricsCollector = requireNonNull(exchangeMetricsCollector, "exchangeMetricsCollector is null");
         this.forceSingleNodeQuery = forceSingleNodeQuery;
+        if (forceSingleNodeQuery) {
+            queryStateMachine.addQueryInfoStateChangeListener(_ -> singleNodeQueryPlacements.release(queryStateMachine.getQueryId()));
+        }
         this.schedulerSpan = tracer.spanBuilder("scheduler")
                 .setParent(Context.current().with(queryStateMachine.getSession().getQuerySpan()))
                 .setAttribute(TrinoAttributes.QUERY_ID, queryStateMachine.getQueryId().toString())
@@ -363,6 +370,7 @@ public class PipelinedQueryScheduler
                         scheduledSplitsPerTableTracker,
                         metadata,
                         nodeScheduler,
+                        singleNodeQueryPlacements,
                         nodePartitioningManager,
                         stageManager,
                         coordinatorStagesScheduler,
@@ -901,6 +909,7 @@ public class PipelinedQueryScheduler
                 ScheduledSplitsPerTableTracker scheduledSplitsPerTableTracker,
                 Metadata metadata,
                 NodeScheduler nodeScheduler,
+                SingleNodeQueryPlacements singleNodeQueryPlacements,
                 NodePartitioningManager nodePartitioningManager,
                 StageManager stageManager,
                 CoordinatorStagesScheduler coordinatorStagesScheduler,
@@ -920,7 +929,11 @@ public class PipelinedQueryScheduler
         {
             DistributedStagesSchedulerStateMachine stateMachine = new DistributedStagesSchedulerStateMachine(queryStateMachine.getQueryId(), executor);
 
-            NodeSelector partitioningNodeSelector = nodeScheduler.createNodeSelector(queryStateMachine.getSession());
+            NodeSelector clusterNodeSelector = nodeScheduler.createNodeSelector(queryStateMachine.getSession());
+            // A single-node query reserves its node once per attempt through a selector that sees only that node
+            NodeSelector partitioningNodeSelector = forceSingleNodeQuery
+                    ? new SingleNodeSelector(clusterNodeSelector, queryStateMachine.getQueryId(), singleNodeQueryPlacements, () -> Phase.of(queryStateMachine))
+                    : clusterNodeSelector;
             Map<PartitioningKey, NodePartitionMap> partitioningCacheMap = new HashMap<>();
             Function<PartitioningKey, NodePartitionMap> partitioningCache = partitioningKey ->
                     partitioningCacheMap.computeIfAbsent(partitioningKey, partitioning -> nodePartitioningManager.getNodePartitioningMap(
@@ -1008,7 +1021,10 @@ public class PipelinedQueryScheduler
                         .map(stage -> requireNonNull(stageExecutions.get(stage.getStageId()), () -> "stage execution not found for stage: " + stage))
                         .collect(toImmutableList());
 
-                NodeSelector stageNodeSelector = nodeScheduler.createNodeSelector(queryStateMachine.getSession());
+                // The stages of a single-node query share the selector of its partitioning, so they land on the one reserved node
+                NodeSelector stageNodeSelector = forceSingleNodeQuery
+                        ? partitioningNodeSelector
+                        : nodeScheduler.createNodeSelector(queryStateMachine.getSession());
                 StageScheduler scheduler = createStageScheduler(
                         queryStateMachine,
                         stageExecution,

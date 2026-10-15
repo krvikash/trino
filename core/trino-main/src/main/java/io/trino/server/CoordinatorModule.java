@@ -81,6 +81,7 @@ import io.trino.execution.resourcegroups.ResourceGroupInfoProvider;
 import io.trino.execution.resourcegroups.ResourceGroupManager;
 import io.trino.execution.scheduler.NodeScheduler;
 import io.trino.execution.scheduler.NodeSchedulerConfig;
+import io.trino.execution.scheduler.SingleNodeQueryPlacements;
 import io.trino.execution.scheduler.SplitSchedulerStats;
 import io.trino.execution.scheduler.StableHostAddressProvider;
 import io.trino.execution.scheduler.StableHostAddressProviderConfig;
@@ -314,6 +315,7 @@ public class CoordinatorModule
         // node scheduler
         binder.bind(NodeScheduler.class).in(Scopes.SINGLETON);
         binder.bind(NodeTaskMap.class).in(Scopes.SINGLETON);
+        binder.bind(SingleNodeQueryPlacements.class).in(Scopes.SINGLETON);
         newExporter(binder).export(NodeScheduler.class).withGeneratedName();
 
         // stable host address provider used by the scheduler to place splits that carry an affinity key
