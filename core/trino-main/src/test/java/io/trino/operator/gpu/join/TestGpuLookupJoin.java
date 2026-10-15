@@ -30,6 +30,7 @@ import io.trino.operator.gpu.TestingGpuOperationContext;
 import io.trino.spi.Page;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
+import io.trino.spi.gpu.GpuPage;
 import io.trino.spi.gpu.borrow.Move;
 import io.trino.spi.gpu.borrow.Own;
 import io.trino.spi.type.CharType;
@@ -38,6 +39,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.ArrayList;
@@ -56,8 +58,10 @@ import static ai.rapids.cudf.ast.BinaryOperator.LESS_EQUAL;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static io.trino.operator.gpu.GpuTestUtils.executeGpuOperation;
 import static io.trino.operator.gpu.GpuTestUtils.maybeSetGpuMemoryPoolForTests;
+import static io.trino.operator.gpu.join.GpuJoinUtils.MAX_OUTPUT_CHUNK_ROWS;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.CharType.createCharType;
+import static java.lang.Math.ceilDiv;
 import static org.assertj.core.api.Assertions.assertThat;
 
 final class TestGpuLookupJoin
@@ -275,6 +279,138 @@ final class TestGpuLookupJoin
         }
     }
 
+    @ParameterizedTest(name = "{0} filtered={1}")
+    @MethodSource("chunkedJoinCases")
+    void testHighFanOutJoinIsChunked(GpuLookupJoin.JoinType joinType, boolean filtered)
+    {
+        // Every build key repeats buildRowsPerKey times, so a single probe page has a high fan-out
+        int chunkRows = 1_000;
+        int buildKeys = 50;
+        int buildRowsPerKey = 40;
+        int probeRows = 1_000;
+        // Probe keys 50-59 match no build key
+        int probeKeys = 60;
+
+        long[] buildKeyValues = new long[buildKeys * buildRowsPerKey];
+        long[] buildValues = new long[buildKeyValues.length];
+        for (int i = 0; i < buildKeyValues.length; i++) {
+            buildKeyValues[i] = i % buildKeys;
+            buildValues[i] = i;
+        }
+        long[] probeKeyValues = new long[probeRows];
+        long[] probeValues = new long[probeRows];
+        for (int i = 0; i < probeRows; i++) {
+            probeKeyValues[i] = i % probeKeys;
+            // Spread over the build values, so the filter below keeps only some matches of a probe row
+            probeValues[i] = i * 2L;
+        }
+        // ON probe.key = build.key AND probe.value < build.value
+        Optional<AstExpression> filter = Optional.empty();
+        if (filtered) {
+            filter = Optional.of(new BinaryOperation(
+                    LESS,
+                    new ColumnReference(1, TableReference.LEFT),
+                    new ColumnReference(1, TableReference.RIGHT)));
+        }
+
+        List<Type> types = List.of(BIGINT, BIGINT);
+        Page buildPage = new Page(longBlock(buildKeyValues), longBlock(buildValues));
+        Page probePage = new Page(longBlock(probeKeyValues), longBlock(probeValues));
+
+        List<String> expected = new ArrayList<>();
+        for (int probe = 0; probe < probeRows; probe++) {
+            boolean matched = false;
+            for (int build = 0; build < buildKeyValues.length; build++) {
+                if (probeKeyValues[probe] == buildKeyValues[build] && (!filtered || probeValues[probe] < buildValues[build])) {
+                    expected.add(probeKeyValues[probe] + ":" + probeValues[probe] + ":" + buildValues[build]);
+                    matched = true;
+                }
+            }
+            if (!matched && joinType == GpuLookupJoin.JoinType.LEFT) {
+                expected.add(probeKeyValues[probe] + ":" + probeValues[probe] + ":null");
+            }
+        }
+
+        GpuJoinBridgeManager manager = new GpuJoinBridgeManager(false);
+        try (BuildDriver build = new BuildDriver(manager, types, CHANNEL_0, new int[] {1}, filter, List.of(buildPage))) {
+            assertThat(build.run()).isInstanceOf(Blocked.class);
+
+            List<Integer> joinPageRows = new ArrayList<>();
+            List<Page> output = runProbe(
+                    new GpuLookupJoin.Factory(manager, CHANNEL_0, new int[] {0, 1}, joinType, List.of(BIGINT), chunkRows, filtered),
+                    types,
+                    List.of(BIGINT, BIGINT, BIGINT),
+                    List.of(probePage),
+                    joinPageRows);
+
+            assertThat(build.run()).isInstanceOf(Finished.class);
+
+            assertThat(expected).hasSizeGreaterThan(5 * chunkRows);
+            assertThat(joinPageRows)
+                    .hasSize(ceilDiv(expected.size(), chunkRows))
+                    .allSatisfy(rows -> assertThat(rows).isBetween(1, chunkRows));
+            assertThat(probeValueBuildValueRows(output)).containsExactlyInAnyOrderElementsOf(expected);
+        }
+    }
+
+    static Stream<Arguments> chunkedJoinCases()
+    {
+        return Stream.of(
+                Arguments.of(GpuLookupJoin.JoinType.INNER, false),
+                Arguments.of(GpuLookupJoin.JoinType.INNER, true),
+                Arguments.of(GpuLookupJoin.JoinType.LEFT, false),
+                Arguments.of(GpuLookupJoin.JoinType.LEFT, true));
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = GpuLookupJoin.JoinType.class, names = {"INNER", "LEFT"})
+    void testSingleProbeRowExceedingChunkLimit(GpuLookupJoin.JoinType joinType)
+    {
+        // Probe rows with key 7 match every build row, more than a chunk may hold
+        int chunkRows = 100;
+        int buildRows = 300;
+        long[] buildKeys = new long[buildRows];
+        long[] buildValues = new long[buildRows];
+        for (int i = 0; i < buildRows; i++) {
+            buildKeys[i] = 7;
+            buildValues[i] = i;
+        }
+        List<Type> types = List.of(BIGINT, BIGINT);
+        Page buildPage = new Page(longBlock(buildKeys), longBlock(buildValues));
+        Page probePage = new Page(longBlock(7L, 1L, 7L, 2L), longBlock(10L, 11L, 12L, 13L));
+
+        GpuJoinBridgeManager manager = new GpuJoinBridgeManager(false);
+        try (BuildDriver build = new BuildDriver(manager, types, CHANNEL_0, new int[] {1}, List.of(buildPage))) {
+            assertThat(build.run()).isInstanceOf(Blocked.class);
+
+            List<Integer> joinPageRows = new ArrayList<>();
+            List<Page> output = runProbe(
+                    new GpuLookupJoin.Factory(manager, CHANNEL_0, new int[] {0, 1}, joinType, List.of(BIGINT), chunkRows, false),
+                    types,
+                    List.of(BIGINT, BIGINT, BIGINT),
+                    List.of(probePage),
+                    joinPageRows);
+
+            assertThat(build.run()).isInstanceOf(Finished.class);
+
+            List<String> expected = new ArrayList<>();
+            for (long probeValue : List.of(10L, 12L)) {
+                for (int i = 0; i < buildRows; i++) {
+                    expected.add("7:" + probeValue + ":" + i);
+                }
+            }
+            if (joinType == GpuLookupJoin.JoinType.LEFT) {
+                expected.add("1:11:null");
+                expected.add("2:13:null");
+                assertThat(joinPageRows).containsExactly(100, 100, 100, 100, 100, 100, 2);
+            }
+            else {
+                assertThat(joinPageRows).containsExactly(100, 100, 100, 100, 100, 100);
+            }
+            assertThat(probeValueBuildValueRows(output)).containsExactlyInAnyOrderElementsOf(expected);
+        }
+    }
+
     /**
      * Drives a {@link GpuJoinBuild} pipeline. After buffering all input and publishing the
      * bridge, the build operation reports {@link Blocked} until every probe
@@ -365,12 +501,66 @@ final class TestGpuLookupJoin
             List<Page> probePages)
     {
         GpuLookupJoin.Factory factory = new GpuLookupJoin.Factory(
-                manager, probeKeyChannels, probeOutputChannels, joinType, buildOutputTypes, filteredJoin);
+                manager, probeKeyChannels, probeOutputChannels, joinType, buildOutputTypes, MAX_OUTPUT_CHUNK_ROWS, filteredJoin);
         try {
             return executeGpuOperation(probePages, probeTypes, outputTypes, factory::create);
         }
         finally {
             factory.noMoreOperators();
+        }
+    }
+
+    /// Runs the probe side, recording the row count of every page the join emits.
+    private static List<Page> runProbe(
+            GpuLookupJoin.Factory factory,
+            List<Type> probeTypes,
+            List<Type> outputTypes,
+            List<Page> probePages,
+            List<Integer> joinPageRows)
+    {
+        try {
+            return executeGpuOperation(
+                    probePages,
+                    probeTypes,
+                    outputTypes,
+                    (context, source) -> new PageRowsRecorder(factory.create(context, source), joinPageRows));
+        }
+        finally {
+            factory.noMoreOperators();
+        }
+    }
+
+    /// Flattens (probeKey, probeValue, buildValue) pages into `"probeKey:probeValue:buildValue"` strings.
+    private static List<String> probeValueBuildValueRows(List<Page> output)
+    {
+        List<String> rows = new ArrayList<>();
+        for (Page page : output) {
+            for (int i = 0; i < page.getPositionCount(); i++) {
+                String buildValue = page.getBlock(2).isNull(i) ? "null" : String.valueOf(BIGINT.getLong(page.getBlock(2), i));
+                rows.add(BIGINT.getLong(page.getBlock(0), i) + ":" + BIGINT.getLong(page.getBlock(1), i) + ":" + buildValue);
+            }
+        }
+        return rows;
+    }
+
+    /// Passes the results of `delegate` through, recording the row count of every page it emits.
+    private record PageRowsRecorder(GpuOperation delegate, List<Integer> pageRows)
+            implements GpuOperation
+    {
+        @Override
+        public @Move Result execute()
+        {
+            @Own Result result = delegate.execute();
+            if (result instanceof Data(_, GpuPage page)) {
+                pageRows.add(page.positionCount());
+            }
+            return result;
+        }
+
+        @Override
+        public void close()
+        {
+            delegate.close();
         }
     }
 

@@ -421,6 +421,7 @@ import static io.trino.operator.TableWriterOperator.STATS_START_CHANNEL;
 import static io.trino.operator.WindowFunctionDefinition.window;
 import static io.trino.operator.aggregation.AccumulatorCompiler.generateAccumulatorFactory;
 import static io.trino.operator.gpu.SignatureFormatter.formatExpression;
+import static io.trino.operator.gpu.join.GpuJoinUtils.MAX_OUTPUT_CHUNK_ROWS;
 import static io.trino.operator.join.JoinUtils.isBuildSideReplicated;
 import static io.trino.operator.output.SkewedPartitionRebalancer.createPartitionFunction;
 import static io.trino.operator.output.SkewedPartitionRebalancer.getMaxWritersBasedOnMemory;
@@ -5055,6 +5056,7 @@ public class LocalExecutionPlanner
                     Ints.toArray(probeOutputChannels),
                     joinType,
                     buildOutputTypes,
+                    MAX_OUTPUT_CHUNK_ROWS,
                     filter.isPresent());
 
             if (probeContext.isEmpty()) {

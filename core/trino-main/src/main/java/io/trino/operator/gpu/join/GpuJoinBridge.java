@@ -30,6 +30,9 @@ public sealed interface GpuJoinBridge
 
     int buildRowCount();
 
+    /// Device bytes the widest row of [#buildOutputTable] contributes to a gathered output row, or 0 when there is none.
+    long buildOutputMaxBytesPerRow();
+
     /// Present only for a RIGHT or FULL join over a non-empty build side.
     @Nullable
     @Borrow
@@ -51,6 +54,12 @@ public sealed interface GpuJoinBridge
         }
 
         @Override
+        public long buildOutputMaxBytesPerRow()
+        {
+            return 0;
+        }
+
+        @Override
         public @Nullable @Borrow GpuJoinMatchMask matchMask()
         {
             return null;
@@ -61,7 +70,8 @@ public sealed interface GpuJoinBridge
             @Borrow HashJoin hashJoin,
             int buildRowCount,
             @Nullable @Borrow GpuJoinMatchMask matchMask,
-            @Nullable @Borrow Table buildOutputTable)
+            @Nullable @Borrow Table buildOutputTable,
+            long buildOutputMaxBytesPerRow)
             implements GpuJoinBridge
     {
         public HashJoinBridge
@@ -77,7 +87,8 @@ public sealed interface GpuJoinBridge
             @Borrow HashJoin hashJoin,
             @Borrow CompiledExpression compiledFilter,
             @Nullable @Borrow GpuJoinMatchMask matchMask,
-            @Nullable @Borrow Table buildOutputTable)
+            @Nullable @Borrow Table buildOutputTable,
+            long buildOutputMaxBytesPerRow)
             implements GpuJoinBridge
     {
         public FilteredHashJoinBridge

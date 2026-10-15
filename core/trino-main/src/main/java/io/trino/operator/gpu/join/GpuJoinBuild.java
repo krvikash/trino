@@ -22,6 +22,7 @@ import io.trino.operator.gpu.GpuOperation;
 import io.trino.operator.gpu.join.GpuJoinBridge.EmptyBuildSide;
 import io.trino.operator.gpu.join.GpuJoinBridge.FilteredHashJoinBridge;
 import io.trino.operator.gpu.memory.AllocatedMemory;
+import io.trino.operator.gpu.memory.GpuTaskMemoryContext;
 import io.trino.plugin.base.gpu.ClosingRef;
 import io.trino.plugin.base.gpu.TablesList;
 import io.trino.plugin.base.gpu.UncheckedCloser;
@@ -36,6 +37,7 @@ import java.util.Optional;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
+import static io.trino.operator.gpu.join.GpuJoinUtils.maxBytesPerRow;
 import static io.trino.operator.gpu.memory.GpuMemoryUtils.getHashJoinAdditionalGpuDeviceMemoryUsage;
 import static io.trino.plugin.base.gpu.GpuUtils.selectColumns;
 import static io.trino.plugin.base.gpu.GpuUtils.toTable;
@@ -85,6 +87,7 @@ public final class GpuJoinBuild
         public void noMoreOperators() {}
     }
 
+    private final GpuTaskMemoryContext taskMemoryContext;
     private final GpuOperation source;
     private final GpuJoinBridgeManager bridgeManager;
     private final int[] buildKeyChannels;
@@ -123,6 +126,7 @@ public final class GpuJoinBuild
             Optional<AstExpression> filter,
             Optional<GpuDynamicFilterCollector> dynamicFilter)
     {
+        this.taskMemoryContext = context.taskMemoryContext();
         this.source = requireNonNull(source, "source is null");
         this.bridgeManager = requireNonNull(bridgeManager, "bridgeManager is null");
         this.buildKeyChannels = buildKeyChannels;
@@ -130,7 +134,7 @@ public final class GpuJoinBuild
         this.filter = requireNonNull(filter, "filter is null");
         this.dynamicFilter = requireNonNull(dynamicFilter, "dynamicFilter is null");
         this.trackMatchedBuildRows = bridgeManager.hasOuterDrain();
-        this.allocated = context.taskMemoryContext().allocate(getClass().getSimpleName(), MemoryAmount.ZERO);
+        this.allocated = taskMemoryContext.allocate(getClass().getSimpleName(), MemoryAmount.ZERO);
     }
 
     @Override
@@ -204,6 +208,12 @@ public final class GpuJoinBuild
             //  https://github.com/NVIDIA/cudf/issues/24096
             //  https://github.com/NVIDIA/cudf/issues/22748
             hashJoin.set(new HashJoin(buildKeyTable.borrow(), /*compareNullsEqual=*/ false));
+            // Measured once here rather than by each probe operator sharing the build side. Only once the build
+            // side is fully allocated, so the temporary reservation stacks on what is actually in use.
+            long buildOutputMaxBytesPerRow = 0;
+            if (buildOutputTable != null) {
+                buildOutputMaxBytesPerRow = maxBytesPerRow(taskMemoryContext, getClass().getSimpleName(), buildOutputTable, toIntExact(buildOutputTable.getRowCount()));
+            }
 
             int buildRowCount = toIntExact(buildKeyTable.borrow().getRowCount());
             @Nullable @Borrow GpuJoinMatchMask sharedMatchMask = null;
@@ -221,7 +231,8 @@ public final class GpuJoinBuild
                         hashJoin.borrow(),
                         buildRowCount,
                         sharedMatchMask,
-                        buildOutputTable);
+                        buildOutputTable,
+                        buildOutputMaxBytesPerRow);
             }
             else {
                 compiledFilter.set(filter.get().compile());
@@ -231,7 +242,8 @@ public final class GpuJoinBuild
                         hashJoin.borrow(),
                         compiledFilter.borrow(),
                         sharedMatchMask,
-                        buildOutputTable);
+                        buildOutputTable,
+                        buildOutputMaxBytesPerRow);
             }
         }
 

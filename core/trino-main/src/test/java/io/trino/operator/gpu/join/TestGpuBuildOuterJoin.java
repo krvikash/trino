@@ -37,6 +37,8 @@ import io.trino.spi.gpu.borrow.Own;
 import io.trino.spi.type.Type;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -50,6 +52,7 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static io.trino.operator.gpu.GpuTestUtils.drainToPages;
 import static io.trino.operator.gpu.GpuTestUtils.maybeSetGpuMemoryPoolForTests;
+import static io.trino.operator.gpu.join.GpuJoinUtils.MAX_OUTPUT_CHUNK_ROWS;
 import static io.trino.operator.gpu.join.GpuLookupJoin.JoinType.FULL;
 import static io.trino.operator.gpu.join.GpuLookupJoin.JoinType.RIGHT;
 import static io.trino.spi.type.BigintType.BIGINT;
@@ -151,7 +154,7 @@ final class TestGpuBuildOuterJoin
             assertThat(build.run()).isInstanceOf(Blocked.class);
 
             GpuLookupJoin.Factory joinFactory = new GpuLookupJoin.Factory(
-                    manager, CHANNEL_0, CHANNEL_0, RIGHT, List.of(BIGINT), true);
+                    manager, CHANNEL_0, CHANNEL_0, RIGHT, List.of(BIGINT), MAX_OUTPUT_CHUNK_ROWS, true);
             GpuJoinOuterDrain.Factory drainFactory = new GpuJoinOuterDrain.Factory(manager, List.of(BIGINT));
             List<Page> output = new ArrayList<>(runProbe(joinFactory, types, types, List.of(probePage)));
             output.addAll(runOuterDrain(drainFactory, types));
@@ -243,7 +246,7 @@ final class TestGpuBuildOuterJoin
             assertThat(build.run()).isInstanceOf(Blocked.class);
 
             GpuLookupJoin.Factory joinFactory = new GpuLookupJoin.Factory(
-                    manager, CHANNEL_0, CHANNEL_0, RIGHT, List.of(BIGINT), false);
+                    manager, CHANNEL_0, CHANNEL_0, RIGHT, List.of(BIGINT), MAX_OUTPUT_CHUNK_ROWS, false);
             GpuJoinOuterDrain.Factory drainFactory = new GpuJoinOuterDrain.Factory(manager, probeOutputTypes);
             // Closing the factory releases the barrier bootstrap so the drain can fire
             joinFactory.noMoreOperators();
@@ -421,6 +424,72 @@ final class TestGpuBuildOuterJoin
         }
     }
 
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    void testRightJoinChunkedOutput(boolean filtered)
+    {
+        // Build keys 0-9 repeat 20 times and match 100 probe rows, build keys 10-14 match no probe row
+        int chunkRows = 100;
+        int matchedKeys = 10;
+        int buildRows = 300;
+        long[] buildKeys = new long[buildRows];
+        long[] buildValues = new long[buildRows];
+        for (int i = 0; i < buildRows; i++) {
+            buildKeys[i] = i % 15;
+            buildValues[i] = i;
+        }
+        long[] probeKeys = new long[100];
+        long[] probeValues = new long[probeKeys.length];
+        for (int i = 0; i < probeKeys.length; i++) {
+            probeKeys[i] = i % matchedKeys;
+            probeValues[i] = i * 3L;
+        }
+        // ON probe.key = build.key AND probe.value < build.value
+        Optional<AstExpression> filter = Optional.empty();
+        if (filtered) {
+            filter = Optional.of(new BinaryOperation(
+                    LESS,
+                    new ColumnReference(1, TableReference.LEFT),
+                    new ColumnReference(1, TableReference.RIGHT)));
+        }
+
+        List<String> expected = new ArrayList<>();
+        boolean[] buildMatched = new boolean[buildRows];
+        for (int probe = 0; probe < probeKeys.length; probe++) {
+            for (int build = 0; build < buildRows; build++) {
+                if (probeKeys[probe] == buildKeys[build] && (!filtered || probeValues[probe] < buildValues[build])) {
+                    expected.add(probeKeys[probe] + ":" + buildValues[build]);
+                    buildMatched[build] = true;
+                }
+            }
+        }
+        for (int build = 0; build < buildRows; build++) {
+            if (!buildMatched[build]) {
+                expected.add("null:" + buildValues[build]);
+            }
+        }
+        assertThat(expected).hasSizeGreaterThan(5 * chunkRows);
+
+        List<Type> types = List.of(BIGINT, BIGINT);
+        Page buildPage = new Page(longBlock(buildKeys), longBlock(buildValues));
+        Page probePage = new Page(longBlock(probeKeys), longBlock(probeValues));
+
+        GpuJoinBridgeManager manager = new GpuJoinBridgeManager(true);
+        try (BuildDriver build = new BuildDriver(manager, types, CHANNEL_0, new int[] {1}, filter, List.of(buildPage))) {
+            assertThat(build.run()).isInstanceOf(Blocked.class);
+
+            GpuLookupJoin.Factory joinFactory = new GpuLookupJoin.Factory(
+                    manager, CHANNEL_0, CHANNEL_0, RIGHT, List.of(BIGINT), chunkRows, filtered);
+            GpuJoinOuterDrain.Factory drainFactory = new GpuJoinOuterDrain.Factory(manager, List.of(BIGINT));
+            List<Page> output = new ArrayList<>(runProbe(joinFactory, types, List.of(BIGINT, BIGINT), List.of(probePage)));
+            output.addAll(runOuterDrain(drainFactory, List.of(BIGINT, BIGINT)));
+
+            assertThat(build.run()).isInstanceOf(Finished.class);
+
+            assertThat(probeKeyBuildValRows(output)).containsExactlyInAnyOrderElementsOf(expected);
+        }
+    }
+
     @Test
     void testRightJoinAbortedProbeDriverDropsOuterSide()
     {
@@ -435,7 +504,7 @@ final class TestGpuBuildOuterJoin
             assertThat(build.run()).isInstanceOf(Blocked.class);
 
             GpuLookupJoin.Factory joinFactory = new GpuLookupJoin.Factory(
-                    manager, CHANNEL_0, CHANNEL_0, RIGHT, List.of(), false);
+                    manager, CHANNEL_0, CHANNEL_0, RIGHT, List.of(), MAX_OUTPUT_CHUNK_ROWS, false);
             GpuJoinOuterDrain.Factory drainFactory = new GpuJoinOuterDrain.Factory(manager, probeTypes);
 
             // Larger than BufferPages.TARGET_ROW_COUNT, so the driver records its match before its source finishes
@@ -555,7 +624,7 @@ final class TestGpuBuildOuterJoin
             assertThat(build.run()).isInstanceOf(Blocked.class);
 
             GpuLookupJoin.Factory joinFactory = new GpuLookupJoin.Factory(
-                    manager, CHANNEL_0, CHANNEL_0, FULL, List.of(BIGINT), true);
+                    manager, CHANNEL_0, CHANNEL_0, FULL, List.of(BIGINT), MAX_OUTPUT_CHUNK_ROWS, true);
             GpuJoinOuterDrain.Factory drainFactory = new GpuJoinOuterDrain.Factory(manager, List.of(BIGINT));
             List<Page> output = new ArrayList<>(runProbe(joinFactory, types, types, List.of(probePage)));
             output.addAll(runOuterDrain(drainFactory, types));
@@ -673,7 +742,7 @@ final class TestGpuBuildOuterJoin
             assertThat(build.run()).isInstanceOf(Blocked.class);
 
             GpuLookupJoin.Factory joinFactory = new GpuLookupJoin.Factory(
-                    manager, CHANNEL_0, CHANNEL_0, FULL, List.of(BIGINT), false);
+                    manager, CHANNEL_0, CHANNEL_0, FULL, List.of(BIGINT), MAX_OUTPUT_CHUNK_ROWS, false);
             GpuJoinOuterDrain.Factory drainFactory = new GpuJoinOuterDrain.Factory(manager, probeOutputTypes);
             // Closing the factory releases the barrier bootstrap so the drain can fire
             joinFactory.noMoreOperators();
@@ -861,7 +930,7 @@ final class TestGpuBuildOuterJoin
             assertThat(build.run()).isInstanceOf(Blocked.class);
 
             GpuLookupJoin.Factory joinFactory = new GpuLookupJoin.Factory(
-                    manager, CHANNEL_0, CHANNEL_0, FULL, List.of(), false);
+                    manager, CHANNEL_0, CHANNEL_0, FULL, List.of(), MAX_OUTPUT_CHUNK_ROWS, false);
             GpuJoinOuterDrain.Factory drainFactory = new GpuJoinOuterDrain.Factory(manager, probeTypes);
 
             // Larger than BufferPages.TARGET_ROW_COUNT, so the driver records its match before its source finishes
@@ -905,7 +974,7 @@ final class TestGpuBuildOuterJoin
     {
         List<Type> probeOutputTypes = IntStream.of(probeOutputChannels).mapToObj(probeTypes::get).collect(toImmutableList());
         GpuLookupJoin.Factory joinFactory = new GpuLookupJoin.Factory(
-                manager, probeKeyChannels, probeOutputChannels, joinType, buildOutputTypes, false);
+                manager, probeKeyChannels, probeOutputChannels, joinType, buildOutputTypes, MAX_OUTPUT_CHUNK_ROWS, false);
         GpuJoinOuterDrain.Factory drainFactory = new GpuJoinOuterDrain.Factory(manager, probeOutputTypes);
 
         List<Page> output = new ArrayList<>(runProbe(joinFactory, probeTypes, outputTypes, probePages));

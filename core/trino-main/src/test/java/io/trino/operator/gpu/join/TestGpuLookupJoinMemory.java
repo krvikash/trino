@@ -19,6 +19,8 @@ import ai.rapids.cudf.ast.BinaryOperator;
 import ai.rapids.cudf.ast.ColumnReference;
 import ai.rapids.cudf.ast.TableReference;
 import com.google.common.collect.ImmutableList;
+import io.airlift.slice.Slice;
+import io.airlift.slice.Slices;
 import io.trino.operator.gpu.GpuOperation;
 import io.trino.operator.gpu.GpuOperation.Blocked;
 import io.trino.operator.gpu.GpuOperation.Data;
@@ -31,6 +33,9 @@ import io.trino.operator.gpu.memory.AllocatedMemory;
 import io.trino.operator.gpu.memory.GpuDeviceMemoryUsageValidation;
 import io.trino.plugin.base.gpu.UncheckedCloser;
 import io.trino.spi.Page;
+import io.trino.spi.block.Block;
+import io.trino.spi.block.BlockBuilder;
+import io.trino.spi.block.VariableWidthBlockBuilder;
 import io.trino.spi.gpu.GpuPage;
 import io.trino.spi.type.Type;
 import io.trino.sql.gen.TestColumnarFilters.NullsProvider;
@@ -41,6 +46,7 @@ import org.junit.jupiter.api.parallel.Isolated;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
@@ -49,14 +55,20 @@ import java.util.stream.IntStream;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.trino.operator.gpu.GpuTestUtils.copyToDevice;
+import static io.trino.operator.gpu.GpuTestUtils.createBigintBlock;
 import static io.trino.operator.gpu.GpuTestUtils.createPages;
 import static io.trino.operator.gpu.GpuTestUtils.maybeSetGpuMemoryPoolForTests;
+import static io.trino.operator.gpu.join.GpuJoinUtils.MAX_OUTPUT_CHUNK_BYTES;
+import static io.trino.operator.gpu.join.GpuJoinUtils.MAX_OUTPUT_CHUNK_ROWS;
 import static io.trino.operator.gpu.join.GpuLookupJoin.JoinType.FULL;
 import static io.trino.operator.gpu.join.GpuLookupJoin.JoinType.LEFT;
 import static io.trino.operator.gpu.join.GpuLookupJoin.JoinType.RIGHT;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.DecimalType.createDecimalType;
 import static io.trino.spi.type.VarcharType.VARCHAR;
+import static io.trino.sql.gen.TestColumnarFilters.NullsProvider.NO_NULLS;
+import static io.trino.sql.gen.TestColumnarFilters.NullsProvider.RANDOM_NULLS;
+import static java.lang.Math.ceilDiv;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.parallel.ExecutionMode.SAME_THREAD;
 
@@ -66,6 +78,7 @@ class TestGpuLookupJoinMemory
 {
     private static final int BUILD_ROWS = 100_000;
     private static final int PROBE_ROWS_PER_PAGE = 200_000;
+    private static final int CHUNK_ROWS = 100_000;
 
     @BeforeAll
     static void maybeSetGpuMemoryPool()
@@ -129,6 +142,102 @@ class TestGpuLookupJoinMemory
                 1);
     }
 
+    @ParameterizedTest
+    @EnumSource(JoinType.class)
+    void testHighFanOutChunked(JoinType joinType)
+    {
+        // Build keys repeat about 10 times and half of the probe rows match one
+        List<Type> types = List.of(BIGINT, BIGINT);
+        for (NullsProvider nullsProvider : List.of(NO_NULLS, RANDOM_NULLS)) {
+            for (Optional<AstExpression> filter : List.of(
+                    Optional.<AstExpression>empty(),
+                    // probe.value < build.value
+                    Optional.<AstExpression>of(new BinaryOperation(
+                            BinaryOperator.LESS,
+                            new ColumnReference(1, TableReference.LEFT),
+                            new ColumnReference(1, TableReference.RIGHT))))) {
+                List<Integer> probeOutputPageRows = testProbe(
+                        joinType,
+                        types,
+                        new int[] {0},
+                        new int[] {1},
+                        new int[] {0, 1},
+                        List.of(BIGINT),
+                        filter,
+                        List.of(keyValuePage(nullsProvider, BUILD_ROWS, BUILD_ROWS / 10)).iterator(),
+                        List.of(keyValuePage(nullsProvider, PROBE_ROWS_PER_PAGE, BUILD_ROWS / 5)).iterator(),
+                        filter.isPresent(),
+                        CHUNK_ROWS);
+                int outputRows = probeOutputPageRows.stream().mapToInt(Integer::intValue).sum();
+                assertThat(probeOutputPageRows)
+                        .hasSize(ceilDiv(outputRows, CHUNK_ROWS))
+                        .allSatisfy(rows -> assertThat(rows).isLessThanOrEqualTo(CHUNK_ROWS));
+                if (filter.isEmpty() && nullsProvider == NO_NULLS) {
+                    assertThat(outputRows).isGreaterThan(5 * CHUNK_ROWS);
+                }
+            }
+        }
+    }
+
+    /// One probe row far wider than the rest, all on a single key, so the output needs several chunks only
+    /// once their row count follows the widest row rather than the page average.
+    @Test
+    void testChunkRowsBoundedByWidestRow()
+    {
+        int probeRows = 250_000;
+        int buildRows = 10;
+        int wideRowChars = 4_000;
+        List<Type> types = List.of(BIGINT, VARCHAR);
+        List<Integer> probeOutputPageRows = testProbe(
+                JoinType.INNER,
+                types,
+                new int[] {0},
+                new int[] {},
+                new int[] {0, 1},
+                ImmutableList.of(),
+                Optional.empty(),
+                List.of(new Page(zerosBlock(buildRows), wideRowsFirst(buildRows, 0, 0))).iterator(),
+                List.of(new Page(zerosBlock(probeRows), wideRowsFirst(probeRows, 1, wideRowChars))).iterator(),
+                false,
+                MAX_OUTPUT_CHUNK_ROWS);
+        assertThat(probeOutputPageRows.stream().mapToInt(Integer::intValue).sum()).isEqualTo(probeRows * buildRows);
+        assertThat(probeOutputPageRows)
+                .hasSizeGreaterThan(1)
+                .allSatisfy(rows -> assertThat((long) rows).isLessThanOrEqualTo(MAX_OUTPUT_CHUNK_BYTES / wideRowChars));
+    }
+
+    private static Block zerosBlock(int rows)
+    {
+        BlockBuilder builder = BIGINT.createFixedSizeBlockBuilder(rows);
+        for (int i = 0; i < rows; i++) {
+            BIGINT.writeLong(builder, 0);
+        }
+        return builder.build();
+    }
+
+    /// `rows` varchar rows of which the leading `wideRows` hold `wideRowChars` characters and the
+    /// rest hold one.
+    private static Block wideRowsFirst(int rows, int wideRows, int wideRowChars)
+    {
+        Slice wide = Slices.utf8Slice("x".repeat(wideRowChars));
+        Slice narrow = Slices.utf8Slice("y");
+        VariableWidthBlockBuilder builder = new VariableWidthBlockBuilder(null, rows, wideRows * wideRowChars + rows);
+        for (int row = 0; row < wideRows; row++) {
+            builder.writeEntry(wide);
+        }
+        for (int row = wideRows; row < rows; row++) {
+            builder.writeEntry(narrow);
+        }
+        return builder.build();
+    }
+
+    private static Page keyValuePage(NullsProvider nullsProvider, int rows, int distinctKeys)
+    {
+        return new Page(
+                createBigintBlock(rows, nullsProvider, 0, distinctKeys),
+                createBigintBlock(rows, nullsProvider, 0, 1_000_000));
+    }
+
     private void testProbe(
             JoinType joinType,
             List<Type> types,
@@ -185,7 +294,36 @@ class TestGpuLookupJoinMemory
             int probePageCount,
             boolean largerMargin)
     {
+        testProbe(
+                joinType,
+                types,
+                keyChannels,
+                buildOutputChannels,
+                probeOutputChannels,
+                buildOutputTypes,
+                filter,
+                createPages(types, nullsProvider, buildPageCount, BUILD_ROWS, false),
+                createPages(types, nullsProvider, probePageCount, PROBE_ROWS_PER_PAGE, true),
+                largerMargin,
+                MAX_OUTPUT_CHUNK_ROWS);
+    }
+
+    /// Returns the row counts of the pages the probe operator emits.
+    private List<Integer> testProbe(
+            JoinType joinType,
+            List<Type> types,
+            int[] keyChannels,
+            int[] buildOutputChannels,
+            int[] probeOutputChannels,
+            List<Type> buildOutputTypes,
+            Optional<AstExpression> filter,
+            Iterator<Page> buildPages,
+            Iterator<Page> probePages,
+            boolean largerMargin,
+            int maxOutputChunkRows)
+    {
         boolean filteredJoin = filter.isPresent();
+        List<Integer> probeOutputPageRows;
         TestingGpuOperationContext context = new TestingGpuOperationContext();
         long marginBytes = (largerMargin ? 9L : 1L) * 1024 * 1024;
         try (GpuDeviceMemoryUsageValidation memoryValidation = GpuDeviceMemoryUsageValidation.createAndRegister(context, marginBytes)) {
@@ -196,7 +334,6 @@ class TestGpuLookupJoinMemory
                     GpuOperation build = buildFactory.create(context, buildSource)) {
                 // Drive build to published — exempt from validation since we're testing probe
                 memoryValidation.withoutValidation(() -> {
-                    Iterator<Page> buildPages = createPages(types, nullsProvider, buildPageCount, BUILD_ROWS, false);
                     boolean buildBlocked = false;
                     while (!buildBlocked) {
                         switch (build.execute()) {
@@ -219,14 +356,13 @@ class TestGpuLookupJoinMemory
                 });
 
                 // Drive probe with memory validation active
-                Iterator<Page> probePages = createPages(types, nullsProvider, probePageCount, PROBE_ROWS_PER_PAGE, true);
                 List<Type> probeOutputTypes = IntStream.of(probeOutputChannels).mapToObj(types::get).collect(toImmutableList());
-                GpuLookupJoin.Factory probeFactory = new GpuLookupJoin.Factory(manager, keyChannels, probeOutputChannels, joinType, buildOutputTypes, filteredJoin);
+                GpuLookupJoin.Factory probeFactory = new GpuLookupJoin.Factory(manager, keyChannels, probeOutputChannels, joinType, buildOutputTypes, maxOutputChunkRows, filteredJoin);
                 if (joinType.isBuildOuter()) {
                     try (var probeSource = new SettableGpuOperation();
                             GpuOperation probe = probeFactory.create(context, probeSource)) {
                         probeFactory.noMoreOperators();
-                        drainJoinOutput(probe, probeSource, probePages, types, context, memoryValidation);
+                        probeOutputPageRows = drainJoinOutput(probe, probeSource, probePages, types, context, memoryValidation);
                     }
                     // Separate outer driver, run after the probe so the barrier has fired and the drain never blocks
                     GpuJoinOuterDrain.Factory drainFactory = new GpuJoinOuterDrain.Factory(manager, probeOutputTypes);
@@ -240,7 +376,7 @@ class TestGpuLookupJoinMemory
                 else {
                     try (var probeSource = new SettableGpuOperation();
                             GpuOperation probe = probeFactory.create(context, probeSource)) {
-                        drainJoinOutput(probe, probeSource, probePages, types, context, memoryValidation);
+                        probeOutputPageRows = drainJoinOutput(probe, probeSource, probePages, types, context, memoryValidation);
                     }
                     probeFactory.noMoreOperators();
                 }
@@ -251,9 +387,11 @@ class TestGpuLookupJoinMemory
                 });
             }
         }
+        return probeOutputPageRows;
     }
 
-    private static void drainJoinOutput(
+    /// Returns the row counts of the pages `top` emits.
+    private static List<Integer> drainJoinOutput(
             GpuOperation top,
             SettableGpuOperation probeSource,
             Iterator<Page> probePages,
@@ -261,6 +399,7 @@ class TestGpuLookupJoinMemory
             TestingGpuOperationContext context,
             GpuDeviceMemoryUsageValidation memoryValidation)
     {
+        List<Integer> pageRows = new ArrayList<>();
         boolean finished = false;
         while (!finished) {
             switch (top.execute()) {
@@ -278,6 +417,7 @@ class TestGpuLookupJoinMemory
                     }
                 }
                 case Data(AllocatedMemory memory, GpuPage page) -> {
+                    pageRows.add(page.positionCount());
                     try (var closer = UncheckedCloser.create()) {
                         closer.register(memory);
                         closer.register(page);
@@ -287,5 +427,6 @@ class TestGpuLookupJoinMemory
                 case Finished() -> finished = true;
             }
         }
+        return pageRows;
     }
 }
