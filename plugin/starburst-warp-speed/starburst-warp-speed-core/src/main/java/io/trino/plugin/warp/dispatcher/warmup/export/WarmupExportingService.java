@@ -85,7 +85,7 @@ public class WarmupExportingService
         if (StringUtils.isEmpty(cloudVendorConfig.getStorePath())) {
             throw new RuntimeException("backup location is not available");
         }
-        String s3ImportExportPath = WarpSessionProperties.getS3ImportExportPath(null, cloudVendorConfig, cloudVendorService);
+        String s3ImportExportPath = WarpSessionProperties.getS3ImportExportPath(null, cloudVendorConfig);
         Location location = cloudVendorService.getLocation(s3ImportExportPath);
         String pathToValidate = s3ImportExportPath.substring(0, s3ImportExportPath.indexOf(location.path()));
         if (!cloudVendorService.directoryExists(pathToValidate)) {
@@ -130,8 +130,7 @@ public class WarmupExportingService
         }
         String s3ImportExportPath = WarpSessionProperties.getS3ImportExportPath(
                 warmingFinishedEvent.session(),
-                cloudVendorConfig,
-                cloudVendorService);
+                cloudVendorConfig);
 
         int exportDelay = globalConfig.getExportDelayInSeconds();
         export(s3ImportExportPath, warmingFinishedEvent.rowGroupKey(), exportDelay);

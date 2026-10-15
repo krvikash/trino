@@ -297,8 +297,7 @@ public final class WarpSessionProperties
 
     public static String getS3ImportExportPath(
             ConnectorSession session,
-            CloudVendorConfig config,
-            CloudVendorService cloudVendorService)
+            CloudVendorConfig config)
     {
         if (session == null || getProperty(session, IMPORT_EXPORT_S3_PATH, String.class) == null) {
             return getS3ImportExportPath(config.getStorePath());

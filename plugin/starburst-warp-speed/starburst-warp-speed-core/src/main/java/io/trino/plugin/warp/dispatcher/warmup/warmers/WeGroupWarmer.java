@@ -289,7 +289,7 @@ public class WeGroupWarmer
 
     public Optional<RowGroupData> importWeGroup(ConnectorSession session, RowGroupKey rowGroupKey)
     {
-        String cloudImportExportPath = WarpSessionProperties.getS3ImportExportPath(session, cloudVendorConfig, cloudVendorService);
+        String cloudImportExportPath = WarpSessionProperties.getS3ImportExportPath(session, cloudVendorConfig);
         String cloudPath = WarmUtils.getCloudPath(rowGroupKey, cloudImportExportPath);
         IsNeedDownloadResults isNeedDownloadResults;
         StopWatch stopWatch = new StopWatch();
@@ -473,7 +473,7 @@ public class WeGroupWarmer
 
     public Optional<RowGroupData> importWarmUpElements(ConnectorSession session, RowGroupKey rowGroupKey, List<WarmUpElement> warmWarmUpElements)
     {
-        String cloudImportExportPath = WarpSessionProperties.getS3ImportExportPath(session, cloudVendorConfig, cloudVendorService);
+        String cloudImportExportPath = WarpSessionProperties.getS3ImportExportPath(session, cloudVendorConfig);
         String cloudPath = WarmUtils.getCloudPath(rowGroupKey, cloudImportExportPath);
         String localFileName = rowGroupKey.stringFileNameRepresentation(globalConfig.getLocalStorePath());
         RowGroupData rowGroupData = rowGroupDataService.get(rowGroupKey);

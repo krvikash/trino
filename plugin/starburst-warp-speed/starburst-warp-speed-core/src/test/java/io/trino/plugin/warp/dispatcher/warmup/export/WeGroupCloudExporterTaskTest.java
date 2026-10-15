@@ -16,7 +16,6 @@ package io.trino.plugin.warp.dispatcher.warmup.export;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
 import io.trino.plugin.warp.WarpSessionProperties;
-import io.trino.plugin.warp.cloudvendors.CloudVendorService;
 import io.trino.plugin.warp.cloudvendors.config.CloudVendorConfig;
 import io.trino.plugin.warp.config.GlobalConfig;
 import io.trino.plugin.warp.config.SharedConfig;
@@ -42,7 +41,6 @@ import java.util.List;
 import static io.trino.plugin.warp.dispatcher.WarmupTestDataUtil.createRegularWarmupElements;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
@@ -93,10 +91,7 @@ public class WeGroupCloudExporterTaskTest
 
         warmupExportServiceStats = new WarmupExportServiceStats();
 
-        CloudVendorService cloudVendorService = mock(CloudVendorService.class);
-        when(cloudVendorService.getLocation(anyString())).thenCallRealMethod();
-
-        cloudImportExportPath = WarpSessionProperties.getS3ImportExportPath(null, cloudVendorConfig, cloudVendorService);
+        cloudImportExportPath = WarpSessionProperties.getS3ImportExportPath(null, cloudVendorConfig);
     }
 
     @Test
