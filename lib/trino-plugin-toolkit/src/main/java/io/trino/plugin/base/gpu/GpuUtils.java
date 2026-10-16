@@ -32,7 +32,7 @@ public final class GpuUtils
     /**
      * Closes all non-null columns in the array. Elements may be null if the array was partially populated.
      */
-    public static void closeColumns(@Move Column[] columns)
+    public static void closeColumns(@Move Column... columns)
     {
         try (var closer = UncheckedCloser.create()) {
             for (Column column : columns) {
@@ -46,7 +46,7 @@ public final class GpuUtils
     /**
      * Closes all non-null columns in the array. Elements may be null.
      */
-    public static void closeColumns(@Move ColumnVector[] columns)
+    public static void closeColumns(@Move ColumnVector... columns)
     {
         try (var closer = AutoCloseableCloser.create()) {
             for (ColumnVector column : columns) {

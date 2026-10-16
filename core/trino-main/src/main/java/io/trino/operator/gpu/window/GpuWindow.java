@@ -595,7 +595,7 @@ public final class GpuWindow
         @Override
         public void close()
         {
-            closeColumns(new ColumnVector[] {startInclusive, endExclusive});
+            closeColumns(startInclusive, endExclusive);
         }
     }
 
@@ -622,7 +622,7 @@ public final class GpuWindow
         @Override
         public void close()
         {
-            closeColumns(new ColumnVector[] {partitionStartInclusive, peerGroupEndExclusive});
+            closeColumns(partitionStartInclusive, peerGroupEndExclusive);
         }
     }
 
