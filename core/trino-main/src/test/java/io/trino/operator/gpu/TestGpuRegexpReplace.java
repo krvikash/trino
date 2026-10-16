@@ -579,6 +579,8 @@ final class TestGpuRegexpReplace
     void testDoesNotCompileBackreferenceInPattern()
     {
         assertThat(regexpReplace("(a)\\1", "x")).doesNotCompile();
+        assertThat(regexpReplace("(a)(b)\\1", "$2")).doesNotCompile();
+        assertThat(regexpReplace("(?<x>a)\\k<x>", "x")).doesNotCompile();
     }
 
     @Test
