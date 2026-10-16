@@ -360,6 +360,13 @@ final class TestGpuExpressionsQueries
     }
 
     @Test
+    void testRegexpReplaceRejectedByCudf()
+    {
+        assertThat(query("SELECT regexp_replace(a_varchar, '(l*)+', '*') FROM expressions")).executesWithoutGpu();
+        assertThat(query("SELECT regexp_replace(a_varchar, '(^)?', '*') FROM expressions")).executesWithoutGpu();
+    }
+
+    @Test
     void testReplace()
     {
         assertThat(query("SELECT replace(a_varchar, 'l', 'L') FROM expressions")).executesWithGpu(ProjectNode.class);

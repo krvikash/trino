@@ -21,9 +21,11 @@ import io.trino.spi.gpu.borrow.Move;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
 import static ai.rapids.cudf.CaptureGroups.EXTRACT;
 import static ai.rapids.cudf.CaptureGroups.NON_CAPTURE;
+import static io.trino.operator.gpu.expression.CudfUtils.cudfAcceptsRegex;
 import static java.util.Objects.requireNonNull;
 
 public final class GpuRegexpReplace
@@ -34,7 +36,7 @@ public final class GpuRegexpReplace
     private final String cudfReplacement;
     private final boolean hasBackreferences;
 
-    public GpuRegexpReplace(GpuExpression source, String cudfPattern, String cudfReplacement, boolean hasBackreferences)
+    private GpuRegexpReplace(GpuExpression source, String cudfPattern, String cudfReplacement, boolean hasBackreferences)
     {
         this.source = requireNonNull(source, "source is null");
         this.cudfPattern = requireNonNull(cudfPattern, "cudfPattern is null");
@@ -42,20 +44,32 @@ public final class GpuRegexpReplace
         this.hasBackreferences = hasBackreferences;
     }
 
+    /// Returns `Optional.empty()` when cuDF rejects the pattern, which it would do for every batch
+    public static Optional<GpuRegexpReplace> create(GpuExpression source, String cudfPattern, String cudfReplacement, boolean hasBackreferences)
+    {
+        if (!cudfAcceptsRegex(cudfPattern, input -> replace(input, cudfPattern, cudfReplacement, hasBackreferences))) {
+            return Optional.empty();
+        }
+        return Optional.of(new GpuRegexpReplace(source, cudfPattern, cudfReplacement, hasBackreferences));
+    }
+
     @Override
     public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns, Bindings bindings)
     {
         try (ColumnVector sourceColumn = source.evaluate(positionCount, inputColumns, bindings)) {
-            if (hasBackreferences) {
-                RegexProgram program = new RegexProgram(cudfPattern, EXTRACT);
-                return sourceColumn.stringReplaceWithBackrefs(program, cudfReplacement);
-            }
-            else {
-                RegexProgram program = new RegexProgram(cudfPattern, NON_CAPTURE);
-                try (Scalar replacementScalar = Scalar.fromString(cudfReplacement)) {
-                    return sourceColumn.replaceRegex(program, replacementScalar);
-                }
-            }
+            return replace(sourceColumn, cudfPattern, cudfReplacement, hasBackreferences);
+        }
+    }
+
+    private static @Move ColumnVector replace(@Borrow ColumnVector source, String cudfPattern, String cudfReplacement, boolean hasBackreferences)
+    {
+        if (hasBackreferences) {
+            RegexProgram program = new RegexProgram(cudfPattern, EXTRACT);
+            return source.stringReplaceWithBackrefs(program, cudfReplacement);
+        }
+        RegexProgram program = new RegexProgram(cudfPattern, NON_CAPTURE);
+        try (Scalar replacementScalar = Scalar.fromString(cudfReplacement)) {
+            return source.replaceRegex(program, replacementScalar);
         }
     }
 

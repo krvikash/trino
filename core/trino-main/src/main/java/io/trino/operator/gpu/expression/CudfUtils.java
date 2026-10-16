@@ -15,16 +15,20 @@ package io.trino.operator.gpu.expression;
 
 import ai.rapids.cudf.ColumnVector;
 import ai.rapids.cudf.ColumnView;
+import ai.rapids.cudf.CudfException;
 import ai.rapids.cudf.DType;
 import ai.rapids.cudf.Scalar;
+import io.airlift.log.Logger;
 import io.trino.plugin.base.gpu.ClosingOnce;
 import io.trino.plugin.base.gpu.ClosingRef;
 import io.trino.spi.TrinoException;
 import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
+import io.trino.spi.gpu.borrow.Own;
 
 import java.math.BigInteger;
 import java.time.LocalDate;
+import java.util.function.Function;
 
 import static ai.rapids.cudf.BinaryOp.ADD;
 import static ai.rapids.cudf.BinaryOp.GREATER;
@@ -51,6 +55,8 @@ import static java.lang.String.format;
  */
 final class CudfUtils
 {
+    private static final Logger log = Logger.get(CudfUtils.class);
+
     /// cuDF's datetime kernels go through `cuda::std::chrono::year_month_day`, whose year is a
     /// 16-bit value. `year::min()` is -32767; -32768 is the not-a-year sentinel. Outside this range
     /// cuDF silently returns a wrong result rather than reporting an error.
@@ -262,6 +268,23 @@ final class CudfUtils
             try (ColumnVector twiceAbsoluteRemainder = absoluteRemainder.binaryOp(ADD, absoluteRemainder, UNSCALED_DECIMAL128)) {
                 return twiceAbsoluteRemainder.binaryOp(GREATER_EQUAL, unscaledDivisor, DType.BOOL8);
             }
+        }
+    }
+
+    /// Whether cuDF can run `regexOperation`, a string operation applying the regex program `cudfPattern`.
+    /// cuDF compiles the program inside each operation and rejects an unsupported pattern regardless of the
+    /// strings, so a single row tells. Not an empty column, for which some operations skip their checks.
+    static boolean cudfAcceptsRegex(String cudfPattern, Function<@Borrow ColumnVector, @Own ColumnVector> regexOperation)
+    {
+        try (ColumnVector probe = ColumnVector.fromStrings("");
+                ColumnVector _ = regexOperation.apply(probe)) {
+            return true;
+        }
+        catch (CudfException e) {
+            // A CUDA error is a CudaException and running out of device memory an OutOfMemoryError, so neither is caught.
+            // The message is not matched, as it is only cuDF's source location and free text.
+            log.debug("Regex pattern %s rejected by cuDF, falling back to CPU: %s", cudfPattern, e.getMessage());
+            return false;
         }
     }
 }

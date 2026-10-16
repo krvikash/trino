@@ -680,6 +680,76 @@ final class TestGpuRegexpReplace
     }
 
     @Test
+    void testDoesNotCompileRepeatOfPossiblyEmpty()
+    {
+        // cuDF's regex compiler rejects these
+        assertThat(regexpReplace("(a*)+", "x")).doesNotCompile();
+        assertThat(regexpReplace("(a?)+", "x")).doesNotCompile();
+        assertThat(regexpReplace("(a*)*", "x")).doesNotCompile();
+        assertThat(regexpReplace("(?:a*)+", "x")).doesNotCompile();
+        assertThat(regexpReplace("(?:a?)*", "x")).doesNotCompile();
+        assertThat(regexpReplace("((?:a)*)+", "x")).doesNotCompile();
+        assertThat(regexpReplace("(?:a*b*)+", "x")).doesNotCompile();
+        assertThat(regexpReplace("(?:(a)|b?)+", "x")).doesNotCompile();
+        assertThat(regexpReplace("(^)*", "x")).doesNotCompile();
+        assertThat(regexpReplace("(?:^)+", "x")).doesNotCompile();
+        assertThat(regexpReplace("(^)?", "x")).doesNotCompile();
+        assertThat(regexpReplace("(?:$)?", "x")).doesNotCompile();
+        assertThat(regexpReplace("(?:^|$)?", "x")).doesNotCompile();
+    }
+
+    @Test
+    void testOptionalOfPossiblyEmpty()
+    {
+        assertThat(regexpReplace("(a?)?", "x"))
+                .executesCorrectly("", "a", "aa", "b", "ab", "ba");
+        assertThat(regexpReplace("(a?)?", "<$1>"))
+                .executesCorrectly("", "a", "aa", "b", "ab", "ba");
+        assertThat(regexpReplace("(a*)?", "<$1>"))
+                .executesCorrectly("", "a", "aa", "b", "aab", "ba");
+        assertThat(regexpReplace("(?:a?)?", "x"))
+                .executesCorrectly("", "a", "aa", "b", "ab", "ba");
+        assertThat(regexpReplace("x(a*)?y", "<$1>"))
+                .executesCorrectly("xy", "xay", "xaay", "xby", "y");
+        assertThat(regexpReplace("(?:^a|b)?", "x"))
+                .executesCorrectly("", "a", "aa", "ba", "ab");
+    }
+
+    @Test
+    void testOptionalGroup()
+    {
+        assertThat(regexpReplace("(a)?", "x"))
+                .executesCorrectly("", "a", "aa", "b", "ab", "ba");
+        assertThat(regexpReplace("(a)?", "<$1>"))
+                .executesCorrectly("", "a", "aa", "b", "ab", "ba");
+        assertThat(regexpReplace("(.)?", "x"))
+                .executesCorrectly("", "a", "ab", "a\nb", "\n");
+        assertThat(regexpReplace("(.)?", "<$1>"))
+                .executesCorrectly("", "a", "ab", "a\nb", "\n");
+        assertThat(regexpReplace("(www\\.)?([A-Za-z0-9_]+)\\.(com|gov|pl)", "$2"))
+                .executesCorrectly("www.example.com", "example.gov", "www.foo_bar9.pl", "mail.www.example.com", "example.org", "www.com", "WWW.Example.COM", "");
+        assertThat(regexpReplace("(www\\.)?([A-Za-z0-9_]+)\\.(com|gov|pl)", "[$1|$3]"))
+                .executesCorrectly("www.example.com", "example.gov", "www.foo_bar9.pl", "mail.www.example.com", "example.org", "www.com", "WWW.Example.COM", "");
+        // \w is not supported by the transpiler
+        assertThat(regexpReplace("(www\\.)?(\\w+)\\.(com|gov|pl)", "$2")).doesNotCompile();
+    }
+
+    @Test
+    void testRepeatOfNonEmpty()
+    {
+        assertThat(regexpReplace("(a+)+", "x"))
+                .executesCorrectly("", "b", "aab", "ab", "xa");
+        assertThat(regexpReplace("(a+)*", "x"))
+                .executesCorrectly("", "b", "aab", "ab", "xa");
+        assertThat(regexpReplace("(?:a*b)+", "x"))
+                .executesCorrectly("", "b", "aab", "abab", "ba");
+        assertThat(regexpReplace("(?:x$)+", "y"))
+                .executesCorrectly("x", "xx", "ax", "");
+        assertThat(regexpReplace("(?:x(a*)?)+", "<$1>"))
+                .executesCorrectly("", "x", "xax", "xaax", "axa");
+    }
+
+    @Test
     void testClosingBracketAsFirstCharInClass()
     {
         assertThat(regexpReplace("[]]", "X"))

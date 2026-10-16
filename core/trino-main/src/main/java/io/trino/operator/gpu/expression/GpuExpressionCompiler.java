@@ -1104,7 +1104,7 @@ public final class GpuExpressionCompiler
 
             GpuRegexTranspiler.TranspileResult result = transpiled.get();
             return call.arguments().getFirst().accept(this, context)
-                    .map(source -> new GpuRegexpReplace(source, result.pattern(), result.replacement(), result.hasBackreferences()));
+                    .flatMap(source -> GpuRegexpReplace.create(source, result.pattern(), result.replacement(), result.hasBackreferences()));
         }
 
         private Optional<GpuExpression> compileReplace(Call call, Void context)
