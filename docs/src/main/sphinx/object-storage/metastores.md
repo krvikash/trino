@@ -487,11 +487,13 @@ following properties:
   - Warehouse identifier/location for the catalog (optional). Example:
     `s3://my_bucket/warehouse_location`
 * - `iceberg.rest-catalog.security`
-  - The type of security to use (default: `NONE`). Possible values are `NONE`, 
-    `SIGV4`, `GOOGLE` or `OAUTH2`. `OAUTH2` requires either a `token` or a `credential`.
-    `SIGV4` signs requests with credentials from `s3.iam-role` if configured,
-    otherwise from `s3.aws-access-key` and `s3.aws-secret-key` if set,
-    and otherwise from the AWS default credentials provider chain.
+  - The type of security to use (default: `NONE`). Possible values are `NONE`,
+    `SIGV4`, `GOOGLE`, `OAUTH2` or `OAUTH2_PASSTHROUGH`. `OAUTH2` requires either
+    a `token` or a `credential`. `SIGV4` signs requests with credentials from
+    `s3.iam-role` if configured, otherwise from `s3.aws-access-key` and
+    `s3.aws-secret-key` if set, and otherwise from the AWS default credentials
+    provider chain. `OAUTH2_PASSTHROUGH` forwards the OAuth2 access token of the
+    user running the query to the REST catalog.
 * - `iceberg.rest-catalog.session`
   - Session information included when communicating with the REST Catalog.
     Options are `NONE` or `USER` (default: `NONE`).
@@ -524,6 +526,22 @@ following properties:
 * - `iceberg.rest-catalog.oauth2.token-exchange-enabled`
   - Controls whether to use the token exchange flow to acquire new tokens.
     Defaults to `true` 
+* - `iceberg.rest-catalog.idp-name`
+  - Name of the identity provider that issued the access token to forward with
+    `OAUTH2_PASSTHROUGH` security. Use this property when multiple identity
+    providers are configured. The name can only contain lowercase letters,
+    digits, `-` and `_`.
+* - `iceberg.rest-catalog.oauth2.token-exchange.enabled`
+  - Exchange the user's access token for a new token with the OAuth2 server
+    configured in `iceberg.rest-catalog.oauth2.server-uri` before forwarding it
+    to the REST catalog. Only used with `OAUTH2_PASSTHROUGH` security. Defaults
+    to `false`.
+* - `iceberg.rest-catalog.oauth2.token-exchange.extra-credentials.prefix`
+  - Prefix of the extra credentials to send as additional parameters in the
+    token exchange request. The prefix is removed from the parameter names.
+    For example, with the prefix `dbx`, the extra credential `dbx.client_id`
+    is sent as the `client_id` parameter. Only used when
+    `iceberg.rest-catalog.oauth2.token-exchange.enabled` is `true`.
 * - `iceberg.rest-catalog.vended-credentials-enabled`
   - Use credentials provided by the REST backend for file system access.
     Defaults to `false`.
@@ -594,6 +612,18 @@ gcs.json-key-file-path=/path/to/gcs_keyfile.json
 Credentials](https://cloud.google.com/docs/authentication/application-default-credentials)
 (ADC) are used, which supports GKE Workload Identity and other
 environment-based credential sources.
+
+`iceberg.rest-catalog.security` must be `OAUTH2_PASSTHROUGH` to forward the
+OAuth2 access token of the user running the query to the REST catalog, instead
+of using a single token or credential for all users. Trino must be configured
+to obtain the user's OAuth2 access token, otherwise the query fails:
+
+```properties
+connector.name=iceberg
+iceberg.catalog.type=rest
+iceberg.rest-catalog.uri=https://iceberg-with-rest:8181
+iceberg.rest-catalog.security=OAUTH2_PASSTHROUGH
+```
 
 The REST catalog supports [view management](sql-view-management) 
 using the [Iceberg View specification](https://iceberg.apache.org/view-spec/).

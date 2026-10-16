@@ -46,6 +46,7 @@ public class IcebergRestCatalogConfig
     {
         NONE,
         OAUTH2,
+        OAUTH2_PASSTHROUGH,
         SIGV4,
         GOOGLE,
     }

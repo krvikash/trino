@@ -259,6 +259,32 @@ public class TestIcebergPlugin
     }
 
     @Test
+    public void testRestCatalogWithOAuth2Passthrough()
+    {
+        ConnectorFactory factory = getConnectorFactory();
+        factory.create(
+                        "test",
+                        Map.of(
+                                "iceberg.catalog.type", "rest",
+                                "iceberg.rest-catalog.uri", "https://foo:1234",
+                                "iceberg.rest-catalog.security", "OAUTH2_PASSTHROUGH",
+                                "bootstrap.quiet", "true"),
+                        new TestingConnectorContext())
+                .shutdown();
+
+        factory.create(
+                        "test",
+                        Map.of(
+                                "iceberg.catalog.type", "rest",
+                                "iceberg.rest-catalog.uri", "https://foo:1234",
+                                "iceberg.rest-catalog.security", "OAUTH2_PASSTHROUGH",
+                                "iceberg.rest-catalog.idp-name", "identity-provider",
+                                "bootstrap.quiet", "true"),
+                        new TestingConnectorContext())
+                .shutdown();
+    }
+
+    @Test
     void testRestCatalogWithBigLakeMetastore(@TempDir Path jsonKeyFilePath)
     {
         ConnectorFactory factory = getConnectorFactory();
