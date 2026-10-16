@@ -230,61 +230,6 @@ public class TestHiveGpuQueries
     }
 
     @Test
-    public void testCharTrimming()
-    {
-        assertUpdate("CREATE TABLE test_char_trimming(a_char) AS (VALUES CHAR 'abc', CHAR 'ab', CHAR 'a', CHAR '', NULL)", 5);
-
-        assertThat(query("SELECT a_char FROM test_char_trimming"))
-                .executesWithGpu(TableScanNode.class);
-        assertThat(query("SELECT CAST(a_char AS varchar) FROM test_char_trimming"))
-                .executesWithGpu(ProjectNode.class);
-        assertThat(query("SELECT length(a_char) FROM test_char_trimming"))
-                .executesWithGpu(ProjectNode.class);
-        assertThat(query("SELECT substring(a_char, 1, 3) FROM test_char_trimming"))
-                .executesWithoutGpu();
-        assertThat(query("SELECT substring(a_char, 3, 1) FROM test_char_trimming"))
-                .executesWithoutGpu();
-
-        assertUpdate("DROP TABLE test_char_trimming");
-    }
-
-    @Test
-    public void testConcat()
-    {
-        assertUpdate(
-                """
-                CREATE TABLE test_concat(a_char, b_char, a_varchar) AS (VALUES
-                    (CHAR 'ab', CHAR 'cd', VARCHAR 'ef'),
-                    (CHAR '', CHAR '', VARCHAR ''),
-                    (CHAR 'x', NULL, NULL))
-                """,
-                3);
-
-        // Trino defines only a two-argument char concat. How an expression reaches it is decided by the
-        // analyzer, outside the expression compiler, so assert it here rather than over hand-built IR.
-        assertThat(query("SELECT concat(a_char, b_char) FROM test_concat"))
-                .executesWithGpu(ProjectNode.class);
-        // Each || is its own two-argument call, so a chain of them stays on the char overload
-        assertThat(query("SELECT a_char || b_char || a_char FROM test_concat"))
-                .executesWithGpu(ProjectNode.class);
-        // A three-argument call has no char overload to bind to: it resolves to the variadic varchar one,
-        // over the char -> varchar coercions it adds
-        assertThat(query("SELECT concat(a_char, b_char, a_char) FROM test_concat"))
-                .executesWithGpu(ProjectNode.class);
-
-        assertThat(query("SELECT concat(a_varchar, a_varchar, a_varchar, a_varchar) FROM test_concat"))
-                .executesWithGpu(ProjectNode.class);
-        assertThat(query("SELECT a_varchar || a_varchar FROM test_concat"))
-                .executesWithGpu(ProjectNode.class);
-
-        // char and varchar arguments meet through a char -> varchar cast
-        assertThat(query("SELECT concat(a_char, a_varchar) FROM test_concat"))
-                .executesWithGpu(ProjectNode.class);
-
-        assertUpdate("DROP TABLE test_concat");
-    }
-
-    @Test
     public void testVarbinaryCase()
     {
         // IF and CASE assemble their result over an all-null column of the result type, and a null

@@ -762,6 +762,7 @@
                                 <exclude>**/TestDistributedIcebergGpuTpchQueries.java</exclude>
                                 <exclude>**/TestDistributedIcebergGpuTpcdsQueries.java</exclude>
                                 <exclude>**/TestGpuExecutionAssertions.java</exclude>
+                                <exclude>**/TestGpuExpressionsQueries.java</exclude>
                                 <exclude>**/TestGpuWindowQueries.java</exclude>
                                 <exclude>**/TestGpuVarbinaryJoinQueries.java</exclude>
                                 <exclude>**/TestGpuWindowRangeFrames.java</exclude>
@@ -805,6 +806,7 @@
                                 <include>**/TestDistributedIcebergGpuTpchQueries.java</include>
                                 <include>**/TestDistributedIcebergGpuTpcdsQueries.java</include>
                                 <include>**/TestGpuExecutionAssertions.java</include>
+                                <include>**/TestGpuExpressionsQueries.java</include>
                                 <include>**/TestGpuWindowQueries.java</include>
                                 <include>**/TestGpuVarbinaryJoinQueries.java</include>
                                 <include>**/TestGpuWindowRangeFrames.java</include>
