@@ -28,6 +28,7 @@ import io.trino.testing.QueryRunner;
 import org.junit.jupiter.api.parallel.Execution;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 
+import static io.starburst.materialization.metastore.server.TestingMaterializationMetastoreServer.testingAccountId;
 import static org.junit.jupiter.api.parallel.ExecutionMode.SAME_THREAD;
 
 /**
@@ -59,7 +60,7 @@ public class TestIcebergMvSubstitutionWithRestMetastore
                     protected void setup(Binder binder)
                     {
                         binder.bind(RequestAuthenticator.class).toInstance(_ -> {});
-                        ConfigBinder.configBinder(binder).bindConfigDefaults(MaterializationMetastoreClientConfig.class, config -> config.setMetastoreId("id"));
+                        ConfigBinder.configBinder(binder).bindConfigDefaults(MaterializationMetastoreClientConfig.class, config -> config.setMetastoreId("id").setAccountId(testingAccountId("id")));
                         if (buildConfigObject(ServerConfig.class).isCoordinator()) {
                             install(new HttpMaterializationMetastoreModule());
                         }

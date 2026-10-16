@@ -43,6 +43,7 @@ import java.util.Optional;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.airlift.configuration.ConfigBinder.configBinder;
+import static io.starburst.materialization.metastore.server.TestingMaterializationMetastoreServer.testingAccountId;
 import static io.trino.plugin.iceberg.IcebergQueryRunner.ICEBERG_CATALOG;
 import static io.trino.testing.TestingNames.randomNameSuffix;
 import static io.trino.testing.TestingSession.testSessionBuilder;
@@ -134,7 +135,7 @@ public class TestIcebergMvSubstitutionSharedRestMetastore
                     protected void setup(Binder binder)
                     {
                         binder.bind(RequestAuthenticator.class).toInstance(_ -> {});
-                        configBinder(binder).bindConfigDefaults(MaterializationMetastoreClientConfig.class, config -> config.setMetastoreId("id"));
+                        configBinder(binder).bindConfigDefaults(MaterializationMetastoreClientConfig.class, config -> config.setMetastoreId("id").setAccountId(testingAccountId("id")));
                         if (buildConfigObject(ServerConfig.class).isCoordinator()) {
                             install(new HttpMaterializationMetastoreModule());
                         }

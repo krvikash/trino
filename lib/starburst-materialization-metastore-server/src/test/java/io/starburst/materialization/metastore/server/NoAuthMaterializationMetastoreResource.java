@@ -19,8 +19,8 @@ public class NoAuthMaterializationMetastoreResource
         extends MaterializationMetastoreResource
 {
     @Inject
-    public NoAuthMaterializationMetastoreResource(DbRawMaterializationMetastore metastore)
+    public NoAuthMaterializationMetastoreResource(DbRawMaterializationMetastore metastore, MaterializationAccountResolver accountResolver)
     {
-        super(metastore);
+        super(metastore, accountResolver);
     }
 }

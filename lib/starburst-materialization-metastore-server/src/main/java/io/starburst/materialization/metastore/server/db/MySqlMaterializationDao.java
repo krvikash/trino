@@ -24,20 +24,21 @@ public interface MySqlMaterializationDao
     @SqlUpdate(
             """
             INSERT INTO materializations (
-                metastore_id,
+                metastore_id, account_id,
                 source_catalog, source_schema, source_table,
                 storage_table_catalog, storage_table_schema, storage_table_name, storage_table_unique_id,
                 last_known_fresh_time, grace_period_millis,
                 ir_versions, catalog_ir_versions, computation_plan_root,
                 created_at, last_modified_at)
             VALUES (
-                :metastoreId,
+                :metastoreId, :accountId,
                 :sourceCatalogName, :sourceSchemaName, :sourceTableName,
                 :storageCatalogName, :storageSchemaName, :storageTableName, :storageUniqueId,
                 :lastKnownFreshTime, :gracePeriodMillis,
                 :irVersions, :catalogIrVersions, :computationPlanRoot,
                 :createdAt, :lastModifiedAt)
             ON DUPLICATE KEY UPDATE
+                account_id = :accountId,
                 storage_table_catalog = :storageCatalogName,
                 storage_table_schema = :storageSchemaName,
                 storage_table_name = :storageTableName,

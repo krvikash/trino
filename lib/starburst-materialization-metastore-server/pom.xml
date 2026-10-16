@@ -44,6 +44,10 @@
             <artifactId>node</artifactId>
         </dependency>
         <dependency>
+            <groupId>io.starburst.stargate</groupId>
+            <artifactId>stargate-ids</artifactId>
+        </dependency>
+        <dependency>
             <groupId>io.trino</groupId>
             <artifactId>starburst-materialization-metastore-api</artifactId>
             <version>${project.version}</version>

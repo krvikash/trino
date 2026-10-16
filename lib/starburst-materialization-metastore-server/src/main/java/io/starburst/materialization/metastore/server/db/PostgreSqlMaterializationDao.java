@@ -24,14 +24,14 @@ public interface PostgreSqlMaterializationDao
     @SqlUpdate(
             """
             INSERT INTO materializations (
-                metastore_id,
+                metastore_id, account_id,
                 source_catalog, source_schema, source_table,
                 storage_table_catalog, storage_table_schema, storage_table_name, storage_table_unique_id,
                 last_known_fresh_time, grace_period_millis,
                 ir_versions, catalog_ir_versions, computation_plan_root,
                 created_at, last_modified_at)
             VALUES (
-                :metastoreId,
+                :metastoreId, :accountId,
                 :sourceCatalogName, :sourceSchemaName, :sourceTableName,
                 :storageCatalogName, :storageSchemaName, :storageTableName, :storageUniqueId,
                 :lastKnownFreshTime, :gracePeriodMillis,
@@ -39,6 +39,7 @@ public interface PostgreSqlMaterializationDao
                 :createdAt, :lastModifiedAt)
             ON CONFLICT (metastore_id, source_catalog, source_schema, source_table)
             DO UPDATE SET
+                account_id = EXCLUDED.account_id,
                 storage_table_catalog = EXCLUDED.storage_table_catalog,
                 storage_table_schema = EXCLUDED.storage_table_schema,
                 storage_table_name = EXCLUDED.storage_table_name,

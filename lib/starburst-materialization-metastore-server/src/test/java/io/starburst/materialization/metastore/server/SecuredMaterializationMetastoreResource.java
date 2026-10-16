@@ -25,8 +25,8 @@ public class SecuredMaterializationMetastoreResource
         extends MaterializationMetastoreResource
 {
     @Inject
-    public SecuredMaterializationMetastoreResource(DbRawMaterializationMetastore metastore)
+    public SecuredMaterializationMetastoreResource(DbRawMaterializationMetastore metastore, MaterializationAccountResolver accountResolver)
     {
-        super(metastore);
+        super(metastore, accountResolver);
     }
 }

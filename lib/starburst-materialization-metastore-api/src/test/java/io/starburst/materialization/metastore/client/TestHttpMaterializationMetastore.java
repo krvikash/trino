@@ -18,6 +18,7 @@ import io.airlift.http.client.HeaderName;
 import io.airlift.http.client.HttpStatus;
 import io.airlift.http.client.Request;
 import io.airlift.http.client.testing.TestingHttpClient;
+import io.starburst.stargate.id.AccountId;
 import io.trino.spi.connector.CatalogSchemaTableName;
 import org.junit.jupiter.api.Test;
 
@@ -25,11 +26,21 @@ import java.net.URI;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static io.airlift.http.client.testing.TestingResponse.mockResponse;
+import static io.starburst.materialization.metastore.client.HttpMaterializationMetastore.ACCOUNT_ID_HEADER;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class TestHttpMaterializationMetastore
 {
     private static final RequestAuthenticator NO_AUTH = _ -> {};
+
+    private static MaterializationMetastoreClientConfig config()
+    {
+        return new MaterializationMetastoreClientConfig()
+                .setBaseUri(URI.create("http://metastore:8080"))
+                .setMetastoreId("ms-1")
+                .setAccountId(new AccountId("a-12345678"));
+    }
 
     private static Request captureRemoveRequest(RequestAuthenticator requestAuthenticator)
     {
@@ -38,10 +49,7 @@ public class TestHttpMaterializationMetastore
             captured.set(request);
             return mockResponse(HttpStatus.OK, MediaType.JSON_UTF_8, "");
         });
-        MaterializationMetastoreClientConfig config = new MaterializationMetastoreClientConfig()
-                .setBaseUri(URI.create("http://metastore:8080"))
-                .setMetastoreId("ms-1");
-        HttpMaterializationMetastore metastore = new HttpMaterializationMetastore(config, httpClient, requestAuthenticator);
+        HttpMaterializationMetastore metastore = new HttpMaterializationMetastore(config(), httpClient, requestAuthenticator);
 
         metastore.remove(new CatalogSchemaTableName("cat", "sch", "mv"));
         return captured.get();
@@ -63,5 +71,20 @@ public class TestHttpMaterializationMetastore
         Request request = captureRemoveRequest(builder -> builder.addHeader("X-Custom-Auth", "token-123"));
         assertThat(request.getHeaders().get(HeaderName.of("X-Custom-Auth")))
                 .containsExactly("token-123");
+    }
+
+    @Test
+    public void testAccountIdIsSentAsHeader()
+    {
+        Request request = captureRemoveRequest(NO_AUTH);
+        assertThat(request.getHeaders().get(ACCOUNT_ID_HEADER)).containsExactly("a-12345678");
+    }
+
+    @Test
+    public void testAccountIdIsRequired()
+    {
+        assertThatThrownBy(() -> new HttpMaterializationMetastore(config().setAccountId(null), new TestingHttpClient(_ -> mockResponse(HttpStatus.OK, MediaType.JSON_UTF_8, "")), NO_AUTH))
+                .isInstanceOf(NullPointerException.class)
+                .hasMessage("accountId is null");
     }
 }

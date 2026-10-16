@@ -18,6 +18,7 @@ import io.starburst.materialization.metastore.MaterializationSource.Materialized
 import io.starburst.materialization.metastore.MetastoreId;
 import io.starburst.materialization.metastore.RawMaterializationDefinition;
 import io.starburst.materialization.metastore.StorageTableId;
+import io.starburst.stargate.id.AccountId;
 import io.trino.spi.connector.CatalogSchemaTableName;
 import jakarta.annotation.Nullable;
 
@@ -42,26 +43,27 @@ public class DbRawMaterializationMetastore
         this.dao = requireNonNull(dao, "dao is null");
     }
 
-    public List<RawMaterializationDefinition> listMaterializations(MetastoreId metastoreId)
+    public List<RawMaterializationDefinition> listMaterializations(MetastoreId metastoreId, AccountId accountId)
     {
-        return dao.list(metastoreId.id());
+        return dao.list(metastoreId.id(), accountId.toString());
     }
 
-    public void createOrReplace(MetastoreId metastoreId, RawMaterializationDefinition definition)
+    public void createOrReplace(MetastoreId metastoreId, AccountId accountId, RawMaterializationDefinition definition)
     {
         Instant now = Instant.now();
-        dao.createOrReplace(toRow(metastoreId.id(), definition, now, now));
+        dao.createOrReplace(toRow(metastoreId.id(), accountId.toString(), definition, now, now));
     }
 
-    public void remove(MetastoreId metastoreId, CatalogSchemaTableName name)
+    public void remove(MetastoreId metastoreId, AccountId accountId, CatalogSchemaTableName name)
     {
-        dao.deleteBySourceName(metastoreId.id(), name.getCatalogName(), name.getSchemaTableName().getSchemaName(), name.getSchemaTableName().getTableName());
+        dao.deleteBySourceName(metastoreId.id(), accountId.toString(), name.getCatalogName(), name.getSchemaTableName().getSchemaName(), name.getSchemaTableName().getTableName());
     }
 
-    public void renameIfExists(MetastoreId metastoreId, CatalogSchemaTableName source, CatalogSchemaTableName target, StorageTableId targetStorageTableId)
+    public void renameIfExists(MetastoreId metastoreId, AccountId accountId, CatalogSchemaTableName source, CatalogSchemaTableName target, StorageTableId targetStorageTableId)
     {
         dao.rename(
                 metastoreId.id(),
+                accountId.toString(),
                 source.getCatalogName(),
                 source.getSchemaTableName().getSchemaName(),
                 source.getSchemaTableName().getTableName(),
@@ -75,13 +77,14 @@ public class DbRawMaterializationMetastore
                 LocalDateTime.ofInstant(Instant.now(), ZoneOffset.UTC));
     }
 
-    private static MaterializationRow toRow(String metastoreId, RawMaterializationDefinition definition, Instant createdAt, Instant lastModifiedAt)
+    private static MaterializationRow toRow(String metastoreId, String accountId, RawMaterializationDefinition definition, Instant createdAt, Instant lastModifiedAt)
     {
         checkArgument(definition.source() instanceof MaterializedViewSource, "source is not a materialized view %s", definition.source());
         CatalogSchemaTableName source = ((MaterializedViewSource) definition.source()).materializedViewName();
         StorageTableId storage = definition.storageTableId();
         return new MaterializationRow(
                 metastoreId,
+                accountId,
                 source.getCatalogName(),
                 source.getSchemaTableName().getSchemaName(),
                 source.getSchemaTableName().getTableName(),
@@ -100,6 +103,7 @@ public class DbRawMaterializationMetastore
 
     public record MaterializationRow(
             String metastoreId,
+            String accountId,
             String sourceCatalogName,
             String sourceSchemaName,
             String sourceTableName,
@@ -118,6 +122,7 @@ public class DbRawMaterializationMetastore
         public MaterializationRow
         {
             requireNonNull(metastoreId, "metastoreId is null");
+            requireNonNull(accountId, "accountId is null");
             requireNonNull(sourceCatalogName, "sourceCatalogName is null");
             requireNonNull(sourceSchemaName, "sourceSchemaName is null");
             requireNonNull(sourceTableName, "sourceTableName is null");

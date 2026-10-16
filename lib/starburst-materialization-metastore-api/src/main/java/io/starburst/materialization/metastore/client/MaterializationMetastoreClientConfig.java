@@ -15,6 +15,7 @@ package io.starburst.materialization.metastore.client;
 
 import io.airlift.configuration.Config;
 import io.airlift.configuration.ConfigDescription;
+import io.starburst.stargate.id.AccountId;
 
 import java.net.URI;
 
@@ -22,6 +23,7 @@ public class MaterializationMetastoreClientConfig
 {
     private URI baseUri;
     private String metastoreId;
+    private AccountId accountId;
 
     public URI getBaseUri()
     {
@@ -46,6 +48,19 @@ public class MaterializationMetastoreClientConfig
     public MaterializationMetastoreClientConfig setMetastoreId(String metastoreId)
     {
         this.metastoreId = metastoreId;
+        return this;
+    }
+
+    public AccountId getAccountId()
+    {
+        return accountId;
+    }
+
+    @Config("materialization.metastore.account-id")
+    @ConfigDescription("Account owning the metastore tenant, sent so the server can verify it")
+    public MaterializationMetastoreClientConfig setAccountId(AccountId accountId)
+    {
+        this.accountId = accountId;
         return this;
     }
 }

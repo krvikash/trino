@@ -28,8 +28,8 @@ public interface MaterializationDao
 {
     void createOrReplace(MaterializationRow row);
 
-    @SqlUpdate("DELETE FROM materializations WHERE metastore_id = :metastoreId AND source_catalog = :catalog AND source_schema = :schema AND source_table = :table")
-    void deleteBySourceName(String metastoreId, String catalog, String schema, String table);
+    @SqlUpdate("DELETE FROM materializations WHERE metastore_id = :metastoreId AND account_id = :accountId AND source_catalog = :catalog AND source_schema = :schema AND source_table = :table")
+    void deleteBySourceName(String metastoreId, String accountId, String catalog, String schema, String table);
 
     @SqlQuery(
             """
@@ -38,10 +38,10 @@ public interface MaterializationDao
                    last_known_fresh_time, grace_period_millis,
                    ir_versions, catalog_ir_versions, computation_plan_root
             FROM materializations
-            WHERE metastore_id = :metastoreId
+            WHERE metastore_id = :metastoreId AND account_id = :accountId
             """)
     @UseRowMapper(MaterializationRecordMapper.class)
-    List<RawMaterializationDefinition> list(String metastoreId);
+    List<RawMaterializationDefinition> list(String metastoreId, String accountId);
 
     @SqlUpdate(
             """
@@ -57,12 +57,14 @@ public interface MaterializationDao
                 last_modified_at = :now
             WHERE
                 metastore_id = :metastoreId AND
+                account_id = :accountId AND
                 source_catalog = :sourceCatalog AND
                 source_schema = :sourceSchema AND
                 source_table = :sourceTable
             """)
     void rename(
             String metastoreId,
+            String accountId,
             String sourceCatalog,
             String sourceSchema,
             String sourceTable,

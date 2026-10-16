@@ -26,6 +26,7 @@ import io.airlift.json.JsonModule;
 import io.airlift.node.testing.TestingNodeModule;
 import io.starburst.materialization.metastore.server.db.MaterializationMetastoreDbModule;
 import io.starburst.materialization.metastore.server.db.TestingDbModule;
+import io.starburst.stargate.id.AccountId;
 
 import java.net.URI;
 import java.util.List;
@@ -34,6 +35,19 @@ import java.util.Map;
 public class TestingMaterializationMetastoreServer
         implements AutoCloseable
 {
+    /**
+     * Each metastore is owned by an account derived from its id, so tenants in tests do not share an account.
+     */
+    public static final MaterializationAccountResolver TESTING_ACCOUNT_RESOLVER = metastoreId -> testingAccountId(metastoreId.id());
+
+    /**
+     * The account {@link #TESTING_ACCOUNT_RESOLVER} resolves for {@code metastoreId}, for clients that must send it.
+     */
+    public static AccountId testingAccountId(String metastoreId)
+    {
+        return new AccountId("a-%08d".formatted(10_000_000 + Math.floorMod(metastoreId.hashCode(), 90_000_000)));
+    }
+
     private final LifeCycleManager lifeCycleManager;
     private final TestingHttpServer server;
     private final Injector injector;
@@ -74,6 +88,7 @@ public class TestingMaterializationMetastoreServer
                 .add(new TestingDbModule())
                 .add(new MaterializationMetastoreDbModule())
                 .add(new MaterializationMetastoreServerModule(materializationMetastoreResourceClass))
+                .add(binder -> binder.bind(MaterializationAccountResolver.class).toInstance(TESTING_ACCOUNT_RESOLVER))
                 .addAll(securityModules)
                 .build();
         Bootstrap app = new Bootstrap(modules);

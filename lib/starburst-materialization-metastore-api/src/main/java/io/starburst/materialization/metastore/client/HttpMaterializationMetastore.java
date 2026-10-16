@@ -16,6 +16,7 @@ package io.starburst.materialization.metastore.client;
 import com.google.inject.Inject;
 import dev.failsafe.RetryPolicy;
 import io.airlift.http.client.FullJsonResponseHandler.JsonResponse;
+import io.airlift.http.client.HeaderName;
 import io.airlift.http.client.HttpClient;
 import io.airlift.http.client.HttpUriBuilder;
 import io.airlift.http.client.Request;
@@ -26,6 +27,7 @@ import io.starburst.materialization.metastore.MetastoreId;
 import io.starburst.materialization.metastore.RawMaterializationDefinition;
 import io.starburst.materialization.metastore.RawMaterializationMetastore;
 import io.starburst.materialization.metastore.StorageTableId;
+import io.starburst.stargate.id.AccountId;
 import io.trino.spi.connector.CatalogSchemaTableName;
 
 import javax.net.ssl.SSLHandshakeException;
@@ -55,6 +57,10 @@ import static java.util.Objects.requireNonNull;
 public class HttpMaterializationMetastore
         implements RawMaterializationMetastore
 {
+    // String for JAX-RS @HeaderParam, which needs a compile-time constant
+    public static final String ACCOUNT_ID = "X-Starburst-Account-Id";
+    public static final HeaderName ACCOUNT_ID_HEADER = HeaderName.of(ACCOUNT_ID);
+
     private static final Logger log = Logger.get(HttpMaterializationMetastore.class);
 
     private static final JsonCodec<RawMaterializationDefinition> DEFINITION_CODEC = jsonCodec(RawMaterializationDefinition.class);
@@ -71,6 +77,7 @@ public class HttpMaterializationMetastore
 
     private final URI baseUri;
     private final MetastoreId metastoreId;
+    private final AccountId accountId;
     private final HttpClient httpClient;
     private final RequestAuthenticator requestAuthenticator;
 
@@ -82,6 +89,7 @@ public class HttpMaterializationMetastore
     {
         this.baseUri = requireNonNull(config.getBaseUri(), "baseUri is null");
         this.metastoreId = new MetastoreId(requireNonNull(config.getMetastoreId(), "metastoreId is null"));
+        this.accountId = requireNonNull(config.getAccountId(), "accountId is null");
         this.httpClient = new RetryingHttpClient(httpClient, METASTORE_READ_RETRY_POLICY)
                 .withHttpStatusListener(new InvalidServiceStatusListener());
         this.requestAuthenticator = requireNonNull(requestAuthenticator, "requestAuthenticator is null");
@@ -139,6 +147,7 @@ public class HttpMaterializationMetastore
     private Request.Builder authenticated(Request.Builder builder)
     {
         requestAuthenticator.accept(builder);
+        builder.setHeader(ACCOUNT_ID_HEADER, accountId.toString());
         return builder;
     }
 

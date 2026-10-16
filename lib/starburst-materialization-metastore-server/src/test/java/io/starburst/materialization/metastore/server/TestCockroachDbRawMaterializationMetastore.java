@@ -40,4 +40,11 @@ public class TestCockroachDbRawMaterializationMetastore
         // CockroachDB connects through the PostgreSQL JDBC URL, so the dialect cannot be inferred
         return ImmutableMap.of("metastore.db.type", "COCKROACHDB");
     }
+
+    @Override
+    protected boolean isAccountIdNullable()
+    {
+        // Galaxy, the only CockroachDB deployment, had no rows before account ids were added
+        return false;
+    }
 }

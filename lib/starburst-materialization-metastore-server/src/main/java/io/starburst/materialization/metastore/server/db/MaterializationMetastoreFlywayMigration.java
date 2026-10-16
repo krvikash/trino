@@ -14,17 +14,21 @@
 package io.starburst.materialization.metastore.server.db;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.inject.Inject;
 import io.airlift.log.Logger;
+import io.starburst.materialization.metastore.server.MaterializationAccountResolver;
 import jakarta.annotation.PostConstruct;
 import org.flywaydb.core.Flyway;
 import org.flywaydb.core.api.MigrationVersion;
+import org.flywaydb.core.api.migration.JavaMigration;
 import org.flywaydb.core.api.output.CleanResult;
 import org.flywaydb.core.api.output.MigrateResult;
 
 import javax.sql.DataSource;
 
+import java.util.List;
 import java.util.Set;
 
 import static org.flywaydb.core.api.MigrationVersion.LATEST;
@@ -35,16 +39,17 @@ public final class MaterializationMetastoreFlywayMigration
     private final Flyway flyway;
 
     @Inject
-    public MaterializationMetastoreFlywayMigration(@ForMaterializationMetastore DataSource dataSource, DatabaseType databaseType)
+    public MaterializationMetastoreFlywayMigration(@ForMaterializationMetastore DataSource dataSource, DatabaseType databaseType, MaterializationAccountResolver accountResolver)
     {
-        this(dataSource, ImmutableSet.of(getLocation("materialization/db", databaseType)), "materialization_metastore_migrations", LATEST);
+        this(dataSource, ImmutableSet.of(getLocation("materialization/db", databaseType)), javaMigrations(databaseType, accountResolver), "materialization_metastore_migrations", LATEST);
     }
 
-    private MaterializationMetastoreFlywayMigration(DataSource dataSource, Set<String> locations, String table, MigrationVersion target)
+    private MaterializationMetastoreFlywayMigration(DataSource dataSource, Set<String> locations, List<JavaMigration> javaMigrations, String table, MigrationVersion target)
     {
         flyway = Flyway.configure()
                 .dataSource(dataSource)
                 .locations(locations.toArray(String[]::new))
+                .javaMigrations(javaMigrations.toArray(JavaMigration[]::new))
                 .baselineOnMigrate(true)
                 .baselineVersion("0")
                 .target(target)
@@ -61,10 +66,30 @@ public final class MaterializationMetastoreFlywayMigration
     }
 
     @VisibleForTesting
+    public void migrate(MigrationVersion target)
+    {
+        Flyway.configure()
+                .configuration(flyway.getConfiguration())
+                .target(target)
+                .load()
+                .migrate();
+    }
+
+    @VisibleForTesting
     public void clean()
     {
         CleanResult result = flyway.clean();
         log.info("Dropped schemas %s, Cleaned schemas %s", result.schemasDropped, result.schemasCleaned);
+    }
+
+    private static List<JavaMigration> javaMigrations(DatabaseType databaseType, MaterializationAccountResolver accountResolver)
+    {
+        return switch (databaseType) {
+            // SEP databases hold rows written before account ids existed
+            case POSTGRESQL, MYSQL, ORACLE -> ImmutableList.of(new BackfillAccountIdMigration(accountResolver));
+            // Galaxy adds account id as NOT NULL to an empty table
+            case COCKROACHDB -> ImmutableList.of();
+        };
     }
 
     private static String getLocation(String directory, DatabaseType databaseType)

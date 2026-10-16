@@ -14,11 +14,15 @@
 package io.starburst.materialization.metastore.client;
 
 import com.google.common.collect.ImmutableMap;
+import io.airlift.configuration.ConfigurationFactory;
 import io.airlift.configuration.testing.ConfigAssertions;
+import io.starburst.stargate.id.AccountId;
 import org.junit.jupiter.api.Test;
 
 import java.net.URI;
 import java.util.Map;
+
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class TestMaterializationMetastoreClientConfig
 {
@@ -27,7 +31,8 @@ public class TestMaterializationMetastoreClientConfig
     {
         ConfigAssertions.assertRecordedDefaults(ConfigAssertions.recordDefaults(MaterializationMetastoreClientConfig.class)
                 .setBaseUri(null)
-                .setMetastoreId(null));
+                .setMetastoreId(null)
+                .setAccountId(null));
     }
 
     @Test
@@ -36,10 +41,20 @@ public class TestMaterializationMetastoreClientConfig
         Map<String, String> properties = ImmutableMap.<String, String>builder()
                 .put("materialization.metastore.base-uri", "https://mv-metastore.internal:8443")
                 .put("materialization.metastore.id", "ms-1")
+                .put("materialization.metastore.account-id", "a-12345678")
                 .buildOrThrow();
         MaterializationMetastoreClientConfig expected = new MaterializationMetastoreClientConfig()
                 .setBaseUri(URI.create("https://mv-metastore.internal:8443"))
-                .setMetastoreId("ms-1");
+                .setMetastoreId("ms-1")
+                .setAccountId(new AccountId("a-12345678"));
         ConfigAssertions.assertFullMapping(properties, expected);
+    }
+
+    @Test
+    public void testMalformedAccountIdIsRejected()
+    {
+        ConfigurationFactory configurationFactory = new ConfigurationFactory(ImmutableMap.of("materialization.metastore.account-id", "account-1"));
+        assertThatThrownBy(() -> configurationFactory.build(MaterializationMetastoreClientConfig.class))
+                .hasMessageContaining("materialization.metastore.account-id");
     }
 }
