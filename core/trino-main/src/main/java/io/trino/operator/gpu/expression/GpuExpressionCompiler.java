@@ -933,12 +933,10 @@ public final class GpuExpressionCompiler
 
             // Only a constant shift is supported, so that the range of inputs the GPU and the CPU
             // implementations agree on can be determined at compile time.
-            if (!(call.arguments().get(1) instanceof Constant(Type valueType, Object valueObject)) ||
-                    valueType != BIGINT ||
-                    valueObject == null) {
+            Optional<Long> value = extractBigintConstant(call.arguments().get(1));
+            if (value.isEmpty()) {
                 return Optional.empty();
             }
-            long value = (Long) valueObject;
 
             Expression dateTimeArgument = call.arguments().get(2);
             Type dateTimeType = dateTimeArgument.type();
@@ -954,7 +952,7 @@ public final class GpuExpressionCompiler
 
             return toDType(dateTimeType).flatMap(dType ->
                     dateTimeArgument.accept(this, context).flatMap(compiled ->
-                            GpuDateAdd.create(compiled, dType, unit.get(), value)));
+                            GpuDateAdd.create(compiled, dType, unit.get(), value.get())));
         }
 
         private Optional<GpuExpression> compileDateDiff(Call call, Void context)
@@ -1138,6 +1136,14 @@ public final class GpuExpressionCompiler
         {
             if (expression instanceof Constant(VarcharType _, Object value) && value != null) {
                 return Optional.of(((Slice) value).toStringUtf8());
+            }
+            return Optional.empty();
+        }
+
+        private static Optional<Long> extractBigintConstant(Expression expression)
+        {
+            if (expression instanceof Constant(Type type, Object value) && type == BIGINT && value != null) {
+                return Optional.of((Long) value);
             }
             return Optional.empty();
         }
