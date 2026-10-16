@@ -378,6 +378,11 @@ public @interface TestGroup
 
     @Target({TYPE, METHOD})
     @Retention(RUNTIME)
+    @Tag("iceberg_rest_oauth2_passthrough")
+    @interface IcebergRestOAuth2Passthrough {}
+
+    @Target({TYPE, METHOD})
+    @Retention(RUNTIME)
     @Tag("iceberg_jdbc")
     @interface IcebergJdbc {}
 

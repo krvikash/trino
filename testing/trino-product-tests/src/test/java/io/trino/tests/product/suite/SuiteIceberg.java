@@ -15,6 +15,7 @@ package io.trino.tests.product.suite;
 
 import io.trino.tests.product.TestGroup;
 import io.trino.tests.product.hive.HiveIcebergRedirectionsEnvironment;
+import io.trino.tests.product.iceberg.IcebergRestOAuth2PassthroughEnvironment;
 import io.trino.tests.product.iceberg.MultiNodeIcebergFlociCachingEnvironment;
 import io.trino.tests.product.iceberg.SparkIcebergEnvironment;
 import io.trino.tests.product.iceberg.SparkIcebergJdbcCatalogEnvironment;
@@ -48,6 +49,10 @@ public final class SuiteIceberg
 
         results.add(SuiteRunner.forEnvironment(SparkIcebergRestEnvironment.class)
                 .includeTag(TestGroup.IcebergRest.class)
+                .run());
+
+        results.add(SuiteRunner.forEnvironment(IcebergRestOAuth2PassthroughEnvironment.class)
+                .includeTag(TestGroup.IcebergRestOAuth2Passthrough.class)
                 .run());
 
         results.add(SuiteRunner.forEnvironment(SparkIcebergJdbcCatalogEnvironment.class)
