@@ -909,14 +909,7 @@ public final class GpuExpressionCompiler
         private Optional<GpuExpression> compileDateTrunc(Call call, Void context)
         {
             // date_trunc(unit, date_time)
-            if (!(call.arguments().get(0) instanceof Constant(Type unitType, Object unitValue)) ||
-                    !(unitType instanceof VarcharType) ||
-                    unitValue == null) {
-                return Optional.empty();
-            }
-            String unit = ((Slice) unitValue).toStringUtf8();
-
-            Optional<GpuDateTrunc.Field> field = GpuDateTrunc.Field.forTrinoDateTruncUnit(unit);
+            Optional<GpuDateTrunc.Field> field = extractVarcharConstant(call.arguments().get(0)).flatMap(GpuDateTrunc.Field::forTrinoDateTruncUnit);
             if (field.isEmpty()) {
                 return Optional.empty();
             }
@@ -933,12 +926,7 @@ public final class GpuExpressionCompiler
         private Optional<GpuExpression> compileDateAdd(Call call, Void context)
         {
             // date_add(unit, value, date_time)
-            if (!(call.arguments().get(0) instanceof Constant(Type unitType, Object unitValue)) ||
-                    !(unitType instanceof VarcharType) ||
-                    unitValue == null) {
-                return Optional.empty();
-            }
-            Optional<GpuDateAdd.Unit> unit = GpuDateAdd.Unit.forTrinoDateAddUnit(((Slice) unitValue).toStringUtf8());
+            Optional<GpuDateAdd.Unit> unit = extractVarcharConstant(call.arguments().get(0)).flatMap(GpuDateAdd.Unit::forTrinoDateAddUnit);
             if (unit.isEmpty()) {
                 return Optional.empty();
             }
@@ -1091,10 +1079,11 @@ public final class GpuExpressionCompiler
             // 2-arg overload removes all matches, equivalent to replacing with empty string
             String replacementString = "";
             if (argCount == 3) {
-                if (!(call.arguments().get(2) instanceof Constant(VarcharType _, Object replacementValue)) || replacementValue == null) {
+                Optional<String> replacementConstant = extractVarcharConstant(call.arguments().get(2));
+                if (replacementConstant.isEmpty()) {
                     return Optional.empty();
                 }
-                replacementString = ((Slice) replacementValue).toStringUtf8();
+                replacementString = replacementConstant.get();
             }
 
             Optional<GpuRegexTranspiler.TranspileResult> transpiled = GpuRegexTranspiler.transpile(patternString.get(), replacementString);
