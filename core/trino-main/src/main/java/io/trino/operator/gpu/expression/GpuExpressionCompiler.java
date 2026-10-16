@@ -1067,12 +1067,8 @@ public final class GpuExpressionCompiler
                 return Optional.empty();
             }
 
-            if (!(call.arguments().get(1) instanceof Constant(Type patternType, Object patternValue))) {
-                return Optional.empty();
-            }
-
-            Optional<String> patternString = extractPatternString(patternType, patternValue);
-            if (patternString.isEmpty()) {
+            Optional<JoniRegexp> pattern = extractJoniRegexp(call.arguments().get(1));
+            if (pattern.isEmpty()) {
                 return Optional.empty();
             }
 
@@ -1086,7 +1082,7 @@ public final class GpuExpressionCompiler
                 replacementString = replacementConstant.get();
             }
 
-            Optional<GpuRegexTranspiler.TranspileResult> transpiled = GpuRegexTranspiler.transpile(patternString.get(), replacementString);
+            Optional<GpuRegexTranspiler.TranspileResult> transpiled = GpuRegexTranspiler.transpile(pattern.get().pattern().toStringUtf8(), replacementString);
             if (transpiled.isEmpty()) {
                 return Optional.empty();
             }
@@ -1142,6 +1138,14 @@ public final class GpuExpressionCompiler
         {
             if (expression instanceof Constant(VarcharType _, Object value) && value != null) {
                 return Optional.of(((Slice) value).toStringUtf8());
+            }
+            return Optional.empty();
+        }
+
+        private static Optional<JoniRegexp> extractJoniRegexp(Expression expression)
+        {
+            if (expression instanceof Constant(Type type, Object value) && type == JONI_REGEXP && value instanceof JoniRegexp joniRegexp) {
+                return Optional.of(joniRegexp);
             }
             return Optional.empty();
         }
@@ -1316,14 +1320,6 @@ public final class GpuExpressionCompiler
             // Like the CPU, strings longer than the target length are truncated to it rather than padded
             return arguments.getFirst().accept(this, context)
                     .map(source -> new GpuPad(new GpuTruncateToLength(source, length), length, side, padString.get()));
-        }
-
-        private static Optional<String> extractPatternString(Type patternType, Object patternValue)
-        {
-            if (patternType == JONI_REGEXP && patternValue instanceof JoniRegexp joniRegexp) {
-                return Optional.of(joniRegexp.pattern().toStringUtf8());
-            }
-            return Optional.empty();
         }
 
         @Override
