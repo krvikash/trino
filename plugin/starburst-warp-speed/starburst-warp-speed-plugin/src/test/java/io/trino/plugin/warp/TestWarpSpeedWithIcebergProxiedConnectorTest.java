@@ -39,6 +39,7 @@ import java.nio.file.Path;
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalInt;
+import java.util.regex.Pattern;
 
 import static io.trino.plugin.iceberg.IcebergFileFormat.PARQUET;
 import static io.trino.plugin.iceberg.IcebergSessionProperties.COMPOSITE_SPLITS_ENABLED;
@@ -431,6 +432,13 @@ public class TestWarpSpeedWithIcebergProxiedConnectorTest
                 .hasMessageStartingWith("Failed to add column: Failed to replace table due to concurrent updates")
                 .rootCause()
                 .hasMessageContaining("Cannot update Iceberg table: supplied previous location does not match current location");
+    }
+
+    @Override
+    protected boolean isRowFieldNameRejected(Exception exception, String fieldName)
+    {
+        // TODO Fail with a clear message. The column types written to the metastore are Hive type strings, which cannot contain these field names.
+        return exception.getMessage().matches("Error: .* expected at the position \\d+ of 'struct<%s:string>' but .* is found\\.".formatted(Pattern.quote(fieldName)));
     }
 
     @Override

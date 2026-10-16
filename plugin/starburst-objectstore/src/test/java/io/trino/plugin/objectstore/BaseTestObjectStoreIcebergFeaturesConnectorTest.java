@@ -1560,6 +1560,13 @@ public abstract class BaseTestObjectStoreIcebergFeaturesConnectorTest
 
     @Test
     @Override
+    public void testRowFieldName()
+    {
+        skipDuplicateTestCoverage("testRowFieldName");
+    }
+
+    @Test
+    @Override
     public void testRowLevelDelete()
     {
         skipDuplicateTestCoverage("testRowLevelDelete");

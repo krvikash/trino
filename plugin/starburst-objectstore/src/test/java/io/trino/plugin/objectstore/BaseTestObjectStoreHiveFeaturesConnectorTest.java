@@ -1673,6 +1673,13 @@ public abstract class BaseTestObjectStoreHiveFeaturesConnectorTest
 
     @Test
     @Override
+    public void testRowFieldName()
+    {
+        skipDuplicateTestCoverage("testRowFieldName");
+    }
+
+    @Test
+    @Override
     public void testRowLevelUpdate()
     {
         skipDuplicateTestCoverage("testRowLevelUpdate");

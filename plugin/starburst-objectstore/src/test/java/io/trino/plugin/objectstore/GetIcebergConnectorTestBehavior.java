@@ -72,4 +72,11 @@ class GetIcebergConnectorTestBehavior
     {
         super.verifySetFieldTypeFailurePermissible(e);
     }
+
+    // Override to make visible
+    @Override
+    protected boolean isRowFieldNameRejected(Exception exception, String fieldName)
+    {
+        return super.isRowFieldNameRejected(exception, fieldName);
+    }
 }

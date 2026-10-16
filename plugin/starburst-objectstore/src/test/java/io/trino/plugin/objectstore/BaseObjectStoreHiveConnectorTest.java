@@ -125,6 +125,12 @@ public abstract class BaseObjectStoreHiveConnectorTest
     }
 
     @Override
+    protected boolean isRowFieldNameRejected(Exception exception, String fieldName)
+    {
+        return new GetHiveConnectorTestBehavior().isRowFieldNameRejected(exception, fieldName);
+    }
+
+    @Override
     protected TestTable createTableWithDefaultColumns()
     {
         return abort("Hive connector does not support column default values");

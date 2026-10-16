@@ -595,6 +595,21 @@ public abstract class BaseObjectStoreIcebergConnectorTest
         new GetIcebergConnectorTestBehavior().verifySetFieldTypeFailurePermissible(e);
     }
 
+    @Override
+    protected void testRowFieldName(String fieldName)
+    {
+        // The Hive metastore container returns non-ASCII characters in column types as '?', so the table cannot be dropped
+        if (!fieldName.equals("カラム")) {
+            super.testRowFieldName(fieldName);
+        }
+    }
+
+    @Override
+    protected boolean isRowFieldNameRejected(Exception exception, String fieldName)
+    {
+        return new GetIcebergConnectorTestBehavior().isRowFieldNameRejected(exception, fieldName);
+    }
+
     @Test
     public void testSystemTables()
     {

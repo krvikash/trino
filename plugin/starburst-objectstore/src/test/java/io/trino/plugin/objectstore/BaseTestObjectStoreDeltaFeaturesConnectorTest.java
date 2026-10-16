@@ -1348,6 +1348,13 @@ public abstract class BaseTestObjectStoreDeltaFeaturesConnectorTest
 
     @Test
     @Override
+    public void testRowFieldName()
+    {
+        skipDuplicateTestCoverage("testRowFieldName");
+    }
+
+    @Test
+    @Override
     public void testRowLevelDelete()
     {
         skipDuplicateTestCoverage("testRowLevelDelete");

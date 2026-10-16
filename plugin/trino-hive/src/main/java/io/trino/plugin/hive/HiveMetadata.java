@@ -357,6 +357,7 @@ import static io.trino.spi.type.TypeUtils.isFloatingPointNaN;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.spi.type.VarcharType.createUnboundedVarcharType;
 import static java.lang.Boolean.parseBoolean;
+import static java.lang.Character.isLetterOrDigit;
 import static java.lang.String.format;
 import static java.util.Collections.emptyMap;
 import static java.util.Locale.ENGLISH;
@@ -1545,6 +1546,7 @@ public class HiveMetadata
 
         HiveTableHandle handle = (HiveTableHandle) tableHandle;
         failIfAvroSchemaIsSet(handle);
+        verifyHiveFieldNames(column.getType());
 
         metastore.addColumn(handle.getSchemaName(), handle.getTableName(), column.getName(), toHiveType(column.getType()), column.getComment().orElse(null));
     }
@@ -4014,6 +4016,7 @@ public class HiveMetadata
             verifyHiveColumnName(columnName);
             // validate type is supported
             toHiveType(column.getType());
+            verifyHiveFieldNames(column.getType());
         }
 
         if (getHiveStorageFormat(tableMetadata.getProperties()) != HiveStorageFormat.CSV) {
@@ -4044,6 +4047,25 @@ public class HiveMetadata
         }
         if (columnName.contains(",")) {
             throw new TrinoException(NOT_SUPPORTED, format("Hive column names must not contain commas: '%s'", columnName));
+        }
+    }
+
+    private static void verifyHiveFieldNames(Type type)
+    {
+        if (type instanceof RowType rowType) {
+            for (RowType.Field field : rowType.getFields()) {
+                field.getName().ifPresent(HiveMetadata::verifyHiveFieldName);
+            }
+        }
+        type.getTypeParameters().forEach(HiveMetadata::verifyHiveFieldNames);
+    }
+
+    private static void verifyHiveFieldName(String fieldName)
+    {
+        // Field names are stored in the Hive type string, e.g. struct<name:type>, so they are limited to the
+        // characters accepted by the type string parser, otherwise the table cannot be read back
+        if (!fieldName.chars().allMatch(c -> isLetterOrDigit(c) || c == '_' || c == '.' || c == ' ' || c == '$')) {
+            throw new TrinoException(NOT_SUPPORTED, format("Hive row field names must contain only letters, digits, spaces, '_', '.' or '$': '%s'", fieldName));
         }
     }
 

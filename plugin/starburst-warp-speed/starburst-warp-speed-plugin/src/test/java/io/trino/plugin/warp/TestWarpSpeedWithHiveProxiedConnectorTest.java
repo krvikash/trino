@@ -172,6 +172,24 @@ public class TestWarpSpeedWithHiveProxiedConnectorTest
         };
     }
 
+    @Override
+    protected boolean isRowFieldNameRejected(Exception exception, String fieldName)
+    {
+        return switch (fieldName) {
+            case "a-hyphen-minus",
+                 "a,comma",
+                 "a:colon",
+                 "a;semicolon",
+                 "an@at",
+                 "a\"quote",
+                 "an'apostrophe",
+                 "a`backtick`",
+                 "a/slash`",
+                 "a\\backslash`" -> "Hive row field names must contain only letters, digits, spaces, '_', '.' or '$': '%s'".formatted(fieldName).equals(exception.getMessage());
+            default -> false;
+        };
+    }
+
     @Test
     @Override
     public void testDropAndAddColumnWithSameName()
