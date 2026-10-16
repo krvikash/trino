@@ -12,6 +12,9 @@ package io.starburst.ai.client;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.trace.Tracer;
 import io.opentelemetry.sdk.OpenTelemetrySdk;
+import io.opentelemetry.sdk.testing.exporter.InMemorySpanExporter;
+import io.opentelemetry.sdk.trace.SdkTracerProvider;
+import io.opentelemetry.sdk.trace.export.SimpleSpanProcessor;
 import io.trino.spi.connector.ai.ModelConnectionSpecsLoader;
 import org.junit.jupiter.api.Test;
 
@@ -37,11 +40,19 @@ public class TestAiClientModule
     public void testScopeUsesNamedTracer()
     {
         AiClientModule module = new AiClientModule(ModelConnectionSpecsLoader.EMPTY_LOADER, "io.starburst.ai.agent");
-        OpenTelemetry openTelemetry = OpenTelemetrySdk.builder().build();
-        Tracer ambientTracer = openTelemetry.getTracer("ambient");
+        InMemorySpanExporter spanExporter = InMemorySpanExporter.create();
+        try (OpenTelemetrySdk openTelemetry = OpenTelemetrySdk.builder()
+                .setTracerProvider(SdkTracerProvider.builder()
+                        .addSpanProcessor(SimpleSpanProcessor.create(spanExporter))
+                        .build())
+                .build()) {
+            Tracer ambientTracer = openTelemetry.getTracer("ambient");
 
-        Tracer aiClientTracer = module.createAiClientTracer(openTelemetry, ambientTracer);
+            module.createAiClientTracer(openTelemetry, ambientTracer).spanBuilder("test").startSpan().end();
 
-        assertThat(aiClientTracer).isNotSameAs(ambientTracer);
+            assertThat(spanExporter.getFinishedSpanItems())
+                    .extracting(span -> span.getInstrumentationScopeInfo().getName())
+                    .containsExactly("io.starburst.ai.agent");
+        }
     }
 }
