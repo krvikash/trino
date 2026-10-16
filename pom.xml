@@ -471,6 +471,30 @@
             </dependency>
 
             <dependency>
+                <groupId>com.clickhouse</groupId>
+                <artifactId>client-v2</artifactId>
+                <version>${dep.clickhouse.version}</version>
+                <exclusions>
+                    <exclusion>
+                        <groupId>com.google.guava</groupId>
+                        <artifactId>listenablefuture</artifactId>
+                    </exclusion>
+                </exclusions>
+            </dependency>
+
+            <dependency>
+                <groupId>com.clickhouse</groupId>
+                <artifactId>jdbc-v2</artifactId>
+                <version>${dep.clickhouse.version}</version>
+                <exclusions>
+                    <exclusion>
+                        <groupId>com.google.guava</groupId>
+                        <artifactId>listenablefuture</artifactId>
+                    </exclusion>
+                </exclusions>
+            </dependency>
+
+            <dependency>
                 <groupId>com.datadoghq</groupId>
                 <artifactId>dd-java-agent</artifactId>
                 <version>1.67.1</version>
@@ -3192,13 +3216,6 @@
                     <groupId>org.basepom.maven</groupId>
                     <artifactId>duplicate-finder-maven-plugin</artifactId>
                     <configuration>
-                        <ignoredDependencies>
-                            <ignoredDependency>
-                                <!-- clickhouse-jdbc contains conflicting dependencies inside itself -->
-                                <groupId>com.clickhouse</groupId>
-                                <artifactId>clickhouse-jdbc</artifactId>
-                            </ignoredDependency>
-                        </ignoredDependencies>
                         <exceptions combine.children="append">
                             <exception>
                                 <conflictingDependencies>

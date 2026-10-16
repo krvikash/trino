@@ -91,7 +91,6 @@ import io.trino.spi.type.LongTimestampWithTimeZone;
 import io.trino.spi.type.NumberType;
 import io.trino.spi.type.RowType;
 import io.trino.spi.type.StandardTypes;
-import io.trino.spi.type.TimeZoneKey;
 import io.trino.spi.type.TimestampType;
 import io.trino.spi.type.TimestampWithTimeZoneType;
 import io.trino.spi.type.Type;
@@ -119,7 +118,10 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeFormatterBuilder;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -139,6 +141,7 @@ import static com.google.common.base.Strings.emptyToNull;
 import static com.google.common.base.Strings.isNullOrEmpty;
 import static com.google.common.base.Verify.verify;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
+import static io.airlift.slice.Slices.utf8Slice;
 import static io.airlift.slice.Slices.wrappedBuffer;
 import static io.trino.plugin.clickhouse.ClickHouseSessionProperties.isMapStringAsVarchar;
 import static io.trino.plugin.clickhouse.ClickHouseTableProperties.DEFAULT_TABLE_ENGINE;
@@ -147,6 +150,7 @@ import static io.trino.plugin.clickhouse.ClickHouseTableProperties.ORDER_BY_PROP
 import static io.trino.plugin.clickhouse.ClickHouseTableProperties.PARTITION_BY_PROPERTY;
 import static io.trino.plugin.clickhouse.ClickHouseTableProperties.PRIMARY_KEY_PROPERTY;
 import static io.trino.plugin.clickhouse.ClickHouseTableProperties.SAMPLE_BY_PROPERTY;
+import static io.trino.plugin.clickhouse.ClickHouseTypeUtils.longTimestampWithTimeZone;
 import static io.trino.plugin.clickhouse.ClickHouseTypeUtils.normalizeArrayObject;
 import static io.trino.plugin.clickhouse.ClickHouseTypeUtils.toObjectArray;
 import static io.trino.plugin.clickhouse.ClickHouseTypeUtils.writeScalarElement;
@@ -177,16 +181,16 @@ import static io.trino.plugin.jdbc.StandardColumnMappings.integerColumnMapping;
 import static io.trino.plugin.jdbc.StandardColumnMappings.integerWriteFunction;
 import static io.trino.plugin.jdbc.StandardColumnMappings.longDecimalReadFunction;
 import static io.trino.plugin.jdbc.StandardColumnMappings.longDecimalWriteFunction;
-import static io.trino.plugin.jdbc.StandardColumnMappings.longTimestampReadFunction;
 import static io.trino.plugin.jdbc.StandardColumnMappings.numberReadFunction;
 import static io.trino.plugin.jdbc.StandardColumnMappings.numberWriteFunction;
 import static io.trino.plugin.jdbc.StandardColumnMappings.realWriteFunction;
 import static io.trino.plugin.jdbc.StandardColumnMappings.shortDecimalWriteFunction;
 import static io.trino.plugin.jdbc.StandardColumnMappings.smallintColumnMapping;
 import static io.trino.plugin.jdbc.StandardColumnMappings.smallintWriteFunction;
-import static io.trino.plugin.jdbc.StandardColumnMappings.timestampReadFunction;
 import static io.trino.plugin.jdbc.StandardColumnMappings.tinyintColumnMapping;
 import static io.trino.plugin.jdbc.StandardColumnMappings.tinyintWriteFunction;
+import static io.trino.plugin.jdbc.StandardColumnMappings.toLongTrinoTimestamp;
+import static io.trino.plugin.jdbc.StandardColumnMappings.toTrinoTimestamp;
 import static io.trino.plugin.jdbc.StandardColumnMappings.varbinaryColumnMapping;
 import static io.trino.plugin.jdbc.StandardColumnMappings.varbinaryWriteFunction;
 import static io.trino.plugin.jdbc.StandardColumnMappings.varcharReadFunction;
@@ -231,6 +235,7 @@ import static java.lang.String.join;
 import static java.lang.System.arraycopy;
 import static java.math.RoundingMode.UNNECESSARY;
 import static java.time.ZoneOffset.UTC;
+import static java.time.temporal.ChronoField.NANO_OF_SECOND;
 import static java.util.Locale.ENGLISH;
 import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.joining;
@@ -245,6 +250,10 @@ public class ClickHouseClient
 
     // An empty character means that the table doesn't have a comment in ClickHouse
     private static final String NO_COMMENT = "";
+    private static final DateTimeFormatter TIMESTAMP_LITERAL_FORMATTER = new DateTimeFormatterBuilder()
+            .appendPattern("uuuu-MM-dd HH:mm:ss")
+            .appendFraction(NANO_OF_SECOND, 0, 9, true)
+            .toFormatter();
 
     public static final int DEFAULT_DOMAIN_COMPACTION_THRESHOLD = 1_000;
 
@@ -353,11 +362,10 @@ public class ClickHouseClient
     public ResultSet getTables(Connection connection, Optional<String> schemaName, Optional<String> tableName)
             throws SQLException
     {
-        // Clickhouse maps their "database" to SQL catalogs and does not have schemas
         DatabaseMetaData metadata = connection.getMetaData();
         return metadata.getTables(
-                schemaName.orElse(null),
                 null,
+                escapeObjectNameForMetadataQuery(schemaName, metadata.getSearchStringEscape()).orElse(null),
                 escapeObjectNameForMetadataQuery(tableName, metadata.getSearchStringEscape()).orElse(null),
                 getTableTypes().map(types -> types.toArray(String[]::new)).orElse(null));
     }
@@ -366,7 +374,7 @@ public class ClickHouseClient
     protected String getTableRemoteSchemaName(ResultSet resultSet)
             throws SQLException
     {
-        return resultSet.getString("TABLE_CAT");
+        return resultSet.getString("TABLE_SCHEM");
     }
 
     private static Optional<JdbcTypeHandle> toTypeHandle(DecimalType decimalType)
@@ -422,11 +430,10 @@ public class ClickHouseClient
     @Override
     public Collection<String> listSchemas(Connection connection)
     {
-        // for Clickhouse, we need to list catalogs instead of schemas
-        try (ResultSet resultSet = connection.getMetaData().getCatalogs()) {
+        try (ResultSet resultSet = connection.getMetaData().getSchemas()) {
             ImmutableSet.Builder<String> schemaNames = ImmutableSet.builder();
             while (resultSet.next()) {
-                String schemaName = resultSet.getString("TABLE_CAT");
+                String schemaName = resultSet.getString("TABLE_SCHEM");
                 // skip internal schemas
                 if (filterRemoteSchema(schemaName)) {
                     schemaNames.add(schemaName);
@@ -475,7 +482,7 @@ public class ClickHouseClient
                         "SELECT engine, sorting_key, partition_key, primary_key, sampling_key " +
                         "FROM system.tables " +
                         "WHERE database = ? AND name = ?")) {
-            statement.setString(1, tableHandle.asPlainTable().getRemoteTableName().getCatalogName().orElse(null));
+            statement.setString(1, tableHandle.asPlainTable().getRemoteTableName().getSchemaName().orElse(null));
             statement.setString(2, tableHandle.asPlainTable().getRemoteTableName().getTableName());
 
             try (ResultSet resultSet = statement.executeQuery()) {
@@ -823,7 +830,7 @@ public class ClickHouseClient
                 return Optional.of(doubleColumnMapping());
             }
             case Types.DECIMAL -> {
-                int decimalDigits = typeHandle.requiredDecimalDigits();
+                int decimalDigits = typeHandle.decimalDigits().orElse(0);
                 int precision = typeHandle.requiredColumnSize();
                 if (precision <= Decimals.MAX_PRECISION) {
                     return Optional.of(ColumnMapping.mapping(
@@ -860,18 +867,29 @@ public class ClickHouseClient
             case Types.TIMESTAMP -> {
                 if (columnDataType == ClickHouseDataType.DateTime) {
                     // ClickHouse DateTime does not have sub-second precision
-                    verify(typeHandle.requiredDecimalDigits() == 0, "Expected 0 as timestamp precision, but got %s", typeHandle.requiredDecimalDigits());
+                    verify(typeHandle.decimalDigits().isEmpty() || typeHandle.decimalDigits().get() == 0, "Expected 0 as timestamp precision, but got %s", typeHandle.decimalDigits());
+                    // The v2 JDBC driver reports DateTime('zone') as Types.TIMESTAMP rather than Types.TIMESTAMP_WITH_TIMEZONE
+                    if (column.hasTimeZone()) {
+                        return Optional.of(ColumnMapping.longMapping(
+                                TIMESTAMP_TZ_SECONDS,
+                                shortTimestampWithTimeZoneReadFunction(),
+                                shortTimestampWithTimeZoneWriteFunction(version, column.getTimeZone(), 0, true)));
+                    }
                     return Optional.of(ColumnMapping.longMapping(
                             TIMESTAMP_SECONDS,
-                            timestampReadFunction(TIMESTAMP_SECONDS),
+                            clickHouseTimestampReadFunction(TIMESTAMP_SECONDS),
                             timestampSecondsWriteFunction(version)));
+                }
+                // v2 driver reports zoned DateTime64 as Types.TIMESTAMP
+                if (column.hasTimeZone()) {
+                    return Optional.of(timestampWithTimeZoneColumnMapping(version, column));
                 }
                 return Optional.of(timestampColumnMapping(version, createTimestampType(column.getScale())));
             }
             case Types.TIMESTAMP_WITH_TIMEZONE -> {
                 if (columnDataType == ClickHouseDataType.DateTime) {
                     // ClickHouse DateTime does not have sub-second precision
-                    verify(typeHandle.requiredDecimalDigits() == 0, "Expected 0 as timestamp with time zone precision, but got %s", typeHandle.requiredDecimalDigits());
+                    verify(typeHandle.decimalDigits().isEmpty() || typeHandle.decimalDigits().get() == 0, "Expected 0 as timestamp precision, but got %s", typeHandle.decimalDigits());
                     return Optional.of(ColumnMapping.longMapping(
                             TIMESTAMP_TZ_SECONDS,
                             shortTimestampWithTimeZoneReadFunction(),
@@ -888,6 +906,9 @@ public class ClickHouseClient
         }
 
         if (getUnsupportedTypeHandling(session) == CONVERT_TO_VARCHAR) {
+            if (columnDataType == Tuple) {
+                return Optional.of(tupleForcedVarcharColumnMapping());
+            }
             return mapToUnboundedVarchar(typeHandle);
         }
 
@@ -1096,6 +1117,17 @@ public class ClickHouseClient
         };
     }
 
+    private static LongReadFunction clickHouseTimestampReadFunction(TimestampType timestampType)
+    {
+        return (resultSet, columnIndex) -> {
+            // dateTrunc pushdown can return a Date-typed column, which the driver cannot convert to LocalDateTime
+            if (resultSet.getMetaData().getColumnType(columnIndex) == Types.DATE) {
+                return toTrinoTimestamp(timestampType, resultSet.getObject(columnIndex, LocalDate.class).atStartOfDay());
+            }
+            return toTrinoTimestamp(timestampType, resultSet.getObject(columnIndex, LocalDateTime.class));
+        };
+    }
+
     private static LongWriteFunction timestampSecondsWriteFunction(ClickHouseVersionUtils version)
     {
         return (statement, index, value) -> {
@@ -1105,7 +1137,8 @@ public class ClickHouseClient
             LocalDateTime timestamp = LocalDateTime.ofEpochSecond(epochSecond, 0, UTC);
             // ClickHouse stores incorrect results when the values are out of supported range.
             DATETIME.validate(version, timestamp);
-            statement.setObject(index, timestamp);
+            // Use a string because java.sql.Timestamp shifts values in the JVM zone's DST gap
+            statement.setString(index, TIMESTAMP_LITERAL_FORMATTER.format(timestamp));
         };
     }
 
@@ -1113,7 +1146,8 @@ public class ClickHouseClient
     {
         return (resultSet, columnIndex) -> {
             ZonedDateTime zonedDateTime = resultSet.getObject(columnIndex, ZonedDateTime.class);
-            return packDateTimeWithZone(zonedDateTime.toInstant().toEpochMilli(), zonedDateTime.getZone().getId());
+            // clickhouse-jdbc 0.10+ returns a named zone (e.g. Asia/Kathmandu); normalize to fixed offset (eg: +05:45) to match Trino's representation
+            return packDateTimeWithZone(zonedDateTime.toInstant().toEpochMilli(), zonedDateTime.withFixedOffsetZone().getZone().getId());
         };
     }
 
@@ -1133,14 +1167,24 @@ public class ClickHouseClient
         if (timestampType.isShort()) {
             return ColumnMapping.longMapping(
                     timestampType,
-                    timestampReadFunction(timestampType),
+                    clickHouseTimestampReadFunction(timestampType),
                     timestampWriteFunction(version, timestampType.getPrecision()));
         }
         checkArgument(timestampType.getPrecision() <= CLICKHOUSE_MAX_SUPPORTED_TIMESTAMP_PRECISION, "Precision is out of range: %s", timestampType.getPrecision());
         return ColumnMapping.objectMapping(
                 timestampType,
-                longTimestampReadFunction(timestampType),
+                clickHouseLongTimestampReadFunction(timestampType),
                 longTimestampWriteFunction(version, timestampType.getPrecision()));
+    }
+
+    private static ObjectReadFunction clickHouseLongTimestampReadFunction(TimestampType timestampType)
+    {
+        return ObjectReadFunction.of(LongTimestamp.class, (resultSet, columnIndex) -> {
+            if (resultSet.getMetaData().getColumnType(columnIndex) == Types.DATE) {
+                return toLongTrinoTimestamp(timestampType, resultSet.getObject(columnIndex, LocalDate.class).atStartOfDay());
+            }
+            return toLongTrinoTimestamp(timestampType, resultSet.getObject(columnIndex, LocalDateTime.class));
+        });
     }
 
     private static LongWriteFunction timestampWriteFunction(ClickHouseVersionUtils version, int precision)
@@ -1150,7 +1194,7 @@ public class ClickHouseClient
             LocalDateTime timestamp = fromTrinoTimestamp(value);
             // ClickHouse stores incorrect results when the values are out of supported range.
             validateDateTimeAndDateTime64(version, timestamp, precision, false);
-            statement.setObject(index, timestamp);
+            statement.setString(index, TIMESTAMP_LITERAL_FORMATTER.format(timestamp));
         });
     }
 
@@ -1162,7 +1206,8 @@ public class ClickHouseClient
             LocalDateTime timestamp = fromLongTrinoTimestamp(value, precision);
             // ClickHouse stores incorrect results when the values are out of supported range.
             validateDateTimeAndDateTime64(version, timestamp, precision, false);
-            statement.setObject(index, timestamp);
+            // OffsetDateTime/Instant go through fromUnixTimestamp64Nano() and overflow beyond year ~2262; a string literal does not
+            statement.setString(index, TIMESTAMP_LITERAL_FORMATTER.format(timestamp));
         });
     }
 
@@ -1186,13 +1231,7 @@ public class ClickHouseClient
 
     private static ObjectReadFunction longTimestampWithTimeZoneReadFunction()
     {
-        return ObjectReadFunction.of(LongTimestampWithTimeZone.class, (resultSet, columnIndex) -> {
-            ZonedDateTime timestamp = resultSet.getObject(columnIndex, ZonedDateTime.class);
-            return LongTimestampWithTimeZone.fromEpochSecondsAndFraction(
-                    timestamp.toEpochSecond(),
-                    (long) timestamp.getNano() * PICOSECONDS_PER_NANOSECOND,
-                    TimeZoneKey.getTimeZoneKey(timestamp.getZone().getId()));
-        });
+        return ObjectReadFunction.of(LongTimestampWithTimeZone.class, (resultSet, columnIndex) -> longTimestampWithTimeZone(resultSet.getObject(columnIndex, ZonedDateTime.class)));
     }
 
     private static ObjectWriteFunction longTimestampWithTimeZoneWriteFunction(ClickHouseVersionUtils version, int precision, TimeZone columnTimeZone)
@@ -1319,9 +1358,8 @@ public class ClickHouseClient
 
                 // jdbc-types-mapped-to-varchar forces the element to VARCHAR, but JDBC returns the raw
                 // Java object (e.g. Integer) inside a Tuple — not a String. Map the whole Tuple to VARCHAR.
-                Optional<ColumnMapping> forcedMappingToVarchar = getForcedMappingToVarchar(elementTypeHandle);
-                if (forcedMappingToVarchar.isPresent()) {
-                    return forcedMappingToVarchar;
+                if (getForcedMappingToVarchar(elementTypeHandle).isPresent()) {
+                    return Optional.of(tupleForcedVarcharColumnMapping());
                 }
 
                 Optional<ColumnMapping> elementMapping = toColumnMapping(session, connection, elementTypeHandle);
@@ -1372,6 +1410,18 @@ public class ClickHouseClient
         return supportedClickHouseType || supportedJdbcType;
     }
 
+    private static ColumnMapping tupleForcedVarcharColumnMapping()
+    {
+        VarcharType unboundedVarcharType = createUnboundedVarcharType();
+        return ColumnMapping.sliceMapping(
+                unboundedVarcharType,
+                (resultSet, columnIndex) -> utf8Slice(Arrays.deepToString(toObjectArray(resultSet.getObject(columnIndex)))),
+                (_, _, _) -> {
+                    throw new TrinoException(NOT_SUPPORTED, "Writing to ClickHouse Tuple columns is not supported");
+                },
+                DISABLE_PUSHDOWN);
+    }
+
     private static ObjectReadFunction tupleReadFunction(RowType rowType, RoundingMode roundingMode)
     {
         return ObjectReadFunction.of(SqlRow.class, (resultSet, columnIndex) -> {
@@ -1386,14 +1436,15 @@ public class ClickHouseClient
         return RowValueBuilder.buildRowValue(rowType, fieldBuilders -> {
             List<RowType.Field> fields = rowType.getFields();
             for (int fieldIndex = 0; fieldIndex < fields.size(); fieldIndex++) {
-                // For scalar Nullable(T) elements, the JDBC driver includes null in the list.
-                // For Nullable(Tuple(...)) elements, the JDBC driver omits the entry entirely
-                // when the value is SQL NULL, making the list shorter than the schema.
                 Object value = (fieldIndex < tupleValues.length) ? tupleValues[fieldIndex] : null;
                 Type fieldType = fields.get(fieldIndex).getType();
                 BlockBuilder fieldBuilder = fieldBuilders.get(fieldIndex);
 
-                if (value == null) {
+                if (value == null && fieldType instanceof RowType nestedRowType) {
+                    // the driver returns a NULL Nullable(Tuple) as null; expose it as a row of NULL fields
+                    fieldType.writeObject(fieldBuilder, buildSqlRow(nestedRowType, new Object[0], roundingMode));
+                }
+                else if (value == null) {
                     fieldBuilder.appendNull();
                 }
                 else if (fieldType instanceof RowType nestedRowType) {
@@ -1402,11 +1453,12 @@ public class ClickHouseClient
                     fieldType.writeObject(fieldBuilder, nestedSqlRow);
                 }
                 else if (fieldType instanceof ArrayType arrayType) {
-                    Block nestedArrayBlock = buildArrayBlock(arrayType.getElementType(), value, roundingMode);
+                    // Tuple DateTime(tz) elements are ZonedDateTime, so no element timezone is needed
+                    Block nestedArrayBlock = buildArrayBlock(arrayType.getElementType(), value, roundingMode, null);
                     fieldType.writeObject(fieldBuilder, nestedArrayBlock);
                 }
                 else {
-                    writeScalarElement(fieldBuilder, fieldType, value, roundingMode);
+                    writeScalarElement(fieldBuilder, fieldType, value, roundingMode, null);
                 }
             }
         });
@@ -1467,15 +1519,17 @@ public class ClickHouseClient
         }
 
         RoundingMode roundingMode = getDecimalRoundingMode(session);
+        // Array DateTime(tz) elements are java.sql.Timestamp without a zone, so capture it here
+        TimeZone elementTimeZone = baseColumn.getTimeZone();
         return baseElementMapping
                 .map(elementMapping -> {
                     ArrayType trinoArrayType = new ArrayType(elementMapping.getType());
-                    ColumnMapping arrayColumnMapping = toArrayColumnMapping(trinoArrayType, roundingMode);
+                    ColumnMapping arrayColumnMapping = toArrayColumnMapping(trinoArrayType, roundingMode, elementTimeZone);
 
                     int arrayDimensions = typeHandle.arrayDimensions().get();
                     for (int i = 1; i < arrayDimensions; i++) {
                         trinoArrayType = new ArrayType(trinoArrayType);
-                        arrayColumnMapping = toArrayColumnMapping(trinoArrayType, roundingMode);
+                        arrayColumnMapping = toArrayColumnMapping(trinoArrayType, roundingMode, elementTimeZone);
                     }
                     return arrayColumnMapping;
                 });
@@ -1502,29 +1556,29 @@ public class ClickHouseClient
         }
     }
 
-    private static ColumnMapping toArrayColumnMapping(ArrayType arrayType, RoundingMode roundingMode)
+    private static ColumnMapping toArrayColumnMapping(ArrayType arrayType, RoundingMode roundingMode, TimeZone elementTimeZone)
     {
         return ColumnMapping.objectMapping(
                 arrayType,
-                arrayReadFunction(arrayType.getElementType(), roundingMode),
+                arrayReadFunction(arrayType.getElementType(), roundingMode, elementTimeZone),
                 ObjectWriteFunction.of(Block.class, (_, _, _) -> {
                     throw new TrinoException(NOT_SUPPORTED, "Writing to ClickHouse Array columns is not supported");
                 }),
                 DISABLE_PUSHDOWN);
     }
 
-    private static ObjectReadFunction arrayReadFunction(Type elementType, RoundingMode roundingMode)
+    private static ObjectReadFunction arrayReadFunction(Type elementType, RoundingMode roundingMode, TimeZone elementTimeZone)
     {
         return ObjectReadFunction.of(Block.class, (resultSet, columnIndex) -> {
             Array array = resultSet.getArray(columnIndex);
 
             // https://github.com/ClickHouse/clickhouse-java/pull/2668 (resultSet is not supported in ClickHouseArray)
             Object arrayObject = array.getArray();
-            return buildArrayBlock(elementType, arrayObject, roundingMode);
+            return buildArrayBlock(elementType, arrayObject, roundingMode, elementTimeZone);
         });
     }
 
-    private static Block buildArrayBlock(Type elementType, Object arrayObject, RoundingMode roundingMode)
+    private static Block buildArrayBlock(Type elementType, Object arrayObject, RoundingMode roundingMode, TimeZone elementTimeZone)
     {
         Object[] elements = normalizeArrayObject(arrayObject);
         BlockBuilder builder = elementType.createBlockBuilder(null, elements.length);
@@ -1534,7 +1588,7 @@ public class ClickHouseClient
                 builder.appendNull();
             }
             else if (elementType instanceof ArrayType arrayType) {
-                Block nestedBlock = buildArrayBlock(arrayType.getElementType(), element, roundingMode);
+                Block nestedBlock = buildArrayBlock(arrayType.getElementType(), element, roundingMode, elementTimeZone);
                 elementType.writeObject(builder, nestedBlock);
             }
             else if (elementType instanceof RowType rowType) {
@@ -1543,7 +1597,7 @@ public class ClickHouseClient
                 elementType.writeObject(builder, sqlRow);
             }
             else {
-                writeScalarElement(builder, elementType, element, roundingMode);
+                writeScalarElement(builder, elementType, element, roundingMode, elementTimeZone);
             }
         }
         return builder.build();

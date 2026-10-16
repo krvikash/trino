@@ -13,12 +13,13 @@
  */
 package io.trino.plugin.clickhouse;
 
+import com.clickhouse.jdbc.Driver;
 import org.testcontainers.clickhouse.ClickHouseContainer;
 import org.testcontainers.utility.DockerImageName;
 
 import java.io.Closeable;
 import java.sql.Connection;
-import java.sql.DriverManager;
+import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.List;
 import java.util.Map;
@@ -86,7 +87,7 @@ public class TestingClickHouseServer
 
     public void execute(String sql)
     {
-        try (Connection connection = DriverManager.getConnection(dockerContainer.getJdbcUrl(), dockerContainer.getUsername(), dockerContainer.getPassword());
+        try (Connection connection = createConnection();
                 Statement statement = connection.createStatement()) {
             statement.execute(sql);
         }
@@ -102,7 +103,7 @@ public class TestingClickHouseServer
         properties.setProperty("user", getUsername());
         properties.setProperty("password", getPassword());
         sessionSettings.forEach((key, value) -> properties.setProperty("clickhouse_setting_" + key, value));
-        try (Connection connection = DriverManager.getConnection(getJdbcUrl(), properties);
+        try (Connection connection = new Driver().connect(dockerContainer.getJdbcUrl(), properties);
                 Statement statement = connection.createStatement()) {
             for (String sql : statements) {
                 statement.execute(sql);
@@ -111,6 +112,16 @@ public class TestingClickHouseServer
         catch (Exception e) {
             throw new RuntimeException("Failed to execute statements with settings %s: %s".formatted(sessionSettings, statements), e);
         }
+    }
+
+    // The v2 JDBC driver does not register itself with DriverManager
+    public Connection createConnection()
+            throws SQLException
+    {
+        Properties properties = new Properties();
+        properties.setProperty("user", dockerContainer.getUsername());
+        properties.setProperty("password", dockerContainer.getPassword());
+        return new Driver().connect(dockerContainer.getJdbcUrl(), properties);
     }
 
     public String getJdbcUrl()

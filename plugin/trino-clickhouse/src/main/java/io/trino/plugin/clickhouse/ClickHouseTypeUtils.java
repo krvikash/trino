@@ -13,7 +13,7 @@
  */
 package io.trino.plugin.clickhouse;
 
-import com.clickhouse.data.value.UnsignedLong;
+import com.clickhouse.client.api.data_formats.internal.BinaryStreamReader;
 import io.airlift.slice.Slice;
 import io.trino.spi.TrinoException;
 import io.trino.spi.block.BlockBuilder;
@@ -22,29 +22,31 @@ import io.trino.spi.type.DecimalType;
 import io.trino.spi.type.Decimals;
 import io.trino.spi.type.Int128;
 import io.trino.spi.type.IntegerType;
+import io.trino.spi.type.LongTimestampWithTimeZone;
 import io.trino.spi.type.SmallintType;
 import io.trino.spi.type.TimeZoneKey;
 import io.trino.spi.type.TimestampType;
 import io.trino.spi.type.TimestampWithTimeZoneType;
 import io.trino.spi.type.Type;
-import io.trino.spi.type.VarbinaryType;
 
 import java.lang.reflect.Array;
 import java.math.BigDecimal;
 import java.math.BigInteger;
-import java.math.MathContext;
 import java.math.RoundingMode;
 import java.net.InetAddress;
+import java.sql.Date;
+import java.sql.Timestamp;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.OffsetDateTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.List;
+import java.util.TimeZone;
 import java.util.UUID;
 
 import static com.google.common.base.Verify.verify;
 import static io.airlift.slice.Slices.utf8Slice;
 import static io.airlift.slice.Slices.wrappedBuffer;
-import static io.trino.plugin.clickhouse.ClickHouseClient.UINT64_TYPE;
 import static io.trino.plugin.jdbc.JdbcErrorCode.JDBC_ERROR;
 import static io.trino.plugin.jdbc.StandardColumnMappings.toLongTrinoTimestamp;
 import static io.trino.plugin.jdbc.StandardColumnMappings.toTrinoTimestamp;
@@ -58,13 +60,13 @@ import static io.trino.spi.type.UuidType.javaUuidToTrinoUuid;
 import static java.lang.Float.floatToRawIntBits;
 import static java.lang.String.format;
 import static java.lang.System.arraycopy;
-import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.util.Objects.requireNonNull;
 
 final class ClickHouseTypeUtils
 {
     private ClickHouseTypeUtils() {}
 
-    static void writeScalarElement(BlockBuilder builder, Type type, Object value, RoundingMode roundingMode)
+    static void writeScalarElement(BlockBuilder builder, Type type, Object value, RoundingMode roundingMode, TimeZone elementTimeZone)
     {
         Class<?> javaType = type.getJavaType();
 
@@ -73,11 +75,10 @@ final class ClickHouseTypeUtils
         }
         else if (javaType == long.class) {
             long element = switch (value) {
+                case Date date -> date.toLocalDate().toEpochDay();
                 case LocalDate localDate -> localDate.toEpochDay();
-                case LocalDateTime localDateTime -> toTrinoTimestamp((TimestampType) type, localDateTime);
-                case OffsetDateTime offsetDateTime -> packDateTimeWithZone(
-                        offsetDateTime.toInstant().toEpochMilli(),
-                        TimeZoneKey.getTimeZoneKey(offsetDateTime.getOffset().getId()));
+                // Tuple DateTime(tz) elements are ZonedDateTime; Array elements are java.sql.Timestamp
+                case ZonedDateTime _, Timestamp _ -> toShortTimestampValue(type, value, elementTimeZone);
                 case Float floatValue -> floatToRawIntBits(floatValue);
                 case BigDecimal bigDecimal -> Decimals.encodeShortScaledValue(bigDecimal, ((DecimalType) type).getScale(), roundingMode);
                 // ClickHouse JDBC returns signed primitive wrappers for unsigned integer array elements.
@@ -100,22 +101,11 @@ final class ClickHouseTypeUtils
                 type.writeSlice(builder, castFromVarcharToIpAddress(inetAddress.getHostAddress()));
             }
             else if (value instanceof String stringValue) {
-                // Unlike top-level String/FixedString columns where raw bytes are preserved
-                // (e.g. INSERT 0x80 → SELECT returns X'80'), ClickHouse JDBC TupleDeserializer
-                // replaces invalid UTF-8 bytes in Tuple String/FixedString elements with U+FFFD
-                // before this code runs (e.g. Tuple(value String) INSERT 0x80 → SELECT returns X'efbfbd').
-                // Original bytes are unrecoverable.
+                // The v2 driver always decodes nested String/FixedString as Java String, so invalid UTF-8 bytes are already replaced with U+FFFD here
                 type.writeSlice(builder, utf8Slice(stringValue));
             }
-            else if (value instanceof byte[] bytes) {
-                // ClickHouse JDBC returns raw byte[] for Array(String) and Array(FixedString) elements
-                // (binary string mode). Map to varbinary as-is; for varchar decode as UTF-8.
-                if (type instanceof VarbinaryType) {
-                    type.writeSlice(builder, wrappedBuffer(bytes));
-                }
-                else {
-                    type.writeSlice(builder, utf8Slice(new String(bytes, UTF_8)));
-                }
+            else if (value instanceof BinaryStreamReader.EnumValue enumValue) {
+                type.writeSlice(builder, utf8Slice(enumValue.getName()));
             }
             else {
                 throw new TrinoException(NOT_SUPPORTED, format("Unsupported value type for Slice: %s", value.getClass().getName()));
@@ -124,36 +114,79 @@ final class ClickHouseTypeUtils
         else if (javaType == Int128.class) {
             DecimalType decimalType = (DecimalType) type;
             verify(!decimalType.isShort(), "The type should be long decimal");
-            if (value instanceof UnsignedLong unsignedLong) {
-                BigInteger unscaledValue = unsignedLong.bigIntegerValue();
-                BigDecimal bigDecimal = new BigDecimal(unscaledValue, UINT64_TYPE.getScale(), new MathContext(UINT64_TYPE.getPrecision()));
+            if (value instanceof BigDecimal bigDecimal) {
                 type.writeObject(builder, Decimals.encodeScaledValue(bigDecimal, decimalType.getScale(), roundingMode));
             }
-            else if (value instanceof Long longValue) {
-                // ClickHouse JDBC returns Long (not UnsignedLong) for Array(UInt64) elements
-                BigInteger unscaledValue = UnsignedLong.valueOf(longValue).bigIntegerValue();
-                BigDecimal bigDecimal = new BigDecimal(unscaledValue, UINT64_TYPE.getScale(), new MathContext(UINT64_TYPE.getPrecision()));
-                type.writeObject(builder, Decimals.encodeScaledValue(bigDecimal, decimalType.getScale(), roundingMode));
-            }
-            else if (value instanceof BigDecimal bigDecimal) {
-                type.writeObject(builder, Decimals.encodeScaledValue(bigDecimal, decimalType.getScale(), roundingMode));
+            else if (value instanceof BigInteger bigInteger) {
+                type.writeObject(builder, Decimals.encodeScaledValue(new BigDecimal(bigInteger), decimalType.getScale(), roundingMode));
             }
             else {
                 throw new TrinoException(NOT_SUPPORTED, format("Unsupported value type for Int128: %s", value.getClass().getName()));
             }
         }
-        else if (value instanceof OffsetDateTime offsetDateTime && type instanceof TimestampWithTimeZoneType) {
-            type.writeObject(builder, fromEpochSecondsAndFraction(
-                    offsetDateTime.toEpochSecond(),
-                    (long) offsetDateTime.getNano() * PICOSECONDS_PER_NANOSECOND,
-                    TimeZoneKey.getTimeZoneKey(offsetDateTime.getOffset().getId())));
+        else if (type instanceof TimestampType timestampType) {
+            type.writeObject(builder, toLongTrinoTimestamp(timestampType, toLocalDateTime(value)));
         }
-        else if (value instanceof LocalDateTime localDateTime && type instanceof TimestampType timestampType) {
-            type.writeObject(builder, toLongTrinoTimestamp(timestampType, localDateTime));
+        else if (type instanceof TimestampWithTimeZoneType) {
+            type.writeObject(builder, longTimestampWithTimeZone(toZonedDateTime(value, elementTimeZone)));
         }
         else {
             throw new TrinoException(NOT_SUPPORTED, format("Unsupported tuple element type: %s (java type: %s)", type, javaType.getName()));
         }
+    }
+
+    private static long toShortTimestampValue(Type type, Object value, TimeZone elementTimeZone)
+    {
+        if (type instanceof TimestampType timestampType) {
+            return toTrinoTimestamp(timestampType, toLocalDateTime(value));
+        }
+        if (type instanceof TimestampWithTimeZoneType) {
+            return packShortTimestampWithTimeZone(toZonedDateTime(value, elementTimeZone));
+        }
+        throw new TrinoException(NOT_SUPPORTED, format("Unsupported type for timestamp value %s: %s", value.getClass().getName(), type));
+    }
+
+    static LocalDateTime toLocalDateTime(Object value)
+    {
+        return switch (value) {
+            case Timestamp timestamp -> timestamp.toLocalDateTime();
+            case Date date -> date.toLocalDate().atStartOfDay();
+            case LocalDate localDate -> localDate.atStartOfDay();
+            case LocalDateTime localDateTime -> localDateTime;
+            case ZonedDateTime zonedDateTime -> zonedDateTime.toLocalDateTime();
+            case null -> throw new TrinoException(JDBC_ERROR, "Unexpected timestamp value type: null");
+            default -> throw new TrinoException(JDBC_ERROR, "Unexpected timestamp value type: " + value.getClass().getName());
+        };
+    }
+
+    private static ZonedDateTime toZonedDateTime(Object value, TimeZone elementTimeZone)
+    {
+        return switch (value) {
+            case ZonedDateTime zonedDateTime -> zonedDateTime;
+            case Timestamp timestamp -> timestamp.toLocalDateTime().atZone(timeZoneId(elementTimeZone));
+            default -> throw new TrinoException(NOT_SUPPORTED, format("Unsupported value type for timestamp with time zone: %s", value.getClass().getName()));
+        };
+    }
+
+    // clickhouse-jdbc 0.10+ returns a named zone (e.g. Asia/Kathmandu); normalize to fixed offset (e.g. +05:45) to match Trino's representation
+    private static long packShortTimestampWithTimeZone(ZonedDateTime zonedDateTime)
+    {
+        ZonedDateTime normalized = zonedDateTime.withFixedOffsetZone();
+        return packDateTimeWithZone(normalized.toInstant().toEpochMilli(), TimeZoneKey.getTimeZoneKey(normalized.getZone().getId()));
+    }
+
+    static LongTimestampWithTimeZone longTimestampWithTimeZone(ZonedDateTime zonedDateTime)
+    {
+        ZonedDateTime normalized = zonedDateTime.withFixedOffsetZone();
+        return fromEpochSecondsAndFraction(
+                normalized.toEpochSecond(),
+                (long) normalized.getNano() * PICOSECONDS_PER_NANOSECOND,
+                TimeZoneKey.getTimeZoneKey(normalized.getZone().getId()));
+    }
+
+    private static ZoneId timeZoneId(TimeZone elementTimeZone)
+    {
+        return requireNonNull(elementTimeZone, "elementTimeZone is null").toZoneId();
     }
 
     private static Slice castFromVarcharToIpAddress(String ipAddress)
@@ -180,8 +213,8 @@ final class ClickHouseTypeUtils
 
     static Object[] toObjectArray(Object arrayObject)
     {
-        if (arrayObject instanceof List<?> list) {
-            return list.toArray();
+        if (arrayObject instanceof Object[] array) {
+            return array;
         }
         throw new TrinoException(JDBC_ERROR, format("Unexpected type returned for Tuple column: %s", arrayObject.getClass().getName()));
     }

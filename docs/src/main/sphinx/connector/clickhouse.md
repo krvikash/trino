@@ -280,6 +280,14 @@ to the following table:
 
 No other types are supported.
 
+:::{note}
+`String` and `FixedString` values nested inside `Array` or `Tuple` are decoded
+as UTF-8 text by the ClickHouse JDBC driver. Bytes that are not valid UTF-8 are
+replaced with the Unicode replacement character (`U+FFFD`), even when the
+element is mapped to `VARBINARY`. Top-level `String` and `FixedString` columns
+are not affected.
+:::
+
 ### Trino type to ClickHouse type mapping
 
 The connector maps Trino types to the corresponding ClickHouse types according

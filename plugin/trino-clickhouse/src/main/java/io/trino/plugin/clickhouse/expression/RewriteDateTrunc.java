@@ -38,8 +38,13 @@ public class RewriteDateTrunc
         if (unit.equals(MILLISECOND)) {
             return false;
         }
+        String jdbcTypeName = jdbcTypeHandle.jdbcTypeName()
+                .orElseThrow(() -> new TrinoException(JDBC_ERROR, "Type name is missing: " + jdbcTypeHandle));
+        ClickHouseColumn column = ClickHouseColumn.of("", jdbcTypeName);
         return switch (jdbcTypeHandle.jdbcType()) {
-            case Types.DATE, Types.TIMESTAMP -> true;
+            case Types.DATE -> true;
+            // the v2 driver reports zoned DateTime as Types.TIMESTAMP; pushdown is not supported for those
+            case Types.TIMESTAMP -> !column.hasTimeZone();
             default -> false;
         };
     }

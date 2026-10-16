@@ -2516,22 +2516,18 @@ public abstract class BaseClickHouseTypeMapping
     @Test
     public void testArrayTrinoVarbinary()
     {
-        // Array(String)/Array(FixedString) elements are returned as raw byte[] by the JDBC driver,
-        // unlike Tuple elements which go through TupleDeserializer and lose non-UTF-8 bytes.
-        // Original bytes are preserved even when they are not valid UTF-8.
+        // nested String/FixedString are decoded as Java String, so invalid UTF-8 becomes U+FFFD (efbfbd), as for Tuple
         SqlDataTypeTest.create()
                 .addRoundTrip("Array(String)", "['']", new ArrayType(VARBINARY), "ARRAY[X'']")
                 .addRoundTrip("Array(String)", "['\\x68\\x65\\x6C\\x6C\\x6F']", new ArrayType(VARBINARY), "ARRAY[to_utf8('hello')]")
                 .addRoundTrip("Array(String)", "['Piękna łąka w 東京都']", new ArrayType(VARBINARY), "ARRAY[to_utf8('Piękna łąka w 東京都')]")
                 .addRoundTrip("Array(String)", "['Bag full of 💰']", new ArrayType(VARBINARY), "ARRAY[to_utf8('Bag full of 💰')]")
                 .addRoundTrip("Array(String)", "['\\x00\\x00\\x00\\x00\\x00\\x00']", new ArrayType(VARBINARY), "ARRAY[X'000000000000']")
-                // non-UTF-8 bytes are preserved as-is (unlike Tuple where they become U+FFFD)
-                .addRoundTrip("Array(String)", "['\\x00\\x01\\x02\\x03\\x04\\x05\\x06\\x07\\x08\\x0D\\xF9\\x36\\x7A\\xA7\\x00\\x00\\x00']", new ArrayType(VARBINARY), "ARRAY[X'0001020304050607080df9367aa7000000']")
+                .addRoundTrip("Array(String)", "['\\x00\\x01\\x02\\x03\\x04\\x05\\x06\\x07\\x08\\x0D\\xF9\\x36\\x7A\\xA7\\x00\\x00\\x00']", new ArrayType(VARBINARY), "ARRAY[X'0001020304050607080defbfbd367aefbfbd000000']")
                 .addRoundTrip("Array(FixedString(10))", "['c12345678b']", new ArrayType(VARBINARY), "ARRAY[to_utf8('c12345678b')]")
                 .addRoundTrip("Array(FixedString(10))", "['c123']", new ArrayType(VARBINARY), "ARRAY[to_utf8('c123\0\0\0\0\0\0')]")
                 .addRoundTrip("Array(FixedString(10))", "['\\x00\\x00\\x00\\x00\\x00\\x00']", new ArrayType(VARBINARY), "ARRAY[X'00000000000000000000']")
-                // non-UTF-8 bytes in FixedString elements are also preserved as-is
-                .addRoundTrip("Array(FixedString(17))", "['\\x00\\x01\\x02\\x03\\x04\\x05\\x06\\x07\\x08\\x0D\\xF9\\x36\\x7A\\xA7\\x00\\x00\\x00']", new ArrayType(VARBINARY), "ARRAY[X'0001020304050607080df9367aa7000000']")
+                .addRoundTrip("Array(FixedString(17))", "['\\x00\\x01\\x02\\x03\\x04\\x05\\x06\\x07\\x08\\x0D\\xF9\\x36\\x7A\\xA7\\x00\\x00\\x00']", new ArrayType(VARBINARY), "ARRAY[X'0001020304050607080defbfbd367aefbfbd000000']")
                 .execute(getQueryRunner(), clickhouseCreateAndInsert("tpch.test_array_varbinary"));
     }
 
@@ -2779,7 +2775,7 @@ public abstract class BaseClickHouseTypeMapping
                     "(col Array(Int32)) ENGINE=Log")) {
                 clickhouseServer.execute("INSERT INTO " + table.getName() + " VALUES ([1, 2, 3])");
                 assertThat(queryRunner.execute(getSession(), "SELECT col FROM clickhouse." + table.getName()).getOnlyValue())
-                        .isEqualTo("[1,2,3]");
+                        .isEqualTo("[1, 2, 3]");
             }
         }
     }
@@ -2799,6 +2795,39 @@ public abstract class BaseClickHouseTypeMapping
                         rowType(field("a", new ArrayType(VARBINARY)), field("b", INTEGER)),
                         "CAST(ROW(ARRAY[to_utf8('hello'), to_utf8('world')], 7) AS row(a array(varbinary), b integer))")
                 .execute(getQueryRunner(), clickhouseCreateAndInsert("tpch.test_tuple_with_array"));
+    }
+
+    @Test
+    public void testTupleWithArrayOfDateTimeWithTimeZone()
+    {
+        SqlDataTypeTest.create()
+                .addRoundTrip(
+                        "Tuple(a Array(DateTime('Asia/Kathmandu')))",
+                        "(['2024-01-01 12:34:56'])",
+                        rowType(field("a", new ArrayType(createTimestampWithTimeZoneType(0)))),
+                        "CAST(ROW(ARRAY[TIMESTAMP '2024-01-01 12:34:56 +05:45']) AS row(a array(timestamp(0) with time zone)))")
+                .execute(getQueryRunner(), clickhouseCreateAndInsert("tpch.test_tuple_array_datetime_tz"));
+    }
+
+    @Test
+    public void testTimestampReadInJvmDstGap()
+    {
+        SqlDataTypeTest.create()
+                .addRoundTrip("DateTime", "'2018-04-01 02:13:55'", createTimestampType(0), "TIMESTAMP '2018-04-01 02:13:55'")
+                .addRoundTrip("DateTime64(3)", "'2018-04-01 02:13:55.123'", createTimestampType(3), "TIMESTAMP '2018-04-01 02:13:55.123'")
+                .addRoundTrip("DateTime64(9)", "'2018-04-01 02:13:55.123456789'", createTimestampType(9), "TIMESTAMP '2018-04-01 02:13:55.123456789'")
+                .execute(getQueryRunner(), clickhouseCreateAndInsert("tpch.test_timestamp_read_dst_gap"));
+    }
+
+    @Test
+    public void testTimestampWriteInJvmDstGap()
+    {
+        // 2018-04-01 02:13:55 does not exist in the JVM zone America/Bahia_Banderas
+        SqlDataTypeTest.create()
+                .addRoundTrip("timestamp(0)", "TIMESTAMP '2018-04-01 02:13:55'", createTimestampType(0), "TIMESTAMP '2018-04-01 02:13:55'")
+                .addRoundTrip("timestamp(3)", "TIMESTAMP '2018-04-01 02:13:55.123'", createTimestampType(3), "TIMESTAMP '2018-04-01 02:13:55.123'")
+                .addRoundTrip("timestamp(9)", "TIMESTAMP '2018-04-01 02:13:55.123456789'", createTimestampType(9), "TIMESTAMP '2018-04-01 02:13:55.123456789'")
+                .execute(getQueryRunner(), trinoCreateAndInsert("test_timestamp_jvm_dst_gap"));
     }
 
     @Test
