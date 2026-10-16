@@ -454,6 +454,10 @@ public final class GpuExpressionCompiler
                 return compileRegexpReplace(call, context);
             }
 
+            if (name.equals("regexp_extract")) {
+                return compileRegexpExtract(call, context);
+            }
+
             if (name.equals("replace")) {
                 return compileReplace(call, context);
             }
@@ -1088,6 +1092,49 @@ public final class GpuExpressionCompiler
             GpuRegexTranspiler.TranspileResult result = transpiled.get();
             return call.arguments().getFirst().accept(this, context)
                     .flatMap(source -> GpuRegexpReplace.create(source, result.pattern(), result.replacement(), result.hasBackreferences()));
+        }
+
+        private Optional<GpuExpression> compileRegexpExtract(Call call, Void context)
+        {
+            int argCount = call.arguments().size();
+            // defensive check: regexp_extract has only 2- and 3-arg overloads
+            if (argCount < 2 || argCount > 3) {
+                return Optional.empty();
+            }
+
+            if (!(call.arguments().get(0).type() instanceof VarcharType)) {
+                return Optional.empty();
+            }
+
+            Optional<JoniRegexp> pattern = extractJoniRegexp(call.arguments().get(1));
+            if (pattern.isEmpty()) {
+                return Optional.empty();
+            }
+            int joniGroupCount = pattern.get().regex().numberOfCaptures();
+
+            // 2-arg overload extracts the whole match
+            long group = 0;
+            if (argCount == 3) {
+                Optional<Long> groupConstant = extractBigintConstant(call.arguments().get(2));
+                if (groupConstant.isEmpty()) {
+                    return Optional.empty();
+                }
+                group = groupConstant.get();
+            }
+            // An out-of-range group makes the CPU fail, which is left to the CPU to report
+            if (group < 0 || group > joniGroupCount) {
+                return Optional.empty();
+            }
+
+            Optional<GpuRegexTranspiler.ExtractPattern> transpiled = GpuRegexTranspiler.transpileForExtract(pattern.get().pattern().toStringUtf8(), toIntExact(group));
+            // The group index addresses the same group on both sides only when they count the groups alike
+            if (transpiled.isEmpty() || transpiled.get().originalGroupCount() != joniGroupCount) {
+                return Optional.empty();
+            }
+
+            String cudfPattern = transpiled.get().pattern();
+            return call.arguments().get(0).accept(this, context)
+                    .flatMap(source -> GpuRegexpExtract.create(source, cudfPattern));
         }
 
         private Optional<GpuExpression> compileReplace(Call call, Void context)
