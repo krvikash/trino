@@ -667,6 +667,19 @@ final class TestGpuRegexpReplace
     }
 
     @Test
+    void testRepeatOfRepeat()
+    {
+        assertThat(regexpReplace("(?:a+)?", "x"))
+                .executesCorrectly("", "b", "aab", "ab", "ba");
+        assertThat(regexpReplace("(?:a+)+", "x"))
+                .executesCorrectly("", "b", "aab", "ab", "ba");
+        assertThat(regexpReplace("(?:a+)*", "x"))
+                .executesCorrectly("", "b", "aab", "ab", "ba");
+        assertThat(regexpReplace("(?:a+)?", "<$0>"))
+                .executesCorrectly("", "b", "aab", "ab", "ba");
+    }
+
+    @Test
     void testClosingBracketAsFirstCharInClass()
     {
         assertThat(regexpReplace("[]]", "X"))

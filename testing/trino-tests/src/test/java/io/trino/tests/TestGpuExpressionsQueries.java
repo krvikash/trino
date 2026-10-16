@@ -352,6 +352,14 @@ final class TestGpuExpressionsQueries
     }
 
     @Test
+    void testRegexpReplaceRepeatOfRepeat()
+    {
+        assertThat(query("SELECT regexp_replace(a_varchar, '(?:l+)?', '*') FROM expressions")).executesWithGpu(ProjectNode.class);
+        assertThat(query("SELECT regexp_replace(a_varchar, '(?:l+)+', '*') FROM expressions")).executesWithGpu(ProjectNode.class);
+        assertThat(query("SELECT regexp_replace(a_varchar, '(?:l+)*', '*') FROM expressions")).executesWithGpu(ProjectNode.class);
+    }
+
+    @Test
     void testReplace()
     {
         assertThat(query("SELECT replace(a_varchar, 'l', 'L') FROM expressions")).executesWithGpu(ProjectNode.class);

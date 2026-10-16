@@ -136,7 +136,13 @@ public final class GpuRegexTranspiler
                 return Optional.empty();
             }
             return renderQuantifier(repeat.minOccurrences(), repeat.maxOccurrences()).flatMap(quantifier ->
-                    render(repeat.pattern()).map(inner -> inner + quantifier));
+                    render(repeat.pattern()).map(inner -> {
+                        if (repeat.pattern() instanceof Repeat) {
+                            // cuDF would read a+? as lazy and reject a++ with "nothing to repeat"
+                            return "(?:" + inner + ")" + quantifier;
+                        }
+                        return inner + quantifier;
+                    }));
         }
 
         private static Optional<String> renderQuantifier(int min, OptionalInt max)
