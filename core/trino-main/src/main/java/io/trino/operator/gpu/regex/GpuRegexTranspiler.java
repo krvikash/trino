@@ -35,6 +35,10 @@ import java.util.List;
 import java.util.Optional;
 import java.util.OptionalInt;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Verify.verify;
+import static io.trino.operator.gpu.regex.CapturingGroupSelector.countCapturingGroups;
+import static io.trino.operator.gpu.regex.CapturingGroupSelector.selectCapturingGroup;
 import static io.trino.operator.gpu.regex.Pattern.Repeat.Greediness.GREEDY;
 import static java.util.Objects.requireNonNull;
 
@@ -54,19 +58,37 @@ public final class GpuRegexTranspiler
 
     public static Optional<TranspileResult> transpile(String pattern, String replacement)
     {
-        Pattern parsed;
+        return tryParse(pattern)
+                .flatMap(parsed -> new PatternTranspiler().transpile(parsed))
+                .flatMap(transpiled -> transpileReplacement(replacement, transpiled.groupCount()).map(result ->
+                        new TranspileResult(transpiled.pattern(), result.replacement(), result.hasBackreferences())));
+    }
+
+    /**
+     * Transpiles a Trino regex pattern for extracting the given capturing group, where group 0 is the whole match.
+     * The resulting pattern has exactly one capturing group, which captures what the given group captures in the
+     * original pattern. Returns {@code Optional.empty()} when the pattern is not supported on GPU or has no such group.
+     */
+    public static Optional<ExtractPattern> transpileForExtract(String pattern, int group)
+    {
+        checkArgument(group >= 0, "group is negative: %s", group);
+        return tryParse(pattern).flatMap(parsed -> selectCapturingGroup(parsed, group)
+                .flatMap(selected -> new PatternTranspiler().transpile(selected))
+                .map(transpiled -> {
+                    verify(transpiled.groupCount() == 1, "Expected exactly one capturing group in %s", transpiled.pattern());
+                    return new ExtractPattern(transpiled.pattern(), countCapturingGroups(parsed));
+                }));
+    }
+
+    private static Optional<Pattern> tryParse(String pattern)
+    {
         try {
-            parsed = RegexParser.parse(pattern);
+            return Optional.of(RegexParser.parse(pattern));
         }
         catch (ParsingException e) {
             log.debug("Regex pattern not supported on GPU, falling back to CPU: %s", e.getMessage());
             return Optional.empty();
         }
-
-        PatternTranspiler transpiler = new PatternTranspiler();
-        return transpiler.transpile(parsed).flatMap(transpiled ->
-                transpileReplacement(replacement, transpiled.groupCount()).map(result ->
-                        new TranspileResult(transpiled.pattern(), result.replacement(), result.hasBackreferences())));
     }
 
     private static final class PatternTranspiler
@@ -330,6 +352,19 @@ public final class GpuRegexTranspiler
         public TranspiledPattern
         {
             requireNonNull(pattern, "pattern is null");
+        }
+    }
+
+    /**
+     * @param pattern cuDF pattern with exactly one capturing group
+     * @param originalGroupCount number of capturing groups in the original pattern
+     */
+    public record ExtractPattern(String pattern, int originalGroupCount)
+    {
+        public ExtractPattern
+        {
+            requireNonNull(pattern, "pattern is null");
+            checkArgument(originalGroupCount >= 0, "originalGroupCount is negative: %s", originalGroupCount);
         }
     }
 }
