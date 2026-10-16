@@ -27,15 +27,22 @@ import io.trino.operator.gpu.expression.Bindings;
 import io.trino.operator.gpu.expression.CompiledExpression;
 import io.trino.operator.gpu.expression.Fallibility;
 import io.trino.operator.gpu.expression.GetColumn;
+import io.trino.operator.gpu.expression.GpuApproxPercentileInput;
+import io.trino.operator.gpu.expression.GpuApproxPercentileResult;
 import io.trino.operator.gpu.expression.GpuCast;
 import io.trino.operator.gpu.expression.GpuCombineDecimalStateSumsToDecimal128;
 import io.trino.operator.gpu.expression.GpuCombineSumChunksToVarbinary;
 import io.trino.operator.gpu.expression.GpuDecimal128AsVarbinary;
+import io.trino.operator.gpu.expression.GpuDecodeApproxPercentileState;
+import io.trino.operator.gpu.expression.GpuEagerLogicalExpression;
+import io.trino.operator.gpu.expression.GpuEncodeApproxPercentileState;
 import io.trino.operator.gpu.expression.GpuExpression;
 import io.trino.operator.gpu.expression.GpuExtractDecimalStateChunk;
 import io.trino.operator.gpu.expression.GpuExtractInt32Chunk;
 import io.trino.operator.gpu.expression.GpuIsNan;
+import io.trino.operator.gpu.expression.GpuIsNull;
 import io.trino.operator.gpu.expression.GpuNansToNulls;
+import io.trino.operator.gpu.expression.GpuNot;
 import io.trino.operator.gpu.expression.GpuPackAvgDecimalState;
 import io.trino.operator.gpu.expression.GpuRestoreNan;
 import io.trino.operator.project.InputChannels;
@@ -77,6 +84,8 @@ import static com.google.common.base.Verify.verify;
 import static com.google.common.base.Verify.verifyNotNull;
 import static io.trino.metadata.GlobalFunctionCatalog.isBuiltinFunctionName;
 import static io.trino.operator.gpu.SignatureFormatter.formatAggregation;
+import static io.trino.operator.gpu.expression.GpuDecodeApproxPercentileState.Part.DIGEST;
+import static io.trino.operator.gpu.expression.GpuDecodeApproxPercentileState.Part.PERCENTILE;
 import static io.trino.operator.gpu.expression.GpuExpressions.anyNullOnNullInputs;
 import static io.trino.operator.gpu.expression.GpuExpressions.worstOf;
 import static io.trino.spi.gpu.GpuTypeConversion.isConvertible;
@@ -286,6 +295,7 @@ public final class GpuAggregationCompiler
             case "max", "bool_or" -> compileMinMax(arguments, sourceLayout, outputType, GpuMax::new, maskChannel);
             case "avg" -> compileAvg(arguments, sourceLayout, step, outputType, maskChannel);
             case "any_value" -> compileAnyValue(arguments, sourceLayout, outputType, maskChannel);
+            case "approx_percentile" -> compileApproxPercentile(arguments, sourceLayout, step, outputType, signature.getReturnType(), maskChannel);
             default -> Optional.empty();
         };
     }
@@ -555,19 +565,99 @@ public final class GpuAggregationCompiler
                         }));
     }
 
+    private static Optional<AggregateCompilation> compileApproxPercentile(
+            List<Expression> arguments,
+            Map<Symbol, Integer> sourceLayout,
+            Step step,
+            Type outputType,
+            Type returnType,
+            OptionalInt maskChannel)
+    {
+        // Only approx_percentile(x, percentile), with x of a type the CPU stores in a t-digest as a double.
+        // The weighted variants are not supported, the variant with accuracy uses a q-digest, and the variant
+        // with an array of percentiles returns an array.
+        boolean supportedReturnType = switch (returnType) {
+            case BigintType _, DoubleType _, RealType _ -> true;
+            default -> false;
+        };
+        if (!supportedReturnType) {
+            return Optional.empty();
+        }
+        DType returnDType = toDType(returnType).orElseThrow();
+
+        return switch (step) {
+            case SINGLE, PARTIAL -> {
+                if (arguments.size() != 2) {
+                    yield Optional.empty();
+                }
+                ColumnReference value = columnReference(arguments.get(0), sourceLayout);
+                ColumnReference percentile = columnReference(arguments.get(1), sourceLayout);
+                if (!value.type().equals(returnType) || !(percentile.type() instanceof DoubleType)) {
+                    yield Optional.empty();
+                }
+
+                // The CPU skips a row where any argument is NULL or the mask is not TRUE
+                ImmutableList.Builder<GpuExpression> rowPresent = ImmutableList.<GpuExpression>builder()
+                        .add(new GpuNot(new GpuIsNull(new GetColumn(value.channel()))))
+                        .add(new GpuNot(new GpuIsNull(new GetColumn(percentile.channel()))));
+                maskChannel.ifPresent(mask -> rowPresent.add(new GetColumn(mask)));
+                GpuExpression present = GpuEagerLogicalExpression.and(rowPresent.build());
+
+                GpuExpression values = new GpuApproxPercentileInput(new Mask(present, new GetColumn(value.channel()), value.type()), returnDType);
+                GpuExpression percentiles = new Mask(present, new GetColumn(percentile.channel()), DOUBLE);
+                GpuExpression postProjection = step == Step.PARTIAL
+                        ? new GpuEncodeApproxPercentileState()
+                        : new GpuApproxPercentileResult(returnDType);
+                yield Optional.of(approxPercentile(outputType, values, percentiles, postProjection));
+            }
+            case FINAL -> {
+                if (maskChannel.isPresent() || arguments.size() != 1) {
+                    yield Optional.empty();
+                }
+                ColumnReference state = columnReference(arguments.getFirst(), sourceLayout);
+                verify(state.type().equals(VARBINARY), "approx_percentile FINAL input must be VARBINARY, got %s", state.type());
+                yield Optional.of(approxPercentile(
+                        outputType,
+                        new GpuDecodeApproxPercentileState(new GetColumn(state.channel()), DIGEST),
+                        new GpuDecodeApproxPercentileState(new GetColumn(state.channel()), PERCENTILE),
+                        new GpuApproxPercentileResult(returnDType)));
+            }
+            // INTERMEDIATE aggregations are rare and are not supported on GPU for other functions either
+            case INTERMEDIATE -> Optional.empty();
+        };
+    }
+
+    private static AggregateCompilation approxPercentile(Type outputType, GpuExpression digestInput, GpuExpression percentiles, GpuExpression postProjection)
+    {
+        return new AggregateCompilation(
+                outputType,
+                ImmutableList.of(
+                        AggregateSlot.of(digestInput, GpuTDigest::new),
+                        // The CPU keeps the last percentile it sees
+                        AggregateSlot.of(percentiles, channel -> new GpuLastValue(channel, DOUBLE, FLOAT64))),
+                Optional.of(new PostProjection(channels -> new CompiledExpression(
+                        postProjection,
+                        new InputChannels(List.of(channels[0], channels[1]))))));
+    }
+
     private static Optional<ColumnReference> getSingleColumnReference(List<Expression> arguments, Map<Symbol, Integer> sourceLayout)
     {
         if (arguments.size() != 1) {
             return Optional.empty();
         }
-        if (!(arguments.getFirst() instanceof Reference reference)) {
-            throw new IllegalArgumentException("Expected Reference but got: " + arguments.getFirst().getClass().getSimpleName());
+        return Optional.of(columnReference(arguments.getFirst(), sourceLayout));
+    }
+
+    private static ColumnReference columnReference(Expression argument, Map<Symbol, Integer> sourceLayout)
+    {
+        if (!(argument instanceof Reference reference)) {
+            throw new IllegalArgumentException("Expected Reference but got: " + argument.getClass().getSimpleName());
         }
 
         Symbol symbol = Symbol.from(reference);
         int channel = verifyNotNull(sourceLayout.get(symbol), "channel for symbol %s is not in source layout", symbol);
 
-        return Optional.of(new ColumnReference(channel, symbol.type()));
+        return new ColumnReference(channel, symbol.type());
     }
 
     private record ColumnReference(int channel, Type type)

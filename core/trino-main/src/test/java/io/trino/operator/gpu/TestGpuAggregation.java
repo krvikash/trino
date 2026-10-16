@@ -17,6 +17,8 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.primitives.Ints;
+import io.airlift.slice.SliceInput;
+import io.airlift.stats.TDigest;
 import io.trino.metadata.ResolvedFunction;
 import io.trino.metadata.TestingFunctionResolution;
 import io.trino.operator.AggregationMetrics;
@@ -34,6 +36,7 @@ import io.trino.spi.Page;
 import io.trino.spi.TrinoException;
 import io.trino.spi.block.Block;
 import io.trino.spi.block.BlockBuilder;
+import io.trino.spi.type.ArrayType;
 import io.trino.spi.type.DecimalType;
 import io.trino.spi.type.Int128;
 import io.trino.spi.type.Type;
@@ -53,6 +56,8 @@ import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.FieldSource;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -62,19 +67,24 @@ import java.util.OptionalInt;
 import java.util.Random;
 import java.util.Set;
 import java.util.function.Function;
+import java.util.function.LongFunction;
 import java.util.stream.IntStream;
 
 import static ai.rapids.cudf.DType.INT64;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Verify.verify;
+import static com.google.common.collect.ImmutableList.toImmutableList;
+import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.airlift.slice.Slices.utf8Slice;
 import static io.trino.RowPagesBuilder.rowPagesBuilder;
+import static io.trino.block.BlockAssertions.createDoubleRepeatBlock;
 import static io.trino.block.BlockAssertions.getOnlyValue;
 import static io.trino.operator.aggregation.AggregationTestUtils.assertAggregation;
 import static io.trino.operator.gpu.BufferPages.TARGET_ROW_COUNT;
 import static io.trino.operator.gpu.GpuTestUtils.FLOATING_POINT_EDGE_CASES;
 import static io.trino.operator.gpu.GpuTestUtils.assertSameDataInOrder;
 import static io.trino.operator.gpu.GpuTestUtils.assertSameDataWithoutOrder;
+import static io.trino.operator.gpu.GpuTestUtils.bigintBlock;
 import static io.trino.operator.gpu.GpuTestUtils.createBigintBlock;
 import static io.trino.operator.gpu.GpuTestUtils.createBlock;
 import static io.trino.operator.gpu.GpuTestUtils.createFloatingPointBlock;
@@ -82,6 +92,7 @@ import static io.trino.operator.gpu.GpuTestUtils.executeGpuOperation;
 import static io.trino.operator.gpu.GpuTestUtils.maybeSetGpuMemoryPoolForTests;
 import static io.trino.operator.gpu.GpuTestUtils.mergePages;
 import static io.trino.operator.gpu.GpuTestUtils.writeFloatingPoint;
+import static io.trino.spi.StandardErrorCode.INVALID_FUNCTION_ARGUMENT;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.spi.type.CharType.createCharType;
@@ -91,8 +102,10 @@ import static io.trino.spi.type.VarbinaryType.VARBINARY;
 import static io.trino.sql.analyzer.TypeDescriptorProvider.fromTypes;
 import static io.trino.sql.gen.TestColumnarFilters.NullsProvider.RANDOM_NULLS;
 import static io.trino.sql.planner.plan.AggregationNode.Step.FINAL;
+import static io.trino.sql.planner.plan.AggregationNode.Step.INTERMEDIATE;
 import static io.trino.sql.planner.plan.AggregationNode.Step.PARTIAL;
 import static io.trino.sql.planner.plan.AggregationNode.Step.SINGLE;
+import static io.trino.testing.assertions.TrinoExceptionAssert.assertTrinoExceptionThrownBy;
 import static org.assertj.core.api.Assertions.assertThat;
 
 final class TestGpuAggregation
@@ -105,6 +118,10 @@ final class TestGpuAggregation
     // high-cardinality partial aggregation flushes, but large enough that low-cardinality and small inputs
     // aggregate into a single resident state without flushing.
     private static final long COMPACTION_THRESHOLD_BYTES = 256 * 1024;
+    static final List<Type> APPROX_PERCENTILE_TYPES = List.of(BIGINT, DOUBLE, REAL);
+    private static final List<Double> PERCENTILES = List.of(0.0, 0.01, 0.1, 0.25, 0.5, 0.75, 0.9, 0.99, 1.0);
+    // Many more values than a t-digest has centroids
+    private static final int APPROX_PERCENTILE_VALUE_COUNT = 5000;
 
     @BeforeAll
     static void maybeSetGpuMemoryPool()
@@ -850,6 +867,435 @@ final class TestGpuAggregation
     }
 
     @ParameterizedTest
+    @FieldSource("APPROX_PERCENTILE_TYPES")
+    void testApproxPercentileGlobalEmpty(Type type)
+    {
+        Page inputPage = createEmptyPage(List.of(type, DOUBLE));
+        for (Step step : List.of(SINGLE, PARTIAL)) {
+            assertGlobalMatchesCpu(List.of(inputPage), "approx_percentile", List.of(type, DOUBLE), step);
+        }
+    }
+
+    @ParameterizedTest
+    @FieldSource("APPROX_PERCENTILE_TYPES")
+    void testApproxPercentileAllNull(Type type)
+    {
+        Page inputPage = new Page(nullBlock(type, 3), createDoubleRepeatBlock(0.5, 3));
+        for (Step step : List.of(SINGLE, PARTIAL)) {
+            assertGlobalMatchesCpu(List.of(inputPage), "approx_percentile", List.of(type, DOUBLE), step);
+        }
+    }
+
+    @ParameterizedTest
+    @FieldSource("APPROX_PERCENTILE_TYPES")
+    void testApproxPercentileSingleValue(Type type)
+    {
+        // A t-digest of one value answers that value for every percentile
+        Block valueBlock = createApproxPercentileValueBlock(type, 1, false);
+        for (double percentile : PERCENTILES) {
+            Page inputPage = new Page(valueBlock, createDoubleRepeatBlock(percentile, 1));
+            for (Step step : List.of(SINGLE, PARTIAL)) {
+                assertGlobalMatchesCpu(List.of(inputPage), "approx_percentile", List.of(type, DOUBLE), step);
+            }
+        }
+    }
+
+    @ParameterizedTest
+    @FieldSource("APPROX_PERCENTILE_TYPES")
+    void testApproxPercentileGlobal(Type type)
+    {
+        Block valueBlock = createApproxPercentileValueBlock(type, APPROX_PERCENTILE_VALUE_COUNT, true);
+        List<Double> values = nonNullValues(type, valueBlock);
+        for (double percentile : PERCENTILES) {
+            Page inputPage = new Page(valueBlock, createDoubleRepeatBlock(percentile, APPROX_PERCENTILE_VALUE_COUNT));
+            for (Step step : List.of(SINGLE, PARTIAL)) {
+                assertApproxPercentile(type, values, percentile, runGpuApproxPercentileGlobal(type, List.of(inputPage), step));
+            }
+        }
+    }
+
+    @ParameterizedTest
+    @FieldSource("APPROX_PERCENTILE_TYPES")
+    void testGroupByApproxPercentile(Type type)
+    {
+        int groupCount = 5;
+        int positionCount = groupCount * APPROX_PERCENTILE_VALUE_COUNT;
+        Block groupByBlock = createGroupByBlock(positionCount, groupCount);
+        Block valueBlock = createApproxPercentileValueBlock(type, positionCount, true);
+        for (double percentile : PERCENTILES) {
+            Page inputPage = new Page(groupByBlock, valueBlock, createDoubleRepeatBlock(percentile, positionCount));
+            Map<Long, List<Double>> valuesByGroup = nonNullValuesByGroup(type, List.of(inputPage));
+            for (Step step : List.of(SINGLE, PARTIAL)) {
+                assertApproxPercentiles(type, valuesByGroup, _ -> percentile, runGpuApproxPercentileGrouped(type, List.of(inputPage), step));
+            }
+        }
+    }
+
+    @Test
+    void testGroupByApproxPercentileWithPercentilePerGroup()
+    {
+        int groupCount = 5;
+        int positionCount = groupCount * APPROX_PERCENTILE_VALUE_COUNT;
+        Block groupByBlock = createGroupByBlock(positionCount, groupCount);
+        BlockBuilder percentileBuilder = DOUBLE.createBlockBuilder(null, positionCount);
+        for (int position = 0; position < positionCount; position++) {
+            DOUBLE.writeDouble(percentileBuilder, 0.2 * BIGINT.getLong(groupByBlock, position));
+        }
+        Page inputPage = new Page(groupByBlock, createApproxPercentileValueBlock(DOUBLE, positionCount, true), percentileBuilder.build());
+        Map<Long, List<Double>> valuesByGroup = nonNullValuesByGroup(DOUBLE, List.of(inputPage));
+        for (Step step : List.of(SINGLE, PARTIAL)) {
+            assertApproxPercentiles(DOUBLE, valuesByGroup, group -> 0.2 * group, runGpuApproxPercentileGrouped(DOUBLE, List.of(inputPage), step));
+        }
+    }
+
+    @Test
+    void testApproxPercentileSkipsRowsWithNullPercentile()
+    {
+        // The value on a row with a NULL percentile is neither aggregated nor validated
+        Block valueBlock = createFloatingPointBlock(DOUBLE, Arrays.asList(Double.NaN, 1.0, 2.0, 3.0, 4.0, Double.POSITIVE_INFINITY, 5.0, null));
+        Block percentileBlock = createFloatingPointBlock(DOUBLE, Arrays.asList(null, 0.5, 0.5, null, 0.5, null, 0.5, 0.5));
+        Page inputPage = new Page(valueBlock, percentileBlock);
+        for (Step step : List.of(SINGLE, PARTIAL)) {
+            assertApproxPercentile(DOUBLE, List.of(1.0, 2.0, 4.0, 5.0), 0.5, runGpuApproxPercentileGlobal(DOUBLE, List.of(inputPage), step));
+        }
+    }
+
+    @Test
+    void testGroupByMaskedApproxPercentile()
+    {
+        int groupCount = 5;
+        int positionCount = groupCount * APPROX_PERCENTILE_VALUE_COUNT;
+        Page inputPage = new Page(
+                createGroupByBlock(positionCount, groupCount),
+                createApproxPercentileValueBlock(DOUBLE, positionCount, true),
+                createDoubleRepeatBlock(0.75, positionCount),
+                createMaskBlock(positionCount));
+        Map<Long, List<Double>> valuesByGroup = nonNullValuesByGroup(DOUBLE, List.of(filterByMask(inputPage)));
+
+        GpuAggregationCompiler.AggregationCompileResult.Success compiled = compileAggregation("approx_percentile", List.of(DOUBLE, DOUBLE), true, SINGLE, true);
+        List<Page> results = runGpuPipeline(List.of(inputPage), List.of(BIGINT, DOUBLE, DOUBLE, BOOLEAN), compiled);
+        assertApproxPercentiles(DOUBLE, valuesByGroup, _ -> 0.75, groupedResults(DOUBLE, results));
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = Step.class, names = {"SINGLE", "PARTIAL"})
+    void testGlobalMultipleBatchesApproxPercentile(Step step)
+    {
+        // Large enough to compact incrementally
+        List<Page> inputPages = List.of(
+                new Page(createBigintBlock(TARGET_ROW_COUNT, RANDOM_NULLS, -1000, 1000), createDoubleRepeatBlock(0.3, TARGET_ROW_COUNT)),
+                new Page(createBigintBlock(TARGET_ROW_COUNT, RANDOM_NULLS, -2000, 0), createDoubleRepeatBlock(0.3, TARGET_ROW_COUNT)),
+                new Page(createBigintBlock(TARGET_ROW_COUNT, RANDOM_NULLS, 0, 3000), createDoubleRepeatBlock(0.3, TARGET_ROW_COUNT)));
+        List<Double> values = new ArrayList<>();
+        for (Page inputPage : inputPages) {
+            values.addAll(nonNullValues(BIGINT, inputPage.getBlock(0)));
+        }
+        assertApproxPercentile(BIGINT, values, 0.3, runGpuApproxPercentileGlobal(BIGINT, inputPages, step));
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = Step.class, names = {"SINGLE", "PARTIAL"})
+    void testGroupByMultipleBatchesApproxPercentile(Step step)
+    {
+        // Large enough to compact incrementally
+        List<Page> inputPages = List.of(
+                new Page(createGroupByBlock(TARGET_ROW_COUNT, 5), createBigintBlock(TARGET_ROW_COUNT, RANDOM_NULLS, -1000, 1000), createDoubleRepeatBlock(0.9, TARGET_ROW_COUNT)),
+                new Page(createGroupByBlock(TARGET_ROW_COUNT, 5), createBigintBlock(TARGET_ROW_COUNT, RANDOM_NULLS, -2000, 0), createDoubleRepeatBlock(0.9, TARGET_ROW_COUNT)),
+                new Page(createGroupByBlock(TARGET_ROW_COUNT, 5), createBigintBlock(TARGET_ROW_COUNT, RANDOM_NULLS, 0, 3000), createDoubleRepeatBlock(0.9, TARGET_ROW_COUNT)));
+        assertApproxPercentiles(BIGINT, nonNullValuesByGroup(BIGINT, inputPages), _ -> 0.9, runGpuApproxPercentileGrouped(BIGINT, inputPages, step));
+    }
+
+    @ParameterizedTest
+    @FieldSource("APPROX_PERCENTILE_TYPES")
+    void testApproxPercentilePartialStateIsCpuState(Type type)
+    {
+        // The GPU partial state deserializes as an airlift t-digest of all values
+        Block valueBlock = createApproxPercentileValueBlock(type, APPROX_PERCENTILE_VALUE_COUNT, true);
+        Page inputPage = new Page(valueBlock, createDoubleRepeatBlock(0.4, APPROX_PERCENTILE_VALUE_COUNT));
+        List<Double> values = nonNullValues(type, valueBlock);
+
+        SliceInput state = VARBINARY.getSlice(runGpuPartialGlobal("approx_percentile", List.of(type, DOUBLE), inputPage), 0).getInput();
+        assertThat(state.readDouble()).isEqualTo(0.4);
+        TDigest digest = TDigest.deserialize(state.readSlice(state.readInt()));
+        assertThat(state.isReadable()).isFalse();
+        assertThat(digest.getCount()).isEqualTo(values.size());
+        assertThat(digest.getMin()).isEqualTo(Collections.min(values));
+        assertThat(digest.getMax()).isEqualTo(Collections.max(values));
+        assertWithinRankError(values, 0.4, digest.valueAt(0.4));
+    }
+
+    @ParameterizedTest
+    @FieldSource("APPROX_PERCENTILE_TYPES")
+    void testApproxPercentilePartialFinalGlobal(Type type)
+    {
+        // Each of the CPU and the GPU merges the partial states of either
+        List<Page> inputPages = List.of(
+                new Page(createApproxPercentileValueBlock(type, APPROX_PERCENTILE_VALUE_COUNT, true), createDoubleRepeatBlock(0.6, APPROX_PERCENTILE_VALUE_COUNT)),
+                new Page(createApproxPercentileValueBlock(type, 1, false), createDoubleRepeatBlock(0.6, 1)),
+                new Page(nullBlock(type, 3), createDoubleRepeatBlock(0.6, 3)));
+        List<Double> values = new ArrayList<>();
+        for (Page inputPage : inputPages) {
+            values.addAll(nonNullValues(type, inputPage.getBlock(0)));
+        }
+
+        Type intermediateType = FUNCTION_RESOLUTION.getAggregateFunction("approx_percentile", fromTypes(type, DOUBLE)).getIntermediateType();
+        BlockBuilder cpuStates = intermediateType.createBlockBuilder(null, inputPages.size());
+        BlockBuilder gpuStates = intermediateType.createBlockBuilder(null, inputPages.size());
+        BlockBuilder mixedStates = intermediateType.createBlockBuilder(null, inputPages.size());
+        for (int i = 0; i < inputPages.size(); i++) {
+            Block cpuState = runCpuPartialGlobal("approx_percentile", List.of(type, DOUBLE), inputPages.get(i));
+            Block gpuState = runGpuPartialGlobal("approx_percentile", List.of(type, DOUBLE), inputPages.get(i));
+            cpuStates.appendBlockRange(cpuState, 0, 1);
+            gpuStates.appendBlockRange(gpuState, 0, 1);
+            mixedStates.appendBlockRange(i % 2 == 0 ? cpuState : gpuState, 0, 1);
+        }
+        for (Block states : List.of(cpuStates.build(), gpuStates.build(), mixedStates.build())) {
+            assertApproxPercentile(type, values, 0.6, runCpuFinal("approx_percentile", List.of(type, DOUBLE), states));
+            assertApproxPercentile(type, values, 0.6, runGpuFinalGlobal("approx_percentile", List.of(type, DOUBLE), states, intermediateType));
+        }
+
+        Block nullStates = runCpuPartialGlobal("approx_percentile", List.of(type, DOUBLE), inputPages.getLast());
+        assertThat(runGpuFinalGlobal("approx_percentile", List.of(type, DOUBLE), nullStates, intermediateType)).isNull();
+    }
+
+    @ParameterizedTest
+    @FieldSource("APPROX_PERCENTILE_TYPES")
+    void testApproxPercentilePartialFinalGrouped(Type type)
+    {
+        int groupCount = 5;
+        int positionCount = groupCount * APPROX_PERCENTILE_VALUE_COUNT;
+        Page rawInput = new Page(
+                createGroupByBlock(positionCount, groupCount),
+                createApproxPercentileValueBlock(type, positionCount, true),
+                createDoubleRepeatBlock(0.1, positionCount));
+        Map<Long, List<Double>> valuesByGroup = nonNullValuesByGroup(type, List.of(rawInput));
+        Type intermediateType = FUNCTION_RESOLUTION.getAggregateFunction("approx_percentile", fromTypes(type, DOUBLE)).getIntermediateType();
+
+        Page cpuPartial = runCpuPartialGrouped("approx_percentile", List.of(type, DOUBLE), rawInput, intermediateType);
+        Page gpuPartial = runGpuPartialGrouped("approx_percentile", List.of(type, DOUBLE), rawInput, intermediateType);
+        for (Page partial : List.of(cpuPartial, gpuPartial)) {
+            assertApproxPercentiles(type, valuesByGroup, _ -> 0.1, runCpuFinalGrouped("approx_percentile", List.of(type, DOUBLE), partial));
+            assertApproxPercentiles(type, valuesByGroup, _ -> 0.1, runGpuFinalGrouped("approx_percentile", List.of(type, DOUBLE), partial, intermediateType));
+        }
+    }
+
+    @Test
+    void testApproxPercentileFailures()
+    {
+        assertApproxPercentileFails(DOUBLE, createFloatingPointBlock(DOUBLE, Arrays.asList(1.0, null, Double.NaN, Double.POSITIVE_INFINITY)), 0.5, "value must be finite; was NaN");
+        assertApproxPercentileFails(DOUBLE, createFloatingPointBlock(DOUBLE, Arrays.asList(1.0, Double.POSITIVE_INFINITY, Double.NaN)), 0.5, "value must be finite; was Infinity");
+        assertApproxPercentileFails(REAL, createFloatingPointBlock(REAL, Arrays.asList(null, Double.NEGATIVE_INFINITY, 1.0)), 0.5, "value must be finite; was -Infinity");
+        // 2^53 + 1 is the smallest positive long without an exact double representation
+        assertApproxPercentileFails(BIGINT, bigintBlock(1L, null, (1L << 53) + 1, Long.MAX_VALUE - 1), 0.5, "no exact double representation for long: 9007199254740993");
+        assertApproxPercentileFails(BIGINT, bigintBlock(1L, Long.MAX_VALUE - 1), 0.5, "no exact double representation for long: 9223372036854775806");
+        assertApproxPercentileFails(BIGINT, bigintBlock(1L, 2L), 1.5, "Percentile must be between 0 and 1");
+        assertApproxPercentileFails(BIGINT, bigintBlock(1L, 2L), -0.1, "Percentile must be between 0 and 1");
+        assertApproxPercentileFails(BIGINT, bigintBlock(1L, 2L), Double.NaN, "Percentile must be between 0 and 1");
+    }
+
+    @Test
+    void testApproxPercentileLongExtremes()
+    {
+        // Long.MAX_VALUE rounds to 2^63, which converts back to Long.MAX_VALUE
+        for (long value : List.of(Long.MIN_VALUE, Long.MAX_VALUE, (1L << 53) + 2)) {
+            Page inputPage = new Page(bigintBlock(value), createDoubleRepeatBlock(0.5, 1));
+            for (Step step : List.of(SINGLE, PARTIAL)) {
+                assertGlobalMatchesCpu(List.of(inputPage), "approx_percentile", List.of(BIGINT, DOUBLE), step);
+            }
+        }
+    }
+
+    @Test
+    void testApproxPercentileNotSupported()
+    {
+        Type intermediateType = FUNCTION_RESOLUTION.getAggregateFunction("approx_percentile", fromTypes(BIGINT, DOUBLE)).getIntermediateType();
+        assertThat(tryCompileAggregation("approx_percentile", List.of(BIGINT, DOUBLE), List.of(intermediateType), false, INTERMEDIATE, false))
+                .isInstanceOf(GpuAggregationCompiler.AggregationCompileResult.Failure.class);
+        for (Step step : List.of(SINGLE, PARTIAL)) {
+            // Weighted
+            assertCompileNotSupported("approx_percentile", List.of(DOUBLE, DOUBLE, DOUBLE), false, step);
+            // Weighted, with accuracy
+            assertCompileNotSupported("approx_percentile", List.of(DOUBLE, DOUBLE, DOUBLE, DOUBLE), false, step);
+            // Array of percentiles
+            assertCompileNotSupported("approx_percentile", List.of(DOUBLE, new ArrayType(DOUBLE)), false, step);
+        }
+    }
+
+    private void assertApproxPercentileFails(Type type, Block valueBlock, double percentile, String expectedMessage)
+    {
+        List<Type> argumentTypes = List.of(type, DOUBLE);
+        Page inputPage = new Page(valueBlock, createDoubleRepeatBlock(percentile, valueBlock.getPositionCount()));
+
+        TestingAggregationFunction function = FUNCTION_RESOLUTION.getAggregateFunction("approx_percentile", fromTypes(argumentTypes));
+        assertTrinoExceptionThrownBy(() -> AggregationTestUtils.aggregation(function, inputPage))
+                .hasErrorCode(INVALID_FUNCTION_ARGUMENT)
+                .hasMessage(expectedMessage);
+
+        GpuAggregationCompiler.AggregationCompileResult.Success compiled = compileAggregation("approx_percentile", argumentTypes, false, SINGLE, false);
+        assertTrinoExceptionThrownBy(() -> runGpuPipeline(List.of(inputPage), argumentTypes, compiled))
+                .hasErrorCode(INVALID_FUNCTION_ARGUMENT)
+                .hasMessage(expectedMessage);
+    }
+
+    /// The result of a global `approx_percentile`, through a CPU FINAL step for PARTIAL
+    private Object runGpuApproxPercentileGlobal(Type type, List<Page> inputPages, Step step)
+    {
+        GpuAggregationCompiler.AggregationCompileResult.Success compiled = compileAggregation("approx_percentile", List.of(type, DOUBLE), false, step, false);
+        List<Page> results = runGpuPipeline(inputPages, List.of(type, DOUBLE), compiled);
+        if (step == PARTIAL) {
+            Type intermediateType = FUNCTION_RESOLUTION.getAggregateFunction("approx_percentile", fromTypes(type, DOUBLE)).getIntermediateType();
+            return runCpuFinal("approx_percentile", List.of(type, DOUBLE), mergePages(results, List.of(intermediateType)).getBlock(0));
+        }
+        return getOnlyValue(type, getOnlyElement(results).getBlock(0));
+    }
+
+    /// The results of a grouped `approx_percentile`, through a CPU FINAL step for PARTIAL
+    private Map<Object, Object> runGpuApproxPercentileGrouped(Type type, List<Page> inputPages, Step step)
+    {
+        GpuAggregationCompiler.AggregationCompileResult.Success compiled = compileAggregation("approx_percentile", List.of(type, DOUBLE), true, step, false);
+        List<Page> results = runGpuPipeline(inputPages, List.of(BIGINT, type, DOUBLE), compiled);
+        if (step != PARTIAL) {
+            return groupedResults(type, results);
+        }
+        // A partial aggregation may flush the state of a group more than once
+        Type intermediateType = FUNCTION_RESOLUTION.getAggregateFunction("approx_percentile", fromTypes(type, DOUBLE)).getIntermediateType();
+        Map<Object, BlockBuilder> statesByGroup = new HashMap<>();
+        for (Page page : results) {
+            for (int position = 0; position < page.getPositionCount(); position++) {
+                statesByGroup.computeIfAbsent(BIGINT.getObjectValue(page.getBlock(0), position), _ -> intermediateType.createBlockBuilder(null, results.size()))
+                        .appendBlockRange(page.getBlock(1), position, 1);
+            }
+        }
+        Map<Object, Object> result = new HashMap<>();
+        statesByGroup.forEach((group, states) -> result.put(group, runCpuFinal("approx_percentile", List.of(type, DOUBLE), states.build())));
+        return result;
+    }
+
+    private static Map<Object, Object> groupedResults(Type type, List<Page> results)
+    {
+        Map<Object, Object> result = new HashMap<>();
+        for (Page page : results) {
+            for (int position = 0; position < page.getPositionCount(); position++) {
+                verify(result.put(BIGINT.getObjectValue(page.getBlock(0), position), type.getObjectValue(page.getBlock(1), position)) == null);
+            }
+        }
+        return result;
+    }
+
+    /// The values aggregated by `approx_percentile(channel 1, channel 2)`, by the group in channel 0
+    private static Map<Long, List<Double>> nonNullValuesByGroup(Type type, List<Page> inputPages)
+    {
+        Map<Long, List<Double>> valuesByGroup = new HashMap<>();
+        for (Page inputPage : inputPages) {
+            Block valueBlock = inputPage.getBlock(1);
+            Block percentileBlock = inputPage.getBlock(2);
+            for (int position = 0; position < inputPage.getPositionCount(); position++) {
+                if (!valueBlock.isNull(position) && !percentileBlock.isNull(position)) {
+                    valuesByGroup.computeIfAbsent(BIGINT.getLong(inputPage.getBlock(0), position), _ -> new ArrayList<>())
+                            .add(toDouble(type, valueBlock, position));
+                }
+            }
+        }
+        return valuesByGroup;
+    }
+
+    private static List<Double> nonNullValues(Type type, Block block)
+    {
+        List<Double> values = new ArrayList<>();
+        for (int position = 0; position < block.getPositionCount(); position++) {
+            if (!block.isNull(position)) {
+                values.add(toDouble(type, block, position));
+            }
+        }
+        return values;
+    }
+
+    private static double toDouble(Type type, Block block, int position)
+    {
+        if (type == BIGINT) {
+            return BIGINT.getLong(block, position);
+        }
+        if (type == REAL) {
+            return REAL.getFloat(block, position);
+        }
+        return DOUBLE.getDouble(block, position);
+    }
+
+    private static void assertApproxPercentiles(Type type, Map<Long, List<Double>> valuesByGroup, LongFunction<Double> percentileOfGroup, Map<Object, Object> results)
+    {
+        assertThat(results.keySet()).isEqualTo(ImmutableSet.copyOf(valuesByGroup.keySet()));
+        valuesByGroup.forEach((group, values) -> assertApproxPercentile(type, values, percentileOfGroup.apply(group), results.get(group)));
+    }
+
+    /// @param actual the result as of {@link Type#getObjectValue}
+    private static void assertApproxPercentile(Type type, List<Double> values, double percentile, Object actual)
+    {
+        if (values.isEmpty()) {
+            assertThat(actual).isNull();
+            return;
+        }
+        double value;
+        if (type == BIGINT) {
+            value = (long) actual;
+        }
+        else if (type == REAL) {
+            value = (float) actual;
+        }
+        else {
+            verify(type == DOUBLE, "Unexpected type: %s", type);
+            value = (double) actual;
+        }
+        assertWithinRankError(values, percentile, value);
+    }
+
+    /// The result must lie between the values at the ranks one percent of the value count away, inclusive, which
+    /// t-digests with the default compression of 100 meet with ease for the value counts of these tests
+    private static void assertWithinRankError(List<Double> values, double percentile, double actual)
+    {
+        List<Double> sorted = values.stream().sorted().collect(toImmutableList());
+        int lastRank = sorted.size() - 1;
+        double rank = percentile * lastRank;
+        double maxRankError = 0.01 * sorted.size() + 1;
+        double low = sorted.get((int) Math.max(0, Math.floor(rank - maxRankError)));
+        double high = sorted.get((int) Math.min(lastRank, Math.ceil(rank + maxRankError)));
+        // A REAL or BIGINT result is a rounded double
+        double tolerance = Math.max(1, Math.ulp((float) Math.max(Math.abs(low), Math.abs(high))));
+        assertThat(actual)
+                .as("percentile %s of %s values", percentile, values.size())
+                .isBetween(low - tolerance, high + tolerance);
+    }
+
+    private static Block createApproxPercentileValueBlock(Type type, int positionCount, boolean withNulls)
+    {
+        Random random = new Random(42);
+        BlockBuilder builder = type.createBlockBuilder(null, positionCount);
+        for (int position = 0; position < positionCount; position++) {
+            // Normally distributed, with duplicates
+            long value = Math.round(random.nextGaussian() * 1000);
+            if (withNulls && random.nextInt(5) == 0) {
+                builder.appendNull();
+            }
+            else if (type == BIGINT) {
+                BIGINT.writeLong(builder, value);
+            }
+            else {
+                // Exact in both REAL and DOUBLE
+                writeFloatingPoint(builder, type, value / 4.0);
+            }
+        }
+        return builder.build();
+    }
+
+    private static Block nullBlock(Type type, int positionCount)
+    {
+        BlockBuilder builder = type.createBlockBuilder(null, positionCount);
+        for (int position = 0; position < positionCount; position++) {
+            builder.appendNull();
+        }
+        return builder.build();
+    }
+
+    @ParameterizedTest
     @FieldSource("io.trino.operator.gpu.GpuTestUtils#TESTED_GPU_TYPES")
     void testCountPartialFinalGlobalForAllTypes(Type type)
     {
@@ -1227,7 +1673,7 @@ final class TestGpuAggregation
             // concatenate the intermediates and fold them together with the CPU FINAL aggregation.
             Type intermediateType = FUNCTION_RESOLUTION.getAggregateFunction(functionName, fromTypes(argumentTypes)).getIntermediateType();
             Block merged = mergePages(results, List.of(intermediateType)).getBlock(0);
-            gpuResult = runCpuFinal(functionName, resolvedFunction.signature().getReturnType(), merged);
+            gpuResult = runCpuFinal(functionName, cpuFinalArgumentTypes(argumentTypes, resolvedFunction), merged);
         }
         else {
             checkState(results.size() == 1, "Expected single result page");
@@ -1269,7 +1715,7 @@ final class TestGpuAggregation
                 }
             }
             for (Map.Entry<Object, BlockBuilder> entry : partialsByGroup.entrySet()) {
-                verify(gpuResult.put(entry.getKey(), runCpuFinal(functionName, resolvedFunction.signature().getReturnType(), entry.getValue().build())) == null);
+                verify(gpuResult.put(entry.getKey(), runCpuFinal(functionName, cpuFinalArgumentTypes(argumentTypes, resolvedFunction), entry.getValue().build())) == null);
             }
         }
         else {
@@ -1428,11 +1874,13 @@ final class TestGpuAggregation
             sourceSymbols.add(groupSymbol);
         }
 
-        List<Expression> arguments = ImmutableList.of();
+        ImmutableList.Builder<Expression> arguments = ImmutableList.builder();
         if (!argumentTypes.isEmpty()) {
-            Symbol val = new Symbol(stepInputTypes.getFirst(), "val");
-            sourceSymbols.add(val);
-            arguments = ImmutableList.of(new Reference(stepInputTypes.getFirst(), "val"));
+            for (int i = 0; i < stepInputTypes.size(); i++) {
+                Symbol argument = new Symbol(stepInputTypes.get(i), "val" + i);
+                sourceSymbols.add(argument);
+                arguments.add(new Reference(argument.type(), argument.name()));
+            }
         }
         else {
             sourceSymbols.add(new Symbol(BIGINT, "unused"));
@@ -1458,7 +1906,7 @@ final class TestGpuAggregation
 
         Aggregation aggregation = new Aggregation(
                 resolvedFunction,
-                arguments,
+                arguments.build(),
                 false,
                 Optional.empty(),
                 Optional.empty(),
@@ -1606,9 +2054,24 @@ final class TestGpuAggregation
                 });
     }
 
+    /// The argument types to resolve the CPU FINAL aggregation by. A single-argument aggregation resolves by its return
+    /// type, so that for example count() finalizes like count(x).
+    private static List<Type> cpuFinalArgumentTypes(List<Type> argumentTypes, ResolvedFunction resolvedFunction)
+    {
+        if (argumentTypes.size() > 1) {
+            return argumentTypes;
+        }
+        return List.of(resolvedFunction.signature().getReturnType());
+    }
+
     private static Object runCpuFinal(String functionName, Type paramType, Block intermediate)
     {
-        TestingAggregationFunction function = FUNCTION_RESOLUTION.getAggregateFunction(functionName, fromTypes(paramType));
+        return runCpuFinal(functionName, List.of(paramType), intermediate);
+    }
+
+    private static Object runCpuFinal(String functionName, List<Type> argumentTypes, Block intermediate)
+    {
+        TestingAggregationFunction function = FUNCTION_RESOLUTION.getAggregateFunction(functionName, fromTypes(argumentTypes));
         AggregatorFactory finalFactory = function.createAggregatorFactory(FINAL, List.of(0), OptionalInt.empty());
         Aggregator aggregator = finalFactory.createAggregator(new AggregationMetrics());
         aggregator.processPage(new Page(intermediate));
@@ -1866,12 +2329,17 @@ final class TestGpuAggregation
 
     private static Map<Object, Object> runCpuFinalGrouped(String functionName, Type argumentType, Page intermediatePage)
     {
+        return runCpuFinalGrouped(functionName, List.of(argumentType), intermediatePage);
+    }
+
+    private static Map<Object, Object> runCpuFinalGrouped(String functionName, List<Type> argumentTypes, Page intermediatePage)
+    {
         Map<Object, Object> result = new HashMap<>();
         Block groupBlock = intermediatePage.getBlock(0);
         Block intermediateBlock = intermediatePage.getBlock(1);
         for (int i = 0; i < intermediatePage.getPositionCount(); i++) {
             Object groupKey = BIGINT.getObjectValue(groupBlock, i);
-            Object value = runCpuFinal(functionName, argumentType, intermediateBlock.getRegion(i, 1));
+            Object value = runCpuFinal(functionName, argumentTypes, intermediateBlock.getRegion(i, 1));
             verify(result.put(groupKey, value) == null);
         }
         return result;

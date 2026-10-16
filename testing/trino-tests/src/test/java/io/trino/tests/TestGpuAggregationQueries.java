@@ -13,6 +13,7 @@
  */
 package io.trino.tests;
 
+import io.trino.Session;
 import io.trino.plugin.memory.MemoryQueryRunner;
 import io.trino.sql.planner.plan.AggregationNode;
 import io.trino.sql.planner.plan.GroupIdNode;
@@ -20,7 +21,13 @@ import io.trino.sql.tree.ExplainType;
 import io.trino.testing.AbstractTestAggregations;
 import io.trino.testing.QueryRunner;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
+import java.util.List;
+
+import static io.trino.SystemSessionProperties.GPU_EXECUTION_ENABLED;
+import static io.trino.SystemSessionProperties.PREFER_PARTIAL_AGGREGATION;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class TestGpuAggregationQueries
@@ -227,6 +234,90 @@ public class TestGpuAggregationQueries
                 GROUP BY b
                 """))
                 .executesWithGpu(AggregationNode.class);
+    }
+
+    @Test
+    public void testGpuApproxPercentile()
+    {
+        // executesWithGpu compares with the CPU result exactly. The GPU and the CPU build different t-digests, both
+        // correct approximations, which return the same value only for the minimum, the maximum and groups of a single
+        // value. TestGpuAggregation checks the other percentiles against the exact percentile, within the rank error.
+        Session singleStep = Session.builder(getSession())
+                .setSystemProperty(PREFER_PARTIAL_AGGREGATION, "false")
+                .build();
+        for (Session session : List.of(getSession(), singleStep)) {
+            assertThat(query(
+                    session,
+                    """
+                    SELECT approx_percentile(a, 0), approx_percentile(a, 1)
+                    FROM (SELECT IF(rand()<42 AND i % 7 != 0, i % 2000) AS a FROM (UNNEST(sequence(1, 10000))) t(i))
+                    """))
+                    .executesWithGpu(AggregationNode.class);
+
+            assertThat(query(
+                    session,
+                    """
+                    SELECT b, approx_percentile(a, 0), approx_percentile(a, 1)
+                    FROM (SELECT IF(rand()<42 AND i % 7 != 0, CAST(i AS double) / 4) AS a, IF(rand()<42, i % 10) AS b FROM (UNNEST(sequence(1, 10000))) t(i))
+                    GROUP BY b
+                    """))
+                    .executesWithGpu(AggregationNode.class);
+
+            assertThat(query(
+                    session,
+                    """
+                    SELECT b, approx_percentile(a, 0.3)
+                    FROM (SELECT IF(rand()<42, CAST(i AS real) / 4) AS a, IF(rand()<42, i) AS b FROM (UNNEST(sequence(0, 100))) t(i))
+                    GROUP BY b
+                    """))
+                    .executesWithGpu(AggregationNode.class);
+
+            // The same failure with and without GPU execution. TestGpuAggregation#testApproxPercentileFailures
+            // verifies the GPU aggregation itself raises it.
+            String invalidPercentile =
+                    """
+                    SELECT approx_percentile(a, 1.5)
+                    FROM (SELECT IF(rand()<42, i) AS a FROM (UNNEST(sequence(0, 50))) t(i))
+                    """;
+            Session gpuDisabled = Session.builder(session)
+                    .setSystemProperty(GPU_EXECUTION_ENABLED, "false")
+                    .build();
+            for (Session failingSession : List.of(session, gpuDisabled)) {
+                assertThat(query(failingSession, invalidPercentile))
+                        .failure().hasMessage("Percentile must be between 0 and 1");
+            }
+        }
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"bigint", "double", "real"})
+    public void testGpuApproxPercentileOnPlateaus(String type)
+    {
+        // The GPU and the CPU build different t-digests, but around a percentile in a long run of equal values, both
+        // interpolate between centroids of that same value and return it exactly. The values are 1..10000 with the
+        // values around each tested percentile replaced by the percentile. The runs span several centroids, which
+        // with the default compression hold up to about 10% of the values around the median and 4% around the 10th
+        // and 90th percentiles, both globally and in each of the 4 groups.
+        String values =
+                """
+                SELECT CAST(CASE
+                        WHEN abs(i - 1000) <= 900 THEN 1000
+                        WHEN abs(i - 5000) <= 2500 THEN 5000
+                        WHEN abs(i - 9000) <= 900 THEN 9000
+                        ELSE i END AS %s) AS a,
+                    i %% 4 AS b
+                FROM UNNEST(sequence(1, 10000)) t(i)
+                """.formatted(type);
+        String percentiles = "approx_percentile(a, 0.1), approx_percentile(a, 0.5), approx_percentile(a, 0.9)";
+        Session singleStep = Session.builder(getSession())
+                .setSystemProperty(PREFER_PARTIAL_AGGREGATION, "false")
+                .build();
+        for (Session session : List.of(getSession(), singleStep)) {
+            assertThat(query(session, "SELECT %s FROM (%s)".formatted(percentiles, values)))
+                    .executesWithGpu(AggregationNode.class);
+            assertThat(query(session, "SELECT b, %s FROM (%s) GROUP BY b".formatted(percentiles, values)))
+                    .executesWithGpu(AggregationNode.class);
+        }
     }
 
     @Test
