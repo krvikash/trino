@@ -55,6 +55,7 @@ import java.util.concurrent.Executor;
 import static io.starburst.ai.client.AiClientErrorCode.INVALID_MODEL_CONFIGURATION;
 import static io.starburst.ai.client.AiClientErrorCode.UNSUPPORTED_MODEL;
 import static io.starburst.ai.client.ModelSecretsResolver.resolveBedrockSecrets;
+import static io.starburst.ai.client.bedrock.BedrockThinkingConfig.additionalModelRequestFields;
 import static io.starburst.ai.model.LlmTrait.PROMPT_CACHING_SUPPORT;
 import static io.starburst.ai.model.LlmTrait.STREAMING_TOOL_CALL_SUPPORT;
 import static io.starburst.ai.model.PromptCachingSupportOption.PROMPT_CACHING_SUPPORTED;
@@ -103,6 +104,7 @@ public class AwsBedrockClientFactory
                 spec.maxTokens(),
                 spec.temperature(),
                 spec.topP(),
+                additionalModelRequestFields(spec.reasoningEffort()),
                 promptDao,
                 executor,
                 batchParallelism,

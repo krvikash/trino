@@ -20,6 +20,7 @@ import com.openai.core.http.StreamResponse;
 import com.openai.helpers.ChatCompletionAccumulator;
 import com.openai.models.FunctionDefinition;
 import com.openai.models.FunctionParameters;
+import com.openai.models.ReasoningEffort;
 import com.openai.models.chat.completions.ChatCompletion;
 import com.openai.models.chat.completions.ChatCompletionAssistantMessageParam;
 import com.openai.models.chat.completions.ChatCompletionChunk;
@@ -58,6 +59,7 @@ public class OpenAiLanguageModelClient
     private final Optional<Float> temperature;
     private final Optional<Integer> maxTokens;
     private final Optional<Float> topP;
+    private final Optional<ReasoningEffort> reasoningEffort;
     private final boolean useDeveloperForSystemRole;
     private final String modelName;
     private final Optional<String> endpoint;
@@ -77,6 +79,7 @@ public class OpenAiLanguageModelClient
             int batchParallelism,
             OpenAIClient client,
             boolean isToolStreamingSupported,
+            Optional<ReasoningEffort> reasoningEffort,
             Tracer tracer,
             String providerName,
             boolean includeMessagesInTracing,
@@ -86,6 +89,7 @@ public class OpenAiLanguageModelClient
         this.temperature = requireNonNull(temperature, "temperature is null");
         this.maxTokens = requireNonNull(maxTokens, "maxTokens is null");
         this.topP = requireNonNull(topP, "topP is null");
+        this.reasoningEffort = requireNonNull(reasoningEffort, "reasoningEffort is null");
         this.useDeveloperForSystemRole = useDeveloperForSystemRole;
         this.modelName = requireNonNull(modelName, "modelName is null");
         this.endpoint = requireNonNull(endpoint, "endpoint is null");
@@ -167,13 +171,15 @@ public class OpenAiLanguageModelClient
         return chatCompletionAccumulator.chatCompletion();
     }
 
-    private ChatCompletionCreateParams.Builder buildChatCompletionCreateParams(List<String> systemPrompts, List<LlmMessage> llmMessages)
+    @VisibleForTesting
+    ChatCompletionCreateParams.Builder buildChatCompletionCreateParams(List<String> systemPrompts, List<LlmMessage> llmMessages)
     {
         ChatCompletionCreateParams.Builder builder = ChatCompletionCreateParams.builder()
                 .model(modelName);
         temperature.ifPresent(builder::temperature);
         topP.ifPresent(builder::topP);
         maxTokens.ifPresent(builder::maxTokens);
+        reasoningEffort.ifPresent(builder::reasoningEffort);
 
         if (useDeveloperForSystemRole) {
             systemPrompts.forEach(builder::addSystemMessage);

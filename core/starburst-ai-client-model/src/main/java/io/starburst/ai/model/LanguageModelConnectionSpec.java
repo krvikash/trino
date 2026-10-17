@@ -59,11 +59,17 @@ public record LanguageModelConnectionSpec(
 
     public enum ReasoningEffort
     {
+        // Thinking off: GPT-5.x, Gemma 4 31B (Cerebras), DeepSeek (Responses API). Sent to Claude as thinking disabled
         none,
+        // Some Gemini 3.x Flash and Flash-Lite models, Gemma 4 31B (Gemini API). Rejected by Claude, GPT-5.6 Luna and Gemini 3.8 Flash. DeepSeek's API treats it as low
         minimal,
+        // Supported by every model family: Claude, GPT, Gemini (incl. Gemini 4 Argon), DeepSeek, Gemma 4 31B (Cerebras)
         low,
         medium,
         high,
+        // Claude (Opus 4.7+, Sonnet 5+, Fable, Haiku 5.5), GPT. DeepSeek's API treats it as high
         xhigh,
+        // Claude, GPT (Responses API only), DeepSeek. Gemini 3.8 Flash accepts it although its documentation lists only low to high
+        max,
     }
 }

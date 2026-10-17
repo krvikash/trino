@@ -152,6 +152,7 @@ public class OpenAiClientFactory
                 batchParallelism,
                 openAiClient,
                 isStreamingToolCallSupported,
+                spec.reasoningEffort().map(Enum::name).map(ReasoningEffort::of),
                 tracer,
                 providerName,
                 includeMessagesInTracing,

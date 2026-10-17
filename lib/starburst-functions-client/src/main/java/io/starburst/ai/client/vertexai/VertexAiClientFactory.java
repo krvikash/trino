@@ -87,6 +87,7 @@ public class VertexAiClientFactory
                 spec.maxTokens(),
                 spec.temperature(),
                 spec.topP(),
+                spec.reasoningEffort(),
                 promptDao,
                 executor,
                 batchParallelism,

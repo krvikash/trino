@@ -35,6 +35,7 @@ import io.starburst.ai.client.ToolParameter;
 import io.starburst.ai.client.ToolResult;
 import io.starburst.ai.client.ToolUseResponse;
 import io.starburst.ai.client.vertexai.VertexAiLanguageModelClient.StreamedContent;
+import io.starburst.ai.model.LanguageModelConnectionSpec.ReasoningEffort;
 import io.trino.spi.TrinoException;
 import org.junit.jupiter.api.Test;
 
@@ -67,7 +68,8 @@ public class TestVertexAiLanguageModelClient
                 ImmutableList.of("You are a helpful assistant"),
                 Optional.of(1024),
                 Optional.of(0.2f),
-                Optional.of(0.9f));
+                Optional.of(0.9f),
+                Optional.empty());
 
         assertThat(config.maxOutputTokens()).contains(1024);
         assertThat(config.temperature()).contains(0.2f);
@@ -83,12 +85,24 @@ public class TestVertexAiLanguageModelClient
                 ImmutableList.of(),
                 Optional.empty(),
                 Optional.empty(),
+                Optional.empty(),
                 Optional.empty());
 
         assertThat(config.maxOutputTokens()).isEmpty();
         assertThat(config.temperature()).isEmpty();
         assertThat(config.topP()).isEmpty();
         assertThat(config.systemInstruction()).isEmpty();
+        assertThat(config.thinkingConfig()).isEmpty();
+    }
+
+    @Test
+    void testBuildConfigPassesReasoningEffortAsThinkingLevel()
+    {
+        for (ReasoningEffort effort : ReasoningEffort.values()) {
+            GenerateContentConfig config = buildConfig(ImmutableList.of(), Optional.empty(), Optional.empty(), Optional.empty(), Optional.of(effort));
+
+            assertThat(config.thinkingConfig().orElseThrow().thinkingLevel().orElseThrow().toString()).isEqualTo(effort.name());
+        }
     }
 
     @Test
@@ -215,7 +229,7 @@ public class TestVertexAiLanguageModelClient
     {
         List<Tool> tools = toTools(ImmutableList.of(new FixtureTool()));
 
-        GenerateContentConfig config = buildConfig(ImmutableList.of(), Optional.empty(), Optional.empty(), Optional.empty(), tools);
+        GenerateContentConfig config = buildConfig(ImmutableList.of(), Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty(), tools);
 
         assertThat(config.tools().orElseThrow()).isEqualTo(tools);
     }

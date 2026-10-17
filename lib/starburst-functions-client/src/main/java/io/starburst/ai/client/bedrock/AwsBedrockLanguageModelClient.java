@@ -118,6 +118,7 @@ public class AwsBedrockLanguageModelClient
     private final Optional<Integer> maxTokens;
     private final Optional<Float> temperature;
     private final Optional<Float> topP;
+    private final Optional<Document> additionalModelRequestFields;
     private final String modelName;
     private final Optional<String> endpoint;
     private final BedrockRuntimeClient client;
@@ -133,6 +134,7 @@ public class AwsBedrockLanguageModelClient
             Optional<Integer> maxTokens,
             Optional<Float> temperature,
             Optional<Float> topP,
+            Optional<Document> additionalModelRequestFields,
             PromptDao promptDao,
             Executor executor,
             int batchParallelism,
@@ -148,6 +150,7 @@ public class AwsBedrockLanguageModelClient
         this.maxTokens = requireNonNull(maxTokens, "maxTokens is null");
         this.temperature = requireNonNull(temperature, "temperature is null");
         this.topP = requireNonNull(topP, "topP is null");
+        this.additionalModelRequestFields = requireNonNull(additionalModelRequestFields, "additionalModelRequestFields is null");
         this.modelName = requireNonNull(modelName, "modelName is null");
         this.endpoint = requireNonNull(endpoint, "endpoint is null");
         this.client = requireNonNull(client, "client is null");
@@ -392,6 +395,7 @@ public class AwsBedrockLanguageModelClient
                         .maxTokens(maxTokens.orElse(null))
                         .temperature(temperature.orElse(null))
                         .topP(topP.orElse(null)));
+        additionalModelRequestFields.ifPresent(request::additionalModelRequestFields);
         if (!bedrockTools.isEmpty()) {
             request.toolConfig(config -> config.tools(bedrockTools));
         }
@@ -415,6 +419,7 @@ public class AwsBedrockLanguageModelClient
                         .maxTokens(maxTokens.orElse(null))
                         .temperature(temperature.orElse(null))
                         .topP(topP.orElse(null)));
+        additionalModelRequestFields.ifPresent(request::additionalModelRequestFields);
         if (!bedrockTools.isEmpty()) {
             request.toolConfig(config -> config.tools(bedrockTools));
         }

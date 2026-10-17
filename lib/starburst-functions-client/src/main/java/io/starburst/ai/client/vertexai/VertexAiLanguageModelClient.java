@@ -27,6 +27,7 @@ import com.google.genai.types.GenerateContentResponse;
 import com.google.genai.types.GenerateContentResponseUsageMetadata;
 import com.google.genai.types.Part;
 import com.google.genai.types.Schema;
+import com.google.genai.types.ThinkingConfig;
 import com.google.genai.types.Tool;
 import io.airlift.json.JsonMapperProvider;
 import io.opentelemetry.api.trace.Span;
@@ -43,6 +44,7 @@ import io.starburst.ai.client.TokenUsageListener;
 import io.starburst.ai.client.ToolDefinition;
 import io.starburst.ai.client.ToolUseResponse;
 import io.starburst.ai.client.tracing.AiTracing;
+import io.starburst.ai.model.LanguageModelConnectionSpec.ReasoningEffort;
 import io.trino.spi.TrinoException;
 
 import java.nio.charset.StandardCharsets;
@@ -80,6 +82,7 @@ public class VertexAiLanguageModelClient
     private final Optional<Integer> maxTokens;
     private final Optional<Float> temperature;
     private final Optional<Float> topP;
+    private final Optional<ReasoningEffort> reasoningEffort;
     private final Client client;
     private final Tracer tracer;
     private final boolean includeMessagesInTracing;
@@ -89,6 +92,7 @@ public class VertexAiLanguageModelClient
             Optional<Integer> maxTokens,
             Optional<Float> temperature,
             Optional<Float> topP,
+            Optional<ReasoningEffort> reasoningEffort,
             PromptDao promptDao,
             Executor executor,
             int batchParallelism,
@@ -102,6 +106,7 @@ public class VertexAiLanguageModelClient
         this.maxTokens = requireNonNull(maxTokens, "maxTokens is null");
         this.temperature = requireNonNull(temperature, "temperature is null");
         this.topP = requireNonNull(topP, "topP is null");
+        this.reasoningEffort = requireNonNull(reasoningEffort, "reasoningEffort is null");
         this.client = requireNonNull(client, "client is null");
         this.tracer = requireNonNull(tracer, "tracer is null");
         this.includeMessagesInTracing = includeMessagesInTracing;
@@ -116,7 +121,7 @@ public class VertexAiLanguageModelClient
     @Override
     protected String generateCompletion(List<String> systemPrompts, List<LlmMessage> messages, TokenUsageContext context)
     {
-        GenerateContentConfig config = buildConfig(systemPrompts, maxTokens, temperature, topP);
+        GenerateContentConfig config = buildConfig(systemPrompts, maxTokens, temperature, topP, reasoningEffort);
         GenerateContentResponse response = generateContent(systemPrompts, messages, config, context);
         String text = response.text();
         if (text == null) {
@@ -128,7 +133,7 @@ public class VertexAiLanguageModelClient
     @Override
     protected ToolUseResponse generateCompletionWithTools(List<String> systemPrompts, List<LlmMessage> messages, List<ToolDefinition<?>> tools, TokenUsageContext context)
     {
-        GenerateContentConfig config = buildConfig(systemPrompts, maxTokens, temperature, topP, toTools(tools));
+        GenerateContentConfig config = buildConfig(systemPrompts, maxTokens, temperature, topP, reasoningEffort, toTools(tools));
         try {
             GenerateContentResponse response = generateContent(systemPrompts, messages, config, context);
             return parseToolResponse(response);
@@ -168,7 +173,7 @@ public class VertexAiLanguageModelClient
     @Override
     protected ToolUseResponse generateCompletionWithTools(List<String> systemPrompts, List<LlmMessage> messages, List<ToolDefinition<?>> tools, Consumer<String> output, Supplier<Boolean> isCancelled, TokenUsageContext context)
     {
-        GenerateContentConfig config = buildConfig(systemPrompts, maxTokens, temperature, topP, toTools(tools));
+        GenerateContentConfig config = buildConfig(systemPrompts, maxTokens, temperature, topP, reasoningEffort, toTools(tools));
         try {
             return streamContent(systemPrompts, messages, config, output, isCancelled, context);
         }
@@ -269,18 +274,30 @@ public class VertexAiLanguageModelClient
     }
 
     @VisibleForTesting
-    static GenerateContentConfig buildConfig(List<String> systemPrompts, Optional<Integer> maxTokens, Optional<Float> temperature, Optional<Float> topP)
+    static GenerateContentConfig buildConfig(
+            List<String> systemPrompts,
+            Optional<Integer> maxTokens,
+            Optional<Float> temperature,
+            Optional<Float> topP,
+            Optional<ReasoningEffort> reasoningEffort)
     {
-        return buildConfig(systemPrompts, maxTokens, temperature, topP, ImmutableList.of());
+        return buildConfig(systemPrompts, maxTokens, temperature, topP, reasoningEffort, ImmutableList.of());
     }
 
     @VisibleForTesting
-    static GenerateContentConfig buildConfig(List<String> systemPrompts, Optional<Integer> maxTokens, Optional<Float> temperature, Optional<Float> topP, List<Tool> tools)
+    static GenerateContentConfig buildConfig(
+            List<String> systemPrompts,
+            Optional<Integer> maxTokens,
+            Optional<Float> temperature,
+            Optional<Float> topP,
+            Optional<ReasoningEffort> reasoningEffort,
+            List<Tool> tools)
     {
         GenerateContentConfig.Builder builder = GenerateContentConfig.builder();
         maxTokens.ifPresent(builder::maxOutputTokens);
         temperature.ifPresent(builder::temperature);
         topP.ifPresent(builder::topP);
+        reasoningEffort.ifPresent(effort -> builder.thinkingConfig(ThinkingConfig.builder().thinkingLevel(effort.name()).build()));
         if (!systemPrompts.isEmpty()) {
             List<Part> parts = systemPrompts.stream()
                     .map(Part::fromText)
