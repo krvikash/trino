@@ -80,7 +80,10 @@ public final class GpuWindowCompiler
     // cuDF's sort_groupby_helper (sort_helper.cu) allocates three shared INT32 columns: _key_sorted_order, _group_offsets, _group_labels.
     private static final int ROW_NUMBER_GROUPED_SCAN_WORKING_BYTES_PER_ROW = 3 * DType.INT32.getSizeInBytes();
     // cuDF's DECIMAL128 sum wraps around on overflow instead of failing. A cuDF column holds at most 2^31 - 1 rows,
-    // so a sum of precision-28 values stays below (2^31 - 1) * 10^28 < 2^127, while precision 29 could exceed it
+    // so a sum of precision-28 values stays below (2^31 - 1) * 10^28 < 2^127, while precision 29 could exceed it.
+    // The bound can't make the GPU return a sum the CPU would reject: the CPU window operator holds a partition in
+    // a PagesIndex, whose position count is an int, so a CPU frame is bounded by the same 2^31 - 1 rows, and
+    // GpuWindow fails rather than truncates when more rows are buffered
     private static final int MAX_DECIMAL128_SUM_AVG_PRECISION = 28;
 
     public sealed interface CompileResult
@@ -331,7 +334,10 @@ public final class GpuWindowCompiler
         return new CompiledWindowFunction(computations.build(), postProjection, decimalType);
     }
 
-    // INT64 1 where the value is not null and 0 where it is, so its sum over a frame counts the non-null values
+    // INT64 1 where the value is not null and 0 where it is, so its sum over a frame counts the non-null values.
+    // A frame sum is a difference of prefix sums, which can't carry nulls (a null would make every later prefix
+    // sum null), so GpuWindow replaces nulls by zero. That makes a frame with no non-null value look like a frame
+    // summing to zero, so the count is summed over the same frame and nullIfZero turns such frames into null
     private static GpuExpression oneIfNotNull(int sourceChannel)
     {
         return new GpuCast(new GpuNot(new GpuIsNull(new GetColumn(sourceChannel))), DType.INT64);
