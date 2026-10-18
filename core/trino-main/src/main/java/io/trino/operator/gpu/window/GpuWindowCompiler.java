@@ -263,33 +263,17 @@ public final class GpuWindowCompiler
 
     private static Optional<CompiledWindowFunction> compileAvgDecimal(WindowNode.Function function, WindowFrame frame, Map<Symbol, Integer> sourceLayout)
     {
-        List<Expression> arguments = function.getArguments();
-        if (arguments.size() != 1) {
+        Optional<DecimalArgument> argument = decimalArgument(function, sourceLayout);
+        if (argument.isEmpty()) {
             return Optional.empty();
         }
-        if (!(arguments.getFirst() instanceof Reference reference)) {
-            return Optional.empty();
-        }
-
-        Symbol symbol = Symbol.from(reference);
-        if (!(symbol.type() instanceof DecimalType decimalType)) {
-            return Optional.empty();
-        }
-
-        int sourceChannel = verifyNotNull(sourceLayout.get(symbol), "channel for symbol %s is not in source layout", symbol);
+        int sourceChannel = argument.get().channel();
+        DecimalType decimalType = argument.get().type();
         if (decimalType.getPrecision() > MAX_DECIMAL128_SUM_AVG_PRECISION) {
             return Optional.of(avgChunkedSumDecimal(sourceChannel, decimalType, frame));
         }
-        // Trino scale s means unscaled / 10^s; cuDF scale convention is unscaled * 10^scale, so negate
-        DType decimal128Type = DType.create(DType.DTypeEnum.DECIMAL128, -decimalType.getScale());
 
-        GpuExpression sumInput;
-        if (decimalType.isShort()) {
-            sumInput = new GpuCast(new GetColumn(sourceChannel), decimal128Type);
-        }
-        else {
-            sumInput = new GetColumn(sourceChannel);
-        }
+        GpuExpression sumInput = decimal128SumInput(sourceChannel, decimalType);
 
         GpuExpression divideExpression = new GpuDivideRoundToScale(new GetColumn(0), new GetColumn(1));
         GpuExpression postExpression;
@@ -315,23 +299,60 @@ public final class GpuWindowCompiler
 
     private static CompiledWindowFunction avgChunkedSumDecimal(int sourceChannel, DecimalType decimalType, WindowFrame frame)
     {
-        // Sum the four 32-bit chunks of the DECIMAL128 values separately, as sum(decimal) does. Chunks 0..2 are
-        // unsigned, chunk 3 carries the sign of the value.
+        CompiledExpression postProjection = new CompiledExpression(
+                // count == 0 ? null : (sum / count)
+                nullIfZero(new GetColumn(4), new GpuDivideSumChunksRoundToScale(chunkSumColumns(), new GetColumn(4), decimalType), decimalType),
+                new InputChannels(ImmutableList.of(0, 1, 2, 3, 4)));
+        return new CompiledWindowFunction(chunkedSumAndCountComputations(sourceChannel, frame), postProjection, decimalType);
+    }
+
+    private static Optional<DecimalArgument> decimalArgument(WindowNode.Function function, Map<Symbol, Integer> sourceLayout)
+    {
+        List<Expression> arguments = function.getArguments();
+        if (arguments.size() != 1) {
+            return Optional.empty();
+        }
+        if (!(arguments.getFirst() instanceof Reference reference)) {
+            return Optional.empty();
+        }
+
+        Symbol symbol = Symbol.from(reference);
+        if (!(symbol.type() instanceof DecimalType decimalType)) {
+            return Optional.empty();
+        }
+
+        int sourceChannel = verifyNotNull(sourceLayout.get(symbol), "channel for symbol %s is not in source layout", symbol);
+        return Optional.of(new DecimalArgument(sourceChannel, decimalType));
+    }
+
+    // The argument as DECIMAL128, whose prefix sums can't overflow for precision up to MAX_DECIMAL128_SUM_AVG_PRECISION
+    private static GpuExpression decimal128SumInput(int sourceChannel, DecimalType decimalType)
+    {
+        if (!decimalType.isShort()) {
+            return new GetColumn(sourceChannel);
+        }
+        // Trino scale s means unscaled / 10^s; cuDF scale convention is unscaled * 10^scale, so negate
+        return new GpuCast(new GetColumn(sourceChannel), DType.create(DType.DTypeEnum.DECIMAL128, -decimalType.getScale()));
+    }
+
+    // Sums each of the four 32-bit chunks of the DECIMAL128 values separately. Chunks 0..2 are unsigned and chunk 3 carries
+    // the sign of the value. Each chunk is widened to INT64, so that its prefix sums can't overflow.
+    // The chunk sums go into channels 0..3, and the count of non-null values into channel 4.
+    private static List<WindowComputation> chunkedSumAndCountComputations(int sourceChannel, WindowFrame frame)
+    {
         ImmutableList.Builder<WindowComputation> computations = ImmutableList.builder();
-        ImmutableList.Builder<GpuExpression> chunkSums = ImmutableList.builder();
         for (int chunkIndex = 0; chunkIndex < 4; chunkIndex++) {
             DType chunkType = chunkIndex < 3 ? DType.UINT32 : DType.INT32;
             GpuExpression chunk = new GpuExtractInt32Chunk(new GetColumn(sourceChannel), chunkIndex, chunkType);
             computations.add(new PrefixSumDifferenceComputation(new GpuCast(chunk, DType.INT64), frame));
-            chunkSums.add(new GetColumn(chunkIndex));
         }
         computations.add(new PrefixSumDifferenceComputation(oneIfNotNull(sourceChannel), frame)); // count non-null values
+        return computations.build();
+    }
 
-        CompiledExpression postProjection = new CompiledExpression(
-                // count == 0 ? null : (sum / count)
-                nullIfZero(new GetColumn(4), new GpuDivideSumChunksRoundToScale(chunkSums.build(), new GetColumn(4), decimalType), decimalType),
-                new InputChannels(ImmutableList.of(0, 1, 2, 3, 4)));
-        return new CompiledWindowFunction(computations.build(), postProjection, decimalType);
+    private static List<GpuExpression> chunkSumColumns()
+    {
+        return ImmutableList.of(new GetColumn(0), new GetColumn(1), new GetColumn(2), new GetColumn(3));
     }
 
     // INT64 1 where the value is not null and 0 where it is, so its sum over a frame counts the non-null values.
@@ -473,6 +494,14 @@ public final class GpuWindowCompiler
             computations = ImmutableList.copyOf(computations);
             requireNonNull(postProjection, "postProjection is null");
             requireNonNull(outputType, "outputType is null");
+        }
+    }
+
+    private record DecimalArgument(int channel, DecimalType type)
+    {
+        public DecimalArgument
+        {
+            requireNonNull(type, "type is null");
         }
     }
 
