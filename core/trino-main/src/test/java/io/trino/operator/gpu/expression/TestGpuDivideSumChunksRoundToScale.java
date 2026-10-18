@@ -17,6 +17,7 @@ import ai.rapids.cudf.ColumnVector;
 import ai.rapids.cudf.DType;
 import ai.rapids.cudf.HostColumnVector;
 import com.google.common.collect.ImmutableList;
+import io.trino.operator.gpu.expression.SumChunksTestUtils.ChunkSums;
 import io.trino.spi.type.DecimalType;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -27,6 +28,13 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static io.trino.operator.gpu.GpuTestUtils.maybeSetGpuMemoryPoolForTests;
+import static io.trino.operator.gpu.expression.SumChunksTestUtils.MAX_38_DIGITS;
+import static io.trino.operator.gpu.expression.SumChunksTestUtils.MAX_ROWS;
+import static io.trino.operator.gpu.expression.SumChunksTestUtils.MAX_UNSIGNED_CHUNK;
+import static io.trino.operator.gpu.expression.SumChunksTestUtils.chunkSumColumns;
+import static io.trino.operator.gpu.expression.SumChunksTestUtils.sumOf;
+import static io.trino.operator.gpu.expression.SumChunksTestUtils.sumOfRepeated;
+import static io.trino.operator.gpu.expression.SumChunksTestUtils.sumOfValues;
 import static io.trino.spi.StandardErrorCode.DIVISION_BY_ZERO;
 import static io.trino.spi.StandardErrorCode.NOT_SUPPORTED;
 import static io.trino.spi.StandardErrorCode.NUMERIC_VALUE_OUT_OF_RANGE;
@@ -37,9 +45,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 final class TestGpuDivideSumChunksRoundToScale
 {
-    private static final long MAX_ROWS = Integer.MAX_VALUE;
-    private static final long MAX_UNSIGNED_CHUNK = 0xFFFF_FFFFL;
-    private static final BigInteger MAX_38_DIGITS = BigInteger.TEN.pow(38).subtract(BigInteger.ONE);
     private static final BigInteger MAX_29_DIGITS = BigInteger.TEN.pow(29).subtract(BigInteger.ONE);
 
     @BeforeAll
@@ -53,19 +58,19 @@ final class TestGpuDivideSumChunksRoundToScale
     {
         DecimalType type = createDecimalType(38, 2);
         assertDivision(type, ImmutableList.of(
-                sumOf(6, 3),
-                sumOf(-6, 3),
-                sumOf(7, 2),
-                sumOf(-7, 2),
-                sumOf(5, 2),
-                sumOf(-5, 2),
-                sumOf(4, 3),
-                sumOf(-4, 3),
-                sumOf(5, 3),
-                sumOf(-5, 3),
-                sumOf(0, 7),
-                sumOf(1, MAX_ROWS),
-                sumOf(-1, MAX_ROWS)));
+                averageOf(6, 3),
+                averageOf(-6, 3),
+                averageOf(7, 2),
+                averageOf(-7, 2),
+                averageOf(5, 2),
+                averageOf(-5, 2),
+                averageOf(4, 3),
+                averageOf(-4, 3),
+                averageOf(5, 3),
+                averageOf(-5, 3),
+                averageOf(0, 7),
+                averageOf(1, MAX_ROWS),
+                averageOf(-1, MAX_ROWS)));
     }
 
     @Test
@@ -78,13 +83,13 @@ final class TestGpuDivideSumChunksRoundToScale
         BigInteger base = BigInteger.TEN.pow(30).multiply(BigInteger.valueOf(divisor));
         BigInteger evenBase = BigInteger.TEN.pow(37);
         assertDivision(type, ImmutableList.of(
-                sumOf(base.add(BigInteger.valueOf(half)), divisor),
-                sumOf(base.add(BigInteger.valueOf(half + 1)), divisor),
-                sumOf(base.add(BigInteger.valueOf(half)).negate(), divisor),
-                sumOf(base.add(BigInteger.valueOf(half + 1)).negate(), divisor),
+                averageOf(base.add(BigInteger.valueOf(half)), divisor),
+                averageOf(base.add(BigInteger.valueOf(half + 1)), divisor),
+                averageOf(base.add(BigInteger.valueOf(half)).negate(), divisor),
+                averageOf(base.add(BigInteger.valueOf(half + 1)).negate(), divisor),
                 // even divisor, remainder exactly one half
-                sumOf(evenBase.multiply(BigInteger.TWO).add(BigInteger.ONE), 2),
-                sumOf(evenBase.multiply(BigInteger.TWO).add(BigInteger.ONE).negate(), 2)));
+                averageOf(evenBase.multiply(BigInteger.TWO).add(BigInteger.ONE), 2),
+                averageOf(evenBase.multiply(BigInteger.TWO).add(BigInteger.ONE).negate(), 2)));
     }
 
     @Test
@@ -93,13 +98,13 @@ final class TestGpuDivideSumChunksRoundToScale
         DecimalType type = createDecimalType(38, 6);
         BigInteger belowMax = MAX_38_DIGITS.subtract(BigInteger.ONE);
         assertDivision(type, ImmutableList.of(
-                sumOf(MAX_38_DIGITS.multiply(BigInteger.TWO), 2),
-                sumOf(MAX_38_DIGITS.multiply(BigInteger.TWO).negate(), 2),
-                sumOf(MAX_38_DIGITS.add(belowMax), 2),
-                sumOf(MAX_38_DIGITS.add(belowMax).negate(), 2),
-                sumOf(MAX_38_DIGITS.multiply(BigInteger.valueOf(MAX_ROWS)), MAX_ROWS),
-                sumOf(MAX_38_DIGITS.multiply(BigInteger.valueOf(MAX_ROWS)).negate(), MAX_ROWS),
-                sumOf(MAX_38_DIGITS.multiply(BigInteger.valueOf(MAX_ROWS)).subtract(BigInteger.ONE), MAX_ROWS)));
+                averageOf(MAX_38_DIGITS.multiply(BigInteger.TWO), 2),
+                averageOf(MAX_38_DIGITS.multiply(BigInteger.TWO).negate(), 2),
+                averageOf(MAX_38_DIGITS.add(belowMax), 2),
+                averageOf(MAX_38_DIGITS.add(belowMax).negate(), 2),
+                averageOf(MAX_38_DIGITS.multiply(BigInteger.valueOf(MAX_ROWS)), MAX_ROWS),
+                averageOf(MAX_38_DIGITS.multiply(BigInteger.valueOf(MAX_ROWS)).negate(), MAX_ROWS),
+                averageOf(MAX_38_DIGITS.multiply(BigInteger.valueOf(MAX_ROWS)).subtract(BigInteger.ONE), MAX_ROWS)));
     }
 
     @Test
@@ -109,12 +114,12 @@ final class TestGpuDivideSumChunksRoundToScale
         long maxChunkSum = MAX_ROWS * MAX_UNSIGNED_CHUNK;
         assertDivision(type, ImmutableList.of(
                 // each unsigned chunk sum carries into the chunks above it
-                new ChunkSums(maxChunkSum, maxChunkSum, maxChunkSum, 0, MAX_ROWS),
-                new ChunkSums(maxChunkSum, maxChunkSum, maxChunkSum, MAX_ROWS * 1_000_000_000L, MAX_ROWS),
-                new ChunkSums(maxChunkSum, 0, 0, 0, 1),
-                new ChunkSums(0, maxChunkSum, 0, 0, 3),
-                new ChunkSums(0, 0, maxChunkSum, 0, MAX_ROWS),
-                new ChunkSums(maxChunkSum, maxChunkSum, maxChunkSum, -MAX_ROWS * 1_000_000_000L, MAX_ROWS)));
+                new Average(new ChunkSums(maxChunkSum, maxChunkSum, maxChunkSum, 0), MAX_ROWS),
+                new Average(new ChunkSums(maxChunkSum, maxChunkSum, maxChunkSum, MAX_ROWS * 1_000_000_000L), MAX_ROWS),
+                new Average(new ChunkSums(maxChunkSum, 0, 0, 0), 1),
+                new Average(new ChunkSums(0, maxChunkSum, 0, 0), 3),
+                new Average(new ChunkSums(0, 0, maxChunkSum, 0), MAX_ROWS),
+                new Average(new ChunkSums(maxChunkSum, maxChunkSum, maxChunkSum, -MAX_ROWS * 1_000_000_000L), MAX_ROWS)));
     }
 
     @Test
@@ -124,12 +129,12 @@ final class TestGpuDivideSumChunksRoundToScale
         long maxChunkSum = MAX_ROWS * MAX_UNSIGNED_CHUNK;
         assertDivision(type, ImmutableList.of(
                 // one row of -1 has chunks (2^32 - 1, 2^32 - 1, 2^32 - 1, -1)
-                new ChunkSums(MAX_UNSIGNED_CHUNK, MAX_UNSIGNED_CHUNK, MAX_UNSIGNED_CHUNK, -1, 1),
+                new Average(new ChunkSums(MAX_UNSIGNED_CHUNK, MAX_UNSIGNED_CHUNK, MAX_UNSIGNED_CHUNK, -1), 1),
                 // +x and -x in the same frame
-                sumOfValues(ImmutableList.of(MAX_38_DIGITS, MAX_38_DIGITS.negate())),
-                sumOfValues(ImmutableList.of(MAX_38_DIGITS, MAX_38_DIGITS.negate(), BigInteger.valueOf(-3))),
+                averageOfValues(ImmutableList.of(MAX_38_DIGITS, MAX_38_DIGITS.negate())),
+                averageOfValues(ImmutableList.of(MAX_38_DIGITS, MAX_38_DIGITS.negate(), BigInteger.valueOf(-3))),
                 // large unsigned chunk sums cancelled by a negative top chunk sum
-                new ChunkSums(maxChunkSum, maxChunkSum, maxChunkSum, -MAX_ROWS, MAX_ROWS)));
+                new Average(new ChunkSums(maxChunkSum, maxChunkSum, maxChunkSum, -MAX_ROWS), MAX_ROWS)));
     }
 
     @Test
@@ -138,10 +143,10 @@ final class TestGpuDivideSumChunksRoundToScale
         for (int scale : new int[] {0, 2, 6, 29}) {
             DecimalType type = createDecimalType(29, scale);
             assertDivision(type, ImmutableList.of(
-                    sumOfRepeated(MAX_29_DIGITS, MAX_ROWS),
-                    sumOfRepeated(MAX_29_DIGITS.negate(), MAX_ROWS),
-                    sumOfRepeated(MAX_29_DIGITS, 1),
-                    sumOfRepeated(MAX_29_DIGITS.negate(), 1)));
+                    averageOfRepeated(MAX_29_DIGITS, MAX_ROWS),
+                    averageOfRepeated(MAX_29_DIGITS.negate(), MAX_ROWS),
+                    averageOfRepeated(MAX_29_DIGITS, 1),
+                    averageOfRepeated(MAX_29_DIGITS.negate(), 1)));
         }
     }
 
@@ -149,10 +154,10 @@ final class TestGpuDivideSumChunksRoundToScale
     void testUnsignedChunkSums()
     {
         DecimalType type = createDecimalType(38, 2);
-        List<ChunkSums> cases = ImmutableList.of(
-                sumOfRepeated(MAX_38_DIGITS, MAX_ROWS),
-                sumOfRepeated(MAX_38_DIGITS.negate(), 3),
-                sumOf(-5, 2));
+        List<Average> cases = ImmutableList.of(
+                averageOfRepeated(MAX_38_DIGITS, MAX_ROWS),
+                averageOfRepeated(MAX_38_DIGITS.negate(), 3),
+                averageOf(-5, 2));
         try (ColumnVector result = evaluate(type, cases, DType.UINT64);
                 HostColumnVector host = result.copyToHost()) {
             assertResults(type, cases, host);
@@ -183,30 +188,30 @@ final class TestGpuDivideSumChunksRoundToScale
     @Test
     void testOverflow()
     {
-        assertOverflow(createDecimalType(29, 0), sumOf(BigInteger.TEN.pow(29), 1));
-        assertOverflow(createDecimalType(29, 0), sumOf(BigInteger.TEN.pow(29).negate(), 1));
+        assertOverflow(createDecimalType(29, 0), averageOf(BigInteger.TEN.pow(29), 1));
+        assertOverflow(createDecimalType(29, 0), averageOf(BigInteger.TEN.pow(29).negate(), 1));
         // rounds up past the precision
-        assertOverflow(createDecimalType(29, 2), sumOf(MAX_29_DIGITS.multiply(BigInteger.TWO).add(BigInteger.ONE), 2));
-        assertOverflow(createDecimalType(29, 2), sumOf(MAX_29_DIGITS.multiply(BigInteger.TWO).add(BigInteger.ONE).negate(), 2));
-        assertOverflow(createDecimalType(38, 0), sumOf(MAX_38_DIGITS.add(BigInteger.ONE), 1));
+        assertOverflow(createDecimalType(29, 2), averageOf(MAX_29_DIGITS.multiply(BigInteger.TWO).add(BigInteger.ONE), 2));
+        assertOverflow(createDecimalType(29, 2), averageOf(MAX_29_DIGITS.multiply(BigInteger.TWO).add(BigInteger.ONE).negate(), 2));
+        assertOverflow(createDecimalType(38, 0), averageOf(MAX_38_DIGITS.add(BigInteger.ONE), 1));
         // quotients far beyond 128 bits must fail rather than wrap
-        assertOverflow(createDecimalType(38, 0), sumOfRepeated(MAX_38_DIGITS, MAX_ROWS).withCount(1));
-        assertOverflow(createDecimalType(38, 0), sumOfRepeated(MAX_38_DIGITS.negate(), MAX_ROWS).withCount(1));
-        assertOverflow(createDecimalType(38, 0), new ChunkSums(0, 0, 0, Long.MAX_VALUE, 1));
-        assertOverflow(createDecimalType(38, 0), new ChunkSums(0, 0, 0, Long.MIN_VALUE, 1));
+        assertOverflow(createDecimalType(38, 0), averageOfRepeated(MAX_38_DIGITS, MAX_ROWS).withCount(1));
+        assertOverflow(createDecimalType(38, 0), averageOfRepeated(MAX_38_DIGITS.negate(), MAX_ROWS).withCount(1));
+        assertOverflow(createDecimalType(38, 0), new Average(new ChunkSums(0, 0, 0, Long.MAX_VALUE), 1));
+        assertOverflow(createDecimalType(38, 0), new Average(new ChunkSums(0, 0, 0, Long.MIN_VALUE), 1));
     }
 
     @Test
     void testInvalidDivisor()
     {
         DecimalType type = createDecimalType(38, 2);
-        assertTrinoExceptionThrownBy(() -> evaluateAndClose(type, ImmutableList.of(sumOf(5, 0))))
+        assertTrinoExceptionThrownBy(() -> evaluateAndClose(type, ImmutableList.of(averageOf(5, 0))))
                 .hasErrorCode(DIVISION_BY_ZERO);
-        assertTrinoExceptionThrownBy(() -> evaluateAndClose(type, ImmutableList.of(sumOf(5, -1))))
+        assertTrinoExceptionThrownBy(() -> evaluateAndClose(type, ImmutableList.of(averageOf(5, -1))))
                 .hasErrorCode(NOT_SUPPORTED);
     }
 
-    private static void assertDivision(DecimalType type, List<ChunkSums> cases)
+    private static void assertDivision(DecimalType type, List<Average> cases)
     {
         try (ColumnVector result = evaluate(type, cases, DType.INT64);
                 HostColumnVector host = result.copyToHost()) {
@@ -215,39 +220,39 @@ final class TestGpuDivideSumChunksRoundToScale
         }
     }
 
-    private static void assertResults(DecimalType type, List<ChunkSums> cases, HostColumnVector host)
+    private static void assertResults(DecimalType type, List<Average> cases, HostColumnVector host)
     {
         for (int row = 0; row < cases.size(); row++) {
-            ChunkSums chunkSums = cases.get(row);
+            Average average = cases.get(row);
             assertThat(host.getBigDecimal(row))
-                    .as("%s", chunkSums)
-                    .isEqualTo(chunkSums.expectedAverage(type));
+                    .as("%s", average)
+                    .isEqualTo(average.expected(type));
         }
     }
 
-    private static void assertOverflow(DecimalType type, ChunkSums chunkSums)
+    private static void assertOverflow(DecimalType type, Average average)
     {
-        assertTrinoExceptionThrownBy(() -> evaluateAndClose(type, ImmutableList.of(chunkSums)))
+        assertTrinoExceptionThrownBy(() -> evaluateAndClose(type, ImmutableList.of(average)))
                 .hasErrorCode(NUMERIC_VALUE_OUT_OF_RANGE);
     }
 
-    private static void evaluateAndClose(DecimalType type, List<ChunkSums> cases)
+    private static void evaluateAndClose(DecimalType type, List<Average> cases)
     {
         evaluate(type, cases, DType.INT64).close();
     }
 
-    private static ColumnVector evaluate(DecimalType type, List<ChunkSums> cases, DType unsignedChunkSumType)
+    private static ColumnVector evaluate(DecimalType type, List<Average> cases, DType unsignedChunkSumType)
     {
         List<ColumnVector> columns = new ArrayList<>();
         try {
             for (int chunkIndex = 0; chunkIndex < 4; chunkIndex++) {
                 int index = chunkIndex;
-                try (ColumnVector chunkSums = ColumnVector.fromLongs(cases.stream().mapToLong(chunkSum -> chunkSum.chunk(index)).toArray())) {
+                try (ColumnVector chunkSums = ColumnVector.fromLongs(cases.stream().mapToLong(average -> average.chunkSums().chunk(index)).toArray())) {
                     DType chunkSumType = chunkIndex < 3 ? unsignedChunkSumType : DType.INT64;
                     columns.add(chunkSums.castTo(chunkSumType));
                 }
             }
-            columns.add(ColumnVector.fromLongs(cases.stream().mapToLong(ChunkSums::count).toArray()));
+            columns.add(ColumnVector.fromLongs(cases.stream().mapToLong(Average::count).toArray()));
             return expression(type).evaluate(cases.size(), columns, new Bindings());
         }
         finally {
@@ -258,80 +263,42 @@ final class TestGpuDivideSumChunksRoundToScale
     private static GpuExpression expression(DecimalType type)
     {
         return new GpuDivideSumChunksRoundToScale(
-                ImmutableList.of(new GetColumn(0), new GetColumn(1), new GetColumn(2), new GetColumn(3)),
+                chunkSumColumns(),
                 new GetColumn(4),
                 type);
     }
 
-    private static ChunkSums sumOf(long sum, long count)
+    private static Average averageOf(long sum, long count)
     {
-        return sumOf(BigInteger.valueOf(sum), count);
+        return averageOf(BigInteger.valueOf(sum), count);
     }
 
-    // chunk sums of a single-row 160-bit sum, not limited to 128 bits
-    private static ChunkSums sumOf(BigInteger sum, long count)
+    // average of a single-row 160-bit sum, not limited to 128 bits
+    private static Average averageOf(BigInteger sum, long count)
     {
-        return new ChunkSums(unsignedChunk(sum, 0), unsignedChunk(sum, 1), unsignedChunk(sum, 2), sum.shiftRight(96).longValueExact(), count);
+        return new Average(sumOf(sum), count);
     }
 
-    // chunk sums of `rows` rows of the same DECIMAL128 value, as the frame sums of its 32-bit chunks produce
-    private static ChunkSums sumOfRepeated(BigInteger value, long rows)
+    private static Average averageOfRepeated(BigInteger value, long rows)
     {
-        return new ChunkSums(
-                unsignedChunk(value, 0) * rows,
-                unsignedChunk(value, 1) * rows,
-                unsignedChunk(value, 2) * rows,
-                value.shiftRight(96).intValueExact() * rows,
-                rows);
+        return new Average(sumOfRepeated(value, rows), rows);
     }
 
-    private static ChunkSums sumOfValues(List<BigInteger> values)
+    private static Average averageOfValues(List<BigInteger> values)
     {
-        long[] chunks = new long[4];
-        for (BigInteger value : values) {
-            chunks[0] += unsignedChunk(value, 0);
-            chunks[1] += unsignedChunk(value, 1);
-            chunks[2] += unsignedChunk(value, 2);
-            chunks[3] += value.shiftRight(96).intValueExact();
-        }
-        return new ChunkSums(chunks[0], chunks[1], chunks[2], chunks[3], values.size());
+        return new Average(sumOfValues(values), values.size());
     }
 
-    private static long unsignedChunk(BigInteger value, int chunkIndex)
+    private record Average(ChunkSums chunkSums, long count)
     {
-        // BigInteger shifts and masks act on the two's complement representation, also for negative values
-        return value.shiftRight(32 * chunkIndex).and(BigInteger.valueOf(MAX_UNSIGNED_CHUNK)).longValueExact();
-    }
-
-    private record ChunkSums(long chunk0, long chunk1, long chunk2, long chunk3, long count)
-    {
-        long chunk(int index)
+        Average withCount(long newCount)
         {
-            return switch (index) {
-                case 0 -> chunk0;
-                case 1 -> chunk1;
-                case 2 -> chunk2;
-                case 3 -> chunk3;
-                default -> throw new IllegalArgumentException("Invalid chunk index: " + index);
-            };
+            return new Average(chunkSums, newCount);
         }
 
-        ChunkSums withCount(long newCount)
+        BigDecimal expected(DecimalType type)
         {
-            return new ChunkSums(chunk0, chunk1, chunk2, chunk3, newCount);
-        }
-
-        BigInteger sum()
-        {
-            return BigInteger.valueOf(chunk3).shiftLeft(96)
-                    .add(BigInteger.valueOf(chunk2).shiftLeft(64))
-                    .add(BigInteger.valueOf(chunk1).shiftLeft(32))
-                    .add(BigInteger.valueOf(chunk0));
-        }
-
-        BigDecimal expectedAverage(DecimalType type)
-        {
-            BigDecimal average = new BigDecimal(sum(), type.getScale()).divide(BigDecimal.valueOf(count), type.getScale(), HALF_UP);
+            BigDecimal average = new BigDecimal(chunkSums.sum(), type.getScale()).divide(BigDecimal.valueOf(count), type.getScale(), HALF_UP);
             assertThat(average.unscaledValue().abs()).isLessThanOrEqualTo(BigInteger.TEN.pow(type.getPrecision()).subtract(BigInteger.ONE));
             return average;
         }
