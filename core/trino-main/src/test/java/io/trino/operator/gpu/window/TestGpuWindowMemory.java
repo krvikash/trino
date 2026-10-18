@@ -14,6 +14,7 @@
 package io.trino.operator.gpu.window;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterators;
 import io.trino.operator.gpu.GpuOperation;
 import io.trino.operator.gpu.GpuOperation.Blocked;
@@ -41,6 +42,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
@@ -72,6 +74,8 @@ final class TestGpuWindowMemory
     private static final int ROWS_PER_PAGE = 1_234_567;
     private static final int MULTIPLE_PAGES = 4;
     private static final int MEGABYTE = 1024 * 1024;
+    // Functions computed as differences of prefix sums over the frame
+    private static final Set<String> FRAME_SUM_FUNCTIONS = ImmutableSet.of("avg", "sum");
 
     @BeforeAll
     static void maybeSetGpuMemoryPool()
@@ -129,7 +133,7 @@ final class TestGpuWindowMemory
     @MethodSource("noOrderByTestCases")
     void testNoOrderBy(WindowFunctionTestCase testCase)
     {
-        if ("avg".equals(testCase.function().name())) {
+        if (FRAME_SUM_FUNCTIONS.contains(testCase.function().name())) {
             testWindow(
                     testCase.sourceTypes(),
                     new int[] {0},
@@ -145,7 +149,7 @@ final class TestGpuWindowMemory
                     List.of(),
                     List.of(testCase.function()),
                     MULTIPLE_PAGES,
-                    // Larger margin for a partitioned avg without order by, because its estimate charges one partition per row, an upper bound that
+                    // Larger margin for a partitioned frame sum without order by, because its estimate charges one partition per row, an upper bound that
                     // the multi-page input does not reach: every page repeats the same keys, which leaves about a quarter as many partitions as rows.
                     18 * MEGABYTE);
         }

@@ -51,8 +51,11 @@ final class GpuWindowFrameTestParameters
 
     static final List<String> ORDERINGS = Arrays.stream(SortOrder.values()).map(SortOrder::toString).toList();
 
-    /// Short and long decimals, across the precisions at which the GPU computes avg differently
-    static final List<DecimalType> AVG_DECIMAL_TYPES = List.of(
+    /// Aggregations of decimals that the GPU computes as differences of prefix sums
+    static final List<String> FRAME_SUM_FUNCTIONS = List.of("avg");
+
+    /// Short and long decimals, across the precisions at which the GPU computes the frame sum functions differently
+    static final List<DecimalType> FRAME_SUM_DECIMAL_TYPES = List.of(
             createDecimalType(1, 0),
             createDecimalType(18, 0),
             createDecimalType(18, 9),
@@ -71,15 +74,22 @@ final class GpuWindowFrameTestParameters
             createDecimalType(38, 6),
             createDecimalType(38, 38));
 
-    static Stream<DecimalType> avgDecimalSumTypes()
+    static Stream<Arguments> frameSumFunctionsAndDecimalSumTypes()
     {
-        return Stream.of(
-                createDecimalType(18, 0),
-                createDecimalType(28, 0),
-                createDecimalType(29, 0),
-                createDecimalType(29, 2),
-                createDecimalType(29, 6),
-                createDecimalType(29, 29));
+        return cartesianProduct(
+                FRAME_SUM_FUNCTIONS,
+                List.of(
+                        createDecimalType(18, 0),
+                        createDecimalType(28, 0),
+                        createDecimalType(29, 0),
+                        createDecimalType(29, 2),
+                        createDecimalType(29, 6),
+                        createDecimalType(29, 29)));
+    }
+
+    static Stream<Arguments> frameSumFunctionsAndOrderings()
+    {
+        return cartesianProduct(FRAME_SUM_FUNCTIONS, ORDERINGS);
     }
 
     static IntStream decimalPrecisions()
@@ -87,13 +97,13 @@ final class GpuWindowFrameTestParameters
         return IntStream.rangeClosed(1, MAX_PRECISION);
     }
 
-    /// A query of avg of a decimal column per type, each holding the unscaled values of the rows, over each window,
-    /// such as {@code PARTITION BY partition_key ORDER BY order_key}. The input has columns {@code row_id},
-    /// {@code partition_key}, {@code order_key} and {@code value_<column>}.
-    static String avgQuery(List<DecimalType> types, List<AvgRow> rows, List<String> windows)
+    /// A query of the aggregation function of a decimal column per type, each holding the unscaled values of the
+    /// rows, over each window, such as {@code PARTITION BY partition_key ORDER BY order_key}. The input has columns
+    /// {@code row_id}, {@code partition_key}, {@code order_key} and {@code value_<column>}.
+    static String decimalAggregationQuery(String function, List<DecimalType> types, List<DecimalRow> rows, List<String> windows)
     {
         String functions = IntStream.range(0, types.size()).boxed()
-                .flatMap(column -> windows.stream().map(window -> "avg(value_%s) OVER (%s)".formatted(column, window)))
+                .flatMap(column -> windows.stream().map(window -> "%s(value_%s) OVER (%s)".formatted(function, column, window)))
                 .collect(joining(",\n"));
         String values = IntStream.range(0, rows.size())
                 .mapToObj(rowId -> Stream.concat(
@@ -125,13 +135,13 @@ final class GpuWindowFrameTestParameters
     }
 
     // Each list is a partition, with order keys increasing from the start of the input
-    static List<AvgRow> partitions(List<List<BigInteger>> partitions)
+    static List<DecimalRow> partitions(List<List<BigInteger>> partitions)
     {
-        ImmutableList.Builder<AvgRow> rows = ImmutableList.builder();
+        ImmutableList.Builder<DecimalRow> rows = ImmutableList.builder();
         long orderKey = 0;
         for (int partitionKey = 0; partitionKey < partitions.size(); partitionKey++) {
             for (BigInteger value : partitions.get(partitionKey)) {
-                rows.add(new AvgRow((long) partitionKey, orderKey++, value));
+                rows.add(new DecimalRow((long) partitionKey, orderKey++, value));
             }
         }
         return rows.build();
@@ -144,11 +154,11 @@ final class GpuWindowFrameTestParameters
                 .collect(toImmutableList());
     }
 
-    record AvgRow(Long partitionKey, Long orderKey, BigInteger unscaledValue) {}
+    record DecimalRow(Long partitionKey, Long orderKey, BigInteger unscaledValue) {}
 
-    public static AvgRow avgRow(Long partitionKey, Long orderKey, BigInteger unscaledValue)
+    public static DecimalRow decimalRow(Long partitionKey, Long orderKey, BigInteger unscaledValue)
     {
-        return new AvgRow(partitionKey, orderKey, unscaledValue);
+        return new DecimalRow(partitionKey, orderKey, unscaledValue);
     }
 
     static Stream<Arguments> cartesianProduct(List<?>... dimensions)

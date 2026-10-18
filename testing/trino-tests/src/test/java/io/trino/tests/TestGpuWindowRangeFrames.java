@@ -38,11 +38,11 @@ import static io.trino.operator.gpu.GpuTestUtils.TESTED_GPU_TYPES;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.DecimalType.createDecimalType;
 import static io.trino.tests.GpuWindowFrameTestParameters.AGGREGATIONS;
-import static io.trino.tests.GpuWindowFrameTestParameters.AVG_DECIMAL_TYPES;
+import static io.trino.tests.GpuWindowFrameTestParameters.FRAME_SUM_DECIMAL_TYPES;
 import static io.trino.tests.GpuWindowFrameTestParameters.ORDERINGS;
-import static io.trino.tests.GpuWindowFrameTestParameters.avgQuery;
-import static io.trino.tests.GpuWindowFrameTestParameters.avgRow;
 import static io.trino.tests.GpuWindowFrameTestParameters.cartesianProduct;
+import static io.trino.tests.GpuWindowFrameTestParameters.decimalAggregationQuery;
+import static io.trino.tests.GpuWindowFrameTestParameters.decimalRow;
 import static io.trino.tests.GpuWindowFrameTestParameters.partitions;
 import static io.trino.tests.GpuWindowFrameTestParameters.unscaledValues;
 import static io.trino.tests.GpuWindowTable.ALL_NULLS;
@@ -318,8 +318,8 @@ final class TestGpuWindowRangeFrames
     }
 
     @ParameterizedTest
-    @MethodSource("io.trino.tests.GpuWindowFrameTestParameters#avgDecimalSumTypes")
-    void testAvgDecimalSumExceedsDeclaredPrecision(DecimalType type)
+    @MethodSource("io.trino.tests.GpuWindowFrameTestParameters#frameSumFunctionsAndDecimalSumTypes")
+    void testDecimalSumExceedsDeclaredPrecision(String function, DecimalType type)
     {
         // Ten values close to the maximum of the type add up past its precision, and for short decimals past
         // the 64 bits they are stored in, which works only because the running sum is not narrowed to the input
@@ -330,7 +330,7 @@ final class TestGpuWindowRangeFrames
                     .add(value.subtract(BigInteger.valueOf(9L * value.signum()))) // to keep the divisions inexact
                     .addAll(nCopies(9, value))
                     .build();
-            assertAvgExecutesWithGpu(List.of(type), partitions(List.of(values)), "ASC NULLS LAST");
+            assertDecimalAggregationExecutesWithGpu(function, List.of(type), partitions(List.of(values)), "ASC NULLS LAST");
         }
     }
 
@@ -354,10 +354,10 @@ final class TestGpuWindowRangeFrames
                     BigInteger.valueOf(3).multiply(sign),
                     max.multiply(sign),
                     max.multiply(sign));
-            List<GpuWindowFrameTestParameters.AvgRow> rows = IntStream.range(0, values.size())
-                    .mapToObj(index -> avgRow(0L, orderKeys.get(index), values.get(index)))
+            List<GpuWindowFrameTestParameters.DecimalRow> rows = IntStream.range(0, values.size())
+                    .mapToObj(index -> decimalRow(0L, orderKeys.get(index), values.get(index)))
                     .collect(toImmutableList());
-            assertAvgExecutesWithGpu(List.of(createDecimalType(38, scale)), rows, "ASC NULLS LAST");
+            assertDecimalAggregationExecutesWithGpu("avg", List.of(createDecimalType(38, scale)), rows, "ASC NULLS LAST");
         }
     }
 
@@ -372,7 +372,8 @@ final class TestGpuWindowRangeFrames
         List<DecimalType> types = IntStream.rangeClosed(0, precision)
                 .mapToObj(scale -> createDecimalType(precision, scale))
                 .collect(toImmutableList());
-        assertAvgExecutesWithGpu(
+        assertDecimalAggregationExecutesWithGpu(
+                "avg",
                 types,
                 partitions(List.of(
                         unscaledValues(1, 2),
@@ -384,41 +385,44 @@ final class TestGpuWindowRangeFrames
                 "ASC NULLS LAST");
     }
 
-    @Test
-    void testAvgDecimalFrameWithOnlyNulls()
+    @ParameterizedTest
+    @FieldSource("io.trino.tests.GpuWindowFrameTestParameters#FRAME_SUM_FUNCTIONS")
+    void testDecimalFrameWithOnlyNulls(String function)
     {
         // In the first partition, the cumulative frames of the first two rows hold NULLs only, so their count is
-        // zero and the average is NULL even though the partition has non-NULL rows further down. The second
+        // zero and the result is NULL even though the partition has non-NULL rows further down. The second
         // partition holds NULLs only, so its frames are NULL-only over the whole partition as well.
-        assertAvgExecutesWithGpu(
-                AVG_DECIMAL_TYPES,
+        assertDecimalAggregationExecutesWithGpu(
+                function,
+                FRAME_SUM_DECIMAL_TYPES,
                 List.of(
-                        avgRow(0L, 0L, null),
-                        avgRow(0L, 1L, null),
-                        avgRow(0L, 2L, BigInteger.valueOf(2)),
-                        avgRow(0L, 3L, BigInteger.valueOf(4)),
-                        avgRow(1L, 4L, null),
-                        avgRow(1L, 5L, null)),
+                        decimalRow(0L, 0L, null),
+                        decimalRow(0L, 1L, null),
+                        decimalRow(0L, 2L, BigInteger.valueOf(2)),
+                        decimalRow(0L, 3L, BigInteger.valueOf(4)),
+                        decimalRow(1L, 4L, null),
+                        decimalRow(1L, 5L, null)),
                 "ASC NULLS LAST");
     }
 
     @ParameterizedTest
-    @FieldSource("io.trino.tests.GpuWindowFrameTestParameters#ORDERINGS")
-    void testAvgDecimalFrameWithOnlyNullsAndNullOrderKeys(String ordering)
+    @MethodSource("io.trino.tests.GpuWindowFrameTestParameters#frameSumFunctionsAndOrderings")
+    void testDecimalFrameWithOnlyNullsAndNullOrderKeys(String function, String ordering)
     {
         // Rows with a NULL order key are peers of each other. With NULLS FIRST they open the partition, so their
         // shared frame holds NULLs only; with NULLS LAST they close it, so their frame covers the whole partition.
         // The second partition holds NULL order keys and NULL values only.
-        assertAvgExecutesWithGpu(
-                AVG_DECIMAL_TYPES,
+        assertDecimalAggregationExecutesWithGpu(
+                function,
+                FRAME_SUM_DECIMAL_TYPES,
                 List.of(
-                        avgRow(0L, null, null),
-                        avgRow(0L, null, null),
-                        avgRow(0L, 1L, BigInteger.valueOf(2)),
-                        avgRow(0L, 2L, null),
-                        avgRow(0L, 2L, BigInteger.valueOf(4)),
-                        avgRow(1L, null, null),
-                        avgRow(1L, null, null)),
+                        decimalRow(0L, null, null),
+                        decimalRow(0L, null, null),
+                        decimalRow(0L, 1L, BigInteger.valueOf(2)),
+                        decimalRow(0L, 2L, null),
+                        decimalRow(0L, 2L, BigInteger.valueOf(4)),
+                        decimalRow(1L, null, null),
+                        decimalRow(1L, null, null)),
                 ordering);
     }
 
@@ -437,9 +441,9 @@ final class TestGpuWindowRangeFrames
         return cartesianProduct(AGGREGATIONS, TESTED_GPU_TYPES);
     }
 
-    /// Asserts that avg of a decimal column per type, each holding the unscaled values of the rows, is computed
+    /// Asserts that the aggregation function of a decimal column per type, each holding the unscaled values of the rows, is computed
     /// on the GPU over cumulative frames and over whole partitions, with and without PARTITION BY
-    private void assertAvgExecutesWithGpu(List<DecimalType> types, List<GpuWindowFrameTestParameters.AvgRow> rows, String ordering)
+    private void assertDecimalAggregationExecutesWithGpu(String function, List<DecimalType> types, List<GpuWindowFrameTestParameters.DecimalRow> rows, String ordering)
     {
         // With ORDER BY, the frame runs from the start of the partition to the last peer of the current row.
         // Without it, the frame is the whole partition, which without PARTITION BY is the whole input.
@@ -448,7 +452,7 @@ final class TestGpuWindowRangeFrames
                 "PARTITION BY partition_key",
                 "ORDER BY order_key " + ordering,
                 "");
-        assertThat(query(avgQuery(types, rows, windows)))
+        assertThat(query(decimalAggregationQuery(function, types, rows, windows)))
                 .executesAllWithGpu(WindowNode.class);
     }
 }
