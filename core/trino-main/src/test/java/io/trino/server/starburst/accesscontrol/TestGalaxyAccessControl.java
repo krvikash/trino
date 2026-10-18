@@ -1234,7 +1234,7 @@ public abstract class TestGalaxyAccessControl
         CatalogSchemaRoutineName function = new CatalogSchemaRoutineName(helper.getAnyCatalogName(), newSchemaName(), "some_function");
         assertThatThrownBy(() -> accessControl.canExecuteFunction(adminContext(), function))
                 .isInstanceOf(TrinoException.class)
-                .hasMessageContaining("The schema name for function '%s' must be 'system', 'ai', 'crypto', or 'functions'".formatted(function));
+                .hasMessageContaining("The schema name for function '%s' must be 'system', 'ai', 'crypto', 'functions', or 'api'".formatted(function));
     }
 
     @Test

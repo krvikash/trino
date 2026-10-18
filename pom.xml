@@ -269,7 +269,7 @@
         <dep.openai.version>2.8.1</dep.openai.version>
         <dep.parquet.version>1.17.1</dep.parquet.version>
         <dep.protobuf.version>4.35.1</dep.protobuf.version>
-        <dep.starburst-shared.version>stargate-30248-g83e79df516</dep.starburst-shared.version>
+        <dep.starburst-shared.version>stargate-30373-g405875050f</dep.starburst-shared.version>
         <dep.sis.version>1.6</dep.sis.version>
         <dep.snowflake.version>4.3.2</dep.snowflake.version>
         <dep.swagger.version>2.2.52</dep.swagger.version>
