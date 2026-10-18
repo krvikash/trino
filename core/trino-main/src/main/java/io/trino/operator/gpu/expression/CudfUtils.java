@@ -13,11 +13,13 @@
  */
 package io.trino.operator.gpu.expression;
 
+import ai.rapids.cudf.Aggregation128Utils;
 import ai.rapids.cudf.ColumnVector;
 import ai.rapids.cudf.ColumnView;
 import ai.rapids.cudf.CudfException;
 import ai.rapids.cudf.DType;
 import ai.rapids.cudf.Scalar;
+import ai.rapids.cudf.Table;
 import io.airlift.log.Logger;
 import io.trino.plugin.base.gpu.ClosingOnce;
 import io.trino.plugin.base.gpu.ClosingRef;
@@ -28,6 +30,7 @@ import io.trino.spi.gpu.borrow.Own;
 
 import java.math.BigInteger;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.function.Function;
 
 import static ai.rapids.cudf.BinaryOp.ADD;
@@ -41,6 +44,7 @@ import static ai.rapids.cudf.BinaryOp.NULL_LOGICAL_AND;
 import static ai.rapids.cudf.BinaryOp.NULL_LOGICAL_OR;
 import static ai.rapids.cudf.BinaryOp.SUB;
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkState;
 import static io.trino.spi.StandardErrorCode.DIVISION_BY_ZERO;
 import static io.trino.spi.StandardErrorCode.NOT_SUPPORTED;
 import static io.trino.spi.StandardErrorCode.NUMERIC_VALUE_OUT_OF_RANGE;
@@ -157,6 +161,22 @@ final class CudfUtils
                     }
                 }
             };
+        }
+    }
+
+    /// Reassembles the four 64-bit sums of the 32-bit chunks [GpuExtractInt32Chunk] extracts from DECIMAL128
+    /// values, least significant first, into a column of the given DECIMAL128 type. Raises an error where the sum
+    /// does not fit 128 bits. A row is NULL where the chunk sums are NULL.
+    static @Move ColumnVector combineSumChunks(List<@Borrow ColumnVector> chunkSums, DType decimal128Type)
+    {
+        checkArgument(chunkSums.size() == 4, "Expected 4 chunk sums, got %s", chunkSums.size());
+        try (Table chunks = new Table(chunkSums.toArray(ColumnVector[]::new));
+                Table assembled = Aggregation128Utils.combineInt64SumChunks(chunks, decimal128Type)) {
+            checkState(assembled.getNumberOfColumns() == 2, "Expected 2-column result, got %s", assembled.getNumberOfColumns());
+            if (anyTrue(assembled.getColumn(0))) {
+                throw new TrinoException(NUMERIC_VALUE_OUT_OF_RANGE, "Decimal overflow");
+            }
+            return assembled.getColumn(1).incRefCount();
         }
     }
 

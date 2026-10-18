@@ -16,8 +16,6 @@ package io.trino.operator.gpu.expression;
 import ai.rapids.cudf.Aggregation128Utils;
 import ai.rapids.cudf.ColumnVector;
 import ai.rapids.cudf.DType;
-import ai.rapids.cudf.Table;
-import io.trino.spi.TrinoException;
 import io.trino.spi.gpu.borrow.Borrow;
 import io.trino.spi.gpu.borrow.Move;
 
@@ -25,8 +23,7 @@ import java.util.List;
 import java.util.Objects;
 
 import static com.google.common.base.Preconditions.checkState;
-import static io.trino.operator.gpu.expression.CudfUtils.anyTrue;
-import static io.trino.spi.StandardErrorCode.NUMERIC_VALUE_OUT_OF_RANGE;
+import static io.trino.operator.gpu.expression.CudfUtils.combineSumChunks;
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -60,17 +57,8 @@ public final class GpuCombineSumChunksToVarbinary
     {
         checkState(inputColumns.size() == 4, "Expected 4 chunk columns, got %s", inputColumns.size());
 
-        try (Table chunks = new Table(
-                inputColumns.get(0),
-                inputColumns.get(1),
-                inputColumns.get(2),
-                inputColumns.get(3));
-                Table assembled = Aggregation128Utils.combineInt64SumChunks(chunks, decimal128Type)) {
-            checkState(assembled.getNumberOfColumns() == 2, "Expected 2-column result, got %s", assembled.getNumberOfColumns());
-            if (anyTrue(assembled.getColumn(0))) {
-                throw new TrinoException(NUMERIC_VALUE_OUT_OF_RANGE, "Decimal overflow");
-            }
-            return decimal128ToBytes(assembled.getColumn(1));
+        try (ColumnVector sum = combineSumChunks(inputColumns, decimal128Type)) {
+            return decimal128ToBytes(sum);
         }
     }
 
