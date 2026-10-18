@@ -4,7 +4,7 @@
       - SortNode
         - ExchangeNode REMOTE
           - ProjectNode
-            - WindowNode
+            - WindowNode (GPU)
               - ExchangeNode LOCAL
                 - ExchangeNode REMOTE
                   - AggregationNode (GPU)

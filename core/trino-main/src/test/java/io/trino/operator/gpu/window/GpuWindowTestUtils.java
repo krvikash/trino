@@ -48,7 +48,12 @@ public final class GpuWindowTestUtils
             new TestedWindowFunction("rank", List.of()),
             new TestedWindowFunction("dense_rank", List.of()),
             new TestedWindowFunction("avg", List.of(createDecimalType(28, 2))),
-            new TestedWindowFunction("avg", List.of(createDecimalType(38, 6))));
+            new TestedWindowFunction("avg", List.of(createDecimalType(38, 6))),
+            // Random values of a type close to 38 digits make the sums overflow, so sum is tested at lower precisions,
+            // on both sides of the precision at which the GPU computes it differently
+            new TestedWindowFunction("sum", List.of(createDecimalType(9, 2))),
+            new TestedWindowFunction("sum", List.of(createDecimalType(28, 2))),
+            new TestedWindowFunction("sum", List.of(createDecimalType(29, 2))));
 
     private static final TestingFunctionResolution FUNCTION_RESOLUTION = new TestingFunctionResolution();
 

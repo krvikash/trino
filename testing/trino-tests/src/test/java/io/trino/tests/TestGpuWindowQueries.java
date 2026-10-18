@@ -55,6 +55,7 @@ final class TestGpuWindowQueries
                 """
                 SELECT
                     avg(price) OVER (PARTITION BY orderstatus ORDER BY orderkey),
+                    sum(price) OVER (PARTITION BY orderstatus ORDER BY orderkey),
                     rank() OVER (PARTITION BY orderstatus ORDER BY orderkey),
                     dense_rank() OVER (PARTITION BY orderstatus ORDER BY orderkey),
                     row_number() OVER (PARTITION BY orderstatus ORDER BY orderkey)

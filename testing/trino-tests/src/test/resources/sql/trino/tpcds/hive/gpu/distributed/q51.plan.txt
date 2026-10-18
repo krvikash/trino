@@ -13,8 +13,8 @@
                         - ExchangeNode REMOTE
                           - ProjectNode (GPU)
                             - JoinNode (GPU)
-                              - ProjectNode
-                                - WindowNode
+                              - ProjectNode (GPU)
+                                - WindowNode (GPU)
                                   - AggregationNode (GPU)
                                     - ExchangeNode LOCAL
                                       - ExchangeNode REMOTE
@@ -29,9 +29,9 @@
                                                 - ProjectNode (GPU)
                                                   - FilterNode (GPU)
                                                     - TableScanNode date_dim (GPU)
-                              - ExchangeNode LOCAL
-                                - ProjectNode
-                                  - WindowNode
+                              - ExchangeNode LOCAL (GPU)
+                                - ProjectNode (GPU)
+                                  - WindowNode (GPU)
                                     - AggregationNode (GPU)
                                       - ExchangeNode LOCAL
                                         - ExchangeNode REMOTE

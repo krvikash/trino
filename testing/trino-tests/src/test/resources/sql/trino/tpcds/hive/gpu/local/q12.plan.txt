@@ -3,7 +3,7 @@
     - ExchangeNode LOCAL (GPU)
       - TopNNode (GPU)
         - ProjectNode
-          - WindowNode
+          - WindowNode (GPU)
             - AggregationNode (GPU)
               - ExchangeNode LOCAL (GPU)
                 - AggregationNode (GPU)

@@ -25,6 +25,7 @@ import io.trino.operator.gpu.expression.CompiledExpression;
 import io.trino.operator.gpu.expression.GetColumn;
 import io.trino.operator.gpu.expression.GpuBinaryExpression;
 import io.trino.operator.gpu.expression.GpuCast;
+import io.trino.operator.gpu.expression.GpuCombineSumChunksToDecimal128;
 import io.trino.operator.gpu.expression.GpuConstant;
 import io.trino.operator.gpu.expression.GpuDivideRoundToScale;
 import io.trino.operator.gpu.expression.GpuDivideSumChunksRoundToScale;
@@ -257,6 +258,7 @@ public final class GpuWindowCompiler
         String functionName = resolvedFunction.name().functionName();
         return switch (functionName) {
             case "avg" -> compileAvgDecimal(function, frame, sourceLayout);
+            case "sum" -> compileSumDecimal(resolvedFunction, function, frame, sourceLayout);
             default -> Optional.empty();
         };
     }
@@ -304,6 +306,40 @@ public final class GpuWindowCompiler
                 nullIfZero(new GetColumn(4), new GpuDivideSumChunksRoundToScale(chunkSumColumns(), new GetColumn(4), decimalType), decimalType),
                 new InputChannels(ImmutableList.of(0, 1, 2, 3, 4)));
         return new CompiledWindowFunction(chunkedSumAndCountComputations(sourceChannel, frame), postProjection, decimalType);
+    }
+
+    private static Optional<CompiledWindowFunction> compileSumDecimal(ResolvedFunction resolvedFunction, WindowNode.Function function, WindowFrame frame, Map<Symbol, Integer> sourceLayout)
+    {
+        Optional<DecimalArgument> argument = decimalArgument(function, sourceLayout);
+        if (argument.isEmpty()) {
+            return Optional.empty();
+        }
+        int sourceChannel = argument.get().channel();
+        DecimalType decimalType = argument.get().type();
+        DecimalType sumType = (DecimalType) resolvedFunction.signature().getReturnType();
+
+        if (decimalType.getPrecision() > MAX_DECIMAL128_SUM_AVG_PRECISION) {
+            // The chunk sums can't overflow, but the sum they make up can exceed 128 bits or the precision of the
+            // result, which GpuCombineSumChunksToDecimal128 rejects like the CPU does
+            CompiledExpression postProjection = new CompiledExpression(
+                    // count == 0 ? null : sum
+                    nullIfZero(new GetColumn(4), new GpuCombineSumChunksToDecimal128(chunkSumColumns(), sumType), sumType),
+                    new InputChannels(ImmutableList.of(0, 1, 2, 3, 4)));
+            return Optional.of(new CompiledWindowFunction(chunkedSumAndCountComputations(sourceChannel, frame), postProjection, sumType));
+        }
+
+        // The DECIMAL128 sum of precision-28 values can't exceed 10^38 (see MAX_DECIMAL128_SUM_AVG_PRECISION), so it
+        // needs no overflow check, and it already has the scale of the result
+        CompiledExpression postProjection = new CompiledExpression(
+                // count == 0 ? null : sum
+                nullIfZero(new GetColumn(1), new GetColumn(0), sumType),
+                new InputChannels(ImmutableList.of(0, 1)));
+        return Optional.of(new CompiledWindowFunction(
+                ImmutableList.of(
+                        new PrefixSumDifferenceComputation(decimal128SumInput(sourceChannel, decimalType), frame),
+                        new PrefixSumDifferenceComputation(oneIfNotNull(sourceChannel), frame)), // count non-null values
+                postProjection,
+                sumType));
     }
 
     private static Optional<DecimalArgument> decimalArgument(WindowNode.Function function, Map<Symbol, Integer> sourceLayout)

@@ -40,11 +40,16 @@ final class GpuWindowFrameTestParameters
             "avg(argument_decimal_9_2)",
             "avg(argument_decimal_19_4)",
             "avg(argument_decimal_28_2)",
-            "avg(argument_decimal_38_6)");
+            "avg(argument_decimal_38_6)",
+            "sum(argument_decimal_9_2)",
+            "sum(argument_decimal_19_4)",
+            "sum(argument_decimal_28_2)",
+            "sum(argument_decimal_38_6)");
 
     /// Aggregations that the GPU does not support
     static final List<String> GPU_UNSUPPORTED_AGGREGATIONS = List.of(
-            "sum(argument_decimal_38_6)",
+            "sum(CAST(argument_decimal_38_6 AS bigint))",
+            "sum(CAST(argument_decimal_38_6 AS double))",
             "avg(CAST(argument_decimal_38_6 AS bigint))",
             "avg(CAST(argument_decimal_38_6 AS real))",
             "avg(CAST(argument_decimal_38_6 AS double))");
@@ -52,7 +57,7 @@ final class GpuWindowFrameTestParameters
     static final List<String> ORDERINGS = Arrays.stream(SortOrder.values()).map(SortOrder::toString).toList();
 
     /// Aggregations of decimals that the GPU computes as differences of prefix sums
-    static final List<String> FRAME_SUM_FUNCTIONS = List.of("avg");
+    static final List<String> FRAME_SUM_FUNCTIONS = List.of("avg", "sum");
 
     /// Short and long decimals, across the precisions at which the GPU computes the frame sum functions differently
     static final List<DecimalType> FRAME_SUM_DECIMAL_TYPES = List.of(

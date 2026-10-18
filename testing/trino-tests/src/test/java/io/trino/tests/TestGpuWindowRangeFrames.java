@@ -14,6 +14,8 @@
 package io.trino.tests;
 
 import com.google.common.collect.ImmutableList;
+import io.trino.Session;
+import io.trino.operator.gpu.expression.GpuCombineSumChunksToDecimal128;
 import io.trino.plugin.memory.MemoryQueryRunner;
 import io.trino.spi.type.DecimalType;
 import io.trino.spi.type.Type;
@@ -34,7 +36,9 @@ import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static io.trino.SystemSessionProperties.GPU_EXECUTION_ENABLED;
 import static io.trino.operator.gpu.GpuTestUtils.TESTED_GPU_TYPES;
+import static io.trino.spi.StandardErrorCode.NUMERIC_VALUE_OUT_OF_RANGE;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.DecimalType.createDecimalType;
 import static io.trino.tests.GpuWindowFrameTestParameters.AGGREGATIONS;
@@ -300,7 +304,8 @@ final class TestGpuWindowRangeFrames
     {
         // Aggregations and ranking functions are computed in separate batches, whose results must be written back
         // in the order of the functions. Interleaving them, rather than listing them by kind, catches results that
-        // are written back batch by batch. The 38-digit avg is computed as several computations.
+        // are written back batch by batch. The 38-digit avg and sum are computed as several computations, and
+        // share their prefix sums with each other, as do avg and sum of the other arguments.
         assertThat(query(
                 """
                 SELECT
@@ -308,9 +313,12 @@ final class TestGpuWindowRangeFrames
                     avg(argument_decimal_9_2) OVER w,
                     rank() OVER w,
                     avg(argument_decimal_38_6) OVER w,
+                    sum(argument_decimal_9_2) OVER w,
                     row_number() OVER w,
+                    sum(argument_decimal_38_6) OVER w,
                     dense_rank() OVER w,
-                    avg(argument_decimal_19_4) OVER w
+                    avg(argument_decimal_19_4) OVER w,
+                    sum(argument_decimal_19_4) OVER w
                 FROM %s
                 WINDOW w AS (PARTITION BY partition_key ORDER BY order_key, row_id)
                 """.formatted(MIXED.withOrderKey(BIGINT))))
@@ -386,6 +394,50 @@ final class TestGpuWindowRangeFrames
     }
 
     @ParameterizedTest
+    @MethodSource("io.trino.tests.GpuWindowFrameTestParameters#decimalPrecisions")
+    void testSumDecimalAllPrecisions(int precision)
+    {
+        // Every scale of the precision is tested, so that sum is compiled for every decimal type. Unscaled values
+        // stay below 10, so that they are valid for every type.
+        List<DecimalType> types = IntStream.rangeClosed(0, precision)
+                .mapToObj(scale -> createDecimalType(precision, scale))
+                .collect(toImmutableList());
+        assertDecimalAggregationExecutesWithGpu(
+                "sum",
+                types,
+                partitions(List.of(
+                        unscaledValues(1, 2),
+                        unscaledValues(-1, -2),
+                        unscaledValues(9, -9, 9, 9),
+                        unscaledValues(-9, 9, -9, -9))),
+                "ASC NULLS LAST");
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {0, 6})
+    void testSumDecimalOverflow(int scale)
+    {
+        // Two values whose sum exceeds the precision of the result, decimal(38, s), but fits 128 bits, and two whose
+        // sum exceeds 128 bits as well. The cumulative frame of the second row and the whole-partition frame cover both.
+        BigInteger tenTo37 = TEN.pow(37);
+        List<List<BigInteger>> pairs = List.of(
+                List.of(tenTo37.multiply(BigInteger.valueOf(6)), tenTo37.multiply(BigInteger.valueOf(5))),
+                List.of(tenTo37.multiply(BigInteger.valueOf(9)), tenTo37.multiply(BigInteger.valueOf(9))));
+        for (List<BigInteger> pair : pairs) {
+            for (String window : List.of("PARTITION BY partition_key ORDER BY order_key", "PARTITION BY partition_key", "ORDER BY order_key", "")) {
+                String sql = decimalAggregationQuery("sum", List.of(createDecimalType(38, scale)), partitions(List.of(pair)), List.of(window));
+                assertThat(query(sql))
+                        .failure()
+                        .hasErrorCode(NUMERIC_VALUE_OUT_OF_RANGE)
+                        .hasStackTraceContaining(GpuCombineSumChunksToDecimal128.class.getSimpleName());
+                assertThat(query(gpuDisabled(), sql))
+                        .failure()
+                        .hasErrorCode(NUMERIC_VALUE_OUT_OF_RANGE);
+            }
+        }
+    }
+
+    @ParameterizedTest
     @FieldSource("io.trino.tests.GpuWindowFrameTestParameters#FRAME_SUM_FUNCTIONS")
     void testDecimalFrameWithOnlyNulls(String function)
     {
@@ -424,6 +476,13 @@ final class TestGpuWindowRangeFrames
                         decimalRow(1L, null, null),
                         decimalRow(1L, null, null)),
                 ordering);
+    }
+
+    private Session gpuDisabled()
+    {
+        return Session.builder(getSession())
+                .setSystemProperty(GPU_EXECUTION_ENABLED, "false")
+                .build();
     }
 
     static Stream<Arguments> aggregationsOrderKeyTypesAndOrderings()

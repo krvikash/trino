@@ -40,8 +40,10 @@ import org.junit.jupiter.api.parallel.Isolated;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -194,12 +196,16 @@ final class TestGpuWindowMemory
         ImmutableList.Builder<Type> sourceTypes = ImmutableList.builder();
         sourceTypes.add(BIGINT, BIGINT);
         ImmutableList.Builder<BoundTestedWindowFunction> functions = ImmutableList.builder();
-        int nextArgumentChannel = 2;
+        // Functions of one argument type share its channel, so that sum and avg of a column share their prefix sums
+        Map<Type, Integer> argumentChannelByType = new HashMap<>();
         for (TestedWindowFunction function : TESTED_GPU_WINDOW_FUNCTIONS) {
             int[] argumentChannels = new int[function.argumentTypes().size()];
             for (int argument = 0; argument < function.argumentTypes().size(); argument++) {
-                sourceTypes.add(function.argumentTypes().get(argument));
-                argumentChannels[argument] = nextArgumentChannel++;
+                Type argumentType = function.argumentTypes().get(argument);
+                argumentChannels[argument] = argumentChannelByType.computeIfAbsent(argumentType, _ -> {
+                    sourceTypes.add(argumentType);
+                    return 2 + argumentChannelByType.size();
+                });
             }
             functions.add(BoundTestedWindowFunction.of(function, argumentChannels));
         }

@@ -14,6 +14,8 @@
 package io.trino.tests;
 
 import com.google.common.collect.ImmutableList;
+import io.trino.Session;
+import io.trino.operator.gpu.expression.GpuCombineSumChunksToDecimal128;
 import io.trino.plugin.memory.MemoryQueryRunner;
 import io.trino.spi.type.DecimalType;
 import io.trino.spi.type.Type;
@@ -34,7 +36,9 @@ import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static io.trino.SystemSessionProperties.GPU_EXECUTION_ENABLED;
 import static io.trino.operator.gpu.GpuTestUtils.TESTED_GPU_TYPES;
+import static io.trino.spi.StandardErrorCode.NUMERIC_VALUE_OUT_OF_RANGE;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.DecimalType.createDecimalType;
 import static io.trino.tests.GpuWindowFrameTestParameters.AGGREGATIONS;
@@ -53,6 +57,7 @@ import static io.trino.tests.GpuWindowTable.SINGLE_ROW;
 import static io.trino.tests.GpuWindowTable.TIES;
 import static java.math.BigInteger.ONE;
 import static java.math.BigInteger.TEN;
+import static java.math.BigInteger.ZERO;
 import static java.util.Collections.nCopies;
 import static java.util.stream.Collectors.joining;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -302,6 +307,26 @@ final class TestGpuWindowRowsFrames
     }
 
     @ParameterizedTest
+    @MethodSource("io.trino.tests.GpuWindowFrameTestParameters#decimalPrecisions")
+    void testSumDecimalAllPrecisions(int precision)
+    {
+        // Every scale of the precision is tested, so that sum is compiled for every decimal type. Unscaled values
+        // stay below 10, so that they are valid for every type.
+        List<DecimalType> types = IntStream.rangeClosed(0, precision)
+                .mapToObj(scale -> createDecimalType(precision, scale))
+                .collect(toImmutableList());
+        assertDecimalAggregationExecutesWithGpu(
+                "sum",
+                types,
+                partitions(List.of(
+                        unscaledValues(1, 2),
+                        unscaledValues(-1, -2),
+                        unscaledValues(9, -9, 9, 9),
+                        unscaledValues(-9, 9, -9, -9))),
+                "ASC NULLS LAST");
+    }
+
+    @ParameterizedTest
     @FieldSource("io.trino.tests.GpuWindowFrameTestParameters#FRAME_SUM_FUNCTIONS")
     void testDecimalFrameWithOnlyNulls(String function)
     {
@@ -335,6 +360,89 @@ final class TestGpuWindowRowsFrames
                         decimalRow(1L, null, null),
                         decimalRow(1L, null, null)),
                 ordering);
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {0, 6})
+    void testSumDecimalOverflow(int scale)
+    {
+        // Two values whose sum exceeds the precision of the result, decimal(38, s), but fits 128 bits, and two whose
+        // sum exceeds 128 bits as well. The frame of the second row covers both, and fails the query as on the CPU.
+        BigInteger tenTo37 = TEN.pow(37);
+        List<List<BigInteger>> pairs = List.of(
+                List.of(tenTo37.multiply(BigInteger.valueOf(6)), tenTo37.multiply(BigInteger.valueOf(5))),
+                List.of(tenTo37.multiply(BigInteger.valueOf(9)), tenTo37.multiply(BigInteger.valueOf(9))));
+        for (List<BigInteger> pair : pairs) {
+            for (BigInteger sign : List.of(ONE, ONE.negate())) {
+                List<BigInteger> values = pair.stream()
+                        .map(value -> value.multiply(sign))
+                        .collect(toImmutableList());
+                String sql = decimalAggregationQuery(
+                        "sum",
+                        List.of(createDecimalType(38, scale)),
+                        partitions(List.of(values)),
+                        List.of("PARTITION BY partition_key ORDER BY order_key ROWS BETWEEN 1 PRECEDING AND CURRENT ROW"));
+                assertThat(query(sql))
+                        .failure()
+                        .hasErrorCode(NUMERIC_VALUE_OUT_OF_RANGE)
+                        // a GPU error is not retried on the CPU, so this fails only if the GPU raised the error
+                        .hasStackTraceContaining(GpuCombineSumChunksToDecimal128.class.getSimpleName());
+                assertThat(query(gpuDisabled(), sql))
+                        .failure()
+                        .hasErrorCode(NUMERIC_VALUE_OUT_OF_RANGE);
+            }
+        }
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {0, 6})
+    void testSumDecimalOverflowNextToNullOnlyFrame(int scale)
+    {
+        // The frame of the first row holds a NULL only, so GpuIf evaluates the sum on the other rows only, and the
+        // frame of the third row covers two values whose sum exceeds 128 bits
+        BigInteger nineTimesTenTo37 = TEN.pow(37).multiply(BigInteger.valueOf(9));
+        for (BigInteger value : List.of(nineTimesTenTo37, nineTimesTenTo37.negate())) {
+            String sql = decimalAggregationQuery(
+                    "sum",
+                    List.of(createDecimalType(38, scale)),
+                    partitions(List.of(Arrays.asList(null, value, value, null))),
+                    List.of("PARTITION BY partition_key ORDER BY order_key ROWS BETWEEN 1 PRECEDING AND CURRENT ROW"));
+            assertThat(query(sql))
+                    .failure()
+                    .hasErrorCode(NUMERIC_VALUE_OUT_OF_RANGE)
+                    .hasStackTraceContaining(GpuCombineSumChunksToDecimal128.class.getSimpleName());
+            assertThat(query(gpuDisabled(), sql))
+                    .failure()
+                    .hasErrorCode(NUMERIC_VALUE_OUT_OF_RANGE);
+        }
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {0, 6})
+    void testSumDecimalPrefixSumsExceed128Bits(int scale)
+    {
+        // The running sum of the partition exceeds 128 bits, but every frame of the current row and its neighbor
+        // holds a single value close to 10^38, since the rows in between are zero
+        BigInteger nineTimesTenTo37 = TEN.pow(37).multiply(BigInteger.valueOf(9));
+        for (BigInteger value : List.of(nineTimesTenTo37, nineTimesTenTo37.negate())) {
+            List<BigInteger> values = Stream.of(value, ZERO, value, ZERO, value, ZERO, value).collect(toImmutableList());
+            assertThat(query(decimalAggregationQuery(
+                    "sum",
+                    List.of(createDecimalType(38, scale)),
+                    partitions(List.of(values)),
+                    List.of(
+                            "PARTITION BY partition_key ORDER BY order_key ROWS BETWEEN 1 PRECEDING AND CURRENT ROW",
+                            "PARTITION BY partition_key ORDER BY order_key ROWS BETWEEN CURRENT ROW AND 1 FOLLOWING",
+                            "ORDER BY order_key ROWS BETWEEN 1 PRECEDING AND CURRENT ROW"))))
+                    .executesAllWithGpu(WindowNode.class);
+        }
+    }
+
+    private Session gpuDisabled()
+    {
+        return Session.builder(getSession())
+                .setSystemProperty(GPU_EXECUTION_ENABLED, "false")
+                .build();
     }
 
     private void assertDecimalAggregationExecutesWithGpu(String function, List<DecimalType> types, List<GpuWindowFrameTestParameters.DecimalRow> rows, String ordering)

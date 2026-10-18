@@ -2,7 +2,7 @@
   - ExchangeNode LOCAL
     - SortNode
       - ProjectNode
-        - WindowNode
+        - WindowNode (GPU)
           - AggregationNode (GPU)
             - ExchangeNode LOCAL
               - AggregationNode
