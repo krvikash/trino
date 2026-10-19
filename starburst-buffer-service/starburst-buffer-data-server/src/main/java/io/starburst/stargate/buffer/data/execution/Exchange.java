@@ -128,6 +128,8 @@ public class Exchange
     private volatile boolean spooled;
     private final AtomicInteger spooledChunks = new AtomicInteger();
     private final AtomicLong spooledBytes = new AtomicLong();
+    private final AtomicLong memorySpooledBytes = new AtomicLong();
+    private final AtomicLong localDiskSpooledBytes = new AtomicLong();
     private volatile Optional<Integer> finishedClosedChunks = Optional.empty();
     private volatile Optional<Long> finishedClosedBytes = Optional.empty();
     private int resourceReportsCounter;
@@ -319,7 +321,7 @@ public class Exchange
 
     public BufferNodeExchangeMetrics collectBufferNodeMetrics()
     {
-        ExchangeResourceUsage usage = new ExchangeResourceUsage(partitions.size(), spooledChunks.get(), spooledBytes.get());
+        ExchangeResourceUsage usage = newResourceUsage();
         if (finishedClosedBytes.isPresent() && finishedClosedChunks.isPresent()) {
             usage.updateTotalChunkResources(finishedClosedChunks.get(), finishedClosedBytes.get());
         }
@@ -343,7 +345,19 @@ public class Exchange
                 usage.spooledChunks,
                 usage.spooledBytes,
                 totalChunks,
-                totalBytes);
+                totalBytes,
+                usage.memorySpooledBytes,
+                usage.localDiskSpooledBytes);
+    }
+
+    private ExchangeResourceUsage newResourceUsage()
+    {
+        return new ExchangeResourceUsage(
+                partitions.size(),
+                spooledChunks.get(),
+                spooledBytes.get(),
+                memorySpooledBytes.get(),
+                localDiskSpooledBytes.get());
     }
 
     @GuardedBy("this")
@@ -563,10 +577,14 @@ public class Exchange
                 () -> bufferServerExchangeSpan.compareAndSet(Optional.empty(), Optional.of(Span.getInvalid())));
     }
 
-    public void chunkSpooled(ChunkHandle chunkHandle)
+    public void chunkSpooled(ChunkHandle chunkHandle, ChunkDataLease chunkDataLease)
     {
         spooledChunks.incrementAndGet();
         spooledBytes.addAndGet(chunkHandle.dataSizeInBytes());
+        switch (chunkDataLease) {
+            case MemoryChunkDataLease _ -> memorySpooledBytes.addAndGet(chunkHandle.dataSizeInBytes());
+            case DiskChunkDataLease _ -> localDiskSpooledBytes.addAndGet(chunkHandle.dataSizeInBytes());
+        }
     }
 
     public void logAddDataPagesInProgressDebugInfo()
@@ -579,6 +597,8 @@ public class Exchange
         private static final AttributeKey<Long> EXCHANGE_PARTITIONS = longKey("exchange_partitions");
         private static final AttributeKey<Long> EXCHANGE_SPOOLED_CHUNKS = longKey("exchange_spooled_chunks");
         private static final AttributeKey<Long> EXCHANGE_SPOOLED_BYTES = longKey("exchange_spooled_bytes");
+        private static final AttributeKey<Long> EXCHANGE_MEMORY_SPOOLED_BYTES = longKey("exchange_memory_spooled_bytes");
+        private static final AttributeKey<Long> EXCHANGE_LOCAL_DISK_SPOOLED_BYTES = longKey("exchange_local_disk_spooled_bytes");
         private static final AttributeKey<Long> EXCHANGE_CLOSED_CHUNKS = longKey("exchange_closed_chunks");
         private static final AttributeKey<Long> EXCHANGE_CLOSED_BYTES = longKey("exchange_closed_bytes");
         private static final AttributeKey<Long> EXCHANGE_PARTIAL_CHUNKS = longKey("exchange_partial_chunks");
@@ -587,6 +607,8 @@ public class Exchange
         int partitionCount;
         int spooledChunks;
         long spooledBytes;
+        long memorySpooledBytes;
+        long localDiskSpooledBytes;
         int closedChunks;
         long closedInMemoryBytes;
         int partialChunks;
@@ -594,11 +616,13 @@ public class Exchange
 
         public ExchangeResourceUsage() {}
 
-        public ExchangeResourceUsage(int partitionCount, int spooledChunks, long spooledBytes)
+        public ExchangeResourceUsage(int partitionCount, int spooledChunks, long spooledBytes, long memorySpooledBytes, long localDiskSpooledBytes)
         {
             this.partitionCount = partitionCount;
             this.spooledChunks = spooledChunks;
             this.spooledBytes = spooledBytes;
+            this.memorySpooledBytes = memorySpooledBytes;
+            this.localDiskSpooledBytes = localDiskSpooledBytes;
         }
 
         public void updatePartialChunkResource(long partialChunkBytes)
@@ -619,6 +643,8 @@ public class Exchange
                     .put(EXCHANGE_PARTITIONS, partitionCount)
                     .put(EXCHANGE_SPOOLED_CHUNKS, spooledChunks)
                     .put(EXCHANGE_SPOOLED_BYTES, spooledBytes)
+                    .put(EXCHANGE_MEMORY_SPOOLED_BYTES, memorySpooledBytes)
+                    .put(EXCHANGE_LOCAL_DISK_SPOOLED_BYTES, localDiskSpooledBytes)
                     .put(EXCHANGE_CLOSED_CHUNKS, closedChunks)
                     .put(EXCHANGE_CLOSED_BYTES, closedInMemoryBytes);
             if (!exchangeFinished) {
@@ -632,7 +658,7 @@ public class Exchange
 
     private Attributes collectExchangeResourceUsage()
     {
-        ExchangeResourceUsage exchangeResourceUsage = new ExchangeResourceUsage(partitions.size(), spooledChunks.get(), spooledBytes.get());
+        ExchangeResourceUsage exchangeResourceUsage = newResourceUsage();
         if (finishedClosedBytes.isPresent() && finishedClosedChunks.isPresent()) {
             exchangeResourceUsage.updateTotalChunkResources(finishedClosedChunks.get(), finishedClosedBytes.get());
             return exchangeResourceUsage.toOpentelemetryAttributes(true);

@@ -12,6 +12,7 @@ package io.starburst.stargate.buffer.data.client;
 /**
  * Metrics for data storage and distribution within a single buffer node for an exchange.
  * Provides visibility into memory usage vs object storage spooling.
+ * bytesSpooled is split by where the chunk was before spooling: memory or local disk.
  */
 public record BufferNodeExchangeMetrics(
         int partitionCount,
@@ -20,4 +21,6 @@ public record BufferNodeExchangeMetrics(
         int chunksSpooled,
         long bytesSpooled,
         int totalChunks,
-        long totalBytes) {}
+        long totalBytes,
+        long memorySpooledBytes,
+        long localDiskSpooledBytes) {}

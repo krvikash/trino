@@ -229,7 +229,7 @@ abstract class BaseDataServerTest
         // Validate EXCHANGE_0 metrics after finish
         long exchange0TotalBytes = 11 + 7;
         BufferNodeExchangeMetrics exchange0Metrics = pingExchange(EXCHANGE_0);
-        assertThat(exchange0Metrics).isEqualTo(new BufferNodeExchangeMetrics(2, 2, exchange0TotalBytes, 0, 0, 2, exchange0TotalBytes));
+        assertThat(exchange0Metrics).isEqualTo(unspooledMetrics(2, 2, exchange0TotalBytes));
 
         // Finish EXCHANGE_1 to ensure deterministic chunk state
         finishExchange(EXCHANGE_1);
@@ -244,7 +244,7 @@ abstract class BaseDataServerTest
         // Validate EXCHANGE_1 metrics after finish
         long exchange1TotalBytes = 10 + largePage1.length() + largePage2.length();
         BufferNodeExchangeMetrics exchange1Metrics = pingExchange(EXCHANGE_1);
-        assertThat(exchange1Metrics).isEqualTo(new BufferNodeExchangeMetrics(2, 3, exchange1TotalBytes, 0, 0, 3, exchange1TotalBytes));
+        assertThat(exchange1Metrics).isEqualTo(unspooledMetrics(2, 3, exchange1TotalBytes));
 
         assertThat(getChunkData(EXCHANGE_0, chunkHandle0)).containsExactly(
                 new DataPage(0, 0, utf8Slice("trino")),
@@ -301,8 +301,7 @@ abstract class BaseDataServerTest
         long totalBytes = chunkList0.chunks().stream().mapToLong(ChunkHandle::dataSizeInBytes).sum();
 
         assertThat(chunkList0.nextPagingId()).isEmpty();
-        assertThat(exchange0Metrics).isEqualTo(
-                new BufferNodeExchangeMetrics(2, 4, totalBytes, 0, 0, 4, totalBytes));
+        assertThat(exchange0Metrics).isEqualTo(unspooledMetrics(2, 4, totalBytes));
         assertThat(getChunkData(EXCHANGE_0, chunkHandle0)).containsExactly(
                 new DataPage(0, 0, utf8Slice("a")),
                 new DataPage(0, 0, utf8Slice("b")),
@@ -414,8 +413,9 @@ abstract class BaseDataServerTest
         assertThat(chunkList.chunks()).hasSize(1);
         getChunkHandleOrThrow(chunkList.chunks(), 0, 5);
         assertThat(chunkList.nextPagingId()).isEmpty();
+        long spooledFromDisk = chunksOnLocalDisk() ? 5 : 0;
         assertThat(exchangeMetrics).isEqualTo(
-                new BufferNodeExchangeMetrics(1, 0, 0, 1, 5, 1, 5));
+                new BufferNodeExchangeMetrics(1, 0, 0, 1, 5, 1, 5, 5 - spooledFromDisk, spooledFromDisk));
 
         assertEventually(new Duration(5, SECONDS), () -> assertThat(this.getNodeState()).isEqualTo(DRAINED));
     }
@@ -561,6 +561,20 @@ abstract class BaseDataServerTest
     protected void removeExchange(String exchangeId)
     {
         getFutureValue(dataClient.removeExchange(exchangeId));
+    }
+
+    /**
+     * Whether the server under test places every chunk on local disk rather than in memory.
+     */
+    protected boolean chunksOnLocalDisk()
+    {
+        return false;
+    }
+
+    // metrics of an exchange none of whose closed chunks were spooled
+    private BufferNodeExchangeMetrics unspooledMetrics(int partitionCount, int totalChunks, long totalBytes)
+    {
+        return new BufferNodeExchangeMetrics(partitionCount, totalChunks, totalBytes, 0, 0, totalChunks, totalBytes, 0, 0);
     }
 
     protected DataServerStats getDataServerStats()

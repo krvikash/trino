@@ -39,6 +39,12 @@ class TestLocalDiskTierDataServer
     }
 
     @Override
+    protected boolean chunksOnLocalDisk()
+    {
+        return true;
+    }
+
+    @Override
     protected SpooledChunkReader createSpooledChunkReader()
     {
         return createTrinoFsLocalSpooledChunkReader(diskTierDir);

@@ -924,7 +924,7 @@ public class ChunkManager
                                         exchange.markSpooled();
                                         spooledChunksByExchange.update(exchangeId, spooledChunkMap);
                                         chunkDataLeaseMap.forEach((chunk, chunkDataLease) -> {
-                                            exchange.chunkSpooled(chunk.getHandle());
+                                            exchange.chunkSpooled(chunk.getHandle(), chunkDataLease);
                                             chunkDataLease.release();
                                             chunk.release();
                                         });

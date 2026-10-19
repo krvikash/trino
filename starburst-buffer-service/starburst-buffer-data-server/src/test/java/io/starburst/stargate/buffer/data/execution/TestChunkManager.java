@@ -190,13 +190,13 @@ public class TestChunkManager
         assertThat(chunkList0.nextPagingId()).isEmpty();
 
         BufferNodeExchangeMetrics exchangeMetrics0 = chunkManager.pingExchange(EXCHANGE_0);
-        assertThat(exchangeMetrics0).isEqualTo(new BufferNodeExchangeMetrics(2, 2, 30, 0, 0, 2, 30));
+        assertThat(exchangeMetrics0).isEqualTo(new BufferNodeExchangeMetrics(2, 2, 30, 0, 0, 2, 30, 0, 0));
 
         chunkList1 = listClosedChunks(chunkManager, EXCHANGE_1, chunkList1.nextPagingId(), 1);
         assertThat(chunkList1.chunks()).containsExactlyInAnyOrder(chunkHandle2);
         assertThat(chunkList1.nextPagingId()).isEmpty();
         BufferNodeExchangeMetrics exchangeMetrics1 = chunkManager.pingExchange(EXCHANGE_1);
-        assertThat(exchangeMetrics1).isEqualTo(new BufferNodeExchangeMetrics(1, 1, 5, 0, 0, 1, 5));
+        assertThat(exchangeMetrics1).isEqualTo(new BufferNodeExchangeMetrics(1, 1, 5, 0, 0, 1, 5, 0, 0));
 
         verifyChunkDataResult(chunkManager.getChunkData(BUFFER_NODE_ID, EXCHANGE_0, chunkHandle0.partitionId(), chunkHandle0.chunkId()),
                 new DataPage(0, 0, utf8Slice("000_0")),
@@ -266,14 +266,14 @@ public class TestChunkManager
         assertThat(chunkList0.nextPagingId()).isEmpty();
 
         BufferNodeExchangeMetrics exchangeMetrics0 = chunkManager.pingExchange(EXCHANGE_0);
-        assertThat(exchangeMetrics0).isEqualTo(new BufferNodeExchangeMetrics(2, 3, 25, 0, 0, 3, 25));
+        assertThat(exchangeMetrics0).isEqualTo(new BufferNodeExchangeMetrics(2, 3, 25, 0, 0, 3, 25, 0, 0));
 
         chunkList1 = listClosedChunks(chunkManager, EXCHANGE_1, chunkList1.nextPagingId(), 1);
         assertThat(chunkList1.chunks()).containsExactlyInAnyOrder(chunkHandle3);
         assertThat(chunkList1.nextPagingId()).isEmpty();
 
         BufferNodeExchangeMetrics exchangeMetrics1 = chunkManager.pingExchange(EXCHANGE_1);
-        assertThat(exchangeMetrics1).isEqualTo(new BufferNodeExchangeMetrics(1, 1, 5, 0, 0, 1, 5));
+        assertThat(exchangeMetrics1).isEqualTo(new BufferNodeExchangeMetrics(1, 1, 5, 0, 0, 1, 5, 0, 0));
 
         verifyChunkDataResult(chunkManager.getChunkData(BUFFER_NODE_ID, EXCHANGE_0, chunkHandle0.partitionId(), chunkHandle0.chunkId()),
                 new DataPage(0, 0, utf8Slice("000_0")));
@@ -372,7 +372,7 @@ public class TestChunkManager
         assertThat(chunkList0.nextPagingId()).isEmpty();
 
         BufferNodeExchangeMetrics exchangeMetrics0 = chunkManager.pingExchange(EXCHANGE_0);
-        assertThat(exchangeMetrics0).isEqualTo(new BufferNodeExchangeMetrics(2, 3, 33, 0, 0, 3, 33));
+        assertThat(exchangeMetrics0).isEqualTo(new BufferNodeExchangeMetrics(2, 3, 33, 0, 0, 3, 33, 0, 0));
 
         verifyChunkDataResult(chunkManager.getChunkData(BUFFER_NODE_ID, EXCHANGE_0, chunkHandle0.partitionId(), chunkHandle0.chunkId()),
                 new DataPage(0, 0, utf8Slice("chunk")),
@@ -519,7 +519,7 @@ public class TestChunkManager
                 .containsExactlyInAnyOrder(chunkHandle2);
 
         BufferNodeExchangeMetrics exchangeMetrics1 = chunkManager.pingExchange(EXCHANGE_1);
-        assertThat(exchangeMetrics1).isEqualTo(new BufferNodeExchangeMetrics(1, 0, 0, 1, 5, 1, 5));
+        assertThat(exchangeMetrics1).isEqualTo(new BufferNodeExchangeMetrics(1, 0, 0, 1, 5, 1, 5, 5, 0));
 
         verifyChunkDataResult(chunkManager.getChunkData(BUFFER_NODE_ID, EXCHANGE_1, chunkHandle2.partitionId(), chunkHandle2.chunkId()),
                 new DataPage(1, 1, utf8Slice("dummy")));
@@ -944,7 +944,7 @@ public class TestChunkManager
                 new ChunkHandle(BUFFER_NODE_ID, 0, 7L, 5));
 
         BufferNodeExchangeMetrics exchangeMetrics = chunkManager.pingExchange(EXCHANGE_0);
-        assertThat(exchangeMetrics).isEqualTo(new BufferNodeExchangeMetrics(1, 8, 40, 0, 0, 8, 40));
+        assertThat(exchangeMetrics).isEqualTo(new BufferNodeExchangeMetrics(1, 8, 40, 0, 0, 8, 40, 0, 0));
     }
 
     @Test
@@ -992,7 +992,7 @@ public class TestChunkManager
         assertThat(chunks).containsExactlyInAnyOrder(chunkHandle0, chunkHandle1, chunkHandle2);
 
         BufferNodeExchangeMetrics exchangeMetrics = chunkManager.pingExchange(EXCHANGE_0);
-        assertThat(exchangeMetrics).isEqualTo(new BufferNodeExchangeMetrics(1, 2, 2, 1, 1, 3, 3));
+        assertThat(exchangeMetrics).isEqualTo(new BufferNodeExchangeMetrics(1, 2, 2, 1, 1, 3, 3, 1, 0));
 
         verifyChunkDataResult(chunkManager.getChunkData(BUFFER_NODE_ID, EXCHANGE_0, chunkHandle0.partitionId(), chunkHandle0.chunkId()),
                 new DataPage(0, 0, utf8Slice("1")));
@@ -1076,7 +1076,7 @@ public class TestChunkManager
         assertThat(chunkList.nextPagingId()).isEmpty();
 
         BufferNodeExchangeMetrics exchangeMetrics = chunkManager.pingExchange(EXCHANGE_0);
-        assertThat(exchangeMetrics).isEqualTo(new BufferNodeExchangeMetrics(3, 7, 126, 0, 0, 7, 126));
+        assertThat(exchangeMetrics).isEqualTo(new BufferNodeExchangeMetrics(3, 7, 126, 0, 0, 7, 126, 0, 0));
 
         assertThat((memoryAllocator.getTotalMemory() - memoryAllocator.getFreeMemory())).isEqualTo(192);
 
@@ -1346,6 +1346,6 @@ public class TestChunkManager
 
     private static BufferNodeExchangeMetrics emptyMetrics()
     {
-        return new BufferNodeExchangeMetrics(0, 0, 0, 0, 0, 0, 0);
+        return new BufferNodeExchangeMetrics(0, 0, 0, 0, 0, 0, 0, 0, 0);
     }
 }

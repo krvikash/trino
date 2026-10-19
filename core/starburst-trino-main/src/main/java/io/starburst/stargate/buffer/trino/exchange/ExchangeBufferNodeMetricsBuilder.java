@@ -46,6 +46,9 @@ class ExchangeBufferNodeMetricsBuilder
         CounterMetricBuilder totalBytesMetric = metricsBuilder.getCounterMetric("BufferExchange.totalBytes");
         CounterMetricBuilder bytesInMemoryMetric = metricsBuilder.getCounterMetric("BufferExchange.bytesInMemory");
         CounterMetricBuilder bytesSpooledMetric = metricsBuilder.getCounterMetric("BufferExchange.bytesSpooled");
+        // bytesSpooled split by where the chunk was before spooling
+        CounterMetricBuilder memorySpooledBytesMetric = metricsBuilder.getCounterMetric("BufferExchange.memorySpooledBytes");
+        CounterMetricBuilder localDiskSpooledBytesMetric = metricsBuilder.getCounterMetric("BufferExchange.localDiskSpooledBytes");
 
         // Distribution of data across buffer nodes
         DistributionMetricBuilder bytesPerBufferNodeMetric = metricsBuilder.getDistributionMetric("BufferExchange.bytesPerBufferNode");
@@ -62,6 +65,8 @@ class ExchangeBufferNodeMetricsBuilder
             totalBytesMetric.add(nodeMetrics.totalBytes());
             bytesInMemoryMetric.add(nodeMetrics.bytesInMemory());
             bytesSpooledMetric.add(nodeMetrics.bytesSpooled());
+            memorySpooledBytesMetric.add(nodeMetrics.memorySpooledBytes());
+            localDiskSpooledBytesMetric.add(nodeMetrics.localDiskSpooledBytes());
 
             // Record per-node distribution metrics
             bytesPerBufferNodeMetric.add(nodeMetrics.totalBytes());
