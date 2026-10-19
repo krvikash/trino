@@ -15,10 +15,8 @@ package io.trino.operator.gpu.join;
 
 import ai.rapids.cudf.BinaryOp;
 import ai.rapids.cudf.ColumnVector;
-import ai.rapids.cudf.ColumnView;
 import ai.rapids.cudf.DType;
 import ai.rapids.cudf.OutOfBoundsPolicy;
-import ai.rapids.cudf.ReductionAggregation;
 import ai.rapids.cudf.Scalar;
 import ai.rapids.cudf.Table;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -38,13 +36,14 @@ import io.trino.spi.gpu.borrow.Own;
 import jakarta.annotation.Nullable;
 
 import static com.google.common.base.Preconditions.checkState;
-import static com.google.common.base.Verify.verify;
 import static com.google.common.math.LongMath.saturatedAdd;
 import static com.google.common.math.LongMath.saturatedMultiply;
 import static io.airlift.concurrent.MoreFutures.asVoid;
 import static io.airlift.concurrent.MoreFutures.getDone;
 import static io.trino.operator.gpu.join.GpuJoinUtils.MAX_OUTPUT_CHUNK_BYTES;
+import static io.trino.operator.gpu.join.GpuJoinUtils.MAX_OUTPUT_CHUNK_ROWS;
 import static io.trino.operator.gpu.join.GpuJoinUtils.TARGET_OUTPUT_CHUNK_BYTES;
+import static io.trino.operator.gpu.join.GpuJoinUtils.maxBytesPerRow;
 import static io.trino.plugin.base.gpu.GpuUtils.closeColumns;
 import static io.trino.plugin.base.gpu.GpuUtils.toTable;
 import static java.lang.Math.ceilDiv;
@@ -58,9 +57,6 @@ import static java.util.Objects.requireNonNull;
 public final class GpuCrossJoin
         implements GpuOperation
 {
-    /// Rows an output chunk may not exceed, on top of the byte limits. A cuDF column cannot hold more
-    /// than [Integer#MAX_VALUE] rows, so a chunk of cheap rows still has to be bounded by their count.
-    private static final int MAX_OUTPUT_CHUNK_ROWS = 10_000_000;
     /// Per output row, for the INT64 sequence of absolute output positions. The sequence is released
     /// before the gather, so it bounds the peak while the maps are derived, not the chunk itself.
     private static final long POSITION_SEQUENCE_BYTES_PER_ROW = Long.BYTES;
@@ -214,7 +210,7 @@ public final class GpuCrossJoin
             if (buildTable != null) {
                 buildBytes = buildTable.getDeviceMemorySize();
                 buildAverageBytesPerRow = ceilDiv(buildBytes, buildRowCount);
-                buildMaxBytesPerRow = maxBytesPerRow(buildTable, toIntExact(buildRowCount));
+                buildMaxBytesPerRow = maxBytesPerRow(taskMemoryContext, getClass().getSimpleName(), buildTable, toIntExact(buildRowCount));
             }
         }
 
@@ -222,7 +218,7 @@ public final class GpuCrossJoin
         long probeMaxBytesPerRow = 0;
         if (probeTable != null) {
             probeAverageBytesPerRow = ceilDiv(probeDeviceBytes, probeRowCount);
-            probeMaxBytesPerRow = maxBytesPerRow(probeTable, probeRowCount);
+            probeMaxBytesPerRow = maxBytesPerRow(taskMemoryContext, getClass().getSimpleName(), probeTable, probeRowCount);
         }
 
         int gatherMaps = ((probeTable == null) ? 0 : 1) + ((buildTable == null) ? 0 : 1);
@@ -259,51 +255,6 @@ public final class GpuCrossJoin
                 min(TARGET_OUTPUT_CHUNK_BYTES / averageBytesPerOutputRow, MAX_OUTPUT_CHUNK_BYTES / maxBytesPerOutputRow),
                 1,
                 MAX_OUTPUT_CHUNK_ROWS);
-    }
-
-    /// Largest device footprint a single row of `table` contributes to a gathered output row. Rows of a
-    /// variable-width column differ in width, so the widest is reduced out of them on the device.
-    private long maxBytesPerRow(@Borrow Table table, int rowCount)
-    {
-        long maxBytesPerRow = 0;
-        for (int i = 0; i < table.getNumberOfColumns(); i++) {
-            ColumnVector column = table.getColumn(i);
-            if (!column.getType().hasOffsets()) {
-                // One byte covers the column's share of the validity mask
-                maxBytesPerRow += column.getType().getSizeInBytes() + 1;
-                continue;
-            }
-            maxBytesPerRow += Integer.BYTES + 1 + maxVariableWidthBytes(column, rowCount);
-        }
-        return maxBytesPerRow;
-    }
-
-    /// The byte counts are on the device only while the maximum is reduced out of them, so the
-    /// reservation covers just that and only the single reduced value is kept.
-    private long maxVariableWidthBytes(@Borrow ColumnVector column, int rowCount)
-    {
-        // The byte counts of one column, plus the validity mask copied along with them
-        MemoryAmount byteCountsBytes = MemoryAmount.gpuDevice((long) rowCount * (Integer.BYTES + 1));
-        try (AllocatedMemory _ = taskMemoryContext.allocate(getClass().getSimpleName(), byteCountsBytes);
-                ColumnVector byteCounts = variableWidthByteCounts(column);
-                Scalar maxByteCount = byteCounts.reduce(ReductionAggregation.max(), DType.INT32)) {
-            // The reduction is invalid only when every row is null, and a null holds no bytes of its own
-            return maxByteCount.isValid() ? maxByteCount.getInt() : 0;
-        }
-    }
-
-    /// Bytes each row of a variable-width column holds. VARBINARY is the only [DType#LIST] the GPU
-    /// produces and it is a list of single bytes, so its element count is its byte count.
-    private static @Move ColumnVector variableWidthByteCounts(@Borrow ColumnVector column)
-    {
-        if (column.getType().equals(DType.STRING)) {
-            return column.getByteCount();
-        }
-        verify(column.getType().equals(DType.LIST), "Unexpected variable-width type: %s", column.getType());
-        try (ColumnView elements = column.getChildColumnView(0)) {
-            verify(elements.getType().equals(DType.UINT8), "Unexpected list element type: %s", elements.getType());
-        }
-        return column.countElements();
     }
 
     private static boolean hasVariableWidthColumn(@Nullable @Borrow Table table)
