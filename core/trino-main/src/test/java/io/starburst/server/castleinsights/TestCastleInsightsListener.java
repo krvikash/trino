@@ -12,9 +12,12 @@ package io.starburst.server.castleinsights;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Binder;
+import com.google.inject.Key;
 import com.google.inject.multibindings.Multibinder;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
+import io.starburst.server.castleinsights.CastleInsightsConfig.RateLimitStage;
 import io.starburst.server.castleinsights.analyzer.CastleInsightAnalyzer;
+import io.starburst.server.castleinsights.analyzer.CastleInsightsStats;
 import io.starburst.server.castleinsights.model.CastleInsight;
 import io.starburst.server.castleinsights.model.CastleInsightsResult;
 import io.starburst.server.castleinsights.model.JoinInsight;
@@ -24,6 +27,8 @@ import io.trino.spi.QueryId;
 import io.trino.testing.StandaloneQueryRunner;
 import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
 import java.util.List;
 import java.util.Map;
@@ -62,14 +67,17 @@ public class TestCastleInsightsListener
     }
 
     @Test
-    public void testDeliversResultWhenNoInsightsFound()
+    public void testSkipsResultWhenNoInsightsFound()
     {
         CapturingSink sink = new CapturingSink();
         try (StandaloneQueryRunner queryRunner = createQueryRunner(sink)) {
-            QueryId queryId = queryRunner.executeWithQueryId(TEST_SESSION, NO_JOIN_QUERY).queryId();
+            QueryId noJoinId = queryRunner.executeWithQueryId(TEST_SESSION, NO_JOIN_QUERY).queryId();
+            QueryId joinId = queryRunner.executeWithQueryId(TEST_SESSION, JOIN_QUERY).queryId();
 
-            assertEventually(() -> assertThat(sink.results).containsKey(queryId.toString()));
-            assertThat(sink.results.get(queryId.toString()).insights()).isEmpty();
+            // Extraction is single threaded and FIFO, so the join result landing means the
+            // no-join query, which yields no insights, was already processed.
+            assertEventually(() -> assertThat(sink.results).containsKey(joinId.toString()));
+            assertThat(sink.results).doesNotContainKey(noJoinId.toString());
         }
     }
 
@@ -88,7 +96,31 @@ public class TestCastleInsightsListener
         }
     }
 
+    @ParameterizedTest
+    @EnumSource(RateLimitStage.class)
+    public void testDropsResultsBeyondRateLimit(RateLimitStage rateLimitStage)
+    {
+        CapturingSink sink = new CapturingSink();
+        Map<String, String> properties = ImmutableMap.of(
+                "castle-insights.max-results-per-minute", "1",
+                "castle-insights.burst-factor", "1",
+                "castle-insights.rate-limit-stage", rateLimitStage.name());
+        try (StandaloneQueryRunner queryRunner = createQueryRunner(sink, properties, new FixedAnalyzer())) {
+            CastleInsightsStats stats = queryRunner.getCoordinator().getInstance(Key.get(CastleInsightsStats.class));
+            QueryId firstId = queryRunner.executeWithQueryId(TEST_SESSION, NO_JOIN_QUERY).queryId();
+            queryRunner.executeWithQueryId(TEST_SESSION, NO_JOIN_QUERY);
+
+            assertEventually(() -> assertThat(stats.getRateLimitedQueries().getTotalCount()).isEqualTo(1));
+            assertEventually(() -> assertThat(sink.results).containsOnlyKeys(firstId.toString()));
+        }
+    }
+
     private static StandaloneQueryRunner createQueryRunner(CastleInsightsResultSink sink, CastleInsightAnalyzer... analyzers)
+    {
+        return createQueryRunner(sink, ImmutableMap.of(), analyzers);
+    }
+
+    private static StandaloneQueryRunner createQueryRunner(CastleInsightsResultSink sink, Map<String, String> extraProperties, CastleInsightAnalyzer... analyzers)
     {
         StandaloneQueryRunner queryRunner = new StandaloneQueryRunner(
                 TEST_SESSION,
@@ -105,11 +137,13 @@ public class TestCastleInsightsListener
                                 }
                             }
                         })
-                        .setProperties(ImmutableMap.of(
-                                "castle-insights.enabled", "true",
+                        .setProperties(ImmutableMap.<String, String>builder()
+                                .put("castle-insights.enabled", "true")
                                 // One thread over a FIFO queue, so a query submitted earlier is always
-                                // extracted earlier, which is what lets the skip assertion below be exact.
-                                "castle-insights.thread-pool-size", "1")));
+                                // extracted earlier, which is what lets the skip and rate limit assertions be exact.
+                                .put("castle-insights.thread-pool-size", "1")
+                                .putAll(extraProperties)
+                                .buildOrThrow()));
         queryRunner.installPlugin(new TpchPlugin());
         queryRunner.createCatalog(TEST_SESSION.getCatalog().orElseThrow(), "tpch", ImmutableMap.of());
         return queryRunner;

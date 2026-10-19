@@ -20,6 +20,7 @@ public class CastleInsightsStats
     private final CounterStat failedAnalyzers = new CounterStat();
     private final CounterStat emittedInsights = new CounterStat();
     private final CounterStat droppedQueries = new CounterStat();
+    private final CounterStat rateLimitedQueries = new CounterStat();
 
     public void queryAnalyzed()
     {
@@ -44,6 +45,11 @@ public class CastleInsightsStats
     public void queryDropped()
     {
         droppedQueries.update(1);
+    }
+
+    public void queryRateLimited()
+    {
+        rateLimitedQueries.update(1);
     }
 
     @Managed
@@ -79,5 +85,12 @@ public class CastleInsightsStats
     public CounterStat getDroppedQueries()
     {
         return droppedQueries;
+    }
+
+    @Managed
+    @Nested
+    public CounterStat getRateLimitedQueries()
+    {
+        return rateLimitedQueries;
     }
 }

@@ -20,6 +20,8 @@ import static io.airlift.configuration.testing.ConfigAssertions.assertFullMappin
 import static io.airlift.configuration.testing.ConfigAssertions.assertRecordedDefaults;
 import static io.airlift.configuration.testing.ConfigAssertions.recordDefaults;
 import static io.airlift.testing.ValidationAssertions.assertFailsValidation;
+import static io.starburst.server.castleinsights.CastleInsightsConfig.RateLimitStage.AFTER_EXTRACTION;
+import static io.starburst.server.castleinsights.CastleInsightsConfig.RateLimitStage.BEFORE_EXTRACTION;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 public class TestCastleInsightsConfig
@@ -31,7 +33,10 @@ public class TestCastleInsightsConfig
                 .setEnabled(false)
                 .setMinQueryDuration(new Duration(0, SECONDS))
                 .setThreadPoolSize("1C")
-                .setMaxQueueSize(1000));
+                .setMaxQueueSize(1000)
+                .setMaxResultsPerMinute(10)
+                .setBurstFactor(5)
+                .setRateLimitStage(AFTER_EXTRACTION));
     }
 
     @Test
@@ -42,13 +47,19 @@ public class TestCastleInsightsConfig
                 .put("castle-insights.min-query-duration", "30s")
                 .put("castle-insights.thread-pool-size", "2C")
                 .put("castle-insights.max-queue-size", "500")
+                .put("castle-insights.max-results-per-minute", "50")
+                .put("castle-insights.burst-factor", "3")
+                .put("castle-insights.rate-limit-stage", "BEFORE_EXTRACTION")
                 .buildOrThrow();
 
         CastleInsightsConfig expected = new CastleInsightsConfig()
                 .setEnabled(true)
                 .setMinQueryDuration(new Duration(30, SECONDS))
                 .setThreadPoolSize("2C")
-                .setMaxQueueSize(500);
+                .setMaxQueueSize(500)
+                .setMaxResultsPerMinute(50)
+                .setBurstFactor(3)
+                .setRateLimitStage(BEFORE_EXTRACTION);
 
         assertFullMapping(properties, expected);
     }
@@ -65,6 +76,18 @@ public class TestCastleInsightsConfig
         assertFailsValidation(
                 new CastleInsightsConfig().setMaxQueueSize(0),
                 "maxQueueSize",
+                "must be greater than or equal to 1",
+                Min.class);
+
+        assertFailsValidation(
+                new CastleInsightsConfig().setMaxResultsPerMinute(0),
+                "maxResultsPerMinute",
+                "must be greater than or equal to 1",
+                Min.class);
+
+        assertFailsValidation(
+                new CastleInsightsConfig().setBurstFactor(0),
+                "burstFactor",
                 "must be greater than or equal to 1",
                 Min.class);
     }

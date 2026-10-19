@@ -9,9 +9,11 @@
  */
 package io.starburst.server.castleinsights;
 
+import com.google.common.base.Ticker;
 import com.google.inject.Inject;
 import io.airlift.log.Logger;
 import io.airlift.units.Duration;
+import io.starburst.server.castleinsights.CastleInsightsConfig.RateLimitStage;
 import io.starburst.server.castleinsights.analyzer.CastleInsightsExtractor;
 import io.starburst.server.castleinsights.analyzer.CastleInsightsStats;
 import io.starburst.server.castleinsights.model.CastleInsightsResult;
@@ -32,6 +34,8 @@ import java.util.concurrent.ThreadPoolExecutor;
 
 import static com.google.common.collect.Sets.immutableEnumSet;
 import static io.airlift.concurrent.Threads.daemonThreadsNamed;
+import static io.starburst.server.castleinsights.CastleInsightsConfig.RateLimitStage.AFTER_EXTRACTION;
+import static io.starburst.server.castleinsights.CastleInsightsConfig.RateLimitStage.BEFORE_EXTRACTION;
 import static io.trino.execution.QueryState.FINISHED;
 import static io.trino.spi.resourcegroups.QueryType.DATA_DEFINITION;
 import static io.trino.spi.resourcegroups.QueryType.DESCRIBE;
@@ -59,6 +63,8 @@ public class CastleInsightsListener
     private final CastleInsightsStats stats;
     private final ExecutorService executorService;
     private final Duration minQueryDuration;
+    private final CastleInsightsRateLimiter rateLimiter;
+    private final RateLimitStage rateLimitStage;
 
     @Inject
     public CastleInsightsListener(
@@ -74,6 +80,8 @@ public class CastleInsightsListener
         this.resultSink = requireNonNull(resultSink, "resultSink is null");
         this.stats = requireNonNull(stats, "stats is null");
         this.minQueryDuration = config.getMinQueryDuration();
+        this.rateLimiter = new CastleInsightsRateLimiter(config.getMaxResultsPerMinute(), config.getBurstFactor(), Ticker.systemTicker());
+        this.rateLimitStage = config.getRateLimitStage();
         this.executorService = new ThreadPoolExecutor(
                 config.getThreadPoolSize(),
                 config.getThreadPoolSize(),
@@ -96,6 +104,10 @@ public class CastleInsightsListener
 
         QueryInfo queryInfo = fullQueryInfo.get();
         if (!isAnalyzable(queryInfo)) {
+            return;
+        }
+        // Before submission, so a dropped query does not hold its QueryInfo in the queue either
+        if (rateLimitStage == BEFORE_EXTRACTION && !tryAcquireSendBudget(queryId)) {
             return;
         }
 
@@ -142,10 +154,28 @@ public class CastleInsightsListener
         return true;
     }
 
+    private boolean tryAcquireSendBudget(QueryId queryId)
+    {
+        if (rateLimiter.tryAcquire()) {
+            return true;
+        }
+        stats.queryRateLimited();
+        // Not a warning: this fires for every query in a burst, which would flood the log
+        log.debug("Castle insights rate limit reached; dropping insights for query %s", queryId);
+        return false;
+    }
+
     private void extractInsights(QueryInfo queryInfo)
     {
         try {
             CastleInsightsResult result = extractor.process(queryInfo);
+            if (result.insights().isEmpty()) {
+                log.debug("No insights found for query %s", queryInfo.getQueryId());
+                return;
+            }
+            if (rateLimitStage == AFTER_EXTRACTION && !tryAcquireSendBudget(queryInfo.getQueryId())) {
+                return;
+            }
             resultSink.accept(result);
         }
         catch (Throwable e) {

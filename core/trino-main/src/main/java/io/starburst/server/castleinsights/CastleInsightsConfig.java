@@ -14,6 +14,7 @@ import io.airlift.configuration.ConfigDescription;
 import io.airlift.units.Duration;
 import io.trino.plugin.base.configuration.ThreadCountParser;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotNull;
 
 import static io.airlift.units.Duration.succinctDuration;
 import static java.util.concurrent.TimeUnit.SECONDS;
@@ -24,6 +25,21 @@ public class CastleInsightsConfig
     private Duration minQueryDuration = succinctDuration(0, SECONDS);
     private int threadPoolSize = Runtime.getRuntime().availableProcessors();
     private int maxQueueSize = 1000;
+    private int maxResultsPerMinute = 10;
+    private int burstFactor = 5;
+    private RateLimitStage rateLimitStage = RateLimitStage.AFTER_EXTRACTION;
+
+    public enum RateLimitStage
+    {
+        /**
+         * Cheaper: a query over the limit is never extracted.
+         */
+        BEFORE_EXTRACTION,
+        /**
+         * Spends the budget only on results that are actually sent, at the cost of extracting every query.
+         */
+        AFTER_EXTRACTION,
+    }
 
     public boolean isEnabled()
     {
@@ -76,6 +92,48 @@ public class CastleInsightsConfig
     public CastleInsightsConfig setMaxQueueSize(int maxQueueSize)
     {
         this.maxQueueSize = maxQueueSize;
+        return this;
+    }
+
+    @Min(1)
+    public int getMaxResultsPerMinute()
+    {
+        return maxResultsPerMinute;
+    }
+
+    @Config("castle-insights.max-results-per-minute")
+    @ConfigDescription("Sustained number of completed-query insight results sent per minute; results beyond it are dropped")
+    public CastleInsightsConfig setMaxResultsPerMinute(int maxResultsPerMinute)
+    {
+        this.maxResultsPerMinute = maxResultsPerMinute;
+        return this;
+    }
+
+    @Min(1)
+    public int getBurstFactor()
+    {
+        return burstFactor;
+    }
+
+    @Config("castle-insights.burst-factor")
+    @ConfigDescription("Unused budget accumulates up to this many minutes' worth, so after a quiet period up to burst-factor times max-results-per-minute results can be sent at once")
+    public CastleInsightsConfig setBurstFactor(int burstFactor)
+    {
+        this.burstFactor = burstFactor;
+        return this;
+    }
+
+    @NotNull
+    public RateLimitStage getRateLimitStage()
+    {
+        return rateLimitStage;
+    }
+
+    @Config("castle-insights.rate-limit-stage")
+    @ConfigDescription("Whether the rate limit is applied before insight extraction, saving the work for dropped queries, or after it, spending the budget only on results that are sent")
+    public CastleInsightsConfig setRateLimitStage(RateLimitStage rateLimitStage)
+    {
+        this.rateLimitStage = rateLimitStage;
         return this;
     }
 }
