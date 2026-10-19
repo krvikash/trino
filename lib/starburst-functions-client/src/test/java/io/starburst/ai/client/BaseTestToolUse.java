@@ -216,7 +216,7 @@ public abstract class BaseTestToolUse
 
         ToolUseResponse response = executeToolUse(
                 modelId,
-                "You are a helpful math assistant.",
+                "You are a helpful math assistant. You must always use the provided tools to answer. Never compute answers yourself.",
                 messages,
                 tools);
         for (ToolUseResponse.ToolCall call : response.toolCalls()) {
