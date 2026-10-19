@@ -367,6 +367,31 @@ final class TestGpuExpressionsQueries
     }
 
     @Test
+    void testRegexpExtract()
+    {
+        assertThat(query("SELECT regexp_extract(a_varchar, 'l+') FROM expressions")).executesWithGpu(ProjectNode.class);
+        assertThat(query("SELECT regexp_extract(a_varchar, '[a-z]+') FROM expressions")).executesWithGpu(ProjectNode.class);
+        assertThat(query("SELECT regexp_extract(a_varchar, '(h)(e)', 0) FROM expressions")).executesWithGpu(ProjectNode.class);
+        assertThat(query("SELECT regexp_extract(a_varchar, '(h)(e)', 2) FROM expressions")).executesWithGpu(ProjectNode.class);
+        assertThat(query("SELECT regexp_extract(a_varchar, '(?:h)(e)(l+)', 2) FROM expressions")).executesWithGpu(ProjectNode.class);
+        assertThat(query("SELECT regexp_extract(a_varchar, '((l)(o))', 3) FROM expressions")).executesWithGpu(ProjectNode.class);
+        assertThat(query("SELECT regexp_extract(a_varchar, '(x)?(l)', 1) FROM expressions")).executesWithGpu(ProjectNode.class);
+    }
+
+    @Test
+    void testRegexpExtractRejectedByCudf()
+    {
+        assertThat(query("SELECT regexp_extract(a_varchar, '(l*)+', 1) FROM expressions")).executesWithoutGpu();
+        assertThat(query("SELECT regexp_extract(a_varchar, '(^)?', 1) FROM expressions")).executesWithoutGpu();
+    }
+
+    @Test
+    void testRegexpExtractNonConstantGroup()
+    {
+        assertThat(query("SELECT regexp_extract(a_varchar, '(h)(e)', IF(a_boolean, 1, 2)) FROM expressions")).executesWithoutGpu();
+    }
+
+    @Test
     void testReplace()
     {
         assertThat(query("SELECT replace(a_varchar, 'l', 'L') FROM expressions")).executesWithGpu(ProjectNode.class);
