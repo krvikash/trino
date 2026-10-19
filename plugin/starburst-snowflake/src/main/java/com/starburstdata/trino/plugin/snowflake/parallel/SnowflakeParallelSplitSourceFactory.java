@@ -40,6 +40,8 @@ import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
 
 import static com.google.common.base.Verify.verify;
 import static com.starburstdata.trino.plugin.snowflake.parallel.SnowflakeColumns.getPrimaryKeys;
@@ -55,13 +57,19 @@ public class SnowflakeParallelSplitSourceFactory
     private final ConnectionFactory connectionFactory;
     private final SnowflakeClient snowflakeClient;
     private final RemoteQueryModifier queryModifier;
+    private final Executor executor;
 
     @Inject
-    public SnowflakeParallelSplitSourceFactory(ConnectionFactory connectionFactory, SnowflakeClient snowflakeClient, RemoteQueryModifier queryModifier)
+    public SnowflakeParallelSplitSourceFactory(
+            ConnectionFactory connectionFactory,
+            SnowflakeClient snowflakeClient,
+            RemoteQueryModifier queryModifier,
+            @ForSnowflakeSplitGeneration ExecutorService executor)
     {
         this.connectionFactory = requireNonNull(connectionFactory, "connectionFactory is null");
         this.snowflakeClient = requireNonNull(snowflakeClient, "snowflakeClient is null");
         this.queryModifier = requireNonNull(queryModifier, "queryModifier is null");
+        this.executor = requireNonNull(executor, "executor is null");
     }
 
     public SnowflakeParallelSplitSource create(
@@ -93,7 +101,7 @@ public class SnowflakeParallelSplitSourceFactory
             throw new TrinoException(JDBC_ERROR, "Couldn't open session, %s".formatted(e.getMessage()), e);
         }
 
-        return new SnowflakeParallelSplitSource(this, session, connection, sfSession, table);
+        return new SnowflakeParallelSplitSource(this, session, connection, sfSession, table, executor);
     }
 
     /**

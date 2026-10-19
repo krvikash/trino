@@ -37,6 +37,7 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 
 import static com.starburstdata.trino.plugin.snowflake.jdbc.SnowflakeClient.throwIfInvalidWarehouse;
 import static com.starburstdata.trino.plugin.snowflake.parallel.ChunkParser.parseChunks;
@@ -44,6 +45,7 @@ import static io.trino.plugin.jdbc.DynamicFilteringJdbcSplitSource.isEligibleFor
 import static io.trino.plugin.jdbc.JdbcDynamicFilteringSessionProperties.dynamicFilteringEnabled;
 import static io.trino.plugin.jdbc.JdbcDynamicFilteringSessionProperties.getDynamicFilteringWaitTimeout;
 import static io.trino.plugin.jdbc.JdbcErrorCode.JDBC_ERROR;
+import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
 /**
@@ -60,6 +62,19 @@ public class SnowflakeParallelSplitSource
     private final SFSession sfSession;
     private final SFStatement sfStatement;
     private final JdbcTableHandle table;
+    private final Executor executor;
+
+    // queryCompletion and delegateSplitSource are volatile, as runQuery and close may run on threads other than getNextBatch.
+    // No lock is needed: a close racing runQuery is handled by SFStatement, whose cancel() makes a later executeHelper
+    // fail and aborts an already submitted query.
+
+    /**
+     * Completes with an empty batch once the Snowflake query completes, or fails with the query failure.
+     *
+     * <p>Null until the first call to {@link #getNextBatch}.
+     */
+    @Nullable
+    private volatile CompletableFuture<List<ConnectorSplit>> queryCompletion;
 
     /**
      * A split source with pre-computed splits from the Snowflake response.
@@ -67,7 +82,7 @@ public class SnowflakeParallelSplitSource
      * <p>Null until the Snowflake query is run and completes, then non-null and effectively final.
      */
     @Nullable
-    private FixedSplitSource delegateSplitSource;
+    private volatile FixedSplitSource delegateSplitSource;
 
     // Written by the split-generation thread, read by the engine's split-batch completion callback
     private volatile long queryExecutionNanos = -1;
@@ -77,7 +92,8 @@ public class SnowflakeParallelSplitSource
             ConnectorSession session,
             Connection connection,
             SFSession sfSession,
-            JdbcTableHandle table)
+            JdbcTableHandle table,
+            Executor executor)
     {
         this.factory = factory;
         this.session = session;
@@ -85,6 +101,7 @@ public class SnowflakeParallelSplitSource
         this.sfSession = sfSession;
         this.sfStatement = new SFStatement(sfSession);
         this.table = table;
+        this.executor = requireNonNull(executor, "executor is null");
     }
 
     @Override
@@ -99,48 +116,82 @@ public class SnowflakeParallelSplitSource
     @Override
     public CompletableFuture<List<ConnectorSplit>> getNextBatch(int maxSize, DynamicFilterSnapshot dynamicFilterSnapshot)
     {
-        return getSplitSource(dynamicFilterSnapshot).getNextBatch(maxSize, dynamicFilterSnapshot);
+        FixedSplitSource splitSource = delegateSplitSource;
+        if (splitSource != null) {
+            return splitSource.getNextBatch(maxSize, dynamicFilterSnapshot);
+        }
+        CompletableFuture<List<ConnectorSplit>> completion = queryCompletion;
+        if (completion == null) {
+            // Snowflake computes the whole result before returning the first chunk, which can take hours for a large scan.
+            // The query must not run on the calling engine thread: the fault-tolerant scheduler calls this method on its
+            // only thread, and blocking it there prevents the engine from closing this split source, which is what cancels
+            // the Snowflake query, and from finishing the Trino query.
+            CompletableFuture<List<ConnectorSplit>> newCompletion = new CompletableFuture<>();
+            queryCompletion = newCompletion;
+            executor.execute(() -> runQuery(dynamicFilterSnapshot, newCompletion));
+            completion = newCompletion;
+        }
+        // the engine asks for the next batch once the query completes, and gets the splits then
+        return completion;
     }
 
-    private FixedSplitSource getSplitSource(DynamicFilterSnapshot dynamicFilterSnapshot)
+    private void runQuery(DynamicFilterSnapshot dynamicFilterSnapshot, CompletableFuture<List<ConnectorSplit>> completion)
     {
-        if (delegateSplitSource == null) {
-            // The query is built here (rather than at split-source creation) so the dynamic filter predicate
-            // captured in dynamicFilterSnapshot, after the engine's dynamic-filter wait, is pushed into it.
-            PreparedSnowflakeQuery preparedQuery = factory.prepare(session, connection, table, dynamicFilterSnapshot);
-            JsonNode jsonResult;
-            long executionStart = System.nanoTime();
-            try {
-                jsonResult = (JsonNode) sfStatement.executeHelper(
-                        preparedQuery.query(),
-                        "application/snowflake",
-                        preparedQuery.bindValues(),
-                        false,
-                        false,
-                        false,
-                        new ExecTimeTelemetryData());
-            }
-            catch (SFException | SnowflakeSQLException e) {
-                // TODO: https://starburstdata.atlassian.net/browse/SEP-6500
-                throwIfInvalidWarehouse(e);
-                throw new TrinoException(JDBC_ERROR, "Couldn't get snowflake splits, %s".formatted(e.getMessage()), e);
-            }
-            queryExecutionNanos = System.nanoTime() - executionStart;
-            logFiltered(jsonResult);
-            delegateSplitSource = new FixedSplitSource(parseChunks(session, jsonResult, sfSession));
+        if (completion.isDone()) {
+            // closed before the query started
+            return;
         }
-        return delegateSplitSource;
+        try {
+            delegateSplitSource = executeQuery(dynamicFilterSnapshot);
+            completion.complete(ImmutableList.of());
+        }
+        catch (Throwable t) {
+            completion.completeExceptionally(t);
+        }
+    }
+
+    private FixedSplitSource executeQuery(DynamicFilterSnapshot dynamicFilterSnapshot)
+    {
+        // The query is built here (rather than at split-source creation) so the dynamic filter predicate
+        // captured in dynamicFilterSnapshot, after the engine's dynamic-filter wait, is pushed into it.
+        PreparedSnowflakeQuery preparedQuery = factory.prepare(session, connection, table, dynamicFilterSnapshot);
+        JsonNode jsonResult;
+        long executionStart = System.nanoTime();
+        try {
+            jsonResult = (JsonNode) sfStatement.executeHelper(
+                    preparedQuery.query(),
+                    "application/snowflake",
+                    preparedQuery.bindValues(),
+                    false,
+                    false,
+                    false,
+                    new ExecTimeTelemetryData());
+        }
+        catch (SFException | SnowflakeSQLException e) {
+            // TODO: https://starburstdata.atlassian.net/browse/SEP-6500
+            throwIfInvalidWarehouse(e);
+            throw new TrinoException(JDBC_ERROR, "Couldn't get snowflake splits, %s".formatted(e.getMessage()), e);
+        }
+        queryExecutionNanos = System.nanoTime() - executionStart;
+        logFiltered(jsonResult);
+        return new FixedSplitSource(parseChunks(session, jsonResult, sfSession));
     }
 
     @Override
     public void close()
     {
+        FixedSplitSource splitSource = delegateSplitSource;
+        CompletableFuture<List<ConnectorSplit>> completion = queryCompletion;
         ImmutableList.Builder<Throwable> closeExceptions = ImmutableList.builder();
-        if (delegateSplitSource != null) {
-            delegateSplitSource.close();
+        if (splitSource != null) {
+            splitSource.close();
         }
         else {
             // delegateSplitSource is null iff the snowflake query is incomplete or not started
+            if (completion != null) {
+                // keeps a query which has not started yet from running
+                completion.cancel(false);
+            }
             try {
                 sfStatement.cancel();
             }
@@ -165,7 +216,8 @@ public class SnowflakeParallelSplitSource
     @Override
     public boolean isFinished()
     {
-        return delegateSplitSource != null && delegateSplitSource.isFinished();
+        FixedSplitSource splitSource = delegateSplitSource;
+        return splitSource != null && splitSource.isFinished();
     }
 
     /**

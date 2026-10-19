@@ -10,6 +10,7 @@
 package com.starburstdata.trino.plugin.snowflake.parallel;
 
 import com.google.inject.Binder;
+import com.google.inject.Key;
 import com.google.inject.Module;
 import com.google.inject.Provides;
 import com.google.inject.Singleton;
@@ -17,18 +18,25 @@ import com.starburstdata.trino.plugin.snowflake.SnowflakeConfig;
 import com.starburstdata.trino.plugin.snowflake.SnowflakeProxyConfig;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
 import io.trino.plugin.jdbc.JdbcSplitManager;
+import io.trino.spi.catalog.CatalogName;
 import io.trino.spi.connector.ConnectorSplitManager;
 import net.snowflake.client.internal.core.HttpClientSettingsKey;
 import net.snowflake.client.internal.core.HttpUtil;
 import net.snowflake.client.internal.core.OCSPMode;
 import org.apache.http.impl.client.CloseableHttpClient;
 
+import java.util.concurrent.ExecutorService;
+
 import static com.google.inject.Scopes.SINGLETON;
 import static com.google.inject.multibindings.OptionalBinder.newOptionalBinder;
+import static io.airlift.bootstrap.ClosingBinder.closingBinder;
+import static io.airlift.concurrent.Threads.daemonThreadsNamed;
 import static io.airlift.configuration.ConfigBinder.configBinder;
 import static io.trino.plugin.jdbc.JdbcModule.bindSessionPropertiesProvider;
+import static java.lang.String.format;
 import static java.lang.String.join;
 import static java.util.Locale.ENGLISH;
+import static java.util.concurrent.Executors.newCachedThreadPool;
 
 public class SnowflakeParallelModule
         extends AbstractConfigurationAwareModule
@@ -50,6 +58,16 @@ public class SnowflakeParallelModule
         else {
             binder.install(new DefaultHttpModule());
         }
+
+        closingBinder(binder).registerExecutor(Key.get(ExecutorService.class, ForSnowflakeSplitGeneration.class));
+    }
+
+    @Provides
+    @Singleton
+    @ForSnowflakeSplitGeneration
+    public static ExecutorService createSplitGenerationExecutor(CatalogName catalogName)
+    {
+        return newCachedThreadPool(daemonThreadsNamed(format("%s-snowflake-split-generation-%%d", catalogName)));
     }
 
     public static class DefaultHttpModule
