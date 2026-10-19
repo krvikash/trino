@@ -2050,7 +2050,7 @@
             <dependency>
                 <groupId>io.unitycatalog</groupId>
                 <artifactId>unitycatalog-client</artifactId>
-                <version>0.6.0</version>
+                <version>0.7.0</version>
                 <exclusions>
                     <exclusion>
                         <groupId>org.apache.logging.log4j</groupId>
