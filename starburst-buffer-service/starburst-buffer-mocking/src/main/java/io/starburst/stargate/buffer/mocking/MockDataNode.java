@@ -304,7 +304,7 @@ class MockDataNode
             long totalBytes = closedChunks.values().stream().mapToLong(ClosedChunkData::getDataSize).sum();
             int totalChunks = closedChunks.size();
             return immediateFuture(new BufferNodeExchangeMetrics(
-                    partitionCount, totalChunks, totalBytes, 0, 0, totalChunks, totalBytes, 0, 0));
+                    partitionCount, totalChunks, totalBytes, 0, 0, totalChunks, totalBytes, 0, 0, totalBytes, 0));
         }
 
         @GuardedBy("MockDataNode.this")

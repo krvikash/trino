@@ -18,9 +18,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 public class TestExchangeResourceUsage
 {
     @Test
-    public void testAttributesReportSpoolingSource()
+    public void testAttributesReportSpoolingSourceAndWrites()
     {
-        ExchangeResourceUsage usage = new ExchangeResourceUsage(2, 3, 40, 15, 25);
+        ExchangeResourceUsage usage = new ExchangeResourceUsage(2, 3, 40, 15, 25, 30, 60);
 
         Attributes attributes = usage.toOpentelemetryAttributes(true);
 
@@ -30,6 +30,8 @@ public class TestExchangeResourceUsage
                 .put("exchange_spooled_bytes", 40L)
                 .put("exchange_memory_spooled_bytes", 15L)
                 .put("exchange_local_disk_spooled_bytes", 25L)
+                .put("exchange_bytes_written_to_memory", 30L)
+                .put("exchange_bytes_written_to_local_disk", 60L)
                 .put("exchange_closed_chunks", 0L)
                 .put("exchange_closed_bytes", 0L)
                 .build());

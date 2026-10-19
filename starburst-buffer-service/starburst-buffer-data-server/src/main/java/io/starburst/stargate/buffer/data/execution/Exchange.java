@@ -69,6 +69,8 @@ import static io.starburst.stargate.buffer.data.client.ErrorCode.CHUNK_NOT_FOUND
 import static io.starburst.stargate.buffer.data.client.ErrorCode.EXCHANGE_CORRUPTED;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.EXCHANGE_FINISHED;
 import static io.starburst.stargate.buffer.data.client.ErrorCode.USER_ERROR;
+import static io.starburst.stargate.buffer.data.execution.ChunkData.ChunkPlacement.LOCAL_DISK;
+import static io.starburst.stargate.buffer.data.execution.ChunkData.ChunkPlacement.MEMORY;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
@@ -347,7 +349,9 @@ public class Exchange
                 totalChunks,
                 totalBytes,
                 usage.memorySpooledBytes,
-                usage.localDiskSpooledBytes);
+                usage.localDiskSpooledBytes,
+                usage.bytesWrittenToMemory,
+                usage.bytesWrittenToLocalDisk);
     }
 
     private ExchangeResourceUsage newResourceUsage()
@@ -357,7 +361,9 @@ public class Exchange
                 spooledChunks.get(),
                 spooledBytes.get(),
                 memorySpooledBytes.get(),
-                localDiskSpooledBytes.get());
+                localDiskSpooledBytes.get(),
+                partitions.values().stream().mapToLong(partition -> partition.closedChunkBytes(MEMORY)).sum(),
+                partitions.values().stream().mapToLong(partition -> partition.closedChunkBytes(LOCAL_DISK)).sum());
     }
 
     @GuardedBy("this")
@@ -599,6 +605,8 @@ public class Exchange
         private static final AttributeKey<Long> EXCHANGE_SPOOLED_BYTES = longKey("exchange_spooled_bytes");
         private static final AttributeKey<Long> EXCHANGE_MEMORY_SPOOLED_BYTES = longKey("exchange_memory_spooled_bytes");
         private static final AttributeKey<Long> EXCHANGE_LOCAL_DISK_SPOOLED_BYTES = longKey("exchange_local_disk_spooled_bytes");
+        private static final AttributeKey<Long> EXCHANGE_BYTES_WRITTEN_TO_MEMORY = longKey("exchange_bytes_written_to_memory");
+        private static final AttributeKey<Long> EXCHANGE_BYTES_WRITTEN_TO_LOCAL_DISK = longKey("exchange_bytes_written_to_local_disk");
         private static final AttributeKey<Long> EXCHANGE_CLOSED_CHUNKS = longKey("exchange_closed_chunks");
         private static final AttributeKey<Long> EXCHANGE_CLOSED_BYTES = longKey("exchange_closed_bytes");
         private static final AttributeKey<Long> EXCHANGE_PARTIAL_CHUNKS = longKey("exchange_partial_chunks");
@@ -609,6 +617,8 @@ public class Exchange
         long spooledBytes;
         long memorySpooledBytes;
         long localDiskSpooledBytes;
+        long bytesWrittenToMemory;
+        long bytesWrittenToLocalDisk;
         int closedChunks;
         long closedInMemoryBytes;
         int partialChunks;
@@ -616,13 +626,15 @@ public class Exchange
 
         public ExchangeResourceUsage() {}
 
-        public ExchangeResourceUsage(int partitionCount, int spooledChunks, long spooledBytes, long memorySpooledBytes, long localDiskSpooledBytes)
+        public ExchangeResourceUsage(int partitionCount, int spooledChunks, long spooledBytes, long memorySpooledBytes, long localDiskSpooledBytes, long bytesWrittenToMemory, long bytesWrittenToLocalDisk)
         {
             this.partitionCount = partitionCount;
             this.spooledChunks = spooledChunks;
             this.spooledBytes = spooledBytes;
             this.memorySpooledBytes = memorySpooledBytes;
             this.localDiskSpooledBytes = localDiskSpooledBytes;
+            this.bytesWrittenToMemory = bytesWrittenToMemory;
+            this.bytesWrittenToLocalDisk = bytesWrittenToLocalDisk;
         }
 
         public void updatePartialChunkResource(long partialChunkBytes)
@@ -645,6 +657,8 @@ public class Exchange
                     .put(EXCHANGE_SPOOLED_BYTES, spooledBytes)
                     .put(EXCHANGE_MEMORY_SPOOLED_BYTES, memorySpooledBytes)
                     .put(EXCHANGE_LOCAL_DISK_SPOOLED_BYTES, localDiskSpooledBytes)
+                    .put(EXCHANGE_BYTES_WRITTEN_TO_MEMORY, bytesWrittenToMemory)
+                    .put(EXCHANGE_BYTES_WRITTEN_TO_LOCAL_DISK, bytesWrittenToLocalDisk)
                     .put(EXCHANGE_CLOSED_CHUNKS, closedChunks)
                     .put(EXCHANGE_CLOSED_BYTES, closedInMemoryBytes);
             if (!exchangeFinished) {

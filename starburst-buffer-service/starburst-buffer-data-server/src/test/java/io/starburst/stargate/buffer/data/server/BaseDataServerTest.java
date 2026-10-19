@@ -415,7 +415,7 @@ abstract class BaseDataServerTest
         assertThat(chunkList.nextPagingId()).isEmpty();
         long spooledFromDisk = chunksOnLocalDisk() ? 5 : 0;
         assertThat(exchangeMetrics).isEqualTo(
-                new BufferNodeExchangeMetrics(1, 0, 0, 1, 5, 1, 5, 5 - spooledFromDisk, spooledFromDisk));
+                new BufferNodeExchangeMetrics(1, 0, 0, 1, 5, 1, 5, 5 - spooledFromDisk, spooledFromDisk, 5 - spooledFromDisk, spooledFromDisk));
 
         assertEventually(new Duration(5, SECONDS), () -> assertThat(this.getNodeState()).isEqualTo(DRAINED));
     }
@@ -574,7 +574,8 @@ abstract class BaseDataServerTest
     // metrics of an exchange none of whose closed chunks were spooled
     private BufferNodeExchangeMetrics unspooledMetrics(int partitionCount, int totalChunks, long totalBytes)
     {
-        return new BufferNodeExchangeMetrics(partitionCount, totalChunks, totalBytes, 0, 0, totalChunks, totalBytes, 0, 0);
+        long writtenToDisk = chunksOnLocalDisk() ? totalBytes : 0;
+        return new BufferNodeExchangeMetrics(partitionCount, totalChunks, totalBytes, 0, 0, totalChunks, totalBytes, 0, 0, totalBytes - writtenToDisk, writtenToDisk);
     }
 
     protected DataServerStats getDataServerStats()

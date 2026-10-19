@@ -49,11 +49,15 @@ class ExchangeBufferNodeMetricsBuilder
         // bytesSpooled split by where the chunk was before spooling
         CounterMetricBuilder memorySpooledBytesMetric = metricsBuilder.getCounterMetric("BufferExchange.memorySpooledBytes");
         CounterMetricBuilder localDiskSpooledBytesMetric = metricsBuilder.getCounterMetric("BufferExchange.localDiskSpooledBytes");
+        CounterMetricBuilder bytesWrittenToMemoryMetric = metricsBuilder.getCounterMetric("BufferExchange.bytesWrittenToMemory");
+        CounterMetricBuilder bytesWrittenToLocalDiskMetric = metricsBuilder.getCounterMetric("BufferExchange.bytesWrittenToLocalDisk");
 
         // Distribution of data across buffer nodes
         DistributionMetricBuilder bytesPerBufferNodeMetric = metricsBuilder.getDistributionMetric("BufferExchange.bytesPerBufferNode");
         DistributionMetricBuilder chunksPerBufferNodeMetric = metricsBuilder.getDistributionMetric("BufferExchange.chunksPerBufferNode");
         DistributionMetricBuilder partitionsPerBufferNodeMetric = metricsBuilder.getDistributionMetric("BufferExchange.partitionsPerBufferNode");
+        DistributionMetricBuilder bytesWrittenToMemoryPerBufferNodeMetric = metricsBuilder.getDistributionMetric("BufferExchange.bytesWrittenToMemoryPerBufferNode");
+        DistributionMetricBuilder bytesWrittenToLocalDiskPerBufferNodeMetric = metricsBuilder.getDistributionMetric("BufferExchange.bytesWrittenToLocalDiskPerBufferNode");
 
         for (BufferNodeExchangeMetrics nodeMetrics : bufferNodeMetrics.values()) {
             // Aggregate chunk counts
@@ -67,11 +71,15 @@ class ExchangeBufferNodeMetricsBuilder
             bytesSpooledMetric.add(nodeMetrics.bytesSpooled());
             memorySpooledBytesMetric.add(nodeMetrics.memorySpooledBytes());
             localDiskSpooledBytesMetric.add(nodeMetrics.localDiskSpooledBytes());
+            bytesWrittenToMemoryMetric.add(nodeMetrics.bytesWrittenToMemory());
+            bytesWrittenToLocalDiskMetric.add(nodeMetrics.bytesWrittenToLocalDisk());
 
             // Record per-node distribution metrics
             bytesPerBufferNodeMetric.add(nodeMetrics.totalBytes());
             chunksPerBufferNodeMetric.add(nodeMetrics.totalChunks());
             partitionsPerBufferNodeMetric.add(nodeMetrics.partitionCount());
+            bytesWrittenToMemoryPerBufferNodeMetric.add(nodeMetrics.bytesWrittenToMemory());
+            bytesWrittenToLocalDiskPerBufferNodeMetric.add(nodeMetrics.bytesWrittenToLocalDisk());
         }
 
         return metricsBuilder.buildMetrics();

@@ -242,7 +242,7 @@ public class HttpDataClient
             String responseBody = response.getBody();
             if (responseBody == null || responseBody.isEmpty()) {
                 // Old version of buffer service returns empty body - return empty metrics
-                return immediateFuture(new BufferNodeExchangeMetrics(0, 0, 0, 0, 0, 0, 0, 0, 0));
+                return immediateFuture(new BufferNodeExchangeMetrics(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0));
             }
             return immediateFuture(BUFFER_NODE_EXCHANGE_METRICS_JSON_CODEC.fromJson(responseBody));
         }, directExecutor());

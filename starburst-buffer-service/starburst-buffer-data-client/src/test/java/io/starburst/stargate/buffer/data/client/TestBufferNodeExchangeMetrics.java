@@ -22,7 +22,7 @@ public class TestBufferNodeExchangeMetrics
     @Test
     public void testRoundTrip()
     {
-        BufferNodeExchangeMetrics metrics = new BufferNodeExchangeMetrics(2, 3, 30, 4, 40, 7, 70, 15, 25);
+        BufferNodeExchangeMetrics metrics = new BufferNodeExchangeMetrics(2, 3, 30, 4, 40, 7, 70, 15, 25, 15, 55);
         assertThat(CODEC.fromJson(CODEC.toJson(metrics))).isEqualTo(metrics);
     }
 
@@ -32,14 +32,22 @@ public class TestBufferNodeExchangeMetrics
         // buffer nodes predating the local disk metrics send only the original fields
         OriginalBufferNodeExchangeMetrics metrics = new OriginalBufferNodeExchangeMetrics(2, 3, 30, 4, 40, 7, 70);
         String json = jsonCodec(OriginalBufferNodeExchangeMetrics.class).toJson(metrics);
-        assertThat(CODEC.fromJson(json)).isEqualTo(new BufferNodeExchangeMetrics(2, 3, 30, 4, 40, 7, 70, 0, 0));
+        assertThat(CODEC.fromJson(json)).isEqualTo(new BufferNodeExchangeMetrics(2, 3, 30, 4, 40, 7, 70, 0, 0, 0, 0));
+    }
+
+    @Test
+    public void testResponseFromBufferNodeWithoutWrittenBytes()
+    {
+        BufferNodeExchangeMetricsWithoutWrittenBytes metrics = new BufferNodeExchangeMetricsWithoutWrittenBytes(2, 3, 30, 4, 40, 7, 70, 15, 25);
+        String json = jsonCodec(BufferNodeExchangeMetricsWithoutWrittenBytes.class).toJson(metrics);
+        assertThat(CODEC.fromJson(json)).isEqualTo(new BufferNodeExchangeMetrics(2, 3, 30, 4, 40, 7, 70, 15, 25, 0, 0));
     }
 
     @Test
     public void testResponseToOlderCoordinator()
     {
         // coordinators predating the local disk metrics decode only the original fields
-        BufferNodeExchangeMetrics metrics = new BufferNodeExchangeMetrics(2, 3, 30, 4, 40, 7, 70, 15, 25);
+        BufferNodeExchangeMetrics metrics = new BufferNodeExchangeMetrics(2, 3, 30, 4, 40, 7, 70, 15, 25, 15, 55);
         assertThat(jsonCodec(OriginalBufferNodeExchangeMetrics.class).fromJson(CODEC.toJson(metrics)))
                 .isEqualTo(new OriginalBufferNodeExchangeMetrics(2, 3, 30, 4, 40, 7, 70));
     }
@@ -52,4 +60,15 @@ public class TestBufferNodeExchangeMetrics
             long bytesSpooled,
             int totalChunks,
             long totalBytes) {}
+
+    public record BufferNodeExchangeMetricsWithoutWrittenBytes(
+            int partitionCount,
+            int chunksInMemory,
+            long bytesInMemory,
+            int chunksSpooled,
+            long bytesSpooled,
+            int totalChunks,
+            long totalBytes,
+            long memorySpooledBytes,
+            long localDiskSpooledBytes) {}
 }

@@ -23,11 +23,13 @@ import io.starburst.stargate.buffer.data.client.ChunkDeliveryMode;
 import io.starburst.stargate.buffer.data.client.ChunkHandle;
 import io.starburst.stargate.buffer.data.client.spooling.SpooledChunk;
 import io.starburst.stargate.buffer.data.exception.DataServerException;
+import io.starburst.stargate.buffer.data.execution.ChunkData.ChunkPlacement;
 
 import java.time.Instant;
 import java.util.ArrayDeque;
 import java.util.Collection;
 import java.util.Deque;
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -83,8 +85,9 @@ public class Partition
     private ChunkDeliveryMode chunkDeliveryMode;
     @GuardedBy("this")
     private long lastChunkCloseTime;
+    // Running totals; not decreased when chunks are spooled or released.
     @GuardedBy("this")
-    private long closedChunkBytes;
+    private final Map<ChunkPlacement, Long> closedChunkBytesByPlacement = new EnumMap<>(ChunkPlacement.class);
 
     public Partition(
             long bufferNodeId,
@@ -265,7 +268,7 @@ public class Partition
         closedChunks.values().forEach(Chunk::release);
     }
 
-    public synchronized Optional<ChunkData.ChunkPlacement> getOpenChunkPlacement()
+    public synchronized Optional<ChunkPlacement> getOpenChunkPlacement()
     {
         if (openChunk == null || openChunk.isEmpty()) {
             return Optional.empty();
@@ -303,6 +306,7 @@ public class Partition
             return;
         }
         lastChunkCloseTime = System.currentTimeMillis();
+        ChunkPlacement placement = chunk.chunkPlacement().orElseThrow();
         ListenableFuture<Void> closeFuture = chunk.close();
         Futures.addCallback(closeFuture, new FutureCallback<>()
         {
@@ -312,7 +316,7 @@ public class Partition
                 closedChunks.put(chunk.getChunkId(), chunk);
                 ChunkHandle chunkHandle = chunk.getHandle();
                 synchronized (Partition.this) {
-                    closedChunkBytes += chunkHandle.dataSizeInBytes();
+                    closedChunkBytesByPlacement.merge(placement, (long) chunkHandle.dataSizeInBytes(), Long::sum);
                 }
                 closedChunkConsumer.accept(chunkHandle);
             }
@@ -346,12 +350,19 @@ public class Partition
 
     public synchronized void updateResourceUsage(Exchange.ExchangeResourceUsage exchangeResourceUsage)
     {
-        // synchronized is not strictly necessary but avoids double counting an open chuck if racing to be closed.
         Chunk chunkRef = openChunk;
         if (chunkRef != null) {
             exchangeResourceUsage.updatePartialChunkResource(chunkRef.openChunkDataSizeInBytes());
         }
+        long closedChunkBytes = closedChunkBytesByPlacement.values().stream()
+                .mapToLong(Long::longValue)
+                .sum();
         exchangeResourceUsage.updateTotalChunkResources(closedChunks.size(), closedChunkBytes);
+    }
+
+    public synchronized long closedChunkBytes(ChunkPlacement placement)
+    {
+        return closedChunkBytesByPlacement.getOrDefault(placement, 0L);
     }
 
     public void logAddDataPagesInProgressDebugInfo()

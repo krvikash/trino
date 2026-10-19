@@ -16,6 +16,7 @@ import io.starburst.stargate.buffer.data.disk.DiskChunkSlot;
 import io.starburst.stargate.buffer.data.disk.LocalDiskAllocator;
 import io.starburst.stargate.buffer.data.disk.LocalDiskTier;
 import io.starburst.stargate.buffer.data.disk.LocalDiskTierConfig;
+import io.starburst.stargate.buffer.data.execution.ChunkData.ChunkPlacement;
 import io.starburst.stargate.buffer.data.memory.MemoryAllocator;
 import io.starburst.stargate.buffer.data.memory.MemoryAllocatorConfig;
 import io.starburst.stargate.buffer.data.memory.TestingMemoryConfig;
@@ -40,6 +41,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static io.airlift.concurrent.MoreFutures.getFutureValue;
 import static io.airlift.units.DataSize.Unit.KILOBYTE;
 import static io.airlift.units.DataSize.Unit.MEGABYTE;
+import static io.starburst.stargate.buffer.data.execution.ChunkData.ChunkPlacement.LOCAL_DISK;
+import static io.starburst.stargate.buffer.data.execution.ChunkData.ChunkPlacement.MEMORY;
+import static io.trino.testing.assertions.Assert.assertEventually;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class TestPartition
@@ -122,15 +126,130 @@ public class TestPartition
         // Counter unchanged — no second disk chunk was created during fallback
         assertThat(diskChunksCreated.get()).isEqualTo(1);
         // Open chunk is now memory — the disk chunk was replaced, not just retried
-        assertThat(partition.getOpenChunkPlacement()).contains(ChunkData.ChunkPlacement.MEMORY);
+        assertThat(partition.getOpenChunkPlacement()).contains(MEMORY);
+        getFutureValue(partition.finish());
+        assertClosedChunkBytes(partition, MEMORY, 4);
+        partition.releaseChunks();
     }
 
     private LocalDiskTier createDiskTier()
     {
-        LocalDiskTierConfig config = new LocalDiskTierConfig()
+        return createDiskTier(new LocalDiskTierConfig()
                 .setDirectory(tempDir)
-                .setCapacity(DataSize.of(10, MEGABYTE));
+                .setCapacity(DataSize.of(10, MEGABYTE)));
+    }
+
+    private static LocalDiskTier createDiskTier(LocalDiskTierConfig config)
+    {
         return new LocalDiskTier(new BufferNodeId(BUFFER_NODE_ID), config, new LocalDiskAllocator(config));
+    }
+
+    @Test
+    public void testClosedMemoryChunkBytes()
+    {
+        assertClosedChunkAccounting(MEMORY);
+    }
+
+    @Test
+    public void testClosedDiskChunkBytes()
+    {
+        assertClosedChunkAccounting(LOCAL_DISK);
+    }
+
+    private void assertClosedChunkAccounting(ChunkPlacement placement)
+    {
+        Partition partition = createPartition(placement);
+        try {
+            assertClosedChunkBytes(partition, placement, 0);
+            getFutureValue(partition.addDataPages(1, 0, 0L, List.of(Slices.utf8Slice("first"))).addDataPagesFuture());
+            assertClosedChunkBytes(partition, placement, 0);
+
+            Chunk chunk = partition.closeOpenChunkAndGet().orElseThrow();
+            assertEventually(() -> assertClosedChunkBytes(partition, placement, 5));
+            chunk.release();
+            assertClosedChunkBytes(partition, placement, 5);
+
+            getFutureValue(partition.addDataPages(1, 0, 1L, List.of(Slices.utf8Slice("second"))).addDataPagesFuture());
+            assertClosedChunkBytes(partition, placement, 5);
+            getFutureValue(partition.finish());
+            // The disk close callback can run after finish() completes.
+            assertEventually(() -> assertClosedChunkBytes(partition, placement, 11));
+            assertThat(partition.getClosedChunks()).hasSize(2);
+        }
+        finally {
+            partition.releaseChunks();
+        }
+        assertClosedChunkBytes(partition, placement, 11);
+    }
+
+    @Test
+    public void testClosedChunkBytesAcrossStorageTiers()
+    {
+        Partition partition = createPartition(Optional.of(createDiskTier(new LocalDiskTierConfig()
+                .setDirectory(tempDir)
+                .setCapacity(DataSize.ofBytes(CHUNK_TARGET_SIZE))
+                .setMemoryHighWatermark(0.0)
+                .setMemoryLowWatermark(0.0))));
+        try {
+            getFutureValue(partition.addDataPages(1, 0, 0L, List.of(Slices.utf8Slice("disk"))).addDataPagesFuture());
+            assertThat(partition.getOpenChunkPlacement()).contains(LOCAL_DISK);
+            assertThat(partition.closeOpenChunkAndGet()).isPresent();
+
+            // The first chunk exhausts disk capacity, so the next chunk falls back to memory.
+            getFutureValue(partition.addDataPages(1, 0, 1L, List.of(Slices.utf8Slice("memory"))).addDataPagesFuture());
+            assertThat(partition.getOpenChunkPlacement()).contains(MEMORY);
+            getFutureValue(partition.finish());
+            assertEventually(() -> {
+                assertThat(partition.closedChunkBytes(LOCAL_DISK)).isEqualTo(4);
+                assertThat(partition.closedChunkBytes(MEMORY)).isEqualTo(6);
+                Exchange.ExchangeResourceUsage usage = new Exchange.ExchangeResourceUsage();
+                partition.updateResourceUsage(usage);
+                assertThat(usage.closedChunks).isEqualTo(2);
+                assertThat(usage.closedInMemoryBytes).isEqualTo(10);
+            });
+        }
+        finally {
+            partition.releaseChunks();
+        }
+        assertThat(partition.closedChunkBytes(LOCAL_DISK)).isEqualTo(4);
+        assertThat(partition.closedChunkBytes(MEMORY)).isEqualTo(6);
+    }
+
+    @Test
+    public void testEmptyChunksDoNotAddWrittenBytes()
+    {
+        for (ChunkPlacement placement : ChunkPlacement.values()) {
+            Partition partition = createPartition(placement);
+            try {
+                getFutureValue(partition.finish());
+                assertThat(partition.getClosedChunks()).isEmpty();
+                assertClosedChunkBytes(partition, placement, 0);
+            }
+            finally {
+                partition.releaseChunks();
+            }
+        }
+    }
+
+    private static void assertClosedChunkBytes(Partition partition, ChunkPlacement placement, long expectedBytes)
+    {
+        assertThat(partition.closedChunkBytes(placement)).isEqualTo(expectedBytes);
+        assertThat(partition.closedChunkBytes(MEMORY) + partition.closedChunkBytes(LOCAL_DISK)).isEqualTo(expectedBytes);
+        Exchange.ExchangeResourceUsage usage = new Exchange.ExchangeResourceUsage();
+        partition.updateResourceUsage(usage);
+        assertThat(usage.closedInMemoryBytes).isEqualTo(expectedBytes);
+    }
+
+    private Partition createPartition(ChunkPlacement placement)
+    {
+        return createPartition(switch (placement) {
+            case MEMORY -> Optional.empty();
+            case LOCAL_DISK -> Optional.of(createDiskTier(new LocalDiskTierConfig()
+                    .setDirectory(tempDir)
+                    .setCapacity(DataSize.of(10, MEGABYTE))
+                    .setMemoryHighWatermark(0.0)
+                    .setMemoryLowWatermark(0.0)));
+        });
     }
 
     private Partition createPartition(Optional<LocalDiskTier> localDiskTier)
