@@ -48,6 +48,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
+import java.util.function.Function;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Throwables.throwIfUnchecked;
@@ -153,6 +154,40 @@ public class ParquetTestUtils
             boolean forceSelectedPositionsPushdown)
             throws IOException
     {
+        return createParquetReader(input, parquetMetadata, options, memoryContext, types, columnNames, predicate, forceSelectedPositionsPushdown, UTC);
+    }
+
+    public static ParquetReader createParquetReader(
+            ParquetDataSource input,
+            ParquetMetadata parquetMetadata,
+            ParquetReaderOptions options,
+            AggregatedMemoryContext memoryContext,
+            List<Type> types,
+            List<String> columnNames,
+            TupleDomain<String> predicate,
+            boolean forceSelectedPositionsPushdown,
+            DateTimeZone timeZone)
+            throws IOException
+    {
+        return createParquetReader(input, parquetMetadata, options, memoryContext, types, columnNames, predicate, forceSelectedPositionsPushdown, timeZone, exception -> {
+            throwIfUnchecked(exception);
+            return new RuntimeException(exception);
+        });
+    }
+
+    public static ParquetReader createParquetReader(
+            ParquetDataSource input,
+            ParquetMetadata parquetMetadata,
+            ParquetReaderOptions options,
+            AggregatedMemoryContext memoryContext,
+            List<Type> types,
+            List<String> columnNames,
+            TupleDomain<String> predicate,
+            boolean forceSelectedPositionsPushdown,
+            DateTimeZone timeZone,
+            Function<Exception, RuntimeException> exceptionTransform)
+            throws IOException
+    {
         FileMetadata fileMetaData = parquetMetadata.getFileMetaData();
         MessageType fileSchema = fileMetaData.getSchema();
         MessageColumnIO messageColumnIO = getColumnIO(fileSchema, fileSchema);
@@ -168,7 +203,7 @@ public class ParquetTestUtils
         Map<List<String>, ColumnDescriptor> descriptorsByPath = getDescriptors(fileSchema, fileSchema);
         TupleDomain<ColumnDescriptor> parquetTupleDomain = predicate.transformKeys(
                 columnName -> descriptorsByPath.get(ImmutableList.of(columnName.toLowerCase(ENGLISH))));
-        TupleDomainParquetPredicate parquetPredicate = buildPredicate(fileSchema, parquetTupleDomain, descriptorsByPath, UTC, false, false, false);
+        TupleDomainParquetPredicate parquetPredicate = buildPredicate(fileSchema, parquetTupleDomain, descriptorsByPath, timeZone, false, false, false);
         List<RowGroupInfo> rowGroups = getFilteredRowGroups(
                 0,
                 input.getEstimatedSize(),
@@ -177,7 +212,7 @@ public class ParquetTestUtils
                 ImmutableList.of(parquetTupleDomain),
                 ImmutableList.of(parquetPredicate),
                 descriptorsByPath,
-                UTC,
+                timeZone,
                 1000,
                 options);
         return new ParquetReader(
@@ -186,13 +221,10 @@ public class ParquetTestUtils
                 false,
                 rowGroups,
                 input,
-                UTC,
+                timeZone,
                 memoryContext,
                 options,
-                exception -> {
-                    throwIfUnchecked(exception);
-                    return new RuntimeException(exception);
-                },
+                exceptionTransform,
                 Optional.of(parquetPredicate),
                 Optional.empty(),
                 Optional.empty(),
