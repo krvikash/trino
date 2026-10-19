@@ -38,4 +38,21 @@ public class TestFullTableScan
             assertThat(finding.description()).contains("Full Table Scan");
         }
     }
+
+    @Test
+    public void testIgnoresScanFilteredOnNonProjectedColumn()
+    {
+        // The filter on orderstatus is enforced by the connector, but orderstatus is not projected,
+        // so column pruning removes it from the scan's enforced constraint.
+        try (StandaloneQueryRunner queryRunner = tpchQueryRunner()) {
+            List<RuleFinding> findings = findings(
+                    new FullTableScan(),
+                    queryRunner,
+                    queryRunner.getDefaultSession(),
+                    "SELECT orderkey FROM orders WHERE orderstatus = 'F'",
+                    config -> config);
+
+            assertThat(findings).isEmpty();
+        }
+    }
 }

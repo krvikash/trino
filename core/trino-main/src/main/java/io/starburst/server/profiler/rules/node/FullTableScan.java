@@ -12,6 +12,7 @@ package io.starburst.server.profiler.rules.node;
 import io.starburst.server.profiler.QueryExecutionDetails;
 import io.starburst.server.profiler.results.RuleFinding;
 import io.starburst.server.profiler.rules.QueryProfilerRule;
+import io.trino.execution.TableInfo;
 import io.trino.sql.planner.plan.PlanNode;
 import io.trino.sql.planner.plan.TableScanNode;
 
@@ -28,9 +29,25 @@ public class FullTableScan
     public List<RuleFinding> analyze(QueryExecutionDetails details)
     {
         return details.planNodesById().values().stream()
-                .filter(node -> node instanceof TableScanNode tableScanNode && tableScanNode.getEnforcedConstraint().isAll())
+                .filter(node -> node instanceof TableScanNode tableScanNode && !isFiltered(tableScanNode, details))
                 .map(node -> toFinding(node, details))
                 .collect(toImmutableList());
+    }
+
+    private static boolean isFiltered(TableScanNode node, QueryExecutionDetails details)
+    {
+        // Column pruning drops enforced domains of columns the scan does not output, so a scan filtered
+        // on a non-projected (e.g. partition) column has an ALL enforced constraint. The predicate the
+        // connector reports for the table handle is not pruned.
+        return !node.getEnforcedConstraint().isAll() || hasConnectorPredicate(node, details);
+    }
+
+    private static boolean hasConnectorPredicate(TableScanNode node, QueryExecutionDetails details)
+    {
+        return Optional.ofNullable(details.tables().get(node.getId()))
+                .map(TableInfo::predicate)
+                .filter(predicate -> !predicate.isAll())
+                .isPresent();
     }
 
     private static RuleFinding toFinding(PlanNode node, QueryExecutionDetails details)
