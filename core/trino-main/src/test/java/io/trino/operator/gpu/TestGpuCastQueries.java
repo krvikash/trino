@@ -381,6 +381,23 @@ public class TestGpuCastQueries
         // double
         assertCastSucceedsForAll(REAL, DOUBLE, values);
 
+        // varchar
+        String[] varcharValues = {
+                "REAL '-0.0'",
+                "REAL '1.4E-45'",
+                "REAL '0.1'",
+                "REAL '4.35'",
+                "REAL '123456789'",
+                "REAL '2.1990285E12'",
+        };
+        assertCastSucceedsForAll(REAL, VARCHAR, values);
+        assertCastSucceedsForAll(REAL, VARCHAR, varcharValues);
+        assertCastSucceedsForAll(REAL, createVarcharType(13), values);
+        assertCastSucceedsForAll(REAL, createVarcharType(13), varcharValues);
+        assertCastSucceedsForAll(REAL, createVarcharType(6), new String[] {"REAL '4.35'", "REAL 'NaN'", "CAST(NULL AS REAL)"});
+        assertThat(gpuCast(REAL, createVarcharType(6))).failsCorrectly("REAL '1234.5'");
+        assertThat(gpuCast(REAL, createVarcharType(3))).failsCorrectly("REAL 'Infinity'");
+
         // decimal
         assertThat(gpuCast(REAL, DECIMAL_13_2)).isNotSupported();
         assertThat(gpuCast(REAL, DECIMAL_27_5)).isNotSupported();
