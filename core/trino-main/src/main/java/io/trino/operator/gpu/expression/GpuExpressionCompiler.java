@@ -271,7 +271,7 @@ public final class GpuExpressionCompiler
                     case IntegerType _ -> Optional.of(new GpuFloatingToIntegerCast(input, DType.FLOAT32, DType.INT32, "real", "integer"));
                     case BigintType _ -> Optional.of(new GpuFloatingToIntegerCast(input, DType.FLOAT32, DType.INT64, "real", "bigint"));
                     case DoubleType _ -> Optional.of(new GpuCast(input, toDType));
-                    case VarcharType to -> Optional.of(new GpuRealToVarcharCast(input, to));
+                    case VarcharType to -> Optional.of(new GpuFloatingToVarcharCast(input, GpuFloatingToVarcharCast.Source.REAL, to));
                     default -> Optional.empty();
                 };
                 case DoubleType _ -> switch (toType) {
@@ -280,6 +280,7 @@ public final class GpuExpressionCompiler
                     case IntegerType _ -> Optional.of(new GpuFloatingToIntegerCast(input, DType.FLOAT64, DType.INT32, "double", "integer"));
                     case BigintType _ -> Optional.of(new GpuFloatingToIntegerCast(input, DType.FLOAT64, DType.INT64, "double", "bigint"));
                     case RealType _ -> Optional.of(new GpuCast(input, toDType));
+                    case VarcharType to -> Optional.of(new GpuFloatingToVarcharCast(input, GpuFloatingToVarcharCast.Source.DOUBLE, to));
                     default -> Optional.empty();
                 };
                 case DecimalType from -> switch (toType) {

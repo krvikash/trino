@@ -483,6 +483,23 @@ public class TestGpuCastQueries
         // double
         assertCastSucceedsForAll(DOUBLE, DOUBLE, values);
 
+        // varchar
+        String[] varcharValues = {
+                "DOUBLE '-0.0'",
+                "DOUBLE '4.9E-324'",
+                "DOUBLE '-2.2250738585072014E-308'",
+                "DOUBLE '0.1'",
+                "DOUBLE '4.35'",
+                "DOUBLE '1234.5'",
+        };
+        assertCastSucceedsForAll(DOUBLE, VARCHAR, values);
+        assertCastSucceedsForAll(DOUBLE, VARCHAR, varcharValues);
+        assertCastSucceedsForAll(DOUBLE, createVarcharType(24), values);
+        assertCastSucceedsForAll(DOUBLE, createVarcharType(24), varcharValues);
+        assertCastSucceedsForAll(DOUBLE, createVarcharType(6), new String[] {"DOUBLE '4.35'", "DOUBLE 'NaN'", "CAST(NULL AS DOUBLE)"});
+        assertThat(gpuCast(DOUBLE, createVarcharType(6))).failsCorrectly("DOUBLE '1234.5'");
+        assertThat(gpuCast(DOUBLE, createVarcharType(3))).failsCorrectly("DOUBLE 'Infinity'");
+
         // decimal
         assertThat(gpuCast(DOUBLE, DECIMAL_13_2)).isNotSupported();
         assertThat(gpuCast(DOUBLE, DECIMAL_27_5)).isNotSupported();
