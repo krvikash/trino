@@ -16,6 +16,7 @@ package io.trino.operator.gpu;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import io.airlift.slice.Slices;
+import io.trino.Session;
 import io.trino.operator.gpu.expression.CompiledExpression;
 import io.trino.spi.Page;
 import io.trino.spi.block.Block;
@@ -32,6 +33,7 @@ import io.trino.sql.ir.Constant;
 import io.trino.sql.ir.Expression;
 import io.trino.sql.ir.IsNull;
 import io.trino.sql.ir.WhenClause;
+import io.trino.testing.TestingSession;
 import io.trino.type.CharVarcharCoercion;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -48,6 +50,7 @@ import java.util.Set;
 import java.util.stream.Stream;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static io.trino.SystemSessionProperties.LEGACY_VARCHAR_TO_CHAR_COERCION;
 import static io.trino.operator.gpu.GpuTestUtils.TEST_SESSION_TIME_ZONE_KEY;
 import static io.trino.operator.gpu.GpuTestUtils.TEST_STRINGS;
 import static io.trino.operator.gpu.GpuTestUtils.assertGpuMatchesCpu;
@@ -107,8 +110,10 @@ final class TestGpuCasts
                 createRepeatingValuesBlock(CHAR_CAST_SOURCE_TYPE, positionsCount, nullsProvider, charCastValues, 1)));
 
         Expression expression = new Cast(field(channelA, CHAR_CAST_SOURCE_TYPE), targetType);
-
-        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA), charVarcharCoercion);
+        Session session = TestingSession.testSessionBuilder()
+                .setSystemProperty(LEGACY_VARCHAR_TO_CHAR_COERCION, Boolean.toString(charVarcharCoercion == CharVarcharCoercion.LEGACY))
+                .build();
+        assertGpuMatchesCpu(session, inputPages, inputTypes, expression, Set.of(channelA));
     }
 
     private static Stream<Object[]> charToVarcharCastTestCases()

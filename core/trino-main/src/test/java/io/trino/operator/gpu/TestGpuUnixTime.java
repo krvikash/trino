@@ -14,13 +14,10 @@
 package io.trino.operator.gpu;
 
 import com.google.common.collect.ImmutableList;
-import io.trino.FullConnectorSession;
-import io.trino.operator.gpu.expression.CompiledExpression;
+import io.trino.Session;
 import io.trino.operator.gpu.expression.GpuFromUnixTime;
-import io.trino.operator.project.PageProcessor;
 import io.trino.spi.Page;
 import io.trino.spi.block.BlockBuilder;
-import io.trino.spi.security.ConnectorIdentity;
 import io.trino.spi.type.LongTimestampWithTimeZone;
 import io.trino.spi.type.TimeZoneKey;
 import io.trino.spi.type.TimestampWithTimeZoneType;
@@ -31,7 +28,6 @@ import io.trino.sql.ir.Cast;
 import io.trino.sql.ir.Constant;
 import io.trino.sql.ir.Expression;
 import io.trino.sql.planner.Symbol;
-import io.trino.testing.TestingSession;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -46,12 +42,12 @@ import java.util.Random;
 import java.util.Set;
 
 import static io.airlift.slice.Slices.utf8Slice;
+import static io.trino.SessionTestUtils.TEST_SESSION;
 import static io.trino.operator.gpu.GpuTestUtils.FUNCTION_RESOLUTION;
 import static io.trino.operator.gpu.GpuTestUtils.MAX_GPU_TIMESTAMP_PRECISION;
 import static io.trino.operator.gpu.GpuTestUtils.TESTED_GPU_TIMESTAMP_WITH_TIME_ZONE_TYPES;
 import static io.trino.operator.gpu.GpuTestUtils.TEST_SESSION_TIME_ZONE_KEY;
 import static io.trino.operator.gpu.GpuTestUtils.assertGpuMatchesCpu;
-import static io.trino.operator.gpu.GpuTestUtils.compileCpuExpression;
 import static io.trino.operator.gpu.GpuTestUtils.createBlock;
 import static io.trino.operator.gpu.GpuTestUtils.createFloatingPointBlock;
 import static io.trino.operator.gpu.GpuTestUtils.field;
@@ -69,6 +65,7 @@ import static io.trino.spi.type.TimestampWithTimeZoneType.createTimestampWithTim
 import static io.trino.spi.type.Timestamps.MILLISECONDS_PER_SECOND;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.sql.analyzer.TypeDescriptorProvider.fromTypes;
+import static io.trino.testing.TestingSession.testSessionBuilder;
 import static io.trino.type.CharVarcharCoercion.SQL_STANDARD;
 import static java.util.Arrays.asList;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -81,9 +78,9 @@ final class TestGpuUnixTime
 {
     /// `from_unixtime` returns the session time zone, and the GPU representation holds only UTC, so
     /// the CPU side of its comparison has to run in a UTC session too.
-    private static final FullConnectorSession UTC_CONNECTOR_SESSION = new FullConnectorSession(
-            TestingSession.testSessionBuilder().setTimeZoneKey(UTC_KEY).build(),
-            ConnectorIdentity.ofUser("test"));
+    private static final Session UTC_SESSION = testSessionBuilder(TEST_SESSION)
+            .setTimeZoneKey(UTC_KEY)
+            .build();
 
     @BeforeAll
     static void maybeSetGpuMemoryPool()
@@ -262,11 +259,7 @@ final class TestGpuUnixTime
     private static void assertFromUnixTimeMatchesCpu(List<Page> inputPages)
     {
         Expression expression = fromUnixTime(field(0, DOUBLE));
-        Map<Symbol, Integer> layout = layoutFor(List.of(DOUBLE));
-        PageProcessor cpuProcessor = compileCpuExpression(expression, layout);
-        CompiledExpression gpuExpression = compileExpression(expression, layout, SQL_STANDARD, UTC_KEY)
-                .orElseThrow(() -> new AssertionError("GPU expression compile failed for: " + expression));
-        assertGpuMatchesCpu(inputPages, List.of(DOUBLE), expression, cpuProcessor, gpuExpression, false, UTC_CONNECTOR_SESSION);
+        assertGpuMatchesCpu(UTC_SESSION, inputPages, List.of(DOUBLE), expression);
     }
 
     private static Expression fromUnixTime(Expression argument)

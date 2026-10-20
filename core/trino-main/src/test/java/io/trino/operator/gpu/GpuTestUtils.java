@@ -21,7 +21,7 @@ import com.google.common.collect.ImmutableMultiset;
 import com.google.common.collect.Streams;
 import io.airlift.slice.Slices;
 import io.airlift.units.DataSize;
-import io.trino.FullConnectorSession;
+import io.trino.Session;
 import io.trino.memory.context.LocalMemoryContext;
 import io.trino.metadata.TestingFunctionResolution;
 import io.trino.operator.gpu.GpuOperation.Blocked;
@@ -45,7 +45,6 @@ import io.trino.spi.gpu.Column.DeviceMemory;
 import io.trino.spi.gpu.GpuPage;
 import io.trino.spi.gpu.borrow.Move;
 import io.trino.spi.gpu.borrow.Own;
-import io.trino.spi.security.ConnectorIdentity;
 import io.trino.spi.type.CharType;
 import io.trino.spi.type.DecimalType;
 import io.trino.spi.type.Int128;
@@ -63,8 +62,6 @@ import io.trino.sql.ir.Reference;
 import io.trino.sql.planner.InternalDynamicFilter;
 import io.trino.sql.planner.Symbol;
 import io.trino.testing.MaterializedResult;
-import io.trino.testing.TestingSession;
-import io.trino.type.CharVarcharCoercion;
 
 import java.math.BigInteger;
 import java.util.ArrayList;
@@ -87,7 +84,8 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static com.google.common.collect.Streams.stream;
 import static io.airlift.testing.Closeables.closeAllSuppress;
-import static io.trino.SystemSessionProperties.LEGACY_VARCHAR_TO_CHAR_COERCION;
+import static io.trino.SessionTestUtils.TEST_SESSION;
+import static io.trino.SystemSessionProperties.getCharVarcharCoercion;
 import static io.trino.memory.context.AggregatedMemoryContext.newSimpleAggregatedMemoryContext;
 import static io.trino.operator.gpu.expression.Fallibility.FALLIBLE;
 import static io.trino.operator.gpu.expression.GpuExpressionCompiler.compileExpression;
@@ -115,8 +113,6 @@ import static io.trino.spi.type.VarbinaryType.VARBINARY;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.spi.type.VarcharType.createVarcharType;
 import static io.trino.testing.assertions.TrinoExceptionAssert.assertTrinoExceptionThrownBy;
-import static io.trino.type.CharVarcharCoercion.LEGACY;
-import static io.trino.type.CharVarcharCoercion.SQL_STANDARD;
 import static java.lang.Math.clamp;
 import static java.lang.Math.floorDiv;
 import static java.lang.Math.floorMod;
@@ -218,29 +214,10 @@ public final class GpuTestUtils
             .add("Слава Україні")
             .build();
 
-    public static final FullConnectorSession FULL_CONNECTOR_SESSION = createFullConnectorSession(SQL_STANDARD);
-    private static final FullConnectorSession LEGACY_COERCION_CONNECTOR_SESSION = createFullConnectorSession(LEGACY);
-
-    private static FullConnectorSession createFullConnectorSession(CharVarcharCoercion charVarcharCoercion)
-    {
-        return new FullConnectorSession(
-                TestingSession.testSessionBuilder()
-                        .setSystemProperty(LEGACY_VARCHAR_TO_CHAR_COERCION, Boolean.toString(charVarcharCoercion == LEGACY))
-                        .build(),
-                ConnectorIdentity.ofUser("test"));
-    }
-
-    public static FullConnectorSession fullConnectorSession(CharVarcharCoercion charVarcharCoercion)
-    {
-        return switch (charVarcharCoercion) {
-            case SQL_STANDARD -> FULL_CONNECTOR_SESSION;
-            case LEGACY -> LEGACY_COERCION_CONNECTOR_SESSION;
-        };
-    }
-
-    public static final TimeZoneKey TEST_SESSION_TIME_ZONE_KEY = FULL_CONNECTOR_SESSION.getTimeZoneKey();
-
     public static final TestingFunctionResolution FUNCTION_RESOLUTION = new TestingFunctionResolution();
+
+    private static final ConnectorSession TEST_CONNECTOR_SESSION = TEST_SESSION.toConnectorSession();
+    public static final TimeZoneKey TEST_SESSION_TIME_ZONE_KEY = TEST_SESSION.getTimeZoneKey();
 
     public static void maybeSetGpuMemoryPoolForTests()
     {
@@ -825,23 +802,23 @@ public final class GpuTestUtils
 
     public static PageProcessor compileCpuExpression(Expression expression, Map<Symbol, Integer> layout)
     {
-        return compileCpuExpression(expression, layout, SQL_STANDARD);
+        return compileCpuExpression(TEST_SESSION, expression, layout);
     }
 
-    public static PageProcessor compileCpuExpression(Expression expression, Map<Symbol, Integer> layout, CharVarcharCoercion charVarcharCoercion)
+    public static PageProcessor compileCpuExpression(Session session, Expression expression, Map<Symbol, Integer> layout)
     {
-        return compileCpuExpressions(List.of(expression), layout, charVarcharCoercion);
+        return compileCpuExpressions(session, List.of(expression), layout);
     }
 
     public static PageProcessor compileCpuExpressions(List<Expression> expressions, Map<Symbol, Integer> layout)
     {
-        return compileCpuExpressions(expressions, layout, SQL_STANDARD);
+        return compileCpuExpressions(TEST_SESSION, expressions, layout);
     }
 
-    public static PageProcessor compileCpuExpressions(List<Expression> expressions, Map<Symbol, Integer> layout, CharVarcharCoercion charVarcharCoercion)
+    public static PageProcessor compileCpuExpressions(Session session, List<Expression> expressions, Map<Symbol, Integer> layout)
     {
         return FUNCTION_RESOLUTION.getExpressionCompiler().compilePageProcessor(
-                        charVarcharCoercion,
+                        getCharVarcharCoercion(session),
                         false,
                         true,
                         false,
@@ -857,7 +834,7 @@ public final class GpuTestUtils
 
     public static List<Page> executeWithCpu(PageProcessor compiledProcessor, List<Page> inputPages)
     {
-        return executeWithCpu(compiledProcessor, inputPages, FULL_CONNECTOR_SESSION);
+        return executeWithCpu(compiledProcessor, inputPages, TEST_CONNECTOR_SESSION);
     }
 
     public static List<Page> executeWithCpu(PageProcessor compiledProcessor, List<Page> inputPages, ConnectorSession session)
@@ -978,10 +955,10 @@ public final class GpuTestUtils
 
     public static void assertSameDataWithoutOrder(List<Page> actual, List<Page> expected, List<Type> types)
     {
-        MaterializedResult actualResult = MaterializedResult.resultBuilder(FULL_CONNECTOR_SESSION, types)
+        MaterializedResult actualResult = MaterializedResult.resultBuilder(TEST_CONNECTOR_SESSION, types)
                 .pages(actual)
                 .build();
-        MaterializedResult expectedResult = MaterializedResult.resultBuilder(FULL_CONNECTOR_SESSION, types)
+        MaterializedResult expectedResult = MaterializedResult.resultBuilder(TEST_CONNECTOR_SESSION, types)
                 .pages(expected)
                 .build();
         assertThat(ImmutableMultiset.copyOf(actualResult.getMaterializedRows()))
@@ -1038,54 +1015,60 @@ public final class GpuTestUtils
         assertGpuMatchesCpu(inputPages, inputTypes, expression, expectedInputChannels, false);
     }
 
-    public static void assertGpuMatchesCpu(List<Page> inputPages, List<Type> inputTypes, Expression expression, Set<Integer> expectedInputChannels, CharVarcharCoercion charVarcharCoercion)
+    public static void assertGpuMatchesCpu(Session session, List<Page> inputPages, List<Type> inputTypes, Expression expression)
     {
-        assertGpuMatchesCpu(inputPages, inputTypes, expression, expectedInputChannels, false, charVarcharCoercion);
+        Set<Integer> expectedInputChannels = IntStream.range(0, inputTypes.size()).boxed().collect(toImmutableSet());
+        assertGpuMatchesCpu(session, inputPages, inputTypes, expression, expectedInputChannels);
+    }
+
+    public static void assertGpuMatchesCpu(Session session, List<Page> inputPages, List<Type> inputTypes, Expression expression, Set<Integer> expectedInputChannels)
+    {
+        assertGpuMatchesCpu(session, inputPages, inputTypes, expression, expectedInputChannels, false);
     }
 
     public static void assertGpuMatchesCpu(List<Page> inputPages, List<Type> inputTypes, Expression expression, Set<Integer> expectedInputChannels, boolean allowMultipleInputsForExceptionTesting)
     {
-        assertGpuMatchesCpu(inputPages, inputTypes, expression, expectedInputChannels, allowMultipleInputsForExceptionTesting, SQL_STANDARD);
+        assertGpuMatchesCpu(TEST_SESSION, inputPages, inputTypes, expression, expectedInputChannels, allowMultipleInputsForExceptionTesting);
     }
 
     private static void assertGpuMatchesCpu(
+            Session session,
             List<Page> inputPages,
             List<Type> inputTypes,
             Expression expression,
             Set<Integer> expectedInputChannels,
-            boolean allowMultipleInputsForExceptionTesting,
-            CharVarcharCoercion charVarcharCoercion)
+            boolean allowMultipleInputsForExceptionTesting)
     {
         Map<Symbol, Integer> layout = layoutFor(inputTypes);
-        PageProcessor pageProcessor = compileCpuExpression(expression, layout, charVarcharCoercion);
-        CompiledExpression gpuExpression = compileExpression(expression, layout, charVarcharCoercion, TEST_SESSION_TIME_ZONE_KEY)
+        PageProcessor pageProcessor = compileCpuExpression(session, expression, layout);
+        CompiledExpression gpuExpression = compileExpression(expression, layout, getCharVarcharCoercion(session), session.getTimeZoneKey())
                 .orElseThrow(() -> new AssertionError("GPU expression compile failed for: " + expression));
 
         assertThat(gpuExpression.inputChannels().getInputChannels())
                 .containsExactlyInAnyOrderElementsOf(expectedInputChannels);
 
-        assertGpuMatchesCpu(inputPages, inputTypes, expression, pageProcessor, gpuExpression, allowMultipleInputsForExceptionTesting, fullConnectorSession(charVarcharCoercion));
+        assertGpuMatchesCpu(session, inputPages, inputTypes, expression, pageProcessor, gpuExpression, allowMultipleInputsForExceptionTesting);
     }
 
     public static void assertGpuMatchesCpu(List<Page> inputPages, List<Type> inputTypes, Expression expression, PageProcessor cpuProcessor, CompiledExpression gpuExpression, boolean allowMultipleInputsForExceptionTesting)
     {
-        assertGpuMatchesCpu(inputPages, inputTypes, expression, cpuProcessor, gpuExpression, allowMultipleInputsForExceptionTesting, FULL_CONNECTOR_SESSION);
+        assertGpuMatchesCpu(TEST_SESSION, inputPages, inputTypes, expression, cpuProcessor, gpuExpression, allowMultipleInputsForExceptionTesting);
     }
 
-    public static void assertGpuMatchesCpu(
+    private static void assertGpuMatchesCpu(
+            Session session,
             List<Page> inputPages,
             List<Type> inputTypes,
             Expression expression,
             PageProcessor cpuProcessor,
             CompiledExpression gpuExpression,
-            boolean allowMultipleInputsForExceptionTesting,
-            ConnectorSession session)
+            boolean allowMultipleInputsForExceptionTesting)
     {
         assertDeclaredBehaviorOnAllNulls(inputPages, inputTypes, expression, gpuExpression);
 
         List<Page> cpuResults;
         try {
-            cpuResults = executeWithCpu(cpuProcessor, inputPages, session);
+            cpuResults = executeWithCpu(cpuProcessor, inputPages, session.toConnectorSession());
         }
         catch (TrinoException cpuExecutionException) {
             // The boolean flag is a safety mechanism not to nullify test coverage over large input data set when one of the rows triggers execution exception
