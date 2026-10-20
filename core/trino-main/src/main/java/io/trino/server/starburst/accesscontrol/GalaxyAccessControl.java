@@ -151,10 +151,6 @@ public class GalaxyAccessControl
 
     private static final int MAX_OUTSTANDING_BACKGROUND_TASKS = 8192;
     private static final Pattern DML_OPERATION_MATCHER = Pattern.compile("(select|insert|update|delete|merge|with)[ \\t\\(\\[].*");
-    private static final Set<String> SYSTEM_BUILTIN_FUNCTIONS = ImmutableSet.of(
-            "analyze_logical_plan",
-            "exclude_columns",
-            "sequence");
 
     private final GalaxyAccessControllerSupplier controllerSupplier;
     private final int backgroundProcessingThreads;
@@ -837,7 +833,7 @@ public class GalaxyAccessControl
     @Override
     public boolean canExecuteFunction(SystemSecurityContext context, CatalogSchemaRoutineName function)
     {
-        if (isWhitelistedTableFunction(function)) {
+        if (isSystemBuiltinFunction(function)) {
             return true;
         }
         validateFunctionSchema(function);
@@ -856,7 +852,7 @@ public class GalaxyAccessControl
     @Override
     public boolean canCreateViewWithExecuteFunction(SystemSecurityContext context, CatalogSchemaRoutineName functionName)
     {
-        if (isWhitelistedTableFunction(functionName)) {
+        if (isSystemBuiltinFunction(functionName)) {
             return true;
         }
 
@@ -1569,11 +1565,12 @@ public class GalaxyAccessControl
         throw new TrinoException(INVALID_PRIVILEGE, "Privilege %s is not supported for entity kind %s".formatted(entityPrivilege.name(), entityKind));
     }
 
-    private static boolean isWhitelistedTableFunction(CatalogSchemaRoutineName catalogSchemaRoutineName)
+    // Built-in functions, including functions from plugins, aren't Galaxy entities, so they can't have privileges.
+    // The engine skipped access checks for them until it started checking every function again.
+    private static boolean isSystemBuiltinFunction(CatalogSchemaRoutineName catalogSchemaRoutineName)
     {
         return isSystemCatalog(catalogSchemaRoutineName.getCatalogName()) &&
-                BUILTIN_SCHEMA.equals(catalogSchemaRoutineName.getSchemaName()) &&
-                SYSTEM_BUILTIN_FUNCTIONS.contains(catalogSchemaRoutineName.getRoutineName());
+                BUILTIN_SCHEMA.equals(catalogSchemaRoutineName.getSchemaName());
     }
 
     public static void validateFunctionSchema(CatalogSchemaRoutineName routineName)

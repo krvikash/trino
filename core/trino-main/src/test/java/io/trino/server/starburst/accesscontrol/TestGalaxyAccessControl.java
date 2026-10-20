@@ -1238,6 +1238,25 @@ public abstract class TestGalaxyAccessControl
     }
 
     @Test
+    public void testSystemBuiltinFunctionsAreAllowed()
+    {
+        // Built-in functions, including table functions and functions from plugins, are allowed for every role
+        for (String functionName : ImmutableList.of("concat", "sequence", "some_plugin_function")) {
+            CatalogSchemaRoutineName function = new CatalogSchemaRoutineName("system", "builtin", functionName);
+            for (SystemSecurityContext context : allContexts()) {
+                assertThat(accessControl.canExecuteFunction(context, function)).isTrue();
+                assertThat(accessControl.canCreateViewWithExecuteFunction(context, function)).isTrue();
+            }
+        }
+
+        // The builtin schema of any other catalog is not exempt
+        CatalogSchemaRoutineName function = new CatalogSchemaRoutineName(helper.getAnyCatalogName(), "builtin", "concat");
+        assertThatThrownBy(() -> accessControl.canExecuteFunction(adminContext(), function))
+                .isInstanceOf(TrinoException.class)
+                .hasMessageContaining("The schema name for function '%s' must be".formatted(function));
+    }
+
+    @Test
     public void testCreateFunction()
     {
         // Attempting to create a function outside of galaxy.functions results in an error
@@ -1272,7 +1291,7 @@ public abstract class TestGalaxyAccessControl
         };
         String errorMessage = "Access Denied: Cannot create view with execute function";
 
-        // Access always granted for whitelisted table functions
+        // Access always granted for built-in functions
         CatalogSchemaRoutineName sequenceFunction = new CatalogSchemaRoutineName("system", "builtin", "sequence");
         checkAccessMatching(
                 errorMessage,
