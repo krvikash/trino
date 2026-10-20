@@ -1027,6 +1027,12 @@ public final class GpuTestUtils
                 .mapToObj(i -> new PagePosition(page, i));
     }
 
+    public static void assertGpuMatchesCpu(List<Page> inputPages, List<Type> inputTypes, Expression expression)
+    {
+        Set<Integer> expectedInputChannels = IntStream.range(0, inputTypes.size()).boxed().collect(toImmutableSet());
+        assertGpuMatchesCpu(inputPages, inputTypes, expression, expectedInputChannels);
+    }
+
     public static void assertGpuMatchesCpu(List<Page> inputPages, List<Type> inputTypes, Expression expression, Set<Integer> expectedInputChannels)
     {
         assertGpuMatchesCpu(inputPages, inputTypes, expression, expectedInputChannels, false);
@@ -1059,20 +1065,6 @@ public final class GpuTestUtils
                 .containsExactlyInAnyOrderElementsOf(expectedInputChannels);
 
         assertGpuMatchesCpu(inputPages, inputTypes, expression, pageProcessor, gpuExpression, allowMultipleInputsForExceptionTesting, fullConnectorSession(charVarcharCoercion));
-    }
-
-    /**
-     * Runs {@code expression} on both CPU and GPU and asserts identical behavior: equal output, or
-     * both throwing the same {@link TrinoException} error code. Compiles for both engines, so a GPU
-     * compile failure fails the test. Exception cases should use single-row inputs.
-     */
-    public static void assertGpuMatchesCpu(List<Page> inputPages, List<Type> inputTypes, Expression expression)
-    {
-        Map<Symbol, Integer> layout = layoutFor(inputTypes);
-        PageProcessor cpuProcessor = compileCpuExpression(expression, layout);
-        CompiledExpression gpuExpression = compileExpression(expression, layout, SQL_STANDARD, TEST_SESSION_TIME_ZONE_KEY)
-                .orElseThrow(() -> new AssertionError("GPU expression compile failed for: " + expression));
-        assertGpuMatchesCpu(inputPages, inputTypes, expression, cpuProcessor, gpuExpression, false);
     }
 
     public static void assertGpuMatchesCpu(List<Page> inputPages, List<Type> inputTypes, Expression expression, PageProcessor cpuProcessor, CompiledExpression gpuExpression, boolean allowMultipleInputsForExceptionTesting)
