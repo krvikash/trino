@@ -100,6 +100,7 @@ public class TestVertexAiTracestate
                     Optional.empty(),
                     Optional.empty(),
                     Optional.empty(),
+                    Optional.empty(),
                     new StaticPromptDao(),
                     directExecutor(),
                     1,
