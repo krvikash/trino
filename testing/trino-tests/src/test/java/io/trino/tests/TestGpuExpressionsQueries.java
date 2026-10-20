@@ -14,6 +14,7 @@
 package io.trino.tests;
 
 import com.google.common.collect.ImmutableMap;
+import io.trino.Session;
 import io.trino.plugin.hive.TestingHivePlugin;
 import io.trino.plugin.iceberg.IcebergQueryRunner;
 import io.trino.sql.planner.plan.ProjectNode;
@@ -23,6 +24,7 @@ import io.trino.testing.QueryRunner;
 import org.junit.jupiter.api.Test;
 
 import static io.trino.plugin.base.util.Closables.closeAllSuppress;
+import static io.trino.spi.type.TimeZoneKey.UTC_KEY;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /// Query-level coverage for the scalar expressions the GPU compiles, over data read from Parquet.
@@ -866,6 +868,111 @@ final class TestGpuExpressionsQueries
     }
 
     @Test
+    void testFromUnixTime()
+    {
+        assertUpdate(
+                """
+                CREATE TABLE test_from_unix_time AS
+                SELECT
+                    CAST(a_bigint AS bigint) a_bigint,
+                    CAST(a_double AS double) a_double
+                FROM (VALUES
+                    (1000, 2.5),
+                    (-123456789, -1e10),
+                    (98765, 0.1),
+                    (NULL, NULL))
+                    t(a_bigint, a_double)
+                """,
+                4);
+
+        assertThat(query(utcSession(), "SELECT from_unixtime(a_double) FROM test_from_unix_time")).executesWithGpu(ProjectNode.class);
+        assertThat(query(utcSession(), "SELECT from_unixtime(a_bigint) FROM test_from_unix_time")).executesWithGpu(ProjectNode.class);
+
+        assertUpdate("DROP TABLE test_from_unix_time");
+    }
+
+    @Test
+    void testFromUnixTimeOutsideUtcSession()
+    {
+        assertUpdate(
+                """
+                CREATE TABLE test_from_unix_time_outside_utc_session AS
+                SELECT
+                    CAST(a_double AS double) a_double
+                FROM (VALUES
+                    2.5,
+                    -1e10,
+                    0.1,
+                    NULL)
+                    t(a_double)
+                """,
+                4);
+
+        assertThat(query("SELECT from_unixtime(a_double) FROM test_from_unix_time_outside_utc_session")).executesWithoutGpu();
+
+        assertUpdate("DROP TABLE test_from_unix_time_outside_utc_session");
+    }
+
+    @Test
+    void testToUnixTime()
+    {
+        assertUpdate(
+                """
+                CREATE TABLE test_to_unix_time AS
+                SELECT
+                    CAST(a_timestamp_tz AS timestamp(6) with time zone) a_timestamp_tz
+                FROM (VALUES
+                    TIMESTAMP '2024-02-29 13:45:30.123456 UTC',
+                    TIMESTAMP '1969-12-31 23:59:59.999999 UTC',
+                    TIMESTAMP '2000-01-01 00:00:00.000000 UTC',
+                    NULL)
+                    t(a_timestamp_tz)
+                """,
+                4);
+
+        assertThat(query("SELECT to_unixtime(a_timestamp_tz) FROM test_to_unix_time")).executesWithGpu(ProjectNode.class);
+
+        assertUpdate("DROP TABLE test_to_unix_time");
+    }
+
+    @Test
+    void testToUnixTimeOnTimestamp()
+    {
+        assertUpdate(
+                """
+                CREATE TABLE test_to_unix_time_on_timestamp AS
+                SELECT
+                    CAST(a_timestamp AS timestamp(6)) a_timestamp
+                FROM (VALUES
+                    TIMESTAMP '2024-02-29 13:45:30.123456',
+                    TIMESTAMP '1969-12-31 23:59:59.999999',
+                    TIMESTAMP '2000-01-01 00:00:00.000000',
+                    NULL)
+                    t(a_timestamp)
+                """,
+                4);
+        assertUpdate(
+                """
+                CREATE TABLE hive.default.test_to_unix_time_on_timestamp AS
+                SELECT
+                    CAST(a_timestamp AS timestamp(3)) a_timestamp
+                FROM (VALUES
+                    TIMESTAMP '2024-02-29 13:45:30.123',
+                    TIMESTAMP '1969-12-31 23:59:59.999',
+                    TIMESTAMP '2000-01-01 00:00:00.000',
+                    NULL)
+                    t(a_timestamp)
+                """,
+                4);
+
+        assertThat(query("SELECT to_unixtime(a_timestamp) FROM test_to_unix_time_on_timestamp")).executesWithoutGpu();
+        assertThat(query("SELECT to_unixtime(a_timestamp) FROM hive.default.test_to_unix_time_on_timestamp")).executesWithoutGpu();
+
+        assertUpdate("DROP TABLE test_to_unix_time_on_timestamp");
+        assertUpdate("DROP TABLE hive.default.test_to_unix_time_on_timestamp");
+    }
+
+    @Test
     void testLength()
     {
         assertUpdate(
@@ -1385,5 +1492,13 @@ final class TestGpuExpressionsQueries
                 .executesWithGpu(ProjectNode.class);
 
         assertUpdate("DROP TABLE hive.default.test_concat");
+    }
+
+    /// `from_unixtime` returns the session time zone, and the GPU representation holds only UTC
+    private Session utcSession()
+    {
+        return Session.builder(getSession())
+                .setTimeZoneKey(UTC_KEY)
+                .build();
     }
 }
