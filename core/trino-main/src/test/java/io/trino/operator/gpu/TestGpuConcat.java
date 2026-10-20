@@ -34,10 +34,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.Set;
-import java.util.stream.IntStream;
 
-import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static io.trino.operator.gpu.GpuTestUtils.FUNCTION_RESOLUTION;
 import static io.trino.operator.gpu.GpuTestUtils.TEST_SESSION_TIME_ZONE_KEY;
@@ -121,7 +118,7 @@ final class TestGpuConcat
                 FUNCTION_RESOLUTION.resolveFunction("concat", fromTypes(inputTypes)),
                 concatArguments.build());
 
-        assertGpuMatchesCpu(inputPages, inputTypes, expression, IntStream.range(0, argumentCount).boxed().collect(toImmutableSet()));
+        assertGpuMatchesCpu(inputPages, inputTypes, expression);
     }
 
     @ParameterizedTest
@@ -149,7 +146,7 @@ final class TestGpuConcat
                 FUNCTION_RESOLUTION.resolveFunction("concat", fromTypes(leftType, rightType)),
                 ImmutableList.of(field(0, leftType), field(1, rightType)));
 
-        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(0, 1));
+        assertGpuMatchesCpu(inputPages, inputTypes, expression);
     }
 
     @Test
@@ -159,7 +156,6 @@ final class TestGpuConcat
         Expression expression = new Call(
                 FUNCTION_RESOLUTION.resolveFunction("concat", fromTypes(VARCHAR, VARCHAR)),
                 ImmutableList.of(field(0, VARCHAR), field(1, VARCHAR)));
-        Set<Integer> inputChannels = Set.of(0, 1);
 
         int maxOutputLength = 1024 * 1024;
         String ascii = "a".repeat(maxOutputLength);
@@ -172,22 +168,21 @@ final class TestGpuConcat
                 layoutFor(inputTypes)))
                 .hasErrorCode(INVALID_FUNCTION_ARGUMENT);
 
-        assertGpuMatchesCpu(List.of(twoStringPage(ascii.substring(1), "")), inputTypes, expression, inputChannels);
-        assertGpuMatchesCpu(List.of(twoStringPage(ascii, "")), inputTypes, expression, inputChannels);
-        assertGpuMatchesCpu(List.of(twoStringPage(ascii, "a")), inputTypes, expression, inputChannels);
+        assertGpuMatchesCpu(List.of(twoStringPage(ascii.substring(1), "")), inputTypes, expression);
+        assertGpuMatchesCpu(List.of(twoStringPage(ascii, "")), inputTypes, expression);
+        assertGpuMatchesCpu(List.of(twoStringPage(ascii, "a")), inputTypes, expression);
 
         // The cap counts bytes, not characters: this value is 3 bytes per character, so a character
         // count would stay far below the cap and let the oversized case through.
         String multiByte = "ワ".repeat(maxOutputLength / 3);
-        assertGpuMatchesCpu(List.of(twoStringPage(multiByte, "")), inputTypes, expression, inputChannels);
-        assertGpuMatchesCpu(List.of(twoStringPage(multiByte, "ワ")), inputTypes, expression, inputChannels);
+        assertGpuMatchesCpu(List.of(twoStringPage(multiByte, "")), inputTypes, expression);
+        assertGpuMatchesCpu(List.of(twoStringPage(multiByte, "ワ")), inputTypes, expression);
 
         // Values that would overflow concat limit, except they are paired with a NULL entry
         List<Type> threeInputTypes = List.of(VARCHAR, VARCHAR, VARCHAR);
         Expression threeArgs = new Call(
                 FUNCTION_RESOLUTION.resolveFunction("concat", fromTypes(VARCHAR, VARCHAR, VARCHAR)),
                 ImmutableList.of(field(0, VARCHAR), field(1, VARCHAR), field(2, VARCHAR)));
-        Set<Integer> threeChannels = Set.of(0, 1, 2);
         String half = "a".repeat(maxOutputLength / 2 + 1);
         for (int nullChannel = 0; nullChannel < 3; nullChannel++) {
             List<String> values = new ArrayList<>(List.of(half, half, half));
@@ -199,8 +194,7 @@ final class TestGpuConcat
                             createStringBlock(asList(values.get(1))),
                             createStringBlock(asList(values.get(2))))),
                     threeInputTypes,
-                    threeArgs,
-                    threeChannels);
+                    threeArgs);
         }
     }
 

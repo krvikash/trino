@@ -34,7 +34,6 @@ import org.junit.jupiter.api.parallel.Execution;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.stream.IntStream;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
@@ -80,7 +79,7 @@ final class TestGpuUpper
                 .map(codePoints -> new Page(varcharsBlock(codePoints)))
                 .collect(toImmutableList());
 
-        assertGpuMatchesCpu(inputPages, List.of(VARCHAR), createUpperExpression(VARCHAR), Set.of(0));
+        assertGpuMatchesCpu(inputPages, List.of(VARCHAR), createUpperExpression(VARCHAR));
     }
 
     @Test
@@ -119,8 +118,7 @@ final class TestGpuUpper
         assertGpuMatchesCpu(
                 List.of(new Page(varcharsBlock(Arrays.asList("ß", "sß", "ßß", null, "", "æther", "łąka", "abc")))),
                 List.of(createCharType(8)),
-                createUpperExpression(createCharType(8)),
-                Set.of(0));
+                createUpperExpression(createCharType(8)));
     }
 
     @Test
@@ -189,7 +187,7 @@ final class TestGpuUpper
 
     private void assertUpperMatchesCpu(String... values)
     {
-        assertGpuMatchesCpu(List.of(new Page(varcharsBlock(Arrays.asList(values)))), List.of(VARCHAR), createUpperExpression(VARCHAR), Set.of(0));
+        assertGpuMatchesCpu(List.of(new Page(varcharsBlock(Arrays.asList(values)))), List.of(VARCHAR), createUpperExpression(VARCHAR));
     }
 
     private void assertUpperRejected(String... values)

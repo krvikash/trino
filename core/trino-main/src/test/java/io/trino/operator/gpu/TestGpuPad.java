@@ -34,7 +34,6 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.Set;
 
 import static io.trino.operator.gpu.GpuTestUtils.FUNCTION_RESOLUTION;
 import static io.trino.operator.gpu.GpuTestUtils.TEST_SESSION_TIME_ZONE_KEY;
@@ -94,7 +93,7 @@ final class TestGpuPad
         for (String function : List.of("lpad", "rpad")) {
             for (long targetLength : TARGET_LENGTHS) {
                 for (String padString : PAD_STRINGS) {
-                    assertGpuMatchesCpu(inputPages, inputTypes, pad(function, field(0, VARCHAR), targetLength, padString), Set.of(0));
+                    assertGpuMatchesCpu(inputPages, inputTypes, pad(function, field(0, VARCHAR), targetLength, padString));
                 }
             }
         }
@@ -108,7 +107,7 @@ final class TestGpuPad
         List<Type> inputTypes = List.of(INTEGER);
         List<Page> inputPages = List.of(new Page(positionsCount, createBlock(INTEGER, positionsCount, nullsProvider)));
         Expression expression = pad("lpad", new Cast(field(0, INTEGER), VARCHAR), 4, "0");
-        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(0));
+        assertGpuMatchesCpu(inputPages, inputTypes, expression);
     }
 
     @ParameterizedTest

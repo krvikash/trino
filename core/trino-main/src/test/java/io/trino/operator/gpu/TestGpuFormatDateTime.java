@@ -40,7 +40,6 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
-import java.util.Set;
 import java.util.stream.IntStream;
 
 import static io.trino.operator.gpu.GpuTestUtils.FUNCTION_RESOLUTION;
@@ -92,7 +91,7 @@ final class TestGpuFormatDateTime
                 Type timestampType = createTimestampType(precision);
                 try {
                     List<Page> inputPages = List.of(new Page(64, createBlock(timestampType, 64, nullsProvider)));
-                    assertGpuMatchesCpu(inputPages, List.of(timestampType), formatDateTimeExpression(timestampType, pattern), Set.of(0));
+                    assertGpuMatchesCpu(inputPages, List.of(timestampType), formatDateTimeExpression(timestampType, pattern));
                 }
                 catch (Throwable t) {
                     t.addSuppressed(new Exception("pattern: " + pattern));
@@ -171,7 +170,7 @@ final class TestGpuFormatDateTime
     private void assertFormatDateTimeMatchesCpu(TimestampType timestampType, String pattern, List<Long> epochMicros)
     {
         Page input = new Page(timestampBlock(timestampType, epochMicros));
-        assertGpuMatchesCpu(List.of(input), List.of(timestampType), formatDateTimeExpression(timestampType, pattern), Set.of(0));
+        assertGpuMatchesCpu(List.of(input), List.of(timestampType), formatDateTimeExpression(timestampType, pattern));
     }
 
     private void assertFormatDateTimeGpuThrows(TimestampType timestampType, String pattern, long epochMicros)
@@ -237,7 +236,7 @@ final class TestGpuFormatDateTime
                 }
             }
             Page input = new Page(builder.build());
-            assertGpuMatchesCpu(List.of(input), List.of(timestampType), formatDateTimeExpression(timestampType, "yyyy-MM-dd HH:mm:ss.SSS"), Set.of(0));
+            assertGpuMatchesCpu(List.of(input), List.of(timestampType), formatDateTimeExpression(timestampType, "yyyy-MM-dd HH:mm:ss.SSS"));
         }
     }
 

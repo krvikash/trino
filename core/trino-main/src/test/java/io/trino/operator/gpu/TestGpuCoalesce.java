@@ -36,7 +36,6 @@ import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.List;
-import java.util.Set;
 import java.util.stream.Stream;
 
 import static io.trino.operator.gpu.GpuTestUtils.FUNCTION_RESOLUTION;
@@ -94,7 +93,7 @@ final class TestGpuCoalesce
             assertThat(compileExpression(expression, layoutFor(inputTypes), SQL_STANDARD, TEST_SESSION_TIME_ZONE_KEY)).isEmpty();
             return;
         }
-        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA, channelB));
+        assertGpuMatchesCpu(inputPages, inputTypes, expression);
     }
 
     private static Stream<Object[]> coalesceTestCases()
@@ -125,7 +124,7 @@ final class TestGpuCoalesce
                 field(3, BIGINT),
                 new Constant(BIGINT, 42L)));
 
-        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(0, 1, 2, 3));
+        assertGpuMatchesCpu(inputPages, inputTypes, expression);
     }
 
     @ParameterizedTest
@@ -146,7 +145,7 @@ final class TestGpuCoalesce
                 field(channelA, BIGINT),
                 new Cast(field(channelB, INTEGER), BIGINT)));
 
-        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA, channelB));
+        assertGpuMatchesCpu(inputPages, inputTypes, expression);
     }
 
     @Test
@@ -195,7 +194,7 @@ final class TestGpuCoalesce
 
         Expression expression = new Coalesce(ImmutableList.of(field(0, BIGINT), field(1, BIGINT)));
 
-        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(0, 1));
+        assertGpuMatchesCpu(inputPages, inputTypes, expression);
     }
 
     @Test
@@ -205,7 +204,7 @@ final class TestGpuCoalesce
         Expression expression = new Coalesce(ImmutableList.of(
                 field(0, BIGINT),
                 divide(new Constant(BIGINT, 10L), field(1, BIGINT))));
-        assertGpuMatchesCpu(coalescePages(), List.of(BIGINT, BIGINT), expression, Set.of(0, 1));
+        assertGpuMatchesCpu(coalescePages(), List.of(BIGINT, BIGINT), expression);
     }
 
     @Test
@@ -216,7 +215,7 @@ final class TestGpuCoalesce
         Expression expression = new Coalesce(ImmutableList.of(
                 field(0, BIGINT),
                 divide(new Constant(BIGINT, 10L), new Coalesce(ImmutableList.of(field(1, BIGINT), new Constant(BIGINT, 0L))))));
-        assertGpuMatchesCpu(coalescePages(), List.of(BIGINT, BIGINT), expression, Set.of(0, 1));
+        assertGpuMatchesCpu(coalescePages(), List.of(BIGINT, BIGINT), expression);
     }
 
     @Test
@@ -228,7 +227,7 @@ final class TestGpuCoalesce
                 field(0, BIGINT),
                 divide(new Constant(BIGINT, 10L), new Coalesce(ImmutableList.of(field(1, BIGINT), new Constant(BIGINT, 0L)))),
                 new Constant(BIGINT, 42L)));
-        assertGpuMatchesCpu(coalescePages(), List.of(BIGINT, BIGINT), expression, Set.of(0, 1));
+        assertGpuMatchesCpu(coalescePages(), List.of(BIGINT, BIGINT), expression);
     }
 
     @Test
@@ -239,7 +238,7 @@ final class TestGpuCoalesce
                 new Constant(BIGINT, null),
                 field(0, BIGINT),
                 divide(new Constant(BIGINT, 10L), new Coalesce(ImmutableList.of(field(1, BIGINT), new Constant(BIGINT, 0L))))));
-        assertGpuMatchesCpu(coalescePages(), List.of(BIGINT, BIGINT), expression, Set.of(0, 1));
+        assertGpuMatchesCpu(coalescePages(), List.of(BIGINT, BIGINT), expression);
     }
 
     @Test
@@ -252,7 +251,7 @@ final class TestGpuCoalesce
                 fallible,
                 new Constant(BIGINT, 42L),
                 fallible));
-        assertGpuMatchesCpu(coalescePages(), List.of(BIGINT, BIGINT), expression, Set.of(0, 1));
+        assertGpuMatchesCpu(coalescePages(), List.of(BIGINT, BIGINT), expression);
     }
 
     @Test
@@ -266,7 +265,7 @@ final class TestGpuCoalesce
                         field(0, BIGINT),
                         new Constant(BIGINT, null),
                         new Let(z, add(y.toSymbolReference(), new Constant(BIGINT, 1L)), divide(z.toSymbolReference(), x.toSymbolReference())))));
-        assertGpuMatchesCpu(coalescePages(), List.of(BIGINT, BIGINT), expression, Set.of(0, 1));
+        assertGpuMatchesCpu(coalescePages(), List.of(BIGINT, BIGINT), expression);
     }
 
     private static Expression divide(Expression dividend, Expression divisor)

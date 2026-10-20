@@ -30,7 +30,6 @@ import org.junit.jupiter.params.provider.EnumSource;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.Set;
 
 import static io.trino.operator.gpu.GpuTestUtils.assertGpuMatchesCpu;
 import static io.trino.operator.gpu.GpuTestUtils.createBlock;
@@ -101,6 +100,6 @@ final class TestGpuIn
 
         Expression expression = new In(field(channelA, type), valueListBuilder.build());
 
-        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA));
+        assertGpuMatchesCpu(inputPages, inputTypes, expression);
     }
 }

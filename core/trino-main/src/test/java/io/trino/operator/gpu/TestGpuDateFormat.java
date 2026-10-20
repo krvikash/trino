@@ -44,7 +44,6 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
-import java.util.Set;
 
 import static io.trino.operator.gpu.GpuTestUtils.FUNCTION_RESOLUTION;
 import static io.trino.operator.gpu.GpuTestUtils.MAX_GPU_TIMESTAMP_PRECISION;
@@ -107,7 +106,7 @@ final class TestGpuDateFormat
                 Type timestampType = createTimestampType(precision);
                 try {
                     List<Page> inputPages = List.of(new Page(64, createBlock(timestampType, 64, nullsProvider)));
-                    assertGpuMatchesCpu(inputPages, List.of(timestampType), dateFormatExpression(timestampType, format), Set.of(0));
+                    assertGpuMatchesCpu(inputPages, List.of(timestampType), dateFormatExpression(timestampType, format));
                 }
                 catch (Throwable t) {
                     t.addSuppressed(new Exception("format: " + format));
@@ -127,7 +126,7 @@ final class TestGpuDateFormat
             for (Type type : TESTED_GPU_TIMESTAMP_WITH_TIME_ZONE_TYPES) {
                 try {
                     List<Page> inputPages = List.of(new Page(64, createBlock(type, 64, nullsProvider)));
-                    assertGpuMatchesCpu(inputPages, List.of(type), dateFormatExpression(type, format), Set.of(0));
+                    assertGpuMatchesCpu(inputPages, List.of(type), dateFormatExpression(type, format));
                 }
                 catch (Throwable t) {
                     t.addSuppressed(new Exception("format: " + format));
@@ -221,7 +220,7 @@ final class TestGpuDateFormat
                 }
             }
             try {
-                assertGpuMatchesCpu(List.of(new Page(builder.build())), List.of(timestampType), dateFormatExpression(timestampType, "%Y-%m-%d %T.%f"), Set.of(0));
+                assertGpuMatchesCpu(List.of(new Page(builder.build())), List.of(timestampType), dateFormatExpression(timestampType, "%Y-%m-%d %T.%f"));
             }
             catch (Throwable t) {
                 t.addSuppressed(new Exception("type: " + timestampType));
@@ -241,7 +240,7 @@ final class TestGpuDateFormat
                         UTC_KEY));
             }
             try {
-                assertGpuMatchesCpu(List.of(new Page(builder.build())), List.of(type), dateFormatExpression(type, "%Y-%m-%d %T.%f"), Set.of(0));
+                assertGpuMatchesCpu(List.of(new Page(builder.build())), List.of(type), dateFormatExpression(type, "%Y-%m-%d %T.%f"));
             }
             catch (Throwable t) {
                 t.addSuppressed(new Exception("type: " + type));
@@ -524,7 +523,7 @@ final class TestGpuDateFormat
     private void assertDateFormatMatchesCpu(TimestampType timestampType, String format, List<Long> epochMicros)
     {
         Page input = new Page(timestampBlock(timestampType, epochMicros));
-        assertGpuMatchesCpu(List.of(input), List.of(timestampType), dateFormatExpression(timestampType, format), Set.of(0));
+        assertGpuMatchesCpu(List.of(input), List.of(timestampType), dateFormatExpression(timestampType, format));
     }
 
     private void assertDateFormatGpuThrows(TimestampType timestampType, String format, long epochMicros)

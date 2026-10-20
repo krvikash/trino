@@ -39,7 +39,6 @@ import java.math.BigInteger;
 import java.util.Arrays;
 import java.util.List;
 import java.util.OptionalLong;
-import java.util.Set;
 
 import static io.trino.operator.gpu.GpuTestUtils.FUNCTION_RESOLUTION;
 import static io.trino.operator.gpu.GpuTestUtils.MAX_GPU_TIMESTAMP_PRECISION;
@@ -96,14 +95,13 @@ final class TestGpuDateTrunc
 
     private void testDateTrunc(String unit, Type timestampType, NullsProvider nullsProvider)
     {
-        int channelA = 0;
         List<Type> inputTypes = List.of(timestampType);
         int positionsCount = 64;
         List<Page> inputPages = List.of(new Page(
                 positionsCount,
                 createBlock(timestampType, positionsCount, nullsProvider)));
 
-        assertGpuMatchesCpu(inputPages, inputTypes, dateTruncExpression(unit, timestampType), Set.of(channelA));
+        assertGpuMatchesCpu(inputPages, inputTypes, dateTruncExpression(unit, timestampType));
     }
 
     private static Expression dateTruncExpression(String unit, Type timestampType)
@@ -219,8 +217,7 @@ final class TestGpuDateTrunc
         assertGpuMatchesCpu(
                 List.of(new Page(timestamps)),
                 List.of(timestampType),
-                dateTruncExpression(unit, timestampType),
-                Set.of(0));
+                dateTruncExpression(unit, timestampType));
     }
 
     private static LongTimestamp nanosToLongTimestamp(long nanos)

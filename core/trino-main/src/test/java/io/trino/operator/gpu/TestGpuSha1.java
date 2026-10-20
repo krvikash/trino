@@ -35,6 +35,7 @@ import java.util.List;
 import java.util.Set;
 
 import static io.airlift.slice.Slices.utf8Slice;
+import static io.trino.SessionTestUtils.TEST_SESSION;
 import static io.trino.operator.gpu.GpuTestUtils.FUNCTION_RESOLUTION;
 import static io.trino.operator.gpu.GpuTestUtils.assertGpuMatchesCpu;
 import static io.trino.operator.gpu.GpuTestUtils.createBlock;
@@ -64,7 +65,7 @@ final class TestGpuSha1
         List<Page> inputPages = List.of(
                 new Page(createBlock(VARBINARY, 64, nullsProvider)),
                 new Page(createBlock(VARBINARY, 128, nullsProvider)));
-        assertGpuMatchesCpu(inputPages, List.of(VARBINARY), sha1(field(0, VARBINARY)), Set.of(0));
+        assertGpuMatchesCpu(inputPages, List.of(VARBINARY), sha1(field(0, VARBINARY)));
     }
 
     @Test
@@ -83,15 +84,15 @@ final class TestGpuSha1
                 new byte[1000],
                 null,
                 new byte[0]));
-        assertGpuMatchesCpu(List.of(new Page(block)), List.of(VARBINARY), sha1(field(0, VARBINARY)), Set.of(0));
+        assertGpuMatchesCpu(List.of(new Page(block)), List.of(VARBINARY), sha1(field(0, VARBINARY)));
     }
 
     @Test
     void testSha1OfConstant()
     {
         List<Page> inputPages = List.of(new Page(createBlock(VARBINARY, 4, NullsProvider.NO_NULLS)));
-        assertGpuMatchesCpu(inputPages, List.of(VARBINARY), sha1(new Constant(VARBINARY, utf8Slice("abc"))), Set.of());
-        assertGpuMatchesCpu(inputPages, List.of(VARBINARY), sha1(new Constant(VARBINARY, null)), Set.of());
+        assertGpuMatchesCpu(TEST_SESSION, inputPages, List.of(VARBINARY), sha1(new Constant(VARBINARY, utf8Slice("abc"))), Set.of());
+        assertGpuMatchesCpu(TEST_SESSION, inputPages, List.of(VARBINARY), sha1(new Constant(VARBINARY, null)), Set.of());
     }
 
     @ParameterizedTest
@@ -106,7 +107,7 @@ final class TestGpuSha1
         Expression concatenated = new Call(
                 FUNCTION_RESOLUTION.resolveFunction("concat", fromTypes(VARCHAR, VARCHAR, VARCHAR)),
                 ImmutableList.of(separator, hex, separator));
-        assertGpuMatchesCpu(createVarcharPages(VARCHAR, List.of(64), nullsProvider), List.of(VARCHAR), sha1(toUtf8(concatenated)), Set.of(0));
+        assertGpuMatchesCpu(createVarcharPages(VARCHAR, List.of(64), nullsProvider), List.of(VARCHAR), sha1(toUtf8(concatenated)));
     }
 
     private static Expression sha1(Expression argument)

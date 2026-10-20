@@ -38,6 +38,7 @@ import java.util.List;
 import java.util.Random;
 import java.util.Set;
 
+import static io.trino.SessionTestUtils.TEST_SESSION;
 import static io.trino.operator.gpu.GpuTestUtils.FUNCTION_RESOLUTION;
 import static io.trino.operator.gpu.GpuTestUtils.assertGpuMatchesCpu;
 import static io.trino.operator.gpu.GpuTestUtils.createBigintBlock;
@@ -83,7 +84,7 @@ final class TestGpuIf
                 ImmutableList.of(new WhenClause(condition, field(channelA, BIGINT))),
                 field(channelB, BIGINT));
 
-        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA, channelB));
+        assertGpuMatchesCpu(inputPages, inputTypes, expression);
     }
 
     @Test
@@ -119,7 +120,7 @@ final class TestGpuIf
                 ImmutableList.of(new WhenClause(bNotZero, aDivB)),
                 field(channelA, BIGINT));
 
-        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA, channelB));
+        assertGpuMatchesCpu(inputPages, inputTypes, expression);
     }
 
     @ParameterizedTest
@@ -159,7 +160,7 @@ final class TestGpuIf
                 ImmutableList.of(new WhenClause(bNotZero, divide)),
                 new Constant(BIGINT, 42L));
 
-        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelB));
+        assertGpuMatchesCpu(inputPages, inputTypes, expression);
     }
 
     @ParameterizedTest
@@ -185,7 +186,7 @@ final class TestGpuIf
                 ImmutableList.of(field(channelB, REAL), new Constant(REAL, (long) floatToRawIntBits(1000000.0f))));
         Expression expression = new Case(ImmutableList.of(new WhenClause(condition, add)), subtract);
 
-        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA, channelB));
+        assertGpuMatchesCpu(inputPages, inputTypes, expression);
     }
 
     @ParameterizedTest
@@ -193,7 +194,7 @@ final class TestGpuIf
     void testIfTrueBranchFallibleExceptAllNulls(NullsProvider nullsProvider)
     {
         // IF(b <> 0, a / b, 42): a NULL b makes the divide yield NULL rather than raise
-        assertGpuMatchesCpu(divisorPages(nullsProvider), List.of(BIGINT, BIGINT), ifDivide(true, field(1, BIGINT)), Set.of(0, 1));
+        assertGpuMatchesCpu(divisorPages(nullsProvider), List.of(BIGINT, BIGINT), ifDivide(true, field(1, BIGINT)));
     }
 
     @ParameterizedTest
@@ -201,7 +202,7 @@ final class TestGpuIf
     void testIfFalseBranchFallibleExceptAllNulls(NullsProvider nullsProvider)
     {
         // IF(b = 0, 42, a / b)
-        assertGpuMatchesCpu(divisorPages(nullsProvider), List.of(BIGINT, BIGINT), ifDivide(false, field(1, BIGINT)), Set.of(0, 1));
+        assertGpuMatchesCpu(divisorPages(nullsProvider), List.of(BIGINT, BIGINT), ifDivide(false, field(1, BIGINT)));
     }
 
     @ParameterizedTest
@@ -211,7 +212,8 @@ final class TestGpuIf
         // IF(b <> 0, 10 / coalesce(b, 7), 42): a constant dividend leaves nothing to mask, and coalesce
         // revives a non-NULL divisor from a NULL b, so the divide can raise on any row. It stays within
         // range on the rows the true branch covers, where b is neither NULL nor zero.
-        assertGpuMatchesCpu(divisorPages(nullsProvider), List.of(BIGINT, BIGINT), ifDivideConstant(true, field(1, BIGINT)), Set.of(1));
+        // TODO divisorPages generates two columns, but the test uses only one
+        assertGpuMatchesCpu(TEST_SESSION, divisorPages(nullsProvider), List.of(BIGINT, BIGINT), ifDivideConstant(true, field(1, BIGINT)), Set.of(1));
     }
 
     @ParameterizedTest
@@ -219,7 +221,8 @@ final class TestGpuIf
     void testIfFalseBranchFallible(NullsProvider nullsProvider)
     {
         // IF(b = 0, 42, 10 / coalesce(b, 7)): the false branch covers a NULL b, where coalesce yields 7
-        assertGpuMatchesCpu(divisorPages(nullsProvider), List.of(BIGINT, BIGINT), ifDivideConstant(false, field(1, BIGINT)), Set.of(1));
+        // TODO divisorPages generates two columns, but the test uses only one
+        assertGpuMatchesCpu(TEST_SESSION, divisorPages(nullsProvider), List.of(BIGINT, BIGINT), ifDivideConstant(false, field(1, BIGINT)), Set.of(1));
     }
 
     @ParameterizedTest
@@ -240,7 +243,8 @@ final class TestGpuIf
                 ImmutableList.of(new WhenClause(bNotZero, divideConstantByCoalesce(field(channelB, BIGINT)))),
                 divideConstantByCoalesce(bPlusOne));
 
-        assertGpuMatchesCpu(divisorPages(nullsProvider), List.of(BIGINT, BIGINT), expression, Set.of(channelB));
+        // TODO divisorPages generates two columns, but the test uses only one
+        assertGpuMatchesCpu(TEST_SESSION, divisorPages(nullsProvider), List.of(BIGINT, BIGINT), expression, Set.of(channelB));
     }
 
     /// `10 / coalesce(divisor, 7)`, which can raise on any row: the check the divide runs is masked by

@@ -34,7 +34,6 @@ import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
-import java.util.Set;
 
 import static com.google.common.base.Verify.verify;
 import static io.trino.operator.gpu.GpuTestUtils.FUNCTION_RESOLUTION;
@@ -264,7 +263,7 @@ final class TestGpuDecimalArithmetic
         Expression expression = divide(dividendType, divisorType);
         DecimalType resultType = (DecimalType) expression.type();
         int rescaleFactor = resultType.getScale() - dividendType.getScale() + divisorType.getScale();
-        assertGpuMatchesCpu(divideInputs(dividendType, divisorType, rescaleFactor, nullsProvider), inputTypes, expression, Set.of(0, 1));
+        assertGpuMatchesCpu(divideInputs(dividendType, divisorType, rescaleFactor, nullsProvider), inputTypes, expression);
     }
 
     private static Expression divide(DecimalType dividendType, DecimalType divisorType)
@@ -405,6 +404,6 @@ final class TestGpuDecimalArithmetic
                 FUNCTION_RESOLUTION.resolveOperator(operatorType, List.of(leftType, rightType)),
                 ImmutableList.of(field(channelA, leftType), field(channelB, rightType)));
 
-        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA, channelB));
+        assertGpuMatchesCpu(inputPages, inputTypes, expression);
     }
 }

@@ -30,7 +30,6 @@ import org.junit.jupiter.params.provider.EnumSource;
 import java.util.List;
 import java.util.Optional;
 import java.util.Random;
-import java.util.Set;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
@@ -89,7 +88,7 @@ final class TestGpuLike
         for (String pattern : TEST_STRINGS) {
             for (Optional<Character> escape : escapes) {
                 Expression expression = createLikeExpression(varcharChannel, pattern, escape);
-                assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(varcharChannel));
+                assertGpuMatchesCpu(inputPages, inputTypes, expression);
             }
         }
     }

@@ -29,7 +29,6 @@ import org.junit.jupiter.params.provider.EnumSource;
 
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Set;
 
 import static io.trino.operator.gpu.GpuTestUtils.FUNCTION_RESOLUTION;
 import static io.trino.operator.gpu.GpuTestUtils.MAX_GPU_TIMESTAMP_PRECISION;
@@ -102,7 +101,7 @@ final class TestGpuExtract
                 FUNCTION_RESOLUTION.resolveFunction("year", fromTypes(type)),
                 ImmutableList.of(field(channelA, type)));
 
-        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA));
+        assertGpuMatchesCpu(inputPages, inputTypes, expression);
     }
 
     @Test
@@ -141,8 +140,7 @@ final class TestGpuExtract
         assertGpuMatchesCpu(
                 List.of(new Page(writeNativeValue(DATE, date.toEpochDay()))),
                 List.of(DATE),
-                yearExtract(DATE),
-                Set.of(0));
+                yearExtract(DATE));
     }
 
     private void assertYearExtractThrows(LocalDate date)
@@ -179,6 +177,6 @@ final class TestGpuExtract
                 FUNCTION_RESOLUTION.resolveFunction(functionName, fromTypes(timestampType)),
                 ImmutableList.of(field(channelA, timestampType)));
 
-        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA));
+        assertGpuMatchesCpu(inputPages, inputTypes, expression);
     }
 }

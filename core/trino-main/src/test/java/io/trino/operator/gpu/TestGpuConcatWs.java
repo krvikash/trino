@@ -33,10 +33,7 @@ import org.junit.jupiter.params.provider.EnumSource;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Set;
-import java.util.stream.IntStream;
 
-import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static io.airlift.slice.Slices.utf8Slice;
 import static io.trino.operator.gpu.GpuTestUtils.FUNCTION_RESOLUTION;
 import static io.trino.operator.gpu.GpuTestUtils.TEST_SESSION_TIME_ZONE_KEY;
@@ -115,7 +112,7 @@ final class TestGpuConcatWs
                 FUNCTION_RESOLUTION.resolveFunction("concat_ws", fromTypes(ImmutableList.<Type>builder().add(VARCHAR).addAll(inputTypes).build())),
                 arguments.build());
 
-        assertGpuMatchesCpu(inputPages, inputTypes, expression, IntStream.range(0, valueCount).boxed().collect(toImmutableSet()));
+        assertGpuMatchesCpu(inputPages, inputTypes, expression);
     }
 
     @ParameterizedTest
@@ -142,8 +139,7 @@ final class TestGpuConcatWs
                         createBlock(VARCHAR, positionsCount, nullsProvider),
                         createBlock(VARCHAR, positionsCount, nullsProvider))),
                 inputTypes,
-                expression,
-                Set.of(0, 1));
+                expression);
     }
 
     @Test
@@ -153,20 +149,19 @@ final class TestGpuConcatWs
         Expression expression = new Call(
                 FUNCTION_RESOLUTION.resolveFunction("concat_ws", fromTypes(VARCHAR, VARCHAR, VARCHAR, VARCHAR)),
                 ImmutableList.of(new Constant(VARCHAR, utf8Slice("ワ")), field(0, VARCHAR), field(1, VARCHAR), field(2, VARCHAR)));
-        Set<Integer> inputChannels = Set.of(0, 1, 2);
 
         int maxOutputLength = 1024 * 1024;
         int separatorLength = utf8Slice("ワ").length();
         // Two values and one separator, right at the limit and one byte past it
         String atLimit = "a".repeat(maxOutputLength - separatorLength - 1);
-        assertGpuMatchesCpu(List.of(threeStringPage(atLimit, "a", null)), inputTypes, expression, inputChannels);
-        assertGpuMatchesCpu(List.of(threeStringPage(atLimit, "aa", null)), inputTypes, expression, inputChannels);
+        assertGpuMatchesCpu(List.of(threeStringPage(atLimit, "a", null)), inputTypes, expression);
+        assertGpuMatchesCpu(List.of(threeStringPage(atLimit, "aa", null)), inputTypes, expression);
         // A NULL value adds no separator
-        assertGpuMatchesCpu(List.of(threeStringPage(atLimit, null, "a")), inputTypes, expression, inputChannels);
+        assertGpuMatchesCpu(List.of(threeStringPage(atLimit, null, "a")), inputTypes, expression);
         // An empty value does add one
-        assertGpuMatchesCpu(List.of(threeStringPage(atLimit, "", "a")), inputTypes, expression, inputChannels);
-        assertGpuMatchesCpu(List.of(threeStringPage("a".repeat(maxOutputLength), null, null)), inputTypes, expression, inputChannels);
-        assertGpuMatchesCpu(List.of(threeStringPage("a".repeat(maxOutputLength + 1), null, null)), inputTypes, expression, inputChannels);
+        assertGpuMatchesCpu(List.of(threeStringPage(atLimit, "", "a")), inputTypes, expression);
+        assertGpuMatchesCpu(List.of(threeStringPage("a".repeat(maxOutputLength), null, null)), inputTypes, expression);
+        assertGpuMatchesCpu(List.of(threeStringPage("a".repeat(maxOutputLength + 1), null, null)), inputTypes, expression);
     }
 
     @Test

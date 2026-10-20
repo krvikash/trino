@@ -28,7 +28,6 @@ import org.junit.jupiter.params.provider.EnumSource;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 
 import static io.trino.operator.gpu.GpuTestUtils.FUNCTION_RESOLUTION;
 import static io.trino.operator.gpu.GpuTestUtils.assertGpuMatchesCpu;
@@ -78,7 +77,7 @@ final class TestGpuSubstring
                 FUNCTION_RESOLUTION.resolveFunction("substring", fromTypes(VARCHAR, BIGINT)),
                 ImmutableList.of(field(varcharChannel, VARCHAR), field(startChannel, BIGINT)));
 
-        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(varcharChannel, startChannel));
+        assertGpuMatchesCpu(inputPages, inputTypes, expression);
     }
 
     @ParameterizedTest
@@ -111,6 +110,6 @@ final class TestGpuSubstring
                 FUNCTION_RESOLUTION.resolveFunction("substring", fromTypes(VARCHAR, BIGINT, BIGINT)),
                 ImmutableList.of(field(varcharChannel, VARCHAR), field(startChannel, BIGINT), field(lengthChannel, BIGINT)));
 
-        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(varcharChannel, startChannel, lengthChannel));
+        assertGpuMatchesCpu(inputPages, inputTypes, expression);
     }
 }

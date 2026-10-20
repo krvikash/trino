@@ -39,7 +39,6 @@ import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.List;
-import java.util.Set;
 import java.util.stream.Stream;
 
 import static io.trino.operator.gpu.GpuTestUtils.TEST_SESSION_TIME_ZONE_KEY;
@@ -97,7 +96,6 @@ final class TestGpuComparison
         int channelA = 0;
         int channelB = 1;
         Expression expression = comparison(operator, field(channelA, type), field(channelB, type));
-        Set<Integer> inputChannels = Set.of(channelA, channelB);
 
         int positionsCount = 64;
         List<Page> inputPages = List.of(new Page(
@@ -111,7 +109,7 @@ final class TestGpuComparison
                     .isEmpty();
             return;
         }
-        assertGpuMatchesCpu(inputPages, inputTypes, expression, inputChannels);
+        assertGpuMatchesCpu(inputPages, inputTypes, expression);
     }
 
     private static Stream<Object[]> comparisonTestCases()
@@ -156,7 +154,7 @@ final class TestGpuComparison
 
         Expression expression = comparison(operator, field(channelA, charType), field(channelB, charType));
 
-        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA, channelB));
+        assertGpuMatchesCpu(inputPages, inputTypes, expression);
     }
 
     @Test
@@ -172,10 +170,10 @@ final class TestGpuComparison
         // The widened value must acquire the target width before a GPU comparison uses it.
         Expression widened = new Cast(field(0, sourceType), targetType);
         Expression equal = comparison(ComparisonOperator.EQUAL, widened, field(1, targetType));
-        assertGpuMatchesCpu(inputPages, inputTypes, equal, Set.of(0, 1));
+        assertGpuMatchesCpu(inputPages, inputTypes, equal);
 
         Expression lessThan = comparison(ComparisonOperator.LESS_THAN, widened, field(1, targetType));
-        assertGpuMatchesCpu(inputPages, inputTypes, lessThan, Set.of(0, 1));
+        assertGpuMatchesCpu(inputPages, inputTypes, lessThan);
     }
 
     private static Block charBlock(Type charType, String... values)
@@ -206,10 +204,10 @@ final class TestGpuComparison
             Expression in = new In(field(0, type), ImmutableList.of(
                     new Constant(type, timestampWithTimeZone(type, epochMillis, warsaw)),
                     new Constant(type, timestampWithTimeZone(type, epochMillis + 2, UTC_KEY))));
-            assertGpuMatchesCpu(inputPages, inputTypes, in, Set.of(0));
+            assertGpuMatchesCpu(inputPages, inputTypes, in);
 
             Expression lessThan = comparison(ComparisonOperator.LESS_THAN, field(0, type), new Constant(type, timestampWithTimeZone(type, epochMillis + 1, warsaw)));
-            assertGpuMatchesCpu(inputPages, inputTypes, lessThan, Set.of(0));
+            assertGpuMatchesCpu(inputPages, inputTypes, lessThan);
         }
     }
 

@@ -40,7 +40,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 
 import static com.google.common.base.Verify.verify;
 import static io.trino.operator.gpu.GpuTestUtils.FUNCTION_RESOLUTION;
@@ -203,7 +202,7 @@ final class TestGpuTrim
                         FUNCTION_RESOLUTION.resolveFunction(functionName, fromTypes(type)),
                         ImmutableList.of(field(0, type)));
 
-                assertGpuMatchesCpu(createTrimInputPages(input, nullsProvider), inputTypes, expression, Set.of(0));
+                assertGpuMatchesCpu(createTrimInputPages(input, nullsProvider), inputTypes, expression);
             }
         }
     }
@@ -221,7 +220,7 @@ final class TestGpuTrim
                             FUNCTION_RESOLUTION.resolveFunction(functionName, fromTypes(type, CODE_POINTS)),
                             ImmutableList.of(field(0, type), new Constant(CODE_POINTS, codePointsToTrim.codePoints().toArray())));
 
-                    assertGpuMatchesCpu(createTrimInputPages(input, nullsProvider), inputTypes, expression, Set.of(0));
+                    assertGpuMatchesCpu(createTrimInputPages(input, nullsProvider), inputTypes, expression);
                 }
             }
         }

@@ -34,7 +34,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.Random;
-import java.util.Set;
 import java.util.function.IntSupplier;
 
 import static io.trino.operator.gpu.GpuTestUtils.TEST_SESSION_TIME_ZONE_KEY;
@@ -89,7 +88,7 @@ final class TestGpuRealToVarcharCast
                 (double) Float.MAX_VALUE,
                 (double) -Float.MAX_VALUE);
         for (Type targetType : List.of(VARCHAR, createVarcharType(13))) {
-            assertGpuMatchesCpu(realPages(values), List.of(REAL), cast(targetType), Set.of(0));
+            assertGpuMatchesCpu(realPages(values), List.of(REAL), cast(targetType));
         }
     }
 
@@ -100,7 +99,7 @@ final class TestGpuRealToVarcharCast
         for (int bits = 1; bits < 128; bits++) {
             values.add((double) Float.intBitsToFloat(bits)).add((double) -Float.intBitsToFloat(bits));
         }
-        assertGpuMatchesCpu(realPages(values.build()), List.of(REAL), cast(VARCHAR), Set.of(0));
+        assertGpuMatchesCpu(realPages(values.build()), List.of(REAL), cast(VARCHAR));
     }
 
     @Test
@@ -122,7 +121,7 @@ final class TestGpuRealToVarcharCast
                 (double) 1e-5f,
                 (double) 3.1415927f);
         for (Type targetType : List.of(VARCHAR, createVarcharType(13), createVarcharType(100))) {
-            assertGpuMatchesCpu(realPages(values), List.of(REAL), cast(targetType), Set.of(0));
+            assertGpuMatchesCpu(realPages(values), List.of(REAL), cast(targetType));
         }
     }
 
@@ -145,7 +144,7 @@ final class TestGpuRealToVarcharCast
                 (double) 1.8446743e19f,
                 (double) 9999999.5f,
                 (double) 0.99999995f);
-        assertGpuMatchesCpu(realPages(values), List.of(REAL), cast(VARCHAR), Set.of(0));
+        assertGpuMatchesCpu(realPages(values), List.of(REAL), cast(VARCHAR));
     }
 
     @Test
@@ -160,7 +159,7 @@ final class TestGpuRealToVarcharCast
                 }
             }
         }
-        assertGpuMatchesCpu(realPages(values.build()), List.of(REAL), cast(VARCHAR), Set.of(0));
+        assertGpuMatchesCpu(realPages(values.build()), List.of(REAL), cast(VARCHAR));
     }
 
     @ParameterizedTest
@@ -169,7 +168,7 @@ final class TestGpuRealToVarcharCast
     {
         Random random = new Random(1);
         List<Page> pages = randomRealPages(nullsProvider, random::nextInt);
-        assertGpuMatchesCpu(pages, List.of(REAL), cast(VARCHAR), Set.of(0));
+        assertGpuMatchesCpu(pages, List.of(REAL), cast(VARCHAR));
     }
 
     @Test
@@ -179,7 +178,7 @@ final class TestGpuRealToVarcharCast
         List<Page> pages = randomRealPages(
                 NullsProvider.NO_NULLS,
                 () -> floatToRawIntBits(Math.scalb(1 + random.nextFloat(), 20 + random.nextInt(47)) * (random.nextBoolean() ? 1 : -1)));
-        assertGpuMatchesCpu(pages, List.of(REAL), cast(VARCHAR), Set.of(0));
+        assertGpuMatchesCpu(pages, List.of(REAL), cast(VARCHAR));
     }
 
     @Test
@@ -187,12 +186,12 @@ final class TestGpuRealToVarcharCast
     {
         List<Double> fitting = Arrays.asList(null, 0.0, -0.0, 1.0, -1.5, (double) 0.1f, 12.5, (double) Float.NaN, (double) Float.POSITIVE_INFINITY, null);
         for (int bound = 8; bound <= 12; bound++) {
-            assertGpuMatchesCpu(realPages(fitting), List.of(REAL), cast(createVarcharType(bound)), Set.of(0));
+            assertGpuMatchesCpu(realPages(fitting), List.of(REAL), cast(createVarcharType(bound)));
         }
         for (float value : List.of(Float.NEGATIVE_INFINITY, -1.5f, 0.1f, 1.0f / 3, -Float.MIN_VALUE, Float.MAX_VALUE, -Float.MIN_NORMAL, 2.1990285e12f)) {
             int length = castToVarchar(Integer.MAX_VALUE, floatToRawIntBits(value)).length();
-            assertGpuMatchesCpu(realPages(List.of((double) value)), List.of(REAL), cast(createVarcharType(length)), Set.of(0));
-            assertGpuMatchesCpu(realPages(List.of((double) value)), List.of(REAL), cast(createVarcharType(length - 1)), Set.of(0));
+            assertGpuMatchesCpu(realPages(List.of((double) value)), List.of(REAL), cast(createVarcharType(length)));
+            assertGpuMatchesCpu(realPages(List.of((double) value)), List.of(REAL), cast(createVarcharType(length - 1)));
         }
     }
 

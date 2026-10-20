@@ -34,6 +34,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.IntStream;
 
+import static io.trino.SessionTestUtils.TEST_SESSION;
 import static io.trino.operator.gpu.GpuTestUtils.FUNCTION_RESOLUTION;
 import static io.trino.operator.gpu.GpuTestUtils.assertGpuMatchesCpu;
 import static io.trino.operator.gpu.GpuTestUtils.createBlock;
@@ -64,7 +65,7 @@ final class TestGpuToHex
         List<Page> inputPages = List.of(
                 new Page(createBlock(VARBINARY, 64, nullsProvider)),
                 new Page(createBlock(VARBINARY, 128, nullsProvider)));
-        assertGpuMatchesCpu(inputPages, List.of(VARBINARY), toHex(field(0, VARBINARY)), Set.of(0));
+        assertGpuMatchesCpu(inputPages, List.of(VARBINARY), toHex(field(0, VARBINARY)));
     }
 
     @Test
@@ -81,7 +82,7 @@ final class TestGpuToHex
                 new byte[] {(byte) 0xFF, 0x00, (byte) 0xAB},
                 everyByte,
                 new byte[0]));
-        assertGpuMatchesCpu(List.of(new Page(block)), List.of(VARBINARY), toHex(field(0, VARBINARY)), Set.of(0));
+        assertGpuMatchesCpu(List.of(new Page(block)), List.of(VARBINARY), toHex(field(0, VARBINARY)));
     }
 
     @ParameterizedTest
@@ -91,7 +92,7 @@ final class TestGpuToHex
         Expression toUtf8 = new Call(
                 FUNCTION_RESOLUTION.resolveFunction("to_utf8", fromTypes(VARCHAR)),
                 ImmutableList.of(field(0, VARCHAR)));
-        assertGpuMatchesCpu(createVarcharPages(VARCHAR, List.of(64), nullsProvider), List.of(VARCHAR), toHex(toUtf8), Set.of(0));
+        assertGpuMatchesCpu(createVarcharPages(VARCHAR, List.of(64), nullsProvider), List.of(VARCHAR), toHex(toUtf8));
     }
 
     @Test
@@ -100,7 +101,7 @@ final class TestGpuToHex
         // The constant needs a column to set the row count
         List<Page> inputPages = List.of(new Page(createBlock(BIGINT, 4, NullsProvider.NO_NULLS)));
         Expression expression = toHex(new Constant(VARBINARY, Slices.wrappedBuffer(new byte[] {0x01, (byte) 0xEF})));
-        assertGpuMatchesCpu(inputPages, List.of(BIGINT), expression, Set.of());
+        assertGpuMatchesCpu(TEST_SESSION, inputPages, List.of(BIGINT), expression, Set.of());
     }
 
     private static Expression toHex(Expression argument)

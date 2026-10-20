@@ -25,7 +25,6 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
 import java.util.List;
-import java.util.Set;
 
 import static io.trino.operator.gpu.GpuTestUtils.assertGpuMatchesCpu;
 import static io.trino.operator.gpu.GpuTestUtils.createBigintBlock;
@@ -58,6 +57,6 @@ final class TestGpuIsNull
 
         Expression expression = new IsNull(field(channelA, BIGINT));
 
-        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA));
+        assertGpuMatchesCpu(inputPages, inputTypes, expression);
     }
 }

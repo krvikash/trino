@@ -39,7 +39,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
-import java.util.Set;
 
 import static io.airlift.slice.Slices.utf8Slice;
 import static io.trino.SessionTestUtils.TEST_SESSION;
@@ -96,7 +95,7 @@ final class TestGpuUnixTime
             int channel = 0;
             List<Type> inputTypes = List.of(type);
             List<Page> inputPages = List.of(new Page(createBlock(type, 64, nullsProvider)));
-            assertGpuMatchesCpu(inputPages, inputTypes, toUnixTime(field(channel, type)), Set.of(channel));
+            assertGpuMatchesCpu(inputPages, inputTypes, toUnixTime(field(channel, type)));
         }
     }
 
@@ -115,7 +114,7 @@ final class TestGpuUnixTime
             type.writeObject(builder, LongTimestampWithTimeZone.fromEpochMillisAndFraction(epochMillis, picosOfMilli, UTC_KEY));
             builder.appendNull();
 
-            assertGpuMatchesCpu(List.of(new Page(builder.build())), List.of(type), toUnixTime(field(0, type)), Set.of(0));
+            assertGpuMatchesCpu(List.of(new Page(builder.build())), List.of(type), toUnixTime(field(0, type)));
         }
     }
 

@@ -33,7 +33,6 @@ import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.List;
-import java.util.Set;
 import java.util.stream.Stream;
 
 import static io.trino.operator.gpu.GpuTestUtils.FUNCTION_RESOLUTION;
@@ -84,7 +83,7 @@ final class TestGpuLeast
                 FUNCTION_RESOLUTION.resolveFunction("least", fromTypes(type, type)),
                 ImmutableList.of(field(channelA, type), field(channelB, type)));
 
-        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA, channelB));
+        assertGpuMatchesCpu(inputPages, inputTypes, expression);
     }
 
     private static Stream<Object[]> leastTestCases()
@@ -135,7 +134,7 @@ final class TestGpuLeast
                 FUNCTION_RESOLUTION.resolveFunction("least", fromTypes(BIGINT, BIGINT, BIGINT, BIGINT)),
                 ImmutableList.of(field(channelA, BIGINT), field(channelB, BIGINT), field(channelC, BIGINT), field(channelD, BIGINT)));
 
-        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA, channelB, channelC, channelD));
+        assertGpuMatchesCpu(inputPages, inputTypes, expression);
     }
 
     @Test
@@ -153,7 +152,7 @@ final class TestGpuLeast
                 FUNCTION_RESOLUTION.resolveFunction("least", fromTypes(BIGINT, BIGINT)),
                 ImmutableList.of(field(channelA, BIGINT), new Constant(BIGINT, null)));
 
-        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA));
+        assertGpuMatchesCpu(inputPages, inputTypes, expression);
     }
 
     @Test
@@ -172,7 +171,7 @@ final class TestGpuLeast
                 FUNCTION_RESOLUTION.resolveFunction("least", fromTypes(charType, charType)),
                 ImmutableList.of(field(channelA, charType), field(channelB, charType)));
 
-        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA, channelB));
+        assertGpuMatchesCpu(inputPages, inputTypes, expression);
     }
 
     private static Block charBlock(Type charType, String... values)

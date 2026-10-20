@@ -32,7 +32,6 @@ import org.junit.jupiter.params.provider.EnumSource;
 
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Set;
 
 import static io.trino.operator.gpu.GpuTestUtils.FUNCTION_RESOLUTION;
 import static io.trino.operator.gpu.GpuTestUtils.MAX_GPU_TIMESTAMP_PRECISION;
@@ -92,7 +91,7 @@ final class TestGpuLastDayOfMonth
                 FUNCTION_RESOLUTION.resolveFunction("last_day_of_month", fromTypes(type)),
                 ImmutableList.of(field(channelA, type)));
 
-        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA));
+        assertGpuMatchesCpu(inputPages, inputTypes, expression);
     }
 
     @Test
@@ -138,7 +137,7 @@ final class TestGpuLastDayOfMonth
                 if (epochMicros < Long.MIN_VALUE / NANOSECONDS_PER_MICROSECOND || epochMicros > Long.MAX_VALUE / NANOSECONDS_PER_MICROSECOND) {
                     // GPU converts long timestamps to TIMESTAMP_NANOSECONDS, which has a narrower representable range
                     List<Page> outOfRangePages = List.of(new Page(writeNativeValue(type, new LongTimestamp(epochMicros, 0))));
-                    assertTrinoExceptionThrownBy(() -> assertGpuMatchesCpu(outOfRangePages, inputTypes, expression, Set.of(channelA)))
+                    assertTrinoExceptionThrownBy(() -> assertGpuMatchesCpu(outOfRangePages, inputTypes, expression))
                             .hasErrorCode(NUMERIC_VALUE_OUT_OF_RANGE)
                             .hasMessage("Timestamp value out of range support for GPU for type %s: 0001-01-01T00:00".formatted(type));
                     continue;
@@ -148,7 +147,7 @@ final class TestGpuLastDayOfMonth
         }
         List<Page> inputPages = List.of(new Page(builder.build()));
 
-        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA));
+        assertGpuMatchesCpu(inputPages, inputTypes, expression);
     }
 
     @Test

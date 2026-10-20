@@ -32,7 +32,6 @@ import org.junit.jupiter.params.provider.EnumSource;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 
 import static io.trino.operator.gpu.GpuTestUtils.FUNCTION_RESOLUTION;
 import static io.trino.operator.gpu.GpuTestUtils.TEST_SESSION_TIME_ZONE_KEY;
@@ -155,7 +154,7 @@ final class TestGpuReplace
             assertThat(compileExpression(expression, layoutFor(inputTypes), SQL_STANDARD, TEST_SESSION_TIME_ZONE_KEY)).isEmpty();
             return;
         }
-        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(varcharChannel));
+        assertGpuMatchesCpu(inputPages, inputTypes, expression);
     }
 
     private static Page varcharPage(List<String> values)

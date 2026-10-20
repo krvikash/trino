@@ -35,7 +35,6 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.stream.Stream;
 
 import static io.trino.operator.gpu.GpuTestUtils.FUNCTION_RESOLUTION;
@@ -95,7 +94,7 @@ final class TestGpuNullIf
         // NULLIF(a, b)
         Expression expression = nullIf(emptySymbolAllocator(), field(channelA, type), field(channelB, type));
 
-        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA, channelB));
+        assertGpuMatchesCpu(inputPages, inputTypes, expression);
     }
 
     private static Stream<Arguments> nullIfTestCases()
@@ -129,7 +128,7 @@ final class TestGpuNullIf
         // NULL condition as a match would show up as a wrongly NULLed-out result.
         Expression expression = nullIf(emptySymbolAllocator(), field(channelA, BIGINT), new Constant(BIGINT, null));
 
-        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA));
+        assertGpuMatchesCpu(inputPages, inputTypes, expression);
     }
 
     @ParameterizedTest
@@ -152,7 +151,7 @@ final class TestGpuNullIf
                 new Constant(BIGINT, 0L));
         assertThat(expression).isInstanceOf(Let.class);
 
-        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA, channelB));
+        assertGpuMatchesCpu(inputPages, inputTypes, expression);
     }
 
     @ParameterizedTest
@@ -172,7 +171,7 @@ final class TestGpuNullIf
         Expression expression = nullIf(emptySymbolAllocator(), field(channelA, type), new Constant(INTEGER, 0L), type);
         assertThat(expression.type()).isEqualTo(type);
 
-        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA));
+        assertGpuMatchesCpu(inputPages, inputTypes, expression);
     }
 
     private static Stream<Arguments> nullIfWithIntegerZeroTestCases()
@@ -211,6 +210,6 @@ final class TestGpuNullIf
         Expression expression = nullIf(emptySymbolAllocator(), field(channelA, INTEGER), field(channelB, BIGINT), BIGINT);
         assertThat(expression.type()).isEqualTo(INTEGER);
 
-        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA, channelB));
+        assertGpuMatchesCpu(inputPages, inputTypes, expression);
     }
 }

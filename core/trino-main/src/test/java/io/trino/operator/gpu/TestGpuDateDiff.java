@@ -40,7 +40,6 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.Random;
-import java.util.Set;
 
 import static io.trino.operator.gpu.GpuTestUtils.FUNCTION_RESOLUTION;
 import static io.trino.operator.gpu.GpuTestUtils.MAX_GPU_TIMESTAMP_PRECISION;
@@ -200,14 +199,14 @@ final class TestGpuDateDiff
                         field(0, DATE),
                         new Constant(DATE, LocalDate.of(2025, 10, 1).toEpochDay())));
         Block dates = randomDateTimeBlock(DATE, 64, NullsProvider.RANDOM_NULLS, 1);
-        assertGpuMatchesCpu(List.of(new Page(dates)), List.of(DATE), expression, Set.of(0));
+        assertGpuMatchesCpu(List.of(new Page(dates)), List.of(DATE), expression);
     }
 
     private void assertDateDiffMatchesCpu(Type type, List<String> units, Block start, Block end)
     {
         for (String unit : units) {
             try {
-                assertGpuMatchesCpu(List.of(new Page(start, end)), List.of(type, type), dateDiff(unit, type), Set.of(0, 1));
+                assertGpuMatchesCpu(List.of(new Page(start, end)), List.of(type, type), dateDiff(unit, type));
             }
             catch (Throwable t) {
                 t.addSuppressed(new Exception("unit: " + unit));

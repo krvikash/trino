@@ -29,6 +29,7 @@ import org.junit.jupiter.params.provider.EnumSource;
 import java.util.List;
 import java.util.Set;
 
+import static io.trino.SessionTestUtils.TEST_SESSION;
 import static io.trino.operator.gpu.GpuTestUtils.assertGpuMatchesCpu;
 import static io.trino.operator.gpu.GpuTestUtils.createBigintBlock;
 import static io.trino.operator.gpu.GpuTestUtils.maybeSetGpuMemoryPoolForTests;
@@ -138,7 +139,7 @@ final class TestGpuConstant
         List<Page> inputPages = List.of(new Page(
                 positionsCount,
                 createBigintBlock(positionsCount, nullsProvider, -1000, 1000)));
-        assertGpuMatchesCpu(inputPages, List.of(BIGINT), expression, Set.of(0));
+        assertGpuMatchesCpu(inputPages, List.of(BIGINT), expression);
     }
 
     private void testConstant(Expression constantExpression)
@@ -147,6 +148,6 @@ final class TestGpuConstant
         List<Page> inputPages = List.of(new Page(
                 positionsCount,
                 createBigintBlock(positionsCount, NullsProvider.NO_NULLS, 0, 100)));
-        assertGpuMatchesCpu(inputPages, List.of(BIGINT), constantExpression, Set.of());
+        assertGpuMatchesCpu(TEST_SESSION, inputPages, List.of(BIGINT), constantExpression, Set.of());
     }
 }

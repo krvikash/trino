@@ -38,6 +38,7 @@ import org.junit.jupiter.params.provider.EnumSource;
 import java.util.List;
 import java.util.Set;
 
+import static io.trino.SessionTestUtils.TEST_SESSION;
 import static io.trino.operator.gpu.GpuTestUtils.FUNCTION_RESOLUTION;
 import static io.trino.operator.gpu.GpuTestUtils.assertGpuMatchesCpu;
 import static io.trino.operator.gpu.GpuTestUtils.createBigintBlock;
@@ -89,7 +90,7 @@ final class TestGpuLogical
                 field(channelB, BIGINT));
         Expression expression = new Logical(Logical.Operator.AND, ImmutableList.of(left, right));
 
-        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA, channelB));
+        assertGpuMatchesCpu(inputPages, inputTypes, expression);
     }
 
     @ParameterizedTest
@@ -116,7 +117,7 @@ final class TestGpuLogical
                 field(channelB, BIGINT));
         Expression expression = new Logical(Logical.Operator.OR, ImmutableList.of(left, right));
 
-        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA, channelB));
+        assertGpuMatchesCpu(inputPages, inputTypes, expression);
     }
 
     @Test
@@ -126,7 +127,7 @@ final class TestGpuLogical
         List<Page> inputPages = List.of(new Page(booleanBlock(TRUTH_TABLE_LEFT), booleanBlock(TRUTH_TABLE_RIGHT)));
         Expression expression = new Logical(Logical.Operator.AND, ImmutableList.of(field(0, BOOLEAN), field(1, BOOLEAN)));
 
-        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(0, 1));
+        assertGpuMatchesCpu(inputPages, inputTypes, expression);
     }
 
     @Test
@@ -136,7 +137,7 @@ final class TestGpuLogical
         List<Page> inputPages = List.of(new Page(booleanBlock(TRUTH_TABLE_LEFT), booleanBlock(TRUTH_TABLE_RIGHT)));
         Expression expression = new Logical(Logical.Operator.OR, ImmutableList.of(field(0, BOOLEAN), field(1, BOOLEAN)));
 
-        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(0, 1));
+        assertGpuMatchesCpu(inputPages, inputTypes, expression);
     }
 
     @ParameterizedTest
@@ -159,7 +160,7 @@ final class TestGpuLogical
                 FUNCTION_RESOLUTION.resolveFunction("$not", fromTypes(BOOLEAN)),
                 ImmutableList.of(comparison));
 
-        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA));
+        assertGpuMatchesCpu(inputPages, inputTypes, expression);
     }
 
     private static Expression not(Expression expression)
@@ -184,7 +185,7 @@ final class TestGpuLogical
     {
         // b <> 0 AND a / b = 42: the divide is skipped where b is 0, and yields NULL where b is NULL
         Expression expression = andDivides(divide(field(0, BIGINT), field(1, BIGINT)));
-        assertGpuMatchesCpu(divisorPages(nullsProvider), List.of(BIGINT, BIGINT), expression, Set.of(0, 1));
+        assertGpuMatchesCpu(divisorPages(nullsProvider), List.of(BIGINT, BIGINT), expression);
     }
 
     @ParameterizedTest
@@ -194,7 +195,8 @@ final class TestGpuLogical
         // b <> 0 AND 10 / coalesce(b, 7) = 42: coalesce revives a divisor from a NULL b, so the divide
         // can raise on any row, and stays in range on the rows the AND still has to evaluate it on
         Expression expression = andDivides(divideConstantByCoalesce(field(1, BIGINT)));
-        assertGpuMatchesCpu(divisorPages(nullsProvider), List.of(BIGINT, BIGINT), expression, Set.of(1));
+        // TODO divisorPages generates two columns, but the test uses only one
+        assertGpuMatchesCpu(TEST_SESSION, divisorPages(nullsProvider), List.of(BIGINT, BIGINT), expression, Set.of(1));
     }
 
     @ParameterizedTest
@@ -203,7 +205,7 @@ final class TestGpuLogical
     {
         // b = 0 OR a / b = 42
         Expression expression = orDivides(divide(field(0, BIGINT), field(1, BIGINT)));
-        assertGpuMatchesCpu(divisorPages(nullsProvider), List.of(BIGINT, BIGINT), expression, Set.of(0, 1));
+        assertGpuMatchesCpu(divisorPages(nullsProvider), List.of(BIGINT, BIGINT), expression);
     }
 
     @ParameterizedTest
@@ -212,7 +214,8 @@ final class TestGpuLogical
     {
         // b = 0 OR 10 / coalesce(b, 7) = 42
         Expression expression = orDivides(divideConstantByCoalesce(field(1, BIGINT)));
-        assertGpuMatchesCpu(divisorPages(nullsProvider), List.of(BIGINT, BIGINT), expression, Set.of(1));
+        // TODO divisorPages generates two columns, but the test uses only one
+        assertGpuMatchesCpu(TEST_SESSION, divisorPages(nullsProvider), List.of(BIGINT, BIGINT), expression, Set.of(1));
     }
 
     @ParameterizedTest
@@ -224,7 +227,7 @@ final class TestGpuLogical
                 comparison(ComparisonOperator.LESS_THAN, field(0, BIGINT), new Constant(BIGINT, 0L)),
                 not(comparison(ComparisonOperator.EQUAL, field(1, BIGINT), new Constant(BIGINT, 0L))),
                 comparison(ComparisonOperator.EQUAL, divideConstantByCoalesce(field(1, BIGINT)), new Constant(BIGINT, 42L))));
-        assertGpuMatchesCpu(divisorPages(nullsProvider), List.of(BIGINT, BIGINT), expression, Set.of(0, 1));
+        assertGpuMatchesCpu(divisorPages(nullsProvider), List.of(BIGINT, BIGINT), expression);
     }
 
     @ParameterizedTest
@@ -236,7 +239,7 @@ final class TestGpuLogical
                 comparison(ComparisonOperator.LESS_THAN, field(0, BIGINT), new Constant(BIGINT, 0L)),
                 comparison(ComparisonOperator.EQUAL, field(1, BIGINT), new Constant(BIGINT, 0L)),
                 comparison(ComparisonOperator.EQUAL, divideConstantByCoalesce(field(1, BIGINT)), new Constant(BIGINT, 42L))));
-        assertGpuMatchesCpu(divisorPages(nullsProvider), List.of(BIGINT, BIGINT), expression, Set.of(0, 1));
+        assertGpuMatchesCpu(divisorPages(nullsProvider), List.of(BIGINT, BIGINT), expression);
     }
 
     @ParameterizedTest
@@ -247,7 +250,8 @@ final class TestGpuLogical
         Expression expression = new Logical(Logical.Operator.AND, ImmutableList.of(
                 not(comparison(ComparisonOperator.EQUAL, field(1, BIGINT), new Constant(BIGINT, 0L))),
                 not(comparison(ComparisonOperator.EQUAL, divideConstantByCoalesce(field(1, BIGINT)), new Constant(BIGINT, 42L)))));
-        assertGpuMatchesCpu(divisorPages(nullsProvider), List.of(BIGINT, BIGINT), expression, Set.of(1));
+        // TODO divisorPages generates two columns, but the test uses only one
+        assertGpuMatchesCpu(TEST_SESSION, divisorPages(nullsProvider), List.of(BIGINT, BIGINT), expression, Set.of(1));
     }
 
     @ParameterizedTest
@@ -258,7 +262,8 @@ final class TestGpuLogical
         Expression expression = new Logical(Logical.Operator.OR, ImmutableList.of(
                 comparison(ComparisonOperator.EQUAL, field(1, BIGINT), new Constant(BIGINT, 0L)),
                 not(comparison(ComparisonOperator.EQUAL, divideConstantByCoalesce(field(1, BIGINT)), new Constant(BIGINT, 42L)))));
-        assertGpuMatchesCpu(divisorPages(nullsProvider), List.of(BIGINT, BIGINT), expression, Set.of(1));
+        // TODO divisorPages generates two columns, but the test uses only one
+        assertGpuMatchesCpu(TEST_SESSION, divisorPages(nullsProvider), List.of(BIGINT, BIGINT), expression, Set.of(1));
     }
 
     @ParameterizedTest
@@ -269,7 +274,8 @@ final class TestGpuLogical
         Expression quotient = divide(new Constant(BIGINT, 10L), x.toSymbolReference());
         for (Expression body : List.of(andDivides(quotient), orDivides(quotient))) {
             Expression expression = new Let(x, field(1, BIGINT), body);
-            assertGpuMatchesCpu(divisorPages(nullsProvider), List.of(BIGINT, BIGINT), expression, Set.of(1));
+            // TODO divisorPages generates two columns, but the test uses only one
+            assertGpuMatchesCpu(TEST_SESSION, divisorPages(nullsProvider), List.of(BIGINT, BIGINT), expression, Set.of(1));
         }
     }
 

@@ -31,7 +31,6 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.stream.Stream;
 
 import static io.trino.operator.gpu.GpuTestUtils.FUNCTION_RESOLUTION;
@@ -84,7 +83,7 @@ final class TestGpuMod
                 createRepeatingValuesBlock(type, positionsCount, nullsProvider, dividends, 1),
                 createRepeatingValuesBlock(type, positionsCount, nullsProvider, divisors, dividends.size())));
 
-        assertGpuMatchesCpu(inputPages, inputTypes, mod(type, field(channelA, type), field(channelB, type)), Set.of(channelA, channelB));
+        assertGpuMatchesCpu(inputPages, inputTypes, mod(type, field(channelA, type), field(channelB, type)));
     }
 
     private static Stream<Arguments> modTestCases()

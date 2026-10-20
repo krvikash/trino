@@ -37,7 +37,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.Random;
-import java.util.Set;
 import java.util.function.DoubleSupplier;
 
 import static io.trino.operator.gpu.GpuTestUtils.TEST_SESSION_TIME_ZONE_KEY;
@@ -92,7 +91,7 @@ final class TestGpuDoubleToVarcharCast
                 Double.MAX_VALUE,
                 -Double.MAX_VALUE);
         for (Type targetType : List.of(VARCHAR, createVarcharType(24))) {
-            assertGpuMatchesCpu(doublePages(values), List.of(DOUBLE), cast(targetType), Set.of(0));
+            assertGpuMatchesCpu(doublePages(values), List.of(DOUBLE), cast(targetType));
         }
     }
 
@@ -105,7 +104,7 @@ final class TestGpuDoubleToVarcharCast
         for (int multiple = 1; multiple <= 64; multiple++) {
             values.add(multiple * Double.MIN_VALUE).add(-multiple * Double.MIN_VALUE);
         }
-        assertGpuMatchesCpu(doublePages(values.build()), List.of(DOUBLE), cast(VARCHAR), Set.of(0));
+        assertGpuMatchesCpu(doublePages(values.build()), List.of(DOUBLE), cast(VARCHAR));
     }
 
     @Test
@@ -137,7 +136,7 @@ final class TestGpuDoubleToVarcharCast
                 // Largest magnitude below 2^54
                 Math.nextDown(SHORTEST_DIGITS_ON_CPU_LIMIT));
         for (Type targetType : List.of(VARCHAR, createVarcharType(24), createVarcharType(100))) {
-            assertGpuMatchesCpu(doublePages(values), List.of(DOUBLE), cast(targetType), Set.of(0));
+            assertGpuMatchesCpu(doublePages(values), List.of(DOUBLE), cast(targetType));
         }
     }
 
@@ -154,7 +153,7 @@ final class TestGpuDoubleToVarcharCast
                 }
             }
         }
-        assertGpuMatchesCpu(doublePages(values.build()), List.of(DOUBLE), cast(VARCHAR), Set.of(0));
+        assertGpuMatchesCpu(doublePages(values.build()), List.of(DOUBLE), cast(VARCHAR));
     }
 
     @ParameterizedTest
@@ -163,7 +162,7 @@ final class TestGpuDoubleToVarcharCast
     {
         Random random = new Random(1);
         List<Page> pages = randomDoublePages(nullsProvider, () -> (random.nextInt(2_000_000_000) - 1_000_000_000) / 100.0);
-        assertGpuMatchesCpu(pages, List.of(DOUBLE), cast(VARCHAR), Set.of(0));
+        assertGpuMatchesCpu(pages, List.of(DOUBLE), cast(VARCHAR));
     }
 
     @ParameterizedTest
@@ -175,7 +174,7 @@ final class TestGpuDoubleToVarcharCast
             double value = Double.longBitsToDouble(random.nextLong());
             return Math.abs(value) < SHORTEST_DIGITS_ON_CPU_LIMIT ? value : Math.scalb(value, -1100);
         });
-        assertGpuMatchesCpu(pages, List.of(DOUBLE), cast(VARCHAR), Set.of(0));
+        assertGpuMatchesCpu(pages, List.of(DOUBLE), cast(VARCHAR));
     }
 
     @Test
@@ -185,7 +184,7 @@ final class TestGpuDoubleToVarcharCast
         List<Page> pages = randomDoublePages(
                 NullsProvider.NO_NULLS,
                 () -> Math.scalb(1 + random.nextDouble(), random.nextInt(1074 + 53) - 1074) * (random.nextBoolean() ? 1 : -1));
-        assertGpuMatchesCpu(pages, List.of(DOUBLE), cast(VARCHAR), Set.of(0));
+        assertGpuMatchesCpu(pages, List.of(DOUBLE), cast(VARCHAR));
     }
 
     @Test
@@ -195,7 +194,7 @@ final class TestGpuDoubleToVarcharCast
         List<Page> pages = randomDoublePages(
                 NullsProvider.NO_NULLS,
                 () -> Math.scalb(1 + random.nextDouble(), 85 + random.nextInt(1024 - 85)) * (random.nextBoolean() ? 1 : -1));
-        assertGpuMatchesCpu(pages, List.of(DOUBLE), cast(VARCHAR), Set.of(0));
+        assertGpuMatchesCpu(pages, List.of(DOUBLE), cast(VARCHAR));
     }
 
     @Test
@@ -266,12 +265,12 @@ final class TestGpuDoubleToVarcharCast
     {
         List<Double> fitting = Arrays.asList(null, 0.0, -0.0, 1.0, -1.5, 0.1, 12.5, Double.NaN, Double.POSITIVE_INFINITY, null);
         for (int bound = 8; bound <= 23; bound++) {
-            assertGpuMatchesCpu(doublePages(fitting), List.of(DOUBLE), cast(createVarcharType(bound)), Set.of(0));
+            assertGpuMatchesCpu(doublePages(fitting), List.of(DOUBLE), cast(createVarcharType(bound)));
         }
         for (double value : List.of(Double.NEGATIVE_INFINITY, -1.5, 0.1, 1.0 / 3, -Double.MIN_VALUE, Double.MAX_VALUE, -Double.MIN_NORMAL)) {
             int length = castToVarchar(Integer.MAX_VALUE, value).length();
-            assertGpuMatchesCpu(doublePages(List.of(value)), List.of(DOUBLE), cast(createVarcharType(length)), Set.of(0));
-            assertGpuMatchesCpu(doublePages(List.of(value)), List.of(DOUBLE), cast(createVarcharType(length - 1)), Set.of(0));
+            assertGpuMatchesCpu(doublePages(List.of(value)), List.of(DOUBLE), cast(createVarcharType(length)));
+            assertGpuMatchesCpu(doublePages(List.of(value)), List.of(DOUBLE), cast(createVarcharType(length - 1)));
         }
     }
 

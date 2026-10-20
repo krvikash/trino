@@ -37,6 +37,7 @@ import java.util.List;
 import java.util.Random;
 import java.util.Set;
 
+import static io.trino.SessionTestUtils.TEST_SESSION;
 import static io.trino.operator.gpu.GpuTestUtils.FUNCTION_RESOLUTION;
 import static io.trino.operator.gpu.GpuTestUtils.assertGpuMatchesCpu;
 import static io.trino.operator.gpu.GpuTestUtils.createBigintBlock;
@@ -76,7 +77,7 @@ final class TestGpuCase
                         new WhenClause(aLtFifty, new Constant(BIGINT, 0L))),
                 new Constant(BIGINT, 1L));
 
-        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA));
+        assertGpuMatchesCpu(inputPages, inputTypes, expression);
     }
 
     @Test
@@ -98,7 +99,7 @@ final class TestGpuCase
                         new WhenClause(aEq998, new Constant(BIGINT, 2L))),
                 new Constant(BIGINT, 42L));
 
-        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA));
+        assertGpuMatchesCpu(inputPages, inputTypes, expression);
     }
 
     @Test
@@ -120,7 +121,7 @@ final class TestGpuCase
                         new WhenClause(aEq998, new Constant(BIGINT, 2L))),
                 new Constant(BIGINT, null));
 
-        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA));
+        assertGpuMatchesCpu(inputPages, inputTypes, expression);
     }
 
     @Test
@@ -140,7 +141,7 @@ final class TestGpuCase
                         new WhenClause(new Constant(BOOLEAN, null), new Constant(BIGINT, 2L))),
                 new Constant(BIGINT, 3L));
 
-        assertGpuMatchesCpu(inputPages, inputTypes, expression);
+        assertGpuMatchesCpu(TEST_SESSION, inputPages, inputTypes, expression, Set.of());
     }
 
     @Test
@@ -178,7 +179,7 @@ final class TestGpuCase
                         new WhenClause(new Constant(BOOLEAN, true), new Constant(BIGINT, 7L))),
                 new Constant(BIGINT, -3L));
 
-        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA, channelB));
+        assertGpuMatchesCpu(inputPages, inputTypes, expression);
     }
 
     @Test
@@ -197,7 +198,7 @@ final class TestGpuCase
                         new WhenClause(new Constant(BOOLEAN, false), new Constant(BIGINT, 2L))),
                 new Constant(BIGINT, 3L));
 
-        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of());
+        assertGpuMatchesCpu(TEST_SESSION, inputPages, inputTypes, expression, Set.of());
     }
 
     @ParameterizedTest
@@ -220,7 +221,7 @@ final class TestGpuCase
         }
         Expression expression = new Case(whenClauses.build(), new Constant(BIGINT, -1L));
 
-        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA));
+        assertGpuMatchesCpu(inputPages, inputTypes, expression);
     }
 
     @Test
@@ -257,7 +258,7 @@ final class TestGpuCase
                         new WhenClause(aDivBGt5, new Constant(BIGINT, 2L))),
                 new Constant(BIGINT, 3L));
 
-        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA, channelB));
+        assertGpuMatchesCpu(inputPages, inputTypes, expression);
     }
 
     @Test
@@ -294,7 +295,7 @@ final class TestGpuCase
                         new WhenClause(new Constant(BOOLEAN, true), new Constant(BIGINT, 0L))),
                 new Constant(BIGINT, null));
 
-        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA, channelB));
+        assertGpuMatchesCpu(inputPages, inputTypes, expression);
     }
 
     @Test
@@ -321,7 +322,7 @@ final class TestGpuCase
                         new WhenClause(aDivBGt5, new Constant(BIGINT, 2L))),
                 new Constant(BIGINT, 3L));
 
-        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA, channelB));
+        assertGpuMatchesCpu(inputPages, inputTypes, expression);
     }
 
     @Test
@@ -347,7 +348,7 @@ final class TestGpuCase
                         new WhenClause(new Constant(BOOLEAN, true), new Constant(BIGINT, 0L))),
                 new Constant(BIGINT, null));
 
-        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA, channelB));
+        assertGpuMatchesCpu(inputPages, inputTypes, expression);
     }
 
     @Test
@@ -376,6 +377,6 @@ final class TestGpuCase
                         new WhenClause(aLtZero, aTimes2)),
                 aRef);
 
-        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA));
+        assertGpuMatchesCpu(inputPages, inputTypes, expression);
     }
 }

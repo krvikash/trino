@@ -34,7 +34,6 @@ import org.junit.jupiter.params.provider.EnumSource;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import static io.trino.operator.gpu.GpuTestUtils.FUNCTION_RESOLUTION;
 import static io.trino.operator.gpu.GpuTestUtils.TEST_SESSION_TIME_ZONE_KEY;
@@ -84,7 +83,7 @@ final class TestGpuLet
                 add(s1.toSymbolReference(), s2.toSymbolReference()));
         Expression expression = new Let(s1, add(field(0, BIGINT), field(1, BIGINT)), inner);
 
-        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(0, 1, 2));
+        assertGpuMatchesCpu(inputPages, inputTypes, expression);
     }
 
     @ParameterizedTest
@@ -106,7 +105,7 @@ final class TestGpuLet
                         add(reference, reference)),
                 reference);
 
-        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(0, 1));
+        assertGpuMatchesCpu(inputPages, inputTypes, expression);
     }
 
     @ParameterizedTest
@@ -165,7 +164,7 @@ final class TestGpuLet
                 add(s2.toSymbolReference(), s2.toSymbolReference()));
         Expression expression = add(left, right);
 
-        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(0, 1));
+        assertGpuMatchesCpu(inputPages, inputTypes, expression);
     }
 
     private static Expression add(Expression left, Expression right)

@@ -1007,11 +1007,6 @@ public final class GpuTestUtils
     public static void assertGpuMatchesCpu(List<Page> inputPages, List<Type> inputTypes, Expression expression)
     {
         Set<Integer> expectedInputChannels = IntStream.range(0, inputTypes.size()).boxed().collect(toImmutableSet());
-        assertGpuMatchesCpu(inputPages, inputTypes, expression, expectedInputChannels);
-    }
-
-    public static void assertGpuMatchesCpu(List<Page> inputPages, List<Type> inputTypes, Expression expression, Set<Integer> expectedInputChannels)
-    {
         assertGpuMatchesCpu(inputPages, inputTypes, expression, expectedInputChannels, false);
     }
 
@@ -1282,6 +1277,7 @@ public final class GpuTestUtils
 
     /// A page of `a` and `b` where `b` mixes zero, positive and negative divisors with the NULLs
     /// `nullsProvider` asks for.
+    // TODO this is not generic data generation, should not live in GpuTestUtils
     public static List<Page> divisorPages(NullsProvider nullsProvider)
     {
         int positionsCount = 64;

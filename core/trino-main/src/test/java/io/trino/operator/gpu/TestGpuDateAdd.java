@@ -45,7 +45,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
-import java.util.Set;
 import java.util.stream.IntStream;
 
 import static com.google.common.collect.Iterables.getOnlyElement;
@@ -626,12 +625,10 @@ final class TestGpuDateAdd
 
     private void assertDateAddMatchesCpu(String unit, long value, Type dateTimeType, Block dateTimes)
     {
-        int channelA = 0;
         assertGpuMatchesCpu(
                 List.of(new Page(dateTimes.getPositionCount(), dateTimes)),
                 List.of(dateTimeType),
-                dateAdd(unit, new Constant(BIGINT, value), dateTimeType),
-                Set.of(channelA));
+                dateAdd(unit, new Constant(BIGINT, value), dateTimeType));
     }
 
     private static Expression dateAdd(String unit, Expression value, Type dateTimeType)

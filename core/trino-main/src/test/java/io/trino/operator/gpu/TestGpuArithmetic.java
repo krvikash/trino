@@ -497,7 +497,7 @@ final class TestGpuArithmetic
                 FUNCTION_RESOLUTION.resolveOperator(operatorType, List.of(BIGINT, BIGINT)),
                 ImmutableList.of(field(channelA, BIGINT), field(channelB, BIGINT)));
 
-        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA, channelB));
+        assertGpuMatchesCpu(inputPages, inputTypes, expression);
     }
 
     /**

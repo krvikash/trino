@@ -141,7 +141,7 @@ final class TestGpuCasts
 
         Expression expression = new Cast(field(channelA, sourceType), targetType);
 
-        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(channelA));
+        assertGpuMatchesCpu(inputPages, inputTypes, expression);
     }
 
     @ParameterizedTest
@@ -164,7 +164,7 @@ final class TestGpuCasts
                 positionsCount,
                 createRepeatingValuesBlock(DATE, positionsCount, nullsProvider, dates, 1)));
         for (Type targetType : List.of(VARCHAR, createVarcharType(10))) {
-            assertGpuMatchesCpu(inputPages, List.of(DATE), new Cast(field(0, DATE), targetType), Set.of(0));
+            assertGpuMatchesCpu(inputPages, List.of(DATE), new Cast(field(0, DATE), targetType));
         }
     }
 
@@ -187,7 +187,7 @@ final class TestGpuCasts
     {
         Expression expression = new Cast(field(0, DATE), VARCHAR);
         for (List<Long> values : List.of(Arrays.<Long>asList(null, null), List.<Long>of())) {
-            assertGpuMatchesCpu(List.of(new Page(dateBlock(values))), List.of(DATE), expression, Set.of(0));
+            assertGpuMatchesCpu(List.of(new Page(dateBlock(values))), List.of(DATE), expression);
         }
     }
 
@@ -199,7 +199,7 @@ final class TestGpuCasts
         Expression expression = new Case(
                 ImmutableList.of(new WhenClause(condition, new Cast(field(0, DATE), VARCHAR))),
                 new Constant(VARCHAR, Slices.utf8Slice("out of range")));
-        assertGpuMatchesCpu(List.of(new Page(dateBlock(Arrays.asList(outOfRange, 0L, null)))), List.of(DATE), expression, Set.of(0));
+        assertGpuMatchesCpu(List.of(new Page(dateBlock(Arrays.asList(outOfRange, 0L, null)))), List.of(DATE), expression);
     }
 
     @Test
@@ -224,7 +224,7 @@ final class TestGpuCasts
         List<Page> inputPages = List.of(new Page(timestampCastInputBlock(Arrays.asList(
                 null, -1500L, -501L, -500L, 499L, 500L, Long.MAX_VALUE - 500))));
         Expression expression = new Cast(field(0, timestampType), createTimestampType(3));
-        assertGpuMatchesCpu(inputPages, List.of(timestampType), expression, Set.of(0));
+        assertGpuMatchesCpu(inputPages, List.of(timestampType), expression);
     }
 
     @Test
@@ -251,7 +251,7 @@ final class TestGpuCasts
         TimestampType timestampType = createTimestampType(6);
         Expression expression = new Cast(field(0, timestampType), createTimestampType(3));
         for (List<Long> values : List.of(Arrays.<Long>asList(null, null), List.<Long>of())) {
-            assertGpuMatchesCpu(List.of(new Page(timestampCastInputBlock(values))), List.of(timestampType), expression, Set.of(0));
+            assertGpuMatchesCpu(List.of(new Page(timestampCastInputBlock(values))), List.of(timestampType), expression);
         }
     }
 
@@ -266,7 +266,7 @@ final class TestGpuCasts
         Expression expression = new Case(
                 ImmutableList.of(new WhenClause(condition, new Cast(field(0, timestampType), resultType))),
                 new Constant(resultType, 0L));
-        assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(0));
+        assertGpuMatchesCpu(inputPages, inputTypes, expression);
 
         // A constant remains non-null when inputs are masked, so this branch must be filtered.
         Expression constantExpression = new Case(
@@ -275,8 +275,7 @@ final class TestGpuCasts
         assertGpuMatchesCpu(
                 List.of(new Page(timestampCastInputBlock(List.of(0L, 500L)))),
                 inputTypes,
-                constantExpression,
-                Set.of(0));
+                constantExpression);
     }
 
     private static Block dateBlock(List<Long> epochDays)

@@ -28,7 +28,6 @@ import org.junit.jupiter.params.provider.EnumSource;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.Set;
 
 import static io.trino.operator.gpu.GpuTestUtils.FUNCTION_RESOLUTION;
 import static io.trino.operator.gpu.GpuTestUtils.assertGpuMatchesCpu;
@@ -72,7 +71,7 @@ final class TestGpuToUtf8
                 .addAll(createVarcharPages(VARCHAR, List.of(64, 128), nullsProvider))
                 .add(new Page(varcharsBlock(EDGE_CASE_STRINGS)))
                 .build();
-        assertGpuMatchesCpu(inputPages, List.of(VARCHAR), toUtf8(VARCHAR), Set.of(0));
+        assertGpuMatchesCpu(inputPages, List.of(VARCHAR), toUtf8(VARCHAR));
     }
 
     @ParameterizedTest
@@ -81,7 +80,7 @@ final class TestGpuToUtf8
     {
         Type type = createCharType(8);
         List<Page> inputPages = List.of(new Page(createBlock(type, 64, nullsProvider)));
-        assertGpuMatchesCpu(inputPages, List.of(type), toUtf8(type), Set.of(0));
+        assertGpuMatchesCpu(inputPages, List.of(type), toUtf8(type));
     }
 
     @Test
@@ -89,7 +88,7 @@ final class TestGpuToUtf8
     {
         Type type = createCharType(3);
         List<Page> inputPages = List.of(new Page(varcharsBlock(Arrays.asList("", null, "a", "ab", "abc", "ą", "😀"))));
-        assertGpuMatchesCpu(inputPages, List.of(type), toUtf8(type), Set.of(0));
+        assertGpuMatchesCpu(inputPages, List.of(type), toUtf8(type));
     }
 
     private static Expression toUtf8(Type type)

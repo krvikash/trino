@@ -31,7 +31,6 @@ import org.junit.jupiter.api.parallel.Execution;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.Set;
 import java.util.stream.IntStream;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
@@ -79,7 +78,7 @@ final class TestGpuLower
                 .map(codePoints -> new Page(varcharsBlock(codePoints)))
                 .collect(toImmutableList());
 
-        assertGpuMatchesCpu(inputPages, List.of(VARCHAR), createLowerExpression(VARCHAR), Set.of(0));
+        assertGpuMatchesCpu(inputPages, List.of(VARCHAR), createLowerExpression(VARCHAR));
     }
 
     @Test
@@ -122,13 +121,11 @@ final class TestGpuLower
         assertGpuMatchesCpu(
                 List.of(new Page(varcharsBlock(Arrays.asList("HELLO", "Æther", "İstanbul", null, "ŁĄKA", "", "MiXeD123")))),
                 List.of(VARCHAR),
-                createLowerExpression(VARCHAR),
-                Set.of(0));
+                createLowerExpression(VARCHAR));
         assertGpuMatchesCpu(
                 List.of(new Page(varcharsBlock(Arrays.asList("HELLO", "Æther", "İ", null, "ŁĄKA", "", "ABC")))),
                 List.of(createCharType(8)),
-                createLowerExpression(createCharType(8)),
-                Set.of(0));
+                createLowerExpression(createCharType(8)));
     }
 
     private static Expression createLowerExpression(Type type)

@@ -30,7 +30,6 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
 import java.util.List;
-import java.util.Set;
 
 import static io.trino.operator.gpu.GpuTestUtils.FUNCTION_RESOLUTION;
 import static io.trino.operator.gpu.GpuTestUtils.TEST_SESSION_TIME_ZONE_KEY;
@@ -93,7 +92,7 @@ final class TestGpuStartsWith
             Expression expression = new Call(
                     FUNCTION_RESOLUTION.resolveFunction("starts_with", fromTypes(VARCHAR, VARCHAR)),
                     ImmutableList.of(field(varcharChannel, VARCHAR), new Constant(VARCHAR, Slices.utf8Slice(prefix))));
-            assertGpuMatchesCpu(inputPages, inputTypes, expression, Set.of(varcharChannel));
+            assertGpuMatchesCpu(inputPages, inputTypes, expression);
         }
     }
 
