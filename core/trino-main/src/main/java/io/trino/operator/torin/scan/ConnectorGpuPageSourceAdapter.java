@@ -46,13 +46,19 @@ public class ConnectorGpuPageSourceAdapter
     {
         this.source = requireNonNull(source, "source is null");
         this.bufferPages = new BufferPages(gpuOperationContext.taskMemoryContext());
-        this.output = new CopyToDevice(
-                gpuOperationContext,
-                bufferPages,
-                types,
-                IntStream.range(0, types.size())
-                        .boxed()
-                        .collect(toImmutableSet()));
+        if (types.isEmpty()) {
+            // Skip CopyToDevice when there are no columns (e.g., scan for COUNT(*))
+            this.output = bufferPages;
+        }
+        else {
+            this.output = new CopyToDevice(
+                    gpuOperationContext,
+                    bufferPages,
+                    types,
+                    IntStream.range(0, types.size())
+                            .boxed()
+                            .collect(toImmutableSet()));
+        }
     }
 
     @Override

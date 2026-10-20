@@ -115,16 +115,4 @@ public class TestIcebergGpuConnectorTest
         assertThatThrownBy(super::testPushdownPredicateToParquetAfterColumnRename)
                 .hasStackTraceContaining("Couldn't find operator summary, probably due to query statistic collection error");
     }
-
-    @Test
-    @Override
-    public void testRowLevelDelete()
-    {
-        // TODO: The error message is misleading due to https://starburstdata.atlassian.net/browse/ENG-18118,
-        //  but it indicates that there was an attempt to fall back to the CPU because deletes are not yet
-        //  supported on the GPU, which is expected.
-        assertThatThrownBy(super::testRowLevelDelete)
-                .hasMessageMatching("Execution of 'actual' query .* failed: SELECT count\\(\\*\\) FROM test_row_level_delete.*")
-                .hasStackTraceContaining("No columns to copy");
-    }
 }

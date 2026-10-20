@@ -201,6 +201,16 @@ public class TestHiveGpuQueries
     }
 
     @Test
+    public void testCpuFallbackWithoutColumns()
+    {
+        try (var table = new TestTable(getQueryRunner()::execute, "nation_orc", "WITH (format = 'ORC') AS TABLE nation")) {
+            assertThat(query("SELECT count(*) FROM " + table.getName()))
+                    .executesWithGpuCpuFallback(TableScanNode.class)
+                    .matches("VALUES BIGINT '25'");
+        }
+    }
+
+    @Test
     public void testSyntheticColumns()
     {
         // synthetic columns only
