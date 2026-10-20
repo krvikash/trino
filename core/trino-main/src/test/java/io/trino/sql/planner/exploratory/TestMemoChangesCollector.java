@@ -41,6 +41,7 @@ import io.trino.sql.planner.exploratory.rule.OperationRule;
 import io.trino.sql.planner.exploratory.rule.Result;
 import io.trino.sql.planner.exploratory.rule.UpdateOperationAttributes;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 
 import java.util.List;
 
@@ -374,41 +375,29 @@ class TestMemoChangesCollector
     @Test
     public void testRecursiveRuleResultDoesNotModifyMemo()
     {
-        Memo memo = baseMemo();
-        MemoChangesCollector ignoredChanges = new MemoChangesCollector();
-        MemoOperation childOperation = parametrizedOperation(ImmutableList.of(TEST_TYPE, TEST_TYPE), 0);
-        int childGroupId = memo.insertOperation(childOperation, ignoredChanges);
-        MemoOperation parentOperation = parametrizedOperationWithChild(
-                ImmutableList.of(TEST_TYPE, TEST_TYPE),
-                childGroupId,
-                new ParameterLineage(ImmutableList.of(0, 1), ImmutableList.of()));
-        int parentGroupId = memo.insertOperation(parentOperation, ignoredChanges);
+        ParentChildMemo parentChildMemo = parentChildMemo();
+        Memo memo = parentChildMemo.memo();
         int memoSize = memo.size();
 
         // the valid sibling precedes the cyclic one, so inserting while traversing would modify Memo before detecting the cycle
         MemoOperation validSibling = parametrizedOperation(ImmutableList.of(TEST_TYPE, TEST_TYPE), 1);
-        assertThatThrownBy(() -> new RuleApplier(memo).applyRule(parentOperation, new CyclicSiblingRule(validSibling)))
+        assertThatThrownBy(() -> new RuleApplier(memo).applyRule(parentChildMemo.parentOperation(), new CyclicSiblingRule(validSibling)))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage("Rule %s produced a cyclic NewMemoOperation graph", CyclicSiblingRule.class.getName());
 
         assertThat(memo.size()).isEqualTo(memoSize);
         assertThat(memo.getGroupId(validSibling)).isEmpty();
-        assertThat(memo.getGroupId(childOperation)).hasValue(childGroupId);
-        assertThat(memo.getGroupId(parentOperation)).hasValue(parentGroupId);
+        assertThat(memo.getGroupId(parentChildMemo.childOperation())).hasValue(parentChildMemo.childGroupId());
+        assertThat(memo.getGroupId(parentChildMemo.parentOperation())).hasValue(parentChildMemo.parentGroupId());
     }
 
     @Test
     public void testSharedNewMemoOperation()
     {
-        Memo memo = baseMemo();
-        MemoChangesCollector ignoredChanges = new MemoChangesCollector();
-        MemoOperation childOperation = parametrizedOperation(ImmutableList.of(TEST_TYPE, TEST_TYPE), 0);
-        int childGroupId = memo.insertOperation(childOperation, ignoredChanges);
-        MemoOperation parentOperation = parametrizedOperationWithChild(
-                ImmutableList.of(TEST_TYPE, TEST_TYPE),
-                childGroupId,
-                new ParameterLineage(ImmutableList.of(0, 1), ImmutableList.of()));
-        int parentGroupId = memo.insertOperation(parentOperation, ignoredChanges);
+        ParentChildMemo parentChildMemo = parentChildMemo();
+        Memo memo = parentChildMemo.memo();
+        MemoOperation parentOperation = parentChildMemo.parentOperation();
+        int parentGroupId = parentChildMemo.parentGroupId();
 
         MemoOperation sharedChild = parametrizedOperation(ImmutableList.of(TEST_TYPE, TEST_TYPE), 1);
         int expectedSharedChildGroupId = memo.size();
@@ -427,10 +416,79 @@ class TestMemoChangesCollector
                 new GroupMerge(parentGroupId, expectedParentGroupId));
     }
 
+    @Test
+    @Timeout(10)
+    public void testDeeplySharedNewMemoOperationDoesNotExpandExponentially()
+    {
+        ParentChildMemo parentChildMemo = parentChildMemo();
+
+        new RuleApplier(parentChildMemo.memo()).applyRule(
+                parentChildMemo.parentOperation(),
+                new DeeplySharedOperationRule(parentChildMemo.childOperation(), 40));
+
+        parentChildMemo.memo().validateGroupToParentsMapping();
+    }
+
+    @Test
+    public void testSharedNewMemoOperationIsRefreshedAfterMergeSuccession()
+    {
+        Memo memo = baseMemo();
+        MemoChangesCollector ignoredChanges = new MemoChangesCollector();
+        MemoOperation existingChild = parametrizedOperation(ImmutableList.of(TEST_TYPE, TEST_TYPE), 0);
+        int childGroupId = memo.insertOperation(existingChild, ignoredChanges);
+        MemoOperation sourceOperation = parametrizedOperationWithChild(
+                ImmutableList.of(TEST_TYPE, TEST_TYPE, TEST_TYPE),
+                childGroupId,
+                new ParameterLineage(ImmutableList.of(0, 1), ImmutableList.of()));
+        int sourceGroupId = memo.insertOperation(sourceOperation, ignoredChanges);
+        MemoOperation sharedParent = parametrizedOperationWithChild(
+                ImmutableList.of(TEST_TYPE, TEST_TYPE),
+                childGroupId,
+                new ParameterLineage(ImmutableList.of(0, 1), ImmutableList.of()));
+        int sharedParentGroupId = memo.insertOperation(sharedParent, ignoredChanges);
+        MemoOperation sharedChild = parametrizedOperation(ImmutableList.of(TEST_TYPE, TEST_TYPE), 1);
+
+        List<MemoChange> changes = new RuleApplier(memo).applyRule(
+                sourceOperation,
+                new SharedOperationMergedBeforeReuseRule(sharedChild, existingChild, sharedParent));
+
+        assertThat(changes)
+                .anySatisfy(change -> assertThat(change)
+                        .isInstanceOfSatisfying(OperationSuccession.class, succession -> {
+                            assertThat(succession.newOperation()).isEqualTo(sharedParent);
+                            assertThat(succession.groupId()).isEqualTo(sharedParentGroupId);
+                        }));
+        int recentSourceGroupId = memo.getRecentId(sourceGroupId);
+        MemoGroup sourceGroup = memo.getGroup(recentSourceGroupId);
+        assertThat(sourceGroup.getChildGroups()).doesNotContain(recentSourceGroupId);
+        memo.validateGroupToParentsMapping();
+    }
+
     private static Memo baseMemo()
     {
         return Memo.forProgram(program(valuesOfRows(ImmutableList.of(singleConstantRow("", BIGINT, 42L)))), TESTING_DIALECT_REGISTRY);
     }
+
+    private static ParentChildMemo parentChildMemo()
+    {
+        Memo memo = baseMemo();
+        MemoChangesCollector ignoredChanges = new MemoChangesCollector();
+        MemoOperation childOperation = parametrizedOperation(ImmutableList.of(TEST_TYPE, TEST_TYPE), 0);
+        int childGroupId = memo.insertOperation(childOperation, ignoredChanges);
+        MemoOperation parentOperation = parametrizedOperationWithChild(
+                ImmutableList.of(TEST_TYPE, TEST_TYPE),
+                childGroupId,
+                new ParameterLineage(ImmutableList.of(0, 1), ImmutableList.of()));
+        int parentGroupId = memo.insertOperation(parentOperation, ignoredChanges);
+        return new ParentChildMemo(memo, childOperation, childGroupId, parentOperation, parentGroupId);
+    }
+
+    private record ParentChildMemo(
+            Memo memo,
+            MemoOperation childOperation,
+            int childGroupId,
+            MemoOperation parentOperation,
+            int parentGroupId) {}
 
     private static MemoOperation leafOperation()
     {
@@ -591,6 +649,51 @@ class TestMemoChangesCollector
             NewMemoOperation sharedNewOperation = operationLike(sharedChild);
             return Result.of(operationLike(operation)
                     .withChildGroup(0, ImmutableList.of(sharedNewOperation, sharedNewOperation), parameterLineage));
+        }
+    }
+
+    private record DeeplySharedOperationRule(MemoOperation leafOperation, int depth)
+            implements OperationRule
+    {
+        @Override
+        public Pattern<MemoOperation> pattern()
+        {
+            return operation();
+        }
+
+        @Override
+        public Result<NewMemoOperation> apply(MemoOperation operation, Captures captures, Context context)
+        {
+            ParameterLineage parameterLineage = ((GroupChild) operation.children().getFirst()).parameterLineage();
+            NewMemoOperation sharedOperation = operationLike(leafOperation);
+            for (int level = 0; level < depth; level++) {
+                sharedOperation = operationLike(operation)
+                        .withChildGroup(0, ImmutableList.of(sharedOperation, sharedOperation), parameterLineage);
+            }
+            return Result.of(sharedOperation);
+        }
+    }
+
+    private record SharedOperationMergedBeforeReuseRule(MemoOperation sharedChild, MemoOperation existingChild, MemoOperation sharedParent)
+            implements OperationRule
+    {
+        @Override
+        public Pattern<MemoOperation> pattern()
+        {
+            return operation();
+        }
+
+        @Override
+        public Result<NewMemoOperation> apply(MemoOperation operation, Captures captures, Context context)
+        {
+            ParameterLineage parameterLineage = ((GroupChild) operation.children().getFirst()).parameterLineage();
+            NewMemoOperation sharedNewOperation = operationLike(sharedChild);
+            NewMemoOperation sharedParentOperation = operationLike(sharedParent)
+                    .withChild(0, sharedNewOperation, parameterLineage);
+            NewMemoOperation mergingSibling = operationLike(sharedParent)
+                    .withChildGroup(0, ImmutableList.of(operationLike(existingChild), sharedNewOperation), parameterLineage);
+            return Result.of(operationLike(operation)
+                    .withChildGroup(0, ImmutableList.of(sharedParentOperation, mergingSibling, sharedParentOperation), parameterLineage));
         }
     }
 }

@@ -26,7 +26,9 @@ import io.trino.sql.planner.exploratory.rule.OperationRule;
 import io.trino.sql.planner.exploratory.rule.Result;
 
 import java.util.ArrayList;
+import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import static com.google.common.base.Preconditions.checkState;
@@ -120,7 +122,7 @@ public class RuleApplier
      */
     private MemoOperation insertOperationRuleResult(NewMemoOperation newMemoOperation, MemoOperation rootOperation, MemoChangesCollector changesCollector)
     {
-        MemoOperation newOperation = getOperation(newMemoOperation, changesCollector);
+        MemoOperation newOperation = getOperation(newMemoOperation, changesCollector, new IdentityHashMap<>());
         int insertedGroupId = memo.insertOperation(newOperation, changesCollector);
         // root operation may have changed due to merges in getOperation(), so get the recent ID
         memo.mergeGroups(memo.getGroupId(memo.getRecentVersion(rootOperation)).orElseThrow(), insertedGroupId, changesCollector);
@@ -135,15 +137,25 @@ public class RuleApplier
      * Note: recursive insertion of children might cause changes in the Memo due to group merges. Any references to operations or group IDs
      * should be updated accordingly through memo.getRecentVersion(), and memo.getRecentId().
      */
-    private MemoOperation getOperation(NewMemoOperation newMemoOperation, MemoChangesCollector changesCollector)
+    private MemoOperation getOperation(
+            NewMemoOperation newMemoOperation,
+            MemoChangesCollector changesCollector,
+            Map<NewMemoOperation, MemoOperation> createdOperations)
     {
+        MemoOperation cachedOperation = createdOperations.get(newMemoOperation);
+        if (cachedOperation != null) {
+            MemoOperation recentOperation = memo.getRecentVersion(cachedOperation);
+            checkState(memo.getGroupId(recentOperation).isPresent(), "Cached rule-result operation is no longer present in Memo: %s", recentOperation);
+            return recentOperation;
+        }
+
         List<Child> children = newMemoOperation.children().stream()
                 .map(object -> {
                     if (object instanceof ChildGroupWithParameterLineage(List<NewMemoOperation> operations, ParameterLineage lineage)) {
-                        MemoOperation childOperation = getOperation(operations.getFirst(), changesCollector);
+                        MemoOperation childOperation = getOperation(operations.getFirst(), changesCollector, createdOperations);
                         int childGroupId = memo.insertOperation(childOperation, changesCollector);
                         for (int i = 1; i < operations.size(); i++) {
-                            childOperation = getOperation(operations.get(i), changesCollector);
+                            childOperation = getOperation(operations.get(i), changesCollector, createdOperations);
                             int nextChildGroupId = memo.insertOperation(childOperation, changesCollector);
                             // childGroupId may have changed due to merges in getOperation(), so get the recent ID
                             childGroupId = memo.mergeGroups(memo.getRecentId(childGroupId), nextChildGroupId, changesCollector);
@@ -168,6 +180,9 @@ public class RuleApplier
 
         // While inserting child groups, some of them could have been merged into other groups
         // so we need to update the child group IDs in the newly created operation
-        return memo.updateChildren(operation);
+        operation = memo.updateChildren(operation);
+        // In an acyclic depth-first traversal, the caller inserts this operation before another branch can reuse it.
+        createdOperations.put(newMemoOperation, operation);
+        return operation;
     }
 }
