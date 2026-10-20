@@ -14,11 +14,11 @@
 package io.trino.plugin.deltalake.metastore;
 
 import io.trino.annotation.NotThreadSafe;
+import io.trino.plugin.deltalake.metastore.unity.UnityStagedCommits;
 import io.trino.plugin.deltalake.transactionlog.MetadataEntry;
 import io.trino.plugin.deltalake.transactionlog.ProtocolEntry;
-import io.trino.plugin.hive.metastore.unity.StagedCommit;
-import io.trino.plugin.hive.metastore.unity.StagedCommitsInfo;
 import io.trino.spi.connector.SchemaTableName;
+import io.unitycatalog.client.delta.model.DeltaCommit;
 
 import java.util.Optional;
 
@@ -33,7 +33,7 @@ public interface DeltaLakeTableOperations
     /**
      * gets staged commits information for a Delta Lake table.
      */
-    default StagedCommitsInfo loadStagedCommitsInfo(String tableId, String tableLocation, Optional<Long> startVersion, Optional<Long> endVersion)
+    default UnityStagedCommits loadStagedCommitsInfo(SchemaTableName schemaTableName, String tableId, Optional<Long> startVersion, Optional<Long> endVersion)
     {
         throw new UnsupportedOperationException("getStagedCommitsInfo is not supported by this DeltaLakeTableOperations implementation");
     }
@@ -43,9 +43,9 @@ public interface DeltaLakeTableOperations
      * The stagedCommit and lastKnownBackfilledVersion must exist at least one of them.
      */
     default void commitStagedCommits(
+            SchemaTableName schemaTableName,
             String tableId,
-            String tableLocation,
-            Optional<StagedCommit> stagedCommit,
+            Optional<DeltaCommit> stagedCommit,
             Optional<Long> lastKnownBackfilledVersion,
             Optional<MetadataEntry> metadataEntry,
             Optional<ProtocolEntry> protocolEntry)

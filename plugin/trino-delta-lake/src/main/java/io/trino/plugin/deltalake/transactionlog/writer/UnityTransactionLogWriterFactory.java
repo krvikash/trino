@@ -24,6 +24,7 @@ import io.trino.plugin.deltalake.transactionlog.MetadataEntry;
 import io.trino.plugin.deltalake.transactionlog.ProtocolEntry;
 import io.trino.spi.TrinoException;
 import io.trino.spi.connector.ConnectorSession;
+import io.trino.spi.connector.SchemaTableName;
 
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
@@ -59,11 +60,11 @@ public class UnityTransactionLogWriterFactory
     @Override
     public TransactionLogWriter createWriter(ConnectorSession session, DeltaLakeTableHandle tableHandle, Optional<DeltaLakeTableCredentials> tableCredentials)
     {
-        return createWriter(session, tableHandle.location(), tableHandle.getMetadataEntry(), tableHandle.getProtocolEntry(), tableCredentials);
+        return createWriter(session, tableHandle.getSchemaTableName(), tableHandle.location(), tableHandle.getMetadataEntry(), tableHandle.getProtocolEntry(), tableCredentials);
     }
 
     @Override
-    public TransactionLogWriter createWriter(ConnectorSession session, String tableLocation, MetadataEntry metadataEntry, ProtocolEntry protocolEntry, Optional<DeltaLakeTableCredentials> tableCredentials)
+    public TransactionLogWriter createWriter(ConnectorSession session, SchemaTableName schemaTableName, String tableLocation, MetadataEntry metadataEntry, ProtocolEntry protocolEntry, Optional<DeltaLakeTableCredentials> tableCredentials)
     {
         TransactionLogSynchronizer synchronizer = synchronizerManager.getSynchronizer(tableLocation);
         if (isCatalogManagedTable(protocolEntry)) {
@@ -73,6 +74,7 @@ public class UnityTransactionLogWriterFactory
             String tableId = metadataEntry.getTableId()
                     .orElseThrow(() -> new IllegalStateException("tableId is not present"));
             return new UnityTransactionLogWriter(
+                    schemaTableName,
                     tableId,
                     tableLocation,
                     fileSystemFactory.create(session, tableCredentials),

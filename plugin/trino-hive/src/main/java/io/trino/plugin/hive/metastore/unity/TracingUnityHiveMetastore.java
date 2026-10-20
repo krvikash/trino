@@ -19,11 +19,13 @@ import io.trino.metastore.tracing.TracingHiveMetastore;
 import io.trino.spi.connector.SchemaTableName;
 import io.unitycatalog.client.delta.model.DeltaCredentialOperation;
 import io.unitycatalog.client.delta.model.DeltaCredentialsResponse;
+import io.unitycatalog.client.delta.model.DeltaLoadTableResponse;
+import io.unitycatalog.client.delta.model.DeltaTableUpdate;
 import io.unitycatalog.client.model.PathOperation;
 import io.unitycatalog.client.model.TableOperation;
 import io.unitycatalog.client.model.TemporaryCredentials;
 
-import java.util.Optional;
+import java.util.List;
 
 import static io.trino.metastore.tracing.Tracing.withTracing;
 import static java.util.Objects.requireNonNull;
@@ -43,19 +45,19 @@ public class TracingUnityHiveMetastore
     }
 
     @Override
-    public StagedCommitsInfo loadStagedCommitsInfo(String tableId, String tableLocation, Optional<Long> startVersion, Optional<Long> endVersion)
+    public DeltaLoadTableResponse loadStagedCommits(SchemaTableName schemaTableName, String tableId)
     {
         Span span = tracer.spanBuilder("HiveMetastore.getStagedCommitsInfo")
                 .startSpan();
-        return withTracing(span, () -> delegate.loadStagedCommitsInfo(tableId, tableLocation, startVersion, endVersion));
+        return withTracing(span, () -> delegate.loadStagedCommits(schemaTableName, tableId));
     }
 
     @Override
-    public void commitStagedCommits(CommitRequest commitStagedRequest)
+    public void commitStagedCommits(SchemaTableName schemaTableName, String tableId, List<DeltaTableUpdate> updates)
     {
         Span span = tracer.spanBuilder("HiveMetastore.commitStagedCommits")
                 .startSpan();
-        withTracing(span, () -> delegate.commitStagedCommits(commitStagedRequest));
+        withTracing(span, () -> delegate.commitStagedCommits(schemaTableName, tableId, updates));
     }
 
     @Override

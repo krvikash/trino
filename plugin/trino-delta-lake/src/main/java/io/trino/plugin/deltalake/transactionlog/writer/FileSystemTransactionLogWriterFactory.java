@@ -20,6 +20,7 @@ import io.trino.plugin.deltalake.DeltaLakeTableHandle;
 import io.trino.plugin.deltalake.transactionlog.MetadataEntry;
 import io.trino.plugin.deltalake.transactionlog.ProtocolEntry;
 import io.trino.spi.connector.ConnectorSession;
+import io.trino.spi.connector.SchemaTableName;
 
 import java.util.Optional;
 
@@ -39,11 +40,11 @@ public class FileSystemTransactionLogWriterFactory
     @Override
     public TransactionLogWriter createWriter(ConnectorSession session, DeltaLakeTableHandle tableHandle, Optional<DeltaLakeTableCredentials> tableCredentials)
     {
-        return createWriter(session, tableHandle.location(), tableHandle.getMetadataEntry(), tableHandle.getProtocolEntry(), tableCredentials);
+        return createWriter(session, tableHandle.getSchemaTableName(), tableHandle.location(), tableHandle.getMetadataEntry(), tableHandle.getProtocolEntry(), tableCredentials);
     }
 
     @Override
-    public TransactionLogWriter createWriter(ConnectorSession session, String tableLocation, MetadataEntry metadataEntry, ProtocolEntry protocolEntry, Optional<DeltaLakeTableCredentials> tableCredentials)
+    public TransactionLogWriter createWriter(ConnectorSession session, SchemaTableName schemaTableName, String tableLocation, MetadataEntry metadataEntry, ProtocolEntry protocolEntry, Optional<DeltaLakeTableCredentials> tableCredentials)
     {
         return new FileSystemTransactionLogWriter(session, synchronizerManager.getSynchronizer(tableLocation), tableLocation, tableCredentials);
     }

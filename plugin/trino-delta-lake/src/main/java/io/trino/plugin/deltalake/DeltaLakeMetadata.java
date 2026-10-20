@@ -3078,7 +3078,7 @@ public class DeltaLakeMetadata
     {
         // it is not obvious why we need to persist this readVersion
         Optional<DeltaLakeTableCredentials> tableCredentials = getTableCredentials(session, insertTableHandle.credentialsHandle());
-        TransactionLogWriter transactionLogWriter = transactionLogWriterFactory.createWriter(session, insertTableHandle.location(), insertTableHandle.metadataEntry(), insertTableHandle.protocolEntry(), tableCredentials);
+        TransactionLogWriter transactionLogWriter = transactionLogWriterFactory.createWriter(session, insertTableHandle.tableName(), insertTableHandle.location(), insertTableHandle.metadataEntry(), insertTableHandle.protocolEntry(), tableCredentials);
         OptionalLong inCommitTimestamp = getNextInCommitTimestamp(inCommitTimestampEnabled(insertTableHandle.metadataEntry(), insertTableHandle.protocolEntry()), currentVersion, fileSystemFactory.create(session, tableCredentials), insertTableHandle.location());
         transactionLogWriter.appendCommitInfoEntry(getCommitInfoEntry(session, isolationLevel, commitVersion, Instant.now().toEpochMilli(), INSERT_OPERATION, currentVersion, isBlindAppend, inCommitTimestamp));
 
@@ -3548,7 +3548,7 @@ public class DeltaLakeMetadata
             IsolationLevel isolationLevel = getIsolationLevel(optimizeHandle.getMetadataEntry());
             AtomicReference<Long> readVersion = new AtomicReference<>(optimizeHandle.getCurrentVersion().orElseThrow(() -> new IllegalArgumentException("currentVersion not set")));
             long commitVersion = Failsafe.with(TRANSACTION_CONFLICT_RETRY_POLICY)
-                    .get(context -> commitOptimizeOperation(session, optimizeHandle, tableCredentials, isolationLevel, tableLocation, scannedDataFiles, dataFileInfos, readVersion, context.getAttemptCount()));
+                    .get(context -> commitOptimizeOperation(session, optimizeHandle, tableCredentials, isolationLevel, executeHandle.schemaTableName(), tableLocation, scannedDataFiles, dataFileInfos, readVersion, context.getAttemptCount()));
             writeCommitted = true;
             enqueueUpdateInfo(
                     session,
@@ -3586,6 +3586,7 @@ public class DeltaLakeMetadata
             DeltaTableOptimizeHandle optimizeHandle,
             Optional<DeltaLakeTableCredentials> tableCredentials,
             IsolationLevel isolationLevel,
+            SchemaTableName schemaTableName,
             String tableLocation,
             Set<DeltaLakeScannedDataFile> scannedDataFiles,
             List<DataFileInfo> dataFileInfos,
@@ -3593,7 +3594,7 @@ public class DeltaLakeMetadata
             int attemptCount)
             throws IOException
     {
-        TransactionLogWriter transactionLogWriter = transactionLogWriterFactory.createWriter(session, tableLocation, optimizeHandle.getMetadataEntry(), optimizeHandle.getProtocolEntry(), tableCredentials);
+        TransactionLogWriter transactionLogWriter = transactionLogWriterFactory.createWriter(session, schemaTableName, tableLocation, optimizeHandle.getMetadataEntry(), optimizeHandle.getProtocolEntry(), tableCredentials);
 
         long createdTime = Instant.now().toEpochMilli();
         TrinoFileSystem fileSystem = fileSystemFactory.create(session, tableCredentials);

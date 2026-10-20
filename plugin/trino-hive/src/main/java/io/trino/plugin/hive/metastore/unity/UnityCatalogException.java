@@ -13,28 +13,19 @@
  */
 package io.trino.plugin.hive.metastore.unity;
 
-import java.util.Optional;
-
 public class UnityCatalogException
         extends RuntimeException
 {
     private final int statusCode;
-    private final Optional<String> errorCode;
 
-    public UnityCatalogException(int statusCode, Optional<String> errorCode, String message)
+    public UnityCatalogException(int statusCode, String message)
     {
         super(message);
         this.statusCode = statusCode;
-        this.errorCode = errorCode;
     }
 
     public int getStatusCode()
     {
         return statusCode;
-    }
-
-    public Optional<String> getErrorCode()
-    {
-        return errorCode;
     }
 }

@@ -11,23 +11,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.plugin.hive.metastore.unity;
+package io.trino.plugin.deltalake.metastore.unity;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.collect.ImmutableList;
+import io.unitycatalog.client.delta.model.DeltaCommit;
+
+import java.util.List;
 
 import static java.util.Objects.requireNonNull;
 
-public record StagedCommit(
-        @JsonProperty("version") long version,
-        @JsonProperty("timestamp") long timestamp,
-        @JsonProperty("file_name") String fileName,
-        @JsonProperty("file_size") long fileSize,
-        @JsonProperty("file_modification_timestamp") long fileModificationTimestamp)
+public record UnityStagedCommits(List<DeltaCommit> commits, long latestTableVersion)
 {
-    @JsonCreator
-    public StagedCommit
+    public UnityStagedCommits
     {
-        requireNonNull(fileName, "fileName is null");
+        commits = ImmutableList.copyOf(requireNonNull(commits, "commits is null"));
     }
 }

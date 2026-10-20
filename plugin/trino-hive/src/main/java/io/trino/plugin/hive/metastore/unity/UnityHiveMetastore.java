@@ -27,7 +27,6 @@ import dev.failsafe.Failsafe;
 import dev.failsafe.FailsafeException;
 import dev.failsafe.RetryPolicy;
 import io.airlift.http.client.HeaderNames;
-import io.airlift.http.client.HttpUriBuilder;
 import io.airlift.json.JsonMapperProvider;
 import io.airlift.log.Logger;
 import io.trino.metastore.AcidOperation;
@@ -69,9 +68,15 @@ import io.unitycatalog.client.ApiException;
 import io.unitycatalog.client.api.SchemasApi;
 import io.unitycatalog.client.api.TablesApi;
 import io.unitycatalog.client.api.TemporaryCredentialsApi;
+import io.unitycatalog.client.delta.api.DeltaTablesApi;
 import io.unitycatalog.client.delta.api.DeltaTemporaryCredentialsApi;
+import io.unitycatalog.client.delta.model.DeltaAssertTableUUID;
 import io.unitycatalog.client.delta.model.DeltaCredentialOperation;
 import io.unitycatalog.client.delta.model.DeltaCredentialsResponse;
+import io.unitycatalog.client.delta.model.DeltaLoadTableResponse;
+import io.unitycatalog.client.delta.model.DeltaTableUpdate;
+import io.unitycatalog.client.delta.model.DeltaUpdateTableRequest;
+import io.unitycatalog.client.delta.serde.DeltaDataTypeModule;
 import io.unitycatalog.client.model.ColumnInfo;
 import io.unitycatalog.client.model.ColumnTypeName;
 import io.unitycatalog.client.model.CreateSchema;
@@ -95,8 +100,6 @@ import java.net.ProxySelector;
 import java.net.SocketAddress;
 import java.net.URI;
 import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collection;
@@ -110,6 +113,7 @@ import java.util.OptionalInt;
 import java.util.OptionalLong;
 import java.util.Set;
 import java.util.StringJoiner;
+import java.util.UUID;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.IntStream;
@@ -117,9 +121,7 @@ import java.util.stream.IntStream;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Throwables.throwIfInstanceOf;
 import static com.google.common.collect.ImmutableList.toImmutableList;
-import static io.airlift.http.client.HeaderNames.ACCEPT;
 import static io.airlift.http.client.HeaderNames.AUTHORIZATION;
-import static io.airlift.http.client.HeaderNames.CONTENT_TYPE;
 import static io.trino.hive.thrift.metastore.hive_metastoreConstants.META_TABLE_LOCATION;
 import static io.trino.metastore.HiveType.HIVE_STRING;
 import static io.trino.metastore.TableInfo.ExtendedRelationType.TABLE;
@@ -143,7 +145,6 @@ import static io.unitycatalog.client.model.TableType.MATERIALIZED_VIEW;
 import static java.net.Authenticator.RequestorType.PROXY;
 import static java.net.Proxy.NO_PROXY;
 import static java.net.Proxy.Type.HTTP;
-import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.time.temporal.ChronoUnit.MILLIS;
 import static java.util.Objects.requireNonNull;
 import static java.util.Objects.requireNonNullElse;
@@ -181,16 +182,7 @@ public class UnityHiveMetastore
     private static final Set<Integer> RETRYABLE_HTTP_STATUS_CODES = Set.of(408, 429, 500, 503, 504);
     private static final RetryPolicy<Object> UNITY_API_RETRY_POLICY = RetryPolicy.builder()
             .handleIf(failure -> failure instanceof ApiException apiException && RETRYABLE_HTTP_STATUS_CODES.contains(apiException.getCode()))
-            // the staged-commits GET bypasses the generated ApiClient, so its status arrives on the raw response rather than as an ApiException
-            .handleResultIf(result -> result instanceof HttpResponse<?> response && RETRYABLE_HTTP_STATUS_CODES.contains(response.statusCode()))
-            .onFailedAttempt(e -> {
-                if (e.getLastResult() instanceof HttpResponse<?> response) {
-                    LOG.warn("Retrying unity api call after HTTP %s", response.statusCode());
-                }
-                else {
-                    LOG.warn(e.getLastException(), "Retrying unity api call");
-                }
-            })
+            .onFailedAttempt(e -> LOG.warn(e.getLastException(), "Retrying unity api call"))
             .withMaxDuration(Duration.ofSeconds(5))
             .withBackoff(100, 500, MILLIS)
             .withMaxAttempts(3)
@@ -201,10 +193,9 @@ public class UnityHiveMetastore
     private final SchemasApi schemasApi;
     private final TablesApi tablesApi;
     private final String catalogName;
+    private final DeltaTablesApi deltaTablesApi;
     private final DeltaTemporaryCredentialsApi deltaTemporaryCredentialsApi;
     private final TemporaryCredentialsApi temporaryCredentialsApi;
-    private final UnityTokenProvider tokenProvider;
-    private final URI stagedCommitsUri;
 
     public UnityHiveMetastore(
             String host,
@@ -236,6 +227,7 @@ public class UnityHiveMetastore
                     nonProxyHosts.get());
         }
         apiClient = new ApiClient();
+        apiClient.setObjectMapper(apiClient.getObjectMapper().registerModule(new DeltaDataTypeModule()));
         apiClient.updateBaseUri("https://" + host + "/api/2.1/unity-catalog");
         apiClient.setHttpClientBuilder(httpClientBuilder);
         apiClient.setConnectTimeout(requireNonNull(connectTimeout, "connectTimeout is null"));
@@ -248,11 +240,10 @@ public class UnityHiveMetastore
         schemasApi = new SchemasApi(apiClient);
         tablesApi = new TablesApi(apiClient);
         this.catalogName = catalogName;
+        this.deltaTablesApi = new DeltaTablesApi(apiClient);
         this.deltaTemporaryCredentialsApi = vendedCredentialsEnabled ? new DeltaTemporaryCredentialsApi(apiClient) : null;
         this.temporaryCredentialsApi = vendedCredentialsEnabled ? new TemporaryCredentialsApi(apiClient) : null;
         this.supportedUnityTableFormats = ImmutableSet.copyOf(supportedUnityTableFormats);
-        this.tokenProvider = requireNonNull(tokenProvider, "tokenProvider is null");
-        this.stagedCommitsUri = URI.create("https://" + host + "/api/2.1/unity-catalog/delta/preview/commits");
     }
 
     private static void setupProxy(
@@ -1192,71 +1183,34 @@ public class UnityHiveMetastore
     /// /////////////////////////////////////////
 
     @Override
-    public StagedCommitsInfo loadStagedCommitsInfo(String tableId, String tableLocation, Optional<Long> startVersion, Optional<Long> endVersion)
+    public DeltaLoadTableResponse loadStagedCommits(SchemaTableName schemaTableName, String tableId)
     {
-        HttpUriBuilder uriBuilder = HttpUriBuilder.uriBuilderFrom(stagedCommitsUri)
-                .addParameter("table_id", tableId)
-                .addParameter("table_uri", tableLocation)
-                .addParameter("start_version", String.valueOf(startVersion.orElse(0L)));
-        endVersion.ifPresent(version -> uriBuilder.addParameter("end_version", String.valueOf(version)));
-
-        HttpRequest.Builder request = HttpRequest.newBuilder()
-                .uri(uriBuilder.build())
-                .header(ACCEPT.toString(), "application/json")
-                .header(HeaderNames.USER_AGENT.toString(), USER_AGENT)
-                .GET();
-        tokenProvider.getToken().ifPresent(token -> request.header(AUTHORIZATION.toString(), "Bearer " + token));
-
-        HttpRequest httpRequest = request.build();
-        HttpResponse<String> response = Failsafe.with(UNITY_API_RETRY_POLICY).get(() -> sendRequest(httpRequest));
-        if (response.statusCode() < 200 || response.statusCode() >= 300) {
-            throw new TrinoException(HIVE_METASTORE_ERROR, "Failed to load staged commits: HTTP " + response.statusCode() + " " + response.body());
-        }
+        DeltaLoadTableResponse response;
         try {
-            return OBJECT_MAPPER.readValue(response.body(), StagedCommitsInfo.class);
+            response = retry(() -> deltaTablesApi.loadTable(catalogName, schemaTableName.getSchemaName(), schemaTableName.getTableName()));
         }
-        catch (IOException e) {
-            throw new TrinoException(HIVE_METASTORE_ERROR, "Failed to parse staged commits response", e);
+        catch (ApiException e) {
+            throw new TrinoException(HIVE_METASTORE_ERROR, "Failed to load staged commits for table " + schemaTableName, e);
         }
+
+        UUID tableUuid = requireNonNull(response.getMetadata(), "metadata is null").getTableUuid();
+        if (!tableId.equals(String.valueOf(tableUuid))) {
+            throw new TrinoException(HIVE_METASTORE_ERROR, "Table %s was replaced: expected table id %s but Unity Catalog returned %s".formatted(schemaTableName, tableId, tableUuid));
+        }
+        return response;
     }
 
     @Override
-    public void commitStagedCommits(CommitRequest commitStagedRequest)
+    public void commitStagedCommits(SchemaTableName schemaTableName, String tableId, List<DeltaTableUpdate> updates)
     {
-        String body;
+        DeltaUpdateTableRequest request = new DeltaUpdateTableRequest()
+                .addRequirementsItem(new DeltaAssertTableUUID().uuid(UUID.fromString(tableId)))
+                .updates(updates);
         try {
-            body = OBJECT_MAPPER.writeValueAsString(commitStagedRequest);
+            deltaTablesApi.updateTable(catalogName, schemaTableName.getSchemaName(), schemaTableName.getTableName(), request);
         }
-        catch (JsonProcessingException e) {
-            throw new TrinoException(HIVE_METASTORE_ERROR, "Failed to serialize commit request", e);
-        }
-
-        HttpRequest.Builder request = HttpRequest.newBuilder()
-                .uri(stagedCommitsUri)
-                .header(ACCEPT.toString(), "application/json")
-                .header(CONTENT_TYPE.toString(), "application/json")
-                .header(HeaderNames.USER_AGENT.toString(), USER_AGENT)
-                .POST(HttpRequest.BodyPublishers.ofString(body, UTF_8));
-        tokenProvider.getToken().ifPresent(token -> request.header(AUTHORIZATION.toString(), "Bearer " + token));
-
-        HttpResponse<String> response = sendRequest(request.build());
-        if (response.statusCode() < 200 || response.statusCode() >= 300) {
-            throw new UnityCatalogException(response.statusCode(), parseErrorCode(response.body()), response.body());
-        }
-        // handle databricks on the caller side
-    }
-
-    private HttpResponse<String> sendRequest(HttpRequest request)
-    {
-        try {
-            return apiClient.getHttpClient().send(request, HttpResponse.BodyHandlers.ofString(UTF_8));
-        }
-        catch (IOException e) {
-            throw new TrinoException(HIVE_METASTORE_ERROR, e);
-        }
-        catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new TrinoException(HIVE_METASTORE_ERROR, "Interrupted while calling Unity Catalog", e);
+        catch (ApiException e) {
+            throw new UnityCatalogException(e.getCode(), "Failed to commit to table %s: %s".formatted(schemaTableName, e.getResponseBody()));
         }
     }
 

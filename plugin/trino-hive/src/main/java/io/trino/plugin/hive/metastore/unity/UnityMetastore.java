@@ -17,18 +17,20 @@ import io.trino.metastore.HiveMetastore;
 import io.trino.spi.connector.SchemaTableName;
 import io.unitycatalog.client.delta.model.DeltaCredentialOperation;
 import io.unitycatalog.client.delta.model.DeltaCredentialsResponse;
+import io.unitycatalog.client.delta.model.DeltaLoadTableResponse;
+import io.unitycatalog.client.delta.model.DeltaTableUpdate;
 import io.unitycatalog.client.model.PathOperation;
 import io.unitycatalog.client.model.TableOperation;
 import io.unitycatalog.client.model.TemporaryCredentials;
 
-import java.util.Optional;
+import java.util.List;
 
 public interface UnityMetastore
         extends HiveMetastore
 {
-    StagedCommitsInfo loadStagedCommitsInfo(String tableId, String tableLocation, Optional<Long> startVersion, Optional<Long> endVersion);
+    DeltaLoadTableResponse loadStagedCommits(SchemaTableName schemaTableName, String tableId);
 
-    void commitStagedCommits(CommitRequest commitStagedRequest);
+    void commitStagedCommits(SchemaTableName schemaTableName, String tableId, List<DeltaTableUpdate> updates);
 
     DeltaCredentialsResponse getTemporaryTableCredentials(SchemaTableName schemaTableName, DeltaCredentialOperation operation);
 

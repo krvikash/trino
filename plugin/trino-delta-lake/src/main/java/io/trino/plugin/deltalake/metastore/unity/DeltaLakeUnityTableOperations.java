@@ -18,23 +18,30 @@ import io.trino.plugin.deltalake.metastore.DeltaLakeTableOperations;
 import io.trino.plugin.deltalake.transactionlog.MetadataEntry;
 import io.trino.plugin.deltalake.transactionlog.ProtocolEntry;
 import io.trino.plugin.deltalake.transactionlog.writer.TransactionConflictException;
-import io.trino.plugin.hive.metastore.unity.CommitRequest;
-import io.trino.plugin.hive.metastore.unity.Metadata;
-import io.trino.plugin.hive.metastore.unity.Protocol;
-import io.trino.plugin.hive.metastore.unity.StagedCommit;
-import io.trino.plugin.hive.metastore.unity.StagedCommitsInfo;
 import io.trino.plugin.hive.metastore.unity.UnityCatalogException;
 import io.trino.plugin.hive.metastore.unity.UnityMetastore;
 import io.trino.spi.TrinoException;
 import io.trino.spi.connector.SchemaTableName;
+import io.unitycatalog.client.delta.model.DeltaAddCommitUpdate;
+import io.unitycatalog.client.delta.model.DeltaCommit;
+import io.unitycatalog.client.delta.model.DeltaLoadTableResponse;
+import io.unitycatalog.client.delta.model.DeltaProtocol;
+import io.unitycatalog.client.delta.model.DeltaSetLatestBackfilledVersionUpdate;
+import io.unitycatalog.client.delta.model.DeltaSetPartitionColumnsUpdate;
+import io.unitycatalog.client.delta.model.DeltaSetProtocolUpdate;
+import io.unitycatalog.client.delta.model.DeltaSetSchemaUpdate;
+import io.unitycatalog.client.delta.model.DeltaSetTableCommentUpdate;
+import io.unitycatalog.client.delta.model.DeltaTableUpdate;
 
-import java.time.Instant;
-import java.time.ZoneOffset;
-import java.time.format.DateTimeFormatter;
+import java.util.List;
 import java.util.Optional;
 
+import static com.google.common.collect.ImmutableList.toImmutableList;
+import static io.trino.plugin.deltalake.metastore.unity.DeltaLakeUnitySchemaConverter.toDeltaStructType;
 import static io.trino.plugin.hive.HiveErrorCode.HIVE_METASTORE_ERROR;
+import static java.util.Comparator.comparing;
 import static java.util.Objects.requireNonNull;
+import static java.util.Objects.requireNonNullElse;
 
 public class DeltaLakeUnityTableOperations
         implements DeltaLakeTableOperations
@@ -53,54 +60,51 @@ public class DeltaLakeUnityTableOperations
     }
 
     @Override
-    public StagedCommitsInfo loadStagedCommitsInfo(String tableId, String tableLocation, Optional<Long> startVersion, Optional<Long> endVersion)
+    public UnityStagedCommits loadStagedCommitsInfo(SchemaTableName schemaTableName, String tableId, Optional<Long> startVersion, Optional<Long> endVersion)
     {
-        return metastore.loadStagedCommitsInfo(tableId, tableLocation, startVersion, endVersion);
+        DeltaLoadTableResponse response = metastore.loadStagedCommits(schemaTableName, tableId);
+        // the Delta API returns all unbackfilled commits in no guaranteed order, so apply the inclusive version range here
+        long start = startVersion.orElse(0L);
+        List<DeltaCommit> commits = requireNonNullElse(response.getCommits(), List.<DeltaCommit>of()).stream()
+                .filter(commit -> commit.getVersion() >= start)
+                .filter(commit -> endVersion.map(end -> commit.getVersion() <= end).orElse(true))
+                .sorted(comparing(DeltaCommit::getVersion))
+                .collect(toImmutableList());
+        return new UnityStagedCommits(commits, response.getLatestTableVersion());
     }
 
     @Override
     public void commitStagedCommits(
+            SchemaTableName schemaTableName,
             String tableId,
-            String tableLocation,
-            Optional<StagedCommit> stagedCommit,
+            Optional<DeltaCommit> stagedCommit,
             Optional<Long> lastKnownBackfilledVersion,
             Optional<MetadataEntry> metadataEntry,
             Optional<ProtocolEntry> protocolEntry)
     {
-        Optional<Metadata> metadata = metadataEntry.map(entry -> new Metadata(
-                tableId,
-                entry.getName(),
-                entry.getDescription(),
-                entry.getOriginalPartitionColumns(),
-                Instant.ofEpochMilli(entry.getCreatedTime()).atOffset(ZoneOffset.UTC).format(DateTimeFormatter.ISO_OFFSET_DATE_TIME)));
-        Optional<Protocol> protocol = protocolEntry.map(entry -> new Protocol(
-                entry.minReaderVersion(),
-                entry.minWriterVersion(),
-                entry.readerFeatures().map(ImmutableList::copyOf).orElse(ImmutableList.of()),
-                entry.writerFeatures().map(ImmutableList::copyOf).orElse(ImmutableList.of())));
+        ImmutableList.Builder<DeltaTableUpdate> updates = ImmutableList.builder();
+        stagedCommit.ifPresent(commit -> updates.add(new DeltaAddCommitUpdate().commit(commit)));
+        lastKnownBackfilledVersion.ifPresent(version -> updates.add(new DeltaSetLatestBackfilledVersionUpdate().latestPublishedVersion(version)));
+        metadataEntry.ifPresent(entry -> {
+            updates.add(new DeltaSetSchemaUpdate().columns(toDeltaStructType(entry.getSchemaString())));
+            updates.add(new DeltaSetPartitionColumnsUpdate().partitionColumns(entry.getOriginalPartitionColumns()));
+            if (entry.getDescription() != null) {
+                updates.add(new DeltaSetTableCommentUpdate().comment(entry.getDescription()));
+            }
+        });
+        protocolEntry.ifPresent(entry -> updates.add(new DeltaSetProtocolUpdate().protocol(new DeltaProtocol()
+                .minReaderVersion(entry.minReaderVersion())
+                .minWriterVersion(entry.minWriterVersion())
+                .readerFeatures(entry.readerFeatures().map(ImmutableList::copyOf).orElse(ImmutableList.of()))
+                .writerFeatures(entry.writerFeatures().map(ImmutableList::copyOf).orElse(ImmutableList.of())))));
         try {
-            metastore.commitStagedCommits(
-                    new CommitRequest(tableId, tableLocation, stagedCommit.orElse(null), lastKnownBackfilledVersion.orElse(null), metadata.orElse(null), protocol.orElse(null)));
+            metastore.commitStagedCommits(schemaTableName, tableId, updates.build());
         }
         catch (UnityCatalogException e) {
-            handleUnityCatalogException(e);
+            if (e.getStatusCode() == 409) {
+                throw new TransactionConflictException(e.getMessage(), e);
+            }
+            throw new TrinoException(HIVE_METASTORE_ERROR, e.getMessage(), e);
         }
-    }
-
-    // refer the error handling from
-    // https://github.com/delta-io/delta/blob/967005713969fcf9280d2da024c761733b7879b5/storage/src/main/java/io/delta/storage/commit/uccommitcoordinator/UCTokenBasedRestClient.java#L211-L234
-    private static void handleUnityCatalogException(UnityCatalogException error)
-    {
-        int statusCode = error.getStatusCode();
-        if (statusCode == 409 && "ALREADY_EXISTS".equals(error.getErrorCode().orElse(""))) {
-            throw new TrinoException(HIVE_METASTORE_ERROR, error.getMessage());
-        }
-
-        if (statusCode == 400 || statusCode == 404 || statusCode == 429) {
-            throw new TrinoException(HIVE_METASTORE_ERROR, error.getMessage());
-        }
-
-        // let caller retry
-        throw new TransactionConflictException(error.getMessage(), error);
     }
 }

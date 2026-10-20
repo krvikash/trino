@@ -14,8 +14,6 @@
 package io.trino.plugin.deltalake.metastore.unity;
 
 import com.google.common.collect.ImmutableMap;
-import org.junit.jupiter.api.Disabled;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.parallel.Execution;
 
@@ -40,13 +38,5 @@ class TestS3AndUnityMetastoreDeltaConnectorSmokeTest
                 .put("s3.aws-access-key", DATABRICKS_AWS_ACCESS_KEY_ID)
                 .put("s3.aws-secret-key", DATABRICKS_AWS_SECRET_ACCESS_KEY)
                 .buildOrThrow();
-    }
-
-    @Test
-    @Disabled
-    @Override
-    void testCatalogManagedTable()
-    {
-        // TODO (https://starburstdata.atlassian.net/browse/ENG-6677) enable the test when deletes on catalog managed tables are fixed
     }
 }

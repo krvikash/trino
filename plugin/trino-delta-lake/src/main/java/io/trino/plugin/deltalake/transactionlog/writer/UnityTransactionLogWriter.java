@@ -30,9 +30,9 @@ import io.trino.plugin.deltalake.transactionlog.MetadataEntry;
 import io.trino.plugin.deltalake.transactionlog.ProtocolEntry;
 import io.trino.plugin.deltalake.transactionlog.RemoveFileEntry;
 import io.trino.plugin.deltalake.transactionlog.TransactionLogUtil;
-import io.trino.plugin.hive.metastore.unity.StagedCommit;
-import io.trino.plugin.hive.metastore.unity.StagedCommitsInfo;
 import io.trino.spi.TrinoException;
+import io.trino.spi.connector.SchemaTableName;
+import io.unitycatalog.client.delta.model.DeltaCommit;
 
 import java.io.IOException;
 import java.nio.file.FileAlreadyExistsException;
@@ -63,6 +63,7 @@ public class UnityTransactionLogWriter
             .onRetry(event -> LOG.debug(event.getLastException(), "Commit failed on attempt %d, will retry.", event.getAttemptCount()))
             .build();
 
+    private final SchemaTableName schemaTableName;
     private final String tableId;
     private final String tableLocation;
     private final TrinoFileSystem fileSystem;
@@ -75,6 +76,7 @@ public class UnityTransactionLogWriter
     private Optional<DeltaLakeTransactionLogEntry> protocolEntry = Optional.empty();
 
     public UnityTransactionLogWriter(
+            SchemaTableName schemaTableName,
             String tableId,
             String tableLocation,
             TrinoFileSystem fileSystem,
@@ -82,6 +84,7 @@ public class UnityTransactionLogWriter
             FileSystemTransactionLogWriter fileSystemTransactionLogWriter,
             ExecutorService backfillExecutor)
     {
+        this.schemaTableName = requireNonNull(schemaTableName, "schemaTableName is null");
         this.tableId = requireNonNull(tableId, "tableId is null");
         this.tableLocation = requireNonNull(tableLocation, "tableLocation is null");
         this.fileSystem = requireNonNull(fileSystem, "fileSystem is null");
@@ -150,64 +153,63 @@ public class UnityTransactionLogWriter
         fileSystemTransactionLogWriter.writeLog(logEntry);
         TrinoInputFile logFile = fileSystem.newInputFile(logEntry);
 
-        StagedCommit commit = new StagedCommit(
-                commitInfo.version(),
-                commitInfo.inCommitTimestamp().orElseThrow(),
-                logEntry.fileName(),
-                logFile.length(),
-                logFile.lastModified().toEpochMilli());
+        DeltaCommit commit = new DeltaCommit()
+                .version(commitInfo.version())
+                .timestamp(commitInfo.inCommitTimestamp().orElseThrow())
+                .fileName(logEntry.fileName())
+                .fileSize(logFile.length())
+                .fileModificationTimestamp(logFile.lastModified().toEpochMilli());
         tableOperations.commitStagedCommits(
+                schemaTableName,
                 tableId,
-                tableLocation,
                 Optional.of(commit),
                 Optional.empty(),
                 metadataEntry.map(DeltaLakeTransactionLogEntry::getMetaData),
                 protocolEntry.map(DeltaLakeTransactionLogEntry::getProtocol));
 
-        backfillExecutor.submit(() -> backfillToVersion(tableId, tableLocation, commitInfo.version()));
+        backfillExecutor.submit(() -> backfillToVersion(schemaTableName, tableId, tableLocation, commitInfo.version()));
     }
 
-    private void backfillToVersion(String tableId, String tableLocation, long version)
+    private void backfillToVersion(SchemaTableName schemaTableName, String tableId, String tableLocation, long version)
     {
         try {
-            doBackfill(tableId, tableLocation, version);
+            doBackfill(schemaTableName, tableId, tableLocation, version);
         }
         catch (Throwable e) {
             LOG.warn(e, "Failed to backfill table %s to version %s".formatted(tableId, version));
         }
     }
 
-    private void doBackfill(String tableId, String tableLocation, long version)
+    private void doBackfill(SchemaTableName schemaTableName, String tableId, String tableLocation, long version)
             throws IOException
     {
-        StagedCommitsInfo stagedCommitsInfo = tableOperations.loadStagedCommitsInfo(tableId, tableLocation, Optional.empty(), Optional.of(version));
-        if (stagedCommitsInfo.getCommits() == null || stagedCommitsInfo.getCommits().isEmpty()) {
+        List<DeltaCommit> commits = tableOperations.loadStagedCommitsInfo(schemaTableName, tableId, Optional.empty(), Optional.of(version)).commits();
+        if (commits.isEmpty()) {
             return;
         }
 
-        List<StagedCommit> commits = stagedCommitsInfo.getCommits();
-        long backfilledVersion = commits.getFirst().version() - 1;
+        long backfilledVersion = commits.getFirst().getVersion() - 1;
         if (backfilledVersion >= 0 && !fileSystem.newInputFile(getTransactionLogJsonEntryPath(getTransactionLogDir(tableLocation), backfilledVersion)).exists()) {
             throw new TrinoException(DELTA_LAKE_INVALID_TABLE, "Backfilled commit entry file does not exist: " + getTransactionLogJsonEntryPath(getTransactionLogDir(tableLocation), backfilledVersion));
         }
 
         Location stagingPath = getTransactionLogStagedCommitDirectoryPath(tableLocation);
-        for (StagedCommit commit : commits) {
-            Location sourceLogPath = stagingPath.appendPath(commit.fileName());
+        for (DeltaCommit commit : commits) {
+            Location sourceLogPath = stagingPath.appendPath(commit.getFileName());
             TrinoInputFile sourceLogFile = fileSystem.newInputFile(sourceLogPath);
             if (!sourceLogFile.exists()) {
                 throw new TrinoException(DELTA_LAKE_INVALID_TABLE, "Commit entry file does not exist: " + sourceLogFile.location());
             }
 
             try (TrinoInput input = sourceLogFile.newInput()) {
-                Location targetPath = getTransactionLogJsonEntryPath(getTransactionLogDir(tableLocation), commit.version());
+                Location targetPath = getTransactionLogJsonEntryPath(getTransactionLogDir(tableLocation), commit.getVersion());
                 byte[] contents = input.readFully(0L, (int) sourceLogFile.length()).getBytes();
 
                 try {
                     fileSystem.newOutputFile(targetPath).createExclusive(contents);
                 }
                 catch (FileAlreadyExistsException e) {
-                    LOG.warn("Commit entry file already exists: %s, skipping backfill for version %d", targetPath, commit.version());
+                    LOG.warn("Commit entry file already exists: %s, skipping backfill for version %d", targetPath, commit.getVersion());
                     continue;
                 }
                 catch (IOException e) {
@@ -221,10 +223,10 @@ public class UnityTransactionLogWriter
             Failsafe.with(BACKFILL_RETRY_POLICY).get(
                     _ -> {
                         tableOperations.commitStagedCommits(
+                                schemaTableName,
                                 tableId,
-                                tableLocation,
                                 Optional.empty(),
-                                Optional.of(commit.version()),
+                                Optional.of(commit.getVersion()),
                                 Optional.empty(),
                                 Optional.empty());
                         return null;

@@ -54,7 +54,7 @@ public class UnityTransactionLogReaderFactory
                 throw new TrinoException(NOT_SUPPORTED, "Unity Catalog managed configuration not enabled");
             }
             String tableId = tableHandle.getMetadataEntry().getTableId().orElseThrow(() -> new IllegalArgumentException("Table id is required for Unity Catalog managed tables"));
-            return new RestUnityTransactionLogReader(tableId, tableHandle.getLocation(), tableCredentials, fileSystemFactory, tableOperationsProvider);
+            return new RestUnityTransactionLogReader(tableHandle.getSchemaTableName(), tableId, tableHandle.getLocation(), tableCredentials, fileSystemFactory, tableOperationsProvider);
         }
 
         return new FileSystemTransactionLogReader(tableHandle.getLocation(), tableCredentials, fileSystemFactory);
@@ -68,7 +68,7 @@ public class UnityTransactionLogReaderFactory
                 throw new TrinoException(NOT_SUPPORTED, "Unity Catalog managed configuration not enabled");
             }
             String tableId = table.tableId().orElseThrow(() -> new IllegalArgumentException("Table id is required for Unity Catalog managed tables"));
-            return new RestUnityTransactionLogReader(tableId, table.location(), tableCredentials, fileSystemFactory, tableOperationsProvider);
+            return new RestUnityTransactionLogReader(table.schemaTableName(), tableId, table.location(), tableCredentials, fileSystemFactory, tableOperationsProvider);
         }
 
         return new FileSystemTransactionLogReader(table.location(), tableCredentials, fileSystemFactory);
