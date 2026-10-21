@@ -47,7 +47,6 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static io.trino.testing.TestingNames.randomNameSuffix;
 import static io.trino.testing.containers.environment.QueryResultAssert.assertThat;
-import static io.trino.tests.product.hive.HiveTimestampPrecision.NANOSECONDS;
 import static java.lang.String.format;
 import static java.util.Collections.nCopies;
 import static java.util.Locale.ENGLISH;

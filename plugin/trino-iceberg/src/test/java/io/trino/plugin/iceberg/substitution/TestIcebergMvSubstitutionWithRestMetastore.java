@@ -28,7 +28,6 @@ import io.trino.testing.QueryRunner;
 import org.junit.jupiter.api.parallel.Execution;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 
-import static io.airlift.configuration.ConfigBinder.configBinder;
 import static org.junit.jupiter.api.parallel.ExecutionMode.SAME_THREAD;
 
 /**

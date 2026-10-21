@@ -38,7 +38,6 @@ import static io.airlift.concurrent.MoreFutures.asVoid;
 import static io.airlift.concurrent.MoreFutures.getDone;
 import static io.trino.operator.gpu.memory.GpuMemoryUtils.getContainsGpuDeviceMemoryUsage;
 import static io.trino.plugin.base.gpu.GpuUtils.closeColumns;
-import static io.trino.spi.gpu.GpuTypeConversion.nullScalar;
 import static java.lang.Math.ceilDiv;
 import static java.util.Objects.requireNonNull;
 

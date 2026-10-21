@@ -70,7 +70,6 @@ import static io.trino.spi.type.VarcharType.createVarcharType;
 import static io.trino.sql.ir.TestingIr.comparison;
 import static io.trino.testing.assertions.TrinoExceptionAssert.assertTrinoExceptionThrownBy;
 import static io.trino.type.CharVarcharCoercion.SQL_STANDARD;
-import static java.util.Arrays.asList;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.junit.jupiter.api.parallel.ExecutionMode.CONCURRENT;
 

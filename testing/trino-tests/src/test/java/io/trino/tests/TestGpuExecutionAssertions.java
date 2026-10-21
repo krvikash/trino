@@ -16,7 +16,6 @@ package io.trino.tests;
 import io.trino.plugin.iceberg.IcebergQueryRunner;
 import io.trino.sql.planner.plan.TableScanNode;
 import io.trino.sql.planner.plan.WindowNode;
-import io.trino.sql.query.QueryAssertions.QueryAssert;
 import io.trino.testing.AbstractTestQueryFramework;
 import io.trino.testing.QueryRunner;
 import org.junit.jupiter.api.Test;

@@ -48,7 +48,6 @@ import static io.trino.type.CharVarcharCoercion.SQL_STANDARD;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.junit.jupiter.api.parallel.ExecutionMode.CONCURRENT;
-import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 @TestInstance(PER_CLASS)
 @Execution(CONCURRENT)

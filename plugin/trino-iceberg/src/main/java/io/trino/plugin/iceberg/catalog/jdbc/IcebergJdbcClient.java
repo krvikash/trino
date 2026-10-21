@@ -20,8 +20,6 @@ import org.jdbi.v3.core.Jdbi;
 
 import java.util.Optional;
 
-import static io.trino.plugin.iceberg.catalog.jdbc.IcebergJdbcCatalogConfig.SchemaVersion.V0;
-import static io.trino.plugin.iceberg.catalog.jdbc.IcebergJdbcCatalogConfig.SchemaVersion.V1;
 import static java.util.Objects.requireNonNull;
 
 public class IcebergJdbcClient

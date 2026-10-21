@@ -49,8 +49,6 @@ import static io.trino.operator.gpu.GpuTestUtils.TESTED_GPU_TYPES;
 import static io.trino.operator.gpu.GpuTestUtils.copyToDevice;
 import static io.trino.operator.gpu.GpuTestUtils.createBlock;
 import static io.trino.operator.gpu.GpuTestUtils.maybeSetGpuMemoryPoolForTests;
-import static io.trino.operator.gpu.join.GpuLookupJoin.JoinType.INNER;
-import static io.trino.operator.gpu.join.GpuLookupJoin.JoinType.LEFT;
 import static io.trino.operator.gpu.memory.GpuMemoryUtils.getContainsGpuDeviceMemoryUsage;
 import static io.trino.operator.gpu.memory.GpuMemoryUtils.getDistinctIndicesGpuDeviceMemoryUsage;
 import static io.trino.operator.gpu.memory.GpuMemoryUtils.getFilterGpuDeviceMemoryUsage;
