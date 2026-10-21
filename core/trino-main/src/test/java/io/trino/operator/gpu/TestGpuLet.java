@@ -17,6 +17,7 @@ import com.google.common.collect.ImmutableList;
 import io.trino.operator.gpu.expression.CompiledExpression;
 import io.trino.operator.project.PageProcessor;
 import io.trino.spi.Page;
+import io.trino.spi.TrinoException;
 import io.trino.spi.function.OperatorType;
 import io.trino.spi.type.Type;
 import io.trino.sql.gen.TestColumnarFilters.NullsProvider;
@@ -47,6 +48,7 @@ import static io.trino.operator.gpu.expression.GpuExpressionCompiler.compileExpr
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.type.CharVarcharCoercion.SQL_STANDARD;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.junit.jupiter.api.parallel.ExecutionMode.CONCURRENT;
 
@@ -123,11 +125,16 @@ final class TestGpuLet
         // The inner value reads the outer binding, which is restored after the inner body.
         Expression inner = new Let(symbol, add(reference, field(1, BIGINT)), add(reference, reference));
         Expression expression = new Let(symbol, field(0, BIGINT), add(inner, reference));
-
-        // The CPU compiler rejects duplicate nested Let names, so use an equivalent expression without bindings.
-        Expression sum = add(field(0, BIGINT), field(1, BIGINT));
         Map<Symbol, Integer> layout = layoutFor(inputTypes);
-        PageProcessor cpuProcessor = compileCpuExpression(add(add(sum, sum), field(0, BIGINT)), layout);
+
+        // The CPU compiler rejects duplicate nested Let names, so we cannot use plain assertGpuMatchesCpu(Expression). Use an equivalent expression for CPU and compile directly.
+        assertThatThrownBy(() -> compileCpuExpression(expression, layout))
+                .isInstanceOf(TrinoException.class)
+                .hasMessage("Multiple entries with same key: s=LetBinding[value=temp_6, wasNull=temp_8] and s=LetBinding[value=temp_0, wasNull=temp_2]");
+        Expression sum = add(field(0, BIGINT), field(1, BIGINT));
+        Expression cpuEquivalentExpression = add(add(sum, sum), field(0, BIGINT));
+
+        PageProcessor cpuProcessor = compileCpuExpression(cpuEquivalentExpression, layout);
         CompiledExpression gpuExpression = compileExpression(expression, layout, SQL_STANDARD, TEST_SESSION_TIME_ZONE_KEY).orElseThrow();
         assertThat(gpuExpression.inputChannels().getInputChannels()).containsExactly(0, 1);
         assertGpuMatchesCpu(inputPages, inputTypes, expression, cpuProcessor, gpuExpression, false);
