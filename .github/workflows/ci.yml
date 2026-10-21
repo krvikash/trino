@@ -1953,8 +1953,15 @@ jobs:
           include-hidden-files: true
           retention-days: 1
       - id: set-junit-matrix
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_SCHEDULE: ${{ github.event.schedule }}
+          PR_LABELS: ${{ toJson(github.event.pull_request.labels) }}
         run: |
-          .github/bin/build-pt-junit-matrix.py > matrix-junit.json
+          .github/bin/build-pt-junit-matrix.py \
+            --event-name "$EVENT_NAME" \
+            --event-schedule "$EVENT_SCHEDULE" \
+            --pr-labels "$PR_LABELS" > matrix-junit.json
           echo "JUnit matrix: $(jq '.' matrix-junit.json)"
           echo "matrix-junit=$(jq -c '.' matrix-junit.json)" >> $GITHUB_OUTPUT
 
