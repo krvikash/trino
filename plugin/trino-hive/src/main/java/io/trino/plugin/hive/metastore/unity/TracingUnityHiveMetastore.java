@@ -27,6 +27,8 @@ import io.unitycatalog.client.model.TemporaryCredentials;
 
 import java.util.List;
 
+import static io.trino.metastore.tracing.MetastoreAttributes.SCHEMA;
+import static io.trino.metastore.tracing.MetastoreAttributes.TABLE;
 import static io.trino.metastore.tracing.Tracing.withTracing;
 import static java.util.Objects.requireNonNull;
 
@@ -48,6 +50,8 @@ public class TracingUnityHiveMetastore
     public DeltaLoadTableResponse loadStagedCommits(SchemaTableName schemaTableName, String tableId)
     {
         Span span = tracer.spanBuilder("HiveMetastore.getStagedCommitsInfo")
+                .setAttribute(SCHEMA, schemaTableName.getSchemaName())
+                .setAttribute(TABLE, schemaTableName.getTableName())
                 .startSpan();
         return withTracing(span, () -> delegate.loadStagedCommits(schemaTableName, tableId));
     }
@@ -56,6 +60,8 @@ public class TracingUnityHiveMetastore
     public void commitStagedCommits(SchemaTableName schemaTableName, String tableId, List<DeltaTableUpdate> updates)
     {
         Span span = tracer.spanBuilder("HiveMetastore.commitStagedCommits")
+                .setAttribute(SCHEMA, schemaTableName.getSchemaName())
+                .setAttribute(TABLE, schemaTableName.getTableName())
                 .startSpan();
         withTracing(span, () -> delegate.commitStagedCommits(schemaTableName, tableId, updates));
     }
@@ -64,6 +70,8 @@ public class TracingUnityHiveMetastore
     public DeltaCredentialsResponse getTemporaryTableCredentials(SchemaTableName schemaTableName, DeltaCredentialOperation operation)
     {
         Span span = tracer.spanBuilder("UnityHiveMetastore.getTemporaryTableCredentials")
+                .setAttribute(SCHEMA, schemaTableName.getSchemaName())
+                .setAttribute(TABLE, schemaTableName.getTableName())
                 .startSpan();
         return withTracing(span, () -> delegate.getTemporaryTableCredentials(schemaTableName, operation));
     }

@@ -18,7 +18,7 @@ import io.opentelemetry.api.common.AttributeKey;
 import static io.opentelemetry.api.common.AttributeKey.longKey;
 import static io.opentelemetry.api.common.AttributeKey.stringKey;
 
-final class MetastoreAttributes
+public final class MetastoreAttributes
 {
     private MetastoreAttributes() {}
 
