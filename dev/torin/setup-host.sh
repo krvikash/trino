@@ -3,7 +3,7 @@
 # Prepare a fresh "Deep Learning Base OSS Nvidia Driver GPU AMI (Ubuntu 26.04)" host for cork GPU development.
 # Run on the host as the login user (sudo is used where needed). Idempotent: safe to re-run.
 # Pass a GitHub token on stdin, to log in gh: `gh auth token | ssh <host> /tmp/setup-host.sh`.
-# See dev/gpu/README.md for creating the host and for the steps that must run locally first.
+# See dev/torin/README.md for creating the host and for the steps that must run locally first.
 
 set -euo pipefail
 
@@ -53,6 +53,7 @@ fi
 
 step "Configuring shell environment"
 # DLAMI's /etc/profile.d/dlami.sh already puts CUDA on PATH and LD_LIBRARY_PATH
+# Must stay byte-identical to the marker already in ~/.profile on existing hosts, or a re-run appends a duplicate block
 marker='# cork GPU dev (dev/gpu/setup-host.sh)'
 if ! grep -qF "${marker}" "${HOME}/.profile"; then
     cat >>"${HOME}/.profile" <<EOF

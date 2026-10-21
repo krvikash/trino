@@ -164,7 +164,7 @@ From the local cork checkout:
 ```bash
 ssh <name> mkdir -p .m2
 scp ~/.m2/settings.xml <name>:.m2/
-scp dev/gpu/setup-host.sh <name>:/tmp/
+scp dev/torin/setup-host.sh <name>:/tmp/
 gh auth token | ssh <name> /tmp/setup-host.sh
 ```
 

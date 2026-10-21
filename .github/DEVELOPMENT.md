@@ -273,7 +273,7 @@ mvnd test-compile exec:exec -Dair.check.skip-all=true -Dmaven.compiler.proc=full
 
 ## GPU development
 
-To develop and test GPU code on an AWS GPU host, see [`dev/gpu/README.md`](../dev/gpu/README.md).
+To develop and test GPU code on an AWS GPU host, see [`dev/torin/README.md`](../dev/torin/README.md).
 
 ## Additional IDE configuration
 
