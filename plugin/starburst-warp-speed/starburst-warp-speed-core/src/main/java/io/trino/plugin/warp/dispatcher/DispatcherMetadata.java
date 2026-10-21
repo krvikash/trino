@@ -1588,19 +1588,19 @@ public class DispatcherMetadata
     @Override
     public void createBranch(ConnectorSession session, ConnectorTableHandle tableHandle, String branch, Optional<String> fromBranch, SaveMode saveMode, Map<String, Object> properties)
     {
-        proxiedConnectorMetadata.createBranch(session, tableHandle, branch, fromBranch, saveMode, properties);
+        proxiedConnectorMetadata.createBranch(session, ((DispatcherTableHandle) tableHandle).getProxyConnectorTableHandle(), branch, fromBranch, saveMode, properties);
     }
 
     @Override
     public void dropBranch(ConnectorSession session, ConnectorTableHandle tableHandle, String branch)
     {
-        proxiedConnectorMetadata.dropBranch(session, tableHandle, branch);
+        proxiedConnectorMetadata.dropBranch(session, ((DispatcherTableHandle) tableHandle).getProxyConnectorTableHandle(), branch);
     }
 
     @Override
     public void fastForwardBranch(ConnectorSession session, ConnectorTableHandle tableHandle, String sourceBranch, String targetBranch)
     {
-        proxiedConnectorMetadata.fastForwardBranch(session, tableHandle, sourceBranch, targetBranch);
+        proxiedConnectorMetadata.fastForwardBranch(session, ((DispatcherTableHandle) tableHandle).getProxyConnectorTableHandle(), sourceBranch, targetBranch);
     }
 
     @Override

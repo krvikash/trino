@@ -493,6 +493,27 @@ public class TestWarpSpeedWithIcebergProxiedConnectorTest
         }
     }
 
+    @Test
+    void testBranching()
+    {
+        try (TestTable table = newTrinoTable("test_branching", "AS SELECT 1 x")) {
+            assertUpdate("CREATE BRANCH dev IN TABLE " + table.getName());
+            assertThat(computeActual("SHOW BRANCHES IN TABLE " + table.getName()).getOnlyColumnAsSet())
+                    .containsExactlyInAnyOrder("main", "dev");
+
+            assertUpdate("INSERT INTO " + table.getName() + " @ dev VALUES 2", 1);
+            assertQuery("SELECT * FROM " + table.getName(), "VALUES 1");
+            assertQuery("SELECT * FROM " + table.getName() + " FOR VERSION AS OF 'dev'", "VALUES 1, 2");
+
+            assertUpdate("ALTER BRANCH main IN TABLE " + table.getName() + " FAST FORWARD TO dev");
+            assertQuery("SELECT * FROM " + table.getName(), "VALUES 1, 2");
+
+            assertUpdate("DROP BRANCH dev IN TABLE " + table.getName());
+            assertThat(computeActual("SHOW BRANCHES IN TABLE " + table.getName()).getOnlyColumnAsSet())
+                    .containsExactlyInAnyOrder("main");
+        }
+    }
+
     @Override
     protected Session withoutSmallFileThreshold(Session session)
     {
