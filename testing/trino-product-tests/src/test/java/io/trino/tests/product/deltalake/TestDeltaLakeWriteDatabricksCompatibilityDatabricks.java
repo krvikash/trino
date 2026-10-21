@@ -392,13 +392,10 @@ class TestDeltaLakeWriteDatabricksCompatibilityDatabricks
     }
 
     // the variant type requires databricks 15.3 and above
-    // TODO: add group for testing databricks 16.4 version
     @Test
-    @TestGroup.DeltaLakeDatabricks154
     @Flaky(issue = DATABRICKS_COMMUNICATION_FAILURE_ISSUE, match = DATABRICKS_COMMUNICATION_FAILURE_MATCH)
     void testVariantType(DeltaLakeDatabricksEnvironment env)
     {
-        // The 13.3 and 17.3 suites run every Databricks test; this one is for 15.4 only
         if (!getDatabricksRuntimeVersion(env).orElseThrow().equals(new DatabricksVersion(15, 4))) {
             return;
         }
