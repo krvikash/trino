@@ -173,7 +173,8 @@ public class TestDrainService
                 createChunkManager(stats, executor),
                 Optional.of(createDiscoveryBroadcast(discoveryApi, stateManager)),
                 succinctDuration(2, SECONDS),
-                succinctDuration(30, SECONDS));
+                succinctDuration(30, SECONDS),
+                succinctDuration(100, MILLISECONDS));
         drainServices.add(drainService);
         try (LogCapture logs = new LogCapture()) {
             Future<?> waiter = executor.submit(drainService::awaitDrain);
@@ -197,6 +198,66 @@ public class TestDrainService
         }
     }
 
+    @Test
+    public void testFinalPublicationHasTimeAfterDrainingOverrunsItsAllowance()
+    {
+        assertSlowDrainAnnouncesFinalState(succinctDuration(2, SECONDS), false);
+    }
+
+    @Test
+    public void testLateDrainStillAttemptsFinalPublication()
+    {
+        assertSlowDrainAnnouncesFinalState(succinctDuration(0, SECONDS), true);
+    }
+
+    private void assertSlowDrainAnnouncesFinalState(Duration publicationTimeout, boolean expectShutdownTimeout)
+    {
+        List<BufferNodeState> announcedStates = new CopyOnWriteArrayList<>();
+        // Simulate local draining taking longer than its 50ms allowance.
+        ChunkManager chunkManager = createChunkManager(stats, executor, succinctDuration(200, MILLISECONDS));
+        DrainService drainService = createDrainService(
+                stateManager,
+                stats,
+                chunkManager,
+                createDiscoveryApiStub(announcedStates),
+                succinctDuration(50, MILLISECONDS),
+                publicationTimeout);
+        try (LogCapture logs = new LogCapture()) {
+            drainService.awaitDrain();
+            if (expectShutdownTimeout) {
+                assertThat(logs.messages()).contains("Timed out waiting for buffer drain and final discovery announcement (state: DRAINING)");
+                // Shutdown is allowed to proceed, but if the service is still alive, late completion must try publication.
+                assertEventually(() -> assertThat(announcedStates).contains(BufferNodeState.DRAINED));
+            }
+            else {
+                assertThat(announcedStates).contains(BufferNodeState.DRAINED);
+                assertThat(logs.messages()).noneMatch(message -> message.startsWith("Timed out waiting") || message.startsWith("Buffer drain finalization failed"));
+            }
+        }
+    }
+
+    @Test
+    public void testShutdownAllowanceIncludesMinimumDrainingDuration()
+    {
+        Duration minDrainingDuration = succinctDuration(2, SECONDS);
+        List<BufferNodeState> announcedStates = new CopyOnWriteArrayList<>();
+        DrainService drainService = new DrainService(
+                new DataServerConfig().setDrainAllChunksTimeout(succinctDuration(10, MILLISECONDS)).setMinDrainingDuration(minDrainingDuration),
+                stateManager,
+                new AddDataPagesInProgressTracker(stats),
+                createChunkManager(stats, executor, minDrainingDuration),
+                Optional.of(createDiscoveryBroadcast(createDiscoveryApiStub(announcedStates), stateManager)),
+                succinctDuration(0, SECONDS),
+                succinctDuration(30, SECONDS),
+                succinctDuration(1, SECONDS));
+        drainServices.add(drainService);
+        try (LogCapture logs = new LogCapture()) {
+            drainService.awaitDrain();
+            assertThat(announcedStates).contains(BufferNodeState.DRAINED);
+            assertThat(logs.messages()).noneMatch(message -> message.startsWith("Timed out waiting"));
+        }
+    }
+
     private static void await(CountDownLatch latch)
     {
         try {
@@ -206,6 +267,21 @@ public class TestDrainService
             Thread.currentThread().interrupt();
             throw new RuntimeException(e);
         }
+    }
+
+    private DrainService createDrainService(BufferNodeStateManager stateManager, DataServerStats stats, ChunkManager chunkManager, DiscoveryApi discoveryApi, Duration timeout, Duration publicationTimeout)
+    {
+        DrainService drainService = new DrainService(
+                new DataServerConfig().setDrainAllChunksTimeout(timeout).setMinDrainingDuration(succinctDuration(0, SECONDS)),
+                stateManager,
+                new AddDataPagesInProgressTracker(stats),
+                chunkManager,
+                Optional.of(createDiscoveryBroadcast(discoveryApi, stateManager)),
+                succinctDuration(0, SECONDS),
+                succinctDuration(30, SECONDS),
+                publicationTimeout);
+        drainServices.add(drainService);
+        return drainService;
     }
 
     @Test
@@ -316,7 +392,8 @@ public class TestDrainService
                 chunkManager,
                 Optional.empty(),
                 maxWaitNoInProgressAddDataPagesRequests,
-                noProgressThreadDumpThreshold);
+                noProgressThreadDumpThreshold,
+                succinctDuration(30, SECONDS));
         drainServices.add(drainService);
         return drainService;
     }
@@ -451,9 +528,14 @@ public class TestDrainService
 
     private static ChunkManager createChunkManager(DataServerStats dataServerStats, ExecutorService executor)
     {
+        return createChunkManager(dataServerStats, executor, succinctDuration(0, SECONDS));
+    }
+
+    private static ChunkManager createChunkManager(DataServerStats dataServerStats, ExecutorService executor, Duration minDrainingDuration)
+    {
         DataServerConfig dataServerConfig = new DataServerConfig()
                 .setTraceResourceReportingEnabled(false)
-                .setMinDrainingDuration(succinctDuration(0, SECONDS));
+                .setMinDrainingDuration(minDrainingDuration);
         ChunkManagerConfig chunkManagerConfig = new ChunkManagerConfig();
         MemoryAllocator memoryAllocator = new MemoryAllocator(
                 new TestingMemoryConfig(DataSize.of(64, DataSize.Unit.MEGABYTE)),

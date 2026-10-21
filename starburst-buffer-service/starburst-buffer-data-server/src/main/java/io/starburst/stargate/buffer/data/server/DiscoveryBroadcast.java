@@ -14,6 +14,7 @@ import io.airlift.log.Logger;
 import io.airlift.units.Duration;
 import io.starburst.stargate.buffer.BufferNodeInfo;
 import io.starburst.stargate.buffer.discovery.client.DiscoveryApi;
+import io.starburst.stargate.buffer.discovery.client.InvalidBufferNodeUpdateException;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 
@@ -22,6 +23,7 @@ import java.util.Optional;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
@@ -30,8 +32,11 @@ import static com.google.common.base.Preconditions.checkState;
 import static io.airlift.concurrent.Threads.daemonThreadsNamed;
 import static io.starburst.stargate.buffer.BufferNodeState.ACTIVE;
 import static io.starburst.stargate.buffer.BufferNodeState.STARTING;
+import static java.lang.Math.min;
+import static java.lang.System.nanoTime;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.Executors.newSingleThreadScheduledExecutor;
+import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
 public class DiscoveryBroadcast
 {
@@ -116,11 +121,48 @@ public class DiscoveryBroadcast
     /**
      * Makes one best-effort announcement.
      */
-    synchronized void broadcast()
+    void broadcast()
     {
-        BufferNodeInfo nodeInfo = bufferNodeInfoSupplier.get();
-        if (nodeInfo.state() != STARTING) {
-            try {
+        try {
+            broadcastOnce();
+        }
+        catch (InvalidBufferNodeUpdateException e) {
+            // Do not let a rejected update terminate the periodic scheduled task.
+            log.warn(e, "Discovery server rejected buffer node announcement");
+        }
+    }
+
+    /**
+     * Attempts publication at least once unless the thread is interrupted, retrying transient failures within the timeout.
+     * The timeout bounds retries, not waiting for another announcement to release the monitor or an in-flight HTTP request.
+     * Callers that require a hard waiting limit must enforce it separately.
+     */
+    public void broadcastUntilSuccess(Duration timeout)
+            throws InterruptedException, TimeoutException
+    {
+        long deadlineNanos = nanoTime() + timeout.roundTo(NANOSECONDS);
+        do {
+            if (Thread.currentThread().isInterrupted()) {
+                throw new InterruptedException("Interrupted while publishing buffer node announcement");
+            }
+            if (broadcastOnce()) {
+                return;
+            }
+            long remainingNanos = deadlineNanos - nanoTime();
+            if (remainingNanos <= 0) {
+                break;
+            }
+            NANOSECONDS.sleep(min(broadcastInterval.roundTo(NANOSECONDS), remainingNanos));
+        }
+        while (deadlineNanos - nanoTime() > 0);
+        throw new TimeoutException("Timed out publishing buffer node announcement");
+    }
+
+    private synchronized boolean broadcastOnce()
+    {
+        try {
+            BufferNodeInfo nodeInfo = bufferNodeInfoSupplier.get();
+            if (nodeInfo.state() != STARTING) {
                 discoverApi.updateBufferNode(nodeInfo);
                 Boolean previousRegistrationState = discoveryRegistrationState.getAndSet(true);
                 if (previousRegistrationState == null && stateManager.tryTransitionState(ACTIVE)) {
@@ -132,15 +174,26 @@ public class DiscoveryBroadcast
                     log.info("Marking registered (current state: %s)", stateManager.getState());
                 }
                 lastSuccessfulBroadcast.set(Instant.now());
+                return true;
             }
-            catch (RuntimeException e) {
-                log.warn(e, "Failed to announce to discovery server. Retry in %s.", broadcastInterval);
-                if (lastSuccessfulBroadcast.get().plusMillis(broadcastFailureInactivityThreshold.toMillis()).isAfter(Instant.now())) {
-                    Boolean previousRegistrationState = discoveryRegistrationState.getAndSet(false);
-                    if (previousRegistrationState != null && previousRegistrationState) {
-                        log.warn("Marking unregistered (current state: %s)", stateManager.getState());
-                    }
-                }
+        }
+        catch (InvalidBufferNodeUpdateException e) {
+            markBroadcastFailed();
+            throw e;
+        }
+        catch (RuntimeException e) {
+            markBroadcastFailed();
+            log.warn(e, "Failed to announce to discovery server");
+        }
+        return false;
+    }
+
+    private void markBroadcastFailed()
+    {
+        if (lastSuccessfulBroadcast.get().plusMillis(broadcastFailureInactivityThreshold.toMillis()).isAfter(Instant.now())) {
+            Boolean previousRegistrationState = discoveryRegistrationState.getAndSet(false);
+            if (previousRegistrationState != null && previousRegistrationState) {
+                log.warn("Marking unregistered (current state: %s)", stateManager.getState());
             }
         }
     }

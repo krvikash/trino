@@ -30,6 +30,7 @@ import java.util.concurrent.TimeoutException;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Verify.verifyNotNull;
 import static io.airlift.concurrent.Threads.daemonThreadsNamed;
+import static java.lang.Math.max;
 import static java.lang.System.nanoTime;
 import static java.lang.management.ManagementFactory.getThreadMXBean;
 import static java.util.Objects.requireNonNull;
@@ -46,9 +47,11 @@ public class DrainService
     private static final Logger log = Logger.get(DrainService.class);
     private static final Duration DEFAULT_MAX_WAIT_NO_IN_PROGRESS_ADD_DATA_PAGES_REQUESTS = Duration.succinctDuration(2, TimeUnit.MINUTES);
     private static final Duration DEFAULT_NO_PROGRESS_THREAD_DUMP_THRESHOLD = Duration.succinctDuration(30, TimeUnit.SECONDS);
+    private static final Duration DEFAULT_FINAL_ANNOUNCEMENT_TIMEOUT = Duration.succinctDuration(30, TimeUnit.SECONDS);
 
     private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor(daemonThreadsNamed("data-server-drain-service"));
-    private final Duration drainAllChunksTimeout;
+    private final long drainCompletionTimeoutNanos;
+    private final Duration finalAnnouncementTimeout;
     private final Duration maxWaitNoInProgressAddDataPagesRequests;
     private final Duration noProgressThreadDumpThreshold;
     private final BufferNodeStateManager bufferNodeStateManager;
@@ -73,7 +76,8 @@ public class DrainService
                 chunkManager,
                 discoveryBroadcast,
                 DEFAULT_MAX_WAIT_NO_IN_PROGRESS_ADD_DATA_PAGES_REQUESTS,
-                DEFAULT_NO_PROGRESS_THREAD_DUMP_THRESHOLD);
+                DEFAULT_NO_PROGRESS_THREAD_DUMP_THRESHOLD,
+                DEFAULT_FINAL_ANNOUNCEMENT_TIMEOUT);
     }
 
     @VisibleForTesting
@@ -84,15 +88,24 @@ public class DrainService
             ChunkManager chunkManager,
             Optional<DiscoveryBroadcast> discoveryBroadcast,
             Duration maxWaitNoInProgressAddDataPagesRequests,
-            Duration noProgressThreadDumpThreshold)
+            Duration noProgressThreadDumpThreshold,
+            Duration finalAnnouncementTimeout)
     {
-        this.drainAllChunksTimeout = requireNonNull(dataServerConfig, "dataServerConfig is null").getDrainAllChunksTimeout();
+        requireNonNull(dataServerConfig, "dataServerConfig is null");
+        this.finalAnnouncementTimeout = requireNonNull(finalAnnouncementTimeout, "finalAnnouncementTimeout is null");
         this.bufferNodeStateManager = requireNonNull(bufferNodeStateManager, "bufferNodeStateManager is null");
         this.inProgressTracker = requireNonNull(inProgressTracker, "inProgressTracker is null");
         this.chunkManager = requireNonNull(chunkManager, "chunkManager is null");
         this.discoveryBroadcast = requireNonNull(discoveryBroadcast, "discoveryBroadcast is null");
         this.maxWaitNoInProgressAddDataPagesRequests = requireNonNull(maxWaitNoInProgressAddDataPagesRequests, "maxWaitNoInProgressAddDataPagesRequests is null");
         this.noProgressThreadDumpThreshold = requireNonNull(noProgressThreadDumpThreshold, "noProgressThreadDumpThreshold is null");
+        long shutdownTimeoutNanos = maxWaitNoInProgressAddDataPagesRequests.roundTo(NANOSECONDS) + max(
+                dataServerConfig.getDrainAllChunksTimeout().roundTo(NANOSECONDS),
+                dataServerConfig.getMinDrainingDuration().roundTo(NANOSECONDS));
+        if (discoveryBroadcast.isPresent()) {
+            shutdownTimeoutNanos += finalAnnouncementTimeout.roundTo(NANOSECONDS);
+        }
+        this.drainCompletionTimeoutNanos = shutdownTimeoutNanos;
     }
 
     @PreDestroy
@@ -138,8 +151,8 @@ public class DrainService
         checkState(!executor.isShutdown(), "Drain service is stopped");
         log.info("Draining buffer node has been requested");
         long drainStartMillis = System.currentTimeMillis();
-        // All waiters share one budget, including the initial discovery request.
-        long deadlineNanos = nanoTime() + maxWaitNoInProgressAddDataPagesRequests.roundTo(NANOSECONDS) + drainAllChunksTimeout.roundTo(NANOSECONDS);
+        // All shutdown callers share this hard deadline, even if local draining overruns its allowance.
+        long deadlineNanos = nanoTime() + drainCompletionTimeoutNanos;
         bufferNodeStateManager.transitionState(BufferNodeState.DRAINING);
 
         Future<?> task = executor.submit(() -> {
@@ -164,7 +177,11 @@ public class DrainService
             // we mark node as DRAINED even on failure. It is not great but leaving node in DRAINING state
             // does not buy us anything and we will block external processes waiting for draining completion.
             bufferNodeStateManager.transitionState(BufferNodeState.DRAINED);
-            discoveryBroadcast.ifPresent(DiscoveryBroadcast::broadcast);
+            if (discoveryBroadcast.isPresent()) {
+                // Even late completion gets a publication attempt while the service is still running.
+                discoveryBroadcast.orElseThrow().broadcastUntilSuccess(finalAnnouncementTimeout);
+            }
+            return null;
         });
         drainHandle = new DrainHandle(task, deadlineNanos);
     }

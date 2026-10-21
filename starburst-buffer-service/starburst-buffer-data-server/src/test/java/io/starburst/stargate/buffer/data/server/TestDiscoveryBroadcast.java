@@ -260,6 +260,59 @@ class TestDiscoveryBroadcast
     }
 
     @Test
+    void testFinalAnnouncementIsAttemptedWithNoRemainingAllowance()
+            throws Exception
+    {
+        stateManager.transitionState(BufferNodeState.DRAINING);
+        stateManager.transitionState(BufferNodeState.DRAINED);
+        DiscoveryBroadcast broadcast = createBroadcast(() -> nodeInfo(stateManager.getState()));
+
+        broadcast.broadcastUntilSuccess(succinctDuration(0, SECONDS));
+
+        assertThat(discoveryApi.getUpdateCount()).isEqualTo(1);
+    }
+
+    @Test
+    void testFinalAnnouncementRetriesTransientFailures()
+            throws Exception
+    {
+        stateManager.transitionState(BufferNodeState.DRAINING);
+        stateManager.transitionState(BufferNodeState.DRAINED);
+        DiscoveryBroadcast broadcast = createBroadcast(() -> nodeInfo(stateManager.getState()));
+        discoveryApi.failNextUpdates(2);
+
+        broadcast.broadcastUntilSuccess(succinctDuration(10, SECONDS));
+
+        assertThat(discoveryApi.updateAttempts.get()).isEqualTo(3);
+        assertThat(discoveryApi.getUpdateCount()).isEqualTo(1);
+    }
+
+    @Test
+    void testUnavailableDiscoveryTimesOut()
+    {
+        DiscoveryBroadcast broadcast = createBroadcast(() -> nodeInfo(stateManager.getState()));
+        discoveryApi.failNextUpdates(Integer.MAX_VALUE);
+
+        assertThatThrownBy(() -> broadcast.broadcastUntilSuccess(succinctDuration(250, MILLISECONDS)))
+                .isInstanceOf(TimeoutException.class)
+                .hasMessage("Timed out publishing buffer node announcement");
+        assertThat(discoveryApi.updateAttempts.get()).isGreaterThan(1);
+        assertThat(discoveryApi.getUpdateCount()).isZero();
+    }
+
+    @Test
+    void testFinalAnnouncementDoesNotRetryInvalidUpdate()
+    {
+        DiscoveryBroadcast broadcast = createBroadcast(() -> nodeInfo(stateManager.getState()));
+        discoveryApi.rejectNextUpdate = true;
+
+        assertThatThrownBy(() -> broadcast.broadcastUntilSuccess(succinctDuration(10, SECONDS)))
+                .isInstanceOf(InvalidBufferNodeUpdateException.class)
+                .hasMessage("Node already registered with a different URI");
+        assertThat(discoveryApi.updateAttempts.get()).isEqualTo(1);
+    }
+
+    @Test
     void testInvalidUpdateDoesNotStopPeriodicBroadcasts()
     {
         DiscoveryBroadcast broadcast = createBroadcast(() -> nodeInfo(stateManager.getState()));
@@ -298,6 +351,21 @@ class TestDiscoveryBroadcast
         broadcast.requestBroadcast();
 
         assertThat(discoveryApi.updateAttempts.get()).isZero();
+    }
+
+    @Test
+    void testInterruptedFinalAnnouncementDoesNotRetry()
+    {
+        DiscoveryBroadcast broadcast = createBroadcast(() -> nodeInfo(stateManager.getState()));
+        Thread.currentThread().interrupt();
+        try {
+            assertThatThrownBy(() -> broadcast.broadcastUntilSuccess(succinctDuration(10, SECONDS)))
+                    .isInstanceOf(InterruptedException.class);
+            assertThat(discoveryApi.updateAttempts.get()).isZero();
+        }
+        finally {
+            Thread.interrupted();
+        }
     }
 
     @Test
