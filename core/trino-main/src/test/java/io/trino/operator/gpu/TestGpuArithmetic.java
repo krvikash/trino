@@ -235,7 +235,7 @@ final class TestGpuArithmetic
                     PageProcessor cpuProcessor = compileCpuExpression(expression, layout);
                     for (Page input : unaryInputs.getUnchecked(coerced)) {
                         assertThat(input.getPositionCount()).isEqualTo(1);
-                        assertGpuMatchesCpu(List.of(input), List.of(coerced), expression, cpuProcessor, compiledGpu, false);
+                        assertGpuMatchesCpu(List.of(input), List.of(coerced), expression, cpuProcessor, compiledGpu);
                     }
                 }
                 catch (AssertionError failure) {
@@ -360,7 +360,7 @@ final class TestGpuArithmetic
                         PageProcessor cpuProcessor = compileCpuExpression(expression, layout);
                         for (Page input : binaryInputs.getUnchecked(new Pair<>(leftCoerced, rightCoerced))) {
                             assertThat(input.getPositionCount()).isEqualTo(1);
-                            assertGpuMatchesCpu(List.of(input), List.of(leftCoerced, rightCoerced), expression, cpuProcessor, compiledGpu, false);
+                            assertGpuMatchesCpu(List.of(input), List.of(leftCoerced, rightCoerced), expression, cpuProcessor, compiledGpu);
                         }
                     }
                     catch (AssertionError failure) {
@@ -501,7 +501,7 @@ final class TestGpuArithmetic
     }
 
     /**
-     * Like {@link GpuTestUtils#assertGpuMatchesCpu(List, List, Expression, PageProcessor, CompiledExpression, boolean)},
+     * Like {@link GpuTestUtils#assertGpuMatchesCpu(List, List, Expression, PageProcessor, CompiledExpression)},
      * but accepts {@code INVALID_CAST_ARGUMENT} from GPU when CPU returns {@code NUMERIC_VALUE_OUT_OF_RANGE}.
      * Used in the cast smoke loop.
      */

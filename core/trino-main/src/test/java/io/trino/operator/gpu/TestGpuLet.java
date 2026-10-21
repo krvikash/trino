@@ -136,7 +136,7 @@ final class TestGpuLet
         PageProcessor cpuProcessor = compileCpuExpression(cpuEquivalentExpression, layout);
         CompiledExpression gpuExpression = compileExpression(expression, layout, SQL_STANDARD, TEST_SESSION_TIME_ZONE_KEY).orElseThrow();
         assertThat(gpuExpression.inputChannels().getInputChannels()).containsExactly(0, 1);
-        assertGpuMatchesCpu(inputPages, inputTypes, expression, cpuProcessor, gpuExpression, false);
+        assertGpuMatchesCpu(inputPages, inputTypes, expression, cpuProcessor, gpuExpression);
     }
 
     @ParameterizedTest

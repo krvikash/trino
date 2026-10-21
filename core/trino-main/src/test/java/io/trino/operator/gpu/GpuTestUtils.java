@@ -1045,9 +1045,9 @@ public final class GpuTestUtils
         assertGpuMatchesCpu(session, inputPages, inputTypes, expression, pageProcessor, gpuExpression, allowMultipleInputsForExceptionTesting);
     }
 
-    public static void assertGpuMatchesCpu(List<Page> inputPages, List<Type> inputTypes, Expression expression, PageProcessor cpuProcessor, CompiledExpression gpuExpression, boolean allowMultipleInputsForExceptionTesting)
+    public static void assertGpuMatchesCpu(List<Page> inputPages, List<Type> inputTypes, Expression expression, PageProcessor cpuProcessor, CompiledExpression gpuExpression)
     {
-        assertGpuMatchesCpu(TEST_SESSION, inputPages, inputTypes, expression, cpuProcessor, gpuExpression, allowMultipleInputsForExceptionTesting);
+        assertGpuMatchesCpu(TEST_SESSION, inputPages, inputTypes, expression, cpuProcessor, gpuExpression, false);
     }
 
     private static void assertGpuMatchesCpu(
