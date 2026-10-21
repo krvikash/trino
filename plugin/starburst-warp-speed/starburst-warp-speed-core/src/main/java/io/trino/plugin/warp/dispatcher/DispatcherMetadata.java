@@ -1546,7 +1546,7 @@ public class DispatcherMetadata
     @Override
     public boolean supportsSingleNodeExecution(ConnectorSession session, ConnectorTableHandle tableHandle)
     {
-        return proxiedConnectorMetadata.supportsSingleNodeExecution(session, tableHandle);
+        return proxiedConnectorMetadata.supportsSingleNodeExecution(session, ((DispatcherTableHandle) tableHandle).getProxyConnectorTableHandle());
     }
 
     @Override

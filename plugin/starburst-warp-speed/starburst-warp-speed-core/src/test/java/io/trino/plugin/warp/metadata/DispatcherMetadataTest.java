@@ -483,6 +483,23 @@ public class DispatcherMetadataTest
         assertThat(dispatcherMetadata.useRemoteSplitsGeneration(session, tableHandle)).isTrue();
     }
 
+    @Test
+    public void testSupportsSingleNodeExecution()
+    {
+        DispatcherTableHandle tableHandle = createDispatcherTableHandle();
+        ConnectorMetadata hiveMetadata = mockHiveMetadata();
+        when(hiveMetadata.supportsSingleNodeExecution(session, tableHandle.getProxyConnectorTableHandle())).thenReturn(true);
+        DispatcherMetadata dispatcherMetadata = new DispatcherMetadata(
+                hiveMetadata,
+                expressionService,
+                dispatcherStatisticsProvider,
+                dispatcherTableHandleBuilderProvider,
+                globalConfig,
+                shapingLoggerFactory);
+
+        assertThat(dispatcherMetadata.supportsSingleNodeExecution(session, tableHandle)).isTrue();
+    }
+
     private DispatcherTableHandle createDispatcherTableHandle()
     {
         return new DispatcherTableHandle(
