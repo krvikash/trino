@@ -48,6 +48,7 @@ import java.util.Random;
 import java.util.stream.IntStream;
 
 import static com.google.common.collect.Iterables.getOnlyElement;
+import static io.trino.SessionTestUtils.TEST_SESSION;
 import static io.trino.operator.gpu.GpuTestUtils.FUNCTION_RESOLUTION;
 import static io.trino.operator.gpu.GpuTestUtils.TEST_SESSION_TIME_ZONE_KEY;
 import static io.trino.operator.gpu.GpuTestUtils.assertGpuMatchesCpu;
@@ -520,6 +521,7 @@ final class TestGpuDateAdd
     {
         Expression expression = dateAdd(unit, new Constant(BIGINT, value), dateTimeType);
         List<Page> cpuResults = executeWithCpu(
+                TEST_SESSION,
                 compileCpuExpression(expression, layoutFor(List.of(dateTimeType))),
                 List.of(new Page(writeNativeValue(dateTimeType, nativeValue))));
         assertThat(cpuResults)

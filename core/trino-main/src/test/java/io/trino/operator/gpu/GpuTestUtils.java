@@ -216,7 +216,6 @@ public final class GpuTestUtils
 
     public static final TestingFunctionResolution FUNCTION_RESOLUTION = new TestingFunctionResolution();
 
-    private static final ConnectorSession TEST_CONNECTOR_SESSION = TEST_SESSION.toConnectorSession();
     public static final TimeZoneKey TEST_SESSION_TIME_ZONE_KEY = TEST_SESSION.getTimeZoneKey();
 
     public static void maybeSetGpuMemoryPoolForTests()
@@ -798,7 +797,7 @@ public final class GpuTestUtils
             Map<Symbol, Integer> layout)
     {
         PageProcessor pageProcessor = compileCpuExpressions(expressions, layout);
-        return executeWithCpu(pageProcessor, inputPages, session.toConnectorSession());
+        return executeWithCpu(session, pageProcessor, inputPages);
     }
 
     public static PageProcessor compileCpuExpression(Expression expression, Map<Symbol, Integer> layout)
@@ -833,17 +832,13 @@ public final class GpuTestUtils
                 .apply(InternalDynamicFilter.EMPTY);
     }
 
-    public static List<Page> executeWithCpu(PageProcessor compiledProcessor, List<Page> inputPages)
+    public static List<Page> executeWithCpu(Session session, PageProcessor compiledProcessor, List<Page> inputPages)
     {
-        return executeWithCpu(compiledProcessor, inputPages, TEST_CONNECTOR_SESSION);
-    }
-
-    public static List<Page> executeWithCpu(PageProcessor compiledProcessor, List<Page> inputPages, ConnectorSession session)
-    {
+        ConnectorSession connectorSession = session.toConnectorSession();
         LocalMemoryContext context = newSimpleAggregatedMemoryContext().newLocalMemoryContext(PageProcessor.class.getSimpleName());
         ImmutableList.Builder<Page> outputPages = ImmutableList.builder();
         for (Page inputPage : inputPages) {
-            Iterator<Optional<Page>> processed = compiledProcessor.process(session, context, SourcePage.create(inputPage));
+            Iterator<Optional<Page>> processed = compiledProcessor.process(connectorSession, context, SourcePage.create(inputPage));
             stream(processed)
                     .flatMap(Optional::stream)
                     .forEachOrdered(outputPages::add);
@@ -956,10 +951,11 @@ public final class GpuTestUtils
 
     public static void assertSameDataWithoutOrder(List<Page> actual, List<Page> expected, List<Type> types)
     {
-        MaterializedResult actualResult = MaterializedResult.resultBuilder(TEST_CONNECTOR_SESSION, types)
+        ConnectorSession session = TEST_SESSION.toConnectorSession(); // arbitrary
+        MaterializedResult actualResult = MaterializedResult.resultBuilder(session, types)
                 .pages(actual)
                 .build();
-        MaterializedResult expectedResult = MaterializedResult.resultBuilder(TEST_CONNECTOR_SESSION, types)
+        MaterializedResult expectedResult = MaterializedResult.resultBuilder(session, types)
                 .pages(expected)
                 .build();
         assertThat(ImmutableMultiset.copyOf(actualResult.getMaterializedRows()))
@@ -1059,7 +1055,7 @@ public final class GpuTestUtils
 
         List<Page> cpuResults;
         try {
-            cpuResults = executeWithCpu(cpuProcessor, inputPages, session.toConnectorSession());
+            cpuResults = executeWithCpu(session, cpuProcessor, inputPages);
         }
         catch (TrinoException cpuExecutionException) {
             // The boolean flag is a safety mechanism not to nullify test coverage over large input data set when one of the rows triggers execution exception

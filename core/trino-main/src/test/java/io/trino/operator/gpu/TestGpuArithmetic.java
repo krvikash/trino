@@ -53,6 +53,7 @@ import java.util.stream.Stream;
 import static com.google.common.base.Verify.verify;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.Iterables.getOnlyElement;
+import static io.trino.SessionTestUtils.TEST_SESSION;
 import static io.trino.operator.gpu.GpuTestUtils.FUNCTION_RESOLUTION;
 import static io.trino.operator.gpu.GpuTestUtils.TEST_SESSION_TIME_ZONE_KEY;
 import static io.trino.operator.gpu.GpuTestUtils.assertDeclaredBehaviorOnAllNulls;
@@ -453,7 +454,7 @@ final class TestGpuArithmetic
             Page sourcePage = new Page(writeNativeValue(sourceType, sourceValue));
             List<Page> result;
             try {
-                result = executeWithCpu(pageProcessor, List.of(sourcePage));
+                result = executeWithCpu(TEST_SESSION, pageProcessor, List.of(sourcePage));
             }
             catch (TrinoException e) {
                 if (e.getErrorCode().equals(NUMERIC_VALUE_OUT_OF_RANGE.toErrorCode()) || e.getErrorCode().equals(INVALID_CAST_ARGUMENT.toErrorCode())) {
@@ -513,7 +514,7 @@ final class TestGpuArithmetic
 
         List<Page> cpuResults;
         try {
-            cpuResults = executeWithCpu(cpuProcessor, inputPages);
+            cpuResults = executeWithCpu(TEST_SESSION, cpuProcessor, inputPages);
         }
         catch (TrinoException cpuExecutionException) {
             assertThat(inputPages.stream().mapToLong(Page::getPositionCount).sum())

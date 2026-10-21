@@ -42,6 +42,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import static com.google.common.base.Verify.verify;
+import static io.trino.SessionTestUtils.TEST_SESSION;
 import static io.trino.operator.gpu.GpuTestUtils.FUNCTION_RESOLUTION;
 import static io.trino.operator.gpu.GpuTestUtils.TEST_SESSION_TIME_ZONE_KEY;
 import static io.trino.operator.gpu.GpuTestUtils.assertGpuMatchesCpu;
@@ -278,7 +279,7 @@ final class TestGpuTrim
         CompiledExpression gpuExpression = compileExpression(expression, layout, SQL_STANDARD, TEST_SESSION_TIME_ZONE_KEY)
                 .orElseThrow(() -> new AssertionError("GPU expression compile failed for: " + expression));
 
-        List<Page> cpuResults = executeWithCpu(compileCpuExpression(expression, layout), inputPages);
+        List<Page> cpuResults = executeWithCpu(TEST_SESSION, compileCpuExpression(expression, layout), inputPages);
         List<Page> gpuResults = executeWithGpu(inputPages, inputTypes, expression, gpuExpression);
 
         List<String> divergences = new ArrayList<>();
