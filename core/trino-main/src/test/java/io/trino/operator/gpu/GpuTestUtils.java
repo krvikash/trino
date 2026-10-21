@@ -1007,7 +1007,7 @@ public final class GpuTestUtils
     public static void assertGpuMatchesCpu(List<Page> inputPages, List<Type> inputTypes, Expression expression)
     {
         Set<Integer> expectedInputChannels = IntStream.range(0, inputTypes.size()).boxed().collect(toImmutableSet());
-        assertGpuMatchesCpu(inputPages, inputTypes, expression, expectedInputChannels, false);
+        assertGpuMatchesCpu(TEST_SESSION, inputPages, inputTypes, expression, expectedInputChannels, false);
     }
 
     public static void assertGpuMatchesCpu(Session session, List<Page> inputPages, List<Type> inputTypes, Expression expression)
@@ -1019,11 +1019,6 @@ public final class GpuTestUtils
     public static void assertGpuMatchesCpu(Session session, List<Page> inputPages, List<Type> inputTypes, Expression expression, Set<Integer> expectedInputChannels)
     {
         assertGpuMatchesCpu(session, inputPages, inputTypes, expression, expectedInputChannels, false);
-    }
-
-    public static void assertGpuMatchesCpu(List<Page> inputPages, List<Type> inputTypes, Expression expression, Set<Integer> expectedInputChannels, boolean allowMultipleInputsForExceptionTesting)
-    {
-        assertGpuMatchesCpu(TEST_SESSION, inputPages, inputTypes, expression, expectedInputChannels, allowMultipleInputsForExceptionTesting);
     }
 
     private static void assertGpuMatchesCpu(
