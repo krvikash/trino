@@ -36,6 +36,7 @@ import java.util.Collections;
 import java.util.List;
 
 import static com.google.common.collect.Iterables.getOnlyElement;
+import static io.trino.SessionTestUtils.TEST_SESSION;
 import static io.trino.operator.gpu.GpuTestUtils.FUNCTION_RESOLUTION;
 import static io.trino.operator.gpu.GpuTestUtils.TEST_SESSION_TIME_ZONE_KEY;
 import static io.trino.operator.gpu.GpuTestUtils.assertGpuMatchesCpu;
@@ -163,6 +164,7 @@ final class TestGpuConcat
         // neither engine rejects anything, so a wrong maxOutputLength would go unnoticed
         assertConcatOnCpuSucceeds(twoStringPage(ascii, ""), inputTypes, expression, maxOutputLength);
         assertTrinoExceptionThrownBy(() -> executeWithCpu(
+                TEST_SESSION,
                 List.of(twoStringPage(ascii, "a")),
                 List.of(expression),
                 layoutFor(inputTypes)))
@@ -200,7 +202,7 @@ final class TestGpuConcat
 
     private static void assertConcatOnCpuSucceeds(Page page, List<Type> inputTypes, Expression expression, int expectedLength)
     {
-        List<Page> results = executeWithCpu(List.of(page), List.of(expression), layoutFor(inputTypes));
+        List<Page> results = executeWithCpu(TEST_SESSION, List.of(page), List.of(expression), layoutFor(inputTypes));
         assertThat(VARCHAR.getSlice(getOnlyElement(results).getBlock(0), 0).length()).isEqualTo(expectedLength);
     }
 

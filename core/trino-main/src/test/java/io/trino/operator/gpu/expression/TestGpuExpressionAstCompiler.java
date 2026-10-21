@@ -52,6 +52,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.IntStream;
 
+import static io.trino.SessionTestUtils.TEST_SESSION;
 import static io.trino.operator.gpu.GpuTestUtils.FUNCTION_RESOLUTION;
 import static io.trino.operator.gpu.GpuTestUtils.assertSameDataInOrder;
 import static io.trino.operator.gpu.GpuTestUtils.createBlock;
@@ -372,7 +373,7 @@ class TestGpuExpressionAstCompiler
                 new EvaluateAst(cudfAst),
                 new InputChannels(channels));
 
-        List<Page> cpuResults = executeWithCpu(inputPages, List.of(expression), layout);
+        List<Page> cpuResults = executeWithCpu(TEST_SESSION, inputPages, List.of(expression), layout);
         List<Page> gpuResults = executeGpuOperation(
                 inputPages,
                 inputTypes,

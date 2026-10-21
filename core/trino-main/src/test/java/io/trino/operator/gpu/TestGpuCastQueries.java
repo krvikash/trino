@@ -20,6 +20,7 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.primitives.Primitives;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import io.trino.Session;
+import io.trino.SystemSessionProperties;
 import io.trino.operator.OutputFactory;
 import io.trino.operator.gpu.expression.CompiledExpression;
 import io.trino.spi.ErrorCode;
@@ -55,7 +56,8 @@ import java.util.function.Supplier;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.Iterables.getOnlyElement;
-import static io.trino.operator.gpu.GpuTestUtils.TEST_SESSION_TIME_ZONE_KEY;
+import static io.trino.SessionTestUtils.TEST_SESSION;
+import static io.trino.SystemSessionProperties.getCharVarcharCoercion;
 import static io.trino.operator.gpu.GpuTestUtils.executeGpuOperation;
 import static io.trino.operator.gpu.GpuTestUtils.executeWithCpu;
 import static io.trino.operator.gpu.GpuTestUtils.maybeSetGpuMemoryPoolForTests;
@@ -80,7 +82,6 @@ import static io.trino.spi.type.TypeUtils.writeNativeValue;
 import static io.trino.spi.type.VarcharType.VARCHAR;
 import static io.trino.spi.type.VarcharType.createVarcharType;
 import static io.trino.testing.TestingSession.testSessionBuilder;
-import static io.trino.type.CharVarcharCoercion.SQL_STANDARD;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -711,6 +712,9 @@ public class TestGpuCastQueries
     private class GpuCastAssert
             extends AbstractAssert<GpuCastAssert, String>
     {
+        private final Session session = testSessionBuilder(TEST_SESSION)
+                .setSystemProperty(SystemSessionProperties.LEGACY_VARCHAR_TO_CHAR_COERCION, "false")
+                .build();
         private final Type from;
         private final Type to;
         private final Expression castExpression;
@@ -724,7 +728,7 @@ public class TestGpuCastQueries
             this.to = to;
             this.castExpression = new Cast(new Reference(from, "ref0"), to);
             this.layout = ImmutableMap.of(new Symbol(from, "ref0"), 0);
-            this.compiled = Suppliers.memoize(() -> compileExpression(castExpression, layout, SQL_STANDARD, TEST_SESSION_TIME_ZONE_KEY));
+            this.compiled = Suppliers.memoize(() -> compileExpression(castExpression, layout, getCharVarcharCoercion(session), session.getTimeZoneKey()));
         }
 
         /**
@@ -833,7 +837,7 @@ public class TestGpuCastQueries
         private Outcome runOnCpu(Page inputPage)
         {
             try {
-                Page page = getOnlyElement(executeWithCpu(List.of(inputPage), List.of(castExpression), layout));
+                Page page = getOnlyElement(executeWithCpu(session, List.of(inputPage), List.of(castExpression), layout));
                 checkState(page.getChannelCount() == 1 && page.getPositionCount() == 1,
                         "Expected a one-column, one-row result; got %s columns and %s rows",
                         page.getChannelCount(),

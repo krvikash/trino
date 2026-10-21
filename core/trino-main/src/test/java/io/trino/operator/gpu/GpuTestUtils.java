@@ -792,12 +792,13 @@ public final class GpuTestUtils
     }
 
     public static List<Page> executeWithCpu(
+            Session session,
             List<Page> inputPages,
             List<Expression> expressions,
             Map<Symbol, Integer> layout)
     {
         PageProcessor pageProcessor = compileCpuExpressions(expressions, layout);
-        return executeWithCpu(pageProcessor, inputPages);
+        return executeWithCpu(pageProcessor, inputPages, session.toConnectorSession());
     }
 
     public static PageProcessor compileCpuExpression(Expression expression, Map<Symbol, Integer> layout)

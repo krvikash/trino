@@ -38,6 +38,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import static io.airlift.slice.Slices.utf8Slice;
+import static io.trino.SessionTestUtils.TEST_SESSION;
 import static io.trino.operator.gpu.GpuTestUtils.FUNCTION_RESOLUTION;
 import static io.trino.operator.gpu.GpuTestUtils.TEST_SESSION_TIME_ZONE_KEY;
 import static io.trino.operator.gpu.GpuTestUtils.assertSameDataInOrder;
@@ -954,7 +955,7 @@ final class TestGpuRegexpReplace
             assertThat(gpuExpression.inputChannels().getInputChannels())
                     .containsExactly(0);
 
-            List<Page> cpuResults = executeWithCpu(inputPages, List.of(expression), LAYOUT);
+            List<Page> cpuResults = executeWithCpu(TEST_SESSION, inputPages, List.of(expression), LAYOUT);
             List<Page> gpuResults = executeGpuOperation(
                     inputPages,
                     inputTypes,
