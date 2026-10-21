@@ -27,16 +27,23 @@ import io.starburst.stargate.buffer.data.server.AddDataPagesInProgressTracker.St
 import io.starburst.stargate.buffer.data.spooling.SpoolingStorage;
 import io.starburst.stargate.buffer.discovery.client.BufferNodeInfoResponse;
 import io.starburst.stargate.buffer.discovery.client.DiscoveryApi;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.api.parallel.Isolated;
 
 import java.net.URI;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeoutException;
+import java.util.function.Consumer;
 import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
@@ -49,67 +56,182 @@ import static io.trino.testing.assertions.Assert.assertEventually;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.parallel.ExecutionMode.SAME_THREAD;
 
 @Execution(SAME_THREAD)
+@Isolated("Captures the shared DrainService logger")
 public class TestDrainService
 {
+    private final ExecutorService executor = Executors.newCachedThreadPool();
+    private final DataServerStats stats = new DataServerStats();
+    private final BufferNodeStateManager stateManager = new BufferNodeStateManager();
+    private final List<DrainService> drainServices = new ArrayList<>();
+    private final List<DiscoveryBroadcast> discoveryBroadcasts = new ArrayList<>();
+
+    @AfterEach
+    public void tearDown()
+    {
+        drainServices.forEach(DrainService::stop);
+        discoveryBroadcasts.forEach(DiscoveryBroadcast::stop);
+        executor.close();
+    }
+
     @Test
     public void testDrainBroadcastsStateChangesToDiscovery()
     {
-        ExecutorService executor = Executors.newCachedThreadPool();
+        ChunkManager chunkManager = createChunkManager(stats, executor);
+        List<BufferNodeState> broadcastStates = new CopyOnWriteArrayList<>();
+        DiscoveryApi discoveryApi = createDiscoveryApiStub(broadcastStates);
+        DiscoveryBroadcast discoveryBroadcast = createDiscoveryBroadcast(discoveryApi, stateManager);
+
+        DrainService drainService = createDrainService(stateManager, stats, chunkManager, Optional.of(discoveryBroadcast));
+
+        drainService.awaitDrain();
+
+        assertThat(stateManager.getState()).isEqualTo(BufferNodeState.DRAINED);
+        assertThat(broadcastStates).contains(BufferNodeState.DRAINED);
+    }
+
+    @Test
+    public void testAwaitDrainWaitsForFinalAnnouncement()
+            throws Exception
+    {
+        CountDownLatch announcementStarted = new CountDownLatch(1);
+        CountDownLatch allowAnnouncement = new CountDownLatch(1);
+
+        List<BufferNodeState> announcedStates = new CopyOnWriteArrayList<>();
+        DiscoveryApi discoveryApi = createDiscoveryApiStub(nodeInfo -> {
+            if (nodeInfo.state() == BufferNodeState.DRAINED) {
+                announcementStarted.countDown();
+                await(allowAnnouncement);
+            }
+            announcedStates.add(nodeInfo.state());
+        });
+        DrainService drainService = createDrainService(stateManager, stats, createChunkManager(stats, executor), Optional.of(createDiscoveryBroadcast(discoveryApi, stateManager)));
         try {
-            DataServerStats dataServerStats = new DataServerStats();
-            BufferNodeStateManager bufferNodeStateManager = new BufferNodeStateManager();
-            ChunkManager chunkManager = createChunkManager(dataServerStats, executor);
-            List<BufferNodeState> broadcastStates = new CopyOnWriteArrayList<>();
-            DiscoveryApi discoveryApi = createDiscoveryApiStub(broadcastStates);
-            DiscoveryBroadcast discoveryBroadcast = createDiscoveryBroadcast(discoveryApi, bufferNodeStateManager);
+            Future<?> firstWaiter = executor.submit(drainService::awaitDrain);
+            assertThat(announcementStarted.await(10, SECONDS)).isTrue();
+            assertThat(stateManager.getState()).isEqualTo(BufferNodeState.DRAINED);
 
-            DrainService drainService = createDrainService(bufferNodeStateManager, dataServerStats, chunkManager, Optional.of(discoveryBroadcast));
+            drainService.drain();
+            Future<?> secondWaiter = executor.submit(drainService::awaitDrain);
+            assertThatThrownBy(() -> firstWaiter.get(100, MILLISECONDS)).isInstanceOf(TimeoutException.class);
+            assertThatThrownBy(() -> secondWaiter.get(100, MILLISECONDS)).isInstanceOf(TimeoutException.class);
 
-            drainService.awaitDrain();
+            // An interrupted waiter must not cancel publication or affect the other waiters.
+            Future<Boolean> interruptedWaiter = executor.submit(() -> {
+                Thread.currentThread().interrupt();
+                drainService.awaitDrain();
+                return Thread.interrupted();
+            });
+            assertThat(interruptedWaiter.get(10, SECONDS)).isTrue();
 
-            assertThat(bufferNodeStateManager.getState()).isEqualTo(BufferNodeState.DRAINED);
-            assertEventually(() -> assertThat(broadcastStates).containsExactly(BufferNodeState.DRAINING, BufferNodeState.DRAINED));
+            allowAnnouncement.countDown();
+            firstWaiter.get(10, SECONDS);
+            secondWaiter.get(10, SECONDS);
+            assertThat(announcedStates).contains(BufferNodeState.DRAINED);
         }
         finally {
-            executor.shutdownNow();
+            allowAnnouncement.countDown();
+            drainService.stop();
+        }
+    }
+
+    @Test
+    public void testBlockedInitialAnnouncementDoesNotBlockDrainingOrShutdown()
+            throws Exception
+    {
+        assertBlockedAnnouncementDoesNotBlockShutdown(BufferNodeState.DRAINING);
+    }
+
+    @Test
+    public void testBlockedFinalAnnouncementDoesNotBlockShutdown()
+            throws Exception
+    {
+        assertBlockedAnnouncementDoesNotBlockShutdown(BufferNodeState.DRAINED);
+    }
+
+    private void assertBlockedAnnouncementDoesNotBlockShutdown(BufferNodeState blockedState)
+            throws Exception
+    {
+        CountDownLatch announcementStarted = new CountDownLatch(1);
+        CountDownLatch allowAnnouncement = new CountDownLatch(1);
+
+        DiscoveryApi discoveryApi = createDiscoveryApiStub(nodeInfo -> {
+            if (nodeInfo.state() == blockedState) {
+                announcementStarted.countDown();
+                await(allowAnnouncement);
+            }
+        });
+        AddDataPagesInProgressTracker tracker = new AddDataPagesInProgressTracker(stats);
+        InProgressLatch inFlightRequest = tracker.incrementAndGetLatch("exchange-1", 1, 0, 1);
+        DrainService drainService = new DrainService(
+                new DataServerConfig().setDrainAllChunksTimeout(succinctDuration(500, MILLISECONDS)).setMinDrainingDuration(succinctDuration(0, SECONDS)),
+                stateManager,
+                tracker,
+                createChunkManager(stats, executor),
+                Optional.of(createDiscoveryBroadcast(discoveryApi, stateManager)),
+                succinctDuration(2, SECONDS),
+                succinctDuration(30, SECONDS));
+        drainServices.add(drainService);
+        try (LogCapture logs = new LogCapture()) {
+            Future<?> waiter = executor.submit(drainService::awaitDrain);
+            if (blockedState == BufferNodeState.DRAINING) {
+                // Make sure the initial announcement is in flight before allowing local draining to finish.
+                assertThat(announcementStarted.await(10, SECONDS)).isTrue();
+            }
+            inFlightRequest.release();
+            assertThat(announcementStarted.await(10, SECONDS)).isTrue();
+            assertEventually(() -> assertThat(stateManager.getState()).isEqualTo(BufferNodeState.DRAINED));
+            waiter.get(10, SECONDS);
+            assertThat(logs.messages()).contains("Timed out waiting for buffer drain and final discovery announcement (state: DRAINED)");
+
+            // A second shutdown hook must not start a new timeout budget.
+            executor.submit(drainService::awaitDrain).get(100, MILLISECONDS);
+        }
+        finally {
+            inFlightRequest.release();
+            allowAnnouncement.countDown();
+            drainService.stop();
+        }
+    }
+
+    private static void await(CountDownLatch latch)
+    {
+        try {
+            assertThat(latch.await(10, SECONDS)).isTrue();
+        }
+        catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException(e);
         }
     }
 
     @Test
     public void testDrainFailureStillTransitionsToDrained()
     {
-        ExecutorService executor = Executors.newCachedThreadPool();
-        try {
-            DataServerStats dataServerStats = new DataServerStats();
-            BufferNodeStateManager bufferNodeStateManager = new BufferNodeStateManager();
-            ChunkManager chunkManager = createChunkManager(dataServerStats, executor);
-            // pre-drain the chunk manager directly, so DrainService's own attempt fails with
-            // "already started draining" and exercises the exception path in DrainService.drain()
-            chunkManager.drainAllChunks();
+        ChunkManager chunkManager = createChunkManager(stats, executor);
+        // pre-drain the chunk manager directly, so DrainService's own attempt fails with
+        // "already started draining" and exercises the exception path in DrainService.drain()
+        chunkManager.drainAllChunks();
 
-            DrainService drainService = createDrainService(bufferNodeStateManager, dataServerStats, chunkManager, Optional.empty());
+        List<BufferNodeState> announcedStates = new CopyOnWriteArrayList<>();
+        DiscoveryBroadcast discoveryBroadcast = createDiscoveryBroadcast(createDiscoveryApiStub(announcedStates), stateManager);
+        DrainService drainService = createDrainService(stateManager, stats, chunkManager, Optional.of(discoveryBroadcast));
 
-            drainService.awaitDrain();
+        drainService.awaitDrain();
 
-            assertThat(bufferNodeStateManager.getState()).isEqualTo(BufferNodeState.DRAINED);
-        }
-        finally {
-            executor.shutdownNow();
-        }
+        assertThat(stateManager.getState()).isEqualTo(BufferNodeState.DRAINED);
+        assertThat(announcedStates).contains(BufferNodeState.DRAINED);
     }
 
     @Test
     public void testStuckInFlightRequestIsReportedWithThreadDump()
     {
-        ExecutorService executor = Executors.newCachedThreadPool();
         try (LogCapture logs = new LogCapture()) {
-            DataServerStats dataServerStats = new DataServerStats();
-            BufferNodeStateManager bufferNodeStateManager = new BufferNodeStateManager();
-            AddDataPagesInProgressTracker tracker = new AddDataPagesInProgressTracker(dataServerStats);
-            DrainService drainService = createDrainService(bufferNodeStateManager, tracker, createChunkManager(dataServerStats, executor), succinctDuration(1, SECONDS), succinctDuration(200, MILLISECONDS));
+            AddDataPagesInProgressTracker tracker = new AddDataPagesInProgressTracker(stats);
+            DrainService drainService = createDrainService(stateManager, tracker, createChunkManager(stats, executor), succinctDuration(1, SECONDS), succinctDuration(200, MILLISECONDS));
             InProgressLatch latch = tracker.incrementAndGetLatch("exchange-1", 1, 2, 3);
             latch.enterStage(Stage.AWAITING_PAGE_WRITES);
 
@@ -121,22 +243,17 @@ public class TestDrainService
             assertThat(logs.messages()).anyMatch(message -> message.startsWith("Thread dump: ") && message.contains(Thread.currentThread().getName()));
             assertThat(logs.messages()).anyMatch(message -> message.startsWith("In flight addData request: exchange=exchange-1, taskId=1, attemptId=2, dataPagesId=3, stage=AWAITING_PAGE_WRITES,"));
             // drain proceeds even though the request never completed
-            assertEventually(() -> assertThat(bufferNodeStateManager.getState()).isEqualTo(BufferNodeState.DRAINED));
+            assertEventually(() -> assertThat(stateManager.getState()).isEqualTo(BufferNodeState.DRAINED));
             latch.release();
-        }
-        finally {
-            executor.shutdownNow();
         }
     }
 
     @Test
     public void testInFlightRequestReportsCurrentStage()
     {
-        ExecutorService executor = Executors.newCachedThreadPool();
         try (LogCapture logs = new LogCapture()) {
-            DataServerStats dataServerStats = new DataServerStats();
-            AddDataPagesInProgressTracker tracker = new AddDataPagesInProgressTracker(dataServerStats);
-            DrainService drainService = createDrainService(new BufferNodeStateManager(), tracker, createChunkManager(dataServerStats, executor), succinctDuration(1, SECONDS), succinctDuration(30, SECONDS));
+            AddDataPagesInProgressTracker tracker = new AddDataPagesInProgressTracker(stats);
+            DrainService drainService = createDrainService(new BufferNodeStateManager(), tracker, createChunkManager(stats, executor), succinctDuration(1, SECONDS), succinctDuration(30, SECONDS));
             InProgressLatch latch = tracker.incrementAndGetLatch("exchange-1", 1, 2, 3);
             latch.enterStage(Stage.READING_BODY);
             latch.enterStage(Stage.ADDING_PAGES);
@@ -149,20 +266,14 @@ public class TestDrainService
             assertThat(logs.messages()).noneMatch(message -> message.startsWith("Thread dump: "));
             latch.release();
         }
-        finally {
-            executor.shutdownNow();
-        }
     }
 
     @Test
     public void testCompletingRequestsBeforeThresholdDoesNotDumpThreads()
     {
-        ExecutorService executor = Executors.newCachedThreadPool();
         try (LogCapture logs = new LogCapture()) {
-            DataServerStats dataServerStats = new DataServerStats();
-            BufferNodeStateManager bufferNodeStateManager = new BufferNodeStateManager();
-            AddDataPagesInProgressTracker tracker = new AddDataPagesInProgressTracker(dataServerStats);
-            DrainService drainService = createDrainService(bufferNodeStateManager, tracker, createChunkManager(dataServerStats, executor), succinctDuration(30, SECONDS), succinctDuration(30, SECONDS));
+            AddDataPagesInProgressTracker tracker = new AddDataPagesInProgressTracker(stats);
+            DrainService drainService = createDrainService(stateManager, tracker, createChunkManager(stats, executor), succinctDuration(30, SECONDS), succinctDuration(30, SECONDS));
             InProgressLatch first = tracker.incrementAndGetLatch("exchange-1", 1, 0, 1);
             InProgressLatch second = tracker.incrementAndGetLatch("exchange-1", 2, 0, 2);
 
@@ -172,42 +283,33 @@ public class TestDrainService
             assertEventually(() -> assertThat(logs.messages()).contains("Waiting until remaining 1 in flight addData requests complete"));
             second.release();
 
-            assertEventually(() -> assertThat(bufferNodeStateManager.getState()).isEqualTo(BufferNodeState.DRAINED));
+            assertEventually(() -> assertThat(stateManager.getState()).isEqualTo(BufferNodeState.DRAINED));
             assertThat(logs.messages()).noneMatch(message -> message.startsWith("Thread dump: ") || message.startsWith("No in flight addData request completed in"));
-        }
-        finally {
-            executor.shutdownNow();
         }
     }
 
     @Test
     public void testDrainWithoutInFlightRequestsLogsNoDiagnostics()
     {
-        ExecutorService executor = Executors.newCachedThreadPool();
         try (LogCapture logs = new LogCapture()) {
-            DataServerStats dataServerStats = new DataServerStats();
-            BufferNodeStateManager bufferNodeStateManager = new BufferNodeStateManager();
-            DrainService drainService = createDrainService(bufferNodeStateManager, dataServerStats, createChunkManager(dataServerStats, executor), Optional.empty());
+            DrainService drainService = createDrainService(stateManager, stats, createChunkManager(stats, executor), Optional.empty());
 
             drainService.awaitDrain();
 
-            assertThat(bufferNodeStateManager.getState()).isEqualTo(BufferNodeState.DRAINED);
+            assertThat(stateManager.getState()).isEqualTo(BufferNodeState.DRAINED);
             assertThat(logs.messages()).contains("No more remaining in flight addData requests");
             assertThat(logs.messages()).noneMatch(message -> message.startsWith("Thread dump: ") || message.startsWith("In flight addData request:") || message.startsWith("No in flight addData request completed in"));
         }
-        finally {
-            executor.shutdownNow();
-        }
     }
 
-    private static DrainService createDrainService(
+    private DrainService createDrainService(
             BufferNodeStateManager bufferNodeStateManager,
             AddDataPagesInProgressTracker tracker,
             ChunkManager chunkManager,
             Duration maxWaitNoInProgressAddDataPagesRequests,
             Duration noProgressThreadDumpThreshold)
     {
-        return new DrainService(
+        DrainService drainService = new DrainService(
                 new DataServerConfig().setDrainAllChunksTimeout(succinctDuration(10, SECONDS)),
                 bufferNodeStateManager,
                 tracker,
@@ -215,6 +317,8 @@ public class TestDrainService
                 Optional.empty(),
                 maxWaitNoInProgressAddDataPagesRequests,
                 noProgressThreadDumpThreshold);
+        drainServices.add(drainService);
+        return drainService;
     }
 
     private static class LogCapture
@@ -256,55 +360,85 @@ public class TestDrainService
         }
     }
 
-    private static DrainService createDrainService(BufferNodeStateManager bufferNodeStateManager, DataServerStats dataServerStats, ChunkManager chunkManager, Optional<DiscoveryBroadcast> discoveryBroadcast)
+    private DrainService createDrainService(BufferNodeStateManager bufferNodeStateManager, DataServerStats dataServerStats, ChunkManager chunkManager, Optional<DiscoveryBroadcast> discoveryBroadcast)
     {
-        return new DrainService(
+        DrainService drainService = new DrainService(
                 new DataServerConfig().setDrainAllChunksTimeout(succinctDuration(10, SECONDS)),
                 bufferNodeStateManager,
                 new AddDataPagesInProgressTracker(dataServerStats),
                 chunkManager,
                 discoveryBroadcast);
+        drainServices.add(drainService);
+        return drainService;
     }
 
     @Test
     public void testDrainIdempotency()
     {
-        ExecutorService executor = Executors.newCachedThreadPool();
-        try {
-            DataServerStats dataServerStats = new DataServerStats();
-            BufferNodeStateManager bufferNodeStateManager = new BufferNodeStateManager();
-            ChunkManager chunkManager = createChunkManager(dataServerStats, executor);
-            DrainService drainService = createDrainService(bufferNodeStateManager, dataServerStats, chunkManager, Optional.empty());
+        try (LogCapture logs = new LogCapture()) {
+            ChunkManager chunkManager = createChunkManager(stats, executor);
+            DrainService drainService = createDrainService(stateManager, stats, chunkManager, Optional.empty());
 
             drainService.drain();
             drainService.drain(); // second direct call should be a no-op since draining already started
             drainService.awaitDrain(); // third call inside awaiting should also be a no-op since draining already started
 
-            assertThat(bufferNodeStateManager.getState()).isEqualTo(BufferNodeState.DRAINED);
-        }
-        finally {
-            executor.shutdownNow();
+            assertThat(stateManager.getState()).isEqualTo(BufferNodeState.DRAINED);
+            assertThat(logs.messages().stream().filter(message -> message.equals("Draining buffer node has been requested"))).hasSize(1);
         }
     }
 
-    private static DiscoveryBroadcast createDiscoveryBroadcast(DiscoveryApi discoveryApi, BufferNodeStateManager bufferNodeStateManager)
+    @Test
+    public void testAwaitDrainAfterStopLogsStartupFailure()
     {
-        return new DiscoveryBroadcast(
+        try (LogCapture logs = new LogCapture()) {
+            DrainService drainService = createDrainService(stateManager, stats, createChunkManager(stats, executor), Optional.empty());
+            drainService.stop();
+
+            drainService.awaitDrain();
+
+            assertThat(stateManager.getState()).isEqualTo(BufferNodeState.STARTING);
+            assertThat(logs.messages()).contains("Failed to start buffer drain (state: STARTING)");
+        }
+    }
+
+    @Test
+    public void testDrainAfterStopDoesNotChangeState()
+    {
+        DrainService drainService = createDrainService(stateManager, stats, createChunkManager(stats, executor), Optional.empty());
+        drainService.stop();
+
+        assertThatThrownBy(drainService::drain)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("Drain service is stopped");
+        assertThat(stateManager.getState()).isEqualTo(BufferNodeState.STARTING);
+    }
+
+    private DiscoveryBroadcast createDiscoveryBroadcast(DiscoveryApi discoveryApi, BufferNodeStateManager bufferNodeStateManager)
+    {
+        DiscoveryBroadcast broadcast = new DiscoveryBroadcast(
                 new BufferNodeId(0L),
                 discoveryApi,
                 bufferNodeStateManager,
                 () -> new BufferNodeInfo(0L, URI.create("http://buffer-node-0"), Optional.empty(), Optional.empty(), bufferNodeStateManager.getState(), Instant.now()),
-                new DataServerConfig());
+                new DataServerConfig().setBroadcastInterval(succinctDuration(10, MILLISECONDS)));
+        discoveryBroadcasts.add(broadcast);
+        return broadcast;
     }
 
     private static DiscoveryApi createDiscoveryApiStub(List<BufferNodeState> broadcastStates)
+    {
+        return createDiscoveryApiStub(nodeInfo -> broadcastStates.add(nodeInfo.state()));
+    }
+
+    private static DiscoveryApi createDiscoveryApiStub(Consumer<BufferNodeInfo> update)
     {
         return new DiscoveryApi()
         {
             @Override
             public void updateBufferNode(BufferNodeInfo bufferNodeInfo)
             {
-                broadcastStates.add(bufferNodeInfo.state());
+                update.accept(bufferNodeInfo);
             }
 
             @Override

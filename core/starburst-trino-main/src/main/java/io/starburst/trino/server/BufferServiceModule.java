@@ -123,10 +123,9 @@ public class BufferServiceModule
         @PreDestroy
         public void stop()
         {
-            if (bufferNodeStateManager.getState() == BufferNodeState.DRAINED) {
-                return;
+            if (bufferNodeStateManager.getState() != BufferNodeState.DRAINED) {
+                log.warn("Buffer node stopped in %s state, draining before shutdown", bufferNodeStateManager.getState());
             }
-            log.info("Buffer node stopped in %s state, draining before shutdown", bufferNodeStateManager.getState());
             drainService.awaitDrain();
         }
     }

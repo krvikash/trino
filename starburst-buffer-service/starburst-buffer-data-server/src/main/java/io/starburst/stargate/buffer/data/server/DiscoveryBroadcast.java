@@ -19,6 +19,7 @@ import jakarta.annotation.PreDestroy;
 
 import java.time.Instant;
 import java.util.Optional;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -99,7 +100,23 @@ public class DiscoveryBroadcast
         executor.shutdownNow();
     }
 
-    public void broadcast()
+    /**
+     * Requests an announcement without waiting for discovery.
+     */
+    public void requestBroadcast()
+    {
+        try {
+            executor.execute(this::broadcast);
+        }
+        catch (RejectedExecutionException e) {
+            log.warn(e, "Discovery broadcaster stopped before announcement could be scheduled");
+        }
+    }
+
+    /**
+     * Makes one best-effort announcement.
+     */
+    synchronized void broadcast()
     {
         BufferNodeInfo nodeInfo = bufferNodeInfoSupplier.get();
         if (nodeInfo.state() != STARTING) {

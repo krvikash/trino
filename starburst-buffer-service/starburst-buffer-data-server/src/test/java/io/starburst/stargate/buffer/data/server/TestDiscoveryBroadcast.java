@@ -13,15 +13,25 @@ import io.starburst.stargate.buffer.BufferNodeInfo;
 import io.starburst.stargate.buffer.BufferNodeState;
 import io.starburst.stargate.buffer.discovery.client.BufferNodeInfoResponse;
 import io.starburst.stargate.buffer.discovery.client.DiscoveryApi;
+import io.starburst.stargate.buffer.discovery.client.InvalidBufferNodeUpdateException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.net.URI;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 
 import static io.airlift.units.Duration.succinctDuration;
+import static io.trino.testing.assertions.Assert.assertEventually;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -191,6 +201,106 @@ class TestDiscoveryBroadcast
     }
 
     @Test
+    void testDrainedAnnouncementWaitsForInFlightDrainingAnnouncement()
+            throws Exception
+    {
+        stateManager.transitionState(BufferNodeState.DRAINING);
+        CountDownLatch drainingAnnouncementStarted = new CountDownLatch(1);
+        CountDownLatch allowDrainingAnnouncement = new CountDownLatch(1);
+        List<BufferNodeState> announcedStates = new CopyOnWriteArrayList<>();
+        DiscoveryApi blockingDiscoveryApi = new TestingDiscoveryApi()
+        {
+            @Override
+            public void updateBufferNode(BufferNodeInfo bufferNodeInfo)
+            {
+                if (bufferNodeInfo.state() == BufferNodeState.DRAINING) {
+                    drainingAnnouncementStarted.countDown();
+                    try {
+                        assertThat(allowDrainingAnnouncement.await(10, SECONDS)).isTrue();
+                    }
+                    catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        throw new RuntimeException(e);
+                    }
+                }
+                announcedStates.add(bufferNodeInfo.state());
+            }
+        };
+        DiscoveryBroadcast broadcast = new DiscoveryBroadcast(
+                new BufferNodeId(NODE_ID),
+                blockingDiscoveryApi,
+                stateManager,
+                () -> nodeInfo(stateManager.getState()),
+                config);
+        ExecutorService executor = Executors.newCachedThreadPool();
+        try {
+            Future<?> drainingAnnouncement = executor.submit(broadcast::broadcast);
+            assertThat(drainingAnnouncementStarted.await(10, SECONDS)).isTrue();
+            // Local draining may finish while discovery is still publishing DRAINING.
+            stateManager.transitionState(BufferNodeState.DRAINED);
+            CountDownLatch drainedAnnouncementStarted = new CountDownLatch(1);
+            Future<?> drainedAnnouncement = executor.submit(() -> {
+                drainedAnnouncementStarted.countDown();
+                broadcast.broadcast();
+            });
+            assertThat(drainedAnnouncementStarted.await(10, SECONDS)).isTrue();
+            assertThatThrownBy(() -> drainedAnnouncement.get(100, MILLISECONDS)).isInstanceOf(TimeoutException.class);
+
+            allowDrainingAnnouncement.countDown();
+            drainingAnnouncement.get(10, SECONDS);
+            drainedAnnouncement.get(10, SECONDS);
+            // Reversing this order would leave discovery reporting DRAINING after the node shuts down.
+            assertThat(announcedStates).containsExactly(BufferNodeState.DRAINING, BufferNodeState.DRAINED);
+        }
+        finally {
+            allowDrainingAnnouncement.countDown();
+            broadcast.stop();
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
+    void testInvalidUpdateDoesNotStopPeriodicBroadcasts()
+    {
+        DiscoveryBroadcast broadcast = createBroadcast(() -> nodeInfo(stateManager.getState()));
+        discoveryApi.rejectNextUpdate = true;
+        try {
+            broadcast.start();
+            assertEventually(() -> assertThat(discoveryApi.getUpdateCount()).isGreaterThanOrEqualTo(2));
+            assertThat(broadcast.isRegistered()).isTrue();
+        }
+        finally {
+            broadcast.stop();
+        }
+    }
+
+    @Test
+    void testTransientFailureDoesNotStopPeriodicBroadcasts()
+    {
+        DiscoveryBroadcast broadcast = createBroadcast(() -> nodeInfo(stateManager.getState()));
+        discoveryApi.failNextUpdates(1);
+        try {
+            broadcast.start();
+            assertEventually(() -> assertThat(discoveryApi.getUpdateCount()).isGreaterThanOrEqualTo(2));
+            assertThat(broadcast.isRegistered()).isTrue();
+        }
+        finally {
+            broadcast.stop();
+        }
+    }
+
+    @Test
+    void testRequestAfterStopIsBestEffort()
+    {
+        DiscoveryBroadcast broadcast = createBroadcast(() -> nodeInfo(stateManager.getState()));
+        broadcast.stop();
+
+        broadcast.requestBroadcast();
+
+        assertThat(discoveryApi.updateAttempts.get()).isZero();
+    }
+
+    @Test
     void testStopCannotBeCalledTwice()
     {
         DiscoveryBroadcast broadcast = createBroadcast(() -> nodeInfo(BufferNodeState.STARTED));
@@ -235,17 +345,24 @@ class TestDiscoveryBroadcast
     private static class TestingDiscoveryApi
             implements DiscoveryApi
     {
-        private int updateCount;
+        private final AtomicInteger updateAttempts = new AtomicInteger();
+        private final AtomicInteger updateCount = new AtomicInteger();
         private int failuresRemaining;
+        private boolean rejectNextUpdate;
 
         @Override
         public void updateBufferNode(BufferNodeInfo bufferNodeInfo)
         {
+            updateAttempts.incrementAndGet();
+            if (rejectNextUpdate) {
+                rejectNextUpdate = false;
+                throw new InvalidBufferNodeUpdateException("Node already registered with a different URI");
+            }
             if (failuresRemaining > 0) {
                 failuresRemaining--;
                 throw new RuntimeException("Discovery server unavailable");
             }
-            updateCount++;
+            updateCount.incrementAndGet();
         }
 
         @Override
@@ -256,12 +373,12 @@ class TestDiscoveryBroadcast
 
         public int getUpdateCount()
         {
-            return updateCount;
+            return updateCount.get();
         }
 
         public void resetUpdateCount()
         {
-            updateCount = 0;
+            updateCount.set(0);
         }
 
         public void failNextUpdates(int count)

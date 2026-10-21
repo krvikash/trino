@@ -10,6 +10,7 @@
 package io.starburst.stargate.buffer.data.server;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.errorprone.annotations.concurrent.GuardedBy;
 import com.google.inject.Inject;
 import io.airlift.log.Logger;
 import io.airlift.units.Duration;
@@ -19,19 +20,26 @@ import jakarta.annotation.PreDestroy;
 
 import java.lang.management.ThreadInfo;
 import java.util.Optional;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
+import static com.google.common.base.Preconditions.checkState;
+import static com.google.common.base.Verify.verifyNotNull;
 import static io.airlift.concurrent.Threads.daemonThreadsNamed;
+import static java.lang.System.nanoTime;
 import static java.lang.management.ManagementFactory.getThreadMXBean;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
 /**
  * The service responsible for handling the DRAINING of the Server Node.
  * Upon finishing the draining process moves the server to DRAINED state.
- * Server in Drained state is ready for shutdown.
+ * Shutdown must also wait for the final DRAINED discovery announcement to complete.
  */
 public class DrainService
 {
@@ -47,6 +55,9 @@ public class DrainService
     private final AddDataPagesInProgressTracker inProgressTracker;
     private final ChunkManager chunkManager;
     private final Optional<DiscoveryBroadcast> discoveryBroadcast;
+
+    @GuardedBy("this")
+    private DrainHandle drainHandle;
 
     @Inject
     public DrainService(
@@ -85,43 +96,57 @@ public class DrainService
     }
 
     @PreDestroy
-    public void stop()
+    public synchronized void stop()
     {
         executor.shutdownNow();
     }
 
     public void awaitDrain()
     {
-        drain();
-        long deadlineMillis = System.currentTimeMillis() + maxWaitNoInProgressAddDataPagesRequests.toMillis() + drainAllChunksTimeout.toMillis();
-        while (bufferNodeStateManager.getState() != BufferNodeState.DRAINED) {
-            if (System.currentTimeMillis() > deadlineMillis) {
-                log.warn("Timed out waiting for buffer node to reach DRAINED state");
-                return;
+        DrainHandle handle;
+        try {
+            synchronized (this) {
+                drain();
+                handle = verifyNotNull(drainHandle, "drainHandle is null");
             }
-            try {
-                Thread.sleep(500);
-            }
-            catch (InterruptedException e) {
-                log.warn("Interrupted while waiting for buffer node to reach DRAINED state");
-                Thread.currentThread().interrupt();
-                return;
-            }
+        }
+        catch (RuntimeException e) {
+            log.error(e, "Failed to start buffer drain (state: %s)", bufferNodeStateManager.getState());
+            return;
+        }
+        try {
+            handle.task().get(handle.deadlineNanos() - nanoTime(), NANOSECONDS);
+        }
+        catch (TimeoutException e) {
+            log.error("Timed out waiting for buffer drain and final discovery announcement (state: %s)", bufferNodeStateManager.getState());
+        }
+        catch (InterruptedException e) {
+            log.error("Interrupted while waiting for buffer drain and final discovery announcement (state: %s)", bufferNodeStateManager.getState());
+            Thread.currentThread().interrupt();
+        }
+        catch (ExecutionException e) {
+            log.error(e.getCause(), "Buffer drain finalization failed (state: %s)", bufferNodeStateManager.getState());
         }
     }
 
     public synchronized void drain()
     {
-        log.info("Draining buffer node has been requested");
-        if (bufferNodeStateManager.isDrainingStarted()) {
+        if (drainHandle != null) {
             return;
         }
+        // stop() uses the same lock, so it cannot shut down the executor between this check and submission.
+        checkState(!executor.isShutdown(), "Drain service is stopped");
+        log.info("Draining buffer node has been requested");
         long drainStartMillis = System.currentTimeMillis();
+        // All waiters share one budget, including the initial discovery request.
+        long deadlineNanos = nanoTime() + maxWaitNoInProgressAddDataPagesRequests.roundTo(NANOSECONDS) + drainAllChunksTimeout.roundTo(NANOSECONDS);
         bufferNodeStateManager.transitionState(BufferNodeState.DRAINING);
-        discoveryBroadcast.ifPresent(DiscoveryBroadcast::broadcast);
 
-        executor.submit(() -> {
+        Future<?> task = executor.submit(() -> {
             try {
+                // Do not let discovery delay spooling. A slow announcement may shorten the time Trino
+                // observes DRAINING before chunk acknowledgement starts after the minimum draining period.
+                discoveryBroadcast.ifPresent(DiscoveryBroadcast::requestBroadcast);
                 boolean success = waitNoInProgressAddDataPagesRequests();
                 if (!success) {
                     log.error("HACK: draining all chunks even though addDataPages in progress reported");
@@ -141,7 +166,10 @@ public class DrainService
             bufferNodeStateManager.transitionState(BufferNodeState.DRAINED);
             discoveryBroadcast.ifPresent(DiscoveryBroadcast::broadcast);
         });
+        drainHandle = new DrainHandle(task, deadlineNanos);
     }
+
+    private record DrainHandle(Future<?> task, long deadlineNanos) {}
 
     private boolean waitNoInProgressAddDataPagesRequests()
     {
