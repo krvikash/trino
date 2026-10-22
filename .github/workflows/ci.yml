@@ -1686,20 +1686,11 @@ jobs:
             - suite-stargate
             - suite-open-api
             # End of Starburst suites
-            - suite-delta-lake-databricks-unity-s3-credentials-vending
             - suite-delta-lake-databricks-unity-gcs-credentials-vending
             - suite-delta-lake-databricks-unity-azure-credentials-vending
             - suite-kdb
             - suite-sas
           exclude:
-            - suite: suite-delta-lake-databricks-unity-s3-credentials-vending
-              config: hdp3
-            - suite: suite-delta-lake-databricks-unity-s3-credentials-vending
-              ignore exclusion if: >-
-                ${{ (github.event_name == 'schedule' && github.event.schedule == '0 0 * * *') ||
-                    (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'databricks')) ||
-                    (github.event_name == 'workflow_dispatch') ||
-                    (env.CI_SKIP_SECRETS_PRESENCE_CHECKS == '' && secrets.DATABRICKS_TOKEN == '') }}
             - suite: suite-delta-lake-databricks-unity-gcs-credentials-vending
               config: hdp3
             - suite: suite-delta-lake-databricks-unity-gcs-credentials-vending
@@ -2203,6 +2194,10 @@ jobs:
               SuiteDeltaLakeDatabricksUnity | SuiteHiveDatabricksUnity | SuiteIcebergDatabricksUnity)
                 availability_env=DATABRICKS_TOKEN
                 required_env+=(AWS_REGION DATABRICKS_AWS_ACCESS_KEY_ID DATABRICKS_AWS_SECRET_ACCESS_KEY DATABRICKS_HOST DATABRICKS_TOKEN DATABRICKS_UNITY_JDBC_URL DATABRICKS_UNITY_CATALOG_NAME DATABRICKS_UNITY_EXTERNAL_LOCATION)
+                ;;
+              SuiteDeltaLakeDatabricksUnityS3CredentialsVending)
+                availability_env=DATABRICKS_TOKEN
+                required_env+=(AWS_REGION DATABRICKS_HOST DATABRICKS_TOKEN DATABRICKS_UNITY_JDBC_URL DATABRICKS_UNITY_CATALOG_NAME DATABRICKS_UNITY_EXTERNAL_LOCATION)
                 ;;
               SuiteDeltaLakeDatabricks18)
                 availability_env=DATABRICKS_TOKEN
