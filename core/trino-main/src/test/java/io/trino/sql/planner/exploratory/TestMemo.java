@@ -70,6 +70,7 @@ import static io.trino.sql.planner.exploratory.MemoOperationMatcher.ParameterChi
 import static io.trino.sql.planner.exploratory.MemoOperationMatcher.memoOperation;
 import static io.trino.sql.planner.exploratory.MemoTestingHelper.TEST_DIALECT_NAME;
 import static io.trino.sql.planner.exploratory.MemoTestingHelper.TEST_MEMO_OPERATION;
+import static io.trino.sql.planner.exploratory.MemoTestingHelper.identityProjection;
 import static io.trino.sql.planner.exploratory.MemoTestingHelper.ignoreChanges;
 import static io.trino.sql.planner.exploratory.MemoTestingHelper.program;
 import static io.trino.sql.planner.exploratory.MemoTestingHelper.query;
@@ -766,18 +767,7 @@ public class TestMemo
         // Create a cyclic group by merging a Project into its child Values group, then merge that cyclic group into another compatible group.
         Values valuesOperation = valuesOfRows(ImmutableList.of(singleConstantRow("", BIGINT, 42L)));
 
-        Parameter assignmentsParameter = new Parameter("%assignments_parameter", irType(anonymousRow(BIGINT)));
-        FieldReference fieldReferenceOperation = new FieldReference("%field_reference_assignments", assignmentsParameter, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
-        Row rowOperation = new Row("%row_assignments", ImmutableList.of(fieldReferenceOperation.result()), ImmutableList.of(fieldReferenceOperation.attributes()));
-        Return returnOperation = new Return("%return_assignments", rowOperation.result(), rowOperation.attributes());
-        Project projectOperation = new Project(
-                "%project",
-                valuesOperation.result(),
-                new Block(
-                        Optional.of("^assignments"),
-                        ImmutableList.of(assignmentsParameter),
-                        ImmutableList.of(fieldReferenceOperation, rowOperation, returnOperation)),
-                valuesOperation.attributes());
+        Project projectOperation = identityProjection(valuesOperation);
 
         Program program = program(ImmutableList.of(valuesOperation, projectOperation));
         Memo memo = Memo.forProgram(program, TESTING_DIALECT_REGISTRY);
@@ -919,18 +909,7 @@ public class TestMemo
     {
         Values valuesOperation = valuesOfRows(ImmutableList.of(singleConstantRow("", BIGINT, 42L)));
 
-        Parameter assignmentsParameter = new Parameter("%assignments_parameter", irType(anonymousRow(BIGINT)));
-        FieldReference fieldReferenceOperation = new FieldReference("%field_reference_assignments", assignmentsParameter, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
-        Row rowOperation = new Row("%row_assignments", ImmutableList.of(fieldReferenceOperation.result()), ImmutableList.of(fieldReferenceOperation.attributes()));
-        Return returnOperation = new Return("%return_assignments", rowOperation.result(), rowOperation.attributes());
-        Project projectOperation = new Project(
-                "%project",
-                valuesOperation.result(),
-                new Block(
-                        Optional.of("^assignments"),
-                        ImmutableList.of(assignmentsParameter),
-                        ImmutableList.of(fieldReferenceOperation, rowOperation, returnOperation)),
-                valuesOperation.attributes());
+        Project projectOperation = identityProjection(valuesOperation);
 
         Program program = program(ImmutableList.of(valuesOperation, projectOperation));
         Memo memo = Memo.forProgram(program, TESTING_DIALECT_REGISTRY);
@@ -1050,18 +1029,7 @@ public class TestMemo
     {
         Values valuesOperation = valuesOfRows(ImmutableList.of(singleConstantRow("", BIGINT, 42L)));
 
-        Parameter assignmentsParameter = new Parameter("%assignments_parameter", irType(anonymousRow(BIGINT)));
-        FieldReference fieldReferenceOperation = new FieldReference("%field_reference_assignments", assignmentsParameter, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
-        Row rowOperation = new Row("%row_assignments", ImmutableList.of(fieldReferenceOperation.result()), ImmutableList.of(fieldReferenceOperation.attributes()));
-        Return returnOperation = new Return("%return_assignments", rowOperation.result(), rowOperation.attributes());
-        Project projectOperation = new Project(
-                "%project",
-                valuesOperation.result(),
-                new Block(
-                        Optional.of("^assignments"),
-                        ImmutableList.of(assignmentsParameter),
-                        ImmutableList.of(fieldReferenceOperation, rowOperation, returnOperation)),
-                valuesOperation.attributes());
+        Project projectOperation = identityProjection(valuesOperation);
 
         Program program = program(ImmutableList.of(valuesOperation, projectOperation));
         Memo memo = Memo.forProgram(program, TESTING_DIALECT_REGISTRY);

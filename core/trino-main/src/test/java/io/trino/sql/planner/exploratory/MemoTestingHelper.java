@@ -20,6 +20,7 @@ import io.trino.sql.dialect.ir.IrDialect.FunctionType;
 import io.trino.sql.dialect.trino.operation.Constant;
 import io.trino.sql.dialect.trino.operation.FieldReference;
 import io.trino.sql.dialect.trino.operation.Output;
+import io.trino.sql.dialect.trino.operation.Project;
 import io.trino.sql.dialect.trino.operation.Query;
 import io.trino.sql.dialect.trino.operation.Return;
 import io.trino.sql.dialect.trino.operation.Row;
@@ -36,6 +37,7 @@ import io.trino.sql.planner.exploratory.MemoOperation.ParameterChild;
 import java.util.List;
 import java.util.Optional;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.trino.sql.dialect.ir.IrDialect.DEFAULT_BLOCK_PARAMETER_ATTRIBUTES;
 import static io.trino.sql.dialect.ir.IrDialect.IR;
@@ -108,6 +110,25 @@ public final class MemoTestingHelper
                 .collect(toImmutableList());
 
         return new Values("%values" + suffix, (RowType) trinoType(blocks.getFirst().getReturnedType()), blocks);
+    }
+
+    public static Project identityProjection(Values values)
+    {
+        RowType rowType = (RowType) relationRowType(trinoType(values.result().type()));
+        checkArgument(rowType.getFields().size() == 1, "expected single-column values: %s", rowType);
+
+        Parameter assignmentsParameter = new Parameter("%assignments_parameter", irType(rowType));
+        FieldReference fieldReferenceOperation = new FieldReference("%field_reference_assignments", assignmentsParameter, 0, DEFAULT_BLOCK_PARAMETER_ATTRIBUTES);
+        Row rowOperation = new Row("%row_assignments", ImmutableList.of(fieldReferenceOperation.result()), ImmutableList.of(fieldReferenceOperation.attributes()));
+        Return returnOperation = new Return("%return_assignments", rowOperation.result(), rowOperation.attributes());
+        return new Project(
+                "%project",
+                values.result(),
+                new Block(
+                        Optional.of("^assignments"),
+                        ImmutableList.of(assignmentsParameter),
+                        ImmutableList.of(fieldReferenceOperation, rowOperation, returnOperation)),
+                values.attributes());
     }
 
     public static Program program(Operation operation)
