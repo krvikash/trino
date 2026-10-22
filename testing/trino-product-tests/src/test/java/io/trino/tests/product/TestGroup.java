@@ -332,6 +332,16 @@ public @interface TestGroup
 
     @Target({TYPE, METHOD})
     @Retention(RUNTIME)
+    @Tag("hive-databricks-unity")
+    @interface HiveDatabricksUnity {}
+
+    @Target({TYPE, METHOD})
+    @Retention(RUNTIME)
+    @Tag("hive-databricks-unity-proxy")
+    @interface HiveDatabricksUnityProxy {}
+
+    @Target({TYPE, METHOD})
+    @Retention(RUNTIME)
     @Tag("hive_kerberos")
     @interface HiveKerberos {}
 
