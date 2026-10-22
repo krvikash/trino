@@ -449,6 +449,21 @@ public @interface TestGroup
 
     @Target({TYPE, METHOD})
     @Retention(RUNTIME)
+    @Tag("delta-lake-databricks-unity-s3-credentials-vending")
+    @interface DeltaLakeDatabricksUnityS3CredentialsVending {}
+
+    @Target({TYPE, METHOD})
+    @Retention(RUNTIME)
+    @Tag("delta-lake-databricks-unity-gcs-credentials-vending")
+    @interface DeltaLakeDatabricksUnityGcsCredentialsVending {}
+
+    @Target({TYPE, METHOD})
+    @Retention(RUNTIME)
+    @Tag("delta-lake-databricks-unity-azure-credentials-vending")
+    @interface DeltaLakeDatabricksUnityAzureCredentialsVending {}
+
+    @Target({TYPE, METHOD})
+    @Retention(RUNTIME)
     @Tag("delta-lake-exclude-18")
     @interface DeltaLakeExclude18 {}
 
