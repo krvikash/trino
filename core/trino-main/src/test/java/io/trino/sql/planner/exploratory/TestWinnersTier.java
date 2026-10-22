@@ -16,6 +16,7 @@ package io.trino.sql.planner.exploratory;
 import io.trino.sql.planner.exploratory.OptimizationStoreTestingHelper.TestRequirement;
 import io.trino.sql.planner.exploratory.physical.CostComparison;
 import io.trino.sql.planner.exploratory.physical.CostDomain;
+import io.trino.sql.planner.exploratory.physical.ForwardingCostDomain;
 import io.trino.sql.planner.exploratory.physical.dummy.DummyCost;
 import io.trino.sql.planner.exploratory.physical.dummy.DummyCostDomain;
 import io.trino.sql.planner.exploratory.physical.dummy.DummyProperty;
@@ -284,36 +285,12 @@ class TestWinnersTier
     }
 
     private record TestingCostDomain(boolean comparableFiniteCosts, SameTierRelation sameTierRelation)
-            implements CostDomain<DummyCost>
+            implements ForwardingCostDomain<DummyCost>
     {
         @Override
-        public DummyCost zero()
+        public CostDomain<DummyCost> delegate()
         {
-            return DummyCostDomain.INSTANCE.zero();
-        }
-
-        @Override
-        public DummyCost infinite()
-        {
-            return DummyCostDomain.INSTANCE.infinite();
-        }
-
-        @Override
-        public DummyCost parameter()
-        {
-            return DummyCostDomain.INSTANCE.parameter();
-        }
-
-        @Override
-        public DummyCost add(DummyCost left, DummyCost right)
-        {
-            return DummyCostDomain.INSTANCE.add(left, right);
-        }
-
-        @Override
-        public DummyCost addAll(List<DummyCost> costs)
-        {
-            return DummyCostDomain.INSTANCE.addAll(costs);
+            return DummyCostDomain.INSTANCE;
         }
 
         @Override

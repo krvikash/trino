@@ -91,6 +91,12 @@ public final class DummyCostDomain
     }
 
     @Override
+    public CostComparison decide(DummyCost left, DummyCost right)
+    {
+        return compare(left, right);
+    }
+
+    @Override
     public boolean sameTier(DummyCost left, DummyCost right)
     {
         return left == right;

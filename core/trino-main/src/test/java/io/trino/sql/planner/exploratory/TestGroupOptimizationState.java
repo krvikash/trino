@@ -443,6 +443,19 @@ class TestGroupOptimizationState
         }
 
         @Override
+        public CostComparison decide(TestingCost left, TestingCost right)
+        {
+            int comparison = Double.compare(left.value(), right.value());
+            if (comparison < 0) {
+                return BETTER;
+            }
+            if (comparison > 0) {
+                return WORSE;
+            }
+            return EQUAL;
+        }
+
+        @Override
         public boolean sameTier(TestingCost left, TestingCost right)
         {
             return left.equals(right) || Math.abs(left.value() - right.value()) <= TIER_TOLERANCE;
@@ -511,6 +524,19 @@ class TestGroupOptimizationState
                 return WORSE;
             }
             return INCOMPARABLE;
+        }
+
+        @Override
+        public CostComparison decide(TestingCost left, TestingCost right)
+        {
+            int comparison = Double.compare(left.value(), right.value());
+            if (comparison < 0) {
+                return BETTER;
+            }
+            if (comparison > 0) {
+                return WORSE;
+            }
+            return EQUAL;
         }
 
         @Override

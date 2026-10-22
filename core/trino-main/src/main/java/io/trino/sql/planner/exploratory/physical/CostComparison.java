@@ -14,7 +14,9 @@
 package io.trino.sql.planner.exploratory.physical;
 
 /**
- * Result of comparing two costs in a partial order.
+ * Result of comparing two costs, either under the partial order of
+ * {@link CostDomain#compare(Cost, Cost)} or under the total decision order of
+ * {@link CostDomain#decide(Cost, Cost)}.
  */
 public enum CostComparison
 {
@@ -34,7 +36,8 @@ public enum CostComparison
     WORSE,
 
     /**
-     * Neither cost is provably preferable to the other.
+     * Neither cost is provably preferable to the other. Only the partial order
+     * returns this; the decision order never does.
      */
     INCOMPARABLE,
 }

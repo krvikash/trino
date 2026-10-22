@@ -35,6 +35,13 @@ import java.util.List;
  * currently invalid choice. This is important for correct handling of cycles
  * during fixed-point relaxation, where some candidate paths must be treated
  * as unavailable.
+ * <p>
+ * A cost domain provides two orders. {@link #compare(Cost, Cost)} is a partial
+ * order of knowledge: it orders two costs only when one is provably no more
+ * expensive than the other, and may report them incomparable.
+ * {@link #decide(Cost, Cost)} is a total decision order that extends it: it
+ * orders every pair of costs, so that choosing between alternatives never
+ * depends on the order in which they were found.
  */
 public interface CostDomain<C extends Cost>
 {
@@ -66,6 +73,40 @@ public interface CostDomain<C extends Cost>
      * </ul>
      */
     CostComparison compare(C left, C right);
+
+    /**
+     * Compares the left cost with the right cost under the total decision order
+     * used to choose between alternatives. The result describes the left cost
+     * relative to the right cost and is never {@code INCOMPARABLE}.
+     * <p>
+     * The decision order is a plan-selection policy, not an order of knowledge:
+     * where {@link #compare(Cost, Cost)} cannot prove either cost cheaper, the
+     * domain still decides, deterministically, which one to prefer.
+     * <p>
+     * Implementations must satisfy:
+     * <ul>
+     *     <li>totality: the result is {@code BETTER}, {@code EQUAL}, or
+     *     {@code WORSE};</li>
+     *     <li>reversal consistency: reversing the operands exchanges
+     *     {@code BETTER} and {@code WORSE}, while {@code EQUAL} remains
+     *     unchanged;</li>
+     *     <li>transitivity: if {@code a} is not {@code WORSE} than {@code b}
+     *     and {@code b} is not {@code WORSE} than {@code c}, then {@code a}
+     *     is not {@code WORSE} than {@code c};</li>
+     *     <li>extension of the partial order: if {@code compare(a, b)} is
+     *     {@code BETTER} or {@code WORSE}, {@code decide(a, b)} returns the
+     *     same result, and {@code decide(a, b) == EQUAL} exactly when
+     *     {@code compare(a, b) == EQUAL};</li>
+     *     <li>compatibility with addition: if {@code a} is not {@code WORSE}
+     *     than {@code b}, then {@code add(a, c)} is not {@code WORSE} than
+     *     {@code add(b, c)};</li>
+     *     <li>infinity last: every cost that is not {@code EQUAL} to
+     *     {@link #infinite()} is {@code BETTER} than it;</li>
+     *     <li>determinism: the result depends only on the two costs, not on
+     *     the order in which they were computed or seen.</li>
+     * </ul>
+     */
+    CostComparison decide(C left, C right);
 
     /**
      * Whether two costs should be considered tied.
