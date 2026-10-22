@@ -77,7 +77,7 @@ abstract class BaseUnityMetastoreDeltaConnectorSmokeTest
                 .setCreateTpchSchemas(false)
                 .build();
 
-        Failsafe.with(DATABRICKS_CLUSTER_UNAVAILABLE_RETRY_POLICY, DATABRICKS_COMMUNICATION_FAILURE_RETRY_POLICY, DATABRICKS_THRIFT_TIMEOUT_RETRY_POLICY)
+        Failsafe.with(DATABRICKS_CLUSTER_UNAVAILABLE_RETRY_POLICY, DATABRICKS_COMMUNICATION_FAILURE_RETRY_POLICY, DATABRICKS_THRIFT_TIMEOUT_RETRY_POLICY, UNITY_CATALOG_TRANSIENT_ERROR_RETRY_POLICY)
                 .run(() -> createTpchTables(queryRunner));
         return queryRunner;
     }
@@ -212,7 +212,7 @@ abstract class BaseUnityMetastoreDeltaConnectorSmokeTest
     }
 
     @Test
-    @Flaky(issue = "https://starburstdata.atlassian.net/browse/ENG-26786", match = "HTTP request failed by code: 50[02]")
+    @Flaky(issue = "https://starburstdata.atlassian.net/browse/ENG-26786", match = "HTTP request failed by code: 50[02]|getTable call failed with: (429|503)")
     void testCatalogManagedTable()
     {
         String tableName = "catalog_managed_table_" + randomNameSuffix();
@@ -375,7 +375,7 @@ abstract class BaseUnityMetastoreDeltaConnectorSmokeTest
     }
 
     @Test
-    @Flaky(issue = "https://starburstdata.atlassian.net/browse/ENG-26786", match = "HTTP request failed by code: 50[02]")
+    @Flaky(issue = "https://starburstdata.atlassian.net/browse/ENG-26786", match = "HTTP request failed by code: 50[02]|(createTable|getTable) call failed with: (429|503)")
     public void testVariantForExternalTable()
     {
         String tableName = "test_variant_" + randomNameSuffix();
@@ -390,7 +390,7 @@ abstract class BaseUnityMetastoreDeltaConnectorSmokeTest
     }
 
     @Test
-    @Flaky(issue = "https://starburstdata.atlassian.net/browse/ENG-26786", match = "HTTP request failed by code: 50[02]")
+    @Flaky(issue = "https://starburstdata.atlassian.net/browse/ENG-26786", match = "HTTP request failed by code: 50[02]|(createTable|getTable) call failed with: (429|503)")
     public void testVariantForExternalTableCtas()
     {
         String tableName = "test_variant_ctas_" + randomNameSuffix();
