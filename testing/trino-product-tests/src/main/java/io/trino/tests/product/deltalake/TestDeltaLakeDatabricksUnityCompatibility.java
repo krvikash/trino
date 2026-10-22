@@ -27,9 +27,7 @@ import static io.trino.tempto.assertions.QueryAssert.Row.row;
 import static io.trino.tempto.assertions.QueryAssert.assertQueryFailure;
 import static io.trino.testing.SystemEnvironmentUtils.requireEnv;
 import static io.trino.testing.TestingNames.randomNameSuffix;
-import static io.trino.tests.product.TestGroups.DELTA_LAKE_DATABRICKS_UNITY;
 import static io.trino.tests.product.TestGroups.DELTA_LAKE_DATABRICKS_UNITY_CREDENTIALS_VENDING;
-import static io.trino.tests.product.TestGroups.DELTA_LAKE_DATABRICKS_UNITY_PROXY;
 import static io.trino.tests.product.TestGroups.PROFILE_SPECIFIC_TESTS;
 import static io.trino.tests.product.deltalake.util.DeltaLakeTestUtils.DATABRICKS_COMMUNICATION_FAILURE_ISSUE;
 import static io.trino.tests.product.deltalake.util.DeltaLakeTestUtils.DATABRICKS_COMMUNICATION_FAILURE_MATCH;
@@ -61,7 +59,7 @@ public class TestDeltaLakeDatabricksUnityCompatibility
         onDelta().executeQuery(format("DROP SCHEMA IF EXISTS %s.%s CASCADE", unityCatalogName, schemaName));
     }
 
-    @Test(groups = {DELTA_LAKE_DATABRICKS_UNITY, DELTA_LAKE_DATABRICKS_UNITY_CREDENTIALS_VENDING, PROFILE_SPECIFIC_TESTS})
+    @Test(groups = {DELTA_LAKE_DATABRICKS_UNITY_CREDENTIALS_VENDING, PROFILE_SPECIFIC_TESTS})
     @Flaky(issue = DATABRICKS_COMMUNICATION_FAILURE_ISSUE, match = DATABRICKS_COMMUNICATION_FAILURE_MATCH)
     public void testTableReadWriteExternalTable()
     {
@@ -129,7 +127,7 @@ public class TestDeltaLakeDatabricksUnityCompatibility
                 .containsOnly(expectedRowsForMerge);
     }
 
-    @Test(groups = {DELTA_LAKE_DATABRICKS_UNITY, DELTA_LAKE_DATABRICKS_UNITY_CREDENTIALS_VENDING, PROFILE_SPECIFIC_TESTS})
+    @Test(groups = {DELTA_LAKE_DATABRICKS_UNITY_CREDENTIALS_VENDING, PROFILE_SPECIFIC_TESTS})
     @Flaky(issue = DATABRICKS_COMMUNICATION_FAILURE_ISSUE, match = DATABRICKS_COMMUNICATION_FAILURE_MATCH)
     public void testReadWriteCatalogManagedTable()
     {
@@ -192,7 +190,7 @@ public class TestDeltaLakeDatabricksUnityCompatibility
         }
     }
 
-    @Test(groups = {DELTA_LAKE_DATABRICKS_UNITY, DELTA_LAKE_DATABRICKS_UNITY_CREDENTIALS_VENDING, PROFILE_SPECIFIC_TESTS})
+    @Test(groups = {DELTA_LAKE_DATABRICKS_UNITY_CREDENTIALS_VENDING, PROFILE_SPECIFIC_TESTS})
     @Flaky(issue = DATABRICKS_COMMUNICATION_FAILURE_ISSUE, match = DATABRICKS_COMMUNICATION_FAILURE_MATCH)
     public void testTableReadWriteManagedTable()
     {
@@ -241,98 +239,5 @@ public class TestDeltaLakeDatabricksUnityCompatibility
                 "WHEN MATCHED THEN UPDATE SET c2 = s.c2 " +
                 "WHEN NOT MATCHED THEN INSERT (c1, c2) VALUES (s.c1, s.c2)", schemaName, tableName, schemaName, sourceTableName)))
                 .hasStackTraceContaining("Writes are not supported on managed tables for Unity metastore");
-    }
-
-    @Test(groups = {DELTA_LAKE_DATABRICKS_UNITY, PROFILE_SPECIFIC_TESTS})
-    @Flaky(issue = DATABRICKS_COMMUNICATION_FAILURE_ISSUE, match = DATABRICKS_COMMUNICATION_FAILURE_MATCH)
-    public void testColumnTypes()
-    {
-        String tableName = "test_column_types" + randomNameSuffix();
-        String deltaTableName = "delta.%s.%s".formatted(schemaName, tableName);
-        String unityTableName = "%s.%s.%s".formatted(unityCatalogName, schemaName, tableName);
-        String tableLocation = format("%s/%s/%s", externalLocationPath, schemaName, tableName);
-
-        // TODO add all the native Databricks supported types https://starburstdata.atlassian.net/browse/CONNECT-427
-        onDelta().executeQuery(format("CREATE TABLE %s (" +
-                "int_col INT," +
-                "string_col STRING," +
-                "tinyint_col TINYINT," +
-                "smallint_col SMALLINT," +
-                "bigint_col BIGINT," +
-                "decimal_col DECIMAL," +
-                "decimal_prec_short_col DECIMAL(4,2)," +
-                "decimal_prec_long_col DECIMAL(19,9)," +
-                "float_col FLOAT," +
-                "double_col DOUBLE," +
-                "date_col DATE," +
-                "timestamp_col TIMESTAMP," +
-                "binary_col BINARY," +
-                "bool_col BOOLEAN," +
-                "array_int_col ARRAY<int>," +
-                "map_col MAP<TIMESTAMP,INT>," +
-                "struct_col struct<a: LONG, b: String NOT NULL>" +
-                ") " +
-                "USING DELTA " +
-                "LOCATION '%s'", unityTableName, tableLocation));
-        assertThat(
-                onTrino().executeQuery("SHOW TABLES IN delta." + schemaName))
-                .containsOnly(row(tableName));
-        assertThat(
-                onTrino().executeQuery("SHOW COLUMNS IN " + deltaTableName))
-                .containsOnly(
-                        row("int_col", "integer", "", ""),
-                        row("string_col", "varchar", "", ""),
-                        row("tinyint_col", "tinyint", "", ""),
-                        row("smallint_col", "smallint", "", ""),
-                        row("bigint_col", "bigint", "", ""),
-                        row("decimal_col", "decimal(10,0)", "", ""),
-                        row("decimal_prec_short_col", "decimal(4,2)", "", ""),
-                        row("decimal_prec_long_col", "decimal(19,9)", "", ""),
-                        row("float_col", "real", "", ""),
-                        row("double_col", "double", "", ""),
-                        row("date_col", "date", "", ""),
-                        row("timestamp_col", "timestamp(3) with time zone", "", ""),
-                        row("binary_col", "varbinary", "", ""),
-                        row("bool_col", "boolean", "", ""),
-                        row("array_int_col", "array(integer)", "", ""),
-                        row("map_col", "map(timestamp(3) with time zone, integer)", "", ""),
-                        row("struct_col", "row(\"a\" bigint, \"b\" varchar)", "", ""));
-    }
-
-    @Test(groups = {DELTA_LAKE_DATABRICKS_UNITY, PROFILE_SPECIFIC_TESTS})
-    @Flaky(issue = DATABRICKS_COMMUNICATION_FAILURE_ISSUE, match = DATABRICKS_COMMUNICATION_FAILURE_MATCH)
-    public void testPartitionedTables()
-    {
-        String managedTableName = "test_partitioned_managed_table_" + randomNameSuffix();
-        String unityManagedTableName = "%s.%s.%s".formatted(unityCatalogName, schemaName, managedTableName);
-        String deltaManagedTableName = "delta.%s.%s".formatted(schemaName, managedTableName);
-
-        onDelta().executeQuery("CREATE TABLE " + unityManagedTableName + " (c1 int, c2 string) PARTITIONED BY (c1)");
-        // writes are not supported on trino for managed table on Unity
-        onDelta().executeQuery("INSERT INTO " + unityManagedTableName + "(c1, c2) VALUES (1, 'one')");
-        assertThat(onTrino().executeQuery("SHOW TABLES IN delta." + schemaName))
-                .contains(row(managedTableName));
-        assertThat(onTrino().executeQuery("SELECT * FROM " + deltaManagedTableName))
-                .containsOnly(row(1, "one"));
-
-        String externalTableName = "test_partitioned_external_table_" + randomNameSuffix();
-        String unityExternalTableName = "%s.%s.%s".formatted(unityCatalogName, schemaName, externalTableName);
-        String deltaExternalTableName = "delta.%s.%s".formatted(schemaName, externalTableName);
-        String unityExternalTableLocation = format("%s/%s/%s", externalLocationPath, schemaName, externalTableName);
-
-        onDelta().executeQuery("CREATE TABLE " + unityExternalTableName + " (c1 int, c2 string) PARTITIONED BY (c1) location '" + unityExternalTableLocation + "'");
-        onTrino().executeQuery("INSERT INTO " + deltaExternalTableName + "(c1, c2) VALUES (2, 'two')");
-        assertThat(onTrino().executeQuery("SHOW TABLES IN delta." + schemaName))
-                .contains(row(externalTableName));
-        assertThat(onTrino().executeQuery("SELECT * FROM " + deltaExternalTableName))
-                .containsOnly(row(2, "two"));
-    }
-
-    @Test(groups = {DELTA_LAKE_DATABRICKS_UNITY_PROXY, PROFILE_SPECIFIC_TESTS})
-    @Flaky(issue = DATABRICKS_COMMUNICATION_FAILURE_ISSUE, match = DATABRICKS_COMMUNICATION_FAILURE_MATCH)
-    public void testShowSchemas()
-    {
-        assertThat(onTrino().executeQuery(format("SHOW SCHEMAS FROM delta LIKE '%s'", schemaName)))
-                .contains(row(schemaName));
     }
 }
