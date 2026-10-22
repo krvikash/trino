@@ -378,6 +378,11 @@ public @interface TestGroup
 
     @Target({TYPE, METHOD})
     @Retention(RUNTIME)
+    @Tag("iceberg-databricks-unity")
+    @interface IcebergDatabricksUnity {}
+
+    @Target({TYPE, METHOD})
+    @Retention(RUNTIME)
     @Tag("iceberg_format_version_compatibility")
     @interface IcebergFormatVersionCompatibility {}
 
