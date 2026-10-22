@@ -147,6 +147,7 @@ BUCKETS = [
         ("SuiteHiveDatabricksUnity", LEGACY_COVERAGE_REMOVED),
         ("SuiteIcebergDatabricksUnity", LEGACY_COVERAGE_REMOVED),
         ("SuiteDeltaLakeDatabricksUnityS3CredentialsVending", LEGACY_COVERAGE_REMOVED),
+        ("SuiteDeltaLakeDatabricksUnityGcsCredentialsVending", LEGACY_COVERAGE_REMOVED),
         ("SuiteDeltaLakeDatabricksUnityAzureCredentialsVending", LEGACY_COVERAGE_REMOVED),
     ], {"scheduled": "nightly", "labeled": ["databricks"]}),
     ("databricks-18", [
