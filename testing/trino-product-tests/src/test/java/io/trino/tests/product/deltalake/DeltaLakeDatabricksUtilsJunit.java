@@ -145,4 +145,10 @@ public final class DeltaLakeDatabricksUtilsJunit
         return Failsafe.with(CONCURRENT_MODIFICATION_EXCEPTION_RETRY_POLICY)
                 .get(() -> env.executeDatabricksSql("DROP TABLE IF EXISTS " + tableName));
     }
+
+    public static QueryResult dropDeltaTableWithRetry(DatabricksUnityEnvironment env, String tableName)
+    {
+        return Failsafe.with(CONCURRENT_MODIFICATION_EXCEPTION_RETRY_POLICY)
+                .get(() -> env.executeDatabricksSql("DROP TABLE IF EXISTS " + tableName));
+    }
 }
