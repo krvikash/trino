@@ -27,7 +27,7 @@ import io.trino.execution.QueryInfo;
 import io.trino.execution.QueryStats;
 import io.trino.metadata.Metadata;
 import io.trino.operator.OperatorStats;
-import io.trino.operator.gpu.GpuOperator;
+import io.trino.operator.torin.GpuOperator;
 import io.trino.spi.Plugin;
 import io.trino.spi.TrinoException;
 import io.trino.spi.function.FunctionBundle;

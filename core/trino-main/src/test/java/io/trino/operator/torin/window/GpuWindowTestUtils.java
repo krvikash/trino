@@ -1,0 +1,169 @@
+/*
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package io.trino.operator.torin.window;
+
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
+import io.trino.metadata.ResolvedFunction;
+import io.trino.metadata.TestingFunctionResolution;
+import io.trino.operator.torin.GpuOperation;
+import io.trino.operator.torin.window.GpuWindow.FrameBound;
+import io.trino.operator.torin.window.GpuWindow.WindowFrame;
+import io.trino.spi.connector.SortOrder;
+import io.trino.spi.type.Type;
+import io.trino.sql.planner.OrderingScheme;
+import io.trino.sql.planner.Symbol;
+import io.trino.sql.planner.plan.DataOrganizationSpecification;
+import io.trino.sql.planner.plan.PlanNodeId;
+import io.trino.sql.planner.plan.ValuesNode;
+import io.trino.sql.planner.plan.WindowNode;
+
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+
+import static com.google.common.collect.ImmutableList.toImmutableList;
+import static io.trino.spi.type.DecimalType.createDecimalType;
+import static io.trino.sql.analyzer.TypeDescriptorProvider.fromTypes;
+
+public final class GpuWindowTestUtils
+{
+    private GpuWindowTestUtils() {}
+
+    public static final List<TestedWindowFunction> TESTED_GPU_WINDOW_FUNCTIONS = List.of(
+            new TestedWindowFunction("row_number", List.of()),
+            new TestedWindowFunction("rank", List.of()),
+            new TestedWindowFunction("dense_rank", List.of()),
+            new TestedWindowFunction("avg", List.of(createDecimalType(28, 2))),
+            new TestedWindowFunction("avg", List.of(createDecimalType(38, 6))),
+            // Random values of a type close to 38 digits make the sums overflow, so sum is tested at lower precisions,
+            // on both sides of the precision at which the GPU computes it differently
+            new TestedWindowFunction("sum", List.of(createDecimalType(9, 2))),
+            new TestedWindowFunction("sum", List.of(createDecimalType(28, 2))),
+            new TestedWindowFunction("sum", List.of(createDecimalType(29, 2))));
+
+    private static final TestingFunctionResolution FUNCTION_RESOLUTION = new TestingFunctionResolution();
+
+    public static GpuWindowCompiler.CompileResult compileWindow(
+            List<Type> sourceTypes,
+            int[] partitionChannels,
+            int[] orderChannels,
+            List<SortOrder> orderSortOrders,
+            List<BoundTestedWindowFunction> functions)
+    {
+        Symbol[] sourceSymbols = new Symbol[sourceTypes.size()];
+        for (int i = 0; i < sourceTypes.size(); i++) {
+            sourceSymbols[i] = new Symbol(sourceTypes.get(i), "c" + i);
+        }
+
+        ImmutableList.Builder<Symbol> partitionByBuilder = ImmutableList.builder();
+        for (int channel : partitionChannels) {
+            partitionByBuilder.add(sourceSymbols[channel]);
+        }
+        List<Symbol> partitionBy = partitionByBuilder.build();
+
+        Optional<OrderingScheme> orderingScheme = Optional.empty();
+        if (orderChannels.length > 0) {
+            ImmutableList.Builder<Symbol> orderByBuilder = ImmutableList.builder();
+            ImmutableMap.Builder<Symbol, SortOrder> orderingsBuilder = ImmutableMap.builder();
+            for (int i = 0; i < orderChannels.length; i++) {
+                orderByBuilder.add(sourceSymbols[orderChannels[i]]);
+                orderingsBuilder.put(sourceSymbols[orderChannels[i]], orderSortOrders.get(i));
+            }
+            orderingScheme = Optional.of(new OrderingScheme(orderByBuilder.build(), orderingsBuilder.buildOrThrow()));
+        }
+
+        ImmutableMap.Builder<Symbol, WindowNode.Function> windowFunctions = ImmutableMap.builder();
+        int functionIndex = 0;
+        for (BoundTestedWindowFunction boundFunction : functions) {
+            WindowNode.Function function = windowFunction(boundFunction, sourceSymbols);
+            windowFunctions.put(
+                    new Symbol(function.getResolvedFunction().signature().getReturnType(), "f" + functionIndex++),
+                    function);
+        }
+
+        WindowNode node = windowNode(sourceSymbols, partitionBy, orderingScheme, windowFunctions.buildOrThrow());
+
+        ImmutableMap.Builder<Symbol, Integer> layout = ImmutableMap.builder();
+        for (int i = 0; i < sourceSymbols.length; i++) {
+            layout.put(sourceSymbols[i], i);
+        }
+        return GpuWindowCompiler.compile(node, layout.buildOrThrow(), sourceTypes);
+    }
+
+    private static WindowNode windowNode(Symbol[] sourceOutputs, List<Symbol> partitionBy, Optional<OrderingScheme> orderingScheme, Map<Symbol, WindowNode.Function> functions)
+    {
+        return new WindowNode(
+                new PlanNodeId("test"),
+                new ValuesNode(new PlanNodeId("source"), Arrays.asList(sourceOutputs), ImmutableList.of()),
+                new DataOrganizationSpecification(partitionBy, orderingScheme),
+                ImmutableMap.copyOf(functions),
+                ImmutableSet.of(),
+                0);
+    }
+
+    private static WindowNode.Function windowFunction(BoundTestedWindowFunction spec, Symbol[] sourceSymbols)
+    {
+        List<Symbol> argumentSymbols = Arrays.stream(spec.argumentChannels())
+                .mapToObj(channel -> sourceSymbols[channel])
+                .collect(toImmutableList());
+        List<Type> argumentTypes = argumentSymbols.stream()
+                .map(Symbol::type)
+                .collect(toImmutableList());
+        ResolvedFunction resolvedFunction = FUNCTION_RESOLUTION.resolveFunction(spec.name(), fromTypes(argumentTypes));
+        return new WindowNode.Function(
+                resolvedFunction,
+                argumentSymbols.stream()
+                        .map(Symbol::toSymbolReference)
+                        .collect(toImmutableList()),
+                Optional.empty(),
+                frame(spec.frame(), sourceSymbols),
+                false,
+                false);
+    }
+
+    private static WindowNode.Frame frame(WindowFrame frame, Symbol[] sourceSymbols)
+    {
+        if (frame.equals(WindowFrame.DEFAULT)) {
+            return WindowNode.Frame.DEFAULT_FRAME;
+        }
+        return new WindowNode.Frame(
+                frame.type(),
+                frame.start().type(),
+                offsetSymbol(frame.start(), sourceSymbols),
+                Optional.empty(),
+                frame.end().type(),
+                offsetSymbol(frame.end(), sourceSymbols),
+                Optional.empty());
+    }
+
+    private static Optional<Symbol> offsetSymbol(FrameBound bound, Symbol[] sourceSymbols)
+    {
+        if (bound.offsetChannel().isEmpty()) {
+            return Optional.empty();
+        }
+        return Optional.of(sourceSymbols[bound.offsetChannel().orElseThrow()]);
+    }
+
+    public static GpuOperation createOperation(GpuOperation.Context context, GpuOperation source, List<GpuOperation.Factory> stages)
+    {
+        GpuOperation operation = source;
+        for (GpuOperation.Factory stage : stages) {
+            operation = stage.create(context, operation);
+        }
+        return operation;
+    }
+}

@@ -1,0 +1,141 @@
+/*
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package io.trino.operator.torin.expression;
+
+import ai.rapids.cudf.ColumnVector;
+import ai.rapids.cudf.DType;
+import ai.rapids.cudf.Scalar;
+import com.google.common.collect.ImmutableList;
+import io.trino.plugin.base.torin.ClosingOnce;
+import io.trino.spi.TrinoException;
+import io.trino.spi.torin.borrow.Borrow;
+import io.trino.spi.torin.borrow.Move;
+
+import java.util.List;
+import java.util.Objects;
+
+import static ai.rapids.cudf.BinaryOp.DIV;
+import static ai.rapids.cudf.BinaryOp.NULL_LOGICAL_AND;
+import static io.trino.operator.torin.expression.CudfUtils.anyTrue;
+import static io.trino.operator.torin.expression.CudfUtils.integerScalar;
+import static io.trino.operator.torin.expression.CudfUtils.minValue;
+import static io.trino.operator.torin.expression.CudfUtils.zero;
+import static io.trino.operator.torin.expression.GpuExpressions.anyNullOnNullInputs;
+import static io.trino.operator.torin.expression.GpuExpressions.longValue;
+import static io.trino.operator.torin.expression.GpuExpressions.nullSkippingCheck;
+import static io.trino.operator.torin.expression.GpuExpressions.worstOf;
+import static io.trino.spi.StandardErrorCode.DIVISION_BY_ZERO;
+import static io.trino.spi.StandardErrorCode.NUMERIC_VALUE_OUT_OF_RANGE;
+import static java.lang.String.format;
+import static java.util.Objects.requireNonNull;
+
+/**
+ * Integer DIV with divide-by-zero and {@code MIN/-1} overflow detection.
+ */
+public final class GpuIntegerDivide
+        extends GpuExpression
+{
+    private final GpuExpression left;
+    private final GpuExpression right;
+    private final DType operandType;
+    private final String operandTrinoTypeName;
+    /// Whether the divisor can be 0 or -1, the only values on which the division fails.
+    private final boolean checksNeeded;
+
+    public GpuIntegerDivide(GpuExpression left, GpuExpression right, DType operandType, String operandTrinoTypeName)
+    {
+        this.left = requireNonNull(left, "left is null");
+        this.right = requireNonNull(right, "right is null");
+        this.operandType = requireNonNull(operandType, "operandType is null");
+        this.operandTrinoTypeName = requireNonNull(operandTrinoTypeName, "operandTrinoTypeName is null");
+        this.checksNeeded = longValue(right)
+                .map(divisor -> divisor == 0 || divisor == -1)
+                .orElse(true);
+    }
+
+    @Override
+    public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns, Bindings bindings)
+    {
+        try (ColumnVector leftResult = left.evaluate(positionCount, inputColumns, bindings);
+                ColumnVector rightResult = right.evaluate(positionCount, inputColumns, bindings)) {
+            if (checksNeeded) {
+                verifyDivision(leftResult, rightResult);
+            }
+            return leftResult.binaryOp(DIV, rightResult, operandType);
+        }
+    }
+
+    private void verifyDivision(@Borrow ColumnVector leftResult, @Borrow ColumnVector rightResult)
+    {
+        // Trino's CPU evaluator never invokes the divide implementation when an operand is null —
+        // it short-circuits to a null result. Masking the divisor-zero detection by
+        // "left IS NOT NULL" restores the same shape: a non-null zero divisor only matters when
+        // the dividend is also non-null.
+        try (Scalar zero = zero(operandType);
+                ClosingOnce<ColumnVector> divisorIsZero = ClosingOnce.own(rightResult.equalTo(zero));
+                ClosingOnce<ColumnVector> dividendNotNull = ClosingOnce.own(leftResult.isNotNull());
+                ColumnVector divByZero = divisorIsZero.borrow().binaryOp(NULL_LOGICAL_AND, dividendNotNull.borrow(), DType.BOOL8)) {
+            divisorIsZero.close();
+            dividendNotNull.close();
+            if (anyTrue(divByZero)) {
+                throw new TrinoException(DIVISION_BY_ZERO, "Division by zero");
+            }
+        }
+        // For two's-complement integers, MIN_VALUE / -1 overflows because -MIN_VALUE is
+        // unrepresentable in the same width. Detected via (left == MIN_VALUE) AND (right == -1);
+        // nulls in either operand naturally propagate to FALSE under cuDF's null-aware AND.
+        try (Scalar min = integerScalar(operandType, minValue(operandType));
+                Scalar negOne = integerScalar(operandType, -1);
+                ClosingOnce<ColumnVector> leftIsMin = ClosingOnce.own(leftResult.equalTo(min));
+                ClosingOnce<ColumnVector> rightIsNegOne = ClosingOnce.own(rightResult.equalTo(negOne));
+                ColumnVector bothMatch = leftIsMin.borrow().binaryOp(NULL_LOGICAL_AND, rightIsNegOne.borrow(), DType.BOOL8)) {
+            leftIsMin.close();
+            rightIsNegOne.close();
+            if (anyTrue(bothMatch)) {
+                throw new TrinoException(NUMERIC_VALUE_OUT_OF_RANGE, format("%s division overflow", operandTrinoTypeName));
+            }
+        }
+    }
+
+    @Override
+    protected Fallibility computeFallibility()
+    {
+        if (checksNeeded) {
+            return nullSkippingCheck(ImmutableList.of(left, right));
+        }
+        return worstOf(ImmutableList.of(left, right));
+    }
+
+    @Override
+    protected boolean computeNullOnNullInputs()
+    {
+        return anyNullOnNullInputs(ImmutableList.of(left, right));
+    }
+
+    @Override
+    public boolean equals(Object obj)
+    {
+        return obj instanceof GpuIntegerDivide other
+                && left.equals(other.left)
+                && right.equals(other.right)
+                && operandType.equals(other.operandType)
+                && operandTrinoTypeName.equals(other.operandTrinoTypeName);
+    }
+
+    @Override
+    public int hashCode()
+    {
+        return Objects.hash(getClass(), left, right, operandType, operandTrinoTypeName);
+    }
+}

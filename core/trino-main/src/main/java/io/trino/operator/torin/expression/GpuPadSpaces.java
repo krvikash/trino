@@ -1,0 +1,75 @@
+/*
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package io.trino.operator.torin.expression;
+
+import ai.rapids.cudf.ColumnVector;
+import ai.rapids.cudf.PadSide;
+import io.trino.spi.torin.borrow.Borrow;
+import io.trino.spi.torin.borrow.Move;
+
+import java.util.List;
+import java.util.Objects;
+
+import static com.google.common.base.Preconditions.checkArgument;
+import static java.util.Objects.requireNonNull;
+
+/// Appends spaces to each string until it is `length` code points long, leaving longer strings unchanged.
+public final class GpuPadSpaces
+        extends GpuExpression
+{
+    private final GpuExpression argument;
+    private final int length;
+
+    public GpuPadSpaces(GpuExpression argument, int length)
+    {
+        this.argument = requireNonNull(argument, "argument is null");
+        checkArgument(length >= 0, "length is negative: %s", length);
+        this.length = length;
+    }
+
+    @Override
+    public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns, Bindings bindings)
+    {
+        try (ColumnVector value = argument.evaluate(positionCount, inputColumns, bindings)) {
+            // cuDF pad widths are code point counts
+            return value.pad(length, PadSide.RIGHT, " ");
+        }
+    }
+
+    @Override
+    protected Fallibility computeFallibility()
+    {
+        return argument.fallibility();
+    }
+
+    @Override
+    protected boolean computeNullOnNullInputs()
+    {
+        return argument.nullOnNullInputs();
+    }
+
+    @Override
+    public boolean equals(Object obj)
+    {
+        return obj instanceof GpuPadSpaces other
+                && argument.equals(other.argument)
+                && length == other.length;
+    }
+
+    @Override
+    public int hashCode()
+    {
+        return Objects.hash(getClass(), argument, length);
+    }
+}

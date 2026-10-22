@@ -311,12 +311,12 @@
     <violation>
         <name>ai/rapids/cudf/Cuda$Stream.sync:()V</name>
         <version>1.8</version>
-        <comment>A failed sync leaves DMAs in flight, making every subsequent buffer free undefined behavior. Use io.trino.operator.gpu.CudaStreams.sync, which aborts the process instead</comment>
+        <comment>A failed sync leaves DMAs in flight, making every subsequent buffer free undefined behavior. Use io.trino.operator.torin.CudaStreams.sync, which aborts the process instead</comment>
     </violation>
     <violation>
         <name>ai/rapids/cudf/Cuda.deviceSynchronize:()V</name>
         <version>1.8</version>
-        <comment>Same undefined behavior on failure as Cuda.Stream.sync, and it synchronizes every stream of every thread. Use io.trino.operator.gpu.CudaStreams.sync</comment>
+        <comment>Same undefined behavior on failure as Cuda.Stream.sync, and it synchronizes every stream of every thread. Use io.trino.operator.torin.CudaStreams.sync</comment>
     </violation>
     <violation>
         <name>ai/rapids/cudf/Scalar.fromNull:(Lai/rapids/cudf/DType;)Lai/rapids/cudf/Scalar;</name>

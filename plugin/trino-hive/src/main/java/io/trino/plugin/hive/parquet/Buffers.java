@@ -16,10 +16,10 @@ package io.trino.plugin.hive.parquet;
 import ai.rapids.cudf.HostMemoryBuffer;
 import com.google.common.collect.ImmutableList;
 import io.trino.plugin.base.util.AutoCloseableCloser;
-import io.trino.spi.gpu.RuntimeCloseable;
-import io.trino.spi.gpu.borrow.Borrow;
-import io.trino.spi.gpu.borrow.Move;
-import io.trino.spi.gpu.borrow.Own;
+import io.trino.spi.torin.RuntimeCloseable;
+import io.trino.spi.torin.borrow.Borrow;
+import io.trino.spi.torin.borrow.Move;
+import io.trino.spi.torin.borrow.Own;
 
 import java.util.List;
 

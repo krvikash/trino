@@ -59,6 +59,7 @@ gpu:
   - changed-files:
     - any-glob-to-any-file:
       - '**/gpu/**'
+      - '**/torin/**'
       - '**/*Gpu*'
 
 hive:

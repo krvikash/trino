@@ -27,8 +27,8 @@ import java.util.List;
 import java.util.Map;
 
 import static com.google.common.base.Preconditions.checkState;
-import static io.trino.operator.gpu.GpuOperator.FUSED_PLAN_NODE_METRIC_PREFIX;
-import static io.trino.operator.gpu.GpuTableScan.CPU_FALLBACK_SPLITS_METRIC;
+import static io.trino.operator.torin.GpuOperator.FUSED_PLAN_NODE_METRIC_PREFIX;
+import static io.trino.operator.torin.GpuTableScan.CPU_FALLBACK_SPLITS_METRIC;
 import static io.trino.sql.planner.planprinter.PlanNodeGpuStatus.eligible;
 import static io.trino.sql.planner.planprinter.PlanNodeGpuStatus.notEligible;
 import static io.trino.sql.planner.planprinter.PlanNodeGpuStatus.partiallyEligible;

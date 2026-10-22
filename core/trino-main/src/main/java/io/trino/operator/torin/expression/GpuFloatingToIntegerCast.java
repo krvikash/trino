@@ -1,0 +1,198 @@
+/*
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package io.trino.operator.torin.expression;
+
+import ai.rapids.cudf.ColumnVector;
+import ai.rapids.cudf.DType;
+import ai.rapids.cudf.Scalar;
+import ai.rapids.cudf.UnaryOp;
+import com.google.common.collect.ImmutableList;
+import io.trino.plugin.base.torin.ClosingOnce;
+import io.trino.spi.TrinoException;
+import io.trino.spi.torin.borrow.Borrow;
+import io.trino.spi.torin.borrow.Move;
+
+import java.util.List;
+import java.util.Objects;
+
+import static ai.rapids.cudf.BinaryOp.GREATER;
+import static ai.rapids.cudf.BinaryOp.LESS;
+import static ai.rapids.cudf.BinaryOp.NULL_LOGICAL_AND;
+import static io.trino.operator.torin.expression.CudfUtils.Ties.AWAY_FROM_ZERO;
+import static io.trino.operator.torin.expression.CudfUtils.anyTrue;
+import static io.trino.operator.torin.expression.CudfUtils.floatingScalar;
+import static io.trino.operator.torin.expression.CudfUtils.maxValue;
+import static io.trino.operator.torin.expression.CudfUtils.minValue;
+import static io.trino.operator.torin.expression.CudfUtils.roundToIntegral;
+import static io.trino.operator.torin.expression.GpuExpressions.nullSkippingCheck;
+import static io.trino.spi.StandardErrorCode.INVALID_CAST_ARGUMENT;
+import static java.lang.String.format;
+import static java.util.Objects.requireNonNull;
+
+/**
+ * Cast from a floating-point type (REAL, DOUBLE) to an integer type with HALF_UP rounding
+ * (away from zero) and overflow detection.
+ *
+ * <p>NaN, ±Infinity, and finite out-of-range values all produce {@code INVALID_CAST_ARGUMENT}.
+ * Once the CPU-side asymmetry between {@code NUMERIC_VALUE_OUT_OF_RANGE} and
+ * {@code INVALID_CAST_ARGUMENT} for ±Inf and finite OOR is unified, the test harness's
+ * one-way relaxation can be removed and this implementation will match CPU exactly.
+ */
+// TODO: revisit arithmetic overflow detection to use a shared range-check helper.
+public final class GpuFloatingToIntegerCast
+        extends GpuExpression
+{
+    private final GpuExpression argument;
+    private final DType sourceDType;
+    private final DType targetDType;
+    private final double lowerBoundExclusive;
+    private final double upperBoundExclusive;
+    private final String sourceTrinoTypeName;
+    private final String targetTrinoTypeName;
+
+    public GpuFloatingToIntegerCast(
+            GpuExpression argument,
+            DType sourceDType,
+            DType targetDType,
+            String sourceTrinoTypeName,
+            String targetTrinoTypeName)
+    {
+        this.argument = requireNonNull(argument, "argument is null");
+        this.sourceDType = requireNonNull(sourceDType, "sourceDType is null");
+        this.targetDType = requireNonNull(targetDType, "targetDType is null");
+        this.lowerBoundExclusive = exclusiveLowerBound(sourceDType, targetDType);
+        this.upperBoundExclusive = exclusiveUpperBound(sourceDType, targetDType);
+        this.sourceTrinoTypeName = requireNonNull(sourceTrinoTypeName, "sourceTrinoTypeName is null");
+        this.targetTrinoTypeName = requireNonNull(targetTrinoTypeName, "targetTrinoTypeName is null");
+    }
+
+    /**
+     * Largest source-type value that should be rejected as too low (i.e. would round below {@code targetDType}'s
+     * minimum). When the half-step {@code targetMin - 0.5} is exactly representable in the source type, use it
+     * directly. When it isn't (FLOAT32→INT32/INT64, FLOAT64→INT64), {@code targetMin} itself is exactly
+     * representable as a power of two — use {@code nextDown} so source value {@code targetMin} still passes the
+     * strict-greater check.
+     */
+    private static double exclusiveLowerBound(DType sourceDType, DType targetDType)
+    {
+        long targetMin = minValue(targetDType);
+        return switch (sourceDType.getTypeId()) {
+            case FLOAT32 -> switch (targetDType.getTypeId()) {
+                case INT8, INT16 -> targetMin - 0.5;
+                case INT32, INT64 -> Math.nextDown((float) targetMin);
+                default -> throw new IllegalArgumentException("Unsupported target DType: " + targetDType);
+            };
+            case FLOAT64 -> switch (targetDType.getTypeId()) {
+                case INT8, INT16, INT32 -> targetMin - 0.5;
+                case INT64 -> Math.nextDown((double) targetMin);
+                default -> throw new IllegalArgumentException("Unsupported target DType: " + targetDType);
+            };
+            default -> throw new IllegalArgumentException("Unsupported source DType: " + sourceDType);
+        };
+    }
+
+    /**
+     * Smallest source-type value that should be rejected as too high. When {@code targetMax + 0.5} is exactly
+     * representable in the source type, use it directly. When it isn't, {@code (source) targetMax} rounds up to
+     * the next power of two ({@code targetMax + 1}) — use that as the exclusive upper bound, which correctly
+     * rejects any source value at or above that power of two.
+     */
+    private static double exclusiveUpperBound(DType sourceDType, DType targetDType)
+    {
+        long targetMax = maxValue(targetDType);
+        return switch (sourceDType.getTypeId()) {
+            case FLOAT32 -> switch (targetDType.getTypeId()) {
+                case INT8, INT16 -> targetMax + 0.5;
+                case INT32, INT64 -> (float) targetMax;
+                default -> throw new IllegalArgumentException("Unsupported target DType: " + targetDType);
+            };
+            case FLOAT64 -> switch (targetDType.getTypeId()) {
+                case INT8, INT16, INT32 -> targetMax + 0.5;
+                case INT64 -> (double) targetMax;
+                default -> throw new IllegalArgumentException("Unsupported target DType: " + targetDType);
+            };
+            default -> throw new IllegalArgumentException("Unsupported source DType: " + sourceDType);
+        };
+    }
+
+    @Override
+    public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns, Bindings bindings)
+    {
+        try (ClosingOnce<ColumnVector> source = ClosingOnce.own(argument.evaluate(positionCount, inputColumns, bindings))) {
+            // Range check: input strictly within (lowerBoundExclusive, upperBoundExclusive).
+            // IEEE comparisons against NaN return false, so NaN/±Inf/finite-OOR all end up out of range.
+            // Null inputs propagate as null through the comparisons; anyTrue ignores nulls.
+            try (Scalar lower = floatingScalar(sourceDType, lowerBoundExclusive);
+                    Scalar upper = floatingScalar(sourceDType, upperBoundExclusive);
+                    ClosingOnce<ColumnVector> aboveLower = ClosingOnce.own(source.borrow().binaryOp(GREATER, lower, DType.BOOL8));
+                    ClosingOnce<ColumnVector> belowUpper = ClosingOnce.own(source.borrow().binaryOp(LESS, upper, DType.BOOL8));
+                    ClosingOnce<ColumnVector> inRange = ClosingOnce.own(aboveLower.borrow().binaryOp(NULL_LOGICAL_AND, belowUpper.borrow(), DType.BOOL8))) {
+                aboveLower.close();
+                belowUpper.close();
+                try (ColumnVector outOfRange = inRange.borrow().unaryOp(UnaryOp.NOT)) {
+                    inRange.close();
+                    if (anyTrue(outOfRange)) {
+                        throw new TrinoException(INVALID_CAST_ARGUMENT, format("Cannot cast %s to %s", sourceTrinoTypeName, targetTrinoTypeName));
+                    }
+                }
+            }
+            // The CPU rounds a REAL widened to DOUBLE, which holds every REAL exactly
+            try (ClosingOnce<ColumnVector> wideSource = ClosingOnce.own(source.borrow().castTo(DType.FLOAT64))) {
+                source.close();
+                try (ColumnVector rounded = roundToIntegral(wideSource.borrow(), AWAY_FROM_ZERO)) {
+                    wideSource.close();
+                    return rounded.castTo(targetDType);
+                }
+            }
+        }
+    }
+
+    @Override
+    protected Fallibility computeFallibility()
+    {
+        return nullSkippingCheck(ImmutableList.of(argument));
+    }
+
+    @Override
+    protected boolean computeNullOnNullInputs()
+    {
+        return argument.nullOnNullInputs();
+    }
+
+    @Override
+    public boolean equals(Object obj)
+    {
+        return obj instanceof GpuFloatingToIntegerCast other
+                && argument.equals(other.argument)
+                && sourceDType.equals(other.sourceDType)
+                && targetDType.equals(other.targetDType)
+                // derived: && lowerBoundExclusive == other.lowerBoundExclusive
+                // derived: && upperBoundExclusive == other.upperBoundExclusive
+                && sourceTrinoTypeName.equals(other.sourceTrinoTypeName)
+                && targetTrinoTypeName.equals(other.targetTrinoTypeName);
+    }
+
+    @Override
+    public int hashCode()
+    {
+        return Objects.hash(getClass(),
+                argument,
+                sourceDType,
+                targetDType,
+                // derived: lowerBoundExclusive,
+                // derived: upperBoundExclusive,
+                sourceTrinoTypeName,
+                targetTrinoTypeName);
+    }
+}

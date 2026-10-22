@@ -809,8 +809,8 @@
                         <artifactId>maven-surefire-plugin</artifactId>
                         <configuration>
                             <excludes>
-                                <exclude>**/gpu/**/Benchmark*.java</exclude>
-                                <exclude>**/gpu/**/Test*.java</exclude>
+                                <exclude>**/torin/**/Benchmark*.java</exclude>
+                                <exclude>**/torin/**/Test*.java</exclude>
                             </excludes>
                         </configuration>
                     </plugin>
@@ -827,8 +827,8 @@
                         <artifactId>maven-surefire-plugin</artifactId>
                         <configuration>
                             <includes>
-                                <include>**/gpu/**/Benchmark*.java</include>
-                                <include>**/gpu/**/Test*.java</include>
+                                <include>**/torin/**/Benchmark*.java</include>
+                                <include>**/torin/**/Test*.java</include>
                             </includes>
                         </configuration>
                     </plugin>

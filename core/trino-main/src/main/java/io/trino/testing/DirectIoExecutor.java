@@ -13,7 +13,7 @@
  */
 package io.trino.testing;
 
-import io.trino.spi.gpu.IoExecutor;
+import io.trino.spi.torin.IoExecutor;
 
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;

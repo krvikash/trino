@@ -16,14 +16,14 @@ package io.trino.split;
 import io.trino.Session;
 import io.trino.metadata.Split;
 import io.trino.metadata.TableHandle;
-import io.trino.operator.gpu.GpuOperation;
+import io.trino.operator.torin.GpuOperation;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorPageSource;
 import io.trino.spi.connector.ConnectorTableCredentials;
 import io.trino.spi.connector.DynamicFilter;
 import io.trino.spi.connector.MemoryContext;
-import io.trino.spi.gpu.ConnectorGpuPageSource;
 import io.trino.spi.predicate.TupleDomain;
+import io.trino.spi.torin.ConnectorGpuPageSource;
 import io.trino.spi.type.Type;
 
 import java.util.List;

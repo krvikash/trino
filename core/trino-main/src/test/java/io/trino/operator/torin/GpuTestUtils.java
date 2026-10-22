@@ -1,0 +1,1377 @@
+/*
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package io.trino.operator.torin;
+
+import ai.rapids.cudf.ColumnVector;
+import com.google.common.collect.AbstractIterator;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableMultiset;
+import com.google.common.collect.Streams;
+import io.airlift.slice.Slices;
+import io.airlift.units.DataSize;
+import io.trino.Session;
+import io.trino.memory.context.LocalMemoryContext;
+import io.trino.metadata.TestingFunctionResolution;
+import io.trino.operator.project.PageProcessor;
+import io.trino.operator.torin.GpuOperation.Blocked;
+import io.trino.operator.torin.GpuOperation.Data;
+import io.trino.operator.torin.GpuOperation.Finished;
+import io.trino.operator.torin.GpuOperation.Yielded;
+import io.trino.operator.torin.expression.CompiledExpression;
+import io.trino.operator.torin.expression.Fallibility;
+import io.trino.operator.torin.memory.AllocatedMemory;
+import io.trino.spi.Page;
+import io.trino.spi.TrinoException;
+import io.trino.spi.block.Bitmap;
+import io.trino.spi.block.Block;
+import io.trino.spi.block.BlockBuilder;
+import io.trino.spi.block.VariableWidthBlockBuilder;
+import io.trino.spi.connector.ConnectorSession;
+import io.trino.spi.connector.SourcePage;
+import io.trino.spi.torin.Column;
+import io.trino.spi.torin.Column.DeviceMemory;
+import io.trino.spi.torin.GpuPage;
+import io.trino.spi.torin.borrow.Move;
+import io.trino.spi.torin.borrow.Own;
+import io.trino.spi.type.CharType;
+import io.trino.spi.type.DecimalType;
+import io.trino.spi.type.Int128;
+import io.trino.spi.type.LongTimestamp;
+import io.trino.spi.type.LongTimestampWithTimeZone;
+import io.trino.spi.type.TimeZoneKey;
+import io.trino.spi.type.TimestampType;
+import io.trino.spi.type.TimestampWithTimeZoneType;
+import io.trino.spi.type.Timestamps;
+import io.trino.spi.type.Type;
+import io.trino.spi.type.VarcharType;
+import io.trino.sql.gen.TestColumnarFilters.NullsProvider;
+import io.trino.sql.ir.Expression;
+import io.trino.sql.ir.Reference;
+import io.trino.sql.planner.InternalDynamicFilter;
+import io.trino.sql.planner.Symbol;
+import io.trino.testing.MaterializedResult;
+
+import java.math.BigInteger;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.OptionalInt;
+import java.util.Random;
+import java.util.Set;
+import java.util.function.BiFunction;
+import java.util.stream.IntStream;
+import java.util.stream.Stream;
+
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkState;
+import static com.google.common.collect.ImmutableList.toImmutableList;
+import static com.google.common.collect.ImmutableSet.toImmutableSet;
+import static com.google.common.collect.Streams.stream;
+import static io.airlift.testing.Closeables.closeAllSuppress;
+import static io.trino.SessionTestUtils.TEST_SESSION;
+import static io.trino.SystemSessionProperties.getCharVarcharCoercion;
+import static io.trino.memory.context.AggregatedMemoryContext.newSimpleAggregatedMemoryContext;
+import static io.trino.operator.torin.expression.Fallibility.FALLIBLE;
+import static io.trino.operator.torin.expression.GpuExpressionCompiler.compileExpression;
+import static io.trino.spi.type.BigintType.BIGINT;
+import static io.trino.spi.type.BooleanType.BOOLEAN;
+import static io.trino.spi.type.CharType.createCharType;
+import static io.trino.spi.type.DateTimeEncoding.packDateTimeWithZone;
+import static io.trino.spi.type.DateType.DATE;
+import static io.trino.spi.type.DecimalType.createDecimalType;
+import static io.trino.spi.type.DoubleType.DOUBLE;
+import static io.trino.spi.type.IntegerType.INTEGER;
+import static io.trino.spi.type.RealType.REAL;
+import static io.trino.spi.type.SmallintType.SMALLINT;
+import static io.trino.spi.type.TimeZoneKey.UTC_KEY;
+import static io.trino.spi.type.TimestampWithTimeZoneType.createTimestampWithTimeZoneType;
+import static io.trino.spi.type.Timestamps.MICROSECONDS_PER_DAY;
+import static io.trino.spi.type.Timestamps.NANOSECONDS_PER_DAY;
+import static io.trino.spi.type.Timestamps.NANOSECONDS_PER_MICROSECOND;
+import static io.trino.spi.type.Timestamps.NANOSECONDS_PER_MILLISECOND;
+import static io.trino.spi.type.Timestamps.PICOSECONDS_PER_NANOSECOND;
+import static io.trino.spi.type.TinyintType.TINYINT;
+import static io.trino.spi.type.TypeUtils.readNativeValue;
+import static io.trino.spi.type.TypeUtils.writeNativeValue;
+import static io.trino.spi.type.VarbinaryType.VARBINARY;
+import static io.trino.spi.type.VarcharType.VARCHAR;
+import static io.trino.spi.type.VarcharType.createVarcharType;
+import static io.trino.testing.assertions.TrinoExceptionAssert.assertTrinoExceptionThrownBy;
+import static java.lang.Math.clamp;
+import static java.lang.Math.floorDiv;
+import static java.lang.Math.floorMod;
+import static java.lang.Math.min;
+import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.assertj.core.api.Assertions.assertThat;
+
+public final class GpuTestUtils
+{
+    private GpuTestUtils() {}
+
+    public static final int MAX_GPU_TIMESTAMP_PRECISION = 9;
+
+    public static final List<Type> TESTED_GPU_TYPES = ImmutableList.<Type>builder()
+            .add(BOOLEAN)
+            .add(TINYINT)
+            .add(SMALLINT)
+            .add(INTEGER)
+            .add(DATE)
+            .add(BIGINT)
+            .add(REAL)
+            .add(DOUBLE)
+            .addAll(IntStream.rangeClosed(0, MAX_GPU_TIMESTAMP_PRECISION)
+                    .mapToObj(TimestampType::createTimestampType)
+                    .collect(toImmutableList()))
+            .add(createDecimalType(9, 2))
+            .add(createDecimalType(18, 6))
+            .add(createDecimalType(27, 4))
+            .add(createDecimalType(38, 10))
+            .add(createCharType(20))
+            .add(VARCHAR)
+            .add(createVarcharType(5))
+            .add(createVarcharType(20))
+            .add(VARBINARY)
+            // Both representations of timestamp with time zone; the full precision sweep is
+            // TESTED_GPU_TIMESTAMP_WITH_TIME_ZONE_TYPES
+            .add(createTimestampWithTimeZoneType(3))
+            .add(createTimestampWithTimeZoneType(6))
+            .build();
+
+    public static final List<Type> TESTED_GPU_TIMESTAMP_WITH_TIME_ZONE_TYPES = IntStream.rangeClosed(0, MAX_GPU_TIMESTAMP_PRECISION)
+            .mapToObj(precision -> (Type) createTimestampWithTimeZoneType(precision))
+            .collect(toImmutableList());
+
+    public static final List<Type> TESTED_GPU_FLOATING_POINT_TYPES = List.of(DOUBLE, REAL);
+
+    public static final List<List<Double>> FLOATING_POINT_EDGE_CASES = List.of(
+            // NaN among real values
+            List.of(Double.NaN, 3.0, -1.0, 5.0),
+            // only NaN
+            List.of(Double.NaN, Double.NaN),
+            // NaN + null
+            Arrays.asList(Double.NaN, null),
+            // NaN + null + real
+            Arrays.asList(Double.NaN, null, 42.0),
+            // +Inf, -Inf, NaN
+            List.of(Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY, Double.NaN),
+            // peer-heavy
+            Arrays.asList(
+                    null,
+                    null,
+                    Double.NEGATIVE_INFINITY,
+                    Double.NEGATIVE_INFINITY,
+                    -1.0,
+                    -1.0,
+                    0.0,
+                    -0.0,
+                    1.0,
+                    1.0,
+                    Double.POSITIVE_INFINITY,
+                    Double.POSITIVE_INFINITY,
+                    Double.NaN,
+                    Double.NaN),
+            // -0.0, 0.0, NaN
+            List.of(-0.0, 0.0, Double.NaN));
+
+    /// Useful test strings, including interesting inputs and patterns for LIKE testing.
+    public static final List<String> TEST_STRINGS = ImmutableList.<String>builder()
+            .add("test1", "other", "test2", "nothing", "testing", "%test%")
+            .add("a", "xyz", "ab", "z", "yz", "abcd", "", "abcdefg", "xabc", "xyxw", "xaxxxbx", "abcdefghij")
+            .add("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+            .add("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaab")
+            .add("aabbaabbaabbaabbaabbaabbaabbaabbaabbaabbaabbaabbaabbaabb")
+            .add("aaaabbbbaaaabbbbaaaabbbb")
+            .add("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+            .add("aaaabbbbaaaabbbbaaaa", "aaaabbbbaaaabbbbcccc")
+            .add("abababababacabababa", "bbbbbbbbxax", "bbbxxxxaz")
+            .add("a".repeat(20) + "b".repeat(20) + "a".repeat(20) + "b".repeat(20) + "the quick brown fox jumps over the lazy dog")
+            .add("ababaa", "papaya", "papapaya", "papapapaya", "papapapapaya", "papapapapapaya")
+            .add("xyza1234567890123456")
+            .add("%", "_", "-", "xxxxx_xxxxx")
+            .add("__", "a%", "a_", "%a", "%z", "_z", "_%", "_a%", "_ab_", "_a%b_", "_%_%_%_%")
+            .add("%a%a%a%a%a%a%", "%a%b%a%b%a%b%", "%aaaa%bbbb%aaaa%bbbb%aaaa%bbbb%")
+            .add("%aaaaaaaaaaaaaaaaaaaaaaaaaa%", "%aab%bba%aab%bba%", "%abaca%")
+            .add("%bcccccccca%", "%bbxxxxxa%", "%aaaaaaxaaaaaa%", "%abaaa%", "%paya%")
+            .add("%a________________", "-%", "-_", "--", "%$_%")
+            .add("Łania szła piękną łąką pod Warszawą")
+            .add("ワルシャワ近郊の美しい草原を雌鹿が歩いていた。")
+            .add("Слава Україні")
+            .build();
+
+    public static final TestingFunctionResolution FUNCTION_RESOLUTION = new TestingFunctionResolution();
+
+    public static final TimeZoneKey TEST_SESSION_TIME_ZONE_KEY = TEST_SESSION.getTimeZoneKey();
+
+    public static void maybeSetGpuMemoryPoolForTests()
+    {
+        // First call to Rmm.initialize wins.
+        new GpuConfigurer(new GpuConfig()
+                .setPoolSize(DataSize.of(4, DataSize.Unit.GIGABYTE))
+                .setAggregationCompactionThreshold(DataSize.of(512, DataSize.Unit.MEGABYTE)))
+                .setup();
+    }
+
+    /**
+     * Builds a single-column {@link GpuPage} backed by an INTEGER {@link DeviceMemory} column
+     * containing the given values.
+     */
+    public static @Own GpuPage deviceIntColumn(int[] values)
+    {
+        try (DeviceMemory column = new DeviceMemory(ColumnVector.fromInts(values))) {
+            return new GpuPage(values.length, new Column[] {column});
+        }
+    }
+
+    public static Iterator<Page> createPages(List<Type> types, NullsProvider nullsProvider, int pageCount, int positionsPerPage, boolean jitterPositions)
+    {
+        checkArgument(pageCount >= 0);
+        checkArgument(positionsPerPage >= 0);
+        return new AbstractIterator<>()
+        {
+            final Random random = new Random(42);
+            int nextPageNumber;
+
+            @Override
+            protected Page computeNext()
+            {
+                if (nextPageNumber == pageCount) {
+                    return endOfData();
+                }
+                int rows = pageCount == 1 || !jitterPositions
+                        ? positionsPerPage
+                        : (int) (positionsPerPage * (1 + random.nextDouble(0.05)));
+                nextPageNumber++;
+                Block[] blocks = types.stream()
+                        .map(type -> createBlock(type, rows, nullsProvider))
+                        .toArray(Block[]::new);
+                return new Page(blocks);
+            }
+        };
+    }
+
+    public static Block createBlock(Type type, int positionsCount, NullsProvider nullsProvider)
+    {
+        return createBlocks(List.of(positionsCount), nullsProvider, type).getFirst();
+    }
+
+    public static Block createBigintBlock(int positionsCount, NullsProvider nullsProvider, long minValue, long maxValue)
+    {
+        return createBigintBlocks(List.of(positionsCount), nullsProvider, minValue, maxValue).getFirst();
+    }
+
+    public static Block createFloatingPointBlock(Type type, List<Double> values)
+    {
+        BlockBuilder builder = type.createBlockBuilder(null, values.size());
+        for (Double value : values) {
+            if (value == null) {
+                builder.appendNull();
+            }
+            else {
+                writeFloatingPoint(builder, type, value);
+            }
+        }
+        return builder.build();
+    }
+
+    public static void writeFloatingPoint(BlockBuilder builder, Type type, double value)
+    {
+        if (type == DOUBLE) {
+            DOUBLE.writeDouble(builder, value);
+        }
+        else {
+            REAL.writeFloat(builder, (float) value);
+        }
+    }
+
+    public static List<Block> createBlocks(List<Integer> positionsCounts, NullsProvider nullsProvider, Type type)
+    {
+        if (type == BOOLEAN) {
+            return createBooleanBlocks(positionsCounts, nullsProvider);
+        }
+        if (type == TINYINT) {
+            return createTinyintBlocks(positionsCounts, nullsProvider);
+        }
+        if (type == SMALLINT) {
+            return createSmallintBlocks(positionsCounts, nullsProvider);
+        }
+        if (type == INTEGER) {
+            return createIntegerBlocks(positionsCounts, nullsProvider);
+        }
+        if (type == DATE) {
+            return createDateBlocks(positionsCounts, nullsProvider);
+        }
+        if (type == BIGINT) {
+            return createBigintBlocks(positionsCounts, nullsProvider);
+        }
+        if (type == REAL) {
+            return createRealBlocks(positionsCounts, nullsProvider);
+        }
+        if (type == DOUBLE) {
+            return createDoubleBlocks(positionsCounts, nullsProvider);
+        }
+        if (type instanceof TimestampType timestampType) {
+            if (timestampType.isShort()) {
+                return createShortTimestampBlocks(positionsCounts, nullsProvider, timestampType);
+            }
+            return createLongTimestampBlocks(positionsCounts, nullsProvider, timestampType);
+        }
+        if (type instanceof DecimalType decimalType) {
+            return decimalType.isShort()
+                    ? createShortDecimalBlocks(positionsCounts, nullsProvider, decimalType)
+                    : createLongDecimalBlocks(positionsCounts, nullsProvider, decimalType);
+        }
+        if (type instanceof CharType charType) {
+            return createStringBlocks(positionsCounts, nullsProvider, Optional.of(charType.getLength()), true);
+        }
+        if (type instanceof VarcharType varcharType) {
+            return createStringBlocks(positionsCounts, nullsProvider, varcharType.getLength(), false);
+        }
+        if (type == VARBINARY) {
+            return createVarbinaryBlocks(positionsCounts, nullsProvider);
+        }
+        if (type instanceof TimestampWithTimeZoneType timestampWithTimeZoneType) {
+            return createTimestampWithTimeZoneBlocks(positionsCounts, nullsProvider, timestampWithTimeZoneType);
+        }
+        throw new UnsupportedOperationException("Unsupported type: " + type);
+    }
+
+    private static List<Block> createBooleanBlocks(List<Integer> positionsCounts, NullsProvider nullsProvider)
+    {
+        Random random = new Random(42);
+        return positionsCounts.stream()
+                .map(positionsCount -> {
+                    Optional<long[]> isValid = nullsProvider.getValidityWords(positionsCount);
+                    BlockBuilder builder = BOOLEAN.createBlockBuilder(null, positionsCount);
+                    for (int i = 0; i < positionsCount; i++) {
+                        if (isValid.isPresent() && !Bitmap.isSet(isValid.get(), 0, i)) {
+                            builder.appendNull();
+                        }
+                        else {
+                            BOOLEAN.writeBoolean(builder, random.nextBoolean());
+                        }
+                    }
+                    return builder.build();
+                })
+                .collect(toImmutableList());
+    }
+
+    private static List<Block> createTinyintBlocks(List<Integer> positionsCounts, NullsProvider nullsProvider)
+    {
+        Random random = new Random(42);
+        return positionsCounts.stream()
+                .map(positionsCount -> {
+                    Optional<long[]> isValid = nullsProvider.getValidityWords(positionsCount);
+                    BlockBuilder builder = TINYINT.createBlockBuilder(null, positionsCount);
+                    for (int i = 0; i < positionsCount; i++) {
+                        if (isValid.isPresent() && !Bitmap.isSet(isValid.get(), 0, i)) {
+                            builder.appendNull();
+                        }
+                        else {
+                            TINYINT.writeLong(builder, random.nextInt(256) - 128); // -128 to 127
+                        }
+                    }
+                    return builder.build();
+                })
+                .collect(toImmutableList());
+    }
+
+    private static List<Block> createSmallintBlocks(List<Integer> positionsCounts, NullsProvider nullsProvider)
+    {
+        Random random = new Random(42);
+        return positionsCounts.stream()
+                .map(positionsCount -> {
+                    Optional<long[]> isValid = nullsProvider.getValidityWords(positionsCount);
+                    BlockBuilder builder = SMALLINT.createBlockBuilder(null, positionsCount);
+                    for (int i = 0; i < positionsCount; i++) {
+                        if (isValid.isPresent() && !Bitmap.isSet(isValid.get(), 0, i)) {
+                            builder.appendNull();
+                        }
+                        else {
+                            SMALLINT.writeLong(builder, random.nextInt(65536) - 32768); // -32768 to 32767
+                        }
+                    }
+                    return builder.build();
+                })
+                .collect(toImmutableList());
+    }
+
+    private static List<Block> createIntegerBlocks(List<Integer> positionsCounts, NullsProvider nullsProvider)
+    {
+        Random random = new Random(42);
+        return positionsCounts.stream()
+                .map(positionsCount -> {
+                    Optional<long[]> isValid = nullsProvider.getValidityWords(positionsCount);
+                    BlockBuilder builder = INTEGER.createBlockBuilder(null, positionsCount);
+                    for (int i = 0; i < positionsCount; i++) {
+                        if (isValid.isPresent() && !Bitmap.isSet(isValid.get(), 0, i)) {
+                            builder.appendNull();
+                        }
+                        else {
+                            INTEGER.writeLong(builder, random.nextInt());
+                        }
+                    }
+                    return builder.build();
+                })
+                .collect(toImmutableList());
+    }
+
+    private static List<Block> createDateBlocks(List<Integer> positionsCounts, NullsProvider nullsProvider)
+    {
+        Random random = new Random(42);
+        return positionsCounts.stream()
+                .map(positionsCount -> {
+                    Optional<long[]> isValid = nullsProvider.getValidityWords(positionsCount);
+                    BlockBuilder builder = DATE.createBlockBuilder(null, positionsCount);
+                    for (int i = 0; i < positionsCount; i++) {
+                        if (isValid.isPresent() && !Bitmap.isSet(isValid.get(), 0, i)) {
+                            builder.appendNull();
+                        }
+                        else {
+                            DATE.writeLong(builder, random.nextInt());
+                        }
+                    }
+                    return builder.build();
+                })
+                .collect(toImmutableList());
+    }
+
+    private static List<Block> createBigintBlocks(List<Integer> positionsCounts, NullsProvider nullsProvider)
+    {
+        return createBigintBlocks(positionsCounts, nullsProvider, Long.MIN_VALUE, Long.MAX_VALUE);
+    }
+
+    private static List<Block> createBigintBlocks(List<Integer> positionsCounts, NullsProvider nullsProvider, long minValue, long maxValue)
+    {
+        Random random = new Random(42);
+        return positionsCounts.stream()
+                .map(positionsCount -> {
+                    Optional<long[]> isValid = nullsProvider.getValidityWords(positionsCount);
+                    BlockBuilder builder = BIGINT.createBlockBuilder(null, positionsCount);
+                    for (int i = 0; i < positionsCount; i++) {
+                        if (isValid.isPresent() && !Bitmap.isSet(isValid.get(), 0, i)) {
+                            builder.appendNull();
+                        }
+                        else {
+                            BIGINT.writeLong(builder, random.nextLong(minValue, maxValue));
+                        }
+                    }
+                    return builder.build();
+                })
+                .collect(toImmutableList());
+    }
+
+    private static List<Block> createRealBlocks(List<Integer> positionsCounts, NullsProvider nullsProvider)
+    {
+        Random random = new Random(42);
+        return positionsCounts.stream()
+                .map(positionsCount -> {
+                    Optional<long[]> isValid = nullsProvider.getValidityWords(positionsCount);
+                    BlockBuilder builder = REAL.createBlockBuilder(null, positionsCount);
+                    for (int i = 0; i < positionsCount; i++) {
+                        if (isValid.isPresent() && !Bitmap.isSet(isValid.get(), 0, i)) {
+                            builder.appendNull();
+                        }
+                        else if (random.nextInt(100) == 0) {
+                            REAL.writeFloat(builder, Float.NaN);
+                        }
+                        else {
+                            REAL.writeFloat(builder, random.nextFloat() * 1000 - 500); // -500 to 500
+                        }
+                    }
+                    return builder.build();
+                })
+                .collect(toImmutableList());
+    }
+
+    private static List<Block> createDoubleBlocks(List<Integer> positionsCounts, NullsProvider nullsProvider)
+    {
+        Random random = new Random(42);
+        return positionsCounts.stream()
+                .map(positionsCount -> {
+                    Optional<long[]> isValid = nullsProvider.getValidityWords(positionsCount);
+                    BlockBuilder builder = DOUBLE.createBlockBuilder(null, positionsCount);
+                    for (int i = 0; i < positionsCount; i++) {
+                        if (isValid.isPresent() && !Bitmap.isSet(isValid.get(), 0, i)) {
+                            builder.appendNull();
+                        }
+                        else if (random.nextInt(100) == 0) {
+                            DOUBLE.writeDouble(builder, Double.NaN);
+                        }
+                        else {
+                            DOUBLE.writeDouble(builder, random.nextDouble() * 1000 - 500); // -500 to 500
+                        }
+                    }
+                    return builder.build();
+                })
+                .collect(toImmutableList());
+    }
+
+    private static List<Block> createShortTimestampBlocks(List<Integer> positionsCounts, NullsProvider nullsProvider, TimestampType type)
+    {
+        Random random = new Random(42);
+        // Stored value is epochMicros; for precision p < 6, digits beyond p must be 0
+        long scale = 1L;
+        for (int i = type.getPrecision(); i < TimestampType.MAX_SHORT_PRECISION; i++) {
+            scale *= 10;
+        }
+        long finalScale = scale;
+        return positionsCounts.stream()
+                .map(positionsCount -> {
+                    Optional<long[]> isValid = nullsProvider.getValidityWords(positionsCount);
+                    BlockBuilder builder = type.createBlockBuilder(null, positionsCount);
+                    for (int i = 0; i < positionsCount; i++) {
+                        if (isValid.isPresent() && !Bitmap.isSet(isValid.get(), 0, i)) {
+                            builder.appendNull();
+                        }
+                        else {
+                            type.writeLong(builder, (random.nextLong() / finalScale) * finalScale);
+                        }
+                    }
+                    return builder.build();
+                })
+                .collect(toImmutableList());
+    }
+
+    private static List<Block> createLongTimestampBlocks(List<Integer> positionsCounts, NullsProvider nullsProvider, TimestampType type)
+    {
+        Random random = new Random(42);
+        // picosOfMicro is in [0, 10^6); for precision p, digits beyond p must be 0,
+        // i.e. picosOfMicro must be a multiple of 10^(MAX_PRECISION - p).
+        int picosScale = 1;
+        for (int i = type.getPrecision(); i < TimestampType.MAX_PRECISION; i++) {
+            picosScale *= 10;
+        }
+        int finalPicosScale = picosScale;
+        return positionsCounts.stream()
+                .map(positionsCount -> {
+                    Optional<long[]> isValid = nullsProvider.getValidityWords(positionsCount);
+                    BlockBuilder builder = type.createBlockBuilder(null, positionsCount);
+                    for (int i = 0; i < positionsCount; i++) {
+                        if (isValid.isPresent() && !Bitmap.isSet(isValid.get(), 0, i)) {
+                            builder.appendNull();
+                        }
+                        else {
+                            long epochMicros = random.nextLong();
+                            // Limit to values that can be represented in 64-bit with nanosecond precision, also after e.g. date_trunc(day)
+                            epochMicros = clamp(
+                                    epochMicros,
+                                    Long.MIN_VALUE / NANOSECONDS_PER_MICROSECOND + MICROSECONDS_PER_DAY,
+                                    Long.MAX_VALUE / NANOSECONDS_PER_MICROSECOND - 1);
+                            int picosOfMicro = (random.nextInt(1_000_000) / finalPicosScale) * finalPicosScale;
+                            type.writeObject(builder, new LongTimestamp(epochMicros, picosOfMicro));
+                        }
+                    }
+                    return builder.build();
+                })
+                .collect(toImmutableList());
+    }
+
+    /// Every value is in UTC, the one zone the GPU representation holds.
+    private static List<Block> createTimestampWithTimeZoneBlocks(List<Integer> positionsCounts, NullsProvider nullsProvider, TimestampWithTimeZoneType type)
+    {
+        Random random = new Random(42);
+        // Digits beyond the declared precision must be zero, in the milliseconds up to precision 3
+        // and in the picoseconds of the millisecond from precision 4
+        long millisScale = 1;
+        for (int precision = type.getPrecision(); precision < TimestampWithTimeZoneType.MAX_SHORT_PRECISION; precision++) {
+            millisScale *= 10;
+        }
+        int picosScale = 1;
+        for (int precision = type.getPrecision(); precision < TimestampWithTimeZoneType.MAX_PRECISION; precision++) {
+            picosScale *= 10;
+        }
+        long finalMillisScale = millisScale;
+        int finalPicosScale = picosScale;
+        return positionsCounts.stream()
+                .map(positionsCount -> {
+                    Optional<long[]> isValid = nullsProvider.getValidityWords(positionsCount);
+                    BlockBuilder builder = type.createBlockBuilder(null, positionsCount);
+                    for (int i = 0; i < positionsCount; i++) {
+                        if (isValid.isPresent() && !Bitmap.isSet(isValid.get(), 0, i)) {
+                            builder.appendNull();
+                            continue;
+                        }
+                        long epochMillis = randomEpochMillis(random, type.getPrecision());
+                        if (type.isShort()) {
+                            type.writeLong(builder, packDateTimeWithZone((epochMillis / finalMillisScale) * finalMillisScale, UTC_KEY));
+                        }
+                        else {
+                            int picosOfMilli = (random.nextInt(1_000_000_000) / finalPicosScale) * finalPicosScale;
+                            type.writeObject(builder, LongTimestampWithTimeZone.fromEpochMillisAndFraction(epochMillis, picosOfMilli, UTC_KEY));
+                        }
+                    }
+                    return builder.build();
+                })
+                .collect(toImmutableList());
+    }
+
+    /// An instant every precision can carry on the GPU. The nanosecond column that carries
+    /// `timestamp(7) with time zone` and finer reaches only about 292 years around the epoch, which is
+    /// narrower than the packed millisecond the Trino value itself holds.
+    private static long randomEpochMillis(Random random, int precision)
+    {
+        long bound = precision <= 6
+                ? 1L << 50
+                : Long.MAX_VALUE / NANOSECONDS_PER_MILLISECOND;
+        return random.nextLong(-bound, bound);
+    }
+
+    private static List<Block> createLongDecimalBlocks(List<Integer> positionsCounts, NullsProvider nullsProvider, DecimalType type)
+    {
+        Random random = new Random(42);
+        // Bound to 10^precision-1 so the unscaled value always fits the declared precision.
+        BigInteger bound = BigInteger.TEN.pow(type.getPrecision());
+        return positionsCounts.stream()
+                .map(positionsCount -> {
+                    Optional<long[]> isValid = nullsProvider.getValidityWords(positionsCount);
+                    BlockBuilder builder = type.createBlockBuilder(null, positionsCount);
+                    for (int i = 0; i < positionsCount; i++) {
+                        if (isValid.isPresent() && !Bitmap.isSet(isValid.get(), 0, i)) {
+                            builder.appendNull();
+                        }
+                        else {
+                            BigInteger unscaledValue;
+                            do {
+                                unscaledValue = new BigInteger(bound.bitLength(), random);
+                            }
+                            while (unscaledValue.compareTo(bound) >= 0);
+                            if (random.nextBoolean()) {
+                                unscaledValue = unscaledValue.negate();
+                            }
+                            type.writeObject(builder, Int128.valueOf(unscaledValue));
+                        }
+                    }
+                    return builder.build();
+                })
+                .collect(toImmutableList());
+    }
+
+    private static List<Block> createShortDecimalBlocks(List<Integer> positionsCounts, NullsProvider nullsProvider, DecimalType type)
+    {
+        Random random = new Random(42);
+        long bound = 1L;
+        for (int i = 0; i < type.getPrecision(); i++) {
+            bound *= 10;
+        }
+        long finalBound = bound;
+        return positionsCounts.stream()
+                .map(positionsCount -> {
+                    Optional<long[]> isValid = nullsProvider.getValidityWords(positionsCount);
+                    BlockBuilder builder = type.createBlockBuilder(null, positionsCount);
+                    for (int i = 0; i < positionsCount; i++) {
+                        if (isValid.isPresent() && !Bitmap.isSet(isValid.get(), 0, i)) {
+                            builder.appendNull();
+                        }
+                        else {
+                            type.writeLong(builder, random.nextLong(-(finalBound - 1), finalBound));
+                        }
+                    }
+                    return builder.build();
+                })
+                .collect(toImmutableList());
+    }
+
+    private static List<Block> createStringBlocks(List<Integer> positionsCounts, NullsProvider nullsProvider, Optional<Integer> lengthLimit, boolean trimTrailingSpaces)
+    {
+        Iterator<String> strings = generateInputStrings(50).iterator();
+        return positionsCounts.stream()
+                .map(positionsCount -> {
+                    Optional<long[]> isValid = nullsProvider.getValidityWords(positionsCount);
+                    VariableWidthBlockBuilder builder = new VariableWidthBlockBuilder(null, positionsCount, positionsCount * 10);
+                    for (int i = 0; i < positionsCount; i++) {
+                        if (isValid.isPresent() && !Bitmap.isSet(isValid.get(), 0, i)) {
+                            builder.appendNull();
+                        }
+                        else {
+                            String next = strings.next();
+                            if (lengthLimit.isPresent()) {
+                                next = next.substring(0, min(next.length(), lengthLimit.get()));
+                            }
+                            if (trimTrailingSpaces) {
+                                next = next.stripTrailing();
+                            }
+                            builder.writeEntry(Slices.utf8Slice(next));
+                        }
+                    }
+                    return builder.build();
+                })
+                .collect(toImmutableList());
+    }
+
+    private static List<Block> createVarbinaryBlocks(List<Integer> positionsCounts, NullsProvider nullsProvider)
+    {
+        Iterator<byte[]> bytes = generateInputBytes().iterator();
+        return positionsCounts.stream()
+                .map(positionsCount -> {
+                    Optional<long[]> isValid = nullsProvider.getValidityWords(positionsCount);
+                    VariableWidthBlockBuilder builder = new VariableWidthBlockBuilder(null, positionsCount, positionsCount * 10);
+                    for (int i = 0; i < positionsCount; i++) {
+                        if (isValid.isPresent() && !Bitmap.isSet(isValid.get(), 0, i)) {
+                            builder.appendNull();
+                        }
+                        else {
+                            builder.writeEntry(Slices.wrappedBuffer(bytes.next()));
+                        }
+                    }
+                    return builder.build();
+                })
+                .collect(toImmutableList());
+    }
+
+    /**
+     * Cycle through a fixture of byte arrays mixed with random payloads. Includes byte
+     * sequences that are not valid UTF-8 to verify the GPU path is byte-transparent.
+     */
+    private static Stream<byte[]> generateInputBytes()
+    {
+        List<byte[]> fixtures = ImmutableList.<byte[]>builder()
+                .add(new byte[0])
+                .add(new byte[] {0x00})
+                .add(new byte[] {0x00, 0x01, 0x02, 0x03})
+                .add(new byte[] {(byte) 0xFF, (byte) 0xFE, (byte) 0xFD, (byte) 0xFC})
+                .add(new byte[] {(byte) 0xC0, (byte) 0x80}) // overlong NUL — not valid UTF-8
+                .add(new byte[] {(byte) 0xED, (byte) 0xA0, (byte) 0x80}) // unpaired surrogate — not valid UTF-8
+                .add("test".getBytes(UTF_8))
+                .add("the quick brown fox".getBytes(UTF_8))
+                .add(new byte[] {(byte) 0xDE, (byte) 0xAD, (byte) 0xBE, (byte) 0xEF})
+                .add(new byte[256])
+                .build();
+        Random random = new Random(42);
+        Stream<byte[]> randomBytes = Stream.generate(() -> {
+            byte[] b = new byte[random.nextInt(64)];
+            random.nextBytes(b);
+            return b;
+        });
+        return Streams.zip(
+                        Stream.generate(() -> fixtures).flatMap(List::stream),
+                        randomBytes,
+                        List::of)
+                .flatMap(List::stream);
+    }
+
+    /**
+     * Generate infinite stream of test strings by cycling through {@link #TEST_STRINGS}
+     * and mixing with random strings of up to {@code maxRandomLength} chars for variety.
+     */
+    public static Stream<String> generateInputStrings(int maxRandomLength)
+    {
+        Random random = new Random(42); // Fixed seed for reproducibility
+        Stream<String> randomStrings = Stream.generate(() -> {
+            int length = random.nextInt(maxRandomLength + 1);
+            char[] chars = new char[length];
+            for (int i = 0; i < length; i++) {
+                // Generate random valid Unicode characters (avoid surrogates)
+                chars[i] = (char) random.nextInt(0, Character.MIN_SURROGATE - 1);
+            }
+            return new String(chars);
+        });
+
+        // Interleave test strings with random strings
+        return Streams.zip(
+                        Stream.generate(() -> TEST_STRINGS).flatMap(List::stream),
+                        randomStrings,
+                        List::of)
+                .flatMap(List::stream);
+    }
+
+    public static List<Page> executeWithCpu(
+            Session session,
+            List<Page> inputPages,
+            List<Expression> expressions,
+            Map<Symbol, Integer> layout)
+    {
+        PageProcessor pageProcessor = compileCpuExpressions(expressions, layout);
+        return executeWithCpu(session, pageProcessor, inputPages);
+    }
+
+    public static PageProcessor compileCpuExpression(Expression expression, Map<Symbol, Integer> layout)
+    {
+        return compileCpuExpression(TEST_SESSION, expression, layout);
+    }
+
+    public static PageProcessor compileCpuExpression(Session session, Expression expression, Map<Symbol, Integer> layout)
+    {
+        return compileCpuExpressions(session, List.of(expression), layout);
+    }
+
+    public static PageProcessor compileCpuExpressions(List<Expression> expressions, Map<Symbol, Integer> layout)
+    {
+        return compileCpuExpressions(TEST_SESSION, expressions, layout);
+    }
+
+    public static PageProcessor compileCpuExpressions(Session session, List<Expression> expressions, Map<Symbol, Integer> layout)
+    {
+        return FUNCTION_RESOLUTION.getExpressionCompiler().compilePageProcessor(
+                        getCharVarcharCoercion(session),
+                        false,
+                        true,
+                        false,
+                        false,
+                        Optional.empty(),
+                        Optional.empty(),
+                        expressions,
+                        layout,
+                        Optional.empty(),
+                        OptionalInt.empty())
+                .apply(InternalDynamicFilter.EMPTY);
+    }
+
+    public static List<Page> executeWithCpu(Session session, PageProcessor compiledProcessor, List<Page> inputPages)
+    {
+        ConnectorSession connectorSession = session.toConnectorSession();
+        LocalMemoryContext context = newSimpleAggregatedMemoryContext().newLocalMemoryContext(PageProcessor.class.getSimpleName());
+        ImmutableList.Builder<Page> outputPages = ImmutableList.builder();
+        for (Page inputPage : inputPages) {
+            Iterator<Optional<Page>> processed = compiledProcessor.process(connectorSession, context, SourcePage.create(inputPage));
+            stream(processed)
+                    .flatMap(Optional::stream)
+                    .forEachOrdered(outputPages::add);
+        }
+        return outputPages.build();
+    }
+
+    public static @Move List<GpuPage> copyToDevice(List<Page> pages, List<Type> types)
+    {
+        Set<Integer> deviceChannels = IntStream.range(0, types.size()).boxed().collect(toImmutableSet());
+        Iterator<Page> input = pages.iterator();
+        @Own List<GpuPage> result = new ArrayList<>();
+        GpuOperation.Context context = new TestingGpuOperationContext();
+        try (BufferPages bufferPages = new BufferPages(context.taskMemoryContext());
+                CopyToDevice copyToDevice = new CopyToDevice(context, bufferPages, types, deviceChannels)) {
+            while (true) {
+                switch (copyToDevice.execute()) {
+                    case Yielded() -> {
+                        if (input.hasNext()) {
+                            bufferPages.addInput(input.next());
+                        }
+                        else {
+                            bufferPages.noMoreInput();
+                        }
+                    }
+
+                    case Blocked _ -> throw new UnsupportedOperationException("Unsupported blocked future, what shall I do?");
+                    case Data(var allocation, var page) -> {
+                        allocation.close(); // The test does not track memory usage
+                        result.add(page);
+                    }
+                    case Finished() -> {
+                        return result;
+                    }
+                }
+            }
+        }
+        catch (Throwable e) {
+            closeAllSuppress(e, result.toArray(GpuPage[]::new));
+            throw e;
+        }
+    }
+
+    public static List<Page> executeGpuOperation(
+            List<Page> inputPages,
+            List<Type> inputTypes,
+            List<Type> outputTypes,
+            BiFunction<GpuOperation.Context, CopyToDevice, GpuOperation> operationFactory)
+    {
+        Set<Integer> deviceChannels = IntStream.range(0, inputTypes.size())
+                .boxed()
+                .collect(toImmutableSet());
+        return executeGpuOperation(inputPages, inputTypes, outputTypes, operationFactory, deviceChannels);
+    }
+
+    public static List<Page> executeGpuOperation(
+            List<Page> inputPages,
+            List<Type> inputTypes,
+            List<Type> outputTypes,
+            BiFunction<GpuOperation.Context, CopyToDevice, GpuOperation> operationFactory,
+            Set<Integer> deviceChannels)
+    {
+        Iterator<Page> input = inputPages.iterator();
+        GpuOperation.Context context = new TestingGpuOperationContext();
+        try (BufferPages bufferPages = new BufferPages(context.taskMemoryContext());
+                CopyToDevice copyToDevice = new CopyToDevice(context, bufferPages, inputTypes, deviceChannels);
+                GpuOperation operation = operationFactory.apply(context, copyToDevice);
+                CopyToBlocks copyToBlocks = new CopyToBlocks(context, operation, outputTypes)) {
+            return drainToPages(
+                    () -> {
+                        if (!input.hasNext()) {
+                            bufferPages.noMoreInput();
+                        }
+                        else if (bufferPages.needsInput()) {
+                            bufferPages.addInput(input.next());
+                        }
+                    },
+                    copyToBlocks);
+        }
+    }
+
+    public static List<Page> drainToPages(Runnable feedInput, GpuOperation outout)
+    {
+        GpuPageToPages gpuPageToPages = new GpuPageToPages();
+
+        ImmutableList.Builder<Page> outputPages = ImmutableList.builder();
+        while (true) {
+            feedInput.run();
+
+            gpuPageToPages.drain().forEachOrdered(outputPages::add);
+
+            @Own GpuOperation.Result result = outout.execute();
+            switch (result) {
+                case Blocked _ -> throw new UnsupportedOperationException("Unsupported blocked future, what shall I do?");
+                case Data(AllocatedMemory memory, GpuPage page) -> {
+                    try (memory; page) {
+                        gpuPageToPages.add(page);
+                    }
+                }
+                case Yielded() -> {
+                    // continue
+                }
+                case Finished() -> {
+                    checkState(gpuPageToPages.poll().isEmpty(), "gpuPageToPages should be drained at this point");
+                    return outputPages.build();
+                }
+            }
+        }
+    }
+
+    public static void assertSameDataWithoutOrder(List<Page> actual, List<Page> expected, List<Type> types)
+    {
+        ConnectorSession session = TEST_SESSION.toConnectorSession(); // arbitrary
+        MaterializedResult actualResult = MaterializedResult.resultBuilder(session, types)
+                .pages(actual)
+                .build();
+        MaterializedResult expectedResult = MaterializedResult.resultBuilder(session, types)
+                .pages(expected)
+                .build();
+        assertThat(ImmutableMultiset.copyOf(actualResult.getMaterializedRows()))
+                .isEqualTo(ImmutableMultiset.copyOf(expectedResult.getMaterializedRows()));
+    }
+
+    public static void assertSameDataInOrder(List<Page> actual, List<Page> expected, List<Type> types)
+    {
+        assertThat(actual.stream().mapToInt(Page::getPositionCount).sum()).as("actual position count (sum over all returned pages)")
+                .isEqualTo(expected.stream().mapToInt(Page::getPositionCount).sum());
+        Stream.concat(actual.stream(), expected.stream())
+                .forEach(page -> assertThat(page.getChannelCount()).as("channel count").isEqualTo(types.size()));
+
+        Streams.forEachPair(
+                positions(actual),
+                positions(expected),
+                (actualPos, expectedPos) -> {
+                    for (int channel = 0; channel < types.size(); channel++) {
+                        Type type = types.get(channel);
+                        // Unlike the identical operator, the object values tell apart the time zones of one instant
+                        Object actualValue = type.getObjectValue(actualPos.page.getBlock(channel), actualPos.position);
+                        Object expectedValue = type.getObjectValue(expectedPos.page.getBlock(channel), expectedPos.position);
+                        if (!Objects.equals(actualValue, expectedValue)) {
+                            throw new AssertionError("row %d channel %d (type %s): actual=«%s» expected=«%s»".formatted(
+                                    actualPos.position,
+                                    channel,
+                                    type,
+                                    actualValue,
+                                    expectedValue));
+                        }
+                    }
+                });
+    }
+
+    public static Stream<PagePosition> positions(List<Page> pages)
+    {
+        return pages.stream().flatMap(GpuTestUtils::positions);
+    }
+
+    private static Stream<PagePosition> positions(Page page)
+    {
+        return IntStream.range(0, page.getPositionCount())
+                .mapToObj(i -> new PagePosition(page, i));
+    }
+
+    public static void assertGpuMatchesCpu(List<Page> inputPages, List<Type> inputTypes, Expression expression)
+    {
+        Set<Integer> expectedInputChannels = IntStream.range(0, inputTypes.size()).boxed().collect(toImmutableSet());
+        assertGpuMatchesCpu(TEST_SESSION, inputPages, inputTypes, expression, expectedInputChannels, false);
+    }
+
+    public static void assertGpuMatchesCpu(Session session, List<Page> inputPages, List<Type> inputTypes, Expression expression)
+    {
+        Set<Integer> expectedInputChannels = IntStream.range(0, inputTypes.size()).boxed().collect(toImmutableSet());
+        assertGpuMatchesCpu(session, inputPages, inputTypes, expression, expectedInputChannels);
+    }
+
+    public static void assertGpuMatchesCpu(Session session, List<Page> inputPages, List<Type> inputTypes, Expression expression, Set<Integer> expectedInputChannels)
+    {
+        assertGpuMatchesCpu(session, inputPages, inputTypes, expression, expectedInputChannels, false);
+    }
+
+    private static void assertGpuMatchesCpu(
+            Session session,
+            List<Page> inputPages,
+            List<Type> inputTypes,
+            Expression expression,
+            Set<Integer> expectedInputChannels,
+            boolean allowMultipleInputsForExceptionTesting)
+    {
+        Map<Symbol, Integer> layout = layoutFor(inputTypes);
+        PageProcessor pageProcessor = compileCpuExpression(session, expression, layout);
+        CompiledExpression gpuExpression = compileExpression(expression, layout, getCharVarcharCoercion(session), session.getTimeZoneKey())
+                .orElseThrow(() -> new AssertionError("GPU expression compile failed for: " + expression));
+
+        assertThat(gpuExpression.inputChannels().getInputChannels())
+                .containsExactlyInAnyOrderElementsOf(expectedInputChannels);
+
+        assertGpuMatchesCpu(session, inputPages, inputTypes, expression, pageProcessor, gpuExpression, allowMultipleInputsForExceptionTesting);
+    }
+
+    public static void assertGpuMatchesCpu(List<Page> inputPages, List<Type> inputTypes, Expression expression, PageProcessor cpuProcessor, CompiledExpression gpuExpression)
+    {
+        assertGpuMatchesCpu(TEST_SESSION, inputPages, inputTypes, expression, cpuProcessor, gpuExpression, false);
+    }
+
+    private static void assertGpuMatchesCpu(
+            Session session,
+            List<Page> inputPages,
+            List<Type> inputTypes,
+            Expression expression,
+            PageProcessor cpuProcessor,
+            CompiledExpression gpuExpression,
+            boolean allowMultipleInputsForExceptionTesting)
+    {
+        assertDeclaredBehaviorOnAllNulls(inputPages, inputTypes, expression, gpuExpression);
+
+        List<Page> cpuResults;
+        try {
+            cpuResults = executeWithCpu(session, cpuProcessor, inputPages);
+        }
+        catch (TrinoException cpuExecutionException) {
+            // The boolean flag is a safety mechanism not to nullify test coverage over large input data set when one of the rows triggers execution exception
+            if (!allowMultipleInputsForExceptionTesting) {
+                assertThat(inputPages.stream().mapToLong(Page::getPositionCount).sum())
+                        .describedAs("When testing exception flows, it is recommended to test with single row inputs. Use the flag to suppress.")
+                        .isEqualTo(1);
+            }
+            try {
+                assertTrinoExceptionThrownBy(() -> executeWithGpu(inputPages, inputTypes, expression, gpuExpression))
+                        .hasErrorCode(cpuExecutionException::getErrorCode);
+            }
+            catch (AssertionError failure) {
+                failure.addSuppressed(new Exception("expression: " + expression));
+                failure.addSuppressed(new Exception("inputTypes: " + inputTypes));
+                failure.addSuppressed(new Exception("CPU execution exception", cpuExecutionException));
+                throw failure;
+            }
+            return;
+        }
+        List<Page> gpuResults = executeWithGpu(inputPages, inputTypes, expression, gpuExpression);
+        assertSameDataInOrder(gpuResults, cpuResults, List.of(expression.type()));
+    }
+
+    /// On every input page where each column `gpuExpression` reads is NULL on every row, checks what
+    /// the expression declares through [GpuExpression#fallibility] and [GpuExpression#nullOnNullInputs]
+    /// against its evaluation. Both are properties of the GPU expression alone, so the CPU result
+    /// plays no part here.
+    public static void assertDeclaredBehaviorOnAllNulls(List<Page> inputPages, List<Type> inputTypes, Expression expression, CompiledExpression gpuExpression)
+    {
+        List<Integer> inputChannels = gpuExpression.inputChannels().getInputChannels();
+        if (inputChannels.isEmpty()) {
+            // Without input columns there is no all-NULL row
+            return;
+        }
+        Fallibility fallibility = gpuExpression.expression().fallibility();
+        boolean nullOnNullInputs = gpuExpression.expression().nullOnNullInputs();
+        for (Page page : inputPages) {
+            if (page.getPositionCount() == 0 || !allNull(page, inputChannels)) {
+                continue;
+            }
+            List<Page> gpuResults;
+            try {
+                gpuResults = executeWithGpu(List.of(page), inputTypes, expression, gpuExpression);
+            }
+            catch (TrinoException e) {
+                if (fallibility == FALLIBLE) {
+                    continue;
+                }
+                throw new AssertionError("%s is declared %s but failed on a page with every input column NULL".formatted(expression, fallibility), e);
+            }
+            if (nullOnNullInputs) {
+                long nullCount = positions(gpuResults)
+                        .filter(pagePosition -> pagePosition.page().getBlock(0).isNull(pagePosition.position()))
+                        .count();
+                assertThat(nullCount)
+                        .describedAs("%s is declared NULL on NULL inputs, but the output on a page with every input column NULL has non-NULL rows", expression)
+                        .isEqualTo(page.getPositionCount());
+            }
+        }
+    }
+
+    private static boolean allNull(Page page, List<Integer> channels)
+    {
+        for (int channel : channels) {
+            Block block = page.getBlock(channel);
+            for (int position = 0; position < block.getPositionCount(); position++) {
+                if (!block.isNull(position)) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    public static List<Page> executeWithGpu(List<Page> inputPages, List<Type> inputTypes, Expression expression, CompiledExpression gpuExpression)
+    {
+        return executeGpuOperation(
+                inputPages,
+                inputTypes,
+                List.of(expression.type()),
+                (context, copyToDevice) -> new GpuProject(context, copyToDevice, List.of(new GpuProject.Projection.Gpu(gpuExpression))));
+    }
+
+    public static Reference field(int channel, Type type)
+    {
+        return new Reference(type, "ref" + channel);
+    }
+
+    /// The values of the single column of each page, in order, read as `type`'s native representation.
+    public static <T> Iterator<T> getOnlyColumn(List<Page> pages, Type type)
+    {
+        return pages.stream()
+                .flatMap(page -> {
+                    assertThat(page.getChannelCount()).isEqualTo(1);
+                    return IntStream.range(0, page.getPositionCount())
+                            .mapToObj(position -> (T) readNativeValue(type, page.getBlock(0), position));
+                })
+                .iterator();
+    }
+
+    public static Map<Symbol, Integer> layoutFor(List<Type> inputTypes)
+    {
+        ImmutableMap.Builder<Symbol, Integer> builder = ImmutableMap.builder();
+        for (int i = 0; i < inputTypes.size(); i++) {
+            builder.put(new Symbol(inputTypes.get(i), "ref" + i), i);
+        }
+        return builder.buildOrThrow();
+    }
+
+    public static Block decimalBlock(DecimalType type, List<BigInteger> unscaledValues)
+    {
+        return decimalBlock(type, unscaledValues, NullsProvider.NO_NULLS);
+    }
+
+    public static Block decimalBlock(DecimalType type, List<BigInteger> unscaledValues, NullsProvider nullsProvider)
+    {
+        Optional<long[]> isValid = nullsProvider.getValidityWords(unscaledValues.size());
+        BlockBuilder builder = type.createBlockBuilder(null, unscaledValues.size());
+        for (int position = 0; position < unscaledValues.size(); position++) {
+            if (isValid.isPresent() && !Bitmap.isSet(isValid.get(), 0, position)) {
+                builder.appendNull();
+            }
+            else if (type.isShort()) {
+                type.writeLong(builder, unscaledValues.get(position).longValueExact());
+            }
+            else {
+                type.writeObject(builder, Int128.valueOf(unscaledValues.get(position)));
+            }
+        }
+        return builder.build();
+    }
+
+    public static Block longDecimalBlock(DecimalType type, Long... unscaledValues)
+    {
+        BlockBuilder builder = type.createBlockBuilder(null, unscaledValues.length);
+        for (Long unscaled : unscaledValues) {
+            if (unscaled == null) {
+                builder.appendNull();
+            }
+            else {
+                type.writeObject(builder, Int128.valueOf(unscaled));
+            }
+        }
+        return builder.build();
+    }
+
+    public static Block longDecimalBlock(DecimalType type, BigInteger unscaledValue)
+    {
+        BlockBuilder builder = type.createBlockBuilder(null, 1);
+        type.writeObject(builder, Int128.valueOf(unscaledValue));
+        return builder.build();
+    }
+
+    public static Block bigintBlock(Long... values)
+    {
+        BlockBuilder builder = BIGINT.createBlockBuilder(null, values.length);
+        for (Long value : values) {
+            if (value == null) {
+                builder.appendNull();
+            }
+            else {
+                BIGINT.writeLong(builder, value);
+            }
+        }
+        return builder.build();
+    }
+
+    /// Builds a single VARCHAR block from the given values; {@code null} entries become SQL nulls.
+    public static Block varcharsBlock(List<String> values)
+    {
+        VariableWidthBlockBuilder builder = new VariableWidthBlockBuilder(null, values.size(), values.size() * 16);
+        for (String value : values) {
+            if (value == null) {
+                builder.appendNull();
+            }
+            else {
+                builder.writeEntry(Slices.utf8Slice(value));
+            }
+        }
+        return builder.build();
+    }
+
+    public static Page mergePages(List<Page> pages, List<Type> types)
+    {
+        int channelCount = types.size();
+        int totalPositions = pages.stream().mapToInt(Page::getPositionCount).sum();
+        Block[] mergedBlocks = new Block[channelCount];
+        for (int channel = 0; channel < channelCount; channel++) {
+            BlockBuilder builder = types.get(channel).createBlockBuilder(null, totalPositions);
+            for (Page page : pages) {
+                builder.appendBlockRange(page.getBlock(channel), 0, page.getPositionCount());
+            }
+            mergedBlocks[channel] = builder.build();
+        }
+        return new Page(totalPositions, mergedBlocks);
+    }
+
+    public static List<Page> cartesianProduct(Type leftType, List<?> leftValues, Type rightType, List<?> rightValues)
+    {
+        List<Page> pages = new ArrayList<>();
+        for (Object leftValue : leftValues) {
+            for (Object rightValue : rightValues) {
+                pages.add(new Page(
+                        writeNativeValue(leftType, leftValue),
+                        writeNativeValue(rightType, rightValue)));
+            }
+        }
+        return pages;
+    }
+
+    /// A page of `a` and `b` where `b` mixes zero, positive and negative divisors with the NULLs
+    /// `nullsProvider` asks for.
+    // TODO this is not generic data generation, should not live in GpuTestUtils
+    public static List<Page> divisorPages(NullsProvider nullsProvider)
+    {
+        int positionsCount = 64;
+        Random random = new Random(42);
+        BlockBuilder aBuilder = BIGINT.createBlockBuilder(null, positionsCount);
+        BlockBuilder bBuilder = BIGINT.createBlockBuilder(null, positionsCount);
+        long[] isValid = nullsProvider.getValidityWords(positionsCount).orElse(Bitmap.allocateWords(positionsCount, true));
+        for (int i = 0; i < positionsCount; i++) {
+            BIGINT.writeLong(aBuilder, random.nextLong(-1000, 1000));
+            if (!Bitmap.isSet(isValid, 0, i)) {
+                bBuilder.appendNull();
+            }
+            else {
+                BIGINT.writeLong(bBuilder, switch (i % 3) {
+                    case 0 -> 0L;
+                    case 1 -> random.nextLong(1, 100);
+                    default -> -random.nextLong(1, 100);
+                });
+            }
+        }
+        return List.of(new Page(positionsCount, aBuilder.build(), bBuilder.build()));
+    }
+
+    /// Builds a block repeating each of `values` `repeats` times in turn, cycling until
+    /// `positionsCount` positions are filled, with NULLs wherever `nullsProvider` asks for one.
+    public static Block createRepeatingValuesBlock(Type type, int positionsCount, NullsProvider nullsProvider, List<Object> values, int repeats)
+    {
+        Optional<long[]> validity = nullsProvider.getValidityWords(positionsCount);
+        BlockBuilder builder = type.createBlockBuilder(null, positionsCount);
+        for (int i = 0; i < positionsCount; i++) {
+            if (validity.isPresent() && !Bitmap.isSet(validity.get(), 0, i)) {
+                builder.appendNull();
+            }
+            else {
+                writeNativeValue(type, builder, values.get((i / repeats) % values.size()));
+            }
+        }
+        return builder.build();
+    }
+
+    public static Block createInRangeDateTimeBlock(Type type, int positionsCount, NullsProvider nullsProvider)
+    {
+        // Constrain to roughly years [-10000, +10000] so cuDF's INT16 year extraction does not overflow.
+        Random random = new Random(42);
+        Optional<Bitmap> isValid = nullsProvider.getValidityWords(positionsCount).map(valid -> new Bitmap(valid, 0, positionsCount));
+        BlockBuilder builder = type.createBlockBuilder(null, positionsCount);
+        for (int i = 0; i < positionsCount; i++) {
+            if (isValid.isPresent() && !isValid.get().isSet(i)) {
+                builder.appendNull();
+            }
+            else if (type == DATE) {
+                // Days since epoch in ±10000 years (~3.65M days).
+                type.writeLong(builder, random.nextInt(7_300_001) - 3_650_000);
+            }
+            else if (type instanceof TimestampType timestampType && timestampType.isShort()) {
+                // Trino short TimestampType stores epochMicros; pick microsecond values in ±10000 years.
+                long maxMicros = 10_000L * 365L * 24L * 60L * 60L * 1_000_000L;
+                long micros = (random.nextLong() % maxMicros);
+                // Precision p < 6 requires the last (6-p) decimal digits to be zero.
+                long scale = 1L;
+                for (int p = timestampType.getPrecision(); p < TimestampType.MAX_SHORT_PRECISION; p++) {
+                    scale *= 10;
+                }
+                type.writeLong(builder, (micros / scale) * scale);
+            }
+            else if (type instanceof TimestampType timestampType) {
+                // Limit to values that can be represented in 64-bit with nanosecond precision, also after e.g. date_trunc(day)
+                long epochNanos = clamp(random.nextLong(), Long.MIN_VALUE + NANOSECONDS_PER_DAY, Long.MAX_VALUE);
+                // Align to the declared precision (zero the last 9-p decimal digits of nanos).
+                epochNanos = Timestamps.round(epochNanos, 9 - timestampType.getPrecision());
+                long epochMicros = floorDiv(epochNanos, NANOSECONDS_PER_MICROSECOND);
+                int picosOfMicro = floorMod(epochNanos, NANOSECONDS_PER_MICROSECOND) * PICOSECONDS_PER_NANOSECOND;
+                type.writeObject(builder, new LongTimestamp(epochMicros, picosOfMicro));
+            }
+            else {
+                throw new IllegalArgumentException("Unsupported type: " + type);
+            }
+        }
+        return builder.build();
+    }
+
+    public static List<Page> createVarcharPages(VarcharType type, List<Integer> positionsCounts, NullsProvider nullsProvider)
+    {
+        Iterator<String> strings = generateInputStrings(20)
+                .filter(value -> type.isUnbounded() || value.codePointCount(0, value.length()) <= type.getBoundedLength())
+                .iterator();
+        return positionsCounts.stream()
+                .map(positionsCount -> {
+                    Optional<long[]> isValid = nullsProvider.getValidityWords(positionsCount);
+                    VariableWidthBlockBuilder builder = new VariableWidthBlockBuilder(null, positionsCount, positionsCount * 10);
+                    for (int i = 0; i < positionsCount; i++) {
+                        if (isValid.isPresent() && !Bitmap.isSet(isValid.get(), 0, i)) {
+                            builder.appendNull();
+                        }
+                        else {
+                            builder.writeEntry(Slices.utf8Slice(strings.next()));
+                        }
+                    }
+                    return new Page(positionsCount, builder.build());
+                })
+                .collect(toImmutableList());
+    }
+
+    public record PagePosition(Page page, int position) {}
+}

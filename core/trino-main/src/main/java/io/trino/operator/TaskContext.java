@@ -34,7 +34,7 @@ import io.trino.memory.QueryContext;
 import io.trino.memory.QueryContextVisitor;
 import io.trino.memory.context.AggregatedMemoryContext;
 import io.trino.memory.context.MemoryTrackingContext;
-import io.trino.operator.gpu.memory.GpuTaskMemoryContext;
+import io.trino.operator.torin.memory.GpuTaskMemoryContext;
 import io.trino.spi.connector.ConnectorTableCredentials;
 import io.trino.sql.planner.DynamicFilterDomain;
 import io.trino.sql.planner.LocalDynamicFiltersCollector;

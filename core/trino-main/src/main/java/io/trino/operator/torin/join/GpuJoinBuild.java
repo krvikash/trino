@@ -1,0 +1,297 @@
+/*
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package io.trino.operator.torin.join;
+
+import ai.rapids.cudf.HashJoin;
+import ai.rapids.cudf.Table;
+import ai.rapids.cudf.ast.AstExpression;
+import ai.rapids.cudf.ast.CompiledExpression;
+import com.google.common.util.concurrent.SettableFuture;
+import io.trino.operator.torin.GpuOperation;
+import io.trino.operator.torin.join.GpuJoinBridge.EmptyBuildSide;
+import io.trino.operator.torin.join.GpuJoinBridge.FilteredHashJoinBridge;
+import io.trino.operator.torin.memory.AllocatedMemory;
+import io.trino.operator.torin.memory.GpuTaskMemoryContext;
+import io.trino.plugin.base.torin.ClosingRef;
+import io.trino.plugin.base.torin.TablesList;
+import io.trino.plugin.base.torin.UncheckedCloser;
+import io.trino.spi.torin.GpuPage;
+import io.trino.spi.torin.MemoryAmount;
+import io.trino.spi.torin.borrow.Borrow;
+import io.trino.spi.torin.borrow.Move;
+import io.trino.spi.torin.borrow.Own;
+import jakarta.annotation.Nullable;
+
+import java.util.Optional;
+
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkState;
+import static io.trino.operator.torin.join.GpuJoinUtils.maxBytesPerRow;
+import static io.trino.operator.torin.memory.GpuMemoryUtils.getHashJoinAdditionalGpuDeviceMemoryUsage;
+import static io.trino.plugin.base.torin.GpuUtils.selectColumns;
+import static io.trino.plugin.base.torin.GpuUtils.toTable;
+import static java.lang.Math.toIntExact;
+import static java.util.Objects.requireNonNull;
+
+public final class GpuJoinBuild
+        implements GpuOperation
+{
+    public static final class Factory
+            implements GpuOperation.Factory
+    {
+        private final GpuJoinBridgeManager bridgeManager;
+        private final int[] buildKeyChannels;
+        private final int[] buildOutputChannels;
+        private final Optional<AstExpression> filter;
+        private final Optional<GpuDynamicFilterCollector> dynamicFilter;
+
+        public Factory(
+                GpuJoinBridgeManager bridgeManager,
+                int[] buildKeyChannels,
+                int[] buildOutputChannels,
+                Optional<AstExpression> filter,
+                Optional<GpuDynamicFilterCollector> dynamicFilter)
+        {
+            this.bridgeManager = requireNonNull(bridgeManager, "bridgeManager is null");
+            this.buildKeyChannels = requireNonNull(buildKeyChannels, "buildKeyChannels is null").clone();
+            checkArgument(this.buildKeyChannels.length > 0, "buildKeyChannels must not be empty");
+            this.buildOutputChannels = requireNonNull(buildOutputChannels, "buildOutputChannels is null").clone();
+            this.filter = requireNonNull(filter, "filter is null");
+            this.dynamicFilter = requireNonNull(dynamicFilter, "dynamicFilter is null");
+        }
+
+        @Override
+        public Factory duplicate()
+        {
+            throw new UnsupportedOperationException("Build side factory cannot be duplicated");
+        }
+
+        @Override
+        public GpuOperation create(Context context, GpuOperation source)
+        {
+            return new GpuJoinBuild(context, source, bridgeManager, buildKeyChannels, buildOutputChannels, filter, dynamicFilter);
+        }
+
+        @Override
+        public void noMoreOperators() {}
+    }
+
+    private final GpuTaskMemoryContext taskMemoryContext;
+    private final GpuOperation source;
+    private final GpuJoinBridgeManager bridgeManager;
+    private final int[] buildKeyChannels;
+    private final int[] buildOutputChannels;
+    private final Optional<AstExpression> filter;
+    private final Optional<GpuDynamicFilterCollector> dynamicFilter;
+    private final boolean trackMatchedBuildRows;
+
+    // Never observed by the probe side
+    private final @Own TablesList bufferedTables = TablesList.create();
+
+    // From the moment of publish, this is owned by the probe side
+    private final ClosingRef<Table> buildSourceTable = ClosingRef.empty();
+    // From the moment of publish, this is owned by the probe side
+    private final ClosingRef<Table> buildKeyTable = ClosingRef.empty();
+    // From the moment of publish, this is owned by the probe side
+    private final ClosingRef<HashJoin> hashJoin = ClosingRef.empty();
+    // From the moment of publish, this is owned by the probe side
+    private final ClosingRef<CompiledExpression> compiledFilter = ClosingRef.empty();
+    // From the moment of publish, this is owned by the probe side
+    private final ClosingRef<Table> buildOutputTable = ClosingRef.empty();
+    // Outer-drain joins only. From the moment of publish, probes merge into it and the drain reads it
+    private final ClosingRef<GpuJoinMatchMask> matchMask = ClosingRef.empty();
+
+    private final AllocatedMemory allocated;
+
+    private boolean published;
+    private final SettableFuture<Void> probesAllFinishedFuture = SettableFuture.create();
+
+    private GpuJoinBuild(
+            Context context,
+            GpuOperation source,
+            GpuJoinBridgeManager bridgeManager,
+            int[] buildKeyChannels,
+            int[] buildOutputChannels,
+            Optional<AstExpression> filter,
+            Optional<GpuDynamicFilterCollector> dynamicFilter)
+    {
+        this.taskMemoryContext = context.taskMemoryContext();
+        this.source = requireNonNull(source, "source is null");
+        this.bridgeManager = requireNonNull(bridgeManager, "bridgeManager is null");
+        this.buildKeyChannels = buildKeyChannels;
+        this.buildOutputChannels = buildOutputChannels;
+        this.filter = requireNonNull(filter, "filter is null");
+        this.dynamicFilter = requireNonNull(dynamicFilter, "dynamicFilter is null");
+        this.trackMatchedBuildRows = bridgeManager.hasOuterDrain();
+        this.allocated = taskMemoryContext.allocate(getClass().getSimpleName(), MemoryAmount.ZERO);
+    }
+
+    @Override
+    public @Move Result execute()
+    {
+        if (published) {
+            if (!probesAllFinishedFuture.isDone()) {
+                return new Blocked(probesAllFinishedFuture);
+            }
+            return new Finished();
+        }
+
+        @Own Result sourceResult = source.execute();
+        return switch (sourceResult) {
+            case Blocked blocked -> blocked;
+            case Yielded yielded -> yielded;
+            case Data(AllocatedMemory memory, GpuPage page) -> {
+                try (memory; page) {
+                    bufferPage(memory, page);
+                }
+                yield new Yielded();
+            }
+            case Finished() -> {
+                publishBuild();
+                yield new Yielded();
+            }
+        };
+    }
+
+    private void bufferPage(@Borrow AllocatedMemory pageAllocation, @Borrow GpuPage page)
+    {
+        if (page.positionCount() == 0) {
+            return;
+        }
+        allocated.transferFrom(pageAllocation);
+        bufferedTables.add(toTable(page));
+    }
+
+    private void publishBuild()
+    {
+        checkState(!published, "already published");
+
+        GpuJoinBridge bridge;
+        if (bufferedTables.isEmpty()) {
+            // build side empty
+            dynamicFilter.ifPresent(GpuDynamicFilterCollector::collectEmpty);
+            bridge = new EmptyBuildSide();
+        }
+        else {
+            allocated.update(allocated.amount().add(bufferedTables.concatenateMemoryRequirements()));
+            buildSourceTable.set(bufferedTables.concatenateAndClear());
+            dynamicFilter.ifPresent(filter -> filter.collect(buildSourceTable.borrow()));
+
+            buildKeyTable.set(selectColumns(buildSourceTable.borrow(), buildKeyChannels));
+
+            // Join output data from the build side
+            @Nullable @Borrow Table buildOutputTable;
+            if (buildOutputChannels.length > 0) {
+                this.buildOutputTable.set(selectColumns(buildSourceTable.borrow(), buildOutputChannels));
+                buildOutputTable = this.buildOutputTable.borrow();
+            }
+            else {
+                buildOutputTable = null;
+            }
+
+            allocated.update(MemoryAmount.gpuDevice(buildSourceTable.borrow().getDeviceMemorySize() + getHashJoinAdditionalGpuDeviceMemoryUsage(buildKeyTable.borrow())));
+            // The filtered path uses this HashJoin only to count equality matches for the memory reservation;
+            // Table.mixedInnerJoinGatherMaps builds its own hash table internally and throws this one away.
+            // TODO reuse it once cuDF can take a caller-supplied hash_join in the mixed join, or exposes hash
+            //  join and predicate filtering as composable primitives
+            //  https://github.com/NVIDIA/cudf/issues/24096
+            //  https://github.com/NVIDIA/cudf/issues/22748
+            hashJoin.set(new HashJoin(buildKeyTable.borrow(), /*compareNullsEqual=*/ false));
+            // Measured once here rather than by each probe operator sharing the build side. Only once the build
+            // side is fully allocated, so the temporary reservation stacks on what is actually in use.
+            long buildOutputMaxBytesPerRow = 0;
+            if (buildOutputTable != null) {
+                buildOutputMaxBytesPerRow = maxBytesPerRow(taskMemoryContext, getClass().getSimpleName(), buildOutputTable, toIntExact(buildOutputTable.getRowCount()));
+            }
+
+            int buildRowCount = toIntExact(buildKeyTable.borrow().getRowCount());
+            @Nullable @Borrow GpuJoinMatchMask sharedMatchMask = null;
+            if (trackMatchedBuildRows) {
+                // The mask plus one scatter scratch, as marking is serialized
+                allocated.update(allocated.amount().add(MemoryAmount.gpuDevice(2L * buildRowCount)));
+                matchMask.set(GpuJoinMatchMask.allUnmatched(buildRowCount));
+                sharedMatchMask = matchMask.borrow();
+            }
+
+            if (filter.isEmpty()) {
+                buildSourceTable.close();
+                buildKeyTable.close();
+                bridge = new GpuJoinBridge.HashJoinBridge(
+                        hashJoin.borrow(),
+                        buildRowCount,
+                        sharedMatchMask,
+                        buildOutputTable,
+                        buildOutputMaxBytesPerRow);
+            }
+            else {
+                compiledFilter.set(filter.get().compile());
+                bridge = new FilteredHashJoinBridge(
+                        buildSourceTable.borrow(),
+                        buildKeyTable.borrow(),
+                        hashJoin.borrow(),
+                        compiledFilter.borrow(),
+                        sharedMatchMask,
+                        buildOutputTable,
+                        buildOutputMaxBytesPerRow);
+            }
+        }
+
+        checkState(!probesAllFinishedFuture.isDone(), "probesAllFinishedFuture is already marked as done");
+        published = true;
+        // Note: if publish throws, it's unclear who owns the memory and it may leak.
+        bridgeManager.publishBridge(bridge, this::allProbesFinished);
+    }
+
+    private void allProbesFinished()
+    {
+        checkState(published, "probes could not finish without publishing");
+        try {
+            // From the moment of publishing, these resources are owned by the probe side.
+            releaseSharedResources();
+        }
+        finally {
+            // Let the operator complete after the memory is released.
+            probesAllFinishedFuture.set(null);
+        }
+    }
+
+    @Override
+    public void close()
+    {
+        try (var closer = UncheckedCloser.create()) {
+            closer.register(source);
+            // if there is anything in bufferedTables, it hasn't been exposed to probe side yet
+            closer.register(bufferedTables);
+
+            // If publish wasn't reached, we still own the resources and need to close them.
+            if (!published) {
+                probesAllFinishedFuture.setException(new Exception("Closed before publishing"));
+                releaseSharedResources();
+            }
+        }
+    }
+
+    private void releaseSharedResources()
+    {
+        try (var closer = UncheckedCloser.create()) {
+            closer.register(allocated); // release last
+            closer.register(buildSourceTable);
+            closer.register(buildKeyTable);
+            closer.register(hashJoin);
+            closer.register(compiledFilter);
+            closer.register(buildOutputTable);
+            closer.register(matchMask);
+        }
+    }
+}

@@ -1,0 +1,93 @@
+/*
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package io.trino.operator.torin.expression;
+
+import ai.rapids.cudf.ColumnVector;
+import io.trino.spi.torin.borrow.Borrow;
+import io.trino.spi.torin.borrow.Move;
+
+import java.util.List;
+import java.util.Objects;
+import java.util.function.Function;
+
+import static java.util.Objects.requireNonNull;
+
+public final class GpuDateTimeExtract
+        extends GpuExpression
+{
+    private final GpuExpression argument;
+    private final Field field;
+
+    public GpuDateTimeExtract(GpuExpression argument, Field field)
+    {
+        this.argument = requireNonNull(argument, "argument is null");
+        this.field = requireNonNull(field, "field is null");
+    }
+
+    @Override
+    public @Move ColumnVector evaluate(int positionCount, List<@Borrow ColumnVector> inputColumns, Bindings bindings)
+    {
+        try (ColumnVector timestamp = argument.evaluate(positionCount, inputColumns, bindings)) {
+            return field.extract(timestamp);
+        }
+    }
+
+    @Override
+    protected Fallibility computeFallibility()
+    {
+        return argument.fallibility();
+    }
+
+    @Override
+    protected boolean computeNullOnNullInputs()
+    {
+        return argument.nullOnNullInputs();
+    }
+
+    @Override
+    public boolean equals(Object obj)
+    {
+        return obj instanceof GpuDateTimeExtract other
+                && argument.equals(other.argument)
+                && field == other.field;
+    }
+
+    @Override
+    public int hashCode()
+    {
+        return Objects.hash(getClass(), argument, field);
+    }
+
+    public enum Field
+    {
+        // YEAR handled separately as it may overflow INT16 result type
+        DAY(ColumnVector::day),
+        HOUR(ColumnVector::hour),
+        MINUTE(ColumnVector::minute),
+        SECOND(ColumnVector::second);
+        // TODO millisecond, week, month, quarter, day_of_week, day_of_year
+
+        private final Function<ColumnVector, ColumnVector> extractor;
+
+        Field(Function<ColumnVector, ColumnVector> extractor)
+        {
+            this.extractor = requireNonNull(extractor, "extractor is null");
+        }
+
+        public @Move ColumnVector extract(ColumnVector dateTime)
+        {
+            return extractor.apply(dateTime);
+        }
+    }
+}

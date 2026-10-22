@@ -28,7 +28,7 @@ import io.trino.memory.context.LocalMemoryContext;
 import io.trino.memory.context.MemoryReservationHandler;
 import io.trino.memory.context.MemoryTrackingContext;
 import io.trino.operator.TaskContext;
-import io.trino.operator.gpu.memory.GpuTaskMemoryContext;
+import io.trino.operator.torin.memory.GpuTaskMemoryContext;
 import io.trino.spi.QueryId;
 import io.trino.spi.connector.ConnectorTableCredentials;
 import io.trino.spiller.SpillSpaceTracker;

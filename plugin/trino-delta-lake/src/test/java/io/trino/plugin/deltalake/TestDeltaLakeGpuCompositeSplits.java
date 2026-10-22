@@ -24,7 +24,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.function.IntFunction;
 
-import static io.trino.operator.gpu.GpuOperator.FUSED_PLAN_NODE_METRIC_PREFIX;
+import static io.trino.operator.torin.GpuOperator.FUSED_PLAN_NODE_METRIC_PREFIX;
 import static io.trino.sql.planner.optimizations.PlanNodeSearcher.searchFrom;
 import static io.trino.testing.TestingNames.randomNameSuffix;
 import static org.assertj.core.api.Assertions.assertThat;

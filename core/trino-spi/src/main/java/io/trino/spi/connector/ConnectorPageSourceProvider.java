@@ -13,10 +13,10 @@
  */
 package io.trino.spi.connector;
 
-import io.trino.spi.gpu.ConnectorGpuMemoryContext;
-import io.trino.spi.gpu.ConnectorGpuPageSource;
-import io.trino.spi.gpu.IoExecutor;
 import io.trino.spi.predicate.TupleDomain;
+import io.trino.spi.torin.ConnectorGpuMemoryContext;
+import io.trino.spi.torin.ConnectorGpuPageSource;
+import io.trino.spi.torin.IoExecutor;
 
 import java.util.List;
 import java.util.Optional;

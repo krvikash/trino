@@ -13,9 +13,9 @@
  */
 package io.trino.plugin.hive;
 
-import io.trino.spi.gpu.ConnectorGpuMemoryContext;
-import io.trino.spi.gpu.MemoryAllocation;
-import io.trino.spi.gpu.MemoryAmount;
+import io.trino.spi.torin.ConnectorGpuMemoryContext;
+import io.trino.spi.torin.MemoryAllocation;
+import io.trino.spi.torin.MemoryAmount;
 
 import static java.util.Objects.requireNonNull;
 

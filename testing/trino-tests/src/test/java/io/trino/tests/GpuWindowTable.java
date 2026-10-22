@@ -40,7 +40,7 @@ import java.util.stream.Stream;
 
 import static com.google.common.base.Strings.repeat;
 import static com.google.common.collect.ImmutableList.toImmutableList;
-import static io.trino.operator.gpu.GpuTestUtils.TESTED_GPU_TYPES;
+import static io.trino.operator.torin.GpuTestUtils.TESTED_GPU_TYPES;
 import static io.trino.spi.type.DecimalType.createDecimalType;
 import static java.lang.Math.floorMod;
 import static java.lang.String.format;

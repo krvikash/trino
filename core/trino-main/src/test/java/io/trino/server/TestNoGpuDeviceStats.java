@@ -13,8 +13,8 @@
  */
 package io.trino.server;
 
-import io.trino.operator.gpu.GpuDeviceStats;
-import io.trino.operator.gpu.NoGpuDeviceStats;
+import io.trino.operator.torin.GpuDeviceStats;
+import io.trino.operator.torin.NoGpuDeviceStats;
 import org.junit.jupiter.api.Test;
 
 import java.lang.annotation.Annotation;
@@ -26,7 +26,7 @@ import static java.util.stream.Collectors.joining;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * {@code io.trino.operator.gpu.Test*} is excluded from non-GPU CI builds, so this consistency
+ * {@code io.trino.operator.torin.Test*} is excluded from non-GPU CI builds, so this consistency
  * check lives outside that package. {@link NoGpuDeviceStats} is exported to JMX under
  * {@link GpuDeviceStats}'s generated name (see {@code ServerMainModule}), so both classes must
  * expose the same {@code org.weakref.jmx}-annotated methods (with matching signatures) or the
@@ -55,12 +55,12 @@ class TestNoGpuDeviceStats
                 .contains(
                         """
                         @org.weakref.jmx.Managed(name="", description="")
-                        public long io.trino.operator.gpu.GpuDeviceStats.getDeviceTotalBytes()""")
+                        public long io.trino.operator.torin.GpuDeviceStats.getDeviceTotalBytes()""")
                 .contains(
                         """
                         @org.weakref.jmx.Managed(name="", description="")
                         @org.weakref.jmx.Nested()
-                        public io.airlift.stats.DistributionStat io.trino.operator.gpu.GpuDeviceStats.getDeviceUsedDistribution()""");
+                        public io.airlift.stats.DistributionStat io.trino.operator.torin.GpuDeviceStats.getDeviceUsedDistribution()""");
 
         Set<String> noGpuDeviceStats = inspectManagedMethods(NoGpuDeviceStats.class);
         assertThat(noGpuDeviceStats.stream().map(method -> method.replace("NoGpuDeviceStats", "GpuDeviceStats")).collect(toImmutableSet()))

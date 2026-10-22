@@ -1,0 +1,190 @@
+/*
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package io.trino.operator.torin;
+
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.util.concurrent.SettableFuture;
+import io.trino.Session;
+import io.trino.metadata.Split;
+import io.trino.metadata.TableHandle;
+import io.trino.operator.torin.memory.AllocatedMemory;
+import io.trino.operator.torin.scan.ConnectorGpuPageSourceAdapter;
+import io.trino.plugin.base.metrics.LongCount;
+import io.trino.spi.Page;
+import io.trino.spi.connector.ColumnHandle;
+import io.trino.spi.connector.ConnectorTableCredentials;
+import io.trino.spi.connector.DynamicFilter;
+import io.trino.spi.metrics.Metrics;
+import io.trino.spi.torin.ConnectorGpuPageSource;
+import io.trino.spi.torin.GpuPage;
+import io.trino.spi.torin.MemoryAllocation;
+import io.trino.spi.torin.borrow.Move;
+import io.trino.spi.torin.borrow.Own;
+import io.trino.spi.type.Type;
+import io.trino.split.EmptySplit;
+import io.trino.split.PageSourceProvider;
+import jakarta.annotation.Nullable;
+
+import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+
+import static io.airlift.concurrent.MoreFutures.toListenableFuture;
+import static io.trino.operator.Operator.NOT_BLOCKED;
+import static java.util.Objects.requireNonNull;
+
+public class GpuTableScan
+        implements GpuSourceOperation
+{
+    public static final String CPU_FALLBACK_SPLITS_METRIC = "CPU fallback splits";
+
+    private final Context context;
+    private final PageSourceProvider pageSourceProvider;
+    private final Session session;
+    private final TableHandle table;
+    private final Optional<ConnectorTableCredentials> tableCredentials;
+    private final List<ColumnHandle> columns;
+    private final List<Type> columnTypes;
+    private final DynamicFilter dynamicFilter;
+
+    private @Nullable Split split;
+    private final SettableFuture<Void> splitSet = SettableFuture.create();
+    private @Nullable ConnectorGpuPageSource pageSource;
+
+    private long completedBytes;
+    private long completedPositions;
+    private long readTimeNanos;
+
+    public GpuTableScan(
+            GpuOperation.Context context,
+            PageSourceProvider pageSourceProvider,
+            Session session,
+            TableHandle table,
+            Optional<ConnectorTableCredentials> tableCredentials,
+            List<ColumnHandle> columns,
+            List<Type> columnTypes,
+            DynamicFilter dynamicFilter)
+    {
+        this.context = requireNonNull(context, "context is null");
+        this.pageSourceProvider = requireNonNull(pageSourceProvider, "pageSourceProvider is null");
+        this.session = requireNonNull(session, "session is null");
+        this.table = requireNonNull(table, "table is null");
+        this.tableCredentials = requireNonNull(tableCredentials, "tableCredentials is null");
+        this.columns = ImmutableList.copyOf(requireNonNull(columns, "columns is null"));
+        this.columnTypes = ImmutableList.copyOf(requireNonNull(columnTypes, "columnTypes is null"));
+        this.dynamicFilter = requireNonNull(dynamicFilter, "dynamicFilter is null");
+    }
+
+    @Override
+    public boolean needsInput()
+    {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void addInput(Page page)
+    {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void noMoreInput()
+    {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void setSplit(Split split)
+    {
+        this.split = requireNonNull(split, "split is null");
+        splitSet.set(null);
+    }
+
+    @Override
+    public @Move Result execute()
+    {
+        if (split == null) {
+            return new Blocked(splitSet);
+        }
+
+        if (split.getConnectorSplit() instanceof EmptySplit) {
+            return new Finished();
+        }
+
+        if (pageSource == null) {
+            pageSource = pageSourceProvider.createGpuPageSource(
+                    context,
+                    session,
+                    split,
+                    table,
+                    tableCredentials,
+                    columns,
+                    columnTypes,
+                    dynamicFilter);
+        }
+
+        ConnectorGpuPageSource pageSource = this.pageSource;
+        @Own ConnectorGpuPageSource.Result result = pageSource.readNext();
+        return switch (result) {
+            case ConnectorGpuPageSource.Blocked(CompletableFuture<Void> future) -> {
+                recordPhysicalInput(pageSource, 0);
+                yield new Blocked(future.isDone() ? NOT_BLOCKED : toListenableFuture(future));
+            }
+            case ConnectorGpuPageSource.Data(MemoryAllocation allocation, GpuPage page) -> {
+                recordPhysicalInput(pageSource, page.positionCount());
+                yield new Data((AllocatedMemory) allocation, page);
+            }
+            case ConnectorGpuPageSource.Finished() -> {
+                recordSplitExecutionMode(pageSource);
+                recordPhysicalInput(pageSource, 0);
+                yield new Finished();
+            }
+            case ConnectorGpuPageSource.Yielded() -> {
+                recordPhysicalInput(pageSource, 0);
+                yield new Yielded();
+            }
+        };
+    }
+
+    private void recordPhysicalInput(ConnectorGpuPageSource pageSource, long producedPositions)
+    {
+        long endCompletedBytes = pageSource.getCompletedBytes();
+        long endReadTimeNanos = pageSource.getReadTimeNanos();
+        long endCompletedPositions = pageSource.getCompletedPositions().orElse(completedPositions + producedPositions);
+        context.operatorContext().recordPhysicalInputWithTiming(
+                endCompletedBytes - completedBytes,
+                endCompletedPositions - completedPositions,
+                endReadTimeNanos - readTimeNanos);
+        completedBytes = endCompletedBytes;
+        completedPositions = endCompletedPositions;
+        readTimeNanos = endReadTimeNanos;
+    }
+
+    private void recordSplitExecutionMode(ConnectorGpuPageSource pageSource)
+    {
+        if (pageSource instanceof ConnectorGpuPageSourceAdapter) {
+            context.operatorContext().setLatestMetrics(new Metrics(ImmutableMap.of(CPU_FALLBACK_SPLITS_METRIC, new LongCount(1))));
+        }
+    }
+
+    @Override
+    public void close()
+    {
+        if (pageSource != null) {
+            pageSource.close();
+            pageSource = null;
+        }
+    }
+}

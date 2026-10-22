@@ -12,8 +12,8 @@ The AMI already provides the NVIDIA driver, CUDA 13 and a recent git.
 
 Use the host to run GPU code without pushing a PR: test new code while you write it, experiment, validate a
 hypothesis, iterate quickly on a GPU failure, run benchmarks. Once the code is ready, CI verifies it: it runs
-the GPU tests of a PR that has the `gpu` label, which the labeler adds for changes under `**/gpu/**` and to
-`**/*Gpu*` files.
+the GPU tests of a PR that has the `gpu` label, which the labeler adds for changes under `**/gpu/**` or
+`**/torin/**` and to `**/*Gpu*` files.
 
 ## Prerequisites (local)
 

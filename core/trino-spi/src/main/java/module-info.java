@@ -34,7 +34,7 @@ module trino.spi {
     exports io.trino.spi.expression;
     exports io.trino.spi.function;
     exports io.trino.spi.function.table;
-    exports io.trino.spi.gpu;
+    exports io.trino.spi.torin;
     exports io.trino.spi.memory;
     exports io.trino.spi.metrics;
     exports io.trino.spi.predicate;

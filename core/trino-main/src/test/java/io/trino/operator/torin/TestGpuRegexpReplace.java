@@ -1,0 +1,987 @@
+/*
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package io.trino.operator.torin;
+
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
+import io.trino.operator.torin.expression.CompiledExpression;
+import io.trino.spi.Page;
+import io.trino.spi.TrinoException;
+import io.trino.spi.block.VariableWidthBlockBuilder;
+import io.trino.spi.type.Type;
+import io.trino.sql.ir.Call;
+import io.trino.sql.ir.Constant;
+import io.trino.sql.ir.Expression;
+import io.trino.sql.ir.Reference;
+import io.trino.sql.planner.Symbol;
+import jakarta.annotation.Nullable;
+import org.assertj.core.api.AssertProvider;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.parallel.Execution;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+
+import static io.airlift.slice.Slices.utf8Slice;
+import static io.trino.SessionTestUtils.TEST_SESSION;
+import static io.trino.operator.scalar.JoniRegexpCasts.joniRegexp;
+import static io.trino.operator.torin.GpuTestUtils.FUNCTION_RESOLUTION;
+import static io.trino.operator.torin.GpuTestUtils.TEST_SESSION_TIME_ZONE_KEY;
+import static io.trino.operator.torin.GpuTestUtils.assertSameDataInOrder;
+import static io.trino.operator.torin.GpuTestUtils.executeGpuOperation;
+import static io.trino.operator.torin.GpuTestUtils.executeWithCpu;
+import static io.trino.operator.torin.GpuTestUtils.maybeSetGpuMemoryPoolForTests;
+import static io.trino.operator.torin.expression.GpuExpressionCompiler.compileExpression;
+import static io.trino.spi.type.VarcharType.VARCHAR;
+import static io.trino.sql.analyzer.TypeDescriptorProvider.fromTypes;
+import static io.trino.type.CharVarcharCoercion.SQL_STANDARD;
+import static io.trino.type.JoniRegexpType.JONI_REGEXP;
+import static java.lang.Character.MAX_CODE_POINT;
+import static java.lang.Character.MAX_SURROGATE;
+import static java.lang.Character.MIN_CODE_POINT;
+import static java.lang.Character.MIN_SURROGATE;
+import static java.lang.Character.isBmpCodePoint;
+import static java.util.Arrays.asList;
+import static java.util.Objects.requireNonNull;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.junit.jupiter.api.parallel.ExecutionMode.CONCURRENT;
+
+@TestInstance(PER_CLASS)
+@Execution(CONCURRENT)
+final class TestGpuRegexpReplace
+{
+    @BeforeAll
+    public static void maybeSetGpuMemoryPool()
+    {
+        maybeSetGpuMemoryPoolForTests();
+    }
+
+    @Test
+    void testSimpleLiteralReplacement()
+    {
+        assertThat(regexpReplace("world", "earth"))
+                .executesCorrectly("hello world", "no match here", "world world");
+    }
+
+    @Test
+    void testCharacterClassReplacement()
+    {
+        assertThat(regexpReplace("[a-z]", "X"))
+                .executesCorrectly("a1b2c3", "123", "abc");
+    }
+
+    @Test
+    void testAlternation()
+    {
+        assertThat(regexpReplace("foo|bar", "X"))
+                .executesCorrectly("", "foo", "bar", "foobar", "barfoo", "fobar", "hello world");
+        assertThat(regexpReplace("|", "X")).doesNotCompile();
+        assertThat(regexpReplace("a|", "X")).doesNotCompile();
+        assertThat(regexpReplace("|a", "X")).doesNotCompile();
+    }
+
+    @Test
+    void testDoesNotCompileBraceQuantifier()
+    {
+        assertThat(regexpReplace("a{3}", "X")).doesNotCompile();
+        assertThat(regexpReplace("a{2,}", "X")).doesNotCompile();
+        assertThat(regexpReplace("a{2,3}", "X")).doesNotCompile();
+    }
+
+    @Test
+    void testLiteralWhitespaceInPattern()
+    {
+        assertThat(regexpReplace(" ", "_"))
+                .executesCorrectly("a b", "a  b", "abc");
+        assertThat(regexpReplace("a b", "X"))
+                .executesCorrectly("a b", "ab", "a  b");
+        assertThat(regexpReplace("\n", "_"))
+                .executesCorrectly("a\nb", "a\n\nb", "abc");
+        assertThat(regexpReplace("\t", "_"))
+                .executesCorrectly("a\tb", "a\t\tb", "abc");
+    }
+
+    @Test
+    void testDoesNotCompileEscapeSequenceInPattern()
+    {
+        assertThat(regexpReplace("\\n", "X")).doesNotCompile();
+        assertThat(regexpReplace("\\t", "X")).doesNotCompile();
+        assertThat(regexpReplace("\\s", "X")).doesNotCompile();
+        assertThat(regexpReplace("\\d", "X")).doesNotCompile();
+        assertThat(regexpReplace("\\w", "X")).doesNotCompile();
+    }
+
+    @Test
+    void testEscapedMetacharacters()
+    {
+        assertThat(regexpReplace("\\.", "X"))
+                .executesCorrectly("a.b", "a..b", "abc");
+        assertThat(regexpReplace("\\\\", "X"))
+                .executesCorrectly("a\\b", "\\", "abc");
+        assertThat(regexpReplace("\\(", "X"))
+                .executesCorrectly("a(b", "(", "abc");
+    }
+
+    @Test
+    void testDot()
+    {
+        assertThat(regexpReplace(".", "X"))
+                .executesCorrectly("abc", "", "a");
+
+        // non-BMP
+        String nonBmp = "𝄞";
+        assertThat(nonBmp.codePoints().count()).isEqualTo(1);
+        assertThat(nonBmp.length()).isEqualTo(2);
+        assertThat(regexpReplace("a.a", "X"))
+                .executesCorrectly(nonBmp, "a" + nonBmp + "b", nonBmp + nonBmp);
+
+        List<String> inputs = new ArrayList<>();
+
+        inputs.add("");
+        inputs.add("abc");
+        inputs.add("\r\n");
+
+        // Every possible character
+        for (int codePoint = MIN_CODE_POINT; codePoint <= MAX_CODE_POINT; codePoint++) {
+            if (isSurrogate(codePoint)) {
+                // Unmatched surrogate character is not valid
+                continue;
+            }
+            inputs.add(Character.toString(codePoint));
+        }
+
+        assertThat(regexpReplace(".", "X"))
+                .executesCorrectly(inputs.toArray(new String[0]));
+        assertThat(regexpReplace("a.b", "X"))
+                .executesCorrectly(
+                        inputs.stream()
+                                .map(input -> "a" + input + "b")
+                                .toArray(String[]::new));
+
+        // dotall
+        assertThat(regexpReplace("(?s).", "X")).doesNotCompile();
+        assertThat(regexpReplace("(?s)a.b", "X")).doesNotCompile();
+    }
+
+    @Test
+    void testQuantifiers()
+    {
+        assertThat(regexpReplace("a+", "A"))
+                .executesCorrectly("aaa", "aabaa", "bbb");
+    }
+
+    @Test
+    void testDoesNotCompileLazyQuantifier()
+    {
+        assertThat(regexpReplace("a.*?b", "X")).doesNotCompile();
+        assertThat(regexpReplace("a+?", "X")).doesNotCompile();
+        assertThat(regexpReplace("a??", "X")).doesNotCompile();
+    }
+
+    @Test
+    void testAnchors()
+    {
+        assertThat(regexpReplace("^a", "X"))
+                .executesCorrectly("abc", "bac", "aaa");
+        assertThat(regexpReplace("z$", "X"))
+                .executesCorrectly("xyz", "zyx", "zzz");
+
+        String[] lineTerminators = {
+                "\n", "\r", "\r\n",
+                "\u0085", // <Next Line> (NEL)
+                "\u2028", // Line Separator
+                "\u2029", // Paragraph Separator
+        };
+
+        List<String> inputs = new ArrayList<>();
+        inputs.add("abc");
+        inputs.add("");
+        for (String terminator : lineTerminators) {
+            inputs.add(terminator);
+            inputs.add(terminator + terminator);
+            inputs.add("abc" + terminator);
+            inputs.add("abc" + terminator + terminator);
+            inputs.add(terminator + "abc");
+            inputs.add(terminator + terminator + "abc");
+            inputs.add("abc" + terminator + "abc" + terminator + "abc");
+        }
+        String[] inputArray = inputs.toArray(String[]::new);
+
+        assertThat(regexpReplace("^a", "X")).executesCorrectly(inputArray);
+        assertThat(regexpReplace("^abc", "X")).executesCorrectly(inputArray);
+        assertThat(regexpReplace("c$", "X")).executesCorrectly(inputArray);
+        assertThat(regexpReplace("abc$", "X")).executesCorrectly(inputArray);
+
+        // multiline
+        assertThat(regexpReplace("(?m)^a", "X")).doesNotCompile();
+        assertThat(regexpReplace("(?m)^abc", "X")).doesNotCompile();
+        assertThat(regexpReplace("(?m)c$", "X")).doesNotCompile();
+        assertThat(regexpReplace("(?m)abc$", "X")).doesNotCompile();
+    }
+
+    @Test
+    void testMultipleMatches()
+    {
+        assertThat(regexpReplace("a", "bb"))
+                .executesCorrectly("aaa", "aba", "bbb");
+    }
+
+    @Test
+    void testNoMatch()
+    {
+        assertThat(regexpReplace("ZZZZZ", "X"))
+                .executesCorrectly("hello", "", "ZZZZ");
+    }
+
+    @Test
+    void testReplacementShorterThanMatch()
+    {
+        assertThat(regexpReplace("abc", "x"))
+                .executesCorrectly("abcdef", "abcabc", "xabcx");
+    }
+
+    @Test
+    void testEmptyReplacement()
+    {
+        assertThat(regexpReplace("abc", ""))
+                .executesCorrectly("xabcx", "abcabc", "xyz");
+    }
+
+    @Test
+    void testNegatedCharClass()
+    {
+        assertThat(regexpReplace("[^a-z]", "_"))
+                .executesCorrectly("a1b2", "abc", "123", "a\rb");
+    }
+
+    @Test
+    void testNegatedCharClassWithCarriageReturn()
+    {
+        assertThat(regexpReplace("[^a]", "_"))
+                .executesCorrectly("a\ra", "\r", "a");
+        assertThat(regexpReplace("[^a\n]", "_"))
+                .executesCorrectly("a\r\na", "\r\n", "a");
+        assertThat(regexpReplace("[^\r]", "X"))
+                .executesCorrectly("a\rb", "\r\r", "abc");
+        assertThat(regexpReplace("[^\r\n]", "X"))
+                .executesCorrectly("a\r\nb", "\r\n", "abc");
+    }
+
+    @Test
+    void testDoesNotCompileEscapedCarriageReturn()
+    {
+        assertThat(regexpReplace("[^\\r]", "X")).doesNotCompile();
+    }
+
+    @Test
+    void testNegatedCharClassWithCarriageReturnInsideRange()
+    {
+        assertThat(regexpReplace("[^-]", "X"))
+                .executesCorrectly("a\rb", "\r");
+    }
+
+    @Test
+    void testDoesNotCompileShorthandEscape()
+    {
+        assertThat(regexpReplace("[^\\d]", "X")).doesNotCompile();
+        assertThat(regexpReplace("[\\d]", "X")).doesNotCompile();
+        assertThat(regexpReplace("[\\w]+", "X")).doesNotCompile();
+        assertThat(regexpReplace("[\\s]", "X")).doesNotCompile();
+    }
+
+    @Test
+    void testDoesNotCompileCharEscape()
+    {
+        assertThat(regexpReplace("[\\n]", "X")).doesNotCompile();
+        assertThat(regexpReplace("[\\t]", "X")).doesNotCompile();
+        assertThat(regexpReplace("[\\r]", "X")).doesNotCompile();
+        assertThat(regexpReplace("[\\b]", "X")).doesNotCompile();
+    }
+
+    @Test
+    void testEscapedMetacharactersInCharClass()
+    {
+        assertThat(regexpReplace("[\\]]", "X"))
+                .executesCorrectly("]", "a]b", "abc");
+        assertThat(regexpReplace("[\\\\]", "X"))
+                .executesCorrectly("\\", "a\\b", "abc");
+        assertThat(regexpReplace("[\\^]", "X"))
+                .executesCorrectly("^", "a^b", "abc");
+    }
+
+    @Test
+    void testCaretInCharClass()
+    {
+        assertThat(regexpReplace("[a^b]", "X"))
+                .executesCorrectly("", "a", "^", "b", "[a^b]", "e^(i*pi) = alpha ^ beta");
+        assertThat(regexpReplace("[^^]", "X"))
+                .executesCorrectly("", "^", "^^", "abc", "a^b^c");
+    }
+
+    @Test
+    void testHyphenInCharClass()
+    {
+        assertThat(regexpReplace("[a-]", "X"))
+                .executesCorrectly("", "a", "-", "a-", "[a-]", "abcdef-ghijk-uvwxyz-lambda");
+        assertThat(regexpReplace("[-z]", "X"))
+                .executesCorrectly("", "z", "-", "-z", "[-z]", "zoo-keeper-mango");
+        assertThat(regexpReplace("[-]", "X"))
+                .executesCorrectly("", "-", "--", "abc", "a-b-c");
+        assertThat(regexpReplace("[a-z-]", "X"))
+                .executesCorrectly("", "a", "z", "-", "abc-xyz", "ABC-XYZ", "name-with-dash");
+        assertThat(regexpReplace("[a-zA-Z0-9_-]", "X"))
+                .executesCorrectly("", "a", "Z", "0", "_", "-", "Hello_World-123", "!@# $%^");
+        assertInvalidPattern("[a-\\.]");
+        assertInvalidPattern("[a-^]");
+        assertInvalidPattern("[a-$]");
+    }
+
+    @Test
+    void testInvalidOrUnsupported()
+    {
+        assertThat(regexpReplace("{", "x")).doesNotCompile();
+        assertThat(regexpReplace("a{b", "x")).doesNotCompile();
+        assertThat(regexpReplace("|", "x")).doesNotCompile();
+
+        assertInvalidPattern("(abc");
+        assertInvalidPattern("abc)");
+        assertInvalidPattern("[abc");
+
+        assertInvalidPattern("[]");
+
+        assertInvalidPattern("*a");
+        assertInvalidPattern("+a");
+        assertInvalidPattern("?a");
+        assertInvalidPattern("(+)");
+    }
+
+    @Test
+    void testMultipleRangesInCharClass()
+    {
+        assertThat(regexpReplace("[a-zA-Z0-9]", "X"))
+                .executesCorrectly("aB3!", "hello", "!@#");
+    }
+
+    @Test
+    void testDoesNotCompileNestedCharClass()
+    {
+        assertThat(regexpReplace("[a[b]]", "x")).doesNotCompile();
+    }
+
+    @Test
+    void testNoReplacement()
+    {
+        assertThat(regexpReplace("[0-9]+"))
+                .executesCorrectly("hello 123 world", "abc", "123");
+    }
+
+    @Test
+    void testNonCapturingGroup()
+    {
+        // Blocked from translation to cudf to avoid wrong results
+        assertThat(regexpReplace("(?:)", "x")).doesNotCompile();
+
+        assertThat(regexpReplace("(?:abc)", "X"))
+                .executesCorrectly("abcabc", "abc", "xabcx");
+        assertThat(regexpReplace("(?:abc)+", "X"))
+                .executesCorrectly("abcabc", "abc", "xabcx");
+    }
+
+    @Test
+    void testCapturingGroup()
+    {
+        // Blocked from translation to cudf to avoid wrong results
+        assertThat(regexpReplace("()", "x")).doesNotCompile();
+
+        assertThat(regexpReplace("(abc)", "X"))
+                .executesCorrectly("abcabc", "abc", "xabcx");
+
+        assertThat(regexpReplace("(abc)+", "X"))
+                .executesCorrectly("abcabc", "abc", "xabcx");
+    }
+
+    @Test
+    void testGroupReplaceBackreference()
+    {
+        assertThat(regexpReplace("(a)", "[$1]"))
+                .executesCorrectly("abc", "aaa", "xyz");
+    }
+
+    @Test
+    void testMultiGroupReorder()
+    {
+        assertThat(regexpReplace("([0-9]+)-([0-9]+)-([0-9]+)", "$3/$2/$1"))
+                .executesCorrectly("2024-01-15", "date: 2023-12-31!", "no date");
+    }
+
+    @Test
+    void testFullMatchBackreference()
+    {
+        assertThat(regexpReplace("[0-9]+", "[$0]"))
+                .executesCorrectly("abc 123 def 456", "no digits", "42");
+    }
+
+    @Test
+    void testNestedGroups()
+    {
+        assertThat(regexpReplace("((a)(b))", "$1-$2-$3"))
+                .executesCorrectly("abc", "ab", "xyz");
+    }
+
+    @Test
+    void testMixedLiteralAndBackreference()
+    {
+        assertThat(regexpReplace("(a)(b)", "x$2y$1z"))
+                .executesCorrectly("abc", "ab ab", "xyz");
+    }
+
+    @Test
+    void testAdaptiveGroupNumbering()
+    {
+        assertThat(regexpReplace("(a)(b)(c)", "$01"))
+                .executesCorrectly("abc", "xabcx");
+    }
+
+    @Test
+    void testAdaptiveGroupNumberingWithTrailingDigit()
+    {
+        assertThat(regexpReplace("(a)(b)(c)", "$10"))
+                .executesCorrectly("abc", "xabcx");
+        assertThat(regexpReplace("(a)(b)(c)", "$11"))
+                .executesCorrectly("abc", "xabcx");
+    }
+
+    @Test
+    void testMaxGroupReference()
+    {
+        // $99 is the highest group reference cuDF supports
+        // Build a pattern with 99 capturing groups: (a)(a)...(a)
+        String pattern = "(a)".repeat(99);
+        assertThat(regexpReplace(pattern, "$99"))
+                .executesCorrectly("a".repeat(99));
+    }
+
+    @Test
+    void testDoesNotCompileNonexistentGroupReference()
+    {
+        assertThat(regexpReplace("(h)", "$2")).doesNotCompile();
+    }
+
+    @Test
+    void testGroupReferenceExceedsCudfLimit()
+    {
+        // $100 with 100 groups: cuDF only supports ${0}-${99}
+        String pattern = "(a)".repeat(100);
+        assertThat(regexpReplace(pattern, "$100")).doesNotCompile();
+    }
+
+    @Test
+    void testAdaptiveNumberingFallsWithinLimit()
+    {
+        // Trino's adaptive group numbering: $31 with 3 groups resolves to
+        // group 3 + literal "1" (since 31 > 3, stop at $3)
+        assertThat(regexpReplace("(a)(b)(c)", "$31"))
+                .executesCorrectly("abc", "xabcx");
+    }
+
+    @Test
+    void testEscapedDollarInReplacement()
+    {
+        assertThat(regexpReplace("x", "\\$1"))
+                .executesCorrectly("x", "xx", "abc");
+    }
+
+    @Test
+    void testEscapedBackslashInReplacement()
+    {
+        assertThat(regexpReplace("x", "\\\\"))
+                .executesCorrectly("x", "xx", "abc");
+    }
+
+    @Test
+    void testUnicodePolishDiacritics()
+    {
+        assertThat(regexpReplace("[a-z]", "X"))
+                .executesCorrectly("Łania szła");
+        assertThat(regexpReplace("ł", "l"))
+                .executesCorrectly("łąka", "Łania szła");
+    }
+
+    @Test
+    void testUnicodeEastAsian()
+    {
+        assertThat(regexpReplace("草原", "field"))
+                .executesCorrectly("美しい草原を");
+    }
+
+    @Test
+    void testDoesNotCompileSupplementaryUnicode()
+    {
+        // cuDF regex matching is limited to BMP (U+0000 to U+FFFF)
+        assertThat(regexpReplace("𝄞", "X")).doesNotCompile();
+        assertThat(regexpReplace("[𝄞]", "X")).doesNotCompile();
+        assertThat(regexpReplace("[𝄞-𝄢]", "X")).doesNotCompile();
+        assertThat(regexpReplace("[a-𝄞]", "X")).doesNotCompile();
+    }
+
+    @Test
+    void testEntireSourceMatches()
+    {
+        assertThat(regexpReplace(".*", "X"))
+                .executesCorrectly("abc", "");
+    }
+
+    @Test
+    void testNullPropagation()
+    {
+        assertThat(regexpReplace("abc", "X"))
+                .executesCorrectly(null, "hello", null, "abc");
+    }
+
+    @Test
+    void testZeroWidthCaptureAtStart()
+    {
+        // Regression test for https://github.com/NVIDIA/cudf/issues/22707:
+        // stringReplaceWithBackrefs used to drop the first character and
+        // append a stray \x00 when the first capture group matches empty at position 0.
+        assertThat(regexpReplace("(\\A)", "$1#"))
+                .doesNotCompile();
+        assertThat(regexpReplace("(^)", "$1#"))
+                .executesCorrectly("single", "abc", "");
+        assertThat(regexpReplace("^(a?)", "$1#"))
+                .executesCorrectly("single", "abc", "aabc", "");
+    }
+
+    @Test
+    void testClickBenchPattern()
+    {
+        assertThat(regexpReplace("^https?://(?:www\\.)?([^/]+)/.*$", "$1"))
+                .executesCorrectly("https://www.example.com/path/to/page", "http://example.com/page", "not a url");
+    }
+
+    @Test
+    void testDoesNotCompileBackreferenceInPattern()
+    {
+        assertThat(regexpReplace("(a)\\1", "x")).doesNotCompile();
+        assertThat(regexpReplace("(a)(b)\\1", "$2")).doesNotCompile();
+        assertThat(regexpReplace("(?<x>a)\\k<x>", "x")).doesNotCompile();
+    }
+
+    @Test
+    void testDoesNotCompileLookahead()
+    {
+        assertThat(regexpReplace("a(?=b)", "x")).doesNotCompile();
+    }
+
+    @Test
+    void testDoesNotCompileLookbehind()
+    {
+        assertThat(regexpReplace("(?<=a)b", "x")).doesNotCompile();
+    }
+
+    @Test
+    void testDoesNotCompileNamedGroup()
+    {
+        assertThat(regexpReplace("(?<name>x)", "x")).doesNotCompile();
+    }
+
+    @Test
+    void testDoesNotCompilePossessiveQuantifier()
+    {
+        assertThat(regexpReplace("a*+", "x")).doesNotCompile();
+    }
+
+    @Test
+    void testDoesNotCompileAtomicGroup()
+    {
+        assertThat(regexpReplace("(?>ab)", "x")).doesNotCompile();
+    }
+
+    @Test
+    void testDoesNotCompileUnicodeProperty()
+    {
+        assertThat(regexpReplace("\\p{Lu}", "x")).doesNotCompile();
+    }
+
+    @Test
+    void testDoesNotCompileInlineFlags()
+    {
+        assertThat(regexpReplace("(?i)abc", "x")).doesNotCompile();
+    }
+
+    @Test
+    void testDoesNotCompileWordBoundary()
+    {
+        assertThat(regexpReplace("\\bword\\b", "x")).doesNotCompile();
+    }
+
+    @Test
+    void testDoesNotCompileZAnchorLowercase()
+    {
+        assertThat(regexpReplace("abc\\z", "x")).doesNotCompile();
+    }
+
+    @Test
+    void testDoesNotCompileZAnchorUppercase()
+    {
+        assertThat(regexpReplace("abc\\Z", "x")).doesNotCompile();
+    }
+
+    @Test
+    void testEmptyMatch()
+    {
+        assertThat(regexpReplace("", "x")).doesNotCompile();
+        assertThat(regexpReplace("a?", "x"))
+                .executesCorrectly("", " ", "x", "xx", "a", "ab", "1a2b3", "nothing");
+        assertThat(regexpReplace("a*", "x"))
+                .executesCorrectly("", " ", "x", "xx", "a", "ab", "1a2b3", "nothing");
+        assertThat(regexpReplace("[a-z]?", "x"))
+                .executesCorrectly("", " ", "x", "xx", "a", "ab", "1a2b3", "nothing");
+        assertThat(regexpReplace("[a-z]*", "x"))
+                .executesCorrectly("", " ", "x", "xx", "a", "ab", "1a2b3", "nothing");
+        assertThat(regexpReplace("abc|", "x")).doesNotCompile();
+        assertThat(regexpReplace("(abc|)", "x")).doesNotCompile();
+        assertThat(regexpReplace("(?:abc|)", "x")).doesNotCompile();
+        assertThat(regexpReplace("()", "x")).doesNotCompile();
+        assertThat(regexpReplace("()*", "x")).doesNotCompile();
+        assertThat(regexpReplace("()+", "x")).doesNotCompile();
+        assertThat(regexpReplace("()?", "x")).doesNotCompile();
+        assertThat(regexpReplace("(?:)", "x")).doesNotCompile();
+        assertThat(regexpReplace("(?:)*", "x")).doesNotCompile();
+        assertThat(regexpReplace("(?:)+", "x")).doesNotCompile();
+        assertThat(regexpReplace("(?:)?", "x")).doesNotCompile();
+    }
+
+    @Test
+    void testRepeatOfRepeat()
+    {
+        assertThat(regexpReplace("(?:a+)?", "x"))
+                .executesCorrectly("", "b", "aab", "ab", "ba");
+        assertThat(regexpReplace("(?:a+)+", "x"))
+                .executesCorrectly("", "b", "aab", "ab", "ba");
+        assertThat(regexpReplace("(?:a+)*", "x"))
+                .executesCorrectly("", "b", "aab", "ab", "ba");
+        assertThat(regexpReplace("(?:a+)?", "<$0>"))
+                .executesCorrectly("", "b", "aab", "ab", "ba");
+    }
+
+    @Test
+    void testDoesNotCompileRepeatOfPossiblyEmpty()
+    {
+        // cuDF's regex compiler rejects these
+        assertThat(regexpReplace("(a*)+", "x")).doesNotCompile();
+        assertThat(regexpReplace("(a?)+", "x")).doesNotCompile();
+        assertThat(regexpReplace("(a*)*", "x")).doesNotCompile();
+        assertThat(regexpReplace("(?:a*)+", "x")).doesNotCompile();
+        assertThat(regexpReplace("(?:a?)*", "x")).doesNotCompile();
+        assertThat(regexpReplace("((?:a)*)+", "x")).doesNotCompile();
+        assertThat(regexpReplace("(?:a*b*)+", "x")).doesNotCompile();
+        assertThat(regexpReplace("(?:(a)|b?)+", "x")).doesNotCompile();
+        assertThat(regexpReplace("(^)*", "x")).doesNotCompile();
+        assertThat(regexpReplace("(?:^)+", "x")).doesNotCompile();
+        assertThat(regexpReplace("(^)?", "x")).doesNotCompile();
+        assertThat(regexpReplace("(?:$)?", "x")).doesNotCompile();
+        assertThat(regexpReplace("(?:^|$)?", "x")).doesNotCompile();
+    }
+
+    @Test
+    void testOptionalOfPossiblyEmpty()
+    {
+        assertThat(regexpReplace("(a?)?", "x"))
+                .executesCorrectly("", "a", "aa", "b", "ab", "ba");
+        assertThat(regexpReplace("(a?)?", "<$1>"))
+                .executesCorrectly("", "a", "aa", "b", "ab", "ba");
+        assertThat(regexpReplace("(a*)?", "<$1>"))
+                .executesCorrectly("", "a", "aa", "b", "aab", "ba");
+        assertThat(regexpReplace("(?:a?)?", "x"))
+                .executesCorrectly("", "a", "aa", "b", "ab", "ba");
+        assertThat(regexpReplace("x(a*)?y", "<$1>"))
+                .executesCorrectly("xy", "xay", "xaay", "xby", "y");
+        assertThat(regexpReplace("(?:^a|b)?", "x"))
+                .executesCorrectly("", "a", "aa", "ba", "ab");
+    }
+
+    @Test
+    void testOptionalGroup()
+    {
+        assertThat(regexpReplace("(a)?", "x"))
+                .executesCorrectly("", "a", "aa", "b", "ab", "ba");
+        assertThat(regexpReplace("(a)?", "<$1>"))
+                .executesCorrectly("", "a", "aa", "b", "ab", "ba");
+        assertThat(regexpReplace("(.)?", "x"))
+                .executesCorrectly("", "a", "ab", "a\nb", "\n");
+        assertThat(regexpReplace("(.)?", "<$1>"))
+                .executesCorrectly("", "a", "ab", "a\nb", "\n");
+        assertThat(regexpReplace("(www\\.)?([A-Za-z0-9_]+)\\.(com|gov|pl)", "$2"))
+                .executesCorrectly("www.example.com", "example.gov", "www.foo_bar9.pl", "mail.www.example.com", "example.org", "www.com", "WWW.Example.COM", "");
+        assertThat(regexpReplace("(www\\.)?([A-Za-z0-9_]+)\\.(com|gov|pl)", "[$1|$3]"))
+                .executesCorrectly("www.example.com", "example.gov", "www.foo_bar9.pl", "mail.www.example.com", "example.org", "www.com", "WWW.Example.COM", "");
+        // \w is not supported by the transpiler
+        assertThat(regexpReplace("(www\\.)?(\\w+)\\.(com|gov|pl)", "$2")).doesNotCompile();
+    }
+
+    @Test
+    void testRepeatOfNonEmpty()
+    {
+        assertThat(regexpReplace("(a+)+", "x"))
+                .executesCorrectly("", "b", "aab", "ab", "xa");
+        assertThat(regexpReplace("(a+)*", "x"))
+                .executesCorrectly("", "b", "aab", "ab", "xa");
+        assertThat(regexpReplace("(?:a*b)+", "x"))
+                .executesCorrectly("", "b", "aab", "abab", "ba");
+        assertThat(regexpReplace("(?:x$)+", "y"))
+                .executesCorrectly("x", "xx", "ax", "");
+        assertThat(regexpReplace("(?:x(a*)?)+", "<$1>"))
+                .executesCorrectly("", "x", "xax", "xaax", "axa");
+    }
+
+    @Test
+    void testClosingBracketAsFirstCharInClass()
+    {
+        assertThat(regexpReplace("[]]", "X"))
+                .executesCorrectly("]", "a]b", "abc");
+        assertThat(regexpReplace("[]abcd]", "X"))
+                .executesCorrectly("]", "a", "e", "abcd", "]ab]cd", "no match");
+    }
+
+    @Test
+    void testDoesNotCompileCharClassIntersection()
+    {
+        assertThat(regexpReplace("[a-z&&[^m-p]]", "x")).doesNotCompile();
+    }
+
+    @Test
+    void testDoesNotCompileBackslashWithBackreference()
+    {
+        // cuDF has no escape mechanism for literal backslash in
+        // stringReplaceWithBackrefs — \<digit> is always a backreference
+        assertThat(regexpReplace("(x)", "\\\\$1")).doesNotCompile();
+        assertThat(regexpReplace("(x)", "$1\\\\")).doesNotCompile();
+    }
+
+    @Test
+    void testDoesNotCompileNamedGroupInReplacement()
+    {
+        assertThat(regexpReplace("(x)", "${name}")).doesNotCompile();
+        assertThat(regexpReplace("(x)", "${0}")).doesNotCompile();
+    }
+
+    @Test
+    void testDoesNotCompileUnknownEscapeInReplacement()
+    {
+        assertThat(regexpReplace("x", "\\n")).doesNotCompile();
+        assertThat(regexpReplace("x", "\\t")).doesNotCompile();
+        assertThat(regexpReplace("x", "\\a")).doesNotCompile();
+        assertThat(regexpReplace("x", "\\0")).doesNotCompile();
+        assertThat(regexpReplace("x", "\\1")).doesNotCompile();
+    }
+
+    @Test
+    void testDoesNotCompileInvalidDollarInReplacement()
+    {
+        assertThat(regexpReplace("x", "abc$")).doesNotCompile();
+        assertThat(regexpReplace("x", "$x")).doesNotCompile();
+        assertThat(regexpReplace("x", "a$ b")).doesNotCompile();
+        assertThat(regexpReplace("x", "$$")).doesNotCompile();
+    }
+
+    @Test
+    void testDoesNotCompileNonConstantPattern()
+    {
+        Expression expression = new Call(
+                FUNCTION_RESOLUTION.resolveFunction("regexp_replace", fromTypes(VARCHAR, JONI_REGEXP, VARCHAR)),
+                ImmutableList.of(
+                        new Reference(VARCHAR, "ref0"),
+                        new Reference(JONI_REGEXP, "ref1"),
+                        new Constant(VARCHAR, utf8Slice("X"))));
+        Map<Symbol, Integer> layout = ImmutableMap.of(
+                new Symbol(VARCHAR, "ref0"), 0,
+                new Symbol(JONI_REGEXP, "ref1"), 1);
+        assertThat(compileExpression(expression, layout, SQL_STANDARD, TEST_SESSION_TIME_ZONE_KEY)).isEmpty();
+    }
+
+    @Test
+    void testDoesNotCompileNonConstantReplacement()
+    {
+        Expression expression = new Call(
+                FUNCTION_RESOLUTION.resolveFunction("regexp_replace", fromTypes(VARCHAR, JONI_REGEXP, VARCHAR)),
+                ImmutableList.of(
+                        new Reference(VARCHAR, "ref0"),
+                        new Constant(JONI_REGEXP, joniRegexp(utf8Slice("x"))),
+                        new Reference(VARCHAR, "ref1")));
+        Map<Symbol, Integer> layout = ImmutableMap.of(
+                new Symbol(VARCHAR, "ref0"), 0,
+                new Symbol(VARCHAR, "ref1"), 1);
+        assertThat(compileExpression(expression, layout, SQL_STANDARD, TEST_SESSION_TIME_ZONE_KEY)).isEmpty();
+    }
+
+    @Test
+    void testAllCodePoints()
+    {
+        for (int codePoint = MIN_CODE_POINT; codePoint <= MAX_CODE_POINT; codePoint++) {
+            String pattern = Character.toString(codePoint);
+            try {
+                switch (codePoint) {
+                    case '[', '\\', '?', '*', '+', '(', ')' -> assertInvalidPattern(pattern);
+                    // currently not supported
+                    case '|', ']', '{', '}' -> assertThat(regexpReplace(pattern, "x")).doesNotCompile();
+                    // U+0000 not supported correctly in cudf patterns
+                    case 0 -> assertThat(regexpReplace(pattern, "x")).doesNotCompile();
+                    default -> {
+                        if (isSurrogate(codePoint)) {
+                            // Unmatched surrogate character is not supported (and not expected)
+                            assertInvalidPattern(pattern);
+                        }
+                        else if (!isBmpCodePoint(codePoint)) {
+                            // cuDF regex matching is limited to BMP https://docs.rapids.ai/api/cudf/stable/libcudf_docs/unicode_limitations/
+                            assertThat(regexpReplace(pattern, "x")).doesNotCompile();
+                        }
+                        else {
+                            assertThat(regexpReplace(pattern, "x"))
+                                    .executesCorrectly(pattern, "", "a", "x", "abc");
+                        }
+                    }
+                }
+            }
+            catch (Throwable e) {
+                e.addSuppressed(new Exception("codePoint: %s (0x%s), pattern '%s'".formatted(codePoint, Integer.toHexString(codePoint), pattern)));
+                throw e;
+            }
+        }
+    }
+
+    private void assertInvalidPattern(String pattern)
+    {
+        // Trino Expression fails to build so there is no expression to translate to GPU
+        assertThatThrownBy(() -> regexpReplaceExpression(pattern))
+                .isInstanceOf(TrinoException.class);
+        assertThatThrownBy(() -> regexpReplaceExpression(pattern, "x"))
+                .isInstanceOf(TrinoException.class);
+    }
+
+    private AssertProvider<RegexpReplaceAssert> regexpReplace(String pattern, String replacement)
+    {
+        return () -> new RegexpReplaceAssert(regexpReplaceExpression(pattern, replacement), pattern, Optional.of(replacement));
+    }
+
+    private AssertProvider<RegexpReplaceAssert> regexpReplace(String pattern)
+    {
+        return () -> new RegexpReplaceAssert(regexpReplaceExpression(pattern), pattern, Optional.empty());
+    }
+
+    private Expression regexpReplaceExpression(String pattern, String replacement)
+    {
+        return new Call(
+                FUNCTION_RESOLUTION.resolveFunction("regexp_replace", fromTypes(VARCHAR, JONI_REGEXP, VARCHAR)),
+                ImmutableList.of(
+                        new Reference(VARCHAR, "ref0"),
+                        new Constant(JONI_REGEXP, joniRegexp(utf8Slice(pattern))),
+                        new Constant(VARCHAR, utf8Slice(replacement))));
+    }
+
+    private Expression regexpReplaceExpression(String pattern)
+    {
+        return new Call(
+                FUNCTION_RESOLUTION.resolveFunction("regexp_replace", fromTypes(VARCHAR, JONI_REGEXP)),
+                ImmutableList.of(
+                        new Reference(VARCHAR, "ref0"),
+                        new Constant(JONI_REGEXP, joniRegexp(utf8Slice(pattern)))));
+    }
+
+    private static class RegexpReplaceAssert
+    {
+        private static final Map<Symbol, Integer> LAYOUT = ImmutableMap.of(new Symbol(VARCHAR, "ref0"), 0);
+
+        private final String pattern;
+        private final Optional<String> replacement;
+        private final String expressionString;
+        private final Expression expression;
+
+        RegexpReplaceAssert(Expression expression, String pattern, Optional<String> replacement)
+        {
+            this.pattern = requireNonNull(pattern, "pattern is null");
+            this.replacement = requireNonNull(replacement, "replacement is null");
+            this.expressionString = replacement
+                    .map(s -> "regexp_replace('%s', '%s')".formatted(pattern, s))
+                    .orElseGet(() -> "regexp_replace('%s')".formatted(pattern));
+            this.expression = requireNonNull(expression, "expression is null");
+        }
+
+        void doesNotCompile()
+        {
+            assertThat(compileExpression(expression, LAYOUT, SQL_STANDARD, TEST_SESSION_TIME_ZONE_KEY))
+                    .describedAs("Expected GPU compilation to fail for %s", expressionString)
+                    .isEmpty();
+        }
+
+        void executesCorrectly(@Nullable String... inputs)
+        {
+            List<String> list = new ArrayList<>();
+            list.addAll(asList(inputs));
+            // These test cases are always good to have
+            list.add(null);
+            list.add(pattern);
+            list.add(pattern + pattern);
+            replacement.ifPresent(list::add);
+            list.add(null);
+
+            assertGpuMatchesCpu(List.of(createNullableVarcharPage(list)));
+        }
+
+        private void assertGpuMatchesCpu(List<Page> inputPages)
+        {
+            List<Type> inputTypes = List.of(VARCHAR);
+
+            CompiledExpression gpuExpression = compileExpression(expression, LAYOUT, SQL_STANDARD, TEST_SESSION_TIME_ZONE_KEY)
+                    .orElseThrow(() -> new AssertionError("GPU compilation failed for " + expressionString));
+
+            assertThat(gpuExpression.inputChannels().getInputChannels())
+                    .containsExactly(0);
+
+            List<Page> cpuResults = executeWithCpu(TEST_SESSION, inputPages, List.of(expression), LAYOUT);
+            List<Page> gpuResults = executeGpuOperation(
+                    inputPages,
+                    inputTypes,
+                    List.of(expression.type()),
+                    (context, copyToDevice) -> new GpuProject(context, copyToDevice, List.of(new GpuProject.Projection.Gpu(gpuExpression))));
+
+            assertSameDataInOrder(gpuResults, cpuResults, List.of(expression.type()));
+        }
+    }
+
+    private static Page createNullableVarcharPage(List</* nullable */ String> values)
+    {
+        VariableWidthBlockBuilder builder = new VariableWidthBlockBuilder(null, values.size(), values.size() * 32);
+        for (String value : values) {
+            if (value == null) {
+                builder.appendNull();
+            }
+            else {
+                builder.writeEntry(utf8Slice(value));
+            }
+        }
+        return new Page(values.size(), builder.build());
+    }
+
+    private static boolean isSurrogate(int codePoint)
+    {
+        return MIN_SURROGATE <= codePoint && codePoint <= MAX_SURROGATE;
+    }
+}
