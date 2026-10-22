@@ -1689,7 +1689,6 @@ jobs:
             - suite-delta-lake-databricks-unity-s3-credentials-vending
             - suite-delta-lake-databricks-unity-gcs-credentials-vending
             - suite-delta-lake-databricks-unity-azure-credentials-vending
-            - suite-iceberg-databricks-unity
             - suite-kdb
             - suite-sas
           exclude:
@@ -1717,12 +1716,6 @@ jobs:
                     (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'databricks')) ||
                     (github.event_name == 'workflow_dispatch') ||
                     (env.CI_SKIP_SECRETS_PRESENCE_CHECKS == '' && secrets.AZURE_DATABRICKS_TOKEN == '') }}
-            - suite: suite-iceberg-databricks-unity
-              ignore exclusion if: >-
-                ${{ (github.event_name == 'schedule' && github.event.schedule == '0 0 * * *') ||
-                    (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'databricks')) ||
-                    (github.event_name == 'workflow_dispatch') ||
-                    (env.CI_SKIP_SECRETS_PRESENCE_CHECKS == '' && secrets.DATABRICKS_TOKEN == '') }}
             - suite: suite-sap-hana
               ignore exclusion if: >-
                 ${{ (github.event_name == 'schedule' && github.event.schedule == '0 0 * * *') ||
@@ -2207,7 +2200,7 @@ jobs:
                 availability_env=DATABRICKS_TOKEN
                 required_env+=(S3_BUCKET AWS_REGION TRINO_AWS_ACCESS_KEY_ID TRINO_AWS_SECRET_ACCESS_KEY DATABRICKS_TOKEN DATABRICKS_154_JDBC_URL)
                 ;;
-              SuiteDeltaLakeDatabricksUnity | SuiteHiveDatabricksUnity)
+              SuiteDeltaLakeDatabricksUnity | SuiteHiveDatabricksUnity | SuiteIcebergDatabricksUnity)
                 availability_env=DATABRICKS_TOKEN
                 required_env+=(AWS_REGION DATABRICKS_AWS_ACCESS_KEY_ID DATABRICKS_AWS_SECRET_ACCESS_KEY DATABRICKS_HOST DATABRICKS_TOKEN DATABRICKS_UNITY_JDBC_URL DATABRICKS_UNITY_CATALOG_NAME DATABRICKS_UNITY_EXTERNAL_LOCATION)
                 ;;
