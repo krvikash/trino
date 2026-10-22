@@ -424,6 +424,16 @@ public @interface TestGroup
 
     @Target({TYPE, METHOD})
     @Retention(RUNTIME)
+    @Tag("delta-lake-databricks-unity")
+    @interface DeltaLakeDatabricksUnity {}
+
+    @Target({TYPE, METHOD})
+    @Retention(RUNTIME)
+    @Tag("delta-lake-databricks-unity-proxy")
+    @interface DeltaLakeDatabricksUnityProxy {}
+
+    @Target({TYPE, METHOD})
+    @Retention(RUNTIME)
     @Tag("delta-lake-exclude-18")
     @interface DeltaLakeExclude18 {}
 
