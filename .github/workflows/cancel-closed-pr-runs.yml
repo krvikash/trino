@@ -1,0 +1,16 @@
+name: cancel-closed-pr-runs
+
+# When a PR is closed or merged, cancel every pull_request run it started that is still
+# queued or running. The logic lives in starburst-github-actions so every repo gets fixes
+# at once. pull_request_target gives fork PRs a token that can cancel runs; the shared
+# workflow never checks out PR code.
+on:
+  pull_request_target:
+    types: [closed]
+
+permissions:
+  actions: write
+
+jobs:
+  cancel:
+    uses: starburstdata/starburst-github-actions/.github/workflows/cancel-closed-pr-runs.yml@main
