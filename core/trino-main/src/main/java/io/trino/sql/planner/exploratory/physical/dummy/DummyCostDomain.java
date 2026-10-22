@@ -18,13 +18,17 @@ import io.trino.sql.planner.exploratory.physical.CostDomain;
 
 import java.util.List;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static io.trino.sql.planner.exploratory.physical.CostComparison.BETTER;
 import static io.trino.sql.planner.exploratory.physical.CostComparison.EQUAL;
 import static io.trino.sql.planner.exploratory.physical.CostComparison.WORSE;
 import static io.trino.sql.planner.exploratory.physical.dummy.DummyCost.INFINITE;
-import static io.trino.sql.planner.exploratory.physical.dummy.DummyCost.UNKNOWN;
 import static io.trino.sql.planner.exploratory.physical.dummy.DummyCost.ZERO;
 
+/**
+ * Totally ordered, additive cost domain of the dummy physical model. Costs
+ * count operations, so the knowledge order and the decision order coincide.
+ */
 public final class DummyCostDomain
         implements CostDomain<DummyCost>
 {
@@ -53,13 +57,11 @@ public final class DummyCostDomain
     @Override
     public DummyCost add(DummyCost left, DummyCost right)
     {
-        if (left == INFINITE || right == INFINITE) {
+        if (left.isInfinite() || right.isInfinite()) {
             return INFINITE;
         }
-        if (left == ZERO && right == ZERO) {
-            return ZERO;
-        }
-        return UNKNOWN;
+        checkArgument(left.operations() < INFINITE.operations() - right.operations(), "finite cost overflow: %s + %s", left, right);
+        return new DummyCost(left.operations() + right.operations());
     }
 
     @Override
@@ -75,19 +77,14 @@ public final class DummyCostDomain
     @Override
     public CostComparison compare(DummyCost left, DummyCost right)
     {
-        if (left == right) {
-            return EQUAL;
+        int comparison = Long.compare(left.operations(), right.operations());
+        if (comparison < 0) {
+            return BETTER;
         }
-        if (left == INFINITE) {
+        if (comparison > 0) {
             return WORSE;
         }
-        if (right == INFINITE) {
-            return BETTER;
-        }
-        if (left == ZERO) {
-            return BETTER;
-        }
-        return WORSE;
+        return EQUAL;
     }
 
     @Override
@@ -99,6 +96,6 @@ public final class DummyCostDomain
     @Override
     public boolean sameTier(DummyCost left, DummyCost right)
     {
-        return left == right;
+        return left.equals(right);
     }
 }

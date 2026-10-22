@@ -44,7 +44,7 @@ import static io.trino.sql.planner.exploratory.MemoTestingHelper.singleConstantR
 import static io.trino.sql.planner.exploratory.MemoTestingHelper.valuesOfRows;
 import static io.trino.sql.planner.exploratory.MemoTestingUtil.attributes;
 import static io.trino.sql.planner.exploratory.OptimizationStoreTestingHelper.TestRequirement.UNDEFINED;
-import static io.trino.sql.planner.exploratory.physical.dummy.DummyCost.UNKNOWN;
+import static io.trino.sql.planner.exploratory.physical.dummy.DummyCost.ONE;
 import static io.trino.sql.planner.exploratory.physical.dummy.DummyProperty.SCALAR;
 
 final class OptimizationStoreTestingHelper
@@ -120,7 +120,7 @@ final class OptimizationStoreTestingHelper
 
     static OperationImplementationAlternative<DummyCost, TestRequirement, DummyProperty> alternative(MemoOperation operation)
     {
-        return alternative(operation, UNKNOWN);
+        return alternative(operation, ONE);
     }
 
     static OperationImplementationAlternative<DummyCost, TestRequirement, DummyProperty> alternative(MemoOperation operation, DummyCost cost)
@@ -147,9 +147,9 @@ final class OptimizationStoreTestingHelper
                 operation,
                 ImmutableList.of(childRequirement),
                 ImmutableList.of(Attributes.empty()),
-                ImmutableList.of(UNKNOWN),
+                ImmutableList.of(ONE),
                 DummyProperty.UNKNOWN,
-                UNKNOWN,
+                ONE,
                 PHYSICAL_MODEL.requirements(),
                 PHYSICAL_MODEL.properties());
     }

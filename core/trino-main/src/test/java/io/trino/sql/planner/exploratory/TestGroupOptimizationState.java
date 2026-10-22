@@ -16,13 +16,15 @@ package io.trino.sql.planner.exploratory;
 import com.google.common.collect.ImmutableSet;
 import io.trino.sql.newir.Dialect;
 import io.trino.sql.planner.exploratory.OptimizationStoreTestingHelper.TestRequirement;
-import io.trino.sql.planner.exploratory.physical.Cost;
 import io.trino.sql.planner.exploratory.physical.CostComparison;
 import io.trino.sql.planner.exploratory.physical.CostDomain;
+import io.trino.sql.planner.exploratory.physical.ForwardingCostDomain;
 import io.trino.sql.planner.exploratory.physical.PhysicalModel;
 import io.trino.sql.planner.exploratory.physical.PropertyDomain;
 import io.trino.sql.planner.exploratory.physical.RequirementDomain;
 import io.trino.sql.planner.exploratory.physical.XOCompanionDialect;
+import io.trino.sql.planner.exploratory.physical.dummy.DummyCost;
+import io.trino.sql.planner.exploratory.physical.dummy.DummyCostDomain;
 import io.trino.sql.planner.exploratory.physical.dummy.DummyProperty;
 import org.junit.jupiter.api.Test;
 
@@ -45,17 +47,16 @@ import static io.trino.sql.planner.exploratory.physical.CostComparison.BETTER;
 import static io.trino.sql.planner.exploratory.physical.CostComparison.EQUAL;
 import static io.trino.sql.planner.exploratory.physical.CostComparison.INCOMPARABLE;
 import static io.trino.sql.planner.exploratory.physical.CostComparison.WORSE;
-import static io.trino.sql.planner.exploratory.physical.dummy.DummyCost.UNKNOWN;
+import static io.trino.sql.planner.exploratory.physical.dummy.DummyCost.INFINITE;
+import static io.trino.sql.planner.exploratory.physical.dummy.DummyCost.ONE;
+import static io.trino.sql.planner.exploratory.physical.dummy.DummyCost.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class TestGroupOptimizationState
 {
-    private static final TestingCost COST_0 = new TestingCost(0);
-    private static final TestingCost COST_1 = new TestingCost(1);
-    private static final TestingCost COST_2 = new TestingCost(2);
-    private static final TestingCost COST_3 = new TestingCost(3);
-    private static final TestingCost INFINITE_COST = new TestingCost(Double.POSITIVE_INFINITY);
+    private static final DummyCost COST_2 = new DummyCost(2);
+    private static final DummyCost COST_3 = new DummyCost(3);
 
     @Test
     public void testInitialize()
@@ -92,8 +93,8 @@ class TestGroupOptimizationState
         assertThat(updated.requirement()).isEqualTo(UNDEFINED);
         assertThat(updated.key()).isEqualTo(stateKey(2, UNDEFINED));
         assertThat(updated.winners()).containsExactly(candidate);
-        assertThat(updated.winnerCost()).contains(UNKNOWN);
-        assertThat(updated.bestKnownCost()).contains(UNKNOWN);
+        assertThat(updated.winnerCost()).contains(ONE);
+        assertThat(updated.bestKnownCost()).contains(ONE);
 
         // winners are defensively copied into the state
         winners.add(candidate(alternative(alternativeLeafOperation())));
@@ -125,8 +126,8 @@ class TestGroupOptimizationState
         assertThat(mergedState.groupId()).isEqualTo(1);
         assertThat(mergedState.requirement()).isEqualTo(UNDEFINED);
         assertThat(mergedState.winners()).containsExactlyInAnyOrder(survivingCandidate, removedCandidate);
-        assertThat(mergedState.winnerCost()).contains(UNKNOWN);
-        assertThat(mergedState.bestKnownCost()).contains(UNKNOWN);
+        assertThat(mergedState.winnerCost()).contains(ONE);
+        assertThat(mergedState.bestKnownCost()).contains(ONE);
 
         // source states stay unchanged
         assertThat(survivingState.winners()).containsExactly(survivingCandidate);
@@ -136,33 +137,33 @@ class TestGroupOptimizationState
     @Test
     public void testMergeStatesPreservesAdmissionOrder()
     {
-        var survivingCandidate = candidateWithCost(leafOperation(), COST_1);
+        var survivingCandidate = candidateWithCost(leafOperation(), ONE);
         var firstRemovedCandidate = candidateWithCost(alternativeLeafOperation(), COST_2);
         var secondRemovedCandidate = candidateWithCost(
                 MemoOperationBuilder.from(leafOperation())
                         .withDialect("second_removed")
                         .build(),
-                COST_0);
+                ZERO);
         var thirdRemovedCandidate = candidateWithCost(
                 MemoOperationBuilder.from(leafOperation())
                         .withDialect("third_removed")
                         .build(),
                 COST_3);
 
-        WinnersTier<TestingCost, TestRequirement, DummyProperty> survivingWinners = WinnersTier.empty(ReplayCostDomain.INSTANCE);
+        WinnersTier<DummyCost, TestRequirement, DummyProperty> survivingWinners = WinnersTier.empty(ReplayCostDomain.INSTANCE);
         survivingWinners.add(survivingCandidate);
-        WinnersTier<TestingCost, TestRequirement, DummyProperty> removedWinners = WinnersTier.empty(ReplayCostDomain.INSTANCE);
+        WinnersTier<DummyCost, TestRequirement, DummyProperty> removedWinners = WinnersTier.empty(ReplayCostDomain.INSTANCE);
         removedWinners.add(firstRemovedCandidate);
         removedWinners.add(secondRemovedCandidate);
         removedWinners.add(thirdRemovedCandidate);
         assertThat(removedWinners.inAdmissionOrder()).containsExactly(firstRemovedCandidate, secondRemovedCandidate, thirdRemovedCandidate);
         assertThat(removedWinners.inIncreasingCostOrder()).containsExactly(secondRemovedCandidate, firstRemovedCandidate, thirdRemovedCandidate);
 
-        var survivingState = GroupOptimizationState.<TestingCost, TestRequirement, DummyProperty>initialize(
+        var survivingState = GroupOptimizationState.<DummyCost, TestRequirement, DummyProperty>initialize(
                         stateKey(1, UNDEFINED),
                         ReplayCostDomain.INSTANCE)
                 .replaceWinners(survivingWinners);
-        var removedState = GroupOptimizationState.<TestingCost, TestRequirement, DummyProperty>initialize(
+        var removedState = GroupOptimizationState.<DummyCost, TestRequirement, DummyProperty>initialize(
                         stateKey(2, UNDEFINED),
                         ReplayCostDomain.INSTANCE)
                 .replaceWinners(removedWinners);
@@ -173,8 +174,8 @@ class TestGroupOptimizationState
         // Replaying the second candidate first would admit the first one afterward.
         assertThat(mergedState.winners().inAdmissionOrder())
                 .containsExactly(survivingCandidate, secondRemovedCandidate, thirdRemovedCandidate);
-        assertThat(mergedState.winnerCost()).contains(COST_0);
-        assertThat(mergedState.bestKnownCost()).contains(COST_0);
+        assertThat(mergedState.winnerCost()).contains(ZERO);
+        assertThat(mergedState.bestKnownCost()).contains(ZERO);
     }
 
     @Test
@@ -209,8 +210,8 @@ class TestGroupOptimizationState
 
         // only the matching candidate is removed
         assertThat(updated.winners()).containsExactly(secondCandidate);
-        assertThat(updated.winnerCost()).contains(UNKNOWN);
-        assertThat(updated.bestKnownCost()).contains(UNKNOWN);
+        assertThat(updated.winnerCost()).contains(ONE);
+        assertThat(updated.bestKnownCost()).contains(ONE);
 
         // the original state stays unchanged
         assertThat(state.winners()).containsExactlyInAnyOrder(firstCandidate, secondCandidate);
@@ -219,19 +220,19 @@ class TestGroupOptimizationState
     @Test
     public void testRemoveCandidatesPreservesAdmissionOrder()
     {
-        var firstCandidate = candidateWithCost(leafOperation(), COST_1);
+        var firstCandidate = candidateWithCost(leafOperation(), ONE);
         var secondCandidate = candidateWithCost(alternativeLeafOperation(), COST_3);
         var thirdCandidate = candidateWithCost(
                 MemoOperationBuilder.from(leafOperation())
                         .withDialect("third")
                         .build(),
-                COST_0);
+                ZERO);
         var fourthCandidate = candidateWithCost(
                 MemoOperationBuilder.from(leafOperation())
                         .withDialect("fourth")
                         .build(),
                 COST_2);
-        WinnersTier<TestingCost, TestRequirement, DummyProperty> winners = WinnersTier.empty(ReplayCostDomain.INSTANCE);
+        WinnersTier<DummyCost, TestRequirement, DummyProperty> winners = WinnersTier.empty(ReplayCostDomain.INSTANCE);
         winners.add(firstCandidate);
         winners.add(secondCandidate);
         winners.add(thirdCandidate);
@@ -239,7 +240,7 @@ class TestGroupOptimizationState
         assertThat(winners.inAdmissionOrder()).containsExactly(firstCandidate, secondCandidate, thirdCandidate, fourthCandidate);
         assertThat(winners.inIncreasingCostOrder()).containsExactly(secondCandidate, thirdCandidate, firstCandidate, fourthCandidate);
 
-        var state = GroupOptimizationState.<TestingCost, TestRequirement, DummyProperty>initialize(
+        var state = GroupOptimizationState.<DummyCost, TestRequirement, DummyProperty>initialize(
                         stateKey(1, UNDEFINED),
                         ReplayCostDomain.INSTANCE)
                 .replaceWinners(winners);
@@ -249,8 +250,8 @@ class TestGroupOptimizationState
         assertThat(updated).isSameAs(state);
         assertThat(updated.winners().inAdmissionOrder())
                 .containsExactly(firstCandidate, secondCandidate, thirdCandidate, fourthCandidate);
-        assertThat(updated.winnerCost()).contains(COST_0);
-        assertThat(updated.bestKnownCost()).contains(COST_0);
+        assertThat(updated.winnerCost()).contains(ZERO);
+        assertThat(updated.bestKnownCost()).contains(ZERO);
 
         assertThat(state.removeCandidates(ImmutableSet.of(candidateKey(firstCandidate.alternativeKey(), OTHER))))
                 .isSameAs(state);
@@ -259,7 +260,7 @@ class TestGroupOptimizationState
                 MemoOperationBuilder.from(leafOperation())
                         .withDialect("unrelated")
                         .build(),
-                COST_0);
+                ZERO);
         assertThat(state.removeCandidates(ImmutableSet.of(candidateKey(unrelatedCandidate.alternativeKey(), UNDEFINED))))
                 .isSameAs(state);
     }
@@ -278,8 +279,8 @@ class TestGroupOptimizationState
         // the returned state contains both candidates
         assertThat(state.winners()).containsExactly(firstCandidate);
         assertThat(updated.winners()).containsExactlyInAnyOrder(firstCandidate, secondCandidate);
-        assertThat(updated.winnerCost()).contains(UNKNOWN);
-        assertThat(updated.bestKnownCost()).contains(UNKNOWN);
+        assertThat(updated.winnerCost()).contains(ONE);
+        assertThat(updated.bestKnownCost()).contains(ONE);
     }
 
     @Test
@@ -289,7 +290,7 @@ class TestGroupOptimizationState
         var state = state(stateKey(1, UNDEFINED))
                 .addCandidate(candidate);
 
-        assertThat(state.bestKnownCost()).contains(UNKNOWN);
+        assertThat(state.bestKnownCost()).contains(ONE);
         assertThat(state.shouldNotifyParents()).isTrue();
 
         state = state.withParentsNotified();
@@ -297,7 +298,7 @@ class TestGroupOptimizationState
 
         state = state.removeCandidates(ImmutableSet.of(candidateKey(candidate.alternativeKey(), UNDEFINED)));
         assertThat(state.winnerCost()).isEmpty();
-        assertThat(state.bestKnownCost()).contains(UNKNOWN);
+        assertThat(state.bestKnownCost()).contains(ONE);
         assertThat(state.shouldNotifyParents()).isFalse();
     }
 
@@ -316,13 +317,13 @@ class TestGroupOptimizationState
         assertThat(state.bestKnownCost()).contains(COST_2);
         assertThat(state.shouldNotifyParents()).isFalse();
 
-        state = state.replaceWinners(winnersWithCost(COST_1));
+        state = state.replaceWinners(winnersWithCost(ONE));
 
         // Costs 2 and 1 are in the same tier, but costs 3 and 1 are not.
         // The notification anchor remains 3, so parents must now be notified.
-        assertThat(TestingCostDomain.INSTANCE.sameTier(COST_1, COST_2)).isTrue();
-        assertThat(TestingCostDomain.INSTANCE.sameTier(COST_3, COST_1)).isFalse();
-        assertThat(state.bestKnownCost()).contains(COST_1);
+        assertThat(TestingCostDomain.INSTANCE.sameTier(ONE, COST_2)).isTrue();
+        assertThat(TestingCostDomain.INSTANCE.sameTier(COST_3, ONE)).isFalse();
+        assertThat(state.bestKnownCost()).contains(ONE);
         assertThat(state.shouldNotifyParents()).isTrue();
 
         state = state.withParentsNotified();
@@ -332,12 +333,12 @@ class TestGroupOptimizationState
     @Test
     public void testMergeStatesPreservesSurvivingParentNotificationCost()
     {
-        var survivingState = stateWithWinnerCost(COST_0)
+        var survivingState = stateWithWinnerCost(ZERO)
                 .withParentsNotified();
 
-        var removedWinners = WinnersTier.<TestingCost, TestRequirement, DummyProperty>empty(TestingCostDomain.INSTANCE);
+        var removedWinners = WinnersTier.<DummyCost, TestRequirement, DummyProperty>empty(TestingCostDomain.INSTANCE);
         removedWinners.add(candidateWithCost(alternativeLeafOperation(), COST_2));
-        var removedState = GroupOptimizationState.<TestingCost, TestRequirement, DummyProperty>initialize(
+        var removedState = GroupOptimizationState.<DummyCost, TestRequirement, DummyProperty>initialize(
                         stateKey(2, UNDEFINED),
                         TestingCostDomain.INSTANCE)
                 .replaceWinners(removedWinners)
@@ -345,26 +346,26 @@ class TestGroupOptimizationState
 
         var mergedState = GroupOptimizationState.mergeStates(survivingState, removedState);
 
-        assertThat(mergedState.winnerCost()).contains(COST_0);
+        assertThat(mergedState.winnerCost()).contains(ZERO);
         assertThat(mergedState.shouldNotifyParents()).isFalse();
     }
 
-    private static GroupOptimizationState<TestingCost, TestRequirement, DummyProperty> stateWithWinnerCost(TestingCost cost)
+    private static GroupOptimizationState<DummyCost, TestRequirement, DummyProperty> stateWithWinnerCost(DummyCost cost)
     {
-        return GroupOptimizationState.<TestingCost, TestRequirement, DummyProperty>initialize(stateKey(1, UNDEFINED), TestingCostDomain.INSTANCE)
+        return GroupOptimizationState.<DummyCost, TestRequirement, DummyProperty>initialize(stateKey(1, UNDEFINED), TestingCostDomain.INSTANCE)
                 .replaceWinners(winnersWithCost(cost));
     }
 
-    private static WinnersTier<TestingCost, TestRequirement, DummyProperty> winnersWithCost(TestingCost cost)
+    private static WinnersTier<DummyCost, TestRequirement, DummyProperty> winnersWithCost(DummyCost cost)
     {
-        WinnersTier<TestingCost, TestRequirement, DummyProperty> winners = WinnersTier.empty(TestingCostDomain.INSTANCE);
+        WinnersTier<DummyCost, TestRequirement, DummyProperty> winners = WinnersTier.empty(TestingCostDomain.INSTANCE);
         winners.add(candidateWithCost(leafOperation(), cost));
         return winners;
     }
 
-    private static Candidate<TestingCost, TestRequirement, DummyProperty> candidateWithCost(MemoOperation operation, TestingCost cost)
+    private static Candidate<DummyCost, TestRequirement, DummyProperty> candidateWithCost(MemoOperation operation, DummyCost cost)
     {
-        OperationImplementationAlternative<TestingCost, TestRequirement, DummyProperty> alternative = OperationImplementationAlternative.alternative(
+        OperationImplementationAlternative<DummyCost, TestRequirement, DummyProperty> alternative = OperationImplementationAlternative.alternative(
                 operation,
                 List.of(),
                 List.of(),
@@ -373,7 +374,7 @@ class TestGroupOptimizationState
                 cost,
                 TestingPhysicalModel.INSTANCE.requirements(),
                 TestingPhysicalModel.INSTANCE.properties());
-        Candidate<TestingCost, TestRequirement, DummyProperty> candidate = new Candidate<>(
+        Candidate<DummyCost, TestRequirement, DummyProperty> candidate = new Candidate<>(
                 alternative,
                 EnforcerPipeline.empty(
                         operation.resultType(),
@@ -385,80 +386,26 @@ class TestGroupOptimizationState
         return candidate;
     }
 
-    private record TestingCost(double value)
-            implements Cost {}
-
     private enum TestingCostDomain
-            implements CostDomain<TestingCost>
+            implements ForwardingCostDomain<DummyCost>
     {
         INSTANCE;
 
-        private static final double TIER_TOLERANCE = 1;
+        private static final long TIER_TOLERANCE = 1;
 
         @Override
-        public TestingCost zero()
+        public CostDomain<DummyCost> delegate()
         {
-            return COST_0;
+            return DummyCostDomain.INSTANCE;
         }
 
         @Override
-        public TestingCost infinite()
+        public boolean sameTier(DummyCost left, DummyCost right)
         {
-            return INFINITE_COST;
-        }
-
-        @Override
-        public TestingCost parameter()
-        {
-            return COST_0;
-        }
-
-        @Override
-        public TestingCost add(TestingCost left, TestingCost right)
-        {
-            return new TestingCost(left.value() + right.value());
-        }
-
-        @Override
-        public TestingCost addAll(List<TestingCost> costs)
-        {
-            TestingCost result = zero();
-            for (TestingCost cost : costs) {
-                result = add(result, cost);
+            if (left.equals(right)) {
+                return true;
             }
-            return result;
-        }
-
-        @Override
-        public CostComparison compare(TestingCost left, TestingCost right)
-        {
-            int comparison = Double.compare(left.value(), right.value());
-            if (comparison < 0) {
-                return BETTER;
-            }
-            if (comparison > 0) {
-                return WORSE;
-            }
-            return EQUAL;
-        }
-
-        @Override
-        public CostComparison decide(TestingCost left, TestingCost right)
-        {
-            int comparison = Double.compare(left.value(), right.value());
-            if (comparison < 0) {
-                return BETTER;
-            }
-            if (comparison > 0) {
-                return WORSE;
-            }
-            return EQUAL;
-        }
-
-        @Override
-        public boolean sameTier(TestingCost left, TestingCost right)
-        {
-            return left.equals(right) || Math.abs(left.value() - right.value()) <= TIER_TOLERANCE;
+            return !left.isInfinite() && !right.isInfinite() && Math.abs(left.operations() - right.operations()) <= TIER_TOLERANCE;
         }
     }
 
@@ -467,96 +414,55 @@ class TestGroupOptimizationState
      * make admission order observably different from increasing cost order.
      */
     private enum ReplayCostDomain
-            implements CostDomain<TestingCost>
+            implements ForwardingCostDomain<DummyCost>
     {
         INSTANCE;
 
         @Override
-        public TestingCost zero()
+        public CostDomain<DummyCost> delegate()
         {
-            return COST_0;
+            return DummyCostDomain.INSTANCE;
         }
 
         @Override
-        public TestingCost infinite()
-        {
-            return INFINITE_COST;
-        }
-
-        @Override
-        public TestingCost parameter()
-        {
-            return COST_0;
-        }
-
-        @Override
-        public TestingCost add(TestingCost left, TestingCost right)
-        {
-            return new TestingCost(left.value() + right.value());
-        }
-
-        @Override
-        public TestingCost addAll(List<TestingCost> costs)
-        {
-            TestingCost result = zero();
-            for (TestingCost cost : costs) {
-                result = add(result, cost);
-            }
-            return result;
-        }
-
-        @Override
-        public CostComparison compare(TestingCost left, TestingCost right)
+        public CostComparison compare(DummyCost left, DummyCost right)
         {
             if (left.equals(right)) {
                 return EQUAL;
             }
-            if (left.equals(INFINITE_COST)) {
+            if (left.equals(INFINITE)) {
                 return WORSE;
             }
-            if (right.equals(INFINITE_COST)) {
+            if (right.equals(INFINITE)) {
                 return BETTER;
             }
-            if (left.equals(COST_0) && (right.equals(COST_1) || right.equals(COST_2))) {
+            if (left.equals(ZERO) && (right.equals(ONE) || right.equals(COST_2))) {
                 return BETTER;
             }
-            if (right.equals(COST_0) && (left.equals(COST_1) || left.equals(COST_2))) {
+            if (right.equals(ZERO) && (left.equals(ONE) || left.equals(COST_2))) {
                 return WORSE;
             }
             return INCOMPARABLE;
         }
 
         @Override
-        public CostComparison decide(TestingCost left, TestingCost right)
-        {
-            int comparison = Double.compare(left.value(), right.value());
-            if (comparison < 0) {
-                return BETTER;
-            }
-            if (comparison > 0) {
-                return WORSE;
-            }
-            return EQUAL;
-        }
-
-        @Override
-        public boolean sameTier(TestingCost left, TestingCost right)
+        public boolean sameTier(DummyCost left, DummyCost right)
         {
             return left.equals(right) ||
-                    (left.equals(COST_0) && !right.equals(INFINITE_COST)) ||
-                    (right.equals(COST_0) && !left.equals(INFINITE_COST)) ||
-                    (left.equals(COST_1) && right.equals(COST_3)) ||
-                    (left.equals(COST_3) && right.equals(COST_1));
+                    (left.equals(ZERO) && !right.equals(INFINITE)) ||
+                    (right.equals(ZERO) && !left.equals(INFINITE)) ||
+                    (left.equals(ONE) && right.equals(COST_3)) ||
+                    (left.equals(COST_3) && right.equals(ONE));
         }
     }
 
     private enum TestingPhysicalModel
-            implements PhysicalModel<TestingCost, TestRequirement, DummyProperty>
+            implements PhysicalModel<DummyCost, TestRequirement, DummyProperty>
     {
         INSTANCE;
 
         @Override
-        public CostDomain<TestingCost> costs()
+        public CostDomain<DummyCost> costs()
         {
             return TestingCostDomain.INSTANCE;
         }
@@ -574,7 +480,7 @@ class TestGroupOptimizationState
         }
 
         @Override
-        public XOCompanionDialect<TestingCost, TestRequirement, DummyProperty> companionDialect(Dialect dialect)
+        public XOCompanionDialect<DummyCost, TestRequirement, DummyProperty> companionDialect(Dialect dialect)
         {
             throw new UnsupportedOperationException("companion dialect is not needed in group optimization state tests");
         }

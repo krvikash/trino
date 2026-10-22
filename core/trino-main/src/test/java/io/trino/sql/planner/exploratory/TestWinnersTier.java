@@ -29,12 +29,9 @@ import static io.trino.sql.planner.exploratory.OptimizationStoreTestingHelper.al
 import static io.trino.sql.planner.exploratory.OptimizationStoreTestingHelper.candidate;
 import static io.trino.sql.planner.exploratory.OptimizationStoreTestingHelper.emptyWinners;
 import static io.trino.sql.planner.exploratory.OptimizationStoreTestingHelper.leafOperation;
-import static io.trino.sql.planner.exploratory.physical.CostComparison.BETTER;
-import static io.trino.sql.planner.exploratory.physical.CostComparison.EQUAL;
 import static io.trino.sql.planner.exploratory.physical.CostComparison.INCOMPARABLE;
-import static io.trino.sql.planner.exploratory.physical.CostComparison.WORSE;
 import static io.trino.sql.planner.exploratory.physical.dummy.DummyCost.INFINITE;
-import static io.trino.sql.planner.exploratory.physical.dummy.DummyCost.UNKNOWN;
+import static io.trino.sql.planner.exploratory.physical.dummy.DummyCost.ONE;
 import static io.trino.sql.planner.exploratory.physical.dummy.DummyCost.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -44,37 +41,37 @@ class TestWinnersTier
     @Test
     public void testAddFirstWinner()
     {
-        var candidate = candidate(alternative(leafOperation(), UNKNOWN));
+        var candidate = candidate(alternative(leafOperation(), ONE));
         var winners = emptyWinners();
 
         winners.add(candidate);
 
         assertThat(winners).containsExactly(candidate);
-        assertThat(winners.winnerCost()).contains(UNKNOWN);
+        assertThat(winners.winnerCost()).contains(ONE);
     }
 
     @Test
     public void testAddExistingWinner()
     {
-        var originalCandidate = candidate(alternative(leafOperation(), UNKNOWN));
+        var originalCandidate = candidate(alternative(leafOperation(), ONE));
         var winners = emptyWinners();
         winners.add(originalCandidate);
 
-        for (DummyCost cost : List.of(ZERO, UNKNOWN, INFINITE)) {
+        for (DummyCost cost : List.of(ZERO, ONE, INFINITE)) {
             var duplicateCandidate = candidate(alternative(originalCandidate.alternativeKey().operation(), cost));
 
             assertThatThrownBy(() -> winners.add(duplicateCandidate))
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessageContaining("winner already exists");
             assertThat(winners).containsExactly(originalCandidate);
-            assertThat(winners.winnerCost()).contains(UNKNOWN);
+            assertThat(winners.winnerCost()).contains(ONE);
         }
     }
 
     @Test
     public void testAddBetterWinner()
     {
-        var worseCandidate = candidate(alternative(leafOperation(), UNKNOWN));
+        var worseCandidate = candidate(alternative(leafOperation(), ONE));
         var betterCandidate = candidate(alternative(alternativeLeafOperation(), ZERO));
         var winners = emptyWinners();
 
@@ -90,7 +87,7 @@ class TestWinnersTier
     public void testIgnoreWorseWinner()
     {
         var betterCandidate = candidate(alternative(leafOperation(), ZERO));
-        var worseCandidate = candidate(alternative(alternativeLeafOperation(), UNKNOWN));
+        var worseCandidate = candidate(alternative(alternativeLeafOperation(), ONE));
         var winners = emptyWinners();
 
         // add a better winner, then ignore a worse one
@@ -120,7 +117,7 @@ class TestWinnersTier
     public void testAddWorseSameTierWinner()
     {
         var betterCandidate = candidate(alternative(leafOperation(), ZERO));
-        var worseCandidate = candidate(alternative(alternativeLeafOperation(), UNKNOWN));
+        var worseCandidate = candidate(alternative(alternativeLeafOperation(), ONE));
         var winners = emptyWinnersWithCosts(new TestingCostDomain(true, SameTierRelation.FINITE));
 
         winners.add(betterCandidate);
@@ -133,7 +130,7 @@ class TestWinnersTier
     @Test
     public void testIgnoreIncomparableWinner()
     {
-        var originalCandidate = candidate(alternative(leafOperation(), UNKNOWN));
+        var originalCandidate = candidate(alternative(leafOperation(), ONE));
         var incomparableCandidate = candidate(alternative(alternativeLeafOperation(), ZERO));
         var winners = emptyWinnersWithCosts(new TestingCostDomain(false, SameTierRelation.EXACT));
 
@@ -141,13 +138,13 @@ class TestWinnersTier
         winners.add(incomparableCandidate);
 
         assertThat(winners).containsExactly(originalCandidate);
-        assertThat(winners.winnerCost()).contains(UNKNOWN);
+        assertThat(winners.winnerCost()).contains(ONE);
     }
 
     @Test
     public void testAddIncomparableSameTierWinner()
     {
-        var firstCandidate = candidate(alternative(leafOperation(), UNKNOWN));
+        var firstCandidate = candidate(alternative(leafOperation(), ONE));
         var secondCandidate = candidate(alternative(alternativeLeafOperation(), ZERO));
         var winners = emptyWinnersWithCosts(new TestingCostDomain(false, SameTierRelation.FINITE));
 
@@ -155,13 +152,13 @@ class TestWinnersTier
         winners.add(secondCandidate);
 
         assertThat(winners).containsExactly(firstCandidate, secondCandidate);
-        assertThat(winners.winnerCost()).contains(UNKNOWN);
+        assertThat(winners.winnerCost()).contains(ONE);
     }
 
     @Test
     public void testIncreasingCostOrderWithinApproximateTier()
     {
-        var worseCandidate = candidate(alternative(leafOperation(), UNKNOWN));
+        var worseCandidate = candidate(alternative(leafOperation(), ONE));
         var betterCandidate = candidate(alternative(alternativeLeafOperation(), ZERO));
         var winners = emptyWinnersWithCosts(new TestingCostDomain(true, SameTierRelation.FINITE));
 
@@ -178,7 +175,7 @@ class TestWinnersTier
     {
         var firstCandidate = candidate(alternative(leafOperation(), ZERO));
         var secondCandidate = candidate(alternative(alternativeLeafOperation(), ZERO));
-        var updatedFirstCandidate = candidate(alternative(firstCandidate.alternativeKey().operation(), UNKNOWN));
+        var updatedFirstCandidate = candidate(alternative(firstCandidate.alternativeKey().operation(), ONE));
         var winners = emptyWinners();
 
         // worsen one winner and keep the other best-tier winner
@@ -193,8 +190,8 @@ class TestWinnersTier
     @Test
     public void testUpdateWinnerToBetterCost()
     {
-        var firstCandidate = candidate(alternative(leafOperation(), UNKNOWN));
-        var secondCandidate = candidate(alternative(alternativeLeafOperation(), UNKNOWN));
+        var firstCandidate = candidate(alternative(leafOperation(), ONE));
+        var secondCandidate = candidate(alternative(alternativeLeafOperation(), ONE));
         var updatedFirstCandidate = candidate(alternative(firstCandidate.alternativeKey().operation(), ZERO));
         var winners = emptyWinners();
 
@@ -210,7 +207,7 @@ class TestWinnersTier
     @Test
     public void testUpdateWinnerWithNonTransitiveSameTier()
     {
-        var firstCandidate = candidate(alternative(leafOperation(), UNKNOWN));
+        var firstCandidate = candidate(alternative(leafOperation(), ONE));
         var secondCandidate = candidate(alternative(alternativeLeafOperation(), ZERO));
         var thirdCandidate = candidate(alternative(MemoOperationBuilder.from(leafOperation())
                 .withDialect("third_dialect")
@@ -218,7 +215,7 @@ class TestWinnersTier
         var updatedFirstCandidate = candidate(alternative(firstCandidate.alternativeKey().operation(), ZERO));
         var winners = emptyWinnersWithCosts(new TestingCostDomain(false, SameTierRelation.NON_TRANSITIVE));
 
-        // ZERO ~ UNKNOWN and UNKNOWN ~ INFINITE, but ZERO !~ INFINITE.
+        // ZERO ~ ONE and ONE ~ INFINITE, but ZERO !~ INFINITE.
         winners.add(firstCandidate);
         winners.add(secondCandidate);
         winners.add(thirdCandidate);
@@ -296,34 +293,22 @@ class TestWinnersTier
         @Override
         public CostComparison compare(DummyCost left, DummyCost right)
         {
-            if (left == right) {
-                return EQUAL;
-            }
-            if (left == INFINITE) {
-                return WORSE;
-            }
-            if (right == INFINITE) {
-                return BETTER;
-            }
-            if (!comparableFiniteCosts) {
+            if (!comparableFiniteCosts && !left.equals(right) && !left.isInfinite() && !right.isInfinite()) {
                 return INCOMPARABLE;
             }
-            if (left == ZERO) {
-                return BETTER;
-            }
-            return WORSE;
+            return delegate().compare(left, right);
         }
 
         @Override
         public boolean sameTier(DummyCost left, DummyCost right)
         {
-            if (left == right) {
+            if (left.equals(right)) {
                 return true;
             }
             return switch (sameTierRelation) {
                 case EXACT -> false;
-                case FINITE -> left != INFINITE && right != INFINITE;
-                case NON_TRANSITIVE -> left == UNKNOWN || right == UNKNOWN;
+                case FINITE -> !left.isInfinite() && !right.isInfinite();
+                case NON_TRANSITIVE -> left.equals(ONE) || right.equals(ONE);
             };
         }
     }

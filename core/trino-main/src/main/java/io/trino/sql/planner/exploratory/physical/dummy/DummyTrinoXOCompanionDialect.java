@@ -25,6 +25,13 @@ import io.trino.sql.planner.exploratory.physical.XOCompanionDialect;
 import java.util.List;
 import java.util.Optional;
 
+import static io.trino.sql.planner.exploratory.physical.dummy.DummyCost.ONE;
+
+/**
+ * Companion dialect of the dummy physical model. Every operation costs one
+ * operation on top of its children, so an operation's cost is strictly worse
+ * than the cost of each of its children, and every cycle adds cost.
+ */
 public final class DummyTrinoXOCompanionDialect
         implements XOCompanionDialect<DummyCost, DummyRequirement, DummyProperty>
 {
@@ -42,7 +49,7 @@ public final class DummyTrinoXOCompanionDialect
             List<DummyCost> childCosts,
             Optional<DummyCost> previousCost)
     {
-        return DummyCost.UNKNOWN;
+        return DummyCostDomain.INSTANCE.add(ONE, DummyCostDomain.INSTANCE.addAll(childCosts));
     }
 
     @Override

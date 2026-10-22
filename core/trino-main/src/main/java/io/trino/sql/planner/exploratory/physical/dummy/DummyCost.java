@@ -15,10 +15,36 @@ package io.trino.sql.planner.exploratory.physical.dummy;
 
 import io.trino.sql.planner.exploratory.physical.Cost;
 
-public enum DummyCost
+import static com.google.common.base.Preconditions.checkArgument;
+
+/**
+ * Cost in the dummy physical model: the number of operations in the costed
+ * program fragment. {@link #INFINITE} represents an unreachable or currently
+ * invalid choice.
+ */
+public record DummyCost(long operations)
         implements Cost
 {
-    UNKNOWN,
-    ZERO,
-    INFINITE,
+    public static final DummyCost ZERO = new DummyCost(0);
+    public static final DummyCost ONE = new DummyCost(1);
+    public static final DummyCost INFINITE = new DummyCost(Long.MAX_VALUE);
+
+    public DummyCost
+    {
+        checkArgument(operations >= 0, "operations is negative: %s", operations);
+    }
+
+    public boolean isInfinite()
+    {
+        return operations == INFINITE.operations();
+    }
+
+    @Override
+    public String toString()
+    {
+        if (isInfinite()) {
+            return "INFINITE";
+        }
+        return String.valueOf(operations);
+    }
 }
