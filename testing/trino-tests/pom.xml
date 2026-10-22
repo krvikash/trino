@@ -20,7 +20,7 @@
              and has repeatedly OOM'd at the default 3g heap (ENG-8410, ENG-26709) even after reducing per-task
              memory retention (task.info.max-age, see DistributedQueryRunner). Match the heap already given to
              other query-runner-heavy modules (trino-hive, starburst-stargate, starburst-buffer-exchange-tests
-             all use 4g; this module's own "gpu" profile already uses 4g) instead of the 3g default. The CI
+             all use 4g; this module's own "torin" profile already uses 4g) instead of the 3g default. The CI
              runner has 64GB RAM, so there is ample headroom for this module specifically. -->
         <air.test.jvmsize>4g</air.test.jvmsize>
     </properties>
@@ -806,7 +806,7 @@
         </profile>
 
         <profile>
-            <id>gpu</id>
+            <id>torin</id>
             <properties>
                 <!-- e.g. TestHiveGpuTpcdsQueries needs more than 3g test heap with query runner default setup -->
                 <air.test.jvmsize>4g</air.test.jvmsize>

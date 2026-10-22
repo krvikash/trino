@@ -749,7 +749,7 @@
                                 <exclude>**/TestGcsAndUnityMetastoreWithCredentialVendingDeltaConnectorSmokeTest.java</exclude>
                                 <exclude>**/TestAzureUnityMetastoreDeltaConnectorSmokeTest.java</exclude>
                                 <exclude>**/TestAzureUnityMetastoreWithCredentialsVendingDeltaConnectorSmokeTest.java</exclude>
-                                <!-- GPU tests run in the gpu profile only -->
+                                <!-- GPU tests run in the torin profile only -->
                                 <exclude>**/TestDeltaLakeGpuCompositeSplits.java</exclude>
                                 <exclude>**/TestDeltaLakeGpuCompositeSplitsConnectorTest.java</exclude>
                                 <exclude>**/TestDeltaLakeGpuNonUtcParquetTimeZone.java</exclude>
@@ -812,7 +812,7 @@
         </profile>
 
         <profile>
-            <id>gpu</id>
+            <id>torin</id>
             <build>
                 <plugins>
                     <plugin>

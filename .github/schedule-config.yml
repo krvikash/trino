@@ -41,7 +41,7 @@
       - plugin/trino-delta-lake
       - plugin/starburst-objectstore
       - testing/trino-tests
-  profile: gpu
+  profile: torin
   runners: [self-hosted, gha-fleet-ec2-1GPU-16CPU-64GB-amd64, latest]
   timeout-minutes: 45
   when:

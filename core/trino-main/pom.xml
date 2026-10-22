@@ -819,7 +819,7 @@
         </profile>
 
         <profile>
-            <id>gpu</id>
+            <id>torin</id>
             <build>
                 <plugins>
                     <plugin>

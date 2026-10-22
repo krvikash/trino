@@ -734,7 +734,7 @@
                         <artifactId>maven-surefire-plugin</artifactId>
                         <configuration>
                             <excludes combine.children="append">
-                                <!-- gpu profile -->
+                                <!-- torin profile -->
                                 <exclude>**/TestHiveGpuParquetPageSource.java</exclude>
                                 <exclude>**/TestHiveGpuConnectorSmokeTest.java</exclude>
                                 <exclude>**/TestHiveGpuCacheConnectorSmokeTest.java</exclude>
@@ -742,7 +742,7 @@
                                 <exclude>**/TestHiveGpuJoinQueries.java</exclude>
                                 <exclude>**/TestHiveGpuQueries.java</exclude>
                                 <exclude>**/TestHiveGpuS3MinioQueries.java</exclude>
-                                <!-- end of gpu profile -->
+                                <!-- end of torin profile -->
                                 <exclude>**/TestHiveS3AndGlueAws.java</exclude>
                                 <exclude>**/TestHiveS3AccessPoint.java</exclude>
                                 <exclude>**/TestS3AndUnityMetastoreHiveConnectorSmokeTest.java</exclude>
@@ -761,7 +761,7 @@
         </profile>
 
         <profile>
-            <id>gpu</id>
+            <id>torin</id>
             <build>
                 <plugins>
                     <plugin>

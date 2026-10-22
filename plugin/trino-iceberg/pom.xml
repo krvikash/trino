@@ -1133,7 +1133,7 @@
                         <artifactId>maven-surefire-plugin</artifactId>
                         <configuration>
                             <excludes>
-                                <!-- gpu profile -->
+                                <!-- torin profile -->
                                 <exclude>**/TestIcebergGpuCompositeSplitsConnectorTest.java</exclude>
                                 <exclude>**/TestIcebergGpuCompositeSplitsPartitionValues.java</exclude>
                                 <exclude>**/TestIcebergGpuConnectorSmokeTest.java</exclude>
@@ -1142,7 +1142,7 @@
                                 <exclude>**/TestIcebergGpuJoinQueries.java</exclude>
                                 <exclude>**/TestIcebergGpuNonUtcTimeZone.java</exclude>
                                 <exclude>**/TestIcebergGpuQueries.java</exclude>
-                                <!-- end of gpu profile -->
+                                <!-- end of torin profile -->
                                 <exclude>**/Test*Avro*.java</exclude>
                                 <exclude>**/Test*Floci*.java</exclude>
                                 <exclude>**/TestIcebergGlueCatalogMaterializedViewAutoRefreshTest.java</exclude>
@@ -1178,7 +1178,7 @@
         </profile>
 
         <profile>
-            <id>gpu</id>
+            <id>torin</id>
             <build>
                 <plugins>
                     <plugin>

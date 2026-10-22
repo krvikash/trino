@@ -184,7 +184,7 @@ and re-run the script. The same applies to any later build on the host.
 Run a couple of GPU tests:
 
 ```bash
-ssh <name> 'bash -lc "cd ~/cork && ./mvnw -B -pl core/trino-main -P gpu test -Dtest=TestGpuConcat,TestGpuLet -Dair.check.skip-all=true"'
+ssh <name> 'bash -lc "cd ~/cork && ./mvnw -B -pl core/trino-main -P torin test -Dtest=TestGpuConcat,TestGpuLet -Dair.check.skip-all=true"'
 ```
 
 ## Working on the host
@@ -221,7 +221,7 @@ Later pushes update the clean working tree in place (`updateInstead`).
 
 ```bash
 ./mvnw -B -T1C -pl <modules>,lib/starburst-testing-auto-configuration -am -DskipTests -Dair.check.skip-all=true install
-./mvnw -B -pl <module> -P gpu test -Dtest='Class#m1+m2,Other' -Dair.check.skip-all=true
+./mvnw -B -pl <module> -P torin test -Dtest='Class#m1+m2,Other' -Dair.check.skip-all=true
 ```
 
 - Run the install once per clone, and again after any change in a module upstream of the one you test.

@@ -892,7 +892,7 @@
                                 <exclude>**/Test*ReadCorruptedTables.java</exclude>
                                 <exclude>**/Test*Glue*.java</exclude>
                                 <exclude>**/Test*S3*.java</exclude>
-                                <!-- except gpu profile -->
+                                <!-- except torin profile -->
                                 <exclude>**/Test*Gpu*.java</exclude>
                             </excludes>
                         </configuration>
@@ -929,7 +929,7 @@
                                 <!-- except cloud-tests profile -->
                                 <exclude>**/Test*Glue*.java</exclude>
                                 <exclude>**/Test*S3*.java</exclude>
-                                <!-- except gpu profile -->
+                                <!-- except torin profile -->
                                 <exclude>**/Test*Gpu*.java</exclude>
                             </excludes>
                         </configuration>
@@ -954,7 +954,7 @@
                                 <!-- except cloud-tests profile -->
                                 <exclude>**/Test*Glue*.java</exclude>
                                 <exclude>**/Test*S3*.java</exclude>
-                                <!-- except gpu profile -->
+                                <!-- except torin profile -->
                                 <exclude>**/Test*Gpu*.java</exclude>
                             </excludes>
                         </configuration>
@@ -983,7 +983,7 @@
         </profile>
 
         <profile>
-            <id>gpu</id>
+            <id>torin</id>
             <build>
                 <plugins>
                     <plugin>
