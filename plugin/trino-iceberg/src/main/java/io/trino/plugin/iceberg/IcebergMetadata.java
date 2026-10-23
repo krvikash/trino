@@ -899,7 +899,7 @@ public class IcebergMetadata
 
             return tableHandleForSnapshot(
                     session,
-                    IcebergUtil.toSchemaTableName(table.name()),
+                    tableName,
                     table,
                     OptionalLong.of(snapshotId),
                     schemaFor(table, snapshotId),
@@ -907,7 +907,7 @@ public class IcebergMetadata
                     branch,
                     true);
         }
-        return tableHandleForCurrentSnapshot(session, IcebergUtil.toSchemaTableName(table.name()), table, Optional.empty());
+        return tableHandleForCurrentSnapshot(session, tableName, table, Optional.empty());
     }
 
     private static void validateTableForTrino(BaseTable table, OptionalLong tableSnapshotId)

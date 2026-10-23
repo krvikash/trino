@@ -22,6 +22,8 @@ import io.trino.testing.QueryRunner;
 import org.junit.jupiter.api.Test;
 
 import java.io.File;
+import java.net.URI;
+import java.util.List;
 import java.util.Map;
 
 import static com.google.common.base.Verify.verify;
@@ -39,10 +41,17 @@ public abstract class BaseSchemaMappingRulesTest
     public static final String REAL_SCHEMA = "sales";
     private static final String BUCKET = "test-router-queries-" + randomNameSuffix();
 
+    private static final String CROSS_ACCOUNT_CATALOG = "cross_account_catalog";
+    private static final String DEFAULT_CATALOG_ID = "111111111111";
+    private static final String MAPPED_PREFIX = "mapped_";
+    private static final String MAPPED_CATALOG_ID = "222222222222";
+    private static final String MAPPED_ACCOUNT_TABLE_PREFIX = "mapped_account_";
+
     private final String connectorName;
     private final Plugin plugin;
     private final Map<String, String> catalogProperties;
     protected FlociS3AndGlue floci;
+    private RecordingGlueProxy glueProxy;
 
     public BaseSchemaMappingRulesTest(String connectorName, Plugin plugin, Map<String, String> catalogProperties)
     {
@@ -79,7 +88,84 @@ public abstract class BaseSchemaMappingRulesTest
 
         queryRunner.execute("CREATE SCHEMA " + CATALOG + "." + REAL_SCHEMA + " WITH (location = 's3://" + BUCKET + "/" + REAL_SCHEMA + "')");
 
+        // Floci ignores CatalogId, so record requests to verify routing, and deny the default account
+        // access to mapped_account_* tables like Lake Formation does for tables of another account
+        Map<String, String> glueProperties = floci.s3AndGlueProperties();
+        glueProxy = closeAfterClass(new RecordingGlueProxy(
+                URI.create(glueProperties.get("hive.metastore.glue.endpoint-url")),
+                request -> request.operation().equals("GetTable")
+                        && request.body().contains("\"CatalogId\":\"" + DEFAULT_CATALOG_ID + "\"")
+                        && request.body().contains("\"Name\":\"" + MAPPED_ACCOUNT_TABLE_PREFIX)));
+        ImmutableMap.Builder<String, String> crossAccountProperties = ImmutableMap.builder();
+        crossAccountProperties.putAll(glueProperties);
+        crossAccountProperties.putAll(catalogProperties);
+        crossAccountProperties.put("hive.metastore.glue.endpoint-url", glueProxy.endpoint().toString());
+        crossAccountProperties.put("hive.metastore.glue.catalogid", DEFAULT_CATALOG_ID);
+        crossAccountProperties.put("hive.metastore.glue.schema-mapping-rules", MAPPED_PREFIX + ":" + MAPPED_CATALOG_ID);
+        crossAccountProperties.put("fs.s3.enabled", "true");
+        queryRunner.createCatalog(CROSS_ACCOUNT_CATALOG, connectorName, crossAccountProperties.buildKeepingLast());
+
         return queryRunner;
+    }
+
+    @Test
+    void testExplain()
+    {
+        String table = "explain_" + randomNameSuffix();
+        assertUpdate("CREATE TABLE " + realTable(table) + " (id INT)");
+
+        assertQuerySucceeds("EXPLAIN SELECT * FROM " + prefixedTable(table));
+        assertQuerySucceeds("EXPLAIN (TYPE VALIDATE) SELECT * FROM " + prefixedTable(table));
+
+        assertThat((String) computeScalar("EXPLAIN SELECT * FROM " + prefixedTable(table)))
+                .containsAnyOf(
+                        "%s:%s:%s".formatted(CATALOG, prefixedSchemaName(REAL_SCHEMA), table), // HiveTableHandle.toString
+                        "%s:%s.%s".formatted(CATALOG, prefixedSchemaName(REAL_SCHEMA), table)); // IcebergTableHandle.toString
+        assertUpdate("DROP TABLE " + realTable(table));
+    }
+
+    @Test
+    void testSelectSendsMappedCatalogId()
+    {
+        String table = MAPPED_ACCOUNT_TABLE_PREFIX + randomNameSuffix();
+        assertUpdate("CREATE TABLE " + realTable(table) + "(id INT)");
+        assertUpdate("INSERT INTO " + realTable(table) + " VALUES 1, 2", 2);
+
+        assertThat(computeActual("SELECT * FROM %s.%s%s.%s".formatted(CROSS_ACCOUNT_CATALOG, MAPPED_PREFIX, REAL_SCHEMA, table)).getOnlyColumnAsSet())
+                .containsExactlyInAnyOrder(1, 2);
+        assertThat(getTableRequests(table))
+                .isNotEmpty()
+                .allSatisfy(body -> assertThat(body)
+                        .contains("\"CatalogId\":\"" + MAPPED_CATALOG_ID + "\"")
+                        .contains("\"DatabaseName\":\"" + REAL_SCHEMA + "\""));
+
+        assertUpdate("DROP TABLE " + realTable(table));
+    }
+
+    @Test
+    void testSelectSendsDefaultCatalogId()
+    {
+        String table = "default_account_" + randomNameSuffix();
+        assertUpdate("CREATE TABLE " + realTable(table) + "(id INT)");
+        assertUpdate("INSERT INTO " + realTable(table) + " VALUES 1, 2", 2);
+
+        assertThat(computeActual("SELECT * FROM %s.%s.%s".formatted(CROSS_ACCOUNT_CATALOG, REAL_SCHEMA, table)).getOnlyColumnAsSet())
+                .containsExactlyInAnyOrder(1, 2);
+        assertThat(getTableRequests(table))
+                .isNotEmpty()
+                .allSatisfy(body -> assertThat(body)
+                        .contains("\"CatalogId\":\"" + DEFAULT_CATALOG_ID + "\"")
+                        .contains("\"DatabaseName\":\"" + REAL_SCHEMA + "\""));
+
+        assertUpdate("DROP TABLE " + realTable(table));
+    }
+
+    private List<String> getTableRequests(String table)
+    {
+        return glueProxy.requests("GetTable").stream()
+                .map(RecordingGlueProxy.GlueRequest::body)
+                .filter(body -> body.contains("\"Name\":\"" + table + "\""))
+                .toList();
     }
 
     @Test

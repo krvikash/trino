@@ -37,21 +37,6 @@ final class TestIcebergSchemaMappingRules
     }
 
     @Test
-    void testExplain()
-    {
-        String table = "explain_" + randomNameSuffix();
-        assertUpdate("CREATE TABLE " + realTable(table) + " (id INT)");
-
-        assertQuerySucceeds("EXPLAIN SELECT * FROM " + prefixedTable(table));
-        assertQuerySucceeds("EXPLAIN (TYPE VALIDATE) SELECT * FROM " + prefixedTable(table));
-
-        assertThat((String) computeScalar("EXPLAIN SELECT * FROM " + prefixedTable(table)))
-                .contains("%s:%s.%s".formatted(CATALOG, REAL_SCHEMA, table));
-
-        assertUpdate("DROP TABLE " + realTable(table));
-    }
-
-    @Test
     void testRenameTable()
     {
         String source = "rename_table_source_" + randomNameSuffix();
