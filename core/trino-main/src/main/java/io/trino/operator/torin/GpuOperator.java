@@ -393,6 +393,11 @@ public abstract class GpuOperator
     @Override
     public @Nullable Page getOutput()
     {
+        // cuDF uses the per-thread default stream (PTDS), which is bound to the OS thread;
+        // A virtual thread can switch carrier threads, leading to incorrect results if streams aren't synced.
+        // Cuda.DEFAULT_STREAM.sync() (or equivalent) is mandatory when computation spans OS threads.
+        checkState(!Thread.currentThread().isVirtual(), "GpuOperator must not run on a virtual thread: %s", Thread.currentThread());
+
         if (finished) {
             return null;
         }
