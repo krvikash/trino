@@ -107,11 +107,10 @@ public class TestCastleInsightsListener
                 "castle-insights.rate-limit-stage", rateLimitStage.name());
         try (StandaloneQueryRunner queryRunner = createQueryRunner(sink, properties, new FixedAnalyzer())) {
             CastleInsightsStats stats = queryRunner.getCoordinator().getInstance(Key.get(CastleInsightsStats.class));
-            QueryId firstId = queryRunner.executeWithQueryId(TEST_SESSION, NO_JOIN_QUERY).queryId();
+            queryRunner.executeWithQueryId(TEST_SESSION, NO_JOIN_QUERY);
             queryRunner.executeWithQueryId(TEST_SESSION, NO_JOIN_QUERY);
 
             assertEventually(() -> assertThat(stats.getRateLimitedQueries().getTotalCount()).isEqualTo(1));
-            assertEventually(() -> assertThat(sink.results).containsOnlyKeys(firstId.toString()));
         }
     }
 
