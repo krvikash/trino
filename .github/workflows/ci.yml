@@ -100,7 +100,8 @@ jobs:
     runs-on: [self-hosted, gha-fleet-ec2-4cpu-16gb-amd64, latest]
     outputs:
       docs: ${{ steps.filter.outputs.docs }}
-      non_docs: ${{ steps.filter.outputs.non_docs }}
+      # Jobs run only when the change is outside docs/ and not one that cannot affect them (see non-code-filter).
+      non_docs: ${{ steps.filter.outputs.non_docs == 'true' && steps.non-code-filter.outputs.code == 'true' }}
     steps:
       - uses: dorny/paths-filter@7b450fff21473bca461d4b92ce414b9d0420d706 # v4
         id: filter
@@ -111,6 +112,43 @@ jobs:
           filters: |
             docs: 'docs/**'
             non_docs: '!docs/**'
+      # Files that cannot affect the gated jobs. With predicate-quantifier 'every' a file counts as
+      # code only when it matches '**' and none of the '!' entries, so a PR made only of these files
+      # skips them. This can only skip: non_docs above still has to select the change too.
+      - uses: dorny/paths-filter@7b450fff21473bca461d4b92ce414b9d0420d706 # v4
+        id: non-code-filter
+        if: github.event_name == 'pull_request'
+        with:
+          predicate-quantifier: every
+          filters: |
+            code:
+              - '**'
+              # Only root-level Markdown: module READMEs are attached to the published artifacts.
+              - '!*.md'
+              - '!.github/*.md'
+              - '!.github/ISSUE_TEMPLATE/**'
+              - '!.github/notable-changes/**'
+              - '!.github/*.png'
+              - '!.claude/**'
+              - '!.idea/**'
+              - '!.editorconfig'
+              - '!.gitignore'
+              - '!.coderabbit.yaml'
+              # Standalone workflows; ci.yml calls none of them.
+              - '!.github/workflows/auto-merge-galaxy-bump.yml'
+              - '!.github/workflows/cancel-closed-pr-runs.yml'
+              - '!.github/workflows/cancel-merge-queue-workflow.yml'
+              - '!.github/workflows/cancel-stale-merge-queue.yml'
+              - '!.github/workflows/jira-automation.yml'
+              - '!.github/workflows/labeler.yml'
+              - '!.github/workflows/milestone.yml'
+              - '!.github/workflows/notable-changes-merge-protection.yaml'
+              - '!.github/workflows/notable-changes.yaml'
+              - '!.github/workflows/ok-to-test.yml'
+              - '!.github/workflows/on-ci-completion.yaml'
+              - '!.github/workflows/scheduled-tagging.yaml'
+              - '!.github/workflows/stale.yml'
+              - '!.github/workflows/upload-test-results.yml'
 
   maven-checks:
     runs-on: [self-hosted, gha-fleet-ec2-4cpu-16gb-amd64, latest]
