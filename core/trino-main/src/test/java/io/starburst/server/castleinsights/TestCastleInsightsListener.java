@@ -99,6 +99,7 @@ public class TestCastleInsightsListener
     @ParameterizedTest
     @EnumSource(RateLimitStage.class)
     public void testDropsResultsBeyondRateLimit(RateLimitStage rateLimitStage)
+            throws InterruptedException
     {
         CapturingSink sink = new CapturingSink();
         Map<String, String> properties = ImmutableMap.of(
@@ -109,8 +110,11 @@ public class TestCastleInsightsListener
             CastleInsightsStats stats = queryRunner.getCoordinator().getInstance(Key.get(CastleInsightsStats.class));
             queryRunner.executeWithQueryId(TEST_SESSION, NO_JOIN_QUERY);
             queryRunner.executeWithQueryId(TEST_SESSION, NO_JOIN_QUERY);
-
             assertEventually(() -> assertThat(stats.getRateLimitedQueries().getTotalCount()).isEqualTo(1));
+
+            // no new entries after grace period
+            Thread.sleep(200);
+            assertThat(stats.getRateLimitedQueries().getTotalCount()).isEqualTo(1);
         }
     }
 
