@@ -1360,6 +1360,8 @@ public abstract class BaseClickHouseTypeMapping
                 // Values outside this range gets stored incorrectly in ClickHouse.
                 // For example, 1970-01-01 00:00:00 in Asia/Kathmandu could be stored as 1970-01-01 05:30:00
                 .addRoundTrip(inputTypeFactory.apply(KATHMANDU), "'1970-01-01 00:00:00'", TIMESTAMP_TZ_SECONDS, "TIMESTAMP '1970-01-01 05:30:00 +05:30'")
+                // Monrovia used -00:44:30 until 1972, which Trino cannot represent as a fixed offset
+                .addRoundTrip(inputTypeFactory.apply(ZoneId.of("Africa/Monrovia")), "'1970-06-01 00:00:00'", TIMESTAMP_TZ_SECONDS, "TIMESTAMP '1970-06-01 00:00:00 Africa/Monrovia'")
 
                 // after epoch
                 .addRoundTrip(inputTypeFactory.apply(UTC), "'2019-03-18 10:01:17'", TIMESTAMP_TZ_SECONDS, "TIMESTAMP '2019-03-18 10:01:17 Z'")
@@ -1433,6 +1435,8 @@ public abstract class BaseClickHouseTypeMapping
                 .addRoundTrip(inputTypeUtc, "0%s".formatted(nanos), expectedType, "TIMESTAMP '1970-01-01 00:00:00%s Z'".formatted(nanos))
                 .addRoundTrip(inputTypeUtc, "'1970-01-01 00:00:00%s'".formatted(nanos), expectedType, "TIMESTAMP '1970-01-01 00:00:00%s Z'".formatted(nanos))
                 .addRoundTrip(inputTypeKathmandu, "'1970-01-01 00:00:00%s'".formatted(nanos), expectedType, "TIMESTAMP '1970-01-01 00:00:00%s +05:30'".formatted(nanos))
+                // Monrovia used -00:44:30 until 1972, which Trino cannot represent as a fixed offset
+                .addRoundTrip(DATETIME64_TYPE_FACTORY.apply(precision, ZoneId.of("Africa/Monrovia")), "'1970-06-01 00:00:00%s'".formatted(nanos), expectedType, "TIMESTAMP '1970-06-01 00:00:00%s Africa/Monrovia'".formatted(nanos))
 
                 // after epoch
                 .addRoundTrip(inputTypeUtc, "'2019-03-18 10:01:17%s'".formatted(nanos), expectedType, "TIMESTAMP '2019-03-18 10:01:17%s Z'".formatted(nanos))

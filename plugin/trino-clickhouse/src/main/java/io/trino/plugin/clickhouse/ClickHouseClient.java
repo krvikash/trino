@@ -151,6 +151,7 @@ import static io.trino.plugin.clickhouse.ClickHouseTableProperties.PARTITION_BY_
 import static io.trino.plugin.clickhouse.ClickHouseTableProperties.PRIMARY_KEY_PROPERTY;
 import static io.trino.plugin.clickhouse.ClickHouseTableProperties.SAMPLE_BY_PROPERTY;
 import static io.trino.plugin.clickhouse.ClickHouseTypeUtils.longTimestampWithTimeZone;
+import static io.trino.plugin.clickhouse.ClickHouseTypeUtils.packShortTimestampWithTimeZone;
 import static io.trino.plugin.clickhouse.ClickHouseTypeUtils.normalizeArrayObject;
 import static io.trino.plugin.clickhouse.ClickHouseTypeUtils.toObjectArray;
 import static io.trino.plugin.clickhouse.ClickHouseTypeUtils.writeScalarElement;
@@ -203,7 +204,6 @@ import static io.trino.spi.StandardErrorCode.SCHEMA_NOT_EMPTY;
 import static io.trino.spi.connector.ConnectorMetadata.MODIFYING_ROWS_MESSAGE;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
-import static io.trino.spi.type.DateTimeEncoding.packDateTimeWithZone;
 import static io.trino.spi.type.DateTimeEncoding.unpackMillisUtc;
 import static io.trino.spi.type.DateType.DATE;
 import static io.trino.spi.type.DecimalType.createDecimalType;
@@ -1146,8 +1146,7 @@ public class ClickHouseClient
     {
         return (resultSet, columnIndex) -> {
             ZonedDateTime zonedDateTime = resultSet.getObject(columnIndex, ZonedDateTime.class);
-            // clickhouse-jdbc 0.10+ returns a named zone (e.g. Asia/Kathmandu); normalize to fixed offset (eg: +05:45) to match Trino's representation
-            return packDateTimeWithZone(zonedDateTime.toInstant().toEpochMilli(), zonedDateTime.withFixedOffsetZone().getZone().getId());
+            return packShortTimestampWithTimeZone(zonedDateTime);
         };
     }
 

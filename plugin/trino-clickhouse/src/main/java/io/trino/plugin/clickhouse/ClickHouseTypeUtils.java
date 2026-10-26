@@ -55,6 +55,8 @@ import static io.trino.spi.StandardErrorCode.NOT_SUPPORTED;
 import static io.trino.spi.type.DateTimeEncoding.packDateTimeWithZone;
 import static io.trino.spi.type.LongTimestampWithTimeZone.fromEpochSecondsAndFraction;
 import static io.trino.spi.type.StandardTypes.IPADDRESS;
+import static io.trino.spi.type.TimeZoneKey.getTimeZoneKey;
+import static io.trino.spi.type.TimeZoneKey.getTimeZoneKeyForOffset;
 import static io.trino.spi.type.Timestamps.PICOSECONDS_PER_NANOSECOND;
 import static io.trino.spi.type.UuidType.javaUuidToTrinoUuid;
 import static java.lang.Float.floatToRawIntBits;
@@ -168,20 +170,28 @@ final class ClickHouseTypeUtils
         };
     }
 
-    // clickhouse-jdbc 0.10+ returns a named zone (e.g. Asia/Kathmandu); normalize to fixed offset (e.g. +05:45) to match Trino's representation
-    private static long packShortTimestampWithTimeZone(ZonedDateTime zonedDateTime)
+    static long packShortTimestampWithTimeZone(ZonedDateTime zonedDateTime)
     {
-        ZonedDateTime normalized = zonedDateTime.withFixedOffsetZone();
-        return packDateTimeWithZone(normalized.toInstant().toEpochMilli(), TimeZoneKey.getTimeZoneKey(normalized.getZone().getId()));
+        return packDateTimeWithZone(zonedDateTime.toInstant().toEpochMilli(), toTimeZoneKey(zonedDateTime));
     }
 
     static LongTimestampWithTimeZone longTimestampWithTimeZone(ZonedDateTime zonedDateTime)
     {
-        ZonedDateTime normalized = zonedDateTime.withFixedOffsetZone();
         return fromEpochSecondsAndFraction(
-                normalized.toEpochSecond(),
-                (long) normalized.getNano() * PICOSECONDS_PER_NANOSECOND,
-                TimeZoneKey.getTimeZoneKey(normalized.getZone().getId()));
+                zonedDateTime.toEpochSecond(),
+                (long) zonedDateTime.getNano() * PICOSECONDS_PER_NANOSECOND,
+                toTimeZoneKey(zonedDateTime));
+    }
+
+    private static TimeZoneKey toTimeZoneKey(ZonedDateTime zonedDateTime)
+    {
+        // clickhouse-jdbc 0.10+ returns a named zone (e.g. Asia/Kathmandu); normalize to fixed offset (e.g. +05:45) to match Trino's representation
+        int offsetSeconds = zonedDateTime.getOffset().getTotalSeconds();
+        if (offsetSeconds % 60 == 0) {
+            return getTimeZoneKeyForOffset(offsetSeconds / 60);
+        }
+        // Trino has no fixed-offset zone with seconds (e.g. -00:44:30 in Africa/Monrovia before 1972), so keep the named zone
+        return getTimeZoneKey(zonedDateTime.getZone().getId());
     }
 
     private static ZoneId timeZoneId(TimeZone elementTimeZone)
