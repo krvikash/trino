@@ -76,6 +76,7 @@ import io.trino.spi.type.Decimals;
 import io.trino.spi.type.Int128;
 import io.trino.spi.type.NumberType;
 import io.trino.spi.type.StandardTypes;
+import io.trino.spi.type.TimeZoneKey;
 import io.trino.spi.type.TimestampType;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.TypeDescriptor;
@@ -181,6 +182,8 @@ import static io.trino.spi.type.DoubleType.DOUBLE;
 import static io.trino.spi.type.IntegerType.INTEGER;
 import static io.trino.spi.type.RealType.REAL;
 import static io.trino.spi.type.SmallintType.SMALLINT;
+import static io.trino.spi.type.TimeZoneKey.getTimeZoneKey;
+import static io.trino.spi.type.TimeZoneKey.getTimeZoneKeyForOffset;
 import static io.trino.spi.type.TimestampType.TIMESTAMP_MILLIS;
 import static io.trino.spi.type.TimestampType.TIMESTAMP_SECONDS;
 import static io.trino.spi.type.TimestampWithTimeZoneType.TIMESTAMP_TZ_SECONDS;
@@ -994,9 +997,19 @@ public class ClickHouseClient
     {
         return (resultSet, columnIndex) -> {
             ZonedDateTime zonedDateTime = resultSet.getObject(columnIndex, ZonedDateTime.class);
-            // clickhouse-jdbc 0.10+ returns a named zone (e.g. Asia/Kathmandu); normalize to fixed offset (eg: +05:45) to match Trino's representation
-            return packDateTimeWithZone(zonedDateTime.toInstant().toEpochMilli(), zonedDateTime.withFixedOffsetZone().getZone().getId());
+            return packDateTimeWithZone(zonedDateTime.toInstant().toEpochMilli(), toTimeZoneKey(zonedDateTime));
         };
+    }
+
+    private static TimeZoneKey toTimeZoneKey(ZonedDateTime zonedDateTime)
+    {
+        // clickhouse-jdbc 0.10+ returns a named zone (e.g. Asia/Kathmandu); normalize to fixed offset (eg: +05:45) to match Trino's representation
+        int offsetSeconds = zonedDateTime.getOffset().getTotalSeconds();
+        if (offsetSeconds % 60 == 0) {
+            return getTimeZoneKeyForOffset(offsetSeconds / 60);
+        }
+        // Trino has no fixed-offset zone with seconds (e.g. -00:44:30 in Africa/Monrovia before 1972), so keep the named zone
+        return getTimeZoneKey(zonedDateTime.getZone().getId());
     }
 
     private static LongWriteFunction shortTimestampWithTimeZoneWriteFunction(ClickHouseVersionUtils version, TimeZone columnTimeZone)
